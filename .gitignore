@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[oc]
+.venv/
+dist/
+build/
+*.egg-info/
+
+# uv
+.python-version
+
+# Environment
+.env
+*.local
+
+# Firebase / GCP
+*-service-account.json
+firebase-debug.log
+.firebase/
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.env*
+!frontend/.env.example
+
+# Backend env
+backend/.env*
+!backend/.env.example
+
+# OS
+.DS_Store
