@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from app.db.models import List, ListInvite, ListMember, User
@@ -26,43 +26,29 @@ def get_members(
     return members
 
 
-@router.post("")
+@router.post("", status_code=status.HTTP_202_ACCEPTED)
 def add_member(
     body: AddMemberRequest,
-    response: Response,
     list_and_user: tuple = Depends(require_owner),
     session: Session = Depends(get_session),
 ):
     lst, _ = list_and_user
-    target_user = session.exec(select(User).where(User.email == body.email)).first()
 
-    if target_user is None:
-        # User not registered yet — create a pending invite
-        invite = ListInvite(list_id=lst.id, invited_email=body.email, invited_by=lst.owner_id)
-        session.add(invite)
-        _bump(lst, session)
-        session.commit()
-        response.status_code = status.HTTP_202_ACCEPTED
-        return {"status": "invited", "email": body.email}
-
-    existing = session.exec(
-        select(ListMember).where(ListMember.list_id == lst.id, ListMember.user_id == target_user.id)
+    # Check for duplicate pending invite
+    existing_invite = session.exec(
+        select(ListInvite).where(
+            ListInvite.list_id == lst.id,
+            ListInvite.invited_email == body.email,
+        )
     ).first()
-    if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already a member")
+    if existing_invite:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Invite already pending")
 
-    member = ListMember(list_id=lst.id, user_id=target_user.id)
-    session.add(member)
+    invite = ListInvite(list_id=lst.id, invited_email=body.email, invited_by=lst.owner_id)
+    session.add(invite)
     _bump(lst, session)
     session.commit()
-    session.refresh(member)
-    response.status_code = status.HTTP_201_CREATED
-    return MemberRead(
-        id=member.id,
-        user_id=member.user_id,
-        list_id=member.list_id,
-        created_at=member.created_at,
-    )
+    return {"status": "invited", "email": body.email}
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

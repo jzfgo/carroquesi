@@ -15,12 +15,20 @@ def test_get_members(client: TestClient):
     assert len(response.json()) == 1  # owner is a member
 
 
-def test_add_member_by_email(client: TestClient, other_user, session: Session):
+def test_add_member_creates_invite(client: TestClient, other_user, session: Session):
+    from app.db.models import ListInvite
     lst = _create_list(client)
+    # Even when the email matches an existing user, an invite is created (not direct membership)
     response = client.post(f"/lists/{lst['id']}/members", json={"email": other_user.email})
-    assert response.status_code == 201
-    members = session.exec(select(ListMember).where(ListMember.list_id == lst["id"])).all()
-    assert len(members) == 2
+    assert response.status_code == 202
+    invite = session.exec(select(ListInvite).where(ListInvite.list_id == lst["id"])).first()
+    assert invite is not None
+    assert invite.invited_email == other_user.email
+    # No direct membership created
+    members = session.exec(
+        select(ListMember).where(ListMember.list_id == lst["id"])
+    ).all()
+    assert len(members) == 1  # only the owner
 
 
 def test_add_member_unknown_email_creates_invite(client: TestClient, session: Session):
@@ -35,16 +43,16 @@ def test_add_member_unknown_email_creates_invite(client: TestClient, session: Se
 
 def test_non_owner_cannot_add_member(client: TestClient, other_client: TestClient, other_user):
     lst = _create_list(client)
-    # Make other_user a member first
-    client.post(f"/lists/{lst['id']}/members", json={"email": other_user.email})
-    # other_user tries to add someone else
     response = other_client.post(f"/lists/{lst['id']}/members", json={"email": "third@example.com"})
     assert response.status_code == 403
 
 
-def test_remove_member(client: TestClient, other_user, session: Session):
+def test_remove_member(client: TestClient, other_user, session: Session, user):
     lst = _create_list(client)
-    client.post(f"/lists/{lst['id']}/members", json={"email": other_user.email})
+    # Add other_user as member directly (bypasses invite flow — test setup only)
+    member = ListMember(list_id=lst["id"], user_id=other_user.id)
+    session.add(member)
+    session.commit()
     response = client.delete(f"/lists/{lst['id']}/members/{other_user.id}")
     assert response.status_code == 204
     members = session.exec(
@@ -53,8 +61,11 @@ def test_remove_member(client: TestClient, other_user, session: Session):
     assert len(members) == 0
 
 
-def test_member_can_remove_themselves(client: TestClient, other_client: TestClient, other_user):
+def test_member_can_remove_themselves(client: TestClient, other_client: TestClient, other_user, session: Session):
     lst = _create_list(client)
-    client.post(f"/lists/{lst['id']}/members", json={"email": other_user.email})
+    # Add other_user as member directly (bypasses invite flow — test setup only)
+    member = ListMember(list_id=lst["id"], user_id=other_user.id)
+    session.add(member)
+    session.commit()
     response = other_client.delete(f"/lists/{lst['id']}/members/{other_user.id}")
     assert response.status_code == 204
