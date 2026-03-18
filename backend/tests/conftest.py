@@ -1,0 +1,82 @@
+import os
+
+# Set env vars before any app modules are imported so pydantic-settings picks
+# them up and the module-level engine creation in app.db.session uses SQLite.
+os.environ.setdefault("DATABASE_URL", "sqlite://")
+os.environ.setdefault("FIREBASE_CREDENTIALS_PATH", "firebase-credentials.json")
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel.pool import StaticPool
+
+from app.db.models import User
+from app.db.session import get_session
+from app.dependencies import get_current_user
+from app.main import app
+
+
+@pytest.fixture(name="engine")
+def engine_fixture():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SQLModel.metadata.create_all(engine)
+    yield engine
+    SQLModel.metadata.drop_all(engine)
+
+
+@pytest.fixture(name="session")
+def session_fixture(engine):
+    with Session(engine) as session:
+        yield session
+
+
+@pytest.fixture(name="user")
+def user_fixture(session: Session) -> User:
+    user = User(firebase_uid="uid-alice", display_name="Alice", email="alice@example.com")
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+@pytest.fixture(name="other_user")
+def other_user_fixture(session: Session) -> User:
+    user = User(firebase_uid="uid-bob", display_name="Bob", email="bob@example.com")
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+@pytest.fixture(name="client")
+def client_fixture(session: Session, user: User):
+    def _get_session():
+        yield session
+
+    def _get_current_user():
+        return user
+
+    app.dependency_overrides[get_session] = _get_session
+    app.dependency_overrides[get_current_user] = _get_current_user
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="other_client")
+def other_client_fixture(session: Session, other_user: User):
+    def _get_session():
+        yield session
+
+    def _get_current_user():
+        return other_user
+
+    app.dependency_overrides[get_session] = _get_session
+    app.dependency_overrides[get_current_user] = _get_current_user
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()
