@@ -24,6 +24,8 @@ def get_suggestions(
     if not list_ids:
         return []
 
+    escaped_q = q.lower().replace("%", "\\%").replace("_", "\\_")
+
     # For each distinct name matching the query, return the most recently added item's hints.
     # Using a subquery with ROW_NUMBER() to pick the latest entry per name.
     subq = (
@@ -41,7 +43,10 @@ def get_suggestions(
         )
         .where(
             ListItem.list_id.in_(list_ids),
-            func.lower(ListItem.name).like(f"%{q.lower()}%"),
+            func.lower(ListItem.name).like(
+                f"{escaped_q}%",
+                escape="\\",
+            ),
         )
         .subquery()
     )
