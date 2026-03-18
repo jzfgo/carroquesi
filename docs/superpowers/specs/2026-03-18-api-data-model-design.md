@@ -77,12 +77,14 @@ This document defines the data model and REST API for the FastAPI backend.
 |---|---|---|
 | id | UUID PK | |
 | list_id | UUID FK → lists | |
-| invited_email | VARCHAR NOT NULL | Email of the invitee |
+| invited_email | VARCHAR | Nullable. Email of the invitee (optional — invite can also be link-only) |
 | invited_by | UUID FK → users | Owner who sent the invite |
 | created_at | TIMESTAMP | |
-| UNIQUE(list_id, invited_email) | | Prevents duplicate pending invites |
+| UNIQUE(list_id, invited_email) | | Prevents duplicate pending invites for the same email (nullable emails are exempt) |
 
-When `POST /auth/sync` is called for a new user, the backend checks `list_invites` for any pending invites matching their email, creates the corresponding `list_members` rows, and deletes the consumed invites — all in one transaction.
+Each invite has a shareable link using its UUID: `https://carroquesi.app/invite/{invite_id}`. The UUID is random and unguessable — no separate token field is needed. `invited_email` is optional: the owner can invite by email, by sharing the link, or both.
+
+When `POST /auth/sync` is called for a new user, the backend checks `list_invites` for any pending invites matching their email so the frontend can surface them immediately after sign-up. Invites are only converted to membership when the user explicitly accepts.
 
 ### `list_items`
 
@@ -132,8 +134,17 @@ All endpoints require `Authorization: Bearer <firebase_id_token>`. A FastAPI dep
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/lists/{list_id}/members` | Member | All members of the list. |
-| `POST` | `/lists/{list_id}/members` | Owner | Add a member by email. If the email exists in `users`, creates the membership immediately. If not, creates a pending `list_invites` row; membership is created when that user first calls `POST /auth/sync`. Bumps `lists.updated_at`. |
+| `POST` | `/lists/{list_id}/members` | Owner | Invite a user by email. Creates a pending `list_invites` row (whether or not the email exists in `users` yet). Membership is only created once the invitee accepts. Bumps `lists.updated_at`. |
 | `DELETE` | `/lists/{list_id}/members/{user_id}` | Owner or self | Remove a member. Owner can remove anyone; members can remove themselves. Bumps `lists.updated_at`. |
+
+### Invites
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/invites` | Authenticated | All pending invites for the caller (matched by email). |
+| `GET` | `/invites/{invite_id}` | Public | Preview an invite (list name, inviter name). No auth required — used to show invite details before the user logs in. |
+| `POST` | `/invites/{invite_id}/accept` | Authenticated | Accept an invite. Creates the `list_members` row and deletes the invite. If `invited_email` is set, the caller's email must match — returns 403 otherwise. If `invited_email` is null (link invite), any authenticated user may accept. |
+| `DELETE` | `/invites/{invite_id}` | Invitee or list owner | Decline or cancel an invite. Deletes the invite row. Same email-match rule applies for invitees: if `invited_email` is set, only the matching user or the list owner can delete it. |
 
 ### Items
 
@@ -193,6 +204,7 @@ backend/
 │   │   ├── lists.py
 │   │   ├── members.py
 │   │   ├── items.py
+│   │   ├── invites.py
 │   │   └── suggestions.py
 │   ├── schemas/             # Pydantic request/response models
 │   └── dependencies.py      # get_current_user, get_list_member, etc.
