@@ -6,6 +6,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("FIREBASE_CREDENTIALS_PATH", "firebase-credentials.json")
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
@@ -52,6 +53,41 @@ def other_user_fixture(session: Session) -> User:
     return user
 
 
+def _make_client(session: Session, user: User) -> TestClient:
+    """Return a TestClient wired to a fresh app copy with the given user/session."""
+    from app.main import app as _app  # re-import to get the real app
+    from fastapi import FastAPI
+
+    # Build a thin wrapper: new app that mounts the same router but has its own
+    # dependency_overrides dict, so two clients in the same test don't conflict.
+    import copy
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+    from app.core.config import settings
+    from app.routers import auth, lists
+
+    test_app = FastAPI()
+    test_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    test_app.include_router(auth.router)
+    test_app.include_router(lists.router)
+
+    def _get_session():
+        yield session
+
+    def _get_current_user():
+        return user
+
+    test_app.dependency_overrides[get_session] = _get_session
+    test_app.dependency_overrides[get_current_user] = _get_current_user
+    return TestClient(test_app)
+
+
 @pytest.fixture(name="client")
 def client_fixture(session: Session, user: User):
     def _get_session():
@@ -69,14 +105,6 @@ def client_fixture(session: Session, user: User):
 
 @pytest.fixture(name="other_client")
 def other_client_fixture(session: Session, other_user: User):
-    def _get_session():
-        yield session
-
-    def _get_current_user():
-        return other_user
-
-    app.dependency_overrides[get_session] = _get_session
-    app.dependency_overrides[get_current_user] = _get_current_user
-    with TestClient(app) as client:
+    client = _make_client(session, other_user)
+    with client:
         yield client
-    app.dependency_overrides.clear()
