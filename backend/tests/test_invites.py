@@ -100,3 +100,44 @@ def test_decline_invite(client: TestClient, session: Session, user):
     response = client.delete(f"/invites/{invite.id}")
     assert response.status_code == 204
     assert session.get(ListInvite, invite.id) is None
+
+
+def test_link_invite_accepted_by_any_user(other_client: TestClient, session: Session, user):
+    """A link invite (no email) can be accepted by any authenticated user."""
+    from app.db.models import List
+    lst = List(name="Open List", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+    session.refresh(lst)
+    # Seed owner as member (mirrors what POST /lists does via the API)
+    owner_member = ListMember(list_id=lst.id, user_id=user.id)
+    session.add(owner_member)
+    invite = ListInvite(list_id=lst.id, invited_by=user.id)  # no invited_email
+    session.add(invite)
+    session.commit()
+    session.refresh(invite)
+
+    response = other_client.post(f"/invites/{invite.id}/accept")
+    assert response.status_code == 200
+    members = session.exec(
+        select(ListMember).where(ListMember.list_id == lst.id)
+    ).all()
+    # owner + other_user = 2 members
+    assert len(members) == 2
+
+
+def test_unrelated_user_cannot_delete_link_invite(other_client: TestClient, session: Session, user):
+    """An unrelated user cannot delete a link invite — only the list owner can."""
+    from app.db.models import List
+    lst = List(name="Locked List", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+    session.refresh(lst)
+    invite = ListInvite(list_id=lst.id, invited_by=user.id)  # no invited_email
+    session.add(invite)
+    session.commit()
+    session.refresh(invite)
+
+    # other_user is NOT the owner
+    response = other_client.delete(f"/invites/{invite.id}")
+    assert response.status_code == 403

@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
@@ -58,6 +60,11 @@ def accept_invite(
     if not existing:
         member = ListMember(list_id=invite.list_id, user_id=current_user.id)
         session.add(member)
+        # Bump lists.updated_at for polling
+        lst = session.get(List, invite.list_id)
+        if lst:
+            lst.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            session.add(lst)
 
     session.delete(invite)
     session.commit()
@@ -76,7 +83,7 @@ def decline_invite(
 
     lst = session.get(List, invite.list_id)
     is_owner = lst and lst.owner_id == current_user.id
-    is_invitee = invite.invited_email == current_user.email or invite.invited_email is None
+    is_invitee = invite.invited_email is not None and invite.invited_email == current_user.email
 
     if not is_owner and not is_invitee:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
