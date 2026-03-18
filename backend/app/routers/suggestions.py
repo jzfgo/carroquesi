@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session, func, select
 
 from app.db.models import ListItem, ListMember, User
@@ -11,7 +11,7 @@ router = APIRouter(tags=["suggestions"])
 
 @router.get("/suggestions", response_model=list[SuggestionRead])
 def get_suggestions(
-    q: str,
+    q: str = Query(..., min_length=1),
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -36,7 +36,7 @@ def get_suggestions(
             ListItem.store,
             func.row_number()
             .over(
-                partition_by=ListItem.name,
+                partition_by=func.lower(ListItem.name),
                 order_by=ListItem.created_at.desc(),
             )
             .label("rn"),
@@ -54,6 +54,7 @@ def get_suggestions(
     rows = session.execute(
         select(subq.c.name, subq.c.brand, subq.c.variety, subq.c.store)
         .where(subq.c.rn == 1)
+        .order_by(subq.c.name.asc())
         .limit(10)
     ).all()
 
