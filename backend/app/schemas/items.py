@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ItemCreate(BaseModel):
-    name: str
+    name: str = Field(min_length=1)
     quantity: Optional[str] = None
     brand: Optional[str] = None
     variety: Optional[str] = None
@@ -13,7 +13,7 @@ class ItemCreate(BaseModel):
 
 
 class ItemUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, min_length=1)
     quantity: Optional[str] = None
     brand: Optional[str] = None
     variety: Optional[str] = None
