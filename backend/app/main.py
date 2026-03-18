@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import auth, invites, items, lists, members
+from app.routers import auth, invites, items, lists, members, suggestions
 
 app = FastAPI(title="CarroQueSí API")
 
@@ -19,6 +19,7 @@ app.include_router(lists.router)
 app.include_router(members.router)
 app.include_router(items.router)
 app.include_router(invites.router)
+app.include_router(suggestions.router)
 
 
 @app.get("/health")
