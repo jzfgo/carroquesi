@@ -42,9 +42,6 @@ class ListMember(SQLModel, table=True):
     user_id: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=_now)
 
-    class Config:
-        table = True
-
 
 class ListItem(SQLModel, table=True):
     __tablename__ = "list_items"
