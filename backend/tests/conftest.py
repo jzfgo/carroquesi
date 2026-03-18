@@ -60,11 +60,9 @@ def _make_client(session: Session, user: User) -> TestClient:
 
     # Build a thin wrapper: new app that mounts the same router but has its own
     # dependency_overrides dict, so two clients in the same test don't conflict.
-    import copy
-    from fastapi import FastAPI
     from fastapi.middleware.cors import CORSMiddleware
     from app.core.config import settings
-    from app.routers import auth, lists, members
+    from app.routers import auth, items, lists, members
 
     test_app = FastAPI()
     test_app.add_middleware(
@@ -77,6 +75,7 @@ def _make_client(session: Session, user: User) -> TestClient:
     test_app.include_router(auth.router)
     test_app.include_router(lists.router)
     test_app.include_router(members.router)
+    test_app.include_router(items.router)
 
     def _get_session():
         yield session
