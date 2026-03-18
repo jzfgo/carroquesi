@@ -4,33 +4,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**CarroQueSí** — a collaborative, real-time grocery shopping list web app. Multiple users share lists, mark items as purchased, and get smart product suggestions. Nice-to-have features: receipt scanning (OCR) and purchase frequency analysis.
+**CarroQueSí** — a collaborative grocery shopping list web app. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history.
 
 ## Architecture
 
 ```
 carroquesi/
-├── frontend/   # React + TypeScript (Vite)
-└── backend/    # Python + FastAPI (Dockerized → Cloud Run)
+├── frontend/   # React + TypeScript (Vite) → Firebase Hosting
+└── backend/    # Python + FastAPI + PostgreSQL (Dockerized → Cloud Run)
 ```
 
-**Firebase** handles the real-time layer:
-- **Firestore** — primary database + real-time sync between clients
-- **Firebase Auth** — Google Social Login
-- **Firebase Storage** — image uploads (receipt scanning)
+**Firebase Auth** handles Google Sign-In only. The frontend gets a Firebase ID token and sends it as `Authorization: Bearer <token>` on every API request. The backend validates it via the Firebase Admin SDK.
 
-The **FastAPI backend** handles heavy computation only: OCR processing and purchase frequency algorithms. It is not the primary data path — Firestore real-time listeners handle live updates directly in the frontend.
+**FastAPI + PostgreSQL** is the primary data path for all CRUD. There is no Firestore. Real-time sync is handled by short polling: the frontend polls `GET /lists/{list_id}/updated-at` every 5 seconds and re-fetches items when the timestamp changes.
 
 **Deployment:** Frontend → Firebase Hosting, Backend → Google Cloud Run (Docker).
 
 ## Core Data Model
 
-| Entity | Key fields |
-|--------|-----------|
-| `users` | uid, displayName, email, photoURL |
-| `lists` | id, name, ownerId, memberIds[], createdAt |
-| `products` | id, name, brand, variety, store, imageUrl |
-| `listItems` | id, listId, productId, quantity, unit, purchased, addedBy |
+| Table | Key fields |
+|-------|-----------|
+| `users` | id (UUID), firebase_uid, display_name, email, photo_url, created_at |
+| `lists` | id, name, owner_id (FK→users), created_at, updated_at |
+| `list_members` | id, list_id (FK→lists), user_id (FK→users), created_at |
+| `list_items` | id, list_id, name, quantity, brand, variety, store, purchased, added_by, created_at, updated_at |
+| `list_invites` | id, list_id, invited_email (nullable), invited_by, created_at |
+
+- `lists.updated_at` is bumped on every item write, member change, and list rename.
+- `list_invites.id` is the shareable invite token (UUID is unguessable — no separate token field).
+- Invitations are opt-in: invitees must explicitly accept before gaining list access.
 
 ## Frontend
 
@@ -48,10 +50,13 @@ npm run typecheck    # tsc --noEmit
 ### Key conventions
 - Mobile-first, card-based layout
 - Sticky "Smart Input" bar fixed at the bottom of the screen
-- Firestore real-time listeners (`onSnapshot`) drive UI state — avoid redundant REST calls for data already in Firestore
-- Firebase SDK used directly in the frontend for Auth, Firestore, and Storage
+- Firebase SDK used directly in the frontend for Auth only
+- All data fetched from the FastAPI backend via REST
+- Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
 
 ## Backend
+
+Requires **Python 3.13** (pinned in `backend/.python-version`).
 
 ### Commands
 ```bash
@@ -61,16 +66,60 @@ uv run uvicorn app.main:app --reload # dev server
 uv run pytest                        # run all tests
 uv run pytest tests/path/to/test.py  # run single test file
 uv add <package>                     # add a dependency
+uv run alembic upgrade head          # run migrations
+uv run alembic revision --autogenerate -m "description"  # generate migration
 ```
 
 ### Key conventions
 - FastAPI app entrypoint: `backend/app/main.py`
-- Only handles compute-heavy tasks (OCR, frequency analysis) — not general CRUD
-- Communicates with Firestore via the Firebase Admin SDK (`firebase-admin` Python package)
-- Dockerized: `backend/Dockerfile` → deployed to Cloud Run
+- ORM: **SQLModel** (canonical FastAPI approach). Migrations via **Alembic**.
+- Settings via `pydantic_settings` in `backend/app/core/config.py`, loaded from `backend/.env`
+- Firebase Admin SDK init in `backend/app/core/firebase.py` — singleton pattern
+- Auth dependency in `backend/app/dependencies.py`: `get_current_user`, `require_member`, `require_owner`
+- Schemas (request/response Pydantic models) in `backend/app/schemas/`
+- Tests use SQLite in-memory (via `StaticPool`) — no Postgres needed to run the test suite
+- Dockerized: `backend/Dockerfile` → deployed to Cloud Run; runs `alembic upgrade head` on startup
 
-## Firebase / Infrastructure
+### Project layout
+```
+backend/
+├── app/
+│   ├── main.py
+│   ├── core/
+│   │   ├── config.py        # Settings (DATABASE_URL, FIREBASE_CREDENTIALS_PATH, ALLOWED_ORIGINS)
+│   │   └── firebase.py      # Firebase Admin SDK init + verify_id_token()
+│   ├── db/
+│   │   ├── session.py       # SQLModel engine + get_session dependency
+│   │   └── models.py        # SQLModel table models
+│   ├── routers/
+│   │   ├── auth.py          # POST /auth/sync
+│   │   ├── lists.py         # GET/POST/PATCH/DELETE /lists[/{id}]
+│   │   ├── members.py       # GET/POST/DELETE /lists/{id}/members[/{user_id}]
+│   │   ├── items.py         # GET/POST/PATCH/DELETE /lists/{id}/items[/{id}]
+│   │   ├── invites.py       # GET/POST/DELETE /invites[/{id}[/accept]]
+│   │   └── suggestions.py   # GET /suggestions, GET /lists/{id}/updated-at
+│   ├── schemas/             # Pydantic request/response models (one file per router)
+│   └── dependencies.py      # get_current_user, require_member, require_owner
+└── alembic/                 # Migrations
+```
 
-- Firebase project config lives in `frontend/src/lib/firebase.ts` (initialized once, exported as `db`, `auth`, `storage`)
-- Environment variables (API keys, project IDs) go in `.env` files — never committed
-- Cloud Run service URL stored as an env var in the frontend for backend API calls
+### Environment variables
+```
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/carroquesi
+FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
+ALLOWED_ORIGINS=["http://localhost:5173"]
+```
+
+## Infrastructure
+
+- Firebase project config lives in `frontend/src/lib/firebase.ts` (Auth only — no Firestore, no Storage)
+- Environment variables go in `.env` files — never committed
+- Cloud Run service URL stored as an env var in the frontend for API calls
+
+## Out of Scope (MVP)
+
+- Price tracking and receipt scanning (OCR)
+- Barcode scanning
+- Purchase frequency auto-suggestions (beyond the basic DISTINCT query on item history)
+
+These will be added via Alembic migrations as the project evolves.
