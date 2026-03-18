@@ -48,6 +48,20 @@ def test_rename_list_non_owner_returns_403(client: TestClient, other_client: Tes
     assert response.status_code == 403
 
 
+def test_rename_list_bumps_updated_at(client: TestClient):
+    created = client.post("/lists", json={"name": "Original"}).json()
+    original_updated_at = created["updated_at"]
+    response = client.patch(f"/lists/{created['id']}", json={"name": "Renamed"})
+    assert response.status_code == 200
+    assert response.json()["updated_at"] >= original_updated_at
+
+
+def test_delete_list_non_owner_returns_403(client: TestClient, other_client: TestClient):
+    created = client.post("/lists", json={"name": "Owned"}).json()
+    response = other_client.delete(f"/lists/{created['id']}")
+    assert response.status_code == 403
+
+
 def test_delete_list(client: TestClient, session: Session):
     created = client.post("/lists", json={"name": "To Delete"}).json()
     response = client.delete(f"/lists/{created['id']}")

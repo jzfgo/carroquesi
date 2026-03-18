@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, status
 from sqlmodel import Session, select
 
-from app.db.models import List, ListItem, ListMember, User
+from app.db.models import List, ListInvite, ListItem, ListMember, User
 from app.db.session import get_session
 from app.dependencies import get_current_user, require_member, require_owner
 from app.schemas.lists import ListCreate, ListRead, ListUpdate
@@ -70,5 +70,7 @@ def delete_list(
         session.delete(item)
     for member in session.exec(select(ListMember).where(ListMember.list_id == lst.id)).all():
         session.delete(member)
+    for invite in session.exec(select(ListInvite).where(ListInvite.list_id == lst.id)).all():
+        session.delete(invite)
     session.delete(lst)
     session.commit()
