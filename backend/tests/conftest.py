@@ -64,7 +64,7 @@ def _make_client(session: Session, user: User) -> TestClient:
     from fastapi import FastAPI
     from fastapi.middleware.cors import CORSMiddleware
     from app.core.config import settings
-    from app.routers import auth, lists
+    from app.routers import auth, lists, members
 
     test_app = FastAPI()
     test_app.add_middleware(
@@ -76,6 +76,7 @@ def _make_client(session: Session, user: User) -> TestClient:
     )
     test_app.include_router(auth.router)
     test_app.include_router(lists.router)
+    test_app.include_router(members.router)
 
     def _get_session():
         yield session
