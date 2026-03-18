@@ -69,3 +69,19 @@ def test_member_can_remove_themselves(client: TestClient, other_client: TestClie
     session.commit()
     response = other_client.delete(f"/lists/{lst['id']}/members/{other_user.id}")
     assert response.status_code == 204
+
+
+def test_cannot_remove_owner(client: TestClient, user):
+    lst = _create_list(client)
+    response = client.delete(f"/lists/{lst['id']}/members/{user.id}")
+    assert response.status_code == 400
+
+
+def test_invite_existing_member_returns_409(client: TestClient, other_user, session: Session):
+    lst = _create_list(client)
+    # Add other_user as member directly
+    member = ListMember(list_id=lst["id"], user_id=other_user.id)
+    session.add(member)
+    session.commit()
+    response = client.post(f"/lists/{lst['id']}/members", json={"email": other_user.email})
+    assert response.status_code == 409

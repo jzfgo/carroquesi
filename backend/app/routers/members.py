@@ -44,6 +44,18 @@ def add_member(
     if existing_invite:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Invite already pending")
 
+    # Check if the email belongs to an existing user who is already a member
+    target_user = session.exec(select(User).where(User.email == body.email)).first()
+    if target_user is not None:
+        already_member = session.exec(
+            select(ListMember).where(
+                ListMember.list_id == lst.id,
+                ListMember.user_id == target_user.id,
+            )
+        ).first()
+        if already_member:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Already a member")
+
     invite = ListInvite(list_id=lst.id, invited_email=body.email, invited_by=lst.owner_id)
     session.add(invite)
     _bump(lst, session)
@@ -61,6 +73,9 @@ def remove_member(
     lst = session.get(List, list_id)
     if lst is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="List not found")
+
+    if user_id == lst.owner_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot remove the list owner")
 
     # Only owner or the member themselves can remove
     if current_user.id != lst.owner_id and current_user.id != user_id:
