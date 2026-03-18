@@ -59,7 +59,7 @@ This document defines the data model and REST API for the FastAPI backend.
 | name | VARCHAR NOT NULL | |
 | owner_id | UUID FK → users | |
 | created_at | TIMESTAMP | |
-| updated_at | TIMESTAMP | Bumped on any item or member change |
+| updated_at | TIMESTAMP NOT NULL | Default NOW(). Bumped on any item, member, or rename change |
 
 ### `list_members` *(junction table)*
 
@@ -70,6 +70,19 @@ This document defines the data model and REST API for the FastAPI backend.
 | user_id | UUID FK → users | |
 | created_at | TIMESTAMP | |
 | UNIQUE(list_id, user_id) | | Prevents duplicate membership |
+
+### `list_invites`
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | |
+| list_id | UUID FK → lists | |
+| invited_email | VARCHAR NOT NULL | Email of the invitee |
+| invited_by | UUID FK → users | Owner who sent the invite |
+| created_at | TIMESTAMP | |
+| UNIQUE(list_id, invited_email) | | Prevents duplicate pending invites |
+
+When `POST /auth/sync` is called for a new user, the backend checks `list_invites` for any pending invites matching their email, creates the corresponding `list_members` rows, and deletes the consumed invites — all in one transaction.
 
 ### `list_items`
 
@@ -111,7 +124,7 @@ All endpoints require `Authorization: Bearer <firebase_id_token>`. A FastAPI dep
 | `GET` | `/lists` | Any member | All lists where the caller is owner or member. |
 | `POST` | `/lists` | Authenticated | Create a new list. Caller becomes owner and first member. |
 | `GET` | `/lists/{list_id}` | Member | List details. |
-| `PATCH` | `/lists/{list_id}` | Owner | Rename the list. |
+| `PATCH` | `/lists/{list_id}` | Owner | Rename the list. Bumps `lists.updated_at`. |
 | `DELETE` | `/lists/{list_id}` | Owner | Delete list and all its items. |
 
 ### Members
@@ -119,14 +132,14 @@ All endpoints require `Authorization: Bearer <firebase_id_token>`. A FastAPI dep
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/lists/{list_id}/members` | Member | All members of the list. |
-| `POST` | `/lists/{list_id}/members` | Owner | Add a member by email. |
-| `DELETE` | `/lists/{list_id}/members/{user_id}` | Owner or self | Remove a member. Owner can remove anyone; members can remove themselves. |
+| `POST` | `/lists/{list_id}/members` | Owner | Add a member by email. If the email exists in `users`, creates the membership immediately. If not, creates a pending `list_invites` row; membership is created when that user first calls `POST /auth/sync`. Bumps `lists.updated_at`. |
+| `DELETE` | `/lists/{list_id}/members/{user_id}` | Owner or self | Remove a member. Owner can remove anyone; members can remove themselves. Bumps `lists.updated_at`. |
 
 ### Items
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/lists/{list_id}/items` | Member | All items. Supports `?sort=name\|store\|brand`. |
+| `GET` | `/lists/{list_id}/items` | Member | All items. Supports `?sort=name\|store\|brand`. Sort is ascending only for MVP. |
 | `POST` | `/lists/{list_id}/items` | Member | Add an item. |
 | `PATCH` | `/lists/{list_id}/items/{item_id}` | Member | Update any field (name, quantity, brand, variety, store, purchased). |
 | `DELETE` | `/lists/{list_id}/items/{item_id}` | Member | Delete an item. |
@@ -135,7 +148,7 @@ All endpoints require `Authorization: Bearer <firebase_id_token>`. A FastAPI dep
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/suggestions?q={query}` | Authenticated | Up to 10 distinct item names matching the query prefix, from all lists the caller is a member of. Response includes last-used brand/variety/store as hints. |
+| `GET` | `/suggestions?q={query}` | Authenticated | Up to 10 distinct item names matching the query prefix, from all lists the caller is **currently a member of**. Response includes last-used brand/variety/store as hints. Suggestions are scoped to current membership — items from lists the user was removed from are excluded. |
 
 ### Polling
 
