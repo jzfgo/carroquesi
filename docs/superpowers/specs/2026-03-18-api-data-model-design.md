@@ -143,7 +143,7 @@ All endpoints require `Authorization: Bearer <firebase_id_token>`. A FastAPI dep
 |---|---|---|---|
 | `GET` | `/invites` | Authenticated | All pending invites for the caller (matched by email). |
 | `GET` | `/invites/{invite_id}` | Public | Preview an invite (list name, inviter name). No auth required — used to show invite details before the user logs in. |
-| `POST` | `/invites/{invite_id}/accept` | Authenticated | Accept an invite. Creates the `list_members` row and deletes the invite. If `invited_email` is set, the caller's email must match — returns 403 otherwise. If `invited_email` is null (link invite), any authenticated user may accept. |
+| `POST` | `/invites/{invite_id}/accept` | Authenticated | Accept an invite. Creates the `list_members` row and deletes the invite. If `invited_email` is set, the caller's email must match — returns 403 otherwise. If `invited_email` is null (link invite), any authenticated user may accept. If the caller is already a member, returns 200 (idempotent) and deletes the invite. |
 | `DELETE` | `/invites/{invite_id}` | Invitee or list owner | Decline or cancel an invite. Deletes the invite row. Same email-match rule applies for invitees: if `invited_email` is set, only the matching user or the list owner can delete it. |
 
 ### Items
@@ -151,9 +151,9 @@ All endpoints require `Authorization: Bearer <firebase_id_token>`. A FastAPI dep
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/lists/{list_id}/items` | Member | All items. Supports `?sort=name\|store\|brand`. Sort is ascending only for MVP. |
-| `POST` | `/lists/{list_id}/items` | Member | Add an item. |
-| `PATCH` | `/lists/{list_id}/items/{item_id}` | Member | Update any field (name, quantity, brand, variety, store, purchased). |
-| `DELETE` | `/lists/{list_id}/items/{item_id}` | Member | Delete an item. |
+| `POST` | `/lists/{list_id}/items` | Member | Add an item. Bumps `lists.updated_at`. |
+| `PATCH` | `/lists/{list_id}/items/{item_id}` | Member | Update any field (name, quantity, brand, variety, store, purchased). Bumps `lists.updated_at`. |
+| `DELETE` | `/lists/{list_id}/items/{item_id}` | Member | Delete an item. Bumps `lists.updated_at`. |
 
 ### Suggestions
 
