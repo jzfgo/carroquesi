@@ -1,9 +1,5 @@
-function App() {
-  return (
-    <div>
-      <h1>CarroQueSí</h1>
-    </div>
-  )
-}
+import { ListScreen } from './components/ListScreen'
 
-export default App
+export default function App() {
+  return <ListScreen />
+}

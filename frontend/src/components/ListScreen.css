@@ -1,0 +1,17 @@
+.list-screen {
+  width: 100%;
+  max-width: 430px;    /* comfortable on large phones / tablet emulation */
+  margin: 0 auto;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  position: relative;
+}
+
+/* Override the desktop-focused root width from index.css */
+#root {
+  width: 100%;
+  border-inline: none;
+  text-align: left;
+}
