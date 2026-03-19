@@ -1,11 +1,10 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from sqlmodel import Session, select
 
 from app.db.models import List, ListInvite, ListMember, User
-from app.db.session import get_session
-from app.dependencies import get_current_user, require_member, require_owner
+from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
 from app.schemas.members import AddMemberRequest, MemberRead
 
 router = APIRouter(prefix="/lists/{list_id}/members", tags=["members"])
@@ -18,8 +17,8 @@ def _bump(lst: List, session: Session) -> None:
 
 @router.get("", response_model=list[MemberRead])
 def get_members(
-    list_and_user: tuple = Depends(require_member),
-    session: Session = Depends(get_session),
+    list_and_user: MemberDep,
+    session: CurrentSession,
 ):
     lst, _ = list_and_user
     members = session.exec(select(ListMember).where(ListMember.list_id == lst.id)).all()
@@ -29,8 +28,8 @@ def get_members(
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
 def add_member(
     body: AddMemberRequest,
-    list_and_user: tuple = Depends(require_owner),
-    session: Session = Depends(get_session),
+    list_and_user: OwnerDep,
+    session: CurrentSession,
 ):
     lst, _ = list_and_user
 
@@ -67,8 +66,8 @@ def add_member(
 def remove_member(
     user_id: str,
     list_id: str,
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    current_user: CurrentUser,
+    session: CurrentSession,
 ):
     lst = session.get(List, list_id)
     if lst is None:

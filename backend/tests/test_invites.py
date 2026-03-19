@@ -35,12 +35,8 @@ def test_invite_flow_accept(
 
 def test_public_invite_preview_no_auth(session: Session, user):
     """GET /invites/{id} is public — no auth required."""
-    from app.main import app as _app
-    lst_id = None
     # Create a list via session directly so we have an ID
     from app.db.models import List
-    import uuid
-    from datetime import datetime, timezone
     lst = List(name="Preview List", owner_id=user.id)
     session.add(lst)
     session.commit()
@@ -50,14 +46,16 @@ def test_public_invite_preview_no_auth(session: Session, user):
     session.commit()
     session.refresh(invite)
 
-    # Use a raw client with NO dependency overrides (unauthenticated)
+    # Build a bare app (no lifespan/Firebase) that only mounts the invites router
+    from fastapi import FastAPI
     from fastapi.testclient import TestClient as RawClient
-    with RawClient(_app) as raw:
-        # Override only the session dependency so the invite is visible
-        from app.db.session import get_session
-        _app.dependency_overrides[get_session] = lambda: session
+    from app.db.session import get_session
+    from app.routers import invites as invites_router
+    bare_app = FastAPI()
+    bare_app.include_router(invites_router.router)
+    bare_app.dependency_overrides[get_session] = lambda: session
+    with RawClient(bare_app) as raw:
         response = raw.get(f"/invites/{invite.id}")
-        _app.dependency_overrides.clear()
     assert response.status_code == 200
     data = response.json()
     assert "list_name" in data

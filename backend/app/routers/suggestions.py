@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, Query
-from sqlmodel import Session, func, select
+from typing import Annotated
 
-from app.db.models import ListItem, ListMember, User
-from app.db.session import get_session
-from app.dependencies import get_current_user, require_member
+from fastapi import APIRouter, Query
+from sqlmodel import func, select
+
+from app.db.models import ListItem, ListMember
+from app.dependencies import CurrentSession, CurrentUser, MemberDep
 from app.schemas.suggestions import SuggestionRead
 
 router = APIRouter(tags=["suggestions"])
@@ -11,9 +12,9 @@ router = APIRouter(tags=["suggestions"])
 
 @router.get("/suggestions", response_model=list[SuggestionRead])
 def get_suggestions(
-    q: str = Query(..., min_length=1),
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    q: Annotated[str, Query(min_length=1)],
+    current_user: CurrentUser,
+    session: CurrentSession,
 ):
     # Find all list IDs the user is currently a member of
     memberships = session.exec(
@@ -58,12 +59,13 @@ def get_suggestions(
         .limit(10)
     ).all()
 
-    return [SuggestionRead(name=r.name, brand=r.brand, variety=r.variety, store=r.store) for r in rows]
+    return [
+        SuggestionRead(name=r.name, brand=r.brand, variety=r.variety, store=r.store)
+        for r in rows
+    ]
 
 
 @router.get("/lists/{list_id}/updated-at")
-def get_updated_at(
-    list_and_user: tuple = Depends(require_member),
-):
+def get_updated_at(list_and_user: MemberDep):
     lst, _ = list_and_user
     return {"updated_at": lst.updated_at.isoformat()}

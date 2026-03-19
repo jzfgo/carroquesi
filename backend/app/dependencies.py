@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Annotated, Any, TypeAlias
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -64,3 +64,13 @@ def require_owner(
     if lst.owner_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not the owner")
     return lst, current_user
+
+
+# ---------------------------------------------------------------------------
+# Annotated dependency aliases (recommended FastAPI pattern)
+# Import these in routers instead of repeating Depends(...) at every endpoint.
+# ---------------------------------------------------------------------------
+CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
+CurrentSession: TypeAlias = Annotated[Session, Depends(get_session)]
+MemberDep: TypeAlias = Annotated[tuple[List, User], Depends(require_member)]
+OwnerDep: TypeAlias = Annotated[tuple[List, User], Depends(require_owner)]

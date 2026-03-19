@@ -1,11 +1,10 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session, select
+from fastapi import APIRouter, HTTPException, status
+from sqlmodel import select
 
 from app.db.models import List, ListInvite, ListMember, User
-from app.db.session import get_session
-from app.dependencies import get_current_user
+from app.dependencies import CurrentSession, CurrentUser
 from app.schemas.invites import InvitePreview, InviteRead
 
 router = APIRouter(prefix="/invites", tags=["invites"])
@@ -13,8 +12,8 @@ router = APIRouter(prefix="/invites", tags=["invites"])
 
 @router.get("", response_model=list[InviteRead])
 def get_my_invites(
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    current_user: CurrentUser,
+    session: CurrentSession,
 ):
     invites = session.exec(
         select(ListInvite).where(ListInvite.invited_email == current_user.email)
@@ -23,7 +22,7 @@ def get_my_invites(
 
 
 @router.get("/{invite_id}", response_model=InvitePreview)
-def get_invite_preview(invite_id: str, session: Session = Depends(get_session)):
+def get_invite_preview(invite_id: str, session: CurrentSession):
     """Public endpoint — no auth required. Used to show invite details before login."""
     invite = session.get(ListInvite, invite_id)
     if invite is None:
@@ -40,8 +39,8 @@ def get_invite_preview(invite_id: str, session: Session = Depends(get_session)):
 @router.post("/{invite_id}/accept")
 def accept_invite(
     invite_id: str,
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    current_user: CurrentUser,
+    session: CurrentSession,
 ):
     invite = session.get(ListInvite, invite_id)
     if invite is None:
@@ -74,8 +73,8 @@ def accept_invite(
 @router.delete("/{invite_id}", status_code=status.HTTP_204_NO_CONTENT)
 def decline_invite(
     invite_id: str,
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    current_user: CurrentUser,
+    session: CurrentSession,
 ):
     invite = session.get(ListInvite, invite_id)
     if invite is None:

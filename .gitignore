@@ -1,3 +1,6 @@
+# Claude - ignorar configuración local
+.claude/settings.local.json
+
 # Python
 __pycache__/
 *.py[oc]
@@ -14,7 +17,7 @@ build/
 *.local
 
 # Firebase / GCP
-*-service-account.json
+*-firebase-adminsdk-*.json
 firebase-debug.log
 .firebase/
 

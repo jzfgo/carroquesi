@@ -92,17 +92,9 @@ def _make_client(session: Session, user: User) -> TestClient:
 
 @pytest.fixture(name="client")
 def client_fixture(session: Session, user: User):
-    def _get_session():
-        yield session
-
-    def _get_current_user():
-        return user
-
-    app.dependency_overrides[get_session] = _get_session
-    app.dependency_overrides[get_current_user] = _get_current_user
-    with TestClient(app) as client:
+    client = _make_client(session, user)
+    with client:
         yield client
-    app.dependency_overrides.clear()
 
 
 @pytest.fixture(name="other_client")

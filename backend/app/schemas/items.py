@@ -1,34 +1,33 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
 
 class ItemCreate(BaseModel):
     name: str = Field(min_length=1)
-    quantity: Optional[str] = None
-    brand: Optional[str] = None
-    variety: Optional[str] = None
-    store: Optional[str] = None
+    quantity: str | None = None
+    brand: str | None = None
+    variety: str | None = None
+    store: str | None = None
 
 
 class ItemUpdate(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1)
-    quantity: Optional[str] = None
-    brand: Optional[str] = None
-    variety: Optional[str] = None
-    store: Optional[str] = None
-    purchased: Optional[bool] = None
+    name: str | None = Field(default=None, min_length=1)
+    quantity: str | None = None
+    brand: str | None = None
+    variety: str | None = None
+    store: str | None = None
+    purchased: bool | None = None
 
 
 class ItemRead(BaseModel):
     id: str
     list_id: str
     name: str
-    quantity: Optional[str]
-    brand: Optional[str]
-    variety: Optional[str]
-    store: Optional[str]
+    quantity: str | None
+    brand: str | None
+    variety: str | None
+    store: str | None
     purchased: bool
     added_by: str
     created_at: datetime

@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, status
 from sqlmodel import Session, select
 
-from app.db.models import List, ListInvite, ListItem, ListMember, User
+from app.db.models import List, ListInvite, ListItem, ListMember
 from app.db.session import get_session
-from app.dependencies import get_current_user, require_member, require_owner
+from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
 from app.schemas.lists import ListCreate, ListRead, ListUpdate
 
 router = APIRouter(prefix="/lists", tags=["lists"])
@@ -17,7 +17,7 @@ def _bump(lst: List, session: Session) -> None:
 
 
 @router.get("", response_model=list[ListRead])
-def get_lists(current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+def get_lists(current_user: CurrentUser, session: CurrentSession):
     memberships = session.exec(select(ListMember).where(ListMember.user_id == current_user.id)).all()
     list_ids = [m.list_id for m in memberships]
     lists = session.exec(select(List).where(List.id.in_(list_ids))).all()
@@ -27,8 +27,8 @@ def get_lists(current_user: User = Depends(get_current_user), session: Session =
 @router.post("", response_model=ListRead, status_code=status.HTTP_201_CREATED)
 def create_list(
     body: ListCreate,
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    current_user: CurrentUser,
+    session: CurrentSession,
 ):
     lst = List(name=body.name, owner_id=current_user.id)
     session.add(lst)
@@ -41,7 +41,7 @@ def create_list(
 
 
 @router.get("/{list_id}", response_model=ListRead)
-def get_list(list_and_user: tuple = Depends(require_member)):
+def get_list(list_and_user: MemberDep):
     lst, _ = list_and_user
     return lst
 
@@ -49,8 +49,8 @@ def get_list(list_and_user: tuple = Depends(require_member)):
 @router.patch("/{list_id}", response_model=ListRead)
 def rename_list(
     body: ListUpdate,
-    list_and_user: tuple = Depends(require_owner),
-    session: Session = Depends(get_session),
+    list_and_user: OwnerDep,
+    session: CurrentSession,
 ):
     lst, _ = list_and_user
     lst.name = body.name
@@ -62,8 +62,8 @@ def rename_list(
 
 @router.delete("/{list_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_list(
-    list_and_user: tuple = Depends(require_owner),
-    session: Session = Depends(get_session),
+    list_and_user: OwnerDep,
+    session: CurrentSession,
 ):
     lst, _ = list_and_user
     for item in session.exec(select(ListItem).where(ListItem.list_id == lst.id)).all():

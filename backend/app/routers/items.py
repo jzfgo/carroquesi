@@ -1,12 +1,11 @@
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 from sqlmodel import Session, select
 
-from app.db.models import List, ListItem, User
-from app.db.session import get_session
-from app.dependencies import require_member
+from app.db.models import List, ListItem
+from app.dependencies import CurrentSession, MemberDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 
 router = APIRouter(prefix="/lists/{list_id}/items", tags=["items"])
@@ -22,9 +21,9 @@ def _bump(lst: List, session: Session) -> None:
 @router.get("", response_model=list[ItemRead])
 def get_items(
     list_id: str,
+    list_and_user: MemberDep,
+    session: CurrentSession,
     sort: SortField | None = None,
-    list_and_user: tuple[List, User] = Depends(require_member),
-    session: Session = Depends(get_session),
 ):
     lst, _ = list_and_user
     query = select(ListItem).where(ListItem.list_id == lst.id)
@@ -40,8 +39,8 @@ def get_items(
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
 def add_item(
     body: ItemCreate,
-    list_and_user: tuple[List, User] = Depends(require_member),
-    session: Session = Depends(get_session),
+    list_and_user: MemberDep,
+    session: CurrentSession,
 ):
     lst, current_user = list_and_user
     item = ListItem(list_id=lst.id, added_by=current_user.id, **body.model_dump())
@@ -56,8 +55,8 @@ def add_item(
 def update_item(
     item_id: str,
     body: ItemUpdate,
-    list_and_user: tuple[List, User] = Depends(require_member),
-    session: Session = Depends(get_session),
+    list_and_user: MemberDep,
+    session: CurrentSession,
 ):
     lst, _ = list_and_user
     item = session.get(ListItem, item_id)
@@ -76,8 +75,8 @@ def update_item(
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_item(
     item_id: str,
-    list_and_user: tuple[List, User] = Depends(require_member),
-    session: Session = Depends(get_session),
+    list_and_user: MemberDep,
+    session: CurrentSession,
 ):
     lst, _ = list_and_user
     item = session.get(ListItem, item_id)
