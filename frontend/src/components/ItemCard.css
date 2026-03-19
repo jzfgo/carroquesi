@@ -1,0 +1,128 @@
+.item-card {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 16px 12px 20px;
+  gap: 12px;
+}
+
+.item-card--purchased .item-card__name {
+  text-decoration: line-through;
+  color: var(--purchased);
+}
+
+.item-card--purchased .item-card__qty {
+  background: #f0edf5;
+  color: var(--purchased);
+}
+
+.item-card--purchased .item-card__tag {
+  opacity: 0.45;
+}
+
+.item-card__checkbox {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 3px;
+  padding: 0;
+  position: relative;
+}
+
+.item-card__checkbox[aria-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.item-card__checkbox[aria-checked="true"]::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 7px;
+  border-left: 2px solid white;
+  border-bottom: 2px solid white;
+  transform: translate(-50%, -60%) rotate(-45deg);
+}
+
+.item-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-card__name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+
+.item-card__name {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.item-card__qty {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-radius: 20px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+.item-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.item-card__tag {
+  background: var(--bg2, #f9f8fb);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-size: 11.5px;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.item-card__tag--cta {
+  background: transparent;
+  border: 1.5px dashed var(--border);
+}
+
+.item-card__tag--cta:hover,
+.item-card__tag--cta:focus {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.item-card__avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: white;
+  margin-top: 3px;
+}
