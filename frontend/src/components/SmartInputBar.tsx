@@ -1,0 +1,128 @@
+import './SmartInputBar.css'
+import type { ListItem, ParsedInput } from '../types'
+
+const SIGIL_FIELDS: Record<string, 'variety' | 'brand' | 'store'> = {
+  '*': 'variety', '#': 'brand', '@': 'store',
+}
+
+function getActiveSigil(raw: string): { sigil: string; partial: string } | null {
+  const words = raw.split(/\s+/)
+  for (let i = words.length - 1; i >= 0; i--) {
+    const w = words[i]
+    if (w && '*#@+'.includes(w[0])) {
+      return { sigil: w[0], partial: w.slice(1) }
+    }
+  }
+  return null
+}
+
+function clientSideSuggestions(
+  items: ListItem[],
+  field: 'variety' | 'brand' | 'store',
+  partial: string
+): string[] {
+  const seen = new Set<string>()
+  const results: string[] = []
+  for (const item of items) {
+    const val = item[field]
+    if (val && val.toLowerCase().startsWith(partial.toLowerCase()) && !seen.has(val)) {
+      seen.add(val)
+      results.push(val)
+    }
+  }
+  return results.slice(0, 5)
+}
+
+function hasSigil(parsed: ParsedInput): boolean {
+  return parsed.quantity !== null || parsed.variety !== null ||
+         parsed.brand !== null || parsed.store !== null
+}
+
+interface Props {
+  value: string
+  parsed: ParsedInput
+  items: ListItem[]
+  suggestions: string[]
+  onChange: (v: string) => void
+  onSubmit: () => void
+}
+
+export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit }: Props) {
+  const activeSigil = getActiveSigil(value)
+  const fieldSigil = activeSigil && SIGIL_FIELDS[activeSigil.sigil]
+    ? activeSigil.sigil as '*' | '#' | '@'
+    : null
+
+  const displaySuggestions = fieldSigil
+    ? clientSideSuggestions(items, SIGIL_FIELDS[fieldSigil], activeSigil!.partial)
+    : suggestions.slice(0, 5)
+
+  const showPreview = hasSigil(parsed)
+  const hasName = parsed.name.trim().length > 0
+  const nameError = showPreview && !hasName
+
+  function applySuggestion(suggestion: string) {
+    if (!activeSigil) {
+      // Name context: replace the entire input with the suggestion
+      onChange(suggestion)
+      return
+    }
+    // Token context: replace the last partial token with the completed suggestion
+    const words = value.split(/\s+/)
+    words[words.length - 1] = activeSigil.sigil + suggestion + ' '
+    onChange(words.join(' '))
+  }
+
+  return (
+    <div className="smart-input">
+      {displaySuggestions.length > 0 && (
+        <div className="smart-input__suggestions">
+          {displaySuggestions.map((s, i) => (
+            <button key={s} className={`smart-input__suggestion${i === 0 ? ' smart-input__suggestion--top' : ''}`}
+              onClick={() => applySuggestion(s)}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showPreview && (
+        <div className="smart-input__preview" data-testid="parse-preview">
+          {nameError && <span className="smart-input__preview-error">No item name</span>}
+          {!nameError && <span className="smart-input__preview-name">{parsed.name}</span>}
+          {parsed.quantity && <span className="smart-input__preview-qty">{parsed.quantity}</span>}
+          {parsed.variety  && <span className="smart-input__preview-tag">✨ {parsed.variety}</span>}
+          {parsed.brand    && <span className="smart-input__preview-tag">🏷️ {parsed.brand}</span>}
+          {parsed.store    && <span className="smart-input__preview-tag">🏪 {parsed.store}</span>}
+        </div>
+      )}
+
+      <div className="smart-input__legend">
+        <span className="smart-input__chip"><b>+</b> qty</span>
+        <span className="smart-input__chip"><b>*</b> variety</span>
+        <span className="smart-input__chip"><b>#</b> brand</span>
+        <span className="smart-input__chip"><b>@</b> store</span>
+      </div>
+
+      <div className="smart-input__row">
+        <input
+          className="smart-input__field"
+          type="text"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && hasName) onSubmit() }}
+          placeholder="Add an item…"
+          aria-label="Add an item"
+        />
+        <button
+          className="smart-input__add"
+          onClick={onSubmit}
+          disabled={!hasName}
+          aria-label="Add item"
+        >
+          <span aria-hidden="true" className="smart-input__add-icon" />
+        </button>
+      </div>
+    </div>
+  )
+}
