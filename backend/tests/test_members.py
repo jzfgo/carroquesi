@@ -85,3 +85,14 @@ def test_invite_existing_member_returns_409(client: TestClient, other_user, sess
     session.commit()
     response = client.post(f"/lists/{lst['id']}/members", json={"email": other_user.email})
     assert response.status_code == 409
+
+
+def test_get_members_includes_user_fields(client: TestClient, user):
+    lst = _create_list(client)
+    response = client.get(f"/lists/{lst['id']}/members")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    member = data[0]
+    assert member["display_name"] == "Alice"
+    assert member["photo_url"] is None
