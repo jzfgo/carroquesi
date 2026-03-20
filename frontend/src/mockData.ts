@@ -8,8 +8,8 @@ export const AVATAR_COLOURS = [
 ]
 
 export const MOCK_MEMBERS: Member[] = [
-  { id: 'user-javi', displayName: 'Javier', initial: 'J', colour: AVATAR_COLOURS[0] },
-  { id: 'user-maria', displayName: 'María',  initial: 'M', colour: AVATAR_COLOURS[1] },
+  { id: 'user-javi', displayName: 'Javier', initial: 'J', colour: AVATAR_COLOURS[0], photoUrl: null },
+  { id: 'user-maria', displayName: 'María',  initial: 'M', colour: AVATAR_COLOURS[1], photoUrl: null },
 ]
 
 export const MOCK_ITEMS: ListItem[] = [
