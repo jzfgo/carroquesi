@@ -4,7 +4,7 @@ import { getLists, createList, createItem, updateItem, getListUpdatedAt, ApiErro
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-const mockGetToken = () => vi.fn().mockResolvedValue('test-token')
+const mockGetToken = vi.fn().mockResolvedValue('test-token')
 
 function mockResponse(body: unknown, status = 200) {
   return Promise.resolve({
@@ -17,12 +17,15 @@ function mockResponse(body: unknown, status = 200) {
 
 beforeEach(() => {
   mockFetch.mockReset()
+  mockGetToken.mockReset()
+  mockGetToken.mockResolvedValue('test-token')
 })
 
 describe('apiFetch — authorization', () => {
-  it('sends Authorization: Bearer <token> on every request', async () => {
+  it('calls getToken on every request and sends the token as Bearer', async () => {
     mockFetch.mockReturnValue(mockResponse([]))
-    await getLists(mockGetToken())
+    await getLists(mockGetToken)
+    expect(mockGetToken).toHaveBeenCalledOnce()
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists'),
       expect.objectContaining({
@@ -35,13 +38,13 @@ describe('apiFetch — authorization', () => {
 describe('ApiError', () => {
   it('carries .status on non-2xx response', async () => {
     mockFetch.mockReturnValue(mockResponse('Not found', 404))
-    await expect(getLists(mockGetToken())).rejects.toMatchObject({ status: 404 })
+    await expect(getLists(mockGetToken)).rejects.toMatchObject({ status: 404 })
   })
 
   it('is an instance of ApiError', async () => {
     mockFetch.mockReturnValue(mockResponse('Server error', 500))
     try {
-      await getLists(mockGetToken())
+      await getLists(mockGetToken)
     } catch (e) {
       expect(e).toBeInstanceOf(ApiError)
     }
@@ -51,7 +54,7 @@ describe('ApiError', () => {
 describe('getLists', () => {
   it('GET /lists returns parsed JSON', async () => {
     mockFetch.mockReturnValue(mockResponse([{ id: 'l1', name: 'Compras' }]))
-    const result = await getLists(mockGetToken())
+    const result = await getLists(mockGetToken)
     expect(result).toEqual([{ id: 'l1', name: 'Compras' }])
   })
 })
@@ -59,7 +62,7 @@ describe('getLists', () => {
 describe('createList', () => {
   it('POST /lists with name body', async () => {
     mockFetch.mockReturnValue(mockResponse({ id: 'l1', name: 'Compras' }))
-    await createList(mockGetToken(), 'Compras')
+    await createList(mockGetToken, 'Compras')
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists'),
       expect.objectContaining({
@@ -73,7 +76,7 @@ describe('createList', () => {
 describe('createItem', () => {
   it('POST /lists/{id}/items', async () => {
     mockFetch.mockReturnValue(mockResponse({ id: 'item-1', name: 'Leche' }))
-    await createItem(mockGetToken(), 'list-1', { name: 'Leche' })
+    await createItem(mockGetToken, 'list-1', { name: 'Leche' })
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists/list-1/items'),
       expect.objectContaining({ method: 'POST' }),
@@ -84,7 +87,7 @@ describe('createItem', () => {
 describe('updateItem', () => {
   it('PATCH /lists/{id}/items/{itemId}', async () => {
     mockFetch.mockReturnValue(mockResponse({ id: 'item-1', purchased: true }))
-    await updateItem(mockGetToken(), 'list-1', 'item-1', { purchased: true })
+    await updateItem(mockGetToken, 'list-1', 'item-1', { purchased: true })
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists/list-1/items/item-1'),
       expect.objectContaining({ method: 'PATCH' }),
@@ -95,7 +98,7 @@ describe('updateItem', () => {
 describe('getListUpdatedAt', () => {
   it('GET /lists/{id}/updated-at', async () => {
     mockFetch.mockReturnValue(mockResponse({ updated_at: '2026-01-01T00:00:00' }))
-    const result = await getListUpdatedAt(mockGetToken(), 'list-1') as { updated_at: string }
+    const result = await getListUpdatedAt(mockGetToken, 'list-1') as { updated_at: string }
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists/list-1/updated-at'),
       expect.any(Object),

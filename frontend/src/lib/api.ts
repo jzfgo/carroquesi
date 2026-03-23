@@ -17,8 +17,8 @@ async function apiFetch(
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
       ...(options.headers as Record<string, string> | undefined),
+      Authorization: `Bearer ${token}`,
     },
   })
   if (!res.ok) throw new ApiError(res.status, await res.text())
