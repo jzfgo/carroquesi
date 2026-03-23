@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -16,7 +17,7 @@ import {
 import { auth } from '../lib/firebase'
 import { syncUser } from '../lib/api'
 
-interface AuthUser {
+export interface AuthUser {
   id: string
   displayName: string
   photoUrl: string | null
@@ -41,13 +42,13 @@ export function useAuth(): AuthContextValue {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const firebaseUserRef = useRef<FirebaseUser | null>(null)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      firebaseUserRef.current = fbUser
       if (fbUser) {
-        setFirebaseUser(fbUser)
         try {
           const getToken = () => getIdToken(fbUser, false)
           const data = await syncUser(getToken) as {
@@ -66,7 +67,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null)
         }
       } else {
-        setFirebaseUser(null)
         setUser(null)
       }
       setLoading(false)
@@ -75,8 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const getToken = async (): Promise<string> => {
-    if (!firebaseUser) throw new Error('Not authenticated')
-    return getIdToken(firebaseUser, false)
+    if (!firebaseUserRef.current) throw new Error('Not authenticated')
+    return getIdToken(firebaseUserRef.current, false)
   }
 
   const signIn = async () => {
