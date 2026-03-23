@@ -13,6 +13,7 @@ vi.mock('./ListScreen', () => ({
 const mockGetToken = vi.fn().mockResolvedValue('token')
 
 beforeEach(() => {
+  vi.clearAllMocks()
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: { id: 'u1', displayName: 'Alice', photoUrl: null, email: 'alice@example.com' },
     getToken: mockGetToken,
@@ -47,6 +48,14 @@ describe('ListLoader', () => {
       expect(screen.getByPlaceholderText(/nombre/i)).toBeInTheDocument(),
     )
     expect(screen.getByRole('button', { name: /crear/i })).toBeInTheDocument()
+  })
+
+  it('shows error state when getLists fails', async () => {
+    vi.mocked(api.getLists).mockRejectedValue(new Error('Network'))
+    render(<ListLoader />)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /reintentar/i })).toBeInTheDocument(),
+    )
   })
 
   it('creates a list and loads it on form submit', async () => {

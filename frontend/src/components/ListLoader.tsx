@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getLists, createList } from '../lib/api'
 import { ListScreen } from './ListScreen'
@@ -14,18 +14,44 @@ interface ApiList {
 export function ListLoader() {
   const { getToken } = useAuth()
   const [lists, setLists] = useState<ApiList[] | null>(null)
+  const [fetchError, setFetchError] = useState(false)
   const [listName, setListName] = useState('')
   const [creating, setCreating] = useState(false)
 
-  const fetchLists = async () => {
+  const fetchLists = useCallback(async () => {
     setLists(null)
-    const data = (await getLists(getToken)) as ApiList[]
-    setLists(data)
-  }
+    setFetchError(false)
+    try {
+      const data = (await getLists(getToken)) as ApiList[]
+      setLists(data)
+    } catch {
+      setFetchError(true)
+    }
+  }, [getToken])
 
   useEffect(() => {
     void fetchLists()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchLists])
+
+  if (fetchError) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100dvh',
+          gap: '1rem',
+        }}
+      >
+        <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>
+          No se pudo cargar tu lista
+        </p>
+        <button onClick={() => void fetchLists()}>Reintentar</button>
+      </div>
+    )
+  }
 
   if (lists === null) {
     return (
