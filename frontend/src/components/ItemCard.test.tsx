@@ -3,7 +3,7 @@ import { ItemCard } from './ItemCard'
 import type { ListItem, Member } from '../types'
 
 const MEMBERS: Map<string, Member> = new Map([
-  ['user-1', { id: 'user-1', displayName: 'Ana', initial: 'A', colour: '#7c3aed' }],
+  ['user-1', { id: 'user-1', displayName: 'Ana', initial: 'A', colour: '#7c3aed', photoUrl: null }],
 ])
 
 const BASE_ITEM: ListItem = {
