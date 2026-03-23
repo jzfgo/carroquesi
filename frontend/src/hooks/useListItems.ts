@@ -45,14 +45,16 @@ export function useListItems(
   const fetchAll = useCallback(async () => {
     setStatus('loading')
     try {
-      const [rawItems, rawMembers] = await Promise.all([
+      const [rawItems, rawMembers, updatedAtData] = await Promise.all([
         getListItems(getToken, listId) as Promise<ListItem[]>,
         getListMembers(getToken, listId) as Promise<BackendMember[]>,
+        getListUpdatedAt(getToken, listId) as Promise<{ updated_at: string }>,
       ])
       setItems(rawItems)
       const map = new Map<string, Member>()
       rawMembers.forEach((m, i) => map.set(m.user_id, toMember(m, i)))
       setMembers(map)
+      lastUpdatedAt.current = updatedAtData.updated_at
       setStatus('success')
     } catch {
       setStatus('error')

@@ -28,10 +28,10 @@ const mockRawMembers = [
 ]
 
 beforeEach(() => {
+  vi.clearAllMocks()
   vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
   vi.mocked(api.getListMembers).mockResolvedValue(mockRawMembers as never)
   vi.mocked(api.getListUpdatedAt).mockResolvedValue({ updated_at: '2026-01-01T00:00:00' } as never)
-  mockShowToast.mockReset()
 })
 
 describe('useListItems — initial fetch', () => {
@@ -165,5 +165,7 @@ describe('useListItems — polling', () => {
     })
 
     expect(result.current.items[0].name).toBe('Leche Updated')
+    // Members must never be re-fetched by polling
+    expect(vi.mocked(api.getListMembers)).toHaveBeenCalledTimes(1)
   })
 })
