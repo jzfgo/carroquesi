@@ -13,6 +13,12 @@
   --purchased: #b0adb5;
   --bg2: #f9f8fb;
 
+  /* Semantic aliases used by auth/list UI components */
+  --color-border: var(--border);
+  --color-primary: var(--accent);
+  --color-surface: var(--bg);
+  --color-text-secondary: var(--text);
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
@@ -112,4 +118,8 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: var(--code-bg);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
