@@ -69,17 +69,7 @@ export function ListScreen({ listId, onBack }: Props) {
         <button
           onClick={onBack}
           aria-label="Volver"
-          style={{
-            position: 'absolute',
-            top: '1rem',
-            left: '1rem',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '1.25rem',
-            color: 'var(--color-text-secondary)',
-            zIndex: 10,
-          }}
+          className="list-screen__back"
         >
           ←
         </button>

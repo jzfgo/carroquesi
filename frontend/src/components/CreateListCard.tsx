@@ -22,10 +22,13 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
   const handleSubmit = async () => {
     if (!name.trim()) return
     setCreating(true)
-    await onCreate(name.trim())
-    setName('')
-    setExpanded(false)
-    setCreating(false)
+    try {
+      await onCreate(name.trim())
+      setName('')
+      setExpanded(false)
+    } finally {
+      setCreating(false)
+    }
   }
 
   return (
