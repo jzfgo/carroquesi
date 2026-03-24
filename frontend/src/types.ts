@@ -34,3 +34,13 @@ export interface EditingTag {
   itemId: string
   field: TagField
 }
+
+export interface ApiList {
+  id: string
+  name: string
+  owner_id: string
+  created_at: string
+  updated_at: string
+  item_count: number
+  purchased_count: number
+}
