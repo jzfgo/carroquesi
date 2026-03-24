@@ -25,6 +25,7 @@ export interface Member {
   displayName: string
   initial: string
   colour: string
+  photoUrl: string | null
 }
 
 export type TagField = 'variety' | 'brand' | 'store'

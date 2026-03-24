@@ -21,8 +21,22 @@ def get_members(
     session: CurrentSession,
 ):
     lst, _ = list_and_user
-    members = session.exec(select(ListMember).where(ListMember.list_id == lst.id)).all()
-    return members
+    results = session.exec(
+        select(ListMember, User)
+        .join(User, User.id == ListMember.user_id)
+        .where(ListMember.list_id == lst.id)
+    ).all()
+    return [
+        MemberRead(
+            id=member.id,
+            user_id=member.user_id,
+            list_id=member.list_id,
+            created_at=member.created_at,
+            display_name=user.display_name or user.email.split('@')[0],
+            photo_url=user.photo_url,
+        )
+        for member, user in results
+    ]
 
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
