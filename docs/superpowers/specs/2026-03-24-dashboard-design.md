@@ -40,6 +40,7 @@ Login
 A vertically scrollable list of `ListCard` components, one per list the user is a member of, sorted by `updated_at` descending (most recently active first).
 
 Each card displays:
+
 - **List name** (bold)
 - **Progress bar** — same visual style as the one inside `ListScreen`
 - **Subtitle** — "X de Y comprados" (e.g. "3 de 8 comprados")
@@ -56,17 +57,17 @@ Full-screen centered spinner (same `<span>` spinner already used in `App.tsx` an
 
 ### Error state
 
-Centered message "No se pudo cargar tus listas" + "Reintentar" button (same pattern as current `ListLoader` error state).
+Centered message "No se pudieron cargar tus listas" + "Reintentar" button (same pattern as current `ListLoader` error state).
 
 ---
 
 ## Components
 
-| Component | Description |
-|-----------|-------------|
-| `DashboardScreen` | Top-level screen. Fetches lists, owns navigation state (which list is open, if any). Renders header, list of `ListCard`s, and `CreateListCard`. |
-| `ListCard` | Displays list name, progress bar, and "X de Y comprados" subtitle. Calls `onClick` when tapped. |
-| `CreateListCard` | New component. Dashed card that expands inline to a text input + confirm button when tapped (tap-to-expand, not always visible). Calls `onCreate(name)` on confirm. |
+| Component         | Description                                                                                                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DashboardScreen` | Top-level screen. Fetches lists, owns navigation state (which list is open, if any). Renders header, list of `ListCard`s, and `CreateListCard`.                     |
+| `ListCard`        | Displays list name, progress bar, and "X de Y comprados" subtitle. Calls `onClick` when tapped.                                                                     |
+| `CreateListCard`  | New component. Dashed card that expands inline to a text input + confirm button when tapped (tap-to-expand, not always visible). Calls `onCreate(name)` on confirm. |
 
 `ListScreen` receives a new `onBack: () => void` prop. When called, `DashboardScreen` clears the selected list and returns to the home view. No routing library is introduced — navigation state lives in a single `useState` in `DashboardScreen`.
 
@@ -77,21 +78,31 @@ Centered message "No se pudo cargar tus listas" + "Reintentar" button (same patt
 `GET /lists` currently returns:
 
 ```json
-[{ "id": "...", "name": "...", "owner_id": "...", "created_at": "...", "updated_at": "..." }]
+[
+  {
+    "id": "...",
+    "name": "...",
+    "owner_id": "...",
+    "created_at": "...",
+    "updated_at": "..."
+  }
+]
 ```
 
 After this change it returns two additional fields per list:
 
 ```json
-[{
-  "id": "...",
-  "name": "...",
-  "owner_id": "...",
-  "created_at": "...",
-  "updated_at": "...",
-  "item_count": 8,
-  "purchased_count": 3
-}]
+[
+  {
+    "id": "...",
+    "name": "...",
+    "owner_id": "...",
+    "created_at": "...",
+    "updated_at": "...",
+    "item_count": 8,
+    "purchased_count": 3
+  }
+]
 ```
 
 ### Implementation
@@ -110,6 +121,7 @@ GROUP BY list.id
 ```
 
 `ListRead` schema (`backend/app/schemas/lists.py`) gets two new fields:
+
 - `item_count: int = 0`
 - `purchased_count: int = 0`
 
@@ -126,10 +138,12 @@ These default to `0` so existing tests that don't populate items continue to pas
 ## Files Changed
 
 ### Backend
+
 - `backend/app/routers/lists.py` — update `get_lists` with aggregation query
 - `backend/app/schemas/lists.py` — add `item_count` and `purchased_count` to `ListRead`
 
 ### Frontend
+
 - `frontend/src/App.tsx` — route `user → DashboardScreen` instead of `ListLoader`
 - `frontend/src/types.ts` — add `ApiList` interface with summary fields
 - `frontend/src/lib/api.ts` — `getLists` return type reflects new fields

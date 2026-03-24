@@ -21,11 +21,13 @@
 ### SQLite local dev
 
 Add to `backend/.env`:
+
 ```
 DATABASE_URL=sqlite:///./carroquesi.db
 ```
 
 Run once:
+
 ```bash
 cd backend && uv run alembic upgrade head
 ```
@@ -35,6 +37,7 @@ No Docker required. SQLite behaviour matches the existing test suite.
 ### Backend: extend `GET /lists/{list_id}/members`
 
 **`backend/app/schemas/members.py`** — add two fields to `MemberRead`:
+
 ```python
 display_name: str
 photo_url: str | None
@@ -57,21 +60,20 @@ exports only `app` and `auth`. This aligns with the architecture (no Firestore, 
 
 ### `src/contexts/AuthContext.tsx`
 
-Wraps `onAuthStateChanged`. On sign-in: calls `POST /auth/sync` to get/create the Postgres
-user record.
+Wraps `onAuthStateChanged`. On sign-in: calls `POST /auth/sync` to get/create the DB user record.
 
 ```ts
 interface AuthContextValue {
   user: {
-    id: string          // Postgres UUID from /auth/sync response
-    displayName: string // mapped from response.display_name
-    photoUrl: string | null  // mapped from response.photo_url
-    email: string
-  } | null
-  getToken: () => Promise<string>  // always returns a fresh Firebase ID token
-  signIn: () => Promise<void>      // Google popup
-  signOut: () => Promise<void>
-  loading: boolean
+    id: string; // UUID from /auth/sync response
+    displayName: string; // mapped from response.display_name
+    photoUrl: string | null; // mapped from response.photo_url
+    email: string;
+  } | null;
+  getToken: () => Promise<string>; // always returns a fresh Firebase ID token
+  signIn: () => Promise<void>; // Google popup
+  signOut: () => Promise<void>;
+  loading: boolean;
 }
 ```
 
@@ -82,6 +84,7 @@ This is the only correct pattern; storing a string in state leads to stale token
 
 **`/auth/sync` response mapping:** The backend returns snake_case (`display_name`,
 `photo_url`, `email`). `AuthContext` maps these to camelCase when building the `user` object:
+
 ```ts
 // backend UserRead → context user
 { id, displayName: display_name, photoUrl: photo_url, email }
@@ -89,7 +92,7 @@ This is the only correct pattern; storing a string in state leads to stale token
 
 ### `src/components/SignInScreen.tsx`
 
-Minimal centred card: app name + "Continue with Google" button. No email/password fields.
+Minimal centered card: app name + "Continue with Google" button. No email/password fields.
 
 ### `src/App.tsx`
 
@@ -113,24 +116,24 @@ interface. They call `getToken()` immediately at the start of each request to en
 the token is always fresh.
 
 ```ts
-const BASE = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
+const BASE = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000';
 
 // Throws ApiError (with .status: number) on non-2xx responses
 async function apiFetch(
   getToken: () => Promise<string>,
   path: string,
-  options?: RequestInit
-): Promise<unknown>
+  options?: RequestInit,
+): Promise<unknown>;
 
 // Exported API functions (all take getToken as first arg):
-syncUser(getToken)                              // POST /auth/sync
-getLists(getToken)                              // GET /lists
-getListItems(getToken, listId)                  // GET /lists/{id}/items
-getListMembers(getToken, listId)                // GET /lists/{id}/members
-getListUpdatedAt(getToken, listId)              // GET /lists/{id}/updated-at
-createItem(getToken, listId, payload)           // POST /lists/{id}/items
-updateItem(getToken, listId, itemId, patch)     // PATCH /lists/{id}/items/{itemId}
-getSuggestions(getToken, q)                     // GET /suggestions?q=
+syncUser(getToken); // POST /auth/sync
+getLists(getToken); // GET /lists
+getListItems(getToken, listId); // GET /lists/{id}/items
+getListMembers(getToken, listId); // GET /lists/{id}/members
+getListUpdatedAt(getToken, listId); // GET /lists/{id}/updated-at
+createItem(getToken, listId, payload); // POST /lists/{id}/items
+updateItem(getToken, listId, itemId, patch); // PATCH /lists/{id}/items/{itemId}
+getSuggestions(getToken, q); // GET /suggestions?q=
 ```
 
 `ApiError` carries `.status` so callers can distinguish 401 (trigger re-auth) from 5xx
@@ -145,13 +148,14 @@ getSuggestions(getToken, q)                     // GET /suggestions?q=
 ### `Member` (update `src/types.ts`)
 
 Add `photoUrl` to the existing `Member` interface:
+
 ```ts
 export interface Member {
-  id: string
-  displayName: string
-  initial: string
-  colour: string
-  photoUrl: string | null  // NEW — from backend MemberRead.photo_url
+  id: string;
+  displayName: string;
+  initial: string;
+  colour: string;
+  photoUrl: string | null; // NEW — from backend MemberRead.photo_url
 }
 ```
 
@@ -167,18 +171,19 @@ when available. Components can fall back to the initial if `photoUrl` is null.
 Owns all list state and side effects. `ListScreen` is a thin consumer.
 
 **Signature:**
+
 ```ts
 function useListItems(
   listId: string,
-  getToken: () => Promise<string>
+  getToken: () => Promise<string>,
 ): {
-  status: 'loading' | 'error' | 'success'
-  items: ListItem[]
-  members: Map<string, Member>
-  addItem: (parsed: ParsedInput) => Promise<void>
-  togglePurchased: (itemId: string) => Promise<void>
-  retry: () => void
-}
+  status: 'loading' | 'error' | 'success';
+  items: ListItem[];
+  members: Map<string, Member>;
+  addItem: (parsed: ParsedInput) => Promise<void>;
+  togglePurchased: (itemId: string) => Promise<void>;
+  retry: () => void;
+};
 ```
 
 `getToken` replaces the previous `token: string` parameter — this eliminates the
@@ -189,6 +194,7 @@ function reference available from the moment the user object exists.
 No new constants file needed.
 
 **Member mapping** (backend → UI type):
+
 ```ts
 // backend MemberRead fields:
 //   id, user_id, list_id, display_name, photo_url, created_at
@@ -209,12 +215,14 @@ Members fetched once on mount only (membership changes are rare).
 differs from the stored one, `getListItems` re-fetches. The interval is cleared on unmount.
 
 **Optimistic `togglePurchased`:**
+
 1. Snapshot current items
 2. Flip `purchased` in local state immediately
 3. PATCH `{ purchased: !prev }`
 4. On error → restore snapshot + call `showToast('Couldn\'t update item')`
 
 **`addItem`:**
+
 1. Append a temporary item (`id: \`tmp-${Date.now()}\``) to local state
 2. POST to `/lists/{id}/items` with parsed fields
 3. On success → replace temp item with real response item
@@ -230,11 +238,11 @@ differs from the stored one, `getListItems` re-fetches. The interval is cleared 
 
 Fetches `GET /lists` after auth resolves. Three states:
 
-| State | UI |
-|-------|----|
-| Loading | Full-screen spinner |
-| Empty | "You have no lists yet" + inline name input + "Create list" button |
-| Success | `<ListScreen listId={lists[0].id} />` |
+| State   | UI                                                                 |
+| ------- | ------------------------------------------------------------------ |
+| Loading | Full-screen spinner                                                |
+| Empty   | "You have no lists yet" + inline name input + "Create list" button |
+| Success | `<ListScreen listId={lists[0].id} />`                              |
 
 **Empty state detail:** The user types a list name into a plain `<input>`. Clicking
 "Create list" calls `POST /lists` with `{ name }`, then re-fetches `GET /lists` to
@@ -260,33 +268,33 @@ Temporary component — replaced by route wiring when routing lands.
 
 ## File Map
 
-| File | Action |
-|------|--------|
-| `backend/.env` | Add `DATABASE_URL=sqlite:///./carroquesi.db` |
-| `backend/app/schemas/members.py` | Add `display_name`, `photo_url` to `MemberRead` |
-| `backend/app/routers/members.py` | JOIN with `User` in GET endpoint |
-| `frontend/src/lib/firebase.ts` | Remove unused Firestore/Storage exports |
-| `frontend/src/mockData.ts` | Add `photoUrl: null` to each `MOCK_MEMBERS` entry |
-| `frontend/src/types.ts` | Add `photoUrl` to `Member` interface |
-| `frontend/src/contexts/AuthContext.tsx` | Create |
-| `frontend/src/components/SignInScreen.tsx` | Create |
-| `frontend/src/components/ListLoader.tsx` | Create |
-| `frontend/src/lib/api.ts` | Create |
-| `frontend/src/hooks/useListItems.ts` | Create |
-| `frontend/src/components/ListScreen.tsx` | Modify |
-| `frontend/src/App.tsx` | Modify |
+| File                                       | Action                                            |
+| ------------------------------------------ | ------------------------------------------------- |
+| `backend/.env`                             | Add `DATABASE_URL=sqlite:///./carroquesi.db`      |
+| `backend/app/schemas/members.py`           | Add `display_name`, `photo_url` to `MemberRead`   |
+| `backend/app/routers/members.py`           | JOIN with `User` in GET endpoint                  |
+| `frontend/src/lib/firebase.ts`             | Remove unused Firestore/Storage exports           |
+| `frontend/src/mockData.ts`                 | Add `photoUrl: null` to each `MOCK_MEMBERS` entry |
+| `frontend/src/types.ts`                    | Add `photoUrl` to `Member` interface              |
+| `frontend/src/contexts/AuthContext.tsx`    | Create                                            |
+| `frontend/src/components/SignInScreen.tsx` | Create                                            |
+| `frontend/src/components/ListLoader.tsx`   | Create                                            |
+| `frontend/src/lib/api.ts`                  | Create                                            |
+| `frontend/src/hooks/useListItems.ts`       | Create                                            |
+| `frontend/src/components/ListScreen.tsx`   | Modify                                            |
+| `frontend/src/App.tsx`                     | Modify                                            |
 
 ---
 
 ## Error Handling
 
-| Scenario | Behaviour |
-|----------|-----------|
-| Network error on initial fetch | `status = 'error'`, retry button shown |
-| `togglePurchased` fails | Rollback + toast "Couldn't update item" |
-| `addItem` fails | Remove temp item + toast "Couldn't add item" |
-| 401 on any request | Call `signOut()` from auth context to force re-login |
-| `getLists` returns empty | `ListLoader` shows name input + create-list prompt |
+| Scenario                       | Behaviour                                            |
+| ------------------------------ | ---------------------------------------------------- |
+| Network error on initial fetch | `status = 'error'`, retry button shown               |
+| `togglePurchased` fails        | Rollback + toast "Couldn't update item"              |
+| `addItem` fails                | Remove temp item + toast "Couldn't add item"         |
+| 401 on any request             | Call `signOut()` from auth context to force re-login |
+| `getLists` returns empty       | `ListLoader` shows name input + create-list prompt   |
 
 ---
 

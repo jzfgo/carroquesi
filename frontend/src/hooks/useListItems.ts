@@ -40,7 +40,9 @@ export function useListItems(
   const [members, setMembers] = useState<Map<string, Member>>(new Map())
   const lastUpdatedAt = useRef<string | null>(null)
   const itemsRef = useRef<ListItem[]>(items)
-  itemsRef.current = items
+  useEffect(() => {
+    itemsRef.current = items
+  }, [items])
 
   const fetchAll = useCallback(async () => {
     setStatus('loading')
@@ -62,6 +64,7 @@ export function useListItems(
   }, [listId, getToken])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchAll()
   }, [fetchAll])
 

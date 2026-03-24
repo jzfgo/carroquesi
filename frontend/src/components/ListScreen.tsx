@@ -9,7 +9,6 @@ import { parseInput } from '../parseInput'
 import { useAuth } from '../contexts/AuthContext'
 import { useListItems } from '../hooks/useListItems'
 import { getSuggestions } from '../lib/api'
-import type { TagField } from '../types'
 
 interface Props {
   listId: string
@@ -30,6 +29,7 @@ export function ListScreen({ listId, onBack }: Props) {
   useEffect(() => {
     const q = parsed.name.trim()
     if (q.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSuggestions([])
       return
     }
@@ -51,7 +51,7 @@ export function ListScreen({ listId, onBack }: Props) {
     [togglePurchased],
   )
 
-  const handleTagClick = useCallback((_itemId: string, _field: TagField) => {
+  const handleTagClick = useCallback(() => {
     // tag editing wired in a future task
   }, [])
 
