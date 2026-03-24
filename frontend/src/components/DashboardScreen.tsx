@@ -51,7 +51,12 @@ export function DashboardScreen() {
         <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>
           No se pudieron cargar tus listas
         </p>
-        <button onClick={() => void fetchLists()}>Reintentar</button>
+        <button
+          className="dashboard-screen__retry"
+          onClick={() => void fetchLists()}
+        >
+          Reintentar
+        </button>
       </div>
     )
   }

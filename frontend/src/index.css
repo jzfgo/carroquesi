@@ -18,6 +18,8 @@
   --color-primary: var(--accent);
   --color-surface: var(--bg);
   --color-text-secondary: var(--text);
+  --color-bg: var(--bg2);        /* page/screen background */
+  --color-text: var(--text-h);   /* primary text, headings */
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
