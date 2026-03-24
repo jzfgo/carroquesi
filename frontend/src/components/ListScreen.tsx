@@ -13,9 +13,10 @@ import type { TagField } from '../types'
 
 interface Props {
   listId: string
+  onBack?: () => void
 }
 
-export function ListScreen({ listId }: Props) {
+export function ListScreen({ listId, onBack }: Props) {
   const { getToken } = useAuth()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -64,6 +65,25 @@ export function ListScreen({ listId }: Props) {
 
   return (
     <div className="list-screen">
+      {onBack && (
+        <button
+          onClick={onBack}
+          aria-label="Volver"
+          style={{
+            position: 'absolute',
+            top: '1rem',
+            left: '1rem',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '1.25rem',
+            color: 'var(--color-text-secondary)',
+            zIndex: 10,
+          }}
+        >
+          ←
+        </button>
+      )}
       <ListHeader title="Mi lista" onMenuOpen={() => {}} />
       <ProgressBar purchased={purchasedCount} total={items.length} />
       <ItemList
