@@ -1,0 +1,28 @@
+.list-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.list-card:active {
+  background: var(--color-bg, #f9fafb);
+}
+
+.list-card__name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--color-text, #111827);
+}
+
+.list-card__subtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary, #6b7280);
+}
