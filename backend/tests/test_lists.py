@@ -77,3 +77,21 @@ def test_get_lists_includes_zero_counts_when_no_items(client: TestClient):
     assert len(data) == 1
     assert data[0]["item_count"] == 0
     assert data[0]["purchased_count"] == 0
+
+
+def test_get_lists_returns_correct_counts(client: TestClient):
+    list_resp = client.post("/lists", json={"name": "Mi Lista"})
+    list_id = list_resp.json()["id"]
+
+    # Add 3 items; mark 1 as purchased
+    item1 = client.post(f"/lists/{list_id}/items", json={"name": "Leche"}).json()
+    client.post(f"/lists/{list_id}/items", json={"name": "Pan"})
+    client.post(f"/lists/{list_id}/items", json={"name": "Huevos"})
+    client.patch(f"/lists/{list_id}/items/{item1['id']}", json={"purchased": True})
+
+    response = client.get("/lists")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["item_count"] == 3
+    assert data[0]["purchased_count"] == 1

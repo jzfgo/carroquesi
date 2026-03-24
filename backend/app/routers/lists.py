@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, status
+from sqlalchemy import case, func
 from sqlmodel import Session, select
 
 from app.db.models import List, ListInvite, ListItem, ListMember
@@ -18,10 +19,43 @@ def _bump(lst: List, session: Session) -> None:
 
 @router.get("", response_model=list[ListRead])
 def get_lists(current_user: CurrentUser, session: CurrentSession):
-    memberships = session.exec(select(ListMember).where(ListMember.user_id == current_user.id)).all()
+    memberships = session.exec(
+        select(ListMember).where(ListMember.user_id == current_user.id)
+    ).all()
     list_ids = [m.list_id for m in memberships]
-    lists = session.exec(select(List).where(List.id.in_(list_ids))).all()
-    return lists
+
+    if not list_ids:
+        return []
+
+    lists = session.exec(
+        select(List).where(List.id.in_(list_ids)).order_by(List.updated_at.desc())
+    ).all()
+
+    # Single aggregation query — counts for all lists at once.
+    # Uses session.execute (SQLAlchemy) rather than session.exec (SQLModel)
+    # because it returns named-column Row objects from aggregation queries.
+    count_stmt = (
+        select(
+            ListItem.list_id,
+            func.count(ListItem.id).label("item_count"),
+            func.coalesce(
+                func.sum(case((ListItem.purchased == True, 1), else_=0)), 0
+            ).label("purchased_count"),
+        )
+        .where(ListItem.list_id.in_(list_ids))
+        .group_by(ListItem.list_id)
+    )
+    count_rows = session.execute(count_stmt).all()
+    counts = {row.list_id: (row.item_count, row.purchased_count) for row in count_rows}
+
+    return [
+        ListRead(
+            **lst.model_dump(),
+            item_count=counts.get(lst.id, (0, 0))[0],
+            purchased_count=counts.get(lst.id, (0, 0))[1],
+        )
+        for lst in lists
+    ]
 
 
 @router.post("", response_model=ListRead, status_code=status.HTTP_201_CREATED)
