@@ -95,3 +95,30 @@ def test_get_lists_returns_correct_counts(client: TestClient):
     assert len(data) == 1
     assert data[0]["item_count"] == 3
     assert data[0]["purchased_count"] == 1
+
+
+def test_get_lists_counts_are_isolated_per_list(client: TestClient):
+    # List 1: 3 items, 2 purchased
+    list1_resp = client.post("/lists", json={"name": "Lista 1"})
+    list1_id = list1_resp.json()["id"]
+    item1a = client.post(f"/lists/{list1_id}/items", json={"name": "Leche"}).json()
+    item1b = client.post(f"/lists/{list1_id}/items", json={"name": "Pan"}).json()
+    client.post(f"/lists/{list1_id}/items", json={"name": "Huevos"})
+    client.patch(f"/lists/{list1_id}/items/{item1a['id']}", json={"purchased": True})
+    client.patch(f"/lists/{list1_id}/items/{item1b['id']}", json={"purchased": True})
+
+    # List 2: 1 item, 0 purchased
+    list2_resp = client.post("/lists", json={"name": "Lista 2"})
+    list2_id = list2_resp.json()["id"]
+    client.post(f"/lists/{list2_id}/items", json={"name": "Detergente"})
+
+    response = client.get("/lists")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 2
+
+    by_id = {lst["id"]: lst for lst in data}
+    assert by_id[list1_id]["item_count"] == 3
+    assert by_id[list1_id]["purchased_count"] == 2
+    assert by_id[list2_id]["item_count"] == 1
+    assert by_id[list2_id]["purchased_count"] == 0
