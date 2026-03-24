@@ -33,3 +33,4 @@ backend/.env*
 
 # OS
 .DS_Store
+.superpowers/
