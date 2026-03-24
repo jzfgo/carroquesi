@@ -67,3 +67,13 @@ def test_delete_list(client: TestClient, session: Session):
     response = client.delete(f"/lists/{created['id']}")
     assert response.status_code == 204
     assert session.get(List, created["id"]) is None
+
+
+def test_get_lists_includes_zero_counts_when_no_items(client: TestClient):
+    client.post("/lists", json={"name": "Empty List"})
+    response = client.get("/lists")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["item_count"] == 0
+    assert data[0]["purchased_count"] == 0

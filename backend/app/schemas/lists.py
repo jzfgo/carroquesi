@@ -16,3 +16,5 @@ class ListRead(BaseModel):
     owner_id: str
     created_at: datetime
     updated_at: datetime
+    item_count: int = 0
+    purchased_count: int = 0
