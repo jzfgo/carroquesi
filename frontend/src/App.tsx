@@ -1,6 +1,6 @@
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { SignInScreen } from './components/SignInScreen'
-import { ListLoader } from './components/ListLoader'
+import { DashboardScreen } from './components/DashboardScreen'
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -33,7 +33,7 @@ function AppContent() {
   }
 
   if (!user) return <SignInScreen />
-  return <ListLoader />
+  return <DashboardScreen />
 }
 
 export default function App() {
