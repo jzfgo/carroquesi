@@ -1,0 +1,78 @@
+.tag-edit-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-bg, #fff);
+  border-top: 1px solid var(--color-border, #e5e5e5);
+  padding: 12px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+}
+
+.tag-edit-sheet__header {
+  font-size: 0.75rem;
+  color: var(--color-muted, #888);
+}
+
+.tag-edit-sheet__item-name {
+  font-style: italic;
+}
+
+.tag-edit-sheet__input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.tag-edit-sheet__input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border, #e5e5e5);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: var(--color-bg, #fff);
+  color: var(--color-text, #111);
+}
+
+.tag-edit-sheet__input:focus {
+  outline: none;
+  border-color: var(--color-primary, #7c3aed);
+}
+
+.tag-edit-sheet__save {
+  padding: 8px 16px;
+  background: var(--color-primary, #7c3aed);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tag-edit-sheet__suggestions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tag-edit-sheet__suggestion {
+  padding: 4px 10px;
+  background: var(--color-surface, #f5f5f5);
+  border: 1px solid var(--color-border, #e5e5e5);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.tag-edit-sheet__remove {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--color-danger, #dc2626);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 2px 0;
+}
