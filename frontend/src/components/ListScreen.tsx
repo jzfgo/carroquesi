@@ -79,16 +79,21 @@ export function ListScreen({ listId, listName, onBack }: Props) {
         onTagClick={handleTagClick}
         onRetry={retry}
       />
-      {editingTag ? (
-        <TagEditSheet
-          key={`${editingTag.itemId}-${editingTag.field}`}
-          item={items.find(i => i.id === editingTag.itemId)!}
-          field={editingTag.field}
-          items={items}
-          onSave={(value) => { void updateTag(editingTag.itemId, editingTag.field, value); setEditingTag(null) }}
-          onClose={() => setEditingTag(null)}
-        />
-      ) : (
+      {editingTag && (() => {
+        const editedItem = items.find(i => i.id === editingTag.itemId)
+        if (!editedItem) return null
+        return (
+          <TagEditSheet
+            key={`${editingTag.itemId}-${editingTag.field}`}
+            item={editedItem}
+            field={editingTag.field}
+            items={items}
+            onSave={(value) => { void updateTag(editingTag.itemId, editingTag.field, value); setEditingTag(null) }}
+            onClose={() => setEditingTag(null)}
+          />
+        )
+      })()}
+      {!editingTag && (
         <SmartInputBar
           value={inputValue}
           parsed={parsed}

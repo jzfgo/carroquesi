@@ -9,9 +9,13 @@ interface Props {
 export function ListHeader({ title, onMenuOpen, onBack }: Props) {
   return (
     <header className="list-header">
-      <button className="list-header__back" onClick={onBack} aria-label="Volver">
-        <span aria-hidden>‹</span> Listas
-      </button>
+      {onBack ? (
+        <button className="list-header__back" onClick={onBack} aria-label="Volver">
+          <span aria-hidden>‹</span> Listas
+        </button>
+      ) : (
+        <div className="list-header__back" aria-hidden />
+      )}
       <h1 className="list-header__title">{title}</h1>
       <button
         className="list-header__menu"
