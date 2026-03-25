@@ -2,9 +2,9 @@ import './ItemCard.css'
 import type { ListItem, Member, TagField } from '../types'
 
 const TAG_CONFIG: { field: TagField; emoji: string; label: string }[] = [
-  { field: 'variety', emoji: '✨', label: 'variety' },
-  { field: 'brand',   emoji: '🏷️', label: 'brand' },
-  { field: 'store',   emoji: '🏪', label: 'store' },
+  { field: 'variety', emoji: '✨', label: 'variedad' },
+  { field: 'brand',   emoji: '🏷️', label: 'marca' },
+  { field: 'store',   emoji: '🏪', label: 'tienda' },
 ]
 
 interface Props {
@@ -26,14 +26,28 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick }: Props
         aria-checked={item.purchased}
         className="item-card__checkbox"
         onClick={() => onTogglePurchased(item.id)}
-        aria-label={item.purchased ? 'Mark as not purchased' : 'Mark as purchased'}
+        aria-label={item.purchased ? 'Marcar como no comprado' : 'Marcar como comprado'}
       />
 
       <div className="item-card__body">
         <div className="item-card__name-row">
           <span className="item-card__name">{item.name}</span>
-          {item.quantity && (
-            <span className="item-card__qty">{item.quantity}</span>
+          {item.quantity ? (
+            <button
+              className="item-card__qty"
+              onClick={() => onTagClick(item.id, 'quantity')}
+              aria-label={item.quantity}
+            >
+              {item.quantity}
+            </button>
+          ) : (
+            <button
+              className="item-card__tag item-card__tag--cta"
+              onClick={() => onTagClick(item.id, 'quantity')}
+              aria-label="Añadir cantidad"
+            >
+              <span aria-hidden>+ 🔢</span>
+            </button>
           )}
         </div>
 
@@ -52,7 +66,7 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick }: Props
                 key={field}
                 className="item-card__tag item-card__tag--cta"
                 onClick={() => onTagClick(item.id, field)}
-                aria-label={`Add ${label}`}
+                aria-label={`Añadir ${label}`}
               >
                 <span aria-hidden>+ {emoji}</span>
               </button>

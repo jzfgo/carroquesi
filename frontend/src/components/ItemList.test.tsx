@@ -24,8 +24,8 @@ test('shows error state with retry button', () => {
     <ItemList status="error" items={[]} members={MEMBERS}
       onTogglePurchased={() => {}} onTagClick={() => {}} onRetry={retry} />
   )
-  expect(screen.getByText(/Couldn't load items/i)).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: /retry/i }))
+  expect(screen.getByText(/No se pudieron cargar los productos/i)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /reintentar/i }))
   expect(retry).toHaveBeenCalledTimes(1)
 })
 
@@ -34,7 +34,7 @@ test('shows empty state', () => {
     <ItemList status="success" items={[]} members={MEMBERS}
       onTogglePurchased={() => {}} onTagClick={() => {}} onRetry={() => {}} />
   )
-  expect(screen.getByText(/No items yet/i)).toBeInTheDocument()
+  expect(screen.getByText(/Sin productos/i)).toBeInTheDocument()
 })
 
 test('renders active items section label', () => {
@@ -43,7 +43,7 @@ test('renders active items section label', () => {
     <ItemList status="success" items={items} members={MEMBERS}
       onTogglePurchased={() => {}} onTagClick={() => {}} onRetry={() => {}} />
   )
-  expect(screen.getByText('2 items left')).toBeInTheDocument()
+  expect(screen.getByText('2 productos por comprar')).toBeInTheDocument()
 })
 
 test('section label reads "1 item left" for single item', () => {
@@ -51,7 +51,7 @@ test('section label reads "1 item left" for single item', () => {
     <ItemList status="success" items={[makeItem('a')]} members={MEMBERS}
       onTogglePurchased={() => {}} onTagClick={() => {}} onRetry={() => {}} />
   )
-  expect(screen.getByText('1 item left')).toBeInTheDocument()
+  expect(screen.getByText('1 producto por comprar')).toBeInTheDocument()
 })
 
 test('purchased section hidden when no items purchased', () => {
@@ -59,7 +59,7 @@ test('purchased section hidden when no items purchased', () => {
     <ItemList status="success" items={[makeItem('a')]} members={MEMBERS}
       onTogglePurchased={() => {}} onTagClick={() => {}} onRetry={() => {}} />
   )
-  expect(screen.queryByText('Purchased')).not.toBeInTheDocument()
+  expect(screen.queryByText('Comprados')).not.toBeInTheDocument()
 })
 
 test('purchased section shown when items purchased', () => {
@@ -68,7 +68,7 @@ test('purchased section shown when items purchased', () => {
     <ItemList status="success" items={items} members={MEMBERS}
       onTogglePurchased={() => {}} onTagClick={() => {}} onRetry={() => {}} />
   )
-  expect(screen.getByText('Purchased')).toBeInTheDocument()
+  expect(screen.getByText('Comprados')).toBeInTheDocument()
 })
 
 test('purchased items appear below active items', () => {

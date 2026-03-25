@@ -27,8 +27,8 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
   if (status === 'error') {
     return (
       <div className="item-list item-list--centered">
-        <p>Couldn't load items</p>
-        <button className="item-list__retry" onClick={onRetry}>Retry</button>
+        <p>No se pudieron cargar los productos</p>
+        <button className="item-list__retry" onClick={onRetry}>Reintentar</button>
       </div>
     )
   }
@@ -39,7 +39,7 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
   if (active.length === 0 && purchased.length === 0) {
     return (
       <div className="item-list item-list--centered">
-        <p>No items yet — add the first one below</p>
+        <p>Sin productos — añade el primero abajo</p>
       </div>
     )
   }
@@ -47,7 +47,7 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
   return (
     <div className="item-list">
       <p className="item-list__label">
-        {active.length} {active.length === 1 ? 'item' : 'items'} left
+        {active.length} {active.length === 1 ? 'producto' : 'productos'} por comprar
       </p>
       {active.map(item => (
         <ItemCard key={item.id} item={item} members={members}
@@ -56,7 +56,7 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
 
       {purchased.length > 0 && (
         <>
-          <p className="item-list__label">Purchased</p>
+          <p className="item-list__label">Comprados</p>
           {purchased.map(item => (
             <ItemCard key={item.id} item={item} members={members}
               onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} />
