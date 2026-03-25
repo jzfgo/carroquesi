@@ -32,6 +32,7 @@ app.include_router(lists.router)
 app.include_router(members.router)
 app.include_router(items.router)
 app.include_router(invites.router)
+app.include_router(invites.list_invites_router)
 app.include_router(suggestions.router)
 
 

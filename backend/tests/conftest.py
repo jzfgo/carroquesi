@@ -77,6 +77,7 @@ def _make_client(session: Session, user: User) -> TestClient:
     test_app.include_router(members.router)
     test_app.include_router(items.router)
     test_app.include_router(invites.router)
+    test_app.include_router(invites.list_invites_router)
     test_app.include_router(suggestions.router)
 
     def _get_session():

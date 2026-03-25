@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
@@ -139,3 +141,114 @@ def test_unrelated_user_cannot_delete_link_invite(other_client: TestClient, sess
     # other_user is NOT the owner
     response = other_client.delete(f"/invites/{invite.id}")
     assert response.status_code == 403
+
+
+def test_create_open_invite(client, session, user):
+    lst = _create_list(client)
+    response = client.post(f"/lists/{lst['id']}/invites")
+    assert response.status_code == 201
+    data = response.json()
+    assert "id" in data
+    invite = session.get(ListInvite, data["id"])
+    assert invite is not None
+    assert invite.invited_email is None
+
+
+def test_non_member_cannot_create_open_invite(other_client, session, user):
+    from app.db.models import List
+    lst = List(name="Private", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+    session.refresh(lst)
+    response = other_client.post(f"/lists/{lst.id}/invites")
+    assert response.status_code == 403
+
+
+def test_list_full_blocks_invite_creation(client, session, user):
+    from app.db.models import List, User as DBUser
+    lst = List(name="Full", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+    session.refresh(lst)
+    # Add owner + 4 more = 5 members total
+    session.add(ListMember(list_id=lst.id, user_id=user.id))
+    for i in range(4):
+        extra = DBUser(
+            firebase_uid=f"uid-full-{i}",
+            display_name=f"Extra {i}",
+            email=f"full{i}@example.com",
+        )
+        session.add(extra)
+        session.commit()
+        session.refresh(extra)
+        session.add(ListMember(list_id=lst.id, user_id=extra.id))
+    session.commit()
+    response = client.post(f"/lists/{lst.id}/invites")
+    assert response.status_code == 409
+
+
+def test_expired_invites_cleaned_up_on_create(client, session, user):
+    from datetime import timedelta
+    lst = _create_list(client)
+    old = ListInvite(
+        list_id=lst["id"],
+        invited_by=user.id,
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=25),
+    )
+    session.add(old)
+    session.commit()
+    session.refresh(old)
+    old_id = old.id
+    response = client.post(f"/lists/{lst['id']}/invites")
+    assert response.status_code == 201
+    assert session.get(ListInvite, old_id) is None
+
+
+def test_open_invite_limit_returns_429(client, session, user):
+    lst = _create_list(client)
+    for _ in range(5):
+        session.add(ListInvite(list_id=lst["id"], invited_by=user.id))
+    session.commit()
+    response = client.post(f"/lists/{lst['id']}/invites")
+    assert response.status_code == 429
+
+
+def test_expired_invites_do_not_count_toward_limit(client, session, user):
+    from datetime import timedelta
+    lst = _create_list(client)
+    for _ in range(5):
+        inv = ListInvite(
+            list_id=lst["id"],
+            invited_by=user.id,
+            created_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=25),
+        )
+        session.add(inv)
+    session.commit()
+    response = client.post(f"/lists/{lst['id']}/invites")
+    assert response.status_code == 201
+
+
+def test_accept_invite_blocked_when_list_full(other_client, session, user):
+    from app.db.models import List, User as DBUser
+    lst = List(name="Packed", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+    session.refresh(lst)
+    session.add(ListMember(list_id=lst.id, user_id=user.id))
+    for i in range(4):
+        extra = DBUser(
+            firebase_uid=f"uid-packed-{i}",
+            display_name=f"P{i}",
+            email=f"packed{i}@example.com",
+        )
+        session.add(extra)
+        session.commit()
+        session.refresh(extra)
+        session.add(ListMember(list_id=lst.id, user_id=extra.id))
+    session.commit()
+    invite = ListInvite(list_id=lst.id, invited_by=user.id)
+    session.add(invite)
+    session.commit()
+    session.refresh(invite)
+    response = other_client.post(f"/invites/{invite.id}/accept")
+    assert response.status_code == 409
