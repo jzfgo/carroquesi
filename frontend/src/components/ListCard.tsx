@@ -27,7 +27,7 @@ export function ListCard({ list, onClick, onMenuOpen }: Props) {
       </button>
       <button
         className="list-card__menu-btn"
-        onClick={e => { e.stopPropagation(); onMenuOpen() }}
+        onClick={onMenuOpen}
         aria-label="Opciones"
       >
         ⋯

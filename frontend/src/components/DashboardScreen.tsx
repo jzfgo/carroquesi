@@ -11,7 +11,7 @@ export function DashboardScreen() {
   const { user, getToken, signOut } = useAuth()
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
-  const [selectedListId, setSelectedListId] = useState<string | null>(null)
+  const [selectedList, setSelectedList] = useState<ApiList | null>(null)
 
   const fetchLists = useCallback(async () => {
     setLists(null)
@@ -37,11 +37,12 @@ export function DashboardScreen() {
     [getToken, fetchLists],
   )
 
-  if (selectedListId) {
+  if (selectedList) {
     return (
       <ListScreen
-        listId={selectedListId}
-        onBack={() => setSelectedListId(null)}
+        listId={selectedList.id}
+        listName={selectedList.name}
+        onBack={() => setSelectedList(null)}
       />
     )
   }
@@ -95,7 +96,8 @@ export function DashboardScreen() {
           <ListCard
             key={list.id}
             list={list}
-            onClick={() => setSelectedListId(list.id)}
+            onClick={() => setSelectedList(list)}
+            onMenuOpen={() => {}}
           />
         ))}
         <CreateListCard isFirst={lists.length === 0} onCreate={handleCreate} />
