@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { ListItem, Member, ParsedInput } from '../types'
+import type { ListItem, Member, ParsedInput, TagField } from '../types'
 import {
   getListItems,
   getListMembers,
@@ -94,7 +94,7 @@ export function useListItems(
         await updateItem(getToken, listId, itemId, { purchased: !prevPurchased })
       } catch {
         setItems(snapshot)
-        showToast("Couldn't update item")
+        showToast('No se pudo actualizar el producto')
       }
     },
     [getToken, listId, showToast],
@@ -128,11 +128,25 @@ export function useListItems(
         setItems((prev) => prev.map((i) => (i.id === tempId ? created : i)))
       } catch {
         setItems((prev) => prev.filter((i) => i.id !== tempId))
-        showToast("Couldn't add item")
+        showToast('No se pudo añadir el producto')
       }
     },
     [getToken, listId, showToast],
   )
 
-  return { status, items, members, togglePurchased, addItem, retry: fetchAll }
+  const updateTag = useCallback(
+    async (itemId: string, field: TagField, value: string | null) => {
+      const snapshot = itemsRef.current
+      setItems(snapshot.map((i) => (i.id === itemId ? { ...i, [field]: value } : i)))
+      try {
+        await updateItem(getToken, listId, itemId, { [field]: value })
+      } catch {
+        setItems(snapshot)
+        showToast('No se pudo actualizar el producto')
+      }
+    },
+    [getToken, listId, showToast],
+  )
+
+  return { status, items, members, togglePurchased, addItem, updateTag, retry: fetchAll }
 }

@@ -89,7 +89,7 @@ describe('useListItems — togglePurchased', () => {
     })
 
     expect(result.current.items[0].purchased).toBe(false)
-    expect(mockShowToast).toHaveBeenCalledWith("Couldn't update item")
+    expect(mockShowToast).toHaveBeenCalledWith('No se pudo actualizar el producto')
   })
 })
 
@@ -135,7 +135,54 @@ describe('useListItems — addItem', () => {
     })
 
     expect(result.current.items).toHaveLength(initialLength)
-    expect(mockShowToast).toHaveBeenCalledWith("Couldn't add item")
+    expect(mockShowToast).toHaveBeenCalledWith('No se pudo añadir el producto')
+  })
+})
+
+describe('useListItems — updateTag', () => {
+  it('optimistically updates a tag field', async () => {
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.updateTag('item-1', 'brand', 'Danone')
+    })
+
+    expect(result.current.items[0].brand).toBe('Danone')
+  })
+
+  it('supports setting a tag to null (remove)', async () => {
+    const itemWithBrand: ListItem = { ...item1, brand: 'Hacendado' }
+    vi.mocked(api.getListItems).mockResolvedValue([itemWithBrand] as never)
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.updateTag('item-1', 'brand', null)
+    })
+
+    expect(result.current.items[0].brand).toBeNull()
+  })
+
+  it('reverts and shows toast on API failure', async () => {
+    vi.mocked(api.updateItem).mockRejectedValue(new Error('Network'))
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.updateTag('item-1', 'brand', 'Danone')
+    })
+
+    expect(result.current.items[0].brand).toBeNull()
+    expect(mockShowToast).toHaveBeenCalledWith('No se pudo actualizar el producto')
   })
 })
 
