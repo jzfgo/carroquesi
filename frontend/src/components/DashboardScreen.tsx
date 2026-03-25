@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import './DashboardScreen.css'
 import { useAuth } from '../contexts/AuthContext'
 import { getLists, createList } from '../lib/api'
+import { renameList, deleteList } from '../lib/api'
 import { ListCard } from './ListCard'
 import { CreateListCard } from './CreateListCard'
 import { ListScreen } from './ListScreen'
+import { ListActionSheet } from './ListActionSheet'
 import type { ApiList } from '../types'
 
 export function DashboardScreen() {
@@ -12,6 +14,15 @@ export function DashboardScreen() {
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
   const [selectedList, setSelectedList] = useState<ApiList | null>(null)
+  const [activeList, setActiveList] = useState<ApiList | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  // Auto-dismiss toast after 3 seconds
+  useEffect(() => {
+    if (!toast) return
+    const id = setTimeout(() => setToast(null), 3000)
+    return () => clearTimeout(id)
+  }, [toast])
 
   const fetchLists = useCallback(async () => {
     setLists(null)
@@ -35,6 +46,34 @@ export function DashboardScreen() {
       await fetchLists()
     },
     [getToken, fetchLists],
+  )
+
+  const handleRename = useCallback(
+    async (list: ApiList, newName: string) => {
+      const snapshot = lists
+      setLists(prev => prev ? prev.map(l => l.id === list.id ? { ...l, name: newName } : l) : prev)
+      setActiveList(null)
+      try {
+        await renameList(getToken, list.id, newName)
+      } catch {
+        setLists(snapshot)
+        setToast('No se pudo renombrar la lista')
+      }
+    },
+    [lists, getToken],
+  )
+
+  const handleDelete = useCallback(
+    async (list: ApiList) => {
+      setActiveList(null)
+      try {
+        await deleteList(getToken, list.id)
+        setLists(prev => prev ? prev.filter(l => l.id !== list.id) : prev)
+      } catch {
+        setToast('No se pudo eliminar la lista')
+      }
+    },
+    [getToken],
   )
 
   if (selectedList) {
@@ -96,12 +135,24 @@ export function DashboardScreen() {
           <ListCard
             key={list.id}
             list={list}
-            onClick={() => setSelectedList(list)}
-            onMenuOpen={() => {}}
+            onClick={() => { setSelectedList(list); setActiveList(null) }}
+            onMenuOpen={() => { setActiveList(list) }}
           />
         ))}
         <CreateListCard isFirst={lists.length === 0} onCreate={handleCreate} />
       </main>
+      {activeList && (
+        <ListActionSheet
+          list={activeList}
+          isOwner={activeList.owner_id === (user?.id ?? '')}
+          onRename={newName => void handleRename(activeList, newName)}
+          onDelete={() => void handleDelete(activeList)}
+          onClose={() => setActiveList(null)}
+        />
+      )}
+      {toast && (
+        <div className="dashboard-screen__toast" role="alert">{toast}</div>
+      )}
     </div>
   )
 }

@@ -77,3 +77,17 @@
   cursor: pointer;
   font-size: 1rem;
 }
+
+.dashboard-screen__toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  z-index: 200;
+}
