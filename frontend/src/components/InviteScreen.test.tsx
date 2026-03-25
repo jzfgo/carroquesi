@@ -1,3 +1,4 @@
+import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { vi, beforeEach, test, expect } from 'vitest'
 import { InviteScreen } from './InviteScreen'
@@ -18,6 +19,9 @@ const mockNavigate = vi.fn()
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
   useParams: () => ({ id: 'inv123' }),
+  Link: ({ to, className, children }: { to: string; className?: string; children: React.ReactNode }) => (
+    <a href={to} className={className}>{children}</a>
+  ),
 }))
 
 const mockGetToken = vi.fn().mockResolvedValue('token')

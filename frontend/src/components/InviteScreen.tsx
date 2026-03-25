@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getInvitePreview, acceptInvite, ApiError } from '../lib/api'
 import './InviteScreen.css'
@@ -124,7 +124,7 @@ export function InviteScreen() {
               Reintentar
             </button>
           )}
-          <a href="/" className="invite-screen__home-link">Ir al inicio →</a>
+          <Link to="/" className="invite-screen__home-link">Ir al inicio →</Link>
         </div>
       </div>
     )
