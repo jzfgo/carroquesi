@@ -125,13 +125,18 @@ While `GET /lists/{listId}/members` is in-flight, show a simple spinner inside t
 | Remove fails | Revert optimistic update + toast "No se pudo eliminar el miembro" |
 | Clipboard API unavailable | Show URL in a selectable `<input>` for manual copy |
 | Owner tries to leave | Button not rendered; backend also rejects it |
+| List full (5 members) | Invite button hidden entirely |
 | Invite limit reached (429) | Disable invite button; show "Límite de invitaciones alcanzado" message |
 
-### Invite limits and expiry
+### Invite limits, expiry, and member cap
 
-The backend enforces a max of **5 open invites per list** and auto-expires invites older than **24 hours**. If the limit is reached (after expiry cleanup), the button is disabled and a message shown: "Límite de invitaciones alcanzado. Espera a que expiren o sean aceptadas."
+- **Member cap:** Maximum **5 members per list**. When the list already has 5 members, the invite button is hidden entirely (not just disabled) — there is no point inviting more.
+- **Open invite limit:** Maximum **5 open invites per list** (enforced after expiry cleanup).
+- **Expiry:** Invites older than **24 hours** are cleaned up inline on each invite creation.
 
-The frontend does not need to track invite count independently — it reacts to the 429 response from the backend.
+If the invite limit is reached (after cleanup), the button is disabled with message: "Límite de invitaciones alcanzado. Espera a que expiren o sean aceptadas."
+
+The frontend determines member cap from the already-loaded members list (length ≥ 5 → hide button). It reacts to 429 (invite limit) from the backend for the open-invite cap.
 
 ### Dismiss
 
@@ -149,10 +154,13 @@ Authorization: Bearer <token>
 ```
 
 - Uses `require_member` dependency (any list member can create an invite)
-- **Inline cleanup first:** delete all `ListInvite` rows for this list where `created_at < now() - 24h`
-- **Limit check:** count remaining open invites for this list; if ≥ 5 → return 429
+- **Member cap check:** count current `ListMember` rows for this list; if ≥ 5 → return 409 (`"List is full"`)
+- **Inline cleanup:** delete all `ListInvite` rows for this list where `created_at < now() - 24h`
+- **Open invite limit:** count remaining open invites; if ≥ 5 → return 429
 - Creates `ListInvite(list_id=list_id, invited_by=current_user.id, invited_email=None)`
 - Response: `{ "id": "<uuid>" }` (201 Created)
+
+Also enforce the member cap in `POST /invites/{invite_id}/accept` (in existing `invites.py`): count members before adding; if ≥ 5 → return 409. This guards against a race where 5 people accept the same invite concurrently.
 
 Register `list_invites_router` in `main.py` alongside `router` from `invites.py`.
 
@@ -161,9 +169,13 @@ Register `list_invites_router` in `main.py` alongside `router` from `invites.py`
 `backend/tests/test_invites.py` — net-new test cases for the new endpoint:
 - List member creates open invite → 201 with `id`; `invited_email` is null in DB
 - Non-member cannot create invite → 403
-- Expired invites (>24h) are deleted before limit check
+- List at 5 members → invite creation returns 409
+- Expired invites (>24h) are deleted before open-invite limit check
 - 5 active invites → 201; 6th attempt → 429
 - Expired invites don't count toward limit (creating 6th after first has expired → 201)
+
+`backend/tests/test_invites.py` — additional test for `accept_invite` (existing endpoint):
+- Accepting invite when list already has 5 members → 409
 
 (Existing tests cover link invite acceptance and rejection; these new tests specifically cover the creation endpoint.)
 
@@ -187,6 +199,7 @@ Register `list_invites_router` in `main.py` alongside `router` from `invites.py`
 | Non-owner leaves (Salir) | DELETE called with currentUserId; member removed from list |
 | Remove failure reverts | Member reappears + toast shown |
 | Copy invite success | POST called; clipboard.writeText called with correct URL; toast shown |
+| List full (5 members) | Invite button not rendered |
 | Invite limit reached | POST returns 429; invite button disabled; limit message shown |
 | Clipboard fallback | URL input shown when clipboard API unavailable |
 | ESC closes | onClose called on Escape key |
