@@ -28,7 +28,7 @@ export interface Member {
   photoUrl: string | null
 }
 
-export type TagField = 'variety' | 'brand' | 'store'
+export type TagField = 'variety' | 'brand' | 'store' | 'quantity'
 
 export interface EditingTag {
   itemId: string
