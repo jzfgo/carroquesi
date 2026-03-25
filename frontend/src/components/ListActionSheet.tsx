@@ -26,7 +26,7 @@ export function ListActionSheet({ list, isOwner, onRename, onDelete, onClose }: 
 
   if (subState === 'actions') {
     return (
-      <div className="list-action-sheet">
+      <div className="list-action-sheet" role="dialog" aria-modal="true" aria-label="Opciones de lista">
         <div className="list-action-sheet__handle" />
         <p className="list-action-sheet__list-name">{list.name}</p>
         <button
@@ -50,7 +50,7 @@ export function ListActionSheet({ list, isOwner, onRename, onDelete, onClose }: 
   if (subState === 'rename') {
     const trimmed = renameValue.trim()
     return (
-      <div className="list-action-sheet">
+      <div className="list-action-sheet" role="dialog" aria-modal="true" aria-label="Renombrar lista">
         <div className="list-action-sheet__handle" />
         <p className="list-action-sheet__list-name">✏️ Renombrar lista</p>
         <div className="list-action-sheet__input-row">
@@ -85,7 +85,7 @@ export function ListActionSheet({ list, isOwner, onRename, onDelete, onClose }: 
 
   // subState === 'confirm-delete'
   return (
-    <div className="list-action-sheet">
+    <div className="list-action-sheet" role="dialog" aria-modal="true" aria-label="Confirmar eliminación">
       <div className="list-action-sheet__handle" />
       <p className="list-action-sheet__list-name">{list.name}</p>
       <p className="list-action-sheet__warning">
