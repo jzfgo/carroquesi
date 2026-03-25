@@ -11,6 +11,14 @@ router = APIRouter(prefix="/invites", tags=["invites"])
 
 MAX_MEMBERS = 5
 MAX_OPEN_INVITES = 5
+INVITE_TTL_HOURS = 24
+
+
+def _check_not_expired(invite: ListInvite) -> None:
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=INVITE_TTL_HOURS)
+    if invite.created_at < cutoff:
+        raise HTTPException(status_code=410, detail="Invite expired")
+
 
 list_invites_router = APIRouter(prefix="/lists/{list_id}/invites", tags=["invites"])
 
@@ -27,7 +35,7 @@ def create_open_invite(
     if len(members) >= MAX_MEMBERS:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="List is full")
 
-    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=24)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=INVITE_TTL_HOURS)
     expired = session.exec(
         select(ListInvite).where(ListInvite.list_id == list_id, ListInvite.created_at < cutoff)
     ).all()
@@ -63,6 +71,7 @@ def get_invite_preview(invite_id: str, session: CurrentSession):
     invite = session.get(ListInvite, invite_id)
     if invite is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found")
+    _check_not_expired(invite)
     lst = session.get(List, invite.list_id)
     inviter = session.get(User, invite.invited_by)
     return InvitePreview(
@@ -81,6 +90,8 @@ def accept_invite(
     invite = session.get(ListInvite, invite_id)
     if invite is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invite not found")
+
+    _check_not_expired(invite)
 
     # Email-locked invite: only the matching user can accept
     if invite.invited_email is not None and invite.invited_email != current_user.email:
@@ -106,9 +117,10 @@ def accept_invite(
             lst.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
             session.add(lst)
 
+    list_id = invite.list_id
     session.delete(invite)
     session.commit()
-    return {"status": "accepted"}
+    return {"list_id": list_id}
 
 
 @router.delete("/{invite_id}", status_code=status.HTTP_204_NO_CONTENT)

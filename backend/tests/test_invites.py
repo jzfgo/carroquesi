@@ -252,3 +252,53 @@ def test_accept_invite_blocked_when_list_full(other_client, session, user):
     session.refresh(invite)
     response = other_client.post(f"/invites/{invite.id}/accept")
     assert response.status_code == 409
+
+
+def test_get_invite_preview_returns_410_when_expired(session: Session, user):
+    from datetime import timedelta
+    from app.db.models import List
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient as RawClient
+    from app.db.session import get_session
+    from app.routers import invites as invites_router
+
+    lst = List(name="Old List", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+    session.refresh(lst)
+    invite = ListInvite(
+        list_id=lst.id,
+        invited_by=user.id,
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=25),
+    )
+    session.add(invite)
+    session.commit()
+    session.refresh(invite)
+
+    bare_app = FastAPI()
+    bare_app.include_router(invites_router.router)
+    bare_app.dependency_overrides[get_session] = lambda: session
+    with RawClient(bare_app) as raw:
+        response = raw.get(f"/invites/{invite.id}")
+    assert response.status_code == 410
+
+
+def test_accept_invite_returns_410_when_expired(client: TestClient, session: Session, user):
+    from datetime import timedelta
+    from app.db.models import List
+
+    lst = List(name="Old List 2", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+    session.refresh(lst)
+    invite = ListInvite(
+        list_id=lst.id,
+        invited_by=user.id,
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=25),
+    )
+    session.add(invite)
+    session.commit()
+    session.refresh(invite)
+
+    response = client.post(f"/invites/{invite.id}/accept")
+    assert response.status_code == 410
