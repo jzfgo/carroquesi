@@ -49,8 +49,11 @@ export function DashboardScreen() {
 
   const handleRename = useCallback(
     async (list: ApiList, newName: string) => {
-      const snapshot = lists
-      setLists(prev => prev ? prev.map(l => l.id === list.id ? { ...l, name: newName } : l) : prev)
+      let snapshot: ApiList[] | null = null
+      setLists(prev => {
+        snapshot = prev
+        return prev ? prev.map(l => l.id === list.id ? { ...l, name: newName } : l) : prev
+      })
       setActiveList(null)
       try {
         await renameList(getToken, list.id, newName)
@@ -59,7 +62,7 @@ export function DashboardScreen() {
         setToast('No se pudo renombrar la lista')
       }
     },
-    [lists, getToken],
+    [getToken],
   )
 
   const handleDelete = useCallback(
