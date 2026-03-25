@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getLists, createList, createItem, updateItem, getListUpdatedAt, renameList, deleteList, ApiError } from './api'
+import { getLists, createList, createItem, updateItem, getListUpdatedAt, renameList, deleteList, getInvitePreview, acceptInvite, ApiError } from './api'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -133,6 +133,36 @@ describe('deleteList', () => {
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists/l1'),
       expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+})
+
+describe('getInvitePreview', () => {
+  it('GET /invites/:id — fetches without auth header', async () => {
+    mockFetch.mockReturnValue(mockResponse({ id: 'inv1', list_name: 'Compras', invited_by_name: 'Ana' }))
+    const result = await getInvitePreview('inv1')
+    expect(result).toEqual({ id: 'inv1', list_name: 'Compras', invited_by_name: 'Ana' })
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/invites/inv1'))
+    expect(mockFetch.mock.calls[0][1]).toBeUndefined()
+  })
+
+  it('throws ApiError on non-2xx', async () => {
+    mockFetch.mockReturnValue(mockResponse('Not found', 404))
+    await expect(getInvitePreview('bad-id')).rejects.toMatchObject({ status: 404 })
+  })
+})
+
+describe('acceptInvite', () => {
+  it('POST /invites/:id/accept — sends auth header and returns list_id', async () => {
+    mockFetch.mockReturnValue(mockResponse({ list_id: 'l1' }))
+    const result = await acceptInvite(mockGetToken, 'inv1')
+    expect(result).toEqual({ list_id: 'l1' })
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/invites/inv1/accept'),
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer test-token' }),
+      }),
     )
   })
 })

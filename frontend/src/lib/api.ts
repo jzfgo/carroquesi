@@ -116,3 +116,16 @@ export function removeMember(
 export function createOpenInvite(getToken: () => Promise<string>, listId: string) {
   return apiFetch(getToken, `/lists/${listId}/invites`, { method: 'POST' })
 }
+
+export async function getInvitePreview(inviteId: string): Promise<{ id: string; list_name: string; invited_by_name: string | null }> {
+  const res = await fetch(`${BASE}/invites/${inviteId}`)
+  if (!res.ok) throw new ApiError(res.status, await res.text())
+  return res.json() as Promise<{ id: string; list_name: string; invited_by_name: string | null }>
+}
+
+export function acceptInvite(
+  getToken: () => Promise<string>,
+  inviteId: string,
+): Promise<{ list_id: string }> {
+  return apiFetch(getToken, `/invites/${inviteId}/accept`, { method: 'POST' }) as Promise<{ list_id: string }>
+}
