@@ -1,6 +1,8 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { SignInScreen } from './components/SignInScreen'
 import { DashboardScreen } from './components/DashboardScreen'
+import { InviteScreen } from './components/InviteScreen'
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -38,8 +40,13 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/invite/:id" element={<InviteScreen />} />
+          <Route path="*" element={<AppContent />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }
