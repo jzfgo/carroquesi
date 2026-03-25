@@ -104,3 +104,15 @@ export function updateItem(
 export function getSuggestions(getToken: () => Promise<string>, q: string) {
   return apiFetch(getToken, `/suggestions?q=${encodeURIComponent(q)}`)
 }
+
+export function removeMember(
+  getToken: () => Promise<string>,
+  listId: string,
+  userId: string,
+) {
+  return apiFetch(getToken, `/lists/${listId}/members/${userId}`, { method: 'DELETE' })
+}
+
+export function createOpenInvite(getToken: () => Promise<string>, listId: string) {
+  return apiFetch(getToken, `/lists/${listId}/invites`, { method: 'POST' })
+}
