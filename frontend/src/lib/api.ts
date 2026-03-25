@@ -38,6 +38,21 @@ export function createList(getToken: () => Promise<string>, name: string) {
   return apiFetch(getToken, '/lists', { method: 'POST', body: JSON.stringify({ name }) })
 }
 
+export function renameList(
+  getToken: () => Promise<string>,
+  listId: string,
+  name: string,
+) {
+  return apiFetch(getToken, `/lists/${listId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ name }),
+  })
+}
+
+export function deleteList(getToken: () => Promise<string>, listId: string) {
+  return apiFetch(getToken, `/lists/${listId}`, { method: 'DELETE' })
+}
+
 export function getListItems(getToken: () => Promise<string>, listId: string) {
   return apiFetch(getToken, `/lists/${listId}/items`)
 }

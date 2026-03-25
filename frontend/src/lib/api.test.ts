@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getLists, createList, createItem, updateItem, getListUpdatedAt, ApiError } from './api'
+import { getLists, createList, createItem, updateItem, getListUpdatedAt, renameList, deleteList, ApiError } from './api'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -104,5 +104,35 @@ describe('getListUpdatedAt', () => {
       expect.any(Object),
     )
     expect(result.updated_at).toBe('2026-01-01T00:00:00')
+  })
+})
+
+describe('renameList', () => {
+  it('PATCH /lists/{id} with name body', async () => {
+    mockFetch.mockReturnValue(mockResponse({ id: 'l1', name: 'Nuevo nombre' }))
+    await renameList(mockGetToken, 'l1', 'Nuevo nombre')
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/lists/l1'),
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ name: 'Nuevo nombre' }),
+      }),
+    )
+  })
+})
+
+describe('deleteList', () => {
+  it('DELETE /lists/{id} returns null on 204', async () => {
+    mockFetch.mockReturnValue(Promise.resolve({
+      ok: true, status: 204,
+      json: () => Promise.resolve(null),
+      text: () => Promise.resolve(''),
+    }))
+    const result = await deleteList(mockGetToken, 'l1')
+    expect(result).toBeNull()
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/lists/l1'),
+      expect.objectContaining({ method: 'DELETE' }),
+    )
   })
 })
