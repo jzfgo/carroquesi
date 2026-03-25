@@ -6,6 +6,7 @@ import { ItemList } from './ItemList'
 import { SmartInputBar } from './SmartInputBar'
 import { TagEditSheet } from './TagEditSheet'
 import { Toast } from './Toast'
+import { ListMembersSheet } from './ListMembersSheet'
 import { parseInput } from '../parseInput'
 import { useAuth } from '../contexts/AuthContext'
 import { useListItems } from '../hooks/useListItems'
@@ -15,15 +16,19 @@ import type { EditingTag, TagField } from '../types'
 interface Props {
   listId: string
   listName: string
+  listOwnerId: string
   onBack?: () => void
 }
 
-export function ListScreen({ listId, listName, onBack }: Props) {
-  const { getToken } = useAuth()
+export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
+  const { getToken, user } = useAuth()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [toast, setToast] = useState<string | null>(null)
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const currentUserId = user!.id
+  const isOwner = listOwnerId === currentUserId
 
   const parsed = useMemo(() => parseInput(inputValue), [inputValue])
   const { status, items, members, togglePurchased, addItem, updateTag, retry } =
@@ -69,7 +74,7 @@ export function ListScreen({ listId, listName, onBack }: Props) {
 
   return (
     <div className="list-screen">
-      <ListHeader title={listName} onMenuOpen={() => {}} onBack={onBack} />
+      <ListHeader title={listName} onMenuOpen={() => setMenuOpen(true)} onBack={onBack} />
       <ProgressBar purchased={purchasedCount} total={items.length} />
       <ItemList
         status={status}
@@ -93,7 +98,15 @@ export function ListScreen({ listId, listName, onBack }: Props) {
           />
         )
       })()}
-      {!editingTag && (
+      {menuOpen && (
+        <ListMembersSheet
+          listId={listId}
+          currentUserId={currentUserId}
+          isOwner={isOwner}
+          onClose={() => setMenuOpen(false)}
+        />
+      )}
+      {!editingTag && !menuOpen && (
         <SmartInputBar
           value={inputValue}
           parsed={parsed}

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ListScreen } from './ListScreen'
 import * as AuthContext from '../contexts/AuthContext'
@@ -8,6 +8,9 @@ import type { ListItem } from '../types'
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../hooks/useListItems')
 vi.mock('../lib/api')
+vi.mock('./ListMembersSheet', () => ({
+  ListMembersSheet: () => <div role="dialog" aria-label="Miembros">Sheet</div>,
+}))
 
 const mockGetToken = vi.fn().mockResolvedValue('token')
 
@@ -35,7 +38,13 @@ beforeEach(() => {
 
 describe('ListScreen', () => {
   it('renders the list name in the header', () => {
-    render(<ListScreen listId="l1" listName="Mercado Semanal" />)
+    render(<ListScreen listId="l1" listName="Mercado Semanal" listOwnerId="owner-1" />)
     expect(screen.getByRole('heading', { name: 'Mercado Semanal' })).toBeInTheDocument()
+  })
+
+  it('opens ListMembersSheet when menu button is clicked', () => {
+    render(<ListScreen listId="l1" listName="Mercado Semanal" listOwnerId="u1" />)
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    expect(screen.getByRole('dialog', { name: /miembros/i })).toBeInTheDocument()
   })
 })

@@ -83,6 +83,7 @@ export function DashboardScreen() {
       <ListScreen
         listId={selectedList.id}
         listName={selectedList.name}
+        listOwnerId={selectedList.owner_id}
         onBack={() => setSelectedList(null)}
       />
     )
