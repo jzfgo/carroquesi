@@ -1,5 +1,6 @@
 import './SmartInputBar.css'
 import type { ListItem, ParsedInput } from '../types'
+import { clientSideSuggestions } from '../lib/suggestions'
 
 const SIGIL_FIELDS: Record<string, 'variety' | 'brand' | 'store'> = {
   '*': 'variety', '#': 'brand', '@': 'store',
@@ -14,23 +15,6 @@ function getActiveSigil(raw: string): { sigil: string; partial: string } | null 
     }
   }
   return null
-}
-
-function clientSideSuggestions(
-  items: ListItem[],
-  field: 'variety' | 'brand' | 'store',
-  partial: string
-): string[] {
-  const seen = new Set<string>()
-  const results: string[] = []
-  for (const item of items) {
-    const val = item[field]
-    if (val && val.toLowerCase().startsWith(partial.toLowerCase()) && !seen.has(val)) {
-      seen.add(val)
-      results.push(val)
-    }
-  }
-  return results.slice(0, 5)
 }
 
 function hasSigil(parsed: ParsedInput): boolean {
@@ -88,7 +72,7 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
 
       {showPreview && (
         <div className="smart-input__preview" data-testid="parse-preview">
-          {nameError && <span className="smart-input__preview-error">No item name</span>}
+          {nameError && <span className="smart-input__preview-error">Sin nombre de producto</span>}
           {!nameError && <span className="smart-input__preview-name">{parsed.name}</span>}
           {parsed.quantity && <span className="smart-input__preview-qty">{parsed.quantity}</span>}
           {parsed.variety  && <span className="smart-input__preview-tag">✨ {parsed.variety}</span>}
@@ -98,10 +82,10 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
       )}
 
       <div className="smart-input__legend">
-        <span className="smart-input__chip"><b>+</b> qty</span>
-        <span className="smart-input__chip"><b>*</b> variety</span>
-        <span className="smart-input__chip"><b>#</b> brand</span>
-        <span className="smart-input__chip"><b>@</b> store</span>
+        <span className="smart-input__chip"><b>+</b> cant.</span>
+        <span className="smart-input__chip"><b>*</b> variedad</span>
+        <span className="smart-input__chip"><b>#</b> marca</span>
+        <span className="smart-input__chip"><b>@</b> tienda</span>
       </div>
 
       <div className="smart-input__row">
@@ -111,14 +95,14 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
           value={value}
           onChange={e => onChange(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && hasName) onSubmit() }}
-          placeholder="Add an item…"
-          aria-label="Add an item"
+          placeholder="Añadir producto…"
+          aria-label="Añadir producto"
         />
         <button
           className="smart-input__add"
           onClick={onSubmit}
           disabled={!hasName}
-          aria-label="Add item"
+          aria-label="Añadir"
         >
           <span aria-hidden="true" className="smart-input__add-icon" />
         </button>

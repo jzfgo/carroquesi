@@ -19,13 +19,13 @@ test('renders syntax legend chips', () => {
 test('add button is disabled when name is empty', () => {
   render(<SmartInputBar value="" parsed={parseInput('')} items={NO_ITEMS}
     suggestions={[]} onChange={noop} onSubmit={noop} />)
-  expect(screen.getByRole('button', { name: /add item/i })).toBeDisabled()
+  expect(screen.getByRole('button', { name: /añadir/i })).toBeDisabled()
 })
 
 test('add button is enabled when name is present', () => {
   render(<SmartInputBar value="Leche" parsed={parseInput('Leche')} items={NO_ITEMS}
     suggestions={[]} onChange={noop} onSubmit={noop} />)
-  expect(screen.getByRole('button', { name: /add item/i })).not.toBeDisabled()
+  expect(screen.getByRole('button', { name: /añadir/i })).not.toBeDisabled()
 })
 
 test('onChange is called when user types', async () => {
@@ -40,7 +40,7 @@ test('onSubmit called when add button clicked', () => {
   const onSubmit = vi.fn()
   render(<SmartInputBar value="Leche" parsed={parseInput('Leche')} items={NO_ITEMS}
     suggestions={[]} onChange={noop} onSubmit={onSubmit} />)
-  fireEvent.click(screen.getByRole('button', { name: /add item/i }))
+  fireEvent.click(screen.getByRole('button', { name: /añadir/i }))
   expect(onSubmit).toHaveBeenCalledTimes(1)
 })
 
@@ -66,7 +66,7 @@ test('parse preview shows parsed name and quantity', () => {
 test('shows "No item name" warning when input has sigil but no name', () => {
   render(<SmartInputBar value="+3" parsed={parseInput('+3')} items={NO_ITEMS}
     suggestions={[]} onChange={noop} onSubmit={noop} />)
-  expect(screen.getByText(/no item name/i)).toBeInTheDocument()
+  expect(screen.getByText(/sin nombre de producto/i)).toBeInTheDocument()
 })
 
 test('suggestion dropdown shown when suggestions provided', () => {
