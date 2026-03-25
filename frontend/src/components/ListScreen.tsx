@@ -4,25 +4,29 @@ import { ListHeader } from './ListHeader'
 import { ProgressBar } from './ProgressBar'
 import { ItemList } from './ItemList'
 import { SmartInputBar } from './SmartInputBar'
+import { TagEditSheet } from './TagEditSheet'
 import { Toast } from './Toast'
 import { parseInput } from '../parseInput'
 import { useAuth } from '../contexts/AuthContext'
 import { useListItems } from '../hooks/useListItems'
 import { getSuggestions } from '../lib/api'
+import type { EditingTag, TagField } from '../types'
 
 interface Props {
   listId: string
+  listName: string
   onBack?: () => void
 }
 
-export function ListScreen({ listId, onBack }: Props) {
+export function ListScreen({ listId, listName, onBack }: Props) {
   const { getToken } = useAuth()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [toast, setToast] = useState<string | null>(null)
+  const [editingTag, setEditingTag] = useState<EditingTag | null>(null)
 
   const parsed = useMemo(() => parseInput(inputValue), [inputValue])
-  const { status, items, members, togglePurchased, addItem, retry } =
+  const { status, items, members, togglePurchased, addItem, updateTag, retry } =
     useListItems(listId, getToken, setToast)
 
   // Debounced suggestions — only when name has 2+ chars
@@ -51,8 +55,8 @@ export function ListScreen({ listId, onBack }: Props) {
     [togglePurchased],
   )
 
-  const handleTagClick = useCallback(() => {
-    // tag editing wired in a future task
+  const handleTagClick = useCallback((itemId: string, field: TagField) => {
+    setEditingTag({ itemId, field })
   }, [])
 
   const handleSubmit = useCallback(() => {
@@ -65,16 +69,7 @@ export function ListScreen({ listId, onBack }: Props) {
 
   return (
     <div className="list-screen">
-      {onBack && (
-        <button
-          onClick={onBack}
-          aria-label="Volver"
-          className="list-screen__back"
-        >
-          ←
-        </button>
-      )}
-      <ListHeader title="Mi lista" onMenuOpen={() => {}} />
+      <ListHeader title={listName} onMenuOpen={() => {}} onBack={onBack} />
       <ProgressBar purchased={purchasedCount} total={items.length} />
       <ItemList
         status={status}
@@ -84,14 +79,25 @@ export function ListScreen({ listId, onBack }: Props) {
         onTagClick={handleTagClick}
         onRetry={retry}
       />
-      <SmartInputBar
-        value={inputValue}
-        parsed={parsed}
-        items={items}
-        suggestions={suggestions}
-        onChange={setInputValue}
-        onSubmit={handleSubmit}
-      />
+      {editingTag ? (
+        <TagEditSheet
+          key={`${editingTag.itemId}-${editingTag.field}`}
+          item={items.find(i => i.id === editingTag.itemId)!}
+          field={editingTag.field}
+          items={items}
+          onSave={(value) => { void updateTag(editingTag.itemId, editingTag.field, value); setEditingTag(null) }}
+          onClose={() => setEditingTag(null)}
+        />
+      ) : (
+        <SmartInputBar
+          value={inputValue}
+          parsed={parsed}
+          items={items}
+          suggestions={suggestions}
+          onChange={setInputValue}
+          onSubmit={handleSubmit}
+        />
+      )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
   )

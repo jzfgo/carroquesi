@@ -16,14 +16,3 @@
   text-align: left;
 }
 
-.list-screen__back {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.25rem;
-  color: var(--color-text-secondary);
-  z-index: 10;
-}
