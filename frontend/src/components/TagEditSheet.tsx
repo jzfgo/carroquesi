@@ -19,7 +19,8 @@ interface Props {
 }
 
 export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
-  const currentValue = item[field] as string | null
+  const tagValues = { variety: item.variety, brand: item.brand, store: item.store, quantity: item.quantity } satisfies Record<TagField, string | null>
+  const currentValue = tagValues[field]
   const [input, setInput] = useState(currentValue ?? '')
   const { emoji, label } = TAG_META[field]
 
@@ -41,7 +42,10 @@ export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
   }, [onClose])
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') handleSave()
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSave()
+    }
   }
 
   return (
