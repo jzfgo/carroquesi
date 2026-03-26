@@ -14,6 +14,10 @@ vi.mock('./ListScreen', () => ({
     </div>
   ),
 }))
+import * as reactRouter from 'react-router-dom'
+vi.mock('react-router-dom', () => ({
+  useLocation: vi.fn().mockReturnValue({ state: null }),
+}))
 
 const mockGetToken = vi.fn().mockResolvedValue('token')
 const mockSignOut = vi.fn().mockResolvedValue(undefined)
@@ -33,6 +37,7 @@ beforeEach(() => {
   } as never)
   vi.mocked(api.renameList).mockResolvedValue({} as never)
   vi.mocked(api.deleteList).mockResolvedValue(null as never)
+  vi.mocked(reactRouter.useLocation).mockReturnValue({ state: null })
 })
 
 const twoLists = [
@@ -97,6 +102,15 @@ describe('DashboardScreen', () => {
     await waitFor(() => screen.getByText('Mercado'))
     fireEvent.click(screen.getByRole('button', { name: /cerrar sesión/i }))
     expect(mockSignOut).toHaveBeenCalledOnce()
+  })
+
+  it('auto-opens a list when openListId is passed via router state', async () => {
+    vi.mocked(reactRouter.useLocation).mockReturnValue({ state: { openListId: 'l2' } } as never)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('ListScreen:l2:Costco')).toBeInTheDocument()
+    )
   })
 })
 

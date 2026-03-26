@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import './DashboardScreen.css'
 import { useAuth } from '../contexts/AuthContext'
 import { getLists, createList, renameList, deleteList } from '../lib/api'
@@ -6,6 +6,7 @@ import { ListCard } from './ListCard'
 import { CreateListCard } from './CreateListCard'
 import { ListScreen } from './ListScreen'
 import { ListActionSheet } from './ListActionSheet'
+import { useLocation } from 'react-router-dom'
 import type { ApiList } from '../types'
 
 export function DashboardScreen() {
@@ -15,6 +16,10 @@ export function DashboardScreen() {
   const [selectedList, setSelectedList] = useState<ApiList | null>(null)
   const [activeList, setActiveList] = useState<ApiList | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const location = useLocation()
+  const openListIdRef = useRef<string | null>(
+    (location.state as { openListId?: string } | null)?.openListId ?? null
+  )
 
   // Auto-dismiss toast after 3 seconds
   useEffect(() => {
@@ -29,6 +34,11 @@ export function DashboardScreen() {
     try {
       const data = (await getLists(getToken)) as ApiList[]
       setLists(data)
+      if (openListIdRef.current) {
+        const list = data.find(l => l.id === openListIdRef.current)
+        if (list) setSelectedList(list)
+        openListIdRef.current = null
+      }
     } catch {
       setFetchError(true)
     }
