@@ -2,7 +2,7 @@
   flex: 1;
   overflow-y: auto;
   background: var(--bg2, #f9f8fb);
-  padding: 8px 0;
+  padding: 8px 0 200px;
 }
 
 .item-list--centered {
