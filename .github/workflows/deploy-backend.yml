@@ -1,0 +1,46 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+
+      - name: Build and push Docker image
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          IMAGE="europe-west1-docker.pkg.dev/carroquesi/carroquesi/backend:${SHA}"
+          docker build -t "$IMAGE" ./backend
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: carroquesi-backend
+          region: europe-west1
+          image: ${{ env.IMAGE }}
+          flags: --allow-unauthenticated
+          env_vars: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            FIREBASE_CREDENTIALS_PATH=/secrets/firebase-credentials
+            ALLOWED_ORIGINS=["https://carroquesi.web.app"]
+          secrets: |
+            /secrets/firebase-credentials=firebase-credentials:latest
