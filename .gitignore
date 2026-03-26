@@ -26,7 +26,6 @@ node_modules/
 frontend/dist/
 frontend/.env*
 !frontend/.env.example
-!frontend/.env.production
 
 # Backend env
 backend/.env*
