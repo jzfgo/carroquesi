@@ -95,9 +95,18 @@ test('shows Add quantity CTA button when quantity is null', () => {
   expect(handler).toHaveBeenCalledWith('i1', 'quantity')
 })
 
-test('shows member initial in avatar', () => {
+test('shows member initial in avatar when no photo', () => {
   render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   expect(screen.getByText('A')).toBeInTheDocument()
+})
+
+test('shows member photo in avatar when photoUrl is set', () => {
+  const membersWithPhoto = new Map([
+    ['user-1', { id: 'user-1', displayName: 'Ana', initial: 'A', colour: '#7c3aed', photoUrl: 'https://example.com/ana.jpg' }],
+  ])
+  render(<ItemCard item={BASE_ITEM} members={membersWithPhoto} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
+  const img = screen.getByAltText('Ana')
+  expect(img).toHaveAttribute('src', 'https://example.com/ana.jpg')
 })
 
 test('⋯ button calls onMenuOpen with item id', () => {

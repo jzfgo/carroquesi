@@ -134,6 +134,13 @@
   margin-top: 3px;
 }
 
+.item-card__avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .item-card__menu {
   background: none;
   border: none;

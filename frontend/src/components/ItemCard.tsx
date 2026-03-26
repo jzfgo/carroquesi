@@ -79,10 +79,13 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
       <div className="item-card__right">
         <div
           className="item-card__avatar"
-          style={{ background: colour }}
+          style={{ background: member?.photoUrl ? 'transparent' : colour }}
           aria-hidden
         >
-          {initial}
+          {member?.photoUrl
+            ? <img src={member.photoUrl} alt={member.displayName} className="item-card__avatar-img" />
+            : initial
+          }
         </div>
         <button
           className="item-card__menu"
