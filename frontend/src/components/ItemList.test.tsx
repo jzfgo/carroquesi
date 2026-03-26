@@ -68,7 +68,40 @@ test('purchased section shown when items purchased', () => {
     <ItemList status="success" items={items} members={MEMBERS}
       onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onRetry={() => {}} />
   )
-  expect(screen.getByText('Comprados')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /comprados/i })).toBeInTheDocument()
+})
+
+test('purchased section is expanded by default', () => {
+  const items = [makeItem('a', false), makeItem('b', true)]
+  render(
+    <ItemList status="success" items={items} members={MEMBERS}
+      onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onRetry={() => {}} />
+  )
+  expect(screen.getByRole('button', { name: /comprados/i })).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByText('Item b')).toBeInTheDocument()
+})
+
+test('tapping the purchased header collapses the section', () => {
+  const items = [makeItem('a', false), makeItem('b', true)]
+  render(
+    <ItemList status="success" items={items} members={MEMBERS}
+      onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onRetry={() => {}} />
+  )
+  fireEvent.click(screen.getByRole('button', { name: /comprados/i }))
+  expect(screen.getByRole('button', { name: /comprados/i })).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.queryByText('Item b')).not.toBeInTheDocument()
+})
+
+test('tapping the purchased header again re-expands the section', () => {
+  const items = [makeItem('a', false), makeItem('b', true)]
+  render(
+    <ItemList status="success" items={items} members={MEMBERS}
+      onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onRetry={() => {}} />
+  )
+  const toggle = screen.getByRole('button', { name: /comprados/i })
+  fireEvent.click(toggle)
+  fireEvent.click(toggle)
+  expect(screen.getByText('Item b')).toBeInTheDocument()
 })
 
 test('purchased items appear below active items', () => {

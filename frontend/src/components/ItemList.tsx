@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import './ItemList.css'
 import { ItemCard } from './ItemCard'
 import type { ListItem, Member, TagField } from '../types'
@@ -34,6 +35,8 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
     )
   }
 
+  const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
+
   const active    = items.filter(i => !i.purchased)
   const purchased = items.filter(i =>  i.purchased)
 
@@ -57,8 +60,15 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
 
       {purchased.length > 0 && (
         <>
-          <p className="item-list__label">Comprados</p>
-          {purchased.map(item => (
+          <button
+            className="item-list__label item-list__label--toggle"
+            onClick={() => setPurchasedCollapsed(c => !c)}
+            aria-expanded={!purchasedCollapsed}
+          >
+            Comprados ({purchased.length})
+            <span className={`item-list__chevron${purchasedCollapsed ? ' item-list__chevron--collapsed' : ''}`} aria-hidden />
+          </button>
+          {!purchasedCollapsed && purchased.map(item => (
             <ItemCard key={item.id} item={item} members={members}
               onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen} />
           ))}
