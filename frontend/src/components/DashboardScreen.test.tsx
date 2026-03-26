@@ -37,7 +37,7 @@ beforeEach(() => {
   } as never)
   vi.mocked(api.renameList).mockResolvedValue({} as never)
   vi.mocked(api.deleteList).mockResolvedValue(null as never)
-  vi.mocked(reactRouter.useLocation).mockReturnValue({ state: null })
+  vi.mocked(reactRouter.useLocation).mockReturnValue({ state: null } as never)
 })
 
 const twoLists = [

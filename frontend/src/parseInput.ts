@@ -32,7 +32,7 @@ export function parseInput(raw: string): ParsedInput {
   result.name = nameWords.join(' ')
   for (const [field, parts] of Object.entries(tokenWords)) {
     if (parts.length > 0 && parts.join('').length > 0) {
-      (result as Record<string, unknown>)[field] = parts.join(' ')
+      (result as unknown as Record<string, unknown>)[field] = parts.join(' ')
     }
   }
 
