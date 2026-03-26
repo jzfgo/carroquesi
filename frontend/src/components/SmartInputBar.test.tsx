@@ -100,6 +100,22 @@ test('tapping a legend chip on empty input sets value to just the sigil', () => 
   expect(onChange).toHaveBeenCalledWith('@')
 })
 
+test('tapping a different chip when input ends with a bare sigil replaces it', () => {
+  const onChange = vi.fn()
+  render(<SmartInputBar value="Leche #" parsed={parseInput('Leche #')} items={NO_ITEMS}
+    suggestions={[]} onChange={onChange} onSubmit={noop} />)
+  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
+  expect(onChange).toHaveBeenCalledWith('Leche @')
+})
+
+test('tapping the same chip when input ends with that bare sigil is a no-op', () => {
+  const onChange = vi.fn()
+  render(<SmartInputBar value="Leche #" parsed={parseInput('Leche #')} items={NO_ITEMS}
+    suggestions={[]} onChange={onChange} onSubmit={noop} />)
+  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }))
+  expect(onChange).not.toHaveBeenCalled()
+})
+
 test('client-side store suggestions filtered from items when @ typed', () => {
   const items: ListItem[] = [
     { id: 'i1', list_id: 'l1', name: 'X', quantity: null, variety: null, brand: null,

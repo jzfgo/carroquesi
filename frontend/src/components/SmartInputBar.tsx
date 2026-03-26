@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import './SmartInputBar.css'
 import type { ListItem, ParsedInput } from '../types'
 import { clientSideSuggestions } from '../lib/suggestions'
@@ -22,6 +23,30 @@ function hasSigil(parsed: ParsedInput): boolean {
          parsed.brand !== null || parsed.store !== null
 }
 
+const ALL_SIGILS = new Set(['+', '*', '#', '@'])
+
+/**
+ * Returns the new input value after a chip tap, or null if no change is needed.
+ * - If the input ends with a bare sigil (e.g. "Leche #"), replace it with the new sigil.
+ * - Otherwise append the sigil if not already present anywhere in the input.
+ */
+function sigilChipAction(currentValue: string, sigil: string): string | null {
+  const trimmed = currentValue.trimEnd()
+  const words = trimmed ? trimmed.split(/\s+/) : []
+  const lastWord = words[words.length - 1] ?? ''
+  const endsWithBareSigil = lastWord.length === 1 && ALL_SIGILS.has(lastWord)
+
+  if (endsWithBareSigil) {
+    if (lastWord === sigil) return null // same chip tapped again, just refocus
+    words[words.length - 1] = sigil
+    return words.join(' ')
+  }
+
+  if (currentValue.includes(sigil)) return null // already present
+  const sep = currentValue === '' || currentValue.endsWith(' ') ? '' : ' '
+  return currentValue + sep + sigil
+}
+
 const LEGEND_CHIPS: { sigil: string; label: string }[] = [
   { sigil: '+', label: 'cant.' },
   { sigil: '*', label: 'variedad' },
@@ -39,6 +64,7 @@ interface Props {
 }
 
 export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit }: Props) {
+  const inputRef = useRef<HTMLInputElement>(null)
   const activeSigil = getActiveSigil(value)
   const fieldSigil = activeSigil && SIGIL_FIELDS[activeSigil.sigil]
     ? activeSigil.sigil as '*' | '#' | '@'
@@ -95,9 +121,9 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             className="smart-input__chip"
             aria-label={`Añadir ${label}`}
             onClick={() => {
-              if (!value.includes(sigil)) {
-                onChange(value + (value.endsWith(' ') || value === '' ? '' : ' ') + sigil)
-              }
+              const newValue = sigilChipAction(value, sigil)
+              if (newValue !== null) onChange(newValue)
+              inputRef.current?.focus()
             }}
           >
             <b>{sigil}</b> {label}
@@ -109,6 +135,7 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
         <input
           className="smart-input__field"
           type="text"
+          ref={inputRef}
           value={value}
           onChange={e => onChange(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && hasName) onSubmit() }}
