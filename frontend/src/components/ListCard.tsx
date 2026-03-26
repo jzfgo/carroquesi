@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import './ListCard.css'
 import { ProgressBar } from './ProgressBar'
 import type { ApiList } from '../types'
@@ -6,12 +7,16 @@ interface Props {
   list: ApiList
   onClick: () => void
   onMenuOpen: () => void
+  dragHandleProps?: Record<string, unknown>
+  style?: CSSProperties
+  isDragging?: boolean
 }
 
-export function ListCard({ list, onClick, onMenuOpen }: Props) {
+export function ListCard({ list, onClick, onMenuOpen, dragHandleProps, style, isDragging }: Props) {
   const { name, item_count, purchased_count } = list
   return (
-    <div className="list-card">
+    <div className={`list-card${isDragging ? ' list-card--dragging' : ''}`} style={style}>
+      <span className="list-card__drag-handle" aria-hidden {...dragHandleProps}>⠿</span>
       <button
         className="list-card__tap-target"
         onClick={onClick}

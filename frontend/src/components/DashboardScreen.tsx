@@ -2,12 +2,43 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import './DashboardScreen.css'
 import { useAuth } from '../contexts/AuthContext'
 import { getLists, createList, renameList, deleteList } from '../lib/api'
-import { ListCard } from './ListCard'
+import { SortableListCard } from './SortableListCard'
 import { CreateListCard } from './CreateListCard'
 import { ListScreen } from './ListScreen'
 import { ListActionSheet } from './ListActionSheet'
 import { useLocation } from 'react-router-dom'
+import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { ApiList } from '../types'
+
+function loadOrder(userId: string): string[] | null {
+  try {
+    const raw = localStorage.getItem(`list-order-${userId}`)
+    return raw ? (JSON.parse(raw) as string[]) : null
+  } catch {
+    return null
+  }
+}
+
+function saveOrder(userId: string, ids: string[]) {
+  localStorage.setItem(`list-order-${userId}`, JSON.stringify(ids))
+}
+
+function applyOrder(lists: ApiList[], order: string[] | null): ApiList[] {
+  if (!order) return lists
+  const map = new Map(lists.map(l => [l.id, l]))
+  const sorted = order.flatMap(id => (map.has(id) ? [map.get(id)!] : []))
+  const rest = lists.filter(l => !order.includes(l.id))
+  return [...sorted, ...rest]
+}
 
 export function DashboardScreen() {
   const { user, getToken, signOut } = useAuth()
@@ -33,16 +64,35 @@ export function DashboardScreen() {
     setFetchError(false)
     try {
       const data = (await getLists(getToken)) as ApiList[]
-      setLists(data)
+      const ordered = applyOrder(data, loadOrder(user!.id))
+      setLists(ordered)
       if (openListIdRef.current) {
-        const list = data.find(l => l.id === openListIdRef.current)
+        const list = ordered.find(l => l.id === openListIdRef.current)
         if (list) setSelectedList(list)
         openListIdRef.current = null
       }
     } catch {
       setFetchError(true)
     }
-  }, [getToken])
+  }, [getToken, user])
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setLists(prev => {
+      if (!prev) return prev
+      const oldIndex = prev.findIndex(l => l.id === active.id)
+      const newIndex = prev.findIndex(l => l.id === over.id)
+      const next = arrayMove(prev, oldIndex, newIndex)
+      saveOrder(user!.id, next.map(l => l.id))
+      return next
+    })
+  }, [user])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  )
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -144,14 +194,18 @@ export function DashboardScreen() {
         </button>
       </header>
       <main className="dashboard-screen__lists">
-        {lists.map((list) => (
-          <ListCard
-            key={list.id}
-            list={list}
-            onClick={() => { setSelectedList(list); setActiveList(null) }}
-            onMenuOpen={() => { setActiveList(list) }}
-          />
-        ))}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={lists.map(l => l.id)} strategy={verticalListSortingStrategy}>
+            {lists.map((list) => (
+              <SortableListCard
+                key={list.id}
+                list={list}
+                onClick={() => { setSelectedList(list); setActiveList(null) }}
+                onMenuOpen={() => { setActiveList(list) }}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
         <CreateListCard isFirst={lists.length === 0} onCreate={handleCreate} />
       </main>
       {activeList && (

@@ -52,3 +52,25 @@
 .list-card__menu-btn:active {
   color: var(--color-text, #111827);
 }
+
+.list-card__drag-handle {
+  flex-shrink: 0;
+  padding: 0 0 0 1rem;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  color: var(--color-border, #e5e7eb);
+  font-size: 1.1rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.list-card__drag-handle:active {
+  cursor: grabbing;
+}
+
+.list-card--dragging {
+  opacity: 0.5;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}

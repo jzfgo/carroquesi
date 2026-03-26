@@ -1,0 +1,32 @@
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { ListCard } from './ListCard'
+import type { ApiList } from '../types'
+
+interface Props {
+  list: ApiList
+  onClick: () => void
+  onMenuOpen: () => void
+}
+
+export function SortableListCard({ list, onClick, onMenuOpen }: Props) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: list.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div ref={setNodeRef}>
+      <ListCard
+        list={list}
+        onClick={onClick}
+        onMenuOpen={onMenuOpen}
+        dragHandleProps={{ ...attributes, ...listeners }}
+        style={style}
+        isDragging={isDragging}
+      />
+    </div>
+  )
+}
