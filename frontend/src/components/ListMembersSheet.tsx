@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import './ListMembersSheet.css'
 import { Toast } from './Toast'
 import { useAuth } from '../contexts/AuthContext'
@@ -31,6 +31,7 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
   const [inviteLimitReached, setInviteLimitReached] = useState(false)
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
     setLoadState('loading')
@@ -51,8 +52,19 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
     }
+
+    function handleClickOutside(e: MouseEvent) {
+      if (sheetRef.current && !sheetRef.current.contains(e.target as Node)) {
+        onClose()
+      }
+    }
+
     document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
   }, [onClose])
 
   async function handleRemove(userId: string) {
@@ -88,13 +100,16 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
   const listFull = members.length >= MAX_MEMBERS
 
   return (
-    <div
-      className="list-members-sheet"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Miembros"
-    >
-      <div className="list-members-sheet__handle" />
+    <>
+      <div className="list-members-sheet__overlay" onClick={onClose}></div>
+      <div
+        className="list-members-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Miembros"
+        ref={sheetRef}
+      >
+        <div className="list-members-sheet__handle" />
 
       {loadState === 'loading' && (
         <span
@@ -192,5 +207,6 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
 
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
+    </>
   )
 }

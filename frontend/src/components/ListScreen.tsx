@@ -64,6 +64,16 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
     setEditingTag({ itemId, field })
   }, [])
 
+  const handleMenuToggle = useCallback(() => {
+    if (menuOpen) {
+      // If sheet is already open, close it
+      setMenuOpen(false)
+    } else {
+      // Otherwise open the menu
+      setMenuOpen(true)
+    }
+  }, [menuOpen])
+
   const handleSubmit = useCallback(() => {
     if (!parsed.name.trim()) return
     void addItem(parsed)
@@ -74,7 +84,7 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
 
   return (
     <div className="list-screen">
-      <ListHeader title={listName} onMenuOpen={() => setMenuOpen(true)} onBack={onBack} />
+      <ListHeader title={listName} onMenuOpen={handleMenuToggle} onBack={onBack} />
       <ProgressBar purchased={purchasedCount} total={items.length} />
       <ItemList
         status={status}

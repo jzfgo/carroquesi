@@ -12,6 +12,17 @@
   z-index: 100;
 }
 
+.list-members-sheet__overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99;
+  background: transparent;
+  cursor: default;
+}
+
 .list-members-sheet__handle {
   width: 36px;
   height: 4px;
