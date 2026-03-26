@@ -1,5 +1,5 @@
-# Claude - ignorar configuración local
-.claude/settings.local.json
+# Claude
+.claude/
 
 # Python
 __pycache__/
