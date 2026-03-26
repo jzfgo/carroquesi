@@ -21,6 +21,8 @@ const emptyHookResult = {
   togglePurchased: vi.fn(),
   addItem: vi.fn(),
   updateTag: vi.fn(),
+  renameItem: vi.fn(),
+  removeItem: vi.fn(),
   retry: vi.fn(),
 }
 
