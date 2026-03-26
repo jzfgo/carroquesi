@@ -19,13 +19,13 @@ test('renders syntax legend chips', () => {
 test('add button is disabled when name is empty', () => {
   render(<SmartInputBar value="" parsed={parseInput('')} items={NO_ITEMS}
     suggestions={[]} onChange={noop} onSubmit={noop} />)
-  expect(screen.getByRole('button', { name: /añadir/i })).toBeDisabled()
+  expect(screen.getByRole('button', { name: /^añadir$/i })).toBeDisabled()
 })
 
 test('add button is enabled when name is present', () => {
   render(<SmartInputBar value="Leche" parsed={parseInput('Leche')} items={NO_ITEMS}
     suggestions={[]} onChange={noop} onSubmit={noop} />)
-  expect(screen.getByRole('button', { name: /añadir/i })).not.toBeDisabled()
+  expect(screen.getByRole('button', { name: /^añadir$/i })).not.toBeDisabled()
 })
 
 test('onChange is called when user types', async () => {
@@ -40,7 +40,7 @@ test('onSubmit called when add button clicked', () => {
   const onSubmit = vi.fn()
   render(<SmartInputBar value="Leche" parsed={parseInput('Leche')} items={NO_ITEMS}
     suggestions={[]} onChange={noop} onSubmit={onSubmit} />)
-  fireEvent.click(screen.getByRole('button', { name: /añadir/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^añadir$/i }))
   expect(onSubmit).toHaveBeenCalledTimes(1)
 })
 
@@ -74,6 +74,30 @@ test('suggestion dropdown shown when suggestions provided', () => {
     suggestions={['Leche', 'Lechuga']} onChange={noop} onSubmit={noop} />)
   expect(screen.getByText('Leche')).toBeInTheDocument()
   expect(screen.getByText('Lechuga')).toBeInTheDocument()
+})
+
+test('tapping a legend chip appends its sigil when not already present', () => {
+  const onChange = vi.fn()
+  render(<SmartInputBar value="Leche" parsed={parseInput('Leche')} items={NO_ITEMS}
+    suggestions={[]} onChange={onChange} onSubmit={noop} />)
+  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }))
+  expect(onChange).toHaveBeenCalledWith('Leche #')
+})
+
+test('tapping a legend chip is a no-op when sigil is already present', () => {
+  const onChange = vi.fn()
+  render(<SmartInputBar value="Leche #Puleva" parsed={parseInput('Leche #Puleva')} items={NO_ITEMS}
+    suggestions={[]} onChange={onChange} onSubmit={noop} />)
+  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }))
+  expect(onChange).not.toHaveBeenCalled()
+})
+
+test('tapping a legend chip on empty input sets value to just the sigil', () => {
+  const onChange = vi.fn()
+  render(<SmartInputBar value="" parsed={parseInput('')} items={NO_ITEMS}
+    suggestions={[]} onChange={onChange} onSubmit={noop} />)
+  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
+  expect(onChange).toHaveBeenCalledWith('@')
 })
 
 test('client-side store suggestions filtered from items when @ typed', () => {

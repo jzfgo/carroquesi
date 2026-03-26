@@ -10,10 +10,11 @@ interface Props {
   members: Map<string, Member>
   onTogglePurchased: (itemId: string) => void
   onTagClick: (itemId: string, field: TagField) => void
+  onMenuOpen: (itemId: string) => void
   onRetry: () => void
 }
 
-export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onRetry }: Props) {
+export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry }: Props) {
   if (status === 'loading') {
     return (
       <div className="item-list">
@@ -51,7 +52,7 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
       </p>
       {active.map(item => (
         <ItemCard key={item.id} item={item} members={members}
-          onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} />
+          onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen} />
       ))}
 
       {purchased.length > 0 && (
@@ -59,7 +60,7 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
           <p className="item-list__label">Comprados</p>
           {purchased.map(item => (
             <ItemCard key={item.id} item={item} members={members}
-              onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} />
+              onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen} />
           ))}
         </>
       )}

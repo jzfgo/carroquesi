@@ -12,9 +12,10 @@ interface Props {
   members: Map<string, Member>
   onTogglePurchased: (itemId: string) => void
   onTagClick: (itemId: string, field: TagField) => void
+  onMenuOpen: (itemId: string) => void
 }
 
-export function ItemCard({ item, members, onTogglePurchased, onTagClick }: Props) {
+export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuOpen }: Props) {
   const member = members.get(item.added_by)
   const initial = member?.initial ?? '?'
   const colour  = member?.colour ?? '#b0adb5'
@@ -75,12 +76,21 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick }: Props
         </div>
       </div>
 
-      <div
-        className="item-card__avatar"
-        style={{ background: colour }}
-        aria-hidden
-      >
-        {initial}
+      <div className="item-card__right">
+        <div
+          className="item-card__avatar"
+          style={{ background: colour }}
+          aria-hidden
+        >
+          {initial}
+        </div>
+        <button
+          className="item-card__menu"
+          onClick={e => { e.stopPropagation(); onMenuOpen(item.id) }}
+          aria-label="Opciones del producto"
+        >
+          ⋯
+        </button>
       </div>
     </div>
   )

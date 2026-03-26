@@ -1,10 +1,10 @@
-.list-action-sheet__overlay {
+.item-action-sheet__overlay {
   position: fixed;
   inset: 0;
   z-index: 99;
 }
 
-.list-action-sheet {
+.item-action-sheet {
   position: fixed;
   bottom: 0;
   left: 0;
@@ -18,7 +18,7 @@
   flex-direction: column;
 }
 
-.list-action-sheet__handle {
+.item-action-sheet__handle {
   width: 36px;
   height: 4px;
   background: var(--color-border, #e5e7eb);
@@ -26,7 +26,7 @@
   margin: 0 auto 12px;
 }
 
-.list-action-sheet__list-name {
+.item-action-sheet__item-name {
   font-size: 0.75rem;
   color: var(--color-text-secondary, #6b7280);
   font-weight: 500;
@@ -34,7 +34,7 @@
   margin: 0;
 }
 
-.list-action-sheet__action {
+.item-action-sheet__action {
   display: block;
   width: 100%;
   padding: 14px 20px;
@@ -45,20 +45,20 @@
   text-align: left;
   cursor: pointer;
   color: var(--color-text, #111827);
+  font-family: inherit;
 }
 
-.list-action-sheet__action--danger {
+.item-action-sheet__action--danger {
   color: var(--color-danger, #dc2626);
 }
 
-/* Rename sub-state */
-.list-action-sheet__input-row {
+.item-action-sheet__input-row {
   display: flex;
   gap: 8px;
   padding: 0 16px 8px;
 }
 
-.list-action-sheet__input {
+.item-action-sheet__input {
   flex: 1;
   padding: 9px 12px;
   border: 1.5px solid var(--color-primary, #7c3aed);
@@ -67,9 +67,10 @@
   background: var(--color-bg, #fff);
   color: var(--color-text, #111827);
   outline: none;
+  font-family: inherit;
 }
 
-.list-action-sheet__save-btn {
+.item-action-sheet__save-btn {
   padding: 9px 16px;
   background: var(--color-primary, #7c3aed);
   color: #fff;
@@ -80,12 +81,12 @@
   cursor: pointer;
 }
 
-.list-action-sheet__save-btn:disabled {
+.item-action-sheet__save-btn:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
-.list-action-sheet__cancel-link {
+.item-action-sheet__cancel-link {
   background: none;
   border: none;
   color: var(--color-text-secondary, #6b7280);
@@ -93,17 +94,17 @@
   cursor: pointer;
   padding: 4px 20px;
   text-align: left;
+  font-family: inherit;
 }
 
-/* Confirm-delete sub-state */
-.list-action-sheet__warning {
+.item-action-sheet__warning {
   font-size: 0.85rem;
   color: var(--color-text-secondary, #6b7280);
   padding: 0 20px 16px;
   margin: 0;
 }
 
-.list-action-sheet__confirm-btn {
+.item-action-sheet__confirm-btn {
   margin: 0 16px 8px;
   padding: 13px;
   background: var(--color-danger, #dc2626);
@@ -115,7 +116,7 @@
   cursor: pointer;
 }
 
-.list-action-sheet__cancel-btn {
+.item-action-sheet__cancel-btn {
   margin: 0 16px;
   padding: 13px;
   background: none;

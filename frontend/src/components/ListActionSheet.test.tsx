@@ -108,6 +108,12 @@ test('Cancelar in confirmation sub-state returns to actions sub-state', () => {
   expect(baseProps.onClose).not.toHaveBeenCalled()
 })
 
+test('tapping the overlay calls onClose from actions sub-state', () => {
+  const { container } = render(<ListActionSheet {...baseProps} />)
+  fireEvent.click(container.querySelector('.list-action-sheet__overlay')!)
+  expect(baseProps.onClose).toHaveBeenCalled()
+})
+
 test('ESC calls onClose from confirm-delete sub-state', () => {
   render(<ListActionSheet {...baseProps} />)
   fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))

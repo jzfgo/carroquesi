@@ -52,9 +52,14 @@ describe('parseInput', () => {
     expect(result.store).toBe('El Corte Inglés')
   })
 
-  test('last occurrence of same sigil wins', () => {
+  test('first occurrence of same sigil wins', () => {
     const result = parseInput('Leche +2 +3')
-    expect(result.quantity).toBe('3')
+    expect(result.quantity).toBe('2')
+  })
+
+  test('subsequent same sigil is ignored even with multi-word tokens', () => {
+    const result = parseInput('Pan #Bimbo extra #Hacendado')
+    expect(result.brand).toBe('Bimbo extra')
   })
 
   test('word starting with sigil is never part of name', () => {

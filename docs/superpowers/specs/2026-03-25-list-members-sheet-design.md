@@ -140,7 +140,8 @@ The frontend determines member cap from the already-loaded members list (length 
 
 ### Dismiss
 
-ESC key: `document.addEventListener('keydown', ...)` → `onClose()` (same pattern as `TagEditSheet`).
+- **ESC key:** `document.addEventListener('keydown', ...)` → `onClose()`.
+- **Tap outside:** a transparent full-screen overlay sits behind the sheet; tapping it calls `onClose()`. This is the universal bottom sheet dismiss pattern applied consistently across all sheets (`TagEditSheet`, `ListActionSheet`, `ListMembersSheet`, `ItemActionSheet`).
 
 ---
 
@@ -203,3 +204,4 @@ Register `list_invites_router` in `main.py` alongside `router` from `invites.py`
 | Invite limit reached | POST returns 429; invite button disabled; limit message shown |
 | Clipboard fallback | URL input shown when clipboard API unavailable |
 | ESC closes | onClose called on Escape key |
+| Tap outside closes | onClose called when overlay is tapped |

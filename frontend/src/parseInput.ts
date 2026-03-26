@@ -20,8 +20,11 @@ export function parseInput(raw: string): ParsedInput {
     const field = SIGIL_MAP[sigil]
 
     if (field) {
+      if (!(field in tokenWords)) {
+        // first occurrence wins — ignore subsequent tokens for the same sigil
+        tokenWords[field] = [word.slice(1)]
+      }
       currentField = field
-      tokenWords[field] = [word.slice(1)]   // strip sigil; reset (last occurrence wins)
     } else if (currentField) {
       tokenWords[currentField].push(word)
     } else {

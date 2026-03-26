@@ -49,6 +49,8 @@ export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
   }
 
   return (
+    <>
+    <div className="tag-edit-sheet__overlay" onClick={onClose} />
     <div className="tag-edit-sheet">
       <div className="tag-edit-sheet__header">
         <span>{emoji} {label}</span>
@@ -90,5 +92,6 @@ export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
         </button>
       )}
     </div>
+    </>
   )
 }

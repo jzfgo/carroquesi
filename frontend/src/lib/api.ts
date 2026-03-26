@@ -103,6 +103,14 @@ export function updateItem(
   })
 }
 
+export function deleteItem(
+  getToken: () => Promise<string>,
+  listId: string,
+  itemId: string,
+) {
+  return apiFetch(getToken, `/lists/${listId}/items/${itemId}`, { method: 'DELETE' })
+}
+
 export function getSuggestions(getToken: () => Promise<string>, q: string) {
   return apiFetch(getToken, `/suggestions?q=${encodeURIComponent(q)}`)
 }

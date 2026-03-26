@@ -90,6 +90,13 @@ test('ESC calls onClose even when input is not focused', () => {
   expect(onClose).toHaveBeenCalled()
 })
 
+test('tapping the overlay calls onClose', () => {
+  const onClose = vi.fn()
+  const { container } = render(<TagEditSheet item={BASE_ITEM} field="brand" items={[BASE_ITEM]} onSave={() => {}} onClose={onClose} />)
+  fireEvent.click(container.querySelector('.tag-edit-sheet__overlay')!)
+  expect(onClose).toHaveBeenCalled()
+})
+
 test('does not show suggestions for quantity field', () => {
   render(<TagEditSheet item={BASE_ITEM} field="quantity" items={OTHER_ITEMS} onSave={() => {}} onClose={() => {}} />)
   // suggestions row should not appear even with matching items

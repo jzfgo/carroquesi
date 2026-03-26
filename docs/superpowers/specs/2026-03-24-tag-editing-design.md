@@ -44,7 +44,8 @@ Fixed at the bottom of the screen, visually replacing the SmartInputBar while a 
   Suggestions are not shown for `quantity`
 - **Save button** (also triggered by Enter key)
 - **Remove button** — only shown when the field currently has a value. Sets the field to `null`
-- **ESC key** — cancels without saving. No "tap outside" to close — tapping the list behind the sheet would trigger item interactions. ESC and the explicit buttons are the only dismiss paths
+- **ESC key** — cancels without saving
+- **Tap outside** — a transparent full-screen overlay sits behind the sheet; tapping it dismisses the sheet without saving (equivalent to ESC). This prevents accidental item interactions while the sheet is open
 
 **Save behavior:**
 - Non-empty value → PATCH item with new value
@@ -97,6 +98,14 @@ const { status, items, members, togglePurchased, addItem, updateTag, retry } =
   <SmartInputBar ... />
 )}
 ```
+
+---
+
+## Tapping a Tag from Another Item
+
+When the user taps a filled tag on an item card while the SmartInputBar is active (no `TagEditSheet` open), the tag's sigil + value is appended to the current input — but only if that sigil is **not already present** in the input (first-occurrence wins; duplicates are silently ignored). This lets users quickly copy a store, brand, or variety from an existing item into a new one they are typing.
+
+If `TagEditSheet` is already open for a different item, tapping a tag on a third item closes the current sheet (without saving) and opens a new sheet for the tapped tag. No duplicate-prevention logic applies inside `TagEditSheet` since it edits a single field value directly.
 
 ---
 
@@ -182,6 +191,7 @@ The sheet structure (top to bottom):
 - Clearing input and saving calls `onSave(null)`
 - Enter key triggers save
 - ESC key calls `onClose`
+- Tapping the overlay (outside the sheet) calls `onClose`
 - Remove button calls `onSave(null)`
 - Shows suggestions filtered from items (variety/brand/store only)
 - Clicking a suggestion fills the input

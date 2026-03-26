@@ -22,6 +22,13 @@ function hasSigil(parsed: ParsedInput): boolean {
          parsed.brand !== null || parsed.store !== null
 }
 
+const LEGEND_CHIPS: { sigil: string; label: string }[] = [
+  { sigil: '+', label: 'cant.' },
+  { sigil: '*', label: 'variedad' },
+  { sigil: '#', label: 'marca' },
+  { sigil: '@', label: 'tienda' },
+]
+
 interface Props {
   value: string
   parsed: ParsedInput
@@ -82,10 +89,20 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
       )}
 
       <div className="smart-input__legend">
-        <span className="smart-input__chip"><b>+</b> cant.</span>
-        <span className="smart-input__chip"><b>*</b> variedad</span>
-        <span className="smart-input__chip"><b>#</b> marca</span>
-        <span className="smart-input__chip"><b>@</b> tienda</span>
+        {LEGEND_CHIPS.map(({ sigil, label }) => (
+          <button
+            key={sigil}
+            className="smart-input__chip"
+            aria-label={`Añadir ${label}`}
+            onClick={() => {
+              if (!value.includes(sigil)) {
+                onChange(value + (value.endsWith(' ') || value === '' ? '' : ' ') + sigil)
+              }
+            }}
+          >
+            <b>{sigil}</b> {label}
+          </button>
+        ))}
       </div>
 
       <div className="smart-input__row">

@@ -88,6 +88,9 @@
   font-size: 11px;
   color: var(--text);
   background: var(--bg2, #f9f8fb);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 2px 7px;

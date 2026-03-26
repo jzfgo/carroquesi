@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import './ListScreen.css'
 import { ListHeader } from './ListHeader'
 import { ProgressBar } from './ProgressBar'
+import { StoreFilter } from './StoreFilter'
 import { ItemList } from './ItemList'
 import { SmartInputBar } from './SmartInputBar'
 import { TagEditSheet } from './TagEditSheet'
+import { ItemActionSheet } from './ItemActionSheet'
 import { Toast } from './Toast'
 import { ListMembersSheet } from './ListMembersSheet'
 import { parseInput } from '../parseInput'
@@ -27,11 +29,13 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
   const [toast, setToast] = useState<string | null>(null)
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [storeFilter, setStoreFilter] = useState<string | null>(null)
+  const [activeItemId, setActiveItemId] = useState<string | null>(null)
   const currentUserId = user!.id
   const isOwner = listOwnerId === currentUserId
 
   const parsed = useMemo(() => parseInput(inputValue), [inputValue])
-  const { status, items, members, togglePurchased, addItem, updateTag, retry } =
+  const { status, items, members, togglePurchased, addItem, updateTag, renameItem, removeItem, retry } =
     useListItems(listId, getToken, setToast)
 
   // Debounced suggestions — only when name has 2+ chars
@@ -64,6 +68,10 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
     setEditingTag({ itemId, field })
   }, [])
 
+  const handleItemMenuOpen = useCallback((itemId: string) => {
+    setActiveItemId(itemId)
+  }, [])
+
   const handleMenuToggle = useCallback(() => {
     if (menuOpen) {
       // If sheet is already open, close it
@@ -82,16 +90,39 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
 
   const purchasedCount = items.filter((i) => i.purchased).length
 
+  const stores = useMemo(() => {
+    const seen = new Set<string>()
+    const result: string[] = []
+    for (const item of items) {
+      if (item.store && !seen.has(item.store)) {
+        seen.add(item.store)
+        result.push(item.store)
+      }
+    }
+    return result.sort()
+  }, [items])
+
+  // Reset filter if the active store disappears from items
+  const activeStore = storeFilter && stores.includes(storeFilter) ? storeFilter : null
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (storeFilter && !stores.includes(storeFilter)) setStoreFilter(null)
+  }, [stores, storeFilter])
+
+  const filteredItems = activeStore ? items.filter(i => i.store === activeStore) : items
+
   return (
     <div className="list-screen">
       <ListHeader title={listName} onMenuOpen={handleMenuToggle} onBack={onBack} />
       <ProgressBar purchased={purchasedCount} total={items.length} />
+      <StoreFilter stores={stores} active={activeStore} onSelect={setStoreFilter} />
       <ItemList
         status={status}
-        items={items}
+        items={filteredItems}
         members={members}
         onTogglePurchased={handleTogglePurchased}
         onTagClick={handleTagClick}
+        onMenuOpen={handleItemMenuOpen}
         onRetry={retry}
       />
       {editingTag && (() => {
@@ -108,6 +139,18 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
           />
         )
       })()}
+      {activeItemId && (() => {
+        const activeItem = items.find(i => i.id === activeItemId)
+        if (!activeItem) return null
+        return (
+          <ItemActionSheet
+            item={activeItem}
+            onRename={(name) => { void renameItem(activeItemId, name); setActiveItemId(null) }}
+            onDelete={() => { void removeItem(activeItemId); setActiveItemId(null) }}
+            onClose={() => setActiveItemId(null)}
+          />
+        )
+      })()}
       {menuOpen && (
         <ListMembersSheet
           listId={listId}
@@ -116,7 +159,7 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
           onClose={() => setMenuOpen(false)}
         />
       )}
-      {!editingTag && !menuOpen && (
+      {!editingTag && !menuOpen && !activeItemId && (
         <SmartInputBar
           value={inputValue}
           parsed={parsed}

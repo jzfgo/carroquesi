@@ -6,6 +6,7 @@ import {
   getListUpdatedAt,
   createItem,
   updateItem,
+  deleteItem,
 } from '../lib/api'
 import { AVATAR_COLOURS } from '../mockData'
 
@@ -148,5 +149,31 @@ export function useListItems(
     [getToken, listId, showToast],
   )
 
-  return { status, items, members, togglePurchased, addItem, updateTag, retry: fetchAll }
+  const renameItem = useCallback(
+    async (itemId: string, name: string) => {
+      const snapshot = itemsRef.current
+      setItems(snapshot.map((i) => (i.id === itemId ? { ...i, name } : i)))
+      try {
+        await updateItem(getToken, listId, itemId, { name })
+      } catch {
+        setItems(snapshot)
+        showToast('No se pudo renombrar el producto')
+      }
+    },
+    [getToken, listId, showToast],
+  )
+
+  const removeItem = useCallback(
+    async (itemId: string) => {
+      try {
+        await deleteItem(getToken, listId, itemId)
+        setItems(prev => prev.filter(i => i.id !== itemId))
+      } catch {
+        showToast('No se pudo eliminar el producto')
+      }
+    },
+    [getToken, listId, showToast],
+  )
+
+  return { status, items, members, togglePurchased, addItem, updateTag, renameItem, removeItem, retry: fetchAll }
 }

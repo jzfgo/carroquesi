@@ -44,9 +44,9 @@ A bottom sheet fixed at the bottom of the screen (same visual layer as `TagEditS
 - **`'confirm-delete'`** — transitions from `'actions'` when "Eliminar lista" is tapped. Shows the list name, a warning ("Se eliminarán todos los productos. Esta acción no se puede deshacer."), a red "Sí, eliminar lista" button, and a "Cancelar" button that returns to `'actions'` sub-state.
 
 **Dismiss rules:**
-- ESC (global `keydown` listener, same pattern as `TagEditSheet`) closes the sheet entirely from any sub-state, calling `onClose`.
+- ESC (global `keydown` listener) closes the sheet entirely from any sub-state, calling `onClose`.
+- Tapping outside the sheet (transparent full-screen overlay beneath the sheet) closes it entirely from any sub-state, calling `onClose`.
 - "Cancelar" in `'rename'` and `'confirm-delete'` goes back to `'actions'` — it does not call `onClose`.
-- No tap-outside-to-close — tapping the list behind the sheet would trigger card navigation.
 
 **Props:**
 
@@ -161,6 +161,7 @@ New test cases:
 - "Cancelar" in rename sub-state returns to `'actions'` sub-state (does not call `onClose`)
 - ESC calls `onClose` from `'actions'` sub-state
 - ESC calls `onClose` from `'rename'` sub-state
+- Tapping the overlay calls `onClose` from `'actions'` sub-state
 - Tapping "Eliminar lista" transitions to confirmation sub-state with warning text
 - "Sí, eliminar lista" calls `onDelete`
 - "Cancelar" in confirmation sub-state returns to `'actions'` sub-state (does not call `onClose`)

@@ -82,6 +82,65 @@ Tapping a CTA tag (or a filled tag) opens an **inline edit** for that specific f
 
 ---
 
+## Store Filter
+
+A horizontal scrollable chip row appears **above the item list** (below the progress bar) whenever at least one item has a non-null `store` value.
+
+- Chips: "All" (always first, selected by default) + one chip per unique store value present in the current list (sorted alphabetically).
+- Tapping a store chip filters the item list to show only items with that store value (both active and purchased sections are filtered).
+- The "All" chip resets the filter and shows every item.
+- Only one chip is active at a time.
+- If all items with a given store are removed or their store is cleared, that chip disappears automatically and the filter resets to "All".
+- The chip row is hidden entirely (no empty row) when no item has a store value.
+
+---
+
+## Item Actions
+
+Each item card gains a **⋯ button** (right-aligned, alongside the member avatar). Tapping it opens an `ItemActionSheet` bottom sheet.
+
+### `ItemActionSheet` — new
+
+A bottom sheet managing three internal sub-states, mirroring the `ListActionSheet` pattern:
+
+- **`'actions'`** — item name as header, "Renombrar" button, "Eliminar" button (red).
+- **`'rename'`** — text input pre-filled with current item name + "Guardar" button (disabled when trimmed input is empty). "Cancelar" link returns to `'actions'`. Enter key triggers save.
+- **`'confirm-delete'`** — warning text, red "Sí, eliminar" button, "Cancelar" button returning to `'actions'`.
+
+**Dismiss rules (universal bottom sheet pattern):**
+- Tapping outside the sheet (transparent overlay) closes it entirely from any sub-state.
+- ESC key closes it entirely from any sub-state.
+- "Cancelar" inside `'rename'` or `'confirm-delete'` navigates back to `'actions'` (not close).
+
+**Props:**
+```typescript
+interface Props {
+  item: ListItem
+  onRename: (newName: string) => void
+  onDelete: () => void
+  onClose: () => void
+}
+```
+
+**`handleItemRename(item, newName)` in `ListScreen`** — optimistic update:
+1. Capture snapshot of `items`.
+2. Apply new name to local state immediately.
+3. Call `PATCH /lists/{listId}/items/{itemId}` with `{ name: newName }`.
+4. On failure: revert to snapshot + toast "No se pudo renombrar el producto".
+
+**`handleItemDelete(item)` in `ListScreen`** — non-optimistic:
+1. Call `DELETE /lists/{listId}/items/{itemId}`.
+2. On success: remove item from local state.
+3. On failure: toast "No se pudo eliminar el producto".
+
+### Backend changes required
+
+`DELETE /lists/{listId}/items/{itemId}` — new endpoint. Auth: must be a list member. Returns 204 No Content. Bumps `lists.updated_at`.
+
+`PATCH /lists/{listId}/items/{itemId}` already accepts `name` as an optional field — no backend changes needed for rename.
+
+---
+
 ## Smart Input Bar
 
 Sticky, fixed to the bottom. Vertical stack order from bottom to top:
@@ -102,6 +161,8 @@ A row of small chips:
 ```
 
 Shown persistently (not only on focus) so new users can learn without onboarding.
+
+**Chips are tappable.** Tapping a chip appends the corresponding sigil to the current input value, but only if that sigil is not already present in the input. The cursor is placed after the appended sigil so the user can type the value immediately. If the sigil is already present, the tap is a no-op.
 
 ---
 
@@ -125,7 +186,7 @@ The parser splits the raw string on whitespace into words, then scans left-to-ri
 - A token **extends** across consecutive words until the next word that starts with a different sigil, or end of string. This allows multi-word values: `+1 bolsa`, `+6 litros de leche`, `@El Corte Inglés`.
 - Words that do not start with a sigil character are accumulated as the **item name**, regardless of position. Name words may appear before, after, or interleaved with token words.
 - A word that starts with a sigil character is **never** part of the name. If the user genuinely needs a name that begins with `+`, `*`, `#`, or `@`, they must prefix it with a space or retype without the sigil — this edge case is accepted as an unsupported input and produces an empty name with a visible parse error in the preview card.
-- If the same sigil appears more than once, the last occurrence wins.
+- If the same sigil appears more than once, the **first occurrence wins**. All subsequent tokens for the same sigil are ignored.
 
 **Example:** `Leche entera +3 *Desnatada #Puleva @Mer` parses as:
 - name: `Leche entera`

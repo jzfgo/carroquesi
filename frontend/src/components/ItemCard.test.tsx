@@ -15,17 +15,17 @@ const BASE_ITEM: ListItem = {
 }
 
 test('renders item name', () => {
-  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} />)
+  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   expect(screen.getByText('Leche')).toBeInTheDocument()
 })
 
 test('renders quantity badge', () => {
-  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} />)
+  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   expect(screen.getByText('2 unidades')).toBeInTheDocument()
 })
 
 test('renders variety, brand, store tags', () => {
-  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} />)
+  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   expect(screen.getByText(/Entera/)).toBeInTheDocument()
   expect(screen.getByText(/Hacendado/)).toBeInTheDocument()
   expect(screen.getByText(/Mercadona/)).toBeInTheDocument()
@@ -33,7 +33,7 @@ test('renders variety, brand, store tags', () => {
 
 test('shows CTA tags for null fields', () => {
   const item = { ...BASE_ITEM, variety: null, brand: null, store: null }
-  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} />)
+  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   // Three CTA buttons with aria-label
   expect(screen.getByRole('button', { name: /añadir variedad/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /añadir marca/i })).toBeInTheDocument()
@@ -42,7 +42,7 @@ test('shows CTA tags for null fields', () => {
 
 test('tag row is always present because CTAs are shown for null fields', () => {
   const item = { ...BASE_ITEM, variety: null, brand: null, store: null }
-  const { container } = render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} />)
+  const { container } = render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   // CTA tags ARE shown for null fields — tag row is only hidden if we choose not to show CTAs
   // Per spec: CTA tags shown for missing fields, row omitted only when all null AND no CTAs desired
   // In our design: CTAs always shown for missing fields, so row is always present
@@ -51,13 +51,13 @@ test('tag row is always present because CTAs are shown for null fields', () => {
 
 test('purchased state applies strikethrough class', () => {
   const item = { ...BASE_ITEM, purchased: true }
-  const { container } = render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} />)
+  const { container } = render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   expect(container.querySelector('.item-card--purchased')).toBeInTheDocument()
 })
 
 test('tapping checkbox calls onTogglePurchased', () => {
   const handler = vi.fn()
-  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={handler} onTagClick={() => {}} />)
+  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={handler} onTagClick={() => {}} onMenuOpen={() => {}} />)
   fireEvent.click(screen.getByRole('checkbox'))
   expect(handler).toHaveBeenCalledWith('i1')
 })
@@ -65,14 +65,14 @@ test('tapping checkbox calls onTogglePurchased', () => {
 test('tapping a CTA tag calls onTagClick with item id and field', () => {
   const handler = vi.fn()
   const item = { ...BASE_ITEM, variety: null }
-  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={handler} />)
+  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={handler} onMenuOpen={() => {}} />)
   fireEvent.click(screen.getByRole('button', { name: /añadir variedad/i }))
   expect(handler).toHaveBeenCalledWith('i1', 'variety')
 })
 
 test('tapping a filled tag button calls onTagClick with item id and field', () => {
   const handler = vi.fn()
-  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={handler} />)
+  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={handler} onMenuOpen={() => {}} />)
   // BASE_ITEM has brand: 'Hacendado'
   fireEvent.click(screen.getByText(/Hacendado/))
   expect(handler).toHaveBeenCalledWith('i1', 'brand')
@@ -80,7 +80,7 @@ test('tapping a filled tag button calls onTagClick with item id and field', () =
 
 test('quantity is a button that calls onTagClick with quantity field', () => {
   const handler = vi.fn()
-  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={handler} />)
+  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={handler} onMenuOpen={() => {}} />)
   fireEvent.click(screen.getByRole('button', { name: /2 unidades/i }))
   expect(handler).toHaveBeenCalledWith('i1', 'quantity')
 })
@@ -88,7 +88,7 @@ test('quantity is a button that calls onTagClick with quantity field', () => {
 test('shows Add quantity CTA button when quantity is null', () => {
   const handler = vi.fn()
   const item = { ...BASE_ITEM, quantity: null }
-  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={handler} />)
+  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={handler} onMenuOpen={() => {}} />)
   const btn = screen.getByRole('button', { name: /añadir cantidad/i })
   expect(btn).toBeInTheDocument()
   fireEvent.click(btn)
@@ -96,12 +96,19 @@ test('shows Add quantity CTA button when quantity is null', () => {
 })
 
 test('shows member initial in avatar', () => {
-  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} />)
+  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   expect(screen.getByText('A')).toBeInTheDocument()
+})
+
+test('⋯ button calls onMenuOpen with item id', () => {
+  const handler = vi.fn()
+  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={handler} />)
+  fireEvent.click(screen.getByRole('button', { name: /opciones del producto/i }))
+  expect(handler).toHaveBeenCalledWith('i1')
 })
 
 test('shows ? avatar for unknown member', () => {
   const item = { ...BASE_ITEM, added_by: 'unknown-uuid' }
-  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} />)
+  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   expect(screen.getByText('?')).toBeInTheDocument()
 })

@@ -1,3 +1,9 @@
+.tag-edit-sheet__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+
 .tag-edit-sheet {
   position: fixed;
   bottom: 0;
