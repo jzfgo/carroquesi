@@ -109,7 +109,7 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
     if (storeFilter && !stores.includes(storeFilter)) setStoreFilter(null)
   }, [stores, storeFilter])
 
-  const filteredItems = activeStore ? items.filter(i => i.store === activeStore) : items
+  const filteredItems = activeStore ? items.filter(i => i.store === activeStore || i.store === null) : items
 
   return (
     <div className="list-screen">
