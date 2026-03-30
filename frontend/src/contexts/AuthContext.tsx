@@ -65,7 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: data.email,
           })
         } catch {
-          setUser(null)
+          // A network error from syncUser should not sign the user out.
+          // Keep existing session state; only clear on explicit Firebase sign-out.
+          setUser(prev => prev)
         }
       } else {
         setUser(null)
