@@ -61,7 +61,7 @@ Cache entries are **immutable once written** (`INSERT ... ON CONFLICT DO NOTHING
 
 1. Validate `ean`: must match `^\d{8}$|^\d{13}$`. Return 422 if invalid.
 2. Query `barcode_cache` for the EAN. Return cached `BarcodeRead` if found.
-3. Call `https://world.openfoodfacts.org/api/v3/product/{ean}.json`
+3. Call `https://es.openfoodfacts.org/api/v3/product/{ean}.json`
 4. If `status != 1` or product missing → return 404
 5. If request fails / timeout → return 503
 6. Extract fields (see mapping below), insert into `barcode_cache` with `ON CONFLICT DO NOTHING`
