@@ -9,7 +9,7 @@ export const AVATAR_COLOURS = [
 
 export const MOCK_MEMBERS: Member[] = [
   { id: 'user-javi', displayName: 'Javier', initial: 'J', colour: AVATAR_COLOURS[0], photoUrl: null },
-  { id: 'user-maria', displayName: 'María', initial: 'M', colour: AVATAR_COLOURS[1], photoUrl: null },
+  { id: 'user-elena', displayName: 'Elena', initial: 'E', colour: AVATAR_COLOURS[1], photoUrl: null },
 ]
 
 export const MOCK_ITEMS: ListItem[] = [
@@ -24,7 +24,7 @@ export const MOCK_ITEMS: ListItem[] = [
     id: 'item-2', list_id: MOCK_LIST_ID,
     name: 'Huevos', quantity: '12 unidades',
     variety: null, brand: null, store: null,
-    purchased: false, added_by: 'user-maria',
+    purchased: false, added_by: 'user-elena',
     created_at: '2026-03-19T10:01:00Z', updated_at: '2026-03-19T10:01:00Z',
   },
   {
@@ -38,7 +38,7 @@ export const MOCK_ITEMS: ListItem[] = [
     id: 'item-4', list_id: MOCK_LIST_ID,
     name: 'Pan de molde integral', quantity: '1',
     variety: 'Sin corteza', brand: 'Bimbo', store: 'Carrefour',
-    purchased: true, added_by: 'user-maria',
+    purchased: true, added_by: 'user-elena',
     created_at: '2026-03-19T10:03:00Z', updated_at: '2026-03-19T10:03:00Z',
   },
 ]

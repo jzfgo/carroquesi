@@ -12,32 +12,33 @@
 
 ## File Structure
 
-| File | Action |
-|------|--------|
-| `backend/.env` | Add `DATABASE_URL=sqlite:///./carroquesi.db` |
-| `backend/app/schemas/members.py` | Add `display_name`, `photo_url` to `MemberRead` |
-| `backend/app/routers/members.py` | JOIN with `User` in GET endpoint |
-| `backend/tests/test_members.py` | Add test for new fields |
-| `frontend/src/lib/firebase.ts` | Remove unused Firestore/Storage exports |
-| `frontend/src/types.ts` | Add `photoUrl: string \| null` to `Member` |
-| `frontend/src/mockData.ts` | Add `photoUrl: null` to each `MOCK_MEMBERS` entry |
-| `frontend/src/lib/api.ts` | Create: ApiError + all API functions |
-| `frontend/src/lib/api.test.ts` | Create: unit tests for api.ts |
-| `frontend/src/contexts/AuthContext.tsx` | Create: AuthProvider + useAuth |
-| `frontend/src/components/SignInScreen.tsx` | Create: minimal Google sign-in card |
-| `frontend/src/components/SignInScreen.test.tsx` | Create: render + click tests |
-| `frontend/src/hooks/useListItems.ts` | Create: list state, polling, optimistic updates |
-| `frontend/src/hooks/useListItems.test.tsx` | Create: unit tests |
-| `frontend/src/components/ListLoader.tsx` | Create: loading/empty/success states |
-| `frontend/src/components/ListLoader.test.tsx` | Create: render tests |
-| `frontend/src/components/ListScreen.tsx` | Modify: accept `listId` prop, use hook |
-| `frontend/src/App.tsx` | Modify: AuthProvider + AppContent |
+| File                                            | Action                                            |
+| ----------------------------------------------- | ------------------------------------------------- |
+| `backend/.env`                                  | Add `DATABASE_URL=sqlite:///./carroquesi.db`      |
+| `backend/app/schemas/members.py`                | Add `display_name`, `photo_url` to `MemberRead`   |
+| `backend/app/routers/members.py`                | JOIN with `User` in GET endpoint                  |
+| `backend/tests/test_members.py`                 | Add test for new fields                           |
+| `frontend/src/lib/firebase.ts`                  | Remove unused Firestore/Storage exports           |
+| `frontend/src/types.ts`                         | Add `photoUrl: string \| null` to `Member`        |
+| `frontend/src/mockData.ts`                      | Add `photoUrl: null` to each `MOCK_MEMBERS` entry |
+| `frontend/src/lib/api.ts`                       | Create: ApiError + all API functions              |
+| `frontend/src/lib/api.test.ts`                  | Create: unit tests for api.ts                     |
+| `frontend/src/contexts/AuthContext.tsx`         | Create: AuthProvider + useAuth                    |
+| `frontend/src/components/SignInScreen.tsx`      | Create: minimal Google sign-in card               |
+| `frontend/src/components/SignInScreen.test.tsx` | Create: render + click tests                      |
+| `frontend/src/hooks/useListItems.ts`            | Create: list state, polling, optimistic updates   |
+| `frontend/src/hooks/useListItems.test.tsx`      | Create: unit tests                                |
+| `frontend/src/components/ListLoader.tsx`        | Create: loading/empty/success states              |
+| `frontend/src/components/ListLoader.test.tsx`   | Create: render tests                              |
+| `frontend/src/components/ListScreen.tsx`        | Modify: accept `listId` prop, use hook            |
+| `frontend/src/App.tsx`                          | Modify: AuthProvider + AppContent                 |
 
 ---
 
 ### Task 1: Backend — SQLite dev config + MemberRead extension
 
 **Files:**
+
 - Modify: `backend/.env`
 - Modify: `backend/app/schemas/members.py`
 - Modify: `backend/app/routers/members.py`
@@ -167,6 +168,7 @@ git commit -m "feat: extend MemberRead with display_name and photo_url via JOIN"
 ### Task 2: Frontend Foundation — firebase cleanup, types, mockData
 
 **Files:**
+
 - Modify: `frontend/src/lib/firebase.ts`
 - Modify: `frontend/src/types.ts`
 - Modify: `frontend/src/mockData.ts`
@@ -176,8 +178,8 @@ git commit -m "feat: extend MemberRead with display_name and photo_url via JOIN"
 Replace `frontend/src/lib/firebase.ts` — keep only `app` and `auth`, remove `db` (Firestore) and `storage`:
 
 ```typescript
-import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -186,11 +188,11 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
-}
+};
 
-const app = initializeApp(firebaseConfig)
+const app = initializeApp(firebaseConfig);
 
-export const auth = getAuth(app)
+export const auth = getAuth(app);
 ```
 
 - [ ] **Step 2: Add photoUrl to Member interface**
@@ -199,11 +201,11 @@ In `frontend/src/types.ts`, add `photoUrl` field to `Member`:
 
 ```typescript
 export interface Member {
-  id: string
-  displayName: string
-  initial: string
-  colour: string
-  photoUrl: string | null
+  id: string;
+  displayName: string;
+  initial: string;
+  colour: string;
+  photoUrl: string | null;
 }
 ```
 
@@ -213,9 +215,21 @@ In `frontend/src/mockData.ts`, update `MOCK_MEMBERS`:
 
 ```typescript
 export const MOCK_MEMBERS: Member[] = [
-  { id: 'user-javi', displayName: 'Javier', initial: 'J', colour: AVATAR_COLOURS[0], photoUrl: null },
-  { id: 'user-maria', displayName: 'María',  initial: 'M', colour: AVATAR_COLOURS[1], photoUrl: null },
-]
+  {
+    id: 'user-javi',
+    displayName: 'Javier',
+    initial: 'J',
+    colour: AVATAR_COLOURS[0],
+    photoUrl: null,
+  },
+  {
+    id: 'user-elena',
+    displayName: 'Elena',
+    initial: 'E',
+    colour: AVATAR_COLOURS[1],
+    photoUrl: null,
+  },
+];
 ```
 
 - [ ] **Step 4: Verify TypeScript is happy**
@@ -246,6 +260,7 @@ git commit -m "feat: add photoUrl to Member type, clean up firebase.ts"
 ### Task 3: API client — src/lib/api.ts
 
 **Files:**
+
 - Create: `frontend/src/lib/api.ts`
 - Create: `frontend/src/lib/api.test.ts`
 
@@ -254,13 +269,20 @@ git commit -m "feat: add photoUrl to Member type, clean up firebase.ts"
 Create `frontend/src/lib/api.test.ts`:
 
 ```typescript
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getLists, createList, createItem, updateItem, getListUpdatedAt, ApiError } from './api'
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  getLists,
+  createList,
+  createItem,
+  updateItem,
+  getListUpdatedAt,
+  ApiError,
+} from './api';
 
-const mockFetch = vi.fn()
-vi.stubGlobal('fetch', mockFetch)
+const mockFetch = vi.fn();
+vi.stubGlobal('fetch', mockFetch);
 
-const mockGetToken = () => vi.fn().mockResolvedValue('test-token')
+const mockGetToken = () => vi.fn().mockResolvedValue('test-token');
 
 function mockResponse(body: unknown, status = 200) {
   return Promise.resolve({
@@ -268,97 +290,105 @@ function mockResponse(body: unknown, status = 200) {
     status,
     json: () => Promise.resolve(body),
     text: () => Promise.resolve(String(body)),
-  })
+  });
 }
 
 beforeEach(() => {
-  mockFetch.mockReset()
-})
+  mockFetch.mockReset();
+});
 
 describe('apiFetch — authorization', () => {
   it('sends Authorization: Bearer <token> on every request', async () => {
-    mockFetch.mockReturnValue(mockResponse([]))
-    await getLists(mockGetToken())
+    mockFetch.mockReturnValue(mockResponse([]));
+    await getLists(mockGetToken());
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists'),
       expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: 'Bearer test-token' }),
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-token',
+        }),
       }),
-    )
-  })
-})
+    );
+  });
+});
 
 describe('ApiError', () => {
   it('carries .status on non-2xx response', async () => {
-    mockFetch.mockReturnValue(mockResponse('Not found', 404))
-    await expect(getLists(mockGetToken())).rejects.toMatchObject({ status: 404 })
-  })
+    mockFetch.mockReturnValue(mockResponse('Not found', 404));
+    await expect(getLists(mockGetToken())).rejects.toMatchObject({
+      status: 404,
+    });
+  });
 
   it('is an instance of ApiError', async () => {
-    mockFetch.mockReturnValue(mockResponse('Server error', 500))
+    mockFetch.mockReturnValue(mockResponse('Server error', 500));
     try {
-      await getLists(mockGetToken())
+      await getLists(mockGetToken());
     } catch (e) {
-      expect(e).toBeInstanceOf(ApiError)
+      expect(e).toBeInstanceOf(ApiError);
     }
-  })
-})
+  });
+});
 
 describe('getLists', () => {
   it('GET /lists returns parsed JSON', async () => {
-    mockFetch.mockReturnValue(mockResponse([{ id: 'l1', name: 'Compras' }]))
-    const result = await getLists(mockGetToken())
-    expect(result).toEqual([{ id: 'l1', name: 'Compras' }])
-  })
-})
+    mockFetch.mockReturnValue(mockResponse([{ id: 'l1', name: 'Compras' }]));
+    const result = await getLists(mockGetToken());
+    expect(result).toEqual([{ id: 'l1', name: 'Compras' }]);
+  });
+});
 
 describe('createList', () => {
   it('POST /lists with name body', async () => {
-    mockFetch.mockReturnValue(mockResponse({ id: 'l1', name: 'Compras' }))
-    await createList(mockGetToken(), 'Compras')
+    mockFetch.mockReturnValue(mockResponse({ id: 'l1', name: 'Compras' }));
+    await createList(mockGetToken(), 'Compras');
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists'),
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ name: 'Compras' }),
       }),
-    )
-  })
-})
+    );
+  });
+});
 
 describe('createItem', () => {
   it('POST /lists/{id}/items', async () => {
-    mockFetch.mockReturnValue(mockResponse({ id: 'item-1', name: 'Leche' }))
-    await createItem(mockGetToken(), 'list-1', { name: 'Leche' })
+    mockFetch.mockReturnValue(mockResponse({ id: 'item-1', name: 'Leche' }));
+    await createItem(mockGetToken(), 'list-1', { name: 'Leche' });
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists/list-1/items'),
       expect.objectContaining({ method: 'POST' }),
-    )
-  })
-})
+    );
+  });
+});
 
 describe('updateItem', () => {
   it('PATCH /lists/{id}/items/{itemId}', async () => {
-    mockFetch.mockReturnValue(mockResponse({ id: 'item-1', purchased: true }))
-    await updateItem(mockGetToken(), 'list-1', 'item-1', { purchased: true })
+    mockFetch.mockReturnValue(mockResponse({ id: 'item-1', purchased: true }));
+    await updateItem(mockGetToken(), 'list-1', 'item-1', { purchased: true });
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists/list-1/items/item-1'),
       expect.objectContaining({ method: 'PATCH' }),
-    )
-  })
-})
+    );
+  });
+});
 
 describe('getListUpdatedAt', () => {
   it('GET /lists/{id}/updated-at', async () => {
-    mockFetch.mockReturnValue(mockResponse({ updated_at: '2026-01-01T00:00:00' }))
-    const result = await getListUpdatedAt(mockGetToken(), 'list-1') as { updated_at: string }
+    mockFetch.mockReturnValue(
+      mockResponse({ updated_at: '2026-01-01T00:00:00' }),
+    );
+    const result = (await getListUpdatedAt(mockGetToken(), 'list-1')) as {
+      updated_at: string;
+    };
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists/list-1/updated-at'),
       expect.any(Object),
-    )
-    expect(result.updated_at).toBe('2026-01-01T00:00:00')
-  })
-})
+    );
+    expect(result.updated_at).toBe('2026-01-01T00:00:00');
+  });
+});
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -372,12 +402,15 @@ Expected: FAIL — `Cannot find module './api'`.
 - [ ] **Step 3: Create src/lib/api.ts**
 
 ```typescript
-const BASE = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
+const BASE = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000';
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message)
-    this.name = 'ApiError'
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
   }
 }
 
@@ -386,7 +419,7 @@ async function apiFetch(
   path: string,
   options: RequestInit = {},
 ): Promise<unknown> {
-  const token = await getToken()
+  const token = await getToken();
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
@@ -394,51 +427,60 @@ async function apiFetch(
       Authorization: `Bearer ${token}`,
       ...(options.headers as Record<string, string> | undefined),
     },
-  })
-  if (!res.ok) throw new ApiError(res.status, await res.text())
-  if (res.status === 204) return null
-  return res.json()
+  });
+  if (!res.ok) throw new ApiError(res.status, await res.text());
+  if (res.status === 204) return null;
+  return res.json();
 }
 
 export function syncUser(getToken: () => Promise<string>) {
-  return apiFetch(getToken, '/auth/sync', { method: 'POST' })
+  return apiFetch(getToken, '/auth/sync', { method: 'POST' });
 }
 
 export function getLists(getToken: () => Promise<string>) {
-  return apiFetch(getToken, '/lists')
+  return apiFetch(getToken, '/lists');
 }
 
 export function createList(getToken: () => Promise<string>, name: string) {
-  return apiFetch(getToken, '/lists', { method: 'POST', body: JSON.stringify({ name }) })
+  return apiFetch(getToken, '/lists', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
 }
 
 export function getListItems(getToken: () => Promise<string>, listId: string) {
-  return apiFetch(getToken, `/lists/${listId}/items`)
+  return apiFetch(getToken, `/lists/${listId}/items`);
 }
 
-export function getListMembers(getToken: () => Promise<string>, listId: string) {
-  return apiFetch(getToken, `/lists/${listId}/members`)
+export function getListMembers(
+  getToken: () => Promise<string>,
+  listId: string,
+) {
+  return apiFetch(getToken, `/lists/${listId}/members`);
 }
 
-export function getListUpdatedAt(getToken: () => Promise<string>, listId: string) {
-  return apiFetch(getToken, `/lists/${listId}/updated-at`)
+export function getListUpdatedAt(
+  getToken: () => Promise<string>,
+  listId: string,
+) {
+  return apiFetch(getToken, `/lists/${listId}/updated-at`);
 }
 
 export function createItem(
   getToken: () => Promise<string>,
   listId: string,
   payload: {
-    name: string
-    quantity?: string | null
-    brand?: string | null
-    variety?: string | null
-    store?: string | null
+    name: string;
+    quantity?: string | null;
+    brand?: string | null;
+    variety?: string | null;
+    store?: string | null;
   },
 ) {
   return apiFetch(getToken, `/lists/${listId}/items`, {
     method: 'POST',
     body: JSON.stringify(payload),
-  })
+  });
 }
 
 export function updateItem(
@@ -446,22 +488,22 @@ export function updateItem(
   listId: string,
   itemId: string,
   patch: Partial<{
-    purchased: boolean
-    name: string
-    quantity: string | null
-    brand: string | null
-    variety: string | null
-    store: string | null
+    purchased: boolean;
+    name: string;
+    quantity: string | null;
+    brand: string | null;
+    variety: string | null;
+    store: string | null;
   }>,
 ) {
   return apiFetch(getToken, `/lists/${listId}/items/${itemId}`, {
     method: 'PATCH',
     body: JSON.stringify(patch),
-  })
+  });
 }
 
 export function getSuggestions(getToken: () => Promise<string>, q: string) {
-  return apiFetch(getToken, `/suggestions?q=${encodeURIComponent(q)}`)
+  return apiFetch(getToken, `/suggestions?q=${encodeURIComponent(q)}`);
 }
 ```
 
@@ -493,6 +535,7 @@ git commit -m "feat: add api.ts with ApiError and typed API functions"
 ### Task 4: Auth layer — AuthContext + SignInScreen
 
 **Files:**
+
 - Create: `frontend/src/contexts/AuthContext.tsx`
 - Create: `frontend/src/components/SignInScreen.tsx`
 - Create: `frontend/src/components/SignInScreen.test.tsx`
@@ -734,6 +777,7 @@ git commit -m "feat: add AuthContext with getToken pattern and SignInScreen"
 ### Task 5: Data layer — useListItems hook
 
 **Files:**
+
 - Create: `frontend/src/hooks/useListItems.ts`
 - Create: `frontend/src/hooks/useListItems.test.tsx`
 
@@ -742,16 +786,16 @@ git commit -m "feat: add AuthContext with getToken pattern and SignInScreen"
 Create `frontend/src/hooks/useListItems.test.tsx`:
 
 ```typescript
-import { renderHook, waitFor, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useListItems } from './useListItems'
-import * as api from '../lib/api'
-import type { ListItem } from '../types'
+import { renderHook, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { useListItems } from './useListItems';
+import * as api from '../lib/api';
+import type { ListItem } from '../types';
 
-vi.mock('../lib/api')
+vi.mock('../lib/api');
 
-const mockGetToken = vi.fn().mockResolvedValue('token')
-const mockShowToast = vi.fn()
+const mockGetToken = vi.fn().mockResolvedValue('token');
+const mockShowToast = vi.fn();
 
 const item1: ListItem = {
   id: 'item-1',
@@ -765,86 +809,99 @@ const item1: ListItem = {
   added_by: 'user-1',
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
-}
+};
 
 const mockRawMembers = [
-  { id: 'mem-1', user_id: 'user-1', list_id: 'list-1', display_name: 'Alice', photo_url: null, created_at: '' },
-]
+  {
+    id: 'mem-1',
+    user_id: 'user-1',
+    list_id: 'list-1',
+    display_name: 'Alice',
+    photo_url: null,
+    created_at: '',
+  },
+];
 
 beforeEach(() => {
-  vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-  vi.mocked(api.getListMembers).mockResolvedValue(mockRawMembers as never)
-  vi.mocked(api.getListUpdatedAt).mockResolvedValue({ updated_at: '2026-01-01T00:00:00' } as never)
-  mockShowToast.mockReset()
-})
+  vi.mocked(api.getListItems).mockResolvedValue([item1] as never);
+  vi.mocked(api.getListMembers).mockResolvedValue(mockRawMembers as never);
+  vi.mocked(api.getListUpdatedAt).mockResolvedValue({
+    updated_at: '2026-01-01T00:00:00',
+  } as never);
+  mockShowToast.mockReset();
+});
 
 describe('useListItems — initial fetch', () => {
   it('starts in loading state', () => {
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
-    )
-    expect(result.current.status).toBe('loading')
-  })
+    );
+    expect(result.current.status).toBe('loading');
+  });
 
   it('resolves to success with items and members', async () => {
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
-    )
-    await waitFor(() => expect(result.current.status).toBe('success'))
-    expect(result.current.items).toHaveLength(1)
-    expect(result.current.items[0].name).toBe('Leche')
-    expect(result.current.members.get('user-1')?.displayName).toBe('Alice')
-    expect(result.current.members.get('user-1')?.photoUrl).toBeNull()
-  })
+    );
+    await waitFor(() => expect(result.current.status).toBe('success'));
+    expect(result.current.items).toHaveLength(1);
+    expect(result.current.items[0].name).toBe('Leche');
+    expect(result.current.members.get('user-1')?.displayName).toBe('Alice');
+    expect(result.current.members.get('user-1')?.photoUrl).toBeNull();
+  });
 
   it('sets status to error when fetch fails', async () => {
-    vi.mocked(api.getListItems).mockRejectedValue(new Error('Network'))
+    vi.mocked(api.getListItems).mockRejectedValue(new Error('Network'));
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
-    )
-    await waitFor(() => expect(result.current.status).toBe('error'))
-  })
-})
+    );
+    await waitFor(() => expect(result.current.status).toBe('error'));
+  });
+});
 
 describe('useListItems — togglePurchased', () => {
   it('optimistically flips purchased', async () => {
-    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    vi.mocked(api.updateItem).mockResolvedValue({} as never);
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
-    )
-    await waitFor(() => expect(result.current.status).toBe('success'))
+    );
+    await waitFor(() => expect(result.current.status).toBe('success'));
 
     await act(async () => {
-      await result.current.togglePurchased('item-1')
-    })
+      await result.current.togglePurchased('item-1');
+    });
 
-    expect(result.current.items[0].purchased).toBe(true)
-  })
+    expect(result.current.items[0].purchased).toBe(true);
+  });
 
   it('rolls back and shows toast on error', async () => {
-    vi.mocked(api.updateItem).mockRejectedValue(new Error('Network'))
+    vi.mocked(api.updateItem).mockRejectedValue(new Error('Network'));
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
-    )
-    await waitFor(() => expect(result.current.status).toBe('success'))
+    );
+    await waitFor(() => expect(result.current.status).toBe('success'));
 
     await act(async () => {
-      await result.current.togglePurchased('item-1')
-    })
+      await result.current.togglePurchased('item-1');
+    });
 
-    expect(result.current.items[0].purchased).toBe(false)
-    expect(mockShowToast).toHaveBeenCalledWith("Couldn't update item")
-  })
-})
+    expect(result.current.items[0].purchased).toBe(false);
+    expect(mockShowToast).toHaveBeenCalledWith("Couldn't update item");
+  });
+});
 
 describe('useListItems — addItem', () => {
   it('replaces temp item with real item on success', async () => {
-    const realItem: ListItem = { ...item1, id: 'item-real', name: 'Leche Real' }
-    vi.mocked(api.createItem).mockResolvedValue(realItem as never)
+    const realItem: ListItem = {
+      ...item1,
+      id: 'item-real',
+      name: 'Leche Real',
+    };
+    vi.mocked(api.createItem).mockResolvedValue(realItem as never);
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
-    )
-    await waitFor(() => expect(result.current.status).toBe('success'))
+    );
+    await waitFor(() => expect(result.current.status).toBe('success'));
 
     await act(async () => {
       await result.current.addItem({
@@ -853,20 +910,20 @@ describe('useListItems — addItem', () => {
         brand: null,
         variety: null,
         store: null,
-      })
-    })
+      });
+    });
 
-    expect(result.current.items[0].id).toBe('item-real')
-    expect(result.current.items[0].name).toBe('Leche Real')
-  })
+    expect(result.current.items[0].id).toBe('item-real');
+    expect(result.current.items[0].name).toBe('Leche Real');
+  });
 
   it('removes temp item and shows toast on error', async () => {
-    vi.mocked(api.createItem).mockRejectedValue(new Error('Network'))
+    vi.mocked(api.createItem).mockRejectedValue(new Error('Network'));
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
-    )
-    await waitFor(() => expect(result.current.status).toBe('success'))
-    const initialLength = result.current.items.length
+    );
+    await waitFor(() => expect(result.current.status).toBe('success'));
+    const initialLength = result.current.items.length;
 
     await act(async () => {
       await result.current.addItem({
@@ -875,37 +932,39 @@ describe('useListItems — addItem', () => {
         brand: null,
         variety: null,
         store: null,
-      })
-    })
+      });
+    });
 
-    expect(result.current.items).toHaveLength(initialLength)
-    expect(mockShowToast).toHaveBeenCalledWith("Couldn't add item")
-  })
-})
+    expect(result.current.items).toHaveLength(initialLength);
+    expect(mockShowToast).toHaveBeenCalledWith("Couldn't add item");
+  });
+});
 
 describe('useListItems — polling', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => vi.useRealTimers())
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
 
   it('re-fetches items when updated_at timestamp changes', async () => {
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
-    )
-    await waitFor(() => expect(result.current.status).toBe('success'))
+    );
+    await waitFor(() => expect(result.current.status).toBe('success'));
 
-    const updatedItem: ListItem = { ...item1, name: 'Leche Updated' }
-    vi.mocked(api.getListUpdatedAt).mockResolvedValue({ updated_at: '2026-01-02T00:00:00' } as never)
-    vi.mocked(api.getListItems).mockResolvedValue([updatedItem] as never)
+    const updatedItem: ListItem = { ...item1, name: 'Leche Updated' };
+    vi.mocked(api.getListUpdatedAt).mockResolvedValue({
+      updated_at: '2026-01-02T00:00:00',
+    } as never);
+    vi.mocked(api.getListItems).mockResolvedValue([updatedItem] as never);
 
     await act(async () => {
-      vi.advanceTimersByTime(5000)
-    })
+      vi.advanceTimersByTime(5000);
+    });
 
     await waitFor(() =>
       expect(result.current.items[0].name).toBe('Leche Updated'),
-    )
-  })
-})
+    );
+  });
+});
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -919,26 +978,26 @@ Expected: FAIL — `Cannot find module './useListItems'`.
 - [ ] **Step 3: Create frontend/src/hooks/useListItems.ts**
 
 ```typescript
-import { useState, useEffect, useCallback, useRef } from 'react'
-import type { ListItem, Member, ParsedInput } from '../types'
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { ListItem, Member, ParsedInput } from '../types';
 import {
   getListItems,
   getListMembers,
   getListUpdatedAt,
   createItem,
   updateItem,
-} from '../lib/api'
-import { AVATAR_COLOURS } from '../mockData'
+} from '../lib/api';
+import { AVATAR_COLOURS } from '../mockData';
 
-type Status = 'loading' | 'error' | 'success'
+type Status = 'loading' | 'error' | 'success';
 
 interface BackendMember {
-  id: string
-  user_id: string
-  list_id: string
-  display_name: string
-  photo_url: string | null
-  created_at: string
+  id: string;
+  user_id: string;
+  list_id: string;
+  display_name: string;
+  photo_url: string | null;
+  created_at: string;
 }
 
 function toMember(m: BackendMember, index: number): Member {
@@ -948,7 +1007,7 @@ function toMember(m: BackendMember, index: number): Member {
     initial: m.display_name ? m.display_name[0].toUpperCase() : '?',
     colour: AVATAR_COLOURS[index % AVATAR_COLOURS.length],
     photoUrl: m.photo_url,
-  }
+  };
 }
 
 export function useListItems(
@@ -956,71 +1015,80 @@ export function useListItems(
   getToken: () => Promise<string>,
   showToast: (msg: string) => void,
 ) {
-  const [status, setStatus] = useState<Status>('loading')
-  const [items, setItems] = useState<ListItem[]>([])
-  const [members, setMembers] = useState<Map<string, Member>>(new Map())
-  const lastUpdatedAt = useRef<string | null>(null)
+  const [status, setStatus] = useState<Status>('loading');
+  const [items, setItems] = useState<ListItem[]>([]);
+  const [members, setMembers] = useState<Map<string, Member>>(new Map());
+  const lastUpdatedAt = useRef<string | null>(null);
 
   const fetchAll = useCallback(async () => {
-    setStatus('loading')
+    setStatus('loading');
     try {
       const [rawItems, rawMembers] = await Promise.all([
         getListItems(getToken, listId) as Promise<ListItem[]>,
         getListMembers(getToken, listId) as Promise<BackendMember[]>,
-      ])
-      setItems(rawItems)
-      const map = new Map<string, Member>()
-      rawMembers.forEach((m, i) => map.set(m.user_id, toMember(m, i)))
-      setMembers(map)
-      setStatus('success')
+      ]);
+      setItems(rawItems);
+      const map = new Map<string, Member>();
+      rawMembers.forEach((m, i) => map.set(m.user_id, toMember(m, i)));
+      setMembers(map);
+      setStatus('success');
     } catch {
-      setStatus('error')
+      setStatus('error');
     }
-  }, [listId, getToken])
+  }, [listId, getToken]);
 
   useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
+    void fetchAll();
+  }, [fetchAll]);
 
   // 5-second polling: re-fetch items only when updated_at changes
   useEffect(() => {
     const id = setInterval(async () => {
       try {
-        const data = (await getListUpdatedAt(getToken, listId)) as { updated_at: string }
-        if (lastUpdatedAt.current !== null && data.updated_at !== lastUpdatedAt.current) {
-          const raw = (await getListItems(getToken, listId)) as ListItem[]
-          setItems(raw)
+        const data = (await getListUpdatedAt(getToken, listId)) as {
+          updated_at: string;
+        };
+        if (
+          lastUpdatedAt.current !== null &&
+          data.updated_at !== lastUpdatedAt.current
+        ) {
+          const raw = (await getListItems(getToken, listId)) as ListItem[];
+          setItems(raw);
         }
-        lastUpdatedAt.current = data.updated_at
+        lastUpdatedAt.current = data.updated_at;
       } catch {
         // polling failures are silent
       }
-    }, 5000)
-    return () => clearInterval(id)
-  }, [listId, getToken])
+    }, 5000);
+    return () => clearInterval(id);
+  }, [listId, getToken]);
 
   const togglePurchased = useCallback(
     async (itemId: string) => {
-      let snapshot: ListItem[] = []
-      let prevPurchased = false
+      let snapshot: ListItem[] = [];
+      let prevPurchased = false;
       setItems((prev) => {
-        snapshot = prev
-        prevPurchased = prev.find((i) => i.id === itemId)?.purchased ?? false
-        return prev.map((i) => (i.id === itemId ? { ...i, purchased: !i.purchased } : i))
-      })
+        snapshot = prev;
+        prevPurchased = prev.find((i) => i.id === itemId)?.purchased ?? false;
+        return prev.map((i) =>
+          i.id === itemId ? { ...i, purchased: !i.purchased } : i,
+        );
+      });
       try {
-        await updateItem(getToken, listId, itemId, { purchased: !prevPurchased })
+        await updateItem(getToken, listId, itemId, {
+          purchased: !prevPurchased,
+        });
       } catch {
-        setItems(snapshot)
-        showToast("Couldn't update item")
+        setItems(snapshot);
+        showToast("Couldn't update item");
       }
     },
     [getToken, listId, showToast],
-  )
+  );
 
   const addItem = useCallback(
     async (parsed: ParsedInput) => {
-      const tempId = `tmp-${Date.now()}`
+      const tempId = `tmp-${Date.now()}`;
       const temp: ListItem = {
         id: tempId,
         list_id: listId,
@@ -1033,8 +1101,8 @@ export function useListItems(
         added_by: '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }
-      setItems((prev) => [temp, ...prev])
+      };
+      setItems((prev) => [temp, ...prev]);
       try {
         const created = (await createItem(getToken, listId, {
           name: parsed.name,
@@ -1042,17 +1110,17 @@ export function useListItems(
           variety: parsed.variety,
           brand: parsed.brand,
           store: parsed.store,
-        })) as ListItem
-        setItems((prev) => prev.map((i) => (i.id === tempId ? created : i)))
+        })) as ListItem;
+        setItems((prev) => prev.map((i) => (i.id === tempId ? created : i)));
       } catch {
-        setItems((prev) => prev.filter((i) => i.id !== tempId))
-        showToast("Couldn't add item")
+        setItems((prev) => prev.filter((i) => i.id !== tempId));
+        showToast("Couldn't add item");
       }
     },
     [getToken, listId, showToast],
-  )
+  );
 
-  return { status, items, members, togglePurchased, addItem, retry: fetchAll }
+  return { status, items, members, togglePurchased, addItem, retry: fetchAll };
 }
 ```
 
@@ -1084,6 +1152,7 @@ git commit -m "feat: add useListItems hook with polling and optimistic updates"
 ### Task 6: ListLoader component
 
 **Files:**
+
 - Create: `frontend/src/components/ListLoader.tsx`
 - Create: `frontend/src/components/ListLoader.test.tsx`
 
@@ -1320,6 +1389,7 @@ git commit -m "feat: add ListLoader with loading/empty/success states"
 ### Task 7: Wire ListScreen and App.tsx
 
 **Files:**
+
 - Modify: `frontend/src/components/ListScreen.tsx`
 - Modify: `frontend/src/App.tsx`
 

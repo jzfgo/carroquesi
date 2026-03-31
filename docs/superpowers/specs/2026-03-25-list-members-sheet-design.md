@@ -7,11 +7,13 @@ Wire the hamburger menu button in `ListHeader` to a bottom sheet that shows the 
 ## Scope
 
 **In scope:**
+
 - `ListMembersSheet` component (frontend)
 - New `POST /lists/{id}/invites` backend endpoint (open/email-less invite)
 - Wiring in `ListScreen` (adds `listOwnerId` prop, `menuOpen` state)
 
 **Out of scope:**
+
 - Invite accept UI (`/invite/:id` route) — separate feature
 - Email notifications — no transactional email infrastructure yet
 - Focus trapping — deferred, consistent with existing sheets (`TagEditSheet`, `ListActionSheet`)
@@ -28,9 +30,9 @@ One new component: `ListMembersSheet`. It is self-contained — fetches its own 
 
 ```ts
 // Before:
-const { getToken } = useAuth()
+const { getToken } = useAuth();
 // After:
-const { getToken, user } = useAuth()
+const { getToken, user } = useAuth();
 ```
 
 `currentUserId = user!.id`. `isOwner = listOwnerId === currentUserId`. Both are passed as props to `ListMembersSheet`.
@@ -74,10 +76,10 @@ Both routers are registered in `main.py`. The new router produces the URL path `
 
 ```ts
 interface Props {
-  listId: string
-  currentUserId: string   // user!.id from useAuth() in ListScreen
-  isOwner: boolean        // listOwnerId === currentUserId, computed in ListScreen
-  onClose: () => void
+  listId: string;
+  currentUserId: string; // user!.id from useAuth() in ListScreen
+  isOwner: boolean; // listOwnerId === currentUserId, computed in ListScreen
+  onClose: () => void;
 }
 ```
 
@@ -95,7 +97,7 @@ interface Props {
 MIEMBROS · N
 
 [ avatar ] Javi 👑
-[ avatar ] María          [ Expulsar ]   ← shown when viewer is owner, not on own row
+[ avatar ] Elena          [ Expulsar ]   ← shown when viewer is owner, not on own row
 [ avatar ] Ana             [ Salir ]     ← shown on current user's own row (non-owners only)
 
 ─────────────────────────────
@@ -119,13 +121,13 @@ While `GET /lists/{listId}/members` is in-flight, show a simple spinner inside t
 
 ### Error states
 
-| Scenario | Behavior |
-|---|---|
-| Members fetch fails | Inline error message + retry button inside sheet |
-| Remove fails | Revert optimistic update + toast "No se pudo eliminar el miembro" |
-| Clipboard API unavailable | Show URL in a selectable `<input>` for manual copy |
-| Owner tries to leave | Button not rendered; backend also rejects it |
-| List full (5 members) | Invite button hidden entirely |
+| Scenario                   | Behavior                                                               |
+| -------------------------- | ---------------------------------------------------------------------- |
+| Members fetch fails        | Inline error message + retry button inside sheet                       |
+| Remove fails               | Revert optimistic update + toast "No se pudo eliminar el miembro"      |
+| Clipboard API unavailable  | Show URL in a selectable `<input>` for manual copy                     |
+| Owner tries to leave       | Button not rendered; backend also rejects it                           |
+| List full (5 members)      | Invite button hidden entirely                                          |
 | Invite limit reached (429) | Disable invite button; show "Límite de invitaciones alcanzado" message |
 
 ### Invite limits, expiry, and member cap
@@ -168,6 +170,7 @@ Register `list_invites_router` in `main.py` alongside `router` from `invites.py`
 ### Tests
 
 `backend/tests/test_invites.py` — net-new test cases for the new endpoint:
+
 - List member creates open invite → 201 with `id`; `invited_email` is null in DB
 - Non-member cannot create invite → 403
 - List at 5 members → invite creation returns 409
@@ -176,6 +179,7 @@ Register `list_invites_router` in `main.py` alongside `router` from `invites.py`
 - Expired invites don't count toward limit (creating 6th after first has expired → 201)
 
 `backend/tests/test_invites.py` — additional test for `accept_invite` (existing endpoint):
+
 - Accepting invite when list already has 5 members → 409
 
 (Existing tests cover link invite acceptance and rejection; these new tests specifically cover the creation endpoint.)
@@ -186,22 +190,22 @@ Register `list_invites_router` in `main.py` alongside `router` from `invites.py`
 
 **File:** `frontend/src/components/ListMembersSheet.test.tsx`
 
-| Test | Description |
-|---|---|
-| Shows spinner on load | Spinner visible while fetch is in-flight |
-| Members fetch fails | Inline error + retry button shown when GET fails |
-| Renders member list | Members shown after fetch resolves |
-| Owner is sole member | Sheet renders owner row only; no Expulsar buttons |
-| Owner row has no action | Owner's row has no button when other members present |
-| Owner sees Expulsar on others | Other member rows show "Expulsar" when viewer is owner |
-| Non-owner sees Salir on own row | Current user's row shows "Salir" when viewer is not owner |
-| Non-owner does not see Expulsar | Other members' rows have no button for non-owner viewer |
-| Owner removes member (Expulsar) | DELETE called with correct userId; member removed optimistically |
-| Non-owner leaves (Salir) | DELETE called with currentUserId; member removed from list |
-| Remove failure reverts | Member reappears + toast shown |
-| Copy invite success | POST called; clipboard.writeText called with correct URL; toast shown |
-| List full (5 members) | Invite button not rendered |
-| Invite limit reached | POST returns 429; invite button disabled; limit message shown |
-| Clipboard fallback | URL input shown when clipboard API unavailable |
-| ESC closes | onClose called on Escape key |
-| Tap outside closes | onClose called when overlay is tapped |
+| Test                            | Description                                                           |
+| ------------------------------- | --------------------------------------------------------------------- |
+| Shows spinner on load           | Spinner visible while fetch is in-flight                              |
+| Members fetch fails             | Inline error + retry button shown when GET fails                      |
+| Renders member list             | Members shown after fetch resolves                                    |
+| Owner is sole member            | Sheet renders owner row only; no Expulsar buttons                     |
+| Owner row has no action         | Owner's row has no button when other members present                  |
+| Owner sees Expulsar on others   | Other member rows show "Expulsar" when viewer is owner                |
+| Non-owner sees Salir on own row | Current user's row shows "Salir" when viewer is not owner             |
+| Non-owner does not see Expulsar | Other members' rows have no button for non-owner viewer               |
+| Owner removes member (Expulsar) | DELETE called with correct userId; member removed optimistically      |
+| Non-owner leaves (Salir)        | DELETE called with currentUserId; member removed from list            |
+| Remove failure reverts          | Member reappears + toast shown                                        |
+| Copy invite success             | POST called; clipboard.writeText called with correct URL; toast shown |
+| List full (5 members)           | Invite button not rendered                                            |
+| Invite limit reached            | POST returns 429; invite button disabled; limit message shown         |
+| Clipboard fallback              | URL input shown when clipboard API unavailable                        |
+| ESC closes                      | onClose called on Escape key                                          |
+| Tap outside closes              | onClose called when overlay is tapped                                 |
