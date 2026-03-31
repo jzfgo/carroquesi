@@ -35,6 +35,12 @@ export interface Suggestion {
   store: string | null
 }
 
+export interface BarcodeRead {
+  name: string
+  brand: string | null
+  stores: string[]
+}
+
 export type TagField = 'variety' | 'brand' | 'store' | 'quantity'
 
 export interface EditingTag {
