@@ -26,10 +26,9 @@ export function BarcodeScanner({ getToken, onResult, onNotFound, onClose }: Prop
 
   useEffect(() => {
     // Resolve at runtime so test stubs applied in beforeEach take effect
+    const g = globalThis as unknown as { BarcodeDetector?: DetectorConstructor }
     const DetectorClass: DetectorConstructor =
-      typeof (globalThis as { BarcodeDetector?: DetectorConstructor }).BarcodeDetector !== 'undefined'
-        ? (globalThis as { BarcodeDetector: DetectorConstructor }).BarcodeDetector
-        : BarcodeDetectorPolyfill
+      typeof g.BarcodeDetector !== 'undefined' ? g.BarcodeDetector! : BarcodeDetectorPolyfill
     const detector = new DetectorClass({ formats: ['ean_8', 'ean_13'] })
 
     async function scan() {
