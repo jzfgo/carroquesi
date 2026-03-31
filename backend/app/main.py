@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.firebase import get_firebase_app
-from app.routers import auth, invites, items, lists, members, suggestions
+from app.routers import auth, barcode, invites, items, lists, members, suggestions
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ app.include_router(items.router)
 app.include_router(invites.router)
 app.include_router(invites.list_invites_router)
 app.include_router(suggestions.router)
+app.include_router(barcode.router)
 
 
 @app.get("/health")
