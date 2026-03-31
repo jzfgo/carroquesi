@@ -1,5 +1,8 @@
 # Claude
 .claude/
+.playwright-mcp
+.agents/
+skills-lock.json
 
 # Python
 __pycache__/
@@ -15,6 +18,9 @@ build/
 # Environment
 .env
 *.local
+
+# CI/CD
+github-actions-key.json
 
 # Firebase / GCP
 *-firebase-adminsdk-*.json
