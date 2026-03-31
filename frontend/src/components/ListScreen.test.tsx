@@ -5,6 +5,12 @@ import * as AuthContext from '../contexts/AuthContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import type { ListItem } from '../types'
 
+vi.mock('@undecaf/barcode-detector-polyfill', () => ({
+  BarcodeDetectorPolyfill: class {
+    detect() { return Promise.resolve([]) }
+  },
+}))
+
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../hooks/useListItems')
 vi.mock('../lib/api')

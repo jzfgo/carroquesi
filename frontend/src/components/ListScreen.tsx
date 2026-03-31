@@ -9,11 +9,13 @@ import { TagEditSheet } from './TagEditSheet'
 import { ItemActionSheet } from './ItemActionSheet'
 import { Toast } from './Toast'
 import { ListMembersSheet } from './ListMembersSheet'
+import { BarcodeScanner } from './BarcodeScanner'
+import { BarcodeScanSheet } from './BarcodeScanSheet'
 import { parseInput } from '../parseInput'
 import { useAuth } from '../contexts/AuthContext'
 import { useListItems } from '../hooks/useListItems'
 import { getSuggestions } from '../lib/api'
-import type { EditingTag, TagField } from '../types'
+import type { BarcodeRead, EditingTag, TagField } from '../types'
 
 interface Props {
   listId: string
@@ -31,6 +33,8 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [storeFilter, setStoreFilter] = useState<string | null>(null)
   const [activeItemId, setActiveItemId] = useState<string | null>(null)
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(null)
   const currentUserId = user!.id
   const isOwner = listOwnerId === currentUserId
 
@@ -87,6 +91,30 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
     void addItem(parsed)
     setInputValue('')
   }, [parsed, addItem])
+
+  const handleScanRequest = useCallback(() => {
+    setScannerOpen(true)
+  }, [])
+
+  const handleScanResult = useCallback((product: BarcodeRead) => {
+    setScannerOpen(false)
+    setScannedProduct(product)
+  }, [])
+
+  const handleScanNotFound = useCallback(() => {
+    setScannerOpen(false)
+    setToast('Producto no encontrado')
+  }, [])
+
+  const handleScanAdd = useCallback((item: { name: string; brand: string | null; store: null }) => {
+    setScannedProduct(null)
+    void addItem({ name: item.name, brand: item.brand, store: null, quantity: null, variety: null })
+  }, [addItem])
+
+  const handleScanEdit = useCallback((prefill: string) => {
+    setScannedProduct(null)
+    setInputValue(prefill)
+  }, [])
 
   const purchasedCount = items.filter((i) => i.purchased).length
 
@@ -167,9 +195,26 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
           suggestions={suggestions}
           onChange={setInputValue}
           onSubmit={handleSubmit}
+          onScanRequest={handleScanRequest}
         />
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+      {scannerOpen && (
+        <BarcodeScanner
+          getToken={getToken}
+          onResult={handleScanResult}
+          onNotFound={handleScanNotFound}
+          onClose={() => setScannerOpen(false)}
+        />
+      )}
+      {scannedProduct && (
+        <BarcodeScanSheet
+          product={scannedProduct}
+          onAdd={handleScanAdd}
+          onEdit={handleScanEdit}
+          onClose={() => setScannedProduct(null)}
+        />
+      )}
     </div>
   )
 }
