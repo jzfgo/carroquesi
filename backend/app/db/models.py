@@ -67,3 +67,14 @@ class ListInvite(SQLModel, table=True):
     invited_email: Optional[str] = None
     invited_by: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=_now)
+
+
+class BarcodeCache(SQLModel, table=True):
+    __tablename__ = "barcode_cache"
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    ean: str = Field(unique=True, index=True)
+    name: str
+    brand: Optional[str] = None
+    stores: Optional[str] = None  # nullable comma-separated, e.g. "Mercadona,Alcampo"
+    created_at: datetime = Field(default_factory=_now)
