@@ -28,6 +28,13 @@ export interface Member {
   photoUrl: string | null
 }
 
+export interface Suggestion {
+  name: string
+  brand: string | null
+  variety: string | null
+  store: string | null
+}
+
 export type TagField = 'variety' | 'brand' | 'store' | 'quantity'
 
 export interface EditingTag {

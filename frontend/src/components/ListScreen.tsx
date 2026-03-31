@@ -48,8 +48,8 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
     }
     const timer = setTimeout(async () => {
       try {
-        const data = (await getSuggestions(getToken, q)) as string[]
-        setSuggestions(data)
+        const data = await getSuggestions(getToken, q)
+        setSuggestions(data.map(s => s.name))
       } catch {
         // suggestion errors are non-critical
       }

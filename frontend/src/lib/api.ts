@@ -1,3 +1,5 @@
+import type { Suggestion } from '../types'
+
 const BASE = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
 
 export class ApiError extends Error {
@@ -111,8 +113,8 @@ export function deleteItem(
   return apiFetch(getToken, `/lists/${listId}/items/${itemId}`, { method: 'DELETE' })
 }
 
-export function getSuggestions(getToken: () => Promise<string>, q: string) {
-  return apiFetch(getToken, `/suggestions?q=${encodeURIComponent(q)}`)
+export async function getSuggestions(getToken: () => Promise<string>, q: string): Promise<Suggestion[]> {
+  return apiFetch(getToken, `/suggestions?q=${encodeURIComponent(q)}`) as Promise<Suggestion[]>
 }
 
 export function removeMember(
