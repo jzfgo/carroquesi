@@ -119,6 +119,21 @@
   border-color: var(--accent);
 }
 
+.smart-input__scan {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--bg2, #f9f8fb);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 18px;
+  font-family: inherit;
+}
+
 .smart-input__field {
   flex: 1;
   background: none;

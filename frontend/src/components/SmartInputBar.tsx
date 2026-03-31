@@ -61,9 +61,10 @@ interface Props {
   suggestions: string[]
   onChange: (v: string) => void
   onSubmit: () => void
+  onScanRequest: () => void
 }
 
-export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit }: Props) {
+export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onScanRequest }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const activeSigil = getActiveSigil(value)
   const fieldSigil = activeSigil && SIGIL_FIELDS[activeSigil.sigil]
@@ -142,6 +143,16 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
           placeholder="Añadir producto…"
           aria-label="Añadir producto"
         />
+        {!value && (
+          <button
+            className="smart-input__scan"
+            onClick={onScanRequest}
+            aria-label="Escanear código de barras"
+            type="button"
+          >
+            📷
+          </button>
+        )}
         <button
           className="smart-input__add"
           onClick={onSubmit}
