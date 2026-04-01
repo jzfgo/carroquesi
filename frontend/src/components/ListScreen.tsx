@@ -101,9 +101,9 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
     setScannedProduct(product)
   }, [])
 
-  const handleScanNotFound = useCallback(() => {
+  const handleScanError = useCallback((message: string) => {
     setScannerOpen(false)
-    setToast('Producto no encontrado')
+    setToast(message)
   }, [])
 
   const handleScanAdd = useCallback((item: { name: string; brand: string | null; store: string | null }) => {
@@ -203,7 +203,7 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
         <BarcodeScanner
           getToken={getToken}
           onResult={handleScanResult}
-          onNotFound={handleScanNotFound}
+          onError={handleScanError}
           onClose={() => setScannerOpen(false)}
         />
       )}

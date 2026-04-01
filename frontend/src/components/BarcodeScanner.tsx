@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import './BarcodeScanner.css'
 import { BarcodeDetectorPolyfill } from '@undecaf/barcode-detector-polyfill'
-import { getBarcode } from '../lib/api'
+import { getBarcode, ApiError } from '../lib/api'
 import type { BarcodeRead } from '../types'
 
 type DetectorConstructor = typeof BarcodeDetectorPolyfill
@@ -9,11 +9,11 @@ type DetectorConstructor = typeof BarcodeDetectorPolyfill
 interface Props {
   getToken: () => Promise<string>
   onResult: (product: BarcodeRead) => void
-  onNotFound: () => void
+  onError: (message: string) => void
   onClose: () => void
 }
 
-export function BarcodeScanner({ getToken, onResult, onNotFound, onClose }: Props) {
+export function BarcodeScanner({ getToken, onResult, onError, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const scanningRef = useRef(true)
@@ -42,8 +42,14 @@ export function BarcodeScanner({ getToken, onResult, onNotFound, onClose }: Prop
           try {
             const product = await getBarcode(getToken, barcodes[0].rawValue)
             onResult(product)
-          } catch {
-            onNotFound()
+          } catch (err) {
+            if (err instanceof ApiError && err.status === 404) {
+              onError('Producto no encontrado')
+            } else if (err instanceof ApiError && err.status === 503) {
+              onError('Servicio no disponible, inténtalo más tarde')
+            } else {
+              onError('Error al buscar el producto')
+            }
           }
           return
         }

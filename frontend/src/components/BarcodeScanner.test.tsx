@@ -46,7 +46,7 @@ beforeEach(() => {
 describe('BarcodeScanner', () => {
   it('renders a close button', () => {
     render(
-      <BarcodeScanner getToken={mockGetToken} onResult={vi.fn()} onNotFound={vi.fn()} onClose={vi.fn()} />
+      <BarcodeScanner getToken={mockGetToken} onResult={vi.fn()} onError={vi.fn()} onClose={vi.fn()} />
     )
     expect(screen.getByRole('button', { name: /cerrar/i })).toBeInTheDocument()
   })
@@ -54,7 +54,7 @@ describe('BarcodeScanner', () => {
   it('calls onClose when close button is tapped', async () => {
     const onClose = vi.fn()
     render(
-      <BarcodeScanner getToken={mockGetToken} onResult={vi.fn()} onNotFound={vi.fn()} onClose={onClose} />
+      <BarcodeScanner getToken={mockGetToken} onResult={vi.fn()} onError={vi.fn()} onClose={onClose} />
     )
     await userEvent.click(screen.getByRole('button', { name: /cerrar/i }))
     expect(onClose).toHaveBeenCalled()
@@ -69,34 +69,47 @@ describe('BarcodeScanner', () => {
 
     const onResult = vi.fn()
     render(
-      <BarcodeScanner getToken={mockGetToken} onResult={onResult} onNotFound={vi.fn()} onClose={vi.fn()} />
+      <BarcodeScanner getToken={mockGetToken} onResult={onResult} onError={vi.fn()} onClose={vi.fn()} />
     )
     await waitFor(() => expect(onResult).toHaveBeenCalledWith(product))
   })
 
-  it('calls onNotFound when backend returns 404', async () => {
+  it('calls onError with "Producto no encontrado" when backend returns 404', async () => {
     vi.stubGlobal('BarcodeDetector', class {
       detect = vi.fn().mockResolvedValue([{ rawValue: '8411327122016' }])
     })
     ;(api.getBarcode as Mock).mockRejectedValue(new ApiError(404, 'not found'))
 
-    const onNotFound = vi.fn()
+    const onError = vi.fn()
     render(
-      <BarcodeScanner getToken={mockGetToken} onResult={vi.fn()} onNotFound={onNotFound} onClose={vi.fn()} />
+      <BarcodeScanner getToken={mockGetToken} onResult={vi.fn()} onError={onError} onClose={vi.fn()} />
     )
-    await waitFor(() => expect(onNotFound).toHaveBeenCalled())
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('Producto no encontrado'))
   })
 
-  it('calls onNotFound when backend returns 503', async () => {
+  it('calls onError with service unavailable message when backend returns 503', async () => {
     vi.stubGlobal('BarcodeDetector', class {
       detect = vi.fn().mockResolvedValue([{ rawValue: '8411327122016' }])
     })
     ;(api.getBarcode as Mock).mockRejectedValue(new ApiError(503, 'unavailable'))
 
-    const onNotFound = vi.fn()
+    const onError = vi.fn()
     render(
-      <BarcodeScanner getToken={mockGetToken} onResult={vi.fn()} onNotFound={onNotFound} onClose={vi.fn()} />
+      <BarcodeScanner getToken={mockGetToken} onResult={vi.fn()} onError={onError} onClose={vi.fn()} />
     )
-    await waitFor(() => expect(onNotFound).toHaveBeenCalled())
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('Servicio no disponible, inténtalo más tarde'))
+  })
+
+  it('calls onError with generic message for unexpected errors', async () => {
+    vi.stubGlobal('BarcodeDetector', class {
+      detect = vi.fn().mockResolvedValue([{ rawValue: '8411327122016' }])
+    })
+    ;(api.getBarcode as Mock).mockRejectedValue(new Error('network failure'))
+
+    const onError = vi.fn()
+    render(
+      <BarcodeScanner getToken={mockGetToken} onResult={vi.fn()} onError={onError} onClose={vi.fn()} />
+    )
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('Error al buscar el producto'))
   })
 })
