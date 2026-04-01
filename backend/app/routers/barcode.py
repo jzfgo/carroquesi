@@ -12,7 +12,8 @@ from app.schemas.barcode import BarcodeRead
 router = APIRouter(tags=["barcode"])
 
 _EAN_PATTERN = r"^\d{8}$|^\d{13}$"
-_OFF_URL = "https://es.openfoodfacts.org/api/v3/product/{ean}.json"
+_OFF_URL = "https://es.openfoodfacts.org/api/v2/product/{ean}.json"
+_OFF_HEADERS = {"User-Agent": "CarroQueSi/1.0 (javierzapata82@gmail.com)"}
 
 
 def _parse_stores(raw: str | None) -> list[str]:
@@ -42,7 +43,7 @@ def get_barcode(
 
     # Call Open Food Facts
     try:
-        resp = httpx.get(_OFF_URL.format(ean=ean), timeout=5.0)
+        resp = httpx.get(_OFF_URL.format(ean=ean), headers=_OFF_HEADERS, timeout=5.0)
         data = resp.json()
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Could not reach Open Food Facts: {exc}")
