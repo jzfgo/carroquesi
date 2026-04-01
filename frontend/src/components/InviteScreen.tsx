@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getInvitePreview, acceptInvite, ApiError } from '../lib/api'
+import { usePageTitle } from '../hooks/usePageTitle'
 import './InviteScreen.css'
 
 type ScreenState = 'loading' | 'preview' | 'accepting' | 'error'
@@ -25,6 +26,7 @@ export function InviteScreen() {
   const { user, getToken, signIn, loading: authLoading } = useAuth()
   const [screenState, setScreenState] = useState<ScreenState>('loading')
   const [preview, setPreview] = useState<Preview | null>(null)
+  usePageTitle(preview ? `Invitación — ${preview.list_name}` : 'Invitación')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isNetworkError, setIsNetworkError] = useState(false)
   const [retryCount, setRetryCount] = useState(0)

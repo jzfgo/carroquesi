@@ -1,6 +1,8 @@
 import { useAuth } from '../contexts/AuthContext'
+import { usePageTitle } from '../hooks/usePageTitle'
 
 export function SignInScreen() {
+  usePageTitle()
   const { signIn } = useAuth()
 
   return (
