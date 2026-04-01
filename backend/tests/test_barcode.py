@@ -3,7 +3,7 @@ from pytest_httpx import HTTPXMock
 
 
 OFF_MAHOU = {
-    "status": 1,
+    "status": "success",  # OFF v3 API returns string status
     "product": {
         "product_name_es": "Cerveza especial",
         "product_name": "Mahou 5 Estrellas",
@@ -13,7 +13,7 @@ OFF_MAHOU = {
 }
 
 OFF_NO_ES_NAME = {
-    "status": 1,
+    "status": "success",
     "product": {
         "product_name_es": "",
         "product_name": "Generic Beer",
@@ -22,7 +22,7 @@ OFF_NO_ES_NAME = {
     },
 }
 
-OFF_NOT_FOUND = {"status": 0}
+OFF_NOT_FOUND = {"status": "failure"}  # OFF v3 not-found response
 
 
 def test_invalid_ean_returns_422(client: TestClient):

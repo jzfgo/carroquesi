@@ -44,10 +44,11 @@ def get_barcode(
     try:
         resp = httpx.get(_OFF_URL.format(ean=ean), timeout=5.0)
         data = resp.json()
-    except Exception:
-        raise HTTPException(status_code=503, detail="Could not reach Open Food Facts")
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Could not reach Open Food Facts: {exc}")
 
-    if data.get("status") != 1 or "product" not in data:
+    # OFF v3 API returns status="success"/"failure"; older endpoints used status=1/0
+    if data.get("status") not in (1, "success") or "product" not in data:
         raise HTTPException(status_code=404, detail="Product not found")
 
     product = data["product"]
