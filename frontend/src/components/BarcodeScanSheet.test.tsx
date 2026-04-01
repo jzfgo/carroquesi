@@ -52,11 +52,18 @@ describe('BarcodeScanSheet', () => {
     expect(onEdit).toHaveBeenCalledWith('Producto Genérico')
   })
 
-  it('add button calls onAdd with name, brand, and null store', async () => {
+  it('add button calls onAdd with name, brand, and first store', async () => {
     const onAdd = vi.fn()
     render(<BarcodeScanSheet product={product} onAdd={onAdd} onEdit={vi.fn()} onClose={vi.fn()} />)
     await userEvent.click(screen.getByRole('button', { name: /añadir a la lista/i }))
-    expect(onAdd).toHaveBeenCalledWith({ name: 'Leche Entera', brand: 'Pascual', store: null })
+    expect(onAdd).toHaveBeenCalledWith({ name: 'Leche Entera', brand: 'Pascual', store: 'Mercadona' })
+  })
+
+  it('add button passes null store when stores is empty', async () => {
+    const onAdd = vi.fn()
+    render(<BarcodeScanSheet product={productNoExtras} onAdd={onAdd} onEdit={vi.fn()} onClose={vi.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: /añadir a la lista/i }))
+    expect(onAdd).toHaveBeenCalledWith({ name: 'Producto Genérico', brand: null, store: null })
   })
 
   it('cancel button calls onClose', async () => {

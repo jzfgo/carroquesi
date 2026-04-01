@@ -3,7 +3,7 @@ import type { BarcodeRead } from '../types'
 
 interface Props {
   product: BarcodeRead
-  onAdd: (item: { name: string; brand: string | null; store: null }) => void
+  onAdd: (item: { name: string; brand: string | null; store: string | null }) => void
   onEdit: (prefill: string) => void
   onClose: () => void
 }
@@ -56,7 +56,7 @@ export function BarcodeScanSheet({ product, onAdd, onEdit, onClose }: Props) {
           </button>
           <button
             className="bss__add"
-            onClick={() => onAdd({ name: product.name, brand: product.brand, store: null })}
+            onClick={() => onAdd({ name: product.name, brand: product.brand, store: product.stores[0] ?? null })}
           >
             Añadir a la lista
           </button>

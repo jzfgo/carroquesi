@@ -106,9 +106,9 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
     setToast('Producto no encontrado')
   }, [])
 
-  const handleScanAdd = useCallback((item: { name: string; brand: string | null; store: null }) => {
+  const handleScanAdd = useCallback((item: { name: string; brand: string | null; store: string | null }) => {
     setScannedProduct(null)
-    void addItem({ name: item.name, brand: item.brand, store: null, quantity: null, variety: null })
+    void addItem({ name: item.name, brand: item.brand, store: item.store, quantity: null, variety: null })
   }, [addItem])
 
   const handleScanEdit = useCallback((prefill: string) => {
