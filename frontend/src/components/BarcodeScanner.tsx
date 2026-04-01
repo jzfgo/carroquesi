@@ -25,6 +25,7 @@ export function BarcodeScanner({ getToken, onResult, onNotFound, onClose }: Prop
   }
 
   useEffect(() => {
+    scanningRef.current = true  // reset in case Strict Mode ran cleanup before remounting
     // Resolve at runtime so test stubs applied in beforeEach take effect
     const g = globalThis as unknown as { BarcodeDetector?: DetectorConstructor }
     const DetectorClass: DetectorConstructor =
