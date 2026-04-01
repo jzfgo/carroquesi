@@ -83,7 +83,7 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
     setFallbackUrl(null)
     try {
       const data = (await createOpenInvite(getToken, listId)) as { id: string }
-      const url = `${window.location.origin}/invite/${data.id}`
+      const url = `${window.location.origin}/i/${data.id}`
       try {
         await navigator.clipboard.writeText(url)
         setToast('Enlace copiado')

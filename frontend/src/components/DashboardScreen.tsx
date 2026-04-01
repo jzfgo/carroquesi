@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import './DashboardScreen.css'
 import { useAuth } from '../contexts/AuthContext'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { getLists, createList, renameList, deleteList } from '../lib/api'
 import { SortableListCard } from './SortableListCard'
 import { CreateListCard } from './CreateListCard'
@@ -45,6 +46,7 @@ export function DashboardScreen() {
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
   const [selectedList, setSelectedList] = useState<ApiList | null>(null)
+  usePageTitle(selectedList?.name ?? undefined)
   const [activeList, setActiveList] = useState<ApiList | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const location = useLocation()

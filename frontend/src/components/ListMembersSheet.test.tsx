@@ -130,7 +130,7 @@ test('copy invite success writes to clipboard and shows toast', async () => {
   render(<ListMembersSheet listId="l1" currentUserId="u1" isOwner={true} onClose={vi.fn()} />)
   fireEvent.click(await screen.findByRole('button', { name: /copiar enlace/i }))
   await waitFor(() =>
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/invite/inv-123'))
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/i/inv-123'))
   )
   expect(await screen.findByText(/enlace copiado/i)).toBeInTheDocument()
 })
