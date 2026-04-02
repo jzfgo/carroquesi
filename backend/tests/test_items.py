@@ -12,6 +12,7 @@ def test_add_item(client: TestClient):
     assert response.status_code == 201
     assert response.json()["name"] == "Milk"
     assert response.json()["purchased"] is False
+    assert response.json()["stores"] == []
 
 
 def test_get_items(client: TestClient):
@@ -60,7 +61,7 @@ def test_add_item_bumps_updated_at(client: TestClient, session: Session):
     lst = _create_list(client)
     old_updated_at = session.get(List, lst["id"]).updated_at
     client.post(f"/lists/{lst['id']}/items", json={"name": "Tomato"})
-    session.expire_all()  # force re-read from DB
+    session.expire_all()
     new_updated_at = session.get(List, lst["id"]).updated_at
     assert new_updated_at >= old_updated_at
 
