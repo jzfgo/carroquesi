@@ -6,6 +6,7 @@ import { StoreFilter } from './StoreFilter'
 import { ItemList } from './ItemList'
 import { SmartInputBar } from './SmartInputBar'
 import { TagEditSheet } from './TagEditSheet'
+import { StoreEditSheet } from './StoreEditSheet'
 import { ItemActionSheet } from './ItemActionSheet'
 import { Toast } from './Toast'
 import { ListMembersSheet } from './ListMembersSheet'
@@ -39,7 +40,7 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
   const isOwner = listOwnerId === currentUserId
 
   const parsed = useMemo(() => parseInput(inputValue), [inputValue])
-  const { status, items, members, togglePurchased, addItem, updateTag, renameItem, removeItem, retry } =
+  const { status, items, members, togglePurchased, addItem, updateTag, updateStores, renameItem, removeItem, retry } =
     useListItems(listId, getToken, setToast)
 
   // Debounced suggestions — only when name has 2+ chars
@@ -68,7 +69,7 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
     [togglePurchased],
   )
 
-  const handleTagClick = useCallback((itemId: string, field: TagField) => {
+  const handleTagClick = useCallback((itemId: string, field: TagField | 'stores') => {
     setEditingTag({ itemId, field })
   }, [])
 
@@ -106,9 +107,9 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
     setToast(message)
   }, [])
 
-  const handleScanAdd = useCallback((item: { name: string; brand: string | null; store: string | null }) => {
+  const handleScanAdd = useCallback((item: { name: string; brand: string | null; stores: string[] }) => {
     setScannedProduct(null)
-    void addItem({ name: item.name, brand: item.brand, store: item.store, quantity: null, variety: null })
+    void addItem({ name: item.name, brand: item.brand, stores: item.stores, quantity: null, variety: null })
   }, [addItem])
 
   const handleScanEdit = useCallback((prefill: string) => {
@@ -122,9 +123,11 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
     const seen = new Set<string>()
     const result: string[] = []
     for (const item of items) {
-      if (item.store && !seen.has(item.store)) {
-        seen.add(item.store)
-        result.push(item.store)
+      for (const s of item.stores) {
+        if (!seen.has(s)) {
+          seen.add(s)
+          result.push(s)
+        }
       }
     }
     return result.sort()
@@ -137,7 +140,9 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
     if (storeFilter && !stores.includes(storeFilter)) setStoreFilter(null)
   }, [stores, storeFilter])
 
-  const filteredItems = activeStore ? items.filter(i => i.store === activeStore || i.store === null) : items
+  const filteredItems = activeStore
+    ? items.filter(i => i.stores.includes(activeStore) || i.stores.length === 0)
+    : items
 
   return (
     <div className="list-screen">
@@ -156,13 +161,24 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
       {editingTag && (() => {
         const editedItem = items.find(i => i.id === editingTag.itemId)
         if (!editedItem) return null
+        if (editingTag.field === 'stores') {
+          return (
+            <StoreEditSheet
+              key={editingTag.itemId}
+              item={editedItem}
+              items={items}
+              onSave={(stores: string[]) => { void updateStores(editingTag.itemId, stores); setEditingTag(null) }}
+              onClose={() => setEditingTag(null)}
+            />
+          )
+        }
         return (
           <TagEditSheet
             key={`${editingTag.itemId}-${editingTag.field}`}
             item={editedItem}
             field={editingTag.field}
             items={items}
-            onSave={(value) => { void updateTag(editingTag.itemId, editingTag.field, value); setEditingTag(null) }}
+            onSave={(value) => { void updateTag(editingTag.itemId, editingTag.field as TagField, value); setEditingTag(null) }}
             onClose={() => setEditingTag(null)}
           />
         )
@@ -210,7 +226,8 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
       {scannedProduct && (
         <BarcodeScanSheet
           product={scannedProduct}
-          onAdd={handleScanAdd}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onAdd={handleScanAdd as any}
           onEdit={handleScanEdit}
           onClose={() => setScannedProduct(null)}
         />

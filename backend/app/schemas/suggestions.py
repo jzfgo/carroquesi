@@ -5,4 +5,4 @@ class SuggestionRead(BaseModel):
     name: str
     brand: str | None
     variety: str | None
-    store: str | None
+    stores: list[str]

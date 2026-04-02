@@ -16,7 +16,7 @@ const item1: ListItem = {
   quantity: null,
   brand: null,
   variety: null,
-  store: null,
+  stores: [],
   purchased: false,
   added_by: 'user-1',
   created_at: '2026-01-01T00:00:00Z',
@@ -108,7 +108,7 @@ describe('useListItems — addItem', () => {
         quantity: null,
         brand: null,
         variety: null,
-        store: null,
+        stores: [],
       })
     })
 
@@ -130,7 +130,7 @@ describe('useListItems — addItem', () => {
         quantity: null,
         brand: null,
         variety: null,
-        store: null,
+        stores: [],
       })
     })
 

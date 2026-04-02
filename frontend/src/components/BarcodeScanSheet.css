@@ -67,6 +67,15 @@
   background: var(--bg2, #f9f8fb);
   border-color: var(--border);
   color: var(--text);
+  cursor: pointer;
+  border: 1px solid #ddd;
+}
+
+.bss__tag--store-selected {
+  background: #c8e6c9;
+  border: 2px solid #2e7d32;
+  color: #1b5e20;
+  cursor: pointer;
 }
 
 .bss__edit {

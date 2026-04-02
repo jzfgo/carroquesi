@@ -111,7 +111,7 @@ export function useListItems(
         quantity: parsed.quantity,
         variety: parsed.variety,
         brand: parsed.brand,
-        store: parsed.store,
+        stores: parsed.stores,
         purchased: false,
         added_by: '',
         created_at: new Date().toISOString(),
@@ -124,7 +124,7 @@ export function useListItems(
           quantity: parsed.quantity,
           variety: parsed.variety,
           brand: parsed.brand,
-          store: parsed.store,
+          stores: parsed.stores,
         })) as ListItem
         setItems((prev) => prev.map((i) => (i.id === tempId ? created : i)))
       } catch {
@@ -141,6 +141,20 @@ export function useListItems(
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, [field]: value } : i)))
       try {
         await updateItem(getToken, listId, itemId, { [field]: value })
+      } catch {
+        setItems(snapshot)
+        showToast('No se pudo actualizar el producto')
+      }
+    },
+    [getToken, listId, showToast],
+  )
+
+  const updateStores = useCallback(
+    async (itemId: string, stores: string[]) => {
+      const snapshot = itemsRef.current
+      setItems(snapshot.map((i) => (i.id === itemId ? { ...i, stores } : i)))
+      try {
+        await updateItem(getToken, listId, itemId, { stores })
       } catch {
         setItems(snapshot)
         showToast('No se pudo actualizar el producto')
@@ -175,5 +189,5 @@ export function useListItems(
     [getToken, listId, showToast],
   )
 
-  return { status, items, members, togglePurchased, addItem, updateTag, renameItem, removeItem, retry: fetchAll }
+  return { status, items, members, togglePurchased, addItem, updateTag, updateStores, renameItem, removeItem, retry: fetchAll }
 }

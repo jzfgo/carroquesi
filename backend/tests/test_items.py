@@ -12,6 +12,7 @@ def test_add_item(client: TestClient):
     assert response.status_code == 201
     assert response.json()["name"] == "Milk"
     assert response.json()["purchased"] is False
+    assert response.json()["stores"] == []
 
 
 def test_get_items(client: TestClient):
@@ -60,6 +61,41 @@ def test_add_item_bumps_updated_at(client: TestClient, session: Session):
     lst = _create_list(client)
     old_updated_at = session.get(List, lst["id"]).updated_at
     client.post(f"/lists/{lst['id']}/items", json={"name": "Tomato"})
-    session.expire_all()  # force re-read from DB
+    session.expire_all()
     new_updated_at = session.get(List, lst["id"]).updated_at
     assert new_updated_at >= old_updated_at
+
+
+def test_add_item_with_multiple_stores(client: TestClient):
+    lst = _create_list(client)
+    response = client.post(
+        f"/lists/{lst['id']}/items",
+        json={"name": "Milk", "stores": ["Mercadona", "Carrefour"]},
+    )
+    assert response.status_code == 201
+    assert response.json()["stores"] == ["Mercadona", "Carrefour"]
+
+
+def test_update_item_stores(client: TestClient):
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Milk"}).json()
+    response = client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"stores": ["Lidl"]},
+    )
+    assert response.status_code == 200
+    assert response.json()["stores"] == ["Lidl"]
+
+
+def test_update_item_clears_stores(client: TestClient):
+    lst = _create_list(client)
+    item = client.post(
+        f"/lists/{lst['id']}/items",
+        json={"name": "Milk", "stores": ["Mercadona"]},
+    ).json()
+    response = client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"stores": []},
+    )
+    assert response.status_code == 200
+    assert response.json()["stores"] == []

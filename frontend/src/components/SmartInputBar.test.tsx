@@ -84,7 +84,7 @@ test('tapping a legend chip appends its sigil when not already present', () => {
   expect(onChange).toHaveBeenCalledWith('Leche #')
 })
 
-test('tapping a legend chip is a no-op when sigil is already present', () => {
+test('tapping brand chip is a no-op when # already present', () => {
   const onChange = vi.fn()
   render(<SmartInputBar value="Leche #Puleva" parsed={parseInput('Leche #Puleva')} items={NO_ITEMS}
     suggestions={[]} onChange={onChange} onSubmit={noop} onScanRequest={noop} />)
@@ -119,12 +119,27 @@ test('tapping the same chip when input ends with that bare sigil is a no-op', ()
 test('client-side store suggestions filtered from items when @ typed', () => {
   const items: ListItem[] = [
     { id: 'i1', list_id: 'l1', name: 'X', quantity: null, variety: null, brand: null,
-      store: 'Mercadona', purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
+      stores: ['Mercadona'], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
     { id: 'i2', list_id: 'l1', name: 'Y', quantity: null, variety: null, brand: null,
-      store: 'Lidl', purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
+      stores: ['Lidl'], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
   ]
   render(<SmartInputBar value="Leche @Mer" parsed={parseInput('Leche @Mer')} items={items}
     suggestions={[]} onChange={noop} onSubmit={noop} onScanRequest={noop} />)
   expect(screen.getByText('Mercadona')).toBeInTheDocument()
   expect(screen.queryByText('Lidl')).not.toBeInTheDocument()
+})
+
+test('parse preview shows multiple store chips', () => {
+  render(<SmartInputBar value="Leche @Mercadona @Carrefour" parsed={parseInput('Leche @Mercadona @Carrefour')} items={NO_ITEMS}
+    suggestions={[]} onChange={noop} onSubmit={noop} onScanRequest={noop} />)
+  expect(screen.getByTestId('parse-preview')).toHaveTextContent('Mercadona')
+  expect(screen.getByTestId('parse-preview')).toHaveTextContent('Carrefour')
+})
+
+test('tapping tienda chip appends another @ when one is already present', () => {
+  const onChange = vi.fn()
+  render(<SmartInputBar value="Leche @Mercadona" parsed={parseInput('Leche @Mercadona')} items={NO_ITEMS}
+    suggestions={[]} onChange={onChange} onSubmit={noop} onScanRequest={noop} />)
+  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
+  expect(onChange).toHaveBeenCalledWith('Leche @Mercadona @')
 })

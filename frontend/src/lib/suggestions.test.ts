@@ -2,9 +2,9 @@ import { clientSideSuggestions } from './suggestions'
 import type { ListItem } from '../types'
 
 const items: ListItem[] = [
-  { id: '1', list_id: 'l1', name: 'Leche', quantity: '2', variety: 'Entera', brand: 'Hacendado', store: 'Mercadona', purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
-  { id: '2', list_id: 'l1', name: 'Yogur', quantity: null, variety: 'Entera', brand: 'Danone', store: 'Carrefour', purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
-  { id: '3', list_id: 'l1', name: 'Queso', quantity: null, variety: null, brand: 'Hacendado', store: null, purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
+  { id: '1', list_id: 'l1', name: 'Leche', quantity: '2', variety: 'Entera', brand: 'Hacendado', stores: ['Mercadona'], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
+  { id: '2', list_id: 'l1', name: 'Yogur', quantity: null, variety: 'Entera', brand: 'Danone', stores: ['Carrefour'], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
+  { id: '3', list_id: 'l1', name: 'Queso', quantity: null, variety: null, brand: 'Hacendado', stores: [], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
 ]
 
 test('returns values matching the partial for a field', () => {
@@ -21,7 +21,7 @@ test('deduplicates values', () => {
 })
 
 test('returns empty array when no matches', () => {
-  expect(clientSideSuggestions(items, 'store', 'xyz')).toEqual([])
+  expect(clientSideSuggestions(items, 'stores', 'xyz')).toEqual([])
 })
 
 test('limits results to 5', () => {
@@ -33,6 +33,6 @@ test('limits results to 5', () => {
 
 test('skips null values', () => {
   // store is null for Queso
-  const result = clientSideSuggestions(items, 'store', '')
+  const result = clientSideSuggestions(items, 'stores', '')
   expect(result).not.toContain(null)
 })

@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from typing import Literal
 
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import Session, select
@@ -9,8 +8,6 @@ from app.dependencies import CurrentSession, MemberDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 
 router = APIRouter(prefix="/lists/{list_id}/items", tags=["items"])
-
-SortField = Literal["name", "store", "brand"]
 
 
 def _bump(lst: List, session: Session) -> None:
@@ -23,14 +20,12 @@ def get_items(
     list_id: str,
     list_and_user: MemberDep,
     session: CurrentSession,
-    sort: SortField | None = None,
+    sort: str | None = None,
 ):
     lst, _ = list_and_user
     query = select(ListItem).where(ListItem.list_id == lst.id)
     if sort == "name":
         query = query.order_by(ListItem.name)
-    elif sort == "store":
-        query = query.order_by(ListItem.store)
     elif sort == "brand":
         query = query.order_by(ListItem.brand)
     return session.exec(query).all()

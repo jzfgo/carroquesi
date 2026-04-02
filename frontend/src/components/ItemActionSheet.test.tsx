@@ -5,7 +5,7 @@ import type { ListItem } from '../types'
 
 const item: ListItem = {
   id: 'i1', list_id: 'l1', name: 'Leche entera',
-  quantity: null, variety: null, brand: null, store: null,
+  quantity: null, variety: null, brand: null, stores: [],
   purchased: false, added_by: 'u1', created_at: '', updated_at: '',
 }
 

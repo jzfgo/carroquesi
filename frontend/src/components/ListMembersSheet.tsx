@@ -45,8 +45,17 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
   }, [getToken, listId])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    void (async () => {
+      setLoadState('loading')
+      try {
+        const data = (await getListMembers(getToken, listId)) as BackendMember[]
+        setMembers(data)
+        setLoadState('ready')
+      } catch {
+        setLoadState('error')
+      }
+    })()
+  }, [getToken, listId])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {

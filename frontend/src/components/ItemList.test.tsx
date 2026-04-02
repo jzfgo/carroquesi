@@ -6,7 +6,7 @@ const MEMBERS: Map<string, Member> = new Map()
 
 const makeItem = (id: string, purchased = false): ListItem => ({
   id, list_id: 'l1', name: `Item ${id}`, quantity: null,
-  variety: null, brand: null, store: null,
+  variety: null, brand: null, stores: [],
   purchased, added_by: 'u1', created_at: '', updated_at: '',
 })
 
