@@ -3,8 +3,8 @@ import './SmartInputBar.css'
 import type { ListItem, ParsedInput } from '../types'
 import { clientSideSuggestions } from '../lib/suggestions'
 
-const SIGIL_FIELDS: Record<string, 'variety' | 'brand' | 'store'> = {
-  '*': 'variety', '#': 'brand', '@': 'store',
+const SIGIL_FIELDS: Record<string, 'variety' | 'brand' | 'stores'> = {
+  '*': 'variety', '#': 'brand', '@': 'stores',
 }
 
 function getActiveSigil(raw: string): { sigil: string; partial: string } | null {
@@ -20,7 +20,7 @@ function getActiveSigil(raw: string): { sigil: string; partial: string } | null 
 
 function hasSigil(parsed: ParsedInput): boolean {
   return parsed.quantity !== null || parsed.variety !== null ||
-         parsed.brand !== null || parsed.store !== null
+         parsed.brand !== null || parsed.stores.length > 0
 }
 
 const ALL_SIGILS = new Set(['+', '*', '#', '@'])
@@ -42,7 +42,7 @@ function sigilChipAction(currentValue: string, sigil: string): string | null {
     return words.join(' ')
   }
 
-  if (currentValue.includes(sigil)) return null // already present
+  if (sigil !== '@' && currentValue.includes(sigil)) return null
   const sep = currentValue === '' || currentValue.endsWith(' ') ? '' : ' '
   return currentValue + sep + sigil
 }
@@ -111,7 +111,9 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
           {parsed.quantity && <span className="smart-input__preview-qty">{parsed.quantity}</span>}
           {parsed.variety  && <span className="smart-input__preview-tag">✨ {parsed.variety}</span>}
           {parsed.brand    && <span className="smart-input__preview-tag">🏷️ {parsed.brand}</span>}
-          {parsed.store    && <span className="smart-input__preview-tag">🏪 {parsed.store}</span>}
+          {parsed.stores.map(s => (
+            <span key={s} className="smart-input__preview-tag">🏪 {s}</span>
+          ))}
         </div>
       )}
 
