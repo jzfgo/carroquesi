@@ -4,14 +4,13 @@ import type { ListItem, Member, TagField } from '../types'
 const TAG_CONFIG: { field: TagField; emoji: string; label: string }[] = [
   { field: 'variety', emoji: '✨', label: 'variedad' },
   { field: 'brand',   emoji: '🏷️', label: 'marca' },
-  { field: 'store',   emoji: '🏪', label: 'tienda' },
 ]
 
 interface Props {
   item: ListItem
   members: Map<string, Member>
   onTogglePurchased: (itemId: string) => void
-  onTagClick: (itemId: string, field: TagField) => void
+  onTagClick: (itemId: string, field: TagField | 'stores') => void
   onMenuOpen: (itemId: string) => void
 }
 
@@ -72,6 +71,26 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
                 <span aria-hidden>+ {emoji}</span>
               </button>
             )
+          )}
+
+          {item.stores.length > 0 ? (
+            item.stores.map(store => (
+              <button
+                key={store}
+                className="item-card__tag"
+                onClick={() => onTagClick(item.id, 'stores')}
+              >
+                <span aria-hidden>🏪</span> {store}
+              </button>
+            ))
+          ) : (
+            <button
+              className="item-card__tag item-card__tag--cta"
+              onClick={() => onTagClick(item.id, 'stores')}
+              aria-label="Añadir tienda"
+            >
+              <span aria-hidden>+ 🏪</span>
+            </button>
           )}
         </div>
       </div>

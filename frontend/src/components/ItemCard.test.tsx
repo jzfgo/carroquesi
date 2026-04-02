@@ -9,7 +9,7 @@ const MEMBERS: Map<string, Member> = new Map([
 const BASE_ITEM: ListItem = {
   id: 'i1', list_id: 'l1',
   name: 'Leche', quantity: '2 unidades',
-  variety: 'Entera', brand: 'Hacendado', store: 'Mercadona',
+  variety: 'Entera', brand: 'Hacendado', stores: ['Mercadona'],
   purchased: false, added_by: 'user-1',
   created_at: '', updated_at: '',
 }
@@ -32,7 +32,7 @@ test('renders variety, brand, store tags', () => {
 })
 
 test('shows CTA tags for null fields', () => {
-  const item = { ...BASE_ITEM, variety: null, brand: null, store: null }
+  const item = { ...BASE_ITEM, variety: null, brand: null, stores: [] }
   render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   // Three CTA buttons with aria-label
   expect(screen.getByRole('button', { name: /añadir variedad/i })).toBeInTheDocument()
@@ -41,7 +41,7 @@ test('shows CTA tags for null fields', () => {
 })
 
 test('tag row is always present because CTAs are shown for null fields', () => {
-  const item = { ...BASE_ITEM, variety: null, brand: null, store: null }
+  const item = { ...BASE_ITEM, variety: null, brand: null, stores: [] }
   const { container } = render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   // CTA tags ARE shown for null fields — tag row is only hidden if we choose not to show CTAs
   // Per spec: CTA tags shown for missing fields, row omitted only when all null AND no CTAs desired
@@ -120,4 +120,19 @@ test('shows ? avatar for unknown member', () => {
   const item = { ...BASE_ITEM, added_by: 'unknown-uuid' }
   render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   expect(screen.getByText('?')).toBeInTheDocument()
+})
+
+test('renders multiple store chips when item has multiple stores', () => {
+  const item = { ...BASE_ITEM, stores: ['Mercadona', 'Carrefour'] }
+  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
+  expect(screen.getByText(/Mercadona/)).toBeInTheDocument()
+  expect(screen.getByText(/Carrefour/)).toBeInTheDocument()
+})
+
+test('tapping a store chip calls onTagClick with stores field', () => {
+  const handler = vi.fn()
+  const item = { ...BASE_ITEM, stores: ['Mercadona'] }
+  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={handler} onMenuOpen={() => {}} />)
+  fireEvent.click(screen.getByText(/Mercadona/))
+  expect(handler).toHaveBeenCalledWith('i1', 'stores')
 })
