@@ -27,7 +27,7 @@ carroquesi/
 | `users` | id (UUID), firebase_uid, display_name, email, photo_url, created_at |
 | `lists` | id, name, owner_id (FK→users), created_at, updated_at |
 | `list_members` | id, list_id (FK→lists), user_id (FK→users), created_at |
-| `list_items` | id, list_id, name, quantity, brand, variety, store, purchased, added_by, created_at, updated_at |
+| `list_items` | id, list_id, name, quantity, brand, variety, stores (JSON array), purchased, added_by, created_at, updated_at |
 | `list_invites` | id, list_id, invited_email (nullable), invited_by, created_at |
 
 - `lists.updated_at` is bumped on every item write, member change, and list rename.
@@ -44,7 +44,8 @@ npm run dev          # dev server (Vite)
 npm run build        # production build
 npm run preview      # preview production build
 npm run lint         # ESLint
-npm run typecheck    # tsc --noEmit
+npm run typecheck    # WARNING: root tsconfig has files:[] — always passes silently! Use instead:
+npx tsc -p tsconfig.app.json --noEmit  # actual typecheck
 ```
 
 ### Key conventions
@@ -116,10 +117,7 @@ ALLOWED_ORIGINS=["http://localhost:5173"]
 - Environment variables go in `.env` files — never committed
 - Cloud Run service URL stored as an env var in the frontend for API calls
 
-## Out of Scope (MVP)
+## Out of Scope
 
 - Price tracking and receipt scanning (OCR)
-- Barcode scanning
 - Purchase frequency auto-suggestions (beyond the basic DISTINCT query on item history)
-
-These will be added via Alembic migrations as the project evolves.
