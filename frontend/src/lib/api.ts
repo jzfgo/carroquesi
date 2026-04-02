@@ -77,7 +77,7 @@ export function createItem(
     quantity?: string | null
     brand?: string | null
     variety?: string | null
-    store?: string | null
+    stores?: string[]
   },
 ) {
   return apiFetch(getToken, `/lists/${listId}/items`, {
@@ -96,7 +96,7 @@ export function updateItem(
     quantity: string | null
     brand: string | null
     variety: string | null
-    store: string | null
+    stores: string[]
   }>,
 ) {
   return apiFetch(getToken, `/lists/${listId}/items/${itemId}`, {
