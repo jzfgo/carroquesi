@@ -5,19 +5,19 @@ export interface ListItem {
   quantity: string | null
   brand: string | null
   variety: string | null
-  store: string | null
+  stores: string[]
   purchased: boolean
-  added_by: string       // user UUID
+  added_by: string
   created_at: string
   updated_at: string
 }
 
 export interface ParsedInput {
-  name: string           // empty string if no name tokens found
+  name: string
   quantity: string | null
   variety: string | null
   brand: string | null
-  store: string | null
+  stores: string[]
 }
 
 export interface Member {
@@ -32,7 +32,7 @@ export interface Suggestion {
   name: string
   brand: string | null
   variety: string | null
-  store: string | null
+  stores: string[]
 }
 
 export interface BarcodeRead {
@@ -41,11 +41,11 @@ export interface BarcodeRead {
   stores: string[]
 }
 
-export type TagField = 'variety' | 'brand' | 'store' | 'quantity'
+export type TagField = 'variety' | 'brand' | 'quantity'
 
 export interface EditingTag {
   itemId: string
-  field: TagField
+  field: TagField | 'stores'
 }
 
 export interface ApiList {
