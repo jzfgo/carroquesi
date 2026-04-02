@@ -34,9 +34,9 @@ export function InviteScreen() {
 
   useEffect(() => {
     if (!inviteId) return
-    setScreenState('loading')
-    setIsNetworkError(false)
     void (async () => {
+      setScreenState('loading')
+      setIsNetworkError(false)
       try {
         const data = await getInvitePreview(inviteId)
         setPreview(data)
@@ -58,8 +58,8 @@ export function InviteScreen() {
   useEffect(() => {
     if (authLoading || !user || !pendingAcceptRef.current || !inviteId) return
     pendingAcceptRef.current = false
-    setScreenState('accepting')
     void (async () => {
+      setScreenState('accepting')
       try {
         const data = await acceptInvite(getToken, inviteId)
         navigate('/', { state: { openListId: data.list_id } })

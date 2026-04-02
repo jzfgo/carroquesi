@@ -16,6 +16,8 @@ interface Props {
 }
 
 export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry }: Props) {
+  const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
+
   if (status === 'loading') {
     return (
       <div className="item-list">
@@ -34,8 +36,6 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
       </div>
     )
   }
-
-  const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
 
   const active    = items.filter(i => !i.purchased)
   const purchased = items.filter(i =>  i.purchased)
