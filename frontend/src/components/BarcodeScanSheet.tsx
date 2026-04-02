@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import './BarcodeScanSheet.css'
 import type { BarcodeRead } from '../types'
 
 interface Props {
   product: BarcodeRead
-  onAdd: (item: { name: string; brand: string | null; store: string | null }) => void
+  onAdd: (item: { name: string; brand: string | null; stores: string[] }) => void
   onEdit: (prefill: string) => void
   onClose: () => void
 }
@@ -15,6 +16,17 @@ function buildPrefill(product: BarcodeRead): string {
 }
 
 export function BarcodeScanSheet({ product, onAdd, onEdit, onClose }: Props) {
+  const [selectedStores, setSelectedStores] = useState<Set<string>>(new Set())
+
+  function toggleStore(store: string) {
+    setSelectedStores(prev => {
+      const next = new Set(prev)
+      if (next.has(store)) next.delete(store)
+      else next.add(store)
+      return next
+    })
+  }
+
   return (
     <>
       <div className="bss__overlay" onClick={onClose} />
@@ -32,9 +44,15 @@ export function BarcodeScanSheet({ product, onAdd, onEdit, onClose }: Props) {
                 {product.stores.length > 0 && (
                   <div className="bss__store-chips" data-testid="store-chips">
                     {product.stores.map(s => (
-                      <span key={s} className="bss__tag bss__tag--store">
+                      <button
+                        key={s}
+                        className={`bss__tag bss__tag--store${selectedStores.has(s) ? ' bss__tag--store-selected' : ''}`}
+                        onClick={() => toggleStore(s)}
+                        aria-pressed={selectedStores.has(s)}
+                        aria-label={s}
+                      >
                         <span aria-hidden="true">🏪</span> <span>{s}</span>
-                      </span>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -56,7 +74,11 @@ export function BarcodeScanSheet({ product, onAdd, onEdit, onClose }: Props) {
           </button>
           <button
             className="bss__add"
-            onClick={() => onAdd({ name: product.name, brand: product.brand, store: product.stores[0] ?? null })}
+            onClick={() => onAdd({
+              name: product.name,
+              brand: product.brand,
+              stores: product.stores.filter(s => selectedStores.has(s)),
+            })}
           >
             Añadir a la lista
           </button>
