@@ -10,7 +10,7 @@ interface Props {
   items: ListItem[]
   members: Map<string, Member>
   onTogglePurchased: (itemId: string) => void
-  onTagClick: (itemId: string, field: TagField) => void
+  onTagClick: (itemId: string, field: TagField | 'stores') => void
   onMenuOpen: (itemId: string) => void
   onRetry: () => void
 }

@@ -69,7 +69,7 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
     [togglePurchased],
   )
 
-  const handleTagClick = useCallback((itemId: string, field: TagField) => {
+  const handleTagClick = useCallback((itemId: string, field: TagField | 'stores') => {
     setEditingTag({ itemId, field })
   }, [])
 
