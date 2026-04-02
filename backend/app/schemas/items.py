@@ -8,7 +8,7 @@ class ItemCreate(BaseModel):
     quantity: str | None = None
     brand: str | None = None
     variety: str | None = None
-    stores: list[str] = []
+    stores: list[str] = Field(default_factory=list)
 
 
 class ItemUpdate(BaseModel):
