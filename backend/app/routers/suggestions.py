@@ -16,7 +16,6 @@ def get_suggestions(
     current_user: CurrentUser,
     session: CurrentSession,
 ):
-    # Find all list IDs the user is currently a member of
     memberships = session.exec(
         select(ListMember).where(ListMember.user_id == current_user.id)
     ).all()
@@ -27,14 +26,12 @@ def get_suggestions(
 
     escaped_q = q.lower().replace("%", "\\%").replace("_", "\\_")
 
-    # For each distinct name matching the query, return the most recently added item's hints.
-    # Using a subquery with ROW_NUMBER() to pick the latest entry per name.
     subq = (
         select(
             ListItem.name,
             ListItem.brand,
             ListItem.variety,
-            ListItem.store,
+            ListItem.stores,
             func.row_number()
             .over(
                 partition_by=func.lower(ListItem.name),
@@ -53,14 +50,19 @@ def get_suggestions(
     )
 
     rows = session.execute(
-        select(subq.c.name, subq.c.brand, subq.c.variety, subq.c.store)
+        select(subq.c.name, subq.c.brand, subq.c.variety, subq.c.stores)
         .where(subq.c.rn == 1)
         .order_by(subq.c.name.asc())
         .limit(10)
     ).all()
 
     return [
-        SuggestionRead(name=r.name, brand=r.brand, variety=r.variety, store=r.store)
+        SuggestionRead(
+            name=r.name,
+            brand=r.brand,
+            variety=r.variety,
+            stores=r.stores if r.stores is not None else [],
+        )
         for r in rows
     ]
 
