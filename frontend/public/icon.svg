@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="115" fill="#aa3bff"/>
+  <text
+    x="256"
+    y="345"
+    text-anchor="middle"
+    font-size="256"
+    font-weight="900"
+    font-family="system-ui, -apple-system, sans-serif"
+    fill="white"
+  >CQ</text>
+  <circle cx="390" cy="140" r="72" fill="#ffd700"/>
+  <path
+    d="M362 140l20 20 44-42"
+    stroke="#aa3bff"
+    stroke-width="18"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+</svg>
