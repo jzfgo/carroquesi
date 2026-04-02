@@ -39,7 +39,7 @@ carroquesi/
 ### Commands
 ```bash
 cd frontend
-npm install          # install dependencies
+npm install --legacy-peer-deps  # ⚠️ required: vite-plugin-pwa@1.x doesn't declare Vite 8 peer support yet
 npm run dev          # dev server (Vite)
 npm run build        # production build
 npm run preview      # preview production build
