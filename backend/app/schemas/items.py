@@ -8,7 +8,7 @@ class ItemCreate(BaseModel):
     quantity: str | None = None
     brand: str | None = None
     variety: str | None = None
-    store: str | None = None
+    stores: list[str] = []
 
 
 class ItemUpdate(BaseModel):
@@ -16,7 +16,7 @@ class ItemUpdate(BaseModel):
     quantity: str | None = None
     brand: str | None = None
     variety: str | None = None
-    store: str | None = None
+    stores: list[str] | None = None  # None = don't touch; [] = remove all
     purchased: bool | None = None
 
 
@@ -27,7 +27,7 @@ class ItemRead(BaseModel):
     quantity: str | None
     brand: str | None
     variety: str | None
-    store: str | None
+    stores: list[str]
     purchased: bool
     added_by: str
     created_at: datetime

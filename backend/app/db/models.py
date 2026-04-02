@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
+from sqlalchemy import Column, JSON
 from sqlmodel import Field, SQLModel
 
 
@@ -52,7 +53,7 @@ class ListItem(SQLModel, table=True):
     quantity: Optional[str] = None
     brand: Optional[str] = None
     variety: Optional[str] = None
-    store: Optional[str] = None
+    stores: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     purchased: bool = Field(default=False)
     added_by: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=_now)
