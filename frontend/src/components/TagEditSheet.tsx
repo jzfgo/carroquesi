@@ -6,7 +6,6 @@ import { clientSideSuggestions } from '../lib/suggestions'
 const TAG_META: Record<TagField, { emoji: string; label: string }> = {
   variety:  { emoji: '✨', label: 'Variedad' },
   brand:    { emoji: '🏷️', label: 'Marca' },
-  store:    { emoji: '🏪', label: 'Tienda' },
   quantity: { emoji: '🔢', label: 'Cantidad' },
 }
 
@@ -19,7 +18,7 @@ interface Props {
 }
 
 export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
-  const tagValues = { variety: item.variety, brand: item.brand, store: item.store, quantity: item.quantity } satisfies Record<TagField, string | null>
+  const tagValues = { variety: item.variety, brand: item.brand, quantity: item.quantity } satisfies Record<TagField, string | null>
   const currentValue = tagValues[field]
   const [input, setInput] = useState(currentValue ?? '')
   const { emoji, label } = TAG_META[field]
