@@ -3,15 +3,15 @@ import './SmartInputBar.css'
 import type { ListItem, ParsedInput } from '../types'
 import { clientSideSuggestions } from '../lib/suggestions'
 
-const SIGIL_FIELDS: Record<string, 'variety' | 'brand' | 'stores'> = {
-  '*': 'variety', '#': 'brand', '@': 'stores',
+const SIGIL_FIELDS: Record<string, 'brand' | 'stores'> = {
+  '#': 'brand', '@': 'stores',
 }
 
 function getActiveSigil(raw: string): { sigil: string; partial: string } | null {
   const words = raw.split(/\s+/)
   for (let i = words.length - 1; i >= 0; i--) {
     const w = words[i]
-    if (w && '*#@+'.includes(w[0])) {
+    if (w && '#@+'.includes(w[0])) {
       return { sigil: w[0], partial: w.slice(1) }
     }
   }
@@ -19,11 +19,10 @@ function getActiveSigil(raw: string): { sigil: string; partial: string } | null 
 }
 
 function hasSigil(parsed: ParsedInput): boolean {
-  return parsed.quantity !== null || parsed.variety !== null ||
-         parsed.brand !== null || parsed.stores.length > 0
+  return parsed.quantity !== null || parsed.brand !== null || parsed.stores.length > 0
 }
 
-const ALL_SIGILS = new Set(['+', '*', '#', '@'])
+const ALL_SIGILS = new Set(['+', '#', '@'])
 
 /**
  * Returns the new input value after a chip tap, or null if no change is needed.
@@ -49,7 +48,6 @@ function sigilChipAction(currentValue: string, sigil: string): string | null {
 
 const LEGEND_CHIPS: { sigil: string; label: string }[] = [
   { sigil: '+', label: 'cant.' },
-  { sigil: '*', label: 'variedad' },
   { sigil: '#', label: 'marca' },
   { sigil: '@', label: 'tienda' },
 ]
@@ -109,7 +107,6 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
           {nameError && <span className="smart-input__preview-error">Sin nombre de producto</span>}
           {!nameError && <span className="smart-input__preview-name">{parsed.name}</span>}
           {parsed.quantity && <span className="smart-input__preview-qty">{parsed.quantity}</span>}
-          {parsed.variety  && <span className="smart-input__preview-tag">✨ {parsed.variety}</span>}
           {parsed.brand    && <span className="smart-input__preview-tag">🏷️ {parsed.brand}</span>}
           {parsed.stores.map(s => (
             <span key={s} className="smart-input__preview-tag">🏪 {s}</span>

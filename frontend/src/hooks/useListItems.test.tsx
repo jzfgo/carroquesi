@@ -15,7 +15,6 @@ const item1: ListItem = {
   name: 'Leche',
   quantity: null,
   brand: null,
-  variety: null,
   stores: [],
   purchased: false,
   added_by: 'user-1',
@@ -107,7 +106,6 @@ describe('useListItems — addItem', () => {
         name: 'Leche Real',
         quantity: null,
         brand: null,
-        variety: null,
         stores: [],
       })
     })
@@ -129,7 +127,6 @@ describe('useListItems — addItem', () => {
         name: 'Leche',
         quantity: null,
         brand: null,
-        variety: null,
         stores: [],
       })
     })

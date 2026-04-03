@@ -109,7 +109,6 @@ export function useListItems(
         list_id: listId,
         name: parsed.name,
         quantity: parsed.quantity,
-        variety: parsed.variety,
         brand: parsed.brand,
         stores: parsed.stores,
         purchased: false,
@@ -122,7 +121,6 @@ export function useListItems(
         const created = (await createItem(getToken, listId, {
           name: parsed.name,
           quantity: parsed.quantity,
-          variety: parsed.variety,
           brand: parsed.brand,
           stores: parsed.stores,
         })) as ListItem

@@ -2,12 +2,12 @@ import { parseInput } from './parseInput'
 
 describe('parseInput', () => {
   test('empty string returns empty ParsedInput', () => {
-    expect(parseInput('')).toEqual({ name: '', quantity: null, variety: null, brand: null, stores: [] })
+    expect(parseInput('')).toEqual({ name: '', quantity: null, brand: null, stores: [] })
   })
 
   test('plain name with no sigils', () => {
     expect(parseInput('Leche entera')).toEqual({
-      name: 'Leche entera', quantity: null, variety: null, brand: null, stores: [],
+      name: 'Leche entera', quantity: null, brand: null, stores: [],
     })
   })
 
@@ -29,10 +29,9 @@ describe('parseInput', () => {
   })
 
   test('single store sigil', () => {
-    const result = parseInput('Leche entera +3 *Desnatada #Puleva @Mercadona')
+    const result = parseInput('Leche entera +3 #Puleva @Mercadona')
     expect(result.name).toBe('Leche entera')
     expect(result.quantity).toBe('3')
-    expect(result.variety).toBe('Desnatada')
     expect(result.brand).toBe('Puleva')
     expect(result.stores).toEqual(['Mercadona'])
   })
@@ -54,11 +53,10 @@ describe('parseInput', () => {
   })
 
   test('sigils in any order — single store', () => {
-    const result = parseInput('Leche @Mercadona #Puleva *Entera +2')
+    const result = parseInput('Leche @Mercadona #Puleva +2')
     expect(result.name).toBe('Leche')
     expect(result.stores).toEqual(['Mercadona'])
     expect(result.brand).toBe('Puleva')
-    expect(result.variety).toBe('Entera')
     expect(result.quantity).toBe('2')
   })
 
@@ -90,6 +88,6 @@ describe('parseInput', () => {
   })
 
   test('only whitespace returns empty', () => {
-    expect(parseInput('   ')).toEqual({ name: '', quantity: null, variety: null, brand: null, stores: [] })
+    expect(parseInput('   ')).toEqual({ name: '', quantity: null, brand: null, stores: [] })
   })
 })

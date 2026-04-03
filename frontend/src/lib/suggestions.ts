@@ -2,7 +2,7 @@ import type { ListItem } from '../types'
 
 export function clientSideSuggestions(
   items: ListItem[],
-  field: 'variety' | 'brand' | 'stores',
+  field: 'brand' | 'stores',
   partial: string,
 ): string[] {
   const seen = new Set<string>()

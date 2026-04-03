@@ -109,7 +109,7 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
 
   const handleScanAdd = useCallback((item: { name: string; brand: string | null; stores: string[] }) => {
     setScannedProduct(null)
-    void addItem({ name: item.name, brand: item.brand, stores: item.stores, quantity: null, variety: null })
+    void addItem({ name: item.name, brand: item.brand, stores: item.stores, quantity: null })
   }, [addItem])
 
   const handleScanEdit = useCallback((prefill: string) => {

@@ -76,7 +76,6 @@ export function createItem(
     name: string
     quantity?: string | null
     brand?: string | null
-    variety?: string | null
     stores?: string[]
   },
 ) {
@@ -95,7 +94,6 @@ export function updateItem(
     name: string
     quantity: string | null
     brand: string | null
-    variety: string | null
     stores: string[]
   }>,
 ) {

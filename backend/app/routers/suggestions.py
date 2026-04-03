@@ -30,7 +30,6 @@ def get_suggestions(
         select(
             ListItem.name,
             ListItem.brand,
-            ListItem.variety,
             ListItem.stores,
             func.row_number()
             .over(
@@ -50,7 +49,7 @@ def get_suggestions(
     )
 
     rows = session.execute(
-        select(subq.c.name, subq.c.brand, subq.c.variety, subq.c.stores)
+        select(subq.c.name, subq.c.brand, subq.c.stores)
         .where(subq.c.rn == 1)
         .order_by(subq.c.name.asc())
         .limit(10)
@@ -60,7 +59,6 @@ def get_suggestions(
         SuggestionRead(
             name=r.name,
             brand=r.brand,
-            variety=r.variety,
             stores=r.stores if r.stores is not None else [],
         )
         for r in rows

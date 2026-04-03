@@ -2,14 +2,13 @@ import type { ParsedInput } from './types'
 
 const SINGLE_SIGIL_MAP: Record<string, keyof Omit<ParsedInput, 'name' | 'stores'>> = {
   '+': 'quantity',
-  '*': 'variety',
   '#': 'brand',
 }
 
 export function parseInput(raw: string): ParsedInput {
   const words = raw.trim().split(/\s+/).filter(Boolean)
 
-  const result: ParsedInput = { name: '', quantity: null, variety: null, brand: null, stores: [] }
+  const result: ParsedInput = { name: '', quantity: null, brand: null, stores: [] }
   const nameWords: string[] = []
 
   let currentField: keyof Omit<ParsedInput, 'name' | 'stores'> | '@' | null = null
