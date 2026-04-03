@@ -1,0 +1,54 @@
+.install-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 12px;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.install-banner__icon {
+  width: 28px;
+  height: 28px;
+  background: #fff;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+  font-weight: 900;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.install-banner__text {
+  flex: 1;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.install-banner__cta {
+  background: #fff;
+  color: var(--color-primary);
+  border: none;
+  border-radius: 6px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.install-banner__dismiss {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.875rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
