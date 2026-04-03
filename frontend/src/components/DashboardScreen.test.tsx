@@ -268,4 +268,18 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     await waitFor(() => screen.getByText('Mercado'))
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
   })
+
+  it('avatar menu hides "Instalar app" when already installed', async () => {
+    vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
+      isInstallable: true,
+      isInstalled: true,
+      isIOS: false,
+      promptInstall: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    })
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(screen.queryByRole('menuitem', { name: /instalar app/i })).not.toBeInTheDocument()
+  })
 })

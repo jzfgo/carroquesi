@@ -123,6 +123,7 @@ describe('usePWAInstall', () => {
     act(() => { window.dispatchEvent(fakeEvent) })
     // First call rejects — should not permanently lock
     await act(async () => {
+      // eslint-disable-next-line no-empty
       try { await result.current.promptInstall() } catch {}
     })
     // promptingRef should be reset so a second call is not permanently blocked
