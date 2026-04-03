@@ -5,7 +5,7 @@ from pydantic import BaseModel
 class InvitePreview(BaseModel):
     id: str
     list_name: str
-    list_emoji: str | None
+    list_emoji: str | None = None
     invited_by_name: str | None
 
 
