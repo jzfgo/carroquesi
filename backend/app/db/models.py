@@ -30,6 +30,7 @@ class List(SQLModel, table=True):
 
     id: str = Field(default_factory=_uuid, primary_key=True)
     name: str
+    emoji: Optional[str] = None
     owner_id: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)

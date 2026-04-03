@@ -1,11 +1,11 @@
 from datetime import datetime
-
 from pydantic import BaseModel
 
 
 class InvitePreview(BaseModel):
     id: str
     list_name: str
+    list_emoji: str | None
     invited_by_name: str | None
 
 
