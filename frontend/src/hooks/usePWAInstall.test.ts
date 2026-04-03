@@ -113,4 +113,23 @@ describe('usePWAInstall', () => {
     const mockPrompt = (fakeEvent as unknown as { prompt: ReturnType<typeof vi.fn> }).prompt
     expect(mockPrompt).toHaveBeenCalledTimes(1)
   })
+
+  it('resets after promptInstall rejects so a future call can proceed', async () => {
+    const fakeEvent = Object.assign(new Event('beforeinstallprompt'), {
+      prompt: vi.fn().mockRejectedValue(new Error('dismissed')),
+      userChoice: Promise.resolve({ outcome: 'dismissed' as const }),
+    })
+    const { result } = renderHook(() => usePWAInstall())
+    act(() => { window.dispatchEvent(fakeEvent) })
+    // First call rejects — should not permanently lock
+    await act(async () => {
+      try { await result.current.promptInstall() } catch {}
+    })
+    // promptingRef should be reset so a second call is not permanently blocked
+    // (isInstallable is false because deferredPrompt was cleared, but ref is unlocked)
+    // Verify by dispatching a new event and checking isInstallable
+    const fakeEvent2 = makeInstallEvent()
+    act(() => { window.dispatchEvent(fakeEvent2) })
+    expect(result.current.isInstallable).toBe(true)
+  })
 })

@@ -44,10 +44,13 @@ export function usePWAInstall(): UsePWAInstallResult {
     promptingRef.current = true
     const prompt = deferredPrompt
     setDeferredPrompt(null)            // clear before any await
-    await prompt.prompt()
-    const { outcome } = await prompt.userChoice
-    if (outcome === 'accepted') setIsInstalled(true)
-    promptingRef.current = false
+    try {
+      await prompt.prompt()
+      const { outcome } = await prompt.userChoice
+      if (outcome === 'accepted') setIsInstalled(true)
+    } finally {
+      promptingRef.current = false
+    }
   }, [deferredPrompt])
 
   return { isInstallable: deferredPrompt !== null, isInstalled, isIOS, promptInstall }
