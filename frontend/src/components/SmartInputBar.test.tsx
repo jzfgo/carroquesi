@@ -11,9 +11,9 @@ test('renders syntax legend chips', () => {
   render(<SmartInputBar value="" parsed={parseInput('')} items={NO_ITEMS}
     suggestions={[]} onChange={noop} onSubmit={noop} onScanRequest={noop} />)
   expect(screen.getByText(/\+/)).toBeInTheDocument()   // qty chip
-  expect(screen.getByText(/\*/)).toBeInTheDocument()   // variety chip
   expect(screen.getByText(/#/)).toBeInTheDocument()    // brand chip
   expect(screen.getByText(/@/)).toBeInTheDocument()    // store chip
+  expect(screen.queryByText(/\*/)).not.toBeInTheDocument()  // variety chip removed
 })
 
 test('add button is disabled when name is empty', () => {
@@ -118,9 +118,9 @@ test('tapping the same chip when input ends with that bare sigil is a no-op', ()
 
 test('client-side store suggestions filtered from items when @ typed', () => {
   const items: ListItem[] = [
-    { id: 'i1', list_id: 'l1', name: 'X', quantity: null, variety: null, brand: null,
+    { id: 'i1', list_id: 'l1', name: 'X', quantity: null, brand: null,
       stores: ['Mercadona'], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
-    { id: 'i2', list_id: 'l1', name: 'Y', quantity: null, variety: null, brand: null,
+    { id: 'i2', list_id: 'l1', name: 'Y', quantity: null, brand: null,
       stores: ['Lidl'], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
   ]
   render(<SmartInputBar value="Leche @Mer" parsed={parseInput('Leche @Mer')} items={items}

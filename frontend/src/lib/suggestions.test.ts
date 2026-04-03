@@ -2,9 +2,9 @@ import { clientSideSuggestions } from './suggestions'
 import type { ListItem } from '../types'
 
 const items: ListItem[] = [
-  { id: '1', list_id: 'l1', name: 'Leche', quantity: '2', variety: 'Entera', brand: 'Hacendado', stores: ['Mercadona'], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
-  { id: '2', list_id: 'l1', name: 'Yogur', quantity: null, variety: 'Entera', brand: 'Danone', stores: ['Carrefour'], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
-  { id: '3', list_id: 'l1', name: 'Queso', quantity: null, variety: null, brand: 'Hacendado', stores: [], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
+  { id: '1', list_id: 'l1', name: 'Leche Entera', quantity: '2', brand: 'Hacendado', stores: ['Mercadona'], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
+  { id: '2', list_id: 'l1', name: 'Yogur', quantity: null, brand: 'Danone', stores: ['Carrefour'], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
+  { id: '3', list_id: 'l1', name: 'Queso', quantity: null, brand: 'Hacendado', stores: [], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
 ]
 
 test('returns values matching the partial for a field', () => {
@@ -16,8 +16,8 @@ test('is case-insensitive', () => {
 })
 
 test('deduplicates values', () => {
-  // Entera appears twice (variety of Leche and Yogur)
-  expect(clientSideSuggestions(items, 'variety', '')).toEqual(['Entera'])
+  // Hacendado appears twice (Leche Entera and Queso)
+  expect(clientSideSuggestions(items, 'brand', '')).toEqual(['Hacendado', 'Danone'])
 })
 
 test('returns empty array when no matches', () => {

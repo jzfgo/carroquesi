@@ -2,8 +2,7 @@ import './ItemCard.css'
 import type { ListItem, Member, TagField } from '../types'
 
 const TAG_CONFIG: { field: TagField; emoji: string; label: string }[] = [
-  { field: 'variety', emoji: '✨', label: 'variedad' },
-  { field: 'brand',   emoji: '🏷️', label: 'marca' },
+  { field: 'brand', emoji: '🏷️', label: 'marca' },
 ]
 
 interface Props {

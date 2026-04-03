@@ -4,7 +4,6 @@ export interface ListItem {
   name: string
   quantity: string | null
   brand: string | null
-  variety: string | null
   stores: string[]
   purchased: boolean
   added_by: string
@@ -15,7 +14,6 @@ export interface ListItem {
 export interface ParsedInput {
   name: string
   quantity: string | null
-  variety: string | null
   brand: string | null
   stores: string[]
 }
@@ -31,7 +29,6 @@ export interface Member {
 export interface Suggestion {
   name: string
   brand: string | null
-  variety: string | null
   stores: string[]
 }
 
@@ -41,7 +38,7 @@ export interface BarcodeRead {
   stores: string[]
 }
 
-export type TagField = 'variety' | 'brand' | 'quantity'
+export type TagField = 'brand' | 'quantity'
 
 export interface EditingTag {
   itemId: string

@@ -8,8 +8,8 @@ const MEMBERS: Map<string, Member> = new Map([
 
 const BASE_ITEM: ListItem = {
   id: 'i1', list_id: 'l1',
-  name: 'Leche', quantity: '2 unidades',
-  variety: 'Entera', brand: 'Hacendado', stores: ['Mercadona'],
+  name: 'Leche Entera', quantity: '2 unidades',
+  brand: 'Hacendado', stores: ['Mercadona'],
   purchased: false, added_by: 'user-1',
   created_at: '', updated_at: '',
 }
@@ -24,24 +24,21 @@ test('renders quantity badge', () => {
   expect(screen.getByText('2 unidades')).toBeInTheDocument()
 })
 
-test('renders variety, brand, store tags', () => {
+test('renders brand and store tags', () => {
   render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
-  expect(screen.getByText(/Entera/)).toBeInTheDocument()
   expect(screen.getByText(/Hacendado/)).toBeInTheDocument()
   expect(screen.getByText(/Mercadona/)).toBeInTheDocument()
 })
 
 test('shows CTA tags for null fields', () => {
-  const item = { ...BASE_ITEM, variety: null, brand: null, stores: [] }
+  const item = { ...BASE_ITEM, brand: null, stores: [] }
   render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
-  // Three CTA buttons with aria-label
-  expect(screen.getByRole('button', { name: /añadir variedad/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /añadir marca/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /añadir tienda/i })).toBeInTheDocument()
 })
 
 test('tag row is always present because CTAs are shown for null fields', () => {
-  const item = { ...BASE_ITEM, variety: null, brand: null, stores: [] }
+  const item = { ...BASE_ITEM, brand: null, stores: [] }
   const { container } = render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
   // CTA tags ARE shown for null fields — tag row is only hidden if we choose not to show CTAs
   // Per spec: CTA tags shown for missing fields, row omitted only when all null AND no CTAs desired
@@ -64,10 +61,10 @@ test('tapping checkbox calls onTogglePurchased', () => {
 
 test('tapping a CTA tag calls onTagClick with item id and field', () => {
   const handler = vi.fn()
-  const item = { ...BASE_ITEM, variety: null }
+  const item = { ...BASE_ITEM, brand: null }
   render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={handler} onMenuOpen={() => {}} />)
-  fireEvent.click(screen.getByRole('button', { name: /añadir variedad/i }))
-  expect(handler).toHaveBeenCalledWith('i1', 'variety')
+  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }))
+  expect(handler).toHaveBeenCalledWith('i1', 'brand')
 })
 
 test('tapping a filled tag button calls onTagClick with item id and field', () => {

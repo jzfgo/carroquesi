@@ -7,7 +7,6 @@ class ItemCreate(BaseModel):
     name: str = Field(min_length=1)
     quantity: str | None = None
     brand: str | None = None
-    variety: str | None = None
     stores: list[str] = Field(default_factory=list)
 
 
@@ -15,7 +14,6 @@ class ItemUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1)
     quantity: str | None = None
     brand: str | None = None
-    variety: str | None = None
     stores: list[str] | None = None  # None = don't touch; [] = remove all
     purchased: bool | None = None
 
@@ -26,7 +24,6 @@ class ItemRead(BaseModel):
     name: str
     quantity: str | None
     brand: str | None
-    variety: str | None
     stores: list[str]
     purchased: bool
     added_by: str
