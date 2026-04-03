@@ -90,8 +90,33 @@ Nature & misc: 🌿 🌸 ⭐ 🎉 ❤️ 🔥 💧 🌙
 
 ---
 
+---
+
+## 6. Invite Preview & Share Screen
+
+### Backend
+
+- `InvitePreview` schema gains `list_emoji: str | None`.
+- `get_invite_preview` in `invites.py` includes `list_emoji=lst.emoji if lst else None` in the response.
+- `share.py` OG title and description prepend the emoji when present: `f"{lst.emoji} {list_name} — CarroQueSí"` (fallback: `list_name — CarroQueSí`).
+
+### Frontend
+
+- `getInvitePreview` return type gains `list_emoji: string | null`.
+- `InviteScreen`'s `Preview` interface gains `list_emoji: string | null`.
+- The hardcoded `🛒` icon at `invite-screen__icon` is replaced by `preview.list_emoji ?? '🛒'`.
+
+---
+
+## 7. Existing Lists — Data Migration
+
+Existing lists in the DB will have `emoji = NULL` after the schema migration. Rather than lazy-assigning on first load, a data migration assigns a random emoji to every existing list in the same Alembic revision that adds the column. This ensures all members see a consistent emoji immediately after deploy, with no client-side patching needed.
+
+The migration uses Python's `random.choice` over the same curated set (defined inline in the migration file). The column is still nullable in the schema to preserve `onSelect(null)` ("Ninguno") support going forward.
+
+---
+
 ## Out of Scope
 
 - Per-user emoji preferences (each member picks their own) — this spec is per-list only.
 - Emoji search or full emoji keyboard.
-- Emoji visible on invite preview or share screens.
