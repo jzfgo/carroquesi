@@ -102,4 +102,15 @@ describe('usePWAInstall', () => {
     const { result } = renderHook(() => usePWAInstall())
     expect(result.current.isIOS).toBe(false)
   })
+
+  it('calling promptInstall twice only calls prompt() once', async () => {
+    const fakeEvent = makeInstallEvent()
+    const { result } = renderHook(() => usePWAInstall())
+    act(() => { window.dispatchEvent(fakeEvent) })
+    // Call twice without awaiting — second call should be a no-op
+    const [p1, p2] = [result.current.promptInstall(), result.current.promptInstall()]
+    await act(async () => { await Promise.all([p1, p2]) })
+    const mockPrompt = (fakeEvent as unknown as { prompt: ReturnType<typeof vi.fn> }).prompt
+    expect(mockPrompt).toHaveBeenCalledTimes(1)
+  })
 })

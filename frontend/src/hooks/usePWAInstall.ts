@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -14,6 +14,7 @@ export interface UsePWAInstallResult {
 
 export function usePWAInstall(): UsePWAInstallResult {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const promptingRef = useRef(false)
   const [isInstalled, setIsInstalled] = useState(
     () => window.matchMedia('(display-mode: standalone)').matches
   )
@@ -38,13 +39,16 @@ export function usePWAInstall(): UsePWAInstallResult {
     return () => window.removeEventListener('appinstalled', handler)
   }, [])
 
-  const promptInstall = async () => {
-    if (!deferredPrompt) return
-    await deferredPrompt.prompt()
-    const { outcome } = await deferredPrompt.userChoice
+  const promptInstall = useCallback(async () => {
+    if (!deferredPrompt || promptingRef.current) return
+    promptingRef.current = true
+    const prompt = deferredPrompt
+    setDeferredPrompt(null)            // clear before any await
+    await prompt.prompt()
+    const { outcome } = await prompt.userChoice
     if (outcome === 'accepted') setIsInstalled(true)
-    setDeferredPrompt(null)
-  }
+    promptingRef.current = false
+  }, [deferredPrompt])
 
   return { isInstallable: deferredPrompt !== null, isInstalled, isIOS, promptInstall }
 }
