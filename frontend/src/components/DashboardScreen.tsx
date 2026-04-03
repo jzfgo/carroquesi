@@ -7,6 +7,8 @@ import { SortableListCard } from './SortableListCard'
 import { CreateListCard } from './CreateListCard'
 import { ListScreen } from './ListScreen'
 import { ListActionSheet } from './ListActionSheet'
+import { InstallBanner } from './InstallBanner'
+import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useLocation } from 'react-router-dom'
 import {
   DndContext,
@@ -49,17 +51,39 @@ export function DashboardScreen() {
   usePageTitle(selectedList?.name ?? undefined)
   const [activeList, setActiveList] = useState<ApiList | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
   const openListIdRef = useRef<string | null>(
     (location.state as { openListId?: string } | null)?.openListId ?? null
   )
+  const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
 
-  // Auto-dismiss toast after 3 seconds
   useEffect(() => {
     if (!toast) return
     const id = setTimeout(() => setToast(null), 3000)
     return () => clearTimeout(id)
   }, [toast])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [menuOpen])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [menuOpen])
 
   const fetchLists = useCallback(async () => {
     setLists(null)
@@ -179,23 +203,55 @@ export function DashboardScreen() {
     )
   }
 
+  const showInstallEntry = (isInstallable || isIOS) && !isInstalled
+
   return (
     <div className="dashboard-screen">
       <header className="dashboard-screen__header">
         <h1 className="dashboard-screen__title">CarroQueSí</h1>
-        <button
-          className="dashboard-screen__avatar"
-          onClick={() => void signOut()}
-          aria-label="Cerrar sesión"
-        >
-          {user?.photoUrl ? (
-            <img src={user.photoUrl} alt={user.displayName} />
-          ) : (
-            <span>{user?.displayName?.[0] ?? '?'}</span>
+        <div className="dashboard-screen__avatar-wrapper" ref={menuRef}>
+          <button
+            className="dashboard-screen__avatar"
+            onClick={() => setMenuOpen(o => !o)}
+            aria-label="Menú de usuario"
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+          >
+            {user?.photoUrl ? (
+              <img src={user.photoUrl} alt={user.displayName} />
+            ) : (
+              <span>{user?.displayName?.[0] ?? '?'}</span>
+            )}
+          </button>
+          {menuOpen && (
+            <div className="dashboard-screen__avatar-menu" role="menu">
+              {showInstallEntry && (
+                <button
+                  className="dashboard-screen__avatar-menu-item"
+                  role="menuitem"
+                  onClick={() => { void promptInstall(); setMenuOpen(false) }}
+                >
+                  Instalar app
+                </button>
+              )}
+              <button
+                className="dashboard-screen__avatar-menu-item"
+                role="menuitem"
+                onClick={() => { void signOut(); setMenuOpen(false) }}
+              >
+                Cerrar sesión
+              </button>
+            </div>
           )}
-        </button>
+        </div>
       </header>
       <main className="dashboard-screen__lists">
+        <InstallBanner
+          isInstallable={isInstallable}
+          isInstalled={isInstalled}
+          isIOS={isIOS}
+          promptInstall={promptInstall}
+        />
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={lists.map(l => l.id)} strategy={verticalListSortingStrategy}>
             {lists.map((list) => (

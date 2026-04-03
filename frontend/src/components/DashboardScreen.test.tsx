@@ -18,6 +18,8 @@ import * as reactRouter from 'react-router-dom'
 vi.mock('react-router-dom', () => ({
   useLocation: vi.fn().mockReturnValue({ state: null }),
 }))
+import * as usePWAInstallModule from '../hooks/usePWAInstall'
+vi.mock('../hooks/usePWAInstall')
 
 const mockGetToken = vi.fn().mockResolvedValue('token')
 const mockSignOut = vi.fn().mockResolvedValue(undefined)
@@ -38,6 +40,12 @@ beforeEach(() => {
   vi.mocked(api.renameList).mockResolvedValue({} as never)
   vi.mocked(api.deleteList).mockResolvedValue(null as never)
   vi.mocked(reactRouter.useLocation).mockReturnValue({ state: null } as never)
+  vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
+    isInstallable: false,
+    isInstalled: false,
+    isIOS: false,
+    promptInstall: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  })
 })
 
 const twoLists = [
@@ -96,11 +104,13 @@ describe('DashboardScreen', () => {
     await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
   })
 
-  it('calls signOut when avatar is clicked', async () => {
+  it('opens avatar menu on avatar click and calls signOut via menu item', async () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /cerrar sesión/i }))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: /cerrar sesión/i }))
     expect(mockSignOut).toHaveBeenCalledOnce()
   })
 
@@ -176,5 +186,86 @@ describe('DashboardScreen — list management', () => {
     await waitFor(() => screen.getByText('Mercado'))
     fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
     expect(screen.queryByRole('button', { name: /eliminar lista/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('DashboardScreen — avatar menu and install banner', () => {
+  it('avatar menu closes when clicking outside', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    fireEvent.mouseDown(document.body)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('avatar menu closes when Escape is pressed', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('avatar menu shows "Instalar app" when installable', async () => {
+    vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
+      isInstallable: true,
+      isInstalled: false,
+      isIOS: false,
+      promptInstall: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    })
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(screen.getByRole('menuitem', { name: /instalar app/i })).toBeInTheDocument()
+  })
+
+  it('avatar menu hides "Instalar app" when not installable and not iOS', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(screen.queryByRole('menuitem', { name: /instalar app/i })).not.toBeInTheDocument()
+  })
+
+  it('clicking "Instalar app" calls promptInstall and closes menu', async () => {
+    const mockPromptInstall = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
+    vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
+      isInstallable: true,
+      isInstalled: false,
+      isIOS: false,
+      promptInstall: mockPromptInstall,
+    })
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /instalar app/i }))
+    expect(mockPromptInstall).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('renders InstallBanner when installable', async () => {
+    vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
+      isInstallable: true,
+      isInstalled: false,
+      isIOS: false,
+      promptInstall: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    })
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    expect(screen.getByRole('complementary')).toBeInTheDocument()
+  })
+
+  it('does not render InstallBanner when not installable and not iOS', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
   })
 })
