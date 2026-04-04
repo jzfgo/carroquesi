@@ -318,4 +318,25 @@ describe('DashboardScreen — emoji', () => {
       expect(screen.getByText(/no se pudo cambiar el emoji/i)).toBeInTheDocument()
     )
   })
+
+  it('emoji update is applied optimistically before API resolves', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    let resolve!: () => void
+    vi.mocked(api.updateList).mockReturnValue(new Promise(r => { resolve = () => r({} as never) }))
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+
+    // Open the emoji picker for the first list (currently emoji '🛒')
+    fireEvent.click(screen.getAllByRole('button', { name: /cambiar emoji/i })[0])
+    // Select a new emoji
+    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+
+    // Optimistic update: the new emoji should appear immediately before API resolves
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: /cambiar emoji/i })[0]).toHaveTextContent('🍎')
+    )
+
+    // Resolve the API call
+    resolve()
+  })
 })
