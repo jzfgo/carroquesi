@@ -10,6 +10,7 @@ type ScreenState = 'loading' | 'preview' | 'accepting' | 'error'
 interface Preview {
   id: string
   list_name: string
+  list_emoji: string | null
   invited_by_name: string | null
 }
 
@@ -135,7 +136,7 @@ export function InviteScreen() {
   return (
     <div className="invite-screen">
       <div className="invite-screen__card">
-        <div className="invite-screen__icon">🛒</div>
+        <div className="invite-screen__icon">{preview?.list_emoji ?? '🛒'}</div>
         <h1 className="invite-screen__list-name">{preview?.list_name}</h1>
         {preview?.invited_by_name && (
           <p className="invite-screen__inviter">Invitado por {preview.invited_by_name}</p>
