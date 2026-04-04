@@ -21,11 +21,12 @@ import type { BarcodeRead, EditingTag, TagField } from '../types'
 interface Props {
   listId: string
   listName: string
+  listEmoji?: string | null
   listOwnerId: string
   onBack?: () => void
 }
 
-export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
+export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, onBack }: Props) {
   const { getToken, user } = useAuth()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -146,7 +147,7 @@ export function ListScreen({ listId, listName, listOwnerId, onBack }: Props) {
 
   return (
     <div className="list-screen">
-      <ListHeader title={listName} onMenuOpen={handleMenuToggle} onBack={onBack} />
+      <ListHeader title={listName} emoji={listEmoji} onMenuOpen={handleMenuToggle} onBack={onBack} />
       <ProgressBar purchased={purchasedCount} total={items.length} />
       <StoreFilter stores={stores} active={activeStore} onSelect={setStoreFilter} />
       <ItemList

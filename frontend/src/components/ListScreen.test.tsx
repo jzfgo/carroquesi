@@ -56,4 +56,20 @@ describe('ListScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
     expect(screen.getByRole('dialog', { name: /miembros/i })).toBeInTheDocument()
   })
+
+  it('renders emoji before the list name in the header when provided', () => {
+    render(
+      <ListScreen listId="l1" listName="Mercado Semanal" listEmoji="🛒" listOwnerId="owner-1" />
+    )
+    const heading = screen.getByRole('heading')
+    expect(heading.textContent).toContain('🛒')
+    expect(heading.textContent).toContain('Mercado Semanal')
+  })
+
+  it('existing heading accessible name is unchanged when emoji is provided (emoji is aria-hidden)', () => {
+    render(
+      <ListScreen listId="l1" listName="Mercado Semanal" listEmoji="🛒" listOwnerId="owner-1" />
+    )
+    expect(screen.getByRole('heading', { name: 'Mercado Semanal' })).toBeInTheDocument()
+  })
 })

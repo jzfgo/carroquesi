@@ -2,11 +2,12 @@ import './ListHeader.css'
 
 interface Props {
   title: string
+  emoji: string | null
   onMenuOpen: () => void
   onBack?: () => void
 }
 
-export function ListHeader({ title, onMenuOpen, onBack }: Props) {
+export function ListHeader({ title, emoji, onMenuOpen, onBack }: Props) {
   return (
     <header className="list-header">
       {onBack ? (
@@ -16,7 +17,10 @@ export function ListHeader({ title, onMenuOpen, onBack }: Props) {
       ) : (
         <div className="list-header__back" aria-hidden />
       )}
-      <h1 className="list-header__title">{title}</h1>
+      <h1 className="list-header__title">
+        {emoji && <span className="list-header__emoji" aria-hidden>{emoji} </span>}
+        {title}
+      </h1>
       <button
         className="list-header__menu"
         onClick={onMenuOpen}
