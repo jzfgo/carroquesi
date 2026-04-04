@@ -34,10 +34,10 @@ beforeEach(() => {
     loading: false,
   })
   vi.mocked(api.createList).mockResolvedValue({
-    id: 'l-new', name: 'Nueva', owner_id: 'u1',
+    id: 'l-new', name: 'Nueva', emoji: '🍎', owner_id: 'u1',
     created_at: '', updated_at: '', item_count: 0, purchased_count: 0,
   } as never)
-  vi.mocked(api.renameList).mockResolvedValue({} as never)
+  vi.mocked(api.updateList).mockResolvedValue({} as never)
   vi.mocked(api.deleteList).mockResolvedValue(null as never)
   vi.mocked(reactRouter.useLocation).mockReturnValue({ state: null } as never)
   vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
@@ -49,8 +49,8 @@ beforeEach(() => {
 })
 
 const twoLists = [
-  { id: 'l1', name: 'Mercado', owner_id: 'u1', created_at: '', updated_at: '', item_count: 8, purchased_count: 3 },
-  { id: 'l2', name: 'Costco', owner_id: 'u1', created_at: '', updated_at: '', item_count: 2, purchased_count: 0 },
+  { id: 'l1', name: 'Mercado', emoji: '🛒', owner_id: 'u1', created_at: '', updated_at: '', item_count: 8, purchased_count: 3 },
+  { id: 'l2', name: 'Costco', emoji: '🏠', owner_id: 'u1', created_at: '', updated_at: '', item_count: 2, purchased_count: 0 },
 ]
 
 describe('DashboardScreen', () => {
@@ -146,7 +146,7 @@ describe('DashboardScreen — list management', () => {
 
   it('rename failure reverts the name and shows a toast', async () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    vi.mocked(api.renameList).mockRejectedValue(new Error('Network'))
+    vi.mocked(api.updateList).mockRejectedValue(new Error('Network'))
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
     fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
@@ -281,5 +281,41 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     await waitFor(() => screen.getByText('Mercado'))
     fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
     expect(screen.queryByRole('menuitem', { name: /instalar app/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('DashboardScreen — emoji', () => {
+  it('tapping the emoji button opens the EmojiPickerSheet', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getAllByRole('button', { name: /cambiar emoji/i })[0])
+    expect(screen.getByRole('dialog', { name: /elegir emoji/i })).toBeInTheDocument()
+  })
+
+  it('selecting an emoji closes the sheet and calls updateList', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getAllByRole('button', { name: /cambiar emoji/i })[0])
+    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /elegir emoji/i })).not.toBeInTheDocument()
+    )
+    expect(vi.mocked(api.updateList)).toHaveBeenCalledWith(
+      expect.any(Function), 'l1', { emoji: '🍎' }
+    )
+  })
+
+  it('emoji update failure reverts and shows toast', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    vi.mocked(api.updateList).mockRejectedValue(new Error('Network'))
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getAllByRole('button', { name: /cambiar emoji/i })[0])
+    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+    await waitFor(() =>
+      expect(screen.getByText(/no se pudo cambiar el emoji/i)).toBeInTheDocument()
+    )
   })
 })
