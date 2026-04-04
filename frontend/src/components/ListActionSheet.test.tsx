@@ -4,7 +4,7 @@ import { ListActionSheet } from './ListActionSheet'
 import type { ApiList } from '../types'
 
 const list: ApiList = {
-  id: 'l1', name: 'Mercado semanal', owner_id: 'u1',
+  id: 'l1', name: 'Mercado semanal', emoji: null, owner_id: 'u1',
   created_at: '', updated_at: '', item_count: 8, purchased_count: 3,
 }
 
