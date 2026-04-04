@@ -302,3 +302,35 @@ def test_accept_invite_returns_410_when_expired(client: TestClient, session: Ses
 
     response = client.post(f"/invites/{invite.id}/accept")
     assert response.status_code == 410
+
+
+def test_invite_preview_includes_emoji(client: TestClient, session: Session, user):
+    from app.db.models import List, ListMember, ListInvite
+    lst = List(name="Frutas", emoji="🍎", owner_id=user.id)
+    session.add(lst)
+    session.flush()
+    session.add(ListMember(list_id=lst.id, user_id=user.id))
+    invite = ListInvite(list_id=lst.id, invited_by=user.id)
+    session.add(invite)
+    session.commit()
+    session.refresh(invite)
+
+    response = client.get(f"/invites/{invite.id}")
+    assert response.status_code == 200
+    assert response.json()["list_emoji"] == "🍎"
+
+
+def test_invite_preview_list_emoji_null_when_not_set(client: TestClient, session: Session, user):
+    from app.db.models import List, ListMember, ListInvite
+    lst = List(name="Sin emoji", emoji=None, owner_id=user.id)
+    session.add(lst)
+    session.flush()
+    session.add(ListMember(list_id=lst.id, user_id=user.id))
+    invite = ListInvite(list_id=lst.id, invited_by=user.id)
+    session.add(invite)
+    session.commit()
+    session.refresh(invite)
+
+    response = client.get(f"/invites/{invite.id}")
+    assert response.status_code == 200
+    assert response.json()["list_emoji"] is None

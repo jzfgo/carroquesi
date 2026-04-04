@@ -77,6 +77,7 @@ def get_invite_preview(invite_id: str, session: CurrentSession):
     return InvitePreview(
         id=invite.id,
         list_name=lst.name if lst else "Unknown list",
+        list_emoji=lst.emoji if lst else None,
         invited_by_name=inviter.display_name if inviter else None,
     )
 
