@@ -48,6 +48,7 @@ export interface EditingTag {
 export interface ApiList {
   id: string
   name: string
+  emoji: string | null
   owner_id: string
   created_at: string
   updated_at: string
