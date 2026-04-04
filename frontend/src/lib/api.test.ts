@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getLists, createList, createItem, updateItem, getListUpdatedAt, renameList, deleteList, getInvitePreview, acceptInvite, ApiError } from './api'
+import { getLists, createList, createItem, updateItem, getListUpdatedAt, updateList, deleteList, getInvitePreview, acceptInvite, ApiError } from './api'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -60,14 +60,14 @@ describe('getLists', () => {
 })
 
 describe('createList', () => {
-  it('POST /lists with name body', async () => {
+  it('POST /lists with name and emoji body', async () => {
     mockFetch.mockReturnValue(mockResponse({ id: 'l1', name: 'Compras' }))
-    await createList(mockGetToken, 'Compras')
+    await createList(mockGetToken, { name: 'Compras', emoji: '🛒' })
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists'),
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ name: 'Compras' }),
+        body: JSON.stringify({ name: 'Compras', emoji: '🛒' }),
       }),
     )
   })
@@ -107,10 +107,10 @@ describe('getListUpdatedAt', () => {
   })
 })
 
-describe('renameList', () => {
-  it('PATCH /lists/{id} with name body', async () => {
+describe('updateList', () => {
+  it('PATCH /lists/{id} with patch body', async () => {
     mockFetch.mockReturnValue(mockResponse({ id: 'l1', name: 'Nuevo nombre' }))
-    await renameList(mockGetToken, 'l1', 'Nuevo nombre')
+    await updateList(mockGetToken, 'l1', { name: 'Nuevo nombre' })
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists/l1'),
       expect.objectContaining({

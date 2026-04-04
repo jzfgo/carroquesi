@@ -4,15 +4,18 @@ from pydantic import BaseModel
 
 class ListCreate(BaseModel):
     name: str
+    emoji: str | None = None
 
 
 class ListUpdate(BaseModel):
-    name: str
+    name: str | None = None
+    emoji: str | None = None
 
 
 class ListRead(BaseModel):
     id: str
     name: str
+    emoji: str | None
     owner_id: str
     created_at: datetime
     updated_at: datetime

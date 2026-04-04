@@ -37,7 +37,7 @@ function mockAuth(user: typeof authedUser | null = authedUser) {
   })
 }
 
-const previewData = { id: 'inv123', list_name: 'Compras', invited_by_name: 'Ana' }
+const previewData = { id: 'inv123', list_name: 'Compras', list_emoji: '🛒', invited_by_name: 'Ana' }
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -148,4 +148,18 @@ test('shows network error with retry button, retry re-fetches on success', async
   expect(screen.getByRole('button', { name: 'Reintentar' })).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
   await waitFor(() => expect(screen.getByText('Compras')).toBeInTheDocument())
+})
+
+test('shows list emoji from preview instead of hardcoded icon', async () => {
+  vi.mocked(api.getInvitePreview).mockResolvedValue({ ...previewData, list_emoji: '🍎' })
+  render(<InviteScreen />)
+  await waitFor(() => expect(screen.getByText('Compras')).toBeInTheDocument())
+  expect(screen.getByText('🍎')).toBeInTheDocument()
+})
+
+test('falls back to 🛒 when list_emoji is null', async () => {
+  vi.mocked(api.getInvitePreview).mockResolvedValue({ ...previewData, list_emoji: null })
+  render(<InviteScreen />)
+  await waitFor(() => expect(screen.getByText('Compras')).toBeInTheDocument())
+  expect(screen.getByText('🛒')).toBeInTheDocument()
 })

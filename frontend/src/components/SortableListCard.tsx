@@ -5,12 +5,16 @@ import type { ApiList } from '../types'
 
 interface Props {
   list: ApiList
+  isOwner: boolean
   onClick: () => void
   onMenuOpen: () => void
+  onEmojiTap?: () => void
 }
 
-export function SortableListCard({ list, onClick, onMenuOpen }: Props) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: list.id })
+export function SortableListCard({ list, isOwner, onClick, onMenuOpen, onEmojiTap }: Props) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: list.id,
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -21,8 +25,10 @@ export function SortableListCard({ list, onClick, onMenuOpen }: Props) {
     <div ref={setNodeRef}>
       <ListCard
         list={list}
+        isOwner={isOwner}
         onClick={onClick}
         onMenuOpen={onMenuOpen}
+        onEmojiTap={onEmojiTap}
         dragHandleProps={{ ...attributes, ...listeners }}
         style={style}
         isDragging={isDragging}

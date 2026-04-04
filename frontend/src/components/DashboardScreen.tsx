@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import './DashboardScreen.css'
 import { useAuth } from '../contexts/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
-import { getLists, createList, renameList, deleteList } from '../lib/api'
+import { getLists, createList, updateList, deleteList } from '../lib/api'
 import { SortableListCard } from './SortableListCard'
 import { CreateListCard } from './CreateListCard'
 import { ListScreen } from './ListScreen'
 import { ListActionSheet } from './ListActionSheet'
 import { InstallBanner } from './InstallBanner'
+import { EmojiPickerSheet, CURATED_EMOJIS } from './EmojiPickerSheet'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useLocation } from 'react-router-dom'
 import {
@@ -43,6 +44,10 @@ function applyOrder(lists: ApiList[], order: string[] | null): ApiList[] {
   return [...sorted, ...rest]
 }
 
+function randomEmoji(): string {
+  return CURATED_EMOJIS[Math.floor(Math.random() * CURATED_EMOJIS.length)]
+}
+
 export function DashboardScreen() {
   const { user, getToken, signOut } = useAuth()
   const [lists, setLists] = useState<ApiList[] | null>(null)
@@ -50,6 +55,7 @@ export function DashboardScreen() {
   const [selectedList, setSelectedList] = useState<ApiList | null>(null)
   usePageTitle(selectedList?.name ?? undefined)
   const [activeList, setActiveList] = useState<ApiList | null>(null)
+  const [emojiList, setEmojiList] = useState<ApiList | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -121,13 +127,12 @@ export function DashboardScreen() {
   )
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchLists()
   }, [fetchLists])
 
   const handleCreate = useCallback(
     async (name: string) => {
-      await createList(getToken, name)
+      await createList(getToken, { name, emoji: randomEmoji() })
       await fetchLists()
     },
     [getToken, fetchLists],
@@ -142,10 +147,28 @@ export function DashboardScreen() {
       })
       setActiveList(null)
       try {
-        await renameList(getToken, list.id, newName)
+        await updateList(getToken, list.id, { name: newName })
       } catch {
         setLists(snapshot)
         setToast('No se pudo renombrar la lista')
+      }
+    },
+    [getToken],
+  )
+
+  const handleEmojiChange = useCallback(
+    async (list: ApiList, emoji: string | null) => {
+      let snapshot: ApiList[] | null = null
+      setLists(prev => {
+        snapshot = prev
+        return prev ? prev.map(l => l.id === list.id ? { ...l, emoji } : l) : prev
+      })
+      setEmojiList(null)
+      try {
+        await updateList(getToken, list.id, { emoji })
+      } catch {
+        setLists(snapshot)
+        setToast('No se pudo cambiar el emoji')
       }
     },
     [getToken],
@@ -169,6 +192,7 @@ export function DashboardScreen() {
       <ListScreen
         listId={selectedList.id}
         listName={selectedList.name}
+        listEmoji={selectedList.emoji}
         listOwnerId={selectedList.owner_id}
         onBack={() => setSelectedList(null)}
       />
@@ -181,10 +205,7 @@ export function DashboardScreen() {
         <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>
           No se pudieron cargar tus listas
         </p>
-        <button
-          className="dashboard-screen__retry"
-          onClick={() => void fetchLists()}
-        >
+        <button className="dashboard-screen__retry" onClick={() => void fetchLists()}>
           Reintentar
         </button>
       </div>
@@ -258,8 +279,10 @@ export function DashboardScreen() {
               <SortableListCard
                 key={list.id}
                 list={list}
+                isOwner={list.owner_id === (user?.id ?? '')}
                 onClick={() => { setSelectedList(list); setActiveList(null) }}
                 onMenuOpen={() => { setActiveList(list) }}
+                onEmojiTap={() => { setEmojiList(list) }}
               />
             ))}
           </SortableContext>
@@ -273,6 +296,13 @@ export function DashboardScreen() {
           onRename={newName => void handleRename(activeList, newName)}
           onDelete={() => void handleDelete(activeList)}
           onClose={() => setActiveList(null)}
+        />
+      )}
+      {emojiList && (
+        <EmojiPickerSheet
+          current={emojiList.emoji}
+          onSelect={emoji => void handleEmojiChange(emojiList, emoji)}
+          onClose={() => setEmojiList(null)}
         />
       )}
       {toast && (

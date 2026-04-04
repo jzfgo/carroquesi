@@ -38,18 +38,18 @@ export function getLists(getToken: () => Promise<string>) {
   return apiFetch(getToken, '/lists')
 }
 
-export function createList(getToken: () => Promise<string>, name: string) {
-  return apiFetch(getToken, '/lists', { method: 'POST', body: JSON.stringify({ name }) })
+export function createList(getToken: () => Promise<string>, payload: { name: string; emoji: string }) {
+  return apiFetch(getToken, '/lists', { method: 'POST', body: JSON.stringify(payload) })
 }
 
-export function renameList(
+export function updateList(
   getToken: () => Promise<string>,
   listId: string,
-  name: string,
+  patch: { name?: string; emoji?: string | null },
 ) {
   return apiFetch(getToken, `/lists/${listId}`, {
     method: 'PATCH',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(patch),
   })
 }
 
@@ -134,10 +134,20 @@ export function createOpenInvite(getToken: () => Promise<string>, listId: string
   return apiFetch(getToken, `/lists/${listId}/invites`, { method: 'POST' })
 }
 
-export async function getInvitePreview(inviteId: string): Promise<{ id: string; list_name: string; invited_by_name: string | null }> {
+export async function getInvitePreview(inviteId: string): Promise<{
+  id: string
+  list_name: string
+  list_emoji: string | null
+  invited_by_name: string | null
+}> {
   const res = await fetch(`${BASE}/invites/${inviteId}`)
   if (!res.ok) throw new ApiError(res.status, await res.text())
-  return res.json() as Promise<{ id: string; list_name: string; invited_by_name: string | null }>
+  return res.json() as Promise<{
+    id: string
+    list_name: string
+    list_emoji: string | null
+    invited_by_name: string | null
+  }>
 }
 
 export function acceptInvite(

@@ -16,7 +16,7 @@ const BASE_ITEM: ListItem = {
 
 test('renders item name', () => {
   render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
-  expect(screen.getByText('Leche')).toBeInTheDocument()
+  expect(screen.getByText('Leche Entera')).toBeInTheDocument()
 })
 
 test('renders quantity badge', () => {

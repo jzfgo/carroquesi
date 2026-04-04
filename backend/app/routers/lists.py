@@ -64,9 +64,9 @@ def create_list(
     current_user: CurrentUser,
     session: CurrentSession,
 ):
-    lst = List(name=body.name, owner_id=current_user.id)
+    lst = List(name=body.name, emoji=body.emoji, owner_id=current_user.id)
     session.add(lst)
-    session.flush()  # get lst.id before committing
+    session.flush()
     member = ListMember(list_id=lst.id, user_id=current_user.id)
     session.add(member)
     session.commit()
@@ -81,13 +81,16 @@ def get_list(list_and_user: MemberDep):
 
 
 @router.patch("/{list_id}", response_model=ListRead)
-def rename_list(
+def update_list(
     body: ListUpdate,
     list_and_user: OwnerDep,
     session: CurrentSession,
 ):
     lst, _ = list_and_user
-    lst.name = body.name
+    if body.name is not None:
+        lst.name = body.name
+    if "emoji" in body.model_fields_set:
+        lst.emoji = body.emoji
     _bump(lst, session)
     session.commit()
     session.refresh(lst)

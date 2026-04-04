@@ -20,12 +20,15 @@ def invite_share_page(invite_id: str, session: CurrentSession):
         lst = session.get(List, invite.list_id)
         inviter = session.get(User, invite.invited_by)
         list_name = lst.name if lst else "una lista"
+        list_emoji = lst.emoji if lst else None
         inviter_name = inviter.display_name if inviter else None
     else:
         list_name = "una lista"
+        list_emoji = None
         inviter_name = None
 
-    title = f"{list_name} — CarroQueSí"
+    emoji_prefix = f"{list_emoji} " if list_emoji else ""
+    title = f"{emoji_prefix}{list_name} — CarroQueSí"
     description = (
         f"{inviter_name} te invitó a unirse a '{list_name}' en CarroQueSí"
         if inviter_name

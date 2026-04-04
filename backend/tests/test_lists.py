@@ -122,3 +122,35 @@ def test_get_lists_counts_are_isolated_per_list(client: TestClient):
     assert by_id[list1_id]["purchased_count"] == 2
     assert by_id[list2_id]["item_count"] == 1
     assert by_id[list2_id]["purchased_count"] == 0
+
+
+def test_create_list_with_emoji(client: TestClient):
+    response = client.post("/lists", json={"name": "Frutas", "emoji": "🍎"})
+    assert response.status_code == 201
+    assert response.json()["emoji"] == "🍎"
+
+
+def test_create_list_without_emoji_returns_null(client: TestClient):
+    response = client.post("/lists", json={"name": "Sin emoji"})
+    assert response.status_code == 201
+    assert response.json()["emoji"] is None
+
+
+def test_update_emoji(client: TestClient):
+    created = client.post("/lists", json={"name": "Mi lista"}).json()
+    response = client.patch(f"/lists/{created['id']}", json={"emoji": "🛒"})
+    assert response.status_code == 200
+    assert response.json()["emoji"] == "🛒"
+
+
+def test_update_emoji_to_null(client: TestClient):
+    created = client.post("/lists", json={"name": "Mi lista", "emoji": "🛒"}).json()
+    response = client.patch(f"/lists/{created['id']}", json={"emoji": None})
+    assert response.status_code == 200
+    assert response.json()["emoji"] is None
+
+
+def test_update_emoji_non_owner_returns_403(client: TestClient, other_client: TestClient):
+    created = client.post("/lists", json={"name": "Mía"}).json()
+    response = other_client.patch(f"/lists/{created['id']}", json={"emoji": "🍎"})
+    assert response.status_code == 403
