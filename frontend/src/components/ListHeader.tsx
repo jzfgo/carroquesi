@@ -18,7 +18,7 @@ export function ListHeader({ title, emoji, onMenuOpen, onBack }: Props) {
         <div className="list-header__back" aria-hidden />
       )}
       <h1 className="list-header__title">
-        {emoji && <span className="list-header__emoji" aria-hidden>{emoji} </span>}
+        {emoji && <span className="list-header__emoji" aria-hidden>{emoji}</span>}
         {title}
       </h1>
       <button
