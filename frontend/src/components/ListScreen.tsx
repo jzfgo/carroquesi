@@ -123,7 +123,7 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
   const stores = useMemo(() => {
     const seen = new Set<string>()
     const result: string[] = []
-    for (const item of items) {
+    for (const item of items.filter(i => !i.purchased)) {
       for (const s of item.stores) {
         if (!seen.has(s)) {
           seen.add(s)
