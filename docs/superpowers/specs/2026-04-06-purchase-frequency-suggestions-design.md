@@ -36,7 +36,7 @@ Protected by `require_member`. Returns items that are currently "due" for re-pur
 3. For each group, sort `purchased_at` ascending and compute consecutive gaps in days; take the **median** gap as `median_interval`
 4. Compute `days_since_last` = days since the most recent `purchased_at` in the group
 5. Apply relevance window filter: `0.9 × median_interval ≤ days_since_last ≤ 1.5 × median_interval`
-6. Exclude names that currently exist on `list_id` with `purchased = false`
+6. Exclude names that currently exist on `list_id` with `purchased_at IS NULL`
 7. Sort descending by `days_since_last / median_interval` (most overdue first)
 8. Limit to 10 results
 9. Return the `name`, `brand`, `stores` from the most recent row in each group, plus computed fields
