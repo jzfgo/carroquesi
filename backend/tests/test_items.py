@@ -99,3 +99,49 @@ def test_update_item_clears_stores(client: TestClient):
     )
     assert response.status_code == 200
     assert response.json()["stores"] == []
+
+
+def test_update_item_sets_purchased_at(client: TestClient, session: Session):
+    from app.db.models import ListItem
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    assert item["purchased"] is False
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    assert response.status_code == 200
+    assert response.json()["purchased"] is True
+
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    assert db_item.purchased_at is not None
+
+
+def test_update_item_clears_purchased_at(client: TestClient, session: Session):
+    from app.db.models import ListItem
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+    assert response.status_code == 200
+    assert response.json()["purchased"] is False
+
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    assert db_item.purchased_at is None
+
+
+def test_repurchase_does_not_overwrite_purchased_at(client: TestClient, session: Session):
+    from app.db.models import ListItem
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    original_purchased_at = db_item.purchased_at
+
+    # Patch purchased=True again — should NOT update purchased_at
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    session.refresh(db_item)
+    assert db_item.purchased_at == original_purchased_at
