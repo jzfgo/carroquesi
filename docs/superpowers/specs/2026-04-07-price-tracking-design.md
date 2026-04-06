@@ -26,7 +26,7 @@ Caches community prices fetched from Open Prices, keyed by EAN. TTL: 7 days.
 | `id` | UUID PK | |
 | `ean` | str UNIQUE | Product barcode |
 | `amount` | float | Median of Spanish EUR community prices (see filtering below) |
-| `price_per` | `Optional[str]` | Unit from Open Prices: `KILOGRAM`, `LITER`, `100G`, or `null`/`UNIT` (unit price). Stored to drive display label. |
+| `price_per` | `Optional[str]` | `"KILOGRAM"` or `null` (unit price). Mapped from Open Prices `price_per`. |
 | `fetched_at` | datetime | Used to determine cache staleness |
 
 ### `price_records` — new table
@@ -38,7 +38,8 @@ User-contributed prices. One row per purchase logged.
 | `id` | UUID PK | |
 | `list_item_id` | FK → list_items | Which item was purchased |
 | `ean` | `Optional[str]` | Denormalized from `list_items.ean` at log time. Enables cross-list queries without joins. |
-| `amount` | float | Price paid in € |
+| `amount` | float | Normalized price in €: per unit or per kg |
+| `price_per` | `Optional[str]` | `"KILOGRAM"` or `null` (per unit). Chosen by user in `LogPriceSheet`. |
 | `store` | `Optional[str]` | Store where purchased |
 | `user_id` | FK → users | Who recorded the price |
 | `recorded_at` | datetime | When the price was logged |
@@ -54,9 +55,10 @@ User-contributed prices. One row per purchase logged.
 1. Fetch `GET https://prices.openfoodfacts.org/api/v1/prices?product_code={ean}&currency=EUR&page_size=50`
 2. Filter results to `location.osm_address_country_code == "ES"` (Spanish prices only). The API has no country query param — filtering is done backend-side.
 3. If no Spanish results, fall back to all EUR results.
-4. Group by `price_per` value; take the most common `price_per` group (usually `null`/UNIT for packaged goods).
-5. Compute median `price` within that group.
-6. Store `amount` and `price_per` in `price_cache`.
+4. Map `price_per`: `null`/`"UNIT"` → `null` (unit price); `"KILOGRAM"` → `"KILOGRAM"`; anything else → discard those results.
+5. Group by mapped `price_per`; take the most common group (usually `null` for packaged goods).
+6. Compute median `price` within that group.
+7. Store `amount` and mapped `price_per` in `price_cache`.
 
 If Open Prices is unreachable or returns no usable results, return `null` — never block the barcode lookup.
 
@@ -76,7 +78,7 @@ Response includes records grouped by store, sorted by `recorded_at` desc within 
 
 **`POST /lists/{list_id}/items/{item_id}/prices`**
 
-Body: `{ amount: float, store: string | null }`
+Body: `{ amount: float, price_per: "KILOGRAM" | null, store: string | null }`
 
 Requires list membership. Creates a `price_records` row. Denormalizes `ean` from the item at write time.
 
@@ -90,20 +92,18 @@ None required — Open Prices is read-only and unauthenticated for price lookups
 
 ### `BarcodeRead` type
 
-Add `community_price: number | null` and `community_price_per: string | null`.
+Add `community_price: number | null` and `community_price_per: "KILOGRAM" | null`.
 
-### Community price display rule
+### Price display rule
 
-The `community_price_per` value drives the display label appended to the price:
+Applies to both community prices and user-logged prices wherever they are shown:
 
-| `community_price_per` | Display |
+| `price_per` | Display format |
 |---|---|
-| `null` or `"UNIT"` | `~€X.XX según la comunidad` (no unit label) |
-| `"KILOGRAM"` | `~€X.XX/kg según la comunidad` |
-| `"LITER"` | `~€X.XX/L según la comunidad` |
-| `"100G"` | `~€X.XX/100g según la comunidad` |
+| `null` (unit) | `€X.XX` / `~€X.XX según la comunidad` |
+| `"KILOGRAM"` | `€X.XX/kg` / `~€X.XX/kg según la comunidad` |
 
-This rule applies identically in `BarcodeScanSheet` and the community banner in `PriceHistorySheet`.
+This rule applies in `BarcodeScanSheet`, `ItemCard`, and `PriceHistorySheet`.
 
 ### `BarcodeScanSheet`
 
@@ -113,7 +113,7 @@ Tooltip on `ⓘ`: *"Precio medio de la comunidad de Open Prices, filtrado a tien
 ### `ItemCard`
 
 New tag in the tags row:
-- If a price has been recorded: `💶 €X.XX` — tapping opens `PriceHistorySheet`
+- If a price has been recorded: `💶 €X.XX` or `💶 €X.XX/kg` (per display rule) — tapping opens `PriceHistorySheet`
 - If no price yet: `+ 💶` CTA tag (same style as `+ 🏷️`, `+ 🏪`) — tapping opens `PriceHistorySheet`
 
 ### `PriceHistorySheet` (new component)
@@ -137,7 +137,7 @@ Bottom sheet for logging a price. Triggered from:
 - Purchase toast → `Añadir precio`
 
 Fields:
-- **Precio pagado** — numeric input, pre-filled with the item's last recorded price (for this `list_item_id`) if available. Below the input, a static legend: *"Introduce el precio por unidad (ej. un cartón de leche, aunque hayas comprado 6), o el precio de la cantidad comprada si es a granel (ej. 100g de almendras)."*
+- **Precio pagado** — numeric input with unit selector (`por unidad` / `por kg`). Pre-filled with the item's last recorded price and `price_per` (for this `list_item_id`) if available; otherwise defaults to the item's cached `community_price_per` if known, or `por unidad`. Below the input, a static legend: *"Introduce el precio normalizado: por unidad (ej. €0.89 por un cartón de leche) o por kg (ej. €3.20/kg de arroz a granel)."*
 - **Tienda** — chip selector built from the item's `stores` array; pre-selected if only one store; `+ otra` chip for free-type entry
 
 ### Purchase toast
@@ -164,7 +164,7 @@ Structure:
 **Base URL:** `https://prices.openfoodfacts.org/api/v1`  
 **Endpoint used:** `GET /prices?product_code={ean}&currency=EUR&page_size=50` — no authentication required for reads  
 **Country filtering:** backend-side, `location.osm_address_country_code == "ES"`. Falls back to all EUR results if no Spanish data exists.  
-**Price unit:** results are grouped by `price_per`; the most common group is used. `price_per` is stored and returned to drive display labels.  
+**Price unit:** `price_per` is a two-value enum: `null` (per unit) or `"KILOGRAM"`. Open Prices values are mapped accordingly; unrecognised values are discarded.  
 **Cache TTL:** 7 days in `price_cache`  
 **Aggregation:** median of `price` values within the selected `price_per` group  
 **Failure handling:** if unavailable or no data, return `community_price: null` — never block barcode lookup
