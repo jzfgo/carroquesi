@@ -109,7 +109,7 @@ Calls the existing `addItem` with `{ name, brand, stores }` from the suggestion.
 ## Testing
 
 **Backend:**
-- Migration: drop `purchased` bool, add `purchased_at` nullable datetime on `list_items`
+- Migration: add `purchased_at` nullable datetime to `list_items`; backfill `purchased_at = updated_at` where `purchased = true`; then drop `purchased`
 - Items PATCH: sets `purchased_at = now()` when `purchased=true` (if not already set); clears to `None` when `purchased=false`
 - All queries using `purchased = false` updated to `purchased_at IS NULL`
 - API responses derive `purchased: bool` from `purchased_at IS NOT NULL`
