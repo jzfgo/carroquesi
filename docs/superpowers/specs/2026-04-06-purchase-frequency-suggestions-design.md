@@ -15,9 +15,8 @@ Protected by `require_member`. Returns items that are currently "due" for the us
 
 **Query logic:**
 
-1. Fetch all `list_id`s the current user is a member of (cross-list history)
-2. Load all `list_items` rows for those lists
-3. Group by `lower(name)`, discard groups with fewer than 3 occurrences
+1. Load all `list_items` rows for `list_id`
+2. Group by `lower(name)`, discard groups with fewer than 3 occurrences
 4. For each group, sort `created_at` ascending and compute consecutive gaps in days; take the **median** gap as `median_interval`
 5. Compute `days_since_last` = days since the most recent `created_at` in the group
 6. Apply relevance window filter: `0.9 × median_interval ≤ days_since_last ≤ 1.5 × median_interval`
@@ -25,6 +24,8 @@ Protected by `require_member`. Returns items that are currently "due" for the us
 8. Sort descending by `days_since_last / median_interval` (most overdue first)
 9. Limit to 10 results
 10. Return the `name`, `brand`, `stores` from the most recent row in each group, plus `days_overdue` = `days_since_last - (0.9 × median_interval)`
+
+Frequency is scoped to the current list only — cross-list history is not considered.
 
 **Response schema** (`DueSuggestionRead`):
 
