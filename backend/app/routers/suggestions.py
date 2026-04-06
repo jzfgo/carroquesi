@@ -1,3 +1,5 @@
+from collections import defaultdict
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Query
@@ -5,6 +7,7 @@ from sqlmodel import func, select
 
 from app.db.models import ListItem, ListMember
 from app.dependencies import CurrentSession, CurrentUser, MemberDep
+from app.schemas.due_suggestions import DueSuggestionRead
 from app.schemas.suggestions import SuggestionRead
 
 router = APIRouter(tags=["suggestions"])
@@ -63,6 +66,74 @@ def get_suggestions(
         )
         for r in rows
     ]
+
+
+@router.get("/lists/{list_id}/due-suggestions", response_model=list[DueSuggestionRead])
+def get_due_suggestions(
+    list_and_user: MemberDep,
+    session: CurrentSession,
+):
+    lst, _ = list_and_user
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    purchased_items = session.exec(
+        select(ListItem).where(
+            ListItem.list_id == lst.id,
+            ListItem.purchased_at.is_not(None),
+        )
+    ).all()
+
+    groups: dict[str, list[ListItem]] = defaultdict(list)
+    for item in purchased_items:
+        groups[item.name.lower()].append(item)
+
+    unpurchased_names = {
+        row.lower()
+        for row in session.exec(
+            select(ListItem.name).where(
+                ListItem.list_id == lst.id,
+                ListItem.purchased_at.is_(None),
+            )
+        ).all()
+    }
+
+    results = []
+    for name_key, items in groups.items():
+        if len(items) < 3:
+            continue
+        if name_key in unpurchased_names:
+            continue
+
+        sorted_items = sorted(items, key=lambda i: i.purchased_at)
+        timestamps = [i.purchased_at for i in sorted_items]
+
+        # Use the gap between the two oldest purchases as the baseline interval.
+        # This is robust against recent outliers and reflects the established cadence.
+        baseline_interval = (timestamps[1] - timestamps[0]).total_seconds() / 86400
+        if baseline_interval <= 0:
+            continue
+
+        last_purchased_at = sorted_items[-1].purchased_at
+        days_since_last = (now - last_purchased_at).total_seconds() / 86400
+        lower = 0.9 * baseline_interval
+        upper = 1.5 * baseline_interval
+
+        if not (lower <= days_since_last <= upper):
+            continue
+
+        most_recent = max(items, key=lambda i: i.purchased_at)
+        results.append(
+            DueSuggestionRead(
+                name=most_recent.name,
+                brand=most_recent.brand,
+                stores=most_recent.stores if most_recent.stores is not None else [],
+                days_overdue=days_since_last - lower,
+                dismissal_ttl_days=upper - days_since_last,
+            )
+        )
+
+    results.sort(key=lambda r: r.days_overdue, reverse=True)
+    return results[:10]
 
 
 @router.get("/lists/{list_id}/updated-at")
