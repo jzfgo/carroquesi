@@ -54,7 +54,7 @@ class ListItem(SQLModel, table=True):
     quantity: Optional[str] = None
     brand: Optional[str] = None
     stores: list[str] = Field(default_factory=list, sa_column=Column(JSON, server_default=text("'[]'")))
-    purchased: bool = Field(default=False)
+    purchased_at: Optional[datetime] = Field(default=None)
     added_by: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
