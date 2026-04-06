@@ -149,8 +149,17 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             aria-label="Escanear código de barras"
             type="button"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M3 5v1M3 10v4M3 19v1M7 5v8M7 17v2M11 5v1M11 10v4M11 19v1M15 5v8M15 17v2M19 5v1M19 10v4M19 19v1" />
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <rect x="0" y="2" width="1" height="20"/>
+              <rect x="2" y="2" width="2" height="20"/>
+              <rect x="5" y="2" width="1" height="20"/>
+              <rect x="7" y="2" width="1" height="20"/>
+              <rect x="9" y="2" width="2" height="20"/>
+              <rect x="12" y="2" width="1" height="20"/>
+              <rect x="14" y="2" width="2" height="20"/>
+              <rect x="17" y="2" width="1" height="20"/>
+              <rect x="19" y="2" width="1" height="20"/>
+              <rect x="21" y="2" width="2" height="20"/>
             </svg>
           </button>
         )}
