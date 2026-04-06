@@ -5,25 +5,41 @@
 
 ## Overview
 
-Proactively suggest items to add to the shopping list based on how frequently the user has added them in the past. A cycling dismissable banner above the SmartInputBar surfaces one suggestion at a time when an item is within its relevance window.
+Proactively suggest items to add to the shopping list based on how frequently the user purchases them. A cycling dismissable banner above the SmartInputBar surfaces one suggestion at a time when an item is within its relevance window.
+
+## Data model change
+
+Add a `purchased_at` nullable datetime column to `list_items`:
+
+```python
+purchased_at: Optional[datetime] = None
+```
+
+Set to `now()` in the items PATCH handler when `purchased` is flipped to `true`. Never updated on subsequent edits. Requires an Alembic migration.
+
+The frequency model uses `purchased_at` (not `created_at`) as the purchase timestamp — it represents when the item was actually bought rather than when it was added to the list.
 
 ## Backend
 
+### Items PATCH handler change
+
+When processing a PATCH on a list item, if `purchased` is being set to `true` and the item's current `purchased_at` is `None`, set `purchased_at = now()`.
+
 ### New endpoint: `GET /lists/{list_id}/due-suggestions`
 
-Protected by `require_member`. Returns items that are currently "due" for the user.
+Protected by `require_member`. Returns items that are currently "due" for re-purchase.
 
 **Query logic:**
 
-1. Load all `list_items` rows for `list_id`
-2. Group by `lower(name)`, discard groups with fewer than 3 occurrences
-4. For each group, sort `created_at` ascending and compute consecutive gaps in days; take the **median** gap as `median_interval`
-5. Compute `days_since_last` = days since the most recent `created_at` in the group
-6. Apply relevance window filter: `0.9 × median_interval ≤ days_since_last ≤ 1.5 × median_interval`
-7. Exclude names that currently exist on `list_id` with `purchased = false`
-8. Sort descending by `days_since_last / median_interval` (most overdue first)
-9. Limit to 10 results
-10. Return the `name`, `brand`, `stores` from the most recent row in each group, plus `days_overdue` = `days_since_last - (0.9 × median_interval)`
+1. Load all `list_items` rows for `list_id` where `purchased_at IS NOT NULL`
+2. Group by `lower(name)`, discard groups with fewer than 3 purchased occurrences
+3. For each group, sort `purchased_at` ascending and compute consecutive gaps in days; take the **median** gap as `median_interval`
+4. Compute `days_since_last` = days since the most recent `purchased_at` in the group
+5. Apply relevance window filter: `0.9 × median_interval ≤ days_since_last ≤ 1.5 × median_interval`
+6. Exclude names that currently exist on `list_id` with `purchased = false`
+7. Sort descending by `days_since_last / median_interval` (most overdue first)
+8. Limit to 10 results
+9. Return the `name`, `brand`, `stores` from the most recent row in each group, plus computed fields
 
 Frequency is scoped to the current list only — cross-list history is not considered.
 
@@ -34,13 +50,11 @@ class DueSuggestionRead(BaseModel):
     name: str
     brand: str | None
     stores: list[str]
-    days_overdue: float        # days past the 0.9× threshold
+    days_overdue: float        # days_since_last - (0.9 × median_interval)
     dismissal_ttl_days: float  # (1.5 × median_interval) - days_since_last
 ```
 
 `dismissal_ttl_days` tells the frontend exactly how long a dismissal should last so it expires when the suggestion window closes.
-
-No new database table or migration required.
 
 ## Frontend
 
@@ -85,7 +99,7 @@ The TTL comes from `dismissal_ttl_days` on each suggestion, so the dismissal exp
 
 ### `onAdd` flow
 
-Calls the existing `addItem` with `{ name, brand, stores }` from the suggestion. No special handling beyond what `addItem` already does. The item's new `created_at` resets its frequency clock on the backend.
+Calls the existing `addItem` with `{ name, brand, stores }` from the suggestion. No special handling beyond what `addItem` already does.
 
 ## Error handling
 
@@ -95,15 +109,17 @@ Calls the existing `addItem` with `{ name, brand, stores }` from the suggestion.
 ## Testing
 
 **Backend:**
+- Migration: `purchased_at` column added to `list_items`
+- Items PATCH: sets `purchased_at` when `purchased` flips to `true`, does not overwrite on re-purchase
 - Unit tests for the median interval calculation
-- Endpoint test: returns correct suggestions given seeded `list_items`
+- Endpoint test: returns correct suggestions given seeded `list_items` with `purchased_at` set
 - Endpoint test: excludes items currently unpurchased on the target list
 - Endpoint test: respects the 0.9× lower bound and 1.5× upper bound
-- Endpoint test: requires ≥3 occurrences
+- Endpoint test: requires ≥3 purchased occurrences
 
 **Frontend:**
 - `FrequencySuggestionBanner` renders one suggestion at a time
-- Dismiss adds to dismissed set and advances index
+- Dismiss writes to localStorage and advances index
 - Add calls `onAdd` and hides the suggestion
 - Banner hidden when suggestions array is empty
-- localStorage read/write for dismissal TTL
+- localStorage TTL expiry correctly filters stale dismissals
