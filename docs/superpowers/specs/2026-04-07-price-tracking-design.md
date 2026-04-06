@@ -25,7 +25,8 @@ Caches community prices fetched from Open Prices, keyed by EAN. TTL: 7 days.
 |---|---|---|
 | `id` | UUID PK | |
 | `ean` | str UNIQUE | Product barcode |
-| `amount` | float | Median of recent community prices in € |
+| `amount` | float | Median of Spanish EUR community prices (see filtering below) |
+| `price_per` | `Optional[str]` | Unit from Open Prices: `KILOGRAM`, `LITER`, `100G`, or `null`/`UNIT` (unit price). Stored to drive display label. |
 | `fetched_at` | datetime | Used to determine cache staleness |
 
 ### `price_records` — new table
@@ -48,7 +49,16 @@ User-contributed prices. One row per purchase logged.
 
 ### Extended barcode response
 
-`GET /barcode/{ean}` response gains a `community_price: float | null` field. On a cache hit in `price_cache` (within 7 days), return the cached value. On miss, fetch from `GET https://prices.openfoodfacts.org/api/v1/prices?product_code={ean}`, compute the median of returned prices, and store in `price_cache`. If Open Prices is unreachable or returns no results, return `null` — never block the barcode lookup.
+`GET /barcode/{ean}` response gains `community_price: float | null` and `community_price_per: string | null` fields. On a cache hit in `price_cache` (within 7 days), return the cached values. On miss:
+
+1. Fetch `GET https://prices.openfoodfacts.org/api/v1/prices?product_code={ean}&currency=EUR&page_size=50`
+2. Filter results to `location.osm_address_country_code == "ES"` (Spanish prices only). The API has no country query param — filtering is done backend-side.
+3. If no Spanish results, fall back to all EUR results.
+4. Group by `price_per` value; take the most common `price_per` group (usually `null`/UNIT for packaged goods).
+5. Compute median `price` within that group.
+6. Store `amount` and `price_per` in `price_cache`.
+
+If Open Prices is unreachable or returns no usable results, return `null` — never block the barcode lookup.
 
 ### Prices router — `backend/app/routers/prices.py`
 
@@ -80,12 +90,25 @@ None required — Open Prices is read-only and unauthenticated for price lookups
 
 ### `BarcodeRead` type
 
-Add `community_price: number | null`.
+Add `community_price: number | null` and `community_price_per: string | null`.
+
+### Community price display rule
+
+The `community_price_per` value drives the display label appended to the price:
+
+| `community_price_per` | Display |
+|---|---|
+| `null` or `"UNIT"` | `~€X.XX según la comunidad` (no unit label) |
+| `"KILOGRAM"` | `~€X.XX/kg según la comunidad` |
+| `"LITER"` | `~€X.XX/L según la comunidad` |
+| `"100G"` | `~€X.XX/100g según la comunidad` |
+
+This rule applies identically in `BarcodeScanSheet` and the community banner in `PriceHistorySheet`.
 
 ### `BarcodeScanSheet`
 
-When `community_price` is present, show: *"~€X.XX según la comunidad ⓘ"*  
-Tooltip on `ⓘ`: *"Precio medio aportado por la comunidad de Open Prices. Puede no reflejar precios en tiendas españolas."*
+When `community_price` is present, show the formatted community price string (per rule above) followed by `ⓘ`.  
+Tooltip on `ⓘ`: *"Precio medio de la comunidad de Open Prices, filtrado a tiendas españolas cuando hay datos disponibles. Puede no reflejar los precios actuales."*
 
 ### `ItemCard`
 
@@ -98,8 +121,8 @@ New tag in the tags row:
 Bottom sheet. Structure:
 
 1. **Scope segmented control** — `Esta lista / Mis listas / Todos`
-2. **Community price banner** (EAN items only) — `🌍 Comunidad ~€X.XX ⓘ`  
-   Tooltip: same text as BarcodeScanSheet
+2. **Community price banner** (EAN items only) — `🌍 Comunidad ~€X.XX[/unit] ⓘ`  
+   Formatted per the community price display rule above. Tooltip: same text as BarcodeScanSheet.
 3. **Store summary rows** — one row per store with:
    - Store name, purchase count, last purchase date
    - Latest price (green)
@@ -114,7 +137,7 @@ Bottom sheet for logging a price. Triggered from:
 - Purchase toast → `Añadir precio`
 
 Fields:
-- **Precio pagado** — numeric input, pre-filled with the item's last recorded price if available
+- **Precio pagado** — numeric input, pre-filled with the item's last recorded price (for this `list_item_id`) if available. Below the input, a static legend: *"Introduce el precio por unidad (ej. un cartón de leche, aunque hayas comprado 6), o el precio de la cantidad comprada si es a granel (ej. 100g de almendras)."*
 - **Tienda** — chip selector built from the item's `stores` array; pre-selected if only one store; `+ otra` chip for free-type entry
 
 ### Purchase toast
@@ -139,9 +162,11 @@ Structure:
 ## Open Prices API
 
 **Base URL:** `https://prices.openfoodfacts.org/api/v1`  
-**Endpoint used:** `GET /prices?product_code={ean}` — no authentication required for reads  
+**Endpoint used:** `GET /prices?product_code={ean}&currency=EUR&page_size=50` — no authentication required for reads  
+**Country filtering:** backend-side, `location.osm_address_country_code == "ES"`. Falls back to all EUR results if no Spanish data exists.  
+**Price unit:** results are grouped by `price_per`; the most common group is used. `price_per` is stored and returned to drive display labels.  
 **Cache TTL:** 7 days in `price_cache`  
-**Aggregation:** median of `price` values from the response  
+**Aggregation:** median of `price` values within the selected `price_per` group  
 **Failure handling:** if unavailable or no data, return `community_price: null` — never block barcode lookup
 
 ---
