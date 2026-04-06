@@ -78,8 +78,8 @@ def test_due_suggestions_excludes_items_below_lower_bound(client: TestClient, se
     lst = _create_list(client)
     now = datetime.utcnow()
     # median=14, lower=12.6. Last purchase 10 days ago → below lower bound
-    _add_purchased(session, lst["id"], user.id, "Yogurt", now - timedelta(days=28))
-    _add_purchased(session, lst["id"], user.id, "Yogurt", now - timedelta(days=14))
+    _add_purchased(session, lst["id"], user.id, "Yogurt", now - timedelta(days=38))
+    _add_purchased(session, lst["id"], user.id, "Yogurt", now - timedelta(days=24))
     _add_purchased(session, lst["id"], user.id, "Yogurt", now - timedelta(days=10))
 
     response = client.get(f"/lists/{lst['id']}/due-suggestions")
@@ -91,12 +91,12 @@ def test_due_suggestions_sorted_most_overdue_first(client: TestClient, session: 
     lst = _create_list(client)
     now = datetime.utcnow()
     # Apples: median=14, last=18d → days_overdue=18-12.6=5.4
-    _add_purchased(session, lst["id"], user.id, "Apples", now - timedelta(days=42))
-    _add_purchased(session, lst["id"], user.id, "Apples", now - timedelta(days=28))
+    _add_purchased(session, lst["id"], user.id, "Apples", now - timedelta(days=46))
+    _add_purchased(session, lst["id"], user.id, "Apples", now - timedelta(days=32))
     _add_purchased(session, lst["id"], user.id, "Apples", now - timedelta(days=18))
     # Bread: median=14, last=20d → days_overdue=20-12.6=7.4 (more overdue)
-    _add_purchased(session, lst["id"], user.id, "Bread", now - timedelta(days=42))
-    _add_purchased(session, lst["id"], user.id, "Bread", now - timedelta(days=28))
+    _add_purchased(session, lst["id"], user.id, "Bread", now - timedelta(days=48))
+    _add_purchased(session, lst["id"], user.id, "Bread", now - timedelta(days=34))
     _add_purchased(session, lst["id"], user.id, "Bread", now - timedelta(days=20))
 
     response = client.get(f"/lists/{lst['id']}/due-suggestions")

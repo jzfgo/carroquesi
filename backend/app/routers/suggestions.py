@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import datetime, timezone
+from statistics import median
 from typing import Annotated
 
 from fastapi import APIRouter, Query
@@ -107,16 +108,18 @@ def get_due_suggestions(
         sorted_items = sorted(items, key=lambda i: i.purchased_at)
         timestamps = [i.purchased_at for i in sorted_items]
 
-        # Use the gap between the two oldest purchases as the baseline interval.
-        # This is robust against recent outliers and reflects the established cadence.
-        baseline_interval = (timestamps[1] - timestamps[0]).total_seconds() / 86400
-        if baseline_interval <= 0:
+        gaps = [
+            (timestamps[i + 1] - timestamps[i]).total_seconds() / 86400
+            for i in range(len(timestamps) - 1)
+        ]
+        median_interval = median(gaps)
+        if median_interval <= 0:
             continue
 
         last_purchased_at = sorted_items[-1].purchased_at
         days_since_last = (now - last_purchased_at).total_seconds() / 86400
-        lower = 0.9 * baseline_interval
-        upper = 1.5 * baseline_interval
+        lower = 0.9 * median_interval
+        upper = 1.5 * median_interval
 
         if not (lower <= days_since_last <= upper):
             continue
