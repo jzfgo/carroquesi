@@ -9,21 +9,21 @@ Proactively suggest items to add to the shopping list based on how frequently th
 
 ## Data model change
 
-Add a `purchased_at` nullable datetime column to `list_items`:
+Replace the `purchased: bool` column on `list_items` with `purchased_at: Optional[datetime]`. Purchase state is derived as `purchased_at IS NOT NULL`. Requires an Alembic migration (drop `purchased`, add `purchased_at`).
 
-```python
-purchased_at: Optional[datetime] = None
-```
+The frequency model uses `purchased_at` as the purchase timestamp — it represents when the item was actually bought rather than when it was added to the list.
 
-Set to `now()` in the items PATCH handler when `purchased` is flipped to `true`. Never updated on subsequent edits. Requires an Alembic migration.
-
-The frequency model uses `purchased_at` (not `created_at`) as the purchase timestamp — it represents when the item was actually bought rather than when it was added to the list.
+**API boundary:** responses continue to include `purchased: bool`, computed server-side as `purchased_at IS NOT NULL`. The frontend type system and all components remain unchanged.
 
 ## Backend
 
 ### Items PATCH handler change
 
-When processing a PATCH on a list item, if `purchased` is being set to `true` and the item's current `purchased_at` is `None`, set `purchased_at = now()`.
+The PATCH request payload keeps `purchased: bool`. Internally:
+- `purchased = true` → set `purchased_at = now()` (only if currently `None`)
+- `purchased = false` → set `purchased_at = None`
+
+All existing `purchased = false` filters become `purchased_at IS NULL`.
 
 ### New endpoint: `GET /lists/{list_id}/due-suggestions`
 
@@ -109,8 +109,10 @@ Calls the existing `addItem` with `{ name, brand, stores }` from the suggestion.
 ## Testing
 
 **Backend:**
-- Migration: `purchased_at` column added to `list_items`
-- Items PATCH: sets `purchased_at` when `purchased` flips to `true`, does not overwrite on re-purchase
+- Migration: drop `purchased` bool, add `purchased_at` nullable datetime on `list_items`
+- Items PATCH: sets `purchased_at = now()` when `purchased=true` (if not already set); clears to `None` when `purchased=false`
+- All queries using `purchased = false` updated to `purchased_at IS NULL`
+- API responses derive `purchased: bool` from `purchased_at IS NOT NULL`
 - Unit tests for the median interval calculation
 - Endpoint test: returns correct suggestions given seeded `list_items` with `purchased_at` set
 - Endpoint test: excludes items currently unpurchased on the target list
