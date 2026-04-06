@@ -25,10 +25,11 @@ carroquesi/
 | Table | Key fields |
 |-------|-----------|
 | `users` | id (UUID), firebase_uid, display_name, email, photo_url, created_at |
-| `lists` | id, name, owner_id (FK→users), created_at, updated_at |
+| `lists` | id, name, emoji (nullable), owner_id (FK→users), created_at, updated_at |
 | `list_members` | id, list_id (FK→lists), user_id (FK→users), created_at |
-| `list_items` | id, list_id, name, quantity, brand, variety, stores (JSON array), purchased, added_by, created_at, updated_at |
+| `list_items` | id, list_id, name, quantity, brand, stores (JSON array), purchased, added_by, created_at, updated_at |
 | `list_invites` | id, list_id, invited_email (nullable), invited_by, created_at |
+| `barcode_cache` | id, ean (unique), name, brand, stores (nullable comma-separated), created_at |
 
 - `lists.updated_at` is bumped on every item write, member change, and list rename.
 - `list_invites.id` is the shareable invite token (UUID is unguessable — no separate token field).
@@ -43,10 +44,15 @@ npm install --legacy-peer-deps  # ⚠️ required: vite-plugin-pwa@1.x doesn't d
 npm run dev          # dev server (Vite)
 npm run build        # production build
 npm run preview      # preview production build
+npm run test         # Vitest unit tests
+npm run test:watch   # Vitest in watch mode
 npm run lint         # ESLint
 npm run typecheck    # WARNING: root tsconfig has files:[] — always passes silently! Use instead:
 npx tsc -p tsconfig.app.json --noEmit  # actual typecheck
 ```
+
+### PWA
+The app is a Progressive Web App (`vite-plugin-pwa`). The service worker is active even in dev (`devOptions.enabled: true`). The generated `sw.js` in the build output is managed by Workbox — do not edit it directly.
 
 ### Key conventions
 - Mobile-first, card-based layout
@@ -98,7 +104,9 @@ backend/
 │   │   ├── members.py       # GET/POST/DELETE /lists/{id}/members[/{user_id}]
 │   │   ├── items.py         # GET/POST/PATCH/DELETE /lists/{id}/items[/{id}]
 │   │   ├── invites.py       # GET/POST/DELETE /invites[/{id}[/accept]]
-│   │   └── suggestions.py   # GET /suggestions, GET /lists/{id}/updated-at
+│   │   ├── suggestions.py   # GET /suggestions, GET /lists/{id}/updated-at
+│   │   ├── barcode.py       # GET /barcode/{ean} — OpenFoodFacts lookup + local cache
+│   │   └── share.py         # GET /i/{invite_id} — OG meta-tag preview page for invite links
 │   ├── schemas/             # Pydantic request/response models (one file per router)
 │   └── dependencies.py      # get_current_user, require_member, require_owner
 └── alembic/                 # Migrations
