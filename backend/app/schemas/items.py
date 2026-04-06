@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 
 class ItemCreate(BaseModel):
@@ -25,7 +25,12 @@ class ItemRead(BaseModel):
     quantity: str | None
     brand: str | None
     stores: list[str]
-    purchased: bool
+    purchased_at: datetime | None
     added_by: str
     created_at: datetime
     updated_at: datetime
+
+    @computed_field
+    @property
+    def purchased(self) -> bool:
+        return self.purchased_at is not None

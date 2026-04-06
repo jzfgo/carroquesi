@@ -154,3 +154,13 @@ def test_update_emoji_non_owner_returns_403(client: TestClient, other_client: Te
     created = client.post("/lists", json={"name": "Mía"}).json()
     response = other_client.patch(f"/lists/{created['id']}", json={"emoji": "🍎"})
     assert response.status_code == 403
+
+
+def test_purchased_count_reflects_purchased_at(client: TestClient):
+    lst = client.post("/lists", json={"name": "Shopping"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Milk"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    lists = client.get("/lists").json()
+    target = next(l for l in lists if l["id"] == lst["id"])
+    assert target["purchased_count"] == 1

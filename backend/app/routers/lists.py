@@ -39,7 +39,7 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
             ListItem.list_id,
             func.count(ListItem.id).label("item_count"),
             func.coalesce(
-                func.sum(case((ListItem.purchased == True, 1), else_=0)), 0
+                func.sum(case((ListItem.purchased_at.is_not(None), 1), else_=0)), 0
             ).label("purchased_count"),
         )
         .where(ListItem.list_id.in_(list_ids))

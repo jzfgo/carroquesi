@@ -32,6 +32,14 @@ export interface Suggestion {
   stores: string[]
 }
 
+export interface DueSuggestion {
+  name: string
+  brand: string | null
+  stores: string[]
+  days_overdue: number
+  dismissal_ttl_days: number
+}
+
 export interface BarcodeRead {
   name: string
   brand: string | null

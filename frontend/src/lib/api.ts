@@ -1,4 +1,4 @@
-import type { BarcodeRead, Suggestion } from '../types'
+import type { BarcodeRead, DueSuggestion, Suggestion } from '../types'
 
 const BASE = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
 
@@ -113,6 +113,13 @@ export function deleteItem(
 
 export async function getSuggestions(getToken: () => Promise<string>, q: string): Promise<Suggestion[]> {
   return apiFetch(getToken, `/suggestions?q=${encodeURIComponent(q)}`) as Promise<Suggestion[]>
+}
+
+export async function getDueSuggestions(
+  getToken: () => Promise<string>,
+  listId: string,
+): Promise<DueSuggestion[]> {
+  return apiFetch(getToken, `/lists/${listId}/due-suggestions`) as Promise<DueSuggestion[]>
 }
 
 export async function getBarcode(

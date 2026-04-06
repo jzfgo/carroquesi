@@ -57,8 +57,14 @@ def update_item(
     item = session.get(ListItem, item_id)
     if item is None or item.list_id != lst.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
-    for field, value in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    purchased = data.pop('purchased', None)
+    for field, value in data.items():
         setattr(item, field, value)
+    if purchased is True and item.purchased_at is None:
+        item.purchased_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    elif purchased is False:
+        item.purchased_at = None
     item.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     session.add(item)
     _bump(lst, session)

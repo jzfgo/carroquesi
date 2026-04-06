@@ -1,0 +1,61 @@
+.freq-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border, rgba(170,59,255,0.25));
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.freq-banner__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.freq-banner__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-h);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.freq-banner__meta {
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.freq-banner__add {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: 1px solid var(--accent-border, rgba(170,59,255,0.25));
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.freq-banner__dismiss {
+  font-size: 13px;
+  color: var(--text);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  flex-shrink: 0;
+  font-family: inherit;
+  line-height: 1;
+}
