@@ -8,7 +8,8 @@ import { CreateListCard } from './CreateListCard'
 import { ListScreen } from './ListScreen'
 import { ListActionSheet } from './ListActionSheet'
 import { InstallBanner } from './InstallBanner'
-import { EmojiPickerSheet, CURATED_EMOJIS } from './EmojiPickerSheet'
+import { EmojiPickerSheet } from './EmojiPickerSheet'
+import { CURATED_EMOJIS } from '../lib/curated-emojis'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useLocation } from 'react-router-dom'
 import {
@@ -127,6 +128,7 @@ export function DashboardScreen() {
   )
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchLists()
   }, [fetchLists])
 

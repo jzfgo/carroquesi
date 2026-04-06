@@ -1,12 +1,6 @@
 import { useEffect } from 'react'
 import './EmojiPickerSheet.css'
-
-export const CURATED_EMOJIS = [
-  '🍎', '🥦', '🥕', '🧅', '🧄', '🍋', '🍇', '🥩', '🍗', '🥛',
-  '🧀', '🥚', '🍞', '🧁', '🍫', '🍷', '🧃',
-  '🛒', '🏠', '🧹', '🧺', '🧴', '🪥', '🧻', '💊', '🐾', '👶',
-  '🌿', '🌸', '⭐', '🎉', '❤️', '🔥', '💧', '🌙',
-]
+import { CURATED_EMOJIS } from '../lib/curated-emojis'
 
 interface Props {
   current: string | null
