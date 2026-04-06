@@ -27,11 +27,12 @@ carroquesi/
 | `users` | id (UUID), firebase_uid, display_name, email, photo_url, created_at |
 | `lists` | id, name, emoji (nullable), owner_id (FK→users), created_at, updated_at |
 | `list_members` | id, list_id (FK→lists), user_id (FK→users), created_at |
-| `list_items` | id, list_id, name, quantity, brand, stores (JSON array), purchased, added_by, created_at, updated_at |
+| `list_items` | id, list_id, name, quantity, brand, stores (JSON array), purchased_at (nullable datetime), added_by, created_at, updated_at |
 | `list_invites` | id, list_id, invited_email (nullable), invited_by, created_at |
 | `barcode_cache` | id, ean (unique), name, brand, stores (nullable comma-separated), created_at |
 
 - `lists.updated_at` is bumped on every item write, member change, and list rename.
+- `list_items.purchased_at` is `NULL` when unpurchased, set to `now()` on first purchase. The API exposes a derived `purchased: bool` computed field for backward compatibility.
 - `list_invites.id` is the shareable invite token (UUID is unguessable — no separate token field).
 - Invitations are opt-in: invitees must explicitly accept before gaining list access.
 
@@ -60,6 +61,7 @@ The app is a Progressive Web App (`vite-plugin-pwa`). The service worker is acti
 - Firebase SDK used directly in the frontend for Auth only
 - All data fetched from the FastAPI backend via REST
 - Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
+- `FrequencySuggestionBanner` sits above the SmartInputBar and cycles through due suggestions every 6s; dismissals are persisted in `localStorage` (`cqs_dismissed_suggestions`) with a TTL computed by the backend
 
 ## Backend
 
@@ -104,10 +106,10 @@ backend/
 │   │   ├── members.py       # GET/POST/DELETE /lists/{id}/members[/{user_id}]
 │   │   ├── items.py         # GET/POST/PATCH/DELETE /lists/{id}/items[/{id}]
 │   │   ├── invites.py       # GET/POST/DELETE /invites[/{id}[/accept]]
-│   │   ├── suggestions.py   # GET /suggestions, GET /lists/{id}/updated-at
+│   │   ├── suggestions.py   # GET /lists/{id}/due-suggestions, GET /lists/{id}/updated-at
 │   │   ├── barcode.py       # GET /barcode/{ean} — OpenFoodFacts lookup + local cache
 │   │   └── share.py         # GET /i/{invite_id} — OG meta-tag preview page for invite links
-│   ├── schemas/             # Pydantic request/response models (one file per router)
+│   ├── schemas/             # Pydantic request/response models (one file per router; due_suggestions.py for DueSuggestionRead)
 │   └── dependencies.py      # get_current_user, require_member, require_owner
 └── alembic/                 # Migrations
 ```
@@ -128,4 +130,3 @@ ALLOWED_ORIGINS=["http://localhost:5173"]
 ## Out of Scope
 
 - Price tracking and receipt scanning (OCR)
-- Purchase frequency auto-suggestions (beyond the basic DISTINCT query on item history)
