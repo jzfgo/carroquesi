@@ -15,8 +15,9 @@ import { BarcodeScanSheet } from './BarcodeScanSheet'
 import { parseInput } from '../parseInput'
 import { useAuth } from '../contexts/AuthContext'
 import { useListItems } from '../hooks/useListItems'
-import { getSuggestions } from '../lib/api'
-import type { BarcodeRead, EditingTag, TagField } from '../types'
+import { getSuggestions, getDueSuggestions } from '../lib/api'
+import { FrequencySuggestionBanner } from './FrequencySuggestionBanner'
+import type { BarcodeRead, DueSuggestion, EditingTag, TagField } from '../types'
 
 interface Props {
   listId: string
@@ -37,6 +38,7 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
   const [activeItemId, setActiveItemId] = useState<string | null>(null)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(null)
+  const [dueSuggestions, setDueSuggestions] = useState<DueSuggestion[]>([])
   const currentUserId = user!.id
   const isOwner = listOwnerId === currentUserId
 
@@ -62,6 +64,12 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
     }, 300)
     return () => clearTimeout(timer)
   }, [parsed.name, getToken])
+
+  useEffect(() => {
+    void getDueSuggestions(getToken, listId)
+      .then(setDueSuggestions)
+      .catch(() => {/* non-critical */})
+  }, [listId, getToken])
 
   const handleTogglePurchased = useCallback(
     (itemId: string) => {
@@ -117,6 +125,11 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
     setScannedProduct(null)
     setInputValue(prefill)
   }, [])
+
+  const handleSuggestionAdd = useCallback((s: DueSuggestion) => {
+    void addItem({ name: s.name, brand: s.brand, stores: s.stores, quantity: null })
+    setDueSuggestions(prev => prev.filter(x => x.name !== s.name))
+  }, [addItem])
 
   const purchasedCount = items.filter((i) => i.purchased).length
 
@@ -205,15 +218,21 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
         />
       )}
       {!editingTag && !menuOpen && !activeItemId && (
-        <SmartInputBar
-          value={inputValue}
-          parsed={parsed}
-          items={items}
-          suggestions={suggestions}
-          onChange={setInputValue}
-          onSubmit={handleSubmit}
-          onScanRequest={handleScanRequest}
-        />
+        <>
+          <FrequencySuggestionBanner
+            suggestions={dueSuggestions}
+            onAdd={handleSuggestionAdd}
+          />
+          <SmartInputBar
+            value={inputValue}
+            parsed={parsed}
+            items={items}
+            suggestions={suggestions}
+            onChange={setInputValue}
+            onSubmit={handleSubmit}
+            onScanRequest={handleScanRequest}
+          />
+        </>
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
       {scannerOpen && (

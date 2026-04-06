@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ListScreen } from './ListScreen'
 import * as AuthContext from '../contexts/AuthContext'
 import * as useListItemsModule from '../hooks/useListItems'
+import * as api from '../lib/api'
 import type { ListItem } from '../types'
 
 vi.mock('@undecaf/barcode-detector-polyfill', () => ({
@@ -43,6 +44,7 @@ beforeEach(() => {
     loading: false,
   })
   vi.mocked(useListItemsModule.useListItems).mockReturnValue(emptyHookResult)
+  vi.mocked(api.getDueSuggestions).mockResolvedValue([])
 })
 
 describe('ListScreen', () => {
