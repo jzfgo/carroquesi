@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class PriceCreate(BaseModel):
@@ -9,6 +9,8 @@ class PriceCreate(BaseModel):
 
 
 class PriceRecordRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     list_item_id: str
     ean: str | None
