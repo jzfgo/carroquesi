@@ -1,7 +1,9 @@
 # Claude
-.claude/
-.playwright-mcp
 .agents/
+.claude/
+.playwright-mcp/
+.remember/
+.superpowers/
 skills-lock.json
 
 # Python
@@ -39,7 +41,6 @@ backend/.env*
 
 # OS
 .DS_Store
-.superpowers/
 
 # SQLite
 *.db
