@@ -1,4 +1,4 @@
-import type { BarcodeRead, DueSuggestion, Suggestion } from '../types'
+import type { BarcodeRead, DueSuggestion, PriceHistoryResponse, PriceRecordRead, Suggestion } from '../types'
 
 const BASE = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
 
@@ -162,4 +162,28 @@ export function acceptInvite(
   inviteId: string,
 ): Promise<{ list_id: string }> {
   return apiFetch(getToken, `/invites/${inviteId}/accept`, { method: 'POST' }) as Promise<{ list_id: string }>
+}
+
+export function getPriceHistory(
+  getToken: () => Promise<string>,
+  listId: string,
+  itemId: string,
+  scope: 'this_list' | 'my_lists' | 'all',
+): Promise<PriceHistoryResponse> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/items/${itemId}/prices?scope=${scope}`,
+  ) as Promise<PriceHistoryResponse>
+}
+
+export function logPrice(
+  getToken: () => Promise<string>,
+  listId: string,
+  itemId: string,
+  payload: { amount: number; price_per: 'KILOGRAM' | null; store: string | null },
+): Promise<PriceRecordRead> {
+  return apiFetch(getToken, `/lists/${listId}/items/${itemId}/prices`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }) as Promise<PriceRecordRead>
 }

@@ -10,8 +10,8 @@ const BASE_ITEM: ListItem = {
   id: 'i1', list_id: 'l1',
   name: 'Leche Entera', quantity: '2 unidades',
   brand: 'Hacendado', stores: ['Mercadona'],
-  purchased: false, added_by: 'user-1',
-  created_at: '', updated_at: '',
+  purchased: false, purchased_at: null, ean: null,
+  added_by: 'user-1', created_at: '', updated_at: '',
 }
 
 test('renders item name', () => {

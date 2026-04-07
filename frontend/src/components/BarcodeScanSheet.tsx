@@ -68,6 +68,23 @@ export function BarcodeScanSheet({ product, onAdd, onEdit, onClose }: Props) {
           </button>
         </div>
 
+        {product.community_price !== null && (
+          <div className="bss__community-price">
+            <span className="bss__community-price-text">
+              {product.community_price_per === 'KILOGRAM'
+                ? `~€${product.community_price.toFixed(2)}/kg según la comunidad`
+                : `~€${product.community_price.toFixed(2)} según la comunidad`}
+            </span>
+            <span
+              className="bss__community-price-info"
+              title="Precio medio de la comunidad de Open Prices, filtrado a tiendas españolas cuando hay datos disponibles. Puede no reflejar los precios actuales."
+              aria-label="Información sobre el precio de la comunidad"
+            >
+              ⓘ
+            </span>
+          </div>
+        )}
+
         <div className="bss__actions">
           <button className="bss__cancel" onClick={onClose}>
             Cancelar

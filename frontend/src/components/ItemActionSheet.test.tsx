@@ -6,7 +6,8 @@ import type { ListItem } from '../types'
 const item: ListItem = {
   id: 'i1', list_id: 'l1', name: 'Leche entera',
   quantity: null, brand: null, stores: [],
-  purchased: false, added_by: 'u1', created_at: '', updated_at: '',
+  purchased: false, purchased_at: null, ean: null,
+  added_by: 'u1', created_at: '', updated_at: '',
 }
 
 const baseProps = {

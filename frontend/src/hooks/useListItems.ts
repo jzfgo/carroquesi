@@ -112,6 +112,8 @@ export function useListItems(
         brand: parsed.brand,
         stores: parsed.stores,
         purchased: false,
+        purchased_at: null,
+        ean: null,
         added_by: '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

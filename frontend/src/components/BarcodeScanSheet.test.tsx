@@ -5,15 +5,21 @@ import { BarcodeScanSheet } from './BarcodeScanSheet'
 import type { BarcodeRead } from '../types'
 
 const product: BarcodeRead = {
+  ean: '1234567890123',
   name: 'Leche Entera',
   brand: 'Pascual',
   stores: ['Mercadona', 'Alcampo'],
+  community_price: null,
+  community_price_per: null,
 }
 
 const productNoExtras: BarcodeRead = {
+  ean: '9876543210987',
   name: 'Producto Genérico',
   brand: null,
   stores: [],
+  community_price: null,
+  community_price_per: null,
 }
 
 describe('BarcodeScanSheet', () => {

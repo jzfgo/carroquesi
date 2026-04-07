@@ -2,9 +2,9 @@ import { clientSideSuggestions } from './suggestions'
 import type { ListItem } from '../types'
 
 const items: ListItem[] = [
-  { id: '1', list_id: 'l1', name: 'Leche Entera', quantity: '2', brand: 'Hacendado', stores: ['Mercadona'], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
-  { id: '2', list_id: 'l1', name: 'Yogur', quantity: null, brand: 'Danone', stores: ['Carrefour'], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
-  { id: '3', list_id: 'l1', name: 'Queso', quantity: null, brand: 'Hacendado', stores: [], purchased: false, added_by: 'u1', created_at: '', updated_at: '' },
+  { id: '1', list_id: 'l1', name: 'Leche Entera', quantity: '2', brand: 'Hacendado', stores: ['Mercadona'], purchased: false, purchased_at: null, ean: null, added_by: 'u1', created_at: '', updated_at: '' },
+  { id: '2', list_id: 'l1', name: 'Yogur', quantity: null, brand: 'Danone', stores: ['Carrefour'], purchased: false, purchased_at: null, ean: null, added_by: 'u1', created_at: '', updated_at: '' },
+  { id: '3', list_id: 'l1', name: 'Queso', quantity: null, brand: 'Hacendado', stores: [], purchased: false, purchased_at: null, ean: null, added_by: 'u1', created_at: '', updated_at: '' },
 ]
 
 test('returns values matching the partial for a field', () => {

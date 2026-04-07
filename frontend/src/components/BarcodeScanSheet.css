@@ -120,3 +120,19 @@
   cursor: pointer;
   font-family: inherit;
 }
+
+.bss__community-price {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  color: var(--color-text-secondary, #8e8e93);
+  font-size: 13px;
+}
+
+.bss__community-price-info {
+  cursor: default;
+  color: var(--color-text-tertiary, #636366);
+  font-size: 12px;
+  flex-shrink: 0;
+}
