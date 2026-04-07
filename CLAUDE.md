@@ -129,4 +129,5 @@ ALLOWED_ORIGINS=["http://localhost:5173"]
 
 ## Out of Scope
 
-- Price tracking and receipt scanning (OCR)
+- Receipt scanning (OCR)
+- Submitting prices to Open Prices (requires proof image + OSM location)
