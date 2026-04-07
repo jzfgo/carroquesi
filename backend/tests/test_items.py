@@ -145,3 +145,20 @@ def test_repurchase_does_not_overwrite_purchased_at(client: TestClient, session:
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
     session.refresh(db_item)
     assert db_item.purchased_at == original_purchased_at
+
+
+def test_add_item_with_ean(client: TestClient):
+    lst = _create_list(client)
+    response = client.post(
+        f"/lists/{lst['id']}/items",
+        json={"name": "Leche", "ean": "8410188082498"},
+    )
+    assert response.status_code == 201
+    assert response.json()["ean"] == "8410188082498"
+
+
+def test_add_item_without_ean(client: TestClient):
+    lst = _create_list(client)
+    response = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"})
+    assert response.status_code == 201
+    assert response.json()["ean"] is None

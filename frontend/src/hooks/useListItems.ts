@@ -112,6 +112,8 @@ export function useListItems(
         brand: parsed.brand,
         stores: parsed.stores,
         purchased: false,
+        purchased_at: null,
+        ean: null,
         added_by: '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -123,6 +125,7 @@ export function useListItems(
           quantity: parsed.quantity,
           brand: parsed.brand,
           stores: parsed.stores,
+          ean: parsed.ean ?? null,
         })) as ListItem
         setItems((prev) => prev.map((i) => (i.id === tempId ? created : i)))
       } catch {

@@ -8,6 +8,7 @@ class ItemCreate(BaseModel):
     quantity: str | None = None
     brand: str | None = None
     stores: list[str] = Field(default_factory=list)
+    ean: str | None = None
 
 
 class ItemUpdate(BaseModel):
@@ -25,6 +26,7 @@ class ItemRead(BaseModel):
     quantity: str | None
     brand: str | None
     stores: list[str]
+    ean: str | None
     purchased_at: datetime | None
     added_by: str
     created_at: datetime

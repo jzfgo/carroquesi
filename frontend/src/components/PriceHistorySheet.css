@@ -1,0 +1,28 @@
+.phs { background: #2c2c2e; border-radius: 20px 20px 0 0; max-height: 80vh; display: flex; flex-direction: column; padding-bottom: max(env(safe-area-inset-bottom), 16px); }
+.phs__handle { width: 36px; height: 4px; background: #48484a; border-radius: 2px; margin: 10px auto 12px; flex-shrink: 0; }
+.phs__title { font-size: 16px; font-weight: 700; color: #fff; padding: 0 16px 12px; border-bottom: 1px solid #3a3a3c; flex-shrink: 0; }
+.phs__scope { display: flex; padding: 10px 16px; gap: 6px; flex-shrink: 0; border-bottom: 1px solid #3a3a3c; }
+.phs__scope-btn { flex: 1; padding: 7px 0; border-radius: 8px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: #3a3a3c; color: #8e8e93; }
+.phs__scope-btn--active { background: #0a84ff; color: #fff; }
+.phs__community { display: flex; align-items: center; gap: 6px; padding: 10px 16px; background: #1c1c1e; border-bottom: 1px solid #3a3a3c; font-size: 14px; color: #8e8e93; flex-shrink: 0; }
+.phs__community-price { font-weight: 600; color: #fff; }
+.phs__community-info { cursor: default; color: #636366; font-size: 12px; margin-left: auto; }
+.phs__content { overflow-y: auto; flex: 1; padding: 8px 0; }
+.phs__empty { padding: 20px 16px; color: #636366; font-size: 14px; }
+.phs__store-row { padding: 12px 16px; border-bottom: 1px solid #3a3a3c; cursor: pointer; }
+.phs__store-row--dimmed { opacity: 0.4; }
+.phs__store-summary { display: flex; align-items: center; gap: 10px; }
+.phs__store-info { flex: 1; }
+.phs__store-name { font-size: 14px; font-weight: 600; color: #fff; }
+.phs__store-meta { font-size: 11px; color: #8e8e93; margin-top: 2px; }
+.phs__store-price { font-size: 15px; font-weight: 700; color: #30d158; }
+.phs__sparkline { width: 60px; height: 28px; }
+.phs__expand { margin-top: 10px; background: #1c1c1e; border-radius: 10px; padding: 10px 12px; }
+.phs__expand-chart { width: 100%; height: 48px; margin-bottom: 8px; }
+.phs__expand-stats { display: flex; gap: 16px; }
+.phs__stat { font-size: 11px; color: #8e8e93; }
+.phs__stat strong { display: block; font-size: 13px; color: #fff; font-weight: 700; }
+.phs__expand-records { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.phs__record-row { display: flex; justify-content: space-between; font-size: 12px; color: #8e8e93; }
+.phs__record-amount { color: #fff; font-weight: 600; }
+.phs__log-btn { display: block; width: calc(100% - 32px); margin: 12px 16px 4px; background: #3a3a3c; color: #0a84ff; font-size: 15px; font-weight: 700; padding: 14px; border-radius: 12px; border: none; cursor: pointer; text-align: center; flex-shrink: 0; }

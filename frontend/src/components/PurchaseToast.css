@@ -1,0 +1,25 @@
+.pt {
+  position: fixed;
+  bottom: calc(max(env(safe-area-inset-bottom), 0px) + 80px);
+  left: 16px; right: 16px;
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  z-index: 200;
+  animation: pt-slide-up 0.25s ease;
+}
+@keyframes pt-slide-up {
+  from { transform: translateY(100px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.pt__progress { height: 3px; background: #2c2c2e; }
+.pt__progress-fill {
+  height: 100%; background: #0a84ff; opacity: 0.7;
+  border-radius: 0 2px 2px 0;
+  animation: pt-drain 6s linear forwards;
+}
+@keyframes pt-drain { from { width: 100%; } to { width: 0%; } }
+.pt__body { background: #3a3a3c; padding: 11px 14px; display: flex; align-items: center; gap: 8px; }
+.pt__text { flex: 1; font-size: 14px; color: rgba(235,235,245,0.8); line-height: 1.3; }
+.pt__text strong { color: #fff; font-weight: 600; }
+.pt__cta { font-size: 14px; font-weight: 700; color: #0a84ff; white-space: nowrap; padding: 4px 0 4px 4px; cursor: pointer; background: none; border: none; }
+.pt__dismiss { font-size: 16px; color: #636366; padding: 4px 0 4px 6px; cursor: pointer; background: none; border: none; }

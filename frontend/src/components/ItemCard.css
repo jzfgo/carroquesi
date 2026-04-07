@@ -150,3 +150,8 @@
   padding: 0;
   line-height: 1;
 }
+
+.item-card__tag--price {
+  background: #1c3a2e;
+  color: #30d158;
+}
