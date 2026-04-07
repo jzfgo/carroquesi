@@ -1,10 +1,12 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PriceCreate(BaseModel):
-    amount: float
-    price_per: str | None = None  # None = per unit, "KILOGRAM" = per kg
+    amount: float = Field(gt=0)
+    price_per: Literal['KILOGRAM'] | None = None  # None = per unit, "KILOGRAM" = per kg
     store: str | None = None
 
 

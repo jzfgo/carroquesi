@@ -50,6 +50,7 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
     initialStore: string | null
   } | null>(null)
   const [purchaseToast, setPurchaseToast] = useState<{ itemId: string; itemName: string } | null>(null)
+  const handleDismissPurchaseToast = useCallback(() => setPurchaseToast(null), [])
   const [lastPrices, setLastPrices] = useState<Map<string, { amount: number; price_per: 'KILOGRAM' | null }>>(new Map())
   const currentUserId = user!.id
   const isOwner = listOwnerId === currentUserId
@@ -340,7 +341,7 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
         <PurchaseToast
           itemName={purchaseToast.itemName}
           onAddPrice={() => { setPurchaseToast(null); handleOpenLogPrice(purchaseToast.itemId) }}
-          onDismiss={() => setPurchaseToast(null)}
+          onDismiss={handleDismissPurchaseToast}
         />
       )}
     </div>

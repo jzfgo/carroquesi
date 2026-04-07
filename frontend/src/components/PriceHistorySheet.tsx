@@ -57,7 +57,7 @@ export default function PriceHistorySheet({ item, listId, getToken, onLogPrice, 
       if (!cancelled) setHistory(data)
     }).catch(() => {})
     return () => { cancelled = true }
-  }, [scope])
+  }, [scope, getToken, listId, item.id])
 
   const hasExpanded = expandedStore !== undefined
 
