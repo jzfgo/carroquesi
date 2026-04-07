@@ -77,6 +77,7 @@ export function createItem(
     quantity?: string | null
     brand?: string | null
     stores?: string[]
+    ean?: string | null
   },
 ) {
   return apiFetch(getToken, `/lists/${listId}/items`, {

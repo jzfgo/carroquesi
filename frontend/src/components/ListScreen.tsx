@@ -12,10 +12,13 @@ import { Toast } from './Toast'
 import { ListMembersSheet } from './ListMembersSheet'
 import { BarcodeScanner } from './BarcodeScanner'
 import { BarcodeScanSheet } from './BarcodeScanSheet'
+import LogPriceSheet from './LogPriceSheet'
+import PriceHistorySheet from './PriceHistorySheet'
+import PurchaseToast from './PurchaseToast'
 import { parseInput } from '../parseInput'
 import { useAuth } from '../contexts/AuthContext'
 import { useListItems } from '../hooks/useListItems'
-import { getSuggestions, getDueSuggestions } from '../lib/api'
+import { getSuggestions, getDueSuggestions, logPrice } from '../lib/api'
 import { FrequencySuggestionBanner } from './FrequencySuggestionBanner'
 import type { BarcodeRead, DueSuggestion, EditingTag, TagField } from '../types'
 
@@ -39,6 +42,15 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
   const [scannerOpen, setScannerOpen] = useState(false)
   const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(null)
   const [dueSuggestions, setDueSuggestions] = useState<DueSuggestion[]>([])
+  const [priceItemId, setPriceItemId] = useState<string | null>(null)
+  const [logPriceFor, setLogPriceFor] = useState<{
+    itemId: string
+    initialAmount: number | null
+    initialPricePer: 'KILOGRAM' | null
+    initialStore: string | null
+  } | null>(null)
+  const [purchaseToast, setPurchaseToast] = useState<{ itemId: string; itemName: string } | null>(null)
+  const [lastPrices, setLastPrices] = useState<Map<string, { amount: number; price_per: 'KILOGRAM' | null }>>(new Map())
   const currentUserId = user!.id
   const isOwner = listOwnerId === currentUserId
 
@@ -73,9 +85,14 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
 
   const handleTogglePurchased = useCallback(
     (itemId: string) => {
+      const item = items.find(i => i.id === itemId)
       void togglePurchased(itemId)
+      // Show toast when marking as purchased (not when unmarking)
+      if (item && !item.purchased) {
+        setPurchaseToast({ itemId, itemName: item.name })
+      }
     },
-    [togglePurchased],
+    [togglePurchased, items],
   )
 
   const handleTagClick = useCallback((itemId: string, field: TagField | 'stores') => {
@@ -117,9 +134,34 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
   }, [])
 
   const handleScanAdd = useCallback((item: { name: string; brand: string | null; stores: string[] }) => {
+    const ean = scannedProduct?.ean ?? null
     setScannedProduct(null)
-    void addItem({ name: item.name, brand: item.brand, stores: item.stores, quantity: null })
-  }, [addItem])
+    void addItem({ name: item.name, brand: item.brand, stores: item.stores, quantity: null, ean })
+  }, [addItem, scannedProduct])
+
+  const handleOpenLogPrice = useCallback((itemId: string) => {
+    const item = items.find(i => i.id === itemId)
+    const last = lastPrices.get(itemId)
+    setLogPriceFor({
+      itemId,
+      initialAmount: last?.amount ?? null,
+      initialPricePer: last?.price_per ?? null,
+      initialStore: item?.stores?.[0] ?? null,
+    })
+  }, [items, lastPrices])
+
+  const handleSavePrice = useCallback(async (amount: number, pricePer: 'KILOGRAM' | null, store: string | null) => {
+    if (!logPriceFor) return
+    try {
+      await logPrice(getToken, listId, logPriceFor.itemId, { amount, price_per: pricePer, store })
+      setLastPrices(prev => new Map(prev).set(logPriceFor.itemId, { amount, price_per: pricePer }))
+    } catch {
+      // non-critical
+    }
+    setLogPriceFor(null)
+    setPriceItemId(null)
+    setPurchaseToast(null)
+  }, [logPriceFor, getToken, listId])
 
   const handleScanEdit = useCallback((prefill: string) => {
     setScannedProduct(null)
@@ -171,6 +213,8 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
         onTagClick={handleTagClick}
         onMenuOpen={handleItemMenuOpen}
         onRetry={retry}
+        onPriceClick={itemId => setPriceItemId(itemId)}
+        lastPrices={lastPrices}
       />
       {editingTag && (() => {
         const editedItem = items.find(i => i.id === editingTag.itemId)
@@ -250,6 +294,53 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
           onAdd={handleScanAdd as any}
           onEdit={handleScanEdit}
           onClose={() => setScannedProduct(null)}
+        />
+      )}
+
+      {priceItemId && (() => {
+        const priceItem = items.find(i => i.id === priceItemId)
+        if (!priceItem) return null
+        return (
+          <>
+            <div className="sheet-overlay" onClick={() => setPriceItemId(null)} />
+            <div className="sheet-container">
+              <PriceHistorySheet
+                item={priceItem}
+                listId={listId}
+                getToken={getToken}
+                onLogPrice={() => handleOpenLogPrice(priceItemId)}
+                onClose={() => setPriceItemId(null)}
+              />
+            </div>
+          </>
+        )
+      })()}
+
+      {logPriceFor && (() => {
+        const logItem = items.find(i => i.id === logPriceFor.itemId)
+        if (!logItem) return null
+        return (
+          <>
+            <div className="sheet-overlay" onClick={() => setLogPriceFor(null)} />
+            <div className="sheet-container">
+              <LogPriceSheet
+                item={logItem}
+                initialAmount={logPriceFor.initialAmount}
+                initialPricePer={logPriceFor.initialPricePer}
+                initialStore={logPriceFor.initialStore}
+                onSave={handleSavePrice}
+                onClose={() => setLogPriceFor(null)}
+              />
+            </div>
+          </>
+        )
+      })()}
+
+      {purchaseToast && (
+        <PurchaseToast
+          itemName={purchaseToast.itemName}
+          onAddPrice={() => { setPurchaseToast(null); handleOpenLogPrice(purchaseToast.itemId) }}
+          onDismiss={() => setPurchaseToast(null)}
         />
       )}
     </div>

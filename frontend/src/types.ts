@@ -18,6 +18,7 @@ export interface ParsedInput {
   quantity: string | null
   brand: string | null
   stores: string[]
+  ean?: string | null
 }
 
 export interface Member {

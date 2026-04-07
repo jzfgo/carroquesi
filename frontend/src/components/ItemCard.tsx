@@ -11,9 +11,11 @@ interface Props {
   onTogglePurchased: (itemId: string) => void
   onTagClick: (itemId: string, field: TagField | 'stores') => void
   onMenuOpen: (itemId: string) => void
+  lastPrice?: { amount: number; price_per: 'KILOGRAM' | null } | null
+  onPriceClick?: (itemId: string) => void
 }
 
-export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuOpen }: Props) {
+export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuOpen, lastPrice, onPriceClick }: Props) {
   const member = members.get(item.added_by)
   const initial = member?.initial ?? '?'
   const colour  = member?.colour ?? '#b0adb5'
@@ -89,6 +91,27 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
               aria-label="Añadir tienda"
             >
               <span aria-hidden>+ 🏪</span>
+            </button>
+          )}
+
+          {/* Price tag — shown after store tags */}
+          {lastPrice != null ? (
+            <button
+              className="item-card__tag item-card__tag--price"
+              onClick={e => { e.stopPropagation(); onPriceClick?.(item.id) }}
+            >
+              <span aria-hidden>💶</span>{' '}
+              {lastPrice.price_per === 'KILOGRAM'
+                ? `€${lastPrice.amount.toFixed(2)}/kg`
+                : `€${lastPrice.amount.toFixed(2)}`}
+            </button>
+          ) : (
+            <button
+              className="item-card__tag item-card__tag--cta"
+              onClick={e => { e.stopPropagation(); onPriceClick?.(item.id) }}
+              aria-label="Añadir precio"
+            >
+              <span aria-hidden>+ 💶</span>
             </button>
           )}
         </div>
