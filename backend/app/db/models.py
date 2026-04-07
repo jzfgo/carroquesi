@@ -58,6 +58,7 @@ class ListItem(SQLModel, table=True):
     added_by: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
+    ean: Optional[str] = Field(default=None)
 
 
 class ListInvite(SQLModel, table=True):
@@ -79,3 +80,26 @@ class BarcodeCache(SQLModel, table=True):
     brand: Optional[str] = None
     stores: Optional[str] = None  # nullable comma-separated, e.g. "Mercadona,Alcampo"
     created_at: datetime = Field(default_factory=_now)
+
+
+class PriceCache(SQLModel, table=True):
+    __tablename__ = "price_cache"
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    ean: str = Field(unique=True, index=True)
+    amount: float
+    price_per: Optional[str] = Field(default=None)  # None=unit, "KILOGRAM"=per kg
+    fetched_at: datetime = Field(default_factory=_now)
+
+
+class PriceRecord(SQLModel, table=True):
+    __tablename__ = "price_records"
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    list_item_id: str = Field(foreign_key="list_items.id", index=True)
+    ean: Optional[str] = Field(default=None)
+    amount: float
+    price_per: Optional[str] = Field(default=None)
+    store: Optional[str] = Field(default=None)
+    user_id: str = Field(foreign_key="users.id")
+    recorded_at: datetime = Field(default_factory=_now)
