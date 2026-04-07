@@ -85,10 +85,48 @@ def get_price_history(
             community_price = cached.amount
             community_price_per = cached.price_per
 
+    # Special logic for grouping price history by name and brand for manually added items
+    records = []
+
+    # Helper function to get similar items based on name and brand
+    def get_similar_items(item_name: str, item_brand: str, exclude_item_id: str):
+        return session.exec(
+            select(ListItem).where(
+                ListItem.name == item_name,
+                ListItem.brand == item_brand,
+                ListItem.id != exclude_item_id
+            )
+        ).all()
+
     if scope == "this_list":
-        records = list(session.exec(
-            select(PriceRecord).where(PriceRecord.list_item_id == item_id)
-        ).all())
+        # For items with EAN, include any price record for the same EAN inside this list
+        if ean:
+            records = list(session.exec(
+                select(PriceRecord)
+                .join(ListItem, PriceRecord.list_item_id == ListItem.id)
+                .where(
+                    ListItem.list_id == list_id,
+                    PriceRecord.ean == ean,
+                )
+            ).all())
+        else:
+            # For items without EAN, we want to collect records from similar items
+            # Get records for the current item
+            item_records = session.exec(
+                select(PriceRecord).where(PriceRecord.list_item_id == item_id)
+            ).all()
+
+            # Get records for similar items (same name and brand)
+            similar_items = get_similar_items(item.name, item.brand, item_id)
+
+            similar_records = []
+            for similar_item in similar_items:
+                similar_item_records = session.exec(
+                    select(PriceRecord).where(PriceRecord.list_item_id == similar_item.id)
+                ).all()
+                similar_records.extend(similar_item_records)
+
+            records = list(item_records) + list(similar_records)
 
     elif scope == "my_lists":
         if ean:
@@ -99,12 +137,29 @@ def get_price_history(
                 )
             ).all())
         else:
-            records = list(session.exec(
+            # For items without EAN in my_lists scope
+            # Get records for the current item
+            item_records = session.exec(
                 select(PriceRecord).where(
                     PriceRecord.list_item_id == item_id,
-                    PriceRecord.user_id == current_user.id,
+                    PriceRecord.user_id == current_user.id
                 )
-            ).all())
+            ).all()
+
+            # Get records for similar items
+            similar_items = get_similar_items(item.name, item.brand, item_id)
+
+            similar_records = []
+            for similar_item in similar_items:
+                similar_item_records = session.exec(
+                    select(PriceRecord).where(
+                        PriceRecord.list_item_id == similar_item.id,
+                        PriceRecord.user_id == current_user.id
+                    )
+                ).all()
+                similar_records.extend(similar_item_records)
+
+            records = list(item_records) + list(similar_records)
 
     else:  # scope == "all"
         if ean:
@@ -112,8 +167,22 @@ def get_price_history(
                 select(PriceRecord).where(PriceRecord.ean == ean)
             ).all())
         else:
-            records = list(session.exec(
+            # For items without EAN in all scope
+            # Get records for the current item
+            item_records = session.exec(
                 select(PriceRecord).where(PriceRecord.list_item_id == item_id)
-            ).all())
+            ).all()
+
+            # Get records for similar items
+            similar_items = get_similar_items(item.name, item.brand, item_id)
+
+            similar_records = []
+            for similar_item in similar_items:
+                similar_item_records = session.exec(
+                    select(PriceRecord).where(PriceRecord.list_item_id == similar_item.id)
+                ).all()
+                similar_records.extend(similar_item_records)
+
+            records = list(item_records) + list(similar_records)
 
     return _records_to_response(records, community_price, community_price_per)
