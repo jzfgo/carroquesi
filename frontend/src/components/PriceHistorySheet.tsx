@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { ListItem, PriceHistoryResponse, StoreGroup } from '../types'
 import { getPriceHistory } from '../lib/api'
+import type { ListItem, PriceHistoryResponse, StoreGroup } from '../types'
 import './PriceHistorySheet.css'
 
 type Scope = 'this_list' | 'my_lists' | 'all'

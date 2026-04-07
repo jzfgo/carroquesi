@@ -77,6 +77,27 @@ def test_get_price_history_this_list(client: TestClient):
     assert data["groups"][0]["records"][0]["amount"] == 1.20
 
 
+def test_get_price_history_this_list_uses_ean_within_same_list(client: TestClient):
+    ean = "8410188033333"
+    lst = _make_list(client)
+    item1 = _make_item(client, lst["id"], name="Aceite", ean=ean)
+    item2 = _make_item(client, lst["id"], name="Aceite extra", ean=ean)
+
+    client.post(
+        f"/lists/{lst['id']}/items/{item1['id']}/prices",
+        json={"amount": 4.20, "store": "Mercadona"},
+    )
+    client.post(
+        f"/lists/{lst['id']}/items/{item2['id']}/prices",
+        json={"amount": 4.50, "store": "Carrefour"},
+    )
+
+    resp = client.get(f"/lists/{lst['id']}/items/{item1['id']}/prices?scope=this_list")
+    assert resp.status_code == 200
+    stores = {g["store"] for g in resp.json()["groups"]}
+    assert stores == {"Mercadona", "Carrefour"}
+
+
 def test_get_price_history_my_lists_uses_ean(client: TestClient):
     ean = "8410188022222"
     lst1 = _make_list(client)
