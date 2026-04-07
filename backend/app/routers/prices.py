@@ -86,8 +86,11 @@ def get_price_history(
             community_price_per = cached.price_per
 
     if scope == "this_list":
+        list_item_ids = [
+            r.id for r in session.exec(select(ListItem).where(ListItem.list_id == list_id)).all()
+        ]
         records = list(session.exec(
-            select(PriceRecord).where(PriceRecord.list_item_id == item_id)
+            select(PriceRecord).where(PriceRecord.list_item_id.in_(list_item_ids))
         ).all())
 
     elif scope == "my_lists":
@@ -113,7 +116,10 @@ def get_price_history(
             ).all())
         else:
             records = list(session.exec(
-                select(PriceRecord).where(PriceRecord.list_item_id == item_id)
+                select(PriceRecord).where(
+                    PriceRecord.list_item_id == item_id,
+                    PriceRecord.user_id == current_user.id,
+                )
             ).all())
 
     return _records_to_response(records, community_price, community_price_per)
