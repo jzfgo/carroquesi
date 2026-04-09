@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { SignInScreen } from './components/SignInScreen'
 import { DashboardScreen } from './components/DashboardScreen'
 import { InviteScreen } from './components/InviteScreen'
+import { ThemeManager } from './components/ThemeManager'
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -42,10 +43,12 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/invite/:id" element={<InviteScreen />} />
-          <Route path="*" element={<AppContent />} />
-        </Routes>
+        <ThemeManager>
+          <Routes>
+            <Route path="/invite/:id" element={<InviteScreen />} />
+            <Route path="*" element={<AppContent />} />
+          </Routes>
+        </ThemeManager>
       </AuthProvider>
     </BrowserRouter>
   )

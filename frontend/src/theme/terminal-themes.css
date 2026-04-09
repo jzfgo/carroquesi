@@ -1,0 +1,143 @@
+/* Terminal theme variables for Cobalt */
+:root[data-theme="cobalt"] {
+  --text: #a9b7c6;
+  --text-h: #ffffff;
+  --bg: #000000;
+  --border: #3a3d41;
+  --code-bg: #1a1a1a;
+  --accent: #ffcc00;
+  --accent-bg: rgba(255, 204, 0, 0.1);
+  --accent-border: rgba(255, 204, 0, 0.5);
+  --social-bg: rgba(26, 26, 26, 0.5);
+  --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+  --purchased: #6a7d8d;
+  --bg2: #1e1e1e;
+}
+
+/* Terminal theme variables for Dracula */
+:root[data-theme="dracula"] {
+  --text: #f8f8f2;
+  --text-h: #f8f8f2;
+  --bg: #282a36;
+  --border: #44475a;
+  --code-bg: #282a36;
+  --accent: #bd93f9;
+  --accent-bg: rgba(189, 147, 249, 0.15);
+  --accent-border: rgba(189, 147, 249, 0.5);
+  --social-bg: rgba(40, 42, 54, 0.5);
+  --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+  --purchased: #6272a4;
+  --bg2: #343746;
+}
+
+/* Terminal theme variables for Monokai */
+:root[data-theme="monokai"] {
+  --text: #f8f8f2;
+  --text-h: #f8f8f2;
+  --bg: #272822;
+  --border: #49483e;
+  --code-bg: #272822;
+  --accent: #f92672;
+  --accent-bg: rgba(249, 38, 114, 0.15);
+  --accent-border: rgba(249, 38, 114, 0.5);
+  --social-bg: rgba(39, 40, 34, 0.5);
+  --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+  --purchased: #75715e;
+  --bg2: #383830;
+}
+
+/* Ensure terminal themes are applied correctly with light/dark mode */
+@media (prefers-color-scheme: light) {
+  :root[data-theme="cobalt"] {
+    --text: #a9b7c6;
+    --text-h: #ffffff;
+    --bg: #000000;
+    --border: #3a3d41;
+    --code-bg: #1a1a1a;
+    --accent: #ffcc00;
+    --accent-bg: rgba(255, 204, 0, 0.1);
+    --accent-border: rgba(255, 204, 0, 0.5);
+    --social-bg: rgba(26, 26, 26, 0.5);
+    --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    --purchased: #6a7d8d;
+    --bg2: #1e1e1e;
+  }
+
+  :root[data-theme="dracula"] {
+    --text: #f8f8f2;
+    --text-h: #f8f8f2;
+    --bg: #282a36;
+    --border: #44475a;
+    --code-bg: #282a36;
+    --accent: #bd93f9;
+    --accent-bg: rgba(189, 147, 249, 0.15);
+    --accent-border: rgba(189, 147, 249, 0.5);
+    --social-bg: rgba(40, 42, 54, 0.5);
+    --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    --purchased: #6272a4;
+    --bg2: #343746;
+  }
+
+  :root[data-theme="monokai"] {
+    --text: #f8f8f2;
+    --text-h: #f8f8f2;
+    --bg: #272822;
+    --border: #49483e;
+    --code-bg: #272822;
+    --accent: #f92672;
+    --accent-bg: rgba(249, 38, 114, 0.15);
+    --accent-border: rgba(249, 38, 114, 0.5);
+    --social-bg: rgba(39, 40, 34, 0.5);
+    --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    --purchased: #75715e;
+    --bg2: #383830;
+  }
+}
+
+/* Dark mode overrides */
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="cobalt"] {
+    --text: #a9b7c6;
+    --text-h: #ffffff;
+    --bg: #000000;
+    --border: #3a3d41;
+    --code-bg: #1a1a1a;
+    --accent: #ffcc00;
+    --accent-bg: rgba(255, 204, 0, 0.1);
+    --accent-border: rgba(255, 204, 0, 0.5);
+    --social-bg: rgba(26, 26, 26, 0.5);
+    --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    --purchased: #6a7d8d;
+    --bg2: #1e1e1e;
+  }
+
+  :root[data-theme="dracula"] {
+    --text: #f8f8f2;
+    --text-h: #f8f8f2;
+    --bg: #282a36;
+    --border: #44475a;
+    --code-bg: #282a36;
+    --accent: #bd93f9;
+    --accent-bg: rgba(189, 147, 249, 0.15);
+    --accent-border: rgba(189, 147, 249, 0.5);
+    --social-bg: rgba(40, 42, 54, 0.5);
+    --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    --purchased: #6272a4;
+    --bg2: #343746;
+  }
+
+  :root[data-theme="monokai"] {
+    --text: #f8f8f2;
+    --text-h: #f8f8f2;
+    --bg: #272822;
+    --border: #49483e;
+    --code-bg: #272822;
+    --accent: #f92672;
+    --accent-bg: rgba(249, 38, 114, 0.15);
+    --accent-border: rgba(249, 38, 114, 0.5);
+    --social-bg: rgba(39, 40, 34, 0.5);
+    --shadow: rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    --purchased: #75715e;
+    --bg2: #383830;
+  }
+}
