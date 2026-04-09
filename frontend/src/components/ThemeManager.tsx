@@ -1,20 +1,16 @@
 import { useEffect, useState } from 'react'
 
+import { THEMES } from '../lib/themes'
+
 export function ThemeManager({ children }: { children: React.ReactNode }) {
-  const [currentTheme, setCurrentTheme] = useState<string>(() => {
+  const [currentTheme] = useState<string>(() => {
     // Check for saved theme preference
     const savedTheme = localStorage.getItem('terminal-theme')
     // If no saved theme, default to monokai-pro
-    if (savedTheme && [
-      'monokai-pro',
-      'catppuccin-mocha', 'everforest', 'kanagawa', 'rose-pine', 'bamboo', 'melange',
-      'tokyo-night', 'cyberdream', 'nightfox', 'oxocarbon',
-      'gruvbox', 'nord', 'onedark', 'solarized', 'ayu',
-      'moonfly', 'nordic', 'sonokai', 'miasma', 'edge', 'oceanic-next', 'palenight', 'horizon', 'nightfly'
-    ].includes(savedTheme)) {
+    if (savedTheme && THEMES.includes(savedTheme)) {
       return savedTheme
     }
-    return 'monokai-pro'
+    return THEMES[0]
   })
 
   useEffect(() => {
@@ -25,18 +21,6 @@ export function ThemeManager({ children }: { children: React.ReactNode }) {
     // Save theme preference
     localStorage.setItem('terminal-theme', currentTheme)
   }, [currentTheme])
-
-  const switchTheme = (theme: string) => {
-    if ([
-      'monokai-pro',
-      'catppuccin-mocha', 'everforest', 'kanagawa', 'rose-pine', 'bamboo', 'melange',
-      'tokyo-night', 'cyberdream', 'nightfox', 'oxocarbon',
-      'gruvbox', 'nord', 'onedark', 'solarized', 'ayu',
-      'moonfly', 'nordic', 'sonokai', 'miasma', 'edge', 'oceanic-next', 'palenight', 'horizon', 'nightfly'
-    ].includes(theme)) {
-      setCurrentTheme(theme)
-    }
-  }
 
   return (
     <div className="theme-manager">
