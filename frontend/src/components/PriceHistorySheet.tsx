@@ -25,7 +25,7 @@ function Sparkline({ records }: { records: StoreGroup['records'] }) {
   if (records.length < 2) {
     return (
       <svg className="phs__sparkline" viewBox="0 0 60 28">
-        {records.length === 1 && <circle cx="30" cy="14" r="2" fill="#0a84ff" />}
+        {records.length === 1 && <circle cx="30" cy="14" r="2" fill="var(--color-primary, #0a84ff)" />}
       </svg>
     )
   }
@@ -40,8 +40,8 @@ function Sparkline({ records }: { records: StoreGroup['records'] }) {
   const areaD = `${pathD} L${pts[pts.length - 1].x.toFixed(1)},${h} L${pts[0].x.toFixed(1)},${h} Z`
   return (
     <svg className="phs__sparkline" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-      <path d={areaD} fill="rgba(10,132,255,0.15)" />
-      <path d={pathD} stroke="#0a84ff" strokeWidth="1.5" fill="none" />
+      <path d={areaD} fill="var(--color-primary-bg, rgba(10,132,255,0.15))" />
+      <path d={pathD} stroke="var(--color-primary, #0a84ff)" strokeWidth="1.5" fill="none" />
     </svg>
   )
 }

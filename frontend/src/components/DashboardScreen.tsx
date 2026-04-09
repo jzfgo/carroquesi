@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import './DashboardScreen.css'
+import { ThemeSwitcher } from './ThemeSwitcher'
 import { useAuth } from '../contexts/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { getLists, createList, updateList, deleteList } from '../lib/api'
@@ -269,6 +270,7 @@ export function DashboardScreen() {
         </div>
       </header>
       <main className="dashboard-screen__lists">
+        <ThemeSwitcher />
         <InstallBanner
           isInstallable={isInstallable}
           isInstalled={isInstalled}
