@@ -62,6 +62,7 @@ The app is a Progressive Web App (`vite-plugin-pwa`). The service worker is acti
 - All data fetched from the FastAPI backend via REST
 - Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
 - `FrequencySuggestionBanner` sits above the SmartInputBar and cycles through due suggestions every 6s; dismissals are persisted in `localStorage` (`cqs_dismissed_suggestions`) with a TTL computed by the backend
+- Settings are now accessible through the user menu for theme customization
 
 ## Backend
 
