@@ -1,4 +1,4 @@
-from app.db.models import PriceCache, PriceRecord, ListItem
+from app.db.models import PriceCache, ListItem
 
 
 def test_listitem_has_ean():
@@ -15,12 +15,6 @@ def test_price_cache_fields():
     assert "fetched_at" in fields
 
 
-def test_price_record_fields():
-    fields = PriceRecord.model_fields
-    for f in ("list_item_id", "ean", "amount", "price_per", "store", "user_id", "recorded_at"):
-        assert f in PriceRecord.model_fields
-
-
 def test_price_cache_instantiation():
     cache = PriceCache(ean="1234567890123", amount=1.99)
     assert cache.id is not None
@@ -28,13 +22,21 @@ def test_price_cache_instantiation():
     assert cache.price_per is None
 
 
-def test_price_record_instantiation():
-    record = PriceRecord(
-        list_item_id="test-item-id",
-        amount=0.89,
-        user_id="test-user-id",
+def test_list_item_has_price_fields():
+    from app.db.models import ListItem
+    item = ListItem(
+        list_id="list-1",
+        name="Leche",
+        added_by="user-1",
+        price=1.29,
+        price_per=None,
+        price_store="Mercadona",
     )
-    assert record.id is not None
-    assert record.recorded_at is not None
-    assert record.ean is None
-    assert record.store is None
+    assert item.price == 1.29
+    assert item.price_store == "Mercadona"
+    assert item.price_per is None
+
+
+def test_price_record_does_not_exist():
+    import app.db.models as m
+    assert not hasattr(m, 'PriceRecord')

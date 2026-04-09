@@ -5,7 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.firebase import get_firebase_app
-from app.routers import auth, barcode, invites, items, lists, members, prices, share, suggestions
+from app.routers import auth, barcode, invites, items, lists, members, share, suggestions
+# from app.routers import prices  # TODO: Task 5 - Rewrite prices router
 
 
 @asynccontextmanager
@@ -35,7 +36,7 @@ app.include_router(invites.router)
 app.include_router(invites.list_invites_router)
 app.include_router(suggestions.router)
 app.include_router(barcode.router)
-app.include_router(prices.router)
+# app.include_router(prices.router)  # TODO: Task 5 - Rewrite prices router
 app.include_router(share.router)
 
 

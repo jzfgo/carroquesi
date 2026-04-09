@@ -59,6 +59,9 @@ class ListItem(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
     ean: Optional[str] = Field(default=None)
+    price: Optional[float] = Field(default=None)
+    price_per: Optional[str] = Field(default=None)
+    price_store: Optional[str] = Field(default=None)
 
 
 class ListInvite(SQLModel, table=True):
@@ -92,14 +95,3 @@ class PriceCache(SQLModel, table=True):
     fetched_at: datetime = Field(default_factory=_now)
 
 
-class PriceRecord(SQLModel, table=True):
-    __tablename__ = "price_records"
-
-    id: str = Field(default_factory=_uuid, primary_key=True)
-    list_item_id: str = Field(foreign_key="list_items.id", index=True)
-    ean: Optional[str] = Field(default=None)
-    amount: float
-    price_per: Optional[str] = Field(default=None)
-    store: Optional[str] = Field(default=None)
-    user_id: str = Field(foreign_key="users.id")
-    recorded_at: datetime = Field(default_factory=_now)

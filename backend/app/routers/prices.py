@@ -3,7 +3,7 @@ from collections import defaultdict
 from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import select
 
-from app.db.models import ListItem, PriceCache, PriceRecord
+from app.db.models import ListItem, PriceCache
 from app.dependencies import CurrentSession, CurrentUser, MemberDep
 from app.schemas.prices import PriceCreate, PriceHistoryResponse, PriceRecordRead, StoreGroup
 
