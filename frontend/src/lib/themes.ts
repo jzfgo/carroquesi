@@ -1,5 +1,7 @@
+export const DEFAULT_THEME = 'monokai-pro'
+
 export const THEMES = [
-  'monokai-pro',
+  DEFAULT_THEME,
   'catppuccin-mocha',
   'everforest',
   'kanagawa',

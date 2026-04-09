@@ -11,7 +11,7 @@ import { InstallBanner } from './InstallBanner'
 import { EmojiPickerSheet } from './EmojiPickerSheet'
 import { CURATED_EMOJIS } from '../lib/curated-emojis'
 import { usePWAInstall } from '../hooks/usePWAInstall'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   DndContext,
   PointerSensor,
@@ -51,6 +51,7 @@ function randomEmoji(): string {
 
 export function DashboardScreen() {
   const { user, getToken, signOut } = useAuth()
+  const navigate = useNavigate()
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
   const [selectedList, setSelectedList] = useState<ApiList | null>(null)
@@ -260,7 +261,7 @@ export function DashboardScreen() {
               <button
                 className="dashboard-screen__avatar-menu-item"
                 role="menuitem"
-                onClick={() => { setMenuOpen(false); window.location.href = '/settings' }}
+                onClick={() => { setMenuOpen(false); navigate('/settings') }}
               >
                 Configuración
               </button>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { THEMES } from '../lib/themes'
+import { DEFAULT_THEME, THEMES } from '../lib/themes'
 
 export function ThemeManager({ children }: { children: React.ReactNode }) {
   const [currentTheme] = useState<string>(() => {
@@ -10,7 +10,7 @@ export function ThemeManager({ children }: { children: React.ReactNode }) {
     if (savedTheme && THEMES.includes(savedTheme)) {
       return savedTheme
     }
-    return THEMES[0]
+    return DEFAULT_THEME
   })
 
   useEffect(() => {

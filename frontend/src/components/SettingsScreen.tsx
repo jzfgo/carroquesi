@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './SettingsScreen.css'
 
-import { THEMES } from '../lib/themes'
+import { DEFAULT_THEME, THEMES } from '../lib/themes'
 
 export function SettingsScreen() {
-  const [currentTheme, setCurrentTheme] = useState<string>(THEMES[0])
+  const navigate = useNavigate()
+  const [currentTheme, setCurrentTheme] = useState<string>(DEFAULT_THEME)
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('terminal-theme') || THEMES[0]
+    const savedTheme = localStorage.getItem('terminal-theme') || DEFAULT_THEME
     setCurrentTheme(savedTheme)
     document.documentElement.setAttribute('data-theme', savedTheme)
   }, [])
@@ -25,7 +27,7 @@ export function SettingsScreen() {
       <div className="settings-header">
         <button
           className="settings-back-button"
-          onClick={() => window.location.href = '/'}
+          onClick={() => navigate('/')}
           aria-label="Volver al panel principal"
         >
           ← Volver
