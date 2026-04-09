@@ -1,3 +1,4 @@
+import React from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { DashboardScreen } from './components/DashboardScreen'
 import { InviteScreen } from './components/InviteScreen'
@@ -5,6 +6,13 @@ import { SignInScreen } from './components/SignInScreen'
 import { SettingsScreen } from './components/SettingsScreen'
 import { ThemeManager } from './components/ThemeManager'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+
+function AuthRoute({ element }: { element: React.ReactElement }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (!user) return <SignInScreen />
+  return element
+}
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -47,7 +55,7 @@ export default function App() {
         <ThemeManager>
           <Routes>
             <Route path="/invite/:id" element={<InviteScreen />} />
-            <Route path="/settings" element={<SettingsScreen />} />
+            <Route path="/settings" element={<AuthRoute element={<SettingsScreen />} />} />
             <Route path="*" element={<AppContent />} />
           </Routes>
         </ThemeManager>
