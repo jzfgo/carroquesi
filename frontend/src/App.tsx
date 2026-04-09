@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { DashboardScreen } from './components/DashboardScreen'
 import { InviteScreen } from './components/InviteScreen'
 import { SignInScreen } from './components/SignInScreen'
+import { SettingsScreen } from './components/SettingsScreen'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 function AppContent() {
@@ -44,6 +45,7 @@ export default function App() {
       <AuthProvider>
           <Routes>
             <Route path="/invite/:id" element={<InviteScreen />} />
+            <Route path="/settings" element={<SettingsScreen />} />
             <Route path="*" element={<AppContent />} />
           </Routes>
       </AuthProvider>

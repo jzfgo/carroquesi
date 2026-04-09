@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import './DashboardScreen.css'
-import { ThemeSwitcher } from './ThemeSwitcher'
 import { useAuth } from '../contexts/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { getLists, createList, updateList, deleteList } from '../lib/api'
@@ -261,6 +260,13 @@ export function DashboardScreen() {
               <button
                 className="dashboard-screen__avatar-menu-item"
                 role="menuitem"
+                onClick={() => { setMenuOpen(false); window.location.href = '/settings' }}
+              >
+                Configuración
+              </button>
+              <button
+                className="dashboard-screen__avatar-menu-item"
+                role="menuitem"
                 onClick={() => { void signOut(); setMenuOpen(false) }}
               >
                 Cerrar sesión
@@ -270,7 +276,6 @@ export function DashboardScreen() {
         </div>
       </header>
       <main className="dashboard-screen__lists">
-        <ThemeSwitcher />
         <InstallBanner
           isInstallable={isInstallable}
           isInstalled={isInstalled}
