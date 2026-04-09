@@ -3,6 +3,7 @@ import { DashboardScreen } from './components/DashboardScreen'
 import { InviteScreen } from './components/InviteScreen'
 import { SignInScreen } from './components/SignInScreen'
 import { SettingsScreen } from './components/SettingsScreen'
+import { ThemeManager } from './components/ThemeManager'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 function AppContent() {
@@ -43,11 +44,13 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ThemeManager>
           <Routes>
             <Route path="/invite/:id" element={<InviteScreen />} />
             <Route path="/settings" element={<SettingsScreen />} />
             <Route path="*" element={<AppContent />} />
           </Routes>
+        </ThemeManager>
       </AuthProvider>
     </BrowserRouter>
   )
