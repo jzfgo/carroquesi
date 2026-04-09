@@ -1,7 +1,6 @@
-from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class PriceCreate(BaseModel):
@@ -10,25 +9,13 @@ class PriceCreate(BaseModel):
     store: str | None = None
 
 
-class PriceRecordRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str
-    list_item_id: str
-    ean: str | None
+class PriceEntry(BaseModel):
     amount: float
     price_per: str | None
     store: str | None
-    user_id: str
-    recorded_at: datetime
-
-
-class StoreGroup(BaseModel):
-    store: str | None
-    records: list[PriceRecordRead]
 
 
 class PriceHistoryResponse(BaseModel):
-    groups: list[StoreGroup]
+    entries: list[PriceEntry]
     community_price: float | None = None
     community_price_per: str | None = None
