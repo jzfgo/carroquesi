@@ -16,7 +16,7 @@ export function ThemeSwitcher() {
       'catppuccin-mocha', 'everforest', 'kanagawa', 'rose-pine', 'bamboo', 'melange',
       'tokyo-night', 'cyberdream', 'nightfox', 'oxocarbon',
       'gruvbox', 'nord', 'onedark', 'solarized', 'ayu',
-      'moonfly', 'nordic', 'sonokai', 'miasma', 'edge', 'oceanic-next', 'palenight', 'horizon'
+      'moonfly', 'nordic', 'sonokai', 'miasma', 'edge', 'oceanic-next', 'palenight', 'horizon', 'nightfly'
     ].includes(theme)) {
       setCurrentTheme(theme)
       localStorage.setItem('terminal-theme', theme)
@@ -194,6 +194,13 @@ export function ThemeSwitcher() {
           aria-label="Cambiar a tema Horizon"
         >
           Horizon
+        </button>
+        <button
+          className={`theme-switcher__button ${currentTheme === 'nightfly' ? 'theme-switcher__button--active' : ''}`}
+          onClick={() => switchTheme('nightfly')}
+          aria-label="Cambiar a tema Nightfly"
+        >
+          Nightfly
         </button>
       </div>
     </div>

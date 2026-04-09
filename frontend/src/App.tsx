@@ -1,9 +1,8 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { AuthProvider, useAuth } from './contexts/AuthContext'
-import { SignInScreen } from './components/SignInScreen'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { DashboardScreen } from './components/DashboardScreen'
 import { InviteScreen } from './components/InviteScreen'
-import { ThemeManager } from './components/ThemeManager'
+import { SignInScreen } from './components/SignInScreen'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 function AppContent() {
   const { user, loading } = useAuth()
@@ -43,12 +42,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <ThemeManager>
           <Routes>
             <Route path="/invite/:id" element={<InviteScreen />} />
             <Route path="*" element={<AppContent />} />
           </Routes>
-        </ThemeManager>
       </AuthProvider>
     </BrowserRouter>
   )
