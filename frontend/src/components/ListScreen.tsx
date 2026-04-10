@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useListItems } from '../hooks/useListItems'
-import { getDueSuggestions, getSuggestions, logPrice } from '../lib/api'
+import { getDueSuggestions, getSuggestions } from '../lib/api'
 import { parseInput } from '../parseInput'
 import type { BarcodeRead, DueSuggestion, EditingTag, TagField } from '../types'
 import { BarcodeScanner } from './BarcodeScanner'
@@ -51,12 +51,11 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
   } | null>(null)
   const [purchaseToast, setPurchaseToast] = useState<{ itemId: string; itemName: string } | null>(null)
   const handleDismissPurchaseToast = useCallback(() => setPurchaseToast(null), [])
-  const [lastPrices, setLastPrices] = useState<Map<string, { amount: number; price_per: 'KILOGRAM' | null }>>(new Map())
   const currentUserId = user!.id
   const isOwner = listOwnerId === currentUserId
 
   const parsed = useMemo(() => parseInput(inputValue), [inputValue])
-  const { status, items, members, togglePurchased, addItem, updateTag, updateStores, renameItem, removeItem, retry } =
+  const { status, items, members, togglePurchased, addItem, updateTag, updateStores, renameItem, removeItem, savePrice, retry } =
     useListItems(listId, getToken, setToast)
 
   // Debounced suggestions — only when name has 2+ chars
@@ -142,27 +141,25 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
 
   const handleOpenLogPrice = useCallback((itemId: string) => {
     const item = items.find(i => i.id === itemId)
-    const last = lastPrices.get(itemId)
     setLogPriceFor({
       itemId,
-      initialAmount: last?.amount ?? null,
-      initialPricePer: last?.price_per ?? null,
-      initialStore: item?.stores?.[0] ?? null,
+      initialAmount: item?.price ?? null,
+      initialPricePer: (item?.price_per as 'KILOGRAM' | null) ?? null,
+      initialStore: item?.price_store ?? item?.stores?.[0] ?? null,
     })
-  }, [items, lastPrices])
+  }, [items])
 
   const handleSavePrice = useCallback(async (amount: number, pricePer: 'KILOGRAM' | null, store: string | null) => {
     if (!logPriceFor) return
     try {
-      await logPrice(getToken, listId, logPriceFor.itemId, { amount, price_per: pricePer, store })
-      setLastPrices(prev => new Map(prev).set(logPriceFor.itemId, { amount, price_per: pricePer }))
+      await savePrice(logPriceFor.itemId, amount, pricePer, store)
     } catch {
       // non-critical
     }
     setLogPriceFor(null)
     setPriceItemId(null)
     setPurchaseToast(null)
-  }, [logPriceFor, getToken, listId])
+  }, [logPriceFor, savePrice])
 
   const handleScanEdit = useCallback((prefill: string) => {
     setScannedProduct(null)
@@ -215,7 +212,6 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
         onMenuOpen={handleItemMenuOpen}
         onRetry={retry}
         onPriceClick={itemId => setPriceItemId(itemId)}
-        lastPrices={lastPrices}
       />
       {editingTag && (() => {
         const editedItem = items.find(i => i.id === editingTag.itemId)

@@ -8,6 +8,9 @@ export interface ListItem {
   purchased: boolean
   purchased_at: string | null
   ean: string | null
+  price: number | null
+  price_per: string | null
+  price_store: string | null
   added_by: string
   created_at: string
   updated_at: string

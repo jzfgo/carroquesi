@@ -188,3 +188,15 @@ export function logPrice(
     body: JSON.stringify(payload),
   }) as Promise<PriceEntry>
 }
+
+export function updatePrice(
+  getToken: () => Promise<string>,
+  listId: string,
+  itemId: string,
+  payload: { amount: number; price_per: 'KILOGRAM' | null; store: string | null },
+): Promise<PriceEntry> {
+  return apiFetch(getToken, `/lists/${listId}/items/${itemId}/prices`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  }) as Promise<PriceEntry>
+}

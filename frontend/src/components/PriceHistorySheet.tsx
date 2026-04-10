@@ -74,7 +74,9 @@ export default function PriceHistorySheet({ item, listId, getToken, onLogPrice, 
         ))}
       </div>
 
-      <button className="phs__log-btn" onClick={onLogPrice}>+ Registrar precio</button>
+      <button className="phs__log-btn" onClick={onLogPrice}>
+        {item.price != null ? '✏️ Actualizar precio' : '+ Registrar precio'}
+      </button>
     </div>
   )
 }
