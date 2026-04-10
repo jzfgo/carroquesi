@@ -119,9 +119,9 @@ test('tapping the same chip when input ends with that bare sigil is a no-op', ()
 test('client-side store suggestions filtered from items when @ typed', () => {
   const items: ListItem[] = [
     { id: 'i1', list_id: 'l1', name: 'X', quantity: null, brand: null,
-      stores: ['Mercadona'], purchased: false, purchased_at: null, ean: null, added_by: 'u1', created_at: '', updated_at: '' },
+      stores: ['Mercadona'], purchased: false, purchased_at: null, ean: null, price: null, price_per: null, price_store: null, added_by: 'u1', created_at: '', updated_at: '' },
     { id: 'i2', list_id: 'l1', name: 'Y', quantity: null, brand: null,
-      stores: ['Lidl'], purchased: false, purchased_at: null, ean: null, added_by: 'u1', created_at: '', updated_at: '' },
+      stores: ['Lidl'], purchased: false, purchased_at: null, ean: null, price: null, price_per: null, price_store: null, added_by: 'u1', created_at: '', updated_at: '' },
   ]
   render(<SmartInputBar value="Leche @Mer" parsed={parseInput('Leche @Mer')} items={items}
     suggestions={[]} onChange={noop} onSubmit={noop} onScanRequest={noop} />)

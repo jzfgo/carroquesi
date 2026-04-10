@@ -14,10 +14,9 @@ interface Props {
   onMenuOpen: (itemId: string) => void
   onRetry: () => void
   onPriceClick: (itemId: string) => void
-  lastPrices: Map<string, { amount: number; price_per: 'KILOGRAM' | null }>
 }
 
-export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry, onPriceClick, lastPrices }: Props) {
+export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry, onPriceClick }: Props) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
 
   if (status === 'loading') {
@@ -72,7 +71,6 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
       {active.map(item => (
         <ItemCard key={item.id} item={item} members={members}
           onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen}
-          lastPrice={lastPrices.get(item.id) ?? null}
           onPriceClick={onPriceClick} />
       ))}
 
@@ -92,7 +90,6 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
               {group.map(item => (
                 <ItemCard key={item.id} item={item} members={members}
                   onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen}
-                  lastPrice={lastPrices.get(item.id) ?? null}
                   onPriceClick={onPriceClick} />
               ))}
             </div>

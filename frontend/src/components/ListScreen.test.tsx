@@ -31,6 +31,7 @@ const emptyHookResult = {
   updateStores: vi.fn(),
   renameItem: vi.fn(),
   removeItem: vi.fn(),
+  savePrice: vi.fn(),
   retry: vi.fn(),
 }
 

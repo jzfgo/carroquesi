@@ -1,5 +1,4 @@
-from datetime import datetime
-from app.schemas.prices import PriceCreate, PriceRecordRead, PriceHistoryResponse, StoreGroup
+from app.schemas.prices import PriceCreate, PriceEntry, PriceHistoryResponse
 
 
 def test_price_create_defaults():
@@ -14,29 +13,22 @@ def test_price_create_kilogram():
     assert p.store == "Mercadona"
 
 
+def test_price_create_rejects_zero():
+    import pytest
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        PriceCreate(amount=0)
+
+
 def test_price_history_response_structure():
-    record = PriceRecordRead(
-        id="abc",
-        list_item_id="item1",
-        ean="123",
-        amount=1.99,
-        price_per=None,
-        store="Mercadona",
-        user_id="user1",
-        recorded_at=datetime.now(),
-    )
-    group = StoreGroup(store="Mercadona", records=[record])
-    resp = PriceHistoryResponse(
-        groups=[group],
-        community_price=1.85,
-        community_price_per=None,
-    )
-    assert len(resp.groups) == 1
+    entry = PriceEntry(amount=1.99, price_per=None, store="Mercadona")
+    resp = PriceHistoryResponse(entries=[entry], community_price=1.85, community_price_per=None)
+    assert len(resp.entries) == 1
+    assert resp.entries[0].amount == 1.99
     assert resp.community_price == 1.85
-    assert resp.community_price_per is None
 
 
 def test_price_history_empty():
-    resp = PriceHistoryResponse(groups=[])
-    assert resp.groups == []
+    resp = PriceHistoryResponse(entries=[])
+    assert resp.entries == []
     assert resp.community_price is None

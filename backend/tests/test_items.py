@@ -162,3 +162,17 @@ def test_add_item_without_ean(client: TestClient):
     response = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"})
     assert response.status_code == 201
     assert response.json()["ean"] is None
+
+
+def test_get_items_has_price_fields(client: TestClient):
+    lst = _create_list(client)
+    client.post(f"/lists/{lst['id']}/items", json={"name": "Milk"})
+    response = client.get(f"/lists/{lst['id']}/items")
+    assert response.status_code == 200
+    item = response.json()[0]
+    assert "price" in item
+    assert item["price"] is None
+    assert "price_per" in item
+    assert item["price_per"] is None
+    assert "price_store" in item
+    assert item["price_store"] is None

@@ -11,11 +11,10 @@ interface Props {
   onTogglePurchased: (itemId: string) => void
   onTagClick: (itemId: string, field: TagField | 'stores') => void
   onMenuOpen: (itemId: string) => void
-  lastPrice?: { amount: number; price_per: 'KILOGRAM' | null } | null
   onPriceClick?: (itemId: string) => void
 }
 
-export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuOpen, lastPrice, onPriceClick }: Props) {
+export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuOpen, onPriceClick }: Props) {
   const member = members.get(item.added_by)
   const initial = member?.initial ?? '?'
   const colour  = member?.colour ?? '#b0adb5'
@@ -95,15 +94,15 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
           )}
 
           {/* Price tag — shown after store tags */}
-          {lastPrice != null ? (
+          {item.price != null ? (
             <button
               className="item-card__tag item-card__tag--price"
               onClick={e => { e.stopPropagation(); onPriceClick?.(item.id) }}
             >
               <span aria-hidden>💶</span>{' '}
-              {lastPrice.price_per === 'KILOGRAM'
-                ? `€${lastPrice.amount.toFixed(2)}/kg`
-                : `€${lastPrice.amount.toFixed(2)}`}
+              {item.price_per === 'KILOGRAM'
+                ? `€${item.price.toFixed(2)}/kg`
+                : `€${item.price.toFixed(2)}`}
             </button>
           ) : (
             <button
