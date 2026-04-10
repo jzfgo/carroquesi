@@ -115,8 +115,9 @@ describe('useListItems — addItem', () => {
       })
     })
 
-    expect(result.current.items[0].id).toBe('item-real')
-    expect(result.current.items[0].name).toBe('Leche Real')
+    const newItem = result.current.items.find(i => i.id === 'item-real')
+    expect(newItem?.id).toBe('item-real')
+    expect(newItem?.name).toBe('Leche Real')
   })
 
   it('removes temp item and shows toast on error', async () => {

@@ -123,7 +123,11 @@ export function useListItems(
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
-      setItems((prev) => [temp, ...prev])
+      setItems((prev) => {
+        const firstPurchasedIdx = prev.findIndex(i => i.purchased)
+        if (firstPurchasedIdx === -1) return [...prev, temp]
+        return [...prev.slice(0, firstPurchasedIdx), temp, ...prev.slice(firstPurchasedIdx)]
+      })
       try {
         const created = (await createItem(getToken, listId, {
           name: parsed.name,
