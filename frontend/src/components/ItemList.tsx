@@ -38,8 +38,17 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
     )
   }
 
-  const active    = items.filter(i => !i.purchased)
-  const purchased = items.filter(i =>  i.purchased)
+  const active = items
+    .filter(i => !i.purchased)
+    .sort((a, b) => a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)
+
+  const purchased = items
+    .filter(i => i.purchased)
+    .sort((a, b) => {
+      if (!a.purchased_at) return 1
+      if (!b.purchased_at) return -1
+      return b.purchased_at < a.purchased_at ? -1 : b.purchased_at > a.purchased_at ? 1 : 0
+    })
 
   if (active.length === 0 && purchased.length === 0) {
     return (
