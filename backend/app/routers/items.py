@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
+from sqlalchemy import case, nulls_last
 from sqlmodel import Session, select
 
 from app.db.models import List, ListItem
@@ -20,14 +21,18 @@ def get_items(
     list_id: str,
     list_and_user: MemberDep,
     session: CurrentSession,
-    sort: str | None = None,
 ):
     lst, _ = list_and_user
-    query = select(ListItem).where(ListItem.list_id == lst.id)
-    if sort == "name":
-        query = query.order_by(ListItem.name)
-    elif sort == "brand":
-        query = query.order_by(ListItem.brand)
+    purchased_group = case((ListItem.purchased_at.is_(None), 0), else_=1)
+    query = (
+        select(ListItem)
+        .where(ListItem.list_id == lst.id)
+        .order_by(
+            purchased_group,
+            nulls_last(ListItem.purchased_at.desc()),
+            ListItem.created_at.asc(),
+        )
+    )
     return session.exec(query).all()
 
 

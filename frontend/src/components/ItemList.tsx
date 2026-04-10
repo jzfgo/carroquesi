@@ -50,6 +50,20 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
     )
   }
 
+  // Group purchased items by local date label, preserving backend order (newest first)
+  const purchasedByDate: { label: string; items: ListItem[] }[] = []
+  for (const item of purchased) {
+    const label = item.purchased_at
+      ? new Date(item.purchased_at + 'Z').toLocaleDateString('es', { dateStyle: 'medium' })
+      : 'Fecha desconocida'
+    const last = purchasedByDate.at(-1)
+    if (last && last.label === label) {
+      last.items.push(item)
+    } else {
+      purchasedByDate.push({ label, items: [item] })
+    }
+  }
+
   return (
     <div className="item-list">
       <p className="item-list__label">
@@ -72,11 +86,16 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
             Comprados ({purchased.length})
             <span className={`item-list__chevron${purchasedCollapsed ? ' item-list__chevron--collapsed' : ''}`} aria-hidden />
           </button>
-          {!purchasedCollapsed && purchased.map(item => (
-            <ItemCard key={item.id} item={item} members={members}
-              onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen}
-              lastPrice={lastPrices.get(item.id) ?? null}
-              onPriceClick={onPriceClick} />
+          {!purchasedCollapsed && purchasedByDate.map(({ label, items: group }) => (
+            <div key={label}>
+              <p className="item-list__date-label">{label}</p>
+              {group.map(item => (
+                <ItemCard key={item.id} item={item} members={members}
+                  onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen}
+                  lastPrice={lastPrices.get(item.id) ?? null}
+                  onPriceClick={onPriceClick} />
+              ))}
+            </div>
           ))}
         </>
       )}
