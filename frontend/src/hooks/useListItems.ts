@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import type { ListItem, Member, ParsedInput, TagField } from '../types'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  createItem,
+  deleteItem,
   getListItems,
   getListMembers,
   getListUpdatedAt,
-  createItem,
-  updateItem,
-  deleteItem,
   logPrice,
+  updateItem,
   updatePrice,
 } from '../lib/api'
 import { AVATAR_COLOURS } from '../mockData'
+import type { ListItem, Member, ParsedInput, TagField } from '../types'
 
 type Status = 'loading' | 'error' | 'success'
 
@@ -75,8 +75,13 @@ export function useListItems(
   useEffect(() => {
     const id = setInterval(async () => {
       try {
-        const data = (await getListUpdatedAt(getToken, listId)) as { updated_at: string }
-        if (lastUpdatedAt.current !== null && data.updated_at !== lastUpdatedAt.current) {
+        const data = (await getListUpdatedAt(getToken, listId)) as {
+          updated_at: string
+        }
+        if (
+          lastUpdatedAt.current !== null &&
+          data.updated_at !== lastUpdatedAt.current
+        ) {
           const raw = (await getListItems(getToken, listId)) as ListItem[]
           setItems(raw)
         }
@@ -91,10 +96,26 @@ export function useListItems(
   const togglePurchased = useCallback(
     async (itemId: string) => {
       const snapshot = itemsRef.current
-      const prevPurchased = snapshot.find((i) => i.id === itemId)?.purchased ?? false
-      setItems(snapshot.map((i) => (i.id === itemId ? { ...i, purchased: !prevPurchased } : i)))
+      const prevPurchased =
+        snapshot.find((i) => i.id === itemId)?.purchased ?? false
+      const nowStr = !prevPurchased
+        ? new Date().toISOString().slice(0, -1)
+        : null
+      setItems(
+        snapshot.map((i) =>
+          i.id === itemId
+            ? {
+                ...i,
+                purchased: !prevPurchased,
+                purchased_at: nowStr,
+              }
+            : i,
+        ),
+      )
       try {
-        await updateItem(getToken, listId, itemId, { purchased: !prevPurchased })
+        await updateItem(getToken, listId, itemId, {
+          purchased: !prevPurchased,
+        })
       } catch {
         setItems(snapshot)
         showToast('No se pudo actualizar el producto')
@@ -123,7 +144,15 @@ export function useListItems(
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
-      setItems((prev) => [temp, ...prev])
+      setItems((prev) => {
+        const firstPurchasedIdx = prev.findIndex((i) => i.purchased)
+        if (firstPurchasedIdx === -1) return [...prev, temp]
+        return [
+          ...prev.slice(0, firstPurchasedIdx),
+          temp,
+          ...prev.slice(firstPurchasedIdx),
+        ]
+      })
       try {
         const created = (await createItem(getToken, listId, {
           name: parsed.name,
@@ -144,7 +173,9 @@ export function useListItems(
   const updateTag = useCallback(
     async (itemId: string, field: TagField, value: string | null) => {
       const snapshot = itemsRef.current
-      setItems(snapshot.map((i) => (i.id === itemId ? { ...i, [field]: value } : i)))
+      setItems(
+        snapshot.map((i) => (i.id === itemId ? { ...i, [field]: value } : i)),
+      )
       try {
         await updateItem(getToken, listId, itemId, { [field]: value })
       } catch {
@@ -187,7 +218,7 @@ export function useListItems(
     async (itemId: string) => {
       try {
         await deleteItem(getToken, listId, itemId)
-        setItems(prev => prev.filter(i => i.id !== itemId))
+        setItems((prev) => prev.filter((i) => i.id !== itemId))
       } catch {
         showToast('No se pudo eliminar el producto')
       }
@@ -196,17 +227,38 @@ export function useListItems(
   )
 
   const savePrice = useCallback(
-    async (itemId: string, amount: number, pricePer: 'KILOGRAM' | null, store: string | null) => {
-      const item = itemsRef.current.find(i => i.id === itemId)
+    async (
+      itemId: string,
+      amount: number,
+      pricePer: 'KILOGRAM' | null,
+      store: string | null,
+    ) => {
+      const item = itemsRef.current.find((i) => i.id === itemId)
       const payload = { amount, price_per: pricePer, store }
       const fn = item?.price != null ? updatePrice : logPrice
       await fn(getToken, listId, itemId, payload)
-      setItems(prev => prev.map(i =>
-        i.id === itemId ? { ...i, price: amount, price_per: pricePer, price_store: store } : i
-      ))
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === itemId
+            ? { ...i, price: amount, price_per: pricePer, price_store: store }
+            : i,
+        ),
+      )
     },
     [getToken, listId],
   )
 
-  return { status, items, members, togglePurchased, addItem, updateTag, updateStores, renameItem, removeItem, savePrice, retry: fetchAll }
+  return {
+    status,
+    items,
+    members,
+    togglePurchased,
+    addItem,
+    updateTag,
+    updateStores,
+    renameItem,
+    removeItem,
+    savePrice,
+    retry: fetchAll,
+  }
 }

@@ -38,8 +38,17 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
     )
   }
 
-  const active    = items.filter(i => !i.purchased)
-  const purchased = items.filter(i =>  i.purchased)
+  const active = items
+    .filter(i => !i.purchased)
+    .sort((a, b) => a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)
+
+  const purchased = items
+    .filter(i => i.purchased)
+    .sort((a, b) => {
+      if (!a.purchased_at) return 1
+      if (!b.purchased_at) return -1
+      return b.purchased_at < a.purchased_at ? -1 : b.purchased_at > a.purchased_at ? 1 : 0
+    })
 
   if (active.length === 0 && purchased.length === 0) {
     return (
@@ -47,6 +56,20 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
         <p>Sin productos — añade el primero abajo</p>
       </div>
     )
+  }
+
+  // Group purchased items by local date label, preserving backend order (newest first)
+  const purchasedByDate: { label: string; items: ListItem[] }[] = []
+  for (const item of purchased) {
+    const label = item.purchased_at
+      ? new Date(item.purchased_at + 'Z').toLocaleDateString('es', { dateStyle: 'medium' })
+      : 'Fecha desconocida'
+    const last = purchasedByDate.at(-1)
+    if (last && last.label === label) {
+      last.items.push(item)
+    } else {
+      purchasedByDate.push({ label, items: [item] })
+    }
   }
 
   return (
@@ -70,10 +93,15 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
             Comprados ({purchased.length})
             <span className={`item-list__chevron${purchasedCollapsed ? ' item-list__chevron--collapsed' : ''}`} aria-hidden />
           </button>
-          {!purchasedCollapsed && purchased.map(item => (
-            <ItemCard key={item.id} item={item} members={members}
-              onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen}
-              onPriceClick={onPriceClick} />
+          {!purchasedCollapsed && purchasedByDate.map(({ label, items: group }) => (
+            <div key={label}>
+              <p className="item-list__date-label">{label}</p>
+              {group.map(item => (
+                <ItemCard key={item.id} item={item} members={members}
+                  onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen}
+                  onPriceClick={onPriceClick} />
+              ))}
+            </div>
           ))}
         </>
       )}
