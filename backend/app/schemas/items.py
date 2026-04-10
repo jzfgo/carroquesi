@@ -27,6 +27,9 @@ class ItemRead(BaseModel):
     brand: str | None
     stores: list[str]
     ean: str | None
+    price: float | None
+    price_per: str | None
+    price_store: str | None
     purchased_at: datetime | None
     added_by: str
     created_at: datetime

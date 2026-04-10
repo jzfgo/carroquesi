@@ -6,7 +6,7 @@ const BASE_ITEM: ListItem = {
   id: 'i1', list_id: 'l1',
   name: 'Leche entera',
   quantity: '2', brand: 'Hacendado', stores: ['Mercadona'],
-  purchased: false, purchased_at: null, ean: null, added_by: 'u1', created_at: '', updated_at: '',
+  purchased: false, purchased_at: null, ean: null, price: null, price_per: null, price_store: null, added_by: 'u1', created_at: '', updated_at: '',
 }
 
 const OTHER_ITEMS: ListItem[] = [

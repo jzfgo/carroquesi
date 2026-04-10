@@ -1,42 +1,34 @@
-from collections import defaultdict
-
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlmodel import select
 
-from app.db.models import ListItem, PriceCache, PriceRecord
+from app.db.models import ListItem, ListMember
 from app.dependencies import CurrentSession, CurrentUser, MemberDep
-from app.schemas.prices import PriceCreate, PriceHistoryResponse, PriceRecordRead, StoreGroup
+from app.schemas.prices import PriceCreate, PriceEntry, PriceHistoryResponse
 
 router = APIRouter(prefix="/lists/{list_id}/items/{item_id}/prices", tags=["prices"])
 
 
-def _records_to_response(
-    records: list[PriceRecord],
-    community_price: float | None,
-    community_price_per: str | None,
-) -> PriceHistoryResponse:
-    groups_map: dict[str | None, list[PriceRecord]] = defaultdict(list)
-    for r in records:
-        groups_map[r.store].append(r)
-
-    groups = []
-    for store, store_records in groups_map.items():
-        sorted_records = sorted(store_records, key=lambda r: r.recorded_at, reverse=True)
-        groups.append(
-            StoreGroup(
-                store=store,
-                records=[PriceRecordRead.model_validate(r) for r in sorted_records],
-            )
-        )
-    return PriceHistoryResponse(
-        groups=groups,
-        community_price=community_price,
-        community_price_per=community_price_per,
-    )
+def _get_item_or_404(session, item_id: str, list_id: str) -> ListItem:
+    item = session.exec(
+        select(ListItem).where(ListItem.id == item_id, ListItem.list_id == list_id)
+    ).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return item
 
 
-@router.post("", response_model=PriceRecordRead)
-def log_price(
+def _write_price(item: ListItem, price_in: PriceCreate, session) -> PriceEntry:
+    item.price = price_in.amount
+    item.price_per = price_in.price_per
+    item.price_store = price_in.store
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    return PriceEntry(amount=item.price, price_per=item.price_per, store=item.price_store)
+
+
+@router.post("", response_model=PriceEntry, status_code=status.HTTP_201_CREATED)
+def create_price(
     list_id: str,
     item_id: str,
     price_in: PriceCreate,
@@ -44,22 +36,25 @@ def log_price(
     current_user: CurrentUser,
     _: MemberDep,
 ):
-    item = session.exec(select(ListItem).where(ListItem.id == item_id, ListItem.list_id == list_id)).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+    item = _get_item_or_404(session, item_id, list_id)
+    if item.price is not None:
+        raise HTTPException(status_code=409, detail="Item already has a price; use PATCH to update it")
+    return _write_price(item, price_in, session)
 
-    record = PriceRecord(
-        list_item_id=item_id,
-        ean=item.ean,
-        amount=price_in.amount,
-        price_per=price_in.price_per,
-        store=price_in.store,
-        user_id=current_user.id,
-    )
-    session.add(record)
-    session.commit()
-    session.refresh(record)
-    return PriceRecordRead.model_validate(record)
+
+@router.patch("", response_model=PriceEntry)
+def update_price(
+    list_id: str,
+    item_id: str,
+    price_in: PriceCreate,
+    session: CurrentSession,
+    current_user: CurrentUser,
+    _: MemberDep,
+):
+    item = _get_item_or_404(session, item_id, list_id)
+    if item.price is None:
+        raise HTTPException(status_code=404, detail="Item has no price yet; use POST to set it")
+    return _write_price(item, price_in, session)
 
 
 @router.get("", response_model=PriceHistoryResponse)
@@ -71,118 +66,34 @@ def get_price_history(
     current_user: CurrentUser = None,
     _: MemberDep = None,
 ):
-    item = session.exec(select(ListItem).where(ListItem.id == item_id, ListItem.list_id == list_id)).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+    item = _get_item_or_404(session, item_id, list_id)
+    items = _query_by_scope(session, item, scope, current_user.id)
+    entries = [PriceEntry(amount=i.price, price_per=i.price_per, store=i.price_store) for i in items]
+    return PriceHistoryResponse(entries=entries)
 
-    ean = item.ean
 
-    # Community price from cache
-    community_price, community_price_per = None, None
-    if ean:
-        cached = session.exec(select(PriceCache).where(PriceCache.ean == ean)).first()
-        if cached:
-            community_price = cached.amount
-            community_price_per = cached.price_per
-
-    # Special logic for grouping price history by name and brand for manually added items
-    records = []
-
-    # Helper function to get similar items based on name and brand
-    def get_similar_items(item_name: str, item_brand: str, exclude_item_id: str):
-        return session.exec(
-            select(ListItem).where(
-                ListItem.name == item_name,
-                ListItem.brand == item_brand,
-                ListItem.id != exclude_item_id
-            )
-        ).all()
+def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list[ListItem]:
+    base = _base_conditions(item)
 
     if scope == "this_list":
-        # For items with EAN, include any price record for the same EAN inside this list
-        if ean:
-            records = list(session.exec(
-                select(PriceRecord)
-                .join(ListItem, PriceRecord.list_item_id == ListItem.id)
-                .where(
-                    ListItem.list_id == list_id,
-                    PriceRecord.ean == ean,
-                )
-            ).all())
-        else:
-            # For items without EAN, we want to collect records from similar items
-            # Get records for the current item
-            item_records = session.exec(
-                select(PriceRecord).where(PriceRecord.list_item_id == item_id)
-            ).all()
+        return list(session.exec(
+            select(ListItem).where(ListItem.list_id == item.list_id, *base)
+        ).all())
 
-            # Get records for similar items (same name and brand)
-            similar_items = get_similar_items(item.name, item.brand, item_id)
+    if scope == "my_lists":
+        my_list_ids = list(session.exec(
+            select(ListMember.list_id).where(ListMember.user_id == user_id)
+        ).all())
+        return list(session.exec(
+            select(ListItem).where(ListItem.list_id.in_(my_list_ids), *base)
+        ).all())
 
-            similar_records = []
-            for similar_item in similar_items:
-                similar_item_records = session.exec(
-                    select(PriceRecord).where(PriceRecord.list_item_id == similar_item.id)
-                ).all()
-                similar_records.extend(similar_item_records)
+    # scope == "all"
+    return list(session.exec(select(ListItem).where(*base)).all())
 
-            records = list(item_records) + list(similar_records)
 
-    elif scope == "my_lists":
-        if ean:
-            records = list(session.exec(
-                select(PriceRecord).where(
-                    PriceRecord.ean == ean,
-                    PriceRecord.user_id == current_user.id,
-                )
-            ).all())
-        else:
-            # For items without EAN in my_lists scope
-            # Get records for the current item
-            item_records = session.exec(
-                select(PriceRecord).where(
-                    PriceRecord.list_item_id == item_id,
-                    PriceRecord.user_id == current_user.id
-                )
-            ).all()
-
-            # Get records for similar items
-            similar_items = get_similar_items(item.name, item.brand, item_id)
-
-            similar_records = []
-            for similar_item in similar_items:
-                similar_item_records = session.exec(
-                    select(PriceRecord).where(
-                        PriceRecord.list_item_id == similar_item.id,
-                        PriceRecord.user_id == current_user.id
-                    )
-                ).all()
-                similar_records.extend(similar_item_records)
-
-            records = list(item_records) + list(similar_records)
-
-    else:  # scope == "all"
-        if ean:
-            records = list(session.exec(
-                select(PriceRecord).where(PriceRecord.ean == ean)
-            ).all())
-        else:
-            # For items without EAN in all scope
-            # Get records for the current item
-            item_records = session.exec(
-                select(PriceRecord).where(PriceRecord.list_item_id == item_id)
-            ).all()
-
-            # Get records for similar items
-            similar_items = get_similar_items(item.name, item.brand, item_id)
-
-            similar_records = []
-            for similar_item in similar_items:
-                similar_item_records = session.exec(
-                    select(PriceRecord).where(PriceRecord.list_item_id == similar_item.id)
-                ).all()
-                similar_records.extend(similar_item_records)
-
-            records = list(item_records) + list(similar_records)
-
-    return _records_to_response(records, community_price, community_price_per)
+def _base_conditions(item: ListItem):
+    has_price = ListItem.price.isnot(None)
+    if item.ean:
+        return (ListItem.ean == item.ean, has_price)
+    return (ListItem.name == item.name, ListItem.brand == item.brand, has_price)

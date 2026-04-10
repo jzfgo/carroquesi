@@ -8,6 +8,9 @@ export interface ListItem {
   purchased: boolean
   purchased_at: string | null
   ean: string | null
+  price: number | null
+  price_per: string | null
+  price_store: string | null
   added_by: string
   created_at: string
   updated_at: string
@@ -70,24 +73,14 @@ export interface ApiList {
   purchased_count: number
 }
 
-export interface PriceRecordRead {
-  id: string
-  list_item_id: string
-  ean: string | null
+export interface PriceEntry {
   amount: number
-  price_per: 'KILOGRAM' | null
+  price_per: string | null
   store: string | null
-  user_id: string
-  recorded_at: string
-}
-
-export interface StoreGroup {
-  store: string | null
-  records: PriceRecordRead[]
 }
 
 export interface PriceHistoryResponse {
-  groups: StoreGroup[]
+  entries: PriceEntry[]
   community_price: number | null
-  community_price_per: 'KILOGRAM' | null
+  community_price_per: string | null
 }

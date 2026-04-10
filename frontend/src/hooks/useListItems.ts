@@ -7,6 +7,8 @@ import {
   createItem,
   updateItem,
   deleteItem,
+  logPrice,
+  updatePrice,
 } from '../lib/api'
 import { AVATAR_COLOURS } from '../mockData'
 
@@ -114,6 +116,9 @@ export function useListItems(
         purchased: false,
         purchased_at: null,
         ean: null,
+        price: null,
+        price_per: null,
+        price_store: null,
         added_by: '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -190,5 +195,18 @@ export function useListItems(
     [getToken, listId, showToast],
   )
 
-  return { status, items, members, togglePurchased, addItem, updateTag, updateStores, renameItem, removeItem, retry: fetchAll }
+  const savePrice = useCallback(
+    async (itemId: string, amount: number, pricePer: 'KILOGRAM' | null, store: string | null) => {
+      const item = itemsRef.current.find(i => i.id === itemId)
+      const payload = { amount, price_per: pricePer, store }
+      const fn = item?.price != null ? updatePrice : logPrice
+      await fn(getToken, listId, itemId, payload)
+      setItems(prev => prev.map(i =>
+        i.id === itemId ? { ...i, price: amount, price_per: pricePer, price_store: store } : i
+      ))
+    },
+    [getToken, listId],
+  )
+
+  return { status, items, members, togglePurchased, addItem, updateTag, updateStores, renameItem, removeItem, savePrice, retry: fetchAll }
 }
