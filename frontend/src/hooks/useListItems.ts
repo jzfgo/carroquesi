@@ -96,8 +96,23 @@ export function useListItems(
   const togglePurchased = useCallback(
     async (itemId: string) => {
       const snapshot = itemsRef.current
-      const prevPurchased =
-        snapshot.find((i) => i.id === itemId)?.purchased ?? false
+      const targetItem = snapshot.find((i) => i.id === itemId)
+      const prevPurchased = targetItem?.purchased ?? false
+
+      // Prevent unpurchasing items purchased on a previous calendar day
+      if (prevPurchased && targetItem?.purchased_at) {
+        const purchasedDate = new Date(targetItem.purchased_at + 'Z')
+        const today = new Date()
+        const sameDay =
+          purchasedDate.getFullYear() === today.getFullYear() &&
+          purchasedDate.getMonth() === today.getMonth() &&
+          purchasedDate.getDate() === today.getDate()
+        if (!sameDay) {
+          showToast('No se puede desmarcar un producto comprado en otro día')
+          return
+        }
+      }
+
       const nowStr = !prevPurchased
         ? new Date().toISOString().slice(0, -1)
         : null
