@@ -77,6 +77,7 @@ export interface PriceEntry {
   amount: number
   price_per: string | null
   store: string | null
+  purchased_at: string | null
 }
 
 export interface PriceHistoryResponse {

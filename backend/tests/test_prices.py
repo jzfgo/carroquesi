@@ -230,3 +230,35 @@ def test_get_price_history_invalid_scope(client: TestClient):
     item = _make_item(client, lst["id"])
     resp = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices?scope=invalid")
     assert resp.status_code == 422
+
+
+# --- purchased_at in PriceEntry ---
+
+def test_price_history_entry_includes_purchased_at_for_purchased_item(client: TestClient):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+    # Mark as purchased so purchased_at is set
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    _set_price(client, lst["id"], item["id"], 1.99, store="Mercadona")
+
+    resp = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices?scope=this_list")
+    assert resp.status_code == 200
+    entries = resp.json()["entries"]
+    assert len(entries) == 1
+    assert entries[0]["purchased_at"] is not None
+    # Should be a valid ISO datetime string
+    from datetime import datetime
+    datetime.fromisoformat(entries[0]["purchased_at"])  # raises if malformed
+
+
+def test_price_history_entry_purchased_at_is_null_for_unpurchased_item(client: TestClient):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+    # Item is not purchased — purchased_at should be None
+    _set_price(client, lst["id"], item["id"], 2.50, store="Lidl")
+
+    resp = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices?scope=this_list")
+    assert resp.status_code == 200
+    entries = resp.json()["entries"]
+    assert len(entries) == 1
+    assert entries[0]["purchased_at"] is None

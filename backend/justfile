@@ -36,3 +36,7 @@ migration-status:
 # Roll back one migration
 migration-rollback:
     uv run alembic downgrade -1
+
+# Seed the local database with test data
+seed:
+    uv run python scripts/seed.py

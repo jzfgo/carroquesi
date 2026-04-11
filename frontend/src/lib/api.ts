@@ -1,6 +1,7 @@
 import type { BarcodeRead, DueSuggestion, PriceEntry, PriceHistoryResponse, Suggestion } from '../types'
 
 const BASE = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
+const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID as string | undefined
 
 export class ApiError extends Error {
   status: number
@@ -23,6 +24,7 @@ async function apiFetch(
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string> | undefined),
       Authorization: `Bearer ${token}`,
+      ...(DEV_USER_ID ? { 'X-Dev-User-Id': DEV_USER_ID } : {}),
     },
   })
   if (!res.ok) throw new ApiError(res.status, await res.text())
