@@ -41,12 +41,27 @@ export function useAuth(): AuthContextValue {
   return ctx
 }
 
+const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID as string | undefined
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
   const firebaseUserRef = useRef<FirebaseUser | null>(null)
 
   useEffect(() => {
+    if (DEV_USER_ID) {
+      // Dev bypass: skip Firebase, resolve user via backend using the seed firebase_uid
+      const getToken = async () => 'dev-bypass'
+      syncUser(getToken)
+        .then((data) => {
+          const d = data as { id: string; display_name: string; photo_url: string | null; email: string }
+          setUser({ id: d.id, displayName: d.display_name, photoUrl: d.photo_url, email: d.email })
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false))
+      return
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       firebaseUserRef.current = fbUser
       if (fbUser) {
@@ -78,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const getToken = async (): Promise<string> => {
+    if (DEV_USER_ID) return 'dev-bypass'
     if (!firebaseUserRef.current) throw new Error('Not authenticated')
     return getIdToken(firebaseUserRef.current, false)
   }

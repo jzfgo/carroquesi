@@ -68,7 +68,15 @@ def get_price_history(
 ):
     item = _get_item_or_404(session, item_id, list_id)
     items = _query_by_scope(session, item, scope, current_user.id)
-    entries = [PriceEntry(amount=i.price, price_per=i.price_per, store=i.price_store) for i in items]
+    entries = [
+        PriceEntry(
+            amount=i.price,
+            price_per=i.price_per,
+            store=i.price_store,
+            purchased_at=i.purchased_at.isoformat() if i.purchased_at else None,
+        )
+        for i in items
+    ]
     return PriceHistoryResponse(entries=entries)
 
 

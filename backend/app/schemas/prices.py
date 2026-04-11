@@ -13,6 +13,7 @@ class PriceEntry(BaseModel):
     amount: float
     price_per: str | None
     store: str | None
+    purchased_at: str | None = None
 
 
 class PriceHistoryResponse(BaseModel):

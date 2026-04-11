@@ -34,6 +34,7 @@ carroquesi/
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/carroquesi
 FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
 ALLOWED_ORIGINS=["http://localhost:5173"]
+# DEV_AUTH_BYPASS=true   # optional — skips Firebase token validation locally (see below)
 ```
 
 **Frontend** — copy and fill in `frontend/.env.local`:
@@ -43,6 +44,7 @@ VITE_FIREBASE_API_KEY=...
 VITE_FIREBASE_AUTH_DOMAIN=...
 VITE_FIREBASE_PROJECT_ID=...
 VITE_FIREBASE_APP_ID=...
+# VITE_DEV_USER_ID=seed-alice   # optional — pair with DEV_AUTH_BYPASS (see below)
 ```
 
 ### 2. Install dependencies
@@ -76,7 +78,25 @@ docker run -d --name carroquesi-db \
 just backend migrate
 ```
 
-### 5. Start dev servers
+### 5. Seed test data (optional)
+
+Populate the local database with realistic test data (3 users, 4 lists, 128 items with price history across 6 stores):
+
+```bash
+just seed
+```
+
+To log in as a seed user without a real Google account, set in `backend/.env`:
+```
+DEV_AUTH_BYPASS=true
+```
+And in `frontend/.env.local`:
+```
+VITE_DEV_USER_ID=seed-alice   # or seed-bob / seed-carol
+```
+The frontend skips Firebase and sends `X-Dev-User-Id` instead of a real token. **Never enable `DEV_AUTH_BYPASS` in production.**
+
+### 6. Start dev servers
 
 ```bash
 just dev
@@ -130,6 +150,7 @@ Run `just` (no arguments) to list all available recipes.
 | `migration <name>` | Generate a new migration |
 | `migration-status` | Show current migration revision |
 | `migration-rollback` | Downgrade one revision |
+| `seed` | Populate local DB with test data |
 
 ## Deployment
 

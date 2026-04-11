@@ -1,20 +1,34 @@
-from typing import Annotated, Any, TypeAlias
+from typing import Annotated, Any, Optional, TypeAlias
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session, select
 
+from app.core.config import settings
 from app.core.firebase import verify_id_token
 from app.db.models import List, ListMember, User
 from app.db.session import get_session
 
-bearer = HTTPBearer()
+bearer = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer),
+    x_dev_user_id: Optional[str] = Header(default=None),
     session: Session = Depends(get_session),
 ) -> User:
+    if settings.dev_auth_bypass and x_dev_user_id:
+        user = session.exec(select(User).where(User.firebase_uid == x_dev_user_id)).first()
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Dev bypass: no user with firebase_uid={x_dev_user_id!r}",
+            )
+        return user
+
+    if credentials is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
     try:
         decoded: dict[str, Any] = verify_id_token(credentials.credentials)
     except Exception:

@@ -55,6 +55,9 @@ npx tsc -p tsconfig.app.json --noEmit  # actual typecheck
 ### PWA
 The app is a Progressive Web App (`vite-plugin-pwa`). The service worker is active even in dev (`devOptions.enabled: true`). The generated `sw.js` in the build output is managed by Workbox — do not edit it directly.
 
+### Dev auth bypass
+Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice` (or `seed-bob` / `seed-carol`) in `frontend/.env` to skip Google Sign-In entirely during local development. The frontend sends `X-Dev-User-Id: <firebase_uid>` instead of a real token; the backend resolves the user directly from that header. **Never set `DEV_AUTH_BYPASS=true` in production.**
+
 ### Key conventions
 - Mobile-first, card-based layout
 - Sticky "Smart Input" bar fixed at the bottom of the screen
@@ -63,6 +66,7 @@ The app is a Progressive Web App (`vite-plugin-pwa`). The service worker is acti
 - Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
 - `FrequencySuggestionBanner` sits above the SmartInputBar and cycles through due suggestions every 6s; dismissals are persisted in `localStorage` (`cqs_dismissed_suggestions`) with a TTL computed by the backend
 - Settings are now accessible through the user menu for theme customization
+- `PriceHistorySheet` groups entries by store client-side and renders an SVG sparkline per store; the expanded view shows a larger chart + last/min/max stats. `PriceEntry` includes `purchased_at` for the time axis.
 
 ### Purchased item rules
 Purchased items (`item.purchased === true`) are **read-only** in the UI. Allowed: unchecking, deleting, viewing price history. Disallowed: rename, quantity/brand/store edits, adding/changing/removing price. `ItemCard` renders tags as `<span>` (not `<button>`) for purchased items and hides all "add" CTAs. `ItemActionSheet` hides the rename option. `PriceHistorySheet` hides the log-price button when `readOnly` is passed.
@@ -91,6 +95,7 @@ uv run pytest tests/path/to/test.py  # run single test file
 uv add <package>                     # add a dependency
 uv run alembic upgrade head          # run migrations
 uv run alembic revision --autogenerate -m "description"  # generate migration
+uv run python scripts/seed.py        # seed local DB with test data (or: just seed)
 ```
 
 ### Key conventions
@@ -133,6 +138,7 @@ backend/
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/carroquesi
 FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
 ALLOWED_ORIGINS=["http://localhost:5173"]
+DEV_AUTH_BYPASS=true   # local only — skips Firebase token validation
 ```
 
 ## Infrastructure
