@@ -64,6 +64,19 @@ The app is a Progressive Web App (`vite-plugin-pwa`). The service worker is acti
 - `FrequencySuggestionBanner` sits above the SmartInputBar and cycles through due suggestions every 6s; dismissals are persisted in `localStorage` (`cqs_dismissed_suggestions`) with a TTL computed by the backend
 - Settings are now accessible through the user menu for theme customization
 
+### Purchased item rules
+Purchased items (`item.purchased === true`) are **read-only** in the UI. Allowed: unchecking, deleting, viewing price history. Disallowed: rename, quantity/brand/store edits, adding/changing/removing price. `ItemCard` renders tags as `<span>` (not `<button>`) for purchased items and hides all "add" CTAs. `ItemActionSheet` hides the rename option. `PriceHistorySheet` hides the log-price button when `readOnly` is passed.
+
+### Testing conventions
+- When mocking `react-router-dom` (or any module where you only need to override specific exports), use `importOriginal` to avoid stripping the real module's exports:
+  ```ts
+  vi.mock('react-router-dom', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('react-router-dom')>()
+    return { ...actual, useLocation: vi.fn(), useNavigate: vi.fn().mockReturnValue(vi.fn()) }
+  })
+  ```
+- Plain `vi.mock('module', () => ({ ... }))` replaces the entire module — any hook or class not listed will be missing and throw at runtime.
+
 ## Backend
 
 Requires **Python 3.13** (pinned in `backend/.python-version`).
