@@ -57,6 +57,7 @@ function Sparkline({ records }: { records: PriceEntry[] }) {
       </svg>
     )
   }
+  // records arrive newest-first from groupByStore; reverse for left-to-right chronological order
   const prices = [...records].reverse().map(r => r.amount)
   const min = Math.min(...prices), max = Math.max(...prices), range = max - min || 1
   const w = 60, h = 28, pad = 4
@@ -71,6 +72,45 @@ function Sparkline({ records }: { records: PriceEntry[] }) {
       <path d={areaD} fill="var(--color-primary-bg, rgba(10,132,255,0.15))" />
       <path d={pathD} stroke="var(--color-primary, #0a84ff)" strokeWidth="1.5" fill="none" />
     </svg>
+  )
+}
+
+function ExpandedChart({ records, latest }: { records: PriceEntry[]; latest: PriceEntry }) {
+  // records arrive newest-first; reverse for left-to-right chronological order
+  const prices = [...records].reverse().map(r => r.amount)
+  const min = Math.min(...prices), max = Math.max(...prices), range = max - min || 1
+  const minAmt = Math.min(...records.map(r => r.amount))
+  const maxAmt = Math.max(...records.map(r => r.amount))
+  const w = 200, h = 48, pad = 6
+  const pts = prices.map((p, i) => ({
+    x: (pad + (i / (prices.length - 1)) * (w - 2 * pad)).toFixed(1),
+    y: (pad + ((max - p) / range) * (h - 2 * pad)).toFixed(1),
+  }))
+  const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
+  const areaD = `${pathD} L${pts[pts.length - 1].x},${h} L${pts[0].x},${h} Z`
+
+  return (
+    <div className="phs__expand">
+      {prices.length >= 2 && (
+        <svg className="phs__expand-chart" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+          <path d={areaD} fill="var(--color-primary-bg, rgba(10,132,255,0.15))" />
+          <path d={pathD} stroke="var(--color-primary, #0a84ff)" strokeWidth="2" fill="none" />
+        </svg>
+      )}
+      <div className="phs__expand-stats">
+        <div className="phs__stat"><strong>{formatPrice(latest.amount, latest.price_per)}</strong>Último</div>
+        <div className="phs__stat"><strong>{formatPrice(minAmt, latest.price_per)}</strong>Mínimo</div>
+        <div className="phs__stat"><strong>{formatPrice(maxAmt, latest.price_per)}</strong>Máximo</div>
+      </div>
+      <div className="phs__expand-records">
+        {records.map((r, i) => (
+          <div key={i} className="phs__record-row">
+            <span>{r.purchased_at ? formatDate(r.purchased_at) : '—'}</span>
+            <span className="phs__record-amount">{formatPrice(r.amount, r.price_per)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -126,8 +166,6 @@ export default function PriceHistorySheet({ item, listId, getToken, onLogPrice, 
           const isExpanded = expandedStore === group.store
           const isDimmed = hasExpanded && !isExpanded
           const latest = group.records[0]
-          const amounts = group.records.map(r => r.amount)
-          const minAmt = Math.min(...amounts), maxAmt = Math.max(...amounts)
 
           return (
             <div key={group.store ?? '__none__'}
@@ -144,40 +182,7 @@ export default function PriceHistorySheet({ item, listId, getToken, onLogPrice, 
                 <Sparkline records={group.records} />
                 <div className="phs__store-price">{formatPrice(latest.amount, latest.price_per)}</div>
               </div>
-              {isExpanded && (() => {
-                const prices = [...group.records].reverse().map(r => r.amount)
-                const min2 = Math.min(...prices), max2 = Math.max(...prices), range2 = max2 - min2 || 1
-                const w = 200, h = 48, pad = 6
-                const pts2 = prices.map((p, i) => ({
-                  x: (pad + (i / (prices.length - 1)) * (w - 2 * pad)).toFixed(1),
-                  y: (pad + ((max2 - p) / range2) * (h - 2 * pad)).toFixed(1),
-                }))
-                const pathD2 = pts2.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
-                const areaD2 = `${pathD2} L${pts2[pts2.length - 1].x},${h} L${pts2[0].x},${h} Z`
-                return (
-                  <div className="phs__expand">
-                    {prices.length >= 2 && (
-                      <svg className="phs__expand-chart" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-                        <path d={areaD2} fill="var(--color-primary-bg, rgba(10,132,255,0.15))" />
-                        <path d={pathD2} stroke="var(--color-primary, #0a84ff)" strokeWidth="2" fill="none" />
-                      </svg>
-                    )}
-                    <div className="phs__expand-stats">
-                      <div className="phs__stat"><strong>{formatPrice(latest.amount, latest.price_per)}</strong>Último</div>
-                      <div className="phs__stat"><strong>{formatPrice(minAmt, latest.price_per)}</strong>Mínimo</div>
-                      <div className="phs__stat"><strong>{formatPrice(maxAmt, latest.price_per)}</strong>Máximo</div>
-                    </div>
-                    <div className="phs__expand-records">
-                      {group.records.map((r, i) => (
-                        <div key={i} className="phs__record-row">
-                          <span>{r.purchased_at ? formatDate(r.purchased_at) : '—'}</span>
-                          <span className="phs__record-amount">{formatPrice(r.amount, r.price_per)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
+              {isExpanded && <ExpandedChart records={group.records} latest={latest} />}
             </div>
           )
         })}
