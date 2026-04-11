@@ -1,0 +1,38 @@
+default:
+    just --list
+
+# Install / sync dependencies
+install:
+    uv sync
+
+# Start dev server with hot-reload
+dev:
+    uv run fastapi dev --host 0.0.0.0 --port 8000
+
+# Run all tests
+test:
+    uv run pytest
+
+# Run a single test file (usage: just backend test-file tests/path/to/test.py)
+test-file file:
+    uv run pytest {{file}}
+
+# Add a dependency
+add package:
+    uv add {{package}}
+
+# Run pending migrations
+migrate:
+    uv run alembic upgrade head
+
+# Generate a new migration
+migration name:
+    uv run alembic revision --autogenerate -m "{{name}}"
+
+# Show current migration status
+migration-status:
+    uv run alembic current
+
+# Roll back one migration
+migration-rollback:
+    uv run alembic downgrade -1
