@@ -69,6 +69,13 @@ def update_item(
     if purchased is True and item.purchased_at is None:
         item.purchased_at = datetime.now(timezone.utc).replace(tzinfo=None)
     elif purchased is False:
+        if item.purchased_at is not None:
+            today = datetime.now(timezone.utc).date()
+            if item.purchased_at.date() != today:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot unpurchase an item purchased on a previous day",
+                )
         item.purchased_at = None
     item.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     session.add(item)

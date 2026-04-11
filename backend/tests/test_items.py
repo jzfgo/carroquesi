@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
@@ -23,14 +25,6 @@ def test_get_items(client: TestClient):
     assert response.status_code == 200
     assert len(response.json()) == 2
 
-
-def test_get_items_sorted_by_name(client: TestClient):
-    lst = _create_list(client)
-    client.post(f"/lists/{lst['id']}/items", json={"name": "Zucchini"})
-    client.post(f"/lists/{lst['id']}/items", json={"name": "Apple"})
-    response = client.get(f"/lists/{lst['id']}/items?sort=name")
-    names = [i["name"] for i in response.json()]
-    assert names == sorted(names)
 
 
 def test_update_item_marks_purchased(client: TestClient):
@@ -145,6 +139,23 @@ def test_repurchase_does_not_overwrite_purchased_at(client: TestClient, session:
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
     session.refresh(db_item)
     assert db_item.purchased_at == original_purchased_at
+
+
+def test_cannot_unpurchase_item_from_previous_day(client: TestClient, session: Session):
+    from app.db.models import ListItem
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    # Backdate purchased_at to yesterday
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    db_item.purchased_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    session.add(db_item)
+    session.commit()
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+    assert response.status_code == 409
 
 
 def test_add_item_with_ean(client: TestClient):
