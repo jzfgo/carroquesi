@@ -244,6 +244,7 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
         return (
           <ItemActionSheet
             item={activeItem}
+            purchased={activeItem.purchased}
             onRename={(name) => { void renameItem(activeItemId, name); setActiveItemId(null) }}
             onDelete={() => { void removeItem(activeItemId); setActiveItemId(null) }}
             onClose={() => setActiveItemId(null)}
@@ -307,6 +308,7 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
                 getToken={getToken}
                 onLogPrice={() => handleOpenLogPrice(priceItemId)}
                 onClose={() => setPriceItemId(null)}
+                readOnly={priceItem.purchased}
               />
             </div>
           </>
@@ -336,7 +338,6 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
       {purchaseToast && (
         <PurchaseToast
           itemName={purchaseToast.itemName}
-          onAddPrice={() => { setPurchaseToast(null); handleOpenLogPrice(purchaseToast.itemId) }}
           onDismiss={handleDismissPurchaseToast}
         />
       )}

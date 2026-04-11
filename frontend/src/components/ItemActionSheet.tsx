@@ -9,9 +9,10 @@ interface Props {
   onRename: (newName: string) => void
   onDelete: () => void
   onClose: () => void
+  purchased?: boolean
 }
 
-export function ItemActionSheet({ item, onRename, onDelete, onClose }: Props) {
+export function ItemActionSheet({ item, onRename, onDelete, onClose, purchased }: Props) {
   const [subState, setSubState] = useState<SubState>('actions')
   const [renameValue, setRenameValue] = useState(item.name)
 
@@ -32,12 +33,14 @@ export function ItemActionSheet({ item, onRename, onDelete, onClose }: Props) {
         <div className="item-action-sheet" role="dialog" aria-modal="true" aria-label="Opciones del producto">
           <div className="item-action-sheet__handle" />
           <p className="item-action-sheet__item-name">{item.name}</p>
-          <button
-            className="item-action-sheet__action"
-            onClick={() => setSubState('rename')}
-          >
-            ✏️ Renombrar
-          </button>
+          {!purchased && (
+            <button
+              className="item-action-sheet__action"
+              onClick={() => setSubState('rename')}
+            >
+              ✏️ Renombrar
+            </button>
+          )}
           <button
             className="item-action-sheet__action item-action-sheet__action--danger"
             onClick={() => setSubState('confirm-delete')}

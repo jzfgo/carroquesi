@@ -15,9 +15,14 @@ vi.mock('./ListScreen', () => ({
   ),
 }))
 import * as reactRouter from 'react-router-dom'
-vi.mock('react-router-dom', () => ({
-  useLocation: vi.fn().mockReturnValue({ state: null }),
-}))
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>()
+  return {
+    ...actual,
+    useLocation: vi.fn().mockReturnValue({ state: null }),
+    useNavigate: vi.fn().mockReturnValue(vi.fn()),
+  }
+})
 import * as usePWAInstallModule from '../hooks/usePWAInstall'
 vi.mock('../hooks/usePWAInstall')
 

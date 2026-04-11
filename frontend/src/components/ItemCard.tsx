@@ -33,67 +33,89 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
         <div className="item-card__name-row">
           <span className="item-card__name">{item.name}</span>
           {item.quantity ? (
-            <button
-              className="item-card__qty"
-              onClick={() => onTagClick(item.id, 'quantity')}
-              aria-label={item.quantity}
-            >
-              {item.quantity}
-            </button>
+            item.purchased ? (
+              <span className="item-card__qty">{item.quantity}</span>
+            ) : (
+              <button
+                className="item-card__qty"
+                onClick={() => onTagClick(item.id, 'quantity')}
+                aria-label={item.quantity}
+              >
+                {item.quantity}
+              </button>
+            )
           ) : (
-            <button
-              className="item-card__tag item-card__tag--cta"
-              onClick={() => onTagClick(item.id, 'quantity')}
-              aria-label="Añadir cantidad"
-            >
-              <span aria-hidden>+ 🔢</span>
-            </button>
+            !item.purchased && (
+              <button
+                className="item-card__tag item-card__tag--cta"
+                onClick={() => onTagClick(item.id, 'quantity')}
+                aria-label="Añadir cantidad"
+              >
+                <span aria-hidden>+ 🔢</span>
+              </button>
+            )
           )}
         </div>
 
         <div className="item-card__tags">
           {TAG_CONFIG.map(({ field, emoji, label }) =>
             item[field] ? (
-              <button
-                key={field}
-                className="item-card__tag"
-                onClick={() => onTagClick(item.id, field)}
-              >
-                <span aria-hidden>{emoji}</span> {item[field]}
-              </button>
+              item.purchased ? (
+                <span key={field} className="item-card__tag">
+                  <span aria-hidden>{emoji}</span> {item[field]}
+                </span>
+              ) : (
+                <button
+                  key={field}
+                  className="item-card__tag"
+                  onClick={() => onTagClick(item.id, field)}
+                >
+                  <span aria-hidden>{emoji}</span> {item[field]}
+                </button>
+              )
             ) : (
-              <button
-                key={field}
-                className="item-card__tag item-card__tag--cta"
-                onClick={() => onTagClick(item.id, field)}
-                aria-label={`Añadir ${label}`}
-              >
-                <span aria-hidden>+ {emoji}</span>
-              </button>
+              !item.purchased && (
+                <button
+                  key={field}
+                  className="item-card__tag item-card__tag--cta"
+                  onClick={() => onTagClick(item.id, field)}
+                  aria-label={`Añadir ${label}`}
+                >
+                  <span aria-hidden>+ {emoji}</span>
+                </button>
+              )
             )
           )}
 
           {item.stores.length > 0 ? (
             item.stores.map(store => (
-              <button
-                key={store}
-                className="item-card__tag"
-                onClick={() => onTagClick(item.id, 'stores')}
-              >
-                <span aria-hidden>🏪</span> {store}
-              </button>
+              item.purchased ? (
+                <span key={store} className="item-card__tag">
+                  <span aria-hidden>🏪</span> {store}
+                </span>
+              ) : (
+                <button
+                  key={store}
+                  className="item-card__tag"
+                  onClick={() => onTagClick(item.id, 'stores')}
+                >
+                  <span aria-hidden>🏪</span> {store}
+                </button>
+              )
             ))
           ) : (
-            <button
-              className="item-card__tag item-card__tag--cta"
-              onClick={() => onTagClick(item.id, 'stores')}
-              aria-label="Añadir tienda"
-            >
-              <span aria-hidden>+ 🏪</span>
-            </button>
+            !item.purchased && (
+              <button
+                className="item-card__tag item-card__tag--cta"
+                onClick={() => onTagClick(item.id, 'stores')}
+                aria-label="Añadir tienda"
+              >
+                <span aria-hidden>+ 🏪</span>
+              </button>
+            )
           )}
 
-          {/* Price tag — shown after store tags */}
+          {/* Price tag — shown after store tags; purchased items can still view history */}
           {item.price != null ? (
             <button
               className="item-card__tag item-card__tag--price"
@@ -105,13 +127,15 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
                 : `€${item.price.toFixed(2)}`}
             </button>
           ) : (
-            <button
-              className="item-card__tag item-card__tag--cta"
-              onClick={e => { e.stopPropagation(); onPriceClick?.(item.id) }}
-              aria-label="Añadir precio"
-            >
-              <span aria-hidden>+ 💶</span>
-            </button>
+            !item.purchased && (
+              <button
+                className="item-card__tag item-card__tag--cta"
+                onClick={e => { e.stopPropagation(); onPriceClick?.(item.id) }}
+                aria-label="Añadir precio"
+              >
+                <span aria-hidden>+ 💶</span>
+              </button>
+            )
           )}
         </div>
       </div>

@@ -11,6 +11,7 @@ interface Props {
   getToken: () => Promise<string>
   onLogPrice: () => void
   onClose: () => void
+  readOnly?: boolean
 }
 
 function formatPrice(amount: number, pricePer: string | null): string {
@@ -30,7 +31,7 @@ function PriceRow({ entry }: { entry: PriceEntry }) {
   )
 }
 
-export default function PriceHistorySheet({ item, listId, getToken, onLogPrice, onClose: _onClose }: Props) {
+export default function PriceHistorySheet({ item, listId, getToken, onLogPrice, onClose: _onClose, readOnly }: Props) {
   const [scope, setScope] = useState<Scope>('this_list')
   const [history, setHistory] = useState<PriceHistoryResponse | null>(null)
 
@@ -74,9 +75,11 @@ export default function PriceHistorySheet({ item, listId, getToken, onLogPrice, 
         ))}
       </div>
 
-      <button className="phs__log-btn" onClick={onLogPrice}>
-        {item.price != null ? '✏️ Actualizar precio' : '+ Registrar precio'}
-      </button>
+      {!readOnly && (
+        <button className="phs__log-btn" onClick={onLogPrice}>
+          {item.price != null ? '✏️ Actualizar precio' : '+ Registrar precio'}
+        </button>
+      )}
     </div>
   )
 }
