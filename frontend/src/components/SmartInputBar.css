@@ -198,3 +198,72 @@
   left: 50%;
   transform: translate(-50%, -50%);
 }
+
+.smart-input__chip--active {
+  background: var(--accent-bg);
+  border-color: var(--accent-border, rgba(170,59,255,0.25));
+  color: var(--accent);
+}
+
+.smart-input__ean-code {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: monospace;
+  color: var(--text-h);
+  letter-spacing: 0.03em;
+}
+
+.smart-input__buscar {
+  margin-left: auto;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 3px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.smart-input__buscar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.smart-input__clear {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--border);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: inherit;
+  padding: 0;
+}
+
+.smart-input__clear-icon {
+  display: block;
+  width: 10px;
+  height: 10px;
+  position: relative;
+}
+
+.smart-input__clear-icon::before,
+.smart-input__clear-icon::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 1.5px;
+  background: var(--text);
+  border-radius: 2px;
+  top: 50%;
+  left: 50%;
+}
+
+.smart-input__clear-icon::before { transform: translate(-50%, -50%) rotate(45deg); }
+.smart-input__clear-icon::after  { transform: translate(-50%, -50%) rotate(-45deg); }
