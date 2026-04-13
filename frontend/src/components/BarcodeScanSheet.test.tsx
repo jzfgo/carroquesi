@@ -137,5 +137,25 @@ describe('BarcodeScanSheet', () => {
       await userEvent.click(screen.getByRole('button', { name: /añadir a la lista/i }))
       expect(onAdd).toHaveBeenCalledWith({ name: 'Leche Entera', brand: 'Pascual', stores: ['Mercadona'] })
     })
+
+    it('shows a chip for a store in initialStores that is not in product.stores', () => {
+      render(<BarcodeScanSheet product={product} initialStores={['Lidl']} onAdd={vi.fn()} onEdit={vi.fn()} onClose={vi.fn()} />)
+      expect(screen.getByRole('button', { name: /lidl/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /lidl/i })).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('onAdd payload includes an initialStore not present in product.stores', async () => {
+      const onAdd = vi.fn()
+      render(<BarcodeScanSheet product={product} initialStores={['Lidl']} onAdd={onAdd} onEdit={vi.fn()} onClose={vi.fn()} />)
+      await userEvent.click(screen.getByRole('button', { name: /añadir a la lista/i }))
+      expect(onAdd).toHaveBeenCalledWith({ name: 'Leche Entera', brand: 'Pascual', stores: ['Lidl'] })
+    })
+
+    it('shows chips from both product.stores and extra initialStores', () => {
+      render(<BarcodeScanSheet product={product} initialStores={['Mercadona', 'Lidl']} onAdd={vi.fn()} onEdit={vi.fn()} onClose={vi.fn()} />)
+      expect(screen.getByRole('button', { name: /mercadona/i })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByRole('button', { name: /alcampo/i })).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.getByRole('button', { name: /lidl/i })).toHaveAttribute('aria-pressed', 'true')
+    })
   })
 })

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useListItems } from '../hooks/useListItems'
 import { ApiError, getBarcode, getDueSuggestions, getSuggestions } from '../lib/api'
@@ -59,6 +59,7 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
   const handleDismissPurchaseToast = useCallback(() => setPurchaseToast(null), [])
 
   const [eanLookup, setEanLookup] = useState<EanLookupState>({ status: 'idle' })
+  const eanRequestIdRef = useRef(0)
   const currentUserId = user!.id
   const isOwner = listOwnerId === currentUserId
 
@@ -122,6 +123,7 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
   }, [menuOpen])
 
   const handleChange = useCallback((value: string) => {
+    eanRequestIdRef.current++
     setEanLookup({ status: 'idle' })
     setInputValue(value)
   }, [])
@@ -180,11 +182,14 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
   }, [])
 
   const handleEanSearch = useCallback(async (ean: string) => {
+    const requestId = ++eanRequestIdRef.current
     setEanLookup({ status: 'loading' })
     try {
       const product = await getBarcode(getToken, ean)
+      if (requestId !== eanRequestIdRef.current) return
       setEanLookup({ status: 'found', product })
     } catch (err) {
+      if (requestId !== eanRequestIdRef.current) return
       if (err instanceof ApiError && err.status === 404) {
         setEanLookup({ status: 'error', message: 'Código no encontrado' })
       } else {
@@ -194,6 +199,7 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
   }, [getToken])
 
   const handleClear = useCallback(() => {
+    eanRequestIdRef.current++
     setEanLookup({ status: 'idle' })
     setInputValue('')
   }, [])
