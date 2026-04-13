@@ -3,12 +3,12 @@ from pytest_httpx import HTTPXMock
 
 _OPEN_PRICES_URL = "https://prices.openfoodfacts.org/api/v1/prices"
 _OPEN_PRICES_ES = {
-    "results": [
+    "items": [
         {"price": 1.0, "price_per": None, "location": {"osm_address_country_code": "ES"}},
         {"price": 2.0, "price_per": None, "location": {"osm_address_country_code": "ES"}},
     ]
 }
-_OPEN_PRICES_EMPTY = {"results": []}
+_OPEN_PRICES_EMPTY = {"items": []}
 
 
 def _make_list(client):

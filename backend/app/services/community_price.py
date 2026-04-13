@@ -79,7 +79,7 @@ def get_community_price(ean: str, session) -> tuple[Optional[float], Optional[st
             return cached.amount, cached.price_per
         return None, None
 
-    results = data.get("results") or []
+    results = data.get("items") or []
     amount, price_per = _fetch_community_price_from_results(results)
 
     # Always upsert — amount=None acts as a negative cache entry so we don't
