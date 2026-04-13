@@ -18,7 +18,12 @@ export function parseInput(raw: string): ParsedInput {
   for (const word of words) {
     const sigil = word[0]
 
-    if (sigil === '@') {
+    if (sigil === '|') {
+      const digits = word.slice(1)
+      if (/^\d{8}$|^\d{13}$/.test(digits) && result.ean === undefined) {
+        result.ean = digits
+      }
+    } else if (sigil === '@') {
       storeEntries.push([word.slice(1)])
       currentField = '@'
     } else if (sigil in SINGLE_SIGIL_MAP) {

@@ -4,19 +4,30 @@ import type { BarcodeRead } from '../types'
 
 interface Props {
   product: BarcodeRead
+  initialBrand?: string | null
+  initialStores?: string[]
   onAdd: (item: { name: string; brand: string | null; stores: string[] }) => void
   onEdit: (prefill: string) => void
   onClose: () => void
 }
 
-function buildPrefill(product: BarcodeRead): string {
+function buildPrefill(product: BarcodeRead, displayBrand: string | null): string {
   const parts = [product.name]
-  if (product.brand) parts.push(`#${product.brand}`)
+  if (displayBrand) parts.push(`#${displayBrand}`)
   return parts.join(' ')
 }
 
-export function BarcodeScanSheet({ product, onAdd, onEdit, onClose }: Props) {
-  const [selectedStores, setSelectedStores] = useState<Set<string>>(new Set())
+export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, onEdit, onClose }: Props) {
+  // Merge product.stores and initialStores so sigil-provided stores are always shown
+  const productStoreSet = new Set(product.stores)
+  const extraStores = (initialStores ?? []).filter(s => !productStoreSet.has(s))
+  const allStores = [...product.stores, ...extraStores]
+
+  const [selectedStores, setSelectedStores] = useState<Set<string>>(
+    new Set(initialStores ?? [])
+  )
+
+  const displayBrand = initialBrand !== undefined ? initialBrand : product.brand
 
   function toggleStore(store: string) {
     setSelectedStores(prev => {
@@ -36,14 +47,14 @@ export function BarcodeScanSheet({ product, onAdd, onEdit, onClose }: Props) {
         <div className="bss__product-row">
           <div className="bss__product-info">
             <div className="bss__name">{product.name}</div>
-            {(product.brand || product.stores.length > 0) && (
+            {(displayBrand || allStores.length > 0) && (
               <div className="bss__tags">
-                {product.brand && (
-                  <span className="bss__tag">🏷️ {product.brand}</span>
+                {displayBrand && (
+                  <span className="bss__tag">🏷️ {displayBrand}</span>
                 )}
-                {product.stores.length > 0 && (
+                {allStores.length > 0 && (
                   <div className="bss__store-chips" data-testid="store-chips">
-                    {product.stores.map(s => (
+                    {allStores.map(s => (
                       <button
                         key={s}
                         className={`bss__tag bss__tag--store${selectedStores.has(s) ? ' bss__tag--store-selected' : ''}`}
@@ -61,7 +72,7 @@ export function BarcodeScanSheet({ product, onAdd, onEdit, onClose }: Props) {
           </div>
           <button
             className="bss__edit"
-            onClick={() => onEdit(buildPrefill(product))}
+            onClick={() => onEdit(buildPrefill(product, displayBrand))}
             aria-label="Editar"
           >
             ✏️
@@ -93,8 +104,8 @@ export function BarcodeScanSheet({ product, onAdd, onEdit, onClose }: Props) {
             className="bss__add"
             onClick={() => onAdd({
               name: product.name,
-              brand: product.brand,
-              stores: product.stores.filter(s => selectedStores.has(s)),
+              brand: displayBrand,
+              stores: allStores.filter(s => selectedStores.has(s)),
             })}
           >
             Añadir a la lista

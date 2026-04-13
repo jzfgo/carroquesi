@@ -1,208 +1,351 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import { useListItems } from '../hooks/useListItems'
-import { getDueSuggestions, getSuggestions } from '../lib/api'
-import { parseInput } from '../parseInput'
-import type { BarcodeRead, DueSuggestion, EditingTag, TagField } from '../types'
-import { BarcodeScanner } from './BarcodeScanner'
-import { BarcodeScanSheet } from './BarcodeScanSheet'
-import { FrequencySuggestionBanner } from './FrequencySuggestionBanner'
-import { ItemActionSheet } from './ItemActionSheet'
-import { ItemList } from './ItemList'
-import { ListHeader } from './ListHeader'
-import { ListMembersSheet } from './ListMembersSheet'
-import './ListScreen.css'
-import LogPriceSheet from './LogPriceSheet'
-import PriceHistorySheet from './PriceHistorySheet'
-import { ProgressBar } from './ProgressBar'
-import PurchaseToast from './PurchaseToast'
-import { SmartInputBar } from './SmartInputBar'
-import { StoreEditSheet } from './StoreEditSheet'
-import { StoreFilter } from './StoreFilter'
-import { TagEditSheet } from './TagEditSheet'
-import { Toast } from './Toast'
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { useListItems } from "../hooks/useListItems";
+import {
+  ApiError,
+  getBarcode,
+  getDueSuggestions,
+  getSuggestions,
+} from "../lib/api";
+import { parseInput } from "../parseInput";
+import type {
+  BarcodeRead,
+  DueSuggestion,
+  EditingTag,
+  TagField,
+} from "../types";
+import { BarcodeScanner } from "./BarcodeScanner";
+import { BarcodeScanSheet } from "./BarcodeScanSheet";
+import { FrequencySuggestionBanner } from "./FrequencySuggestionBanner";
+import { ItemActionSheet } from "./ItemActionSheet";
+import { ItemList } from "./ItemList";
+import { ListHeader } from "./ListHeader";
+import { ListMembersSheet } from "./ListMembersSheet";
+import "./ListScreen.css";
+import LogPriceSheet from "./LogPriceSheet";
+import PriceHistorySheet from "./PriceHistorySheet";
+import { ProgressBar } from "./ProgressBar";
+import PurchaseToast from "./PurchaseToast";
+import { SmartInputBar } from "./SmartInputBar";
+import { StoreEditSheet } from "./StoreEditSheet";
+import { StoreFilter } from "./StoreFilter";
+import { TagEditSheet } from "./TagEditSheet";
+import { Toast } from "./Toast";
 
 interface Props {
-  listId: string
-  listName: string
-  listEmoji?: string | null
-  listOwnerId: string
-  onBack?: () => void
+  listId: string;
+  listName: string;
+  listEmoji?: string | null;
+  listOwnerId: string;
+  onBack?: () => void;
 }
 
-export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, onBack }: Props) {
-  const { getToken, user } = useAuth()
-  const [inputValue, setInputValue] = useState('')
-  const [suggestions, setSuggestions] = useState<string[]>([])
-  const [toast, setToast] = useState<string | null>(null)
-  const [editingTag, setEditingTag] = useState<EditingTag | null>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [storeFilter, setStoreFilter] = useState<string | null>(null)
-  const [activeItemId, setActiveItemId] = useState<string | null>(null)
-  const [scannerOpen, setScannerOpen] = useState(false)
-  const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(null)
-  const [dueSuggestions, setDueSuggestions] = useState<DueSuggestion[]>([])
-  const [priceItemId, setPriceItemId] = useState<string | null>(null)
-  const [logPriceFor, setLogPriceFor] = useState<{
-    itemId: string
-    initialAmount: number | null
-    initialPricePer: 'KILOGRAM' | null
-    initialStore: string | null
-  } | null>(null)
-  const [purchaseToast, setPurchaseToast] = useState<{ itemId: string; itemName: string } | null>(null)
-  const handleDismissPurchaseToast = useCallback(() => setPurchaseToast(null), [])
-  const currentUserId = user!.id
-  const isOwner = listOwnerId === currentUserId
+type EanLookupState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "found"; product: BarcodeRead }
+  | { status: "error"; message: string };
 
-  const parsed = useMemo(() => parseInput(inputValue), [inputValue])
-  const { status, items, members, togglePurchased, addItem, updateTag, updateStores, renameItem, removeItem, savePrice, retry } =
-    useListItems(listId, getToken, setToast)
+export function ListScreen({
+  listId,
+  listName,
+  listEmoji = null,
+  listOwnerId,
+  onBack,
+}: Props) {
+  const { getToken, user } = useAuth();
+  const [inputValue, setInputValue] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
+  const [editingTag, setEditingTag] = useState<EditingTag | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [storeFilter, setStoreFilter] = useState<string | null>(null);
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(
+    null,
+  );
+  const [dueSuggestions, setDueSuggestions] = useState<DueSuggestion[]>([]);
+  const [priceItemId, setPriceItemId] = useState<string | null>(null);
+  const [logPriceFor, setLogPriceFor] = useState<{
+    itemId: string;
+    initialAmount: number | null;
+    initialPricePer: "KILOGRAM" | null;
+    initialStore: string | null;
+  } | null>(null);
+  const [purchaseToast, setPurchaseToast] = useState<{
+    itemId: string;
+    itemName: string;
+  } | null>(null);
+  const handleDismissPurchaseToast = useCallback(
+    () => setPurchaseToast(null),
+    [],
+  );
+
+  const [eanLookup, setEanLookup] = useState<EanLookupState>({
+    status: "idle",
+  });
+  const eanRequestIdRef = useRef(0);
+  const currentUserId = user!.id;
+  const isOwner = listOwnerId === currentUserId;
+
+  const parsed = useMemo(() => parseInput(inputValue), [inputValue]);
+  const {
+    status,
+    items,
+    members,
+    togglePurchased,
+    addItem,
+    updateTag,
+    updateStores,
+    renameItem,
+    removeItem,
+    savePrice,
+    retry,
+  } = useListItems(listId, getToken, setToast);
 
   // Debounced suggestions — only when name has 2+ chars
   useEffect(() => {
-    const q = parsed.name.trim()
+    const q = parsed.name.trim();
     if (q.length < 2) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSuggestions([])
-      return
+      setSuggestions([]);
+      return;
     }
     const timer = setTimeout(async () => {
       try {
-        const data = await getSuggestions(getToken, q)
-        setSuggestions(data.map(s => s.name))
+        const data = await getSuggestions(getToken, q);
+        setSuggestions(data.map((s) => s.name));
       } catch {
         // suggestion errors are non-critical
       }
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [parsed.name, getToken])
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [parsed.name, getToken]);
 
   useEffect(() => {
     void getDueSuggestions(getToken, listId)
       .then(setDueSuggestions)
-      .catch(() => {/* non-critical */})
-  }, [listId, getToken])
+      .catch(() => {
+        /* non-critical */
+      });
+  }, [listId, getToken]);
 
   const handleTogglePurchased = useCallback(
     (itemId: string) => {
-      const item = items.find(i => i.id === itemId)
-      void togglePurchased(itemId)
+      const item = items.find((i) => i.id === itemId);
+      void togglePurchased(itemId);
       // Show toast when marking as purchased (not when unmarking)
       if (item && !item.purchased) {
-        setPurchaseToast({ itemId, itemName: item.name })
+        setPurchaseToast({ itemId, itemName: item.name });
       }
     },
     [togglePurchased, items],
-  )
+  );
 
-  const handleTagClick = useCallback((itemId: string, field: TagField | 'stores') => {
-    setEditingTag({ itemId, field })
-  }, [])
+  const handleTagClick = useCallback(
+    (itemId: string, field: TagField | "stores") => {
+      setEditingTag({ itemId, field });
+    },
+    [],
+  );
 
   const handleItemMenuOpen = useCallback((itemId: string) => {
-    setActiveItemId(itemId)
-  }, [])
+    setActiveItemId(itemId);
+  }, []);
 
   const handleMenuToggle = useCallback(() => {
     if (menuOpen) {
       // If sheet is already open, close it
-      setMenuOpen(false)
+      setMenuOpen(false);
     } else {
       // Otherwise open the menu
-      setMenuOpen(true)
+      setMenuOpen(true);
     }
-  }, [menuOpen])
+  }, [menuOpen]);
+
+  const handleChange = useCallback((value: string) => {
+    eanRequestIdRef.current++;
+    setEanLookup({ status: "idle" });
+    setInputValue(value);
+  }, []);
 
   const handleSubmit = useCallback(() => {
-    if (!parsed.name.trim()) return
-    void addItem(parsed)
-    setInputValue('')
-  }, [parsed, addItem])
+    if (!parsed.name.trim()) return;
+    void addItem(parsed);
+    setInputValue("");
+  }, [parsed, addItem]);
 
   const handleScanRequest = useCallback(() => {
-    setScannerOpen(true)
-  }, [])
+    setScannerOpen(true);
+  }, []);
 
   const handleScanResult = useCallback((product: BarcodeRead) => {
-    setScannerOpen(false)
-    setScannedProduct(product)
-  }, [])
+    setScannerOpen(false);
+    setScannedProduct(product);
+  }, []);
 
   const handleScanError = useCallback((message: string) => {
-    setScannerOpen(false)
-    setToast(message)
-  }, [])
+    setScannerOpen(false);
+    setToast(message);
+  }, []);
 
-  const handleScanAdd = useCallback((item: { name: string; brand: string | null; stores: string[] }) => {
-    const ean = scannedProduct?.ean ?? null
-    setScannedProduct(null)
-    void addItem({ name: item.name, brand: item.brand, stores: item.stores, quantity: null, ean })
-  }, [addItem, scannedProduct])
+  const handleScanAdd = useCallback(
+    (item: { name: string; brand: string | null; stores: string[] }) => {
+      const ean = scannedProduct?.ean ?? null;
+      setScannedProduct(null);
+      void addItem({
+        name: item.name,
+        brand: item.brand,
+        stores: item.stores,
+        quantity: null,
+        ean,
+      });
+    },
+    [addItem, scannedProduct],
+  );
 
-  const handleOpenLogPrice = useCallback((itemId: string) => {
-    const item = items.find(i => i.id === itemId)
-    setLogPriceFor({
-      itemId,
-      initialAmount: item?.price ?? null,
-      initialPricePer: (item?.price_per as 'KILOGRAM' | null) ?? null,
-      initialStore: item?.price_store ?? item?.stores?.[0] ?? null,
-    })
-  }, [items])
+  const handleOpenLogPrice = useCallback(
+    (itemId: string) => {
+      const item = items.find((i) => i.id === itemId);
+      setLogPriceFor({
+        itemId,
+        initialAmount: item?.price ?? null,
+        initialPricePer: (item?.price_per as "KILOGRAM" | null) ?? null,
+        initialStore: item?.price_store ?? item?.stores?.[0] ?? null,
+      });
+    },
+    [items],
+  );
 
-  const handleSavePrice = useCallback(async (amount: number, pricePer: 'KILOGRAM' | null, store: string | null) => {
-    if (!logPriceFor) return
-    try {
-      await savePrice(logPriceFor.itemId, amount, pricePer, store)
-    } catch {
-      // non-critical
-    }
-    setLogPriceFor(null)
-    setPriceItemId(null)
-    setPurchaseToast(null)
-  }, [logPriceFor, savePrice])
+  const handleSavePrice = useCallback(
+    async (
+      amount: number,
+      pricePer: "KILOGRAM" | null,
+      store: string | null,
+    ) => {
+      if (!logPriceFor) return;
+      try {
+        await savePrice(logPriceFor.itemId, amount, pricePer, store);
+      } catch {
+        // non-critical
+      }
+      setLogPriceFor(null);
+      setPriceItemId(null);
+      setPurchaseToast(null);
+    },
+    [logPriceFor, savePrice],
+  );
 
   const handleScanEdit = useCallback((prefill: string) => {
-    setScannedProduct(null)
-    setInputValue(prefill)
-  }, [])
+    setScannedProduct(null);
+    setInputValue(prefill);
+  }, []);
 
-  const handleSuggestionAdd = useCallback((s: DueSuggestion) => {
-    void addItem({ name: s.name, brand: s.brand, stores: s.stores, quantity: null })
-    setDueSuggestions(prev => prev.filter(x => x.name !== s.name))
-  }, [addItem])
+  const handleEanSearch = useCallback(
+    async (ean: string) => {
+      const requestId = ++eanRequestIdRef.current;
+      setEanLookup({ status: "loading" });
+      try {
+        const product = await getBarcode(getToken, ean);
+        if (requestId !== eanRequestIdRef.current) return;
+        setEanLookup({ status: "found", product });
+      } catch (err) {
+        if (requestId !== eanRequestIdRef.current) return;
+        if (err instanceof ApiError && err.status === 404) {
+          setEanLookup({ status: "error", message: "Código no encontrado" });
+        } else {
+          setEanLookup({ status: "error", message: "Error de conexión" });
+        }
+      }
+    },
+    [getToken],
+  );
 
-  const purchasedCount = items.filter((i) => i.purchased).length
+  const handleClear = useCallback(() => {
+    eanRequestIdRef.current++;
+    setEanLookup({ status: "idle" });
+    setInputValue("");
+  }, []);
+
+  const handleEanAdd = useCallback(
+    (item: { name: string; brand: string | null; stores: string[] }) => {
+      const ean = eanLookup.status === "found" ? eanLookup.product.ean : null;
+      setEanLookup({ status: "idle" });
+      setInputValue("");
+      void addItem({
+        name: item.name,
+        brand: item.brand,
+        stores: item.stores,
+        quantity: null,
+        ean,
+      });
+    },
+    [addItem, eanLookup],
+  );
+
+  const handleEanEdit = useCallback((prefill: string) => {
+    setEanLookup({ status: "idle" });
+    setInputValue(prefill);
+  }, []);
+
+  const handleSuggestionAdd = useCallback(
+    (s: DueSuggestion) => {
+      void addItem({
+        name: s.name,
+        brand: s.brand,
+        stores: s.stores,
+        quantity: null,
+      });
+      setDueSuggestions((prev) => prev.filter((x) => x.name !== s.name));
+    },
+    [addItem],
+  );
+
+  const purchasedCount = items.filter((i) => i.purchased).length;
 
   const stores = useMemo(() => {
-    const seen = new Set<string>()
-    const result: string[] = []
-    for (const item of items.filter(i => !i.purchased)) {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const item of items.filter((i) => !i.purchased)) {
       for (const s of item.stores) {
         if (!seen.has(s)) {
-          seen.add(s)
-          result.push(s)
+          seen.add(s);
+          result.push(s);
         }
       }
     }
-    return result.sort()
-  }, [items])
+    return result.sort();
+  }, [items]);
 
   // Reset filter if the active store disappears from items
-  const activeStore = storeFilter && stores.includes(storeFilter) ? storeFilter : null
+  const activeStore =
+    storeFilter && stores.includes(storeFilter) ? storeFilter : null;
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (storeFilter && !stores.includes(storeFilter)) setStoreFilter(null)
-  }, [stores, storeFilter])
+    if (storeFilter && !stores.includes(storeFilter)) setStoreFilter(null);
+  }, [stores, storeFilter]);
 
   const filteredItems = activeStore
-    ? items.filter(i => i.stores.includes(activeStore) || i.stores.length === 0)
-    : items
+    ? items.filter(
+        (i) => i.stores.includes(activeStore) || i.stores.length === 0,
+      )
+    : items;
 
   return (
     <div className="list-screen">
-      <ListHeader title={listName} emoji={listEmoji} onMenuOpen={handleMenuToggle} onBack={onBack} />
+      <ListHeader
+        title={listName}
+        emoji={listEmoji}
+        onMenuOpen={handleMenuToggle}
+        onBack={onBack}
+      />
       <ProgressBar purchased={purchasedCount} total={items.length} />
-      <StoreFilter stores={stores} active={activeStore} onSelect={setStoreFilter} />
+      <StoreFilter
+        stores={stores}
+        active={activeStore}
+        onSelect={setStoreFilter}
+      />
       <ItemList
         status={status}
         items={filteredItems}
@@ -211,46 +354,64 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
         onTagClick={handleTagClick}
         onMenuOpen={handleItemMenuOpen}
         onRetry={retry}
-        onPriceClick={itemId => setPriceItemId(itemId)}
+        onPriceClick={(itemId) => setPriceItemId(itemId)}
       />
-      {editingTag && (() => {
-        const editedItem = items.find(i => i.id === editingTag.itemId)
-        if (!editedItem) return null
-        if (editingTag.field === 'stores') {
+      {editingTag &&
+        (() => {
+          const editedItem = items.find((i) => i.id === editingTag.itemId);
+          if (!editedItem) return null;
+          if (editingTag.field === "stores") {
+            return (
+              <StoreEditSheet
+                key={editingTag.itemId}
+                item={editedItem}
+                items={items}
+                onSave={(stores: string[]) => {
+                  void updateStores(editingTag.itemId, stores);
+                  setEditingTag(null);
+                }}
+                onClose={() => setEditingTag(null)}
+              />
+            );
+          }
           return (
-            <StoreEditSheet
-              key={editingTag.itemId}
+            <TagEditSheet
+              key={`${editingTag.itemId}-${editingTag.field}`}
               item={editedItem}
+              field={editingTag.field}
               items={items}
-              onSave={(stores: string[]) => { void updateStores(editingTag.itemId, stores); setEditingTag(null) }}
+              onSave={(value) => {
+                void updateTag(
+                  editingTag.itemId,
+                  editingTag.field as TagField,
+                  value,
+                );
+                setEditingTag(null);
+              }}
               onClose={() => setEditingTag(null)}
             />
-          )
-        }
-        return (
-          <TagEditSheet
-            key={`${editingTag.itemId}-${editingTag.field}`}
-            item={editedItem}
-            field={editingTag.field}
-            items={items}
-            onSave={(value) => { void updateTag(editingTag.itemId, editingTag.field as TagField, value); setEditingTag(null) }}
-            onClose={() => setEditingTag(null)}
-          />
-        )
-      })()}
-      {activeItemId && (() => {
-        const activeItem = items.find(i => i.id === activeItemId)
-        if (!activeItem) return null
-        return (
-          <ItemActionSheet
-            item={activeItem}
-            purchased={activeItem.purchased}
-            onRename={(name) => { void renameItem(activeItemId, name); setActiveItemId(null) }}
-            onDelete={() => { void removeItem(activeItemId); setActiveItemId(null) }}
-            onClose={() => setActiveItemId(null)}
-          />
-        )
-      })()}
+          );
+        })()}
+      {activeItemId &&
+        (() => {
+          const activeItem = items.find((i) => i.id === activeItemId);
+          if (!activeItem) return null;
+          return (
+            <ItemActionSheet
+              item={activeItem}
+              purchased={activeItem.purchased}
+              onRename={(name) => {
+                void renameItem(activeItemId, name);
+                setActiveItemId(null);
+              }}
+              onDelete={() => {
+                void removeItem(activeItemId);
+                setActiveItemId(null);
+              }}
+              onClose={() => setActiveItemId(null)}
+            />
+          );
+        })()}
       {menuOpen && (
         <ListMembersSheet
           listId={listId}
@@ -270,9 +431,13 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
             parsed={parsed}
             items={items}
             suggestions={suggestions}
-            onChange={setInputValue}
+            onChange={handleChange}
             onSubmit={handleSubmit}
+            onClear={handleClear}
             onScanRequest={handleScanRequest}
+            onEanSearch={handleEanSearch}
+            eanLoading={eanLookup.status === "loading"}
+            eanError={eanLookup.status === "error" ? eanLookup.message : null}
           />
         </>
       )}
@@ -294,46 +459,64 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
           onClose={() => setScannedProduct(null)}
         />
       )}
+      {eanLookup.status === "found" && (
+        <BarcodeScanSheet
+          product={eanLookup.product}
+          initialBrand={parsed.brand ?? undefined}
+          initialStores={parsed.stores}
+          onAdd={handleEanAdd}
+          onEdit={handleEanEdit}
+          onClose={handleClear}
+        />
+      )}
 
-      {priceItemId && (() => {
-        const priceItem = items.find(i => i.id === priceItemId)
-        if (!priceItem) return null
-        return (
-          <>
-            <div className="sheet-overlay" onClick={() => setPriceItemId(null)} />
-            <div className="sheet-container">
-              <PriceHistorySheet
-                item={priceItem}
-                listId={listId}
-                getToken={getToken}
-                onLogPrice={() => handleOpenLogPrice(priceItemId)}
-                onClose={() => setPriceItemId(null)}
-                readOnly={priceItem.purchased}
+      {priceItemId &&
+        (() => {
+          const priceItem = items.find((i) => i.id === priceItemId);
+          if (!priceItem) return null;
+          return (
+            <>
+              <div
+                className="sheet-overlay"
+                onClick={() => setPriceItemId(null)}
               />
-            </div>
-          </>
-        )
-      })()}
+              <div className="sheet-container">
+                <PriceHistorySheet
+                  item={priceItem}
+                  listId={listId}
+                  getToken={getToken}
+                  onLogPrice={() => handleOpenLogPrice(priceItemId)}
+                  onClose={() => setPriceItemId(null)}
+                  readOnly={priceItem.purchased}
+                />
+              </div>
+            </>
+          );
+        })()}
 
-      {logPriceFor && (() => {
-        const logItem = items.find(i => i.id === logPriceFor.itemId)
-        if (!logItem) return null
-        return (
-          <>
-            <div className="sheet-overlay" onClick={() => setLogPriceFor(null)} />
-            <div className="sheet-container">
-              <LogPriceSheet
-                item={logItem}
-                initialAmount={logPriceFor.initialAmount}
-                initialPricePer={logPriceFor.initialPricePer}
-                initialStore={logPriceFor.initialStore}
-                onSave={handleSavePrice}
-                onClose={() => setLogPriceFor(null)}
+      {logPriceFor &&
+        (() => {
+          const logItem = items.find((i) => i.id === logPriceFor.itemId);
+          if (!logItem) return null;
+          return (
+            <>
+              <div
+                className="sheet-overlay"
+                onClick={() => setLogPriceFor(null)}
               />
-            </div>
-          </>
-        )
-      })()}
+              <div className="sheet-container">
+                <LogPriceSheet
+                  item={logItem}
+                  initialAmount={logPriceFor.initialAmount}
+                  initialPricePer={logPriceFor.initialPricePer}
+                  initialStore={logPriceFor.initialStore}
+                  onSave={handleSavePrice}
+                  onClose={() => setLogPriceFor(null)}
+                />
+              </div>
+            </>
+          );
+        })()}
 
       {purchaseToast && (
         <PurchaseToast
@@ -342,5 +525,5 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
         />
       )}
     </div>
-  )
+  );
 }
