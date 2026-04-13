@@ -6,11 +6,11 @@ from typing import Optional
 import httpx
 from sqlmodel import select
 
+from app.core.http import HEADERS as _HEADERS
 from app.db.models import PriceCache
 
 _OPEN_PRICES_URL = "https://prices.openfoodfacts.org/api/v1/prices"
 _PRICE_CACHE_TTL_DAYS = 7
-_HEADERS = {"User-Agent": "CarroQueSi/1.0 (javierzapata82@gmail.com)"}
 
 
 def _map_price_per(raw: Optional[str]) -> Optional[str]:
