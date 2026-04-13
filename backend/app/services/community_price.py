@@ -63,6 +63,7 @@ def get_community_price(ean: str, session) -> tuple[Optional[float], Optional[st
 
     cached = session.exec(select(PriceCache).where(PriceCache.ean == ean)).first()
     if cached and cached.fetched_at >= ttl_cutoff:
+        # amount=None means we already checked and found nothing — negative cache hit
         return cached.amount, cached.price_per
 
     try:
@@ -80,9 +81,9 @@ def get_community_price(ean: str, session) -> tuple[Optional[float], Optional[st
 
     results = data.get("results") or []
     amount, price_per = _fetch_community_price_from_results(results)
-    if amount is None:
-        return None, None
 
+    # Always upsert — amount=None acts as a negative cache entry so we don't
+    # re-hit the API on every request for EANs with no Open Prices data.
     if cached:
         cached.amount = amount
         cached.price_per = price_per

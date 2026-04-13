@@ -90,7 +90,7 @@ class PriceCache(SQLModel, table=True):
 
     id: str = Field(default_factory=_uuid, primary_key=True)
     ean: str = Field(unique=True, index=True)
-    amount: float
+    amount: Optional[float] = Field(default=None)  # None = fetched but no usable data (negative cache)
     price_per: Optional[str] = Field(default=None)  # None=unit, "KILOGRAM"=per kg
     fetched_at: datetime = Field(default_factory=_now)
 

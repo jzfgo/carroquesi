@@ -1,4 +1,14 @@
 from fastapi.testclient import TestClient
+from pytest_httpx import HTTPXMock
+
+_OPEN_PRICES_URL = "https://prices.openfoodfacts.org/api/v1/prices"
+_OPEN_PRICES_ES = {
+    "results": [
+        {"price": 1.0, "price_per": None, "location": {"osm_address_country_code": "ES"}},
+        {"price": 2.0, "price_per": None, "location": {"osm_address_country_code": "ES"}},
+    ]
+}
+_OPEN_PRICES_EMPTY = {"results": []}
 
 
 def _make_list(client):
@@ -262,3 +272,46 @@ def test_price_history_entry_purchased_at_is_null_for_unpurchased_item(client: T
     entries = resp.json()["entries"]
     assert len(entries) == 1
     assert entries[0]["purchased_at"] is None
+
+
+# --- community_price in PriceHistoryResponse ---
+
+def test_price_history_returns_community_price_when_ean_has_data(client: TestClient, httpx_mock: HTTPXMock):
+    httpx_mock.add_response(json=_OPEN_PRICES_ES)
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"], ean="8410188082498")
+    _set_price(client, lst["id"], item["id"], 0.89)
+
+    resp = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices?scope=this_list")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["community_price"] == 1.5
+    assert data["community_price_per"] is None
+
+
+def test_price_history_community_price_null_when_no_ean(client: TestClient):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])  # no EAN
+    _set_price(client, lst["id"], item["id"], 1.99)
+
+    resp = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices?scope=this_list")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["community_price"] is None
+    assert data["community_price_per"] is None
+
+
+def test_price_history_community_price_negatively_cached(client: TestClient, httpx_mock: HTTPXMock):
+    # First call: Open Prices returns no data — negative cache entry written
+    httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"], ean="8410188082498")
+    _set_price(client, lst["id"], item["id"], 0.89)
+
+    resp1 = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices")
+    assert resp1.json()["community_price"] is None
+
+    # Second call: no httpx_mock expectation added — if Open Prices were hit again it would raise
+    resp2 = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices")
+    assert resp2.status_code == 200
+    assert resp2.json()["community_price"] is None

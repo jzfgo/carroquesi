@@ -114,13 +114,12 @@ def test_returns_404_when_all_sites_unreachable(client: TestClient, httpx_mock: 
 
 
 def test_cache_hit_skips_off_call(client: TestClient, httpx_mock: HTTPXMock):
-    # First request populates barcode cache; Open Prices returns no data (not cached)
+    # First request populates barcode cache; Open Prices returns no data — negative cache entry written
     httpx_mock.add_response(url=_OFF_URL_EAN13, json=OFF_MAHOU)
-    httpx_mock.add_response(json=OPEN_PRICES_EMPTY)  # Open Prices — no data, so not cached
+    httpx_mock.add_response(json=OPEN_PRICES_EMPTY)
     client.get(f"/barcode/{_EAN13}")
 
-    # Second request: barcode cache hit (no OFF call); Open Prices queried again (no price cache)
-    httpx_mock.add_response(json=OPEN_PRICES_EMPTY)
+    # Second request: both barcode cache and price cache are hit — no external calls
     data = client.get(f"/barcode/{_EAN13}").json()
     assert data["name"] == "Cerveza especial"
 
