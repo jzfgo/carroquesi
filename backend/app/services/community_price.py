@@ -6,6 +6,7 @@ from typing import Optional
 import httpx
 from sqlmodel import select
 
+from app.core.http import HEADERS as _HEADERS
 from app.db.models import PriceCache
 
 _OPEN_PRICES_URL = "https://prices.openfoodfacts.org/api/v1/prices"
@@ -70,6 +71,7 @@ def get_community_price(ean: str, session) -> tuple[Optional[float], Optional[st
         resp = httpx.get(
             _OPEN_PRICES_URL,
             params={"product_code": ean, "currency": "EUR", "page_size": 50},
+            headers=_HEADERS,
             timeout=5.0,
         )
         resp.raise_for_status()

@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Path
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
+from app.core.http import HEADERS as _OFF_HEADERS
 from app.db.models import BarcodeCache
 from app.dependencies import CurrentSession, CurrentUser
 from app.schemas.barcode import BarcodeRead
@@ -13,7 +14,6 @@ from app.services.community_price import get_community_price
 router = APIRouter(tags=["barcode"])
 
 _EAN_PATTERN = r"^\d{8}$|^\d{13}$"
-_OFF_HEADERS = {"User-Agent": "CarroQueSi/1.0 (javierzapata82@gmail.com)"}
 
 # OFF sister sites tried in order; all share the same API contract.
 _SISTER_SITES = [
