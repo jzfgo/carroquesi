@@ -1,6 +1,3 @@
-import statistics
-from collections import Counter
-from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
 import httpx
@@ -8,9 +5,10 @@ from fastapi import APIRouter, HTTPException, Path
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 
-from app.db.models import BarcodeCache, PriceCache
+from app.db.models import BarcodeCache
 from app.dependencies import CurrentSession, CurrentUser
 from app.schemas.barcode import BarcodeRead
+from app.services.community_price import get_community_price
 
 router = APIRouter(tags=["barcode"])
 
@@ -24,9 +22,6 @@ _SISTER_SITES = [
     "https://es.openproductsfacts.org/api/v2/product/{ean}.json",
     "https://es.openpetfoodfacts.org/api/v2/product/{ean}.json",
 ]
-
-_OPEN_PRICES_URL = "https://prices.openfoodfacts.org/api/v1/prices"
-_PRICE_CACHE_TTL_DAYS = 7
 
 
 def _parse_stores(raw: str | None) -> list[str]:
@@ -78,90 +73,6 @@ def _fetch_product(ean: str) -> tuple[str, str | None, str | None] | None:
     return None
 
 
-def _map_price_per(raw: Optional[str]) -> Optional[str]:
-    """Map Open Prices price_per to our two-value enum: None or 'KILOGRAM'. Returns 'DISCARD' for unknown values."""
-    if raw is None or raw == "UNIT":
-        return None
-    if raw == "KILOGRAM":
-        return "KILOGRAM"
-    return "DISCARD"
-
-
-def _fetch_community_price_from_results(
-    results: list[dict],
-) -> tuple[Optional[float], Optional[str]]:
-    """
-    Given Open Prices result dicts, return (median_amount, price_per).
-    Filters to Spanish prices first; falls back to all results if none found.
-    Returns (None, None) if no usable results.
-    """
-    def _usable(r: dict) -> Optional[tuple[float, Optional[str]]]:
-        mapped = _map_price_per(r.get("price_per"))
-        if mapped == "DISCARD":
-            return None
-        price = r.get("price")
-        if price is None:
-            return None
-        return (float(price), mapped)
-
-    spanish = [r for r in results if (r.get("location") or {}).get("osm_address_country_code") == "ES"]
-    candidates = spanish if spanish else results
-
-    usable = [_usable(r) for r in candidates]
-    usable = [u for u in usable if u is not None]
-    if not usable:
-        return None, None
-
-    # Group by price_per; take most common group
-    counter = Counter(pp for _, pp in usable)
-    dominant_pp = counter.most_common(1)[0][0]
-    prices = [amt for amt, pp in usable if pp == dominant_pp]
-    return statistics.median(prices), dominant_pp
-
-
-def _get_community_price(ean: str, session) -> tuple[Optional[float], Optional[str]]:
-    """
-    Return (amount, price_per) from cache or Open Prices API.
-    Returns (None, None) on failure — never raises.
-    """
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    ttl_cutoff = now - timedelta(days=_PRICE_CACHE_TTL_DAYS)
-
-    # Check cache
-    cached = session.exec(select(PriceCache).where(PriceCache.ean == ean)).first()
-    if cached and cached.fetched_at >= ttl_cutoff:
-        return cached.amount, cached.price_per
-
-    try:
-        resp = httpx.get(
-            _OPEN_PRICES_URL,
-            params={"product_code": ean, "currency": "EUR", "page_size": 50},
-            timeout=5.0,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-    except Exception:
-        # Open Prices unreachable — return cached data if stale, else None
-        if cached:
-            return cached.amount, cached.price_per
-        return None, None
-
-    results = data.get("results") or []
-    amount, price_per = _fetch_community_price_from_results(results)
-    if amount is None:
-        return None, None
-
-    # Upsert cache
-    if cached:
-        cached.amount = amount
-        cached.price_per = price_per
-        cached.fetched_at = now
-        session.add(cached)
-    else:
-        session.add(PriceCache(ean=ean, amount=amount, price_per=price_per, fetched_at=now))
-    session.commit()
-    return amount, price_per
-
 
 @router.get("/barcode/{ean}", response_model=BarcodeRead)
 def get_barcode(
@@ -172,7 +83,7 @@ def get_barcode(
     # Cache lookup
     cached = session.exec(select(BarcodeCache).where(BarcodeCache.ean == ean)).first()
     if cached:
-        community_price, community_price_per = _get_community_price(ean, session)
+        community_price, community_price_per = get_community_price(ean, session)
         return _to_read(cached, community_price, community_price_per)
 
     result = _fetch_product(ean)
@@ -189,10 +100,10 @@ def get_barcode(
         session.rollback()
         cached = session.exec(select(BarcodeCache).where(BarcodeCache.ean == ean)).first()
         if cached:
-            community_price, community_price_per = _get_community_price(ean, session)
+            community_price, community_price_per = get_community_price(ean, session)
             return _to_read(cached, community_price, community_price_per)
         raise HTTPException(status_code=503, detail="Cache error")
 
     session.refresh(entry)
-    community_price, community_price_per = _get_community_price(ean, session)
+    community_price, community_price_per = get_community_price(ean, session)
     return _to_read(entry, community_price, community_price_per)
