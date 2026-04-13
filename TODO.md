@@ -1,6 +1,6 @@
 # CarroQueSí — TODO
 
-> Last updated: 2026-04-13
+> Last updated: 2026-04-14
 
 ---
 
@@ -14,6 +14,9 @@
 - [ ] **Push notifications** — notify list members when items are added or purchased (requires FCM setup)
 - [ ] **List archiving** — allow completed shopping trips to be archived instead of deleted
 - [ ] **Item reordering** — drag-and-drop to manually reorder unpurchased items
+- [ ] **Deduplicate unpurchased items** — prevent adding an item that already exists in the unpurchased list; if the same EAN is scanned twice or the same name is typed again, silently block the addition and show a brief "ya está en la lista" toast — no further action offered
+- [ ] **Manual item grouping** — allow users to manually group related items (e.g. a barcode-scanned yogurt alongside a free-text "yogurt" entry, or a branded item next to its unbranded equivalent)
+- [ ] **In-app feedback** — unobtrusive prompt (e.g. after a purchase session) asking the user to rate the app or report a bug; also expose a permanent "Enviar feedback" option in the user menu so users can submit anytime; feedback should be lightweight (free-text + optional email) and not require leaving the app
 - [ ] **Multi-language / i18n** — UI is currently Spanish/English mixed; pick one or add i18n support
 
 ---
