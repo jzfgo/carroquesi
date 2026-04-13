@@ -10,6 +10,7 @@ from app.db.models import PriceCache
 
 _OPEN_PRICES_URL = "https://prices.openfoodfacts.org/api/v1/prices"
 _PRICE_CACHE_TTL_DAYS = 7
+_HEADERS = {"User-Agent": "CarroQueSi/1.0 (javierzapata82@gmail.com)"}
 
 
 def _map_price_per(raw: Optional[str]) -> Optional[str]:
@@ -70,6 +71,7 @@ def get_community_price(ean: str, session) -> tuple[Optional[float], Optional[st
         resp = httpx.get(
             _OPEN_PRICES_URL,
             params={"product_code": ean, "currency": "EUR", "page_size": 50},
+            headers=_HEADERS,
             timeout=5.0,
         )
         resp.raise_for_status()
