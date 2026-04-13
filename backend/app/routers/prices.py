@@ -4,6 +4,7 @@ from sqlmodel import select
 from app.db.models import ListItem, ListMember
 from app.dependencies import CurrentSession, CurrentUser, MemberDep
 from app.schemas.prices import PriceCreate, PriceEntry, PriceHistoryResponse
+from app.services.community_price import get_community_price
 
 router = APIRouter(prefix="/lists/{list_id}/items/{item_id}/prices", tags=["prices"])
 
@@ -77,7 +78,14 @@ def get_price_history(
         )
         for i in items
     ]
-    return PriceHistoryResponse(entries=entries)
+    community_price, community_price_per = (
+        get_community_price(item.ean, session) if item.ean else (None, None)
+    )
+    return PriceHistoryResponse(
+        entries=entries,
+        community_price=community_price,
+        community_price_per=community_price_per,
+    )
 
 
 def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list[ListItem]:
