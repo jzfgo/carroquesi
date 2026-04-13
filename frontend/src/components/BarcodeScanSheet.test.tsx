@@ -103,4 +103,39 @@ describe('BarcodeScanSheet', () => {
     await userEvent.click(screen.getByRole('button', { name: /cancelar/i }))
     expect(onClose).toHaveBeenCalled()
   })
+
+  describe('initialBrand override', () => {
+    it('shows initialBrand instead of product.brand when provided', () => {
+      render(<BarcodeScanSheet product={product} initialBrand="Override" onAdd={vi.fn()} onEdit={vi.fn()} onClose={vi.fn()} />)
+      expect(screen.getByText(/Override/)).toBeInTheDocument()
+      expect(screen.queryByText(/Pascual/)).not.toBeInTheDocument()
+    })
+
+    it('onAdd payload uses initialBrand when provided', async () => {
+      const onAdd = vi.fn()
+      render(<BarcodeScanSheet product={product} initialBrand="Override" onAdd={onAdd} onEdit={vi.fn()} onClose={vi.fn()} />)
+      await userEvent.click(screen.getByRole('button', { name: /añadir a la lista/i }))
+      expect(onAdd).toHaveBeenCalledWith({ name: 'Leche Entera', brand: 'Override', stores: [] })
+    })
+
+    it('uses product.brand when initialBrand is not provided', () => {
+      render(<BarcodeScanSheet product={product} onAdd={vi.fn()} onEdit={vi.fn()} onClose={vi.fn()} />)
+      expect(screen.getByText(/Pascual/)).toBeInTheDocument()
+    })
+  })
+
+  describe('initialStores pre-selection', () => {
+    it('pre-selects stores matching initialStores', () => {
+      render(<BarcodeScanSheet product={product} initialStores={['Mercadona']} onAdd={vi.fn()} onEdit={vi.fn()} onClose={vi.fn()} />)
+      expect(screen.getByRole('button', { name: /mercadona/i })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByRole('button', { name: /alcampo/i })).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    it('onAdd payload includes pre-selected stores', async () => {
+      const onAdd = vi.fn()
+      render(<BarcodeScanSheet product={product} initialStores={['Mercadona']} onAdd={onAdd} onEdit={vi.fn()} onClose={vi.fn()} />)
+      await userEvent.click(screen.getByRole('button', { name: /añadir a la lista/i }))
+      expect(onAdd).toHaveBeenCalledWith({ name: 'Leche Entera', brand: 'Pascual', stores: ['Mercadona'] })
+    })
+  })
 })
