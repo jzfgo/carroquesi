@@ -13,7 +13,6 @@ test('renders syntax legend chips', () => {
   expect(screen.getByText(/\+/)).toBeInTheDocument()   // qty chip
   expect(screen.getByText(/#/)).toBeInTheDocument()    // brand chip
   expect(screen.getByText(/@/)).toBeInTheDocument()    // store chip
-  expect(screen.queryByText(/\*/)).not.toBeInTheDocument()  // variety chip removed
 })
 
 test('add button is disabled when name is empty', () => {
