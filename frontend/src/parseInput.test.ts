@@ -90,4 +90,45 @@ describe('parseInput', () => {
   test('only whitespace returns empty', () => {
     expect(parseInput('   ')).toEqual({ name: '', quantity: null, brand: null, stores: [] })
   })
+
+  describe('| EAN sigil', () => {
+    test('13-digit EAN sets ean field', () => {
+      const result = parseInput('|4011200296908')
+      expect(result.ean).toBe('4011200296908')
+      expect(result.name).toBe('')
+    })
+
+    test('8-digit EAN sets ean field', () => {
+      const result = parseInput('|12345678')
+      expect(result.ean).toBe('12345678')
+    })
+
+    test('EAN with name sets both', () => {
+      const result = parseInput('Leche |4011200296908')
+      expect(result.name).toBe('Leche')
+      expect(result.ean).toBe('4011200296908')
+    })
+
+    test('EAN composes with brand and store sigils', () => {
+      const result = parseInput('|4011200296908 #Danone @Mercadona')
+      expect(result.ean).toBe('4011200296908')
+      expect(result.brand).toBe('Danone')
+      expect(result.stores).toEqual(['Mercadona'])
+    })
+
+    test('incomplete EAN (not 8 or 13 digits) does not set ean', () => {
+      const result = parseInput('|123')
+      expect(result.ean).toBeUndefined()
+    })
+
+    test('non-digit chars after | do not set ean', () => {
+      const result = parseInput('|abc1234567890')
+      expect(result.ean).toBeUndefined()
+    })
+
+    test('first valid EAN wins when two | tokens present', () => {
+      const result = parseInput('|4011200296908 |12345678')
+      expect(result.ean).toBe('4011200296908')
+    })
+  })
 })
