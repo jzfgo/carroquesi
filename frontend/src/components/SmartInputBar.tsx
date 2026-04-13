@@ -1,7 +1,7 @@
 import { useRef } from 'react'
-import './SmartInputBar.css'
-import type { ListItem, ParsedInput } from '../types'
 import { clientSideSuggestions } from '../lib/suggestions'
+import type { ListItem, ParsedInput } from '../types'
+import './SmartInputBar.css'
 
 const SIGIL_FIELDS: Record<string, 'brand' | 'stores'> = {
   '#': 'brand', '@': 'stores',
@@ -60,17 +60,18 @@ interface Props {
   suggestions: string[]
   onChange: (v: string) => void
   onSubmit: () => void
+  onClear: () => void
   onScanRequest: () => void
   onEanSearch: (ean: string) => void
   eanLoading?: boolean
   eanError?: string | null
 }
 
-export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onScanRequest, onEanSearch, eanLoading, eanError }: Props) {
+export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onClear, onScanRequest, onEanSearch, eanLoading, eanError }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const activeSigil = getActiveSigil(value)
   const fieldSigil = activeSigil && SIGIL_FIELDS[activeSigil.sigil]
-    ? activeSigil.sigil as '*' | '#' | '@'
+    ? activeSigil.sigil as '#' | '@'
     : null
 
   const displaySuggestions = fieldSigil
@@ -112,7 +113,7 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             <span className="smart-input__preview-error">{eanError}</span>
           ) : (
             <>
-              {parsed.brand    && <span className="smart-input__preview-tag">🏷️ {parsed.brand}</span>}
+              {parsed.brand && <span className="smart-input__preview-tag">🏷️ {parsed.brand}</span>}
               {parsed.stores.map(s => (
                 <span key={s} className="smart-input__preview-tag">🏪 {s}</span>
               ))}
@@ -135,7 +136,7 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
           {nameError && <span className="smart-input__preview-error">Sin nombre de producto</span>}
           {!nameError && <span className="smart-input__preview-name">{parsed.name}</span>}
           {parsed.quantity && <span className="smart-input__preview-qty">{parsed.quantity}</span>}
-          {parsed.brand    && <span className="smart-input__preview-tag">🏷️ {parsed.brand}</span>}
+          {parsed.brand && <span className="smart-input__preview-tag">🏷️ {parsed.brand}</span>}
           {parsed.stores.map(s => (
             <span key={s} className="smart-input__preview-tag">🏪 {s}</span>
           ))}
@@ -173,7 +174,7 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
         {value ? (
           <button
             className="smart-input__clear"
-            onClick={() => { onChange(''); inputRef.current?.focus() }}
+            onClick={() => { onClear(); inputRef.current?.focus() }}
             aria-label="Borrar"
             type="button"
           >
@@ -187,16 +188,16 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             type="button"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <rect x="0" y="2" width="1" height="20"/>
-              <rect x="2" y="2" width="2" height="20"/>
-              <rect x="5" y="2" width="1" height="20"/>
-              <rect x="7" y="2" width="1" height="20"/>
-              <rect x="9" y="2" width="2" height="20"/>
-              <rect x="12" y="2" width="1" height="20"/>
-              <rect x="14" y="2" width="2" height="20"/>
-              <rect x="17" y="2" width="1" height="20"/>
-              <rect x="19" y="2" width="1" height="20"/>
-              <rect x="21" y="2" width="2" height="20"/>
+              <rect x="0" y="2" width="1" height="20" />
+              <rect x="2" y="2" width="2" height="20" />
+              <rect x="5" y="2" width="1" height="20" />
+              <rect x="7" y="2" width="1" height="20" />
+              <rect x="9" y="2" width="2" height="20" />
+              <rect x="12" y="2" width="1" height="20" />
+              <rect x="14" y="2" width="2" height="20" />
+              <rect x="17" y="2" width="1" height="20" />
+              <rect x="19" y="2" width="1" height="20" />
+              <rect x="21" y="2" width="2" height="20" />
             </svg>
           </button>
         )}

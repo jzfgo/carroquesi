@@ -30,6 +30,12 @@ interface Props {
   onBack?: () => void
 }
 
+type EanLookupState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'found'; product: BarcodeRead }
+  | { status: 'error'; message: string }
+
 export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, onBack }: Props) {
   const { getToken, user } = useAuth()
   const [inputValue, setInputValue] = useState('')
@@ -51,12 +57,6 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
   } | null>(null)
   const [purchaseToast, setPurchaseToast] = useState<{ itemId: string; itemName: string } | null>(null)
   const handleDismissPurchaseToast = useCallback(() => setPurchaseToast(null), [])
-
-  type EanLookupState =
-    | { status: 'idle' }
-    | { status: 'loading' }
-    | { status: 'found'; product: BarcodeRead }
-    | { status: 'error'; message: string }
 
   const [eanLookup, setEanLookup] = useState<EanLookupState>({ status: 'idle' })
   const currentUserId = user!.id
@@ -88,7 +88,7 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
   useEffect(() => {
     void getDueSuggestions(getToken, listId)
       .then(setDueSuggestions)
-      .catch(() => {/* non-critical */})
+      .catch(() => {/* non-critical */ })
   }, [listId, getToken])
 
   const handleTogglePurchased = useCallback(
@@ -120,6 +120,11 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
       setMenuOpen(true)
     }
   }, [menuOpen])
+
+  const handleChange = useCallback((value: string) => {
+    setEanLookup({ status: 'idle' })
+    setInputValue(value)
+  }, [])
 
   const handleSubmit = useCallback(() => {
     if (!parsed.name.trim()) return
@@ -188,7 +193,7 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
     }
   }, [getToken])
 
-  const handleEanClose = useCallback(() => {
+  const handleClear = useCallback(() => {
     setEanLookup({ status: 'idle' })
     setInputValue('')
   }, [])
@@ -309,8 +314,9 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
             parsed={parsed}
             items={items}
             suggestions={suggestions}
-            onChange={setInputValue}
+            onChange={handleChange}
             onSubmit={handleSubmit}
+            onClear={handleClear}
             onScanRequest={handleScanRequest}
             onEanSearch={handleEanSearch}
             eanLoading={eanLookup.status === 'loading'}
@@ -343,7 +349,7 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
           initialStores={parsed.stores}
           onAdd={handleEanAdd}
           onEdit={handleEanEdit}
-          onClose={handleEanClose}
+          onClose={handleClear}
         />
       )}
 
