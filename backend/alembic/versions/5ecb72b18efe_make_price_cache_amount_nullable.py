@@ -19,13 +19,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.alter_column('price_cache', 'amount',
-               existing_type=sa.FLOAT(),
-               nullable=True)
+    with op.batch_alter_table('price_cache') as batch_op:
+        batch_op.alter_column('amount',
+                   existing_type=sa.FLOAT(),
+                   nullable=True)
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.alter_column('price_cache', 'amount',
-               existing_type=sa.FLOAT(),
-               nullable=False)
+    # Purge negative-cache entries (amount=NULL) before restoring NOT NULL constraint
+    op.execute("DELETE FROM price_cache WHERE amount IS NULL")
+    with op.batch_alter_table('price_cache') as batch_op:
+        batch_op.alter_column('amount',
+                   existing_type=sa.FLOAT(),
+                   nullable=False)

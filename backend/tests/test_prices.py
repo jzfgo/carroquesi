@@ -132,7 +132,8 @@ def test_patch_price_non_member_forbidden(client: TestClient, other_client: Test
 
 # --- GET (price history by scope) ---
 
-def test_get_price_history_this_list_by_ean(client: TestClient):
+def test_get_price_history_this_list_by_ean(client: TestClient, httpx_mock: HTTPXMock):
+    httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
     ean = "8410188011111"
     lst = _make_list(client)
     item1 = _make_item(client, lst["id"], name="Aceite", ean=ean)
@@ -161,7 +162,8 @@ def test_get_price_history_this_list_by_name_brand(client: TestClient):
     assert stores == {"Lidl", "Mercadona"}
 
 
-def test_get_price_history_excludes_items_without_price(client: TestClient):
+def test_get_price_history_excludes_items_without_price(client: TestClient, httpx_mock: HTTPXMock):
+    httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
     ean = "8410188099999"
     lst = _make_list(client)
     item1 = _make_item(client, lst["id"], name="Leche", ean=ean)
@@ -174,7 +176,8 @@ def test_get_price_history_excludes_items_without_price(client: TestClient):
     assert len(resp.json()["entries"]) == 1
 
 
-def test_get_price_history_my_lists_by_ean(client: TestClient):
+def test_get_price_history_my_lists_by_ean(client: TestClient, httpx_mock: HTTPXMock):
+    httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
     ean = "8410188022222"
     lst1 = _make_list(client)
     item1 = _make_item(client, lst1["id"], name="Aceite", ean=ean)
@@ -192,8 +195,9 @@ def test_get_price_history_my_lists_by_ean(client: TestClient):
 
 
 def test_get_price_history_my_lists_excludes_other_users(
-    client: TestClient, other_client: TestClient
+    client: TestClient, other_client: TestClient, httpx_mock: HTTPXMock
 ):
+    httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
     ean = "8410188077777"
     lst_alice = _make_list(client)
     item_alice = _make_item(client, lst_alice["id"], name="Leche", ean=ean)
@@ -214,8 +218,9 @@ def test_get_price_history_my_lists_excludes_other_users(
 
 
 def test_get_price_history_all_includes_other_users(
-    client: TestClient, other_client: TestClient
+    client: TestClient, other_client: TestClient, httpx_mock: HTTPXMock
 ):
+    httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
     ean = "8410188066666"
     lst_alice = _make_list(client)
     item_alice = _make_item(client, lst_alice["id"], name="Leche", ean=ean)
