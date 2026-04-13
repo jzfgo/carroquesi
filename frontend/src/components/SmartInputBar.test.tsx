@@ -71,7 +71,7 @@ test('shows "No item name" warning when input has sigil but no name', () => {
 
 test('suggestion dropdown shown when suggestions provided', () => {
   render(<SmartInputBar value="Le" parsed={parseInput('Le')} items={NO_ITEMS}
-    suggestions={['Leche', 'Lechuga']} onChange={noop} onSubmit={noop} onScanRequest={noop} />)
+    suggestions={['Leche', 'Lechuga']} onChange={noop} onSubmit={noop} onScanRequest={noop} onEanSearch={noop} />)
   expect(screen.getByText('Leche')).toBeInTheDocument()
   expect(screen.getByText('Lechuga')).toBeInTheDocument()
 })

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useListItems } from '../hooks/useListItems'
-import { getDueSuggestions, getSuggestions } from '../lib/api'
+import { ApiError, getBarcode, getDueSuggestions, getSuggestions } from '../lib/api'
 import { parseInput } from '../parseInput'
 import type { BarcodeRead, DueSuggestion, EditingTag, TagField } from '../types'
 import { BarcodeScanner } from './BarcodeScanner'
@@ -51,6 +51,14 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
   } | null>(null)
   const [purchaseToast, setPurchaseToast] = useState<{ itemId: string; itemName: string } | null>(null)
   const handleDismissPurchaseToast = useCallback(() => setPurchaseToast(null), [])
+
+  type EanLookupState =
+    | { status: 'idle' }
+    | { status: 'loading' }
+    | { status: 'found'; product: BarcodeRead }
+    | { status: 'error'; message: string }
+
+  const [eanLookup, setEanLookup] = useState<EanLookupState>({ status: 'idle' })
   const currentUserId = user!.id
   const isOwner = listOwnerId === currentUserId
 
@@ -166,6 +174,37 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
     setInputValue(prefill)
   }, [])
 
+  const handleEanSearch = useCallback(async (ean: string) => {
+    setEanLookup({ status: 'loading' })
+    try {
+      const product = await getBarcode(getToken, ean)
+      setEanLookup({ status: 'found', product })
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        setEanLookup({ status: 'error', message: 'Código no encontrado' })
+      } else {
+        setEanLookup({ status: 'error', message: 'Error de conexión' })
+      }
+    }
+  }, [getToken])
+
+  const handleEanClose = useCallback(() => {
+    setEanLookup({ status: 'idle' })
+    setInputValue('')
+  }, [])
+
+  const handleEanAdd = useCallback((item: { name: string; brand: string | null; stores: string[] }) => {
+    const ean = eanLookup.status === 'found' ? eanLookup.product.ean : null
+    setEanLookup({ status: 'idle' })
+    setInputValue('')
+    void addItem({ name: item.name, brand: item.brand, stores: item.stores, quantity: null, ean })
+  }, [addItem, eanLookup])
+
+  const handleEanEdit = useCallback((prefill: string) => {
+    setEanLookup({ status: 'idle' })
+    setInputValue(prefill)
+  }, [])
+
   const handleSuggestionAdd = useCallback((s: DueSuggestion) => {
     void addItem({ name: s.name, brand: s.brand, stores: s.stores, quantity: null })
     setDueSuggestions(prev => prev.filter(x => x.name !== s.name))
@@ -273,6 +312,9 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
             onChange={setInputValue}
             onSubmit={handleSubmit}
             onScanRequest={handleScanRequest}
+            onEanSearch={handleEanSearch}
+            eanLoading={eanLookup.status === 'loading'}
+            eanError={eanLookup.status === 'error' ? eanLookup.message : null}
           />
         </>
       )}
@@ -292,6 +334,16 @@ export function ListScreen({ listId, listName, listEmoji = null, listOwnerId, on
           onAdd={handleScanAdd as any}
           onEdit={handleScanEdit}
           onClose={() => setScannedProduct(null)}
+        />
+      )}
+      {eanLookup.status === 'found' && (
+        <BarcodeScanSheet
+          product={eanLookup.product}
+          initialBrand={parsed.brand}
+          initialStores={parsed.stores}
+          onAdd={handleEanAdd}
+          onEdit={handleEanEdit}
+          onClose={handleEanClose}
         />
       )}
 
