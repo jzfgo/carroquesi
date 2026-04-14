@@ -187,3 +187,39 @@ def test_get_items_has_price_fields(client: TestClient):
     assert item["price_per"] is None
     assert "price_store" in item
     assert item["price_store"] is None
+
+
+def test_add_item_with_inline_price(client: TestClient):
+    lst = _create_list(client)
+    response = client.post(
+        f"/lists/{lst['id']}/items",
+        json={
+            "name": "Leche",
+            "price": 1.5,
+            "price_per": None,
+            "price_store": "Mercadona",
+        },
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["price"] == 1.5
+    assert body["price_per"] is None
+    assert body["price_store"] == "Mercadona"
+
+
+def test_add_item_with_inline_price_per_kg(client: TestClient):
+    lst = _create_list(client)
+    response = client.post(
+        f"/lists/{lst['id']}/items",
+        json={
+            "name": "Arroz",
+            "price": 3.2,
+            "price_per": "KILOGRAM",
+            "price_store": None,
+        },
+    )
+    assert response.status_code == 201
+    body = response.json()
+    assert body["price"] == 3.2
+    assert body["price_per"] == "KILOGRAM"
+    assert body["price_store"] is None
