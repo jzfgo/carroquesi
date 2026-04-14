@@ -6,13 +6,13 @@ import { DEFAULT_THEME, THEMES } from '../lib/themes'
 
 export function SettingsScreen() {
   const navigate = useNavigate()
-  const [currentTheme, setCurrentTheme] = useState<string>(DEFAULT_THEME)
+  const [currentTheme, setCurrentTheme] = useState<string>(() => {
+    return localStorage.getItem('terminal-theme') || DEFAULT_THEME
+  })
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('terminal-theme') || DEFAULT_THEME
-    setCurrentTheme(savedTheme)
-    document.documentElement.setAttribute('data-theme', savedTheme)
-  }, [])
+    document.documentElement.setAttribute('data-theme', currentTheme)
+  }, [currentTheme])
 
   const switchTheme = (theme: string) => {
     if (THEMES.includes(theme)) {
