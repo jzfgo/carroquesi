@@ -126,7 +126,8 @@ backend/
 │   ├── main.py
 │   ├── core/
 │   │   ├── config.py        # Settings (DATABASE_URL, FIREBASE_CREDENTIALS_PATH, ALLOWED_ORIGINS)
-│   │   └── firebase.py      # Firebase Admin SDK init + verify_id_token()
+│   │   ├── firebase.py      # Firebase Admin SDK init + verify_id_token()
+│   │   └── http.py          # Shared httpx headers (User-Agent) for outbound API calls
 │   ├── db/
 │   │   ├── session.py       # SQLModel engine + get_session dependency
 │   │   └── models.py        # SQLModel table models
@@ -136,10 +137,13 @@ backend/
 │   │   ├── members.py       # GET/POST/DELETE /lists/{id}/members[/{user_id}]
 │   │   ├── items.py         # GET/POST/PATCH/DELETE /lists/{id}/items[/{id}]
 │   │   ├── invites.py       # GET/POST/DELETE /invites[/{id}[/accept]]
+│   │   ├── prices.py        # GET/POST /lists/{id}/items/{item_id}/prices
 │   │   ├── suggestions.py   # GET /lists/{id}/due-suggestions, GET /lists/{id}/updated-at
 │   │   ├── barcode.py       # GET /barcode/{ean} — OpenFoodFacts lookup + local cache
 │   │   └── share.py         # GET /i/{invite_id} — OG meta-tag preview page for invite links
 │   ├── schemas/             # Pydantic request/response models (one file per router; due_suggestions.py for DueSuggestionRead)
+│   ├── services/
+│   │   └── community_price.py  # Open Prices API lookup with negative-cache; shared by barcode + prices routers
 │   └── dependencies.py      # get_current_user, require_member, require_owner
 └── alembic/                 # Migrations
 ```
