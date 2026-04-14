@@ -80,6 +80,9 @@ export function createItem(
     brand?: string | null
     stores?: string[]
     ean?: string | null
+    price?: number | null
+    price_per?: 'KILOGRAM' | null
+    price_store?: string | null
   },
 ) {
   return apiFetch(getToken, `/lists/${listId}/items`, {
