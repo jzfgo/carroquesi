@@ -27,7 +27,7 @@ carroquesi/
 | `users` | id (UUID), firebase_uid, display_name, email, photo_url, created_at |
 | `lists` | id, name, emoji (nullable), owner_id (FK→users), created_at, updated_at |
 | `list_members` | id, list_id (FK→lists), user_id (FK→users), created_at |
-| `list_items` | id, list_id, name, quantity, brand, stores (JSON array), purchased_at (nullable datetime), added_by, created_at, updated_at |
+| `list_items` | id, list_id, name, quantity, brand, stores (JSON array), purchased_at (nullable datetime), added_by, price (nullable float), price_per (nullable str), price_store (nullable str), created_at, updated_at |
 | `list_invites` | id, list_id, invited_email (nullable), invited_by, created_at |
 | `barcode_cache` | id, ean (unique), name, brand, stores (nullable comma-separated), created_at |
 
@@ -73,7 +73,10 @@ The input bar parses sigils from free text via `parseInput.ts` → `ParsedInput`
 - `+` quantity (e.g. `+2`, `+1 bolsa`)
 - `#` brand (e.g. `#Danone`)
 - `@` store — multiple allowed (e.g. `@Mercadona @Lidl`)
+- `$`/`€` price — single token, accepts comma or dot decimal separator, optional `/kg` suffix (e.g. `$1,50`, `€3.20/kg`); normalised to a float and stored as `price`/`pricePer` on `ParsedInput`. Logged atomically with item creation via `ItemCreate.price` / `price_per` / `price_store`. A price preview pill appears in the input preview when a valid price is parsed.
 - `|` EAN barcode — 8 or 13 digits only (e.g. `|4011200296908`); triggers a barcode lookup via `getBarcode()` and opens `BarcodeScanSheet` on success. Can combine with `#`/`@` to pre-fill brand/store in the sheet.
+
+Price display throughout the app uses `formatPrice(amount, pricePer?)` from `frontend/src/lib/formatPrice.ts` — an `Intl.NumberFormat`-based formatter that renders locale-aware currency strings.
 
 When `parsed.ean` is set, the input is in **EAN mode**: the regular parse preview is hidden, an EAN preview with a "Buscar" CTA is shown, and the add button is disabled. `ListScreen` holds an `EanLookupState` discriminated union (`idle | loading | found | error`) and passes `onEanSearch`, `eanLoading`, `eanError` to `SmartInputBar`.
 
