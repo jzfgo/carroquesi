@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { clientSideSuggestions } from '../lib/suggestions'
+import { formatPrice } from '../lib/formatPrice'
 import type { ListItem, ParsedInput } from '../types'
 import './SmartInputBar.css'
 
@@ -19,10 +20,10 @@ function getActiveSigil(raw: string): { sigil: string; partial: string } | null 
 }
 
 function hasSigil(parsed: ParsedInput): boolean {
-  return parsed.quantity !== null || parsed.brand !== null || parsed.stores.length > 0
+  return parsed.quantity !== null || parsed.brand !== null || parsed.stores.length > 0 || parsed.price != null
 }
 
-const ALL_SIGILS = new Set(['+', '#', '@', '|'])
+const ALL_SIGILS = new Set(['+', '#', '@', '|', '$'])
 
 /**
  * Returns the new input value after a chip tap, or null if no change is needed.
@@ -50,6 +51,7 @@ const LEGEND_CHIPS: { sigil: string; label: string }[] = [
   { sigil: '+', label: 'cant.' },
   { sigil: '#', label: 'marca' },
   { sigil: '@', label: 'tienda' },
+  { sigil: '$', label: 'precio' },
   { sigil: '|', label: 'cod. barras' },
 ]
 
@@ -140,6 +142,9 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
           {parsed.stores.map(s => (
             <span key={s} className="smart-input__preview-tag">🏪 {s}</span>
           ))}
+          {parsed.price != null && (
+            <span className="smart-input__preview-tag">💶 {formatPrice(parsed.price, parsed.pricePer)}</span>
+          )}
         </div>
       )}
 
