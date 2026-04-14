@@ -223,3 +223,12 @@ def test_add_item_with_inline_price_per_kg(client: TestClient):
     assert body["price"] == 3.2
     assert body["price_per"] == "KILOGRAM"
     assert body["price_store"] is None
+
+
+def test_add_item_price_per_without_price_is_rejected(client: TestClient):
+    lst = _create_list(client)
+    response = client.post(
+        f"/lists/{lst['id']}/items",
+        json={"name": "Arroz", "price_per": "KILOGRAM"},
+    )
+    assert response.status_code == 422
