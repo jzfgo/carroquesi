@@ -13,9 +13,9 @@ bearer = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer),
-    x_dev_user_id: Optional[str] = Header(default=None),
-    session: Session = Depends(get_session),
+    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(bearer)],
+    x_dev_user_id: Annotated[Optional[str], Header()] = None,
+    session: Annotated[Session, Depends(get_session)] = None,
 ) -> User:
     if settings.dev_auth_bypass and x_dev_user_id:
         user = session.exec(select(User).where(User.firebase_uid == x_dev_user_id)).first()
@@ -49,10 +49,18 @@ def get_current_user(
     return user
 
 
+# ---------------------------------------------------------------------------
+# Annotated dependency aliases (recommended FastAPI pattern)
+# Import these in routers instead of repeating Depends(...) at every endpoint.
+# ---------------------------------------------------------------------------
+CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
+CurrentSession: TypeAlias = Annotated[Session, Depends(get_session)]
+
+
 def require_member(
     list_id: str,
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    current_user: CurrentUser,
+    session: CurrentSession,
 ) -> tuple[List, User]:
     lst = session.get(List, list_id)
     if lst is None:
@@ -69,8 +77,8 @@ def require_member(
 
 def require_owner(
     list_id: str,
-    current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
+    current_user: CurrentUser,
+    session: CurrentSession,
 ) -> tuple[List, User]:
     lst = session.get(List, list_id)
     if lst is None:
@@ -80,11 +88,5 @@ def require_owner(
     return lst, current_user
 
 
-# ---------------------------------------------------------------------------
-# Annotated dependency aliases (recommended FastAPI pattern)
-# Import these in routers instead of repeating Depends(...) at every endpoint.
-# ---------------------------------------------------------------------------
-CurrentUser: TypeAlias = Annotated[User, Depends(get_current_user)]
-CurrentSession: TypeAlias = Annotated[Session, Depends(get_session)]
 MemberDep: TypeAlias = Annotated[tuple[List, User], Depends(require_member)]
 OwnerDep: TypeAlias = Annotated[tuple[List, User], Depends(require_owner)]

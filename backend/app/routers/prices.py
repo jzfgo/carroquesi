@@ -1,5 +1,7 @@
+from typing import Annotated
+
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from app.db.models import ListItem, ListMember
 from app.dependencies import CurrentSession, CurrentUser, MemberDep
@@ -9,7 +11,7 @@ from app.services.community_price import get_community_price
 router = APIRouter(prefix="/lists/{list_id}/items/{item_id}/prices", tags=["prices"])
 
 
-def _get_item_or_404(session, item_id: str, list_id: str) -> ListItem:
+def _get_item_or_404(session: Session, item_id: str, list_id: str) -> ListItem:
     item = session.exec(
         select(ListItem).where(ListItem.id == item_id, ListItem.list_id == list_id)
     ).first()
@@ -18,7 +20,7 @@ def _get_item_or_404(session, item_id: str, list_id: str) -> ListItem:
     return item
 
 
-def _write_price(item: ListItem, price_in: PriceCreate, session) -> PriceEntry:
+def _write_price(item: ListItem, price_in: PriceCreate, session: Session) -> PriceEntry:
     item.price = price_in.amount
     item.price_per = price_in.price_per
     item.price_store = price_in.store
@@ -62,10 +64,10 @@ def update_price(
 def get_price_history(
     list_id: str,
     item_id: str,
-    scope: str = Query(default="this_list", pattern="^(this_list|my_lists|all)$"),
-    session: CurrentSession = None,
-    current_user: CurrentUser = None,
-    _: MemberDep = None,
+    session: CurrentSession,
+    current_user: CurrentUser,
+    _: MemberDep,
+    scope: Annotated[str, Query(pattern="^(this_list|my_lists|all)$")] = "this_list",
 ):
     item = _get_item_or_404(session, item_id, list_id)
     items = _query_by_scope(session, item, scope, current_user.id)

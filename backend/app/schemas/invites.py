@@ -9,6 +9,14 @@ class InvitePreview(BaseModel):
     invited_by_name: str | None
 
 
+class OpenInviteCreated(BaseModel):
+    id: str
+
+
+class AcceptInviteResult(BaseModel):
+    list_id: str
+
+
 class InviteRead(BaseModel):
     id: str
     list_id: str

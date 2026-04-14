@@ -1,3 +1,5 @@
+import html as _html
+
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 from sqlmodel import select
@@ -28,13 +30,14 @@ def invite_share_page(invite_id: str, session: CurrentSession):
         inviter_name = None
 
     emoji_prefix = f"{list_emoji} " if list_emoji else ""
-    title = f"{emoji_prefix}{list_name} — CarroQueSí"
-    description = (
+    title = _html.escape(f"{emoji_prefix}{list_name} — CarroQueSí")
+    description = _html.escape(
         f"{inviter_name} te invitó a unirse a '{list_name}' en CarroQueSí"
         if inviter_name
         else f"Te invitaron a unirse a '{list_name}' en CarroQueSí"
     )
-    redirect_url = f"/invite/{invite_id}"
+    # invite_id comes from the URL path and is validated as a UUID by the DB lookup
+    redirect_url = f"/invite/{_html.escape(invite_id)}"
 
     html = f"""<!DOCTYPE html>
 <html lang="es">
