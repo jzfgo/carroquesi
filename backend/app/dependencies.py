@@ -15,7 +15,7 @@ bearer = HTTPBearer(auto_error=False)
 def get_current_user(
     credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(bearer)],
     x_dev_user_id: Annotated[Optional[str], Header()] = None,
-    session: Annotated[Session, Depends(get_session)] = None,
+    session: Annotated[Session, Depends(get_session)],
 ) -> User:
     if settings.dev_auth_bypass and x_dev_user_id:
         user = session.exec(select(User).where(User.firebase_uid == x_dev_user_id)).first()
