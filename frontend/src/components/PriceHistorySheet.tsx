@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getPriceHistory } from '../lib/api'
-import { formatPrice } from '../lib/formatPrice'
+import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
 import type { ListItem, PriceEntry, PriceHistoryResponse } from '../types'
 import './PriceHistorySheet.css'
 
@@ -148,10 +148,10 @@ export default function PriceHistorySheet({ item, listId, getToken, onLogPrice, 
 
       {history?.community_price != null && (
         <div className="phs__community">
-          <span>🌍 Comunidad</span>
+          <span>🌍 Precio estimado</span>
           <span className="phs__community-price">~{formatPrice(history.community_price, history.community_price_per)}</span>
-          <span className="phs__community-info"
-            title="Precio medio de la comunidad de Open Prices, filtrado a tiendas españolas cuando hay datos disponibles. Puede no reflejar los precios actuales.">ⓘ</span>
+          <button className="phs__community-info"
+            title={COMMUNITY_PRICE_TOOLTIP}>ⓘ</button>
         </div>
       )}
 

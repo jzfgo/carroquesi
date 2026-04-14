@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
 import './BarcodeScanSheet.css'
 import type { BarcodeRead } from '../types'
 
@@ -81,18 +82,15 @@ export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, 
 
         {product.community_price !== null && (
           <div className="bss__community-price">
-            <span className="bss__community-price-text">
-              {product.community_price_per === 'KILOGRAM'
-                ? `~€${product.community_price.toFixed(2)}/kg según la comunidad`
-                : `~€${product.community_price.toFixed(2)} según la comunidad`}
-            </span>
-            <span
+            <span className="bss__community-price-text">🌍 Precio estimado</span>
+            <span className="bss__community-price-value">~{formatPrice(product.community_price, product.community_price_per)}</span>
+            <button
               className="bss__community-price-info"
-              title="Precio medio de la comunidad de Open Prices, filtrado a tiendas españolas cuando hay datos disponibles. Puede no reflejar los precios actuales."
+              title={COMMUNITY_PRICE_TOOLTIP}
               aria-label="Información sobre el precio de la comunidad"
             >
               ⓘ
-            </span>
+            </button>
           </div>
         )}
 
