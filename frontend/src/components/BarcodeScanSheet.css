@@ -133,11 +133,11 @@
 .bss__community-price-value {
   font-weight: 600;
   color: var(--color-text, #fff);
-  margin-left: auto;
 }
 
 .bss__community-price-info {
-  cursor: default;
+  cursor: help;
+  margin-left: auto;
   color: var(--color-text-tertiary, #636366);
   font-size: 12px;
   flex-shrink: 0;
