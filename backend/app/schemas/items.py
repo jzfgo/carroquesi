@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, Field, computed_field, model_validator
 
 
 class ItemCreate(BaseModel):
@@ -9,6 +10,15 @@ class ItemCreate(BaseModel):
     brand: str | None = None
     stores: list[str] = Field(default_factory=list)
     ean: str | None = None
+    price: float | None = Field(default=None, ge=0)
+    price_per: Literal['KILOGRAM'] | None = None
+    price_store: str | None = None
+
+    @model_validator(mode='after')
+    def price_per_requires_price(self) -> 'ItemCreate':
+        if self.price_per is not None and self.price is None:
+            raise ValueError('price_per requires price to be set')
+        return self
 
 
 class ItemUpdate(BaseModel):
@@ -28,7 +38,7 @@ class ItemRead(BaseModel):
     stores: list[str]
     ean: str | None
     price: float | None
-    price_per: str | None
+    price_per: Literal['KILOGRAM'] | None
     price_store: str | None
     purchased_at: datetime | None
     added_by: str

@@ -5,6 +5,9 @@ const SINGLE_SIGIL_MAP: Record<string, keyof Omit<ParsedInput, 'name' | 'stores'
   '#': 'brand',
 }
 
+const PRICE_SIGILS = new Set(['$', '€'])
+const PRICE_RE = /^(\d+([,.]\d{1,2})?|[,.]\d{1,2})(\/kg)?$/i
+
 export function parseInput(raw: string): ParsedInput {
   const words = raw.trim().split(/\s+/).filter(Boolean)
 
@@ -23,6 +26,17 @@ export function parseInput(raw: string): ParsedInput {
       if (/^\d{8}$|^\d{13}$/.test(digits) && result.ean === undefined) {
         result.ean = digits
       }
+    } else if (PRICE_SIGILS.has(sigil)) {
+      if (result.price === undefined) {
+        const rest = word.slice(1)
+        const match = rest.match(PRICE_RE)
+        if (match) {
+          const normalized = match[1].replace(/[,.]/, '.')
+          result.price = parseFloat(normalized)
+          result.pricePer = match[3] ? 'KILOGRAM' : null
+        }
+      }
+      // Price is single-token: do not update currentField
     } else if (sigil === '@') {
       storeEntries.push([word.slice(1)])
       currentField = '@'

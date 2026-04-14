@@ -1,4 +1,5 @@
 import './ItemCard.css'
+import { formatPrice } from '../lib/formatPrice'
 import type { ListItem, Member, TagField } from '../types'
 
 const TAG_CONFIG: { field: TagField; emoji: string; label: string }[] = [
@@ -122,9 +123,7 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
               onClick={e => { e.stopPropagation(); onPriceClick?.(item.id) }}
             >
               <span aria-hidden>💶</span>{' '}
-              {item.price_per === 'KILOGRAM'
-                ? `€${item.price.toFixed(2)}/kg`
-                : `€${item.price.toFixed(2)}`}
+              {formatPrice(item.price, item.price_per)}
             </button>
           ) : (
             !item.purchased && (

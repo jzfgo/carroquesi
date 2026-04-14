@@ -131,4 +131,135 @@ describe('parseInput', () => {
       expect(result.ean).toBe('4011200296908')
     })
   })
+
+  describe('$ price sigil', () => {
+    test('$1,50 parses to price 1.5, pricePer null', () => {
+      const result = parseInput('leche $1,50')
+      expect(result.name).toBe('leche')
+      expect(result.price).toBe(1.5)
+      expect(result.pricePer).toBeNull()
+    })
+
+    test('€3,20/kg parses to price 3.2, pricePer KILOGRAM', () => {
+      const result = parseInput('arroz €3,20/kg')
+      expect(result.price).toBe(3.2)
+      expect(result.pricePer).toBe('KILOGRAM')
+    })
+
+    test('dot as decimal separator also accepted: $1.50', () => {
+      const result = parseInput('leche $1.50')
+      expect(result.price).toBe(1.5)
+      expect(result.pricePer).toBeNull()
+    })
+
+    test('$,50 parses to 0.5 (no integer part)', () => {
+      const result = parseInput('leche $,50')
+      expect(result.price).toBe(0.5)
+    })
+
+    test('$.50 parses to 0.5 (dot, no integer part)', () => {
+      const result = parseInput('leche $.50')
+      expect(result.price).toBe(0.5)
+    })
+
+    test('$1,5 single decimal digit parses correctly', () => {
+      const result = parseInput('leche $1,5')
+      expect(result.price).toBe(1.5)
+    })
+
+    test('$1500 integer-only parses correctly', () => {
+      const result = parseInput('carne $1500')
+      expect(result.price).toBe(1500)
+    })
+
+    test('$0 is valid (zero price)', () => {
+      const result = parseInput('leche $0')
+      expect(result.price).toBe(0)
+    })
+
+    test('$/kg with no number is ignored', () => {
+      const result = parseInput('leche $/kg')
+      expect(result.price).toBeUndefined()
+    })
+
+    test('bare $ with no number is ignored', () => {
+      const result = parseInput('leche $')
+      expect(result.price).toBeUndefined()
+    })
+
+    test('$abc non-numeric is ignored', () => {
+      const result = parseInput('leche $abc')
+      expect(result.price).toBeUndefined()
+    })
+
+    test('$1,500 three decimal digits is ignored (ambiguous)', () => {
+      const result = parseInput('leche $1,500')
+      expect(result.price).toBeUndefined()
+    })
+
+    test('$1.500 three decimal digits is ignored (ambiguous)', () => {
+      const result = parseInput('leche $1.500')
+      expect(result.price).toBeUndefined()
+    })
+
+    test('$1,50,30 two commas is ignored', () => {
+      const result = parseInput('leche $1,50,30')
+      expect(result.price).toBeUndefined()
+    })
+
+    test('$1.50.30 two dots is ignored', () => {
+      const result = parseInput('leche $1.50.30')
+      expect(result.price).toBeUndefined()
+    })
+
+    test('$1,50.30 mixed separators is ignored', () => {
+      const result = parseInput('leche $1,50.30')
+      expect(result.price).toBeUndefined()
+    })
+
+    test('$1, trailing separator is ignored', () => {
+      const result = parseInput('leche $1,')
+      expect(result.price).toBeUndefined()
+    })
+
+    test('$-1 negative is ignored', () => {
+      const result = parseInput('leche $-1')
+      expect(result.price).toBeUndefined()
+    })
+
+    test('first price sigil wins when two are present', () => {
+      const result = parseInput('leche $1,50 $2,00')
+      expect(result.price).toBe(1.5)
+    })
+
+    test('first *valid* price token wins — invalid prefix does not block subsequent valid', () => {
+      const result = parseInput('leche $abc $1,50')
+      expect(result.price).toBe(1.5)
+    })
+
+    test('€ is accepted as alias for $', () => {
+      const result = parseInput('leche €1,50')
+      expect(result.price).toBe(1.5)
+    })
+
+    test('$/kg case-insensitive: $1,50/KG', () => {
+      const result = parseInput('arroz $1,50/KG')
+      expect(result.price).toBe(1.5)
+      expect(result.pricePer).toBe('KILOGRAM')
+    })
+
+    test('price composes with other sigils', () => {
+      const result = parseInput('leche $1,50 @Mercadona #Puleva')
+      expect(result.name).toBe('leche')
+      expect(result.price).toBe(1.5)
+      expect(result.stores).toEqual(['Mercadona'])
+      expect(result.brand).toBe('Puleva')
+    })
+
+    test('no price sigil: price field is undefined', () => {
+      const result = parseInput('leche @Mercadona')
+      expect(result.price).toBeUndefined()
+      expect(result.pricePer).toBeUndefined()
+    })
+  })
 })

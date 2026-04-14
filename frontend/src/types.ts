@@ -22,6 +22,8 @@ export interface ParsedInput {
   brand: string | null
   stores: string[]
   ean?: string | null
+  price?: number | null
+  pricePer?: 'KILOGRAM' | null
 }
 
 export interface Member {

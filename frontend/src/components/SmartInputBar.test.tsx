@@ -228,3 +228,56 @@ test('clear button calls onClear', async () => {
   await userEvent.click(screen.getByRole('button', { name: /borrar/i }))
   expect(onClear).toHaveBeenCalled()
 })
+
+// ── $ price sigil ──────────────────────────────────────────────────────────────
+
+test('$ precio chip appears in legend', () => {
+  render(<SmartInputBar value="" parsed={parseInput('')} items={NO_ITEMS}
+    suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop} />)
+  expect(screen.getByRole('button', { name: /añadir precio/i })).toBeInTheDocument()
+})
+
+test('price preview pill appears when parsed.price is set', () => {
+  render(<SmartInputBar value="leche $1,50" parsed={parseInput('leche $1,50')} items={NO_ITEMS}
+    suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop} />)
+  const preview = screen.getByTestId('parse-preview')
+  expect(preview).toBeInTheDocument()
+  // The price pill contains the 💶 emoji
+  expect(preview.textContent).toContain('💶')
+})
+
+test('price preview pill contains /kg when pricePer is KILOGRAM', () => {
+  render(<SmartInputBar value="arroz $3,20/kg" parsed={parseInput('arroz $3,20/kg')} items={NO_ITEMS}
+    suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop} />)
+  const preview = screen.getByTestId('parse-preview')
+  expect(preview.textContent).toContain('/kg')
+})
+
+test('price preview pill not shown when no price sigil', () => {
+  render(<SmartInputBar value="leche @Mercadona" parsed={parseInput('leche @Mercadona')} items={NO_ITEMS}
+    suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop} />)
+  const preview = screen.getByTestId('parse-preview')
+  expect(preview.textContent).not.toContain('💶')
+})
+
+test('tapping $ chip appends $ when not present', () => {
+  const onChange = vi.fn()
+  render(<SmartInputBar value="leche" parsed={parseInput('leche')} items={NO_ITEMS}
+    suggestions={[]} onChange={onChange} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop} />)
+  fireEvent.click(screen.getByRole('button', { name: /añadir precio/i }))
+  expect(onChange).toHaveBeenCalledWith('leche $')
+})
+
+test('tapping $ chip is no-op when $ already present', () => {
+  const onChange = vi.fn()
+  render(<SmartInputBar value="leche $1,50" parsed={parseInput('leche $1,50')} items={NO_ITEMS}
+    suggestions={[]} onChange={onChange} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop} />)
+  fireEvent.click(screen.getByRole('button', { name: /añadir precio/i }))
+  expect(onChange).not.toHaveBeenCalled()
+})
+
+test('hasSigil triggers preview when only price is set (no other sigils)', () => {
+  render(<SmartInputBar value="leche $1,50" parsed={parseInput('leche $1,50')} items={NO_ITEMS}
+    suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop} />)
+  expect(screen.getByTestId('parse-preview')).toBeInTheDocument()
+})
