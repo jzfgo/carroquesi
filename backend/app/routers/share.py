@@ -1,4 +1,5 @@
 import html as _html
+import json as _json
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
@@ -36,8 +37,11 @@ def invite_share_page(invite_id: str, session: CurrentSession):
         if inviter_name
         else f"Te invitaron a unirse a '{list_name}' en CarroQueSí"
     )
-    # invite_id comes from the URL path and is validated as a UUID by the DB lookup
-    redirect_url = f"/invite/{_html.escape(invite_id)}"
+    # HTML-escaped for use in attributes / meta tags
+    redirect_url_html = _html.escape(f"/invite/{invite_id}")
+    # JS-escaped for use inside a <script> string literal — html.escape() is
+    # NOT appropriate here because HTML entities are not decoded inside <script>.
+    redirect_url_js = _json.dumps(f"/invite/{invite_id}")
 
     html = f"""<!DOCTYPE html>
 <html lang="es">
@@ -51,10 +55,10 @@ def invite_share_page(invite_id: str, session: CurrentSession):
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="{title}" />
   <meta name="twitter:description" content="{description}" />
-  <meta http-equiv="refresh" content="0;url={redirect_url}" />
+  <meta http-equiv="refresh" content="0;url={redirect_url_html}" />
 </head>
 <body>
-  <script>window.location.replace("{redirect_url}");</script>
+  <script>window.location.replace({redirect_url_js});</script>
 </body>
 </html>"""
 
