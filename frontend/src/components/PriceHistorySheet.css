@@ -6,7 +6,7 @@
 .phs__scope-btn--active { background: var(--color-primary, #0a84ff); color: var(--color-text, #fff); }
 .phs__community { display: flex; align-items: center; gap: 6px; padding: 10px 16px; background: var(--color-surface, #1c1c1e); border-bottom: 1px solid var(--color-border, #3a3a3c); font-size: 14px; color: var(--color-muted, #8e8e93); flex-shrink: 0; }
 .phs__community-price { font-weight: 600; color: var(--color-text, #fff); }
-.phs__community-info { cursor: default; color: var(--color-muted, #636366); font-size: 12px; margin-left: auto; }
+.phs__community-info { cursor: help; color: var(--color-muted, #636366); font-size: 12px; margin-left: auto; background: none; border: none; padding: 0; font-family: inherit; }
 .phs__content { overflow-y: auto; flex: 1; padding: 8px 0; }
 .phs__empty { padding: 20px 16px; color: var(--color-muted, #636366); font-size: 14px; }
 .phs__store-row { padding: 12px 16px; border-bottom: 1px solid var(--color-border, #3a3a3c); cursor: pointer; }
