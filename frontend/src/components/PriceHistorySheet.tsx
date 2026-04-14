@@ -42,7 +42,6 @@ function groupByStore(entries: PriceEntry[]): StoreGroup[] {
   })
 }
 
-
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 }
