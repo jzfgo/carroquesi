@@ -5,7 +5,7 @@ from sqlmodel import select
 
 from app.db.models import List, ListInvite, ListMember, User
 from app.dependencies import CurrentSession, CurrentUser, MemberDep
-from app.schemas.invites import InvitePreview, InviteRead
+from app.schemas.invites import AcceptInviteResult, InvitePreview, InviteRead, OpenInviteCreated
 
 router = APIRouter(prefix="/invites", tags=["invites"])
 
@@ -23,7 +23,7 @@ def _check_not_expired(invite: ListInvite) -> None:
 list_invites_router = APIRouter(prefix="/lists/{list_id}/invites", tags=["invites"])
 
 
-@list_invites_router.post("", status_code=status.HTTP_201_CREATED)
+@list_invites_router.post("", response_model=OpenInviteCreated, status_code=status.HTTP_201_CREATED)
 def create_open_invite(
     list_id: str,
     list_and_user: MemberDep,
@@ -82,7 +82,7 @@ def get_invite_preview(invite_id: str, session: CurrentSession):
     )
 
 
-@router.post("/{invite_id}/accept")
+@router.post("/{invite_id}/accept", response_model=AcceptInviteResult)
 def accept_invite(
     invite_id: str,
     current_user: CurrentUser,

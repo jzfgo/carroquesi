@@ -1,3 +1,6 @@
+import html as _html
+import json as _json
+
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 from sqlmodel import select
@@ -28,13 +31,17 @@ def invite_share_page(invite_id: str, session: CurrentSession):
         inviter_name = None
 
     emoji_prefix = f"{list_emoji} " if list_emoji else ""
-    title = f"{emoji_prefix}{list_name} — CarroQueSí"
-    description = (
+    title = _html.escape(f"{emoji_prefix}{list_name} — CarroQueSí")
+    description = _html.escape(
         f"{inviter_name} te invitó a unirse a '{list_name}' en CarroQueSí"
         if inviter_name
         else f"Te invitaron a unirse a '{list_name}' en CarroQueSí"
     )
-    redirect_url = f"/invite/{invite_id}"
+    # HTML-escaped for use in attributes / meta tags
+    redirect_url_html = _html.escape(f"/invite/{invite_id}")
+    # JS-escaped for use inside a <script> string literal — html.escape() is
+    # NOT appropriate here because HTML entities are not decoded inside <script>.
+    redirect_url_js = _json.dumps(f"/invite/{invite_id}").replace("<", "\\u003c").replace(">", "\\u003e")
 
     html = f"""<!DOCTYPE html>
 <html lang="es">
@@ -48,10 +55,10 @@ def invite_share_page(invite_id: str, session: CurrentSession):
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="{title}" />
   <meta name="twitter:description" content="{description}" />
-  <meta http-equiv="refresh" content="0;url={redirect_url}" />
+  <meta http-equiv="refresh" content="0;url={redirect_url_html}" />
 </head>
 <body>
-  <script>window.location.replace("{redirect_url}");</script>
+  <script>window.location.replace({redirect_url_js});</script>
 </body>
 </html>"""
 

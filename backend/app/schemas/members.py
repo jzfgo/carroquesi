@@ -7,6 +7,11 @@ class AddMemberRequest(BaseModel):
     email: EmailStr
 
 
+class InviteCreated(BaseModel):
+    status: str
+    email: str
+
+
 class MemberRead(BaseModel):
     id: str
     user_id: str

@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 
 from app.db.models import List, ListInvite, ListMember, User
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
-from app.schemas.members import AddMemberRequest, MemberRead
+from app.schemas.members import AddMemberRequest, InviteCreated, MemberRead
 
 router = APIRouter(prefix="/lists/{list_id}/members", tags=["members"])
 
@@ -39,7 +39,7 @@ def get_members(
     ]
 
 
-@router.post("", status_code=status.HTTP_202_ACCEPTED)
+@router.post("", response_model=InviteCreated, status_code=status.HTTP_202_ACCEPTED)
 def add_member(
     body: AddMemberRequest,
     list_and_user: OwnerDep,
