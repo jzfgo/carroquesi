@@ -232,6 +232,11 @@ describe('parseInput', () => {
       expect(result.price).toBe(1.5)
     })
 
+    test('first *valid* price token wins — invalid prefix does not block subsequent valid', () => {
+      const result = parseInput('leche $abc $1,50')
+      expect(result.price).toBe(1.5)
+    })
+
     test('€ is accepted as alias for $', () => {
       const result = parseInput('leche €1,50')
       expect(result.price).toBe(1.5)
