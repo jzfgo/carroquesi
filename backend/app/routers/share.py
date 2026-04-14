@@ -41,7 +41,7 @@ def invite_share_page(invite_id: str, session: CurrentSession):
     redirect_url_html = _html.escape(f"/invite/{invite_id}")
     # JS-escaped for use inside a <script> string literal — html.escape() is
     # NOT appropriate here because HTML entities are not decoded inside <script>.
-    redirect_url_js = _json.dumps(f"/invite/{invite_id}")
+    redirect_url_js = _json.dumps(f"/invite/{invite_id}").replace("<", "\\u003c").replace(">", "\\u003e")
 
     html = f"""<!DOCTYPE html>
 <html lang="es">
