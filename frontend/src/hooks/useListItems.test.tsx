@@ -191,7 +191,13 @@ describe('useListItems — updateTag', () => {
 
 describe('useListItems — polling', () => {
   beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }))
-  afterEach(() => vi.useRealTimers())
+  afterEach(() => {
+    vi.useRealTimers()
+    Object.defineProperty(document, 'visibilityState', {
+      get: () => 'visible',
+      configurable: true,
+    })
+  })
 
   it('re-fetches items when updated_at timestamp changes', async () => {
     const { result } = renderHook(() =>
@@ -217,5 +223,60 @@ describe('useListItems — polling', () => {
     expect(result.current.items[0].name).toBe('Leche Updated')
     // Members must never be re-fetched by polling
     expect(vi.mocked(api.getListMembers)).toHaveBeenCalledTimes(1)
+  })
+
+  it('skips the poll tick when the tab is hidden', async () => {
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    const callsBefore = vi.mocked(api.getListUpdatedAt).mock.calls.length
+
+    Object.defineProperty(document, 'visibilityState', {
+      get: () => 'hidden',
+      configurable: true,
+    })
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
+
+    // No additional calls should have been made while hidden
+    expect(vi.mocked(api.getListUpdatedAt).mock.calls.length).toBe(callsBefore)
+  })
+
+  it('immediately polls when the tab becomes visible again', async () => {
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    // Hide the tab and advance past a poll tick — should be skipped
+    Object.defineProperty(document, 'visibilityState', {
+      get: () => 'hidden',
+      configurable: true,
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
+
+    // Tab becomes visible again with updated data
+    const updatedItem: ListItem = { ...item1, name: 'Leche Catch-Up' }
+    vi.mocked(api.getListUpdatedAt).mockResolvedValue({ updated_at: '2026-01-02T00:00:00' } as never)
+    vi.mocked(api.getListItems).mockResolvedValue([updatedItem] as never)
+
+    Object.defineProperty(document, 'visibilityState', {
+      get: () => 'visible',
+      configurable: true,
+    })
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+      await Promise.resolve()
+    })
+
+    await waitFor(() =>
+      expect(result.current.items[0].name).toBe('Leche Catch-Up'),
+    )
   })
 })

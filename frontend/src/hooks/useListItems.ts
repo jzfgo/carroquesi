@@ -71,9 +71,12 @@ export function useListItems(
     void fetchAll()
   }, [fetchAll])
 
-  // 5-second polling: re-fetch items only when updated_at changes
+  // 5-second polling: re-fetch items only when updated_at changes.
+  // Skips requests while the tab is hidden to avoid unnecessary load;
+  // triggers an immediate catch-up poll when the tab becomes visible again.
   useEffect(() => {
-    const id = setInterval(async () => {
+    const poll = async () => {
+      if (document.visibilityState === 'hidden') return
       try {
         const data = (await getListUpdatedAt(getToken, listId)) as {
           updated_at: string
@@ -89,8 +92,14 @@ export function useListItems(
       } catch {
         // polling failures are silent
       }
-    }, 5000)
-    return () => clearInterval(id)
+    }
+
+    const id = setInterval(poll, 5000)
+    document.addEventListener('visibilitychange', poll)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', poll)
+    }
   }, [listId, getToken])
 
   const togglePurchased = useCallback(

@@ -24,7 +24,7 @@
 ## Bugs / Known Issues
 
 - [ ] **Root tsconfig always passes** — `tsconfig.json` has `files: []` so `tsc` never reports errors at the root level; CI should always use `npx tsc -p tsconfig.app.json --noEmit` (documented in CLAUDE.md but easy to miss)
-- [ ] **Polling on hidden tab** — the 5-second poll (`GET /lists/{id}/updated-at`) keeps firing when the tab is in the background; consider pausing with `visibilitychange`
+- [x] **Polling on hidden tab** — the 5-second poll (`GET /lists/{id}/updated-at`) keeps firing when the tab is in the background; consider pausing with `visibilitychange`
 - [ ] **`vite-plugin-pwa` peer dep warning** — `--legacy-peer-deps` is required because vite-plugin-pwa@1.x doesn't declare Vite 8 peer support; remove once upstream fixes it
 - [ ] **Invite link OG preview** — `GET /i/{invite_id}` serves an OG meta-tag page; test that WhatsApp / iMessage actually unfurl it correctly in production
 
