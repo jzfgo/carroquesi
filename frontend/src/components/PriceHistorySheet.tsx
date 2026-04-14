@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getPriceHistory } from '../lib/api'
+import { formatPrice } from '../lib/formatPrice'
 import type { ListItem, PriceEntry, PriceHistoryResponse } from '../types'
 import './PriceHistorySheet.css'
 
@@ -41,9 +42,6 @@ function groupByStore(entries: PriceEntry[]): StoreGroup[] {
   })
 }
 
-function formatPrice(amount: number, pricePer: string | null): string {
-  return pricePer === 'KILOGRAM' ? `€${amount.toFixed(2)}/kg` : `€${amount.toFixed(2)}`
-}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
