@@ -303,9 +303,9 @@ export function ListScreen({
   );
 
   const { purchasedCount, totalCount } = useMemo(() => {
-    const today = new Date().toDateString();
+    const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD' UTC
     const isPurchasedToday = (i: (typeof items)[number]) =>
-      !!i.purchased_at && new Date(i.purchased_at).toDateString() === today;
+      !!i.purchased_at && i.purchased_at.slice(0, 10) === today;
     let purchased = 0;
     let total = 0;
     for (const i of items) {
