@@ -21,11 +21,27 @@ No backend changes. No dashboard `ListCard` changes. All computation is client-s
 
 ### Which items contribute to a total
 
-An item contributes a price if **both** conditions hold:
-- `item.price != null`
-- `item.price_per !== 'KILOGRAM'` (per-kg items can't be summed without knowing weight)
+An item contributes a **cost** = `item.price × parseQuantityFactor(item.quantity, item.price_per)`.
 
-Items that don't contribute (no price, or per-kg) set the `partial` flag on their group.
+`parseQuantityFactor` rules:
+
+| `price_per` | `quantity` | result |
+|---|---|---|
+| `null` | `null` | `1` (single unit) |
+| `null` | `"3"` or `"3 bolsas"` | `3` (numeric count; non-SI text ignored) |
+| `null` | `"500g"` / `"2 kg"` / `"1,5l"` | `1` (SI unit = pack descriptor, not a count) |
+| `'KILOGRAM'` | `"500g"` | `0.5` (g → kg) |
+| `'KILOGRAM'` | `"2 kg."` | `2.0` (dot = abbreviation marker) |
+| `'KILOGRAM'` | `"750ml"` / `"33cl"` / `"1,5l"` | volume in kg (1 L = 1 kg) |
+| `'KILOGRAM'` | `null` or plain number or unknown unit | `null` → excluded |
+
+Supported SI units: `g`, `kg`, `ml`, `cl`, `dl`, `l` (case-insensitive, optional trailing `.`).
+Decimal separator: `.` or `,`.
+Volume is treated as water density (1 L = 1 kg).
+
+An item is **excluded** (sets the `partial` flag) when:
+- `item.price == null`, or
+- `parseQuantityFactor` returns `null` (per-kg with no usable unit)
 
 ### Display rules
 
@@ -97,13 +113,13 @@ purchasedCostByDate?: Map<string, CostSummary | null>
 ## Out of scope
 
 - Dashboard `ListCard` — no cost aggregation added to `GET /lists`
-- Items priced per kg — treated as unpriced (trigger `≥`, excluded from sum)
+- Items priced per kg **without** a parseable SI quantity — excluded, trigger `≥`
 - Community prices — only `item.price` (user-logged prices) are used
 
 ---
 
 ## Testing
 
-- **Unit:** `computeCostSummary` and `purchasedDateLabel` in `itemCost.test.ts` — cover all combinations (all priced, some unpriced, all per-kg, empty array, zero total)
+- **Unit:** `parseQuantityFactor`, `computeCostSummary`, and `purchasedDateLabel` in `itemCost.test.ts` — cover all unit types (g/kg/ml/cl/dl/l), comma decimal separator, abbreviated units (`kg.`), pack descriptors vs count, per-kg items with/without usable unit, partial flag, zero total
 - **Component:** `ItemList` tests updated with `pendingCost` and `purchasedCostByDate` props — assert rendered amounts and `≥` prefix
 - **Integration:** `ListScreen` tests assert the memo produces correct summaries from a mixed item array

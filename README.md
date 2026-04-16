@@ -1,6 +1,6 @@
 # CarroQueSí
 
-A collaborative grocery shopping list web app. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history.
+A collaborative grocery shopping list web app. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history. Includes price logging with per-item history, barcode lookup, and running cost totals per shopping session.
 
 ## Architecture
 
