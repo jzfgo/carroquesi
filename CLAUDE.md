@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Workflow
+
+Always use a git worktree (via the `/worktrunk` skill) to isolate branch work before starting any feature, bugfix, or PR review. Never work directly on `main`.
+
 ## Project Overview
 
 **CarroQueSí** — a collaborative grocery shopping list web app. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history.
