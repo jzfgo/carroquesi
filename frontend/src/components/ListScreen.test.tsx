@@ -48,8 +48,8 @@ beforeEach(() => {
   vi.mocked(api.getDueSuggestions).mockResolvedValue([])
 })
 
-const TODAY = new Date().toISOString()
-const YESTERDAY = new Date(Date.now() - 86_400_000).toISOString()
+const TODAY = new Date().toISOString().slice(0, 19)
+const YESTERDAY = new Date(Date.now() - 86_400_000).toISOString().slice(0, 19)
 
 function makeItem(overrides: Partial<ListItem>): ListItem {
   return {

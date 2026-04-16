@@ -109,9 +109,7 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
             <div key={label}>
               <p className="item-list__date-label">
                 <span className="item-list__label-text">{label}</span>
-                {purchasedCostByDate?.get(label) && (
-                  <CostBadge cost={purchasedCostByDate.get(label)!} className="item-list__date-label-cost" />
-                )}
+                {(() => { const c = purchasedCostByDate?.get(label); return c && <CostBadge cost={c} className="item-list__date-label-cost" />; })()}
               </p>
               {group.map(item => (
                 <ItemCard key={item.id} item={item} members={members}
