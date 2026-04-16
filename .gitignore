@@ -15,6 +15,7 @@ build/
 
 # uv
 .python-version
+!backend/.python-version
 
 # Environment
 .env
