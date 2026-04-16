@@ -1,6 +1,5 @@
 # Claude
-.agents/
-.claude/
+.claude/settings.local.json
 .playwright-mcp/
 .remember/
 .superpowers/

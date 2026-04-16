@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Frontend (Vite)",
+      "runtimeExecutable": "just",
+      "runtimeargs": ["dev"],
+      "cwd": "frontend",
+      "port": 5173
+    },
+    {
+      "name": "Backend (FastAPI)",
+      "runtimeExecutable": "just",
+      "runtimeArgs": ["dev"],
+      "cwd": "backend",
+      "port": 8000
+    }
+  ]
+}
