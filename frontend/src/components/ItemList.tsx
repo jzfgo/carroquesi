@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import './ItemList.css'
 import { ItemCard } from './ItemCard'
+import { purchasedDateLabel } from '../lib/itemCost'
+import type { CostSummary } from '../lib/itemCost'
+import { formatPrice } from '../lib/formatPrice'
 import type { ListItem, Member, TagField } from '../types'
 
 type Status = 'loading' | 'error' | 'success'
@@ -14,9 +17,19 @@ interface Props {
   onMenuOpen: (itemId: string) => void
   onRetry: () => void
   onPriceClick: (itemId: string) => void
+  pendingCost?: CostSummary | null
+  purchasedCostByDate?: Map<string, CostSummary | null>
 }
 
-export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry, onPriceClick }: Props) {
+function CostBadge({ cost, className }: { cost: CostSummary; className: string }) {
+  return (
+    <span className={className}>
+      {cost.partial ? '≥\u202f' : ''}{formatPrice(cost.total)}
+    </span>
+  )
+}
+
+export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry, onPriceClick, pendingCost, purchasedCostByDate }: Props) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
 
   if (status === 'loading') {
@@ -61,9 +74,7 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
   // Group purchased items by local date label, preserving backend order (newest first)
   const purchasedByDate: { label: string; items: ListItem[] }[] = []
   for (const item of purchased) {
-    const label = item.purchased_at
-      ? new Date(item.purchased_at + 'Z').toLocaleDateString('es', { dateStyle: 'medium' })
-      : 'Fecha desconocida'
+    const label = purchasedDateLabel(item.purchased_at)
     const last = purchasedByDate.at(-1)
     if (last && last.label === label) {
       last.items.push(item)
@@ -75,7 +86,8 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
   return (
     <div className="item-list">
       <p className="item-list__label">
-        {active.length} {active.length === 1 ? 'producto' : 'productos'} por comprar
+        <span className="item-list__label-text">{active.length} {active.length === 1 ? 'producto' : 'productos'} por comprar</span>
+        {pendingCost && <CostBadge cost={pendingCost} className="item-list__label-cost" />}
       </p>
       {active.map(item => (
         <ItemCard key={item.id} item={item} members={members}
@@ -95,7 +107,10 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
           </button>
           {!purchasedCollapsed && purchasedByDate.map(({ label, items: group }) => (
             <div key={label}>
-              <p className="item-list__date-label">{label}</p>
+              <p className="item-list__date-label">
+                <span className="item-list__label-text">{label}</span>
+                {(() => { const c = purchasedCostByDate?.get(label); return c && <CostBadge cost={c} className="item-list__date-label-cost" />; })()}
+              </p>
               {group.map(item => (
                 <ItemCard key={item.id} item={item} members={members}
                   onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen}

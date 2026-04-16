@@ -7,6 +7,7 @@ import {
   getDueSuggestions,
   getSuggestions,
 } from "../lib/api";
+import { computeCostSummary, purchasedDateLabel } from "../lib/itemCost";
 import { parseInput } from "../parseInput";
 import type {
   BarcodeRead,
@@ -347,6 +348,26 @@ export function ListScreen({
     )
     : items;
 
+  const { pendingCost, purchasedCostByDate } = useMemo(() => {
+    const pendingItems: typeof filteredItems = [];
+    const byDate = new Map<string, typeof filteredItems>();
+    for (const item of filteredItems) {
+      if (!item.purchased) {
+        pendingItems.push(item);
+      } else {
+        const label = purchasedDateLabel(item.purchased_at);
+        const group = byDate.get(label) ?? [];
+        group.push(item);
+        byDate.set(label, group);
+      }
+    }
+    const costByDate = new Map<string, ReturnType<typeof computeCostSummary>>();
+    for (const [label, group] of byDate) {
+      costByDate.set(label, computeCostSummary(group));
+    }
+    return { pendingCost: computeCostSummary(pendingItems), purchasedCostByDate: costByDate };
+  }, [filteredItems]);
+
   return (
     <div className="list-screen">
       <ListHeader
@@ -370,6 +391,8 @@ export function ListScreen({
         onMenuOpen={handleItemMenuOpen}
         onRetry={retry}
         onPriceClick={(itemId) => setPriceItemId(itemId)}
+        pendingCost={pendingCost}
+        purchasedCostByDate={purchasedCostByDate}
       />
       {editingTag &&
         (() => {

@@ -48,8 +48,8 @@ beforeEach(() => {
   vi.mocked(api.getDueSuggestions).mockResolvedValue([])
 })
 
-const TODAY = new Date().toISOString()
-const YESTERDAY = new Date(Date.now() - 86_400_000).toISOString()
+const TODAY = new Date().toISOString().slice(0, 19)
+const YESTERDAY = new Date(Date.now() - 86_400_000).toISOString().slice(0, 19)
 
 function makeItem(overrides: Partial<ListItem>): ListItem {
   return {
@@ -129,5 +129,67 @@ describe('ProgressBar scoping', () => {
       makeItem({ id: '1', purchased: true, purchased_at: YESTERDAY }),
     ])
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+})
+
+describe('cost totals', () => {
+  function renderWithItems(items: ListItem[]) {
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({ ...emptyHookResult, items })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+  }
+
+  it('shows total for unpurchased items when all are priced', () => {
+    renderWithItems([
+      makeItem({ id: '1', price: 2.5 }),
+      makeItem({ id: '2', price: 1.0 }),
+    ])
+    expect(screen.getByText(/3[,.]50/)).toBeInTheDocument()
+    expect(document.querySelector('.item-list__label-cost')).not.toHaveTextContent('≥')
+  })
+
+  it('shows ≥ prefix when some unpurchased items lack a price', () => {
+    renderWithItems([
+      makeItem({ id: '1', price: 2.0 }),
+      makeItem({ id: '2' }),
+    ])
+    expect(document.querySelector('.item-list__label-cost')?.textContent).toMatch(/≥/)
+  })
+
+  it('applies plain quantity multiplier', () => {
+    renderWithItems([makeItem({ id: '1', price: 2.0, quantity: '3' })])
+    // 2 × 3 = 6
+    expect(screen.getByText(/6[,.]00/)).toBeInTheDocument()
+  })
+
+  it('applies SI quantity to per-kg price', () => {
+    renderWithItems([makeItem({ id: '1', price: 10, price_per: 'KILOGRAM', quantity: '500g' })])
+    // 10 × 0.5 = 5
+    expect(screen.getByText(/5[,.]00/)).toBeInTheDocument()
+  })
+
+  it('treats SI quantity as pack descriptor for unit-priced item', () => {
+    renderWithItems([makeItem({ id: '1', price: 1.5, quantity: '500g' })])
+    // 1.5 × 1 = 1.5 — badge present, no ≥
+    expect(document.querySelector('.item-list__label-cost')?.textContent).toMatch(/1[,.]50/)
+    expect(document.querySelector('.item-list__label-cost')?.textContent).not.toMatch(/≥/)
+  })
+
+  it('renders no cost badge when per-kg item has no usable unit in quantity', () => {
+    renderWithItems([makeItem({ id: '1', price: 10, price_per: 'KILOGRAM', quantity: '2' })])
+    // total = 0 → null summary → no badge
+    expect(document.querySelector('.item-list__label-cost')).not.toBeInTheDocument()
+  })
+
+  it('shows cost next to the purchased date label', () => {
+    renderWithItems([
+      makeItem({ id: '1', purchased: true, purchased_at: TODAY, price: 3.0 }),
+    ])
+    expect(document.querySelector('.item-list__date-label-cost')).toBeInTheDocument()
+    expect(document.querySelector('.item-list__date-label-cost')?.textContent).toMatch(/3[,.]00/)
+  })
+
+  it('renders no cost badge when no items have prices', () => {
+    renderWithItems([makeItem({ id: '1' }), makeItem({ id: '2' })])
+    expect(document.querySelector('.item-list__label-cost')).not.toBeInTheDocument()
   })
 })

@@ -39,6 +39,7 @@ carroquesi/
 ## Frontend
 
 ### Commands
+Prefer `just` from the repo root (run `just` with no args to list all recipes). Direct npm commands when needed:
 ```bash
 cd frontend
 npm install --legacy-peer-deps  # ⚠️ required: vite-plugin-pwa@1.x doesn't declare Vite 8 peer support yet
@@ -47,9 +48,10 @@ npm run build        # production build
 npm run preview      # preview production build
 npm run test         # Vitest unit tests
 npm run test:watch   # Vitest in watch mode
+npm run test -- path/to/file.test.tsx  # run a single test file
 npm run lint         # ESLint
-npm run typecheck    # WARNING: root tsconfig has files:[] — always passes silently! Use instead:
-npx tsc -p tsconfig.app.json --noEmit  # actual typecheck
+# ⚠️ root tsconfig has files:[] — `npm run typecheck` always passes silently! Use instead:
+node_modules/.bin/tsc -p tsconfig.app.json --noEmit
 ```
 
 ### PWA
@@ -67,6 +69,11 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice` (
 - `FrequencySuggestionBanner` sits above the SmartInputBar and cycles through due suggestions every 6s; dismissals are persisted in `localStorage` (`cqs_dismissed_suggestions`) with a TTL computed by the backend
 - Settings are now accessible through the user menu for theme customization
 - `PriceHistorySheet` groups entries by store client-side and renders an SVG sparkline per store; the expanded view shows a larger chart + last/min/max stats. `PriceEntry` includes `purchased_at` for the time axis.
+- `ListScreen` shows running cost totals next to section labels (client-side only, `frontend/src/lib/itemCost.ts`):
+  - Unpurchased section → estimated total (accent/purple); purchased date labels → daily spent (green)
+  - `≥` prefix when any item has no price or an unresolvable per-kg quantity
+  - `parseQuantityFactor(quantity, pricePer)` rules: SI units `g kg ml cl dl l` supported (comma/dot decimal, optional trailing `.`); 1 L = 1 kg; `price_per=null` + SI unit → ×1 (pack descriptor); `price_per=null` + plain number → count multiplier; `price_per='KILOGRAM'` without a recognised SI unit → `null` (excluded, triggers `≥`)
+  - `purchasedDateLabel(purchased_at)` is the canonical date-label function — used by both `ListScreen` and `ItemList` so grouping keys always match
 
 ### SmartInputBar sigil system
 The input bar parses sigils from free text via `parseInput.ts` → `ParsedInput`:

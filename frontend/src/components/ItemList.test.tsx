@@ -1,5 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ItemList } from './ItemList'
+import { purchasedDateLabel } from '../lib/itemCost'
+import type { CostSummary } from '../lib/itemCost'
 import type { ListItem, Member } from '../types'
 
 const MEMBERS: Map<string, Member> = new Map()
@@ -114,6 +116,89 @@ test('tapping the purchased header again re-expands the section', () => {
   fireEvent.click(toggle)
   fireEvent.click(toggle)
   expect(screen.getByText('Item b')).toBeInTheDocument()
+})
+
+// ---------------------------------------------------------------------------
+// Cost badge — pending section
+// ---------------------------------------------------------------------------
+
+function renderWithCost(pendingCost?: CostSummary | null, purchasedCostByDate?: Map<string, CostSummary | null>) {
+  const items = [makeItem('a')]
+  render(
+    <ItemList status="success" items={items} members={MEMBERS}
+      onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onRetry={() => {}}
+      onPriceClick={() => {}
+      } pendingCost={pendingCost} purchasedCostByDate={purchasedCostByDate} />
+  )
+}
+
+test('shows formatted total in pending label when cost is exact', () => {
+  renderWithCost({ total: 3.5, partial: false })
+  // match "3.50" or "3,50" depending on locale
+  expect(screen.getByText(/3[,.]50/)).toBeInTheDocument()
+})
+
+test('shows ≥ prefix in pending label when cost is partial', () => {
+  renderWithCost({ total: 3.5, partial: true })
+  const badge = document.querySelector('.item-list__label-cost')
+  expect(badge?.textContent).toMatch(/≥/)
+})
+
+test('no cost badge when pendingCost is null', () => {
+  renderWithCost(null)
+  expect(document.querySelector('.item-list__label-cost')).not.toBeInTheDocument()
+})
+
+test('no cost badge when pendingCost is omitted', () => {
+  renderWithCost(undefined)
+  expect(document.querySelector('.item-list__label-cost')).not.toBeInTheDocument()
+})
+
+// ---------------------------------------------------------------------------
+// Cost badge — purchased date label
+// ---------------------------------------------------------------------------
+
+test('shows cost next to date label in purchased section', () => {
+  const purchasedAt = new Date().toISOString().slice(0, 19) // no trailing Z; purchasedDateLabel appends it
+  const item: ListItem = {
+    ...makeItem('b', true),
+    purchased_at: purchasedAt,
+  }
+  const label = purchasedDateLabel(purchasedAt)
+  const costByDate = new Map([[label, { total: 5, partial: false } as CostSummary]])
+  render(
+    <ItemList status="success" items={[makeItem('a'), item]} members={MEMBERS}
+      onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onRetry={() => {}}
+      onPriceClick={() => {}} purchasedCostByDate={costByDate} />
+  )
+  expect(document.querySelector('.item-list__date-label-cost')).toBeInTheDocument()
+  expect(document.querySelector('.item-list__date-label-cost')?.textContent).toMatch(/5[,.]00/)
+})
+
+test('shows ≥ prefix in date label when purchased cost is partial', () => {
+  const purchasedAt = new Date().toISOString().slice(0, 19)
+  const item: ListItem = { ...makeItem('b', true), purchased_at: purchasedAt }
+  const label = purchasedDateLabel(purchasedAt)
+  const costByDate = new Map([[label, { total: 2, partial: true } as CostSummary]])
+  render(
+    <ItemList status="success" items={[makeItem('a'), item]} members={MEMBERS}
+      onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onRetry={() => {}}
+      onPriceClick={() => {}} purchasedCostByDate={costByDate} />
+  )
+  expect(document.querySelector('.item-list__date-label-cost')?.textContent).toMatch(/≥/)
+})
+
+test('no date-label cost badge when purchasedCostByDate is omitted', () => {
+  const item: ListItem = {
+    ...makeItem('b', true),
+    purchased_at: new Date().toISOString().slice(0, 19),
+  }
+  render(
+    <ItemList status="success" items={[makeItem('a'), item]} members={MEMBERS}
+      onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onRetry={() => {}}
+      onPriceClick={() => {}} />
+  )
+  expect(document.querySelector('.item-list__date-label-cost')).not.toBeInTheDocument()
 })
 
 test('purchased items appear below active items', () => {
