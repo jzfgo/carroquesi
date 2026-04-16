@@ -1,7 +1,9 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.db.models import List, ListMember
+from app.db.models import List, ListItem, ListMember
 
 
 def test_create_list(client: TestClient, session: Session):
@@ -163,4 +165,32 @@ def test_purchased_count_reflects_purchased_at(client: TestClient):
 
     lists = client.get("/lists").json()
     target = next(l for l in lists if l["id"] == lst["id"])
+    assert target["purchased_count"] == 1
+
+
+def test_items_purchased_on_prior_days_excluded_from_counts(client: TestClient, session: Session):
+    """Items purchased before today must not appear in item_count or purchased_count."""
+    lst = client.post("/lists", json={"name": "Trip"}).json()
+    list_id = lst["id"]
+
+    # Add two items and purchase both
+    item_old = client.post(f"/lists/{list_id}/items", json={"name": "Yesterday item"}).json()
+    item_today = client.post(f"/lists/{list_id}/items", json={"name": "Today item"}).json()
+    client.post(f"/lists/{list_id}/items", json={"name": "Not yet"})
+
+    client.patch(f"/lists/{list_id}/items/{item_old['id']}", json={"purchased": True})
+    client.patch(f"/lists/{list_id}/items/{item_today['id']}", json={"purchased": True})
+
+    # Backdate item_old's purchased_at to yesterday via session
+    yesterday = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    db_item = session.get(ListItem, item_old["id"])
+    db_item.purchased_at = yesterday
+    session.add(db_item)
+    session.commit()
+
+    lists = client.get("/lists").json()
+    target = next(l for l in lists if l["id"] == list_id)
+
+    # item_old (yesterday) is excluded; item_today + item_unpurchased remain in scope
+    assert target["item_count"] == 2
     assert target["purchased_count"] == 1

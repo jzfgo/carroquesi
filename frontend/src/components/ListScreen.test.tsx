@@ -48,6 +48,19 @@ beforeEach(() => {
   vi.mocked(api.getDueSuggestions).mockResolvedValue([])
 })
 
+const TODAY = new Date().toISOString()
+const YESTERDAY = new Date(Date.now() - 86_400_000).toISOString()
+
+function makeItem(overrides: Partial<ListItem>): ListItem {
+  return {
+    id: 'x', list_id: 'l1', name: 'Item', quantity: null, brand: null,
+    stores: [], purchased: false, purchased_at: null, ean: null,
+    price: null, price_per: null, price_store: null, added_by: 'u1',
+    created_at: TODAY, updated_at: TODAY,
+    ...overrides,
+  }
+}
+
 describe('ListScreen', () => {
   it('renders the list name in the header', () => {
     render(<ListScreen listId="l1" listName="Mercado Semanal" listOwnerId="owner-1" />)
@@ -74,5 +87,47 @@ describe('ListScreen', () => {
       <ListScreen listId="l1" listName="Mercado Semanal" listEmoji="🛒" listOwnerId="owner-1" />
     )
     expect(screen.getByRole('heading', { name: 'Mercado Semanal' })).toBeInTheDocument()
+  })
+})
+
+describe('ProgressBar scoping', () => {
+  function renderWithItems(items: ListItem[]) {
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({ ...emptyHookResult, items })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+  }
+
+  it('hides the bar when there are no in-scope items', () => {
+    renderWithItems([])
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+
+  it('counts only unpurchased items when nothing is purchased yet', () => {
+    renderWithItems([makeItem({ id: '1' }), makeItem({ id: '2' })])
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '0')
+  })
+
+  it('shows 100% when all items were purchased today', () => {
+    renderWithItems([
+      makeItem({ id: '1', purchased: true, purchased_at: TODAY }),
+      makeItem({ id: '2', purchased: true, purchased_at: TODAY }),
+    ])
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
+  })
+
+  it('excludes items purchased on a prior day from both numerator and denominator', () => {
+    renderWithItems([
+      makeItem({ id: '1' }),                                              // unpurchased → in scope
+      makeItem({ id: '2', purchased: true, purchased_at: TODAY }),        // purchased today → in scope
+      makeItem({ id: '3', purchased: true, purchased_at: YESTERDAY }),    // old → excluded
+    ])
+    // total = 2 (items 1 + 2), purchased = 1 (item 2) → 50%
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '50')
+  })
+
+  it('hides the bar when all purchased items are from prior days and none are unpurchased', () => {
+    renderWithItems([
+      makeItem({ id: '1', purchased: true, purchased_at: YESTERDAY }),
+    ])
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   })
 })

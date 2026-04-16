@@ -1,11 +1,10 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, status
-from sqlalchemy import case, func
+from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
 from app.db.models import List, ListInvite, ListItem, ListMember
-from app.db.session import get_session
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
 from app.schemas.lists import ListCreate, ListRead, ListUpdate
 
@@ -34,13 +33,19 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
     # Single aggregation query — counts for all lists at once.
     # Uses session.execute (SQLAlchemy) rather than session.exec (SQLModel)
     # because it returns named-column Row objects from aggregation queries.
+    # Only count items that are in-scope for the current shopping session:
+    # unpurchased items, plus items purchased today. Items purchased on prior
+    # days are excluded from both the denominator and the numerator so the
+    # progress bar reflects only the current trip.
+    today = func.current_date()
+    purchased_today = func.date(ListItem.purchased_at) == today
+    in_scope = or_(ListItem.purchased_at.is_(None), purchased_today)
+
     count_stmt = (
         select(
             ListItem.list_id,
-            func.count(ListItem.id).label("item_count"),
-            func.coalesce(
-                func.sum(case((ListItem.purchased_at.is_not(None), 1), else_=0)), 0
-            ).label("purchased_count"),
+            func.count(ListItem.id).filter(in_scope).label("item_count"),
+            func.count(ListItem.id).filter(purchased_today).label("purchased_count"),
         )
         .where(ListItem.list_id.in_(list_ids))
         .group_by(ListItem.list_id)
