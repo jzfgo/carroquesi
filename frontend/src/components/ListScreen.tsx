@@ -302,7 +302,22 @@ export function ListScreen({
     [addItem],
   );
 
-  const purchasedCount = items.filter((i) => i.purchased).length;
+  const { purchasedCount, totalCount } = useMemo(() => {
+    const today = new Date().toDateString();
+    const isPurchasedToday = (i: (typeof items)[number]) =>
+      !!i.purchased_at && new Date(i.purchased_at).toDateString() === today;
+    let purchased = 0;
+    let total = 0;
+    for (const i of items) {
+      if (!i.purchased) {
+        total++;
+      } else if (isPurchasedToday(i)) {
+        purchased++;
+        total++;
+      }
+    }
+    return { purchasedCount: purchased, totalCount: total };
+  }, [items]);
 
   const stores = useMemo(() => {
     const seen = new Set<string>();
@@ -328,8 +343,8 @@ export function ListScreen({
 
   const filteredItems = activeStore
     ? items.filter(
-        (i) => i.stores.includes(activeStore) || i.stores.length === 0,
-      )
+      (i) => i.stores.includes(activeStore) || i.stores.length === 0,
+    )
     : items;
 
   return (
@@ -340,7 +355,7 @@ export function ListScreen({
         onMenuOpen={handleMenuToggle}
         onBack={onBack}
       />
-      <ProgressBar purchased={purchasedCount} total={items.length} />
+      <ProgressBar purchased={purchasedCount} total={totalCount} />
       <StoreFilter
         stores={stores}
         active={activeStore}
