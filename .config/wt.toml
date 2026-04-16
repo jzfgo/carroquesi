@@ -1,12 +1,12 @@
 # Worktrunk project config — shared by all contributors
 # See: https://worktrunk.dev/reference/hook
 
+# Validate quality gates before merging back to main
+# Runs: frontend typecheck + lint, then backend tests
+pre-merge = "just ci"
+
 # Install dependencies when creating a new worktree
 # Note: --legacy-peer-deps required because vite-plugin-pwa@1.x doesn't declare Vite 8 peer support yet
 [pre-start]
 frontend = "cd frontend && npm install --legacy-peer-deps"
 backend  = "cd backend && uv sync"
-
-# Validate quality gates before merging back to main
-# Runs: frontend typecheck + lint, then backend tests
-pre-merge = "just ci"

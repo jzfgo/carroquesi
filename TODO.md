@@ -32,7 +32,7 @@
 
 ## Infrastructure / DevOps
 
-- [ ] **CI pipeline** — no GitHub Actions workflow remains after removing `claude-code-review`; add a basic CI job (typecheck + lint + test) on PRs
+- [x] **CI pipeline** — no GitHub Actions workflow remains after removing `claude-code-review`; add a basic CI job (typecheck + lint + test) on PRs
 - [ ] **Secrets management** — `firebase-credentials.json` and `.env` files are gitignored but there's no documented rotation process; consider Google Secret Manager for Cloud Run
 - [ ] **Database backups** — no automated backup policy documented for the Cloud SQL / Postgres instance
 - [ ] **Alembic migration on Cloud Run startup** — currently runs `alembic upgrade head` at container start; this blocks readiness and could cause issues on rollbacks; consider a dedicated migration job

@@ -111,7 +111,7 @@ function ExpandedChart({ records, latest }: { records: PriceEntry[]; latest: Pri
   )
 }
 
-export default function PriceHistorySheet({ item, listId, getToken, onLogPrice, onClose: _onClose, readOnly }: Props) {
+export default function PriceHistorySheet({ item, listId, getToken, onLogPrice, readOnly }: Props) {
   const [scope, setScope] = useState<Scope>('this_list')
   const [history, setHistory] = useState<PriceHistoryResponse | null>(null)
   const [expandedStore, setExpandedStore] = useState<string | null | undefined>(undefined)
