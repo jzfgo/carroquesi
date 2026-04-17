@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-const DUPLICATE_TOAST = 'Ya está en la lista'
 import {
   ApiError,
   createItem,
@@ -14,6 +12,8 @@ import {
 } from '../lib/api'
 import { AVATAR_COLOURS } from '../mockData'
 import type { ListItem, Member, ParsedInput, TagField } from '../types'
+
+const DUPLICATE_TOAST = 'Ya está en la lista'
 
 type Status = 'loading' | 'error' | 'success'
 

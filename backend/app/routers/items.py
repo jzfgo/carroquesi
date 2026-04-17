@@ -43,7 +43,7 @@ def add_item(
     session: CurrentSession,
 ):
     lst, current_user = list_and_user
-    conditions = [func.lower(ListItem.name) == body.name.strip().lower()]
+    conditions = [func.trim(func.lower(ListItem.name)) == body.name.strip().lower()]
     if body.ean is not None:
         conditions.append(ListItem.ean == body.ean)
     duplicate = session.exec(
