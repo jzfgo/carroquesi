@@ -17,6 +17,8 @@ function write(map: Record<string, string>) {
   localStorage.setItem(KEY, JSON.stringify(map))
 }
 
+export function _resetCacheForTesting() { cache = null }
+
 export function isDismissed(name: string): boolean {
   const expiry = read()[name]
   if (!expiry) return false
