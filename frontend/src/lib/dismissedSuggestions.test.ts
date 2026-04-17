@@ -1,10 +1,11 @@
 import { beforeEach, expect, test, vi } from 'vitest'
-import { isDismissed, writeDismissal } from './dismissedSuggestions'
+import { _resetCacheForTesting, isDismissed, writeDismissal } from './dismissedSuggestions'
 
 const KEY = 'cqs_dismissed_suggestions'
 
 beforeEach(() => {
   localStorage.clear()
+  _resetCacheForTesting()
 })
 
 test('isDismissed returns false when no entry exists', () => {

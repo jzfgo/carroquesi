@@ -39,6 +39,15 @@
   color: var(--accent);
 }
 
+.smart-input__suggestion--inferred {
+  background: var(--bg2, #f9f8fb);
+  border-left: 3px solid var(--accent);
+  color: var(--text-h);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .smart-input__preview {
   background: var(--bg2, #f9f8fb);
   border: 1px solid var(--accent-border, rgba(170,59,255,0.25));

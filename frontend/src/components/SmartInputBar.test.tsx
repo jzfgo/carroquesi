@@ -281,3 +281,53 @@ test('hasSigil triggers preview when only price is set (no other sigils)', () =>
     suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop} />)
   expect(screen.getByTestId('parse-preview')).toBeInTheDocument()
 })
+
+// ── Own-brand inferred store chip ────────────────────────────────────────────
+
+test('inferredStoreChip renders with --inferred class', () => {
+  render(<SmartInputBar value="Leche #Hacendado" parsed={parseInput('Leche #Hacendado')}
+    items={NO_ITEMS} suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop}
+    onScanRequest={noop} onEanSearch={noop} inferredStoreChip="Mercadona"
+    onDismissInferredStore={noop} />)
+  const chip = screen.getByTestId('inferred-store-chip')
+  expect(chip).toBeInTheDocument()
+  expect(chip).toHaveClass('smart-input__suggestion--inferred')
+  expect(chip).toHaveTextContent('Mercadona')
+})
+
+test('inferredStoreChip renders before regular suggestions', () => {
+  // value has no active sigil so the suggestions prop is used as-is
+  render(<SmartInputBar value="Le" parsed={parseInput('Le')}
+    items={NO_ITEMS} suggestions={['Leche', 'Lechuga']} onChange={noop}
+    onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop}
+    inferredStoreChip="Mercadona" onDismissInferredStore={noop} />)
+  const allButtons = screen.getAllByRole('button')
+  const chipIndex = allButtons.findIndex(b => b.getAttribute('data-testid') === 'inferred-store-chip')
+  const lecheIndex = allButtons.findIndex(b => b.textContent?.includes('Leche'))
+  expect(chipIndex).toBeLessThan(lecheIndex)
+})
+
+test('tapping inferredStoreChip calls onDismissInferredStore', async () => {
+  const onDismiss = vi.fn()
+  render(<SmartInputBar value="Leche #Hacendado" parsed={parseInput('Leche #Hacendado')}
+    items={NO_ITEMS} suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop}
+    onScanRequest={noop} onEanSearch={noop} inferredStoreChip="Mercadona"
+    onDismissInferredStore={onDismiss} />)
+  await userEvent.click(screen.getByTestId('inferred-store-chip'))
+  expect(onDismiss).toHaveBeenCalledTimes(1)
+})
+
+test('no inferredStoreChip prop — no extra chip rendered', () => {
+  render(<SmartInputBar value="Leche" parsed={parseInput('Leche')}
+    items={NO_ITEMS} suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop}
+    onScanRequest={noop} onEanSearch={noop} />)
+  expect(screen.queryByTestId('inferred-store-chip')).not.toBeInTheDocument()
+})
+
+test('inferredStoreChip=null — no extra chip rendered', () => {
+  render(<SmartInputBar value="Leche" parsed={parseInput('Leche')}
+    items={NO_ITEMS} suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop}
+    onScanRequest={noop} onEanSearch={noop} inferredStoreChip={null}
+    onDismissInferredStore={noop} />)
+  expect(screen.queryByTestId('inferred-store-chip')).not.toBeInTheDocument()
+})

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useListItems } from "../hooks/useListItems";
+import { useOwnBrandInference } from "../hooks/useOwnBrandInference";
 import {
   ApiError,
   getBarcode,
@@ -91,6 +92,10 @@ export function ListScreen({
   const isOwner = listOwnerId === currentUserId;
 
   const parsed = useMemo(() => parseInput(inputValue), [inputValue]);
+  const { visibleChip, storeToAdd, dismiss: dismissInferredStore } = useOwnBrandInference(
+    parsed.brand,
+    parsed.stores,
+  );
   const {
     status,
     items,
@@ -156,14 +161,8 @@ export function ListScreen({
   }, []);
 
   const handleMenuToggle = useCallback(() => {
-    if (menuOpen) {
-      // If sheet is already open, close it
-      setMenuOpen(false);
-    } else {
-      // Otherwise open the menu
-      setMenuOpen(true);
-    }
-  }, [menuOpen]);
+    setMenuOpen(prev => !prev);
+  }, []);
 
   const handleChange = useCallback((value: string) => {
     eanRequestIdRef.current++;
@@ -173,9 +172,12 @@ export function ListScreen({
 
   const handleSubmit = useCallback(() => {
     if (!parsed.name.trim()) return;
-    void addItem(parsed);
+    const stores = storeToAdd
+      ? [...new Set([...parsed.stores, storeToAdd])]
+      : parsed.stores;
+    void addItem({ ...parsed, stores });
     setInputValue("");
-  }, [parsed, addItem]);
+  }, [parsed, addItem, storeToAdd]);
 
   const handleScanRequest = useCallback(() => {
     setScannerOpen(true);
@@ -476,6 +478,8 @@ export function ListScreen({
             onEanSearch={handleEanSearch}
             eanLoading={eanLookup.status === "loading"}
             eanError={eanLookup.status === "error" ? eanLookup.message : null}
+            inferredStoreChip={visibleChip}
+            onDismissInferredStore={dismissInferredStore}
           />
         </>
       )}
