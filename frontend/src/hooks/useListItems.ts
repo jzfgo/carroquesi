@@ -155,7 +155,7 @@ export function useListItems(
     async (parsed: ParsedInput) => {
       const nameLower = parsed.name.trim().toLowerCase()
       const isDuplicate = itemsRef.current.some(
-        (i) => !i.purchased && (i.name.toLowerCase() === nameLower || (parsed.ean != null && i.ean === parsed.ean)),
+        (i) => !i.purchased && (i.name.trim().toLowerCase() === nameLower || (parsed.ean != null && i.ean === parsed.ean)),
       )
       if (isDuplicate) {
         showToast(DUPLICATE_TOAST)
