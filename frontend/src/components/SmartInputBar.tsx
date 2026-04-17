@@ -67,9 +67,11 @@ interface Props {
   onEanSearch: (ean: string) => void
   eanLoading?: boolean
   eanError?: string | null
+  inferredStoreChip?: string | null
+  onDismissInferredStore?: () => void
 }
 
-export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onClear, onScanRequest, onEanSearch, eanLoading, eanError }: Props) {
+export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onClear, onScanRequest, onEanSearch, eanLoading, eanError, inferredStoreChip, onDismissInferredStore }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const activeSigil = getActiveSigil(value)
   const fieldSigil = activeSigil && SIGIL_FIELDS[activeSigil.sigil]
@@ -97,8 +99,18 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
 
   return (
     <div className="smart-input">
-      {displaySuggestions.length > 0 && (
+      {(inferredStoreChip || displaySuggestions.length > 0) && (
         <div className="smart-input__suggestions">
+          {inferredStoreChip && (
+            <button
+              className="smart-input__suggestion smart-input__suggestion--inferred"
+              data-testid="inferred-store-chip"
+              onClick={onDismissInferredStore}
+              type="button"
+            >
+              🏪 {inferredStoreChip} <span aria-hidden="true">✕</span>
+            </button>
+          )}
           {displaySuggestions.map((s, i) => (
             <button key={s} className={`smart-input__suggestion${i === 0 ? ' smart-input__suggestion--top' : ''}`}
               onClick={() => applySuggestion(s)}>
