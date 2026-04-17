@@ -2,6 +2,7 @@ import { renderHook, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useListItems } from './useListItems'
 import * as api from '../lib/api'
+import { ApiError } from '../lib/api'
 import type { ListItem } from '../types'
 
 vi.mock('../lib/api')
@@ -130,7 +131,7 @@ describe('useListItems — addItem', () => {
 
     await act(async () => {
       await result.current.addItem({
-        name: 'Leche',
+        name: 'Mantequilla',
         quantity: null,
         brand: null,
         stores: [],
@@ -139,6 +140,72 @@ describe('useListItems — addItem', () => {
 
     expect(result.current.items).toHaveLength(initialLength)
     expect(mockShowToast).toHaveBeenCalledWith('No se pudo añadir el producto')
+  })
+
+  it('blocks duplicate name (case-insensitive) and shows toast without calling API', async () => {
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.addItem({ name: 'LECHE', quantity: null, brand: null, stores: [] })
+    })
+
+    expect(api.createItem).not.toHaveBeenCalled()
+    expect(mockShowToast).toHaveBeenCalledWith('Ya está en la lista')
+  })
+
+  it('blocks duplicate EAN and shows toast without calling API', async () => {
+    const itemWithEan: ListItem = { ...item1, ean: '1234567890123' }
+    vi.mocked(api.getListItems).mockResolvedValue([itemWithEan] as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.addItem({ name: 'Otro', quantity: null, brand: null, stores: [], ean: '1234567890123' })
+    })
+
+    expect(api.createItem).not.toHaveBeenCalled()
+    expect(mockShowToast).toHaveBeenCalledWith('Ya está en la lista')
+  })
+
+  it('allows re-adding a name that exists only in purchased items', async () => {
+    const purchasedItem: ListItem = { ...item1, purchased: true, purchased_at: '2026-01-01T10:00:00' }
+    vi.mocked(api.getListItems).mockResolvedValue([purchasedItem] as never)
+    const realItem: ListItem = { ...item1, id: 'item-new' }
+    vi.mocked(api.createItem).mockResolvedValue(realItem as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.addItem({ name: 'Leche', quantity: null, brand: null, stores: [] })
+    })
+
+    expect(api.createItem).toHaveBeenCalled()
+    expect(mockShowToast).not.toHaveBeenCalled()
+  })
+
+  it('shows "Ya está en la lista" toast on 409 from API (race condition)', async () => {
+    const apiErr = new ApiError(409, 'Item already in list')
+    apiErr.status = 409
+    vi.mocked(api.createItem).mockRejectedValue(apiErr)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+    const initialLength = result.current.items.length
+
+    await act(async () => {
+      await result.current.addItem({ name: 'Producto Nuevo', quantity: null, brand: null, stores: [] })
+    })
+
+    expect(result.current.items).toHaveLength(initialLength)
+    expect(mockShowToast).toHaveBeenCalledWith('Ya está en la lista')
   })
 })
 

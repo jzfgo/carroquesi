@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import case, nulls_last
+from sqlalchemy import case, func, nulls_last, or_
 from sqlmodel import Session, select
 
 from app.db.models import List, ListItem
@@ -43,6 +43,17 @@ def add_item(
     session: CurrentSession,
 ):
     lst, current_user = list_and_user
+    conditions = [func.lower(ListItem.name) == body.name.strip().lower()]
+    if body.ean is not None:
+        conditions.append(ListItem.ean == body.ean)
+    duplicate = session.exec(
+        select(ListItem)
+        .where(ListItem.list_id == lst.id, ListItem.purchased_at.is_(None))
+        .where(or_(*conditions))
+        .limit(1)
+    ).first()
+    if duplicate is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Item already in list")
     item = ListItem(list_id=lst.id, added_by=current_user.id, **body.model_dump())
     session.add(item)
     _bump(lst, session)

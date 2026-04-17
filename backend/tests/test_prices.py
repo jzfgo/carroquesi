@@ -137,6 +137,7 @@ def test_get_price_history_this_list_by_ean(client: TestClient, httpx_mock: HTTP
     ean = "8410188011111"
     lst = _make_list(client)
     item1 = _make_item(client, lst["id"], name="Aceite", ean=ean)
+    client.patch(f"/lists/{lst['id']}/items/{item1['id']}", json={"purchased": True})
     item2 = _make_item(client, lst["id"], name="Aceite extra", ean=ean)
 
     _set_price(client, lst["id"], item1["id"], 4.20, store="Mercadona")
@@ -151,6 +152,7 @@ def test_get_price_history_this_list_by_ean(client: TestClient, httpx_mock: HTTP
 def test_get_price_history_this_list_by_name_brand(client: TestClient):
     lst = _make_list(client)
     item1 = _make_item(client, lst["id"], name="Pan integral", brand="Bimbo")
+    client.patch(f"/lists/{lst['id']}/items/{item1['id']}", json={"purchased": True})
     item2 = _make_item(client, lst["id"], name="Pan integral", brand="Bimbo")
 
     _set_price(client, lst["id"], item1["id"], 1.20, store="Lidl")
