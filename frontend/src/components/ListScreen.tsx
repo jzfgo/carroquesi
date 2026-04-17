@@ -161,14 +161,8 @@ export function ListScreen({
   }, []);
 
   const handleMenuToggle = useCallback(() => {
-    if (menuOpen) {
-      // If sheet is already open, close it
-      setMenuOpen(false);
-    } else {
-      // Otherwise open the menu
-      setMenuOpen(true);
-    }
-  }, [menuOpen]);
+    setMenuOpen(prev => !prev);
+  }, []);
 
   const handleChange = useCallback((value: string) => {
     eanRequestIdRef.current++;

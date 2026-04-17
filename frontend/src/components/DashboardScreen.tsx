@@ -80,17 +80,15 @@ export function DashboardScreen() {
         setMenuOpen(false)
       }
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [menuOpen])
-
-  useEffect(() => {
-    if (!menuOpen) return
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setMenuOpen(false)
     }
+    document.addEventListener('mousedown', handleClick)
     document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleKey)
+    }
   }, [menuOpen])
 
   const fetchLists = useCallback(async () => {
