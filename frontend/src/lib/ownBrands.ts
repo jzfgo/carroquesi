@@ -68,6 +68,13 @@ const OWN_BRAND_MAP: Record<string, string> = {
   'consum kids': 'Consum',
   'consum': 'Consum',
   'kyrey': 'Consum',
+  // BM Supermercados
+  'bm': 'BM Supermercados',
+  // E.Leclerc
+  'marque repère': 'E.Leclerc',
+  'eco+': 'E.Leclerc',
+  'kado': 'E.Leclerc',
+  'tissaia': 'E.Leclerc',
 }
 
 export function lookupOwnBrandStore(brand: string | null): string | null {
