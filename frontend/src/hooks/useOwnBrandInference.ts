@@ -14,6 +14,7 @@ export function useOwnBrandInference(
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDismissed(false)
   }, [brand])
 
