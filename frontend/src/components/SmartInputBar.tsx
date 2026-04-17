@@ -101,7 +101,7 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
     <div className="smart-input">
       {(inferredStoreChip || displaySuggestions.length > 0) && (
         <div className="smart-input__suggestions">
-          {inferredStoreChip && (
+          {inferredStoreChip && onDismissInferredStore && (
             <button
               className="smart-input__suggestion smart-input__suggestion--inferred"
               data-testid="inferred-store-chip"
