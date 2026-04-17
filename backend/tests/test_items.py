@@ -232,3 +232,33 @@ def test_add_item_price_per_without_price_is_rejected(client: TestClient):
         json={"name": "Arroz", "price_per": "KILOGRAM"},
     )
     assert response.status_code == 422
+
+
+def test_add_duplicate_name_rejected(client: TestClient):
+    lst = _create_list(client)
+    client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"})
+    response = client.post(f"/lists/{lst['id']}/items", json={"name": "leche"})
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Item already in list"
+
+
+def test_add_duplicate_ean_rejected(client: TestClient):
+    lst = _create_list(client)
+    client.post(f"/lists/{lst['id']}/items", json={"name": "Yogur", "ean": "1234567890123"})
+    response = client.post(f"/lists/{lst['id']}/items", json={"name": "Otro yogur", "ean": "1234567890123"})
+    assert response.status_code == 409
+
+
+def test_add_same_name_as_purchased_item_allowed(client: TestClient):
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    response = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"})
+    assert response.status_code == 201
+
+
+def test_add_unique_item_allowed(client: TestClient):
+    lst = _create_list(client)
+    client.post(f"/lists/{lst['id']}/items", json={"name": "Tomate"})
+    response = client.post(f"/lists/{lst['id']}/items", json={"name": "Lechuga"})
+    assert response.status_code == 201

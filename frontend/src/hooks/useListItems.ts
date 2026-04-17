@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  ApiError,
   createItem,
   deleteItem,
   getListItems,
@@ -11,6 +12,8 @@ import {
 } from '../lib/api'
 import { AVATAR_COLOURS } from '../mockData'
 import type { ListItem, Member, ParsedInput, TagField } from '../types'
+
+const DUPLICATE_TOAST = 'Ya está en la lista'
 
 type Status = 'loading' | 'error' | 'success'
 
@@ -150,6 +153,14 @@ export function useListItems(
 
   const addItem = useCallback(
     async (parsed: ParsedInput) => {
+      const nameLower = parsed.name.trim().toLowerCase()
+      const isDuplicate = itemsRef.current.some(
+        (i) => !i.purchased && (i.name.trim().toLowerCase() === nameLower || (parsed.ean != null && i.ean === parsed.ean)),
+      )
+      if (isDuplicate) {
+        showToast(DUPLICATE_TOAST)
+        return
+      }
       const tempId = `tmp-${Date.now()}`
       const priceStore = parsed.price != null ? (parsed.stores[0] ?? null) : null
       const temp: ListItem = {
@@ -190,9 +201,13 @@ export function useListItems(
           price_store: priceStore,
         })) as ListItem
         setItems((prev) => prev.map((i) => (i.id === tempId ? created : i)))
-      } catch {
+      } catch (err) {
         setItems((prev) => prev.filter((i) => i.id !== tempId))
-        showToast('No se pudo añadir el producto')
+        if (err instanceof ApiError && err.status === 409) {
+          showToast(DUPLICATE_TOAST)
+        } else {
+          showToast('No se pudo añadir el producto')
+        }
       }
     },
     [getToken, listId, showToast],
