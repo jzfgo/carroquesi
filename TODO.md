@@ -27,6 +27,7 @@
 
 - [ ] **Price edit missing store field** — when editing an already-logged price entry that has a store associated, the edit form should allow the user to change or remove that store; currently the store field is absent from the edit flow, making logged store data effectively immutable
 - [ ] **Delete a logged price entry** — users should be able to delete a price entry within the existing 24 h editing window; the delete action should live in the same edit UI (e.g. a "Eliminar" button) and call `DELETE /lists/{id}/items/{item_id}/prices/{price_id}` (endpoint to be added)
+- [ ] **Duplicate stores via `@` sigil** — `parseInput.ts` does not deduplicate stores, so typing `@Mercadona @Mercadona` results in the same store appearing twice in the item's stores array; fix by deduplicating parsed stores before returning the `ParsedInput`
 - [ ] **Root tsconfig always passes** — `tsconfig.json` has `files: []` so `tsc` never reports errors at the root level; CI should always use `npx tsc -p tsconfig.app.json --noEmit` (documented in CLAUDE.md but easy to miss)
 - [x] **Polling on hidden tab** — the 5-second poll (`GET /lists/{id}/updated-at`) keeps firing when the tab is in the background; consider pausing with `visibilitychange`
 - [ ] **`vite-plugin-pwa` peer dep warning** — `--legacy-peer-deps` is required because vite-plugin-pwa@1.x doesn't declare Vite 8 peer support; remove once upstream fixes it
