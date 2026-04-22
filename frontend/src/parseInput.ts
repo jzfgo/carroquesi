@@ -63,9 +63,11 @@ export function parseInput(raw: string): ParsedInput {
     }
   }
 
-  result.stores = storeEntries
-    .map(parts => parts.join(' ').trim())
-    .filter(s => s.length > 0)
+  result.stores = [...new Set(
+    storeEntries
+      .map(parts => parts.join(' ').trim())
+      .filter(s => s.length > 0)
+  )]
 
   return result
 }

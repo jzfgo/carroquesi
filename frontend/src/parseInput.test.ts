@@ -47,6 +47,16 @@ describe('parseInput', () => {
     expect(result.stores).toEqual(['Mercadona', 'Carrefour', 'Lidl'])
   })
 
+  test('duplicate store sigils are deduplicated', () => {
+    const result = parseInput('Leche @Mercadona @Mercadona')
+    expect(result.stores).toEqual(['Mercadona'])
+  })
+
+  test('duplicate multi-word stores are deduplicated', () => {
+    const result = parseInput('Jamón @El Corte Inglés @El Corte Inglés')
+    expect(result.stores).toEqual(['El Corte Inglés'])
+  })
+
   test('multi-word first store then second store', () => {
     const result = parseInput('Jamón @El Corte Inglés @Mercadona')
     expect(result.stores).toEqual(['El Corte Inglés', 'Mercadona'])
