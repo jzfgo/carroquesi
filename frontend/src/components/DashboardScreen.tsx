@@ -91,9 +91,11 @@ export function DashboardScreen() {
     }
   }, [menuOpen])
 
-  const fetchLists = useCallback(async () => {
-    setLists(null)
-    setFetchError(false)
+  const fetchLists = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLists(null)
+      setFetchError(false)
+    }
     try {
       const data = (await getLists(getToken)) as ApiList[]
       const ordered = applyOrder(data, loadOrder(user!.id))
@@ -104,7 +106,7 @@ export function DashboardScreen() {
         openListIdRef.current = null
       }
     } catch {
-      setFetchError(true)
+      if (!silent) setFetchError(true)
     }
   }, [getToken, user])
 
@@ -195,7 +197,7 @@ export function DashboardScreen() {
         listName={selectedList.name}
         listEmoji={selectedList.emoji}
         listOwnerId={selectedList.owner_id}
-        onBack={() => setSelectedList(null)}
+        onBack={() => { setSelectedList(null); void fetchLists(true) }}
       />
     )
   }

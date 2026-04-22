@@ -109,6 +109,23 @@ describe('DashboardScreen', () => {
     await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
   })
 
+  it('re-fetches list data silently when returning from a list', async () => {
+    const updatedLists = [
+      { ...twoLists[0], item_count: 10, purchased_count: 7 },
+      twoLists[1],
+    ]
+    vi.mocked(api.getLists)
+      .mockResolvedValueOnce(twoLists as never)
+      .mockResolvedValueOnce(updatedLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('3 de 8 comprados'))
+    fireEvent.click(screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /volver/i }))
+    await waitFor(() => expect(screen.getByText('7 de 10 comprados')).toBeInTheDocument())
+    // dashboard stays visible during the silent refresh (no loading spinner)
+    expect(screen.queryByRole('status', { name: /cargando/i })).not.toBeInTheDocument()
+  })
+
   it('opens avatar menu on avatar click and calls signOut via menu item', async () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
