@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getList, ApiError } from '../lib/api'
+import { usePageTitle } from '../hooks/usePageTitle'
 import { ListScreen } from './ListScreen'
 import type { ApiList } from '../types'
 
@@ -11,6 +12,7 @@ export function ListRoute() {
   const { getToken } = useAuth()
   const [list, setList] = useState<ApiList | null>(null)
   const [error, setError] = useState<'not_found' | 'forbidden' | 'unknown' | null>(null)
+  usePageTitle(list?.name ?? undefined)
 
   useEffect(() => {
     if (!id) return
@@ -41,7 +43,23 @@ export function ListRoute() {
     )
   }
 
-  if (!list) return null
+  if (!list) {
+    return (
+      <div
+        role="status"
+        aria-label="Cargando"
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100dvh' }}
+      >
+        <span style={{
+          width: 32, height: 32, borderRadius: '50%',
+          border: '3px solid var(--color-border)',
+          borderTopColor: 'var(--color-primary)',
+          animation: 'spin 0.8s linear infinite',
+          display: 'block',
+        }} />
+      </div>
+    )
+  }
 
   return (
     <ListScreen
