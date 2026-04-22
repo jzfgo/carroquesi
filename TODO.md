@@ -7,7 +7,7 @@
 ## Features (Backlog)
 
 - [x] **`$` sigil in SmartInputBar** — add a `$` sigil (alongside `@` for store, `#` for brand, etc.) to log an item's price inline at add time; e.g. `leche $1.50 @Mercadona` should pre-fill the price field without opening the price sheet
-- [ ] **Estimated total cost** — show a running estimated total for unpurchased items in the list header; show a "spent today" cost summary grouped by calendar day for purchased items (requires items to have a price logged)
+- [x] **Estimated total cost** — show a running estimated total for unpurchased items in the list header; show a "spent today" cost summary grouped by calendar day for purchased items (requires items to have a price logged)
 - [x] **Progress bar scope fix** — the progress bar only counts unpurchased items and items purchased on the current calendar day; prior-day items are excluded from both numerator and denominator
 - [ ] **Auto-archive purchased items** — automatically move purchased items out of the active list after a configurable threshold (e.g. 24 h or next calendar day); keeps the active list clean without requiring manual deletion
 - [ ] **Offline support** — PWA is installable but data mutations while offline are not queued; add a service-worker write queue (background sync)
