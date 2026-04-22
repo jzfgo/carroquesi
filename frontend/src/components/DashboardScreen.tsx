@@ -85,15 +85,17 @@ export function DashboardScreen() {
     }
   }, [menuOpen])
 
-  const fetchLists = useCallback(async () => {
-    setLists(null)
-    setFetchError(false)
+  const fetchLists = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLists(null)
+      setFetchError(false)
+    }
     try {
       const data = (await getLists(getToken)) as ApiList[]
       const ordered = applyOrder(data, loadOrder(user!.id))
       setLists(ordered)
     } catch {
-      setFetchError(true)
+      if (!silent) setFetchError(true)
     }
   }, [getToken, user])
 
