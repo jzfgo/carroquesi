@@ -9,6 +9,7 @@ import {
   getSuggestions,
 } from "../lib/api";
 import { computeCostSummary, purchasedDateLabel } from "../lib/itemCost";
+import { getLastPriceStore, setLastPriceStore } from "../lib/lastPriceStore";
 import { parseInput } from "../parseInput";
 import type {
   BarcodeRead,
@@ -74,6 +75,7 @@ export function ListScreen({
     initialAmount: number | null;
     initialPricePer: "KILOGRAM" | null;
     initialStore: string | null;
+    suggestedStore: string | null;
   } | null>(null);
   const [purchaseToast, setPurchaseToast] = useState<{
     itemId: string;
@@ -216,6 +218,7 @@ export function ListScreen({
         initialAmount: item?.price ?? null,
         initialPricePer: (item?.price_per as "KILOGRAM" | null) ?? null,
         initialStore: item?.price_store ?? item?.stores?.[0] ?? null,
+        suggestedStore: item?.stores?.length ? null : getLastPriceStore(),
       });
     },
     [items],
@@ -230,6 +233,7 @@ export function ListScreen({
       if (!logPriceFor) return;
       try {
         await savePrice(logPriceFor.itemId, amount, pricePer, store);
+        if (store) setLastPriceStore(store);
       } catch {
         // non-critical
       }
@@ -552,6 +556,7 @@ export function ListScreen({
                   initialAmount={logPriceFor.initialAmount}
                   initialPricePer={logPriceFor.initialPricePer}
                   initialStore={logPriceFor.initialStore}
+                  suggestedStore={logPriceFor.suggestedStore}
                   onSave={handleSavePrice}
                   onClose={() => setLogPriceFor(null)}
                 />
