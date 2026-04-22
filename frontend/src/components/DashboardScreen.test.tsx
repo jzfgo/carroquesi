@@ -109,6 +109,26 @@ describe('DashboardScreen', () => {
     await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
   })
 
+  it('re-fetches list data silently when returning from a list', async () => {
+    const updatedLists = [
+      { ...twoLists[0], item_count: 10, purchased_count: 7 },
+      twoLists[1],
+    ]
+    let resolveSecondFetch!: (value: unknown) => void
+    vi.mocked(api.getLists)
+      .mockResolvedValueOnce(twoLists as never)
+      .mockReturnValueOnce(new Promise(resolve => { resolveSecondFetch = resolve }))
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('3 de 8 comprados'))
+    fireEvent.click(screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /volver/i }))
+    // while the second fetch is in-flight, no spinner should be shown
+    expect(screen.queryByRole('status', { name: /cargando/i })).not.toBeInTheDocument()
+    // resolve the fetch and confirm updated counts appear
+    resolveSecondFetch(updatedLists)
+    await waitFor(() => expect(screen.getByText('7 de 10 comprados')).toBeInTheDocument())
+  })
+
   it('opens avatar menu on avatar click and calls signOut via menu item', async () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
