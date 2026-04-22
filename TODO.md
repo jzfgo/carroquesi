@@ -1,6 +1,6 @@
 # CarroQueSí — TODO
 
-> Last updated: 2026-04-22
+> Last updated: 2026-04-23
 
 ---
 
@@ -15,7 +15,7 @@
 - [ ] **List archiving** — allow completed shopping trips to be archived instead of deleted
 - [ ] **Item reordering** — drag-and-drop to manually reorder unpurchased items
 - [ ] **Quoted sigil values in SmartInputBar** — support wrapping a sigil's value in single or double quotes so brand/store names containing spaces or sigil characters work correctly (e.g. `#'Marca + Bio'`, `#"Eco +"`, `@'El Corte Inglés'`); requires updating `parseInput.ts` to detect an opening quote after the sigil and consume tokens until the closing quote
-- [ ] **Store suggestion when logging price** — when opening the log-price flow for an item that has no stores set, pre-fill the store field with the last store the user specified when adding a price, provided that price was logged less than one hour ago (i.e. same shopping session heuristic); store the last-used store + timestamp in `localStorage`
+- [x] **Store suggestion when logging price** — when opening the log-price flow for an item that has no stores set, pre-fill the store field with the last store the user specified when adding a price, provided that price was logged less than one hour ago (i.e. same shopping session heuristic); store the last-used store + timestamp in `localStorage`
 - [x] **Deduplicate unpurchased items** — prevent adding an item that already exists in the unpurchased list; if the same EAN is scanned twice or the same name is typed again, silently block the addition and show a brief "ya está en la lista" toast — no further action offered
 - [ ] **List filtering** — allow users to filter both the unpurchased and purchased sections by free-text name and/or sigil values (`#brand`, `@store`); multiple sigils of the same type should OR together while different types AND together (e.g. `@Mercadona @Ahorramas #Danone` shows Danone items available at either Mercadona or Ahorramas); filter state should be ephemeral (cleared on navigation) and not affect the underlying data
 - [ ] **Manual item grouping** — allow users to manually group related items (e.g. a barcode-scanned yogurt alongside a free-text "yogurt" entry, or a branded item next to its unbranded equivalent)
@@ -30,8 +30,8 @@
 - [ ] **Delete a logged price entry** — users should be able to delete a price entry within the existing 24 h editing window; the delete action should live in the same edit UI (e.g. a "Eliminar" button) and call `DELETE /lists/{id}/items/{item_id}/prices/{price_id}` (endpoint to be added)
 - [ ] **Price history mixed unit normalization** — `PriceHistorySheet` charts and stats treat per-unit and per-weight prices as incomparable series, so a history that mixes both formats produces a misleading chart (e.g. a 500 g item logged once as `1 €/kg` and once as `0.60 €` will show two disconnected data points instead of a consistent `€/kg` trend); the app should detect when an item has a known weight quantity and attempt to normalise all entries to a common basis (e.g. always `€/kg`) before rendering; needs brainstorming — edge cases include unknown or variable quantities, items with no `price_per`, mixed SI units (`g` vs `kg`), and entries where the quantity changed between purchases
 - [x] **Duplicate stores via `@` sigil** — `parseInput.ts` does not deduplicate stores, so typing `@Mercadona @Mercadona` results in the same store appearing twice in the item's stores array; fix by deduplicating parsed stores before returning the `ParsedInput`
-- [ ] **List screen has no route** — the list screen is not mounted at a dedicated URL (e.g. `/lists/:id`), so refreshing the page or sharing the URL drops the user back to the dashboard; each list should have a stable, bookmarkable route and the router should handle deep-linking directly to it
-- [ ] **Dashboard stale after list edits** — navigating back to the dashboard after adding, removing, purchasing, or unpurchasing items does not refresh the list cards; the progress bar and item counters continue to show the state from when the dashboard was last loaded; the dashboard should re-fetch (or receive invalidated) list summaries on focus/navigation so the cards are always current
+- [x] **List screen has no route** — the list screen is not mounted at a dedicated URL (e.g. `/lists/:id`), so refreshing the page or sharing the URL drops the user back to the dashboard; each list should have a stable, bookmarkable route and the router should handle deep-linking directly to it
+- [x] **Dashboard stale after list edits** — navigating back to the dashboard after adding, removing, purchasing, or unpurchasing items does not refresh the list cards; the progress bar and item counters continue to show the state from when the dashboard was last loaded; the dashboard should re-fetch (or receive invalidated) list summaries on focus/navigation so the cards are always current
 - [ ] **Root tsconfig always passes** — `tsconfig.json` has `files: []` so `tsc` never reports errors at the root level; CI should always use `npx tsc -p tsconfig.app.json --noEmit` (documented in CLAUDE.md but easy to miss)
 - [x] **Polling on hidden tab** — the 5-second poll (`GET /lists/{id}/updated-at`) keeps firing when the tab is in the background; consider pausing with `visibilitychange`
 - [ ] **`vite-plugin-pwa` peer dep warning** — `--legacy-peer-deps` is required because vite-plugin-pwa@1.x doesn't declare Vite 8 peer support; remove once upstream fixes it
