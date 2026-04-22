@@ -6,20 +6,11 @@ import * as api from '../lib/api'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../lib/api')
-vi.mock('./ListScreen', () => ({
-  ListScreen: ({ listId, listName, onBack }: { listId: string; listName: string; onBack: () => void }) => (
-    <div>
-      <span>ListScreen:{listId}:{listName}</span>
-      <button onClick={onBack}>Volver</button>
-    </div>
-  ),
-}))
 import * as reactRouter from 'react-router-dom'
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>()
   return {
     ...actual,
-    useLocation: vi.fn().mockReturnValue({ state: null }),
     useNavigate: vi.fn().mockReturnValue(vi.fn()),
   }
 })
@@ -28,9 +19,12 @@ vi.mock('../hooks/usePWAInstall')
 
 const mockGetToken = vi.fn().mockResolvedValue('token')
 const mockSignOut = vi.fn().mockResolvedValue(undefined)
+let mockNavigate: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockNavigate = vi.fn()
+  vi.mocked(reactRouter.useNavigate).mockReturnValue(mockNavigate)
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: { id: 'u1', displayName: 'Alice', photoUrl: null, email: 'alice@example.com' },
     getToken: mockGetToken,
@@ -44,7 +38,6 @@ beforeEach(() => {
   } as never)
   vi.mocked(api.updateList).mockResolvedValue({} as never)
   vi.mocked(api.deleteList).mockResolvedValue(null as never)
-  vi.mocked(reactRouter.useLocation).mockReturnValue({ state: null } as never)
   vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
     isInstallable: false,
     isInstalled: false,
@@ -92,21 +85,12 @@ describe('DashboardScreen', () => {
     await waitFor(() => expect(screen.getByText(/primera lista/i)).toBeInTheDocument())
   })
 
-  it('navigates into a list and passes its name when a card is tapped', async () => {
+  it('navigates to /lists/:id when a card is tapped', async () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
     fireEvent.click(screen.getByText('Mercado'))
-    expect(screen.getByText('ListScreen:l1:Mercado')).toBeInTheDocument()
-  })
-
-  it('returns to dashboard when onBack is called from ListScreen', async () => {
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /volver/i }))
-    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+    expect(mockNavigate).toHaveBeenCalledWith('/lists/l1')
   })
 
   it('opens avatar menu on avatar click and calls signOut via menu item', async () => {
@@ -119,14 +103,6 @@ describe('DashboardScreen', () => {
     expect(mockSignOut).toHaveBeenCalledOnce()
   })
 
-  it('auto-opens a list when openListId is passed via router state', async () => {
-    vi.mocked(reactRouter.useLocation).mockReturnValue({ state: { openListId: 'l2' } } as never)
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() =>
-      expect(screen.getByText('ListScreen:l2:Costco')).toBeInTheDocument()
-    )
-  })
 })
 
 describe('DashboardScreen — list management', () => {
