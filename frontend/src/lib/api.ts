@@ -40,6 +40,10 @@ export function getLists(getToken: () => Promise<string>) {
   return apiFetch(getToken, '/lists')
 }
 
+export function getList(getToken: () => Promise<string>, listId: string) {
+  return apiFetch(getToken, `/lists/${listId}`)
+}
+
 export function createList(getToken: () => Promise<string>, payload: { name: string; emoji: string }) {
   return apiFetch(getToken, '/lists', { method: 'POST', body: JSON.stringify(payload) })
 }

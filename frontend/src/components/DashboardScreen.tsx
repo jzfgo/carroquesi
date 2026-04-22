@@ -5,13 +5,12 @@ import { usePageTitle } from '../hooks/usePageTitle'
 import { getLists, createList, updateList, deleteList } from '../lib/api'
 import { SortableListCard } from './SortableListCard'
 import { CreateListCard } from './CreateListCard'
-import { ListScreen } from './ListScreen'
 import { ListActionSheet } from './ListActionSheet'
 import { InstallBanner } from './InstallBanner'
 import { EmojiPickerSheet } from './EmojiPickerSheet'
 import { CURATED_EMOJIS } from '../lib/curated-emojis'
 import { usePWAInstall } from '../hooks/usePWAInstall'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   DndContext,
   PointerSensor,
@@ -54,17 +53,12 @@ export function DashboardScreen() {
   const navigate = useNavigate()
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
-  const [selectedList, setSelectedList] = useState<ApiList | null>(null)
-  usePageTitle(selectedList?.name ?? undefined)
+  usePageTitle(undefined)
   const [activeList, setActiveList] = useState<ApiList | null>(null)
   const [emojiList, setEmojiList] = useState<ApiList | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
-  const location = useLocation()
-  const openListIdRef = useRef<string | null>(
-    (location.state as { openListId?: string } | null)?.openListId ?? null
-  )
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
 
   useEffect(() => {
@@ -100,11 +94,6 @@ export function DashboardScreen() {
       const data = (await getLists(getToken)) as ApiList[]
       const ordered = applyOrder(data, loadOrder(user!.id))
       setLists(ordered)
-      if (openListIdRef.current) {
-        const list = ordered.find(l => l.id === openListIdRef.current)
-        if (list) setSelectedList(list)
-        openListIdRef.current = null
-      }
     } catch {
       if (!silent) setFetchError(true)
     }
@@ -189,18 +178,6 @@ export function DashboardScreen() {
     },
     [getToken],
   )
-
-  if (selectedList) {
-    return (
-      <ListScreen
-        listId={selectedList.id}
-        listName={selectedList.name}
-        listEmoji={selectedList.emoji}
-        listOwnerId={selectedList.owner_id}
-        onBack={() => { setSelectedList(null); void fetchLists(true) }}
-      />
-    )
-  }
 
   if (fetchError) {
     return (
@@ -290,7 +267,7 @@ export function DashboardScreen() {
                 key={list.id}
                 list={list}
                 isOwner={list.owner_id === (user?.id ?? '')}
-                onClick={() => { setSelectedList(list); setActiveList(null) }}
+                onClick={() => { navigate(`/lists/${list.id}`); setActiveList(null) }}
                 onMenuOpen={() => { setActiveList(list) }}
                 onEmojiTap={() => { setEmojiList(list) }}
               />

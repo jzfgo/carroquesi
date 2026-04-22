@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { DashboardScreen } from './components/DashboardScreen'
 import { InviteScreen } from './components/InviteScreen'
+import { ListRoute } from './components/ListRoute'
 import { SignInScreen } from './components/SignInScreen'
 import { SettingsScreen } from './components/SettingsScreen'
 import { ThemeManager } from './components/ThemeManager'
@@ -56,6 +57,7 @@ export default function App() {
           <Routes>
             <Route path="/invite/:id" element={<InviteScreen />} />
             <Route path="/settings" element={<AuthRoute element={<SettingsScreen />} />} />
+            <Route path="/lists/:id" element={<AuthRoute element={<ListRoute />} />} />
             <Route path="*" element={<AppContent />} />
           </Routes>
         </ThemeManager>

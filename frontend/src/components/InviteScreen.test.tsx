@@ -74,14 +74,14 @@ test('shows "Iniciar sesión para unirse" button when not signed in', async () =
   )
 })
 
-test('accepts invite and navigates to dashboard on success', async () => {
+test('accepts invite and navigates to the list on success', async () => {
   vi.mocked(api.getInvitePreview).mockResolvedValue(previewData)
   vi.mocked(api.acceptInvite).mockResolvedValue({ list_id: 'l1' })
   render(<InviteScreen />)
   await waitFor(() => screen.getByRole('button', { name: 'Unirse a la lista' }))
   fireEvent.click(screen.getByRole('button', { name: 'Unirse a la lista' }))
   await waitFor(() =>
-    expect(mockNavigate).toHaveBeenCalledWith('/', { state: { openListId: 'l1' } })
+    expect(mockNavigate).toHaveBeenCalledWith('/lists/l1')
   )
 })
 

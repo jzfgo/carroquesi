@@ -63,7 +63,7 @@ export function InviteScreen() {
       setScreenState('accepting')
       try {
         const data = await acceptInvite(getToken, inviteId)
-        navigate('/', { state: { openListId: data.list_id } })
+        navigate(`/lists/${data.list_id}`)
       } catch (err) {
         setErrorMessage(
           err instanceof ApiError
@@ -90,7 +90,7 @@ export function InviteScreen() {
     setScreenState('accepting')
     try {
       const data = await acceptInvite(getToken, inviteId)
-      navigate('/', { state: { openListId: data.list_id } })
+      navigate(`/lists/${data.list_id}`)
     } catch (err) {
       setErrorMessage(
         err instanceof ApiError
