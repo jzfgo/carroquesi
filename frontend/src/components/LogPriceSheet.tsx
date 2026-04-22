@@ -14,6 +14,7 @@ interface Props {
 
 export default function LogPriceSheet({ item, initialAmount, initialPricePer, initialStore, suggestedStore, onSave, onClose }: Props) {
   const stores = item.stores ?? []
+  // Guard again here so the component stays self-contained if reused elsewhere
   const effectiveSuggestion = stores.length === 0 ? (suggestedStore ?? null) : null
 
   const [amountStr, setAmountStr] = useState(initialAmount !== null ? String(initialAmount) : '')

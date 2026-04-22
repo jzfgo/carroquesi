@@ -75,6 +75,7 @@ export function ListScreen({
     initialAmount: number | null;
     initialPricePer: "KILOGRAM" | null;
     initialStore: string | null;
+    suggestedStore: string | null;
   } | null>(null);
   const [purchaseToast, setPurchaseToast] = useState<{
     itemId: string;
@@ -217,6 +218,7 @@ export function ListScreen({
         initialAmount: item?.price ?? null,
         initialPricePer: (item?.price_per as "KILOGRAM" | null) ?? null,
         initialStore: item?.price_store ?? item?.stores?.[0] ?? null,
+        suggestedStore: item?.stores?.length ? null : getLastPriceStore(),
       });
     },
     [items],
@@ -554,7 +556,7 @@ export function ListScreen({
                   initialAmount={logPriceFor.initialAmount}
                   initialPricePer={logPriceFor.initialPricePer}
                   initialStore={logPriceFor.initialStore}
-                  suggestedStore={logItem.stores?.length ? null : getLastPriceStore()}
+                  suggestedStore={logPriceFor.suggestedStore}
                   onSave={handleSavePrice}
                   onClose={() => setLogPriceFor(null)}
                 />
