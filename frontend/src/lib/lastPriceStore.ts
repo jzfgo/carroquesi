@@ -17,5 +17,7 @@ export function getLastPriceStore(): string | null {
 export function setLastPriceStore(store: string): void {
   try {
     localStorage.setItem(KEY, JSON.stringify({ store, at: Date.now() }))
-  } catch {}
+  } catch {
+    // ignore quota/security errors — suggestion is best-effort
+  }
 }
