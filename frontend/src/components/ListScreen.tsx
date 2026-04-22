@@ -9,6 +9,7 @@ import {
   getSuggestions,
 } from "../lib/api";
 import { computeCostSummary, purchasedDateLabel } from "../lib/itemCost";
+import { getLastPriceStore, setLastPriceStore } from "../lib/lastPriceStore";
 import { parseInput } from "../parseInput";
 import type {
   BarcodeRead,
@@ -230,6 +231,7 @@ export function ListScreen({
       if (!logPriceFor) return;
       try {
         await savePrice(logPriceFor.itemId, amount, pricePer, store);
+        if (store) setLastPriceStore(store);
       } catch {
         // non-critical
       }
@@ -552,6 +554,7 @@ export function ListScreen({
                   initialAmount={logPriceFor.initialAmount}
                   initialPricePer={logPriceFor.initialPricePer}
                   initialStore={logPriceFor.initialStore}
+                  suggestedStore={logItem.stores?.length ? null : getLastPriceStore()}
                   onSave={handleSavePrice}
                   onClose={() => setLogPriceFor(null)}
                 />

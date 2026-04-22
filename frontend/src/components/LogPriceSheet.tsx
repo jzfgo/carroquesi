@@ -7,20 +7,23 @@ interface Props {
   initialAmount: number | null
   initialPricePer: 'KILOGRAM' | null
   initialStore: string | null
+  suggestedStore?: string | null
   onSave: (amount: number, pricePer: 'KILOGRAM' | null, store: string | null) => void
   onClose: () => void
 }
 
-export default function LogPriceSheet({ item, initialAmount, initialPricePer, initialStore, onSave, onClose }: Props) {
+export default function LogPriceSheet({ item, initialAmount, initialPricePer, initialStore, suggestedStore, onSave, onClose }: Props) {
+  const stores = item.stores ?? []
+  const effectiveSuggestion = stores.length === 0 ? (suggestedStore ?? null) : null
+
   const [amountStr, setAmountStr] = useState(initialAmount !== null ? String(initialAmount) : '')
   const [pricePer, setPricePer] = useState<'KILOGRAM' | null>(initialPricePer)
-  const [selectedStore, setSelectedStore] = useState<string | null>(initialStore)
+  const [selectedStore, setSelectedStore] = useState<string | null>(initialStore ?? effectiveSuggestion)
   const [addingStore, setAddingStore] = useState(false)
   const [newStore, setNewStore] = useState('')
 
   const amount = parseFloat(amountStr)
   const canSave = !isNaN(amount) && amount > 0
-  const stores = item.stores ?? []
 
   function handleSave() {
     if (!canSave) return
@@ -63,6 +66,11 @@ export default function LogPriceSheet({ item, initialAmount, initialPricePer, in
               className={`lps__chip${selectedStore === store && !addingStore ? ' lps__chip--selected' : ''}`}
               onClick={() => handleStoreChip(store)} type="button">🏪 {store}</button>
           ))}
+          {effectiveSuggestion && (
+            <button
+              className={`lps__chip${selectedStore === effectiveSuggestion && !addingStore ? ' lps__chip--selected' : ''}`}
+              onClick={() => handleStoreChip(effectiveSuggestion)} type="button">🏪 {effectiveSuggestion}</button>
+          )}
           <button className="lps__chip lps__chip--add" onClick={() => { setSelectedStore(null); setAddingStore(true) }} type="button">+ otra</button>
         </div>
         {addingStore && (
