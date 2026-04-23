@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Edit|Write",
+      "hooks": [{"type": "command", "command": "if git diff --name-only | grep -q package-lock.json; then echo 'WARN: package-lock.json changed - verify no platform-specific bindings'; fi"}]
+    }]
+  }
+}

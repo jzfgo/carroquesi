@@ -1,68 +1,93 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) and similar coding agents when working with code in this repository.
 
 ## Workflow
 
 Always use a git worktree (via the `/worktrunk` skill) to isolate branch work before starting any feature, bugfix, or PR review. Never work directly on `main`.
+Standard flow for any non-trivial task:
+- Check `git status --short` before making changes
+- Implement the smallest complete fix first, then iterate
+- Run relevant validation commands before committing/pushing
+- Re-check `git status --short` to confirm only intentional files changed
+
+## Git Workflow
+- Use squash merge for PRs by default
+- When asked to 'update X', assume this includes committing and pushing unless stated otherwise
+- Always check git status for untracked changes before assuming worktree is clean
+- For CI: use `npm ci --legacy-peer-deps` when the project requires it
+- If the current worktree contains unrelated or unexpected changes, stop and ask before proceeding
+
+## Local Dev Environment
+- Use nvm (respect .nvmrc) for Node version management
+- Backend uses FastAPI with Firebase; ensure .env and Firebase config are present before running
+- Frontend typecheck must use `tsconfig.app.json` (root tsconfig.json has files:[] and silently passes)
+- Use `--legacy-peer-deps` for npm installs to match CI
+- Never commit platform-specific (darwin/linux) native bindings to package-lock.json
+
+## Bug Investigation
+- When user reports a bug, investigate and attempt a concrete fix before declaring scope issues
+- Limit exploration to ~3-5 file reads before either fixing or asking a targeted question
+- Don't silently change URLs, endpoints, or external identifiers (e.g., es.openfoodfacts.org → world.openfoodfacts.org)
+
+## Validation Checklist
+- Frontend changes: run lint, relevant tests, and `node_modules/.bin/tsc -p tsconfig.app.json --noEmit`
+- Backend changes: run relevant `uv run pytest` tests (full suite when feasible)
+- Before push: verify only intentional files are changed and no platform-specific native binding churn was introduced in `package-lock.json`
+- Shortcut: `just ci` runs frontend typecheck + lint + backend tests in one shot
 
 ## Project Overview
 
-**CarroQueSí** — a collaborative grocery shopping list web app. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history.
+CarroQueSí is a collaborative grocery list app where multiple users share lists, mark items as purchased, and receive product suggestions from purchase history.
 
 ## Architecture
 
-```
-carroquesi/
-├── frontend/   # React + TypeScript (Vite) → Firebase Hosting
-└── backend/    # Python + FastAPI + PostgreSQL (Dockerized → Cloud Run)
-```
+- `frontend/`: React + TypeScript (Vite), deployed to Firebase Hosting
+- `backend/`: FastAPI + PostgreSQL (Docker), deployed to Cloud Run
 
-**Firebase Auth** handles Google Sign-In only. The frontend gets a Firebase ID token and sends it as `Authorization: Bearer <token>` on every API request. The backend validates it via the Firebase Admin SDK.
+- Auth: Google Sign-In via Firebase Auth; frontend sends `Authorization: Bearer <token>`, backend validates with Firebase Admin SDK
 
-**FastAPI + PostgreSQL** is the primary data path for all CRUD. There is no Firestore. Real-time sync is handled by short polling: the frontend polls `GET /lists/{list_id}/updated-at` every 5 seconds and re-fetches items when the timestamp changes.
+- Data path: all CRUD goes through FastAPI + PostgreSQL (no Firestore)
+- Sync: frontend polls `GET /lists/{list_id}/updated-at` every 5s and re-fetches when timestamp changes
 
-**Deployment:** Frontend → Firebase Hosting, Backend → Google Cloud Run (Docker).
 
 ## Core Data Model
 
-| Table | Key fields |
-|-------|-----------|
-| `users` | id (UUID), firebase_uid, display_name, email, photo_url, created_at |
-| `lists` | id, name, emoji (nullable), owner_id (FK→users), created_at, updated_at |
-| `list_members` | id, list_id (FK→lists), user_id (FK→users), created_at |
-| `list_items` | id, list_id, name, quantity, brand, stores (JSON array), purchased_at (nullable datetime), added_by, price (nullable float), price_per (nullable str), price_store (nullable str), created_at, updated_at |
-| `list_invites` | id, list_id, invited_email (nullable), invited_by, created_at |
-| `barcode_cache` | id, ean (unique), name, brand, stores (nullable comma-separated), created_at |
+- `users`: user profile and Firebase identity (`firebase_uid`)
+- `lists`: list metadata and ownership (`owner_id`)
+- `list_members`: list membership links
+- `list_items`: item data, purchase state (`purchased_at`), and pricing (`price`, `price_per`, `price_store`)
+- `list_invites`: opt-in invitations; `id` is the share token
+- `barcode_cache`: cached barcode lookup data
 
-- `lists.updated_at` is bumped on every item write, member change, and list rename.
-- `list_items.purchased_at` is `NULL` when unpurchased, set to `now()` on first purchase. The API exposes a derived `purchased: bool` computed field for backward compatibility.
-- `list_invites.id` is the shareable invite token (UUID is unguessable — no separate token field).
-- Invitations are opt-in: invitees must explicitly accept before gaining list access.
+Important invariants:
+- bump `lists.updated_at` on item writes, member changes, and list rename
+- `list_items.purchased_at = NULL` means unpurchased; first purchase sets timestamp
+- keep derived `purchased: bool` in API responses for backward compatibility
+- invite acceptance is explicit before access is granted
 
 ## Frontend
 
 ### Commands
-Prefer `just` from the repo root (run `just` with no args to list all recipes). Direct npm commands when needed:
+Prefer `just` from repo root (`just` lists recipes). Direct npm commands when needed:
 ```bash
 cd frontend
-npm install --legacy-peer-deps  # ⚠️ required: vite-plugin-pwa@1.x doesn't declare Vite 8 peer support yet
-npm run dev          # dev server (Vite)
-npm run build        # production build
-npm run preview      # preview production build
-npm run test         # Vitest unit tests
-npm run test:watch   # Vitest in watch mode
+npm install --legacy-peer-deps
+npm run dev
+npm run build
+npm run preview
+npm run test
 npm run test -- path/to/file.test.tsx  # run a single test file
-npm run lint         # ESLint
-# ⚠️ root tsconfig has files:[] — `npm run typecheck` always passes silently! Use instead:
+npm run lint
+# root tsconfig has files:[]; use this for real frontend typecheck:
 node_modules/.bin/tsc -p tsconfig.app.json --noEmit
 ```
 
 ### PWA
-The app is a Progressive Web App (`vite-plugin-pwa`). The service worker is active even in dev (`devOptions.enabled: true`). The generated `sw.js` in the build output is managed by Workbox — do not edit it directly.
+PWA uses `vite-plugin-pwa`; service worker is active in dev (`devOptions.enabled: true`). `sw.js` is Workbox-generated and should not be edited manually.
 
 ### Dev auth bypass
-Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice` (or `seed-bob` / `seed-carol`) in `frontend/.env` to skip Google Sign-In entirely during local development. The frontend sends `X-Dev-User-Id: <firebase_uid>` instead of a real token; the backend resolves the user directly from that header. **Never set `DEV_AUTH_BYPASS=true` in production.**
+Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|seed-bob|seed-carol` in `frontend/.env` to bypass Google Sign-In locally. Frontend sends `X-Dev-User-Id` and backend resolves the user from it. **Never enable this in production.**
 
 ### Key conventions
 - Mobile-first, card-based layout
@@ -71,6 +96,9 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice` (
 - All data fetched from the FastAPI backend via REST
 - Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
 - `FrequencySuggestionBanner` sits above the SmartInputBar and cycles through due suggestions every 6s; dismissals are persisted in `localStorage` (`cqs_dismissed_suggestions`) with a TTL computed by the backend
+- `FilterBar` renders above the item list when the list has any items with stores. It has two modes: **chip mode** (one chip per distinct store, "Todas" resets the filter) and **search mode** (slide-in text input, accepts full sigil syntax). `filterItems()` in `frontend/src/hooks/useItemFilter.ts` reuses `parseInput` to match text, `@store`, and `#brand` simultaneously.
+- `lookupOwnBrandStore(brand)` in `frontend/src/lib/ownBrands.ts` maps ~50 Spanish own-brand names (e.g. `Hacendado` → `Mercadona`, `Milbona` → `Lidl`) to their parent store; `useOwnBrandInference` auto-fills the `@store` chip when a matching brand is typed in SmartInputBar.
+- `cqs_last_price_store` (localStorage, 1-hour TTL) persists the last store used in `LogPriceSheet` to pre-fill the store field on the next price log
 - Settings are now accessible through the user menu for theme customization
 - `PriceHistorySheet` groups entries by store client-side and renders an SVG sparkline per store; the expanded view shows a larger chart + last/min/max stats. `PriceEntry` includes `purchased_at` for the time axis.
 - `ListScreen` shows running cost totals next to section labels (client-side only, `frontend/src/lib/itemCost.ts`):
@@ -87,6 +115,8 @@ The input bar parses sigils from free text via `parseInput.ts` → `ParsedInput`
 - `$`/`€` price — single token, accepts comma or dot decimal separator, optional `/kg` suffix (e.g. `$1,50`, `€3.20/kg`); normalised to a float and stored as `price`/`pricePer` on `ParsedInput`. Logged atomically with item creation via `ItemCreate.price` / `price_per` / `price_store`. A price preview pill appears in the input preview when a valid price is parsed.
 - `|` EAN barcode — 8 or 13 digits only (e.g. `|4011200296908`); triggers a barcode lookup via `getBarcode()` and opens `BarcodeScanSheet` on success. Can combine with `#`/`@` to pre-fill brand/store in the sheet.
 
+Sigil values containing spaces must be quoted with double or single quotes (e.g. `#"El Corte Inglés"`, `@'Ahorramas express'`). Unclosed quotes pass through unchanged.
+
 Price display throughout the app uses `formatPrice(amount, pricePer?)` from `frontend/src/lib/formatPrice.ts` — an `Intl.NumberFormat`-based formatter that renders locale-aware currency strings.
 
 When `parsed.ean` is set, the input is in **EAN mode**: the regular parse preview is hidden, an EAN preview with a "Buscar" CTA is shown, and the add button is disabled. `ListScreen` holds an `EanLookupState` discriminated union (`idle | loading | found | error`) and passes `onEanSearch`, `eanLoading`, `eanError` to `SmartInputBar`.
@@ -95,6 +125,8 @@ A **clear button** (✕) replaces the camera scan button whenever the input has 
 
 ### Purchased item rules
 Purchased items (`item.purchased === true`) are **read-only** in the UI. Allowed: unchecking, deleting, viewing price history. Disallowed: rename, quantity/brand/store edits, adding/changing/removing price. `ItemCard` renders tags as `<span>` (not `<button>`) for purchased items and hides all "add" CTAs. `ItemActionSheet` hides the rename option. `PriceHistorySheet` hides the log-price button when `readOnly` is passed.
+
+Price deletion has a **same-day guard**: the delete button in `LogPriceSheet` is only shown when `isSameCalendarDay(item.purchased_at)` is true (frontend), and the backend `DELETE /lists/{id}/items/{item_id}/prices` enforces the same rule, returning 422 for prior-day purchases.
 
 ### Testing conventions
 - When mocking `react-router-dom` (or any module where you only need to override specific exports), use `importOriginal` to avoid stripping the real module's exports:
@@ -114,7 +146,7 @@ Requires **Python 3.13** (pinned in `backend/.python-version`).
 ```bash
 cd backend
 uv sync                              # install / sync dependencies
-uv run uvicorn app.main:app --reload # dev server
+uv run fastapi dev --host 0.0.0.0 --port 8000 # dev server
 uv run pytest                        # run all tests
 uv run pytest tests/path/to/test.py  # run single test file
 uv add <package>                     # add a dependency
