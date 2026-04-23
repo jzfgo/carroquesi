@@ -1,8 +1,7 @@
 import { parseInput } from '../parseInput'
 import type { ListItem } from '../types'
 
-// Caller should wrap in useMemo — this allocates a new array on every call.
-export function useItemFilter(items: ListItem[], query: string): ListItem[] {
+export function filterItems(items: ListItem[], query: string): ListItem[] {
   if (!query.trim()) return items
 
   const parsed = parseInput(query)

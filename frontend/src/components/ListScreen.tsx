@@ -32,7 +32,7 @@ import PurchaseToast from "./PurchaseToast";
 import { SmartInputBar } from "./SmartInputBar";
 import { StoreEditSheet } from "./StoreEditSheet";
 import { FilterBar } from "./FilterBar";
-import { useItemFilter } from "../hooks/useItemFilter";
+import { filterItems } from "../hooks/useItemFilter";
 import { TagEditSheet } from "./TagEditSheet";
 import { Toast } from "./Toast";
 
@@ -341,7 +341,7 @@ export function ListScreen({
     return result.sort();
   }, [items]);
 
-  const filteredItems = useMemo(() => useItemFilter(items, filterQuery), [items, filterQuery]);
+  const filteredItems = useMemo(() => filterItems(items, filterQuery), [items, filterQuery]);
   const allUnpurchasedCount = useMemo(
     () => items.filter(i => !i.purchased).length,
     [items],
