@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Ensure CHANGELOG.md is up to date before pushing.
+# Requires git-cliff: https://git-cliff.org/docs/installation
+set -euo pipefail
+
+if ! command -v git-cliff &>/dev/null; then
+  echo "⚠️  git-cliff not found — skipping changelog check (install: brew install git-cliff)"
+  exit 0
+fi
+
+just changelog
+
+if ! git diff --quiet CHANGELOG.md; then
+  echo ""
+  echo "📋 CHANGELOG.md was updated. Commit it before pushing:"
+  echo "   git add CHANGELOG.md && git commit -m 'chore: update changelog'"
+  echo ""
+  exit 1
+fi

@@ -23,6 +23,7 @@ carroquesi/
 | [nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm) | Node version manager — project pins Node via `.nvmrc` | `brew install fnm` |
 | [uv](https://docs.astral.sh/uv/) | Python package manager | `brew install uv` |
 | Python 3.13 | Backend | managed by `uv` automatically |
+| [git-cliff](https://git-cliff.org) | Changelog generation (`just changelog`) | `brew install git-cliff` |
 | Firebase project | Auth | see [Firebase console](https://console.firebase.google.com) |
 
 ## Setup
@@ -118,9 +119,11 @@ Run `just` (no arguments) to list all available recipes.
 
 | Command | Description |
 |---------|-------------|
+| `just setup` | Wire git hooks (run once after cloning) |
 | `just dev` | Start frontend + backend via overmind |
 | `just test` | Run all tests (frontend then backend) |
 | `just ci` | Typecheck + lint (frontend), tests (backend) |
+| `just changelog` | Prepend unreleased commits to `CHANGELOG.md` |
 | `just ss` | Show processes listening on ports 5173 / 8000 |
 | `just sk` | Kill processes on ports 5173 / 8000 |
 

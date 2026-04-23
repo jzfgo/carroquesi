@@ -19,6 +19,14 @@ ci:
     just frontend lint
     just backend test
 
+# Update [Unreleased] section in CHANGELOG.md from commits since last tag (requires git-cliff)
+changelog:
+    git cliff --unreleased --prepend CHANGELOG.md
+
+# Configure git to use the repo's tracked hooks (run once after cloning)
+setup:
+    git config core.hooksPath hooks
+
 alias ss := servers-status
 alias sk := servers-kill
 
