@@ -213,3 +213,37 @@ test('purchased items appear below active items', () => {
   expect(allItems[0].textContent).toContain('b')
   expect(allItems[1].textContent).toContain('a')
 })
+
+// ---------------------------------------------------------------------------
+// totalItems prop — filtered count label
+// ---------------------------------------------------------------------------
+
+test('shows "X de Y" label when totalItems differs from filtered count', () => {
+  const items = [makeItem('a')]
+  render(
+    <ItemList status="success" items={items} members={MEMBERS}
+      onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onRetry={() => {}}
+      onPriceClick={() => {}} totalItems={3} />
+  )
+  expect(screen.getByText('1 de 3 productos por comprar')).toBeInTheDocument()
+})
+
+test('shows normal label when totalItems equals filtered count', () => {
+  const items = [makeItem('a'), makeItem('b')]
+  render(
+    <ItemList status="success" items={items} members={MEMBERS}
+      onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onRetry={() => {}}
+      onPriceClick={() => {}} totalItems={2} />
+  )
+  expect(screen.getByText('2 productos por comprar')).toBeInTheDocument()
+})
+
+test('shows normal label when totalItems is omitted', () => {
+  const items = [makeItem('a')]
+  render(
+    <ItemList status="success" items={items} members={MEMBERS}
+      onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onRetry={() => {}}
+      onPriceClick={() => {}} />
+  )
+  expect(screen.getByText('1 producto por comprar')).toBeInTheDocument()
+})
