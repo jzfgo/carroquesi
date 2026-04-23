@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -58,6 +59,31 @@ def update_price(
     if item.price is None:
         raise HTTPException(status_code=404, detail="Item has no price yet; use POST to set it")
     return _write_price(item, price_in, session)
+
+
+@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+def delete_price(
+    list_id: str,
+    item_id: str,
+    session: CurrentSession,
+    current_user: CurrentUser,
+    _: MemberDep,
+):
+    item = _get_item_or_404(session, item_id, list_id)
+    if item.price is None:
+        raise HTTPException(status_code=404, detail="Item has no price to delete")
+    if item.purchased_at is not None:
+        today = datetime.now(timezone.utc).date()
+        if item.purchased_at.date() != today:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot delete the price of an item purchased on a previous day",
+            )
+    item.price = None
+    item.price_per = None
+    item.price_store = None
+    session.add(item)
+    session.commit()
 
 
 @router.get("", response_model=PriceHistoryResponse)

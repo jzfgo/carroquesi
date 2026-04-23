@@ -1,5 +1,9 @@
+from datetime import timedelta
+
 from fastapi.testclient import TestClient
 from pytest_httpx import HTTPXMock
+
+from app.db.models import ListItem as DBListItem
 
 _OPEN_PRICES_URL = "https://prices.openfoodfacts.org/api/v1/prices"
 _OPEN_PRICES_ES = {
@@ -322,3 +326,62 @@ def test_price_history_community_price_negatively_cached(client: TestClient, htt
     resp2 = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices")
     assert resp2.status_code == 200
     assert resp2.json()["community_price"] is None
+
+
+# --- DELETE ---
+
+def test_delete_price_clears_fields(client: TestClient):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+    _set_price(client, lst["id"], item["id"], 1.99, store="Mercadona")
+
+    resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
+    assert resp.status_code == 204
+
+    items = client.get(f"/lists/{lst['id']}/items").json()
+    updated = next(i for i in items if i["id"] == item["id"])
+    assert updated["price"] is None
+    assert updated["price_per"] is None
+    assert updated["price_store"] is None
+
+
+def test_delete_price_non_member_forbidden(client: TestClient, other_client: TestClient):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+    _set_price(client, lst["id"], item["id"], 1.99)
+
+    resp = other_client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
+    assert resp.status_code == 403
+
+
+def test_delete_price_404_if_no_price(client: TestClient):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+
+    resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
+    assert resp.status_code == 404
+
+
+def test_delete_price_409_if_purchased_previous_day(client: TestClient, session):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+    _set_price(client, lst["id"], item["id"], 1.99)
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    db_item = session.get(DBListItem, item["id"])
+    db_item.purchased_at = db_item.purchased_at - timedelta(days=1)
+    session.add(db_item)
+    session.commit()
+
+    resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
+    assert resp.status_code == 409
+
+
+def test_delete_price_204_if_purchased_today(client: TestClient):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+    _set_price(client, lst["id"], item["id"], 1.99)
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
+    assert resp.status_code == 204
