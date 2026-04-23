@@ -7,9 +7,25 @@ const SINGLE_SIGIL_MAP: Record<string, keyof Omit<ParsedInput, 'name' | 'stores'
 
 const PRICE_SIGILS = new Set(['$', '€'])
 const PRICE_RE = /^(\d+([,.]\d{1,2})?|[,.]\d{1,2})(\/kg)?$/i
+const QUOTED_RE = /([+#@$€|]?)(?:"([^"]*)"|'([^']*)')/g
+// Null-byte sentinel — cannot appear in user-typed text input.
+const PH = String.fromCharCode(0)
+const RESTORE_RE = new RegExp(PH + 'q(\\d+)' + PH, 'g')
 
 export function parseInput(raw: string): ParsedInput {
-  const words = raw.trim().split(/\s+/).filter(Boolean)
+  // Replace complete quoted sequences with null-byte-delimited placeholders so
+  // the word-loop never sees sigil characters that are meant to be literal text.
+  // Unclosed quotes produce no regex match and pass through unchanged.
+  const placeholders: string[] = []
+  const withPlaceholders = raw.replace(QUOTED_RE, (_match, sigil, dq, sq) => {
+    const key = `${PH}q${placeholders.length}${PH}`
+    placeholders.push(dq !== undefined ? dq : sq)
+    return `${sigil}${key}`
+  })
+  const restore = (s: string) =>
+    s.replace(RESTORE_RE, (_, i) => placeholders[+i])
+
+  const words = withPlaceholders.trim().split(/\s+/).filter(Boolean)
 
   const result: ParsedInput = { name: '', quantity: null, brand: null, stores: [] }
   const nameWords: string[] = []
@@ -55,17 +71,18 @@ export function parseInput(raw: string): ParsedInput {
     }
   }
 
-  result.name = nameWords.join(' ')
+  result.name = restore(nameWords.join(' '))
 
   for (const [field, parts] of Object.entries(tokenWords)) {
-    if (parts.length > 0 && parts.join('').length > 0) {
-      (result as unknown as Record<string, unknown>)[field] = parts.join(' ')
+    const value = restore(parts.join(' ')).trim()
+    if (value.length > 0) {
+      (result as unknown as Record<string, unknown>)[field] = value
     }
   }
 
   result.stores = [...new Set(
     storeEntries
-      .map(parts => parts.join(' ').trim())
+      .map(parts => restore(parts.join(' ')).trim())
       .filter(s => s.length > 0)
   )]
 
