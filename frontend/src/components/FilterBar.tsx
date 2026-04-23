@@ -28,7 +28,11 @@ export function FilterBar({ stores, query, onChange }: Props) {
       role="group"
       aria-label="Filtrar"
     >
-      <div className="filter-bar__chips">
+      <div
+        className="filter-bar__chips"
+        aria-hidden={mode === 'search'}
+        inert={mode === 'search' ? true : undefined}
+      >
         <button
           className="filter-bar__search-btn"
           onClick={() => { setMode('search'); onChange('') }}
@@ -54,7 +58,11 @@ export function FilterBar({ stores, query, onChange }: Props) {
           </button>
         ))}
       </div>
-      <div className="filter-bar__search">
+      <div
+        className="filter-bar__search"
+        aria-hidden={mode === 'chips'}
+        inert={mode === 'chips' ? true : undefined}
+      >
         <button
           className="filter-bar__close-btn"
           onClick={() => { setMode('chips'); onChange('') }}
