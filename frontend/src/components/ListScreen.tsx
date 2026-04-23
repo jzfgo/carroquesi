@@ -109,6 +109,7 @@ export function ListScreen({
     renameItem,
     removeItem,
     savePrice,
+    clearItemPrice,
     retry,
   } = useListItems(listId, getToken, setToast);
 
@@ -243,6 +244,29 @@ export function ListScreen({
     },
     [logPriceFor, savePrice],
   );
+
+  const handleDeletePrice = useCallback(async () => {
+    if (!logPriceFor) return;
+    try {
+      await clearItemPrice(logPriceFor.itemId);
+      setLogPriceFor(null);
+      setPriceItemId(null);
+      setPurchaseToast(null);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        // price already gone — treat as success, close sheet
+        setLogPriceFor(null);
+        setPriceItemId(null);
+        setPurchaseToast(null);
+      } else if (err instanceof ApiError && err.status === 409) {
+        setToast('No se puede eliminar el precio de un artículo comprado en otro día');
+        throw err;
+      } else {
+        setToast('No se pudo eliminar el precio');
+        throw err;
+      }
+    }
+  }, [logPriceFor, clearItemPrice]);
 
   const handleScanEdit = useCallback((prefill: string) => {
     setScannedProduct(null);
@@ -558,6 +582,7 @@ export function ListScreen({
                   initialStore={logPriceFor.initialStore}
                   suggestedStore={logPriceFor.suggestedStore}
                   onSave={handleSavePrice}
+                  onDelete={handleDeletePrice}
                   onClose={() => setLogPriceFor(null)}
                 />
               </div>

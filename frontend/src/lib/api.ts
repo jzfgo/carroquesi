@@ -209,3 +209,7 @@ export function updatePrice(
     body: JSON.stringify(payload),
   }) as Promise<PriceEntry>
 }
+
+export function deletePrice(getToken: () => Promise<string>, listId: string, itemId: string) {
+  return apiFetch(getToken, `/lists/${listId}/items/${itemId}/prices`, { method: 'DELETE' })
+}

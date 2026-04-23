@@ -3,6 +3,7 @@ import {
   ApiError,
   createItem,
   deleteItem,
+  deletePrice,
   getListItems,
   getListMembers,
   getListUpdatedAt,
@@ -291,6 +292,20 @@ export function useListItems(
     [getToken, listId],
   )
 
+  const clearItemPrice = useCallback(
+    async (itemId: string) => {
+      await deletePrice(getToken, listId, itemId)
+      setItems((prev) =>
+        prev.map((i) =>
+          i.id === itemId
+            ? { ...i, price: null, price_per: null, price_store: null }
+            : i,
+        ),
+      )
+    },
+    [getToken, listId],
+  )
+
   return {
     status,
     items,
@@ -302,6 +317,7 @@ export function useListItems(
     renameItem,
     removeItem,
     savePrice,
+    clearItemPrice,
     retry: fetchAll,
   }
 }
