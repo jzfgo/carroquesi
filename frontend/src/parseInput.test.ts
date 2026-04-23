@@ -272,4 +272,61 @@ describe('parseInput', () => {
       expect(result.pricePer).toBeUndefined()
     })
   })
+
+  describe('quoted sigil values', () => {
+    test("single-quoted brand with + inside: #'Marca + Bio'", () => {
+      const result = parseInput("#'Marca + Bio'")
+      expect(result.brand).toBe('Marca + Bio')
+      expect(result.name).toBe('')
+    })
+
+    test('double-quoted brand with + inside: #"Eco +"', () => {
+      const result = parseInput('#"Eco +"')
+      expect(result.brand).toBe('Eco +')
+    })
+
+    test("single-quoted store with + inside: @'Tienda + co'", () => {
+      const result = parseInput("@'Tienda + co'")
+      expect(result.stores).toEqual(['Tienda + co'])
+    })
+
+    test('double-quoted standalone name with sigil chars: "Producto +Bio" +3', () => {
+      const result = parseInput('"Producto +Bio" +3')
+      expect(result.name).toBe('Producto +Bio')
+      expect(result.quantity).toBe('3')
+    })
+
+    test("single-quoted multi-word standalone name", () => {
+      const result = parseInput("'Aceite de oliva virgen extra'")
+      expect(result.name).toBe('Aceite de oliva virgen extra')
+    })
+
+    test('quoted brand composes with unquoted store', () => {
+      const result = parseInput('leche #"Marca + Bio" @Mercadona')
+      expect(result.name).toBe('leche')
+      expect(result.brand).toBe('Marca + Bio')
+      expect(result.stores).toEqual(['Mercadona'])
+    })
+
+    test('quoted brand and quoted store', () => {
+      const result = parseInput('#"Marca + Bio" @"Tienda + co"')
+      expect(result.brand).toBe('Marca + Bio')
+      expect(result.stores).toEqual(['Tienda + co'])
+    })
+
+    test('unclosed double quote is treated as literal', () => {
+      const result = parseInput('#"unclosed')
+      expect(result.brand).toBe('"unclosed')
+    })
+
+    test('unclosed single quote in name is treated as literal', () => {
+      const result = parseInput("'unclosed")
+      expect(result.name).toBe("'unclosed")
+    })
+
+    test('empty double-quoted brand is ignored', () => {
+      const result = parseInput('#""')
+      expect(result.brand).toBeNull()
+    })
+  })
 })
