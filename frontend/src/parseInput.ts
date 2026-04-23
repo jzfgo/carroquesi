@@ -8,6 +8,9 @@ const SINGLE_SIGIL_MAP: Record<string, keyof Omit<ParsedInput, 'name' | 'stores'
 const PRICE_SIGILS = new Set(['$', '€'])
 const PRICE_RE = /^(\d+([,.]\d{1,2})?|[,.]\d{1,2})(\/kg)?$/i
 const QUOTED_RE = /([+#@$€|]?)(?:"([^"]*)"|'([^']*)')/g
+// Null-byte sentinel — cannot appear in user-typed text input.
+const PH = String.fromCharCode(0)
+const RESTORE_RE = new RegExp(PH + 'q(\\d+)' + PH, 'g')
 
 export function parseInput(raw: string): ParsedInput {
   // Replace complete quoted sequences with null-byte-delimited placeholders so
@@ -15,12 +18,12 @@ export function parseInput(raw: string): ParsedInput {
   // Unclosed quotes produce no regex match and pass through unchanged.
   const placeholders: string[] = []
   const withPlaceholders = raw.replace(QUOTED_RE, (_match, sigil, dq, sq) => {
-    const key = `\x00q${placeholders.length}\x00`
+    const key = `${PH}q${placeholders.length}${PH}`
     placeholders.push(dq !== undefined ? dq : sq)
     return `${sigil}${key}`
   })
   const restore = (s: string) =>
-    s.replace(/\x00q(\d+)\x00/g, (_, i) => placeholders[+i])
+    s.replace(RESTORE_RE, (_, i) => placeholders[+i])
 
   const words = withPlaceholders.trim().split(/\s+/).filter(Boolean)
 
