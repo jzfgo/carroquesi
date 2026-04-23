@@ -1,12 +1,7 @@
 import { useState } from 'react'
 import type { ListItem } from '../types'
+import { isSameCalendarDay } from '../lib/isSameCalendarDay'
 import './LogPriceSheet.css'
-
-export function isSameCalendarDay(purchasedAt: string | null): boolean {
-  if (!purchasedAt) return true
-  const today = new Date().toISOString().slice(0, 10)
-  return purchasedAt.slice(0, 10) === today
-}
 
 interface Props {
   item: ListItem
