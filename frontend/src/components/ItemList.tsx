@@ -19,6 +19,7 @@ interface Props {
   onPriceClick: (itemId: string) => void
   pendingCost?: CostSummary | null
   purchasedCostByDate?: Map<string, CostSummary | null>
+  totalItems?: number
 }
 
 function CostBadge({ cost, className }: { cost: CostSummary; className: string }) {
@@ -29,7 +30,7 @@ function CostBadge({ cost, className }: { cost: CostSummary; className: string }
   )
 }
 
-export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry, onPriceClick, pendingCost, purchasedCostByDate }: Props) {
+export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry, onPriceClick, pendingCost, purchasedCostByDate, totalItems }: Props) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
 
   if (status === 'loading') {
@@ -86,7 +87,11 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
   return (
     <div className="item-list">
       <p className="item-list__label">
-        <span className="item-list__label-text">{active.length} {active.length === 1 ? 'producto' : 'productos'} por comprar</span>
+        <span className="item-list__label-text">
+          {totalItems !== undefined && totalItems !== active.length
+            ? `${active.length} de ${totalItems} productos por comprar`
+            : `${active.length} ${active.length === 1 ? 'producto' : 'productos'} por comprar`}
+        </span>
         {pendingCost && <CostBadge cost={pendingCost} className="item-list__label-cost" />}
       </p>
       {active.map(item => (
