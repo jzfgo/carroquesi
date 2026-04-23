@@ -31,7 +31,8 @@ import { ProgressBar } from "./ProgressBar";
 import PurchaseToast from "./PurchaseToast";
 import { SmartInputBar } from "./SmartInputBar";
 import { StoreEditSheet } from "./StoreEditSheet";
-import { StoreFilter } from "./StoreFilter";
+import { FilterBar } from "./FilterBar";
+import { useItemFilter } from "../hooks/useItemFilter";
 import { TagEditSheet } from "./TagEditSheet";
 import { Toast } from "./Toast";
 
@@ -62,7 +63,7 @@ export function ListScreen({
   const [toast, setToast] = useState<string | null>(null);
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [storeFilter, setStoreFilter] = useState<string | null>(null);
+  const [filterQuery, setFilterQuery] = useState("");
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(
@@ -340,19 +341,11 @@ export function ListScreen({
     return result.sort();
   }, [items]);
 
-  // Reset filter if the active store disappears from items
-  const activeStore =
-    storeFilter && stores.includes(storeFilter) ? storeFilter : null;
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (storeFilter && !stores.includes(storeFilter)) setStoreFilter(null);
-  }, [stores, storeFilter]);
-
-  const filteredItems = activeStore
-    ? items.filter(
-      (i) => i.stores.includes(activeStore) || i.stores.length === 0,
-    )
-    : items;
+  const filteredItems = useMemo(() => useItemFilter(items, filterQuery), [items, filterQuery]);
+  const allUnpurchasedCount = useMemo(
+    () => items.filter(i => !i.purchased).length,
+    [items],
+  );
 
   const { pendingCost, purchasedCostByDate } = useMemo(() => {
     const pendingItems: typeof filteredItems = [];
@@ -383,14 +376,15 @@ export function ListScreen({
         onBack={onBack}
       />
       <ProgressBar purchased={purchasedCount} total={totalCount} />
-      <StoreFilter
+      <FilterBar
         stores={stores}
-        active={activeStore}
-        onSelect={setStoreFilter}
+        query={filterQuery}
+        onChange={setFilterQuery}
       />
       <ItemList
         status={status}
         items={filteredItems}
+        totalItems={allUnpurchasedCount}
         members={members}
         onTogglePurchased={handleTogglePurchased}
         onTagClick={handleTagClick}
