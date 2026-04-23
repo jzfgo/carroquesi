@@ -2,6 +2,12 @@ import { useState } from 'react'
 import type { ListItem } from '../types'
 import './LogPriceSheet.css'
 
+export function isSameCalendarDay(purchasedAt: string | null): boolean {
+  if (!purchasedAt) return true
+  const today = new Date().toISOString().slice(0, 10)
+  return purchasedAt.slice(0, 10) === today
+}
+
 interface Props {
   item: ListItem
   initialAmount: number | null
@@ -9,10 +15,11 @@ interface Props {
   initialStore: string | null
   suggestedStore?: string | null
   onSave: (amount: number, pricePer: 'KILOGRAM' | null, store: string | null) => void
+  onDelete?: () => Promise<void>
   onClose: () => void
 }
 
-export default function LogPriceSheet({ item, initialAmount, initialPricePer, initialStore, suggestedStore, onSave, onClose }: Props) {
+export default function LogPriceSheet({ item, initialAmount, initialPricePer, initialStore, suggestedStore, onSave, onDelete, onClose }: Props) {
   const stores = item.stores ?? []
   // Guard again here so the component stays self-contained if reused elsewhere
   const effectiveSuggestion = stores.length === 0 ? (suggestedStore ?? null) : null
@@ -22,14 +29,28 @@ export default function LogPriceSheet({ item, initialAmount, initialPricePer, in
   const [selectedStore, setSelectedStore] = useState<string | null>(initialStore ?? effectiveSuggestion)
   const [addingStore, setAddingStore] = useState(false)
   const [newStore, setNewStore] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   const amount = parseFloat(amountStr)
   const canSave = !isNaN(amount) && amount > 0
+  const canDelete = item.price != null && !!onDelete && isSameCalendarDay(item.purchased_at)
 
   function handleSave() {
     if (!canSave) return
     const finalStore = addingStore && newStore.trim() ? newStore.trim() : selectedStore
     onSave(amount, pricePer, finalStore)
+  }
+
+  async function handleDelete() {
+    if (!onDelete) return
+    setDeleting(true)
+    try {
+      await onDelete()
+    } catch {
+      // parent shows error toast
+    } finally {
+      setDeleting(false)
+    }
   }
 
   function handleStoreChip(store: string) {
@@ -80,6 +101,11 @@ export default function LogPriceSheet({ item, initialAmount, initialPricePer, in
         )}
       </div>
       <button className="lps__save" onClick={handleSave} disabled={!canSave} type="button">Guardar</button>
+      {canDelete && (
+        <button className="lps__delete" onClick={handleDelete} disabled={deleting} type="button">
+          {deleting ? 'Eliminando...' : 'Eliminar precio'}
+        </button>
+      )}
       <button className="lps__cancel" onClick={onClose} type="button">Cancelar</button>
     </div>
   )
