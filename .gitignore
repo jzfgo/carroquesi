@@ -1,6 +1,7 @@
-# Claude
+# Agents
 .claude/settings.local.json
 .playwright-mcp/
+.pi-lens/
 .remember/
 .superpowers/
 skills-lock.json
