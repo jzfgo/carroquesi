@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Extract strip-unreleased.py and fix hook idempotency
+
+
 ### Fixed
 - Pre-push hook and CHANGELOG cleanup
 
