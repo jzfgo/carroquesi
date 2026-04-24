@@ -18,6 +18,16 @@ Standard flow for any non-trivial task:
 - For CI: use `npm ci --legacy-peer-deps` when the project requires it
 - If the current worktree contains unrelated or unexpected changes, stop and ask before proceeding
 
+## Changelog & Release Workflow
+- `CHANGELOG.md` is the canonical record of what shipped.
+- `TODO.md` tracks only open work items — remove entries when they ship.
+- `cliff.toml` drives automated generation via `git-cliff`. Commit types map as: `feat` → Added, `fix` → Fixed, `refactor/perf` → Changed; `chore/docs/test/ci` are excluded.
+- A `pre-push` git hook (`hooks/pre-push`) aborts if `CHANGELOG.md` is out of date and prompts you to run `just changelog`, commit, and push again. Activate with `just setup` after cloning (requires `git-cliff`: `brew install git-cliff`).
+- Before a release:
+  1. Run `just changelog` — prepends new commits to `CHANGELOG.md` under `## [Unreleased]`
+  2. Rename `## [Unreleased]` to the new version + date (e.g. `## [0.11.0] — 2026-05-01`)
+  3. Commit and tag: `git tag vX.Y.Z`
+
 ## Local Dev Environment
 - Use nvm (respect .nvmrc) for Node version management
 - Backend uses FastAPI with Firebase; ensure .env and Firebase config are present before running
