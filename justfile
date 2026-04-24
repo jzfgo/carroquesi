@@ -21,6 +21,7 @@ ci:
 
 # Update [Unreleased] section in CHANGELOG.md from commits since last tag (requires git-cliff)
 changelog:
+    python3 scripts/strip-unreleased.py
     git cliff --unreleased --prepend CHANGELOG.md
 
 # Configure git to use the repo's tracked hooks (run once after cloning)

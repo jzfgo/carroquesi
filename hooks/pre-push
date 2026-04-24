@@ -13,7 +13,16 @@ if ! git cliff --unreleased | grep -q '^### '; then
   exit 0
 fi
 
+# Run changelog and check if anything changed
+tmp=$(mktemp)
+cp CHANGELOG.md "$tmp"
 just changelog
+if diff -q "$tmp" CHANGELOG.md >/dev/null 2>&1; then
+  cp "$tmp" CHANGELOG.md
+  rm "$tmp"
+  exit 0
+fi
+rm "$tmp"
 
 echo ""
 echo "📋 CHANGELOG.md was updated with unreleased commits. Commit it before pushing:"
