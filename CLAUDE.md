@@ -19,7 +19,7 @@ Standard flow for any non-trivial task:
 - If the current worktree contains unrelated or unexpected changes, stop and ask before proceeding
 
 ## Changelog & Release Workflow
-- `CHANGELOG.md` is the canonical record of what shipped. Keep `## [Unreleased]` up to date.
+- `CHANGELOG.md` is the canonical record of what shipped.
 - `TODO.md` tracks only open work items — remove entries when they ship.
 - `cliff.toml` drives automated generation via `git-cliff`. Commit types map as: `feat` → Added, `fix` → Fixed, `refactor/perf` → Changed; `chore/docs/test/ci` are excluded.
 - A `pre-push` git hook (`hooks/pre-push`) runs `just changelog` automatically and aborts the push if `CHANGELOG.md` changed, prompting a commit first. Activate with `just setup` after cloning (requires `git-cliff`: `brew install git-cliff`).

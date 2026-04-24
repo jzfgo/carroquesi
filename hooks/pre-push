@@ -8,12 +8,15 @@ if ! command -v git-cliff &>/dev/null; then
   exit 0
 fi
 
+# Only act if there are unreleased commits that would produce visible sections
+if ! git cliff --unreleased | grep -q '^### '; then
+  exit 0
+fi
+
 just changelog
 
-if ! git diff --quiet CHANGELOG.md; then
-  echo ""
-  echo "📋 CHANGELOG.md was updated. Commit it before pushing:"
-  echo "   git add CHANGELOG.md && git commit -m 'chore: update changelog'"
-  echo ""
-  exit 1
-fi
+echo ""
+echo "📋 CHANGELOG.md was updated with unreleased commits. Commit it before pushing:"
+echo "   git add CHANGELOG.md && git commit -m 'chore: update changelog'"
+echo ""
+exit 1
