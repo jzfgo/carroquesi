@@ -47,6 +47,10 @@ export function parseQuantityFactor(
   return kgFactor != null ? 1 : value
 }
 
+export function parseKgFactor(quantity: string | null): number | null {
+  return parseQuantityFactor(quantity, 'KILOGRAM')
+}
+
 export interface CostSummary {
   total: number
   partial: boolean
