@@ -69,16 +69,18 @@ Rationale: if one store always logs €/kg and another always logs €/pack (wit
 
 For each entry in normalization mode:
 
-```
-kgFactor = parseKgFactor(entry.quantity)
-            // extracts numeric value × UNIT_TO_KG[unit], or null if unparseable
+```ts
+const kgFactor = parseKgFactor(entry.quantity)
+// extracts numeric value × UNIT_TO_KG[unit], or null if unparseable
 
-if entry.price_per === 'KILOGRAM':
-    displayAmount = entry.amount          // already €/kg
-elif kgFactor !== null:
-    displayAmount = entry.amount / kgFactor  // e.g. €0.60 / 0.5 kg = €1.20/kg
-else:
-    displayAmount = null                  // can't normalize → disconnected dot
+let displayAmount: number | null
+if (entry.price_per === 'KILOGRAM') {
+  displayAmount = entry.amount              // already €/kg
+} else if (kgFactor !== null) {
+  displayAmount = entry.amount / kgFactor   // e.g. €0.60 / 0.5 kg = €1.20/kg
+} else {
+  displayAmount = null                      // can't normalize → disconnected dot
+}
 ```
 
 `parseKgFactor` imports `UNIT_TO_KG` from `itemCost.ts` (no duplication). It returns `value_in_kg` as a float, or `null`.
