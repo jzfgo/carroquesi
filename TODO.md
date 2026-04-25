@@ -18,7 +18,6 @@
 ## Bugs / Known Issues
 
 - [ ] **Price history mixed unit normalization** — `PriceHistorySheet` charts and stats treat per-unit and per-weight prices as incomparable series, so a history that mixes both formats produces a misleading chart (e.g. a 500 g item logged once as `1 €/kg` and once as `0.60 €` will show two disconnected data points instead of a consistent `€/kg` trend); the app should detect when an item has a known weight quantity and attempt to normalise all entries to a common basis (e.g. always `€/kg`) before rendering; needs brainstorming — edge cases include unknown or variable quantities, items with no `price_per`, mixed SI units (`g` vs `kg`), and entries where the quantity changed between purchases
-- [ ] **Root tsconfig always passes** — `tsconfig.json` has `files: []` so `tsc` never reports errors at the root level; CI should always use `npx tsc -p tsconfig.app.json --noEmit` (documented in CLAUDE.md but easy to miss)
 - [ ] **`vite-plugin-pwa` peer dep warning** — `--legacy-peer-deps` is required because vite-plugin-pwa@1.x doesn't declare Vite 8 peer support; remove once upstream fixes it
 - [ ] **Invite link OG preview** — `GET /i/{invite_id}` serves an OG meta-tag page; test that WhatsApp / iMessage actually unfurl it correctly in production
 
