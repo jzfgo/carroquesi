@@ -103,6 +103,7 @@ def get_price_history(
             price_per=i.price_per,
             store=i.price_store,
             purchased_at=i.purchased_at.isoformat() if i.purchased_at else None,
+            quantity=i.quantity,
         )
         for i in items
     ]
