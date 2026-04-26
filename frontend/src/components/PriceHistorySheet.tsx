@@ -54,8 +54,18 @@ function Sparkline({ records }: { records: ChartEntry[] }) {
     .filter((a): a is number => a !== null)
 
   const w = 60, h = 28, pad = 4
-  const getX = (i: number) =>
-    reversed.length === 1 ? w / 2 : pad + (i / (reversed.length - 1)) * (w - 2 * pad)
+
+  // Time-proportional X: position each point by its purchase timestamp
+  const timestamps = reversed.map(r => (r.purchased_at ? new Date(r.purchased_at).getTime() : null))
+  const validTs = timestamps.filter((t): t is number => t !== null)
+  const minMs = validTs.length > 0 ? Math.min(...validTs) : 0
+  const maxMs = validTs.length > 0 ? Math.max(...validTs) : 0
+  const timeRange = maxMs - minMs
+  const getX = (i: number): number => {
+    const evenX = reversed.length === 1 ? w / 2 : pad + (i / (reversed.length - 1)) * (w - 2 * pad)
+    if (timeRange === 0 || timestamps[i] === null) return evenX
+    return pad + ((timestamps[i]! - minMs) / timeRange) * (w - 2 * pad)
+  }
 
   if (validAmounts.length < 2) {
     return (
@@ -155,8 +165,20 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
   const getY = (amount: number) =>
     min === max ? h / 2 : pad + ((max - amount) / range) * (h - 2 * pad)
 
+  // Time-proportional X positioning
+  const timestamps = reversed.map(r => (r.purchased_at ? new Date(r.purchased_at).getTime() : null))
+  const validTs = timestamps.filter((t): t is number => t !== null)
+  const minMs = validTs.length > 0 ? Math.min(...validTs) : 0
+  const maxMs = validTs.length > 0 ? Math.max(...validTs) : 0
+  const timeRange = maxMs - minMs
+  const getX = (i: number): string => {
+    const evenX = reversed.length === 1 ? w / 2 : pad + (i / (reversed.length - 1)) * (w - 2 * pad)
+    if (timeRange === 0 || timestamps[i] === null) return evenX.toFixed(1)
+    return (pad + ((timestamps[i]! - minMs) / timeRange) * (w - 2 * pad)).toFixed(1)
+  }
+
   const pts = reversed.map((r, i) => {
-    const x = (pad + (i / (reversed.length - 1)) * (w - 2 * pad)).toFixed(1)
+    const x = getX(i)
     if (r.displayAmount === null) return { x, y: null }
     return { x, y: getY(r.displayAmount).toFixed(1) }
   })
