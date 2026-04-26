@@ -20,7 +20,10 @@ vi.mock('../lib/api', async (importOriginal) => {
 const mockGetToken = () => Promise.resolve('token')
 
 beforeEach(() => {
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
+
+  vi.spyOn(HTMLVideoElement.prototype, 'play').mockResolvedValue(undefined)
 
   // Mock camera stream
   const mockTrack = { stop: vi.fn() }

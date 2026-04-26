@@ -2,10 +2,12 @@ import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, afterEach, expect, test, vi } from 'vitest'
 import { FrequencySuggestionBanner } from './FrequencySuggestionBanner'
+import { _resetCacheForTesting } from '../lib/dismissedSuggestions'
 import type { DueSuggestion } from '../types'
 
 beforeEach(() => {
   localStorage.clear()
+  _resetCacheForTesting()
   vi.useFakeTimers()
 })
 
