@@ -74,11 +74,14 @@ function Sparkline({ records }: { records: ChartEntry[] }) {
   const min = Math.min(...validAmounts)
   const max = Math.max(...validAmounts)
   const range = max - min || 1
+  // Center flat series (all values equal) rather than mapping them to the top edge
+  const getY = (amount: number) =>
+    min === max ? h / 2 : pad + ((max - amount) / range) * (h - 2 * pad)
 
   const pts = reversed.map((r, i) => {
     const x = getX(i)
     if (r.displayAmount === null) return { x, y: null }
-    return { x, y: pad + ((max - r.displayAmount) / range) * (h - 2 * pad) }
+    return { x, y: getY(r.displayAmount) }
   })
 
   const pathD = pts
@@ -91,15 +94,32 @@ function Sparkline({ records }: { records: ChartEntry[] }) {
     .filter(Boolean)
     .join(' ')
 
-  const hasGaps = pts.some(p => p.y === null)
-  const areaD =
-    !hasGaps
-      ? `${pathD} L${pts[pts.length - 1].x.toFixed(1)},${h} L${pts[0].x.toFixed(1)},${h} Z`
-      : ''
+  // Build an area fill path for each contiguous run of ≥2 valid points
+  const areaPaths: string[] = []
+  let runStart: number | null = null
+  for (let i = 0; i <= pts.length; i++) {
+    const isValid = i < pts.length && pts[i].y !== null
+    if (isValid && runStart === null) {
+      runStart = i
+    } else if (!isValid && runStart !== null) {
+      const run = pts.slice(runStart, i)
+      if (run.length >= 2) {
+        const runLine = run
+          .map((p, j) => `${j === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y!.toFixed(1)}`)
+          .join(' ')
+        areaPaths.push(
+          `${runLine} L${run[run.length - 1].x.toFixed(1)},${h} L${run[0].x.toFixed(1)},${h} Z`,
+        )
+      }
+      runStart = null
+    }
+  }
 
   return (
     <svg className="phs__sparkline" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-      {areaD && <path d={areaD} fill="var(--color-primary-bg, rgba(10,132,255,0.15))" />}
+      {areaPaths.map((d, i) => (
+        <path key={i} d={d} fill="var(--color-primary-bg, rgba(10,132,255,0.15))" />
+      ))}
       {pathD && (
         <path d={pathD} stroke="var(--color-primary, #0a84ff)" strokeWidth="1.5" fill="none" />
       )}
@@ -132,11 +152,13 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
   const max = validAmounts.length > 0 ? Math.max(...validAmounts) : 0
   const range = max - min || 1
   const w = 200, h = 48, pad = 6
+  const getY = (amount: number) =>
+    min === max ? h / 2 : pad + ((max - amount) / range) * (h - 2 * pad)
 
   const pts = reversed.map((r, i) => {
     const x = (pad + (i / (reversed.length - 1)) * (w - 2 * pad)).toFixed(1)
     if (r.displayAmount === null) return { x, y: null }
-    return { x, y: (pad + ((max - r.displayAmount) / range) * (h - 2 * pad)).toFixed(1) }
+    return { x, y: getY(r.displayAmount).toFixed(1) }
   })
 
   const pathD = pts
@@ -149,17 +171,30 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
     .filter(Boolean)
     .join(' ')
 
-  const hasGaps = pts.some(p => p.y === null)
-  const areaD =
-    !hasGaps && validAmounts.length >= 2
-      ? `${pathD} L${pts[pts.length - 1].x},${h} L${pts[0].x},${h} Z`
-      : ''
+  // Build area fill paths for each contiguous run of ≥2 valid points
+  const areaPaths: string[] = []
+  let runStart: number | null = null
+  for (let i = 0; i <= pts.length; i++) {
+    const isValid = i < pts.length && pts[i].y !== null
+    if (isValid && runStart === null) {
+      runStart = i
+    } else if (!isValid && runStart !== null) {
+      const run = pts.slice(runStart, i)
+      if (run.length >= 2) {
+        const runLine = run.map((p, j) => `${j === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
+        areaPaths.push(`${runLine} L${run[run.length - 1].x},${h} L${run[0].x},${h} Z`)
+      }
+      runStart = null
+    }
+  }
 
   return (
     <div className="phs__expand">
       {validAmounts.length >= 2 && (
         <svg className="phs__expand-chart" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-          {areaD && <path d={areaD} fill="var(--color-primary-bg, rgba(10,132,255,0.15))" />}
+          {areaPaths.map((d, i) => (
+            <path key={i} d={d} fill="var(--color-primary-bg, rgba(10,132,255,0.15))" />
+          ))}
           {pathD && (
             <path d={pathD} stroke="var(--color-primary, #0a84ff)" strokeWidth="2" fill="none" />
           )}
