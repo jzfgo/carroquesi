@@ -125,8 +125,8 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
     .filter(r => r.displayAmount !== null)
     .map(r => r.displayAmount as number)
 
-  const latestValid = records.find(r => r.displayAmount !== null)
-  const displayPricePer = latestValid?.displayPricePer ?? null
+  const latestRecord = records[0]
+  const displayPricePer = latestRecord?.displayPricePer ?? null
 
   const min = validAmounts.length > 0 ? Math.min(...validAmounts) : 0
   const max = validAmounts.length > 0 ? Math.max(...validAmounts) : 0
@@ -168,7 +168,11 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
       <div className="phs__expand-stats">
         <div className="phs__stat">
           <strong>
-            {latestValid ? formatPrice(latestValid.displayAmount!, displayPricePer) : '—'}
+            {latestRecord
+              ? latestRecord.displayAmount !== null
+                ? formatPrice(latestRecord.displayAmount, displayPricePer)
+                : formatPrice(latestRecord.originalAmount, latestRecord.originalPricePer as 'KILOGRAM' | null)
+              : '—'}
           </strong>
           Último
         </div>
@@ -280,8 +284,6 @@ export default function PriceHistorySheet({
           const isExpanded = expandedStore === group.store
           const isDimmed = hasExpanded && !isExpanded
           const latest = group.records[0]
-          const latestValid =
-            group.records.find(r => r.displayAmount !== null) ?? latest
           const groupHasGaps = group.records.some(r => r.displayAmount === null)
 
           return (
@@ -309,9 +311,9 @@ export default function PriceHistorySheet({
                 </div>
                 <Sparkline records={group.records} />
                 <div className="phs__store-price">
-                  {latestValid.displayAmount !== null
-                    ? formatPrice(latestValid.displayAmount, latestValid.displayPricePer)
-                    : '—'}
+                  {latest.displayAmount !== null
+                    ? formatPrice(latest.displayAmount, latest.displayPricePer)
+                    : formatPrice(latest.originalAmount, latest.originalPricePer as 'KILOGRAM' | null)}
                 </div>
               </div>
               {isExpanded && <ExpandedChart records={group.records} />}
