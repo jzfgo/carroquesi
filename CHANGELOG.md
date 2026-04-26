@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **frontend:** Show latest record price in history, not oldest normalizable
 
+- **frontend:** Restore area fill on hybrid charts and center flat price series
+
 
 ---
 ## [0.10.0] — 2026-04-24 — List filtering & quoted sigils
