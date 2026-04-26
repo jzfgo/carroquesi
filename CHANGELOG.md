@@ -9,8 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **backend:** Expose quantity field in price history entries
+
+- **frontend:** Add quantity to PriceEntry type and export parseKgFactor
+
+- **frontend:** Implement price history unit normalization logic
+
+- **frontend:** Normalize mixed-unit price history to €/kg in chart
+
+
 ### Fixed
-- **frontend:** Ensure typecheck uses tsconfig.app.json
+- **frontend:** Ensure typecheck uses tsconfig.app.json (#46)
+
+- **frontend:** Show latest record price in history, not oldest normalizable
+
+- **frontend:** Restore area fill on hybrid charts and center flat price series
+
+- **frontend:** Use time-proportional X axis in price history charts
 
 
 ---

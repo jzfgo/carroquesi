@@ -1,6 +1,6 @@
 # CarroQueSí — TODO
 
-> Last updated: 2026-04-24
+> Last updated: 2026-04-26
 
 ---
 
@@ -12,12 +12,13 @@
 - [ ] **Manual item grouping** — allow users to manually group related items (e.g. a barcode-scanned yogurt alongside a free-text "yogurt" entry, or a branded item next to its unbranded equivalent)
 - [ ] **In-app feedback** — unobtrusive prompt (e.g. after a purchase session) asking the user to rate the app or report a bug; also expose a permanent "Enviar feedback" option in the user menu so users can submit anytime; feedback should be lightweight (free-text + optional email) and not require leaving the app
 - [ ] **Multi-language / i18n** — UI is currently Spanish/English mixed; pick one or add i18n support
+- [ ] **Count-based price normalization** — follow-up to price history mixed unit normalization; items bought in packs of varying unit counts (e.g. 6-pack vs 4-pack of toilet rolls) cannot yet be normalized to a per-item basis; requires a new `pack_size` field on `ListItem`, UI changes in `LogPriceSheet`/`ItemCard`, and a `price_per='UNIT'` concept
+- [ ] **Varying pack size (all per-unit) normalization** — follow-up to price history mixed unit normalization; items always logged as per-unit but with different pack sizes (e.g. yogurt in 125 g vs 250 g pots) are not normalized unless at least one entry has a parseable SI quantity or is explicitly €/kg; full support requires per-entry quantity snapshots in a dedicated price history table
 
 ---
 
 ## Bugs / Known Issues
 
-- [ ] **Price history mixed unit normalization** — `PriceHistorySheet` charts and stats treat per-unit and per-weight prices as incomparable series, so a history that mixes both formats produces a misleading chart (e.g. a 500 g item logged once as `1 €/kg` and once as `0.60 €` will show two disconnected data points instead of a consistent `€/kg` trend); the app should detect when an item has a known weight quantity and attempt to normalise all entries to a common basis (e.g. always `€/kg`) before rendering; needs brainstorming — edge cases include unknown or variable quantities, items with no `price_per`, mixed SI units (`g` vs `kg`), and entries where the quantity changed between purchases
 - [ ] **`vite-plugin-pwa` peer dep warning** — `--legacy-peer-deps` is required because vite-plugin-pwa@1.x doesn't declare Vite 8 peer support; remove once upstream fixes it
 - [ ] **Invite link OG preview** — `GET /i/{invite_id}` serves an OG meta-tag page; test that WhatsApp / iMessage actually unfurl it correctly in production
 

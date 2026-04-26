@@ -14,6 +14,7 @@ class PriceEntry(BaseModel):
     price_per: str | None
     store: str | None
     purchased_at: str | None = None
+    quantity: str | None = None
 
 
 class PriceHistoryResponse(BaseModel):

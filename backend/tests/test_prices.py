@@ -385,3 +385,18 @@ def test_delete_price_204_if_purchased_today(client: TestClient):
 
     resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
     assert resp.status_code == 204
+
+
+def test_price_history_entry_includes_quantity(client: TestClient):
+    lst = _make_list(client)
+    item = client.post(
+        f"/lists/{lst['id']}/items",
+        json={"name": "Fresas", "quantity": "500g"},
+    ).json()
+    _set_price(client, lst["id"], item["id"], 1.50, store="Mercadona")
+
+    resp = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices?scope=this_list")
+    assert resp.status_code == 200
+    entries = resp.json()["entries"]
+    assert len(entries) == 1
+    assert entries[0]["quantity"] == "500g"
