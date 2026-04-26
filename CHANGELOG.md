@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.11.1] — 2026-04-26
+
+---
 ## [0.11.0] — 2026-04-26 — Price history normalization
 
 ### Added
