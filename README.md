@@ -131,7 +131,7 @@ Run `just` (no arguments) to list all available recipes.
 
 | Recipe | Description |
 |--------|-------------|
-| `install` | `npm install --legacy-peer-deps` |
+| `install` | `npm install` |
 | `dev` | Vite dev server |
 | `build` | Production build |
 | `preview` | Preview production build |

@@ -20,7 +20,6 @@
 ## Bugs / Known Issues
 
 - [ ] The hybrid filter/search doesn't show were there aren't items in the unpurchased list or none of the items have stores set.
-- [ ] **`vite-plugin-pwa` peer dep warning** — `--legacy-peer-deps` is required because vite-plugin-pwa@1.x doesn't declare Vite 8 peer support; remove once upstream fixes it
 - [ ] **Invite link OG preview** — `GET /i/{invite_id}` serves an OG meta-tag page; test that WhatsApp / iMessage actually unfurl it correctly in production
 
 ---

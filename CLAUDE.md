@@ -40,7 +40,7 @@ Prefer `just` from repo root (`just` lists recipes). Direct `npm` commands when 
 
 ```bash
 cd frontend
-npm install --legacy-peer-deps
+npm install
 npm run dev
 npm run build
 npm run preview
@@ -210,7 +210,7 @@ Standard flow for any non-trivial task:
 - Use squash merge for PRs by default
 - When asked to 'update X', assume this includes committing and pushing unless stated otherwise
 - Always check git status for untracked changes before assuming worktree is clean
-- For CI: use `npm ci --legacy-peer-deps` when the project requires it
+- For CI: use `npm ci` for clean installs
 - If the current worktree contains unrelated or unexpected changes, stop and ask before proceeding
 
 ### Changelog & Release Workflow
@@ -230,7 +230,6 @@ Standard flow for any non-trivial task:
 - Use uv for Python toolchain and virtual environment management
 - Backend uses FastAPI with Firebase; ensure `.env` and Firebase config are present before running
 - Frontend typecheck must use `tsconfig.app.json` (root tsconfig.json has files:[] and silently passes)
-- Use `--legacy-peer-deps` for npm installs to match CI
 - Never commit platform-specific (darwin/linux) native bindings to `package-lock.json`
 
 ## Bug Investigation

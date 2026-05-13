@@ -6,7 +6,7 @@
 pre-merge = "just ci"
 
 [[pre-start]]
-frontend = "cd frontend && npm install --legacy-peer-deps"
+frontend = "cd frontend && npm install"
 
 [[pre-start]]
 backend = "cd backend && uv sync"

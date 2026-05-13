@@ -3,7 +3,7 @@ default:
 
 # Install dependencies
 install:
-    npm install --legacy-peer-deps
+    npm install
 
 # Start dev server
 dev:
