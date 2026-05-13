@@ -19,7 +19,6 @@
 
 ## Bugs / Known Issues
 
-- [ ] The hybrid filter/search doesn't show were there aren't items in the unpurchased list or none of the items have stores set.
 - [ ] **Invite link OG preview** — `GET /i/{invite_id}` serves an OG meta-tag page; test that WhatsApp / iMessage actually unfurl it correctly in production
 
 ---
