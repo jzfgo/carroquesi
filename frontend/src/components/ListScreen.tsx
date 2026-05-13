@@ -64,6 +64,7 @@ export function ListScreen({
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [filterQuery, setFilterQuery] = useState("");
+  const [filterMode, setFilterMode] = useState<'chips' | 'search'>('chips');
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(
@@ -365,7 +366,10 @@ export function ListScreen({
     return result.sort();
   }, [items]);
 
-  const filteredItems = useMemo(() => filterItems(items, filterQuery), [items, filterQuery]);
+  const filteredItems = useMemo(
+    () => filterItems(items, filterQuery, { strictStore: filterMode === 'search' }),
+    [items, filterQuery, filterMode],
+  );
   const allUnpurchasedCount = useMemo(
     () => items.filter(i => !i.purchased).length,
     [items],
@@ -400,11 +404,14 @@ export function ListScreen({
         onBack={onBack}
       />
       <ProgressBar purchased={purchasedCount} total={totalCount} />
-      <FilterBar
-        stores={stores}
-        query={filterQuery}
-        onChange={setFilterQuery}
-      />
+      {items.length > 0 && (
+        <FilterBar
+          stores={stores}
+          query={filterQuery}
+          onChange={setFilterQuery}
+          onModeChange={setFilterMode}
+        />
+      )}
       <ItemList
         status={status}
         items={filteredItems}
