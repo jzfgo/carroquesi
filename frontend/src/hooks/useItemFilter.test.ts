@@ -69,6 +69,26 @@ describe('useItemFilter', () => {
     expect(filterItems(items, 'leche @Mercadona').map(i => i.id)).toEqual(['a'])
   })
 
+  describe('strictStore option', () => {
+    test('excludes items with no store when strictStore is true', () => {
+      expect(filterItems(items, '@Mercadona', { strictStore: true }).map(i => i.id)).not.toContain('d')
+    })
+
+    test('still includes matching-store items when strictStore is true', () => {
+      const ids = filterItems(items, '@Mercadona', { strictStore: true }).map(i => i.id)
+      expect(ids).toContain('a')
+      expect(ids).toContain('b')
+    })
+
+    test('still excludes wrong-store items when strictStore is true', () => {
+      expect(filterItems(items, '@Mercadona', { strictStore: true }).map(i => i.id)).not.toContain('c')
+    })
+
+    test('defaults to chip behaviour (pass-through) when strictStore is omitted', () => {
+      expect(filterItems(items, '@Mercadona').map(i => i.id)).toContain('d')
+    })
+  })
+
   test('filters purchased items by the same logic as unpurchased', () => {
     const mixed: ListItem[] = [
       { ...base, id: 'x', name: 'Pan', stores: ['Mercadona'], purchased: false },

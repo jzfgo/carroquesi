@@ -5,9 +5,10 @@ interface Props {
   stores: string[]
   query: string
   onChange: (q: string) => void
+  onModeChange?: (mode: 'chips' | 'search') => void
 }
 
-export function FilterBar({ stores, query, onChange }: Props) {
+export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
   const [mode, setMode] = useState<'chips' | 'search'>('chips')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -17,8 +18,6 @@ export function FilterBar({ stores, query, onChange }: Props) {
       return () => clearTimeout(id)
     }
   }, [mode])
-
-  if (stores.length === 0) return null
 
   const activeChip = stores.find(s => query === `@${s}`) ?? null
 
@@ -35,28 +34,32 @@ export function FilterBar({ stores, query, onChange }: Props) {
       >
         <button
           className="filter-bar__search-btn"
-          onClick={() => { setMode('search'); onChange('') }}
+          onClick={() => { setMode('search'); onChange(''); onModeChange?.('search') }}
           aria-label="Buscar"
         >
           🔍
         </button>
-        <button
-          className={`filter-bar__chip${activeChip === null ? ' filter-bar__chip--active' : ''}`}
-          onClick={() => onChange('')}
-          aria-pressed={activeChip === null}
-        >
-          Todas
-        </button>
-        {stores.map(store => (
-          <button
-            key={store}
-            className={`filter-bar__chip${activeChip === store ? ' filter-bar__chip--active' : ''}`}
-            onClick={() => onChange(`@${store}`)}
-            aria-pressed={activeChip === store}
-          >
-            {store}
-          </button>
-        ))}
+        {stores.length > 0 && (
+          <>
+            <button
+              className={`filter-bar__chip${activeChip === null ? ' filter-bar__chip--active' : ''}`}
+              onClick={() => onChange('')}
+              aria-pressed={activeChip === null}
+            >
+              Todas
+            </button>
+            {stores.map(store => (
+              <button
+                key={store}
+                className={`filter-bar__chip${activeChip === store ? ' filter-bar__chip--active' : ''}`}
+                onClick={() => onChange(`@${store}`)}
+                aria-pressed={activeChip === store}
+              >
+                {store}
+              </button>
+            ))}
+          </>
+        )}
       </div>
       <div
         className="filter-bar__search"
@@ -65,7 +68,7 @@ export function FilterBar({ stores, query, onChange }: Props) {
       >
         <button
           className="filter-bar__close-btn"
-          onClick={() => { setMode('chips'); onChange('') }}
+          onClick={() => { setMode('chips'); onChange(''); onModeChange?.('chips') }}
           aria-label="Cerrar búsqueda"
         >
           ✕

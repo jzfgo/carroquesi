@@ -3,9 +3,10 @@ import { describe, test, expect, vi } from 'vitest'
 import { FilterBar } from './FilterBar'
 
 describe('FilterBar', () => {
-  test('renders nothing when stores is empty', () => {
-    const { container } = render(<FilterBar stores={[]} query="" onChange={() => {}} />)
-    expect(container.firstChild).toBeNull()
+  test('renders only the search button when stores is empty', () => {
+    render(<FilterBar stores={[]} query="" onChange={() => {}} />)
+    expect(screen.getByRole('button', { name: /buscar/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Todas' })).not.toBeInTheDocument()
   })
 
   test('renders search button and chips in chip mode', () => {
