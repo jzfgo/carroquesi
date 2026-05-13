@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Show filter bar without stores and tighten search store matching
+- Filter bar visibility and search vs chip store behaviour (#48)
 
 
 ---
