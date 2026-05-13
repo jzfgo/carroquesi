@@ -1,54 +1,10 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) and similar coding agents when working with code in this repository.
-
-## Workflow
-
-Always use a git worktree (via the `/worktrunk` skill) to isolate branch work before starting any feature, bugfix, or PR review. Never work directly on `main`.
-Standard flow for any non-trivial task:
-- Check `git status --short` before making changes
-- Implement the smallest complete fix first, then iterate
-- Run relevant validation commands before committing/pushing
-- Re-check `git status --short` to confirm only intentional files changed
-
-## Git Workflow
-- Use squash merge for PRs by default
-- When asked to 'update X', assume this includes committing and pushing unless stated otherwise
-- Always check git status for untracked changes before assuming worktree is clean
-- For CI: use `npm ci --legacy-peer-deps` when the project requires it
-- If the current worktree contains unrelated or unexpected changes, stop and ask before proceeding
-
-## Changelog & Release Workflow
-- `CHANGELOG.md` is the canonical record of what shipped.
-- `TODO.md` tracks only open work items — remove entries when they ship.
-- `cliff.toml` drives automated generation via `git-cliff`. Commit types map as: `feat` → Added, `fix` → Fixed, `refactor/perf` → Changed; `chore/docs/test/ci` are excluded.
-- A `pre-push` git hook (`hooks/pre-push`) aborts if `CHANGELOG.md` is out of date and prompts you to run `just changelog`, commit, and push again. Activate with `just setup` after cloning (requires `git-cliff`: `brew install git-cliff`).
-- Before a release:
-  1. Run `just changelog` — prepends new commits to `CHANGELOG.md` under `## [Unreleased]`
-  2. Rename `## [Unreleased]` to the new version + date (e.g. `## [0.11.0] — 2026-05-01`)
-  3. Commit and tag: `git tag vX.Y.Z`
-
-## Local Dev Environment
-- Use nvm (respect .nvmrc) for Node version management
-- Backend uses FastAPI with Firebase; ensure .env and Firebase config are present before running
-- Frontend typecheck must use `tsconfig.app.json` (root tsconfig.json has files:[] and silently passes)
-- Use `--legacy-peer-deps` for npm installs to match CI
-- Never commit platform-specific (darwin/linux) native bindings to package-lock.json
-
-## Bug Investigation
-- When user reports a bug, investigate and attempt a concrete fix before declaring scope issues
-- Limit exploration to ~3-5 file reads before either fixing or asking a targeted question
-- Don't silently change URLs, endpoints, or external identifiers (e.g., es.openfoodfacts.org → world.openfoodfacts.org)
-
-## Validation Checklist
-- Frontend changes: run lint, relevant tests, and `node_modules/.bin/tsc -p tsconfig.app.json --noEmit`
-- Backend changes: run relevant `uv run pytest` tests (full suite when feasible)
-- Before push: verify only intentional files are changed and no platform-specific native binding churn was introduced in `package-lock.json`
-- Shortcut: `just ci` runs frontend typecheck + lint + backend tests in one shot
+This file provides guidance to [Claude Code](https://claude.ai/code) and similar coding agents when working with code in this repository.
 
 ## Project Overview
 
-CarroQueSí is a collaborative grocery list app where multiple users share lists, mark items as purchased, and receive product suggestions from purchase history.
+**CarroQueSí** is a collaborative grocery list app where multiple users share lists, mark items as purchased, and receive product suggestions from purchase history.
 
 ## Architecture
 
@@ -60,7 +16,6 @@ CarroQueSí is a collaborative grocery list app where multiple users share lists
 - Data path: all CRUD goes through FastAPI + PostgreSQL (no Firestore)
 - Sync: frontend polls `GET /lists/{list_id}/updated-at` every 5s and re-fetches when timestamp changes
 
-
 ## Core Data Model
 
 - `users`: user profile and Firebase identity (`firebase_uid`)
@@ -71,6 +26,7 @@ CarroQueSí is a collaborative grocery list app where multiple users share lists
 - `barcode_cache`: cached barcode lookup data
 
 Important invariants:
+
 - bump `lists.updated_at` on item writes, member changes, and list rename
 - `list_items.purchased_at = NULL` means unpurchased; first purchase sets timestamp
 - keep derived `purchased: bool` in API responses for backward compatibility
@@ -79,7 +35,9 @@ Important invariants:
 ## Frontend
 
 ### Commands
-Prefer `just` from repo root (`just` lists recipes). Direct npm commands when needed:
+
+Prefer `just` from repo root (`just` lists recipes). Direct `npm` commands when needed:
+
 ```bash
 cd frontend
 npm install --legacy-peer-deps
@@ -94,12 +52,15 @@ node_modules/.bin/tsc -p tsconfig.app.json --noEmit
 ```
 
 ### PWA
+
 PWA uses `vite-plugin-pwa`; service worker is active in dev (`devOptions.enabled: true`). `sw.js` is Workbox-generated and should not be edited manually.
 
 ### Dev auth bypass
+
 Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|seed-bob|seed-carol` in `frontend/.env` to bypass Google Sign-In locally. Frontend sends `X-Dev-User-Id` and backend resolves the user from it. **Never enable this in production.**
 
 ### Key conventions
+
 - Mobile-first, card-based layout
 - Sticky "Smart Input" bar fixed at the bottom of the screen
 - Firebase SDK used directly in the frontend for Auth only
@@ -118,14 +79,16 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
   - `purchasedDateLabel(purchased_at)` is the canonical date-label function — used by both `ListScreen` and `ItemList` so grouping keys always match
 
 ### SmartInputBar sigil system
+
 The input bar parses sigils from free text via `parseInput.ts` → `ParsedInput`:
+
 - `+` quantity (e.g. `+2`, `+1 bolsa`)
 - `#` brand (e.g. `#Danone`)
 - `@` store — multiple allowed (e.g. `@Mercadona @Lidl`)
 - `$`/`€` price — single token, accepts comma or dot decimal separator, optional `/kg` suffix (e.g. `$1,50`, `€3.20/kg`); normalised to a float and stored as `price`/`pricePer` on `ParsedInput`. Logged atomically with item creation via `ItemCreate.price` / `price_per` / `price_store`. A price preview pill appears in the input preview when a valid price is parsed.
 - `|` EAN barcode — 8 or 13 digits only (e.g. `|4011200296908`); triggers a barcode lookup via `getBarcode()` and opens `BarcodeScanSheet` on success. Can combine with `#`/`@` to pre-fill brand/store in the sheet.
 
-Sigil values containing spaces must be quoted with double or single quotes (e.g. `#"El Corte Inglés"`, `@'Ahorramas express'`). Unclosed quotes pass through unchanged.
+Sigil values containing spaces must be quoted with double or single quotes (e.g. `#"El Corte Inglés"`, `@'Carrefour Express'`). Unclosed quotes pass through unchanged.
 
 Price display throughout the app uses `formatPrice(amount, pricePer?)` from `frontend/src/lib/formatPrice.ts` — an `Intl.NumberFormat`-based formatter that renders locale-aware currency strings.
 
@@ -134,17 +97,23 @@ When `parsed.ean` is set, the input is in **EAN mode**: the regular parse previe
 A **clear button** (✕) replaces the camera scan button whenever the input has text.
 
 ### Purchased item rules
+
 Purchased items (`item.purchased === true`) are **read-only** in the UI. Allowed: unchecking, deleting, viewing price history. Disallowed: rename, quantity/brand/store edits, adding/changing/removing price. `ItemCard` renders tags as `<span>` (not `<button>`) for purchased items and hides all "add" CTAs. `ItemActionSheet` hides the rename option. `PriceHistorySheet` hides the log-price button when `readOnly` is passed.
 
 Price deletion has a **same-day guard**: the delete button in `LogPriceSheet` is only shown when `isSameCalendarDay(item.purchased_at)` is true (frontend), and the backend `DELETE /lists/{id}/items/{item_id}/prices` enforces the same rule, returning 422 for prior-day purchases.
 
 ### Testing conventions
+
 - When mocking `react-router-dom` (or any module where you only need to override specific exports), use `importOriginal` to avoid stripping the real module's exports:
   ```ts
-  vi.mock('react-router-dom', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('react-router-dom')>()
-    return { ...actual, useLocation: vi.fn(), useNavigate: vi.fn().mockReturnValue(vi.fn()) }
-  })
+  vi.mock("react-router-dom", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("react-router-dom")>();
+    return {
+      ...actual,
+      useLocation: vi.fn(),
+      useNavigate: vi.fn().mockReturnValue(vi.fn()),
+    };
+  });
   ```
 - Plain `vi.mock('module', () => ({ ... }))` replaces the entire module — any hook or class not listed will be missing and throw at runtime.
 
@@ -153,6 +122,9 @@ Price deletion has a **same-day guard**: the delete button in `LogPriceSheet` is
 Requires **Python 3.13** (pinned in `backend/.python-version`).
 
 ### Commands
+
+Prefer `just` from repo root (`just` lists recipes). Direct `uv` commands when needed:
+
 ```bash
 cd backend
 uv sync                              # install / sync dependencies
@@ -166,6 +138,7 @@ uv run python scripts/seed.py        # seed local DB with test data (or: just se
 ```
 
 ### Key conventions
+
 - FastAPI app entrypoint: `backend/app/main.py`
 - ORM: **SQLModel** (canonical FastAPI approach). Migrations via **Alembic**.
 - Settings via `pydantic_settings` in `backend/app/core/config.py`, loaded from `backend/.env`
@@ -176,6 +149,7 @@ uv run python scripts/seed.py        # seed local DB with test data (or: just se
 - Dockerized: `backend/Dockerfile` → deployed to Cloud Run; runs `alembic upgrade head` on startup
 
 ### Project layout
+
 ```
 backend/
 ├── app/
@@ -205,6 +179,7 @@ backend/
 ```
 
 ### Environment variables
+
 ```
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/carroquesi
 FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
@@ -217,6 +192,59 @@ DEV_AUTH_BYPASS=true   # local only — skips Firebase token validation
 - Firebase project config lives in `frontend/src/lib/firebase.ts` (Auth only — no Firestore, no Storage)
 - Environment variables go in `.env` files — never committed
 - Cloud Run service URL stored as an env var in the frontend for API calls
+
+## Workflows
+
+### General Workflow
+
+Always use a git worktree (via the `/worktrunk` skill) to isolate branch work before starting any feature, bugfix, or PR review. Never work directly on `main`.
+Standard flow for any non-trivial task:
+
+- Check `git status --short` before making changes
+- Implement the smallest complete fix first, then iterate
+- Run relevant validation commands before committing/pushing
+- Re-check `git status --short` to confirm only intentional files changed
+
+### Git Workflow
+
+- Use squash merge for PRs by default
+- When asked to 'update X', assume this includes committing and pushing unless stated otherwise
+- Always check git status for untracked changes before assuming worktree is clean
+- For CI: use `npm ci --legacy-peer-deps` when the project requires it
+- If the current worktree contains unrelated or unexpected changes, stop and ask before proceeding
+
+### Changelog & Release Workflow
+
+- `CHANGELOG.md` is the canonical record of what shipped.
+- `TODO.md` tracks only open work items — remove entries when they ship.
+- `cliff.toml` drives automated generation via `git-cliff`. Commit types map as: `feat` → Added, `fix` → Fixed, `refactor/perf` → Changed; `chore/docs/test/ci` are excluded.
+- A `pre-push` git hook (`hooks/pre-push`) aborts if `CHANGELOG.md` is out of date and prompts you to run `just changelog`, commit, and push again. Activate with `just setup` after cloning (requires `git-cliff`: `brew install git-cliff`).
+- Before a release:
+  1. Run `just changelog` — prepends new commits to `CHANGELOG.md` under `## [Unreleased]`
+  2. Rename `## [Unreleased]` to the new version + date (e.g. `## [0.11.0] — 2026-05-01`)
+  3. Commit and tag: `git tag vX.Y.Z`
+
+### Local Dev Environment
+
+- Use nvm (respect `.nvmrc`) for Node version management
+- Use uv for Python toolchain and virtual environment management
+- Backend uses FastAPI with Firebase; ensure `.env` and Firebase config are present before running
+- Frontend typecheck must use `tsconfig.app.json` (root tsconfig.json has files:[] and silently passes)
+- Use `--legacy-peer-deps` for npm installs to match CI
+- Never commit platform-specific (darwin/linux) native bindings to `package-lock.json`
+
+## Bug Investigation
+
+- When user reports a bug, investigate and attempt a concrete fix before declaring scope issues
+- Limit exploration to ~3-5 file reads before either fixing or asking a targeted question
+- Don't silently change URLs, endpoints, or external identifiers (e.g., es.openfoodfacts.org → world.openfoodfacts.org)
+
+## Validation Checklist
+
+- Frontend changes: run lint, relevant tests, and `just frontend typecheck`
+- Backend changes: run relevant `just backend test-file {file}` tests (full suite when feasible `just backend test`)
+- Before push: verify only intentional files are changed and no platform-specific native binding churn was introduced in `package-lock.json`
+- Shortcut: `just ci` runs frontend typecheck + lint + backend tests in one shot
 
 ## Out of Scope
 
