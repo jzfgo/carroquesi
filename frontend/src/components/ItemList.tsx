@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import './ItemList.css'
 import { ItemCard } from './ItemCard'
+import { Mascot } from './Mascot'
 import { purchasedDateLabel } from '../lib/itemCost'
 import type { CostSummary } from '../lib/itemCost'
 import { formatPrice } from '../lib/formatPrice'
@@ -66,8 +67,14 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
 
   if (active.length === 0 && purchased.length === 0) {
     return (
-      <div className="item-list item-list--centered">
-        <p>Sin productos — añade el primero abajo</p>
+      <div className="item-list item-list--centered" style={{ gap: '0.75rem' }}>
+        <Mascot size={120} />
+        <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}>
+          Sin productos todavía
+        </p>
+        <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
+          Añade el primero desde abajo
+        </p>
       </div>
     )
   }

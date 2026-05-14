@@ -35,13 +35,15 @@ test('shows error state with retry button', () => {
   expect(retry).toHaveBeenCalledTimes(1)
 })
 
-test('shows empty state', () => {
+test('shows empty state with mascot and updated copy', () => {
   render(
     <ItemList status="success" items={[]} members={MEMBERS}
       onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onRetry={() => {}}
       onPriceClick={() => {}} />
   )
-  expect(screen.getByText(/Sin productos/i)).toBeInTheDocument()
+  expect(screen.getByRole('img', { name: /mascota/i })).toBeInTheDocument()
+  expect(screen.getByText(/Sin productos todavía/i)).toBeInTheDocument()
+  expect(screen.getByText(/Añade el primero desde abajo/i)).toBeInTheDocument()
 })
 
 test('renders active items section label', () => {
