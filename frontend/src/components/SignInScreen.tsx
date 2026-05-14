@@ -1,5 +1,6 @@
 import { useAuth } from '../contexts/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
+import { Mascot } from './Mascot'
 
 export function SignInScreen() {
   usePageTitle()
@@ -17,6 +18,7 @@ export function SignInScreen() {
         padding: '2rem',
       }}
     >
+      <Mascot size={160} />
       <h1 style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>CarroQueSí</h1>
       <p style={{ color: 'var(--color-text-secondary)', margin: 0 }}>
         Lista de compras compartida

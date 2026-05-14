@@ -41,4 +41,9 @@ describe('SignInScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /google/i }))
     expect(mockSignIn).toHaveBeenCalledOnce()
   })
+
+  it('renders mascot image', () => {
+    render(<SignInScreen />)
+    expect(screen.getByRole('img', { name: /mascota/i })).toBeInTheDocument()
+  })
 })
