@@ -3,8 +3,7 @@ import json as _json
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
-from sqlmodel import select
-
+from app.core.config import settings
 from app.db.models import ListInvite, List, User
 from app.dependencies import CurrentSession
 
@@ -42,6 +41,7 @@ def invite_share_page(invite_id: str, session: CurrentSession):
     # JS-escaped for use inside a <script> string literal — html.escape() is
     # NOT appropriate here because HTML entities are not decoded inside <script>.
     redirect_url_js = _json.dumps(f"/invite/{invite_id}").replace("<", "\\u003c").replace(">", "\\u003e")
+    og_image = f"{settings.frontend_url}/og-image.png"
 
     html = f"""<!DOCTYPE html>
 <html lang="es">
@@ -52,9 +52,13 @@ def invite_share_page(invite_id: str, session: CurrentSession):
   <meta property="og:title" content="{title}" />
   <meta property="og:description" content="{description}" />
   <meta property="og:type" content="website" />
-  <meta name="twitter:card" content="summary" />
+  <meta property="og:image" content="{og_image}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="{title}" />
   <meta name="twitter:description" content="{description}" />
+  <meta name="twitter:image" content="{og_image}" />
   <meta http-equiv="refresh" content="0;url={redirect_url_html}" />
 </head>
 <body>

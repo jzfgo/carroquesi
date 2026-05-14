@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     firebase_credentials_path: str = "firebase-credentials.json"
     # Set to true in local .env only — never in production
     dev_auth_bypass: bool = False
+    frontend_url: str = "https://carroquesi.web.app"
 
     model_config = {"env_file": ".env"}
 
