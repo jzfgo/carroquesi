@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Filter bar visibility and search vs chip store behaviour (#48)
 
+- Add og:image to invite share page for WhatsApp previews
+
 
 ---
 ## [0.11.1] — 2026-04-26
