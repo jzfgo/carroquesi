@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add mascot asset and shared Mascot component
+
+- Add mascot to sign-in screen
+
+- Add mascot to list empty state
+
+- Add mascot to dashboard empty state
+
+- Add mascot to invite screen
+
+- Replace placeholder icons with mascot
+
+
+### Changed
+- Resize mascot PNG from 1024×1024 to 512×512 (940 KB → 265 KB)
+
+
 ### Fixed
 - Filter bar visibility and search vs chip store behaviour (#48)
 
