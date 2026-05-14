@@ -62,4 +62,19 @@ describe('CreateListCard', () => {
     fireEvent.keyDown(screen.getByPlaceholderText(/nombre/i), { key: 'Enter' })
     await waitFor(() => expect(onCreate).toHaveBeenCalledWith('Mercado'))
   })
+
+  it('shows mascot when isFirst', () => {
+    render(<CreateListCard isFirst onCreate={vi.fn()} />)
+    expect(screen.getByRole('img', { name: /mascota/i })).toBeInTheDocument()
+  })
+
+  it('shows "Aún no tienes listas" text when isFirst', () => {
+    render(<CreateListCard isFirst onCreate={vi.fn()} />)
+    expect(screen.getByText(/Aún no tienes listas/i)).toBeInTheDocument()
+  })
+
+  it('does not show mascot when not isFirst', () => {
+    render(<CreateListCard onCreate={vi.fn()} />)
+    expect(screen.queryByRole('img', { name: /mascota/i })).not.toBeInTheDocument()
+  })
 })

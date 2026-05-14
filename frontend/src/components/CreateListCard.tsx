@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './CreateListCard.css'
+import { Mascot } from './Mascot'
 
 interface Props {
   isFirst?: boolean
@@ -13,9 +14,19 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
 
   if (!expanded) {
     return (
-      <button className="create-list-card" onClick={() => setExpanded(true)}>
-        {isFirst ? 'Crea tu primera lista' : '+ Nueva lista'}
-      </button>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+        {isFirst && (
+          <>
+            <Mascot size={120} />
+            <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}>
+              Aún no tienes listas
+            </p>
+          </>
+        )}
+        <button className="create-list-card" onClick={() => setExpanded(true)}>
+          {isFirst ? 'Crea tu primera lista' : '+ Nueva lista'}
+        </button>
+      </div>
     )
   }
 
