@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getInvitePreview, acceptInvite, ApiError } from '../lib/api'
 import { usePageTitle } from '../hooks/usePageTitle'
+import { Mascot } from './Mascot'
 import './InviteScreen.css'
 
 type ScreenState = 'loading' | 'preview' | 'accepting' | 'error'
@@ -135,6 +136,7 @@ export function InviteScreen() {
 
   return (
     <div className="invite-screen">
+      <Mascot size={100} />
       <div className="invite-screen__card">
         <div className="invite-screen__icon">{preview?.list_emoji ?? '🛒'}</div>
         <h1 className="invite-screen__list-name">{preview?.list_name}</h1>

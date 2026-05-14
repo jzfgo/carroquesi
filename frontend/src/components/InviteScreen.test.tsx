@@ -57,6 +57,13 @@ test('shows list name and inviter name in preview', async () => {
   expect(screen.getByText('Invitado por Ana')).toBeInTheDocument()
 })
 
+test('shows mascot in preview state', async () => {
+  vi.mocked(api.getInvitePreview).mockResolvedValue(previewData)
+  render(<InviteScreen />)
+  await waitFor(() => expect(screen.getByText('Compras')).toBeInTheDocument())
+  expect(screen.getByRole('img', { name: /mascota/i })).toBeInTheDocument()
+})
+
 test('shows "Unirse a la lista" button when signed in', async () => {
   vi.mocked(api.getInvitePreview).mockResolvedValue(previewData)
   render(<InviteScreen />)
