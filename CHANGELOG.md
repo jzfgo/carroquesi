@@ -74,6 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Replace fallback hex values with canonical tokens in ItemCard and ItemList CSS
 
+- Remove stray closing parens in LogPriceSheet.css from sed token replacement
+
 
 ---
 ## [0.11.1] — 2026-04-26
