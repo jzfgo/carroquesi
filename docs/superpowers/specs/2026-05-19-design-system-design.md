@@ -8,12 +8,12 @@
 
 ## Source of Truth
 
-All design decisions live in `design_handoff_design_system/`. The canonical files are:
+All design decisions live in the repo root at `design_handoff_design_system/`. From this worktree (`.worktrees/design-system/`) that resolves to `../../design_handoff_design_system/`. The canonical files are:
 
-- `tokens/colors_and_type.css` — every CSS custom property
-- `ui_kit/index.html` — runnable prototype (open locally to verify fidelity)
-- `previews/` — per-component static design cards
-- `brand-assets/` — updated SVG/PNG sources against new `#EEF1F5` background
+- `../../design_handoff_design_system/tokens/colors_and_type.css` — every CSS custom property
+- `../../design_handoff_design_system/ui_kit/index.html` — runnable prototype (open locally to verify fidelity)
+- `../../design_handoff_design_system/previews/` — per-component static design cards
+- `../../design_handoff_design_system/brand-assets/` — updated SVG/PNG sources against new `#EEF1F5` background
 
 ---
 
@@ -21,7 +21,7 @@ All design decisions live in `design_handoff_design_system/`. The canonical file
 
 ### Tokens
 
-1. Copy `design_handoff_design_system/tokens/colors_and_type.css` verbatim → `frontend/src/colors_and_type.css`.
+1. Copy `../../design_handoff_design_system/tokens/colors_and_type.css` verbatim → `frontend/src/colors_and_type.css`.
 2. Replace the entire `:root { … }` block in `frontend/src/index.css` with `@import './colors_and_type.css';`.
 3. Delete the `@media (prefers-color-scheme: dark)` override in `index.css` — the imported file ships its own dark theme.
 4. Add a backwards-compat block in `index.css` so existing components keep working while the migration sweep runs:
