@@ -1,5 +1,5 @@
 default:
-    just --list
+    @just --list
 
 # Install / sync dependencies
 install:

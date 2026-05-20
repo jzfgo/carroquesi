@@ -2,7 +2,7 @@ mod frontend
 mod backend
 
 default:
-    just --list
+    @just --list
 
 # Start both frontend and backend dev servers in parallel
 dev:

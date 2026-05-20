@@ -1,34 +1,37 @@
+nvm-dir := env('NVM_DIR', env('HOME') + PATH_SEP + '.nvm')
+nvm-exec := nvm-dir + PATH_SEP + 'nvm-exec'
+
 default:
-    just --list
+    @just --list
 
 # Install dependencies
 install:
-    npm install
+    {{nvm-exec}} npm install
 
 # Start dev server
 dev:
-    npm run dev -- --host 0.0.0.0
+    {{nvm-exec}} npm run dev -- --host 0.0.0.0
 
 # Production build
 build:
-    npm run build
+    {{nvm-exec}} npm run build
 
 # Preview production build
 preview:
-    npm run preview
+    {{nvm-exec}} npm run preview
 
 # Run unit tests
 test:
-    npm run test
+    {{nvm-exec}} npm run test
 
 # Run tests in watch mode
 test-watch:
-    npm run test:watch
+    {{nvm-exec}} npm run test:watch
 
 # Lint
 lint:
-    npm run lint
+    {{nvm-exec}} npm run lint
 
 # Type-check (uses tsconfig.app.json — root tsconfig has files:[] and always passes silently)
 typecheck:
-    npx tsc -p tsconfig.app.json --noEmit
+    {{nvm-exec}} npm run typecheck
