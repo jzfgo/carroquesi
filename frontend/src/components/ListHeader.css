@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  background: var(--bg);
+  background: var(--paper-0);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
@@ -17,7 +17,7 @@
   align-items: center;
   gap: 2px;
   color: var(--accent);
-  font-size: 16px;
+  font-size: var(--fs-16);
   font-weight: 500;
   background: none;
   border: none;
@@ -26,9 +26,10 @@
 }
 
 .list-header__title {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--text-h);
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 400;
+  color: var(--ink-0);
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
@@ -57,7 +58,7 @@
 .list-header__menu span {
   width: 20px;
   height: 2px;
-  background: var(--text-h);
+  background: var(--ink-0);
   border-radius: 2px;
   display: block;
 }
