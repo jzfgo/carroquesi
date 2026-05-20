@@ -238,13 +238,6 @@ export function DashboardScreen() {
               <button
                 className="dashboard-screen__avatar-menu-item"
                 role="menuitem"
-                onClick={() => { setMenuOpen(false); navigate('/settings') }}
-              >
-                Configuración
-              </button>
-              <button
-                className="dashboard-screen__avatar-menu-item"
-                role="menuitem"
                 onClick={() => { void signOut(); setMenuOpen(false) }}
               >
                 Cerrar sesión
