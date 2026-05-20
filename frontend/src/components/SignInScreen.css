@@ -1,0 +1,54 @@
+.signin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  gap: 1.5rem;
+  padding: 2rem;
+  background: var(--paper-0);
+}
+
+.signin__hand {
+  font-family: var(--font-hand);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--accent);
+  transform: rotate(-5deg);
+  display: inline-block;
+  line-height: 1;
+  margin-bottom: -0.5rem;
+}
+
+.signin__title {
+  margin: 0;
+  font-size: 56px;
+  letter-spacing: normal;
+}
+
+.signin__tag {
+  color: var(--ink-2);
+  margin: 0;
+  text-align: center;
+  font-size: var(--fs-15);
+  line-height: var(--lh-base);
+}
+
+.signin__cta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--paper-0);
+  cursor: pointer;
+  font-size: var(--fs-16);
+  font-weight: 500;
+  font-family: inherit;
+  color: var(--ink-0);
+}
+
+.signin__cta:hover {
+  background: var(--paper-1);
+}
