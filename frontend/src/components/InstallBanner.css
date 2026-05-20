@@ -2,22 +2,23 @@
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  background: var(--color-primary);
-  color: #fff;
+  background: var(--miel-bg);
+  border: 1px solid var(--miel-border);
+  color: var(--ink-0);
   border-radius: 12px;
   padding: 0.625rem 0.75rem;
-  font-size: 0.875rem;
+  font-size: var(--fs-14);
 }
 
 .install-banner__icon {
   width: 28px;
   height: 28px;
-  background: #fff;
+  background: var(--miel-0);
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-primary);
+  color: var(--accent-fg);
   font-weight: 900;
   font-size: 11px;
   flex-shrink: 0;
@@ -27,28 +28,30 @@
   flex: 1;
   margin: 0;
   line-height: 1.4;
+  color: var(--ink-1);
 }
 
 .install-banner__cta {
-  background: #fff;
-  color: var(--color-primary);
+  background: var(--tinta-0);
+  color: var(--accent-fg);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 0.25rem 0.75rem;
-  font-size: 0.8125rem;
+  font-size: var(--fs-13);
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
+  font-family: inherit;
 }
 
 .install-banner__dismiss {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--ink-2);
   cursor: pointer;
   padding: 0;
-  font-size: 0.875rem;
+  font-size: var(--fs-14);
   line-height: 1;
   flex-shrink: 0;
 }
