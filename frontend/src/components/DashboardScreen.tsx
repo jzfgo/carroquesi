@@ -8,6 +8,7 @@ import { CreateListCard } from './CreateListCard'
 import { ListActionSheet } from './ListActionSheet'
 import { InstallBanner } from './InstallBanner'
 import { EmojiPickerSheet } from './EmojiPickerSheet'
+import { Wordmark } from './Wordmark'
 import { CURATED_EMOJIS } from '../lib/curated-emojis'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useNavigate } from 'react-router-dom'
@@ -209,7 +210,7 @@ export function DashboardScreen() {
   return (
     <div className="dashboard-screen">
       <header className="dashboard-screen__header">
-        <h1 className="dashboard-screen__title">CarroQueSí</h1>
+        <h1 className="dashboard-screen__title"><Wordmark size={26} /></h1>
         <div className="dashboard-screen__avatar-wrapper" ref={menuRef}>
           <button
             className="dashboard-screen__avatar"
