@@ -25,8 +25,8 @@
 .lps__legend { font-size: 11px; color: var(--ink-2); margin-top: 8px; line-height: 1.5; }
 .lps__chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .lps__chip { padding: 6px 14px; border-radius: 16px; font-size: 13px; font-weight: 500; border: 1px solid transparent; cursor: pointer; background: var(--paper-1); color: var(--ink-2); }
-.lps__chip--selected { background: var(--accent-bg)); color: var(--accent); border-color: var(--accent-border)); }
-.lps__chip--add { background: transparent; color: var(--accent); border: 1px dashed var(--accent-border)); }
+.lps__chip--selected { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-border); }
+.lps__chip--add { background: transparent; color: var(--accent); border: 1px dashed var(--accent-border); }
 .lps__new-store { width: 100%; background: var(--paper-1); border: none; border-radius: 10px; padding: 10px 12px; font-size: 14px; color: var(--ink-0); outline: none; margin-top: 8px; box-sizing: border-box; }
 .lps__save { display: block; width: calc(100% - 32px); margin: 14px 16px 8px; background: var(--accent); color: var(--ink-0); font-size: 15px; font-weight: 700; padding: 14px; border-radius: 12px; border: none; cursor: pointer; text-align: center; }
 .lps__save:disabled { opacity: 0.4; }
