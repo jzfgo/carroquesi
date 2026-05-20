@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-
 - Add mascot asset and shared Mascot component
 
 - Add mascot to sign-in screen
@@ -22,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add mascot to invite screen
 
 - Replace placeholder icons with mascot
+
+- Design system — composition notebook theme, new fonts, OS dark mode (#49)
 
 - Replace index.css token block with design system tokens
 
@@ -61,12 +62,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update brand assets for new design system
 
-### Changed
 
+### Changed
 - Resize mascot PNG from 1024×1024 to 512×512 (940 KB → 265 KB)
 
-### Fixed
 
+### Fixed
 - Filter bar visibility and search vs chip store behaviour (#48)
 
 - Add og:image to invite share page for WhatsApp previews
@@ -77,8 +78,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove stray closing parens in LogPriceSheet.css from sed token replacement
 
----
 
+---
 ## [0.11.1] — 2026-04-26
 
 ---
