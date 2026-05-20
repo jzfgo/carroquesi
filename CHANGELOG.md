@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Add mascot asset and shared Mascot component
 
 - Add mascot to sign-in screen
@@ -60,12 +61,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update brand assets for new design system
 
-
 ### Changed
+
 - Resize mascot PNG from 1024×1024 to 512×512 (940 KB → 265 KB)
 
-
 ### Fixed
+
 - Filter bar visibility and search vs chip store behaviour (#48)
 
 - Add og:image to invite share page for WhatsApp previews
@@ -74,21 +75,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Replace fallback hex values with canonical tokens in ItemCard and ItemList CSS
 
+- Remove stray closing parens in LogPriceSheet.css from sed token replacement
 
 ---
+
 ## [0.11.1] — 2026-04-26
 
 ---
+
 ## [0.11.0] — 2026-04-26 — Price history normalization
 
 ### Added
+
 - Normalize mixed-unit price history to €/kg (#47)
 
 ### Fixed
+
 - **frontend:** Ensure typecheck uses tsconfig.app.json (#46)
 
-
 ---
+
 ## [0.10.0] — 2026-04-24 — List filtering & quoted sigils
 
 ### Added
