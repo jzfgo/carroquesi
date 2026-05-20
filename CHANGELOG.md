@@ -22,6 +22,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Replace placeholder icons with mascot
 
+- Replace index.css token block with design system tokens
+
+- Load design system fonts and update theme-color
+
+- Remove terminal theme system
+
+- ThemeManager follows OS prefers-color-scheme, toggles theme-dark on body
+
+- Remove SettingsScreen and theme switcher UI
+
+- Add Wordmark component (Caveat + verde tick)
+
+- Restyle SignInScreen — Wordmark, Caveat annotation, lifted CSS
+
+- Restyle DashboardScreen with new tokens and Wordmark
+
+- ListHeader title uses Bree Serif display font
+
+- ProgressBar variant prop (primary=tinta, success=verde)
+
+- Restyle ListCard with progress bar variant and new tokens
+
+- ItemCard avatar uses self/other rule; price tag uses verde tokens
+
+- Restyle CreateListCard with dashed border and display font
+
+- FrequencySuggestionBanner — solid tinta add button, miel bg
+
+- Restyle Toast, PurchaseToast, InstallBanner with new tokens
+
+- Restyle SmartInputBar and FilterBar with new tokens
+
+- Restyle all action sheets with shared chrome tokens
+
+- Restyle BarcodeScanner overlay and reticle
+
+- Update brand assets for new design system
+
 
 ### Changed
 - Resize mascot PNG from 1024×1024 to 512×512 (940 KB → 265 KB)
@@ -31,6 +69,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Filter bar visibility and search vs chip store behaviour (#48)
 
 - Add og:image to invite share page for WhatsApp previews
+
+- Add AuthContext mock to ItemList.test.tsx after ItemCard gained useAuth
+
+- Replace fallback hex values with canonical tokens in ItemCard and ItemList CSS
 
 
 ---
