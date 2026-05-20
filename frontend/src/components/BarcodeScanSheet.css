@@ -11,7 +11,7 @@
   left: 0;
   right: 0;
   z-index: 201;
-  background: var(--bg);
+  background: var(--paper-0);
   border-radius: 20px 20px 0 0;
   padding: 20px 20px 36px;
   border-top: 1px solid var(--border);
@@ -20,7 +20,7 @@
 .bss__header {
   text-align: center;
   font-size: 11px;
-  color: var(--text);
+  color: var(--ink-0);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 16px;
@@ -40,7 +40,7 @@
 .bss__name {
   font-size: 17px;
   font-weight: 700;
-  color: var(--text-h);
+  color: var(--ink-0);
   margin-bottom: 8px;
 }
 
@@ -53,7 +53,7 @@
 .bss__tag {
   font-size: 12px;
   background: var(--accent-bg);
-  border: 1px solid var(--accent-border, rgba(170,59,255,0.25));
+  border: 1px solid var(--accent-border);
   border-radius: 6px;
   padding: 3px 8px;
   color: var(--accent);
@@ -64,23 +64,23 @@
 }
 
 .bss__tag--store {
-  background: var(--bg2, #f9f8fb);
+  background: var(--paper-1);
   border-color: var(--border);
-  color: var(--text);
+  color: var(--ink-0);
   cursor: pointer;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
 }
 
 .bss__tag--store-selected {
-  background: #c8e6c9;
-  border: 2px solid #2e7d32;
-  color: #1b5e20;
+  background: var(--verde-bg);
+  border: 2px solid var(--verde-0);
+  color: var(--verde-0);
   cursor: pointer;
 }
 
 .bss__edit {
-  background: var(--bg2, #f9f8fb);
-  border: 1px solid var(--accent-border, rgba(170,59,255,0.25));
+  background: var(--paper-1);
+  border: 1px solid var(--accent-border);
   border-radius: 10px;
   padding: 0 14px;
   font-size: 18px;
@@ -99,11 +99,11 @@
 .bss__cancel {
   flex: 1;
   padding: 12px;
-  background: var(--bg2, #f9f8fb);
+  background: var(--paper-1);
   border: 1px solid var(--border);
   border-radius: 12px;
   font-size: 14px;
-  color: var(--text);
+  color: var(--ink-0);
   cursor: pointer;
   font-family: inherit;
 }
@@ -126,19 +126,19 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  color: var(--color-text-secondary, #8e8e93);
+  color: var(--ink-2);
   font-size: 13px;
 }
 
 .bss__community-price-value {
   font-weight: 600;
-  color: var(--color-text, #fff);
+  color: var(--ink-0);
 }
 
 .bss__community-price-info {
   cursor: help;
   margin-left: auto;
-  color: var(--color-text-tertiary, #636366);
+  color: var(--ink-0);
   font-size: 12px;
   flex-shrink: 0;
   background: none;
