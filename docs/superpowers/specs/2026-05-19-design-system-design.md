@@ -284,18 +284,25 @@ Shared chrome for all action sheets (`ItemActionSheet`, `ListActionSheet`, `List
 
 ## Step 4 — Brand Assets
 
-Replace in `frontend/public/`:
+Three files in `../../design_handoff_design_system/brand-assets/` are **outdated** (still use the old warm-cream `#FBF8F0` background rather than the new `#EEF1F5`): `favicon.svg`, `maskable-512.png`, `og-image.png`. Do **not** copy these.
 
-| Target file | Source from `brand-assets/` |
+### Files safe to copy directly
+
+| Target in `frontend/public/` | Source |
 |---|---|
-| `favicon.svg` | `favicon.svg` |
-| `mascot.png` | `mascot.png` |
-| `pwa-512x512.png` | `pwa-512.png` |
-| `maskable-icon-512x512.png` | `maskable-512.png` |
-| `apple-touch-icon-180x180.png` | `apple-touch-icon.png` |
-| `og-image.png` | `og-image.png` |
+| `mascot.png` | `../../design_handoff_design_system/brand-assets/mascot.png` |
+| `pwa-512x512.png` | `../../design_handoff_design_system/brand-assets/pwa-512.png` |
+| `apple-touch-icon-180x180.png` | `../../design_handoff_design_system/brand-assets/apple-touch-icon.png` |
 
-Then regenerate remaining raster sizes (192×192, 64×64, `favicon.ico`):
+### Files that need regeneration against `#EEF1F5`
+
+- `favicon.svg` — the copy in `brand-assets/` is the default Vite placeholder icon (not a CarroQueSí asset). The real source is `../../design_handoff_design_system/brand-assets/icon-app.svg` (notebook page + verde ticks + Caveat text). Copy `icon-app.svg` → `frontend/public/favicon.svg`, then use it as the input for `pwa-assets-generator`.
+- `maskable-icon-512x512.png` — regenerate from the corrected `favicon.svg` using `npx pwa-assets-generator`.
+- `og-image.png` — outdated background (`#FBF8F0`); regenerate or redraw against `#EEF1F5`.
+
+### PWA raster regeneration
+
+Once `favicon.svg` is corrected, regenerate all remaining raster sizes (512×512 maskable, 192×192, 64×64, `favicon.ico`):
 
 ```bash
 cd frontend && npx pwa-assets-generator
