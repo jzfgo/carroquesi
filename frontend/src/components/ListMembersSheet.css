@@ -52,7 +52,7 @@
   height: 36px;
   border-radius: 50%;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -93,7 +93,7 @@
 .list-members-sheet__invite-btn {
   width: 100%;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-fg);
   border: none;
   border-radius: 14px;
   padding: 14px;
