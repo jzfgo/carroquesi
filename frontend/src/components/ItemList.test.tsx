@@ -1,6 +1,17 @@
 import { render, screen, fireEvent } from '@testing-library/react'
+import { vi } from 'vitest'
 import { ItemList } from './ItemList'
 import { purchasedDateLabel } from '../lib/itemCost'
+
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: vi.fn().mockReturnValue({
+    user: { id: 'u1', displayName: 'Test', photoUrl: null, email: 'test@example.com' },
+    getToken: vi.fn(),
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    loading: false,
+  }),
+}))
 import type { CostSummary } from '../lib/itemCost'
 import type { ListItem, Member } from '../types'
 
