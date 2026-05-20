@@ -1,25 +1,76 @@
 .pt {
   position: fixed;
   bottom: calc(max(env(safe-area-inset-bottom), 0px) + 80px);
-  left: 16px; right: 16px;
-  border-radius: 14px; overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  left: 16px;
+  right: 16px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
   z-index: 200;
   animation: pt-slide-up 0.25s ease;
 }
+
 @keyframes pt-slide-up {
   from { transform: translateY(100px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  to   { transform: translateY(0); opacity: 1; }
 }
-.pt__progress { height: 3px; background: var(--color-bg, #2c2c2e); }
+
+.pt__progress {
+  height: 3px;
+  background: var(--verde-border);
+}
+
 .pt__progress-fill {
-  height: 100%; background: var(--color-primary, #0a84ff); opacity: 0.7;
+  height: 100%;
+  background: var(--verde-0);
   border-radius: 0 2px 2px 0;
   animation: pt-drain 6s linear forwards;
 }
-@keyframes pt-drain { from { width: 100%; } to { width: 0%; } }
-.pt__body { background: var(--color-input-bg, #3a3a3c); padding: 11px 14px; display: flex; align-items: center; gap: 8px; }
-.pt__text { flex: 1; font-size: 14px; color: var(--color-muted, rgba(235,235,245,0.8)); line-height: 1.3; }
-.pt__text strong { color: var(--color-text, #fff); font-weight: 600; }
-.pt__cta { font-size: 14px; font-weight: 700; color: var(--color-primary, #0a84ff); white-space: nowrap; padding: 4px 0 4px 4px; cursor: pointer; background: none; border: none; }
-.pt__dismiss { font-size: 16px; color: var(--color-muted, #636366); padding: 4px 0 4px 6px; cursor: pointer; background: none; border: none; }
+
+@keyframes pt-drain {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+.pt__body {
+  background: var(--verde-bg);
+  border: 1px solid var(--verde-border);
+  border-top: none;
+  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pt__text {
+  flex: 1;
+  font-size: var(--fs-14);
+  color: var(--ink-1);
+  line-height: 1.3;
+}
+
+.pt__text strong {
+  color: var(--ink-0);
+  font-weight: 600;
+}
+
+.pt__cta {
+  font-size: var(--fs-14);
+  font-weight: 700;
+  color: var(--tinta-0);
+  white-space: nowrap;
+  padding: 4px 0 4px 4px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+
+.pt__dismiss {
+  font-size: 16px;
+  color: var(--ink-2);
+  padding: 4px 0 4px 6px;
+  cursor: pointer;
+  background: none;
+  border: none;
+}

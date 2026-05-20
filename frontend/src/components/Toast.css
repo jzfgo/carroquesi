@@ -3,15 +3,15 @@
   bottom: 96px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--text-h);
-  color: var(--bg);
+  background: var(--ink-0);
+  color: var(--paper-0);
   padding: 10px 20px;
   border-radius: 20px;
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 500;
   white-space: nowrap;
   z-index: 100;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-md);
   animation: toast-in 0.2s ease;
 }
 

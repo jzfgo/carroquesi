@@ -9,8 +9,8 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--color-bg, #fff);
-  border-top: 1px solid var(--color-border, #e5e5e5);
+  background: var(--paper-0);
+  border-top: 1px solid var(--border);
   padding: 12px 16px 20px;
   display: flex;
   flex-direction: column;
@@ -20,7 +20,7 @@
 
 .tag-edit-sheet__header {
   font-size: 0.75rem;
-  color: var(--color-muted, #888);
+  color: var(--ink-2);
 }
 
 .tag-edit-sheet__item-name {
@@ -35,21 +35,21 @@
 .tag-edit-sheet__input {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid var(--color-border, #e5e5e5);
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 1rem;
-  background: var(--color-bg, #fff);
-  color: var(--color-text, #111);
+  background: var(--paper-0);
+  color: var(--ink-0);
 }
 
 .tag-edit-sheet__input:focus {
   outline: none;
-  border-color: var(--color-primary, #7c3aed);
+  border-color: var(--accent);
 }
 
 .tag-edit-sheet__save {
   padding: 8px 16px;
-  background: var(--color-primary, #7c3aed);
+  background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -66,8 +66,8 @@
 
 .tag-edit-sheet__suggestion {
   padding: 4px 10px;
-  background: var(--color-surface, #f5f5f5);
-  border: 1px solid var(--color-border, #e5e5e5);
+  background: var(--paper-0);
+  border: 1px solid var(--border);
   border-radius: 999px;
   font-size: 0.8rem;
   cursor: pointer;
@@ -77,7 +77,7 @@
   align-self: flex-start;
   background: none;
   border: none;
-  color: var(--color-danger, #dc2626);
+  color: var(--tomate-0);
   font-size: 0.85rem;
   cursor: pointer;
   padding: 2px 0;

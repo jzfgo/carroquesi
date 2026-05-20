@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   z-index: 100;
-  background: var(--bg);
+  background: var(--paper-0);
   border-top: 1px solid var(--border);
   padding: 8px 16px 28px;
 }
@@ -14,7 +14,7 @@
   border-radius: 12px;
   overflow: hidden;
   margin-bottom: 8px;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.07);
+  box-shadow: var(--shadow-sm);
 }
 
 .smart-input__suggestion {
@@ -24,10 +24,10 @@
   padding: 10px 16px;
   border: none;
   border-bottom: 1px solid var(--border);
-  background: var(--bg);
-  font-size: 14px;
+  background: var(--paper-0);
+  font-size: var(--fs-14);
   font-weight: 500;
-  color: var(--text-h);
+  color: var(--ink-0);
   cursor: pointer;
   font-family: inherit;
 }
@@ -35,22 +35,22 @@
 .smart-input__suggestion:last-child { border-bottom: none; }
 
 .smart-input__suggestion--top {
-  background: var(--accent-bg);
-  color: var(--accent);
+  background: var(--tinta-bg);
+  color: var(--tinta-0);
 }
 
 .smart-input__suggestion--inferred {
-  background: var(--bg2, #f9f8fb);
+  background: var(--paper-1);
   border-left: 3px solid var(--accent);
-  color: var(--text-h);
+  color: var(--ink-0);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .smart-input__preview {
-  background: var(--bg2, #f9f8fb);
-  border: 1px solid var(--accent-border, rgba(170,59,255,0.25));
+  background: var(--paper-1);
+  border: 1px solid var(--tinta-border);
   border-radius: 12px;
   padding: 8px 12px;
   margin-bottom: 8px;
@@ -61,13 +61,13 @@
 }
 
 .smart-input__preview-name {
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 600;
-  color: var(--text-h);
+  color: var(--ink-0);
 }
 
 .smart-input__preview-qty {
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 500;
   color: var(--accent);
   background: var(--accent-bg);
@@ -76,18 +76,18 @@
 }
 
 .smart-input__preview-tag {
-  font-size: 11px;
+  font-size: var(--fs-12);
   background: var(--accent-bg);
-  border: 1px solid var(--accent-border, rgba(170,59,255,0.25));
+  border: 1px solid var(--accent-border);
   border-radius: 5px;
   padding: 1px 6px;
   color: var(--accent);
 }
 
 .smart-input__preview-error {
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 500;
-  color: #dc2626;
+  color: var(--tomate-0);
 }
 
 .smart-input__legend {
@@ -98,27 +98,32 @@
 }
 
 .smart-input__chip {
-  font-size: 11px;
-  color: var(--text);
-  background: var(--bg2, #f9f8fb);
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
+  font-size: var(--fs-12);
+  color: var(--ink-1);
+  background: var(--paper-1);
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 2px 7px;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .smart-input__chip b {
   color: var(--accent);
-  font-family: monospace;
+  font-family: var(--font-mono);
+}
+
+.smart-input__chip--active {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
 }
 
 .smart-input__row {
   display: flex;
   gap: 10px;
   align-items: center;
-  background: var(--bg2, #f9f8fb);
+  background: var(--paper-1);
   border: 1.5px solid var(--border);
   border-radius: 14px;
   padding: 10px 12px;
@@ -132,7 +137,7 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: var(--bg2, #f9f8fb);
+  background: var(--paper-1);
   border: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -148,12 +153,14 @@
   background: none;
   border: none;
   outline: none;
-  font-size: 16px;
-  color: var(--text-h);
+  font-size: var(--fs-16);
+  color: var(--ink-0);
   font-family: inherit;
 }
 
-.smart-input__field::placeholder { color: var(--text); }
+.smart-input__field::placeholder {
+  color: var(--ink-3);
+}
 
 .smart-input__add {
   width: 36px;
@@ -161,7 +168,7 @@
   border-radius: 10px;
   background: var(--accent);
   border: none;
-  color: white;
+  color: var(--accent-fg);
   font-size: 22px;
   line-height: 1;
   display: flex;
@@ -208,28 +215,22 @@
   transform: translate(-50%, -50%);
 }
 
-.smart-input__chip--active {
-  background: var(--accent-bg);
-  border-color: var(--accent-border, rgba(170,59,255,0.25));
-  color: var(--accent);
-}
-
 .smart-input__ean-code {
-  font-size: 13px;
+  font-size: var(--fs-13);
   font-weight: 600;
-  font-family: monospace;
-  color: var(--text-h);
+  font-family: var(--font-mono);
+  color: var(--ink-0);
   letter-spacing: 0.03em;
 }
 
 .smart-input__buscar {
   margin-left: auto;
   background: var(--accent);
-  color: white;
+  color: var(--accent-fg);
   border: none;
   border-radius: 8px;
   padding: 3px 12px;
-  font-size: 13px;
+  font-size: var(--fs-13);
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -268,7 +269,7 @@
   position: absolute;
   width: 10px;
   height: 1.5px;
-  background: var(--text);
+  background: var(--ink-1);
   border-radius: 2px;
   top: 50%;
   left: 50%;

@@ -46,19 +46,19 @@
 .filter-bar__chip {
   flex-shrink: 0;
   padding: 4px 12px;
-  border: 1px solid var(--border, #e5e5e5);
-  border-radius: 999px;
-  background: var(--bg, #fff);
-  font-size: 0.8rem;
-  color: var(--text, #111);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--paper-1);
+  font-size: var(--fs-13);
+  color: var(--ink-1);
   cursor: pointer;
   font-family: inherit;
 }
 
 .filter-bar__chip--active {
-  background: var(--accent, #7c3aed);
-  border-color: var(--accent, #7c3aed);
-  color: #fff;
+  background: var(--tinta-0);
+  border-color: var(--tinta-0);
+  color: var(--accent-fg);
 }
 
 .filter-bar__search-btn,
@@ -73,23 +73,23 @@
   border: none;
   cursor: pointer;
   font-size: 0.9rem;
-  color: var(--text-muted, #666);
+  color: var(--ink-2);
   padding: 0;
   font-family: inherit;
 }
 
 .filter-bar__input {
   flex: 1;
-  border: 1px solid var(--border, #e5e5e5);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 4px 10px;
-  font-size: 0.85rem;
+  font-size: var(--fs-14);
   font-family: inherit;
-  background: var(--bg, #fff);
-  color: var(--text, #111);
+  background: var(--paper-1);
+  color: var(--ink-0);
   outline: none;
 }
 
 .filter-bar__input:focus {
-  border-color: var(--accent, #7c3aed);
+  border-color: var(--accent);
 }

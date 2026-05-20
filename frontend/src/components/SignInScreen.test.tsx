@@ -20,7 +20,7 @@ beforeEach(() => {
 describe('SignInScreen', () => {
   it('renders app name', () => {
     render(<SignInScreen />)
-    expect(screen.getByText(/carroquesí/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/carroquesí/i)).toBeInTheDocument()
   })
 
   it('renders Google sign-in button', () => {

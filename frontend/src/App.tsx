@@ -4,7 +4,6 @@ import { DashboardScreen } from './components/DashboardScreen'
 import { InviteScreen } from './components/InviteScreen'
 import { ListRoute } from './components/ListRoute'
 import { SignInScreen } from './components/SignInScreen'
-import { SettingsScreen } from './components/SettingsScreen'
 import { ThemeManager } from './components/ThemeManager'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
@@ -56,7 +55,6 @@ export default function App() {
         <ThemeManager>
           <Routes>
             <Route path="/invite/:id" element={<InviteScreen />} />
-            <Route path="/settings" element={<AuthRoute element={<SettingsScreen />} />} />
             <Route path="/lists/:id" element={<AuthRoute element={<ListRoute />} />} />
             <Route path="*" element={<AppContent />} />
           </Routes>

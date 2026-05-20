@@ -10,9 +10,9 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--color-bg, #fff);
+  background: var(--paper-0);
   border-radius: 16px 16px 0 0;
-  border-top: 1px solid var(--color-border, #e5e5e5);
+  border-top: 1px solid var(--border);
   padding: 20px 16px 32px;
   z-index: 201;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
@@ -21,13 +21,13 @@
 .store-edit-sheet__header {
   font-weight: 600;
   font-size: 16px;
-  color: var(--color-text, #111);
+  color: var(--ink-0);
   margin-bottom: 14px;
 }
 
 .store-edit-sheet__item-name {
   font-weight: 400;
-  color: var(--color-text-secondary);
+  color: var(--ink-2);
 }
 
 .store-edit-sheet__chips {
@@ -67,13 +67,13 @@
 
 .store-edit-sheet__input {
   flex: 1;
-  border: 1px solid var(--color-border, #ddd);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 15px;
   outline: none;
-  background: var(--color-bg, #fff);
-  color: var(--color-text, #111);
+  background: var(--paper-0);
+  color: var(--ink-0);
 }
 
 .store-edit-sheet__input:focus {
@@ -97,11 +97,11 @@
 }
 
 .store-edit-sheet__suggestion {
-  background: var(--bg2);
+  background: var(--paper-1);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 5px 12px;
   font-size: 13px;
-  color: var(--text-h);
+  color: var(--ink-0);
   cursor: pointer;
 }

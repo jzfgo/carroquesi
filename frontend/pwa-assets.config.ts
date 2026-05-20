@@ -5,19 +5,19 @@ export default defineConfig({
     transparent: {
       sizes: [64, 192, 512],
       favicons: [[48, 'favicon.ico']],
-      resizeOptions: { background: '#ffffff', fit: 'contain' },
+      resizeOptions: { background: '#EEF1F5', fit: 'contain' },
       padding: 0.1,
     },
     maskable: {
       sizes: [512],
-      resizeOptions: { background: '#aa3bff', fit: 'contain' },
+      resizeOptions: { background: '#EEF1F5', fit: 'contain' },
       padding: 0.1,
     },
     apple: {
       sizes: [180],
-      resizeOptions: { background: '#ffffff', fit: 'contain' },
+      resizeOptions: { background: '#EEF1F5', fit: 'contain' },
       padding: 0.1,
     },
   },
-  images: ['public/mascot.png'],
+  images: ['public/favicon.svg'],
 })

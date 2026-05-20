@@ -1,0 +1,23 @@
+.wordmark {
+  font-family: var(--font-hand);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  color: var(--ink-0);
+}
+
+.wordmark__word {
+  display: inline-block;
+  color: var(--ink-0);
+}
+
+.wordmark__tick {
+  color: var(--verde-0);
+  transform: rotate(-6deg) translateY(0.04em);
+  align-self: center;
+  flex-shrink: 0;
+  margin-left: 0.18em;
+}

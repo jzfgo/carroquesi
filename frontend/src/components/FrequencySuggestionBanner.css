@@ -2,8 +2,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-border, rgba(170,59,255,0.25));
+  background: var(--miel-bg);
+  border: 1px solid var(--miel-border);
   border-radius: 12px;
   padding: 10px 12px;
   margin-bottom: 8px;
@@ -18,39 +18,43 @@
 }
 
 .freq-banner__name {
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 600;
-  color: var(--text-h);
+  color: var(--ink-0);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .freq-banner__meta {
-  font-size: 11px;
-  color: var(--text);
+  font-size: var(--fs-12);
+  color: var(--ink-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .freq-banner__add {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--accent);
-  background: none;
-  border: 1px solid var(--accent-border, rgba(170,59,255,0.25));
+  background: var(--tinta-0);
+  color: var(--accent-fg);
+  border: none;
   border-radius: 8px;
-  padding: 5px 10px;
+  padding: 6px 12px;
+  font-size: var(--fs-13);
+  font-weight: 600;
   cursor: pointer;
   font-family: inherit;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
+.freq-banner__add:hover {
+  background: var(--tinta-1);
+}
+
 .freq-banner__dismiss {
-  font-size: 13px;
-  color: var(--text);
+  font-size: var(--fs-13);
+  color: var(--ink-2);
   background: none;
   border: none;
   cursor: pointer;

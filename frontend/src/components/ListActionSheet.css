@@ -9,8 +9,8 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--color-bg, #fff);
-  border-top: 1px solid var(--color-border, #e5e7eb);
+  background: var(--paper-0);
+  border-top: 1px solid var(--border);
   border-radius: 16px 16px 0 0;
   padding: 8px 0 24px;
   z-index: 100;
@@ -21,14 +21,14 @@
 .list-action-sheet__handle {
   width: 36px;
   height: 4px;
-  background: var(--color-border, #e5e7eb);
+  background: var(--border);
   border-radius: 2px;
   margin: 0 auto 12px;
 }
 
 .list-action-sheet__list-name {
   font-size: 0.75rem;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--ink-2);
   font-weight: 500;
   padding: 0 20px 8px;
   margin: 0;
@@ -40,15 +40,15 @@
   padding: 14px 20px;
   background: none;
   border: none;
-  border-top: 1px solid var(--color-border, #f3f4f6);
+  border-top: 1px solid var(--border);
   font-size: 1rem;
   text-align: left;
   cursor: pointer;
-  color: var(--color-text, #111827);
+  color: var(--ink-0);
 }
 
 .list-action-sheet__action--danger {
-  color: var(--color-danger, #dc2626);
+  color: var(--tomate-0);
 }
 
 /* Rename sub-state */
@@ -61,17 +61,17 @@
 .list-action-sheet__input {
   flex: 1;
   padding: 9px 12px;
-  border: 1.5px solid var(--color-primary, #7c3aed);
+  border: 1.5px solid var(--accent);
   border-radius: 8px;
   font-size: 1rem;
-  background: var(--color-bg, #fff);
-  color: var(--color-text, #111827);
+  background: var(--paper-0);
+  color: var(--ink-0);
   outline: none;
 }
 
 .list-action-sheet__save-btn {
   padding: 9px 16px;
-  background: var(--color-primary, #7c3aed);
+  background: var(--accent);
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -88,7 +88,7 @@
 .list-action-sheet__cancel-link {
   background: none;
   border: none;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--ink-2);
   font-size: 0.85rem;
   cursor: pointer;
   padding: 4px 20px;
@@ -98,7 +98,7 @@
 /* Confirm-delete sub-state */
 .list-action-sheet__warning {
   font-size: 0.85rem;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--ink-2);
   padding: 0 20px 16px;
   margin: 0;
 }
@@ -106,7 +106,7 @@
 .list-action-sheet__confirm-btn {
   margin: 0 16px 8px;
   padding: 13px;
-  background: var(--color-danger, #dc2626);
+  background: var(--tomate-0);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -119,9 +119,9 @@
   margin: 0 16px;
   padding: 13px;
   background: none;
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 1rem;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--ink-2);
   cursor: pointer;
 }

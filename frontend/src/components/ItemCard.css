@@ -13,7 +13,7 @@
 }
 
 .item-card--purchased .item-card__qty {
-  background: #f0edf5;
+  background: var(--paper-1);
   color: var(--purchased);
 }
 
@@ -87,7 +87,7 @@
 }
 
 .item-card__tag {
-  background: var(--bg2, #f9f8fb);
+  background: var(--paper-1);
   border: 1px solid var(--border);
   border-radius: 5px;
   padding: 2px 7px;
@@ -146,12 +146,14 @@
   border: none;
   cursor: pointer;
   font-size: 16px;
-  color: var(--text, #888);
+  color: var(--ink-2);
   padding: 0;
   line-height: 1;
 }
 
 .item-card__tag--price {
-  background: #1c3a2e;
-  color: #30d158;
+  background: var(--verde-bg);
+  color: var(--verde-0);
+  border: 1px solid var(--verde-border);
+  font-family: var(--font-mono);
 }

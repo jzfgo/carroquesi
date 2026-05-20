@@ -1,6 +1,7 @@
 import './ItemCard.css'
 import { formatPrice } from '../lib/formatPrice'
 import type { ListItem, Member, TagField } from '../types'
+import { useAuth } from '../contexts/AuthContext'
 
 const TAG_CONFIG: { field: TagField; emoji: string; label: string }[] = [
   { field: 'brand', emoji: '🏷️', label: 'marca' },
@@ -18,7 +19,11 @@ interface Props {
 export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuOpen, onPriceClick }: Props) {
   const member = members.get(item.added_by)
   const initial = member?.initial ?? '?'
-  const colour  = member?.colour ?? '#b0adb5'
+  const { user } = useAuth()
+  const isSelf = member?.id === user?.id
+  const avatarStyle = isSelf
+    ? { background: 'var(--tinta-0)', color: 'var(--accent-fg)' }
+    : { background: 'var(--paper-2)', color: 'var(--ink-1)' }
 
   return (
     <div className={`item-card${item.purchased ? ' item-card--purchased' : ''}`}>
@@ -142,7 +147,7 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
       <div className="item-card__right">
         <div
           className="item-card__avatar"
-          style={{ background: member?.photoUrl ? 'transparent' : colour }}
+          style={member?.photoUrl ? {} : avatarStyle}
           aria-hidden
         >
           {member?.photoUrl

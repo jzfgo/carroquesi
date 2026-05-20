@@ -48,11 +48,16 @@ export function ListCard({
       {emojiSlot}
       <button className="list-card__tap-target" onClick={onClick} aria-label={name}>
         <span className="list-card__name">{name}</span>
-        <ProgressBar purchased={purchased_count} total={item_count} />
+        <ProgressBar
+          purchased={purchased_count}
+          total={item_count}
+          variant={purchased_count === item_count ? 'success' : 'primary'}
+        />
         {item_count > 0 && (
-          <span className="list-card__subtitle">
-            {purchased_count} de {item_count} comprados
-          </span>
+          <span className="list-card__subtitle">{purchased_count} de {item_count} comprados</span>
+        )}
+        {item_count === 0 && (
+          <span className="list-card__subtitle">vacía · añade lo primero</span>
         )}
       </button>
       <button className="list-card__menu-btn" onClick={onMenuOpen} aria-label="Opciones">
