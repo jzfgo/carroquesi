@@ -1,30 +1,14 @@
-import { useEffect, useState } from 'react'
-
-import { DEFAULT_THEME, THEMES } from '../lib/themes'
+import { useEffect } from 'react'
 
 export function ThemeManager({ children }: { children: React.ReactNode }) {
-  const [currentTheme] = useState<string>(() => {
-    // Check for saved theme preference
-    const savedTheme = localStorage.getItem('terminal-theme')
-    // If no saved theme, default to monokai-pro
-    if (savedTheme && THEMES.includes(savedTheme)) {
-      return savedTheme
-    }
-    return DEFAULT_THEME
-  })
-
   useEffect(() => {
-    // Apply theme to root element
-    const root = document.documentElement
-    root.setAttribute('data-theme', currentTheme)
-
-    // Save theme preference
-    localStorage.setItem('terminal-theme', currentTheme)
-  }, [currentTheme])
-
-  return (
-    <div className="theme-manager">
-      {children}
-    </div>
-  )
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = (dark: boolean) =>
+      document.body.classList.toggle('theme-dark', dark)
+    apply(mq.matches)
+    const handler = (e: MediaQueryListEvent) => apply(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  return <>{children}</>
 }
