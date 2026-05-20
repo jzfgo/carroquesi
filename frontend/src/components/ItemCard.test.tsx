@@ -1,6 +1,17 @@
 import { render, screen, fireEvent } from '@testing-library/react'
+import { vi } from 'vitest'
 import { ItemCard } from './ItemCard'
 import type { ListItem, Member } from '../types'
+
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: vi.fn().mockReturnValue({
+    user: { id: 'user-1', displayName: 'Ana', photoUrl: null, email: 'ana@example.com' },
+    getToken: vi.fn(),
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    loading: false,
+  }),
+}))
 
 const MEMBERS: Map<string, Member> = new Map([
   ['user-1', { id: 'user-1', displayName: 'Ana', initial: 'A', colour: '#7c3aed', photoUrl: null }],
