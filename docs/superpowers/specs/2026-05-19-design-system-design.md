@@ -140,6 +140,59 @@ Usage: `<Wordmark size={56} />` in `SignInScreen`, `<Wordmark size={26} />` in `
 
 ---
 
+## Step 2.5 — Theme System Removal
+
+The current app has a terminal-theme picker (26 themes: monokai-pro, catppuccin-mocha, etc.) driven by `data-theme` on `<html>` and a `localStorage` key `terminal-theme`. The new design system uses OS-driven light/dark only. Remove the old system entirely.
+
+### Files to delete
+
+- `frontend/src/theme/terminal-themes.css` — all 26 `[data-theme="…"]` overrides
+- `frontend/src/lib/themes.ts` — the `THEMES` array and `DEFAULT_THEME` constant
+
+### Files to modify
+
+**`frontend/src/main.tsx`**
+- Remove `import './theme/terminal-themes.css'`
+
+**`frontend/src/components/ThemeManager.tsx`**
+- Rewrite completely. Drop all terminal-theme logic (`THEMES`, `localStorage`, `data-theme`).
+- New behaviour: read `window.matchMedia('(prefers-color-scheme: dark)')` on mount and add a `change` listener; toggle `class="theme-dark"` on `<body>` accordingly. Renders `children` directly (no wrapper div needed).
+
+```tsx
+import { useEffect } from 'react'
+
+export function ThemeManager({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = (dark: boolean) =>
+      document.body.classList.toggle('theme-dark', dark)
+    apply(mq.matches)
+    mq.addEventListener('change', e => apply(e.matches))
+    return () => mq.removeEventListener('change', e => apply(e.matches))
+  }, [])
+  return <>{children}</>
+}
+```
+
+**`frontend/src/components/SettingsScreen.tsx` + `SettingsScreen.css`**
+- Delete both files. Theme switching was the only content; the screen becomes dead code.
+
+**`frontend/src/App.tsx`**
+- Remove `import { SettingsScreen }` and the `/settings` route.
+
+**`frontend/src/components/DashboardScreen.tsx`**
+- Remove the "Configuración" user-menu item that calls `navigate('/settings')`.
+
+### Checklist additions
+
+- [ ] `terminal-themes.css` deleted; `themes.ts` deleted
+- [ ] `ThemeManager` follows OS preference via `matchMedia`; toggles `class="theme-dark"` on `<body>`
+- [ ] `SettingsScreen` component and route removed
+- [ ] "Configuración" menu item removed from `DashboardScreen`
+- [ ] `terminal-theme` localStorage key no longer read or written
+
+---
+
 ## Step 3 — Component Sweep
 
 All component changes use sidecar `.css` files plus minimal TSX edits where noted. No component is rewritten — this is a restyle.
@@ -260,6 +313,8 @@ cd frontend && npx pwa-assets-generator
 
 ## Acceptance Checklist
 
+- [ ] `terminal-themes.css` deleted; `themes.ts` deleted; `ThemeManager` follows OS `prefers-color-scheme`
+- [ ] `SettingsScreen` component, route, and "Configuración" menu item removed
 - [ ] `src/index.css` `:root` block replaced with `@import` of new tokens; compat block in place
 - [ ] Fonts loaded via `<link>` in `index.html`; `theme-color` meta = `#EEF1F5`
 - [ ] `Wordmark` component created and used in `SignInScreen` and `DashboardScreen`
