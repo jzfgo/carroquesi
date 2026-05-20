@@ -284,7 +284,7 @@ Shared chrome for all action sheets (`ItemActionSheet`, `ListActionSheet`, `List
 
 ## Step 4 — Brand Assets
 
-Three files in `../../design_handoff_design_system/brand-assets/` are **outdated** (still use the old purple `#aa3bff` accent scheme): `favicon.svg`, `maskable-512.png`, `og-image.png`. Do **not** copy these.
+Four files in `../../design_handoff_design_system/brand-assets/` are **outdated** (still use the old purple `#aa3bff` accent scheme): `favicon.svg`, `icons.svg`, `maskable-512.png`, `og-image.png`. Do **not** copy these.
 
 ### Files safe to copy directly
 
@@ -299,6 +299,7 @@ Three files in `../../design_handoff_design_system/brand-assets/` are **outdated
 - `favicon.svg` — the copy in `brand-assets/` is the default Vite placeholder icon (not a CarroQueSí asset). The real source is `../../design_handoff_design_system/brand-assets/icon-app.svg` (notebook page + verde ticks + Caveat text). Copy `icon-app.svg` → `frontend/public/favicon.svg`, then use it as the input for `pwa-assets-generator`.
 - `maskable-icon-512x512.png` — regenerate from the corrected `favicon.svg` using `npx pwa-assets-generator`.
 - `og-image.png` — uses old purple accent scheme; regenerate or redraw against the new `#EEF1F5` / tinta palette.
+- `icons.svg` — has 5 hardcoded `stroke="#aa3bff"` attributes. Do not copy from brand-assets; instead update `frontend/public/icons.svg` directly by replacing every `#aa3bff` → `#1A3FA0` (tinta-0). CSS vars cannot be used in standalone SVG files served from `public/`.
 
 ### PWA raster regeneration
 
