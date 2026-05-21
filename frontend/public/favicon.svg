@@ -1,40 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  
-  <defs>
-    
-  </defs>
-
-  
-  <rect width="512" height="512" rx="115" fill="#EEF1F5"></rect>
-
-  
-  <g stroke="#C7D2E1" stroke-width="3">
-    <line x1="40" y1="170" x2="472" y2="170"></line>
-    <line x1="40" y1="270" x2="472" y2="270"></line>
-    <line x1="40" y1="370" x2="472" y2="370"></line>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-label="CarroQueSí app icon">
+  <rect width="512" height="512" fill="#EEF1F5"/>
+  <g stroke="#C7D2E1" stroke-width="4">
+    <line x1="40" y1="178" x2="472" y2="178"/>
+    <line x1="40" y1="278" x2="472" y2="278"/>
+    <line x1="40" y1="378" x2="472" y2="378"/>
   </g>
-
-  
-  <line x1="92" y1="40" x2="92" y2="472" stroke="#E0A92D" stroke-width="2" opacity="0.55"></line>
-
-  
-  <g>
-    <circle cx="138" cy="155" r="22" fill="#3A7A4A"></circle>
-    <path d="M125 155 l10 10 l18 -19" stroke="#EEF1F5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-    <text class="hand" x="180" y="178" transform="rotate(-1.5 180 178)">Café</text>
-  </g>
-
-  
-  <g>
-    <circle cx="138" cy="255" r="22" fill="#3A7A4A"></circle>
-    <path d="M125 255 l10 10 l18 -19" stroke="#EEF1F5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-    <text class="hand" x="180" y="278" transform="rotate(1 180 278)">Queso</text>
-  </g>
-
-  
-  <g>
-    <circle cx="138" cy="355" r="22" fill="#3A7A4A"></circle>
-    <path d="M125 355 l10 10 l18 -19" stroke="#EEF1F5" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-    <text class="hand" x="180" y="378" transform="rotate(-0.5 180 378)">Sal</text>
-  </g>
+  <circle cx="130" cy="158" r="44" fill="#2F7A4A"/>
+  <path d="M108 160 l16 16 l30 -32" stroke="#EEF1F5" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <circle cx="130" cy="258" r="44" fill="#2F7A4A"/>
+  <path d="M108 260 l16 16 l30 -32" stroke="#EEF1F5" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <circle cx="130" cy="358" r="44" fill="#2F7A4A"/>
+  <path d="M108 360 l16 16 l30 -32" stroke="#EEF1F5" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <line x1="200" y1="170" x2="420" y2="170" stroke="#15161B" stroke-width="14" stroke-linecap="round" opacity="0.85"/>
+  <line x1="200" y1="270" x2="450" y2="270" stroke="#15161B" stroke-width="14" stroke-linecap="round" opacity="0.85"/>
+  <line x1="200" y1="370" x2="360" y2="370" stroke="#15161B" stroke-width="14" stroke-linecap="round" opacity="0.85"/>
 </svg>
