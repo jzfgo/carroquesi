@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Set monochrome icon purpose to 'monochrome maskable'
 
+- Remove clip-rule attributes from monochrome SVG
+
 
 ---
 ## [0.12.0] — 2026-05-21 — Design system & mascot
