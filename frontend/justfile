@@ -35,3 +35,7 @@ lint:
 # Type-check (uses tsconfig.app.json — root tsconfig has files:[] and always passes silently)
 typecheck:
     {{nvm-exec}} npm run typecheck
+
+# Regenerate PWA icons from source assets in public/
+pwa-icons:
+    {{nvm-exec}} npm run generate-pwa-assets

@@ -45,6 +45,7 @@ backend/.env*
 
 # OS
 .DS_Store
+._*
 
 # SQLite
 *.db
