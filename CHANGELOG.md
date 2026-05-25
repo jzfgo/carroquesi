@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove clip-rule attributes from monochrome SVG
 
+- Set monochrome icon purpose back
+
 
 ---
 ## [0.12.0] — 2026-05-21 — Design system & mascot
