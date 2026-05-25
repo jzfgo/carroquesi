@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- Replace favicon with spec-correct simplified silhouette
+
+
+---
 ## [0.12.0] — 2026-05-21 — Design system & mascot
 
 ### Added
