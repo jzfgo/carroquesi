@@ -8,7 +8,8 @@ class Settings(BaseSettings):
     # Set to true in local .env only — never in production
     dev_auth_bypass: bool = False
     frontend_url: str = "https://carroquesi.web.app"
-    receipt_storage_bucket: str = "carroquesi.firebasestorage.app"
+    receipt_storage_bucket: str = ""
+    gcp_project: str = ""
 
     model_config = {"env_file": ".env"}
 

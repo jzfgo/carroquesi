@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ReceiptScanResult, PricePatch, NameMapping } from "../types/receipt";
 import { formatPrice } from "../lib/formatPrice";
+import "./ReceiptScanSheet.css";
 
 interface PurchasedItemRef {
   id: string;
