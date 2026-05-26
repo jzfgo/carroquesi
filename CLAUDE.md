@@ -247,5 +247,4 @@ Standard flow for any non-trivial task:
 
 ## Out of Scope
 
-- Receipt scanning (OCR)
 - Submitting prices to Open Prices (requires proof image + OSM location)
