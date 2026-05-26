@@ -12,6 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add receipt scanning implementation plan
 
+- Add receipt_scans and receipt_name_mappings DB models
+
+- Add receipt config setting and Pydantic schemas
+
+- Add receipt OCR and image storage service wrappers
+
+- Add receipt parser with Mercadona, Ahorramas, and generic fallback
+
+- Add receipt matcher with learned-mapping lookup and rapidfuzz fallback
+
+- Add receipt scan and receipt-prices endpoints
+
+- Add ReceiptScanSheet component and TypeScript types
+
+- Wire receipt scanning into ListScreen and ListActionSheet
 
 ---
 ## [0.12.1] — 2026-05-26 — PWA asset fixes
