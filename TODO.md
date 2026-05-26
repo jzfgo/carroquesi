@@ -1,11 +1,13 @@
 # CarroQueSí — TODO
 
-> Last updated: 2026-05-13
+> Last updated: 2026-05-26
 
 ---
 
 ## Features (Backlog)
 
+- [ ] **Receipt scanning (OCR)** — post-purchase: scan receipt to bulk-log prices for already-purchased list items
+- [ ] **Receipt scanning — list seeding** — pre-purchase: import items from a past receipt to seed or rebuild a list
 - [ ] **Push notifications** — notify list members when items are added or purchased (requires FCM setup)
 - [ ] **Manual item grouping** — allow users to manually group related items (e.g. a barcode-scanned yogurt alongside a free-text "yogurt" entry, or a branded item next to its unbranded equivalent)
 - [ ] **In-app feedback** — unobtrusive prompt (e.g. after a purchase session) asking the user to rate the app or report a bug; also expose a permanent "Enviar feedback" option in the user menu so users can submit anytime; feedback should be lightweight (free-text + optional email) and not require leaving the app
