@@ -12,21 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add receipt scanning implementation plan
 
-- Add receipt_scans and receipt_name_mappings DB models
+- Receipt scanning (OCR bulk price logging) (#50)
 
-- Add receipt config setting and Pydantic schemas
 
-- Add receipt OCR and image storage service wrappers
-
-- Add receipt parser with Mercadona, Ahorramas, and generic fallback
-
-- Add receipt matcher with learned-mapping lookup and rapidfuzz fallback
-
-- Add receipt scan and receipt-prices endpoints
-
-- Add ReceiptScanSheet component and TypeScript types
-
-- Wire receipt scanning into ListScreen and ListActionSheet
+### Fixed
+- Move receipt scan CTA inside ItemList scroll container
 
 
 ---
