@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make PurchaseToast body opaque
 
+- Render receipt-scan-cta before purchased section, not at end of scroll
+
 
 ---
 ## [0.12.1] — 2026-05-26 — PWA asset fixes
