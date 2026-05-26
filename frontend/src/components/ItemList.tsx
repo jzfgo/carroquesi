@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import './ItemList.css'
 import { ItemCard } from './ItemCard'
 import { Mascot } from './Mascot'
@@ -21,6 +21,7 @@ interface Props {
   pendingCost?: CostSummary | null
   purchasedCostByDate?: Map<string, CostSummary | null>
   totalItems?: number
+  footer?: ReactNode
 }
 
 function CostBadge({ cost, className }: { cost: CostSummary; className: string }) {
@@ -31,7 +32,7 @@ function CostBadge({ cost, className }: { cost: CostSummary; className: string }
   )
 }
 
-export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry, onPriceClick, pendingCost, purchasedCostByDate, totalItems }: Props) {
+export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry, onPriceClick, pendingCost, purchasedCostByDate, totalItems, footer }: Props) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
 
   if (status === 'loading') {
@@ -132,6 +133,7 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
           ))}
         </>
       )}
+      {footer}
     </div>
   )
 }

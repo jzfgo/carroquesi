@@ -487,6 +487,17 @@ export function ListScreen({
         onPriceClick={(itemId) => setPriceItemId(itemId)}
         pendingCost={pendingCost}
         purchasedCostByDate={purchasedCostByDate}
+        footer={allUnpurchasedCount === 0 && items.length > 0 && !receiptScanResult ? (
+          <div className="receipt-scan-cta">
+            <button
+              className="receipt-scan-cta__btn"
+              onClick={handleReceiptScan}
+              disabled={receiptUploading}
+            >
+              {receiptUploading ? "Procesando ticket…" : "🧾 Escanear ticket para registrar precios"}
+            </button>
+          </div>
+        ) : undefined}
       />
       {editingTag &&
         (() => {
@@ -554,17 +565,6 @@ export function ListScreen({
       )}
       {!editingTag && !menuOpen && !activeItemId && (
         <>
-          {allUnpurchasedCount === 0 && items.length > 0 && !receiptScanResult && (
-            <div className="receipt-scan-cta">
-              <button
-                className="receipt-scan-cta__btn"
-                onClick={handleReceiptScan}
-                disabled={receiptUploading}
-              >
-                {receiptUploading ? "Procesando ticket…" : "🧾 Escanear ticket para registrar precios"}
-              </button>
-            </div>
-          )}
           <FrequencySuggestionBanner
             suggestions={dueSuggestions}
             onAdd={handleSuggestionAdd}
