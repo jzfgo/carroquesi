@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Resolve GCP credential errors and style ReceiptScanSheet
 
+- Rewrite receipt parsers to handle Cloud Vision columnar OCR output
+
 
 ---
 ## [0.12.1] — 2026-05-26 — PWA asset fixes
