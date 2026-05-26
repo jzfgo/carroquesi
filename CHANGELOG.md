@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Wire receipt scanning into ListScreen and ListActionSheet
 
+
 ---
 ## [0.12.1] — 2026-05-26 — PWA asset fixes
 
