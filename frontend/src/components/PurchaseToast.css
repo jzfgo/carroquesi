@@ -33,7 +33,7 @@
 }
 
 .pt__body {
-  background: var(--verde-bg);
+  background: var(--paper-0);
   border: 1px solid var(--verde-border);
   border-top: none;
   padding: 11px 14px;
