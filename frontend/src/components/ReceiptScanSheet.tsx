@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MatchedLine, ReceiptScanResult, PricePatch, NameMapping } from "../types/receipt";
+import type { ReceiptScanResult, PricePatch, NameMapping } from "../types/receipt";
 import { formatPrice } from "../lib/formatPrice";
 
 interface PurchasedItemRef {
@@ -24,7 +24,7 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
   const toggleItem = (itemId: string) => {
     setCheckedIds((prev) => {
       const next = new Set(prev);
-      next.has(itemId) ? next.delete(itemId) : next.add(itemId);
+      if (next.has(itemId)) { next.delete(itemId); } else { next.add(itemId); }
       return next;
     });
   };
@@ -98,6 +98,7 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
             Ticket escaneado
             {store && <span className="store-badge">{store}</span>}
           </div>
+          <button className="sheet-close-btn" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
         <div className="sheet-meta">
           {formattedDate && <span>📅 {formattedDate}</span>}

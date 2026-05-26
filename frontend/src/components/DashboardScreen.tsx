@@ -276,6 +276,7 @@ export function DashboardScreen() {
           isOwner={activeList.owner_id === (user?.id ?? '')}
           onRename={newName => void handleRename(activeList, newName)}
           onDelete={() => void handleDelete(activeList)}
+          onReceiptScan={() => navigate(`/lists/${activeList.id}`, { state: { openReceiptScan: true } })}
           onClose={() => setActiveList(null)}
         />
       )}

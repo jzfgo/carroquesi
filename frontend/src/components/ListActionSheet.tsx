@@ -9,10 +9,11 @@ interface Props {
   isOwner: boolean
   onRename: (newName: string) => void
   onDelete: () => void
+  onReceiptScan?: () => void
   onClose: () => void
 }
 
-export function ListActionSheet({ list, isOwner, onRename, onDelete, onClose }: Props) {
+export function ListActionSheet({ list, isOwner, onRename, onDelete, onReceiptScan, onClose }: Props) {
   const [subState, setSubState] = useState<SubState>('actions')
   const [renameValue, setRenameValue] = useState(list.name)
 
@@ -39,6 +40,14 @@ export function ListActionSheet({ list, isOwner, onRename, onDelete, onClose }: 
           >
             ✏️ Renombrar
           </button>
+          {onReceiptScan && (
+            <button
+              className="list-action-sheet__action"
+              onClick={() => { onReceiptScan(); onClose() }}
+            >
+              🧾 Escanear ticket
+            </button>
+          )}
           {isOwner && (
             <button
               className="list-action-sheet__action list-action-sheet__action--danger"

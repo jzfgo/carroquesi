@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getList, ApiError } from '../lib/api'
 import { usePageTitle } from '../hooks/usePageTitle'
@@ -9,7 +9,18 @@ import type { ApiList } from '../types'
 export function ListRoute() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { getToken } = useAuth()
+  // Capture once at mount; clear state so back/forward doesn't re-trigger
+  const autoOpenReceiptScan = useRef(
+    !!(location.state as { openReceiptScan?: boolean } | null)?.openReceiptScan
+  )
+  useEffect(() => {
+    if (autoOpenReceiptScan.current) {
+      navigate(location.pathname, { replace: true, state: null })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [list, setList] = useState<ApiList | null>(null)
   const [error, setError] = useState<'not_found' | 'forbidden' | 'unknown' | null>(null)
   usePageTitle(list?.name ?? undefined)
@@ -67,6 +78,7 @@ export function ListRoute() {
       listName={list.name}
       listEmoji={list.emoji}
       listOwnerId={list.owner_id}
+      autoOpenReceiptScan={autoOpenReceiptScan.current}
       onBack={() => navigate('/')}
     />
   )

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import ReceiptScanSheet from "./ReceiptScanSheet";
-import { ReceiptScanResult } from "../types/receipt";
+import type { ReceiptScanResult } from "../types/receipt";
 
 const mockResult: ReceiptScanResult = {
   scan_id: "scan-1",
@@ -132,7 +132,7 @@ describe("ReceiptScanSheet", () => {
     );
     fireEvent.click(screen.getByText(/Guardar precios/));
     expect(onConfirm).toHaveBeenCalledOnce();
-    const [patches, mappings] = onConfirm.mock.calls[0];
+    const [patches] = onConfirm.mock.calls[0];
     expect(patches).toHaveLength(2);
     expect(patches[0].item_id).toBe("item-1");
     expect(patches[0].price).toBe(1.15);

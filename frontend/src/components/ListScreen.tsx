@@ -7,7 +7,11 @@ import {
   getBarcode,
   getDueSuggestions,
   getSuggestions,
+  uploadReceipt,
+  submitReceiptPrices,
 } from "../lib/api";
+import type { ReceiptScanResult, PricePatch, NameMapping } from "../types/receipt";
+import ReceiptScanSheet from "./ReceiptScanSheet";
 import { computeCostSummary, purchasedDateLabel } from "../lib/itemCost";
 import { getLastPriceStore, setLastPriceStore } from "../lib/lastPriceStore";
 import { parseInput } from "../parseInput";
@@ -41,6 +45,7 @@ interface Props {
   listName: string;
   listEmoji?: string | null;
   listOwnerId: string;
+  autoOpenReceiptScan?: boolean;
   onBack?: () => void;
 }
 
@@ -55,6 +60,7 @@ export function ListScreen({
   listName,
   listEmoji = null,
   listOwnerId,
+  autoOpenReceiptScan = false,
   onBack,
 }: Props) {
   const { getToken, user } = useAuth();
@@ -92,6 +98,10 @@ export function ListScreen({
     status: "idle",
   });
   const eanRequestIdRef = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const autoOpenFiredRef = useRef(false);
+  const [receiptScanResult, setReceiptScanResult] = useState<ReceiptScanResult | null>(null);
+  const [receiptUploading, setReceiptUploading] = useState(false);
   const currentUserId = user!.id;
   const isOwner = listOwnerId === currentUserId;
 
@@ -141,6 +151,59 @@ export function ListScreen({
         /* non-critical */
       });
   }, [listId, getToken]);
+
+  useEffect(() => {
+    if (autoOpenReceiptScan && !autoOpenFiredRef.current) {
+      autoOpenFiredRef.current = true;
+      fileInputRef.current?.click();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleReceiptScan = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) {
+        setToast("La imagen es demasiado grande (máx. 10 MB)");
+        return;
+      }
+      setReceiptUploading(true);
+      try {
+        const result = await uploadReceipt(getToken, listId, file);
+        setReceiptScanResult(result);
+      } catch {
+        setToast("No se pudo leer el ticket");
+      } finally {
+        setReceiptUploading(false);
+      }
+    },
+    [getToken, listId],
+  );
+
+  const handleReceiptConfirm = useCallback(
+    async (patches: PricePatch[], mappings: NameMapping[]) => {
+      if (!receiptScanResult) return;
+      try {
+        const data = await submitReceiptPrices(getToken, listId, {
+          scan_id: receiptScanResult.scan_id,
+          patches,
+          mappings,
+        });
+        setReceiptScanResult(null);
+        const n = data.items_updated;
+        setToast(`${n} precio${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}`);
+      } catch {
+        setToast("No se pudieron guardar los precios");
+      }
+    },
+    [getToken, listId, receiptScanResult],
+  );
 
   const handleTogglePurchased = useCallback(
     (itemId: string) => {
@@ -491,6 +554,17 @@ export function ListScreen({
       )}
       {!editingTag && !menuOpen && !activeItemId && (
         <>
+          {allUnpurchasedCount === 0 && items.length > 0 && !receiptScanResult && (
+            <div className="receipt-scan-cta">
+              <button
+                className="receipt-scan-cta__btn"
+                onClick={handleReceiptScan}
+                disabled={receiptUploading}
+              >
+                {receiptUploading ? "Procesando ticket…" : "🧾 Escanear ticket para registrar precios"}
+              </button>
+            </div>
+          )}
           <FrequencySuggestionBanner
             suggestions={dueSuggestions}
             onAdd={handleSuggestionAdd}
@@ -596,6 +670,41 @@ export function ListScreen({
           itemName={purchaseToast.itemName}
           onDismiss={handleDismissPurchaseToast}
         />
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
+
+      {receiptUploading && (
+        <>
+          <div className="sheet-overlay" />
+          <div className="receipt-uploading-indicator">
+            <span className="receipt-uploading-indicator__spinner" role="status" aria-label="Procesando ticket" />
+            <span>Procesando ticket…</span>
+          </div>
+        </>
+      )}
+
+      {receiptScanResult && (
+        <>
+          <div className="sheet-overlay" onClick={() => setReceiptScanResult(null)} />
+          <div className="sheet-container">
+            <ReceiptScanSheet
+              result={receiptScanResult}
+              purchasedItems={items
+                .filter((i) => i.purchased)
+                .map((i) => ({ id: i.id, name: i.name }))}
+              store={receiptScanResult.store}
+              onConfirm={handleReceiptConfirm}
+              onClose={() => setReceiptScanResult(null)}
+            />
+          </div>
+        </>
       )}
     </div>
   );
