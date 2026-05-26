@@ -107,6 +107,7 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
           onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen}
           onPriceClick={onPriceClick} />
       ))}
+      {footer}
 
       {purchased.length > 0 && (
         <>
@@ -133,7 +134,6 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
           ))}
         </>
       )}
-      {footer}
     </div>
   )
 }
