@@ -564,7 +564,7 @@ export function ListScreen({
         />
       )}
       {!editingTag && !menuOpen && !activeItemId && (
-        <>
+        <div className="bottom-panel">
           <FrequencySuggestionBanner
             suggestions={dueSuggestions}
             onAdd={handleSuggestionAdd}
@@ -584,7 +584,7 @@ export function ListScreen({
             inferredStoreChip={visibleChip}
             onDismissInferredStore={dismissInferredStore}
           />
-        </>
+        </div>
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
       {scannerOpen && (

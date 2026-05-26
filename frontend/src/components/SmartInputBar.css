@@ -1,9 +1,4 @@
 .smart-input {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
   background: var(--paper-0);
   border-top: 1px solid var(--border);
   padding: 8px 16px 28px;

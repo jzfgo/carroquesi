@@ -16,6 +16,14 @@
   text-align: left;
 }
 
+.bottom-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
 .sheet-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,0.5);
