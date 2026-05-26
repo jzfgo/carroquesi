@@ -62,7 +62,7 @@ def _make_client(session: Session, user: User) -> TestClient:
     # dependency_overrides dict, so two clients in the same test don't conflict.
     from fastapi.middleware.cors import CORSMiddleware
     from app.core.config import settings
-    from app.routers import auth, barcode, invites, items, lists, members, prices, suggestions
+    from app.routers import auth, barcode, invites, items, lists, members, prices, receipt, suggestions
 
     test_app = FastAPI()
     test_app.add_middleware(
@@ -81,6 +81,7 @@ def _make_client(session: Session, user: User) -> TestClient:
     test_app.include_router(suggestions.router)
     test_app.include_router(barcode.router)
     test_app.include_router(prices.router)
+    test_app.include_router(receipt.router)
 
     def _get_session():
         yield session

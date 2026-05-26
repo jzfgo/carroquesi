@@ -1,8 +1,8 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, date as date_type, timezone
 from typing import Optional
 
-from sqlalchemy import Column, JSON, text
+from sqlalchemy import Column, JSON, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 
@@ -94,4 +94,35 @@ class PriceCache(SQLModel, table=True):
     price_per: Optional[str] = Field(default=None)  # None=unit, "KILOGRAM"=per kg
     fetched_at: datetime = Field(default_factory=_now)
 
+
+class ReceiptScan(SQLModel, table=True):
+    __tablename__ = "receipt_scans"
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    list_id: str = Field(foreign_key="lists.id")
+    scanned_by: str = Field(foreign_key="users.id")
+    store: Optional[str] = None
+    receipt_date: Optional[date_type] = None
+    receipt_total: Optional[float] = None
+    image_path: Optional[str] = None
+    ocr_raw: Optional[dict] = Field(default=None, sa_column=Column(JSON))
+    parsed_lines: Optional[list] = Field(default=None, sa_column=Column(JSON))
+    match_result: Optional[list] = Field(default=None, sa_column=Column(JSON))
+    items_updated: int = 0
+    created_at: datetime = Field(default_factory=_now)
+
+
+class ReceiptNameMapping(SQLModel, table=True):
+    __tablename__ = "receipt_name_mappings"
+    __table_args__ = (UniqueConstraint("store", "receipt_name"),)
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    store: str
+    receipt_name: str
+    item_name: str
+    item_brand: Optional[str] = None
+    confirmed_by: str = Field(foreign_key="users.id")
+    use_count: int = 1
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
 

@@ -16,7 +16,7 @@ After completing a shopping trip, the user scans or uploads a receipt to bulk-lo
 **In scope (this iteration):**
 - Post-purchase price logging via receipt scan
 - Camera capture and image file upload (JPEG, PNG, HEIC)
-- Stores: Mercadona and AhorraMás (rule-based parsers); unknown stores fall back gracefully
+- All stores supported via a generic fallback parser; Mercadona and Ahorramas get store-specific rules for higher initial match quality
 - Learned name mappings to improve match quality over time
 - Storage of receipt image, raw OCR output, and match result for future debugging
 
@@ -60,7 +60,7 @@ Both entry points open the same camera/upload choice sheet.
 |---|---|
 | `routers/receipt.py` | Two new endpoints; auth + membership via existing deps |
 | `services/receipt_ocr.py` | Thin interface: `extract_text(image_bytes) → str`; provider implementation is an internal detail |
-| `services/receipt_parser.py` | Raw OCR text → structured line items; store-specific rules for Mercadona/AhorraMás with a generic fallback |
+| `services/receipt_parser.py` | Raw OCR text → structured line items; generic fallback parser works for any store; Mercadona and Ahorramas get tuned rules for higher initial accuracy |
 | `services/receipt_matcher.py` | Fuzzy-match parsed lines against purchased list items; consults learned mappings first |
 | `schemas/receipt.py` | Request/response Pydantic models |
 
@@ -227,7 +227,7 @@ The sheet is a standard bottom sheet matching the app's existing sheet pattern.
 ## Testing
 
 **Backend:**
-- `receipt_parser.py`: unit tests per store format using fixture OCR strings derived from real receipts
+- `receipt_parser.py`: unit tests for Mercadona and Ahorramas using fixture OCR strings derived from real receipts; smoke test for the generic fallback path
 - `receipt_matcher.py`: unit tests for normalisation, threshold behaviour, and mapping lookup
 - `routers/receipt.py`: integration tests using SQLite in-memory (mock the OCR service and storage)
 
