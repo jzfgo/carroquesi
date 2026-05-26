@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make FrequencySuggestionBanner visible via fixed bottom-panel wrapper
 
+- Make PurchaseToast body opaque
+
 
 ---
 ## [0.12.1] — 2026-05-26 — PWA asset fixes
