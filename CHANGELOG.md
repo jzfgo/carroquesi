@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- Add receipt scanning implementation plan
+
+
+---
 ## [0.12.1] — 2026-05-26 — PWA asset fixes
 
 ### Fixed
