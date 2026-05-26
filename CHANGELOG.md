@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Move receipt scan CTA inside ItemList scroll container
 
+- Make FrequencySuggestionBanner visible via fixed bottom-panel wrapper
+
 
 ---
 ## [0.12.1] — 2026-05-26 — PWA asset fixes
