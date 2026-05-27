@@ -6,8 +6,7 @@ from rapidfuzz import fuzz
 from sqlmodel import Session, select
 
 from app.db.models import ListItem, ReceiptNameMapping
-from app.schemas.receipt import MatchedLine, UnmatchedLine
-from app.services.receipt_parser import ParsedReceipt
+from app.schemas.receipt import MatchedLine, ParsedLine, UnmatchedLine
 
 MATCH_THRESHOLD = 70
 
@@ -35,7 +34,8 @@ def _lookup_mapping(
 
 
 def match_lines(
-    parsed: ParsedReceipt,
+    lines: list[ParsedLine],
+    store: Optional[str],
     purchased_items: list[ListItem],
     session: Session,
 ) -> tuple[list[MatchedLine], list[UnmatchedLine]]:
@@ -44,22 +44,22 @@ def match_lines(
 
     item_by_name: dict[str, ListItem] = {i.name: i for i in purchased_items}
 
-    for line in parsed.lines:
+    for line in lines:
         norm = normalise(line.name)
 
-        mapping = _lookup_mapping(parsed.store, norm, session)
+        mapping = _lookup_mapping(store, norm, session)
         if mapping:
             item = item_by_name.get(mapping.item_name)
             if item:
-                matched.append(
-                    MatchedLine(
-                        receipt_name=line.name,
-                        item_id=item.id,
-                        item_name=item.name,
-                        price=line.price,
-                        price_per=line.price_per,
-                    )
-                )
+                matched.append(MatchedLine(
+                    receipt_name=line.name,
+                    item_id=item.id,
+                    item_name=item.name,
+                    price_type=line.price_type,
+                    unit_price=line.unit_price,
+                    quantity=line.quantity,
+                    line_total=line.line_total,
+                ))
                 continue
 
         best_score = 0
@@ -71,22 +71,22 @@ def match_lines(
                 best_item = item
 
         if best_score >= MATCH_THRESHOLD and best_item:
-            matched.append(
-                MatchedLine(
-                    receipt_name=line.name,
-                    item_id=best_item.id,
-                    item_name=best_item.name,
-                    price=line.price,
-                    price_per=line.price_per,
-                )
-            )
+            matched.append(MatchedLine(
+                receipt_name=line.name,
+                item_id=best_item.id,
+                item_name=best_item.name,
+                price_type=line.price_type,
+                unit_price=line.unit_price,
+                quantity=line.quantity,
+                line_total=line.line_total,
+            ))
         else:
-            unmatched.append(
-                UnmatchedLine(
-                    receipt_name=line.name,
-                    price=line.price,
-                    price_per=line.price_per,
-                )
-            )
+            unmatched.append(UnmatchedLine(
+                receipt_name=line.name,
+                price_type=line.price_type,
+                unit_price=line.unit_price,
+                quantity=line.quantity,
+                line_total=line.line_total,
+            ))
 
     return matched, unmatched
