@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add image support and output language to on-device receipt scan session
 
+- Set responseMimeType to application/json for structured AI receipt output
+
+- Add json schema to on-device prompts
+
 
 ---
 ## [0.13.0] — 2026-05-27
