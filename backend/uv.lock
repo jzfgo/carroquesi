@@ -76,8 +76,6 @@ dependencies = [
     { name = "email-validator" },
     { name = "fastapi", extra = ["standard"] },
     { name = "firebase-admin" },
-    { name = "google-cloud-storage" },
-    { name = "google-cloud-vision" },
     { name = "httpx" },
     { name = "psycopg2-binary" },
     { name = "pydantic-settings" },
@@ -100,8 +98,6 @@ requires-dist = [
     { name = "email-validator", specifier = ">=2.3.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.135.1" },
     { name = "firebase-admin", specifier = ">=7.2.0" },
-    { name = "google-cloud-storage", specifier = ">=3.10.0" },
-    { name = "google-cloud-vision", specifier = ">=3.14.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "psycopg2-binary", specifier = ">=2.9.11" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
@@ -542,22 +538,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7a/e3/747759eebc72e420c25903d6bc231d0ceb110b66ac7e6ee3f350417152cd/google_cloud_storage-3.10.0.tar.gz", hash = "sha256:1aeebf097c27d718d84077059a28d7e87f136f3700212215f1ceeae1d1c5d504", size = 17309829, upload-time = "2026-03-18T15:54:11.875Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/29/e2/d58442f4daee5babd9255cf492a1f3d114357164072f8339a22a3ad460a2/google_cloud_storage-3.10.0-py3-none-any.whl", hash = "sha256:0072e7783b201e45af78fd9779894cdb6bec2bf922ee932f3fcc16f8bce9b9a3", size = 324382, upload-time = "2026-03-18T15:54:10.091Z" },
-]
-
-[[package]]
-name = "google-cloud-vision"
-version = "3.14.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "google-api-core", extra = ["grpc"] },
-    { name = "google-auth" },
-    { name = "grpcio" },
-    { name = "proto-plus" },
-    { name = "protobuf" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a2/6b/a35f80d55280c64bbf4b1d533f89c6176ef85e1d98201e8a3fffd53fd022/google_cloud_vision-3.14.0.tar.gz", hash = "sha256:19af69218923358766acfd655ad63f450d166b149ee8eecaaeb3a0d390c46749", size = 591911, upload-time = "2026-05-07T08:04:41.364Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/bc/9a/55e053c2fd1d22f000be51bb6b853a44e22d4f279ce32ae5446d79e5e1e1/google_cloud_vision-3.14.0-py3-none-any.whl", hash = "sha256:edd7939cab67e9fd43dfbb5d353c3d6c76d33eeda8fc032ba8ff215e5a2990b8", size = 543137, upload-time = "2026-05-07T08:03:19.952Z" },
 ]
 
 [[package]]
