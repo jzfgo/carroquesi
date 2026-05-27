@@ -12,6 +12,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add receipt parsers for 14 new Spanish supermarket chains
 
+- Update receipt schemas with price_type, unit_price, line_total
+
+- Drop image_path and ocr_raw from receipt_scans
+
+- Update receipt_matcher to use ParsedLine schema with price types
+
+- Rewrite receipt endpoint to accept JSON parsed lines with store inference
+
+- Update receipt types with price_type, unit_price, line_total
+
+- Export Firebase AI Logic instance
+
+- Add receiptAi.ts — Gemini structured-output receipt parser
+
+- Replace uploadReceipt with submitParsedReceipt in api.ts
+
+- Wire up Gemini receipt parsing in ListScreen, add PDF support
+
+- Update ReceiptScanSheet for price types and raw receipt context
+
 
 ---
 ## [0.13.0] — 2026-05-27
