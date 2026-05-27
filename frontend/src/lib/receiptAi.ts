@@ -49,6 +49,9 @@ const model = getGenerativeModel(ai, {
       // @ts-expect-error - expectedOutputs not yet in Firebase SDK types
       expectedOutputs: [{ type: "text", languages: ["es"] }],
     },
+    promptOptions: {
+      responseConstraint: RECEIPT_SCHEMA,
+    },
   },
   inCloudParams: {
     model: "gemini-3.5-flash",
