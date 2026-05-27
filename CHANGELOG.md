@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Move model and generationConfig into inCloudParams for hybrid inference
 
+- Skip reCAPTCHA App Check init in dev to silence PAT errors
+
 
 ---
 ## [0.13.0] — 2026-05-27
