@@ -53,6 +53,7 @@ const model = getGenerativeModel(ai, {
   inCloudParams: {
     model: "gemini-3.5-flash",
     generationConfig: {
+      responseMimeType: "application/json",
       responseJsonSchema: RECEIPT_SCHEMA,
     },
   },
@@ -79,10 +80,7 @@ export async function parseReceiptWithAi(
 ): Promise<ReceiptScanRequest> {
   const filePart = await fileToInlinePart(file);
   const result = await model.generateContent([filePart, PROMPT]);
-  const text = result.response
-    .text()
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "");
+  const text = result.response.text();
   const raw = JSON.parse(text) as {
     store?: string | null;
     receipt_date?: string | null;
