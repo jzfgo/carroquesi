@@ -95,6 +95,22 @@ Prompt instructs Gemini to:
 - For `KILOGRAM`: `unit_price` = price per kg; `quantity` = weight in kg
 - For `MULTI`: `unit_price` = `line_total / quantity`; `quantity` = number of units
 - Normalise item names to Spanish title case (strip receipt abbreviations where obvious)
+- **Prefer null over guessing** (see section below)
+
+### Hallucination Prevention (Critical)
+
+The model must never infer, guess, or complete data that is not clearly legible in the image. Stains, folds, low contrast, or partial occlusion are common on receipts and must not be filled in from training knowledge.
+
+Rules enforced in the prompt:
+- `store`: return `null` if the store name is not clearly visible in the receipt header. Do not infer the store from product names or logo shapes.
+- `receipt_date`: return `null` if the date is not fully legible.
+- `receipt_total`: return `null` if the total line is not clearly readable.
+- **Line items**: omit a line entirely if either the item name or the price is not clearly legible. Do not guess a price from a partially visible number. Do not complete an obscured product name.
+- Do not use prior knowledge of a store's product catalogue to fill in missing characters.
+
+The prompt will include an explicit instruction such as:
+
+> "If any value is unclear, partially obscured, or you are not fully confident, return null for that field or omit the line entirely. Do not guess or infer values from context. Accuracy is more important than completeness."
 
 ### `frontend/src/lib/api.ts`
 Replace `uploadReceipt` (multipart form) with `submitParsedReceipt` (JSON POST).
