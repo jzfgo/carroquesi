@@ -95,6 +95,76 @@ def test_post_receipt_store_stays_null_when_items_have_mixed_stores(client, sess
     assert response.json()["store"] is None
 
 
+def test_post_receipt_returns_kilogram_price_type(client, session):
+    item = ListItem(
+        id="item-bacon",
+        list_id=LIST_ID,
+        name="Bacon lonchas",
+        added_by=session.get(ListItem, "item-almendras").added_by,
+        purchased_at=datetime(2026, 4, 11, 15, 57, 0),
+    )
+    session.add(item)
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json={
+            "store": "Mercadona",
+            "receipt_date": "2026-04-11",
+            "receipt_total": 2.30,
+            "lines": [
+                {
+                    "name": "BACON LONCHAS",
+                    "price_type": "KILOGRAM",
+                    "unit_price": 11.40,
+                    "quantity": 0.202,
+                    "line_total": 2.30,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    matched = body["matched"]
+    assert len(matched) == 1
+    assert matched[0]["price_type"] == "KILOGRAM"
+    assert matched[0]["unit_price"] == pytest.approx(11.40)
+    assert matched[0]["quantity"] == pytest.approx(0.202)
+    assert matched[0]["line_total"] == pytest.approx(2.30)
+
+
+def test_post_receipt_infers_store_when_one_item_has_no_store(client, session):
+    """Store is inferred when matched items have a mix of null and non-null price_store,
+    as long as all non-null values agree."""
+    item2 = ListItem(
+        id="item-leche",
+        list_id=LIST_ID,
+        name="Leche entera",
+        added_by=session.get(ListItem, "item-almendras").added_by,
+        purchased_at=datetime(2026, 4, 11, 15, 57, 0),
+        price_store=None,
+    )
+    item = session.get(ListItem, "item-almendras")
+    item.price_store = "Mercadona"
+    session.add_all([item, item2])
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json={
+            "store": None,
+            "receipt_date": None,
+            "receipt_total": None,
+            "lines": [
+                {"name": "BEBIDA ALMENDRAS 0%", "price_type": "UNIT", "unit_price": 1.15, "quantity": None, "line_total": 1.15},
+                {"name": "LECHE ENTERA", "price_type": "UNIT", "unit_price": 0.89, "quantity": None, "line_total": 0.89},
+            ],
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["store"] == "Mercadona"
+
+
 def test_post_receipt_prices_writes_unit_price(client, session):
     scan_resp = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body())
     scan_id = scan_resp.json()["scan_id"]
