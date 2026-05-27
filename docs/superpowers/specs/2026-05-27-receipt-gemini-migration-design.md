@@ -155,7 +155,7 @@ class ReceiptScanRequest(BaseModel):
 
 The endpoint passes `lines` to `match_lines()` (unchanged), creates a `ReceiptScan` record, and returns `ReceiptScanResult` (same shape as today, extended with `price_type`/`quantity`/`line_total` on each line).
 
-`ReceiptScan.ocr_raw` and `ReceiptScan.image_path` columns remain in the DB (nullable, existing rows untouched) but are no longer written by the new endpoint.
+An Alembic migration drops `image_path` and `ocr_raw` from `receipt_scans`. These columns are nullable so existing rows are unaffected by the drop. The `ReceiptScan` SQLModel class and any schema references to these fields are removed at the same time.
 
 ### `POST /lists/{id}/receipt-prices`
 No changes.
@@ -189,7 +189,7 @@ None. The Gemini call moves entirely to the frontend.
 - `receipt_matcher.py` — fuzzy matching + learned `ReceiptNameMapping` table
 - `POST /lists/{id}/receipt-prices` — apply prices endpoint
 - `ReceiptScanSheet` layout and confirmation flow (price display rows added, structure unchanged)
-- `ReceiptScan` DB table schema (columns stay, two columns go unwritten)
+- `ReceiptScan` DB table — core columns stay; `image_path` and `ocr_raw` are dropped via migration
 - `ReceiptNameMapping` DB table and learning logic
 
 ## Open Questions
