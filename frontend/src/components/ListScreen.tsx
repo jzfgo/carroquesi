@@ -99,9 +99,11 @@ export function ListScreen({
   });
   const eanRequestIdRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const autoOpenFiredRef = useRef(false);
   const [receiptScanResult, setReceiptScanResult] = useState<ReceiptScanResult | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
+  const [receiptSourcePickerOpen, setReceiptSourcePickerOpen] = useState(false);
   const currentUserId = user!.id;
   const isOwner = listOwnerId === currentUserId;
 
@@ -155,13 +157,13 @@ export function ListScreen({
   useEffect(() => {
     if (autoOpenReceiptScan && !autoOpenFiredRef.current) {
       autoOpenFiredRef.current = true;
-      fileInputRef.current?.click();
+      setReceiptSourcePickerOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleReceiptScan = useCallback(() => {
-    fileInputRef.current?.click();
+    setReceiptSourcePickerOpen(true);
   }, []);
 
   const handleFileChange = useCallback(
@@ -679,6 +681,42 @@ export function ListScreen({
         style={{ display: "none" }}
         onChange={handleFileChange}
       />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
+
+      {receiptSourcePickerOpen && (
+        <>
+          <div className="sheet-overlay" onClick={() => setReceiptSourcePickerOpen(false)} />
+          <div className="sheet-container">
+            <div className="receipt-source-picker">
+              <button
+                className="receipt-source-picker__btn"
+                onClick={() => { setReceiptSourcePickerOpen(false); cameraInputRef.current?.click(); }}
+              >
+                📷 Tomar foto
+              </button>
+              <button
+                className="receipt-source-picker__btn"
+                onClick={() => { setReceiptSourcePickerOpen(false); fileInputRef.current?.click(); }}
+              >
+                🖼️ Elegir de galería
+              </button>
+              <button
+                className="receipt-source-picker__cancel"
+                onClick={() => setReceiptSourcePickerOpen(false)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {receiptUploading && (
         <>
