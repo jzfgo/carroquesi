@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.13.0] — 2026-05-27
 
 ### Added
 - Add receipt scanning implementation plan
 
 - Receipt scanning (OCR bulk price logging) (#50)
+
+- Show camera/gallery picker when scanning receipt on mobile
 
 
 ### Fixed
