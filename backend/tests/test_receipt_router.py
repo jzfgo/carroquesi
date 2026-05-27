@@ -1,7 +1,5 @@
-import io
 import pytest
 from datetime import datetime
-from unittest.mock import patch
 
 from app.db.models import List, ListItem, ListMember
 
@@ -24,53 +22,82 @@ def seed_list(session, user):
     session.commit()
 
 
-FAKE_OCR_TEXT = """MERCADONA, S.A.
-11/04/2026 15:57
-
-Descripcion           Importe
-BEBIDA ALMENDRAS 0%      1,15
-
-TOTAL                    1,15
-"""
+def _unit_body(store="Mercadona"):
+    return {
+        "store": store,
+        "receipt_date": "2026-04-11",
+        "receipt_total": 1.15,
+        "lines": [
+            {
+                "name": "BEBIDA ALMENDRAS 0%",
+                "price_type": "UNIT",
+                "unit_price": 1.15,
+                "quantity": None,
+                "line_total": 1.15,
+            }
+        ],
+    }
 
 
 def test_post_receipt_returns_scan_result(client):
-    with patch("app.routers.receipt.extract_text", return_value=FAKE_OCR_TEXT), \
-         patch("app.routers.receipt.store_image", return_value=None):
-        image_data = io.BytesIO(b"fake-image-bytes")
-        response = client.post(
-            f"/lists/{LIST_ID}/receipt",
-            files={"image": ("receipt.jpg", image_data, "image/jpeg")},
-        )
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body())
     assert response.status_code == 200
     body = response.json()
     assert "scan_id" in body
     assert body["store"] == "Mercadona"
     assert len(body["matched"]) == 1
     assert body["matched"][0]["item_id"] == "item-almendras"
-    assert body["matched"][0]["price"] == pytest.approx(1.15)
+    assert body["matched"][0]["unit_price"] == pytest.approx(1.15)
+    assert body["matched"][0]["price_type"] == "UNIT"
 
 
-def test_post_receipt_422_when_no_text(client):
-    with patch("app.routers.receipt.extract_text", return_value=""), \
-         patch("app.routers.receipt.store_image", return_value=None):
-        image_data = io.BytesIO(b"blank")
-        response = client.post(
-            f"/lists/{LIST_ID}/receipt",
-            files={"image": ("blank.jpg", image_data, "image/jpeg")},
-        )
-    assert response.status_code == 422
+def test_post_receipt_infers_store_when_null(client, session):
+    item = session.get(ListItem, "item-almendras")
+    item.price_store = "Mercadona"
+    session.add(item)
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json={**_unit_body(), "store": None},
+    )
+    assert response.status_code == 200
+    assert response.json()["store"] == "Mercadona"
 
 
-def test_post_receipt_prices_writes_price(client, session):
-    with patch("app.routers.receipt.extract_text", return_value=FAKE_OCR_TEXT), \
-         patch("app.routers.receipt.store_image", return_value=None):
-        image_data = io.BytesIO(b"fake-image-bytes")
-        scan_response = client.post(
-            f"/lists/{LIST_ID}/receipt",
-            files={"image": ("receipt.jpg", image_data, "image/jpeg")},
-        )
-    scan_id = scan_response.json()["scan_id"]
+def test_post_receipt_store_stays_null_when_items_have_mixed_stores(client, session):
+    item2 = ListItem(
+        id="item-bacon",
+        list_id=LIST_ID,
+        name="Bacon lonchas",
+        added_by=session.get(ListItem, "item-almendras").added_by,
+        purchased_at=datetime(2026, 4, 11, 15, 57, 0),
+        price_store="Lidl",
+    )
+    item = session.get(ListItem, "item-almendras")
+    item.price_store = "Mercadona"
+    session.add_all([item, item2])
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json={
+            "store": None,
+            "receipt_date": None,
+            "receipt_total": None,
+            "lines": [
+                {"name": "BEBIDA ALMENDRAS 0%", "price_type": "UNIT", "unit_price": 1.15, "quantity": None, "line_total": 1.15},
+                {"name": "BACON LONCHAS", "price_type": "UNIT", "unit_price": 2.30, "quantity": None, "line_total": 2.30},
+            ],
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["store"] is None
+
+
+def test_post_receipt_prices_writes_unit_price(client, session):
+    scan_resp = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body())
+    scan_id = scan_resp.json()["scan_id"]
 
     response = client.post(
         f"/lists/{LIST_ID}/receipt-prices",
