@@ -7,9 +7,10 @@ import {
   getBarcode,
   getDueSuggestions,
   getSuggestions,
-  uploadReceipt,
+  submitParsedReceipt,
   submitReceiptPrices,
 } from "../lib/api";
+import { parseReceiptWithAi } from "../lib/receiptAi";
 import type { ReceiptScanResult, PricePatch, NameMapping } from "../types/receipt";
 import ReceiptScanSheet from "./ReceiptScanSheet";
 import { computeCostSummary, purchasedDateLabel } from "../lib/itemCost";
@@ -172,12 +173,13 @@ export function ListScreen({
       e.target.value = "";
       if (!file) return;
       if (file.size > 10 * 1024 * 1024) {
-        setToast("La imagen es demasiado grande (máx. 10 MB)");
+        setToast("El archivo es demasiado grande (máx. 10 MB)");
         return;
       }
       setReceiptUploading(true);
       try {
-        const result = await uploadReceipt(getToken, listId, file);
+        const parsed = await parseReceiptWithAi(file);
+        const result = await submitParsedReceipt(getToken, listId, parsed);
         setReceiptScanResult(result);
       } catch {
         setToast("No se pudo leer el ticket");
@@ -677,7 +679,7 @@ export function ListScreen({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,application/pdf"
         style={{ display: "none" }}
         onChange={handleFileChange}
       />

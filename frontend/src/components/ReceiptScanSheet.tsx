@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ReceiptScanResult, PricePatch, NameMapping } from "../types/receipt";
+import type { MatchedLine, PricePatch, NameMapping, UnmatchedLine, ReceiptScanResult } from "../types/receipt";
 import { formatPrice } from "../lib/formatPrice";
 import "./ReceiptScanSheet.css";
 
@@ -14,6 +14,33 @@ interface Props {
   store: string | null;
   onConfirm: (patches: PricePatch[], mappings: NameMapping[]) => void;
   onClose: () => void;
+}
+
+function PriceContext({ line }: { line: MatchedLine | UnmatchedLine }) {
+  if (line.price_type === "KILOGRAM" && line.quantity != null) {
+    return (
+      <div className="item-price-context">
+        {line.quantity.toLocaleString("es-ES", { maximumFractionDigits: 3 })} kg × {formatPrice(line.unit_price)}/kg
+      </div>
+    );
+  }
+  if (line.price_type === "MULTI" && line.quantity != null) {
+    return (
+      <div className="item-price-context">
+        {line.quantity}× {formatPrice(line.unit_price)}
+      </div>
+    );
+  }
+  return null;
+}
+
+function pricePatchFor(line: MatchedLine | UnmatchedLine, itemId: string, store: string | null): PricePatch {
+  return {
+    item_id: itemId,
+    price: line.unit_price,
+    price_per: line.price_type === "KILOGRAM" ? "KILOGRAM" : null,
+    store,
+  };
 }
 
 export default function ReceiptScanSheet({ result, purchasedItems, store, onConfirm, onClose }: Props) {
@@ -43,18 +70,8 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
 
   const handleConfirm = () => {
     const patches: PricePatch[] = [
-      ...confirmedMatched.map((m) => ({
-        item_id: m.item_id,
-        price: m.price,
-        price_per: m.price_per,
-        store: store,
-      })),
-      ...confirmedLinked.map(({ unmatched, item }) => ({
-        item_id: item.id,
-        price: unmatched.price,
-        price_per: unmatched.price_per,
-        store: store,
-      })),
+      ...confirmedMatched.map((m) => pricePatchFor(m, m.item_id, store)),
+      ...confirmedLinked.map(({ unmatched, item }) => pricePatchFor(unmatched, item.id, store)),
     ];
 
     const mappings: NameMapping[] = [
@@ -128,8 +145,9 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
                   <div className="item-matched-name">{m.item_name}</div>
                 </div>
                 <div className="item-price-col">
-                  <div className="item-price">{formatPrice(m.price)}</div>
-                  {m.price_per === "KILOGRAM" && <div className="item-price-per">/kg</div>}
+                  <div className="item-price">{formatPrice(m.line_total)}</div>
+                  {m.price_type === "KILOGRAM" && <div className="item-price-per">/kg</div>}
+                  <PriceContext line={m} />
                 </div>
               </div>
             ))}
@@ -145,7 +163,10 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
               <div key={u.receipt_name} className="unmatched-item">
                 <div className="unmatched-row">
                   <div className="unmatched-name">{u.receipt_name}</div>
-                  <div className="unmatched-price">{formatPrice(u.price)}</div>
+                  <div className="unmatched-price">
+                    {formatPrice(u.line_total)}
+                    <PriceContext line={u} />
+                  </div>
                 </div>
                 <div className="link-row">
                   <select

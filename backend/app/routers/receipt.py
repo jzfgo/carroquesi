@@ -1,42 +1,29 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter
 from sqlmodel import select
 
 from app.db.models import List, ListItem, ReceiptNameMapping, ReceiptScan
 from app.dependencies import CurrentSession, MemberDep
-from app.schemas.receipt import ReceiptPriceBatch, ReceiptScanResult
-from app.services.image_storage import store_image
+from app.schemas.receipt import (
+    ReceiptPriceBatch,
+    ReceiptScanRequest,
+    ReceiptScanResult,
+)
 from app.services.receipt_matcher import match_lines
-from app.services.receipt_ocr import extract_text
-from app.services.receipt_parser import parse_receipt
 
 router = APIRouter(tags=["receipt"])
 
-MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB
-
 
 @router.post("/lists/{list_id}/receipt", response_model=ReceiptScanResult)
-async def scan_receipt(
+def scan_receipt(
     list_id: str,
-    image: UploadFile = File(...),
+    body: ReceiptScanRequest,
     session: CurrentSession = None,
     list_and_user: MemberDep = None,
 ):
     _, current_user = list_and_user
-
-    image_bytes = await image.read()
-    if len(image_bytes) > MAX_IMAGE_BYTES:
-        raise HTTPException(status_code=422, detail="Image too large (max 10 MB)")
-
-    image_path: Optional[str] = store_image(image_bytes, current_user.id)
-
-    ocr_text = extract_text(image_bytes)
-    if not ocr_text.strip():
-        raise HTTPException(status_code=422, detail="No se pudo leer el ticket")
-
-    parsed = parse_receipt(ocr_text)
 
     stmt = select(ListItem).where(
         ListItem.list_id == list_id,
@@ -44,36 +31,44 @@ async def scan_receipt(
     )
     purchased_items = list(session.exec(stmt).all())
 
-    matched, unmatched = match_lines(parsed, purchased_items, session)
+    matched, unmatched = match_lines(body.lines, body.store, purchased_items, session)
+
+    store = body.store
+    if store is None and matched:
+        stores = {
+            item.price_store
+            for m in matched
+            for item in purchased_items
+            if item.id == m.item_id and item.price_store
+        }
+        if len(stores) == 1:
+            store = stores.pop()
+
+    receipt_date: Optional[date] = None
+    if body.receipt_date:
+        try:
+            receipt_date = date.fromisoformat(body.receipt_date)
+        except ValueError:
+            pass
 
     scan = ReceiptScan(
         list_id=list_id,
         scanned_by=current_user.id,
-        store=parsed.store,
-        receipt_date=parsed.receipt_date,
-        receipt_total=parsed.receipt_total,
-        image_path=image_path,
-        ocr_raw={"text": ocr_text},
-        parsed_lines=[
-            {"name": l.name, "price": l.price, "price_per": l.price_per}
-            for l in parsed.lines
-        ],
-        match_result=[
-            {"receipt_name": m.receipt_name, "matched_item_id": m.item_id, "confidence": 100}
-            for m in matched
-        ],
+        store=store,
+        receipt_date=receipt_date,
+        receipt_total=body.receipt_total,
+        parsed_lines=[line.model_dump() for line in body.lines],
+        match_result=[m.model_dump() for m in matched],
     )
     session.add(scan)
     session.commit()
     session.refresh(scan)
 
-    receipt_date_str = parsed.receipt_date.isoformat() if parsed.receipt_date else None
-
     return ReceiptScanResult(
         scan_id=scan.id,
-        store=parsed.store,
-        receipt_date=receipt_date_str,
-        receipt_total=parsed.receipt_total,
+        store=store,
+        receipt_date=body.receipt_date,
+        receipt_total=body.receipt_total,
         matched=matched,
         unmatched=unmatched,
     )

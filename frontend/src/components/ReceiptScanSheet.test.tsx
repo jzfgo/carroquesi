@@ -13,26 +13,46 @@ const mockResult: ReceiptScanResult = {
       receipt_name: "BEBIDA ALMENDRAS 0%",
       item_id: "item-1",
       item_name: "Bebida de almendra 0% azúcares",
-      price: 1.15,
-      price_per: null,
+      price_type: "UNIT",
+      unit_price: 1.15,
+      quantity: null,
+      line_total: 1.15,
     },
     {
       receipt_name: "BACON LONCHAS",
       item_id: "item-2",
       item_name: "Bacon lonchas",
-      price: 2.30,
-      price_per: "KILOGRAM",
+      price_type: "KILOGRAM",
+      unit_price: 11.40,
+      quantity: 0.202,
+      line_total: 2.30,
+    },
+    {
+      receipt_name: "YOGUR NATURAL",
+      item_id: "item-3",
+      item_name: "Yogur natural",
+      price_type: "MULTI",
+      unit_price: 0.95,
+      quantity: 3,
+      line_total: 2.85,
     },
   ],
   unmatched: [
-    { receipt_name: "MANI DULCE", price: 3.15, price_per: null },
+    {
+      receipt_name: "MANI DULCE",
+      price_type: "UNIT",
+      unit_price: 3.15,
+      quantity: null,
+      line_total: 3.15,
+    },
   ],
 };
 
 const mockPurchasedItems = [
   { id: "item-1", name: "Bebida de almendra 0% azúcares" },
   { id: "item-2", name: "Bacon lonchas" },
-  { id: "item-3", name: "Maní dulce" },
+  { id: "item-3", name: "Yogur natural" },
+  { id: "item-4", name: "Maní dulce" },
 ];
 
 describe("ReceiptScanSheet", () => {
@@ -64,7 +84,7 @@ describe("ReceiptScanSheet", () => {
     expect(screen.getByText("BEBIDA ALMENDRAS 0%")).toBeInTheDocument();
   });
 
-  it("shows /kg suffix for weight items", () => {
+  it("shows /kg suffix for KILOGRAM items", () => {
     render(
       <ReceiptScanSheet
         result={mockResult}
@@ -75,6 +95,32 @@ describe("ReceiptScanSheet", () => {
       />
     );
     expect(screen.getByText("/kg")).toBeInTheDocument();
+  });
+
+  it("shows weight context for KILOGRAM items", () => {
+    render(
+      <ReceiptScanSheet
+        result={mockResult}
+        purchasedItems={mockPurchasedItems}
+        store="Mercadona"
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/0[.,]202\s*kg/)).toBeInTheDocument();
+  });
+
+  it("shows count context for MULTI items", () => {
+    render(
+      <ReceiptScanSheet
+        result={mockResult}
+        purchasedItems={mockPurchasedItems}
+        store="Mercadona"
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/3\s*×/)).toBeInTheDocument();
   });
 
   it("renders unmatched items with link dropdown", () => {
@@ -101,7 +147,7 @@ describe("ReceiptScanSheet", () => {
         onClose={vi.fn()}
       />
     );
-    expect(screen.getByText(/2 elementos/)).toBeInTheDocument();
+    expect(screen.getByText(/3 elementos/)).toBeInTheDocument();
   });
 
   it("unchecking a matched item decrements the count", () => {
@@ -116,10 +162,10 @@ describe("ReceiptScanSheet", () => {
     );
     const checkboxes = screen.getAllByRole("checkbox");
     fireEvent.click(checkboxes[0]);
-    expect(screen.getByText(/1 elemento/)).toBeInTheDocument();
+    expect(screen.getByText(/2 elementos/)).toBeInTheDocument();
   });
 
-  it("calls onConfirm with patches and mappings", () => {
+  it("calls onConfirm with unit_price as price and KILOGRAM price_per", () => {
     const onConfirm = vi.fn();
     render(
       <ReceiptScanSheet
@@ -133,8 +179,18 @@ describe("ReceiptScanSheet", () => {
     fireEvent.click(screen.getByText(/Guardar precios/));
     expect(onConfirm).toHaveBeenCalledOnce();
     const [patches] = onConfirm.mock.calls[0];
-    expect(patches).toHaveLength(2);
-    expect(patches[0].item_id).toBe("item-1");
-    expect(patches[0].price).toBe(1.15);
+    expect(patches).toHaveLength(3);
+
+    const unit = patches.find((p: { item_id: string }) => p.item_id === "item-1");
+    expect(unit.price).toBe(1.15);
+    expect(unit.price_per).toBeNull();
+
+    const kg = patches.find((p: { item_id: string }) => p.item_id === "item-2");
+    expect(kg.price).toBeCloseTo(11.40);
+    expect(kg.price_per).toBe("KILOGRAM");
+
+    const multi = patches.find((p: { item_id: string }) => p.item_id === "item-3");
+    expect(multi.price).toBeCloseTo(0.95);
+    expect(multi.price_per).toBeNull();
   });
 });

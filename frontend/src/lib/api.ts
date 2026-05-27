@@ -1,5 +1,5 @@
 import type { BarcodeRead, DueSuggestion, PriceEntry, PriceHistoryResponse, Suggestion } from '../types'
-import type { ReceiptPriceBatch, ReceiptScanResult } from '../types/receipt'
+import type { ReceiptPriceBatch, ReceiptScanRequest, ReceiptScanResult } from '../types/receipt'
 
 const BASE = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
 const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID as string | undefined
@@ -11,24 +11,6 @@ export class ApiError extends Error {
     this.name = 'ApiError'
     this.status = status
   }
-}
-
-async function apiFetchForm(
-  getToken: () => Promise<string>,
-  path: string,
-  body: FormData,
-): Promise<unknown> {
-  const token = await getToken()
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(DEV_USER_ID ? { 'X-Dev-User-Id': DEV_USER_ID } : {}),
-    },
-    body,
-  })
-  if (!res.ok) throw new ApiError(res.status, await res.text())
-  return res.json()
 }
 
 async function apiFetch(
@@ -233,14 +215,15 @@ export function deletePrice(getToken: () => Promise<string>, listId: string, ite
   return apiFetch(getToken, `/lists/${listId}/items/${itemId}/prices`, { method: 'DELETE' })
 }
 
-export function uploadReceipt(
+export function submitParsedReceipt(
   getToken: () => Promise<string>,
   listId: string,
-  file: File,
+  body: ReceiptScanRequest,
 ): Promise<ReceiptScanResult> {
-  const form = new FormData()
-  form.append('image', file)
-  return apiFetchForm(getToken, `/lists/${listId}/receipt`, form) as Promise<ReceiptScanResult>
+  return apiFetch(getToken, `/lists/${listId}/receipt`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }) as Promise<ReceiptScanResult>
 }
 
 export function submitReceiptPrices(

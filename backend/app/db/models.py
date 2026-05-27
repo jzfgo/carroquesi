@@ -104,8 +104,6 @@ class ReceiptScan(SQLModel, table=True):
     store: Optional[str] = None
     receipt_date: Optional[date_type] = None
     receipt_total: Optional[float] = None
-    image_path: Optional[str] = None
-    ocr_raw: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     parsed_lines: Optional[list] = Field(default=None, sa_column=Column(JSON))
     match_result: Optional[list] = Field(default=None, sa_column=Column(JSON))
     items_updated: int = 0

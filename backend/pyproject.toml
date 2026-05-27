@@ -1,15 +1,13 @@
 [project]
 name = "carroquesi-backend"
 version = "0.1.0"
-description = "CarroQueSí API – OCR and frequency analysis service"
+description = "CarroQueSí API – grocery list and receipt analysis service"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.18.4",
     "email-validator>=2.3.0",
     "fastapi[standard]>=0.135.1",
     "firebase-admin>=7.2.0",
-    "google-cloud-storage>=3.10.0",
-    "google-cloud-vision>=3.14.0",
     "httpx>=0.28.1",
     "psycopg2-binary>=2.9.11",
     "pydantic-settings>=2.13.1",
