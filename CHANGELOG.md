@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Skip reCAPTCHA App Check init in dev to silence PAT errors
 
+- Add image support and output language to on-device receipt scan session
+
 
 ---
 ## [0.13.0] — 2026-05-27
