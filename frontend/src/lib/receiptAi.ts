@@ -1,9 +1,8 @@
 import { getGenerativeModel, InferenceMode } from 'firebase/ai'
-import type { SchemaRequest } from 'firebase/ai'
 import { ai } from './firebase'
 import type { ParsedLine, ReceiptScanRequest } from '../types/receipt'
 
-const RECEIPT_SCHEMA: SchemaRequest = {
+const RECEIPT_SCHEMA = {
   type: 'object',
   properties: {
     store: { type: 'string', nullable: true },
@@ -45,9 +44,13 @@ RULES:
 const model = getGenerativeModel(ai, {
   model: 'gemini-3.5-flash',
   mode: InferenceMode.PREFER_ON_DEVICE,
+  onDeviceParams: {
+    createOptions: {
+      expectedInputs: [{ type: 'text', languages: ['es'] }],
+    },
+  },
   generationConfig: {
-    responseMimeType: 'application/json',
-    responseSchema: RECEIPT_SCHEMA,
+    responseJsonSchema: RECEIPT_SCHEMA,
   },
 })
 
@@ -66,7 +69,8 @@ async function fileToInlinePart(file: File) {
 export async function parseReceiptWithAi(file: File): Promise<ReceiptScanRequest> {
   const filePart = await fileToInlinePart(file)
   const result = await model.generateContent([filePart, PROMPT])
-  const raw = JSON.parse(result.response.text()) as {
+  const text = result.response.text().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  const raw = JSON.parse(text) as {
     store?: string | null
     receipt_date?: string | null
     receipt_total?: number | null

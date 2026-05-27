@@ -180,7 +180,8 @@ export function ListScreen({
         const parsed = await parseReceiptWithAi(file);
         const result = await submitParsedReceipt(getToken, listId, parsed);
         setReceiptScanResult(result);
-      } catch {
+      } catch (e) {
+        console.error("Receipt scan failed:", e);
         setToast("No se pudo leer el ticket");
       } finally {
         setReceiptUploading(false);

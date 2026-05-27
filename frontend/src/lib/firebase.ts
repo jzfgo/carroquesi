@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check'
 import { getAI, GoogleAIBackend } from 'firebase/ai'
 
 const firebaseConfig = {
@@ -12,6 +13,16 @@ const firebaseConfig = {
 }
 
 const app = initializeApp(firebaseConfig)
+
+if (import.meta.env.DEV) {
+  // @ts-expect-error - Firebase App Check debug token for localhost
+  self.FIREBASE_APPCHECK_DEBUG_TOKEN = true
+}
+
+initializeAppCheck(app, {
+  provider: new ReCaptchaV3Provider(import.meta.env.VITE_RECAPTCHA_SITE_KEY),
+  isTokenAutoRefreshEnabled: true,
+})
 
 export const auth = getAuth(app)
 export const ai = getAI(app, { backend: new GoogleAIBackend() })
