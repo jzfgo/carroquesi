@@ -157,6 +157,16 @@ The endpoint passes `lines` to `match_lines()` (unchanged), creates a `ReceiptSc
 
 An Alembic migration drops `image_path` and `ocr_raw` from `receipt_scans`. These columns are nullable so existing rows are unaffected by the drop. The `ReceiptScan` SQLModel class and any schema references to these fields are removed at the same time.
 
+### Store inference from matched items
+
+When Gemini returns `store: null`, the backend attempts to infer the store from the matched items' existing `price_store` values after `match_lines()` runs:
+
+1. Collect `price_store` from all matched `ListItem` objects, excluding nulls.
+2. If all non-null values are the same store → use that as `store` in the response.
+3. Otherwise → leave `store` as null (mixed stores or no store data).
+
+This runs entirely in the receipt router, ~5 lines, after `match_lines()` returns. The inferred store is returned in `ReceiptScanResult.store` and used as `PricePatch.store` when the user confirms — same as if Gemini had detected it directly.
+
 ### `POST /lists/{id}/receipt-prices`
 No changes.
 
