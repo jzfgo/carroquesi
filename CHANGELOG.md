@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- Add receipt parsers for 14 new Spanish supermarket chains
+
+
+---
 ## [0.13.0] — 2026-05-27
 
 ### Added
