@@ -10,7 +10,12 @@ export default defineConfig({
       strategies: "generateSW",
       workbox: {
         navigateFallback: null,
-        runtimeCaching: [],
+        runtimeCaching: [
+          {
+            urlPattern: /^http:\/\/localhost:8000\//,
+            handler: "NetworkOnly",
+          },
+        ],
       },
       devOptions: {
         enabled: true,
