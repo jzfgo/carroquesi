@@ -42,15 +42,17 @@ RULES:
 - CRITICAL: If any value is unclear, partially obscured, or you are not fully confident, return null or omit the line. Do not guess. Accuracy over completeness.`
 
 const model = getGenerativeModel(ai, {
-  model: 'gemini-3.5-flash',
   mode: InferenceMode.PREFER_ON_DEVICE,
   onDeviceParams: {
     createOptions: {
       expectedInputs: [{ type: 'text', languages: ['es'] }],
     },
   },
-  generationConfig: {
-    responseJsonSchema: RECEIPT_SCHEMA,
+  inCloudParams: {
+    model: 'gemini-3.5-flash',
+    generationConfig: {
+      responseJsonSchema: RECEIPT_SCHEMA,
+    },
   },
 })
 
