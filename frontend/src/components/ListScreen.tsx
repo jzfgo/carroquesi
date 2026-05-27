@@ -132,7 +132,6 @@ export function ListScreen({
   useEffect(() => {
     const q = parsed.name.trim();
     if (q.length < 2) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSuggestions([]);
       return;
     }
