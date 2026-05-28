@@ -122,15 +122,3 @@
   animation: spin 0.8s linear infinite;
   display: block;
 }
-
-
-.list-screen__offline-banner {
-  background: var(--color-text-secondary);
-  color: #fff;
-  font-size: 0.75rem;
-  text-align: center;
-  padding: 4px 8px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}

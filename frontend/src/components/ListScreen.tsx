@@ -480,7 +480,7 @@ export function ListScreen({
       />
       <ProgressBar purchased={purchasedCount} total={totalCount} />
       {isOffline && (
-        <div className="list-screen__offline-banner" role="status">
+        <div className="offline-banner offline-banner--sticky" role="status">
           Sin conexión{pendingCount > 0 ? ` · ${pendingCount} ${pendingCount === 1 ? 'cambio pendiente' : 'cambios pendientes'}` : ' · Los cambios se sincronizarán al reconectar'}
         </div>
       )}

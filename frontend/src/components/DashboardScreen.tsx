@@ -279,7 +279,7 @@ export function DashboardScreen() {
         </div>
       </header>
       {isOffline && (
-        <div className="dashboard-screen__offline-banner" role="status">
+        <div className="offline-banner" role="status">
           Sin conexión
         </div>
       )}
