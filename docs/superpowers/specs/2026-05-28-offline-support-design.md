@@ -15,19 +15,31 @@ In-app write queue (IndexedDB) + in-app read cache (localStorage). No service wo
 
 ## Read Caching
 
+Both screens use **stale-while-revalidate**: cached data is shown immediately on load, then silently replaced with fresh data when the backend responds. This makes cold starts (Cloud Run scaling from zero) invisible to the user — they see their list in ~0ms and data updates in the background a few seconds later.
+
 ### List screen
 
-`useListItems.fetchAll` saves `{ items, members }` to `localStorage` as `cqs_list_cache_{listId}` on every successful fetch. On network error during initial load, hydrates state from the cache and sets `isOffline: true` instead of going to the error state. The 5s `updated-at` poll already swallows errors silently — no change needed.
+On mount, `useListItems.fetchAll`:
+1. Reads `cqs_list_cache_{listId}` from `localStorage` and immediately seeds `items` + `members` state (no loading spinner if cache exists)
+2. Fires the backend request in parallel
+3. On success — overwrites state with fresh data, saves new cache
+4. On network error — keeps the seeded cache state, sets `isOffline: true`
+
+The 5s `updated-at` poll already swallows errors silently — no change needed.
 
 ### Dashboard
 
-`DashboardScreen.fetchLists` saves the `ApiList[]` to `localStorage` as `cqs_dashboard_cache_{userId}` on every successful fetch. On network error, loads from cache instead of setting `fetchError: true`.
+On mount, `DashboardScreen.fetchLists`:
+1. Reads `cqs_dashboard_cache_{userId}` from `localStorage` and immediately renders the cached list (no spinner if cache exists)
+2. Fires the backend request in parallel
+3. On success — overwrites state with fresh data, saves new cache
+4. On network error — keeps the cached state, shows offline banner
 
 ### Dashboard counts while offline
 
 `item_count` and `purchased_count` on each `ApiList` are server-computed and part of the cached snapshot. They will be stale if the user makes list mutations while offline. This is acceptable — the list screen computes counts client-side from the live items array and stays accurate. Dashboard counts self-correct on reconnect.
 
-No TTL on either cache — stale data is always preferable to an error screen for this use case.
+No TTL on either cache — stale data is always preferable to a loading spinner or error screen.
 
 ## Write Queue
 
