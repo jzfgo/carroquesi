@@ -87,7 +87,6 @@ The input bar parses sigils from free text via `parseInput.ts` → `ParsedInput`
 - `+` quantity (e.g. `+2`, `+1 bolsa`)
 - `#` brand (e.g. `#Danone`)
 - `@` store — multiple allowed (e.g. `@Mercadona @Lidl`)
-- `$`/`€` price — single token, accepts comma or dot decimal separator, optional `/kg` suffix (e.g. `$1,50`, `€3.20/kg`); normalised to a float and stored as `price`/`pricePer` on `ParsedInput`. Logged atomically with item creation via `ItemCreate.price` / `price_per` / `price_store`. A price preview pill appears in the input preview when a valid price is parsed.
 - `|` EAN barcode — 8 or 13 digits only (e.g. `|4011200296908`); triggers a barcode lookup via `getBarcode()` and opens `BarcodeScanSheet` on success. Can combine with `#`/`@` to pre-fill brand/store in the sheet.
 
 Sigil values containing spaces must be quoted with double or single quotes (e.g. `#"El Corte Inglés"`, `@'Carrefour Express'`). Unclosed quotes pass through unchanged.

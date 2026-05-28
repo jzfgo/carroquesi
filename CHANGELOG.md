@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Remove price entry from unpurchased items (#53)
+
+
 ### Fixed
 - Correct receipt scan entry point and camera button description in CLAUDE.md
 
