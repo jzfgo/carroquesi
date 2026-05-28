@@ -1,6 +1,6 @@
 # CarroQueSí
 
-A collaborative grocery shopping list web app. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history. Includes price logging with per-item history, barcode lookup, and running cost totals per shopping session.
+A collaborative grocery shopping list web app. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history. Includes price logging with per-item history, barcode lookup, AI-powered receipt scanning, and running cost totals per shopping session.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ carroquesi/
 └── backend/    # Python + FastAPI + PostgreSQL → Cloud Run
 ```
 
-- **Auth:** Firebase (Google Sign-In only). The frontend sends a Firebase ID token on every request; the backend validates it via the Firebase Admin SDK.
+- **Auth & AI:** Firebase handles Google Sign-In and AI-powered receipt parsing (Gemini via Firebase AI SDK). The frontend sends a Firebase ID token on every request; the backend validates it via the Firebase Admin SDK.
 - **Data:** All CRUD goes through the FastAPI backend. No Firestore.
 - **Real-time sync:** Short-polling — the frontend hits `GET /lists/{id}/updated-at` every 5s and re-fetches items when the timestamp changes.
 
@@ -40,11 +40,14 @@ ALLOWED_ORIGINS=["http://localhost:5173"]
 
 **Frontend** — copy and fill in `frontend/.env.local`:
 ```
-VITE_API_URL=http://localhost:8000
+VITE_BACKEND_URL=http://localhost:8000
 VITE_FIREBASE_API_KEY=...
 VITE_FIREBASE_AUTH_DOMAIN=...
 VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
 VITE_FIREBASE_APP_ID=...
+VITE_RECAPTCHA_SITE_KEY=...   # Firebase App Check (reCAPTCHA v3) — required in production for AI receipt scanning
 # VITE_DEV_USER_ID=seed-alice   # optional — pair with DEV_AUTH_BYPASS (see below)
 ```
 

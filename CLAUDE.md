@@ -4,7 +4,7 @@ This file provides guidance to [Claude Code](https://claude.ai/code) and similar
 
 ## Project Overview
 
-**CarroQueSí** is a collaborative grocery list app where multiple users share lists, mark items as purchased, and receive product suggestions from purchase history.
+**CarroQueSí** is a collaborative grocery list app where multiple users share lists, mark items as purchased, receive product suggestions from purchase history, and log prices by scanning receipts with Gemini AI.
 
 ## Architecture
 
@@ -24,6 +24,8 @@ This file provides guidance to [Claude Code](https://claude.ai/code) and similar
 - `list_items`: item data, purchase state (`purchased_at`), and pricing (`price`, `price_per`, `price_store`)
 - `list_invites`: opt-in invitations; `id` is the share token
 - `barcode_cache`: cached barcode lookup data
+- `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results)
+- `receipt_name_mappings`: learned receipt→item name mappings per store; improves auto-matching on future scans
 
 Important invariants:
 
@@ -63,7 +65,7 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 
 - Mobile-first, card-based layout
 - Sticky "Smart Input" bar fixed at the bottom of the screen
-- Firebase SDK used directly in the frontend for Auth only
+- Firebase SDK used in the frontend for Auth (Google Sign-In) and AI (Gemini receipt parsing via Firebase AI SDK)
 - All data fetched from the FastAPI backend via REST
 - Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
 - `FrequencySuggestionBanner` sits above the SmartInputBar and cycles through due suggestions every 6s; dismissals are persisted in `localStorage` (`cqs_dismissed_suggestions`) with a TTL computed by the backend
@@ -94,7 +96,18 @@ Price display throughout the app uses `formatPrice(amount, pricePer?)` from `fro
 
 When `parsed.ean` is set, the input is in **EAN mode**: the regular parse preview is hidden, an EAN preview with a "Buscar" CTA is shown, and the add button is disabled. `ListScreen` holds an `EanLookupState` discriminated union (`idle | loading | found | error`) and passes `onEanSearch`, `eanLoading`, `eanError` to `SmartInputBar`.
 
-A **clear button** (✕) replaces the camera scan button whenever the input has text.
+A **clear button** (✕) replaces the camera scan button whenever the input has text. The camera button opens the receipt scan flow (camera or gallery picker on mobile).
+
+### Receipt scanning
+
+Four-step flow for bulk price logging from a receipt photo:
+
+1. **Client-side parse** — `frontend/src/lib/receiptAi.ts` sends the image to Gemini (Firebase AI SDK, `PREFER_IN_CLOUD` mode) with a structured JSON schema; returns store, date, total, and line items tagged as `UNIT` / `KILOGRAM` / `MULTI`.
+2. **Backend match** — `POST /lists/{list_id}/receipt` runs `receipt_matcher.py`, which fuzzy-matches parsed line names against purchased items (consulting `receipt_name_mappings` for learned aliases), returns `ReceiptScanResult` (`matched` + `unmatched`), and persists an audit record in `receipt_scans`.
+3. **User review** — `ReceiptScanSheet` shows auto-matched items (checkbox to confirm/reject) and unmatched lines (dropdown to link to a purchased item or skip).
+4. **Apply prices** — `POST /lists/{list_id}/receipt-prices` writes price/store patches to `list_items` and upserts confirmed mappings into `receipt_name_mappings` for future scans.
+
+`VITE_RECAPTCHA_SITE_KEY` is required in production for Firebase App Check (reCAPTCHA v3), which protects the Gemini AI backend. In dev it is skipped automatically.
 
 ### Purchased item rules
 
@@ -170,10 +183,12 @@ backend/
 │   │   ├── prices.py        # GET/POST /lists/{id}/items/{item_id}/prices
 │   │   ├── suggestions.py   # GET /lists/{id}/due-suggestions, GET /lists/{id}/updated-at
 │   │   ├── barcode.py       # GET /barcode/{ean} — OpenFoodFacts lookup + local cache
+│   │   ├── receipt.py       # POST /lists/{id}/receipt (parse + match), POST /lists/{id}/receipt-prices (apply)
 │   │   └── share.py         # GET /i/{invite_id} — OG meta-tag preview page for invite links
 │   ├── schemas/             # Pydantic request/response models (one file per router; due_suggestions.py for DueSuggestionRead)
 │   ├── services/
-│   │   └── community_price.py  # Open Prices API lookup with negative-cache; shared by barcode + prices routers
+│   │   ├── community_price.py  # Open Prices API lookup with negative-cache; shared by barcode + prices routers
+│   │   └── receipt_matcher.py  # Fuzzy name matching of receipt lines to purchased items; consults receipt_name_mappings
 │   └── dependencies.py      # get_current_user, require_member, require_owner
 └── alembic/                 # Migrations
 ```
@@ -185,6 +200,17 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/carroquesi
 FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
 ALLOWED_ORIGINS=["http://localhost:5173"]
 DEV_AUTH_BYPASS=true   # local only — skips Firebase token validation
+
+Frontend (`frontend/.env.local`):
+
+VITE_BACKEND_URL=http://localhost:8000
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+VITE_RECAPTCHA_SITE_KEY=...   # Firebase App Check (reCAPTCHA v3) — required in production for AI
 ```
 
 ## Infrastructure
