@@ -74,3 +74,28 @@ describe('LogPriceSheet delete button', () => {
     expect(onDelete).toHaveBeenCalledOnce()
   })
 })
+
+describe('LogPriceSheet — offline', () => {
+  const baseProps = {
+    initialAmount: 1.99,
+    initialPricePer: null as null,
+    initialStore: null,
+    onSave: vi.fn(),
+    onClose: vi.fn(),
+  }
+
+  it('shows offline message when isOffline is true', () => {
+    render(<LogPriceSheet {...baseProps} item={BASE_ITEM} isOffline />)
+    expect(screen.getByText(/disponible con conexión/i)).toBeInTheDocument()
+  })
+
+  it('disables save button when isOffline is true', () => {
+    render(<LogPriceSheet {...baseProps} item={BASE_ITEM} isOffline />)
+    expect(screen.getByRole('button', { name: /guardar/i })).toBeDisabled()
+  })
+
+  it('does not show offline message when isOffline is false', () => {
+    render(<LogPriceSheet {...baseProps} item={BASE_ITEM} isOffline={false} />)
+    expect(screen.queryByText(/disponible con conexión/i)).not.toBeInTheDocument()
+  })
+})

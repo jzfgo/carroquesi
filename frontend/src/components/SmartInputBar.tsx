@@ -67,9 +67,10 @@ interface Props {
   eanError?: string | null
   inferredStoreChip?: string | null
   onDismissInferredStore?: () => void
+  isOffline?: boolean
 }
 
-export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onClear, onScanRequest, onEanSearch, eanLoading, eanError, inferredStoreChip, onDismissInferredStore }: Props) {
+export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onClear, onScanRequest, onEanSearch, eanLoading, eanError, inferredStoreChip, onDismissInferredStore, isOffline = false }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const activeSigil = getActiveSigil(value)
   const fieldSigil = activeSigil && SIGIL_FIELDS[activeSigil.sigil]
@@ -198,6 +199,7 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             onClick={onScanRequest}
             aria-label="Escanear código de barras"
             type="button"
+            disabled={isOffline}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <rect x="0" y="2" width="1" height="20" />

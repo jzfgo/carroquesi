@@ -12,6 +12,8 @@ import {
   updatePrice,
 } from '../lib/api'
 import { AVATAR_COLOURS } from '../mockData'
+import { isNetworkError } from '../lib/networkError'
+import { enqueue } from '../lib/offlineQueue'
 import type { ListItem, Member, ParsedInput, TagField } from '../types'
 
 const DUPLICATE_TOAST = 'Ya está en la lista'
@@ -37,6 +39,17 @@ function toMember(m: BackendMember, index: number): Member {
   }
 }
 
+function loadListCache(listId: string): { items: ListItem[]; members: BackendMember[] } | null {
+  try {
+    const raw = localStorage.getItem(`cqs_list_cache_${listId}`)
+    return raw ? JSON.parse(raw) as { items: ListItem[]; members: BackendMember[] } : null
+  } catch { return null }
+}
+
+function saveListCache(listId: string, data: { items: ListItem[]; members: BackendMember[] }) {
+  try { localStorage.setItem(`cqs_list_cache_${listId}`, JSON.stringify(data)) } catch { /* storage unavailable */ }
+}
+
 export function useListItems(
   listId: string,
   getToken: () => Promise<string>,
@@ -52,7 +65,16 @@ export function useListItems(
   }, [items])
 
   const fetchAll = useCallback(async () => {
-    setStatus('loading')
+    const cached = loadListCache(listId)
+    if (cached) {
+      const map = new Map<string, Member>()
+      cached.members.forEach((m, i) => map.set(m.user_id, toMember(m, i)))
+      setItems(cached.items)
+      setMembers(map)
+      setStatus('success')
+    } else {
+      setStatus('loading')
+    }
     try {
       const [rawItems, rawMembers, updatedAtData] = await Promise.all([
         getListItems(getToken, listId) as Promise<ListItem[]>,
@@ -64,9 +86,10 @@ export function useListItems(
       rawMembers.forEach((m, i) => map.set(m.user_id, toMember(m, i)))
       setMembers(map)
       lastUpdatedAt.current = updatedAtData.updated_at
+      saveListCache(listId, { items: rawItems, members: rawMembers })
       setStatus('success')
     } catch {
-      setStatus('error')
+      if (!cached) setStatus('error')
     }
   }, [listId, getToken])
 
@@ -144,9 +167,13 @@ export function useListItems(
         await updateItem(getToken, listId, itemId, {
           purchased: !prevPurchased,
         })
-      } catch {
-        setItems(snapshot)
-        showToast('No se pudo actualizar el producto')
+      } catch (err) {
+        if (isNetworkError(err)) {
+          await enqueue({ listId, type: 'updateItem', payload: { itemId, patch: { purchased: !prevPurchased } } })
+        } else {
+          setItems(snapshot)
+          showToast('No se pudo actualizar el producto')
+        }
       }
     },
     [getToken, listId, showToast],
@@ -202,11 +229,15 @@ export function useListItems(
         })) as ListItem
         setItems((prev) => prev.map((i) => (i.id === tempId ? created : i)))
       } catch (err) {
-        setItems((prev) => prev.filter((i) => i.id !== tempId))
-        if (err instanceof ApiError && err.status === 409) {
-          showToast(DUPLICATE_TOAST)
+        if (isNetworkError(err)) {
+          await enqueue({ listId, type: 'addItem', tempId, payload: { name: parsed.name, quantity: parsed.quantity, brand: parsed.brand, stores: parsed.stores, ean: parsed.ean ?? null, price: null, price_per: null, price_store: null } })
         } else {
-          showToast('No se pudo añadir el producto')
+          setItems((prev) => prev.filter((i) => i.id !== tempId))
+          if (err instanceof ApiError && err.status === 409) {
+            showToast(DUPLICATE_TOAST)
+          } else {
+            showToast('No se pudo añadir el producto')
+          }
         }
       }
     },
@@ -221,9 +252,13 @@ export function useListItems(
       )
       try {
         await updateItem(getToken, listId, itemId, { [field]: value })
-      } catch {
-        setItems(snapshot)
-        showToast('No se pudo actualizar el producto')
+      } catch (err) {
+        if (isNetworkError(err)) {
+          await enqueue({ listId, type: 'updateItem', payload: { itemId, patch: { [field]: value } } })
+        } else {
+          setItems(snapshot)
+          showToast('No se pudo actualizar el producto')
+        }
       }
     },
     [getToken, listId, showToast],
@@ -235,9 +270,13 @@ export function useListItems(
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, stores } : i)))
       try {
         await updateItem(getToken, listId, itemId, { stores })
-      } catch {
-        setItems(snapshot)
-        showToast('No se pudo actualizar el producto')
+      } catch (err) {
+        if (isNetworkError(err)) {
+          await enqueue({ listId, type: 'updateItem', payload: { itemId, patch: { stores } } })
+        } else {
+          setItems(snapshot)
+          showToast('No se pudo actualizar el producto')
+        }
       }
     },
     [getToken, listId, showToast],
@@ -249,9 +288,13 @@ export function useListItems(
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, name } : i)))
       try {
         await updateItem(getToken, listId, itemId, { name })
-      } catch {
-        setItems(snapshot)
-        showToast('No se pudo renombrar el producto')
+      } catch (err) {
+        if (isNetworkError(err)) {
+          await enqueue({ listId, type: 'updateItem', payload: { itemId, patch: { name } } })
+        } else {
+          setItems(snapshot)
+          showToast('No se pudo renombrar el producto')
+        }
       }
     },
     [getToken, listId, showToast],
@@ -259,11 +302,17 @@ export function useListItems(
 
   const removeItem = useCallback(
     async (itemId: string) => {
+      const snapshot = itemsRef.current
+      setItems((prev) => prev.filter((i) => i.id !== itemId))
       try {
         await deleteItem(getToken, listId, itemId)
-        setItems((prev) => prev.filter((i) => i.id !== itemId))
-      } catch {
-        showToast('No se pudo eliminar el producto')
+      } catch (err) {
+        if (isNetworkError(err)) {
+          await enqueue({ listId, type: 'deleteItem', payload: { itemId } })
+        } else {
+          setItems(snapshot)
+          showToast('No se pudo eliminar el producto')
+        }
       }
     },
     [getToken, listId, showToast],

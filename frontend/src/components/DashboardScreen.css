@@ -130,3 +130,11 @@
 .dashboard-screen__avatar-menu-item + .dashboard-screen__avatar-menu-item {
   border-top: 1px solid var(--border);
 }
+
+.dashboard-screen__offline-banner {
+  background: var(--color-text-secondary);
+  color: #fff;
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 4px 0;
+}

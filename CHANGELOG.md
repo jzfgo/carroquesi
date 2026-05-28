@@ -12,9 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Remove price entry from unpurchased items (#53)
 
+- Add offline support with stale-while-revalidate cache and write queue
+
 
 ### Fixed
 - Correct receipt scan entry point and camera button description in CLAUDE.md
+
+- Show loading spinner during syncUser on sign-in to handle cold starts
 
 
 ---

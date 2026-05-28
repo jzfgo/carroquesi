@@ -23,6 +23,8 @@ let mockNavigate: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   vi.clearAllMocks()
+  localStorage.removeItem('cqs_dashboard_cache_u1')
+  Object.defineProperty(navigator, 'onLine', { value: true, configurable: true, writable: true })
   mockNavigate = vi.fn()
   vi.mocked(reactRouter.useNavigate).mockReturnValue(mockNavigate as never)
   vi.mocked(AuthContext.useAuth).mockReturnValue({
@@ -319,5 +321,39 @@ describe('DashboardScreen — emoji', () => {
 
     // Resolve the API call
     resolve()
+  })
+})
+
+describe('DashboardScreen — offline', () => {
+  it('shows cached lists on network error instead of error state', async () => {
+    const cached = [twoLists[0]]
+    localStorage.setItem('cqs_dashboard_cache_u1', JSON.stringify(cached))
+    vi.mocked(api.getLists).mockRejectedValue(new TypeError('Failed to fetch'))
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+    expect(screen.queryByText('No se pudieron cargar tus listas')).not.toBeInTheDocument()
+
+    localStorage.removeItem('cqs_dashboard_cache_u1')
+  })
+
+  it('shows offline banner when navigator.onLine is false', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText(/sin conexión/i)).toBeInTheDocument())
+  })
+
+  it('saves fetched lists to cache', async () => {
+    localStorage.removeItem('cqs_dashboard_cache_u1')
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+
+    const raw = localStorage.getItem('cqs_dashboard_cache_u1')
+    expect(raw).not.toBeNull()
+    localStorage.removeItem('cqs_dashboard_cache_u1')
   })
 })

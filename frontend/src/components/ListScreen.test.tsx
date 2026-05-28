@@ -14,6 +14,7 @@ vi.mock('@undecaf/barcode-detector-polyfill', () => ({
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../hooks/useListItems')
+vi.mock('../hooks/useOffline', () => ({ useOffline: vi.fn(() => ({ isOffline: false, pendingCount: 0 })) }))
 vi.mock('../lib/api')
 vi.mock('./ListMembersSheet', () => ({
   ListMembersSheet: () => <div role="dialog" aria-label="Miembros">Sheet</div>,

@@ -21,7 +21,6 @@
 - [ ] **Multi-language / i18n** — UI is currently Spanish/English mixed; pick one or add i18n support
 - [ ] **Count-based price normalization** — follow-up to price history mixed unit normalization; items bought in packs of varying unit counts (e.g. 6-pack vs 4-pack of toilet rolls) cannot yet be normalized to a per-item basis; requires a new `pack_size` field on `ListItem`, UI changes in `LogPriceSheet`/`ItemCard`, and a `price_per='UNIT'` concept
 - [ ] **Varying pack size (all per-unit) normalization** — follow-up to price history mixed unit normalization; items always logged as per-unit but with different pack sizes (e.g. yogurt in 125 g vs 250 g pots) are not normalized unless at least one entry has a parseable SI quantity or is explicitly €/kg; full support requires per-entry quantity snapshots in a dedicated price history table
-- [ ] **Offline support** — PWA is installable but data mutations while offline are not queued; add a service-worker write queue (background sync)
 - [ ] **Item reordering** — drag-and-drop to manually reorder unpurchased items
 
 ---
