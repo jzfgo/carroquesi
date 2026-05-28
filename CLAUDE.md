@@ -96,11 +96,11 @@ Price display throughout the app uses `formatPrice(amount, pricePer?)` from `fro
 
 When `parsed.ean` is set, the input is in **EAN mode**: the regular parse preview is hidden, an EAN preview with a "Buscar" CTA is shown, and the add button is disabled. `ListScreen` holds an `EanLookupState` discriminated union (`idle | loading | found | error`) and passes `onEanSearch`, `eanLoading`, `eanError` to `SmartInputBar`.
 
-A **clear button** (✕) replaces the camera scan button whenever the input has text. The camera button opens the receipt scan flow (camera or gallery picker on mobile).
+A **clear button** (✕) replaces the camera scan button whenever the input has text. The camera button opens the barcode scanner (`BarcodeScanSheet`).
 
 ### Receipt scanning
 
-Four-step flow for bulk price logging from a receipt photo:
+Entry point: a CTA button shown when the unpurchased list is empty. Four-step flow for bulk price logging from a receipt photo:
 
 1. **Client-side parse** — `frontend/src/lib/receiptAi.ts` sends the image to Gemini (Firebase AI SDK, `PREFER_IN_CLOUD` mode) with a structured JSON schema; returns store, date, total, and line items tagged as `UNIT` / `KILOGRAM` / `MULTI`.
 2. **Backend match** — `POST /lists/{list_id}/receipt` runs `receipt_matcher.py`, which fuzzy-matches parsed line names against purchased items (consulting `receipt_name_mappings` for learned aliases), returns `ReceiptScanResult` (`matched` + `unmatched`), and persists an audit record in `receipt_scans`.
