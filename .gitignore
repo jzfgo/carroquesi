@@ -43,6 +43,9 @@ frontend/.env*
 backend/.env*
 !backend/.env.example
 
+# Dev scripts secrets
+.env.dev-scripts
+
 # OS
 .DS_Store
 ._*
