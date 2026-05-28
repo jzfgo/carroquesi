@@ -65,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       firebaseUserRef.current = fbUser
       if (fbUser) {
+        setLoading(true)
         try {
           const getToken = () => getIdToken(fbUser, false)
           const data = await syncUser(getToken) as {

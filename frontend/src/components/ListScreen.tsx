@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useListItems } from "../hooks/useListItems";
+import { useOffline } from "../hooks/useOffline";
 import { useOwnBrandInference } from "../hooks/useOwnBrandInference";
 import {
   ApiError,
@@ -127,6 +128,13 @@ export function ListScreen({
     clearItemPrice,
     retry,
   } = useListItems(listId, getToken, setToast);
+
+  const { isOffline, pendingCount } = useOffline({
+    listId,
+    getToken,
+    onDrained: retry,
+    showToast: setToast,
+  });
 
   // Debounced suggestions — only when name has 2+ chars
   useEffect(() => {
@@ -471,6 +479,11 @@ export function ListScreen({
         onBack={onBack}
       />
       <ProgressBar purchased={purchasedCount} total={totalCount} />
+      {isOffline && (
+        <div className="offline-banner offline-banner--sticky" role="status">
+          Sin conexión{pendingCount > 0 ? ` · ${pendingCount} ${pendingCount === 1 ? 'cambio pendiente' : 'cambios pendientes'}` : ' · Los cambios se sincronizarán al reconectar'}
+        </div>
+      )}
       {items.length > 0 && (
         <FilterBar
           stores={stores}
@@ -496,7 +509,7 @@ export function ListScreen({
             <button
               className="receipt-scan-cta__btn"
               onClick={handleReceiptScan}
-              disabled={receiptUploading}
+              disabled={receiptUploading || isOffline}
             >
               {receiptUploading ? "Procesando ticket…" : "🧾 Escanear ticket para registrar precios"}
             </button>
@@ -583,6 +596,7 @@ export function ListScreen({
             onClear={handleClear}
             onScanRequest={handleScanRequest}
             onEanSearch={handleEanSearch}
+            isOffline={isOffline}
             eanLoading={eanLookup.status === "loading"}
             eanError={eanLookup.status === "error" ? eanLookup.message : null}
             inferredStoreChip={visibleChip}
@@ -663,6 +677,7 @@ export function ListScreen({
                   onSave={handleSavePrice}
                   onDelete={handleDeletePrice}
                   onClose={() => setLogPriceFor(null)}
+                  isOffline={isOffline}
                 />
               </div>
             </>

@@ -45,6 +45,17 @@ function applyOrder(lists: ApiList[], order: string[] | null): ApiList[] {
   return [...sorted, ...rest]
 }
 
+function loadDashboardCache(userId: string): ApiList[] | null {
+  try {
+    const raw = localStorage.getItem(`cqs_dashboard_cache_${userId}`)
+    return raw ? JSON.parse(raw) as ApiList[] : null
+  } catch { return null }
+}
+
+function saveDashboardCache(userId: string, lists: ApiList[]) {
+  try { localStorage.setItem(`cqs_dashboard_cache_${userId}`, JSON.stringify(lists)) } catch { /* storage unavailable */ }
+}
+
 function randomEmoji(): string {
   return CURATED_EMOJIS[Math.floor(Math.random() * CURATED_EMOJIS.length)]
 }
@@ -54,6 +65,7 @@ export function DashboardScreen() {
   const navigate = useNavigate()
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
+  const [isOffline, setIsOffline] = useState(!navigator.onLine)
   usePageTitle(undefined)
   const [activeList, setActiveList] = useState<ApiList | null>(null)
   const [emojiList, setEmojiList] = useState<ApiList | null>(null)
@@ -67,6 +79,17 @@ export function DashboardScreen() {
     const id = setTimeout(() => setToast(null), 3000)
     return () => clearTimeout(id)
   }, [toast])
+
+  useEffect(() => {
+    const onOnline = () => setIsOffline(false)
+    const onOffline = () => setIsOffline(true)
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+    return () => {
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
+  }, [])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -87,7 +110,11 @@ export function DashboardScreen() {
   }, [menuOpen])
 
   const fetchLists = useCallback(async (silent = false) => {
-    if (!silent) {
+    const cached = loadDashboardCache(user!.id)
+    if (cached) {
+      const ordered = applyOrder(cached, loadOrder(user!.id))
+      setLists(ordered)
+    } else if (!silent) {
       setLists(null)
       setFetchError(false)
     }
@@ -95,8 +122,9 @@ export function DashboardScreen() {
       const data = (await getLists(getToken)) as ApiList[]
       const ordered = applyOrder(data, loadOrder(user!.id))
       setLists(ordered)
+      saveDashboardCache(user!.id, data)
     } catch {
-      if (!silent) setFetchError(true)
+      if (!cached && !silent) setFetchError(true)
     }
   }, [getToken, user])
 
@@ -125,6 +153,7 @@ export function DashboardScreen() {
 
   const handleCreate = useCallback(
     async (name: string) => {
+      if (!navigator.onLine) { setToast('No disponible sin conexión'); return }
       await createList(getToken, { name, emoji: randomEmoji() })
       await fetchLists()
     },
@@ -133,6 +162,7 @@ export function DashboardScreen() {
 
   const handleRename = useCallback(
     async (list: ApiList, newName: string) => {
+      if (!navigator.onLine) { setToast('No disponible sin conexión'); return }
       let snapshot: ApiList[] | null = null
       setLists(prev => {
         snapshot = prev
@@ -169,6 +199,7 @@ export function DashboardScreen() {
 
   const handleDelete = useCallback(
     async (list: ApiList) => {
+      if (!navigator.onLine) { setToast('No disponible sin conexión'); return }
       setActiveList(null)
       try {
         await deleteList(getToken, list.id)
@@ -247,6 +278,11 @@ export function DashboardScreen() {
           )}
         </div>
       </header>
+      {isOffline && (
+        <div className="offline-banner" role="status">
+          Sin conexión
+        </div>
+      )}
       <main className="dashboard-screen__lists">
         <InstallBanner
           isInstallable={isInstallable}

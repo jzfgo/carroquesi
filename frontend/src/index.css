@@ -83,3 +83,16 @@ code {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.offline-banner {
+  background: var(--color-text-secondary);
+  color: #fff;
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 4px 8px;
+}
+.offline-banner--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}

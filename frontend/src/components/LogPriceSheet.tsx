@@ -12,9 +12,10 @@ interface Props {
   onSave: (amount: number, pricePer: 'KILOGRAM' | null, store: string | null) => void
   onDelete?: () => Promise<void>
   onClose: () => void
+  isOffline?: boolean
 }
 
-export default function LogPriceSheet({ item, initialAmount, initialPricePer, initialStore, suggestedStore, onSave, onDelete, onClose }: Props) {
+export default function LogPriceSheet({ item, initialAmount, initialPricePer, initialStore, suggestedStore, onSave, onDelete, onClose, isOffline }: Props) {
   const stores = item.stores ?? []
   // Guard again here so the component stays self-contained if reused elsewhere
   const effectiveSuggestion = stores.length === 0 ? (suggestedStore ?? null) : null
@@ -95,7 +96,8 @@ export default function LogPriceSheet({ item, initialAmount, initialPricePer, in
             value={newStore} onChange={e => setNewStore(e.target.value)} autoFocus />
         )}
       </div>
-      <button className="lps__save" onClick={handleSave} disabled={!canSave} type="button">Guardar</button>
+      {isOffline && <p className="lps__offline-msg">Disponible con conexión</p>}
+      <button className="lps__save" onClick={handleSave} disabled={!canSave || !!isOffline} type="button">Guardar</button>
       {canDelete && (
         <button className="lps__delete" onClick={handleDelete} disabled={deleting} type="button">
           {deleting ? 'Eliminando...' : 'Eliminar precio'}
