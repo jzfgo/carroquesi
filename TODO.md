@@ -1,12 +1,17 @@
 # CarroQueSí — TODO
 
-> Last updated: 2026-05-26
+> Last updated: 2026-05-28
 
 ---
 
 ## Features (Backlog)
 
-- [ ] **Receipt scanning (OCR)** — post-purchase: scan receipt to bulk-log prices for already-purchased list items
+- [ ] **Remove price from unpurchased items** — the `$`/`€` sigil in SmartInputBar and the "add price" CTA on unpurchased item cards are not useful before purchase; remove both. Price entry should only be available on purchased items (already enforced as read-only in the other direction).
+- [ ] **Impulse buys** - From the ReceiptScanSheet, allow adding items that were purchased but weren't on the list (impulse buys, forgotten items). These are created directly in purchased state for spend tracking purposes; no behavioral distinction between impulse vs. forgotten. Depends on receipt scanning feature.
+- [ ] **Purchased quantity** - The actual purchased qty of an item may vary from the original qty when unpurchased (i.e. 2 cucumbers vs. 500g of cucumbers). Item cost should be calculated from the actual purchased quantity. Primary source is receipt scanning; manual entry should also be possible both before and after scanning. Needs design discussion at implementation time.
+- [ ] **Buy this item again** - Each purchased item should have an option to clone it as a new unpurchased item (preserving name, brand, stores, and quantity from the purchased original), keeping the purchase history of the original intact
+- [ ] **Better item suggestion in input bar** - Two issues with current autocomplete suggestions: (1) tapping a suggestion fills the text input instead of adding the item directly — it should clone the suggested item (name + brand + stores) straight to the list, bypassing the input bar; (2) brand is not applied when a suggestion is selected, which breaks price tracking since history is matched by name+brand. The `/suggestions` endpoint already returns `brand` and `stores`; the fix is primarily in how the frontend handles suggestion selection.
+- [ ] **Suggested quantity in due suggestions** — when the frequency banner fires, suggest the average quantity purchased per shopping event for that item (e.g. buying 6, 1, 2 beers → suggest 3); requires: (1) backend computes `avg_quantity` across purchase events for each due item and adds it to `DueSuggestionRead`, (2) `handleSuggestionAdd` in `ListScreen` passes the suggested quantity to the new-item payload, (3) banner optionally displays it. Quantity strings must be parsed to numeric (strip units/sigils) and rounded before averaging; items with no parseable quantity default to `null` (no suggestion).
 - [ ] **Receipt scanning — list seeding** — pre-purchase: import items from a past receipt to seed or rebuild a list
 - [ ] **Push notifications** — notify list members when items are added or purchased (requires FCM setup)
 - [ ] **Manual item grouping** — allow users to manually group related items (e.g. a barcode-scanned yogurt alongside a free-text "yogurt" entry, or a branded item next to its unbranded equivalent)
@@ -21,7 +26,9 @@
 
 ## Bugs / Known Issues
 
-- [ ] **Invite link OG preview** — `GET /i/{invite_id}` serves an OG meta-tag page; test that WhatsApp / iMessage actually unfurl it correctly in production
+- [ ] **Improve due suggestions** - The current frequency banner gives no context for why an item is being suggested, which is confusing. Direction: replace or supplement it with a ✨ button + counter inside the SmartInputBar that opens a sheet or popover listing due items with human-readable frequency context (e.g. "usually buy diapers once a week"). Needs design discussion at implementation time.
+- [ ] **Lists can't be deleted** - List table dependencies prevent lists from being deleted
+- [ ] **Login screen persists after login** - In some cases, the auth flow fails to redirect after logging in, keeping the user in the app's login screen
 
 ---
 
