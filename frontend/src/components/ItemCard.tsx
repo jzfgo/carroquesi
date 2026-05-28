@@ -121,8 +121,8 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
             )
           )}
 
-          {/* Price tag — shown after store tags; purchased items can still view history */}
-          {item.price != null ? (
+          {/* Price tag — purchased items can tap to view history */}
+          {item.price != null && (
             <button
               className="item-card__tag item-card__tag--price"
               onClick={e => { e.stopPropagation(); onPriceClick?.(item.id) }}
@@ -130,16 +130,6 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
               <span aria-hidden>💶</span>{' '}
               {formatPrice(item.price, item.price_per)}
             </button>
-          ) : (
-            !item.purchased && (
-              <button
-                className="item-card__tag item-card__tag--cta"
-                onClick={e => { e.stopPropagation(); onPriceClick?.(item.id) }}
-                aria-label="Añadir precio"
-              >
-                <span aria-hidden>+ 💶</span>
-              </button>
-            )
           )}
         </div>
       </div>

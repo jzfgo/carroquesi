@@ -163,7 +163,6 @@ export function useListItems(
         return
       }
       const tempId = `tmp-${Date.now()}`
-      const priceStore = parsed.price != null ? (parsed.stores[0] ?? null) : null
       const temp: ListItem = {
         id: tempId,
         list_id: listId,
@@ -174,9 +173,9 @@ export function useListItems(
         purchased: false,
         purchased_at: null,
         ean: null,
-        price: parsed.price ?? null,
-        price_per: parsed.pricePer ?? null,
-        price_store: priceStore,
+        price: null,
+        price_per: null,
+        price_store: null,
         added_by: '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -197,9 +196,9 @@ export function useListItems(
           brand: parsed.brand,
           stores: parsed.stores,
           ean: parsed.ean ?? null,
-          price: parsed.price ?? null,
-          price_per: parsed.pricePer ?? null,
-          price_store: priceStore,
+          price: null,
+          price_per: null,
+          price_store: null,
         })) as ListItem
         setItems((prev) => prev.map((i) => (i.id === tempId ? created : i)))
       } catch (err) {
