@@ -4,5 +4,17 @@
       "matcher": "Edit|Write",
       "hooks": [{"type": "command", "command": "if git diff --name-only | grep -q package-lock.json; then echo 'WARN: package-lock.json changed - verify no platform-specific bindings'; fi"}]
     }]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm run test*)",
+      "Bash(node_modules/.bin/tsc -p tsconfig.app.json --noEmit*)",
+      "Bash(npm run lint*)",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_screenshot",
+      "Bash(just ci*)",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_console_messages",
+      "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_network_requests",
+      "Bash(just --list*)"
+    ]
   }
 }
