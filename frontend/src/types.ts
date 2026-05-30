@@ -44,6 +44,8 @@ export interface DueSuggestion {
   stores: string[]
   days_overdue: number
   dismissal_ttl_days: number
+  median_interval_days: number
+  days_since_last: number
 }
 
 export interface BarcodeRead {
