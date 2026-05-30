@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { clientSideSuggestions } from '../lib/suggestions'
-import type { ListItem, ParsedInput } from '../types'
+import type { ListItem, ParsedInput, Suggestion } from '../types'
 import './SmartInputBar.css'
 
 const SIGIL_FIELDS: Record<string, 'brand' | 'stores'> = {
@@ -57,9 +57,10 @@ interface Props {
   value: string
   parsed: ParsedInput
   items: ListItem[]
-  suggestions: string[]
+  suggestions: Suggestion[]
   onChange: (v: string) => void
   onSubmit: () => void
+  onSuggestionAdd?: (suggestion: Suggestion) => void
   onClear: () => void
   onScanRequest: () => void
   onEanSearch: (ean: string) => void
@@ -70,7 +71,7 @@ interface Props {
   isOffline?: boolean
 }
 
-export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onClear, onScanRequest, onEanSearch, eanLoading, eanError, inferredStoreChip, onDismissInferredStore, isOffline = false }: Props) {
+export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onSuggestionAdd, onClear, onScanRequest, onEanSearch, eanLoading, eanError, inferredStoreChip, onDismissInferredStore, isOffline = false }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const activeSigil = getActiveSigil(value)
   const fieldSigil = activeSigil && SIGIL_FIELDS[activeSigil.sigil]
@@ -86,13 +87,21 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
   const hasName = parsed.name.trim().length > 0
   const nameError = showPreview && !hasName
 
-  function applySuggestion(suggestion: string) {
+  function suggestionLabel(suggestion: string | Suggestion): string {
+    return typeof suggestion === 'string' ? suggestion : suggestion.name
+  }
+
+  function applySuggestion(suggestion: string | Suggestion) {
     if (!activeSigil) {
-      onChange(suggestion)
+      if (typeof suggestion === 'string') {
+        onChange(suggestion)
+      } else {
+        onSuggestionAdd?.(suggestion)
+      }
       return
     }
     const words = value.split(/\s+/)
-    words[words.length - 1] = activeSigil.sigil + suggestion + ' '
+    words[words.length - 1] = activeSigil.sigil + suggestionLabel(suggestion) + ' '
     onChange(words.join(' '))
   }
 
@@ -111,9 +120,9 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             </button>
           )}
           {displaySuggestions.map((s, i) => (
-            <button key={s} className={`smart-input__suggestion${i === 0 ? ' smart-input__suggestion--top' : ''}`}
+            <button key={suggestionLabel(s)} className={`smart-input__suggestion${i === 0 ? ' smart-input__suggestion--top' : ''}`}
               onClick={() => applySuggestion(s)}>
-              {s}
+              {suggestionLabel(s)}
             </button>
           ))}
         </div>

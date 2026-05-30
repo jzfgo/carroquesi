@@ -21,6 +21,7 @@ import type {
   BarcodeRead,
   DueSuggestion,
   EditingTag,
+  Suggestion,
   TagField,
 } from "../types";
 import { BarcodeScanner } from "./BarcodeScanner";
@@ -67,7 +68,7 @@ export function ListScreen({
 }: Props) {
   const { getToken, user } = useAuth();
   const [inputValue, setInputValue] = useState("");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -146,7 +147,7 @@ export function ListScreen({
     const timer = setTimeout(async () => {
       try {
         const data = await getSuggestions(getToken, q);
-        setSuggestions(data.map((s) => s.name));
+        setSuggestions(data);
       } catch {
         // suggestion errors are non-critical
       }
@@ -258,6 +259,20 @@ export function ListScreen({
     void addItem({ ...parsed, stores });
     setInputValue("");
   }, [parsed, addItem, storeToAdd]);
+
+  const handleInputSuggestionAdd = useCallback(
+    (suggestion: Suggestion) => {
+      void addItem({
+        name: suggestion.name,
+        brand: suggestion.brand,
+        stores: suggestion.stores,
+        quantity: null,
+      });
+      setInputValue("");
+      setSuggestions([]);
+    },
+    [addItem],
+  );
 
   const handleScanRequest = useCallback(() => {
     setScannerOpen(true);
@@ -593,6 +608,7 @@ export function ListScreen({
             suggestions={suggestions}
             onChange={handleChange}
             onSubmit={handleSubmit}
+            onSuggestionAdd={handleInputSuggestionAdd}
             onClear={handleClear}
             onScanRequest={handleScanRequest}
             onEanSearch={handleEanSearch}

@@ -70,9 +70,22 @@ test('shows "No item name" warning when input has sigil but no name', () => {
 
 test('suggestion dropdown shown when suggestions provided', () => {
   render(<SmartInputBar value="Le" parsed={parseInput('Le')} items={NO_ITEMS}
-    suggestions={['Leche', 'Lechuga']} onChange={noop} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop} />)
+    suggestions={[
+      { name: 'Leche', brand: 'Puleva', stores: ['Mercadona'] },
+      { name: 'Lechuga', brand: null, stores: [] },
+    ]} onChange={noop} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop} />)
   expect(screen.getByText('Leche')).toBeInTheDocument()
   expect(screen.getByText('Lechuga')).toBeInTheDocument()
+})
+
+test('clicking a product suggestion adds it directly with metadata', async () => {
+  const onSuggestionAdd = vi.fn()
+  const suggestion = { name: 'Leche', brand: 'Puleva', stores: ['Mercadona'] }
+  render(<SmartInputBar value="Le" parsed={parseInput('Le')} items={NO_ITEMS}
+    suggestions={[suggestion]} onChange={noop} onSubmit={noop} onSuggestionAdd={onSuggestionAdd}
+    onClear={noop} onScanRequest={noop} onEanSearch={noop} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Leche' }))
+  expect(onSuggestionAdd).toHaveBeenCalledWith(suggestion)
 })
 
 test('tapping a legend chip appends its sigil when not already present', () => {
@@ -245,7 +258,10 @@ test('inferredStoreChip renders with --inferred class', () => {
 test('inferredStoreChip renders before regular suggestions', () => {
   // value has no active sigil so the suggestions prop is used as-is
   render(<SmartInputBar value="Le" parsed={parseInput('Le')}
-    items={NO_ITEMS} suggestions={['Leche', 'Lechuga']} onChange={noop}
+    items={NO_ITEMS} suggestions={[
+      { name: 'Leche', brand: null, stores: [] },
+      { name: 'Lechuga', brand: null, stores: [] },
+    ]} onChange={noop}
     onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop}
     inferredStoreChip="Mercadona" onDismissInferredStore={noop} />)
   const allButtons = screen.getAllByRole('button')
