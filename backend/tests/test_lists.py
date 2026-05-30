@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.db.models import List, ListItem, ListMember
+from app.db.models import List, ListItem, ListMember, ReceiptScan
 
 
 def test_create_list(client: TestClient, session: Session):
@@ -66,6 +66,17 @@ def test_delete_list_non_owner_returns_403(client: TestClient, other_client: Tes
 
 def test_delete_list(client: TestClient, session: Session):
     created = client.post("/lists", json={"name": "To Delete"}).json()
+    response = client.delete(f"/lists/{created['id']}")
+    assert response.status_code == 204
+    assert session.get(List, created["id"]) is None
+
+
+def test_delete_list_with_receipt_scans(client: TestClient, session: Session, user):
+    created = client.post("/lists", json={"name": "Con Ticket"}).json()
+    scan = ReceiptScan(list_id=created["id"], scanned_by=user.id, items_updated=0)
+    session.add(scan)
+    session.commit()
+
     response = client.delete(f"/lists/{created['id']}")
     assert response.status_code == 204
     assert session.get(List, created["id"]) is None
