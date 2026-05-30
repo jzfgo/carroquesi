@@ -132,6 +132,8 @@ def get_due_suggestions(
                 stores=most_recent.stores if most_recent.stores is not None else [],
                 days_overdue=days_since_last - lower,
                 dismissal_ttl_days=upper - days_since_last,
+                median_interval_days=median_interval,
+                days_since_last=days_since_last,
             )
         )
 
