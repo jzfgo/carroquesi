@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- Add option to buy a purchased item again
+
+
+### Fixed
+- Delete receipt_scans before list to avoid FK violation (#57)
+
+- Add autocomplete suggestions directly (#58)
+
+
+---
 ## [0.15.0] — 2026-05-30
 
 ### Added
