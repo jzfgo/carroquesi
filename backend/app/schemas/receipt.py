@@ -49,6 +49,7 @@ class PricePatch(BaseModel):
     price: float
     price_per: Optional[str] = None
     store: Optional[str] = None
+    quantity: Optional[str] = None
 
 
 class NameMappingCreate(BaseModel):

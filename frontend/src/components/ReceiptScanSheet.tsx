@@ -1,11 +1,24 @@
 import { useState } from "react";
-import type { MatchedLine, PricePatch, NameMapping, UnmatchedLine, ReceiptScanResult } from "../types/receipt";
+import type { MatchedLine, UnmatchedLine, PricePatch, NameMapping, ReceiptScanResult } from "../types/receipt";
 import { formatPrice } from "../lib/formatPrice";
+import { parseQuantityFactor, purchasedDateLabel } from "../lib/itemCost";
 import "./ReceiptScanSheet.css";
 
 interface PurchasedItemRef {
   id: string;
   name: string;
+  purchased_at: string | null;
+  brand: string | null;
+  stores: string[];
+  quantity: string | null;
+}
+
+interface LineState {
+  included: boolean;
+  itemId: string | null;
+  quantity: string;
+  unitPrice: number;
+  pricePer: "KILOGRAM" | null;
 }
 
 interface Props {
@@ -16,91 +29,145 @@ interface Props {
   onClose: () => void;
 }
 
-function PriceContext({ line }: { line: MatchedLine | UnmatchedLine }) {
+const PencilIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path
+      d="M15.232 5.232l3.536 3.536M9 13l6.768-6.768a2 2 0 012.828 2.828L11.828 15.828a2 2 0 01-.707.464l-3.535 1.06 1.06-3.535A2 2 0 019 13z"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+    />
+  </svg>
+);
+
+function initialQuantity(line: MatchedLine | UnmatchedLine): string {
   if (line.price_type === "KILOGRAM" && line.quantity != null) {
-    return (
-      <div className="item-price-context">
-        {line.quantity.toLocaleString("es-ES", { maximumFractionDigits: 3 })} kg × {formatPrice(line.unit_price)}/kg
-      </div>
-    );
+    return line.quantity < 1
+      ? `${Math.round(line.quantity * 1000)}g`
+      : `${line.quantity}kg`;
   }
   if (line.price_type === "MULTI" && line.quantity != null) {
-    return (
-      <div className="item-price-context">
-        {line.quantity}× {formatPrice(line.unit_price)}
-      </div>
-    );
+    return String(Math.round(line.quantity));
   }
-  return null;
+  return "1";
 }
 
-function pricePatchFor(line: MatchedLine | UnmatchedLine, itemId: string, store: string | null): PricePatch {
-  return {
-    item_id: itemId,
-    price: line.unit_price,
-    price_per: line.price_type === "KILOGRAM" ? "KILOGRAM" : null,
-    store,
-  };
+function initState(result: ReceiptScanResult): LineState[] {
+  return [
+    ...result.matched.map((m) => ({
+      included: true,
+      itemId: m.item_id,
+      quantity: initialQuantity(m),
+      unitPrice: m.unit_price,
+      pricePer: m.price_type === "KILOGRAM" ? ("KILOGRAM" as const) : null,
+    })),
+    ...result.unmatched.map((u) => ({
+      included: false,
+      itemId: null,
+      quantity: initialQuantity(u),
+      unitPrice: u.unit_price,
+      pricePer: u.price_type === "KILOGRAM" ? ("KILOGRAM" as const) : null,
+    })),
+  ];
+}
+
+function formatQtySummary(ls: LineState): string {
+  const price = ls.unitPrice.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const unit = ls.pricePer === "KILOGRAM" ? "€/kg" : "€/ud";
+  const sep = ls.pricePer === "KILOGRAM" ? " × " : "× ";
+  return `${ls.quantity}${sep}${price} ${unit}`;
+}
+
+function computeLineTotal(ls: LineState): number {
+  const factor = parseQuantityFactor(ls.quantity, ls.pricePer);
+  return factor !== null ? ls.unitPrice * factor : ls.unitPrice;
+}
+
+function groupItemsByDate(items: PurchasedItemRef[]): { label: string; items: PurchasedItemRef[] }[] {
+  const sorted = [...items].sort((a, b) => {
+    if (!a.purchased_at) return 1;
+    if (!b.purchased_at) return -1;
+    return b.purchased_at.localeCompare(a.purchased_at);
+  });
+  const groups: { label: string; items: PurchasedItemRef[] }[] = [];
+  for (const item of sorted) {
+    const label = purchasedDateLabel(item.purchased_at);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) {
+      last.items.push(item);
+    } else {
+      groups.push({ label, items: [item] });
+    }
+  }
+  return groups;
 }
 
 export default function ReceiptScanSheet({ result, purchasedItems, store, onConfirm, onClose }: Props) {
-  const [checkedIds, setCheckedIds] = useState<Set<string>>(
-    () => new Set(result.matched.map((m) => m.item_id))
-  );
-  const [linkedItems, setLinkedItems] = useState<Record<string, string>>({});
+  const allLines: (MatchedLine | UnmatchedLine)[] = [...result.matched, ...result.unmatched];
+  const [lineStates, setLineStates] = useState<LineState[]>(() => initState(result));
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
-  const toggleItem = (itemId: string) => {
-    setCheckedIds((prev) => {
+  const checkedCount = lineStates.filter((ls) => ls.included).length;
+  const allChecked = checkedCount === lineStates.length;
+
+  function updateLine(index: number, patch: Partial<LineState>) {
+    setLineStates((prev) => prev.map((ls, i) => (i === index ? { ...ls, ...patch } : ls)));
+  }
+
+  function toggleExpanded(index: number) {
+    setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(itemId)) { next.delete(itemId); } else { next.add(itemId); }
+      if (next.has(index)) { next.delete(index); } else { next.add(index); }
       return next;
     });
-  };
+  }
 
-  const confirmedMatched = result.matched.filter((m) => checkedIds.has(m.item_id));
-  const confirmedLinked = Object.entries(linkedItems)
-    .filter(([, itemId]) => itemId !== "")
-    .map(([receiptName, itemId]) => {
-      const unmatched = result.unmatched.find((u) => u.receipt_name === receiptName)!;
-      const item = purchasedItems.find((i) => i.id === itemId)!;
-      return { unmatched, item };
-    });
+  function toggleAll() {
+    const include = !allChecked;
+    setLineStates((prev) => prev.map((ls) => ({ ...ls, included: include })));
+  }
 
-  const totalCount = confirmedMatched.length + confirmedLinked.length;
+  // Prevent the same item from being linked to multiple rows
+  const linkedItemIds = new Set(lineStates.map((ls) => ls.itemId).filter(Boolean) as string[]);
+  function availableItems(currentIndex: number): PurchasedItemRef[] {
+    return purchasedItems.filter(
+      (item) => !linkedItemIds.has(item.id) || lineStates[currentIndex].itemId === item.id
+    );
+  }
 
-  const handleConfirm = () => {
-    const patches: PricePatch[] = [
-      ...confirmedMatched.map((m) => pricePatchFor(m, m.item_id, store)),
-      ...confirmedLinked.map(({ unmatched, item }) => pricePatchFor(unmatched, item.id, store)),
-    ];
+  // Footer totals
+  const selectedTotal = lineStates
+    .filter((ls) => ls.included)
+    .reduce((sum, ls) => sum + computeLineTotal(ls), 0);
+  const receiptTotal = result.receipt_total;
+  const diff = receiptTotal != null ? selectedTotal - receiptTotal : null;
 
-    const mappings: NameMapping[] = [
-      ...confirmedMatched.map((m) => ({
-        store: store ?? "",
-        receipt_name: m.receipt_name.toLowerCase(),
-        item_name: m.item_name,
-        item_brand: null,
-      })),
-      ...confirmedLinked.map(({ unmatched, item }) => ({
-        store: store ?? "",
-        receipt_name: unmatched.receipt_name.toLowerCase(),
-        item_name: item.name,
-        item_brand: null,
-      })),
-    ].filter((m) => m.store !== "");
+  function handleConfirm() {
+    const patches: PricePatch[] = lineStates
+      .flatMap((ls) => {
+        if (!ls.included || !ls.itemId) return [];
+        return [{
+          item_id: ls.itemId,
+          price: ls.unitPrice,
+          price_per: ls.pricePer,
+          store,
+          quantity: ls.quantity,
+        }];
+      });
+
+    const mappings: NameMapping[] = lineStates
+      .flatMap((ls, i) => {
+        if (!ls.included || !ls.itemId || !store) return [];
+        const item = purchasedItems.find((p) => p.id === ls.itemId);
+        if (!item) return [];
+        return [{
+          store,
+          receipt_name: allLines[i].receipt_name.toLowerCase(),
+          item_name: item.name,
+          item_brand: null,
+        }];
+      });
 
     onConfirm(patches, mappings);
-  };
-
-  const alreadyLinkedItemIds = new Set([
-    ...confirmedMatched.map((m) => m.item_id),
-    ...Object.values(linkedItems).filter(Boolean),
-  ]);
-
-  const availableItems = (receiptName: string) =>
-    purchasedItems.filter(
-      (i) => !alreadyLinkedItemIds.has(i.id) || linkedItems[receiptName] === i.id
-    );
+  }
 
   const formattedDate = result.receipt_date
     ? new Date(result.receipt_date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })
@@ -120,89 +187,142 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
         </div>
         <div className="sheet-meta">
           {formattedDate && <span>📅 {formattedDate}</span>}
-          {result.receipt_total != null && (
-            <span>💶 {formatPrice(result.receipt_total)}</span>
-          )}
+          {receiptTotal != null && <span>💶 {formatPrice(receiptTotal)}</span>}
         </div>
       </div>
 
+      <div className="rss-toolbar">
+        <span className="rss-toolbar-count">
+          {checkedCount} de {lineStates.length} seleccionados
+        </span>
+        <button className="rss-toolbar-toggle" onClick={toggleAll}>
+          {allChecked ? "Deseleccionar todo" : "Seleccionar todo"}
+        </button>
+      </div>
+
       <div className="sheet-body">
-        {result.matched.length > 0 && (
-          <>
-            <div className="section-label">
-              Encontrados <span style={{ color: "var(--color-success)" }}>{result.matched.length}</span>
-            </div>
-            {result.matched.map((m) => (
-              <div key={m.item_id} className="receipt-item">
+        {lineStates.map((ls, i) => {
+          const line = allLines[i];
+          const isExpanded = expanded.has(i);
+          const itemGroups = groupItemsByDate(availableItems(i));
+          const linkedItem = purchasedItems.find((p) => p.id === ls.itemId);
+
+          return (
+            <div key={i} className={`rss-row${ls.included ? " checked" : ""}${isExpanded ? " expanded" : ""}`}>
+              <div className="rss-summary" onClick={() => toggleExpanded(i)}>
                 <input
                   type="checkbox"
-                  checked={checkedIds.has(m.item_id)}
-                  onChange={() => toggleItem(m.item_id)}
-                  className="item-check"
+                  className="rss-check"
+                  checked={ls.included}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    updateLine(i, { included: e.target.checked });
+                  }}
+                  onClick={(e) => e.stopPropagation()}
                 />
-                <div className="item-body">
-                  <div className="item-receipt-name">{m.receipt_name}</div>
-                  <div className="item-matched-name">{m.item_name}</div>
+                <div className="rss-text">
+                  <div className="rss-ocr">{line.receipt_name}</div>
+                  <div className={`rss-item${ls.itemId ? "" : " unlinked"}`}>
+                    {linkedItem ? linkedItem.name : "sin vincular"}
+                  </div>
+                  <div className="rss-qty-summary">{formatQtySummary(ls)}</div>
                 </div>
-                <div className="item-price-col">
-                  <div className="item-price">{formatPrice(m.line_total)}</div>
-                  {m.price_type === "KILOGRAM" && <div className="item-price-per">/kg</div>}
-                  <PriceContext line={m} />
+                <div className="rss-right">
+                  <div className="rss-total">{formatPrice(computeLineTotal(ls))}</div>
+                  <div className="rss-edit-icon"><PencilIcon /></div>
                 </div>
               </div>
-            ))}
-          </>
-        )}
 
-        {result.unmatched.length > 0 && (
-          <>
-            <div className="section-label" style={{ marginTop: 16, color: "var(--color-warning)" }}>
-              Sin vincular <span style={{ fontWeight: 700 }}>{result.unmatched.length}</span>
-            </div>
-            {result.unmatched.map((u) => (
-              <div key={u.receipt_name} className="unmatched-item">
-                <div className="unmatched-row">
-                  <div className="unmatched-name">{u.receipt_name}</div>
-                  <div className="unmatched-price">
-                    {formatPrice(u.line_total)}
-                    <PriceContext line={u} />
-                  </div>
-                </div>
-                <div className="link-row">
+              <div className="rss-form">
+                <div className="rss-field">
+                  <div className="rss-field-label">Vincular a</div>
                   <select
-                    className="link-select"
-                    value={linkedItems[u.receipt_name] ?? ""}
-                    onChange={(e) =>
-                      setLinkedItems((prev) => ({ ...prev, [u.receipt_name]: e.target.value }))
-                    }
+                    className="rss-link-select"
+                    value={ls.itemId ?? ""}
+                    onChange={(e) => {
+                      const newId = e.target.value || null;
+                      updateLine(i, {
+                        itemId: newId,
+                        included: newId !== null,
+                      });
+                    }}
                   >
-                    <option value="" disabled>Vincular a elemento…</option>
-                    {availableItems(u.receipt_name).map((i) => (
-                      <option key={i.id} value={i.id}>{i.name}</option>
+                    <option value="">— No vincular —</option>
+                    {itemGroups.map((group) => (
+                      <optgroup key={group.label} label={`📅 ${group.label}`}>
+                        {group.items.map((item) => (
+                          <option key={item.id} value={item.id}>{item.name}</option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
-                  <button
-                    className="skip-btn"
-                    onClick={() => setLinkedItems((prev) => ({ ...prev, [u.receipt_name]: "" }))}
-                  >
-                    Omitir
-                  </button>
+                </div>
+
+                <div className="rss-field">
+                  <div className="rss-field-label">Cantidad · Precio</div>
+                  <div className="rss-qp-row">
+                    <input
+                      className="rss-qty-input"
+                      type="text"
+                      value={ls.quantity}
+                      placeholder="ej. 500g"
+                      onChange={(e) => updateLine(i, { quantity: e.target.value })}
+                    />
+                    <span className="rss-sep">×</span>
+                    <span className="rss-euro">€</span>
+                    <input
+                      className="rss-price-input"
+                      type="number"
+                      value={ls.unitPrice}
+                      step="0.01"
+                      min="0"
+                      onChange={(e) => updateLine(i, { unitPrice: parseFloat(e.target.value) || 0 })}
+                    />
+                    <div className="rss-unit-toggle">
+                      <button
+                        type="button"
+                        className={`rss-unit-btn${ls.pricePer === null ? " rss-unit-btn--active" : ""}`}
+                        onClick={() => updateLine(i, { pricePer: null })}
+                      >/ud</button>
+                      <button
+                        type="button"
+                        className={`rss-unit-btn${ls.pricePer === "KILOGRAM" ? " rss-unit-btn--active" : ""}`}
+                        onClick={() => updateLine(i, { pricePer: "KILOGRAM" })}
+                      >/kg</button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            ))}
-          </>
-        )}
+            </div>
+          );
+        })}
       </div>
 
       <div className="sheet-footer">
+        <div className="rss-footer-totals">
+          <div>
+            <span>Seleccionado </span>
+            <span className="rss-footer-selected">{formatPrice(selectedTotal)}</span>
+            {diff !== null && checkedCount > 0 && (
+              Math.abs(diff) < 0.02
+                ? <span className="rss-footer-match">✓ coincide</span>
+                : <span className="rss-footer-diff">
+                    ({diff > 0 ? "+" : "−"}{formatPrice(Math.abs(diff)).replace(" ", "")})
+                  </span>
+            )}
+          </div>
+          {receiptTotal != null && (
+            <span>Ticket {formatPrice(receiptTotal)}</span>
+          )}
+        </div>
         <button
           className="confirm-btn"
-          disabled={totalCount === 0}
+          disabled={checkedCount === 0}
           onClick={handleConfirm}
         >
           Guardar precios
           <span className="confirm-count">
-            {totalCount} {totalCount === 1 ? "elemento" : "elementos"}
+            {checkedCount} {checkedCount === 1 ? "elemento" : "elementos"}
           </span>
         </button>
       </div>

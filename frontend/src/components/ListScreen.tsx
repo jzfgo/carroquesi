@@ -753,7 +753,14 @@ export function ListScreen({
               result={receiptScanResult}
               purchasedItems={items
                 .filter((i) => i.purchased)
-                .map((i) => ({ id: i.id, name: i.name }))}
+                .map((i) => ({
+                  id: i.id,
+                  name: i.name,
+                  purchased_at: i.purchased_at,
+                  brand: i.brand,
+                  stores: i.stores,
+                  quantity: i.quantity,
+                }))}
               store={receiptScanResult.store}
               onConfirm={handleReceiptConfirm}
               onClose={() => setReceiptScanResult(null)}

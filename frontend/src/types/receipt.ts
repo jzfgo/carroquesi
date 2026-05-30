@@ -47,6 +47,7 @@ export interface PricePatch {
   price: number
   price_per: string | null
   store: string | null
+  quantity: string | null
 }
 
 export interface NameMapping {
