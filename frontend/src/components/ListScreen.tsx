@@ -583,6 +583,16 @@ export function ListScreen({
                 void removeItem(activeItemId);
                 setActiveItemId(null);
               }}
+              onClone={() => {
+                void addItem({
+                  name: activeItem.name,
+                  brand: activeItem.brand,
+                  stores: activeItem.stores,
+                  quantity: activeItem.quantity,
+                  ean: activeItem.ean,
+                });
+                setActiveItemId(null);
+              }}
               onClose={() => setActiveItemId(null)}
             />
           );
