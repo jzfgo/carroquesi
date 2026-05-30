@@ -7,8 +7,6 @@
 ## Bugs / Known Issues
 
 - [ ] **Improve due suggestions** - The current frequency banner gives no context for why an item is being suggested, which is confusing. Direction: replace or supplement it with a ✨ button + counter inside the SmartInputBar that opens a sheet or popover listing due items with human-readable frequency context (e.g. "usually buy diapers once a week"). Needs design discussion at implementation time.
-- [ ] **Lists can't be deleted** - List table dependencies prevent lists from being deleted
-
 ---
 
 ## Features (Backlog)
