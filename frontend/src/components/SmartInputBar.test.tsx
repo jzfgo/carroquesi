@@ -316,3 +316,34 @@ test('barcode scan button is enabled when isOffline is false', () => {
   )
   expect(screen.getByRole('button', { name: /escanear código de barras/i })).not.toBeDisabled()
 })
+
+// ── Due suggestions button ────────────────────────────────────────────────────
+
+test('✨ button renders when dueSuggestionsCount > 0', () => {
+  render(<SmartInputBar value="" parsed={parseInput('')} items={NO_ITEMS}
+    suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop}
+    dueSuggestionsCount={3} onDueSuggestionsOpen={noop} />)
+  expect(screen.getByRole('button', { name: /sugerencias pendientes/i })).toBeInTheDocument()
+})
+
+test('✨ button absent when dueSuggestionsCount is 0', () => {
+  render(<SmartInputBar value="" parsed={parseInput('')} items={NO_ITEMS}
+    suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop}
+    dueSuggestionsCount={0} onDueSuggestionsOpen={noop} />)
+  expect(screen.queryByRole('button', { name: /sugerencias pendientes/i })).not.toBeInTheDocument()
+})
+
+test('✨ button absent when dueSuggestionsCount is omitted', () => {
+  render(<SmartInputBar value="" parsed={parseInput('')} items={NO_ITEMS}
+    suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop} />)
+  expect(screen.queryByRole('button', { name: /sugerencias pendientes/i })).not.toBeInTheDocument()
+})
+
+test('✨ button click calls onDueSuggestionsOpen', () => {
+  const onDueSuggestionsOpen = vi.fn()
+  render(<SmartInputBar value="" parsed={parseInput('')} items={NO_ITEMS}
+    suggestions={[]} onChange={noop} onSubmit={noop} onClear={noop} onScanRequest={noop} onEanSearch={noop}
+    dueSuggestionsCount={2} onDueSuggestionsOpen={onDueSuggestionsOpen} />)
+  fireEvent.click(screen.getByRole('button', { name: /sugerencias pendientes/i }))
+  expect(onDueSuggestionsOpen).toHaveBeenCalledTimes(1)
+})

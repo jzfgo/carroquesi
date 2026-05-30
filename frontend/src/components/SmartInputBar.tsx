@@ -69,9 +69,11 @@ interface Props {
   inferredStoreChip?: string | null
   onDismissInferredStore?: () => void
   isOffline?: boolean
+  dueSuggestionsCount?: number
+  onDueSuggestionsOpen?: () => void
 }
 
-export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onSuggestionAdd, onClear, onScanRequest, onEanSearch, eanLoading, eanError, inferredStoreChip, onDismissInferredStore, isOffline = false }: Props) {
+export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onSuggestionAdd, onClear, onScanRequest, onEanSearch, eanLoading, eanError, inferredStoreChip, onDismissInferredStore, isOffline = false, dueSuggestionsCount, onDueSuggestionsOpen }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const activeSigil = getActiveSigil(value)
   const fieldSigil = activeSigil && SIGIL_FIELDS[activeSigil.sigil]
@@ -183,6 +185,17 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
       </div>
 
       <div className="smart-input__row">
+        {(dueSuggestionsCount ?? 0) > 0 && (
+          <button
+            className="smart-input__due-btn"
+            onClick={onDueSuggestionsOpen}
+            aria-label={`Sugerencias pendientes (${dueSuggestionsCount})`}
+            type="button"
+          >
+            ✨
+            <span className="smart-input__due-badge">{dueSuggestionsCount}</span>
+          </button>
+        )}
         <input
           className="smart-input__field"
           type="text"
