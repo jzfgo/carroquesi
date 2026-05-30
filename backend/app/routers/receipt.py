@@ -93,6 +93,8 @@ def apply_receipt_prices(
         item.price_per = patch.price_per
         if patch.store:
             item.price_store = patch.store
+        if patch.quantity is not None:
+            item.quantity = patch.quantity
         session.add(item)
         updated += 1
 

@@ -193,3 +193,48 @@ def test_post_receipt_prices_writes_unit_price(client, session):
     item = session.get(ListItem, "item-almendras")
     assert item.price == pytest.approx(1.15)
     assert item.price_store == "Mercadona"
+
+
+def test_receipt_prices_updates_quantity(client, session):
+    body = {
+        "scan_id": None,
+        "patches": [
+            {
+                "item_id": "item-almendras",
+                "price": 1.15,
+                "price_per": None,
+                "store": "Mercadona",
+                "quantity": "2",
+            }
+        ],
+        "mappings": [],
+    }
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+    assert response.status_code == 200
+    session.expire_all()
+    assert session.get(ListItem, "item-almendras").quantity == "2"
+
+
+def test_receipt_prices_preserves_quantity_when_null(client, session):
+    item = session.get(ListItem, "item-almendras")
+    item.quantity = "500g"
+    session.add(item)
+    session.commit()
+
+    body = {
+        "scan_id": None,
+        "patches": [
+            {
+                "item_id": "item-almendras",
+                "price": 1.15,
+                "price_per": None,
+                "store": "Mercadona",
+                "quantity": None,
+            }
+        ],
+        "mappings": [],
+    }
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+    assert response.status_code == 200
+    session.expire_all()
+    assert session.get(ListItem, "item-almendras").quantity == "500g"
