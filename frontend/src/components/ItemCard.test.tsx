@@ -144,3 +144,24 @@ test('tapping a store chip calls onTagClick with stores field', () => {
   fireEvent.click(screen.getByText(/Mercadona/))
   expect(handler).toHaveBeenCalledWith('i1', 'stores')
 })
+
+test('renders "Volver a comprar" tag button when item is purchased and onClone is provided', () => {
+  const onClone = vi.fn()
+  const item = { ...BASE_ITEM, purchased: true }
+  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onClone={onClone} />)
+  expect(screen.getByRole('button', { name: /volver a comprar/i })).toBeInTheDocument()
+})
+
+test('clicking "Volver a comprar" calls onClone with item id', () => {
+  const onClone = vi.fn()
+  const item = { ...BASE_ITEM, purchased: true }
+  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onClone={onClone} />)
+  fireEvent.click(screen.getByRole('button', { name: /volver a comprar/i }))
+  expect(onClone).toHaveBeenCalledWith('i1')
+})
+
+test('does not render "Volver a comprar" when item is not purchased', () => {
+  const onClone = vi.fn()
+  render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onClone={onClone} />)
+  expect(screen.queryByRole('button', { name: /volver a comprar/i })).not.toBeInTheDocument()
+})

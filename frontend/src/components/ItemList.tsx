@@ -18,6 +18,7 @@ interface Props {
   onMenuOpen: (itemId: string) => void
   onRetry: () => void
   onPriceClick: (itemId: string) => void
+  onClone?: (itemId: string) => void
   pendingCost?: CostSummary | null
   purchasedCostByDate?: Map<string, CostSummary | null>
   totalItems?: number
@@ -32,7 +33,7 @@ function CostBadge({ cost, className }: { cost: CostSummary; className: string }
   )
 }
 
-export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry, onPriceClick, pendingCost, purchasedCostByDate, totalItems, footer }: Props) {
+export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry, onPriceClick, onClone, pendingCost, purchasedCostByDate, totalItems, footer }: Props) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
 
   if (status === 'loading') {
@@ -105,7 +106,7 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
       {active.map(item => (
         <ItemCard key={item.id} item={item} members={members}
           onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen}
-          onPriceClick={onPriceClick} />
+          onPriceClick={onPriceClick} onClone={onClone} />
       ))}
       {footer}
 
@@ -128,7 +129,7 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
               {group.map(item => (
                 <ItemCard key={item.id} item={item} members={members}
                   onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen}
-                  onPriceClick={onPriceClick} />
+                  onPriceClick={onPriceClick} onClone={onClone} />
               ))}
             </div>
           ))}

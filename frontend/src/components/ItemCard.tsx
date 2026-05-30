@@ -14,9 +14,10 @@ interface Props {
   onTagClick: (itemId: string, field: TagField | 'stores') => void
   onMenuOpen: (itemId: string) => void
   onPriceClick?: (itemId: string) => void
+  onClone?: (itemId: string) => void
 }
 
-export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuOpen, onPriceClick }: Props) {
+export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuOpen, onPriceClick, onClone }: Props) {
   const member = members.get(item.added_by)
   const initial = member?.initial ?? '?'
   const { user } = useAuth()
@@ -137,6 +138,15 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
               aria-label={item.purchased ? 'Registrar precio' : 'Historial de precios'}
             >
               <span aria-hidden>{item.purchased ? '+ 💶' : '💶'}</span>
+            </button>
+          )}
+
+          {item.purchased && onClone && (
+            <button
+              className="item-card__tag item-card__tag--buy-again"
+              onClick={e => { e.stopPropagation(); onClone(item.id) }}
+            >
+              <span aria-hidden>🔄</span> Volver a comprar
             </button>
           )}
         </div>

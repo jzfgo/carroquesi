@@ -241,6 +241,21 @@ export function ListScreen({
     setActiveItemId(itemId);
   }, []);
 
+  const handleCloneItem = useCallback(
+    (itemId: string) => {
+      const activeItem = items.find((i) => i.id === itemId);
+      if (!activeItem) return;
+      void addItem({
+        name: activeItem.name,
+        brand: activeItem.brand,
+        stores: activeItem.stores,
+        quantity: activeItem.quantity,
+        ean: activeItem.ean,
+      });
+    },
+    [items, addItem],
+  );
+
   const handleMenuToggle = useCallback(() => {
     setMenuOpen(prev => !prev);
   }, []);
@@ -517,6 +532,7 @@ export function ListScreen({
         onMenuOpen={handleItemMenuOpen}
         onRetry={retry}
         onPriceClick={(itemId) => setPriceItemId(itemId)}
+        onClone={handleCloneItem}
         pendingCost={pendingCost}
         purchasedCostByDate={purchasedCostByDate}
         footer={allUnpurchasedCount === 0 && items.length > 0 && !receiptScanResult ? (
@@ -584,13 +600,7 @@ export function ListScreen({
                 setActiveItemId(null);
               }}
               onClone={() => {
-                void addItem({
-                  name: activeItem.name,
-                  brand: activeItem.brand,
-                  stores: activeItem.stores,
-                  quantity: activeItem.quantity,
-                  ean: activeItem.ean,
-                });
+                handleCloneItem(activeItemId);
                 setActiveItemId(null);
               }}
               onClose={() => setActiveItemId(null)}
