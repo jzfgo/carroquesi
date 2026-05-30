@@ -33,7 +33,7 @@ RULES:
 - receipt_date: purchase date as YYYY-MM-DD. Return null if not clearly readable.
 - receipt_total: final total charged. Return null if not clearly readable.
 - lines: purchased product lines only. Omit any line where name or price is not clearly legible.
-- Skip: subtotals, taxes, VAT, loyalty discounts, bag charges, cashier info, store address, payment lines.
+- Skip: subtotals, taxes, VAT, loyalty discounts, cashier info, store address, payment lines.
 - price_type:
   - "UNIT": single item at fixed price. unit_price = shown price. line_total = unit_price.
   - "KILOGRAM": sold by weight. unit_price = price per kg. quantity = weight in kg. line_total = unit_price x quantity.
