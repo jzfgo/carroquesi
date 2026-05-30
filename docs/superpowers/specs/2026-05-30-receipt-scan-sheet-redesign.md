@@ -72,7 +72,19 @@ The parent (`ListScreen`) currently maps items to `{ id, name }`. Extend to also
 
 ### Output (confirm)
 
-`onConfirm` receives the same `PricePatch[]` + `NameMapping[]` as today. The `quantity` text is **not** part of `PricePatch` (which only carries `price`, `price_per`, `store`, `item_id`). It lives in local `LineState` and is used only for computing the footer total; it is not sent to the backend.
+`onConfirm` receives `PricePatch[]` + `NameMapping[]`. `PricePatch` gains a `quantity: string | null` field:
+
+```ts
+export interface PricePatch {
+  item_id: string
+  price: number
+  price_per: string | null
+  store: string | null
+  quantity: string | null   // ← new: the edited quantity text, e.g. "680g", "4", "1"
+}
+```
+
+The backend `POST /lists/{id}/receipt-prices` already writes `price`, `price_per`, and `store` to `list_items`. It should also write `quantity` when the patch includes it (non-null). This keeps `list_items.quantity` in sync with what was actually on the receipt.
 
 ---
 
@@ -82,15 +94,15 @@ The parent (`ListScreen`) currently maps items to `{ id, name }`. Extend to also
 |---|---|
 | `frontend/src/components/ReceiptScanSheet.tsx` | Full rewrite of component logic and JSX |
 | `frontend/src/components/ReceiptScanSheet.css` | New CSS classes (`rss-*`, toolbar, footer-totals); retain/extend existing `.sheet-*` |
-| `frontend/src/types/receipt.ts` | No change needed |
+| `frontend/src/types/receipt.ts` | Add `quantity: string | null` to `PricePatch` |
 | `frontend/src/types.ts` | No change to `ListItem` |
 | `frontend/src/components/ListScreen.tsx` | Extend `purchasedItems` mapping to include `purchased_at`, `brand`, `stores`, `quantity` |
 | `frontend/src/components/ReceiptScanSheet.test.tsx` | Update / extend tests for new state model |
+| `backend/app/routers/prices.py` (or `receipt.py`) | Write `quantity` from patch to `list_items` when non-null |
+| `backend/tests/` | Add test coverage for quantity update via receipt-prices |
 
 ---
 
 ## Out of scope
 
-- Saving `quantity` text to `list_items` via `PricePatch` (backend change not needed)
-- Any backend changes
 - Changes to the Gemini parsing step or receipt matching logic
