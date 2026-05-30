@@ -100,9 +100,23 @@ The backend `POST /lists/{id}/receipt-prices` already writes `price`, `price_per
 | `frontend/src/components/ReceiptScanSheet.test.tsx` | Update / extend tests for new state model |
 | `backend/app/routers/prices.py` (or `receipt.py`) | Write `quantity` from patch to `list_items` when non-null |
 | `backend/tests/` | Add test coverage for quantity update via receipt-prices |
+| `frontend/src/lib/receiptAi.ts` | Remove `bag charges` from Gemini skip list |
+
+---
+
+## Gemini prompt fix
+
+`frontend/src/lib/receiptAi.ts` — remove `bag charges` from the skip list in the prompt:
+
+```diff
+- Skip: subtotals, taxes, VAT, loyalty discounts, bag charges, cashier info, store address, payment lines.
++ Skip: subtotals, taxes, VAT, loyalty discounts, cashier info, store address, payment lines.
+```
+
+Bag charges (e.g. `Bolsa 0,10 €`) are real line items that contribute to `receipt_total`. Skipping them causes the footer total comparison to always show a discrepancy, which is confusing.
 
 ---
 
 ## Out of scope
 
-- Changes to the Gemini parsing step or receipt matching logic
+- Changes to the receipt matching logic
