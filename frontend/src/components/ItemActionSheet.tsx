@@ -10,9 +10,10 @@ interface Props {
   onDelete: () => void
   onClose: () => void
   purchased?: boolean
+  onClone?: () => void
 }
 
-export function ItemActionSheet({ item, onRename, onDelete, onClose, purchased }: Props) {
+export function ItemActionSheet({ item, onRename, onDelete, onClose, purchased, onClone }: Props) {
   const [subState, setSubState] = useState<SubState>('actions')
   const [renameValue, setRenameValue] = useState(item.name)
 
@@ -39,6 +40,14 @@ export function ItemActionSheet({ item, onRename, onDelete, onClose, purchased }
               onClick={() => setSubState('rename')}
             >
               ✏️ Renombrar
+            </button>
+          )}
+          {purchased && onClone && (
+            <button
+              className="item-action-sheet__action"
+              onClick={onClone}
+            >
+              🔄 Comprar de nuevo
             </button>
           )}
           <button

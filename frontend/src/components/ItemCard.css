@@ -157,3 +157,20 @@
   border: 1px solid var(--verde-border);
   font-family: var(--font-mono);
 }
+
+.item-card__tag--buy-again {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1.5px dashed var(--accent);
+  font-weight: 600;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.item-card__tag--buy-again:hover,
+.item-card__tag--buy-again:focus {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-style: solid;
+  border-color: var(--accent);
+  transform: scale(1.05);
+}

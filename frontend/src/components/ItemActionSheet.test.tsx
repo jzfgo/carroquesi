@@ -98,3 +98,23 @@ test('Cancelar in confirmation sub-state returns to actions sub-state', () => {
   expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
   expect(baseProps.onClose).not.toHaveBeenCalled()
 })
+
+test('shows "Comprar de nuevo" when purchased is true and onClone is provided', () => {
+  const onClone = vi.fn()
+  render(<ItemActionSheet {...baseProps} purchased={true} onClone={onClone} />)
+  expect(screen.getByRole('button', { name: /comprar de nuevo/i })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /renombrar/i })).not.toBeInTheDocument()
+})
+
+test('clicking "Comprar de nuevo" calls onClone', () => {
+  const onClone = vi.fn()
+  render(<ItemActionSheet {...baseProps} purchased={true} onClone={onClone} />)
+  fireEvent.click(screen.getByRole('button', { name: /comprar de nuevo/i }))
+  expect(onClone).toHaveBeenCalled()
+})
+
+test('does not show "Comprar de nuevo" when purchased is false', () => {
+  const onClone = vi.fn()
+  render(<ItemActionSheet {...baseProps} purchased={false} onClone={onClone} />)
+  expect(screen.queryByRole('button', { name: /comprar de nuevo/i })).not.toBeInTheDocument()
+})
