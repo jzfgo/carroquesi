@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ListScreen } from './ListScreen'
 import * as AuthContext from '../contexts/AuthContext'
 import * as useListItemsModule from '../hooks/useListItems'
@@ -16,6 +16,7 @@ vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../hooks/useListItems')
 vi.mock('../hooks/useOffline', () => ({ useOffline: vi.fn(() => ({ isOffline: false, pendingCount: 0 })) }))
 vi.mock('../lib/api')
+vi.mock('../lib/receiptAi', () => ({ parseReceiptWithAi: vi.fn() }))
 vi.mock('./ListMembersSheet', () => ({
   ListMembersSheet: () => <div role="dialog" aria-label="Miembros">Sheet</div>,
 }))
@@ -47,7 +48,12 @@ beforeEach(() => {
     loading: false,
   })
   vi.mocked(useListItemsModule.useListItems).mockReturnValue(emptyHookResult)
+  vi.mocked(api.getSuggestions).mockResolvedValue([])
   vi.mocked(api.getDueSuggestions).mockResolvedValue([])
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 const TODAY = new Date().toISOString().slice(0, 19)
@@ -89,6 +95,33 @@ describe('ListScreen', () => {
       <ListScreen listId="l1" listName="Mercado Semanal" listEmoji="🛒" listOwnerId="owner-1" />
     )
     expect(screen.getByRole('heading', { name: 'Mercado Semanal' })).toBeInTheDocument()
+  })
+
+  it('adds an autocomplete suggestion directly with brand and stores', async () => {
+    vi.useFakeTimers()
+    vi.mocked(api.getSuggestions).mockResolvedValue([
+      { name: 'Leche', brand: 'Puleva', stores: ['Mercadona'] },
+    ])
+
+    render(<ListScreen listId="l1" listName="Mercado Semanal" listOwnerId="u1" />)
+    fireEvent.change(screen.getByRole('textbox', { name: /añadir producto/i }), {
+      target: { value: 'Le' },
+    })
+
+    await act(async () => {
+      vi.advanceTimersByTime(300)
+    })
+    await waitFor(() => expect(api.getSuggestions).toHaveBeenCalledWith(mockGetToken, 'Le'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Leche' }))
+
+    expect(emptyHookResult.addItem).toHaveBeenCalledWith({
+      name: 'Leche',
+      brand: 'Puleva',
+      stores: ['Mercadona'],
+      quantity: null,
+    })
+    vi.useRealTimers()
   })
 })
 
