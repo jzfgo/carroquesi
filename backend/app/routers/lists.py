@@ -4,7 +4,7 @@ from fastapi import APIRouter, status
 from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
-from app.db.models import List, ListInvite, ListItem, ListMember
+from app.db.models import List, ListInvite, ListItem, ListMember, ReceiptScan
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
 from app.schemas.lists import ListCreate, ListRead, ListUpdate
 
@@ -114,5 +114,7 @@ def delete_list(
         session.delete(member)
     for invite in session.exec(select(ListInvite).where(ListInvite.list_id == lst.id)).all():
         session.delete(invite)
+    for scan in session.exec(select(ReceiptScan).where(ReceiptScan.list_id == lst.id)).all():
+        session.delete(scan)
     session.delete(lst)
     session.commit()
