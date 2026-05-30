@@ -650,7 +650,7 @@ export function ListScreen({
                   getToken={getToken}
                   onLogPrice={() => handleOpenLogPrice(priceItemId)}
                   onClose={() => setPriceItemId(null)}
-                  readOnly={priceItem.purchased}
+                  readOnly={!priceItem.purchased}
                 />
               </div>
             </>

@@ -110,7 +110,7 @@ Entry point: a CTA button shown when the unpurchased list is empty. Four-step fl
 
 ### Purchased item rules
 
-Purchased items (`item.purchased === true`) are **read-only** in the UI. Allowed: unchecking, deleting, viewing price history. Disallowed: rename, quantity/brand/store edits, adding/changing/removing price. `ItemCard` renders tags as `<span>` (not `<button>`) for purchased items and hides all "add" CTAs. `ItemActionSheet` hides the rename option. `PriceHistorySheet` hides the log-price button when `readOnly` is passed.
+Purchased items (`item.purchased === true`) are **mostly read-only** in the UI. Allowed: unchecking, deleting, viewing price history, **logging/updating price**. Disallowed: rename, quantity/brand/store edits. `ItemCard` renders non-price tags as `<span>` (not `<button>`) for purchased items and hides quantity/brand/store add CTAs. `ItemActionSheet` hides the rename option. `PriceHistorySheet` is passed `readOnly` for **unpurchased** items (view-only), never for purchased items (price logging is only meaningful after purchase). Unpurchased items always show a 💶 button to access price history (view-only).
 
 Price deletion has a **same-day guard**: the delete button in `LogPriceSheet` is only shown when `isSameCalendarDay(item.purchased_at)` is true (frontend), and the backend `DELETE /lists/{id}/items/{item_id}/prices` enforces the same rule, returning 422 for prior-day purchases.
 
