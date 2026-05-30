@@ -1,0 +1,125 @@
+.due-suggestions-sheet__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+
+.due-suggestions-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--paper-0);
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  padding: 8px 0 24px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+
+.due-suggestions-sheet__handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 12px;
+  flex-shrink: 0;
+}
+
+.due-suggestions-sheet__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ink-0);
+  padding: 0 16px 12px;
+  flex-shrink: 0;
+}
+
+.due-suggestions-sheet__list {
+  overflow-y: auto;
+}
+
+.due-suggestions-sheet__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.due-suggestions-sheet__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.due-suggestions-sheet__name {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--ink-0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.due-suggestions-sheet__meta {
+  font-size: var(--fs-12);
+  color: var(--ink-2);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.due-suggestions-sheet__chips {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.due-suggestions-sheet__chip--frequency {
+  font-size: 11px;
+  background: color-mix(in srgb, var(--tinta-0) 15%, transparent);
+  color: var(--tinta-0);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+.due-suggestions-sheet__chip--recency {
+  font-size: 11px;
+  background: var(--verde-bg);
+  color: var(--verde-0);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+.due-suggestions-sheet__add {
+  background: var(--tinta-0);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.due-suggestions-sheet__add:hover {
+  background: var(--tinta-1);
+}
+
+.due-suggestions-sheet__dismiss {
+  font-size: var(--fs-13);
+  color: var(--ink-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  flex-shrink: 0;
+  font-family: inherit;
+  line-height: 1;
+}
