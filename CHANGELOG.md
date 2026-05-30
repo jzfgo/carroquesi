@@ -7,16 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.15.0] — 2026-05-30
 
 ### Added
 - Remove price entry from unpurchased items (#53)
 
 - Offline support with stale-while-revalidate cache and write queue (#54)
 
+- Redesign ReceiptScanSheet with unified row model and quantity support (#56)
+
 
 ### Fixed
 - Correct receipt scan entry point and camera button description in CLAUDE.md
+
+- Restore price logging on purchased items and history access on unpurchased
 
 
 ---
