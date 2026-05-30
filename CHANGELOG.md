@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add option to buy a purchased item again
 
+- Display Buy Again as inline tag pill on purchased ItemCards (Option 2)
+
 
 ### Fixed
 - Delete receipt_scans before list to avoid FK violation (#57)
