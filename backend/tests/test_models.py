@@ -40,3 +40,22 @@ def test_list_item_has_price_fields():
 def test_price_record_does_not_exist():
     import app.db.models as m
     assert not hasattr(m, 'PriceRecord')
+
+
+def test_feedback_submission_fields():
+    from app.db.models import FeedbackSubmission
+
+    fields = FeedbackSubmission.model_fields
+    assert "user_id" in fields
+    assert "message" in fields
+    assert "email" in fields
+    assert "source" in fields
+    assert "user_agent" in fields
+    assert "created_at" in fields
+
+    feedback = FeedbackSubmission(user_id="user-1", message="Great app")
+    assert feedback.id is not None
+    assert feedback.source == "manual"
+    assert feedback.email is None
+    assert feedback.user_agent is None
+    assert feedback.created_at is not None

@@ -124,3 +124,14 @@ class ReceiptNameMapping(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
 
+
+class FeedbackSubmission(SQLModel, table=True):
+    __tablename__ = "feedback_submissions"
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    user_id: str = Field(foreign_key="users.id")
+    message: str
+    email: Optional[str] = None
+    source: str = Field(default="manual")
+    user_agent: Optional[str] = None
+    created_at: datetime = Field(default_factory=_now)
