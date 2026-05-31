@@ -27,6 +27,7 @@ class ItemUpdate(BaseModel):
     brand: str | None = None
     stores: list[str] | None = None  # None = don't touch; [] = remove all
     purchased: bool | None = None
+    purchased_quantity: str | None = None  # None = don't touch
 
 
 class ItemRead(BaseModel):
@@ -34,6 +35,7 @@ class ItemRead(BaseModel):
     list_id: str
     name: str
     quantity: str | None
+    purchased_quantity: str | None
     brand: str | None
     stores: list[str]
     ean: str | None
