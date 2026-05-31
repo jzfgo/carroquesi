@@ -139,10 +139,9 @@ def get_due_suggestions(
         numeric_quantities = [
             v for i in items if (v := _parse_quantity_numeric(i.quantity)) is not None
         ]
-        avg_quantity: float | None = None
+        avg_quantity: int | None = None
         if numeric_quantities:
-            raw = mean(numeric_quantities)
-            avg_quantity = round(raw) if raw == int(raw) else round(raw, 1)
+            avg_quantity = round(mean(numeric_quantities))
 
         most_recent = max(items, key=lambda i: i.purchased_at)
         results.append(

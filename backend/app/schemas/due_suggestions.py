@@ -9,4 +9,4 @@ class DueSuggestionRead(BaseModel):
     dismissal_ttl_days: float  # (1.5 × median_interval) - days_since_last
     median_interval_days: float
     days_since_last: float
-    avg_quantity: float | None
+    avg_quantity: int | None
