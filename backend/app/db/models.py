@@ -52,6 +52,7 @@ class ListItem(SQLModel, table=True):
     list_id: str = Field(foreign_key="lists.id")
     name: str
     quantity: Optional[str] = None
+    purchased_quantity: Optional[str] = None
     brand: Optional[str] = None
     stores: list[str] = Field(default_factory=list, sa_column=Column(JSON, server_default=text("'[]'")))
     purchased_at: Optional[datetime] = Field(default=None)
