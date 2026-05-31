@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import firebase_admin
 from firebase_admin import auth, credentials
 
@@ -9,7 +11,9 @@ _app: firebase_admin.App | None = None
 def get_firebase_app() -> firebase_admin.App:
     global _app
     if _app is None:
-        cred = credentials.Certificate(settings.firebase_credentials_path)
+        cred = credentials.Certificate(
+            Path(settings.firebase_credentials_path).expanduser()
+        )
         _app = firebase_admin.initialize_app(cred)
     return _app
 

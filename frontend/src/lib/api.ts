@@ -236,3 +236,24 @@ export function submitReceiptPrices(
     body: JSON.stringify(batch),
   }) as Promise<{ items_updated: number }>
 }
+
+export interface FeedbackPayload {
+  message: string
+  email?: string | null
+  source?: 'manual'
+}
+
+export interface FeedbackResponse {
+  id: string
+  created_at: string
+}
+
+export function submitFeedback(
+  getToken: () => Promise<string>,
+  payload: FeedbackPayload,
+): Promise<FeedbackResponse> {
+  return apiFetch(getToken, '/feedback', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }) as Promise<FeedbackResponse>
+}
