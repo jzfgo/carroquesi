@@ -196,6 +196,7 @@ def test_post_receipt_prices_writes_unit_price(client, session):
 
 
 def test_receipt_prices_updates_quantity(client, session):
+    """patch.quantity now goes to purchased_quantity, not quantity."""
     body = {
         "scan_id": None,
         "patches": [
@@ -212,10 +213,13 @@ def test_receipt_prices_updates_quantity(client, session):
     response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
     assert response.status_code == 200
     session.expire_all()
-    assert session.get(ListItem, "item-almendras").quantity == "2"
+    item = session.get(ListItem, "item-almendras")
+    assert item.purchased_quantity == "2"
+    assert item.quantity is None   # was never set on this item in seed
 
 
 def test_receipt_prices_preserves_quantity_when_null(client, session):
+    """When patch.quantity is None, quantity (planned) is left untouched."""
     item = session.get(ListItem, "item-almendras")
     item.quantity = "500g"
     session.add(item)
@@ -237,4 +241,54 @@ def test_receipt_prices_preserves_quantity_when_null(client, session):
     response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
     assert response.status_code == 200
     session.expire_all()
-    assert session.get(ListItem, "item-almendras").quantity == "500g"
+    item = session.get(ListItem, "item-almendras")
+    assert item.quantity == "500g"            # planning qty untouched
+    assert item.purchased_quantity is None    # no receipt qty provided
+
+
+def test_receipt_prices_writes_purchased_quantity_not_quantity(client, session):
+    """patch.quantity should go to purchased_quantity, leaving quantity unchanged."""
+    item = session.get(ListItem, "item-almendras")
+    item.quantity = "2"  # planned qty — must survive the receipt apply
+    session.add(item)
+    session.commit()
+
+    body = {
+        "scan_id": None,
+        "patches": [
+            {
+                "item_id": "item-almendras",
+                "price": 1.15,
+                "price_per": None,
+                "store": "Mercadona",
+                "quantity": "487g",  # actual qty from receipt
+            }
+        ],
+        "mappings": [],
+    }
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+    assert response.status_code == 200
+    session.expire_all()
+    item = session.get(ListItem, "item-almendras")
+    assert item.purchased_quantity == "487g"   # written to new field
+    assert item.quantity == "2"                # planning qty preserved
+
+
+def test_receipt_prices_purchased_quantity_null_when_patch_quantity_null(client, session):
+    """When patch.quantity is None, purchased_quantity should not be set."""
+    body = {
+        "scan_id": None,
+        "patches": [
+            {
+                "item_id": "item-almendras",
+                "price": 1.15,
+                "price_per": None,
+                "store": "Mercadona",
+                "quantity": None,
+            }
+        ],
+        "mappings": [],
+    }
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+    session.expire_all()
+    assert session.get(ListItem, "item-almendras").purchased_quantity is None
