@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import './DashboardScreen.css'
 import { useAuth } from '../contexts/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
-import { getLists, createList, updateList, deleteList } from '../lib/api'
+import { getLists, createList, updateList, deleteList, submitFeedback } from '../lib/api'
+import type { FeedbackPayload } from '../lib/api'
 import { SortableListCard } from './SortableListCard'
 import { CreateListCard } from './CreateListCard'
 import { ListActionSheet } from './ListActionSheet'
 import { InstallBanner } from './InstallBanner'
 import { EmojiPickerSheet } from './EmojiPickerSheet'
+import { FeedbackSheet } from './FeedbackSheet'
 import { Wordmark } from './Wordmark'
 import { CURATED_EMOJIS } from '../lib/curated-emojis'
 import { usePWAInstall } from '../hooks/usePWAInstall'
@@ -73,6 +75,8 @@ export function DashboardScreen() {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
 
   useEffect(() => {
     if (!toast) return
@@ -127,6 +131,26 @@ export function DashboardScreen() {
       if (!cached && !silent) setFetchError(true)
     }
   }, [getToken, user])
+
+  const handleFeedbackSubmit = useCallback(
+    async (payload: FeedbackPayload) => {
+      if (!navigator.onLine) {
+        setToast('No se pudo enviar el feedback')
+        return
+      }
+      setFeedbackSubmitting(true)
+      try {
+        await submitFeedback(getToken, payload)
+        setFeedbackOpen(false)
+        setToast('Feedback enviado')
+      } catch {
+        setToast('No se pudo enviar el feedback')
+      } finally {
+        setFeedbackSubmitting(false)
+      }
+    },
+    [getToken],
+  )
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event
@@ -270,6 +294,13 @@ export function DashboardScreen() {
               <button
                 className="dashboard-screen__avatar-menu-item"
                 role="menuitem"
+                onClick={() => { setFeedbackOpen(true); setMenuOpen(false) }}
+              >
+                Enviar feedback
+              </button>
+              <button
+                className="dashboard-screen__avatar-menu-item"
+                role="menuitem"
                 onClick={() => { void signOut(); setMenuOpen(false) }}
               >
                 Cerrar sesión
@@ -321,6 +352,14 @@ export function DashboardScreen() {
           current={emojiList.emoji}
           onSelect={emoji => void handleEmojiChange(emojiList, emoji)}
           onClose={() => setEmojiList(null)}
+        />
+      )}
+      {feedbackOpen && (
+        <FeedbackSheet
+          defaultEmail={user?.email}
+          isSubmitting={feedbackSubmitting}
+          onSubmit={payload => void handleFeedbackSubmit(payload)}
+          onClose={() => setFeedbackOpen(false)}
         />
       )}
       {toast && (

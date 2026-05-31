@@ -265,6 +265,54 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
     expect(screen.queryByRole('menuitem', { name: /instalar app/i })).not.toBeInTheDocument()
   })
+
+  it('opens feedback sheet from avatar menu with the user email prefilled', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /enviar feedback/i }))
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: /enviar feedback/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(/email/i)).toHaveValue('alice@example.com')
+  })
+
+  it('submits feedback and shows success toast', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    vi.mocked(api.submitFeedback).mockResolvedValue({ id: 'fb-1', created_at: '2026-05-31T10:00:00' } as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /enviar feedback/i }))
+    fireEvent.change(screen.getByLabelText(/mensaje/i), { target: { value: 'Great app' } })
+    fireEvent.click(screen.getByRole('button', { name: /^enviar$/i }))
+
+    await waitFor(() => expect(api.submitFeedback).toHaveBeenCalledWith(mockGetToken, {
+      message: 'Great app',
+      email: 'alice@example.com',
+      source: 'manual',
+    }))
+    expect(screen.queryByRole('dialog', { name: /enviar feedback/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/feedback enviado/i)).toBeInTheDocument()
+  })
+
+  it('keeps feedback sheet open and shows failure toast when submit fails', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    vi.mocked(api.submitFeedback).mockRejectedValue(new Error('Network'))
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /enviar feedback/i }))
+    fireEvent.change(screen.getByLabelText(/mensaje/i), { target: { value: 'Great app' } })
+    fireEvent.click(screen.getByRole('button', { name: /^enviar$/i }))
+
+    await waitFor(() => expect(screen.getByText(/no se pudo enviar el feedback/i)).toBeInTheDocument())
+    expect(screen.getByRole('dialog', { name: /enviar feedback/i })).toBeInTheDocument()
+  })
 })
 
 describe('DashboardScreen — emoji', () => {

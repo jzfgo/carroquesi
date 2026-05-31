@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getLists, createList, createItem, updateItem, getListUpdatedAt, updateList, deleteList, getInvitePreview, acceptInvite, ApiError } from './api'
+import { getLists, createList, createItem, updateItem, getListUpdatedAt, updateList, deleteList, getInvitePreview, acceptInvite, ApiError, submitFeedback } from './api'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -164,5 +164,30 @@ describe('acceptInvite', () => {
         headers: expect.objectContaining({ Authorization: 'Bearer test-token' }),
       }),
     )
+  })
+})
+
+describe('submitFeedback', () => {
+  it('submitFeedback posts feedback payload', async () => {
+    mockFetch.mockReturnValue(mockResponse({ id: 'fb-1', created_at: '2026-05-31T10:00:00' }))
+
+    const result = await submitFeedback(mockGetToken, {
+      message: 'Great app',
+      email: 'alice@example.com',
+      source: 'manual',
+    })
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://localhost:8000/feedback',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          message: 'Great app',
+          email: 'alice@example.com',
+          source: 'manual',
+        }),
+      }),
+    )
+    expect(result).toEqual({ id: 'fb-1', created_at: '2026-05-31T10:00:00' })
   })
 })
