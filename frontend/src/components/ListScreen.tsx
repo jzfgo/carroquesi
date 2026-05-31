@@ -16,6 +16,7 @@ import type { ReceiptScanResult, PricePatch, NameMapping } from "../types/receip
 import ReceiptScanSheet from "./ReceiptScanSheet";
 import { computeCostSummary, purchasedDateLabel } from "../lib/itemCost";
 import { getLastPriceStore, setLastPriceStore } from "../lib/lastPriceStore";
+import { isDismissed, writeDismissal } from "../lib/dismissedSuggestions";
 import { parseInput } from "../parseInput";
 import type {
   BarcodeRead,
@@ -26,7 +27,7 @@ import type {
 } from "../types";
 import { BarcodeScanner } from "./BarcodeScanner";
 import { BarcodeScanSheet } from "./BarcodeScanSheet";
-import { FrequencySuggestionBanner } from "./FrequencySuggestionBanner";
+import { DueSuggestionsSheet } from "./DueSuggestionsSheet";
 import { ItemActionSheet } from "./ItemActionSheet";
 import { ItemList } from "./ItemList";
 import { ListHeader } from "./ListHeader";
@@ -80,6 +81,7 @@ export function ListScreen({
     null,
   );
   const [dueSuggestions, setDueSuggestions] = useState<DueSuggestion[]>([]);
+  const [dueSuggestionsOpen, setDueSuggestionsOpen] = useState(false);
   const [priceItemId, setPriceItemId] = useState<string | null>(null);
   const [logPriceFor, setLogPriceFor] = useState<{
     itemId: string;
@@ -94,6 +96,11 @@ export function ListScreen({
   } | null>(null);
   const handleDismissPurchaseToast = useCallback(
     () => setPurchaseToast(null),
+    [],
+  );
+
+  const handleDueSuggestionsClose = useCallback(
+    () => setDueSuggestionsOpen(false),
     [],
   );
 
@@ -440,6 +447,14 @@ export function ListScreen({
     [addItem],
   );
 
+  const handleSuggestionDismiss = useCallback(
+    (s: DueSuggestion) => {
+      writeDismissal(s.name, s.dismissal_ttl_days);
+      setDueSuggestions(prev => prev.filter(x => x.name !== s.name));
+    },
+    [],
+  );
+
   const { purchasedCount, totalCount } = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD' UTC
     const isPurchasedToday = (i: (typeof items)[number]) =>
@@ -479,6 +494,15 @@ export function ListScreen({
     () => items.filter(i => !i.purchased).length,
     [items],
   );
+
+  const filteredDueSuggestions = useMemo(
+    () => dueSuggestions.filter(s => !isDismissed(s.name)),
+    [dueSuggestions],
+  );
+
+  useEffect(() => {
+    if (filteredDueSuggestions.length === 0) setDueSuggestionsOpen(false);
+  }, [filteredDueSuggestions.length]);
 
   const { pendingCost, purchasedCostByDate } = useMemo(() => {
     const pendingItems: typeof filteredItems = [];
@@ -617,10 +641,6 @@ export function ListScreen({
       )}
       {!editingTag && !menuOpen && !activeItemId && (
         <div className="bottom-panel">
-          <FrequencySuggestionBanner
-            suggestions={dueSuggestions}
-            onAdd={handleSuggestionAdd}
-          />
           <SmartInputBar
             value={inputValue}
             parsed={parsed}
@@ -637,8 +657,18 @@ export function ListScreen({
             eanError={eanLookup.status === "error" ? eanLookup.message : null}
             inferredStoreChip={visibleChip}
             onDismissInferredStore={dismissInferredStore}
+            dueSuggestionsCount={filteredDueSuggestions.length}
+            onDueSuggestionsOpen={() => setDueSuggestionsOpen(true)}
           />
         </div>
+      )}
+      {dueSuggestionsOpen && filteredDueSuggestions.length > 0 && (
+        <DueSuggestionsSheet
+          suggestions={filteredDueSuggestions}
+          onAdd={handleSuggestionAdd}
+          onDismiss={handleSuggestionDismiss}
+          onClose={handleDueSuggestionsClose}
+        />
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
       {scannerOpen && (
