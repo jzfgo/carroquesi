@@ -324,15 +324,27 @@ export function useListItems(
       amount: number,
       pricePer: 'KILOGRAM' | null,
       store: string | null,
+      purchasedQuantity?: string | null,
     ) => {
       const item = itemsRef.current.find((i) => i.id === itemId)
       const payload = { amount, price_per: pricePer, store }
       const fn = item?.price != null ? updatePrice : logPrice
       await fn(getToken, listId, itemId, payload)
+      
+      if (purchasedQuantity !== undefined) {
+        await updateItem(getToken, listId, itemId, { purchased_quantity: purchasedQuantity })
+      }
+
       setItems((prev) =>
         prev.map((i) =>
           i.id === itemId
-            ? { ...i, price: amount, price_per: pricePer, price_store: store }
+            ? {
+                ...i,
+                price: amount,
+                price_per: pricePer,
+                price_store: store,
+                ...(purchasedQuantity !== undefined ? { purchased_quantity: purchasedQuantity } : {}),
+              }
             : i,
         ),
       )
