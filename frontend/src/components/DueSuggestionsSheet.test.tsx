@@ -11,6 +11,7 @@ const makeSuggestion = (name: string, overrides: Partial<DueSuggestion> = {}): D
   dismissal_ttl_days: 5,
   median_interval_days: 7,
   days_since_last: 8,
+  avg_quantity: null,
   ...overrides,
 })
 

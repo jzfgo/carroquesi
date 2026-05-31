@@ -94,6 +94,14 @@
   padding: 2px 7px;
 }
 
+.due-suggestions-sheet__chip--quantity {
+  font-size: 11px;
+  background: color-mix(in srgb, var(--ink-0) 8%, transparent);
+  color: var(--ink-1);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
 .due-suggestions-sheet__add {
   background: var(--tinta-0);
   color: var(--accent-fg);
