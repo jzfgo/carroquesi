@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import LogPriceSheet from './LogPriceSheet'
+import LogPurchaseSheet from './LogPurchaseSheet'
 import { isSameCalendarDay } from '../lib/isSameCalendarDay'
 import type { ListItem } from '../types'
 
@@ -28,11 +28,12 @@ describe('isSameCalendarDay', () => {
   })
 })
 
-describe('LogPriceSheet delete button', () => {
+describe('LogPurchaseSheet delete button', () => {
   const baseProps = {
     initialAmount: null,
     initialPricePer: null as null,
     initialStore: null,
+    initialPurchasedQuantity: null,
     onSave: vi.fn(),
     onClose: vi.fn(),
     onDelete: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -43,59 +44,107 @@ describe('LogPriceSheet delete button', () => {
   })
 
   it('is hidden when item has no price', () => {
-    render(<LogPriceSheet {...baseProps} item={BASE_ITEM} />)
+    render(<LogPurchaseSheet {...baseProps} item={BASE_ITEM} />)
     expect(screen.queryByRole('button', { name: /eliminar precio/i })).not.toBeInTheDocument()
   })
 
   it('is shown when item has a price and is unpurchased', () => {
     const item = { ...BASE_ITEM, price: 1.99 }
-    render(<LogPriceSheet {...baseProps} item={item} initialAmount={1.99} />)
+    render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
     expect(screen.getByRole('button', { name: /eliminar precio/i })).toBeInTheDocument()
   })
 
   it('is shown when item has a price and was purchased today', () => {
     const item = { ...BASE_ITEM, price: 1.99, purchased: true, purchased_at: new Date().toISOString() }
-    render(<LogPriceSheet {...baseProps} item={item} initialAmount={1.99} />)
+    render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
     expect(screen.getByRole('button', { name: /eliminar precio/i })).toBeInTheDocument()
   })
 
   it('is hidden when item has a price but was purchased on a previous day', () => {
     const yesterday = '2020-01-01T00:00:00.000Z'
     const item = { ...BASE_ITEM, price: 1.99, purchased: true, purchased_at: yesterday }
-    render(<LogPriceSheet {...baseProps} item={item} initialAmount={1.99} />)
+    render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
     expect(screen.queryByRole('button', { name: /eliminar precio/i })).not.toBeInTheDocument()
   })
 
   it('calls onDelete when the button is clicked', async () => {
     const onDelete = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
     const item = { ...BASE_ITEM, price: 1.99 }
-    render(<LogPriceSheet initialAmount={1.99} initialPricePer={null} initialStore={null} onSave={vi.fn()} onClose={vi.fn()} onDelete={onDelete} item={item} />)
+    render(<LogPurchaseSheet initialAmount={1.99} initialPricePer={null} initialStore={null} initialPurchasedQuantity={null} onSave={vi.fn()} onClose={vi.fn()} onDelete={onDelete} item={item} />)
     await userEvent.click(screen.getByRole('button', { name: /eliminar precio/i }))
     expect(onDelete).toHaveBeenCalledOnce()
   })
 })
 
-describe('LogPriceSheet — offline', () => {
+describe('LogPurchaseSheet — offline', () => {
   const baseProps = {
     initialAmount: 1.99,
     initialPricePer: null as null,
     initialStore: null,
+    initialPurchasedQuantity: null,
     onSave: vi.fn(),
     onClose: vi.fn(),
   }
 
   it('shows offline message when isOffline is true', () => {
-    render(<LogPriceSheet {...baseProps} item={BASE_ITEM} isOffline />)
+    render(<LogPurchaseSheet {...baseProps} item={BASE_ITEM} isOffline />)
     expect(screen.getByText(/disponible con conexión/i)).toBeInTheDocument()
   })
 
   it('disables save button when isOffline is true', () => {
-    render(<LogPriceSheet {...baseProps} item={BASE_ITEM} isOffline />)
+    render(<LogPurchaseSheet {...baseProps} item={BASE_ITEM} isOffline />)
     expect(screen.getByRole('button', { name: /guardar/i })).toBeDisabled()
   })
 
   it('does not show offline message when isOffline is false', () => {
-    render(<LogPriceSheet {...baseProps} item={BASE_ITEM} isOffline={false} />)
+    render(<LogPurchaseSheet {...baseProps} item={BASE_ITEM} isOffline={false} />)
     expect(screen.queryByText(/disponible con conexión/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('LogPurchaseSheet quantity and price calculation', () => {
+  it('calls onSave with updated price, store, and quantity when clicked', async () => {
+    const onSave = vi.fn()
+    const item = { ...BASE_ITEM }
+    render(
+      <LogPurchaseSheet
+        item={item}
+        initialAmount={1.5}
+        initialPricePer={null}
+        initialStore="Lidl"
+        initialPurchasedQuantity="3"
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    )
+
+    const qtyInput = screen.getByPlaceholderText(/ej\. 3/i)
+    await userEvent.clear(qtyInput)
+    await userEvent.type(qtyInput, '5')
+
+    const priceInput = screen.getByPlaceholderText('0.00')
+    await userEvent.clear(priceInput)
+    await userEvent.type(priceInput, '2.5')
+
+    await userEvent.click(screen.getByRole('button', { name: /guardar/i }))
+
+    expect(onSave).toHaveBeenCalledWith(2.5, null, 'Lidl', '5')
+  })
+
+  it('shows live cost preview when quantity and price are filled', async () => {
+    render(
+      <LogPurchaseSheet
+        item={BASE_ITEM}
+        initialAmount={2.0}
+        initialPricePer="KILOGRAM"
+        initialStore="Lidl"
+        initialPurchasedQuantity="500g"
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+
+    // 2.0 €/kg * 0.5 kg = 1.00 €
+    expect(screen.getByText(/€1\.00/i)).toBeInTheDocument()
   })
 })

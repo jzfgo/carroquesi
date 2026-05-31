@@ -1,21 +1,40 @@
 import { useState } from 'react'
 import type { ListItem } from '../types'
 import { isSameCalendarDay } from '../lib/isSameCalendarDay'
-import './LogPriceSheet.css'
+import { parseQuantityFactor } from '../lib/itemCost'
+import { formatPrice } from '../lib/formatPrice'
+import './LogPurchaseSheet.css'
 
 interface Props {
   item: ListItem
   initialAmount: number | null
   initialPricePer: 'KILOGRAM' | null
   initialStore: string | null
+  initialPurchasedQuantity: string | null
   suggestedStore?: string | null
-  onSave: (amount: number, pricePer: 'KILOGRAM' | null, store: string | null) => void
+  onSave: (
+    amount: number,
+    pricePer: 'KILOGRAM' | null,
+    store: string | null,
+    purchasedQuantity: string | null
+  ) => void
   onDelete?: () => Promise<void>
   onClose: () => void
   isOffline?: boolean
 }
 
-export default function LogPriceSheet({ item, initialAmount, initialPricePer, initialStore, suggestedStore, onSave, onDelete, onClose, isOffline }: Props) {
+export default function LogPurchaseSheet({
+  item,
+  initialAmount,
+  initialPricePer,
+  initialStore,
+  initialPurchasedQuantity,
+  suggestedStore,
+  onSave,
+  onDelete,
+  onClose,
+  isOffline
+}: Props) {
   const stores = item.stores ?? []
   // Guard again here so the component stays self-contained if reused elsewhere
   const effectiveSuggestion = stores.length === 0 ? (suggestedStore ?? null) : null
@@ -23,6 +42,7 @@ export default function LogPriceSheet({ item, initialAmount, initialPricePer, in
   const [amountStr, setAmountStr] = useState(initialAmount !== null ? String(initialAmount) : '')
   const [pricePer, setPricePer] = useState<'KILOGRAM' | null>(initialPricePer)
   const [selectedStore, setSelectedStore] = useState<string | null>(initialStore ?? effectiveSuggestion)
+  const [purchasedQtyStr, setPurchasedQtyStr] = useState(initialPurchasedQuantity ?? '')
   const [addingStore, setAddingStore] = useState(false)
   const [newStore, setNewStore] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -31,10 +51,21 @@ export default function LogPriceSheet({ item, initialAmount, initialPricePer, in
   const canSave = !isNaN(amount) && amount > 0
   const canDelete = item.price != null && !!onDelete && isSameCalendarDay(item.purchased_at)
 
+  const liveCost: number | null = (() => {
+    const price = parseFloat(amountStr)
+    if (isNaN(price) || price <= 0) return null
+    const trimmed = purchasedQtyStr.trim()
+    if (!trimmed) return null
+    const factor = parseQuantityFactor(trimmed, pricePer)
+    if (factor === null) return null
+    return price * factor
+  })()
+
   function handleSave() {
     if (!canSave) return
     const finalStore = addingStore && newStore.trim() ? newStore.trim() : selectedStore
-    onSave(amount, pricePer, finalStore)
+    const finalPurchasedQty = purchasedQtyStr.trim() || null
+    onSave(amount, pricePer, finalStore, finalPurchasedQty)
   }
 
   async function handleDelete() {
@@ -57,25 +88,56 @@ export default function LogPriceSheet({ item, initialAmount, initialPricePer, in
   return (
     <div className="lps">
       <div className="lps__handle" />
-      <div className="lps__title">💶 Añadir precio</div>
+      <div className="lps__title">🛒 Registrar compra</div>
       <div className="lps__subtitle">{item.name}{item.brand ? ` · ${item.brand}` : ''}</div>
+      
       <div className="lps__field">
-        <div className="lps__field-label">Precio pagado</div>
-        <div className="lps__input-row">
+        <div className="lps__field-label">Cantidad · Precio</div>
+        <div className="lps__qp-row">
+          <input
+            className="lps__qty-input"
+            type="text"
+            inputMode="decimal"
+            placeholder={item.quantity ?? 'ej. 3'}
+            value={purchasedQtyStr}
+            onChange={e => setPurchasedQtyStr(e.target.value)}
+          />
+          <span className="lps__sep">×</span>
           <span className="lps__euro">€</span>
-          <input className="lps__input" type="number" inputMode="decimal" placeholder="0.00"
-            value={amountStr} onChange={e => setAmountStr(e.target.value)} min="0" step="0.01" autoFocus />
+          <input
+            className="lps__input"
+            type="number"
+            inputMode="decimal"
+            placeholder="0.00"
+            value={amountStr}
+            onChange={e => setAmountStr(e.target.value)}
+            min="0"
+            step="0.01"
+            autoFocus
+          />
           <div className="lps__unit-toggle">
-            <button className={`lps__unit-btn${pricePer === null ? ' lps__unit-btn--active' : ''}`}
-              onClick={() => setPricePer(null)} type="button">/ud</button>
-            <button className={`lps__unit-btn${pricePer === 'KILOGRAM' ? ' lps__unit-btn--active' : ''}`}
-              onClick={() => setPricePer('KILOGRAM')} type="button">/kg</button>
+            <button
+              className={`lps__unit-btn${pricePer === null ? ' lps__unit-btn--active' : ''}`}
+              onClick={() => setPricePer(null)}
+              type="button"
+            >/ud</button>
+            <button
+              className={`lps__unit-btn${pricePer === 'KILOGRAM' ? ' lps__unit-btn--active' : ''}`}
+              onClick={() => setPricePer('KILOGRAM')}
+              type="button"
+            >/kg</button>
           </div>
         </div>
-        <div className="lps__legend">
-          Introduce el precio normalizado: por unidad (ej. €0.89 por un cartón de leche) o por kg (ej. €3.20/kg de arroz a granel).
+        <div className="lps__qp-footer">
+          <span className="lps__legend">
+            Introduce unidades (ej. 3) o peso (ej. 487g, 1.2kg)
+          </span>
+          {liveCost !== null && (
+            <span className="lps__live-cost">≈ {formatPrice(liveCost)}</span>
+          )}
         </div>
       </div>
+
       <div className="lps__field lps__field--last">
         <div className="lps__field-label">Tienda</div>
         <div className="lps__chips">
