@@ -1,0 +1,11 @@
+# Codex CLI project configuration for CarroQueSí
+
+[agent]
+instructions = "AGENTS.md"
+
+[approval_policy]
+# Pre-approve read operations to speed up execution
+read_file = "allow"
+# Prompt the user for write and execute operations
+write_file = "ask"
+run_command = "ask"
