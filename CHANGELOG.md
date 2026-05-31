@@ -7,18 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.16.0] — 2026-05-31
 
 ### Added
-- Add option to buy a purchased item again
+- Add option to buy a purchased item again (Option 2) (#59)
 
-- Display Buy Again as inline tag pill on purchased ItemCards (Option 2)
+- Add feedback submission model
+
+- Replace FrequencySuggestionBanner with DueSuggestionsSheet (#58) (#60)
+
+- Complete in-app feedback flow implementation and verification (#61)
+
+- Suggest average quantity in due suggestions (#62)
 
 
 ### Fixed
 - Delete receipt_scans before list to avoid FK violation (#57)
 
 - Add autocomplete suggestions directly (#58)
+
+- Merge alembic heads to unblock backend deployment
+
+- Round avg_quantity to integer in due suggestions
 
 
 ---
