@@ -1,0 +1,11 @@
+{
+  "agent": {
+    "name": "CarroQueSí Developer Agent",
+    "instructions": "AGENTS.md"
+  },
+  "permissions": {
+    "read_file": "allow",
+    "write_file": "ask",
+    "run_command": "ask"
+  }
+}

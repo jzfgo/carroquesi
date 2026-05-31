@@ -1,0 +1,275 @@
+# Developer & Agent Guidelines (AGENTS.md)
+
+This file provides guidance to coding agents (such as Antigravity CLI, Claude Code, Codex CLI, OpenCode, Pi Coding Agent, etc.) and developers when working with code in this repository.
+
+## Project Overview
+
+**CarroQueSí** is a collaborative grocery list app where multiple users share lists, mark items as purchased, receive product suggestions from purchase history, and log prices by scanning receipts with Gemini AI.
+
+## Architecture
+
+- `frontend/`: React + TypeScript (Vite), deployed to Firebase Hosting
+- `backend/`: FastAPI + PostgreSQL (Docker), deployed to Cloud Run
+
+- Auth: Google Sign-In via Firebase Auth; frontend sends `Authorization: Bearer <token>`, backend validates with Firebase Admin SDK
+
+- Data path: all CRUD goes through FastAPI + PostgreSQL (no Firestore)
+- Sync: frontend polls `GET /lists/{list_id}/updated-at` every 5s and re-fetches when timestamp changes
+
+## Core Data Model
+
+- `users`: user profile and Firebase identity (`firebase_uid`)
+- `lists`: list metadata and ownership (`owner_id`)
+- `list_members`: list membership links
+- `list_items`: item data, purchase state (`purchased_at`), and pricing (`price`, `price_per`, `price_store`)
+- `list_invites`: opt-in invitations; `id` is the share token
+- `barcode_cache`: cached barcode lookup data
+- `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results)
+- `receipt_name_mappings`: learned receipt→item name mappings per store; improves auto-matching on future scans
+
+Important invariants:
+
+- bump `lists.updated_at` on item writes, member changes, and list rename
+- `list_items.purchased_at = NULL` means unpurchased; first purchase sets timestamp
+- keep derived `purchased: bool` in API responses for backward compatibility
+- invite acceptance is explicit before access is granted
+
+## Frontend
+
+### Commands
+
+Prefer `just` from repo root (`just` lists recipes). Direct `npm` commands when needed:
+
+```bash
+cd frontend
+npm install
+npm run dev
+npm run build
+npm run preview
+npm run test
+npm run test -- path/to/file.test.tsx  # run a single test file
+npm run lint
+# root tsconfig has files:[]; use this for real frontend typecheck:
+node_modules/.bin/tsc -p tsconfig.app.json --noEmit
+```
+
+### PWA
+
+PWA uses `vite-plugin-pwa`; service worker is active in dev (`devOptions.enabled: true`). `sw.js` is Workbox-generated and should not be edited manually.
+
+### Dev auth bypass
+
+Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|seed-bob|seed-carol` in `frontend/.env` to bypass Google Sign-In locally. Frontend sends `X-Dev-User-Id` and backend resolves the user from it. **Never enable this in production.**
+
+### Key conventions
+
+- Mobile-first, card-based layout
+- Sticky "Smart Input" bar fixed at the bottom of the screen
+- Firebase SDK used in the frontend for Auth (Google Sign-In) and AI (Gemini receipt parsing via Firebase AI SDK)
+- All data fetched from the FastAPI backend via REST
+- Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
+- A ✨ button sits left of the SmartInputBar text input, showing a badge with the count of due suggestions; tapping it opens `DueSuggestionsSheet` (a bottom sheet titled "Toca comprar") listing all due items with a purple frequency chip (`cada semana`) and a green recency chip (`hace 8 días`), per-row add/dismiss buttons; dismissals are persisted in `localStorage` (`cqs_dismissed_suggestions`) with a TTL computed by the backend
+- `FilterBar` renders above the item list when the list has any items with stores. It has two modes: **chip mode** (one chip per distinct store, "Todas" resets the filter) and **search mode** (slide-in text input, accepts full sigil syntax). `filterItems()` in `frontend/src/hooks/useItemFilter.ts` reuses `parseInput` to match text, `@store`, and `#brand` simultaneously.
+- `lookupOwnBrandStore(brand)` in `frontend/src/lib/ownBrands.ts` maps ~50 Spanish own-brand names (e.g. `Hacendado` → `Mercadona`, `Milbona` → `Lidl`) to their parent store; `useOwnBrandInference` auto-fills the `@store` chip when a matching brand is typed in SmartInputBar.
+- `cqs_last_price_store` (localStorage, 1-hour TTL) persists the last store used in `LogPriceSheet` to pre-fill the store field on the next price log
+- Settings are now accessible through the user menu for theme customization
+- `PriceHistorySheet` groups entries by store client-side and renders an SVG sparkline per store; the expanded view shows a larger chart + last/min/max stats. `PriceEntry` includes `purchased_at` for the time axis.
+- `ListScreen` shows running cost totals next to section labels (client-side only, `frontend/src/lib/itemCost.ts`):
+  - Unpurchased section → estimated total (accent/purple); purchased date labels → daily spent (green)
+  - `≥` prefix when any item has no price or an unresolvable per-kg quantity
+  - `parseQuantityFactor(quantity, pricePer)` rules: SI units `g kg ml cl dl l` supported (comma/dot decimal, optional trailing `.`); 1 L = 1 kg; `price_per=null` + SI unit → ×1 (pack descriptor); `price_per=null` + plain number → count multiplier; `price_per='KILOGRAM'` without a recognised SI unit → `null` (excluded, triggers `≥`)
+  - `purchasedDateLabel(purchased_at)` is the canonical date-label function — used by both `ListScreen` and `ItemList` so grouping keys always match
+
+### SmartInputBar sigil system
+
+The input bar parses sigils from free text via `parseInput.ts` → `ParsedInput`:
+
+- `+` quantity (e.g. `+2`, `+1 bolsa`)
+- `#` brand (e.g. `#Danone`)
+- `@` store — multiple allowed (e.g. `@Mercadona @Lidl`)
+- `|` EAN barcode — 8 or 13 digits only (e.g. `|4011200296908`); triggers a barcode lookup via `getBarcode()` and opens `BarcodeScanSheet` on success. Can combine with `#`/`@` to pre-fill brand/store in the sheet.
+
+Sigil values containing spaces must be quoted with double or single quotes (e.g. `#"El Corte Inglés"`, `@'Carrefour Express'`). Unclosed quotes pass through unchanged.
+
+Price display throughout the app uses `formatPrice(amount, pricePer?)` from `frontend/src/lib/formatPrice.ts` — an `Intl.NumberFormat`-based formatter that renders locale-aware currency strings.
+
+When `parsed.ean` is set, the input is in **EAN mode**: the regular parse preview is hidden, an EAN preview with a "Buscar" CTA is shown, and the add button is disabled. `ListScreen` holds an `EanLookupState` discriminated union (`idle | loading | found | error`) and passes `onEanSearch`, `eanLoading`, `eanError` to `SmartInputBar`.
+
+A **clear button** (✕) replaces the camera scan button whenever the input has text. The camera button opens the barcode scanner (`BarcodeScanSheet`).
+
+### Receipt scanning
+
+Entry point: a CTA button shown when the unpurchased list is empty. Four-step flow for bulk price logging from a receipt photo:
+
+1. **Client-side parse** — `frontend/src/lib/receiptAi.ts` sends the image to Gemini (Firebase AI SDK, `PREFER_IN_CLOUD` mode) with a structured JSON schema; returns store, date, total, and line items tagged as `UNIT` / `KILOGRAM` / `MULTI`.
+2. **Backend match** — `POST /lists/{list_id}/receipt` runs `receipt_matcher.py`, which fuzzy-matches parsed line names against purchased items (consulting `receipt_name_mappings` for learned aliases), returns `ReceiptScanResult` (`matched` + `unmatched`), and persists an audit record in `receipt_scans`.
+3. **User review** — `ReceiptScanSheet` shows auto-matched items (checkbox to confirm/reject) and unmatched lines (dropdown to link to a purchased item or skip).
+4. **Apply prices** — `POST /lists/{list_id}/receipt-prices` writes price/store patches to `list_items` and upserts confirmed mappings into `receipt_name_mappings` for future scans.
+
+`VITE_RECAPTCHA_SITE_KEY` is required in production for Firebase App Check (reCAPTCHA v3), which protects the Gemini AI backend. In dev it is skipped automatically.
+
+### Purchased item rules
+
+Purchased items (`item.purchased === true`) are **mostly read-only** in the UI. Allowed: unchecking, deleting, viewing price history, **logging/updating price**. Disallowed: rename, quantity/brand/store edits. `ItemCard` renders non-price tags as `<span>` (not `<button>`) for purchased items and hides quantity/brand/store add CTAs. `ItemActionSheet` hides the rename option. `PriceHistorySheet` is passed `readOnly` for **unpurchased** items (view-only), never for purchased items (price logging is only meaningful after purchase). Unpurchased items always show a 💶 button to access price history (view-only).
+
+Price deletion has a **same-day guard**: the delete button in `LogPriceSheet` is only shown when `isSameCalendarDay(item.purchased_at)` is true (frontend), and the backend `DELETE /lists/{id}/items/{item_id}/prices` enforces the same rule, returning 422 for prior-day purchases.
+
+### Testing conventions
+
+- When mocking `react-router-dom` (or any module where you only need to override specific exports), use `importOriginal` to avoid stripping the real module's exports:
+  ```ts
+  vi.mock("react-router-dom", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("react-router-dom")>();
+    return {
+      ...actual,
+      useLocation: vi.fn(),
+      useNavigate: vi.fn().mockReturnValue(vi.fn()),
+    };
+  });
+  ```
+- Plain `vi.mock('module', () => ({ ... }))` replaces the entire module — any hook or class not listed will be missing and throw at runtime.
+
+## Backend
+
+Requires **Python 3.13** (pinned in `backend/.python-version`).
+
+### Commands
+
+Prefer `just` from repo root (`just` lists recipes). Direct `uv` commands when needed:
+
+```bash
+cd backend
+uv sync                              # install / sync dependencies
+uv run fastapi dev --host 0.0.0.0 --port 8000 # dev server
+uv run pytest                        # run all tests
+uv run pytest tests/path/to/test.py  # run single test file
+uv add <package>                     # add a dependency
+uv run alembic upgrade head          # run migrations
+uv run alembic revision --autogenerate -m "description"  # generate migration
+uv run python scripts/seed.py        # seed local DB with test data (or: just seed)
+```
+
+### Key conventions
+
+- FastAPI app entrypoint: `backend/app/main.py`
+- ORM: **SQLModel** (canonical FastAPI approach). Migrations via **Alembic**.
+- Settings via `pydantic_settings` in `backend/app/core/config.py`, loaded from `backend/.env`
+- Firebase Admin SDK init in `backend/app/core/firebase.py` — singleton pattern
+- Auth dependency in `backend/app/dependencies.py`: `get_current_user`, `require_member`, `require_owner`
+- Schemas (request/response Pydantic models) in `backend/app/schemas/`
+- Tests use SQLite in-memory (via `StaticPool`) — no Postgres needed to run the test suite
+- Dockerized: `backend/Dockerfile` → deployed to Cloud Run; runs `alembic upgrade head` on startup
+
+### Project layout
+
+```
+backend/
+├── app/
+│   ├── main.py
+│   ├── core/
+│   │   ├── config.py        # Settings (DATABASE_URL, FIREBASE_CREDENTIALS_PATH, ALLOWED_ORIGINS)
+│   │   ├── firebase.py      # Firebase Admin SDK init + verify_id_token()
+│   │   └── http.py          # Shared httpx headers (User-Agent) for outbound API calls
+│   ├── db/
+│   │   ├── session.py       # SQLModel engine + get_session dependency
+│   │   └── models.py        # SQLModel table models
+│   ├── routers/
+│   │   ├── auth.py          # POST /auth/sync
+│   │   ├── lists.py         # GET/POST/PATCH/DELETE /lists[/{id}]
+│   │   ├── members.py       # GET/POST/DELETE /lists/{id}/members[/{user_id}]
+│   │   ├── items.py         # GET/POST/PATCH/DELETE /lists/{id}/items[/{id}]
+│   │   ├── invites.py       # GET/POST/DELETE /invites[/{id}[/accept]]
+│   │   ├── prices.py        # GET/POST /lists/{id}/items/{item_id}/prices
+│   │   ├── suggestions.py   # GET /lists/{id}/due-suggestions, GET /lists/{id}/updated-at
+│   │   ├── barcode.py       # GET /barcode/{ean} — OpenFoodFacts lookup + local cache
+│   │   ├── receipt.py       # POST /lists/{id}/receipt (parse + match), POST /lists/{id}/receipt-prices (apply)
+│   │   └── share.py         # GET /i/{invite_id} — OG meta-tag preview page for invite links
+│   ├── schemas/             # Pydantic request/response models (one file per router; due_suggestions.py for DueSuggestionRead)
+│   ├── services/
+│   │   ├── community_price.py  # Open Prices API lookup with negative-cache; shared by barcode + prices routers
+│   │   └── receipt_matcher.py  # Fuzzy name matching of receipt lines to purchased items; consults receipt_name_mappings
+│   └── dependencies.py      # get_current_user, require_member, require_owner
+└── alembic/                 # Migrations
+```
+
+### Environment variables
+
+```
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/carroquesi
+FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
+ALLOWED_ORIGINS=["http://localhost:5173"]
+DEV_AUTH_BYPASS=true   # local only — skips Firebase token validation
+
+Frontend (`frontend/.env.local`):
+
+VITE_BACKEND_URL=http://localhost:8000
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
+VITE_RECAPTCHA_SITE_KEY=...   # Firebase App Check (reCAPTCHA v3) — required in production for AI
+```
+
+## Infrastructure
+
+- Firebase project config lives in `frontend/src/lib/firebase.ts` (Auth only — no Firestore, no Storage)
+- Environment variables go in `.env` files — never committed
+- Cloud Run service URL stored as an env var in the frontend for API calls
+
+## Workflows
+
+### General Workflow
+
+Always use a git worktree (via the `/worktrunk` skill) to isolate branch work before starting any feature, bugfix, or PR review. Never work directly on `main`.
+Standard flow for any non-trivial task:
+
+- Check `git status --short` before making changes
+- Implement the smallest complete fix first, then iterate
+- Run relevant validation commands before committing/pushing
+- Re-check `git status --short` to confirm only intentional files changed
+
+### Git Workflow
+
+- Use squash merge for PRs by default
+- When asked to 'update X', assume this includes committing and pushing unless stated otherwise
+- Always check git status for untracked changes before assuming worktree is clean
+- For CI: use `npm ci` for clean installs
+- If the current worktree contains unrelated or unexpected changes, stop and ask before proceeding
+
+### Changelog & Release Workflow
+
+- `CHANGELOG.md` is the canonical record of what shipped.
+- `TODO.md` tracks only open work items — remove entries when they ship.
+- `cliff.toml` drives automated generation via `git-cliff`. Commit types map as: `feat` → Added, `fix` → Fixed, `refactor/perf` → Changed; `chore/docs/test/ci` are excluded.
+- A `pre-push` git hook (`hooks/pre-push`) aborts if `CHANGELOG.md` is out of date and prompts you to run `just changelog`, commit, and push again. Activate with `just setup` after cloning (requires `git-cliff`: `brew install git-cliff`).
+- Before a release:
+  1. Run `just changelog` — prepends new commits to `CHANGELOG.md` under `## [Unreleased]`
+  2. Rename `## [Unreleased]` to the new version + date (e.g. `## [0.11.0] — 2026-05-01`)
+  3. Commit and tag: `git tag vX.Y.Z`
+
+### Local Dev Environment
+
+- Use nvm (respect `.nvmrc`) for Node version management
+- Use uv for Python toolchain and virtual environment management
+- Backend uses FastAPI with Firebase; ensure `.env` and Firebase config are present before running
+- Frontend typecheck must use `tsconfig.app.json` (root tsconfig.json has files:[] and silently passes)
+- Never commit platform-specific (darwin/linux) native bindings to `package-lock.json`
+
+## Bug Investigation
+
+- When user reports a bug, investigate and attempt a concrete fix before declaring scope issues
+- Limit exploration to ~3-5 file reads before either fixing or asking a targeted question
+- Don't silently change URLs, endpoints, or external identifiers (e.g., es.openfoodfacts.org → world.openfoodfacts.org)
+
+## Validation Checklist
+
+- Frontend changes: run lint, relevant tests, and `just frontend typecheck`
+- Backend changes: run relevant `just backend test-file {file}` tests (full suite when feasible `just backend test`)
+- Before push: verify only intentional files are changed and no platform-specific native binding churn was introduced in `package-lock.json`
+- Shortcut: `just ci` runs frontend typecheck + lint + backend tests in one shot
+
+## Out of Scope
+
+- Submitting prices to Open Prices (requires proof image + OSM location)
