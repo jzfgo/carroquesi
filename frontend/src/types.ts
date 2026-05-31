@@ -46,6 +46,7 @@ export interface DueSuggestion {
   dismissal_ttl_days: number
   median_interval_days: number
   days_since_last: number
+  avg_quantity: number | null
 }
 
 export interface BarcodeRead {

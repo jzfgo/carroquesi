@@ -440,7 +440,7 @@ export function ListScreen({
         name: s.name,
         brand: s.brand,
         stores: s.stores,
-        quantity: null,
+        quantity: s.avg_quantity !== null ? String(s.avg_quantity) : null,
       });
       setDueSuggestions((prev) => prev.filter((x) => x.name !== s.name));
     },

@@ -1,6 +1,7 @@
+import re
 from collections import defaultdict
 from datetime import datetime, timezone
-from statistics import median
+from statistics import mean, median
 from typing import Annotated
 
 from fastapi import APIRouter, Query
@@ -12,6 +13,17 @@ from app.schemas.due_suggestions import DueSuggestionRead
 from app.schemas.suggestions import SuggestionRead
 
 router = APIRouter(tags=["suggestions"])
+
+_LEADING_NUMBER = re.compile(r"^\+?([0-9]+(?:[.,][0-9]+)?)")
+
+
+def _parse_quantity_numeric(q: str | None) -> float | None:
+    if not q:
+        return None
+    m = _LEADING_NUMBER.match(q.strip())
+    if not m:
+        return None
+    return float(m.group(1).replace(",", "."))
 
 
 @router.get("/suggestions", response_model=list[SuggestionRead])
@@ -124,6 +136,14 @@ def get_due_suggestions(
         if not (lower <= days_since_last <= upper):
             continue
 
+        numeric_quantities = [
+            v for i in items if (v := _parse_quantity_numeric(i.quantity)) is not None
+        ]
+        avg_quantity: float | None = None
+        if numeric_quantities:
+            raw = mean(numeric_quantities)
+            avg_quantity = round(raw) if raw == int(raw) else round(raw, 1)
+
         most_recent = max(items, key=lambda i: i.purchased_at)
         results.append(
             DueSuggestionRead(
@@ -134,6 +154,7 @@ def get_due_suggestions(
                 dismissal_ttl_days=upper - days_since_last,
                 median_interval_days=median_interval,
                 days_since_last=days_since_last,
+                avg_quantity=avg_quantity,
             )
         )
 

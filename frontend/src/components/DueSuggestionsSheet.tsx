@@ -51,6 +51,11 @@ export function DueSuggestionsSheet({ suggestions, onAdd, onDismiss, onClose }: 
                     <span className="due-suggestions-sheet__chip--recency">
                       {formatRecency(s.days_since_last)}
                     </span>
+                    {s.avg_quantity !== null && (
+                      <span className="due-suggestions-sheet__chip--quantity">
+                        ×{s.avg_quantity}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button
