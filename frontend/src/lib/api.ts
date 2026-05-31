@@ -104,6 +104,7 @@ export function updateItem(
     purchased: boolean
     name: string
     quantity: string | null
+    purchased_quantity: string | null
     brand: string | null
     stores: string[]
   }>,
