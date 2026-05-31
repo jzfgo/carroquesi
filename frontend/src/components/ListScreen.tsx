@@ -33,7 +33,7 @@ import { ItemList } from "./ItemList";
 import { ListHeader } from "./ListHeader";
 import { ListMembersSheet } from "./ListMembersSheet";
 import "./ListScreen.css";
-import LogPriceSheet from "./LogPriceSheet";
+import LogPurchaseSheet from "./LogPurchaseSheet";
 import PriceHistorySheet from "./PriceHistorySheet";
 import { ProgressBar } from "./ProgressBar";
 import PurchaseToast from "./PurchaseToast";
@@ -344,10 +344,11 @@ export function ListScreen({
       amount: number,
       pricePer: "KILOGRAM" | null,
       store: string | null,
+      purchasedQuantity: string | null,
     ) => {
       if (!logPriceFor) return;
       try {
-        await savePrice(logPriceFor.itemId, amount, pricePer, store);
+        await savePrice(logPriceFor.itemId, amount, pricePer, store, purchasedQuantity);
         if (store) setLastPriceStore(store);
       } catch {
         // non-critical
@@ -734,11 +735,12 @@ export function ListScreen({
                 onClick={() => setLogPriceFor(null)}
               />
               <div className="sheet-container">
-                <LogPriceSheet
+                <LogPurchaseSheet
                   item={logItem}
                   initialAmount={logPriceFor.initialAmount}
                   initialPricePer={logPriceFor.initialPricePer}
                   initialStore={logPriceFor.initialStore}
+                  initialPurchasedQuantity={logItem.purchased_quantity ?? null}
                   suggestedStore={logPriceFor.suggestedStore}
                   onSave={handleSavePrice}
                   onDelete={handleDeletePrice}
