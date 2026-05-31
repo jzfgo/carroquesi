@@ -68,7 +68,11 @@ export function computeCostSummary(items: ListItem[]): CostSummary | null {
       partial = true
       continue
     }
-    const factor = parseQuantityFactor(item.quantity, item.price_per)
+    const effectiveQty =
+      item.purchased && item.purchased_quantity != null
+        ? item.purchased_quantity
+        : item.quantity
+    const factor = parseQuantityFactor(effectiveQty, item.price_per)
     if (factor === null) {
       partial = true
       continue

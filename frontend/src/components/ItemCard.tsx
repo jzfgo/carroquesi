@@ -26,6 +26,12 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
     ? { background: 'var(--tinta-0)', color: 'var(--accent-fg)' }
     : { background: 'var(--paper-2)', color: 'var(--ink-1)' }
 
+  // For purchased items, show actual purchased qty; fall back to planned qty.
+  const displayQty =
+    item.purchased && item.purchased_quantity != null
+      ? item.purchased_quantity
+      : item.quantity
+
   return (
     <div className={`item-card${item.purchased ? ' item-card--purchased' : ''}`}>
       <button
@@ -39,16 +45,16 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
       <div className="item-card__body">
         <div className="item-card__name-row">
           <span className="item-card__name">{item.name}</span>
-          {item.quantity ? (
+          {displayQty ? (
             item.purchased ? (
-              <span className="item-card__qty">{item.quantity}</span>
+              <span className="item-card__qty">{displayQty}</span>
             ) : (
               <button
                 className="item-card__qty"
                 onClick={() => onTagClick(item.id, 'quantity')}
-                aria-label={item.quantity}
+                aria-label={displayQty}
               >
-                {item.quantity}
+                {displayQty}
               </button>
             )
           ) : (

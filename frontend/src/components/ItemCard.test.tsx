@@ -165,3 +165,28 @@ test('does not render "Volver a comprar" when item is not purchased', () => {
   render(<ItemCard item={BASE_ITEM} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} onClone={onClone} />)
   expect(screen.queryByRole('button', { name: /volver a comprar/i })).not.toBeInTheDocument()
 })
+
+test('shows purchased_quantity chip instead of quantity when purchased', () => {
+  const item = {
+    ...BASE_ITEM,
+    purchased: true,
+    purchased_at: '2026-05-31T10:00:00',
+    quantity: '2',
+    purchased_quantity: '487g',
+  }
+  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
+  expect(screen.getByText('487g')).toBeInTheDocument()
+  expect(screen.queryByText('2')).not.toBeInTheDocument()
+})
+
+test('shows planned quantity as fallback when purchased but no purchased_quantity', () => {
+  const item = {
+    ...BASE_ITEM,
+    purchased: true,
+    purchased_at: '2026-05-31T10:00:00',
+    quantity: '3',
+    purchased_quantity: null,
+  }
+  render(<ItemCard item={item} members={MEMBERS} onTogglePurchased={() => {}} onTagClick={() => {}} onMenuOpen={() => {}} />)
+  expect(screen.getByText('3')).toBeInTheDocument()
+})

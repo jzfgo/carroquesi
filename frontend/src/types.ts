@@ -3,6 +3,7 @@ export interface ListItem {
   list_id: string
   name: string
   quantity: string | null
+  purchased_quantity?: string | null
   brand: string | null
   stores: string[]
   purchased: boolean
