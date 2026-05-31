@@ -272,3 +272,31 @@
 
 .smart-input__clear-icon::before { transform: translate(-50%, -50%) rotate(45deg); }
 .smart-input__clear-icon::after  { transform: translate(-50%, -50%) rotate(-45deg); }
+
+.smart-input__due-btn {
+  background: color-mix(in srgb, var(--tinta-0) 15%, transparent);
+  border: none;
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-family: inherit;
+  color: var(--tinta-0);
+  font-size: var(--fs-16);
+  line-height: 1;
+}
+
+.smart-input__due-badge {
+  background: var(--tinta-0);
+  color: var(--paper-0);
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.4;
+}

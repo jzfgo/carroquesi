@@ -108,3 +108,31 @@ def test_due_suggestions_non_member_forbidden(other_client: TestClient, client: 
     lst = client.post("/lists", json={"name": "Private"}).json()
     response = other_client.get(f"/lists/{lst['id']}/due-suggestions")
     assert response.status_code == 403
+
+
+def test_due_suggestions_includes_median_interval_days(client: TestClient, session: Session, user):
+    lst = _create_list(client)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    # 3 purchases 14 days apart; median gap = 14
+    for i in range(3, 0, -1):
+        _add_purchased(session, lst["id"], user.id, "Butter", now - timedelta(days=14 * i))
+
+    response = client.get(f"/lists/{lst['id']}/due-suggestions")
+    assert response.status_code == 200
+    data = response.json()
+    butter = next(s for s in data if s["name"] == "Butter")
+    assert abs(butter["median_interval_days"] - 14) < 0.1
+
+
+def test_due_suggestions_includes_days_since_last(client: TestClient, session: Session, user):
+    lst = _create_list(client)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    # Last purchase exactly 14 days ago; median=14
+    for i in range(3, 0, -1):
+        _add_purchased(session, lst["id"], user.id, "Cream", now - timedelta(days=14 * i))
+
+    response = client.get(f"/lists/{lst['id']}/due-suggestions")
+    assert response.status_code == 200
+    data = response.json()
+    cream = next(s for s in data if s["name"] == "Cream")
+    assert abs(cream["days_since_last"] - 14) < 0.1
