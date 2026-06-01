@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Tag, Store, ScanBarcode } from 'lucide-react'
+import { Tag, Store, ScanBarcode, Sparkles } from 'lucide-react'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem, ParsedInput, Suggestion } from '../types'
 import './SmartInputBar.css'
@@ -193,7 +193,7 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             aria-label={`Sugerencias pendientes (${dueSuggestionsCount})`}
             type="button"
           >
-            ✨
+            <Sparkles size={18} />
             <span className="smart-input__due-badge">{dueSuggestionsCount}</span>
           </button>
         )}
