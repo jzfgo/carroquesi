@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.17.0] — 2026-06-01
+
+### Added
+- Support multiple agent harnesses via unified AGENTS.md (#63)
+
+- Implement purchased quantity support (#64)
+
+- Migrate to lucide-react icons and UI polish (#65)
+
+
+### Fixed
+- **ui:** Prevent add button overflow in SmartInputBar + swap ✨ for Sparkles icon (#66)
+
+- **ui:** Replace remaining emoji stragglers with lucide icons (#67)
+
+
+---
 ## [0.16.0] — 2026-05-31
 
 ### Added
