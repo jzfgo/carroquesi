@@ -13,7 +13,7 @@
   background: var(--paper-0);
   border-radius: 16px 16px 0 0;
   border-top: 1px solid var(--border);
-  padding: 20px 16px 32px;
+  padding: 0 16px 32px;
   z-index: 201;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
 }
@@ -23,7 +23,8 @@
   height: 4px;
   background: var(--border);
   border-radius: 2px;
-  margin: 0 auto 12px;
+  margin: 10px auto 12px;
+  touch-action: none;
 }
 
 .store-edit-sheet__header {

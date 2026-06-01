@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { Pencil, Globe, Store, Tag } from 'lucide-react'
 import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
 import './BarcodeScanSheet.css'
@@ -29,6 +30,9 @@ export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, 
     new Set(initialStores ?? [])
   )
 
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
+
   const displayBrand = initialBrand !== undefined ? initialBrand : product.brand
 
   function toggleStore(store: string) {
@@ -43,7 +47,8 @@ export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, 
   return (
     <>
       <div className="bss__overlay" onClick={onClose} />
-      <div className="bss">
+      <div className="bss" ref={sheetRef}>
+        <div className="bss__handle" {...swipe} />
         <div className="bss__header">Producto encontrado</div>
 
         <div className="bss__product-row">

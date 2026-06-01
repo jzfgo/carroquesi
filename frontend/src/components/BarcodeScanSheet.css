@@ -13,8 +13,17 @@
   z-index: 201;
   background: var(--paper-0);
   border-radius: 20px 20px 0 0;
-  padding: 20px 20px 36px;
+  padding: 0 20px 36px;
   border-top: 1px solid var(--border);
+}
+
+.bss__handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 10px auto 12px;
+  touch-action: none;
 }
 
 .bss__header {

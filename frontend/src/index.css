@@ -25,6 +25,9 @@
   --shadow:               var(--shadow-md);
 }
 
+/* Align all lucide-react icons with surrounding text */
+.lucide { vertical-align: middle; }
+
 #root {
   width: 1126px;
   max-width: 100%;

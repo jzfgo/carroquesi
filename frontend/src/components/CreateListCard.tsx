@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import './CreateListCard.css'
 import { Mascot } from './Mascot'
 
@@ -59,6 +60,13 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
         onClick={() => void handleSubmit()}
       >
         Crear lista
+      </button>
+      <button
+        className="create-list-card--cancel"
+        onClick={() => { setExpanded(false); setName('') }}
+        aria-label="Cancelar"
+      >
+        <X size={16} />
       </button>
     </div>
   )

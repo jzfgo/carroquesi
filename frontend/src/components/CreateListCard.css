@@ -61,3 +61,14 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.create-list-card--cancel {
+  background: none;
+  border: none;
+  padding: 4px;
+  color: var(--ink-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}

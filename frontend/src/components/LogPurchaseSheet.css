@@ -9,6 +9,7 @@
   background: var(--border);
   border-radius: 2px;
   margin: 10px auto 12px;
+  touch-action: none;
 }
 .lps__title {
   font-size: 16px;
@@ -49,6 +50,7 @@
 }
 .lps__input {
   flex: 1;
+  min-width: 0;
   background: var(--paper-1);
   border: none;
   border-radius: 10px;
@@ -63,6 +65,7 @@
 }
 .lps__unit-toggle {
   display: flex;
+  flex-shrink: 0;
   background: var(--paper-1);
   border-radius: 8px;
   overflow: hidden;
@@ -78,7 +81,7 @@
 }
 .lps__unit-btn--active {
   background: var(--accent);
-  color: var(--ink-0);
+  color: var(--accent-fg);
   border-radius: 8px;
 }
 .lps__legend {
@@ -136,7 +139,7 @@
   width: calc(100% - 32px);
   margin: 14px 16px 8px;
   background: var(--accent);
-  color: var(--ink-0);
+  color: var(--accent-fg);
   font-size: 15px;
   font-weight: 700;
   padding: 14px;
