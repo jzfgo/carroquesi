@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { Store } from 'lucide-react'
 import './StoreEditSheet.css'
 import type { ListItem } from '../types'
 import { clientSideSuggestions } from '../lib/suggestions'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 
 interface Props {
   item: ListItem
@@ -13,6 +15,8 @@ interface Props {
 export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
   const [input, setInput] = useState('')
   const currentStores = item.stores
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   const suggestions = clientSideSuggestions(items, 'stores', input).filter(
     s => !currentStores.includes(s),
@@ -46,9 +50,10 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
   return (
     <>
       <div className="store-edit-sheet__overlay" onClick={onClose} />
-      <div className="store-edit-sheet">
+      <div className="store-edit-sheet" ref={sheetRef}>
+        <div className="store-edit-sheet__handle" {...swipe} />
         <div className="store-edit-sheet__header">
-          <span>🏪 Tiendas</span>
+          <span><Store size={15} /> Tiendas</span>
           <span className="store-edit-sheet__item-name"> · {item.name}</span>
         </div>
 

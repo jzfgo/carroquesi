@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { ShoppingCart, Store } from 'lucide-react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import type { ListItem } from '../types'
 import { isSameCalendarDay } from '../lib/isSameCalendarDay'
 import { parseQuantityFactor } from '../lib/itemCost'
@@ -35,6 +37,9 @@ export default function LogPurchaseSheet({
   onClose,
   isOffline
 }: Props) {
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
+
   const stores = item.stores ?? []
   // Guard again here so the component stays self-contained if reused elsewhere
   const effectiveSuggestion = stores.length === 0 ? (suggestedStore ?? null) : null
@@ -86,9 +91,9 @@ export default function LogPurchaseSheet({
   }
 
   return (
-    <div className="lps">
-      <div className="lps__handle" />
-      <div className="lps__title">🛒 Registrar compra</div>
+    <div className="lps" ref={sheetRef}>
+      <div className="lps__handle" {...swipe} />
+      <div className="lps__title"><ShoppingCart size={18} /> Registrar compra</div>
       <div className="lps__subtitle">{item.name}{item.brand ? ` · ${item.brand}` : ''}</div>
       
       <div className="lps__field">
@@ -144,12 +149,12 @@ export default function LogPurchaseSheet({
           {stores.map(store => (
             <button key={store}
               className={`lps__chip${selectedStore === store && !addingStore ? ' lps__chip--selected' : ''}`}
-              onClick={() => handleStoreChip(store)} type="button">🏪 {store}</button>
+              onClick={() => handleStoreChip(store)} type="button"><Store size={13} /> {store}</button>
           ))}
           {effectiveSuggestion && (
             <button
               className={`lps__chip${selectedStore === effectiveSuggestion && !addingStore ? ' lps__chip--selected' : ''}`}
-              onClick={() => handleStoreChip(effectiveSuggestion)} type="button">🏪 {effectiveSuggestion}</button>
+              onClick={() => handleStoreChip(effectiveSuggestion)} type="button"><Store size={13} /> {effectiveSuggestion}</button>
           )}
           <button className="lps__chip lps__chip--add" onClick={() => { setSelectedStore(null); setAddingStore(true) }} type="button">+ otra</button>
         </div>

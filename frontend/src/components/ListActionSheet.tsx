@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { Pencil, Trash2, Receipt } from 'lucide-react'
 import './ListActionSheet.css'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import type { ApiList } from '../types'
 
 type SubState = 'actions' | 'rename' | 'confirm-delete'
@@ -16,6 +18,8 @@ interface Props {
 export function ListActionSheet({ list, isOwner, onRename, onDelete, onReceiptScan, onClose }: Props) {
   const [subState, setSubState] = useState<SubState>('actions')
   const [renameValue, setRenameValue] = useState(list.name)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -31,21 +35,21 @@ export function ListActionSheet({ list, isOwner, onRename, onDelete, onReceiptSc
     return (
       <>
         {overlay}
-        <div className="list-action-sheet" role="dialog" aria-modal="true" aria-label="Opciones de lista">
-          <div className="list-action-sheet__handle" />
+        <div className="list-action-sheet" role="dialog" aria-modal="true" aria-label="Opciones de lista" ref={sheetRef}>
+          <div className="list-action-sheet__handle" {...swipe} />
           <p className="list-action-sheet__list-name">{list.name}</p>
           <button
             className="list-action-sheet__action"
             onClick={() => setSubState('rename')}
           >
-            ✏️ Renombrar
+            <Pencil size={18} /> Renombrar
           </button>
           {onReceiptScan && (
             <button
               className="list-action-sheet__action"
               onClick={() => { onReceiptScan(); onClose() }}
             >
-              🧾 Escanear ticket
+              <Receipt size={18} /> Escanear ticket
             </button>
           )}
           {isOwner && (
@@ -53,7 +57,7 @@ export function ListActionSheet({ list, isOwner, onRename, onDelete, onReceiptSc
               className="list-action-sheet__action list-action-sheet__action--danger"
               onClick={() => setSubState('confirm-delete')}
             >
-              🗑️ Eliminar lista
+              <Trash2 size={18} /> Eliminar lista
             </button>
           )}
         </div>
@@ -66,9 +70,9 @@ export function ListActionSheet({ list, isOwner, onRename, onDelete, onReceiptSc
     return (
       <>
         {overlay}
-        <div className="list-action-sheet" role="dialog" aria-modal="true" aria-label="Renombrar lista">
-          <div className="list-action-sheet__handle" />
-          <p className="list-action-sheet__list-name">✏️ Renombrar lista</p>
+        <div className="list-action-sheet" role="dialog" aria-modal="true" aria-label="Renombrar lista" ref={sheetRef}>
+          <div className="list-action-sheet__handle" {...swipe} />
+          <p className="list-action-sheet__list-name"><Pencil size={16} /> Renombrar lista</p>
           <div className="list-action-sheet__input-row">
             <input
               className="list-action-sheet__input"
@@ -104,8 +108,8 @@ export function ListActionSheet({ list, isOwner, onRename, onDelete, onReceiptSc
   return (
     <>
       {overlay}
-      <div className="list-action-sheet" role="dialog" aria-modal="true" aria-label="Confirmar eliminación">
-        <div className="list-action-sheet__handle" />
+      <div className="list-action-sheet" role="dialog" aria-modal="true" aria-label="Confirmar eliminación" ref={sheetRef}>
+        <div className="list-action-sheet__handle" {...swipe} />
         <p className="list-action-sheet__list-name">{list.name}</p>
         <p className="list-action-sheet__warning">
           Se eliminarán todos los productos. Esta acción no se puede deshacer.

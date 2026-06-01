@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import './InstallBanner.css'
 
 const DISMISSED_KEY = 'pwa-install-dismissed'
@@ -36,7 +37,7 @@ export function InstallBanner({ isInstallable, isInstalled, isIOS, promptInstall
         </button>
       )}
       <button className="install-banner__dismiss" aria-label="Cerrar" onClick={handleDismiss}>
-        ✕
+        <X size={16} />
       </button>
     </aside>
   )

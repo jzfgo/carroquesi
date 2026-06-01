@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Globe, Store, Pencil } from 'lucide-react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { getPriceHistory } from '../lib/api'
 import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
 import { normalizeEntries, type ChartEntry } from '../lib/priceNormalization'
@@ -224,6 +226,14 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
       )}
       <div className="phs__expand-stats">
         <div className="phs__stat">
+          <strong>{validAmounts.length > 0 ? formatPrice(min, displayPricePer) : '—'}</strong>
+          Mínimo
+        </div>
+        <div className="phs__stat">
+          <strong>{validAmounts.length > 0 ? formatPrice(max, displayPricePer) : '—'}</strong>
+          Máximo
+        </div>
+        <div className="phs__stat">
           <strong>
             {latestRecord
               ? latestRecord.displayAmount !== null
@@ -232,14 +242,6 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
               : '—'}
           </strong>
           Último
-        </div>
-        <div className="phs__stat">
-          <strong>{validAmounts.length > 0 ? formatPrice(min, displayPricePer) : '—'}</strong>
-          Mínimo
-        </div>
-        <div className="phs__stat">
-          <strong>{validAmounts.length > 0 ? formatPrice(max, displayPricePer) : '—'}</strong>
-          Máximo
         </div>
       </div>
       <div className="phs__expand-records">
@@ -269,11 +271,14 @@ export default function PriceHistorySheet({
   listId,
   getToken,
   onLogPrice,
+  onClose,
   readOnly,
 }: Props) {
   const [scope, setScope] = useState<Scope>('this_list')
   const [history, setHistory] = useState<PriceHistoryResponse | null>(null)
   const [expandedStore, setExpandedStore] = useState<string | null | undefined>(undefined)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   useEffect(() => {
     let cancelled = false
@@ -297,8 +302,8 @@ export default function PriceHistorySheet({
   const groups = normalized ? groupByStore(normalized.entries) : null
 
   return (
-    <div className="phs">
-      <div className="phs__handle" />
+    <div className="phs" ref={sheetRef}>
+      <div className="phs__handle" {...swipe} />
       <div className="phs__title">{item.name}</div>
       <div className="phs__scope">
         {(['this_list', 'my_lists', 'all'] as Scope[]).map(s => (
@@ -320,7 +325,7 @@ export default function PriceHistorySheet({
 
       {history?.community_price != null && (
         <div className="phs__community">
-          <span>🌍 Precio estimado</span>
+          <span><Globe size={14} /> Precio estimado</span>
           <span className="phs__community-price">
             ~{formatPrice(history.community_price, history.community_price_per)}
           </span>
@@ -351,7 +356,7 @@ export default function PriceHistorySheet({
               <div className="phs__store-summary">
                 <div className="phs__store-info">
                   <div className="phs__store-name">
-                    {group.store ? `🏪 ${group.store}` : 'Sin tienda'}
+                    {group.store ? <><Store size={13} /> {group.store}</> : 'Sin tienda'}
                     {groupHasGaps && (
                       <span className="phs__gap-warning" title="Algunos precios no pudieron normalizarse">
                         ⚠️
@@ -381,7 +386,7 @@ export default function PriceHistorySheet({
 
       {!readOnly && (
         <button className="phs__log-btn" onClick={onLogPrice}>
-          {item.price != null ? '✏️ Actualizar precio' : '+ Registrar precio'}
+          {item.price != null ? <><Pencil size={16} /> Actualizar precio</> : '+ Registrar precio'}
         </button>
       )}
     </div>

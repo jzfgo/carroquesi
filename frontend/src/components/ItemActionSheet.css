@@ -24,6 +24,7 @@
   background: var(--border);
   border-radius: 2px;
   margin: 0 auto 12px;
+  touch-action: none;
 }
 
 .item-action-sheet__item-name {

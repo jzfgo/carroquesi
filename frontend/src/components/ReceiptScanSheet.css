@@ -16,6 +16,7 @@
   border-radius: 2px;
   margin: 10px auto 0;
   flex-shrink: 0;
+  touch-action: none;
 }
 
 .sheet-header {

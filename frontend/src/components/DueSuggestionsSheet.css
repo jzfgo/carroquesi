@@ -12,7 +12,7 @@
   background: var(--paper-0);
   border-top: 1px solid var(--border);
   border-radius: 16px 16px 0 0;
-  padding: 8px 0 24px;
+  padding: 0 0 24px;
   z-index: 100;
   display: flex;
   flex-direction: column;
@@ -24,7 +24,8 @@
   height: 4px;
   background: var(--border);
   border-radius: 2px;
-  margin: 0 auto 12px;
+  margin: 10px auto 12px;
+  touch-action: none;
   flex-shrink: 0;
 }
 

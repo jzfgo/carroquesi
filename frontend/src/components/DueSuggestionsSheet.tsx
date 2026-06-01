@@ -1,5 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
+import { X } from 'lucide-react'
 import './DueSuggestionsSheet.css'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { formatFrequency, formatRecency } from '../lib/suggestions'
 import type { DueSuggestion } from '../types'
 
@@ -11,6 +13,9 @@ interface Props {
 }
 
 export function DueSuggestionsSheet({ suggestions, onAdd, onDismiss, onClose }: Props) {
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
+
   useEffect(() => {
     if (suggestions.length === 0) onClose()
   }, [suggestions.length, onClose])
@@ -33,8 +38,9 @@ export function DueSuggestionsSheet({ suggestions, onAdd, onDismiss, onClose }: 
         role="dialog"
         aria-modal="true"
         aria-label="Toca comprar"
+        ref={sheetRef}
       >
-        <div className="due-suggestions-sheet__handle" />
+        <div className="due-suggestions-sheet__handle" {...swipe} />
         <p className="due-suggestions-sheet__title">Toca comprar</p>
         <div className="due-suggestions-sheet__list">
           {suggestions.map(s => {
@@ -70,7 +76,7 @@ export function DueSuggestionsSheet({ suggestions, onAdd, onDismiss, onClose }: 
                   onClick={() => onDismiss(s)}
                   aria-label={`Ignorar ${s.name}`}
                 >
-                  ✕
+                  <X size={16} />
                 </button>
               </div>
             )

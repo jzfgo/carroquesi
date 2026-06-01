@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { Crown, Link2 } from 'lucide-react'
 import './ListMembersSheet.css'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { Toast } from './Toast'
 import { useAuth } from '../contexts/AuthContext'
 import { getListMembers, removeMember, createOpenInvite, ApiError } from '../lib/api'
@@ -32,6 +34,7 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   const load = useCallback(async () => {
     setLoadState('loading')
@@ -118,7 +121,7 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
         aria-label="Miembros"
         ref={sheetRef}
       >
-        <div className="list-members-sheet__handle" />
+        <div className="list-members-sheet__handle" {...swipe} />
 
       {loadState === 'loading' && (
         <span
@@ -160,7 +163,12 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
                   )}
                 </div>
                 <span className="list-members-sheet__member-name">
-                  {member.display_name}{isOwnerRow ? ' 👑' : ''}
+                  {member.display_name}
+                  {isOwnerRow && (
+                    <span className="list-members-sheet__owner-badge">
+                      <Crown size={11} /> Propietario
+                    </span>
+                  )}
                 </span>
                 {isOwner && !isCurrentUser && (
                   <button
@@ -201,7 +209,7 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
                   onClick={() => void handleCopyInvite()}
                   disabled={inviteLimitReached}
                 >
-                  🔗 Copiar enlace de invitación
+                  <Link2 size={15} /> Copiar enlace de invitación
                 </button>
               )}
               {inviteLimitReached && (

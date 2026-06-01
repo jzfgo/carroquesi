@@ -24,6 +24,7 @@
   background: var(--border);
   border-radius: 2px;
   margin: 0.5rem auto 1rem;
+  touch-action: none;
 }
 
 .emoji-picker-sheet__title {

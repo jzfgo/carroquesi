@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { GripVertical, MoreHorizontal } from 'lucide-react'
 import './ListCard.css'
 import { ProgressBar } from './ProgressBar'
 import type { ApiList } from '../types'
@@ -44,7 +45,7 @@ export function ListCard({
 
   return (
     <div className={`list-card${isDragging ? ' list-card--dragging' : ''}`} style={style}>
-      <span className="list-card__drag-handle" aria-hidden {...dragHandleProps}>⠿</span>
+      <span className="list-card__drag-handle" aria-hidden {...dragHandleProps}><GripVertical size={16} /></span>
       {emojiSlot}
       <button className="list-card__tap-target" onClick={onClick} aria-label={name}>
         <span className="list-card__name">{name}</span>
@@ -61,7 +62,7 @@ export function ListCard({
         )}
       </button>
       <button className="list-card__menu-btn" onClick={onMenuOpen} aria-label="Opciones">
-        ⋯
+        <MoreHorizontal size={18} />
       </button>
     </div>
   )

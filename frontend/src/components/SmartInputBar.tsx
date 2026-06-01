@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { Tag, Store, ScanBarcode } from 'lucide-react'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem, ParsedInput, Suggestion } from '../types'
 import './SmartInputBar.css'
@@ -118,7 +119,7 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
               onClick={onDismissInferredStore}
               type="button"
             >
-              🏪 {inferredStoreChip} <span aria-hidden="true">✕</span>
+              <Store size={13} /> {inferredStoreChip} <span aria-hidden="true">✕</span>
             </button>
           )}
           {displaySuggestions.map((s, i) => (
@@ -137,9 +138,9 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             <span className="smart-input__preview-error">{eanError}</span>
           ) : (
             <>
-              {parsed.brand && <span className="smart-input__preview-tag">🏷️ {parsed.brand}</span>}
+              {parsed.brand && <span className="smart-input__preview-tag"><Tag size={13} /> {parsed.brand}</span>}
               {parsed.stores.map(s => (
-                <span key={s} className="smart-input__preview-tag">🏪 {s}</span>
+                <span key={s} className="smart-input__preview-tag"><Store size={13} /> {s}</span>
               ))}
               <button
                 className="smart-input__buscar"
@@ -160,9 +161,9 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
           {nameError && <span className="smart-input__preview-error">Sin nombre de producto</span>}
           {!nameError && <span className="smart-input__preview-name">{parsed.name}</span>}
           {parsed.quantity && <span className="smart-input__preview-qty">{parsed.quantity}</span>}
-          {parsed.brand && <span className="smart-input__preview-tag">🏷️ {parsed.brand}</span>}
+          {parsed.brand && <span className="smart-input__preview-tag"><Tag size={13} /> {parsed.brand}</span>}
           {parsed.stores.map(s => (
-            <span key={s} className="smart-input__preview-tag">🏪 {s}</span>
+            <span key={s} className="smart-input__preview-tag"><Store size={13} /> {s}</span>
           ))}
         </div>
       )}
@@ -223,18 +224,7 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             type="button"
             disabled={isOffline}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <rect x="0" y="2" width="1" height="20" />
-              <rect x="2" y="2" width="2" height="20" />
-              <rect x="5" y="2" width="1" height="20" />
-              <rect x="7" y="2" width="1" height="20" />
-              <rect x="9" y="2" width="2" height="20" />
-              <rect x="12" y="2" width="1" height="20" />
-              <rect x="14" y="2" width="2" height="20" />
-              <rect x="17" y="2" width="1" height="20" />
-              <rect x="19" y="2" width="1" height="20" />
-              <rect x="21" y="2" width="2" height="20" />
-            </svg>
+            <ScanBarcode size={20} />
           </button>
         )}
         <button
