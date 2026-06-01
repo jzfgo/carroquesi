@@ -145,6 +145,7 @@
 
 .smart-input__field {
   flex: 1;
+  min-width: 0;
   background: none;
   border: none;
   outline: none;
@@ -285,8 +286,6 @@
   flex-shrink: 0;
   font-family: inherit;
   color: var(--tinta-0);
-  font-size: var(--fs-16);
-  line-height: 1;
 }
 
 .smart-input__due-badge {
