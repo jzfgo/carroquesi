@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Tag, Store, ScanBarcode, Sparkles } from 'lucide-react'
+import { Tag, Store, ScanBarcode, Sparkles, X } from 'lucide-react'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem, ParsedInput, Suggestion } from '../types'
 import './SmartInputBar.css'
@@ -119,7 +119,7 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
               onClick={onDismissInferredStore}
               type="button"
             >
-              <Store size={13} /> {inferredStoreChip} <span aria-hidden="true">✕</span>
+              <Store size={13} /> {inferredStoreChip} <X size={13} aria-hidden="true" />
             </button>
           )}
           {displaySuggestions.map((s, i) => (

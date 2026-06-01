@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { ShoppingCart } from 'lucide-react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getInvitePreview, acceptInvite, ApiError } from '../lib/api'
@@ -138,7 +139,7 @@ export function InviteScreen() {
     <div className="invite-screen">
       <Mascot size={100} />
       <div className="invite-screen__card">
-        <div className="invite-screen__icon">{preview?.list_emoji ?? '🛒'}</div>
+        <div className="invite-screen__icon">{preview?.list_emoji ?? <ShoppingCart size={32} />}</div>
         <h1 className="invite-screen__list-name">{preview?.list_name}</h1>
         {preview?.invited_by_name && (
           <p className="invite-screen__inviter">Invitado por {preview.invited_by_name}</p>

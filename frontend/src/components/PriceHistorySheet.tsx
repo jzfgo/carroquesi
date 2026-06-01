@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Globe, Store, Pencil } from 'lucide-react'
+import { Globe, Store, Pencil, AlertTriangle } from 'lucide-react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { getPriceHistory } from '../lib/api'
 import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
@@ -359,7 +359,7 @@ export default function PriceHistorySheet({
                     {group.store ? <><Store size={13} /> {group.store}</> : 'Sin tienda'}
                     {groupHasGaps && (
                       <span className="phs__gap-warning" title="Algunos precios no pudieron normalizarse">
-                        ⚠️
+                        <AlertTriangle size={12} />
                       </span>
                     )}
                   </div>

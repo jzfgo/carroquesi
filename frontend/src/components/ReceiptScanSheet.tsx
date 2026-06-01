@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { X, Calendar, Coins, Pencil } from "lucide-react";
+import { X, Calendar, Coins, Pencil, Check } from "lucide-react";
 import type { MatchedLine, UnmatchedLine, PricePatch, NameMapping, ReceiptScanResult } from "../types/receipt";
 import { formatPrice } from "../lib/formatPrice";
 import { parseQuantityFactor, purchasedDateLabel } from "../lib/itemCost";
@@ -300,7 +300,7 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
             <span className="rss-footer-selected">{formatPrice(selectedTotal)}</span>
             {diff !== null && checkedCount > 0 && (
               Math.abs(diff) < 0.02
-                ? <span className="rss-footer-match">✓ coincide</span>
+                ? <span className="rss-footer-match"><Check size={12} /> coincide</span>
                 : <span className="rss-footer-diff">
                     ({diff > 0 ? "+" : "−"}{formatPrice(Math.abs(diff)).replace(" ", "")})
                   </span>
