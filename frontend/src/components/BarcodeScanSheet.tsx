@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Pencil, Globe, Store, Tag } from 'lucide-react'
 import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
 import './BarcodeScanSheet.css'
 import type { BarcodeRead } from '../types'
@@ -51,7 +52,7 @@ export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, 
             {(displayBrand || allStores.length > 0) && (
               <div className="bss__tags">
                 {displayBrand && (
-                  <span className="bss__tag">🏷️ {displayBrand}</span>
+                  <span className="bss__tag"><Tag size={13} /> {displayBrand}</span>
                 )}
                 {allStores.length > 0 && (
                   <div className="bss__store-chips" data-testid="store-chips">
@@ -63,7 +64,7 @@ export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, 
                         aria-pressed={selectedStores.has(s)}
                         aria-label={s}
                       >
-                        <span aria-hidden="true">🏪</span> <span>{s}</span>
+                        <span aria-hidden="true"><Store size={13} /></span> <span>{s}</span>
                       </button>
                     ))}
                   </div>
@@ -76,13 +77,13 @@ export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, 
             onClick={() => onEdit(buildPrefill(product, displayBrand))}
             aria-label="Editar"
           >
-            ✏️
+            <Pencil size={16} />
           </button>
         </div>
 
         {product.community_price !== null && (
           <div className="bss__community-price">
-            <span className="bss__community-price-text">🌍 Precio estimado</span>
+            <span className="bss__community-price-text"><Globe size={14} /> Precio estimado</span>
             <span className="bss__community-price-value">~{formatPrice(product.community_price, product.community_price_per)}</span>
             <button
               className="bss__community-price-info"

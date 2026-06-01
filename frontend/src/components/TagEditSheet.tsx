@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { Tag, Hash } from 'lucide-react'
 import './TagEditSheet.css'
 import type { ListItem, TagField } from '../types'
 import { clientSideSuggestions } from '../lib/suggestions'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 
-const TAG_META: Record<TagField, { emoji: string; label: string }> = {
-  brand:    { emoji: '🏷️', label: 'Marca' },
-  quantity: { emoji: '🔢', label: 'Cantidad' },
+const TAG_META: Record<TagField, { icon: React.ReactNode; label: string }> = {
+  brand:    { icon: <Tag size={14} />, label: 'Marca' },
+  quantity: { icon: <Hash size={14} />, label: 'Cantidad' },
 }
 
 interface Props {
@@ -20,7 +22,9 @@ export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
   const tagValues = { brand: item.brand, quantity: item.quantity } satisfies Record<TagField, string | null>
   const currentValue = tagValues[field]
   const [input, setInput] = useState(currentValue ?? '')
-  const { emoji, label } = TAG_META[field]
+  const { icon, label } = TAG_META[field]
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   const suggestions = field !== 'quantity'
     ? clientSideSuggestions(items, field, input)
@@ -49,9 +53,10 @@ export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
   return (
     <>
     <div className="tag-edit-sheet__overlay" onClick={onClose} />
-    <div className="tag-edit-sheet">
+    <div className="tag-edit-sheet" ref={sheetRef}>
+      <div className="tag-edit-sheet__handle" {...swipe} />
       <div className="tag-edit-sheet__header">
-        <span>{emoji} {label}</span>
+        <span>{icon} {label}</span>
         <span className="tag-edit-sheet__item-name"> · {item.name}</span>
       </div>
 

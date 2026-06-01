@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { X, Calendar, Coins, Pencil } from "lucide-react";
 import type { MatchedLine, UnmatchedLine, PricePatch, NameMapping, ReceiptScanResult } from "../types/receipt";
 import { formatPrice } from "../lib/formatPrice";
 import { parseQuantityFactor, purchasedDateLabel } from "../lib/itemCost";
+import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
 import "./ReceiptScanSheet.css";
 
 interface PurchasedItemRef {
@@ -28,15 +30,6 @@ interface Props {
   onConfirm: (patches: PricePatch[], mappings: NameMapping[]) => void;
   onClose: () => void;
 }
-
-const PencilIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path
-      d="M15.232 5.232l3.536 3.536M9 13l6.768-6.768a2 2 0 012.828 2.828L11.828 15.828a2 2 0 01-.707.464l-3.535 1.06 1.06-3.535A2 2 0 019 13z"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-    />
-  </svg>
-);
 
 function initialQuantity(line: MatchedLine | UnmatchedLine): string {
   if (line.price_type === "KILOGRAM" && line.quantity != null) {
@@ -104,6 +97,8 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
   const allLines: (MatchedLine | UnmatchedLine)[] = [...result.matched, ...result.unmatched];
   const [lineStates, setLineStates] = useState<LineState[]>(() => initState(result));
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const swipe = useSwipeToDismiss(sheetRef, onClose);
 
   const checkedCount = lineStates.filter((ls) => ls.included).length;
   const allChecked = checkedCount === lineStates.length;
@@ -174,8 +169,8 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
     : null;
 
   return (
-    <div className="sheet">
-      <div className="sheet-handle" />
+    <div className="sheet" ref={sheetRef}>
+      <div className="sheet-handle" {...swipe} />
 
       <div className="sheet-header">
         <div className="sheet-title-row">
@@ -183,11 +178,11 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
             Ticket escaneado
             {store && <span className="store-badge">{store}</span>}
           </div>
-          <button className="sheet-close-btn" onClick={onClose} aria-label="Cerrar">✕</button>
+          <button className="sheet-close-btn" onClick={onClose} aria-label="Cerrar"><X size={18} /></button>
         </div>
         <div className="sheet-meta">
-          {formattedDate && <span>📅 {formattedDate}</span>}
-          {receiptTotal != null && <span>💶 {formatPrice(receiptTotal)}</span>}
+          {formattedDate && <span><Calendar size={13} /> {formattedDate}</span>}
+          {receiptTotal != null && <span><Coins size={13} /> {formatPrice(receiptTotal)}</span>}
         </div>
       </div>
 
@@ -229,7 +224,7 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
                 </div>
                 <div className="rss-right">
                   <div className="rss-total">{formatPrice(computeLineTotal(ls))}</div>
-                  <div className="rss-edit-icon"><PencilIcon /></div>
+                  <div className="rss-edit-icon"><Pencil size={14} /></div>
                 </div>
               </div>
 
@@ -249,7 +244,7 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
                   >
                     <option value="">— No vincular —</option>
                     {itemGroups.map((group) => (
-                      <optgroup key={group.label} label={`📅 ${group.label}`}>
+                      <optgroup key={group.label} label={group.label}>
                         {group.items.map((item) => (
                           <option key={item.id} value={item.id}>{item.name}</option>
                         ))}

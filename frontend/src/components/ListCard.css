@@ -60,8 +60,8 @@
   align-self: stretch;
   display: flex;
   align-items: center;
-  color: var(--border);
-  font-size: 1.1rem;
+  color: var(--ink-2);
+  opacity: 0.5;
   cursor: grab;
   touch-action: none;
   user-select: none;

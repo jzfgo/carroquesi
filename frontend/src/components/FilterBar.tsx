@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Search, X } from 'lucide-react'
 import './FilterBar.css'
 
 interface Props {
@@ -37,7 +38,7 @@ export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
           onClick={() => { setMode('search'); onChange(''); onModeChange?.('search') }}
           aria-label="Buscar"
         >
-          🔍
+          <Search size={16} />
         </button>
         {stores.length > 0 && (
           <>
@@ -71,7 +72,7 @@ export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
           onClick={() => { setMode('chips'); onChange(''); onModeChange?.('chips') }}
           aria-label="Cerrar búsqueda"
         >
-          ✕
+          <X size={16} />
         </button>
         {mode === 'search' && (
           <input

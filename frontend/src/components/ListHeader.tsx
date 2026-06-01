@@ -1,3 +1,4 @@
+import { Menu } from 'lucide-react'
 import './ListHeader.css'
 
 interface Props {
@@ -26,7 +27,7 @@ export function ListHeader({ title, emoji, onMenuOpen, onBack }: Props) {
         onClick={onMenuOpen}
         aria-label="Abrir menú"
       >
-        <span /><span /><span />
+        <Menu size={20} />
       </button>
     </header>
   )

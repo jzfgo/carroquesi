@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import './EmojiPickerSheet.css'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { CURATED_EMOJIS } from '../lib/curated-emojis'
 
 interface Props {
@@ -9,6 +10,9 @@ interface Props {
 }
 
 export function EmojiPickerSheet({ current, onSelect, onClose }: Props) {
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
+
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
@@ -25,8 +29,9 @@ export function EmojiPickerSheet({ current, onSelect, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label="Elegir emoji"
+        ref={sheetRef}
       >
-        <div className="emoji-picker-sheet__handle" />
+        <div className="emoji-picker-sheet__handle" {...swipe} />
         <p className="emoji-picker-sheet__title">Elegir emoji</p>
         <div className="emoji-picker-sheet__grid">
           <button

@@ -18,6 +18,14 @@
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.12);
 }
 
+.store-edit-sheet__handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 12px;
+}
+
 .store-edit-sheet__header {
   font-weight: 600;
   font-size: 16px;

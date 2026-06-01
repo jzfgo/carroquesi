@@ -18,6 +18,14 @@
   z-index: 100;
 }
 
+.tag-edit-sheet__handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 4px;
+}
+
 .tag-edit-sheet__header {
   font-size: 0.75rem;
   color: var(--ink-2);

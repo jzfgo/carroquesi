@@ -149,6 +149,28 @@
   gap: 8px;
 }
 
+.list-members-sheet__owner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 1px 7px;
+  background: var(--tinta-bg);
+  border: 1px solid var(--tinta-border);
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--tinta-0);
+  vertical-align: middle;
+}
+
+.list-members-sheet__invite-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 .list-members-sheet__retry-btn {
   background: none;
   border: 1px solid var(--border);

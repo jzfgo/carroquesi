@@ -66,3 +66,14 @@
   padding: 24px;
   text-align: center;
 }
+
+.barcode-scanner__error-btn {
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: var(--paper-0);
+  font-size: var(--fs-15);
+  font-family: inherit;
+  cursor: pointer;
+}

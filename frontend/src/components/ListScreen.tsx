@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Camera, Receipt, Image } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useListItems } from "../hooks/useListItems";
 import { useOffline } from "../hooks/useOffline";
@@ -567,7 +568,7 @@ export function ListScreen({
               onClick={handleReceiptScan}
               disabled={receiptUploading || isOffline}
             >
-              {receiptUploading ? "Procesando ticket…" : "🧾 Escanear ticket para registrar precios"}
+              {receiptUploading ? "Procesando ticket…" : <><Receipt size={16} /> Escanear ticket para registrar precios</>}
             </button>
           </div>
         ) : undefined}
@@ -784,13 +785,13 @@ export function ListScreen({
                 className="receipt-source-picker__btn"
                 onClick={() => { setReceiptSourcePickerOpen(false); cameraInputRef.current?.click(); }}
               >
-                📷 Tomar foto
+                <Camera size={16} /> Tomar foto
               </button>
               <button
                 className="receipt-source-picker__btn"
                 onClick={() => { setReceiptSourcePickerOpen(false); fileInputRef.current?.click(); }}
               >
-                🖼️ Elegir de galería
+                <Image size={16} /> Elegir de galería
               </button>
               <button
                 className="receipt-source-picker__cancel"

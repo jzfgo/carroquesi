@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FeedbackPayload } from '../lib/api'
 import './FeedbackSheet.css'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 
 interface Props {
   defaultEmail: string | null | undefined
@@ -14,6 +15,8 @@ export function FeedbackSheet({ defaultEmail, isSubmitting, onSubmit, onClose }:
   const [email, setEmail] = useState(defaultEmail ?? '')
   const trimmedMessage = useMemo(() => message.trim(), [message])
   const canSubmit = trimmedMessage.length > 0 && !isSubmitting
+  const sheetRef = useRef<HTMLFormElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -43,8 +46,9 @@ export function FeedbackSheet({ defaultEmail, isSubmitting, onSubmit, onClose }:
         aria-modal="true"
         aria-label="Enviar feedback"
         onSubmit={handleSubmit}
+        ref={sheetRef}
       >
-        <div className="feedback-sheet__handle" />
+        <div className="feedback-sheet__handle" {...swipe} />
         <h2 className="feedback-sheet__title">Enviar feedback</h2>
         <label className="feedback-sheet__field">
           <span>Mensaje</span>

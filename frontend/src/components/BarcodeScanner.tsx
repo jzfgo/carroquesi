@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { CameraOff, X } from 'lucide-react'
 import './BarcodeScanner.css'
 import { BarcodeDetectorPolyfill } from '@undecaf/barcode-detector-polyfill'
 import { getBarcode, ApiError } from '../lib/api'
@@ -80,8 +81,9 @@ export function BarcodeScanner({ getToken, onResult, onError, onClose }: Props) 
   if (cameraError) {
     return (
       <div className="barcode-scanner barcode-scanner--error">
+        <CameraOff size={32} />
         <p>No se pudo acceder a la cámara.</p>
-        <button onClick={onClose} aria-label="Cerrar escáner">Cerrar</button>
+        <button className="barcode-scanner__error-btn" onClick={onClose} aria-label="Cerrar escáner">Cerrar</button>
       </div>
     )
   }
@@ -98,7 +100,7 @@ export function BarcodeScanner({ getToken, onResult, onError, onClose }: Props) 
         aria-label="Cerrar escáner"
         onClick={() => { scanningRef.current = false; stopStream(); onClose() }}
       >
-        ✕
+        <X size={20} />
       </button>
     </div>
   )
