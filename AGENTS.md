@@ -21,7 +21,7 @@ This file provides guidance to coding agents (such as Antigravity CLI, Claude Co
 - `users`: user profile and Firebase identity (`firebase_uid`)
 - `lists`: list metadata and ownership (`owner_id`)
 - `list_members`: list membership links
-- `list_items`: item data, purchase state (`purchased_at`), and pricing (`price`, `price_per`, `price_store`)
+- `list_items`: item data, purchase state (`purchased_at`), actual purchased quantity (`purchased_quantity`), and pricing (`price`, `price_per`, `price_store`)
 - `list_invites`: opt-in invitations; `id` is the share token
 - `barcode_cache`: cached barcode lookup data
 - `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results)
@@ -68,10 +68,10 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 - Firebase SDK used in the frontend for Auth (Google Sign-In) and AI (Gemini receipt parsing via Firebase AI SDK)
 - All data fetched from the FastAPI backend via REST
 - Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
-- A ✨ button sits left of the SmartInputBar text input, showing a badge with the count of due suggestions; tapping it opens `DueSuggestionsSheet` (a bottom sheet titled "Toca comprar") listing all due items with a purple frequency chip (`cada semana`) and a green recency chip (`hace 8 días`), per-row add/dismiss buttons; dismissals are persisted in `localStorage` (`cqs_dismissed_suggestions`) with a TTL computed by the backend
+- A Sparkles icon button (lucide) sits left of the SmartInputBar text input, showing a badge with the count of due suggestions; tapping it opens `DueSuggestionsSheet` (a bottom sheet titled "Toca comprar") listing all due items with a purple frequency chip (`cada semana`) and a green recency chip (`hace 8 días`), per-row add/dismiss buttons; dismissals are persisted in `localStorage` (`cqs_dismissed_suggestions`) with a TTL computed by the backend
 - `FilterBar` renders above the item list when the list has any items with stores. It has two modes: **chip mode** (one chip per distinct store, "Todas" resets the filter) and **search mode** (slide-in text input, accepts full sigil syntax). `filterItems()` in `frontend/src/hooks/useItemFilter.ts` reuses `parseInput` to match text, `@store`, and `#brand` simultaneously.
 - `lookupOwnBrandStore(brand)` in `frontend/src/lib/ownBrands.ts` maps ~50 Spanish own-brand names (e.g. `Hacendado` → `Mercadona`, `Milbona` → `Lidl`) to their parent store; `useOwnBrandInference` auto-fills the `@store` chip when a matching brand is typed in SmartInputBar.
-- `cqs_last_price_store` (localStorage, 1-hour TTL) persists the last store used in `LogPriceSheet` to pre-fill the store field on the next price log
+- `cqs_last_price_store` (localStorage, 1-hour TTL) persists the last store used in `LogPurchaseSheet` to pre-fill the store field on the next price log
 - Settings are now accessible through the user menu for theme customization
 - `PriceHistorySheet` groups entries by store client-side and renders an SVG sparkline per store; the expanded view shows a larger chart + last/min/max stats. `PriceEntry` includes `purchased_at` for the time axis.
 - `ListScreen` shows running cost totals next to section labels (client-side only, `frontend/src/lib/itemCost.ts`):
@@ -110,9 +110,9 @@ Entry point: a CTA button shown when the unpurchased list is empty. Four-step fl
 
 ### Purchased item rules
 
-Purchased items (`item.purchased === true`) are **mostly read-only** in the UI. Allowed: unchecking, deleting, viewing price history, **logging/updating price**. Disallowed: rename, quantity/brand/store edits. `ItemCard` renders non-price tags as `<span>` (not `<button>`) for purchased items and hides quantity/brand/store add CTAs. `ItemActionSheet` hides the rename option. `PriceHistorySheet` is passed `readOnly` for **unpurchased** items (view-only), never for purchased items (price logging is only meaningful after purchase). Unpurchased items always show a 💶 button to access price history (view-only).
+Purchased items (`item.purchased === true`) are **mostly read-only** in the UI. Allowed: unchecking, deleting, viewing price history, **logging/updating price and purchased quantity**. Disallowed: rename, quantity/brand/store edits. `ItemCard` renders non-price tags as `<span>` (not `<button>`) for purchased items and hides quantity/brand/store add CTAs. `ItemActionSheet` hides the rename option. `PriceHistorySheet` is passed `readOnly` for **unpurchased** items (view-only), never for purchased items (price logging is only meaningful after purchase). Unpurchased items always show a Coins icon button (lucide) to access price history (view-only).
 
-Price deletion has a **same-day guard**: the delete button in `LogPriceSheet` is only shown when `isSameCalendarDay(item.purchased_at)` is true (frontend), and the backend `DELETE /lists/{id}/items/{item_id}/prices` enforces the same rule, returning 422 for prior-day purchases.
+Price deletion has a **same-day guard**: the delete button in `LogPurchaseSheet` is only shown when `isSameCalendarDay(item.purchased_at)` is true (frontend), and the backend `DELETE /lists/{id}/items/{item_id}/prices` enforces the same rule, returning 422 for prior-day purchases.
 
 ### Testing conventions
 
