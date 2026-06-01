@@ -72,7 +72,6 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 - `FilterBar` renders above the item list when the list has any items with stores. It has two modes: **chip mode** (one chip per distinct store, "Todas" resets the filter) and **search mode** (slide-in text input, accepts full sigil syntax). `filterItems()` in `frontend/src/hooks/useItemFilter.ts` reuses `parseInput` to match text, `@store`, and `#brand` simultaneously.
 - `lookupOwnBrandStore(brand)` in `frontend/src/lib/ownBrands.ts` maps ~50 Spanish own-brand names (e.g. `Hacendado` → `Mercadona`, `Milbona` → `Lidl`) to their parent store; `useOwnBrandInference` auto-fills the `@store` chip when a matching brand is typed in SmartInputBar.
 - `cqs_last_price_store` (localStorage, 1-hour TTL) persists the last store used in `LogPurchaseSheet` to pre-fill the store field on the next price log
-- Settings are now accessible through the user menu for theme customization
 - `PriceHistorySheet` groups entries by store client-side and renders an SVG sparkline per store; the expanded view shows a larger chart + last/min/max stats. `PriceEntry` includes `purchased_at` for the time axis.
 - `ListScreen` shows running cost totals next to section labels (client-side only, `frontend/src/lib/itemCost.ts`):
   - Unpurchased section → estimated total (accent/purple); purchased date labels → daily spent (green)
@@ -273,3 +272,16 @@ Standard flow for any non-trivial task:
 ## Out of Scope
 
 - Submitting prices to Open Prices (requires proof image + OSM location)
+
+## Open Action Items (1:1 — 2026-06-01)
+
+**Claude Code:**
+- [ ] Enforce worktree rule before any code change — no exceptions
+- [ ] Treat TODO + CHANGELOG updates as blocking, not cleanup
+
+**You:**
+- [ ] Add Alembic migration serialization rule: migrations must be the last step before merging, after rebasing on main — never create a migration in parallel with another branch that also has one
+- [ ] Add `walkthrough/` to `.gitignore`
+- [ ] Add a "Definition of Done" section (worktree confirmed, TODO updated, CHANGELOG updated, lint/tests pass)
+
+> When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
