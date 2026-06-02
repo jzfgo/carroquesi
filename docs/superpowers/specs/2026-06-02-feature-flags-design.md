@@ -227,10 +227,58 @@ Alembic migration added as the last step before merge (per project conventions).
 
 ---
 
+## Feature Flag Management Tooling
+
+### `just` recipes for flag management
+
+`scripts/manage_feature.py` — a direct-DB script (no running server needed), same pattern as `set_admin.py`. Takes `<firebase_uid> <feature> <enable|disable|remove>`:
+
+- **enable** — upserts `UserFeature` with `enabled=True`
+- **disable** — upserts with `enabled=False` (explicit override of registry default)
+- **remove** — deletes the row entirely (user reverts to registry default)
+
+Added to `backend/Justfile`:
+
+```just
+# Enable a feature for a user: just backend feature-enable <firebase_uid> <feature>
+feature-enable uid feature:
+    uv run python scripts/manage_feature.py {{uid}} {{feature}} enable
+
+# Disable a feature for a user: just backend feature-disable <firebase_uid> <feature>
+feature-disable uid feature:
+    uv run python scripts/manage_feature.py {{uid}} {{feature}} disable
+
+# Reset a feature to registry default: just backend feature-remove <firebase_uid> <feature>
+feature-remove uid feature:
+    uv run python scripts/manage_feature.py {{uid}} {{feature}} remove
+```
+
+### Skill: `feature-flag`
+
+A Claude Code skill at `~/.claude/skills/feature-flag/` that guides adding a new flag end-to-end. Invoked as `/feature-flag add <flag_name>`. Covers every touch point in order:
+
+1. Add `FlagDef` entry to `REGISTRY` in `backend/app/services/feature_flags.py`
+2. Add constant to `frontend/src/lib/featureFlags.ts`
+3. Update `scripts/seed.py` to seed the flag for the appropriate test user(s)
+4. Add backend test coverage for the new flag
+5. Gate the target endpoint/UI element
+6. Update `CLAUDE.md` Feature Flag Management section
+
+### `CLAUDE.md` — Feature Flag Management section
+
+A concise reference section to be added covering:
+
+- **Adding a flag**: update registry (`feature_flags.py`) + frontend constants (`featureFlags.ts`) + seed data
+- **Granting/revoking**: `just backend feature-enable <uid> <flag>` / `feature-disable` / `feature-remove`
+- **Setting admin**: `just backend set-admin <firebase_uid>` (Firebase custom claim, requires token refresh)
+- **Registry**: all known flags and defaults live in `backend/app/services/feature_flags.py` — adding a flag = one entry there
+
+---
+
 ## Documentation Updates
 
 The following files must be updated as part of this task (not optional cleanup):
 
-- **`CLAUDE.md`** — update the Core Data Model section to include `user_features`; add `require_admin` to the auth dependencies list; add `X-Dev-Is-Admin` to the dev auth bypass section; add `just backend set-admin <firebase_uid>` to backend commands; add a note about the flag registry in `feature_flags.py`.
+- **`CLAUDE.md`** — update the Core Data Model section to include `user_features`; add `require_admin` to the auth dependencies list; add `X-Dev-Is-Admin` to the dev auth bypass section; add `just backend set-admin`, `feature-enable`, `feature-disable`, `feature-remove` to backend commands; add Feature Flag Management section (see above).
 - **`TODO.md`** — remove the Feature flags entry once shipped.
 - **`CHANGELOG.md`** — run `just changelog` before merging.
