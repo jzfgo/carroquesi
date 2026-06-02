@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Receipt, Image } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { useFeatureFlags } from "../contexts/FeatureFlagsContext";
+import { FLAGS } from "../lib/featureFlags";
 import { useListItems } from "../hooks/useListItems";
 import { useOffline } from "../hooks/useOffline";
 import { useOwnBrandInference } from "../hooks/useOwnBrandInference";
@@ -69,6 +71,7 @@ export function ListScreen({
   onBack,
 }: Props) {
   const { getToken, user } = useAuth();
+  const { isEnabled } = useFeatureFlags();
   const [inputValue, setInputValue] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [toast, setToast] = useState<string | null>(null);
@@ -561,7 +564,7 @@ export function ListScreen({
         onClone={handleCloneItem}
         pendingCost={pendingCost}
         purchasedCostByDate={purchasedCostByDate}
-        footer={allUnpurchasedCount === 0 && items.length > 0 && !receiptScanResult ? (
+        footer={allUnpurchasedCount === 0 && items.length > 0 && !receiptScanResult && isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
           <div className="receipt-scan-cta">
             <button
               className="receipt-scan-cta__btn"

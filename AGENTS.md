@@ -26,6 +26,7 @@ This file provides guidance to coding agents (such as Antigravity CLI, Claude Co
 - `barcode_cache`: cached barcode lookup data
 - `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results)
 - `receipt_name_mappings`: learned receipt→item name mappings per store; improves auto-matching on future scans
+- `user_features`: per-user feature flag overrides; `feature` must match a key in the flag registry in `backend/app/services/feature_flags.py`
 
 Important invariants:
 
@@ -59,7 +60,7 @@ PWA uses `vite-plugin-pwa`; service worker is active in dev (`devOptions.enabled
 
 ### Dev auth bypass
 
-Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|seed-bob|seed-carol` in `frontend/.env` to bypass Google Sign-In locally. Frontend sends `X-Dev-User-Id` and backend resolves the user from it. **Never enable this in production.**
+Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|seed-bob|seed-carol` in `frontend/.env` to bypass Google Sign-In locally. Frontend sends `X-Dev-User-Id` and backend resolves the user from it. Add `X-Dev-Is-Admin: true` to also mark the dev user as admin. **Never enable this in production.**
 
 ### Key conventions
 
@@ -102,6 +103,8 @@ uv add <package>                     # add a dependency
 uv run alembic upgrade head          # run migrations
 uv run alembic revision --autogenerate -m "description"  # generate migration
 uv run python scripts/seed.py        # seed local DB with test data (or: just seed)
+just backend set-admin <firebase_uid>              # grant admin (Firebase custom claim)
+just backend feature <firebase_uid> <flag> on|off|reset  # enable/disable/reset a flag
 ```
 
 ### Key conventions
@@ -110,14 +113,22 @@ uv run python scripts/seed.py        # seed local DB with test data (or: just se
 - ORM: **SQLModel** (canonical FastAPI approach). Migrations via **Alembic**.
 - Settings via `pydantic_settings` in `backend/app/core/config.py`, loaded from `backend/.env`
 - Firebase Admin SDK init in `backend/app/core/firebase.py` — singleton pattern
-- Auth dependency in `backend/app/dependencies.py`: `get_current_user`, `require_member`, `require_owner`
+- Auth dependency in `backend/app/dependencies.py`: `get_current_user`, `require_member`, `require_owner`, `require_admin`
+- `is_admin` is a transient Python attribute on `User`, read from Firebase JWT custom claim `decoded.get("is_admin", False)` — never stored in the DB
 - Schemas (request/response Pydantic models) in `backend/app/schemas/`
 - Tests use SQLite in-memory (via `StaticPool`) — no Postgres needed to run the test suite
 - Dockerized: `backend/Dockerfile` → deployed to Cloud Run; runs `alembic upgrade head` on startup
 
+### Feature Flag Management
+
+- **Registry** — all known flags and defaults live in `backend/app/services/feature_flags.py`. Adding a flag = one `FlagDef` entry in `REGISTRY`.
+- **Adding a new flag**: add `FlagDef` to `REGISTRY` + add constant to `frontend/src/lib/featureFlags.ts` + seed test data in `scripts/seed.py` + add tests + gate the endpoint/UI
+- **Granting/revoking**: `just backend feature <firebase_uid> <flag> on|off|reset`
+- **Setting admin**: `just backend set-admin <firebase_uid>` — sets Firebase custom claim; user must refresh their token (up to 1 hour wait, or force-refresh in the app)
+
 ### Project layout
 
-`backend/app/`: `main.py`, `core/` (config, firebase, http), `db/` (session, models), `routers/` (one per resource), `schemas/`, `services/` (community_price, receipt_matcher), `dependencies.py`. Migrations in `alembic/`.
+`backend/app/`: `main.py`, `core/` (config, firebase, http), `db/` (session, models), `routers/` (one per resource), `schemas/`, `services/` (community_price, receipt_matcher, feature_flags), `dependencies.py`. Migrations in `alembic/`.
 
 ### Environment variables
 

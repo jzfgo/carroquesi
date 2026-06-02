@@ -15,6 +15,7 @@ bearer = HTTPBearer(auto_error=False)
 def get_current_user(
     credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(bearer)],
     x_dev_user_id: Annotated[Optional[str], Header()] = None,
+    x_dev_is_admin: Annotated[Optional[str], Header()] = None,
     session: Annotated[Session, Depends(get_session)] = None,
 ) -> User:
     if settings.dev_auth_bypass and x_dev_user_id:
@@ -24,6 +25,7 @@ def get_current_user(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Dev bypass: no user with firebase_uid={x_dev_user_id!r}",
             )
+        object.__setattr__(user, "is_admin", x_dev_is_admin == "true")
         return user
 
     if credentials is None:
@@ -46,6 +48,7 @@ def get_current_user(
         session.add(user)
         session.commit()
         session.refresh(user)
+    object.__setattr__(user, "is_admin", decoded.get("is_admin", False))
     return user
 
 
@@ -90,3 +93,12 @@ def require_owner(
 
 MemberDep: TypeAlias = Annotated[tuple[List, User], Depends(require_member)]
 OwnerDep: TypeAlias = Annotated[tuple[List, User], Depends(require_owner)]
+
+
+def require_admin(current_user: CurrentUser) -> User:
+    if not getattr(current_user, "is_admin", False):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin required")
+    return current_user
+
+
+AdminUser: TypeAlias = Annotated[User, Depends(require_admin)]

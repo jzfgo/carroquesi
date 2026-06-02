@@ -54,7 +54,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.db.models import BarcodeCache, List, ListInvite, ListItem, ListMember, User
+from app.db.models import BarcodeCache, List, ListInvite, ListItem, ListMember, User, UserFeature
 from app.db.session import engine
 
 
@@ -328,9 +328,20 @@ SEED_BARCODES = [
     BarcodeCache(id="seed-bc-pasta", ean="8410175114008", name="Macarrones Gallo",         brand="Gallo",     stores="Mercadona"),
 ]
 
+SEED_FEATURES = [
+    UserFeature(
+        id="seed-feat-alice-receipt",
+        user_id=ALICE_ID,
+        feature="ai_receipt_scanning",
+        enabled=True,
+        granted_by="admin",
+    ),
+]
+
 
 def _delete_seed_rows(session: Session) -> None:
     for model, id_col in [
+        (UserFeature,  UserFeature.id),
         (ListInvite,   ListInvite.id),
         (ListItem,     ListItem.id),
         (ListMember,   ListMember.id),
@@ -365,6 +376,7 @@ def main() -> None:
         _insert(session, SEED_ITEMS);    print(f"  +{len(SEED_ITEMS)} items")
         _insert(session, SEED_INVITES);  print(f"  +{len(SEED_INVITES)} invites")
         _insert(session, SEED_BARCODES); print(f"  +{len(SEED_BARCODES)} barcode cache entries")
+        _insert(session, SEED_FEATURES); print(f"  +{len(SEED_FEATURES)} feature flags")
     print(f"\nPrice data: {len(price_items)} entries across {len(stores)} stores: {', '.join(sorted(stores))}")
     print("""
 Tracked items and tab differences (open price history on any of these):

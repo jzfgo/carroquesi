@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.firebase import get_firebase_app
-from app.routers import auth, barcode, feedback, invites, items, lists, members, prices, receipt, share, suggestions
+from app.routers import admin, auth, barcode, feedback, invites, items, lists, members, prices, receipt, share, suggestions
 
 
 @asynccontextmanager
@@ -28,6 +28,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(auth.users_router)
+app.include_router(admin.router)
 app.include_router(lists.router)
 app.include_router(members.router)
 app.include_router(items.router)

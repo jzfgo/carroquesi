@@ -25,7 +25,7 @@ vi.mock('react-router-dom', () => ({
 }))
 
 const mockGetToken = vi.fn().mockResolvedValue('token')
-const authedUser = { id: 'u1', displayName: 'Alice', photoUrl: null, email: 'alice@example.com' }
+const authedUser = { id: 'u1', displayName: 'Alice', photoUrl: null, email: 'alice@example.com', features: [] }
 
 function mockAuth(user: typeof authedUser | null = authedUser) {
   vi.mocked(AuthContext.useAuth).mockReturnValue({
@@ -164,9 +164,9 @@ test('shows list emoji from preview instead of hardcoded icon', async () => {
   expect(screen.getByText('🍎')).toBeInTheDocument()
 })
 
-test('falls back to 🛒 when list_emoji is null', async () => {
+test('falls back to ShoppingCart icon when list_emoji is null', async () => {
   vi.mocked(api.getInvitePreview).mockResolvedValue({ ...previewData, list_emoji: null })
-  render(<InviteScreen />)
+  const { container } = render(<InviteScreen />)
   await waitFor(() => expect(screen.getByText('Compras')).toBeInTheDocument())
-  expect(screen.getByText('🛒')).toBeInTheDocument()
+  expect(container.querySelector('.invite-screen__icon svg')).toBeInTheDocument()
 })

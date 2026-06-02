@@ -6,6 +6,7 @@ import { ListRoute } from './components/ListRoute'
 import { SignInScreen } from './components/SignInScreen'
 import { ThemeManager } from './components/ThemeManager'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext'
 
 function AuthRoute({ element }: { element: React.ReactElement }) {
   const { user, loading } = useAuth()
@@ -52,13 +53,15 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <ThemeManager>
-          <Routes>
-            <Route path="/invite/:id" element={<InviteScreen />} />
-            <Route path="/lists/:id" element={<AuthRoute element={<ListRoute />} />} />
-            <Route path="*" element={<AppContent />} />
-          </Routes>
-        </ThemeManager>
+        <FeatureFlagsProvider>
+          <ThemeManager>
+            <Routes>
+              <Route path="/invite/:id" element={<InviteScreen />} />
+              <Route path="/lists/:id" element={<AuthRoute element={<ListRoute />} />} />
+              <Route path="*" element={<AppContent />} />
+            </Routes>
+          </ThemeManager>
+        </FeatureFlagsProvider>
       </AuthProvider>
     </BrowserRouter>
   )

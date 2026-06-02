@@ -5,7 +5,7 @@ import type { ListItem, Member } from '../types'
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: vi.fn().mockReturnValue({
-    user: { id: 'user-1', displayName: 'Ana', photoUrl: null, email: 'ana@example.com' },
+    user: { id: 'user-1', displayName: 'Ana', photoUrl: null, email: 'ana@example.com', features: [] },
     getToken: vi.fn(),
     signIn: vi.fn(),
     signOut: vi.fn(),

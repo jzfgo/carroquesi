@@ -2,9 +2,23 @@ import pytest
 from datetime import datetime
 
 from app.db.models import List, ListItem, ListMember
+from app.db.models import UserFeature as _UserFeature
 
 
 LIST_ID = "list-receipt-test"
+
+
+@pytest.fixture(autouse=True)
+def enable_receipt_flag(session, user):
+    """Enable ai_receipt_scanning for the test user so existing tests keep passing."""
+    row = _UserFeature(
+        user_id=user.id,
+        feature="ai_receipt_scanning",
+        enabled=True,
+        granted_by="admin",
+    )
+    session.add(row)
+    session.commit()
 
 
 @pytest.fixture(autouse=True)
@@ -292,3 +306,15 @@ def test_receipt_prices_purchased_quantity_null_when_patch_quantity_null(client,
     client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
     session.expire_all()
     assert session.get(ListItem, "item-almendras").purchased_quantity is None
+
+
+def test_post_receipt_returns_403_when_flag_disabled(session, other_user, other_client):
+    from app.db.models import List, ListMember
+
+    lst = List(id="list-receipt-other", name="Other List", owner_id=other_user.id)
+    mem = ListMember(list_id="list-receipt-other", user_id=other_user.id)
+    session.add_all([lst, mem])
+    session.commit()
+
+    response = other_client.post("/lists/list-receipt-other/receipt", json=_unit_body())
+    assert response.status_code == 403

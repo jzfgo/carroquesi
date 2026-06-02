@@ -2,6 +2,7 @@ import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ListScreen } from './ListScreen'
 import * as AuthContext from '../contexts/AuthContext'
+import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import * as api from '../lib/api'
 import type { ListItem } from '../types'
@@ -13,6 +14,7 @@ vi.mock('@undecaf/barcode-detector-polyfill', () => ({
 }))
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
+vi.mock('../contexts/FeatureFlagsContext', () => ({ useFeatureFlags: vi.fn() }))
 vi.mock('../hooks/useListItems')
 vi.mock('../hooks/useOffline', () => ({ useOffline: vi.fn(() => ({ isOffline: false, pendingCount: 0 })) }))
 vi.mock('../lib/api')
@@ -41,12 +43,13 @@ const emptyHookResult = {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(AuthContext.useAuth).mockReturnValue({
-    user: { id: 'u1', displayName: 'Alice', photoUrl: null, email: 'alice@example.com' },
+    user: { id: 'u1', displayName: 'Alice', photoUrl: null, email: 'alice@example.com', features: [] },
     getToken: mockGetToken,
     signIn: vi.fn(),
     signOut: vi.fn(),
     loading: false,
   })
+  vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({ isEnabled: () => true })
   vi.mocked(useListItemsModule.useListItems).mockReturnValue(emptyHookResult)
   vi.mocked(api.getSuggestions).mockResolvedValue([])
   vi.mocked(api.getDueSuggestions).mockResolvedValue([])
@@ -226,5 +229,29 @@ describe('cost totals', () => {
   it('renders no cost badge when no items have prices', () => {
     renderWithItems([makeItem({ id: '1' }), makeItem({ id: '2' })])
     expect(document.querySelector('.item-list__label-cost')).not.toBeInTheDocument()
+  })
+})
+
+describe('receipt scan CTA', () => {
+  const PURCHASED_ITEM = makeItem({ id: 'i1', purchased: true, purchased_at: TODAY })
+
+  it('shows receipt scan CTA when all items are purchased and flag is enabled', () => {
+    vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({ isEnabled: () => true })
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [PURCHASED_ITEM],
+    })
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    expect(screen.getByText(/Escanear ticket/)).toBeInTheDocument()
+  })
+
+  it('hides receipt scan CTA when flag is disabled', () => {
+    vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({ isEnabled: () => false })
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [PURCHASED_ITEM],
+    })
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    expect(screen.queryByText(/Escanear ticket/)).not.toBeInTheDocument()
   })
 })

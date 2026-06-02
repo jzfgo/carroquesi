@@ -28,7 +28,7 @@ beforeEach(() => {
   mockNavigate = vi.fn()
   vi.mocked(reactRouter.useNavigate).mockReturnValue(mockNavigate as never)
   vi.mocked(AuthContext.useAuth).mockReturnValue({
-    user: { id: 'u1', displayName: 'Alice', photoUrl: null, email: 'alice@example.com' },
+    user: { id: 'u1', displayName: 'Alice', photoUrl: null, email: 'alice@example.com', features: [] },
     getToken: mockGetToken,
     signIn: vi.fn(),
     signOut: mockSignOut,

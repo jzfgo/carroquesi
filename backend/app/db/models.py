@@ -136,3 +136,16 @@ class FeedbackSubmission(SQLModel, table=True):
     source: str = Field(default="manual")
     user_agent: Optional[str] = None
     created_at: datetime = Field(default_factory=_now)
+
+
+class UserFeature(SQLModel, table=True):
+    __tablename__ = "user_features"
+    __table_args__ = (UniqueConstraint("user_id", "feature"),)
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    user_id: str = Field(foreign_key="users.id", index=True)
+    feature: str
+    enabled: bool = True
+    granted_by: str
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)

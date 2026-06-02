@@ -40,3 +40,11 @@ migration-rollback:
 # Seed the local database with test data
 seed:
     uv run python scripts/seed.py
+
+# Grant admin privileges to a user (usage: just backend set-admin <firebase_uid>)
+set-admin uid:
+    uv run python scripts/set_admin.py {{uid}}
+
+# Manage a feature flag for a user (usage: just backend feature <firebase_uid> <flag> <on|off|reset>)
+feature uid flag action:
+    uv run python scripts/manage_feature.py {{uid}} {{flag}} {{action}}
