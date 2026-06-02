@@ -194,7 +194,3 @@ A task is complete only when **all** of the following are true:
 ## Out of Scope
 
 - Submitting prices to Open Prices (requires proof image + OSM location)
-
-## Open Action Items (1:1 — 2026-06-01)
-
-> When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
