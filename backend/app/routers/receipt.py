@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select
 
 from app.db.models import List, ListItem, ReceiptNameMapping, ReceiptScan
@@ -11,6 +11,7 @@ from app.schemas.receipt import (
     ReceiptScanRequest,
     ReceiptScanResult,
 )
+from app.services import feature_flags
 from app.services.receipt_matcher import match_lines
 
 router = APIRouter(tags=["receipt"])
@@ -24,6 +25,12 @@ def scan_receipt(
     list_and_user: MemberDep = None,
 ):
     _, current_user = list_and_user
+
+    if not feature_flags.is_enabled(current_user.id, "ai_receipt_scanning", session):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ai_receipt_scanning feature not enabled",
+        )
 
     stmt = select(ListItem).where(
         ListItem.list_id == list_id,
