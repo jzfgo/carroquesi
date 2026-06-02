@@ -240,18 +240,12 @@ Alembic migration added as the last step before merge (per project conventions).
 Added to `backend/Justfile`:
 
 ```just
-# Enable a feature for a user: just backend feature-enable <firebase_uid> <feature>
-feature-enable uid feature:
-    uv run python scripts/manage_feature.py {{uid}} {{feature}} enable
-
-# Disable a feature for a user: just backend feature-disable <firebase_uid> <feature>
-feature-disable uid feature:
-    uv run python scripts/manage_feature.py {{uid}} {{feature}} disable
-
-# Reset a feature to registry default: just backend feature-remove <firebase_uid> <feature>
-feature-remove uid feature:
-    uv run python scripts/manage_feature.py {{uid}} {{feature}} remove
+# Manage a feature flag for a user: just backend feature <firebase_uid> <feature> <on|off|reset>
+feature uid flag action:
+    uv run python scripts/manage_feature.py {{uid}} {{flag}} {{action}}
 ```
+
+`manage_feature.py` accepts actions: `on` (enable), `off` (disable), `reset` (delete row → reverts to registry default).
 
 ### Skill: `feature-flag`
 
@@ -269,7 +263,7 @@ A Claude Code skill at `~/.claude/skills/feature-flag/` that guides adding a new
 A concise reference section to be added covering:
 
 - **Adding a flag**: update registry (`feature_flags.py`) + frontend constants (`featureFlags.ts`) + seed data
-- **Granting/revoking**: `just backend feature-enable <uid> <flag>` / `feature-disable` / `feature-remove`
+- **Granting/revoking**: `just backend feature <uid> <flag> on|off|reset`
 - **Setting admin**: `just backend set-admin <firebase_uid>` (Firebase custom claim, requires token refresh)
 - **Registry**: all known flags and defaults live in `backend/app/services/feature_flags.py` — adding a flag = one entry there
 
@@ -279,6 +273,6 @@ A concise reference section to be added covering:
 
 The following files must be updated as part of this task (not optional cleanup):
 
-- **`CLAUDE.md`** — update the Core Data Model section to include `user_features`; add `require_admin` to the auth dependencies list; add `X-Dev-Is-Admin` to the dev auth bypass section; add `just backend set-admin`, `feature-enable`, `feature-disable`, `feature-remove` to backend commands; add Feature Flag Management section (see above).
+- **`CLAUDE.md`** — update the Core Data Model section to include `user_features`; add `require_admin` to the auth dependencies list; add `X-Dev-Is-Admin` to the dev auth bypass section; add `just backend set-admin` and `just backend feature <uid> <flag> <on|off|reset>` to backend commands; add Feature Flag Management section (see above).
 - **`TODO.md`** — remove the Feature flags entry once shipped.
 - **`CHANGELOG.md`** — run `just changelog` before merging.
