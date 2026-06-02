@@ -102,6 +102,33 @@ Protected by `require_admin`. Body: `{feature: str, enabled: bool}`. Upserts the
 
 ---
 
+## Dev Auth Bypass Support
+
+The dev auth bypass (`DEV_AUTH_BYPASS=true` + `X-Dev-User-Id` header) skips Firebase token decode entirely, so `decoded.get("is_admin", False)` is never called. Two additions make feature flags fully testable locally:
+
+### `X-Dev-Is-Admin` header
+
+In `get_current_user`, when `settings.dev_auth_bypass` is active, also read an optional `X-Dev-Is-Admin: true` header and set `user.is_admin` accordingly. Only honoured when `dev_auth_bypass=True` — ignored in production.
+
+```python
+# in get_current_user, dev bypass branch:
+if settings.dev_auth_bypass and x_dev_user_id:
+    user = ...  # resolve from DB as today
+    user.is_admin = x_dev_is_admin  # new: from X-Dev-Is-Admin header
+    return user
+```
+
+### Seed data
+
+`scripts/seed.py` seeds `UserFeature` rows alongside other seed data:
+
+- `seed-alice` → `ai_receipt_scanning` enabled (to test the happy path)
+- `seed-bob` and `seed-carol` → no row (tests the gated/default-off state)
+
+`_delete_seed_rows` is updated to also clean up `UserFeature` rows with `user_id` pointing to seed users.
+
+---
+
 ## Admin Bootstrap
 
 ### `scripts/set_admin.py`
@@ -197,3 +224,13 @@ Alembic migration added as the last step before merge (per project conventions).
 - **Backend unit tests:** `is_enabled` with no DB row (falls back to registry default), with `enabled=True`, with `enabled=False`. Admin endpoint: 403 for non-admin, upsert behavior.
 - **Frontend unit tests:** `FeatureFlagsContext` with mocked `GET /users/me`; `isEnabled` returns correct boolean; polling re-fetches.
 - Receipt endpoint returns 403 when flag is disabled, proceeds normally when enabled.
+
+---
+
+## Documentation Updates
+
+The following files must be updated as part of this task (not optional cleanup):
+
+- **`CLAUDE.md`** — update the Core Data Model section to include `user_features`; add `require_admin` to the auth dependencies list; add `X-Dev-Is-Admin` to the dev auth bypass section; add `just backend set-admin <firebase_uid>` to backend commands; add a note about the flag registry in `feature_flags.py`.
+- **`TODO.md`** — remove the Feature flags entry once shipped.
+- **`CHANGELOG.md`** — run `just changelog` before merging.
