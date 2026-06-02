@@ -26,12 +26,19 @@ export function useFeatureFlags(): FeatureFlagsContextValue {
 export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
   const { user, getToken } = useAuth()
   const getTokenRef = useRef(getToken)
-  useEffect(() => { getTokenRef.current = getToken }, [getToken])
-  const [flags, setFlags] = useState<string[]>([])
-
   useEffect(() => {
-    setFlags(user?.features ?? [])
-  }, [user])
+    getTokenRef.current = getToken
+  }, [getToken])
+
+  // polledFlags: null = not yet polled for the current user session
+  const [polledFlags, setPolledFlags] = useState<string[] | null>(null)
+
+  // Reset polledFlags when user identity changes (render-phase update, not inside useEffect)
+  const [trackedUserId, setTrackedUserId] = useState<string | undefined>(user?.id)
+  if (trackedUserId !== user?.id) {
+    setTrackedUserId(user?.id)
+    setPolledFlags(null)
+  }
 
   useEffect(() => {
     if (!user) return
@@ -39,7 +46,7 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
     const poll = async () => {
       try {
         const data = await getMe(getTokenRef.current) as { features?: string[] }
-        setFlags(data.features ?? [])
+        setPolledFlags(data.features ?? [])
       } catch {
         // keep last known state on error
       }
@@ -49,7 +56,10 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id)
   }, [user])
 
-  const isEnabled = useCallback((flag: string) => flags.includes(flag), [flags])
+  const isEnabled = useCallback(
+    (flag: string) => (polledFlags ?? (user?.features ?? [])).includes(flag),
+    [polledFlags, user],
+  )
 
   return (
     <FeatureFlagsContext.Provider value={{ isEnabled }}>
