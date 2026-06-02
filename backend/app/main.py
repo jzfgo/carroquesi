@@ -28,6 +28,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(auth.users_router)
 app.include_router(lists.router)
 app.include_router(members.router)
 app.include_router(items.router)

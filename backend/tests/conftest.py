@@ -73,6 +73,7 @@ def _make_client(session: Session, user: User) -> TestClient:
         allow_headers=["*"],
     )
     test_app.include_router(auth.router)
+    test_app.include_router(auth.users_router)
     test_app.include_router(lists.router)
     test_app.include_router(members.router)
     test_app.include_router(items.router)

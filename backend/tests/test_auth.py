@@ -22,3 +22,19 @@ def test_sync_is_idempotent(session: Session, client: TestClient, user: User):
     # Should still be only one user with this email
     matching = [u for u in users if u.email == user.email]
     assert len(matching) == 1
+
+
+def test_sync_returns_features_list(session: Session, client: TestClient, user: User):
+    response = client.post("/auth/sync")
+    assert response.status_code == 200
+    data = response.json()
+    assert "features" in data
+    assert isinstance(data["features"], list)
+
+
+def test_users_me_returns_features(session: Session, client: TestClient, user: User):
+    response = client.get("/users/me")
+    assert response.status_code == 200
+    data = response.json()
+    assert "features" in data
+    assert isinstance(data["features"], list)
