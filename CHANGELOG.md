@@ -10,27 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Add UserFeature model and feature flags service
-
-- Attach is_admin from JWT; add require_admin dependency
-
-- Add features list to UserRead; add GET /users/me
-
-- Add PATCH /admin/users/{user_id}/features endpoint
-
-- Gate POST /lists/{list_id}/receipt behind ai_receipt_scanning flag
-
-- Seed UserFeature rows; add set_admin and manage_feature scripts
-
-- Add FLAGS constants; add features to AuthUser; add getMe API call
-
-- Add FeatureFlagsContext with 60s polling
-
-- Gate receipt scan CTA behind ai_receipt_scanning flag
-
-
-### Fixed
-- Update InviteScreen test to match ShoppingCart icon fallback
+- Per-user feature flags with ai_receipt_scanning gate (#70)
 
 
 ---
