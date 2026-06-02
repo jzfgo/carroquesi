@@ -22,6 +22,7 @@ export interface AuthUser {
   displayName: string
   photoUrl: string | null
   email: string
+  features: string[]
 }
 
 interface AuthContextValue {
@@ -54,8 +55,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const getToken = async () => 'dev-bypass'
       syncUser(getToken)
         .then((data) => {
-          const d = data as { id: string; display_name: string; photo_url: string | null; email: string }
-          setUser({ id: d.id, displayName: d.display_name, photoUrl: d.photo_url, email: d.email })
+          const d = data as { id: string; display_name: string; photo_url: string | null; email: string; features?: string[] }
+          setUser({ id: d.id, displayName: d.display_name, photoUrl: d.photo_url, email: d.email, features: d.features ?? [] })
         })
         .catch(() => {})
         .finally(() => setLoading(false))
@@ -73,12 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             display_name: string
             photo_url: string | null
             email: string
+            features?: string[]
           }
           setUser({
             id: data.id,
             displayName: data.display_name,
             photoUrl: data.photo_url,
             email: data.email,
+            features: data.features ?? [],
           })
         } catch {
           // A network error from syncUser should not sign the user out.

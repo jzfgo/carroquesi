@@ -25,7 +25,7 @@ vi.mock('react-router-dom', () => ({
 }))
 
 const mockGetToken = vi.fn().mockResolvedValue('token')
-const authedUser = { id: 'u1', displayName: 'Alice', photoUrl: null, email: 'alice@example.com' }
+const authedUser = { id: 'u1', displayName: 'Alice', photoUrl: null, email: 'alice@example.com', features: [] }
 
 function mockAuth(user: typeof authedUser | null = authedUser) {
   vi.mocked(AuthContext.useAuth).mockReturnValue({

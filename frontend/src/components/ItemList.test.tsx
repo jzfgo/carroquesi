@@ -5,7 +5,7 @@ import { purchasedDateLabel } from '../lib/itemCost'
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: vi.fn().mockReturnValue({
-    user: { id: 'u1', displayName: 'Test', photoUrl: null, email: 'test@example.com' },
+    user: { id: 'u1', displayName: 'Test', photoUrl: null, email: 'test@example.com', features: [] },
     getToken: vi.fn(),
     signIn: vi.fn(),
     signOut: vi.fn(),

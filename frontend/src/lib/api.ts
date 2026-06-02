@@ -37,6 +37,10 @@ export function syncUser(getToken: () => Promise<string>) {
   return apiFetch(getToken, '/auth/sync', { method: 'POST' })
 }
 
+export function getMe(getToken: () => Promise<string>) {
+  return apiFetch(getToken, '/users/me')
+}
+
 export function getLists(getToken: () => Promise<string>) {
   return apiFetch(getToken, '/lists')
 }
