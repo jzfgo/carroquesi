@@ -145,6 +145,7 @@ See `backend/.env.example` and `frontend/.env.example`.
 - Always check git status for untracked changes before assuming worktree is clean
 - For CI: use `npm ci` for clean installs
 - If the current worktree contains unrelated or unexpected changes, stop and ask before proceeding
+- **Alembic migrations must be the last step before merging**, after rebasing on main — never create a migration in parallel with another branch that also has one (migration version conflicts require manual resolution and are easy to get wrong)
 
 ### Changelog & Release Workflow
 
@@ -180,15 +181,16 @@ See `backend/.env.example` and `frontend/.env.example`.
 - **TODO.md** — remove any items that shipped in this task. This is blocking, not optional cleanup.
 - **CHANGELOG.md** — run `just changelog` and commit the result before pushing. This is blocking, not optional cleanup.
 
+## Definition of Done
+
+A task is complete only when **all** of the following are true:
+
+- [ ] Worktree confirmed active (not on `main`) before any file was touched
+- [ ] Lint and relevant tests pass (`just ci` for full check)
+- [ ] `TODO.md` updated — any shipped items removed
+- [ ] `CHANGELOG.md` updated — `just changelog` run and result committed
+- [ ] Only intentional files changed (no platform-specific `package-lock.json` churn)
+
 ## Out of Scope
 
 - Submitting prices to Open Prices (requires proof image + OSM location)
-
-## Open Action Items (1:1 — 2026-06-01)
-
-**You:**
-
-- [ ] Add Alembic migration serialization rule: migrations must be the last step before merging, after rebasing on main — never create a migration in parallel with another branch that also has one
-- [ ] Add a "Definition of Done" section (worktree confirmed, TODO updated, CHANGELOG updated, lint/tests pass)
-
-> When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
