@@ -46,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **frontend:** Clear user session on backend 401/403 in syncUser
 
+- Address GCA review comments on waitlist invite flow
+
 
 ---
 ## [0.18.0] — 2026-06-03
