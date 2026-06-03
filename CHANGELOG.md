@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **frontend:** Position waitlist early return after hooks in InviteScreen to satisfy React Hook rules
 
+- **frontend:** Show error message instead of success state when Google sign-in is blocked
+
 
 ---
 ## [0.18.0] — 2026-06-03
