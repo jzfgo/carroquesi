@@ -10,6 +10,8 @@ cache/
 .pi-lens/
 .remember/
 .superpowers/
+superpowers/
+docs/superpowers/plans/
 skills-lock.json
 
 # Python

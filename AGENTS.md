@@ -149,6 +149,12 @@ See `backend/.env.example` and `frontend/.env.example`.
 - Check `git status --short` before and after changes
 - Implement the smallest complete fix first, then iterate
 
+### Architecture Decision Records
+
+Significant architectural decisions are documented in `docs/decisions/`. Before making a choice that overlaps with an existing ADR (auth strategy, ORM, sync mechanism, AI provider, feature flags), read the relevant record — it explains what was considered and why the current approach was chosen.
+
+When introducing a new significant tradeoff (a new infrastructure dependency, a data model pattern, a sync strategy change), add or update an ADR. Edit in place; git history is the audit trail.
+
 ### Git Workflow
 
 - Use squash merge for PRs by default
