@@ -22,7 +22,7 @@ def signup(
     if existing:
         return existing
 
-    new_signup = WaitlistSignup(email=email_clean)
+    new_signup = WaitlistSignup(email=email_clean, invite_token=body.invite_token)
     session.add(new_signup)
     try:
         session.commit()

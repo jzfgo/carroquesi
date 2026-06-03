@@ -6,10 +6,18 @@ import { submitWaitlistSignup } from '../lib/api'
 import { auth } from '../lib/firebase'
 import './WaitlistScreen.css'
 
-export function WaitlistScreen() {
+interface WaitlistScreenProps {
+  inviteToken?: string
+  inviterName?: string
+  listName?: string
+}
+
+export function WaitlistScreen({ inviteToken, inviterName, listName }: WaitlistScreenProps = {}) {
   usePageTitle('Acceso anticipado')
   const { signIn, signOut, isWaitlisted } = useAuth()
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() =>
+    inviteToken ? (auth.currentUser?.email ?? '') : ''
+  )
   const [submittedEmail, setSubmittedEmail] = useState('')
   const [isAlreadyAllowed, setIsAlreadyAllowed] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -31,7 +39,7 @@ export function WaitlistScreen() {
     setIsSubmitting(true)
 
     try {
-      const res = await submitWaitlistSignup(cleanEmail)
+      const res = await submitWaitlistSignup(cleanEmail, inviteToken)
       if (res.allowed_at) {
         setIsAlreadyAllowed(true)
       } else {
@@ -85,7 +93,10 @@ export function WaitlistScreen() {
         <span className="waitlist__hand">¡apuntad@!</span>
         <h2 className="waitlist__success-headline">Ya estás en la lista</h2>
         <p className="waitlist__success-copy">
-          Te avisaremos en <strong>{submittedEmail}</strong> cuando haya un hueco. ¡Gracias por el interés!
+          {inviteToken && listName
+            ? <>Te avisaremos en <strong>{submittedEmail}</strong> cuando puedas unirte a <strong>{listName}</strong>.</>
+            : <>Te avisaremos en <strong>{submittedEmail}</strong> cuando haya un hueco. ¡Gracias por el interés!</>
+          }
         </p>
         <button className="waitlist__cancel" onClick={() => void signOut()} style={{ marginTop: '2rem' }}>
           Salir
@@ -100,12 +111,21 @@ export function WaitlistScreen() {
         <Wordmark size={56} />
       </h1>
       <p className="waitlist__tag">Juntos compramos mejor</p>
-      
+
       <div className="waitlist__badge">Acceso anticipado</div>
-      
-      <p className="waitlist__copy">
-        Estamos abriendo poco a poco. Déjanos tu correo y te avisamos en cuanto haya un hueco para ti.
-      </p>
+
+      {inviteToken ? (
+        <p className="waitlist__copy">
+          {inviterName
+            ? <><strong>{inviterName}</strong> te ha invitado a unirse{listName ? <> a <strong>{listName}</strong></> : ''}. Apúntate y te damos acceso en cuanto podamos.</>
+            : <>Has recibido una invitación. Apúntate y te damos acceso en cuanto podamos.</>
+          }
+        </p>
+      ) : (
+        <p className="waitlist__copy">
+          Estamos abriendo poco a poco. Déjanos tu correo y te avisamos en cuanto haya un hueco para ti.
+        </p>
+      )}
 
       <form className="waitlist__form" onSubmit={handleSubmit} noValidate>
         <input

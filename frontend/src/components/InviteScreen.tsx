@@ -80,7 +80,13 @@ export function InviteScreen() {
   }, [authLoading, user, inviteId, getToken, navigate])
 
   if (isWaitlisted) {
-    return <WaitlistScreen />
+    return (
+      <WaitlistScreen
+        inviteToken={inviteId}
+        inviterName={preview?.invited_by_name ?? undefined}
+        listName={preview?.list_name ?? undefined}
+      />
+    )
   }
 
   async function handleAccept() {

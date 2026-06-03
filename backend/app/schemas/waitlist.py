@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr
 
 class WaitlistSignupCreate(BaseModel):
     email: EmailStr
+    invite_token: Optional[str] = None
 
 
 class WaitlistSignupRead(BaseModel):
@@ -14,4 +15,5 @@ class WaitlistSignupRead(BaseModel):
     email: str
     created_at: datetime
     allowed_at: Optional[datetime] = None
+    invite_token: Optional[str] = None
 

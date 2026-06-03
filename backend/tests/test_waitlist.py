@@ -47,6 +47,22 @@ def test_waitlist_signup_silent_dedup(client: TestClient, session: Session):
     assert len(signups) == 1
 
 
+def test_waitlist_signup_stores_invite_token(client: TestClient, session: Session):
+    response = client.post("/waitlist", json={"email": "user@example.com", "invite_token": "inv-abc123"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["invite_token"] == "inv-abc123"
+
+    stored = session.exec(select(WaitlistSignup)).one()
+    assert stored.invite_token == "inv-abc123"
+
+
+def test_waitlist_signup_without_invite_token(client: TestClient, session: Session):
+    response = client.post("/waitlist", json={"email": "user@example.com"})
+    assert response.status_code == 200
+    assert response.json()["invite_token"] is None
+
+
 def test_waitlist_signup_invalid_email(client: TestClient, session: Session):
     response = client.post("/waitlist", json={"email": "not-an-email"})
     assert response.status_code == 422

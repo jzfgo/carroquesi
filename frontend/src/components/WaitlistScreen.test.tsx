@@ -57,6 +57,32 @@ describe('WaitlistScreen', () => {
     })
   })
 
+  it('shows invite context copy when inviter and list name are provided', () => {
+    render(<WaitlistScreen inviteToken="inv123" inviterName="Ana" listName="Compras" />)
+    expect(screen.getByText(/ana/i)).toBeInTheDocument()
+    expect(screen.getByText(/te ha invitado/i)).toBeInTheDocument()
+    expect(screen.getByText(/compras/i)).toBeInTheDocument()
+  })
+
+  it('passes inviteToken to submitWaitlistSignup', async () => {
+    vi.mocked(Api.submitWaitlistSignup).mockResolvedValue({ id: '1', email: 'user@example.com', created_at: '2026-06-03' })
+    render(<WaitlistScreen inviteToken="inv123" />)
+    fireEvent.change(screen.getByPlaceholderText(/tu@correo.com/i), { target: { value: 'user@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: /apuntarme/i }))
+    await waitFor(() => {
+      expect(Api.submitWaitlistSignup).toHaveBeenCalledWith('user@example.com', 'inv123')
+    })
+  })
+
+  it('shows list name in success copy when listName is provided', async () => {
+    vi.mocked(Api.submitWaitlistSignup).mockResolvedValue({ id: '1', email: 'user@example.com', created_at: '2026-06-03' })
+    render(<WaitlistScreen inviteToken="inv123" listName="Compras" />)
+    fireEvent.change(screen.getByPlaceholderText(/tu@correo.com/i), { target: { value: 'user@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: /apuntarme/i }))
+    await waitFor(() => expect(screen.getByText(/ya estás en la lista/i)).toBeInTheDocument())
+    expect(screen.getByText(/compras/i)).toBeInTheDocument()
+  })
+
   it('calls signIn on Google button click', () => {
     const mockSignIn = vi.fn().mockResolvedValue(undefined)
     vi.mocked(AuthContext.useAuth).mockReturnValue({

@@ -19,4 +19,5 @@ class WaitlistSignup(SQLModel, table=True):
     email: str = Field(unique=True, index=True)
     created_at: datetime = Field(default_factory=_now)
     allowed_at: Optional[datetime] = Field(default=None, nullable=True)
+    invite_token: Optional[str] = Field(default=None, nullable=True)
 
