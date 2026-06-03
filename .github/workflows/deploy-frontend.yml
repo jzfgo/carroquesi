@@ -37,6 +37,7 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL }}
           VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
+          VITE_WAITLIST_ENABLED: ${{ vars.VITE_WAITLIST_ENABLED }}
 
       - uses: google-github-actions/auth@v3
         with:

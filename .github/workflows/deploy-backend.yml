@@ -54,5 +54,6 @@ jobs:
             ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
             FRONTEND_URL=${{ vars.FRONTEND_URL }}
             RECEIPT_STORAGE_BUCKET=${{ vars.RECEIPT_STORAGE_BUCKET }}
+            WAITLIST_ENABLED=${{ vars.WAITLIST_ENABLED }}
           secrets: |
             /secrets/firebase-credentials=firebase-credentials:latest
