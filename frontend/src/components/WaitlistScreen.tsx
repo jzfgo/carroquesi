@@ -38,10 +38,10 @@ export function WaitlistScreen() {
       setIsSubmitting(false)
     }
   }
+  const googleEmail = auth.currentUser?.email
+  const displayError = errorMsg || (isWaitlisted && googleEmail ? `La cuenta ${googleEmail} no está registrada en el acceso anticipado. Introduce tu correo arriba para apuntarte.` : '')
 
-  const emailToShow = submittedEmail || (isWaitlisted ? auth.currentUser?.email : '')
-
-  if (emailToShow) {
+  if (submittedEmail) {
     return (
       <div className="waitlist" role="status">
         <h1 className="waitlist__title">
@@ -50,7 +50,7 @@ export function WaitlistScreen() {
         <span className="waitlist__hand">¡apuntad@!</span>
         <h2 className="waitlist__success-headline">Ya estás en la lista</h2>
         <p className="waitlist__success-copy">
-          Te avisaremos en <strong>{emailToShow}</strong> cuando haya un hueco. ¡Gracias por el interés!
+          Te avisaremos en <strong>{submittedEmail}</strong> cuando haya un hueco. ¡Gracias por el interés!
         </p>
         <button className="waitlist__cancel" onClick={() => void signOut()} style={{ marginTop: '2rem' }}>
           Salir
@@ -88,7 +88,7 @@ export function WaitlistScreen() {
         </button>
       </form>
 
-      {errorMsg && <p className="waitlist__error" role="alert">{errorMsg}</p>}
+      {displayError && <p className="waitlist__error" role="alert">{displayError}</p>}
 
       <div className="waitlist__divider">
         <span>o</span>
@@ -104,9 +104,11 @@ export function WaitlistScreen() {
         Continuar con Google
       </button>
 
-      <button className="waitlist__cancel" onClick={() => void signOut()}>
-        Salir
-      </button>
+      {(isWaitlisted || auth.currentUser) && (
+        <button className="waitlist__cancel" onClick={() => void signOut()}>
+          Salir
+        </button>
+      )}
     </div>
   )
 }
