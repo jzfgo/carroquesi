@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **frontend:** Adjust mocks in WaitlistScreen.test.tsx to prevent firebase init errors in tests
 
+- **frontend:** Render WaitlistScreen inside InviteScreen for waitlisted users
+
 
 ---
 ## [0.18.0] — 2026-06-03
