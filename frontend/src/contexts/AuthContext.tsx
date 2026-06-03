@@ -100,6 +100,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               // Ignore JSON parse errors
             }
           }
+          if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+            setUser(null)
+            setLoading(false)
+            return
+          }
           // A network error from syncUser should not sign the user out.
           // Keep existing session state; only clear on explicit Firebase sign-out.
           setUser(prev => prev)
