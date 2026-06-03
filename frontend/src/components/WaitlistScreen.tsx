@@ -3,11 +3,12 @@ import { useAuth } from '../contexts/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { Wordmark } from './Wordmark'
 import { submitWaitlistSignup } from '../lib/api'
+import { auth } from '../lib/firebase'
 import './WaitlistScreen.css'
 
 export function WaitlistScreen() {
   usePageTitle('Acceso anticipado')
-  const { signIn, signOut } = useAuth()
+  const { signIn, signOut, isWaitlisted } = useAuth()
   const [email, setEmail] = useState('')
   const [submittedEmail, setSubmittedEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -38,7 +39,9 @@ export function WaitlistScreen() {
     }
   }
 
-  if (submittedEmail) {
+  const emailToShow = submittedEmail || (isWaitlisted ? auth.currentUser?.email : '')
+
+  if (emailToShow) {
     return (
       <div className="waitlist" role="status">
         <h1 className="waitlist__title">
@@ -47,7 +50,7 @@ export function WaitlistScreen() {
         <span className="waitlist__hand">¡apuntad@!</span>
         <h2 className="waitlist__success-headline">Ya estás en la lista</h2>
         <p className="waitlist__success-copy">
-          Te avisaremos en <strong>{submittedEmail}</strong> cuando haya un hueco. ¡Gracias por el interés!
+          Te avisaremos en <strong>{emailToShow}</strong> cuando haya un hueco. ¡Gracias por el interés!
         </p>
         <button className="waitlist__cancel" onClick={() => void signOut()} style={{ marginTop: '2rem' }}>
           Salir

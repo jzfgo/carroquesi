@@ -13,7 +13,12 @@ function AuthRoute({ element }: { element: React.ReactElement }) {
   const { user, loading, isWaitlisted } = useAuth()
   if (loading) return null
   if (isWaitlisted) return <WaitlistScreen />
-  if (!user) return <SignInScreen />
+  if (!user) {
+    if (import.meta.env.VITE_WAITLIST_ENABLED === 'true') {
+      return <WaitlistScreen />
+    }
+    return <SignInScreen />
+  }
   return element
 }
 
@@ -48,7 +53,12 @@ function AppContent() {
   }
 
   if (isWaitlisted) return <WaitlistScreen />
-  if (!user) return <SignInScreen />
+  if (!user) {
+    if (import.meta.env.VITE_WAITLIST_ENABLED === 'true') {
+      return <WaitlistScreen />
+    }
+    return <SignInScreen />
+  }
   return <DashboardScreen />
 }
 
