@@ -34,6 +34,7 @@ describe('FeatureFlagsContext', () => {
       signIn: vi.fn(),
       signOut: vi.fn(),
       loading: false,
+      isWaitlisted: false,
     })
   })
 
@@ -48,6 +49,7 @@ describe('FeatureFlagsContext', () => {
       signIn: vi.fn(),
       signOut: vi.fn(),
       loading: false,
+      isWaitlisted: false,
     })
     render(
       <FeatureFlagsProvider>
@@ -73,6 +75,7 @@ describe('FeatureFlagsContext', () => {
       signIn: vi.fn(),
       signOut: vi.fn(),
       loading: false,
+      isWaitlisted: false,
     })
     render(
       <FeatureFlagsProvider>
@@ -115,6 +118,7 @@ describe('FeatureFlagsContext', () => {
       signIn: vi.fn(),
       signOut: vi.fn(),
       loading: false,
+      isWaitlisted: false,
     })
 
     rerender(

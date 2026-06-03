@@ -34,6 +34,7 @@ function mockAuth(user: typeof authedUser | null = authedUser) {
     signIn: vi.fn(),
     signOut: vi.fn(),
     loading: false,
+    isWaitlisted: false,
   })
 }
 
@@ -100,6 +101,7 @@ test('calls signIn when not authenticated and button clicked', async () => {
     signIn: mockSignIn,
     signOut: vi.fn(),
     loading: false,
+    isWaitlisted: false,
   })
   vi.mocked(api.getInvitePreview).mockResolvedValue(previewData)
   render(<InviteScreen />)
@@ -169,4 +171,23 @@ test('falls back to ShoppingCart icon when list_emoji is null', async () => {
   const { container } = render(<InviteScreen />)
   await waitFor(() => expect(screen.getByText('Compras')).toBeInTheDocument())
   expect(container.querySelector('.invite-screen__icon svg')).toBeInTheDocument()
+})
+
+test('renders WaitlistScreen with invite context when isWaitlisted is true', async () => {
+  vi.mocked(AuthContext.useAuth).mockReturnValue({
+    user: null,
+    getToken: vi.fn(),
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    loading: false,
+    isWaitlisted: true,
+  })
+  vi.mocked(api.getInvitePreview).mockResolvedValue(previewData)
+  render(<InviteScreen />)
+  expect(screen.getByText(/acceso anticipado/i)).toBeInTheDocument()
+  // After preview loads, invite context (inviterName + listName) should reach WaitlistScreen
+  await waitFor(() => {
+    expect(screen.getByText('Ana')).toBeInTheDocument()
+    expect(screen.getByText('Compras')).toBeInTheDocument()
+  })
 })

@@ -5,18 +5,25 @@ import { InviteScreen } from './components/InviteScreen'
 import { ListRoute } from './components/ListRoute'
 import { SignInScreen } from './components/SignInScreen'
 import { ThemeManager } from './components/ThemeManager'
+import { WaitlistScreen } from './components/WaitlistScreen'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext'
 
 function AuthRoute({ element }: { element: React.ReactElement }) {
-  const { user, loading } = useAuth()
+  const { user, loading, isWaitlisted } = useAuth()
   if (loading) return null
-  if (!user) return <SignInScreen />
+  if (isWaitlisted) return <WaitlistScreen />
+  if (!user) {
+    if (import.meta.env.VITE_WAITLIST_ENABLED === 'true') {
+      return <WaitlistScreen />
+    }
+    return <SignInScreen />
+  }
   return element
 }
 
 function AppContent() {
-  const { user, loading } = useAuth()
+  const { user, loading, isWaitlisted } = useAuth()
 
   if (loading) {
     return (
@@ -45,7 +52,13 @@ function AppContent() {
     )
   }
 
-  if (!user) return <SignInScreen />
+  if (isWaitlisted) return <WaitlistScreen />
+  if (!user) {
+    if (import.meta.env.VITE_WAITLIST_ENABLED === 'true') {
+      return <WaitlistScreen />
+    }
+    return <SignInScreen />
+  }
   return <DashboardScreen />
 }
 

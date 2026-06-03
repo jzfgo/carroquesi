@@ -262,3 +262,15 @@ export function submitFeedback(
     body: JSON.stringify(payload),
   }) as Promise<FeedbackResponse>
 }
+
+export function submitWaitlistSignup(email: string, inviteToken?: string) {
+  return fetch(`${BASE}/waitlist`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, ...(inviteToken ? { invite_token: inviteToken } : {}) }),
+  }).then(async (res) => {
+    if (!res.ok) throw new ApiError(res.status, await res.text())
+    return res.json()
+  })
+}
+

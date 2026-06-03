@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { getInvitePreview, acceptInvite, ApiError } from '../lib/api'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { Mascot } from './Mascot'
+import { WaitlistScreen } from './WaitlistScreen'
 import './InviteScreen.css'
 
 type ScreenState = 'loading' | 'preview' | 'accepting' | 'error'
@@ -26,7 +27,7 @@ const ERROR_MESSAGES: Record<number, string> = {
 export function InviteScreen() {
   const { id: inviteId } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user, getToken, signIn, loading: authLoading } = useAuth()
+  const { user, getToken, signIn, loading: authLoading, isWaitlisted } = useAuth()
   const [screenState, setScreenState] = useState<ScreenState>('loading')
   const [preview, setPreview] = useState<Preview | null>(null)
   usePageTitle(preview ? `Invitación — ${preview.list_name}` : 'Invitación')
@@ -77,6 +78,16 @@ export function InviteScreen() {
       }
     })()
   }, [authLoading, user, inviteId, getToken, navigate])
+
+  if (isWaitlisted) {
+    return (
+      <WaitlistScreen
+        inviteToken={inviteId}
+        inviterName={preview?.invited_by_name ?? undefined}
+        listName={preview?.list_name ?? undefined}
+      />
+    )
+  }
 
   async function handleAccept() {
     if (!inviteId) return

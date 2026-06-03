@@ -34,6 +34,7 @@ beforeEach(() => {
     signIn: vi.fn(),
     signOut: vi.fn(),
     loading: false,
+    isWaitlisted: false,
   })
 })
 

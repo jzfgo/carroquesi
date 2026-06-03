@@ -14,6 +14,7 @@ beforeEach(() => {
     signIn: vi.fn().mockResolvedValue(undefined),
     signOut: vi.fn(),
     loading: false,
+    isWaitlisted: false,
   })
 })
 
@@ -36,6 +37,7 @@ describe('SignInScreen', () => {
       signIn: mockSignIn,
       signOut: vi.fn(),
       loading: false,
+      isWaitlisted: false,
     })
     render(<SignInScreen />)
     fireEvent.click(screen.getByRole('button', { name: /google/i }))

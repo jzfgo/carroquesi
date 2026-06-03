@@ -48,6 +48,7 @@ beforeEach(() => {
     signIn: vi.fn(),
     signOut: vi.fn(),
     loading: false,
+    isWaitlisted: false,
   })
   vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({ isEnabled: () => true })
   vi.mocked(useListItemsModule.useListItems).mockReturnValue(emptyHookResult)
