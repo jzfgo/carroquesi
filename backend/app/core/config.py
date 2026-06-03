@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     # Set to true in local .env only — never in production
     dev_auth_bypass: bool = False
     frontend_url: str = "http://localhost:5173"
+    waitlist_enabled: bool = False
 
     model_config = {"env_file": ".env"}
 

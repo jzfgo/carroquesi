@@ -14,6 +14,10 @@ def _now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
+# Import WaitlistSignup to ensure SQLModel metadata includes it
+from app.db.waitlist_models import WaitlistSignup
+
+
 class User(SQLModel, table=True):
     __tablename__ = "users"
 
