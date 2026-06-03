@@ -86,6 +86,12 @@ Make sure:
 - [ ] `CHANGELOG.md` updated — run `just changelog` and commit the result
 - [ ] Only intentional files are changed (no `package-lock.json` platform churn)
 
+### Architecture Decision Records
+
+Significant architectural decisions are documented in `docs/decisions/`. Before making a choice that overlaps with an existing ADR, read it — it explains what was considered and why the current approach was chosen.
+
+When your PR introduces a new significant tradeoff, add or update an ADR. Edit in place; git history is the audit trail.
+
 ### Alembic migrations
 
 If your change requires a database migration, create it **last** — after rebasing on `main` and just before opening the PR. Two branches with migrations in parallel cause version conflicts that require manual resolution.
