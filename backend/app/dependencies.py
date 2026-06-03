@@ -39,6 +39,11 @@ def get_current_user(
     user = session.exec(select(User).where(User.firebase_uid == decoded["uid"])).first()
     if user is None:
         # First login — create the user record
+        if settings.waitlist_enabled and not decoded.get("is_admin", False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="waitlist",
+            )
         user = User(
             firebase_uid=decoded["uid"],
             email=decoded.get("email", ""),
