@@ -48,7 +48,7 @@ def get_current_user(
                 signup = session.exec(
                     select(WaitlistSignup).where(
                         WaitlistSignup.email == email_clean,
-                        WaitlistSignup.allowed_at != None
+                        WaitlistSignup.allowed_at.is_not(None)
                     )
                 ).first()
                 if signup:

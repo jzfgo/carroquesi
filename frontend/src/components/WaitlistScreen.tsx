@@ -15,9 +15,7 @@ interface WaitlistScreenProps {
 export function WaitlistScreen({ inviteToken, inviterName, listName }: WaitlistScreenProps = {}) {
   usePageTitle('Acceso anticipado')
   const { signIn, signOut, isWaitlisted } = useAuth()
-  const [email, setEmail] = useState(() =>
-    inviteToken ? (auth.currentUser?.email ?? '') : ''
-  )
+  const [email, setEmail] = useState(() => auth.currentUser?.email ?? '')
   const [submittedEmail, setSubmittedEmail] = useState('')
   const [isAlreadyAllowed, setIsAlreadyAllowed] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)

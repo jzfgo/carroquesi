@@ -38,6 +38,23 @@ def test_waitlist_signup_stores_clean_email(client: TestClient, session: Session
     assert stored.email == "test@example.com"
 
 
+def test_waitlist_signup_updates_invite_token_on_existing_entry(client: TestClient, session: Session):
+    client.post("/waitlist", json={"email": "user@example.com"})
+    response = client.post("/waitlist", json={"email": "user@example.com", "invite_token": "inv-abc"})
+    assert response.status_code == 200
+    assert response.json()["invite_token"] == "inv-abc"
+
+    stored = session.exec(select(WaitlistSignup)).one()
+    assert stored.invite_token == "inv-abc"
+
+
+def test_waitlist_signup_does_not_overwrite_existing_invite_token(client: TestClient, session: Session):
+    client.post("/waitlist", json={"email": "user@example.com", "invite_token": "original"})
+    response = client.post("/waitlist", json={"email": "user@example.com", "invite_token": "new-token"})
+    assert response.status_code == 200
+    assert response.json()["invite_token"] == "original"
+
+
 def test_waitlist_signup_silent_dedup(client: TestClient, session: Session):
     client.post("/waitlist", json={"email": "test@example.com"})
     response = client.post("/waitlist", json={"email": "TEST@example.com"})

@@ -20,6 +20,11 @@ def signup(
         select(WaitlistSignup).where(WaitlistSignup.email == email_clean)
     ).first()
     if existing:
+        if body.invite_token and not existing.invite_token:
+            existing.invite_token = body.invite_token
+            session.add(existing)
+            session.commit()
+            session.refresh(existing)
         return existing
 
     new_signup = WaitlistSignup(email=email_clean, invite_token=body.invite_token)
