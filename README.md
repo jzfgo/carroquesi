@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/node-24-green" alt="Node">
 </p>
 
-A collaborative grocery shopping list web app. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history. Includes price logging with per-item history, barcode lookup, AI-powered receipt scanning, and running cost totals per shopping session.
+A collaborative grocery shopping list. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history. Includes price logging with per-item history, barcode lookup, AI-powered receipt scanning, and running cost totals per shopping session.
 
 ## Architecture
 
@@ -74,8 +74,7 @@ VITE_RECAPTCHA_SITE_KEY=...   # Firebase App Check (reCAPTCHA v3) — required i
 ### 2. Install dependencies
 
 ```bash
-just frontend install
-just backend install
+just install
 ```
 
 ### 3. Database
@@ -147,6 +146,7 @@ Run `just` (no arguments) to list all available recipes.
 | Command          | Description                                   |
 | ---------------- | --------------------------------------------- |
 | `just setup`     | Wire git hooks (run once after cloning)       |
+| `just install`   | Install all application dependencies          |
 | `just dev`       | Start frontend + backend via overmind         |
 | `just test`      | Run all tests (frontend then backend)         |
 | `just ci`        | Typecheck + lint (frontend), tests (backend)  |
