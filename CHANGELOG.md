@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **frontend:** Catch 403 waitlist responses and manage isWaitlisted state
 
+- **frontend:** Create WaitlistScreen component and unit tests
+
+
+### Fixed
+- **frontend:** Reset user state to null when waitlisted
+
 
 ---
 ## [0.18.0] — 2026-06-03
