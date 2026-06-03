@@ -20,9 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **frontend:** Create WaitlistScreen component and unit tests
 
+- **frontend:** Integrate WaitlistScreen routing and complete implementation
+
 
 ### Fixed
 - **frontend:** Reset user state to null when waitlisted
+
+- **frontend:** Update waitlist tests to use importOriginal and expose log out button in success state
+
+- **frontend:** Adjust mocks in WaitlistScreen.test.tsx to prevent firebase init errors in tests
 
 
 ---
