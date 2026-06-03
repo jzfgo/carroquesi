@@ -136,7 +136,7 @@ export function WaitlistScreen({ inviteToken, inviterName, listName }: WaitlistS
           aria-label="Correo electrónico"
           required
         />
-        <button className="waitlist__cta" type="submit" disabled={isSubmitting}>
+        <button className="waitlist__cta" type="submit" disabled={isSubmitting || !email.trim()}>
           {isSubmitting ? 'Apuntando...' : 'Apuntarme a la lista'}
         </button>
       </form>
