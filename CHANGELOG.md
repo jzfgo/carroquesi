@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- **backend:** Add waitlist configuration and WaitlistSignup DB model
+
+- **backend:** Implement waitlist signup and listing endpoints
+
+- **backend:** Register waitlist router and enforce gate on new signups
+
+- **frontend:** Catch 403 waitlist responses and manage isWaitlisted state
+
+
+---
 ## [0.18.0] — 2026-06-03
 
 ### Added
