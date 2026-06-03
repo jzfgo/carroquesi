@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **frontend:** Render WaitlistScreen inside InviteScreen for waitlisted users
 
+- **frontend:** Position waitlist early return after hooks in InviteScreen to satisfy React Hook rules
+
 
 ---
 ## [0.18.0] — 2026-06-03
