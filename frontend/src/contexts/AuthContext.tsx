@@ -15,7 +15,7 @@ import {
   type User as FirebaseUser,
 } from 'firebase/auth'
 import { auth } from '../lib/firebase'
-import { syncUser } from '../lib/api'
+import { syncUser, ApiError } from '../lib/api'
 
 export interface AuthUser {
   id: string
@@ -31,6 +31,7 @@ interface AuthContextValue {
   signIn: () => Promise<void>
   signOut: () => Promise<void>
   loading: boolean
+  isWaitlisted: boolean
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -47,6 +48,7 @@ const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID as string | undefined
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isWaitlisted, setIsWaitlisted] = useState(false)
   const firebaseUserRef = useRef<FirebaseUser | null>(null)
 
   useEffect(() => {
@@ -83,13 +85,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: data.email,
             features: data.features ?? [],
           })
-        } catch {
+          setIsWaitlisted(false)
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 403) {
+            try {
+              const body = JSON.parse(err.message)
+              if (body.detail === 'waitlist') {
+                setIsWaitlisted(true)
+                setLoading(false)
+                return
+              }
+            } catch {
+              // Ignore JSON parse errors
+            }
+          }
           // A network error from syncUser should not sign the user out.
           // Keep existing session state; only clear on explicit Firebase sign-out.
           setUser(prev => prev)
         }
       } else {
         setUser(null)
+        setIsWaitlisted(false)
       }
       setLoading(false)
     })
@@ -111,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, getToken, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{ user, getToken, signIn, signOut, loading, isWaitlisted }}>
       {children}
     </AuthContext.Provider>
   )

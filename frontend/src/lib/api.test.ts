@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getLists, createList, createItem, updateItem, getListUpdatedAt, updateList, deleteList, getInvitePreview, acceptInvite, ApiError, submitFeedback } from './api'
+import { getLists, createList, createItem, updateItem, getListUpdatedAt, updateList, deleteList, getInvitePreview, acceptInvite, ApiError, submitFeedback, submitWaitlistSignup } from './api'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -191,3 +191,25 @@ describe('submitFeedback', () => {
     expect(result).toEqual({ id: 'fb-1', created_at: '2026-05-31T10:00:00' })
   })
 })
+
+describe('submitWaitlistSignup', () => {
+  it('submits email and returns response on success', async () => {
+    mockFetch.mockReturnValue(mockResponse({ status: 'ok' }))
+    const result = await submitWaitlistSignup('test@example.com')
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:8000/waitlist',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'test@example.com' }),
+      }),
+    )
+    expect(result).toEqual({ status: 'ok' })
+  })
+
+  it('throws ApiError on non-2xx response', async () => {
+    mockFetch.mockReturnValue(mockResponse('Error message', 400))
+    await expect(submitWaitlistSignup('bad-email')).rejects.toThrow(ApiError)
+  })
+})
+

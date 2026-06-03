@@ -34,6 +34,7 @@ function mockAuth(user: typeof authedUser | null = authedUser) {
     signIn: vi.fn(),
     signOut: vi.fn(),
     loading: false,
+    isWaitlisted: false,
   })
 }
 
@@ -100,6 +101,7 @@ test('calls signIn when not authenticated and button clicked', async () => {
     signIn: mockSignIn,
     signOut: vi.fn(),
     loading: false,
+    isWaitlisted: false,
   })
   vi.mocked(api.getInvitePreview).mockResolvedValue(previewData)
   render(<InviteScreen />)

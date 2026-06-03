@@ -33,6 +33,7 @@ beforeEach(() => {
     signIn: vi.fn(),
     signOut: mockSignOut,
     loading: false,
+    isWaitlisted: false,
   })
   vi.mocked(api.createList).mockResolvedValue({
     id: 'l-new', name: 'Nueva', emoji: '🍎', owner_id: 'u1',
