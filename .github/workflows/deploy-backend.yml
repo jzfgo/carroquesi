@@ -43,6 +43,7 @@ jobs:
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             FIREBASE_CREDENTIALS_PATH=/secrets/firebase-credentials
             ALLOWED_ORIGINS=["https://carroquesi.web.app"]
+            FRONTEND_URL=${{ vars.FRONTEND_URL }}
             RECEIPT_STORAGE_BUCKET=carroquesi.firebasestorage.app
           secrets: |
             /secrets/firebase-credentials=firebase-credentials:latest
