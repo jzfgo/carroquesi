@@ -4,6 +4,8 @@
 
 <h1 align="center">CarroQueSí</h1>
 
+<p align="center"><em>Juntos compramos mejor · Together we shop better</em></p>
+
 <p align="center">
   <a href="https://github.com/jzfgo/carroquesi/releases"><img src="https://img.shields.io/github/v/tag/jzfgo/carroquesi?sort=semver&label=version&color=blue" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
