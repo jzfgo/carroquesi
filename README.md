@@ -1,8 +1,11 @@
 <p align="center">
-  <img src="frontend/public/og-image.png" alt="CarroQueSí" width="640">
+  <img src="frontend/src/assets/mascot.png" alt="CarroQueSí mascot" width="160">
 </p>
 
+<h1 align="center">CarroQueSí</h1>
+
 <p align="center">
+  <a href="https://github.com/jzfgo/carroquesi/releases"><img src="https://img.shields.io/github/v/tag/jzfgo/carroquesi?sort=semver&label=version&color=blue" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
   <a href="https://github.com/jzfgo/carroquesi/actions"><img src="https://github.com/jzfgo/carroquesi/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/python-3.13-blue" alt="Python">
