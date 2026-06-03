@@ -6,7 +6,7 @@ import { submitWaitlistSignup } from '../lib/api'
 import './WaitlistScreen.css'
 
 export function WaitlistScreen() {
-  usePageTitle()
+  usePageTitle('Acceso anticipado')
   const { signIn, signOut } = useAuth()
   const [email, setEmail] = useState('')
   const [submittedEmail, setSubmittedEmail] = useState('')
@@ -49,6 +49,9 @@ export function WaitlistScreen() {
         <p className="waitlist__success-copy">
           Te avisaremos en <strong>{submittedEmail}</strong> cuando haya un hueco. ¡Gracias por el interés!
         </p>
+        <button className="waitlist__cancel" onClick={() => void signOut()} style={{ marginTop: '2rem' }}>
+          Salir
+        </button>
       </div>
     )
   }
