@@ -36,10 +36,6 @@ export function InviteScreen() {
   const [retryCount, setRetryCount] = useState(0)
   const pendingAcceptRef = useRef(false)
 
-  if (isWaitlisted) {
-    return <WaitlistScreen />
-  }
-
   useEffect(() => {
     if (!inviteId) return
     void (async () => {
@@ -82,6 +78,10 @@ export function InviteScreen() {
       }
     })()
   }, [authLoading, user, inviteId, getToken, navigate])
+
+  if (isWaitlisted) {
+    return <WaitlistScreen />
+  }
 
   async function handleAccept() {
     if (!inviteId) return
