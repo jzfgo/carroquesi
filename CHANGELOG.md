@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **backend:** Add allowed_at column to waitlist_signups and auto-approve logins
 
+- **frontend:** Show welcome screen when user attempts waitlist registration but is already approved
+
 
 ### Fixed
 - **frontend:** Reset user state to null when waitlisted
