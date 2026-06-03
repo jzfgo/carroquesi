@@ -1,6 +1,9 @@
 # Worktrees
 .worktrees/
 
+# Claude Code cache
+cache/
+
 # Agents
 .claude/settings.local.json
 .playwright-mcp/
