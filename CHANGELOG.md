@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-user feature flags with ai_receipt_scanning gate (#70)
 
 
+### Fixed
+- Correct migration down_revision to restore single Alembic head (#71)
+
+
 ---
 ## [0.17.0] — 2026-06-01
 
