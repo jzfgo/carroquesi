@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **frontend:** Integrate WaitlistScreen routing and complete implementation
 
+- **frontend:** Show WaitlistScreen as landing page when waitlist is enabled
+
 
 ### Fixed
 - **frontend:** Reset user state to null when waitlisted
