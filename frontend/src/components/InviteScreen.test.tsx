@@ -172,3 +172,16 @@ test('falls back to ShoppingCart icon when list_emoji is null', async () => {
   await waitFor(() => expect(screen.getByText('Compras')).toBeInTheDocument())
   expect(container.querySelector('.invite-screen__icon svg')).toBeInTheDocument()
 })
+
+test('renders WaitlistScreen when isWaitlisted is true', async () => {
+  vi.mocked(AuthContext.useAuth).mockReturnValue({
+    user: null,
+    getToken: vi.fn(),
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+    loading: false,
+    isWaitlisted: true,
+  })
+  render(<InviteScreen />)
+  expect(screen.getByText(/acceso anticipado/i)).toBeInTheDocument()
+})
