@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **frontend:** Show WaitlistScreen as landing page when waitlist is enabled
 
+- **backend:** Add allowed_at column to waitlist_signups and auto-approve logins
+
 
 ### Fixed
 - **frontend:** Reset user state to null when waitlisted
