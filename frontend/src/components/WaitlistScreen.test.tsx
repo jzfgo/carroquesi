@@ -4,21 +4,11 @@ import { WaitlistScreen } from './WaitlistScreen'
 import * as AuthContext from '../contexts/AuthContext'
 import * as Api from '../lib/api'
 
-vi.mock('../contexts/AuthContext', async (importOriginal) => {
-  const actual = await importOriginal<typeof AuthContext>()
-  return {
-    ...actual,
-    useAuth: vi.fn(),
-  }
-})
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: vi.fn(),
+}))
 
-vi.mock('../lib/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof Api>()
-  return {
-    ...actual,
-    submitWaitlistSignup: vi.fn(),
-  }
-})
+vi.mock('../lib/api')
 
 beforeEach(() => {
   vi.resetAllMocks()
