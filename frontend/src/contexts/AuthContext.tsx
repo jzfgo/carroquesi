@@ -91,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
               const body = JSON.parse(err.message)
               if (body.detail === 'waitlist') {
+                setUser(null)
                 setIsWaitlisted(true)
                 setLoading(false)
                 return
