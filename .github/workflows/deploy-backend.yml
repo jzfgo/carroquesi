@@ -1,5 +1,14 @@
 name: Deploy Backend
 
+# Required GitHub Actions variables (Settings → Secrets and variables → Actions → Variables):
+#   GCP_REGION              e.g. europe-west1
+#   GCP_PROJECT             GCP project ID
+#   ARTIFACT_REGISTRY_REPO  Artifact Registry repository name
+#   CLOUDRUN_SERVICE        Cloud Run service name
+#   ALLOWED_ORIGINS         e.g. ["https://your-app.web.app"]
+#   FRONTEND_URL            e.g. https://your-app.web.app
+#   RECEIPT_STORAGE_BUCKET  e.g. your-app.firebasestorage.app
+
 on:
   push:
     branches: [main]
@@ -22,27 +31,28 @@ jobs:
       - uses: google-github-actions/setup-gcloud@v3
 
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
 
       - name: Build and push Docker image
         env:
           SHA: ${{ github.sha }}
         run: |
-          IMAGE="europe-west1-docker.pkg.dev/carroquesi/carroquesi/backend:${SHA}"
+          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/${{ vars.ARTIFACT_REGISTRY_REPO }}/backend:${SHA}"
           docker build -t "$IMAGE" ./backend
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
       - uses: google-github-actions/deploy-cloudrun@v3
         with:
-          service: carroquesi-backend
-          region: europe-west1
+          service: ${{ vars.CLOUDRUN_SERVICE }}
+          region: ${{ vars.GCP_REGION }}
           image: ${{ env.IMAGE }}
           flags: --allow-unauthenticated
           env_vars: |
             DATABASE_URL=${{ secrets.DATABASE_URL }}
             FIREBASE_CREDENTIALS_PATH=/secrets/firebase-credentials
-            ALLOWED_ORIGINS=["https://carroquesi.web.app"]
-            RECEIPT_STORAGE_BUCKET=carroquesi.firebasestorage.app
+            ALLOWED_ORIGINS=${{ vars.ALLOWED_ORIGINS }}
+            FRONTEND_URL=${{ vars.FRONTEND_URL }}
+            RECEIPT_STORAGE_BUCKET=${{ vars.RECEIPT_STORAGE_BUCKET }}
           secrets: |
             /secrets/firebase-credentials=firebase-credentials:latest
