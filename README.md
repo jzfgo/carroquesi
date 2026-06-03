@@ -1,9 +1,20 @@
-# CarroQueSí
+<p align="center">
+  <img src="frontend/src/assets/mascot.png" alt="CarroQueSí mascot" width="160">
+</p>
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![CI](https://github.com/jzfgo/carroquesi/actions/workflows/ci.yml/badge.svg)](https://github.com/jzfgo/carroquesi/actions)
+<h1 align="center">CarroQueSí</h1>
 
-A collaborative grocery shopping list web app. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history. Includes price logging with per-item history, barcode lookup, AI-powered receipt scanning, and running cost totals per shopping session.
+<p align="center"><em>Juntos compramos mejor · Together we shop better</em></p>
+
+<p align="center">
+  <a href="https://github.com/jzfgo/carroquesi/releases"><img src="https://img.shields.io/github/v/tag/jzfgo/carroquesi?sort=semver&label=version&color=blue" alt="Version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
+  <a href="https://github.com/jzfgo/carroquesi/actions"><img src="https://github.com/jzfgo/carroquesi/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/python-3.13-blue" alt="Python">
+  <img src="https://img.shields.io/badge/node-24-green" alt="Node">
+</p>
+
+A collaborative grocery shopping list. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history. Includes price logging with per-item history, barcode lookup, AI-powered receipt scanning, and running cost totals per shopping session.
 
 ## Architecture
 
@@ -63,8 +74,7 @@ VITE_RECAPTCHA_SITE_KEY=...   # Firebase App Check (reCAPTCHA v3) — required i
 ### 2. Install dependencies
 
 ```bash
-just frontend install
-just backend install
+just install
 ```
 
 ### 3. Database
@@ -136,6 +146,7 @@ Run `just` (no arguments) to list all available recipes.
 | Command          | Description                                   |
 | ---------------- | --------------------------------------------- |
 | `just setup`     | Wire git hooks (run once after cloning)       |
+| `just install`   | Install all application dependencies          |
 | `just dev`       | Start frontend + backend via overmind         |
 | `just test`      | Run all tests (frontend then backend)         |
 | `just ci`        | Typecheck + lint (frontend), tests (backend)  |

@@ -4,6 +4,11 @@ mod backend
 default:
     @just --list
 
+# Install all app dependencies
+install:
+    just backend install
+    just frontend install
+
 # Start both frontend and backend dev servers in parallel
 dev:
     @overmind start
