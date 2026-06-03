@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **frontend:** Show welcome screen when user attempts waitlist registration but is already approved
 
+- Surface invite context on WaitlistScreen when arriving from a list invite
+
 
 ### Fixed
 - **frontend:** Reset user state to null when waitlisted
@@ -41,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **frontend:** Position waitlist early return after hooks in InviteScreen to satisfy React Hook rules
 
 - **frontend:** Show error message instead of success state when Google sign-in is blocked
+
+- **frontend:** Clear user session on backend 401/403 in syncUser
 
 
 ---
