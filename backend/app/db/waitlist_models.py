@@ -1,3 +1,4 @@
+from typing import Optional
 import uuid
 from datetime import datetime, timezone
 from sqlmodel import Field, SQLModel
@@ -17,3 +18,5 @@ class WaitlistSignup(SQLModel, table=True):
     id: str = Field(default_factory=_uuid, primary_key=True)
     email: str = Field(unique=True, index=True)
     created_at: datetime = Field(default_factory=_now)
+    allowed_at: Optional[datetime] = Field(default=None, nullable=True)
+

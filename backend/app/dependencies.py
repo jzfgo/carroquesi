@@ -40,10 +40,25 @@ def get_current_user(
     if user is None:
         # First login — create the user record
         if settings.waitlist_enabled and not decoded.get("is_admin", False):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="waitlist",
-            )
+            # Check if their email has a waitlist signup that was allowed access
+            email_clean = decoded.get("email", "").strip().lower()
+            is_waitlist_approved = False
+            if email_clean:
+                from app.db.waitlist_models import WaitlistSignup
+                signup = session.exec(
+                    select(WaitlistSignup).where(
+                        WaitlistSignup.email == email_clean,
+                        WaitlistSignup.allowed_at != None
+                    )
+                ).first()
+                if signup:
+                    is_waitlist_approved = True
+            
+            if not is_waitlist_approved:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="waitlist",
+                )
         user = User(
             firebase_uid=decoded["uid"],
             email=decoded.get("email", ""),

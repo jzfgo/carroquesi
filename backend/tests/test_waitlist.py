@@ -169,3 +169,79 @@ def test_get_current_user_gate_allowed_for_new_admin(session: Session, monkeypat
 
     assert resp.status_code == 200
     assert resp.json()["is_admin"] is True
+
+
+def test_get_current_user_gate_allowed_for_approved_waitlist_user(session: Session, monkeypatch):
+    from datetime import datetime, timezone
+    from fastapi import Depends
+    from app.dependencies import CurrentUser, get_current_user
+
+    # Enable waitlist
+    monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
+
+    # Seed an approved waitlist signup
+    signup = WaitlistSignup(email="approved-waitlist@example.com", allowed_at=datetime.now(timezone.utc).replace(tzinfo=None))
+    session.add(signup)
+    session.commit()
+
+    # Do NOT seed user in DB.
+    gate_app = FastAPI()
+
+    @gate_app.get("/test-gate")
+    def test_gate(current_user: CurrentUser):
+        return {"id": current_user.id, "email": current_user.email}
+
+    def _get_session():
+        yield session
+
+    gate_app.dependency_overrides[get_session] = _get_session
+
+    # Mock Firebase verification
+    monkeypatch.setattr(
+        "app.dependencies.verify_id_token",
+        lambda token: {"uid": "new-approved-uid", "email": "approved-waitlist@example.com", "name": "Approved User"},
+    )
+
+    with TestClient(gate_app, raise_server_exceptions=False) as client:
+        resp = client.get("/test-gate", headers={"Authorization": "Bearer some-token"})
+
+    assert resp.status_code == 200
+    assert resp.json()["email"] == "approved-waitlist@example.com"
+
+
+def test_get_current_user_gate_blocked_for_unapproved_waitlist_user(session: Session, monkeypatch):
+    from fastapi import Depends
+    from app.dependencies import CurrentUser, get_current_user
+
+    # Enable waitlist
+    monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
+
+    # Seed an unapproved waitlist signup
+    signup = WaitlistSignup(email="unapproved-waitlist@example.com", allowed_at=None)
+    session.add(signup)
+    session.commit()
+
+    # Do NOT seed user in DB.
+    gate_app = FastAPI()
+
+    @gate_app.get("/test-gate")
+    def test_gate(current_user: CurrentUser):
+        return {"id": current_user.id}
+
+    def _get_session():
+        yield session
+
+    gate_app.dependency_overrides[get_session] = _get_session
+
+    # Mock Firebase verification
+    monkeypatch.setattr(
+        "app.dependencies.verify_id_token",
+        lambda token: {"uid": "new-unapproved-uid", "email": "unapproved-waitlist@example.com", "name": "Unapproved User"},
+    )
+
+    with TestClient(gate_app, raise_server_exceptions=False) as client:
+        resp = client.get("/test-gate", headers={"Authorization": "Bearer some-token"})
+
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "waitlist"
+
