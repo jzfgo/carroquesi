@@ -2,9 +2,11 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DashboardScreen } from './DashboardScreen'
 import * as AuthContext from '../contexts/AuthContext'
+import * as FeatureFlagsContext from '../contexts/FeatureFlagsContext'
 import * as api from '../lib/api'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
+vi.mock('../contexts/FeatureFlagsContext', () => ({ useFeatureFlags: vi.fn() }))
 vi.mock('../lib/api')
 import * as reactRouter from 'react-router-dom'
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -41,6 +43,7 @@ beforeEach(() => {
   } as never)
   vi.mocked(api.updateList).mockResolvedValue({} as never)
   vi.mocked(api.deleteList).mockResolvedValue(null as never)
+  vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({ isEnabled: () => false })
   vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
     isInstallable: false,
     isInstalled: false,
@@ -404,5 +407,32 @@ describe('DashboardScreen — offline', () => {
     const raw = localStorage.getItem('cqs_dashboard_cache_u1')
     expect(raw).not.toBeNull()
     localStorage.removeItem('cqs_dashboard_cache_u1')
+  })
+})
+
+describe('DashboardScreen — feature flags', () => {
+  it('hides the receipt scan option when AI_RECEIPT_SCANNING is disabled', async () => {
+    vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
+      isEnabled: (flag) => flag !== 'ai_receipt_scanning',
+    })
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
+    expect(screen.queryByRole('button', { name: /escanear ticket/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the receipt scan option and navigates when AI_RECEIPT_SCANNING is enabled', async () => {
+    vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
+      isEnabled: (flag) => flag === 'ai_receipt_scanning',
+    })
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
+    const scanBtn = screen.getByRole('button', { name: /escanear ticket/i })
+    expect(scanBtn).toBeInTheDocument()
+    fireEvent.click(scanBtn)
+    expect(mockNavigate).toHaveBeenCalledWith('/lists/l1', { state: { openReceiptScan: true } })
   })
 })
