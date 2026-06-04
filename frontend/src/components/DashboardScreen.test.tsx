@@ -409,3 +409,30 @@ describe('DashboardScreen — offline', () => {
     localStorage.removeItem('cqs_dashboard_cache_u1')
   })
 })
+
+describe('DashboardScreen — feature flags', () => {
+  it('hides the receipt scan option when AI_RECEIPT_SCANNING is disabled', async () => {
+    vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
+      isEnabled: (flag) => flag !== 'ai_receipt_scanning',
+    })
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
+    expect(screen.queryByRole('button', { name: /escanear ticket/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the receipt scan option and navigates when AI_RECEIPT_SCANNING is enabled', async () => {
+    vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
+      isEnabled: (flag) => flag === 'ai_receipt_scanning',
+    })
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
+    const scanBtn = screen.getByRole('button', { name: /escanear ticket/i })
+    expect(scanBtn).toBeInTheDocument()
+    fireEvent.click(scanBtn)
+    expect(mockNavigate).toHaveBeenCalledWith('/lists/l1', { state: { openReceiptScan: true } })
+  })
+})
