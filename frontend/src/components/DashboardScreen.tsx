@@ -25,6 +25,8 @@ import {
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { ApiList } from '../types'
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
+import { FLAGS } from '../lib/featureFlags'
 
 function loadOrder(userId: string): string[] | null {
   try {
@@ -65,6 +67,7 @@ function randomEmoji(): string {
 export function DashboardScreen() {
   const { user, getToken, signOut } = useAuth()
   const navigate = useNavigate()
+  const { isEnabled } = useFeatureFlags()
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
@@ -342,7 +345,7 @@ export function DashboardScreen() {
           isOwner={activeList.owner_id === (user?.id ?? '')}
           onRename={newName => void handleRename(activeList, newName)}
           onDelete={() => void handleDelete(activeList)}
-          onReceiptScan={() => navigate(`/lists/${activeList.id}`, { state: { openReceiptScan: true } })}
+          onReceiptScan={isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? () => navigate(`/lists/${activeList.id}`, { state: { openReceiptScan: true } }) : undefined}
           onClose={() => setActiveList(null)}
         />
       )}

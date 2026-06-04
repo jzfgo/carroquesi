@@ -2,9 +2,11 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { DashboardScreen } from './DashboardScreen'
 import * as AuthContext from '../contexts/AuthContext'
+import * as FeatureFlagsContext from '../contexts/FeatureFlagsContext'
 import * as api from '../lib/api'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
+vi.mock('../contexts/FeatureFlagsContext', () => ({ useFeatureFlags: vi.fn() }))
 vi.mock('../lib/api')
 import * as reactRouter from 'react-router-dom'
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -41,6 +43,7 @@ beforeEach(() => {
   } as never)
   vi.mocked(api.updateList).mockResolvedValue({} as never)
   vi.mocked(api.deleteList).mockResolvedValue(null as never)
+  vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({ isEnabled: () => false })
   vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
     isInstallable: false,
     isInstalled: false,
