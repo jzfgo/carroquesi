@@ -221,4 +221,5 @@ A task is complete only when **all** of the following are true:
 **You:**
 - [ ] Start MCP Server work with `/brainstorming` before any implementation
 - [ ] Add frontend UX debt items to TODO.md (drag handles, dark mode contrast in barcode scanner, mobile number inputs, misplaced UI elements)
+
 > When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
