@@ -1,10 +1,13 @@
 # CarroQueSí — TODO
 
-> Last updated: 2026-06-03
+> Last updated: 2026-06-15
 
 ---
 
 ## Bugs / Known Issues
+
+- [ ] **Due suggestions — inflated purchase count** — items in the "Toca comprar" section show wildly incorrect purchase counts (e.g. "Plátano ×416"). Likely a count aggregation bug in the frequency suggestion logic. Reported 2026-06-09.
+- [ ] **LogPriceSheet — quantity field blocks text input on mobile** — the quantity field when adding or updating a price only accepts numbers on mobile (likely `type="number"` or `inputmode="numeric"`), preventing unit input (e.g. "kg", "500g", "2 l"). Field should accept alphanumeric input.
 
 ---
 
@@ -28,6 +31,17 @@
 - [ ] **API error handling in frontend** — most fetch calls lack granular error handling; add a unified error boundary or toast for network failures
 - [ ] **Test coverage gaps** — backend tests use SQLite in-memory (good), but frontend test suite coverage is unknown; audit with `vitest --coverage`
 - [ ] **Frequency suggestion dismissal TTL** — dismissals are stored in `localStorage` with a backend-computed TTL; verify the TTL logic handles timezone edge cases correctly
+
+---
+
+## UX / Design Debt
+
+> Intentionally deferred — batch these into a dedicated polish pass rather than fixing piecemeal as features ship.
+
+- [ ] **Drag handles for list item reordering** — no visual affordance for reordering items; users have no way to discover or use manual ordering
+- [ ] **Dark mode contrast in barcode scanner** — scanner overlay has contrast issues in dark mode; text and targeting reticle are hard to read
+- [ ] **Mobile number inputs** — quantity and price fields use `type="text"`; should use `type="number"` or `inputmode="decimal"` on mobile to trigger the numeric keyboard
+- [ ] **Misplaced UI elements** — audit layout on small screens (≤375px); several elements reported as overlapping or outside safe area
 
 ---
 
