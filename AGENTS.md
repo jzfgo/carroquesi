@@ -212,14 +212,14 @@ A task is complete only when **all** of the following are true:
 
 - Submitting prices to Open Prices (requires proof image + OSM location)
 
-## Open Action Items (1:1 — 2026-06-07)
+## Open Action Items (1:1 — 2026-06-15)
 
 **AI:**
-- [ ] Before any `alembic revision` step, explicitly prompt: "confirm you're on the current head after rebasing on main"
-- [ ] When shipping UI features, include a mobile QA note listing specific things to check on device
-
+- [ ] Before any `alembic revision` step, explicitly prompt: "confirm you're on the current head after rebasing on main" *(unverified — confirm when next migration ships)*
+- [ ] When shipping UI features, include a mobile QA note listing specific things to check on device *(unverified — confirm when bug fixes ship)*
 **You:**
-- [ ] Start MCP Server work with `/brainstorming` before any implementation
-- [ ] Add frontend UX debt items to TODO.md (drag handles, dark mode contrast in barcode scanner, mobile number inputs, misplaced UI elements)
+- [ ] Run `/brainstorming` before starting MCP Server / Siri Shortcuts implementation
+- [ ] Set a user threshold (e.g. 10 waitlist users) at which infra risks get addressed (secrets rotation, DB backups, Cloud Run migration job)
+- [ ] Bring a Document AI vs. Gemini comparison into the next receipt scanning `/brainstorming` session
 
 > When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
