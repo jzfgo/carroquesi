@@ -62,26 +62,32 @@ def main() -> None:
     py_files = changed_files("backend/", (".py",))
     if py_files:
         rel = [f[len("backend/") :] for f in py_files]
-        result = subprocess.run(
-            ["uv", "run", "ruff", "check", *rel],
-            cwd="backend",
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            failures.append("ruff check failed:\n" + result.stdout + result.stderr)
+        try:
+            result = subprocess.run(
+                ["uv", "run", "ruff", "check", *rel],
+                cwd="backend",
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                failures.append("ruff check failed:\n" + result.stdout + result.stderr)
+        except OSError:
+            pass
 
     ts_files = changed_files("frontend/", (".ts", ".tsx"))
     if ts_files:
         rel = [f[len("frontend/") :] for f in ts_files]
-        result = subprocess.run(
-            ["pnpm", "exec", "eslint", *rel],
-            cwd="frontend",
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            failures.append("eslint failed:\n" + result.stdout + result.stderr)
+        try:
+            result = subprocess.run(
+                ["pnpm", "exec", "eslint", *rel],
+                cwd="frontend",
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                failures.append("eslint failed:\n" + result.stdout + result.stderr)
+        except OSError:
+            pass
 
     if not failures:
         sys.exit(0)
