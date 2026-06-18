@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implement waitlist / early access gate (#79)
 
 
+### Changed
+- Remove redundant list() wraps in prices._query_by_scope
+
+
 ### Fixed
 - Gate dashboard receipt scan option behind AI_RECEIPT_SCANNING flag (#81)
 
