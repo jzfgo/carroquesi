@@ -5,6 +5,8 @@ from datetime import date as date_type
 from sqlalchemy import JSON, Column, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
+from app.db.waitlist_models import WaitlistSignup  # noqa: F401
+
 
 def _uuid() -> str:
     return str(uuid.uuid4())
@@ -12,9 +14,6 @@ def _uuid() -> str:
 
 def _now() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
-
-
-# Import WaitlistSignup to ensure SQLModel metadata includes it
 
 
 class User(SQLModel, table=True):

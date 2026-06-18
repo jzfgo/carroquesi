@@ -26,9 +26,9 @@ def main() -> None:
             text=True,
             check=True,
         ).stdout.strip()
-    except subprocess.CalledProcessError:
-        # Not a git repo, or some other git failure — don't block on a
-        # tooling problem unrelated to this check.
+    except (subprocess.CalledProcessError, OSError):
+        # Not a git repo, git not installed, or some other failure — don't
+        # block on a tooling problem unrelated to this check.
         sys.exit(0)
 
     if branch != "main":

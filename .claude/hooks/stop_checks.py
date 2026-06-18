@@ -32,7 +32,7 @@ def changed_files(prefix: str, exts: tuple[str, ...]) -> list[str]:
             check=True,
         ).stdout.splitlines()
         files.update(diff)
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, OSError):
         pass
 
     try:
@@ -43,7 +43,7 @@ def changed_files(prefix: str, exts: tuple[str, ...]) -> list[str]:
             check=True,
         ).stdout.splitlines()
         files.update(untracked)
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, OSError):
         pass
 
     return sorted(f for f in files if f.endswith(exts))
