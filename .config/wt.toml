@@ -6,7 +6,7 @@
 pre-merge = "just ci"
 
 [[pre-start]]
-frontend = "cd frontend && npm install"
+frontend = "just frontend install"
 
 [[pre-start]]
-backend = "cd backend && uv sync"
+backend = "just backend install"

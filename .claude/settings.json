@@ -2,21 +2,22 @@
   "hooks": {
     "PostToolUse": [{
       "matcher": "Edit|Write",
-      "hooks": [{"type": "command", "command": "if git diff --name-only | grep -q package-lock.json; then echo 'WARN: package-lock.json changed - verify no platform-specific bindings'; fi"}]
+      "hooks": [{"type": "command", "command": "if git diff --name-only | grep -q pnpm-lock.yaml; then echo 'WARN: pnpm-lock.yaml changed - verify no platform-specific bindings'; fi"}]
     }]
   },
   "permissions": {
     "allow": [
-      "Bash(npm run test*)",
+      "Bash(pnpm test*)",
+      "Bash(pnpm run test*)",
+      "Bash(pnpm lint*)",
+      "Bash(pnpm run lint*)",
       "Bash(node_modules/.bin/tsc -p tsconfig.app.json --noEmit*)",
-      "Bash(npm run lint*)",
       "mcp__plugin_chrome-devtools-mcp_chrome-devtools__take_screenshot",
       "Bash(just ci*)",
       "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_console_messages",
       "mcp__plugin_chrome-devtools-mcp_chrome-devtools__list_network_requests",
       "Bash(just --list*)",
       "Bash(uv run pytest *)",
-      "Bash(npm test *)",
       "Bash(git check-ignore *)"
     ]
   }

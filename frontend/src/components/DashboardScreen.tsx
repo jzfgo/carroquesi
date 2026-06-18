@@ -174,6 +174,7 @@ export function DashboardScreen() {
   )
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: shows cached data synchronously while fresh fetch is in flight
     void fetchLists()
   }, [fetchLists])
 

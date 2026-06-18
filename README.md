@@ -158,7 +158,7 @@ Run `just` (no arguments) to list all available recipes.
 
 | Recipe       | Description                                                                                                  |
 | ------------ | ------------------------------------------------------------------------------------------------------------ |
-| `install`    | `npm install`                                                                                                |
+| `install`    | `pnpm install`                                                                                               |
 | `dev`        | Vite dev server                                                                                              |
 | `build`      | Production build                                                                                             |
 | `preview`    | Preview production build                                                                                     |

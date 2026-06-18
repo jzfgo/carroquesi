@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@11.5.0",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -12,6 +13,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "typecheck:watch": "tsc -p tsconfig.app.json --noEmit --watch",
+    "deploy": "firebase deploy --only hosting --non-interactive",
     "generate-pwa-assets": "pwa-assets-generator -c pwa-assets.config.ts && pwa-assets-generator -c pwa-assets.maskable.config.ts"
   },
   "dependencies": {
@@ -40,6 +42,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "fake-indexeddb": "^6.2.5",
+    "firebase-tools": "^15.20.0",
     "globals": "^17.4.0",
     "jsdom": "^25.0.0",
     "typescript": "~5.9.3",

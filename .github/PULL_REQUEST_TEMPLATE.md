@@ -15,7 +15,7 @@
 - [ ] `just ci` passes (typecheck + lint + backend tests)
 - [ ] `TODO.md` updated — shipped items removed
 - [ ] `CHANGELOG.md` updated — `just changelog` run and committed
-- [ ] Only intentional files changed (no `package-lock.json` platform churn)
+- [ ] Only intentional files changed (no `pnpm-lock.yaml` platform churn)
 - [ ] Alembic migration created last, after rebase (if applicable)
 
 ## Notes for reviewer

@@ -51,12 +51,12 @@ git checkout -b feat/my-feature
 
 Branches must use a type prefix:
 
-| Prefix | Use for |
-|--------|---------|
-| `feat/` | New functionality |
-| `fix/` | Bug fixes |
-| `chore/` | Tooling, config, deps |
-| `docs/` | Documentation only |
+| Prefix      | Use for                              |
+| ----------- | ------------------------------------ |
+| `feat/`     | New functionality                    |
+| `fix/`      | Bug fixes                            |
+| `chore/`    | Tooling, config, deps                |
+| `docs/`     | Documentation only                   |
 | `refactor/` | Code changes with no behavior change |
 
 ### Commit messages
@@ -84,7 +84,7 @@ Make sure:
 - [ ] Lint and tests pass
 - [ ] `TODO.md` updated — remove any items your PR ships
 - [ ] `CHANGELOG.md` updated — run `just changelog` and commit the result
-- [ ] Only intentional files are changed (no `package-lock.json` platform churn)
+- [ ] Only intentional files are changed (no `pnpm-lock.yaml` platform churn)
 
 ### Architecture Decision Records
 

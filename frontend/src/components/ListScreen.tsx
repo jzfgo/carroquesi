@@ -151,18 +151,18 @@ export function ListScreen({
   // Debounced suggestions — only when name has 2+ chars
   useEffect(() => {
     const q = parsed.name.trim();
-    if (q.length < 2) {
-      setSuggestions([]);
-      return;
-    }
     const timer = setTimeout(async () => {
+      if (q.length < 2) {
+        setSuggestions([]);
+        return;
+      }
       try {
         const data = await getSuggestions(getToken, q);
         setSuggestions(data);
       } catch {
         // suggestion errors are non-critical
       }
-    }, 300);
+    }, q.length < 2 ? 0 : 300);
     return () => clearTimeout(timer);
   }, [parsed.name, getToken]);
 
@@ -504,10 +504,6 @@ export function ListScreen({
     () => dueSuggestions.filter(s => !isDismissed(s.name)),
     [dueSuggestions],
   );
-
-  useEffect(() => {
-    if (filteredDueSuggestions.length === 0) setDueSuggestionsOpen(false);
-  }, [filteredDueSuggestions.length]);
 
   const { pendingCost, purchasedCostByDate } = useMemo(() => {
     const pendingItems: typeof filteredItems = [];
