@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Address seventh Gemini review — correct 422 status and block git commit -n
 
+- Guard against null command value in block_no_verify hook
+
 
 ---
 ## [0.18.0] — 2026-06-03
