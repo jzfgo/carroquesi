@@ -78,7 +78,7 @@ def delete_price(
         today = datetime.now(UTC).date()
         if item.purchased_at.date() != today:
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Cannot delete the price of an item purchased on a previous day",
             )
     item.price = None
@@ -123,17 +123,17 @@ def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list[L
     base = _base_conditions(item)
 
     if scope == "this_list":
-        return list(session.exec(
-            select(ListItem).where(ListItem.list_id == item.list_id, *base)
-        ).all())
+        return list(
+            session.exec(select(ListItem).where(ListItem.list_id == item.list_id, *base)).all()
+        )
 
     if scope == "my_lists":
-        my_list_ids = list(session.exec(
-            select(ListMember.list_id).where(ListMember.user_id == user_id)
-        ).all())
-        return list(session.exec(
-            select(ListItem).where(ListItem.list_id.in_(my_list_ids), *base)
-        ).all())
+        my_list_ids = list(
+            session.exec(select(ListMember.list_id).where(ListMember.user_id == user_id)).all()
+        )
+        return list(
+            session.exec(select(ListItem).where(ListItem.list_id.in_(my_list_ids), *base)).all()
+        )
 
     # scope == "all"
     return list(session.exec(select(ListItem).where(*base)).all())

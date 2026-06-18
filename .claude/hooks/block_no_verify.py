@@ -14,6 +14,7 @@ import sys
 
 BLOCKED_PATTERNS = [
     r"(^|\s)--no-verify(\s|$)",
+    r"\bgit\b.*\bcommit\b.*\s-n(\s|$)",  # -n is the short form of --no-verify
     r"(^|\s)LEFTHOOK=0(\s|$)",
     r"(^|\s)LEFTHOOK_EXCLUDE=",
 ]
