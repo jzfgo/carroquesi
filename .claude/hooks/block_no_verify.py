@@ -36,11 +36,15 @@ def main() -> None:
     if not isinstance(command, str):
         command = ""
 
-    # Strip heredoc content so commit messages mentioning these patterns
-    # don't trigger false positives.
-    heredoc_start = command.find("<<")
-    if heredoc_start >= 0:
-        command = command[:heredoc_start]
+    # Strip heredoc blocks so commit messages don't trigger false positives.
+    # Surgically removes <<DELIM ... DELIM blocks rather than truncating at
+    # the first "<<", which would also discard commands chained after the heredoc.
+    command = re.sub(
+        r"<<[-~]?['\"]?(\w+)['\"]?[^\n]*\n.*?\n[ \t]*\1[ \t]*(?=\n|$)",
+        "",
+        command,
+        flags=re.DOTALL,
+    )
     # Also strip -m "..." / -m '...' inline message arguments.
     command = re.sub(
         r"""(?:-\w*m|--message)\s*=?\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')""",
