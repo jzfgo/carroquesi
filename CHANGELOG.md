@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Gate dashboard receipt scan option behind AI_RECEIPT_SCANNING flag (#81)
 
+- Address Gemini review — restore WaitlistSignup import and harden hooks
+
 
 ---
 ## [0.18.0] — 2026-06-03
