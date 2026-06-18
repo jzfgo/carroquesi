@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Address Gemini review — restore WaitlistSignup import and harden hooks
 
+- Address second Gemini review — sequential ruff, regex coverage, deleted-file guard
+
 
 ---
 ## [0.18.0] — 2026-06-03
