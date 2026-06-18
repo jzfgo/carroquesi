@@ -15,13 +15,13 @@ pre-commit:
   commands:
     backend-lint:
       root: "backend/"
-      glob: "*.py"
+      glob: "**/*.py"
       run: uv run ruff check --fix {staged_files} && uv run ruff format {staged_files}
       stage_fixed: true
 
     frontend-lint:
       root: "frontend/"
-      glob: "*.{ts,tsx}"
+      glob: "**/*.{ts,tsx}"
       run: pnpm exec eslint --fix {staged_files}
       stage_fixed: true
 
