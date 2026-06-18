@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update test and deprecation for 422 status change
 
+- Use surgical heredoc regex instead of truncating at first <<
+
 
 ---
 ## [0.18.0] — 2026-06-03
