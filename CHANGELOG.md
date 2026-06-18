@@ -10,45 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **backend:** Add waitlist configuration and WaitlistSignup DB model
-
-- **backend:** Implement waitlist signup and listing endpoints
-
-- **backend:** Register waitlist router and enforce gate on new signups
-
-- **frontend:** Catch 403 waitlist responses and manage isWaitlisted state
-
-- **frontend:** Create WaitlistScreen component and unit tests
-
-- **frontend:** Integrate WaitlistScreen routing and complete implementation
-
-- **frontend:** Show WaitlistScreen as landing page when waitlist is enabled
-
-- **backend:** Add allowed_at column to waitlist_signups and auto-approve logins
-
-- **frontend:** Show welcome screen when user attempts waitlist registration but is already approved
-
-- Surface invite context on WaitlistScreen when arriving from a list invite
+- Implement waitlist / early access gate (#79)
 
 
 ### Fixed
-- **frontend:** Reset user state to null when waitlisted
-
-- **frontend:** Update waitlist tests to use importOriginal and expose log out button in success state
-
-- **frontend:** Adjust mocks in WaitlistScreen.test.tsx to prevent firebase init errors in tests
-
-- **frontend:** Render WaitlistScreen inside InviteScreen for waitlisted users
-
-- **frontend:** Position waitlist early return after hooks in InviteScreen to satisfy React Hook rules
-
-- **frontend:** Show error message instead of success state when Google sign-in is blocked
-
-- **frontend:** Clear user session on backend 401/403 in syncUser
-
-- Address GCA review comments on waitlist invite flow
-
-- **frontend:** Disable waitlist submit button when email is empty
+- Gate dashboard receipt scan option behind AI_RECEIPT_SCANNING flag (#81)
 
 
 ---
