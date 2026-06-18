@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use surgical heredoc regex instead of truncating at first <<
 
+- Skip eslint in stop_checks if node_modules not installed
+
 
 ---
 ## [0.18.0] — 2026-06-03
