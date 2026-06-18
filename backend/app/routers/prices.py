@@ -123,20 +123,16 @@ def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list[L
     base = _base_conditions(item)
 
     if scope == "this_list":
-        return list(
-            session.exec(select(ListItem).where(ListItem.list_id == item.list_id, *base)).all()
-        )
+        return session.exec(select(ListItem).where(ListItem.list_id == item.list_id, *base)).all()
 
     if scope == "my_lists":
-        my_list_ids = list(
-            session.exec(select(ListMember.list_id).where(ListMember.user_id == user_id)).all()
-        )
-        return list(
-            session.exec(select(ListItem).where(ListItem.list_id.in_(my_list_ids), *base)).all()
-        )
+        my_list_ids = session.exec(
+            select(ListMember.list_id).where(ListMember.user_id == user_id)
+        ).all()
+        return session.exec(select(ListItem).where(ListItem.list_id.in_(my_list_ids), *base)).all()
 
     # scope == "all"
-    return list(session.exec(select(ListItem).where(*base)).all())
+    return session.exec(select(ListItem).where(*base)).all()
 
 
 def _base_conditions(item: ListItem):
