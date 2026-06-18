@@ -78,7 +78,7 @@ def main() -> None:
             pass
 
     ts_files = changed_files("frontend/", (".ts", ".tsx"))
-    if ts_files:
+    if ts_files and os.path.exists("frontend/node_modules"):
         rel = [f[len("frontend/") :] for f in ts_files]
         try:
             result = subprocess.run(
