@@ -32,7 +32,9 @@ def main() -> None:
     tool_input = data.get("tool_input")
     if not isinstance(tool_input, dict):
         tool_input = {}
-    command = tool_input.get("command", "")
+    command = tool_input.get("command")
+    if not isinstance(command, str):
+        command = ""
 
     # Strip heredoc content so commit messages mentioning these patterns
     # don't trigger false positives.
