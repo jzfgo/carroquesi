@@ -16,13 +16,7 @@ pre-commit:
     backend-lint:
       root: "backend/"
       glob: "*.py"
-      run: uv run ruff check --fix {staged_files}
-      stage_fixed: true
-
-    backend-format:
-      root: "backend/"
-      glob: "*.py"
-      run: uv run ruff format {staged_files}
+      run: uv run ruff check --fix {staged_files} && uv run ruff format {staged_files}
       stage_fixed: true
 
     frontend-lint:

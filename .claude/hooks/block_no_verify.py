@@ -33,7 +33,7 @@ def main() -> None:
     if heredoc_start >= 0:
         command = command[:heredoc_start]
     # Also strip -m "..." / -m '...' inline message arguments.
-    command = re.sub(r"-m\s+(?:\"[^\"]*\"|'[^']*')", "-m ''", command)
+    command = re.sub(r"(?:-m|--message)\s*=?\s*(?:\"[^\"]*\"|'[^']*')", "-m ''", command)
 
     if not any(re.search(p, command) for p in BLOCKED_PATTERNS):
         sys.exit(0)

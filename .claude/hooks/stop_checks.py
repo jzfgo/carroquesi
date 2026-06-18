@@ -17,6 +17,7 @@ backstop at actual commit time.
 """
 
 import json
+import os
 import subprocess
 import sys
 
@@ -46,7 +47,7 @@ def changed_files(prefix: str, exts: tuple[str, ...]) -> list[str]:
     except (subprocess.CalledProcessError, OSError):
         pass
 
-    return sorted(f for f in files if f.endswith(exts))
+    return sorted(f for f in files if f.endswith(exts) and os.path.exists(f))
 
 
 def main() -> None:
