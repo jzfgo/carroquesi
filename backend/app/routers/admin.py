@@ -34,7 +34,7 @@ def toggle_user_feature(
 ):
     if body.feature not in feature_flags.REGISTRY:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Unknown feature flag: {body.feature!r}",
         )
 

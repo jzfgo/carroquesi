@@ -78,7 +78,7 @@ def delete_price(
         today = datetime.now(UTC).date()
         if item.purchased_at.date() != today:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="Cannot delete the price of an item purchased on a previous day",
             )
     item.price = None

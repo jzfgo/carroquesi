@@ -37,6 +37,7 @@ def _set_price(client, list_id, item_id, amount, store=None, price_per=None):
 
 # --- POST (create) ---
 
+
 def test_post_price_creates(client: TestClient):
     lst = _make_list(client)
     item = _make_item(client, lst["id"], ean="8410188082498")
@@ -80,6 +81,7 @@ def test_post_price_non_member_forbidden(client: TestClient, other_client: TestC
 
 
 # --- PATCH (update) ---
+
 
 def test_patch_price_updates(client: TestClient):
     lst = _make_list(client)
@@ -135,6 +137,7 @@ def test_patch_price_non_member_forbidden(client: TestClient, other_client: Test
 
 
 # --- GET (price history by scope) ---
+
 
 def test_get_price_history_this_list_by_ean(client: TestClient, httpx_mock: HTTPXMock):
     httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
@@ -255,6 +258,7 @@ def test_get_price_history_invalid_scope(client: TestClient):
 
 # --- purchased_at in PriceEntry ---
 
+
 def test_price_history_entry_includes_purchased_at_for_purchased_item(client: TestClient):
     lst = _make_list(client)
     item = _make_item(client, lst["id"])
@@ -269,6 +273,7 @@ def test_price_history_entry_includes_purchased_at_for_purchased_item(client: Te
     assert entries[0]["purchased_at"] is not None
     # Should be a valid ISO datetime string
     from datetime import datetime
+
     datetime.fromisoformat(entries[0]["purchased_at"])  # raises if malformed
 
 
@@ -287,7 +292,10 @@ def test_price_history_entry_purchased_at_is_null_for_unpurchased_item(client: T
 
 # --- community_price in PriceHistoryResponse ---
 
-def test_price_history_returns_community_price_when_ean_has_data(client: TestClient, httpx_mock: HTTPXMock):
+
+def test_price_history_returns_community_price_when_ean_has_data(
+    client: TestClient, httpx_mock: HTTPXMock
+):
     httpx_mock.add_response(json=_OPEN_PRICES_ES)
     lst = _make_list(client)
     item = _make_item(client, lst["id"], ean="8410188082498")
@@ -330,6 +338,7 @@ def test_price_history_community_price_negatively_cached(client: TestClient, htt
 
 # --- DELETE ---
 
+
 def test_delete_price_clears_fields(client: TestClient):
     lst = _make_list(client)
     item = _make_item(client, lst["id"])
@@ -362,7 +371,7 @@ def test_delete_price_404_if_no_price(client: TestClient):
     assert resp.status_code == 404
 
 
-def test_delete_price_409_if_purchased_previous_day(client: TestClient, session):
+def test_delete_price_422_if_purchased_previous_day(client: TestClient, session):
     lst = _make_list(client)
     item = _make_item(client, lst["id"])
     _set_price(client, lst["id"], item["id"], 1.99)
@@ -374,7 +383,7 @@ def test_delete_price_409_if_purchased_previous_day(client: TestClient, session)
     session.commit()
 
     resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
-    assert resp.status_code == 409
+    assert resp.status_code == 422
 
 
 def test_delete_price_204_if_purchased_today(client: TestClient):
