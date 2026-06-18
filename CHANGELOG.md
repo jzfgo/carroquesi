@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Address third Gemini review — OSError guards for uv/pnpm and wider commit-msg regex
 
+- Address fourth Gemini review — func.count() for cap checks and list[dict] types
+
 
 ---
 ## [0.18.0] — 2026-06-03
