@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Address second Gemini review — sequential ruff, regex coverage, deleted-file guard
 
+- Address third Gemini review — OSError guards for uv/pnpm and wider commit-msg regex
+
 
 ---
 ## [0.18.0] — 2026-06-03
