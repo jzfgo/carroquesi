@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import select
 
-from app.db.session import get_session
 from app.db.waitlist_models import WaitlistSignup
-from app.dependencies import AdminUser
+from app.dependencies import AdminUser, CurrentSession
 from app.schemas.waitlist import WaitlistSignupCreate, WaitlistSignupRead
 
 router = APIRouter(prefix="/waitlist", tags=["waitlist"])
@@ -13,7 +12,7 @@ router = APIRouter(prefix="/waitlist", tags=["waitlist"])
 @router.post("", response_model=WaitlistSignupRead)
 def signup(
     body: WaitlistSignupCreate,
-    session: Session = Depends(get_session),
+    session: CurrentSession,
 ):
     email_clean = body.email.strip().lower()
     existing = session.exec(
@@ -38,17 +37,16 @@ def signup(
         ).first()
         if existing:
             return existing
-        raise HTTPException(status_code=503, detail="Database write error")
+        raise HTTPException(status_code=503, detail="Database write error") from None
 
     session.refresh(new_signup)
     return new_signup
 
 
-
 @router.get("/signups", response_model=list[WaitlistSignupRead])
 def list_signups(
     current_admin: AdminUser,
-    session: Session = Depends(get_session),
+    session: CurrentSession,
 ):
     return session.exec(
         select(WaitlistSignup).order_by(WaitlistSignup.created_at.desc())

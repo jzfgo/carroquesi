@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -42,7 +42,9 @@ def create_price(
 ):
     item = _get_item_or_404(session, item_id, list_id)
     if item.price is not None:
-        raise HTTPException(status_code=409, detail="Item already has a price; use PATCH to update it")
+        raise HTTPException(
+            status_code=409, detail="Item already has a price; use PATCH to update it"
+        )
     return _write_price(item, price_in, session)
 
 
@@ -73,10 +75,10 @@ def delete_price(
     if item.price is None:
         raise HTTPException(status_code=404, detail="Item has no price to delete")
     if item.purchased_at is not None:
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         if item.purchased_at.date() != today:
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="Cannot delete the price of an item purchased on a previous day",
             )
     item.price = None
@@ -121,20 +123,16 @@ def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list[L
     base = _base_conditions(item)
 
     if scope == "this_list":
-        return list(session.exec(
-            select(ListItem).where(ListItem.list_id == item.list_id, *base)
-        ).all())
+        return session.exec(select(ListItem).where(ListItem.list_id == item.list_id, *base)).all()
 
     if scope == "my_lists":
-        my_list_ids = list(session.exec(
+        my_list_ids = session.exec(
             select(ListMember.list_id).where(ListMember.user_id == user_id)
-        ).all())
-        return list(session.exec(
-            select(ListItem).where(ListItem.list_id.in_(my_list_ids), *base)
-        ).all())
+        ).all()
+        return session.exec(select(ListItem).where(ListItem.list_id.in_(my_list_ids), *base)).all()
 
     # scope == "all"
-    return list(session.exec(select(ListItem).where(*base)).all())
+    return session.exec(select(ListItem).where(*base)).all()
 
 
 def _base_conditions(item: ListItem):

@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class WaitlistSignupCreate(BaseModel):
     email: EmailStr
-    invite_token: Optional[str] = None
+    invite_token: str | None = None
 
 
 class WaitlistSignupRead(BaseModel):
@@ -14,6 +14,6 @@ class WaitlistSignupRead(BaseModel):
     id: str
     email: str
     created_at: datetime
-    allowed_at: Optional[datetime] = None
-    invite_token: Optional[str] = None
+    allowed_at: datetime | None = None
+    invite_token: str | None = None
 

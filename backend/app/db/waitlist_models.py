@@ -1,6 +1,6 @@
-from typing import Optional
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from sqlmodel import Field, SQLModel
 
 
@@ -9,7 +9,7 @@ def _uuid() -> str:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class WaitlistSignup(SQLModel, table=True):
@@ -18,6 +18,6 @@ class WaitlistSignup(SQLModel, table=True):
     id: str = Field(default_factory=_uuid, primary_key=True)
     email: str = Field(unique=True, index=True)
     created_at: datetime = Field(default_factory=_now)
-    allowed_at: Optional[datetime] = Field(default=None, nullable=True)
-    invite_token: Optional[str] = Field(default=None, nullable=True)
+    allowed_at: datetime | None = Field(default=None, nullable=True)
+    invite_token: str | None = Field(default=None, nullable=True)
 

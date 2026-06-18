@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 def _now():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class FeatureToggleRequest(BaseModel):
@@ -34,7 +34,7 @@ def toggle_user_feature(
 ):
     if body.feature not in feature_flags.REGISTRY:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Unknown feature flag: {body.feature!r}",
         )
 

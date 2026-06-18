@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
@@ -175,7 +175,7 @@ def test_purchased_count_reflects_purchased_at(client: TestClient):
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
 
     lists = client.get("/lists").json()
-    target = next(l for l in lists if l["id"] == lst["id"])
+    target = next(row for row in lists if row["id"] == lst["id"])
     assert target["purchased_count"] == 1
 
 
@@ -193,14 +193,14 @@ def test_items_purchased_on_prior_days_excluded_from_counts(client: TestClient, 
     client.patch(f"/lists/{list_id}/items/{item_today['id']}", json={"purchased": True})
 
     # Backdate item_old's purchased_at to yesterday via session
-    yesterday = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    yesterday = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
     db_item = session.get(ListItem, item_old["id"])
     db_item.purchased_at = yesterday
     session.add(db_item)
     session.commit()
 
     lists = client.get("/lists").json()
-    target = next(l for l in lists if l["id"] == list_id)
+    target = next(row for row in lists if row["id"] == list_id)
 
     # item_old (yesterday) is excluded; item_today + item_unpurchased remain in scope
     assert target["item_count"] == 2

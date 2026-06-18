@@ -1,6 +1,5 @@
 import re
 import unicodedata
-from typing import Optional
 
 from rapidfuzz import fuzz
 from sqlmodel import Session, select
@@ -22,8 +21,8 @@ def normalise(text: str) -> str:
 
 
 def _lookup_mapping(
-    store: Optional[str], norm_name: str, session: Session
-) -> Optional[ReceiptNameMapping]:
+    store: str | None, norm_name: str, session: Session
+) -> ReceiptNameMapping | None:
     if not store:
         return None
     stmt = select(ReceiptNameMapping).where(
@@ -35,7 +34,7 @@ def _lookup_mapping(
 
 def match_lines(
     lines: list[ParsedLine],
-    store: Optional[str],
+    store: str | None,
     purchased_items: list[ListItem],
     session: Session,
 ) -> tuple[list[MatchedLine], list[UnmatchedLine]]:
@@ -63,7 +62,7 @@ def match_lines(
                 continue
 
         best_score = 0
-        best_item: Optional[ListItem] = None
+        best_item: ListItem | None = None
         for item in purchased_items:
             score = fuzz.token_sort_ratio(norm, normalise(item.name))
             if score > best_score:

@@ -1,9 +1,11 @@
 import uuid
-from datetime import datetime, date as date_type, timezone
-from typing import Optional
+from datetime import UTC, datetime
+from datetime import date as date_type
 
-from sqlalchemy import Column, JSON, UniqueConstraint, text
+from sqlalchemy import JSON, Column, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
+
+from app.db.waitlist_models import WaitlistSignup  # noqa: F401
 
 
 def _uuid() -> str:
@@ -11,11 +13,7 @@ def _uuid() -> str:
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
-# Import WaitlistSignup to ensure SQLModel metadata includes it
-from app.db.waitlist_models import WaitlistSignup
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class User(SQLModel, table=True):
@@ -23,9 +21,9 @@ class User(SQLModel, table=True):
 
     id: str = Field(default_factory=_uuid, primary_key=True)
     firebase_uid: str = Field(unique=True, index=True)
-    display_name: Optional[str] = None
+    display_name: str | None = None
     email: str = Field(unique=True, index=True)
-    photo_url: Optional[str] = None
+    photo_url: str | None = None
     created_at: datetime = Field(default_factory=_now)
 
 
@@ -34,7 +32,7 @@ class List(SQLModel, table=True):
 
     id: str = Field(default_factory=_uuid, primary_key=True)
     name: str
-    emoji: Optional[str] = None
+    emoji: str | None = None
     owner_id: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
@@ -55,18 +53,20 @@ class ListItem(SQLModel, table=True):
     id: str = Field(default_factory=_uuid, primary_key=True)
     list_id: str = Field(foreign_key="lists.id")
     name: str
-    quantity: Optional[str] = None
-    purchased_quantity: Optional[str] = None
-    brand: Optional[str] = None
-    stores: list[str] = Field(default_factory=list, sa_column=Column(JSON, server_default=text("'[]'")))
-    purchased_at: Optional[datetime] = Field(default=None)
+    quantity: str | None = None
+    purchased_quantity: str | None = None
+    brand: str | None = None
+    stores: list[str] = Field(
+        default_factory=list, sa_column=Column(JSON, server_default=text("'[]'"))
+    )
+    purchased_at: datetime | None = Field(default=None)
     added_by: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
-    ean: Optional[str] = Field(default=None)
-    price: Optional[float] = Field(default=None)
-    price_per: Optional[str] = Field(default=None)
-    price_store: Optional[str] = Field(default=None)
+    ean: str | None = Field(default=None)
+    price: float | None = Field(default=None)
+    price_per: str | None = Field(default=None)
+    price_store: str | None = Field(default=None)
 
 
 class ListInvite(SQLModel, table=True):
@@ -74,7 +74,7 @@ class ListInvite(SQLModel, table=True):
 
     id: str = Field(default_factory=_uuid, primary_key=True)
     list_id: str = Field(foreign_key="lists.id")
-    invited_email: Optional[str] = None
+    invited_email: str | None = None
     invited_by: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=_now)
 
@@ -85,8 +85,8 @@ class BarcodeCache(SQLModel, table=True):
     id: str = Field(default_factory=_uuid, primary_key=True)
     ean: str = Field(unique=True, index=True)
     name: str
-    brand: Optional[str] = None
-    stores: Optional[str] = None  # nullable comma-separated, e.g. "Mercadona,Alcampo"
+    brand: str | None = None
+    stores: str | None = None  # nullable comma-separated, e.g. "Mercadona,Alcampo"
     created_at: datetime = Field(default_factory=_now)
 
 
@@ -95,8 +95,8 @@ class PriceCache(SQLModel, table=True):
 
     id: str = Field(default_factory=_uuid, primary_key=True)
     ean: str = Field(unique=True, index=True)
-    amount: Optional[float] = Field(default=None)  # None = fetched but no usable data (negative cache)
-    price_per: Optional[str] = Field(default=None)  # None=unit, "KILOGRAM"=per kg
+    amount: float | None = Field(default=None)  # None = fetched but no usable data (negative cache)
+    price_per: str | None = Field(default=None)  # None=unit, "KILOGRAM"=per kg
     fetched_at: datetime = Field(default_factory=_now)
 
 
@@ -106,11 +106,11 @@ class ReceiptScan(SQLModel, table=True):
     id: str = Field(default_factory=_uuid, primary_key=True)
     list_id: str = Field(foreign_key="lists.id")
     scanned_by: str = Field(foreign_key="users.id")
-    store: Optional[str] = None
-    receipt_date: Optional[date_type] = None
-    receipt_total: Optional[float] = None
-    parsed_lines: Optional[list] = Field(default=None, sa_column=Column(JSON))
-    match_result: Optional[list] = Field(default=None, sa_column=Column(JSON))
+    store: str | None = None
+    receipt_date: date_type | None = None
+    receipt_total: float | None = None
+    parsed_lines: list[dict] | None = Field(default=None, sa_column=Column(JSON))
+    match_result: list[dict] | None = Field(default=None, sa_column=Column(JSON))
     items_updated: int = 0
     created_at: datetime = Field(default_factory=_now)
 
@@ -123,7 +123,7 @@ class ReceiptNameMapping(SQLModel, table=True):
     store: str
     receipt_name: str
     item_name: str
-    item_brand: Optional[str] = None
+    item_brand: str | None = None
     confirmed_by: str = Field(foreign_key="users.id")
     use_count: int = 1
     created_at: datetime = Field(default_factory=_now)
@@ -136,9 +136,9 @@ class FeedbackSubmission(SQLModel, table=True):
     id: str = Field(default_factory=_uuid, primary_key=True)
     user_id: str = Field(foreign_key="users.id")
     message: str
-    email: Optional[str] = None
+    email: str | None = None
     source: str = Field(default="manual")
-    user_agent: Optional[str] = None
+    user_agent: str | None = None
     created_at: datetime = Field(default_factory=_now)
 
 

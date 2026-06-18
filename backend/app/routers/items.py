@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import case, func, nulls_last, or_
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/lists/{list_id}/items", tags=["items"])
 
 
 def _bump(lst: List, session: Session) -> None:
-    lst.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    lst.updated_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(lst)
 
 
@@ -78,17 +78,17 @@ def update_item(
     for field, value in data.items():
         setattr(item, field, value)
     if purchased is True and item.purchased_at is None:
-        item.purchased_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        item.purchased_at = datetime.now(UTC).replace(tzinfo=None)
     elif purchased is False:
         if item.purchased_at is not None:
-            today = datetime.now(timezone.utc).date()
+            today = datetime.now(UTC).date()
             if item.purchased_at.date() != today:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Cannot unpurchase an item purchased on a previous day",
                 )
         item.purchased_at = None
-    item.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    item.updated_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(item)
     _bump(lst, session)
     session.commit()

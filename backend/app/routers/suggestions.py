@@ -1,6 +1,6 @@
 import re
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from statistics import mean, median
 from typing import Annotated
 
@@ -87,7 +87,7 @@ def get_due_suggestions(
     session: CurrentSession,
 ):
     lst, _ = list_and_user
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
 
     purchased_items = session.exec(
         select(ListItem).where(

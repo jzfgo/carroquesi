@@ -46,7 +46,7 @@ Price history tabs — what each scope adds for tracked items:
 """
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -59,11 +59,11 @@ from app.db.session import engine
 
 
 def now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def days_ago(n: float) -> datetime:
-    return (datetime.now(timezone.utc) - timedelta(days=n)).replace(tzinfo=None)
+    return (datetime.now(UTC) - timedelta(days=n)).replace(tzinfo=None)
 
 
 ALICE_ID = "seed-user-alice"
@@ -370,13 +370,20 @@ def main() -> None:
     print(f"\nSeeding: {settings.database_url}\n")
     with Session(engine) as session:
         _delete_seed_rows(session)
-        _insert(session, SEED_USERS);    print(f"  +{len(SEED_USERS)} users")
-        _insert(session, SEED_LISTS);    print(f"  +{len(SEED_LISTS)} lists")
-        _insert(session, SEED_MEMBERS);  print(f"  +{len(SEED_MEMBERS)} memberships")
-        _insert(session, SEED_ITEMS);    print(f"  +{len(SEED_ITEMS)} items")
-        _insert(session, SEED_INVITES);  print(f"  +{len(SEED_INVITES)} invites")
-        _insert(session, SEED_BARCODES); print(f"  +{len(SEED_BARCODES)} barcode cache entries")
-        _insert(session, SEED_FEATURES); print(f"  +{len(SEED_FEATURES)} feature flags")
+        _insert(session, SEED_USERS)
+        print(f"  +{len(SEED_USERS)} users")
+        _insert(session, SEED_LISTS)
+        print(f"  +{len(SEED_LISTS)} lists")
+        _insert(session, SEED_MEMBERS)
+        print(f"  +{len(SEED_MEMBERS)} memberships")
+        _insert(session, SEED_ITEMS)
+        print(f"  +{len(SEED_ITEMS)} items")
+        _insert(session, SEED_INVITES)
+        print(f"  +{len(SEED_INVITES)} invites")
+        _insert(session, SEED_BARCODES)
+        print(f"  +{len(SEED_BARCODES)} barcode cache entries")
+        _insert(session, SEED_FEATURES)
+        print(f"  +{len(SEED_FEATURES)} feature flags")
     print(f"\nPrice data: {len(price_items)} entries across {len(stores)} stores: {', '.join(sorted(stores))}")
     print("""
 Tracked items and tab differences (open price history on any of these):

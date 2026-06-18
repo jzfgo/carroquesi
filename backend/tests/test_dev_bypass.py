@@ -16,13 +16,11 @@ from sqlmodel.pool import StaticPool
 
 from app.db.models import User
 from app.db.session import get_session
-from app.dependencies import get_current_user
 
 
 # A minimal endpoint that returns the resolved user's email, used to confirm
 # which user get_current_user returned.
 def _make_bypass_app(session: Session) -> FastAPI:
-    from fastapi import Depends
     from app.dependencies import CurrentUser
 
     bypass_app = FastAPI()

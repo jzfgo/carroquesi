@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Optional, TypeAlias
+from typing import Annotated, Any, TypeAlias
 
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -13,9 +13,9 @@ bearer = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
-    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(bearer)],
-    x_dev_user_id: Annotated[Optional[str], Header()] = None,
-    x_dev_is_admin: Annotated[Optional[str], Header()] = None,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+    x_dev_user_id: Annotated[str | None, Header()] = None,
+    x_dev_is_admin: Annotated[str | None, Header()] = None,
     session: Annotated[Session, Depends(get_session)] = None,
 ) -> User:
     if settings.dev_auth_bypass and x_dev_user_id:
@@ -34,7 +34,9 @@ def get_current_user(
     try:
         decoded: dict[str, Any] = verify_id_token(credentials.credentials)
     except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        ) from None
 
     user = session.exec(select(User).where(User.firebase_uid == decoded["uid"])).first()
     if user is None:

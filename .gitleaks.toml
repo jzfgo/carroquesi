@@ -1,0 +1,17 @@
+# .gitleaks.toml
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+
+[extend]
+# Use gitleaks' default rules as a base — they cover the common formats
+# (AWS, GitHub, Slack, Stripe, Gemini/Google API keys, JWTs, private keys, etc.)
+useDefault = true
+
+# Add [[rules]] entries here to define custom token formats.
+# Add [allowlist] here if real false positives show up.
+
+# Custom rule example, if you ever need it for an internal token format:
+# [[rules]]
+# id = "carroquesi-internal-token"
+# description = "CarroQueSí internal API key format"
+# regex = '''cqs_[a-zA-Z0-9]{32}'''
+# tags = ["token", "carroquesi"]

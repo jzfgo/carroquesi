@@ -10,45 +10,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **backend:** Add waitlist configuration and WaitlistSignup DB model
+- Implement waitlist / early access gate (#79)
 
-- **backend:** Implement waitlist signup and listing endpoints
 
-- **backend:** Register waitlist router and enforce gate on new signups
-
-- **frontend:** Catch 403 waitlist responses and manage isWaitlisted state
-
-- **frontend:** Create WaitlistScreen component and unit tests
-
-- **frontend:** Integrate WaitlistScreen routing and complete implementation
-
-- **frontend:** Show WaitlistScreen as landing page when waitlist is enabled
-
-- **backend:** Add allowed_at column to waitlist_signups and auto-approve logins
-
-- **frontend:** Show welcome screen when user attempts waitlist registration but is already approved
-
-- Surface invite context on WaitlistScreen when arriving from a list invite
+### Changed
+- Remove redundant list() wraps in prices._query_by_scope
 
 
 ### Fixed
-- **frontend:** Reset user state to null when waitlisted
+- Gate dashboard receipt scan option behind AI_RECEIPT_SCANNING flag (#81)
 
-- **frontend:** Update waitlist tests to use importOriginal and expose log out button in success state
+- Address Gemini review — restore WaitlistSignup import and harden hooks
 
-- **frontend:** Adjust mocks in WaitlistScreen.test.tsx to prevent firebase init errors in tests
+- Address second Gemini review — sequential ruff, regex coverage, deleted-file guard
 
-- **frontend:** Render WaitlistScreen inside InviteScreen for waitlisted users
+- Address third Gemini review — OSError guards for uv/pnpm and wider commit-msg regex
 
-- **frontend:** Position waitlist early return after hooks in InviteScreen to satisfy React Hook rules
+- Address fourth Gemini review — func.count() for cap checks and list[dict] types
 
-- **frontend:** Show error message instead of success state when Google sign-in is blocked
+- Address fifth Gemini review — isinstance guards for JSON hook inputs
 
-- **frontend:** Clear user session on backend 401/403 in syncUser
+- Address seventh Gemini review — correct 422 status and block git commit -n
 
-- Address GCA review comments on waitlist invite flow
+- Guard against null command value in block_no_verify hook
 
-- **frontend:** Disable waitlist submit button when email is empty
+- Use recursive glob patterns in lefthook.yml
+
+- Update test and deprecation for 422 status change
+
+- Use surgical heredoc regex instead of truncating at first <<
+
+- Skip eslint in stop_checks if node_modules not installed
 
 
 ---

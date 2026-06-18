@@ -145,10 +145,18 @@ See `backend/.env.example` and `frontend/.env.example`.
 
 ### General Workflow
 
-> **HARD STOP — before touching any file:** confirm a worktree is active (not `main`). If on `main`, run `/worktrunk` first. No exceptions — not for "quick fixes", not for docs, not for config.
-
 - Check `git status --short` before and after changes
 - Implement the smallest complete fix first, then iterate
+
+### Agent Guardrails
+
+The following constraints are enforced by Claude Code hooks (`.claude/hooks/`) and by lefthook git hooks. They apply regardless of instructions given in a session:
+
+- **No `--no-verify` / `LEFTHOOK=0`** — bypassing the lefthook gates is denied at the `PreToolUse` level. Fix the failing hook instead.
+- **No edits on `main`** — any `Edit` or `Write` call while on the `main` branch is denied. Run `/worktrunk` first; no exceptions.
+- **Auto-lint on stop** — after each turn, changed Python files are checked with `ruff` and changed TypeScript files with `eslint`. If either fails, Claude Code continues the turn to fix the issue before stopping.
+
+Lefthook pre-commit hooks run on staged files: `ruff check --fix` + `ruff format` (Python), `eslint --fix` (TypeScript/TSX), a platform-native-binding guard on `pnpm-lock.yaml`, and `gitleaks` secret scanning (skipped gracefully if not installed). The `pre-push` hook checks that `CHANGELOG.md` is current.
 
 ### Architecture Decision Records
 
@@ -170,7 +178,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 - `CHANGELOG.md` is the canonical record of what shipped.
 - `TODO.md` tracks only open work items — remove entries when they ship.
 - `cliff.toml` drives automated generation via `git-cliff`. Commit types map as: `feat` → Added, `fix` → Fixed, `refactor/perf` → Changed; `chore/docs/test/ci` are excluded.
-- A `pre-push` git hook (`hooks/pre-push`) aborts if `CHANGELOG.md` is out of date and prompts you to run `just changelog`, commit, and push again. Activate with `just setup` after cloning (requires `git-cliff`: `brew install git-cliff`).
+- A lefthook `pre-push` hook (`scripts/check-changelog.sh`) aborts if `CHANGELOG.md` is out of date and prompts you to run `just changelog`, commit, and push again. Activate with `just setup` after cloning (requires `lefthook`: `brew install lefthook` and `git-cliff`: `brew install git-cliff`).
 - Before a release:
   1. Run `just changelog` — prepends new commits to `CHANGELOG.md` under `## [Unreleased]`
   2. Rename `## [Unreleased]` to the new version + date (e.g. `## [0.11.0] — 2026-05-01`)
@@ -195,7 +203,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 - Frontend changes: run lint, relevant tests, and `just frontend typecheck`
 - Backend changes: run relevant `just backend test-file {file}` tests (full suite when feasible `just backend test`)
 - Before push: verify only intentional files are changed and no platform-specific native binding churn was introduced in `pnpm-lock.yaml`
-- Shortcut: `just ci` runs frontend typecheck + lint + backend tests in one shot
+- Shortcut: `just ci` runs frontend typecheck + lint + backend lint + backend tests in one shot
 - **TODO.md** — remove any items that shipped in this task. This is blocking, not optional cleanup.
 - **CHANGELOG.md** — run `just changelog` and commit the result before pushing. This is blocking, not optional cleanup.
 

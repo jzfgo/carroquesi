@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session
@@ -150,7 +150,7 @@ def test_cannot_unpurchase_item_from_previous_day(client: TestClient, session: S
     # Backdate purchased_at to yesterday
     db_item = session.get(ListItem, item["id"])
     session.refresh(db_item)
-    db_item.purchased_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    db_item.purchased_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
     session.add(db_item)
     session.commit()
 

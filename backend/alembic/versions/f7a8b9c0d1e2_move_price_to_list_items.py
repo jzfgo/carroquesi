@@ -4,18 +4,19 @@ Revision ID: f7a8b9c0d1e2
 Revises: e5f6a7b8c9d0
 Create Date: 2026-04-09 00:00:00.000000
 """
-from typing import Sequence, Union
-from datetime import datetime, timezone
 import uuid
+from collections.abc import Sequence
+from datetime import UTC, datetime
 
-import sqlmodel
-from alembic import op
 import sqlalchemy as sa
+import sqlmodel
+
+from alembic import op
 
 revision: str = 'f7a8b9c0d1e2'
-down_revision: Union[str, Sequence[str], None] = 'e5f6a7b8c9d0'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = 'e5f6a7b8c9d0'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -74,7 +75,7 @@ def downgrade() -> None:
     rows = bind.execute(sa.text(
         "SELECT id, ean, price, price_per, price_store, added_by FROM list_items WHERE price IS NOT NULL"
     )).fetchall()
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     for row in rows:
         bind.execute(
             sa.text(

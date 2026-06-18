@@ -1,7 +1,6 @@
 import statistics
 from collections import Counter
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 import httpx
 from sqlmodel import select
@@ -13,8 +12,11 @@ _OPEN_PRICES_URL = "https://prices.openfoodfacts.org/api/v1/prices"
 _PRICE_CACHE_TTL_DAYS = 7
 
 
-def _map_price_per(raw: Optional[str]) -> Optional[str]:
-    """Map Open Prices price_per to our two-value enum: None or 'KILOGRAM'. Returns 'DISCARD' for unknown values."""
+def _map_price_per(raw: str | None) -> str | None:
+    """
+    Map Open Prices price_per to our two-value enum: None or 'KILOGRAM'.
+    Returns 'DISCARD' for unknown values.
+    """
     if raw is None or raw == "UNIT":
         return None
     if raw == "KILOGRAM":
@@ -24,13 +26,13 @@ def _map_price_per(raw: Optional[str]) -> Optional[str]:
 
 def _fetch_community_price_from_results(
     results: list[dict],
-) -> tuple[Optional[float], Optional[str]]:
+) -> tuple[float | None, str | None]:
     """
     Given Open Prices result dicts, return (median_amount, price_per).
     Filters to Spanish prices first; falls back to all results if none found.
     Returns (None, None) if no usable results.
     """
-    def _usable(r: dict) -> Optional[tuple[float, Optional[str]]]:
+    def _usable(r: dict) -> tuple[float, str | None] | None:
         mapped = _map_price_per(r.get("price_per"))
         if mapped == "DISCARD":
             return None
@@ -39,7 +41,9 @@ def _fetch_community_price_from_results(
             return None
         return (float(price), mapped)
 
-    spanish = [r for r in results if (r.get("location") or {}).get("osm_address_country_code") == "ES"]
+    spanish = [
+        r for r in results if (r.get("location") or {}).get("osm_address_country_code") == "ES"
+    ]
     candidates = spanish if spanish else results
 
     usable = [_usable(r) for r in candidates]
@@ -53,13 +57,13 @@ def _fetch_community_price_from_results(
     return statistics.median(prices), dominant_pp
 
 
-def get_community_price(ean: str, session) -> tuple[Optional[float], Optional[str]]:
+def get_community_price(ean: str, session) -> tuple[float | None, str | None]:
     """
     Return (amount, price_per) from cache or Open Prices API.
     Populates/refreshes the price_cache table as a side effect.
     Returns (None, None) on failure — never raises.
     """
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     ttl_cutoff = now - timedelta(days=_PRICE_CACHE_TTL_DAYS)
 
     cached = session.exec(select(PriceCache).where(PriceCache.ean == ean)).first()

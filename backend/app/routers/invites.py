@@ -1,6 +1,7 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, status
+from sqlalchemy import func
 from sqlmodel import select
 
 from app.db.models import List, ListInvite, ListMember, User
@@ -15,7 +16,7 @@ INVITE_TTL_HOURS = 24
 
 
 def _check_not_expired(invite: ListInvite) -> None:
-    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=INVITE_TTL_HOURS)
+    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=INVITE_TTL_HOURS)
     if invite.created_at < cutoff:
         raise HTTPException(status_code=410, detail="Invite expired")
 
@@ -35,7 +36,7 @@ def create_open_invite(
     if len(members) >= MAX_MEMBERS:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="List is full")
 
-    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=INVITE_TTL_HOURS)
+    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=INVITE_TTL_HOURS)
     expired = session.exec(
         select(ListInvite).where(ListInvite.list_id == list_id, ListInvite.created_at < cutoff)
     ).all()
@@ -43,9 +44,13 @@ def create_open_invite(
         session.delete(inv)
     session.flush()
 
-    open_invites = session.exec(select(ListInvite).where(ListInvite.list_id == list_id)).all()
-    if len(open_invites) >= MAX_OPEN_INVITES:
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many open invites")
+    open_invite_count = session.exec(
+        select(func.count(ListInvite.id)).where(ListInvite.list_id == list_id)
+    ).one()
+    if open_invite_count >= MAX_OPEN_INVITES:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many open invites"
+        )
 
     invite = ListInvite(list_id=list_id, invited_by=current_user.id, invited_email=None)
     session.add(invite)
@@ -96,10 +101,14 @@ def accept_invite(
 
     # Email-locked invite: only the matching user can accept
     if invite.invited_email is not None and invite.invited_email != current_user.email:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This invite is not for you")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="This invite is not for you"
+        )
 
     # Member cap guard (race condition protection)
-    member_count = len(session.exec(select(ListMember).where(ListMember.list_id == invite.list_id)).all())
+    member_count = session.exec(
+        select(func.count(ListMember.id)).where(ListMember.list_id == invite.list_id)
+    ).one()
     if member_count >= MAX_MEMBERS:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="List is full")
 
@@ -115,7 +124,7 @@ def accept_invite(
         # Bump lists.updated_at for polling
         lst = session.get(List, invite.list_id)
         if lst:
-            lst.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+            lst.updated_at = datetime.now(UTC).replace(tzinfo=None)
             session.add(lst)
 
     list_id = invite.list_id

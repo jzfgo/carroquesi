@@ -101,6 +101,7 @@ def test_get_members_includes_user_fields(client: TestClient, user):
 def test_get_members_display_name_falls_back_to_email_prefix(client: TestClient, user, session: Session):
     """When a user has no display_name, the endpoint returns the email prefix."""
     from sqlmodel import select as sql_select
+
     from app.db.models import User as UserModel
     db_user = session.exec(sql_select(UserModel).where(UserModel.id == user.id)).first()
     db_user.display_name = None

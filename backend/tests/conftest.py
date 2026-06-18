@@ -14,7 +14,6 @@ from sqlmodel.pool import StaticPool
 from app.db.models import User
 from app.db.session import get_session
 from app.dependencies import get_current_user
-from app.main import app
 
 
 @pytest.fixture(name="engine")
@@ -55,14 +54,26 @@ def other_user_fixture(session: Session) -> User:
 
 def _make_client(session: Session, user: User) -> TestClient:
     """Return a TestClient wired to a fresh app copy with the given user/session."""
-    from app.main import app as _app  # re-import to get the real app
-    from fastapi import FastAPI
 
     # Build a thin wrapper: new app that mounts the same router but has its own
     # dependency_overrides dict, so two clients in the same test don't conflict.
     from fastapi.middleware.cors import CORSMiddleware
+
     from app.core.config import settings
-    from app.routers import admin, auth, barcode, feedback, invites, items, lists, members, prices, receipt, suggestions, waitlist
+    from app.routers import (
+        admin,
+        auth,
+        barcode,
+        feedback,
+        invites,
+        items,
+        lists,
+        members,
+        prices,
+        receipt,
+        suggestions,
+        waitlist,
+    )
 
     test_app = FastAPI()
     test_app.add_middleware(

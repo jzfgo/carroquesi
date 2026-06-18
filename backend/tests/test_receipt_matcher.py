@@ -1,10 +1,10 @@
 import pytest
-from sqlmodel import Session, SQLModel, create_engine
 from sqlalchemy.pool import StaticPool
+from sqlmodel import Session, SQLModel, create_engine
 
-from app.schemas.receipt import ParsedLine
-from app.services.receipt_matcher import normalise, match_lines
 from app.db.models import ListItem, ReceiptNameMapping
+from app.schemas.receipt import ParsedLine
+from app.services.receipt_matcher import match_lines, normalise
 
 
 @pytest.fixture
