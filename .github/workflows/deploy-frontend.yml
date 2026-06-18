@@ -48,5 +48,5 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Deploy to Firebase Hosting
-        run: pnpm deploy
+        run: pnpm run deploy
         working-directory: frontend

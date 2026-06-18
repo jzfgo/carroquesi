@@ -161,7 +161,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 - Use squash merge for PRs by default
 - When asked to 'update X', assume this includes committing and pushing unless stated otherwise
 - Always check git status for untracked changes before assuming worktree is clean
-- For CI: use `pnpm ci` for clean installs
+- For CI: use `pnpm install --frozen-lockfile` for clean installs
 - If the current worktree contains unrelated or unexpected changes, stop and ask before proceeding
 - **Alembic migrations must be the last step before merging**, after rebasing on main — never create a migration in parallel with another branch that also has one (migration version conflicts require manual resolution and are easy to get wrong)
 
