@@ -56,6 +56,9 @@ def main() -> None:
     except json.JSONDecodeError:
         sys.exit(0)
 
+    if not isinstance(data, dict):
+        sys.exit(0)
+
     already_looping = bool(data.get("stop_hook_active"))
     failures: list[str] = []
 

@@ -25,7 +25,13 @@ def main() -> None:
     except json.JSONDecodeError:
         sys.exit(0)
 
-    command = (data.get("tool_input") or {}).get("command", "")
+    if not isinstance(data, dict):
+        sys.exit(0)
+
+    tool_input = data.get("tool_input")
+    if not isinstance(tool_input, dict):
+        tool_input = {}
+    command = tool_input.get("command", "")
 
     # Strip heredoc content so commit messages mentioning these patterns
     # don't trigger false positives.
