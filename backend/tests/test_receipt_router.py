@@ -1,9 +1,9 @@
-import pytest
 from datetime import datetime
+
+import pytest
 
 from app.db.models import List, ListItem, ListMember
 from app.db.models import UserFeature as _UserFeature
-
 
 LIST_ID = "list-receipt-test"
 

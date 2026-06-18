@@ -18,10 +18,11 @@ test:
     just frontend test
     just backend test
 
-# Type-check + lint frontend, then run backend tests
+# Type-check + lint frontend, lint + test backend
 ci:
     just frontend typecheck
     just frontend lint
+    just backend lint
     just backend test
 
 # Update [Unreleased] section in CHANGELOG.md from commits since last tag (requires git-cliff)
@@ -29,9 +30,10 @@ changelog:
     python3 scripts/strip-unreleased.py
     git cliff --unreleased --prepend CHANGELOG.md
 
-# Configure git to use the repo's tracked hooks (run once after cloning)
+# Wire up lefthook (run once after cloning)
 setup:
-    git config core.hooksPath hooks
+    -git config --unset core.hooksPath
+    lefthook install
 
 alias ss := servers-status
 alias sk := servers-kill

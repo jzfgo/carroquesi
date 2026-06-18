@@ -1,4 +1,4 @@
-from app.db.models import PriceCache, ListItem
+from app.db.models import ListItem, PriceCache
 
 
 def test_listitem_has_ean():

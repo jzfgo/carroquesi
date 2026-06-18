@@ -11,7 +11,7 @@ Actions:
     reset -- delete the row (user reverts to registry default)
 """
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -24,7 +24,7 @@ from app.services.feature_flags import REGISTRY
 
 
 def _now():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def main():
@@ -59,7 +59,9 @@ def main():
             if row:
                 session.delete(row)
                 session.commit()
-                print(f"Deleted UserFeature row -- {user.email} / {feature} now at registry default")
+                print(
+                    f"Deleted UserFeature row -- {user.email} / {feature} now at registry default"
+                )
             else:
                 print(f"No row to delete -- {user.email} / {feature} already at registry default")
         else:

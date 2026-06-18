@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Ensure CHANGELOG.md is up to date before pushing.
 # Requires git-cliff: https://git-cliff.org/docs/installation
+#
+# See lefthook.yml
 set -euo pipefail
 
 if ! command -v git-cliff &>/dev/null; then

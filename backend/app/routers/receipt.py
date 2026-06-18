@@ -1,5 +1,4 @@
-from datetime import date, datetime, timezone
-from typing import Optional
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select
@@ -51,7 +50,7 @@ def scan_receipt(
         if len(stores) == 1:
             store = stores.pop()
 
-    receipt_date: Optional[date] = None
+    receipt_date: date | None = None
     if body.receipt_date:
         try:
             receipt_date = date.fromisoformat(body.receipt_date)
@@ -89,7 +88,7 @@ def apply_receipt_prices(
     list_and_user: MemberDep = None,
 ):
     _, current_user = list_and_user
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     updated = 0
 
     for patch in body.patches:

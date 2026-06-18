@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, status
 from sqlalchemy import func, or_
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/lists", tags=["lists"])
 
 
 def _bump(lst: List, session: Session) -> None:
-    lst.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    lst.updated_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(lst)
 
 

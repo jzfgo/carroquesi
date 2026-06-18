@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import Session, select
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/lists/{list_id}/members", tags=["members"])
 
 
 def _bump(lst: List, session: Session) -> None:
-    lst.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    lst.updated_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(lst)
 
 
@@ -88,7 +88,9 @@ def remove_member(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="List not found")
 
     if user_id == lst.owner_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot remove the list owner")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot remove the list owner"
+        )
 
     # Only owner or the member themselves can remove
     if current_user.id != lst.owner_id and current_user.id != user_id:

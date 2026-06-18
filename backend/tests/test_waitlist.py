@@ -1,3 +1,5 @@
+from datetime import UTC
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -104,8 +106,7 @@ def test_list_signups_requires_admin(client: TestClient, admin_client: TestClien
 
 
 def test_get_current_user_gate_blocked(session: Session, monkeypatch):
-    from fastapi import Depends
-    from app.dependencies import CurrentUser, get_current_user
+    from app.dependencies import CurrentUser
 
     # Enable waitlist
     monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
@@ -136,8 +137,7 @@ def test_get_current_user_gate_blocked(session: Session, monkeypatch):
 
 
 def test_get_current_user_gate_allowed_for_existing(session: Session, monkeypatch):
-    from fastapi import Depends
-    from app.dependencies import CurrentUser, get_current_user
+    from app.dependencies import CurrentUser
 
     # Enable waitlist
     monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
@@ -173,8 +173,7 @@ def test_get_current_user_gate_allowed_for_existing(session: Session, monkeypatc
 
 
 def test_get_current_user_gate_allowed_for_new_admin(session: Session, monkeypatch):
-    from fastapi import Depends
-    from app.dependencies import CurrentUser, get_current_user
+    from app.dependencies import CurrentUser
 
     # Enable waitlist
     monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
@@ -205,15 +204,15 @@ def test_get_current_user_gate_allowed_for_new_admin(session: Session, monkeypat
 
 
 def test_get_current_user_gate_allowed_for_approved_waitlist_user(session: Session, monkeypatch):
-    from datetime import datetime, timezone
-    from fastapi import Depends
-    from app.dependencies import CurrentUser, get_current_user
+    from datetime import datetime
+
+    from app.dependencies import CurrentUser
 
     # Enable waitlist
     monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
 
     # Seed an approved waitlist signup
-    signup = WaitlistSignup(email="approved-waitlist@example.com", allowed_at=datetime.now(timezone.utc).replace(tzinfo=None))
+    signup = WaitlistSignup(email="approved-waitlist@example.com", allowed_at=datetime.now(UTC).replace(tzinfo=None))
     session.add(signup)
     session.commit()
 
@@ -243,8 +242,7 @@ def test_get_current_user_gate_allowed_for_approved_waitlist_user(session: Sessi
 
 
 def test_get_current_user_gate_blocked_for_unapproved_waitlist_user(session: Session, monkeypatch):
-    from fastapi import Depends
-    from app.dependencies import CurrentUser, get_current_user
+    from app.dependencies import CurrentUser
 
     # Enable waitlist
     monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)

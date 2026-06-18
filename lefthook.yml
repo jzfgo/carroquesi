@@ -1,0 +1,55 @@
+# lefthook.yml
+#
+# Install:  brew install lefthook   (or see https://lefthook.dev/installation/)
+# Wire up:  just setup              (unsets core.hooksPath, runs `lefthook install`)
+# Docs:     https://lefthook.dev/configuration/
+#
+# NOTE ON `root:` — this scopes both glob-matching and the command's working
+# directory to that subfolder, and rewrites {staged_files} relative to it.
+# That's the documented behavior as of writing; if your installed lefthook
+# version behaves differently, run `lefthook run pre-commit -v` once and
+# check the paths it actually passes.
+
+pre-commit:
+  parallel: true
+  commands:
+    backend-lint:
+      root: "backend/"
+      glob: "*.py"
+      run: uv run ruff check --fix {staged_files}
+      stage_fixed: true
+
+    backend-format:
+      root: "backend/"
+      glob: "*.py"
+      run: uv run ruff format {staged_files}
+      stage_fixed: true
+
+    frontend-lint:
+      root: "frontend/"
+      glob: "*.{ts,tsx}"
+      run: pnpm exec eslint --fix {staged_files}
+      stage_fixed: true
+
+    # Never commit platform-specific (darwin/linux) native bindings to pnpm-lock.yaml
+    lockfile-guard:
+      glob: "frontend/pnpm-lock.yaml"
+      run: |
+        if git diff --cached -- frontend/pnpm-lock.yaml | grep -qE "^\+.*(darwin|linux)-(x64|arm64)"; then
+          echo "✗ pnpm-lock.yaml stages a platform-specific optional dependency."
+          echo "  Re-run 'pnpm install' on a clean checkout before committing, per AGENTS.md."
+          exit 1
+        fi
+
+    secrets:
+      run: |
+        if ! command -v gitleaks >/dev/null 2>&1; then
+          echo "⚠️  gitleaks not found — skipping secret scan (install: brew install gitleaks)"
+          exit 0
+        fi
+        gitleaks git --staged --no-banner --redact
+
+pre-push:
+  commands:
+    changelog:
+      run: scripts/check-changelog.sh

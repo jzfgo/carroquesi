@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
@@ -51,6 +51,7 @@ def test_public_invite_preview_no_auth(session: Session, user):
     # Build a bare app (no lifespan/Firebase) that only mounts the invites router
     from fastapi import FastAPI
     from fastapi.testclient import TestClient as RawClient
+
     from app.db.session import get_session
     from app.routers import invites as invites_router
     bare_app = FastAPI()
@@ -165,7 +166,8 @@ def test_non_member_cannot_create_open_invite(other_client, session, user):
 
 
 def test_list_full_blocks_invite_creation(client, session, user):
-    from app.db.models import List, User as DBUser
+    from app.db.models import List
+    from app.db.models import User as DBUser
     lst = List(name="Full", owner_id=user.id)
     session.add(lst)
     session.commit()
@@ -193,7 +195,7 @@ def test_expired_invites_cleaned_up_on_create(client, session, user):
     old = ListInvite(
         list_id=lst["id"],
         invited_by=user.id,
-        created_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=25),
+        created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=25),
     )
     session.add(old)
     session.commit()
@@ -220,7 +222,7 @@ def test_expired_invites_do_not_count_toward_limit(client, session, user):
         inv = ListInvite(
             list_id=lst["id"],
             invited_by=user.id,
-            created_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=25),
+            created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=25),
         )
         session.add(inv)
     session.commit()
@@ -229,7 +231,8 @@ def test_expired_invites_do_not_count_toward_limit(client, session, user):
 
 
 def test_accept_invite_blocked_when_list_full(other_client, session, user):
-    from app.db.models import List, User as DBUser
+    from app.db.models import List
+    from app.db.models import User as DBUser
     lst = List(name="Packed", owner_id=user.id)
     session.add(lst)
     session.commit()
@@ -256,9 +259,11 @@ def test_accept_invite_blocked_when_list_full(other_client, session, user):
 
 def test_get_invite_preview_returns_410_when_expired(session: Session, user):
     from datetime import timedelta
-    from app.db.models import List
+
     from fastapi import FastAPI
     from fastapi.testclient import TestClient as RawClient
+
+    from app.db.models import List
     from app.db.session import get_session
     from app.routers import invites as invites_router
 
@@ -269,7 +274,7 @@ def test_get_invite_preview_returns_410_when_expired(session: Session, user):
     invite = ListInvite(
         list_id=lst.id,
         invited_by=user.id,
-        created_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=25),
+        created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=25),
     )
     session.add(invite)
     session.commit()
@@ -285,6 +290,7 @@ def test_get_invite_preview_returns_410_when_expired(session: Session, user):
 
 def test_accept_invite_returns_410_when_expired(client: TestClient, session: Session, user):
     from datetime import timedelta
+
     from app.db.models import List
 
     lst = List(name="Old List 2", owner_id=user.id)
@@ -294,7 +300,7 @@ def test_accept_invite_returns_410_when_expired(client: TestClient, session: Ses
     invite = ListInvite(
         list_id=lst.id,
         invited_by=user.id,
-        created_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=25),
+        created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=25),
     )
     session.add(invite)
     session.commit()
@@ -305,7 +311,7 @@ def test_accept_invite_returns_410_when_expired(client: TestClient, session: Ses
 
 
 def test_invite_preview_includes_emoji(client: TestClient, session: Session, user):
-    from app.db.models import List, ListMember, ListInvite
+    from app.db.models import List, ListInvite, ListMember
     lst = List(name="Frutas", emoji="🍎", owner_id=user.id)
     session.add(lst)
     session.flush()
@@ -321,7 +327,7 @@ def test_invite_preview_includes_emoji(client: TestClient, session: Session, use
 
 
 def test_invite_preview_list_emoji_null_when_not_set(client: TestClient, session: Session, user):
-    from app.db.models import List, ListMember, ListInvite
+    from app.db.models import List, ListInvite, ListMember
     lst = List(name="Sin emoji", emoji=None, owner_id=user.id)
     session.add(lst)
     session.flush()

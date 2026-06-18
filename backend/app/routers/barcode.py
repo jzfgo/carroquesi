@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, HTTPException, Path
@@ -30,7 +30,11 @@ def _parse_stores(raw: str | None) -> list[str]:
     return [s.strip() for s in raw.split(",") if s.strip()]
 
 
-def _to_read(entry: BarcodeCache, community_price: float | None = None, community_price_per: str | None = None) -> BarcodeRead:
+def _to_read(
+    entry: BarcodeCache,
+    community_price: float | None = None,
+    community_price_per: str | None = None,
+) -> BarcodeRead:
     return BarcodeRead(
         ean=entry.ean,
         name=entry.name,
@@ -102,7 +106,7 @@ def get_barcode(
         if cached:
             community_price, community_price_per = get_community_price(ean, session)
             return _to_read(cached, community_price, community_price_per)
-        raise HTTPException(status_code=503, detail="Cache error")
+        raise HTTPException(status_code=503, detail="Cache error") from None
 
     session.refresh(entry)
     community_price, community_price_per = get_community_price(ean, session)

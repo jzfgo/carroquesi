@@ -1,7 +1,6 @@
 from fastapi.testclient import TestClient
 from pytest_httpx import HTTPXMock
 
-
 OFF_MAHOU = {
     "status": "success",  # OFF v2/v3 API returns string status
     "product": {

@@ -7,6 +7,6 @@ from app.core.config import settings
 engine = create_engine(settings.database_url)
 
 
-def get_session() -> Generator[Session, None, None]:
+def get_session() -> Generator[Session]:
     with Session(engine) as session:
         yield session
