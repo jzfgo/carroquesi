@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, status
+from sqlalchemy import func
 from sqlmodel import select
 
 from app.db.models import List, ListInvite, ListMember, User
@@ -43,8 +44,10 @@ def create_open_invite(
         session.delete(inv)
     session.flush()
 
-    open_invites = session.exec(select(ListInvite).where(ListInvite.list_id == list_id)).all()
-    if len(open_invites) >= MAX_OPEN_INVITES:
+    open_invite_count = session.exec(
+        select(func.count(ListInvite.id)).where(ListInvite.list_id == list_id)
+    ).one()
+    if open_invite_count >= MAX_OPEN_INVITES:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many open invites"
         )
@@ -103,9 +106,9 @@ def accept_invite(
         )
 
     # Member cap guard (race condition protection)
-    member_count = len(
-        session.exec(select(ListMember).where(ListMember.list_id == invite.list_id)).all()
-    )
+    member_count = session.exec(
+        select(func.count(ListMember.id)).where(ListMember.list_id == invite.list_id)
+    ).one()
     if member_count >= MAX_MEMBERS:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="List is full")
 
