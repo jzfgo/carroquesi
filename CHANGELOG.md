@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Address fourth Gemini review — func.count() for cap checks and list[dict] types
 
+- Address fifth Gemini review — isinstance guards for JSON hook inputs
+
 
 ---
 ## [0.18.0] — 2026-06-03
