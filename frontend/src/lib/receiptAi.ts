@@ -46,7 +46,6 @@ const model = getGenerativeModel(ai, {
   onDeviceParams: {
     createOptions: {
       expectedInputs: [{ type: 'image' }],
-      // @ts-expect-error - expectedOutputs not yet in Firebase SDK types
       expectedOutputs: [{ type: 'text', languages: ['es'] }],
     },
     promptOptions: {

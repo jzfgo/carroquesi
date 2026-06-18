@@ -6,36 +6,36 @@ default:
 
 # Install dependencies
 install:
-    {{nvm-exec}} npm install
+    {{nvm-exec}} pnpm install
 
 # Start dev server
 dev:
-    {{nvm-exec}} npm run dev -- --host 0.0.0.0
+    {{nvm-exec}} pnpm dev -- --host 0.0.0.0
 
 # Production build
 build:
-    {{nvm-exec}} npm run build
+    {{nvm-exec}} pnpm build
 
 # Preview production build
 preview:
-    {{nvm-exec}} npm run preview
+    {{nvm-exec}} pnpm preview
 
 # Run unit tests
 test:
-    {{nvm-exec}} npm run test
+    {{nvm-exec}} pnpm test
 
 # Run tests in watch mode
 test-watch:
-    {{nvm-exec}} npm run test:watch
+    {{nvm-exec}} pnpm test:watch
 
 # Lint
 lint:
-    {{nvm-exec}} npm run lint
+    {{nvm-exec}} pnpm lint
 
 # Type-check (uses tsconfig.app.json — root tsconfig has files:[] and always passes silently)
 typecheck:
-    {{nvm-exec}} npm run typecheck
+    {{nvm-exec}} pnpm typecheck
 
 # Regenerate PWA icons from source assets in public/
 pwa-icons:
-    {{nvm-exec}} npm run generate-pwa-assets
+    {{nvm-exec}} pnpm generate-pwa-assets

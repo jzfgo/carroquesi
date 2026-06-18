@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'frontend/**'
-      - '.github/workflows/deploy-frontend.yml'
+      - "frontend/**"
+      - ".github/workflows/deploy-frontend.yml"
 
 jobs:
   deploy:
@@ -15,18 +15,22 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
       - uses: actions/setup-node@v5
         with:
           node-version-file: frontend/.nvmrc
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
         working-directory: frontend
 
       - name: Build
-        run: npm run build
+        run: pnpm build
         working-directory: frontend
         env:
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
@@ -44,5 +48,5 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Deploy to Firebase Hosting
-        run: npx firebase-tools deploy --only hosting --non-interactive
+        run: pnpm deploy
         working-directory: frontend

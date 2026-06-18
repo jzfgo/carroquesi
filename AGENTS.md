@@ -39,17 +39,17 @@ Important invariants:
 
 ### Commands
 
-Prefer `just` from repo root (`just` lists recipes). Direct `npm` commands when needed:
+Prefer `just` from repo root (`just` lists recipes). Direct `pnpm` commands when needed:
 
 ```bash
 cd frontend
-npm install
-npm run dev
-npm run build
-npm run preview
-npm run test
-npm run test -- path/to/file.test.tsx  # run a single test file
-npm run lint
+pnpm install
+pnpm dev
+pnpm build
+pnpm preview
+pnpm test
+pnpm test -- path/to/file.test.tsx  # a single test file
+pnpm lint
 # root tsconfig has files:[]; use this for real frontend typecheck:
 node_modules/.bin/tsc -p tsconfig.app.json --noEmit
 ```
@@ -69,6 +69,7 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 - Firebase SDK used in the frontend for Auth (Google Sign-In) and AI (Gemini receipt parsing via Firebase AI SDK)
 - All data fetched from the FastAPI backend via REST
 - Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
+
 ### SmartInputBar sigil system
 
 `parseInput.ts` → `ParsedInput`. Sigils: `+qty`, `#brand`, `@store` (multiple allowed), `|EAN` (8/13 digits). Values with spaces need quotes: `#"El Corte Inglés"`, `@'Carrefour Express'`.
@@ -160,7 +161,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 - Use squash merge for PRs by default
 - When asked to 'update X', assume this includes committing and pushing unless stated otherwise
 - Always check git status for untracked changes before assuming worktree is clean
-- For CI: use `npm ci` for clean installs
+- For CI: use `pnpm ci` for clean installs
 - If the current worktree contains unrelated or unexpected changes, stop and ask before proceeding
 - **Alembic migrations must be the last step before merging**, after rebasing on main — never create a migration in parallel with another branch that also has one (migration version conflicts require manual resolution and are easy to get wrong)
 
@@ -181,7 +182,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 - Use uv for Python toolchain and virtual environment management
 - Backend uses FastAPI with Firebase; ensure `.env` and Firebase config are present before running
 - Frontend typecheck must use `tsconfig.app.json` (root tsconfig.json has files:[] and silently passes)
-- Never commit platform-specific (darwin/linux) native bindings to `package-lock.json`
+- Never commit platform-specific (darwin/linux) native bindings to `pnpm-lock.yaml`
 
 ## Bug Investigation
 
@@ -193,7 +194,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 
 - Frontend changes: run lint, relevant tests, and `just frontend typecheck`
 - Backend changes: run relevant `just backend test-file {file}` tests (full suite when feasible `just backend test`)
-- Before push: verify only intentional files are changed and no platform-specific native binding churn was introduced in `package-lock.json`
+- Before push: verify only intentional files are changed and no platform-specific native binding churn was introduced in `pnpm-lock.yaml`
 - Shortcut: `just ci` runs frontend typecheck + lint + backend tests in one shot
 - **TODO.md** — remove any items that shipped in this task. This is blocking, not optional cleanup.
 - **CHANGELOG.md** — run `just changelog` and commit the result before pushing. This is blocking, not optional cleanup.
@@ -206,7 +207,7 @@ A task is complete only when **all** of the following are true:
 - [ ] Lint and relevant tests pass (`just ci` for full check)
 - [ ] `TODO.md` updated — any shipped items removed
 - [ ] `CHANGELOG.md` updated — `just changelog` run and result committed
-- [ ] Only intentional files changed (no platform-specific `package-lock.json` churn)
+- [ ] Only intentional files changed (no platform-specific `pnpm-lock.yaml` churn)
 
 ## Out of Scope
 
@@ -215,9 +216,10 @@ A task is complete only when **all** of the following are true:
 ## Open Action Items (1:1 — 2026-06-15)
 
 **AI:**
-- [ ] Before any `alembic revision` step, explicitly prompt: "confirm you're on the current head after rebasing on main" *(unverified — confirm when next migration ships)*
-- [ ] When shipping UI features, include a mobile QA note listing specific things to check on device *(unverified — confirm when bug fixes ship)*
-**You:**
+
+- [ ] Before any `alembic revision` step, explicitly prompt: "confirm you're on the current head after rebasing on main" _(unverified — confirm when next migration ships)_
+- [ ] When shipping UI features, include a mobile QA note listing specific things to check on device _(unverified — confirm when bug fixes ship)_
+      **You:**
 - [ ] Run `/brainstorming` before starting MCP Server / Siri Shortcuts implementation
 - [ ] Set a user threshold (e.g. 10 waitlist users) at which infra risks get addressed (secrets rotation, DB backups, Cloud Run migration job)
 - [ ] Bring a Document AI vs. Gemini comparison into the next receipt scanning `/brainstorming` session
