@@ -4,6 +4,11 @@ import * as AuthContext from '../contexts/AuthContext'
 import * as Api from '../lib/api'
 import { WaitlistScreen } from './WaitlistScreen'
 
+vi.mock('../lib/firebase', () => ({
+  auth: { currentUser: null },
+  ai: {},
+}))
+
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: vi.fn(),
 }))

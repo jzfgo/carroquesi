@@ -5,6 +5,11 @@ import * as AuthContext from '../contexts/AuthContext'
 import * as api from '../lib/api'
 import { InviteScreen } from './InviteScreen'
 
+vi.mock('../lib/firebase', () => ({
+  auth: { currentUser: null },
+  ai: {},
+}))
+
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof api>()
