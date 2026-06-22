@@ -1,29 +1,29 @@
-import { getGenerativeModel, InferenceMode } from "firebase/ai";
-import type { ParsedLine, ReceiptScanRequest } from "../types";
-import { ai } from "./firebase";
+import { getGenerativeModel, InferenceMode } from 'firebase/ai';
+import type { ParsedLine, ReceiptScanRequest } from '../types';
+import { ai } from './firebase';
 
 const RECEIPT_SCHEMA = {
-  type: "object",
+  type: 'object',
   properties: {
-    store: { type: "string", nullable: true },
-    receipt_date: { type: "string", nullable: true },
-    receipt_total: { type: "number", nullable: true },
+    store: { type: 'string', nullable: true },
+    receipt_date: { type: 'string', nullable: true },
+    receipt_total: { type: 'number', nullable: true },
     lines: {
-      type: "array",
+      type: 'array',
       items: {
-        type: "object",
+        type: 'object',
         properties: {
-          name: { type: "string" },
-          price_type: { type: "string", enum: ["UNIT", "KILOGRAM", "MULTI"] },
-          unit_price: { type: "number" },
-          quantity: { type: "number", nullable: true },
-          line_total: { type: "number" },
+          name: { type: 'string' },
+          price_type: { type: 'string', enum: ['UNIT', 'KILOGRAM', 'MULTI'] },
+          unit_price: { type: 'number' },
+          quantity: { type: 'number', nullable: true },
+          line_total: { type: 'number' },
         },
-        required: ["name", "price_type", "unit_price", "line_total"],
+        required: ['name', 'price_type', 'unit_price', 'line_total'],
       },
     },
   },
-  required: ["lines"],
+  required: ['lines'],
 };
 
 const PROMPT = `Extract structured data from this Spanish grocery receipt.
@@ -45,17 +45,17 @@ const model = getGenerativeModel(ai, {
   mode: InferenceMode.PREFER_IN_CLOUD,
   onDeviceParams: {
     createOptions: {
-      expectedInputs: [{ type: "image" }],
-      expectedOutputs: [{ type: "text", languages: ["es"] }],
+      expectedInputs: [{ type: 'image' }],
+      expectedOutputs: [{ type: 'text', languages: ['es'] }],
     },
     promptOptions: {
       responseConstraint: RECEIPT_SCHEMA,
     },
   },
   inCloudParams: {
-    model: "gemini-3.5-flash",
+    model: 'gemini-3.5-flash',
     generationConfig: {
-      responseMimeType: "application/json",
+      responseMimeType: 'application/json',
       responseJsonSchema: RECEIPT_SCHEMA,
     },
   },
@@ -68,7 +68,7 @@ async function fileToInlinePart(file: File) {
       reader.onloadend = () => {
         const result = reader.result as string;
         resolve({
-          inlineData: { data: result.split(",")[1], mimeType: file.type },
+          inlineData: { data: result.split(',')[1], mimeType: file.type },
         });
       };
       reader.onerror = reject;

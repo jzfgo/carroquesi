@@ -1,13 +1,13 @@
-import { AlertTriangle, Globe, Pencil, Store } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
-import { getPriceHistory } from "../lib/api";
-import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from "../lib/formatPrice";
-import { normalizeEntries, type ChartEntry } from "../lib/priceNormalization";
-import type { ListItem, PriceHistoryResponse } from "../types";
-import "./PriceHistorySheet.css";
+import { AlertTriangle, Globe, Pencil, Store } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import { getPriceHistory } from '../lib/api';
+import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice';
+import { normalizeEntries, type ChartEntry } from '../lib/priceNormalization';
+import type { ListItem, PriceHistoryResponse } from '../types';
+import './PriceHistorySheet.css';
 
-type Scope = "this_list" | "my_lists" | "all";
+type Scope = 'this_list' | 'my_lists' | 'all';
 
 interface Props {
   item: ListItem;
@@ -26,7 +26,7 @@ interface StoreGroup {
 function groupByStore(entries: ChartEntry[]): StoreGroup[] {
   const map = new Map<string, StoreGroup>();
   for (const entry of entries) {
-    const key = entry.store ?? "__none__";
+    const key = entry.store ?? '__none__';
     if (!map.has(key)) map.set(key, { store: entry.store, records: [] });
     map.get(key)!.records.push(entry);
   }
@@ -39,16 +39,16 @@ function groupByStore(entries: ChartEntry[]): StoreGroup[] {
     });
   }
   return [...map.values()].sort((a, b) => {
-    const aDate = a.records[0]?.purchased_at ?? "";
-    const bDate = b.records[0]?.purchased_at ?? "";
+    const aDate = a.records[0]?.purchased_at ?? '';
+    const bDate = b.records[0]?.purchased_at ?? '';
     return bDate.localeCompare(aDate);
   });
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("es-ES", {
-    day: "numeric",
-    month: "short",
+  return new Date(iso).toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'short',
   });
 }
 
@@ -123,11 +123,11 @@ function Sparkline({ records }: { records: ChartEntry[] }) {
     .map((pt, i) => {
       if (pt.y === null) return null;
       const prev = i > 0 ? pts[i - 1] : null;
-      const cmd = prev === null || prev.y === null ? "M" : "L";
+      const cmd = prev === null || prev.y === null ? 'M' : 'L';
       return `${cmd}${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
     })
     .filter(Boolean)
-    .join(" ");
+    .join(' ');
 
   // Build an area fill path for each contiguous run of ≥2 valid points
   const areaPaths: string[] = [];
@@ -142,9 +142,9 @@ function Sparkline({ records }: { records: ChartEntry[] }) {
         const runLine = run
           .map(
             (p, j) =>
-              `${j === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y!.toFixed(1)}`,
+              `${j === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y!.toFixed(1)}`,
           )
-          .join(" ");
+          .join(' ');
         areaPaths.push(
           `${runLine} L${run[run.length - 1].x.toFixed(1)},${h} L${run[0].x.toFixed(1)},${h} Z`,
         );
@@ -238,11 +238,11 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
     .map((pt, i) => {
       if (pt.y === null) return null;
       const prev = i > 0 ? pts[i - 1] : null;
-      const cmd = prev === null || prev.y === null ? "M" : "L";
+      const cmd = prev === null || prev.y === null ? 'M' : 'L';
       return `${cmd}${pt.x},${pt.y}`;
     })
     .filter(Boolean)
-    .join(" ");
+    .join(' ');
 
   // Build area fill paths for each contiguous run of ≥2 valid points
   const areaPaths: string[] = [];
@@ -255,8 +255,8 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
       const run = pts.slice(runStart, i);
       if (run.length >= 2) {
         const runLine = run
-          .map((p, j) => `${j === 0 ? "M" : "L"}${p.x},${p.y}`)
-          .join(" ");
+          .map((p, j) => `${j === 0 ? 'M' : 'L'}${p.x},${p.y}`)
+          .join(' ');
         areaPaths.push(
           `${runLine} L${run[run.length - 1].x},${h} L${run[0].x},${h} Z`,
         );
@@ -293,13 +293,13 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
       <div className="phs__expand-stats">
         <div className="phs__stat">
           <strong>
-            {validAmounts.length > 0 ? formatPrice(min, displayPricePer) : "—"}
+            {validAmounts.length > 0 ? formatPrice(min, displayPricePer) : '—'}
           </strong>
           Mínimo
         </div>
         <div className="phs__stat">
           <strong>
-            {validAmounts.length > 0 ? formatPrice(max, displayPricePer) : "—"}
+            {validAmounts.length > 0 ? formatPrice(max, displayPricePer) : '—'}
           </strong>
           Máximo
         </div>
@@ -310,9 +310,9 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
                 ? formatPrice(latestRecord.displayAmount, displayPricePer)
                 : formatPrice(
                     latestRecord.originalAmount,
-                    latestRecord.originalPricePer as "KILOGRAM" | null,
+                    latestRecord.originalPricePer as 'KILOGRAM' | null,
                   )
-              : "—"}
+              : '—'}
           </strong>
           Último
         </div>
@@ -320,20 +320,20 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
       <div className="phs__expand-records">
         {records.map((r, i) => (
           <div key={i} className="phs__record-row">
-            <span>{r.purchased_at ? formatDate(r.purchased_at) : "—"}</span>
+            <span>{r.purchased_at ? formatDate(r.purchased_at) : '—'}</span>
             <span className="phs__record-amount">
               {r.displayAmount !== null
                 ? formatPrice(r.displayAmount, r.displayPricePer)
                 : formatPrice(
                     r.originalAmount,
-                    r.originalPricePer as "KILOGRAM" | null,
+                    r.originalPricePer as 'KILOGRAM' | null,
                   )}
               {r.displayAmount !== null &&
                 r.originalPricePer !== (r.displayPricePer as string | null) && (
                   <span className="phs__record-original">
                     {formatPrice(
                       r.originalAmount,
-                      r.originalPricePer as "KILOGRAM" | null,
+                      r.originalPricePer as 'KILOGRAM' | null,
                     )}
                   </span>
                 )}
@@ -353,7 +353,7 @@ export default function PriceHistorySheet({
   onClose,
   readOnly,
 }: Props) {
-  const [scope, setScope] = useState<Scope>("this_list");
+  const [scope, setScope] = useState<Scope>('this_list');
   const [history, setHistory] = useState<PriceHistoryResponse | null>(null);
   const [expandedStore, setExpandedStore] = useState<string | null | undefined>(
     undefined,
@@ -387,20 +387,20 @@ export default function PriceHistorySheet({
       <div className="phs__handle" {...swipe} />
       <div className="phs__title">{item.name}</div>
       <div className="phs__scope">
-        {(["this_list", "my_lists", "all"] as Scope[]).map((s) => (
+        {(['this_list', 'my_lists', 'all'] as Scope[]).map((s) => (
           <button
             key={s}
-            className={`phs__scope-btn${scope === s ? " phs__scope-btn--active" : ""}`}
+            className={`phs__scope-btn${scope === s ? ' phs__scope-btn--active' : ''}`}
             onClick={() => {
               setScope(s);
               setExpandedStore(undefined);
             }}
           >
-            {s === "this_list"
-              ? "Esta lista"
-              : s === "my_lists"
-                ? "Mis listas"
-                : "Todos"}
+            {s === 'this_list'
+              ? 'Esta lista'
+              : s === 'my_lists'
+                ? 'Mis listas'
+                : 'Todos'}
           </button>
         ))}
       </div>
@@ -441,8 +441,8 @@ export default function PriceHistorySheet({
 
           return (
             <div
-              key={group.store ?? "__none__"}
-              className={`phs__store-row${isDimmed ? " phs__store-row--dimmed" : ""}`}
+              key={group.store ?? '__none__'}
+              className={`phs__store-row${isDimmed ? ' phs__store-row--dimmed' : ''}`}
               onClick={() => toggleStore(group.store)}
             >
               <div className="phs__store-summary">
@@ -453,7 +453,7 @@ export default function PriceHistorySheet({
                         <Store size={13} /> {group.store}
                       </>
                     ) : (
-                      "Sin tienda"
+                      'Sin tienda'
                     )}
                     {groupHasGaps && (
                       <span
@@ -465,11 +465,11 @@ export default function PriceHistorySheet({
                     )}
                   </div>
                   <div className="phs__store-meta">
-                    {group.records.length}{" "}
-                    {group.records.length === 1 ? "precio" : "precios"}
+                    {group.records.length}{' '}
+                    {group.records.length === 1 ? 'precio' : 'precios'}
                     {latest.purchased_at
                       ? ` · último ${formatDate(latest.purchased_at)}`
-                      : ""}
+                      : ''}
                   </div>
                 </div>
                 <Sparkline records={group.records} />
@@ -478,7 +478,7 @@ export default function PriceHistorySheet({
                     ? formatPrice(latest.displayAmount, latest.displayPricePer)
                     : formatPrice(
                         latest.originalAmount,
-                        latest.originalPricePer as "KILOGRAM" | null,
+                        latest.originalPricePer as 'KILOGRAM' | null,
                       )}
                 </div>
               </div>
@@ -495,7 +495,7 @@ export default function PriceHistorySheet({
               <Pencil size={16} /> Actualizar precio
             </>
           ) : (
-            "+ Registrar precio"
+            '+ Registrar precio'
           )}
         </button>
       )}

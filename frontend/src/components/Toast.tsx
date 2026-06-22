@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import "./Toast.css";
+import { useEffect } from 'react';
+import './Toast.css';
 
 interface Props {
   message: string;

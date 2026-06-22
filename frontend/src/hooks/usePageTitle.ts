@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect } from 'react';
 
-const APP_NAME = "CarroQueSí";
+const APP_NAME = 'CarroQueSí';
 
 export function usePageTitle(title?: string) {
   useEffect(() => {

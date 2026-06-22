@@ -7,16 +7,16 @@ import type {
   ReceiptScanRequest,
   ReceiptScanResult,
   Suggestion,
-} from "../types";
+} from '../types';
 
-const BASE = import.meta.env.VITE_BACKEND_URL ?? "http://localhost:8000";
+const BASE = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000';
 const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID as string | undefined;
 
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
     super(message);
-    this.name = "ApiError";
+    this.name = 'ApiError';
     this.status = status;
   }
 }
@@ -30,10 +30,10 @@ async function apiFetch(
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...(options.headers as Record<string, string> | undefined),
       Authorization: `Bearer ${token}`,
-      ...(DEV_USER_ID ? { "X-Dev-User-Id": DEV_USER_ID } : {}),
+      ...(DEV_USER_ID ? { 'X-Dev-User-Id': DEV_USER_ID } : {}),
     },
   });
   if (!res.ok) throw new ApiError(res.status, await res.text());
@@ -42,15 +42,15 @@ async function apiFetch(
 }
 
 export function syncUser(getToken: () => Promise<string>) {
-  return apiFetch(getToken, "/auth/sync", { method: "POST" });
+  return apiFetch(getToken, '/auth/sync', { method: 'POST' });
 }
 
 export function getMe(getToken: () => Promise<string>) {
-  return apiFetch(getToken, "/users/me");
+  return apiFetch(getToken, '/users/me');
 }
 
 export function getLists(getToken: () => Promise<string>) {
-  return apiFetch(getToken, "/lists");
+  return apiFetch(getToken, '/lists');
 }
 
 export function getList(getToken: () => Promise<string>, listId: string) {
@@ -61,8 +61,8 @@ export function createList(
   getToken: () => Promise<string>,
   payload: { name: string; emoji: string },
 ) {
-  return apiFetch(getToken, "/lists", {
-    method: "POST",
+  return apiFetch(getToken, '/lists', {
+    method: 'POST',
     body: JSON.stringify(payload),
   });
 }
@@ -73,13 +73,13 @@ export function updateList(
   patch: { name?: string; emoji?: string | null },
 ) {
   return apiFetch(getToken, `/lists/${listId}`, {
-    method: "PATCH",
+    method: 'PATCH',
     body: JSON.stringify(patch),
   });
 }
 
 export function deleteList(getToken: () => Promise<string>, listId: string) {
-  return apiFetch(getToken, `/lists/${listId}`, { method: "DELETE" });
+  return apiFetch(getToken, `/lists/${listId}`, { method: 'DELETE' });
 }
 
 export function getListItems(getToken: () => Promise<string>, listId: string) {
@@ -110,12 +110,12 @@ export function createItem(
     stores?: string[];
     ean?: string | null;
     price?: number | null;
-    price_per?: "KILOGRAM" | null;
+    price_per?: 'KILOGRAM' | null;
     price_store?: string | null;
   },
 ) {
   return apiFetch(getToken, `/lists/${listId}/items`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify(payload),
   });
 }
@@ -134,7 +134,7 @@ export function updateItem(
   }>,
 ) {
   return apiFetch(getToken, `/lists/${listId}/items/${itemId}`, {
-    method: "PATCH",
+    method: 'PATCH',
     body: JSON.stringify(patch),
   });
 }
@@ -145,7 +145,7 @@ export function deleteItem(
   itemId: string,
 ) {
   return apiFetch(getToken, `/lists/${listId}/items/${itemId}`, {
-    method: "DELETE",
+    method: 'DELETE',
   });
 }
 
@@ -181,7 +181,7 @@ export function removeMember(
   userId: string,
 ) {
   return apiFetch(getToken, `/lists/${listId}/members/${userId}`, {
-    method: "DELETE",
+    method: 'DELETE',
   });
 }
 
@@ -189,7 +189,7 @@ export function createOpenInvite(
   getToken: () => Promise<string>,
   listId: string,
 ) {
-  return apiFetch(getToken, `/lists/${listId}/invites`, { method: "POST" });
+  return apiFetch(getToken, `/lists/${listId}/invites`, { method: 'POST' });
 }
 
 export async function getInvitePreview(inviteId: string): Promise<{
@@ -213,7 +213,7 @@ export function acceptInvite(
   inviteId: string,
 ): Promise<{ list_id: string }> {
   return apiFetch(getToken, `/invites/${inviteId}/accept`, {
-    method: "POST",
+    method: 'POST',
   }) as Promise<{ list_id: string }>;
 }
 
@@ -221,7 +221,7 @@ export function getPriceHistory(
   getToken: () => Promise<string>,
   listId: string,
   itemId: string,
-  scope: "this_list" | "my_lists" | "all",
+  scope: 'this_list' | 'my_lists' | 'all',
 ): Promise<PriceHistoryResponse> {
   return apiFetch(
     getToken,
@@ -235,12 +235,12 @@ export function logPrice(
   itemId: string,
   payload: {
     amount: number;
-    price_per: "KILOGRAM" | null;
+    price_per: 'KILOGRAM' | null;
     store: string | null;
   },
 ): Promise<PriceEntry> {
   return apiFetch(getToken, `/lists/${listId}/items/${itemId}/prices`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify(payload),
   }) as Promise<PriceEntry>;
 }
@@ -251,12 +251,12 @@ export function updatePrice(
   itemId: string,
   payload: {
     amount: number;
-    price_per: "KILOGRAM" | null;
+    price_per: 'KILOGRAM' | null;
     store: string | null;
   },
 ): Promise<PriceEntry> {
   return apiFetch(getToken, `/lists/${listId}/items/${itemId}/prices`, {
-    method: "PATCH",
+    method: 'PATCH',
     body: JSON.stringify(payload),
   }) as Promise<PriceEntry>;
 }
@@ -267,7 +267,7 @@ export function deletePrice(
   itemId: string,
 ) {
   return apiFetch(getToken, `/lists/${listId}/items/${itemId}/prices`, {
-    method: "DELETE",
+    method: 'DELETE',
   });
 }
 
@@ -277,7 +277,7 @@ export function submitParsedReceipt(
   body: ReceiptScanRequest,
 ): Promise<ReceiptScanResult> {
   return apiFetch(getToken, `/lists/${listId}/receipt`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify(body),
   }) as Promise<ReceiptScanResult>;
 }
@@ -288,7 +288,7 @@ export function submitReceiptPrices(
   batch: ReceiptPriceBatch,
 ): Promise<{ items_updated: number }> {
   return apiFetch(getToken, `/lists/${listId}/receipt-prices`, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify(batch),
   }) as Promise<{ items_updated: number }>;
 }
@@ -296,7 +296,7 @@ export function submitReceiptPrices(
 export interface FeedbackPayload {
   message: string;
   email?: string | null;
-  source?: "manual";
+  source?: 'manual';
 }
 
 export interface FeedbackResponse {
@@ -308,16 +308,16 @@ export function submitFeedback(
   getToken: () => Promise<string>,
   payload: FeedbackPayload,
 ): Promise<FeedbackResponse> {
-  return apiFetch(getToken, "/feedback", {
-    method: "POST",
+  return apiFetch(getToken, '/feedback', {
+    method: 'POST',
     body: JSON.stringify(payload),
   }) as Promise<FeedbackResponse>;
 }
 
 export function submitWaitlistSignup(email: string, inviteToken?: string) {
   return fetch(`${BASE}/waitlist`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       email,
       ...(inviteToken ? { invite_token: inviteToken } : {}),

@@ -1,7 +1,7 @@
-import { getAI, GoogleAIBackend } from "firebase/ai";
-import { initializeApp } from "firebase/app";
-import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
-import { getAuth } from "firebase/auth";
+import { getAI, GoogleAIBackend } from 'firebase/ai';
+import { initializeApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,

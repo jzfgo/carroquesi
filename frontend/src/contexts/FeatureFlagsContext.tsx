@@ -6,9 +6,9 @@ import {
   useRef,
   useState,
   type ReactNode,
-} from "react";
-import { getMe } from "../lib/api";
-import { useAuth } from "./AuthContext";
+} from 'react';
+import { getMe } from '../lib/api';
+import { useAuth } from './AuthContext';
 
 interface FeatureFlagsContextValue {
   isEnabled: (flag: string) => boolean;
@@ -22,7 +22,7 @@ const FeatureFlagsContext = createContext<FeatureFlagsContextValue | null>(
 export function useFeatureFlags(): FeatureFlagsContextValue {
   const ctx = useContext(FeatureFlagsContext);
   if (!ctx)
-    throw new Error("useFeatureFlags must be used within FeatureFlagsProvider");
+    throw new Error('useFeatureFlags must be used within FeatureFlagsProvider');
   return ctx;
 }
 

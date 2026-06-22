@@ -1,9 +1,9 @@
-import type { PriceEntry } from "../types";
-import { parseKgFactor } from "./itemCost";
+import type { PriceEntry } from '../types';
+import { parseKgFactor } from './itemCost';
 
 export interface ChartEntry {
   displayAmount: number | null;
-  displayPricePer: "KILOGRAM" | null;
+  displayPricePer: 'KILOGRAM' | null;
   store: string | null;
   purchased_at: string | null;
   originalAmount: number;
@@ -26,14 +26,14 @@ export interface NormalizationResult {
  */
 export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
   const shouldNormalize = entries.some(
-    (e) => e.price_per === "KILOGRAM" || parseKgFactor(e.quantity) !== null,
+    (e) => e.price_per === 'KILOGRAM' || parseKgFactor(e.quantity) !== null,
   );
 
   if (!shouldNormalize) {
     return {
       entries: entries.map((e) => ({
         displayAmount: e.amount,
-        displayPricePer: e.price_per as "KILOGRAM" | null,
+        displayPricePer: e.price_per as 'KILOGRAM' | null,
         store: e.store,
         purchased_at: e.purchased_at,
         originalAmount: e.amount,
@@ -50,7 +50,7 @@ export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
   const normalized: ChartEntry[] = entries.map((e) => {
     let displayAmount: number | null;
 
-    if (e.price_per === "KILOGRAM") {
+    if (e.price_per === 'KILOGRAM') {
       displayAmount = e.amount;
     } else {
       const kgFactor = parseKgFactor(e.quantity);
@@ -65,7 +65,7 @@ export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
 
     return {
       displayAmount,
-      displayPricePer: "KILOGRAM" as const,
+      displayPricePer: 'KILOGRAM' as const,
       store: e.store,
       purchased_at: e.purchased_at,
       originalAmount: e.amount,

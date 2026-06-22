@@ -1,9 +1,9 @@
-import { Globe, Pencil, Store, Tag } from "lucide-react";
-import { useRef, useState } from "react";
-import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
-import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from "../lib/formatPrice";
-import type { BarcodeRead } from "../types";
-import "./BarcodeScanSheet.css";
+import { Globe, Pencil, Store, Tag } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice';
+import type { BarcodeRead } from '../types';
+import './BarcodeScanSheet.css';
 
 interface Props {
   product: BarcodeRead;
@@ -24,7 +24,7 @@ function buildPrefill(
 ): string {
   const parts = [product.name];
   if (displayBrand) parts.push(`#${displayBrand}`);
-  return parts.join(" ");
+  return parts.join(' ');
 }
 
 export function BarcodeScanSheet({
@@ -83,14 +83,14 @@ export function BarcodeScanSheet({
                     {allStores.map((s) => (
                       <button
                         key={s}
-                        className={`bss__tag bss__tag--store${selectedStores.has(s) ? " bss__tag--store-selected" : ""}`}
+                        className={`bss__tag bss__tag--store${selectedStores.has(s) ? ' bss__tag--store-selected' : ''}`}
                         onClick={() => toggleStore(s)}
                         aria-pressed={selectedStores.has(s)}
                         aria-label={s}
                       >
                         <span aria-hidden="true">
                           <Store size={13} />
-                        </span>{" "}
+                        </span>{' '}
                         <span>{s}</span>
                       </button>
                     ))}

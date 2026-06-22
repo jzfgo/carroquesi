@@ -1,12 +1,12 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import React from "react";
-import { beforeEach, expect, test, vi } from "vitest";
-import * as AuthContext from "../contexts/AuthContext";
-import * as api from "../lib/api";
-import { InviteScreen } from "./InviteScreen";
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import React from 'react';
+import { beforeEach, expect, test, vi } from 'vitest';
+import * as AuthContext from '../contexts/AuthContext';
+import * as api from '../lib/api';
+import { InviteScreen } from './InviteScreen';
 
-vi.mock("../contexts/AuthContext", () => ({ useAuth: vi.fn() }));
-vi.mock("../lib/api", async (importOriginal) => {
+vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }));
+vi.mock('../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof api>();
   return {
     ...actual,
@@ -16,9 +16,9 @@ vi.mock("../lib/api", async (importOriginal) => {
 });
 
 const mockNavigate = vi.fn();
-vi.mock("react-router-dom", () => ({
+vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
-  useParams: () => ({ id: "inv123" }),
+  useParams: () => ({ id: 'inv123' }),
   Link: ({
     to,
     className,
@@ -34,12 +34,12 @@ vi.mock("react-router-dom", () => ({
   ),
 }));
 
-const mockGetToken = vi.fn().mockResolvedValue("token");
+const mockGetToken = vi.fn().mockResolvedValue('token');
 const authedUser = {
-  id: "u1",
-  displayName: "Alice",
+  id: 'u1',
+  displayName: 'Alice',
   photoUrl: null,
-  email: "alice@example.com",
+  email: 'alice@example.com',
   features: [],
 };
 
@@ -55,10 +55,10 @@ function mockAuth(user: typeof authedUser | null = authedUser) {
 }
 
 const previewData = {
-  id: "inv123",
-  list_name: "Compras",
-  list_emoji: "🛒",
-  invited_by_name: "Ana",
+  id: 'inv123',
+  list_name: 'Compras',
+  list_emoji: '🛒',
+  invited_by_name: 'Ana',
 };
 
 beforeEach(() => {
@@ -66,24 +66,24 @@ beforeEach(() => {
   mockAuth();
 });
 
-test("shows spinner while loading", () => {
+test('shows spinner while loading', () => {
   vi.mocked(api.getInvitePreview).mockReturnValue(new Promise(() => {}));
   render(<InviteScreen />);
-  expect(screen.getByRole("status")).toBeInTheDocument();
+  expect(screen.getByRole('status')).toBeInTheDocument();
 });
 
-test("shows list name and inviter name in preview", async () => {
+test('shows list name and inviter name in preview', async () => {
   vi.mocked(api.getInvitePreview).mockResolvedValue(previewData);
   render(<InviteScreen />);
-  await waitFor(() => expect(screen.getByText("Compras")).toBeInTheDocument());
-  expect(screen.getByText("Invitado por Ana")).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByText('Compras')).toBeInTheDocument());
+  expect(screen.getByText('Invitado por Ana')).toBeInTheDocument();
 });
 
-test("shows mascot in preview state", async () => {
+test('shows mascot in preview state', async () => {
   vi.mocked(api.getInvitePreview).mockResolvedValue(previewData);
   render(<InviteScreen />);
-  await waitFor(() => expect(screen.getByText("Compras")).toBeInTheDocument());
-  expect(screen.getByRole("img", { name: /mascota/i })).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByText('Compras')).toBeInTheDocument());
+  expect(screen.getByRole('img', { name: /mascota/i })).toBeInTheDocument();
 });
 
 test('shows "Unirse a la lista" button when signed in', async () => {
@@ -91,7 +91,7 @@ test('shows "Unirse a la lista" button when signed in', async () => {
   render(<InviteScreen />);
   await waitFor(() =>
     expect(
-      screen.getByRole("button", { name: "Unirse a la lista" }),
+      screen.getByRole('button', { name: 'Unirse a la lista' }),
     ).toBeInTheDocument(),
   );
 });
@@ -102,23 +102,23 @@ test('shows "Iniciar sesión para unirse" button when not signed in', async () =
   render(<InviteScreen />);
   await waitFor(() =>
     expect(
-      screen.getByRole("button", { name: "Iniciar sesión para unirse" }),
+      screen.getByRole('button', { name: 'Iniciar sesión para unirse' }),
     ).toBeInTheDocument(),
   );
 });
 
-test("accepts invite and navigates to the list on success", async () => {
+test('accepts invite and navigates to the list on success', async () => {
   vi.mocked(api.getInvitePreview).mockResolvedValue(previewData);
-  vi.mocked(api.acceptInvite).mockResolvedValue({ list_id: "l1" });
+  vi.mocked(api.acceptInvite).mockResolvedValue({ list_id: 'l1' });
   render(<InviteScreen />);
   await waitFor(() =>
-    screen.getByRole("button", { name: "Unirse a la lista" }),
+    screen.getByRole('button', { name: 'Unirse a la lista' }),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Unirse a la lista" }));
-  await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/lists/l1"));
+  fireEvent.click(screen.getByRole('button', { name: 'Unirse a la lista' }));
+  await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/lists/l1'));
 });
 
-test("calls signIn when not authenticated and button clicked", async () => {
+test('calls signIn when not authenticated and button clicked', async () => {
   const mockSignIn = vi.fn().mockResolvedValue(undefined);
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: null,
@@ -131,102 +131,102 @@ test("calls signIn when not authenticated and button clicked", async () => {
   vi.mocked(api.getInvitePreview).mockResolvedValue(previewData);
   render(<InviteScreen />);
   await waitFor(() =>
-    screen.getByRole("button", { name: "Iniciar sesión para unirse" }),
+    screen.getByRole('button', { name: 'Iniciar sesión para unirse' }),
   );
   fireEvent.click(
-    screen.getByRole("button", { name: "Iniciar sesión para unirse" }),
+    screen.getByRole('button', { name: 'Iniciar sesión para unirse' }),
   );
   await waitFor(() => expect(mockSignIn).toHaveBeenCalledOnce());
 });
 
-test("shows error message for 404", async () => {
+test('shows error message for 404', async () => {
   vi.mocked(api.getInvitePreview).mockRejectedValue(
-    new api.ApiError(404, "Not found"),
+    new api.ApiError(404, 'Not found'),
   );
   render(<InviteScreen />);
   await waitFor(() =>
-    expect(screen.getByText("Esta invitación no existe")).toBeInTheDocument(),
+    expect(screen.getByText('Esta invitación no existe')).toBeInTheDocument(),
   );
-  expect(screen.getByText("Ir al inicio \u2192")).toBeInTheDocument();
+  expect(screen.getByText('Ir al inicio \u2192')).toBeInTheDocument();
 });
 
-test("shows error message for 410", async () => {
+test('shows error message for 410', async () => {
   vi.mocked(api.getInvitePreview).mockRejectedValue(
-    new api.ApiError(410, "Gone"),
+    new api.ApiError(410, 'Gone'),
   );
   render(<InviteScreen />);
   await waitFor(() =>
-    expect(screen.getByText("Esta invitación ha expirado")).toBeInTheDocument(),
+    expect(screen.getByText('Esta invitación ha expirado')).toBeInTheDocument(),
   );
 });
 
-test("shows error message for 409", async () => {
+test('shows error message for 409', async () => {
   vi.mocked(api.getInvitePreview).mockRejectedValue(
-    new api.ApiError(409, "Conflict"),
+    new api.ApiError(409, 'Conflict'),
   );
   render(<InviteScreen />);
   await waitFor(() =>
-    expect(screen.getByText("La lista ya está llena")).toBeInTheDocument(),
+    expect(screen.getByText('La lista ya está llena')).toBeInTheDocument(),
   );
 });
 
-test("shows error message for 403 on accept", async () => {
+test('shows error message for 403 on accept', async () => {
   vi.mocked(api.getInvitePreview).mockResolvedValue(previewData);
   vi.mocked(api.acceptInvite).mockRejectedValue(
-    new api.ApiError(403, "Forbidden"),
+    new api.ApiError(403, 'Forbidden'),
   );
   render(<InviteScreen />);
   await waitFor(() =>
-    screen.getByRole("button", { name: "Unirse a la lista" }),
+    screen.getByRole('button', { name: 'Unirse a la lista' }),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Unirse a la lista" }));
+  fireEvent.click(screen.getByRole('button', { name: 'Unirse a la lista' }));
   await waitFor(() =>
     expect(
-      screen.getByText("Esta invitación es para otra cuenta"),
+      screen.getByText('Esta invitación es para otra cuenta'),
     ).toBeInTheDocument(),
   );
 });
 
-test("shows network error with retry button, retry re-fetches on success", async () => {
+test('shows network error with retry button, retry re-fetches on success', async () => {
   vi.mocked(api.getInvitePreview)
-    .mockRejectedValueOnce(new Error("Network"))
+    .mockRejectedValueOnce(new Error('Network'))
     .mockResolvedValueOnce(previewData);
   render(<InviteScreen />);
   await waitFor(() =>
     expect(
-      screen.getByText("No se pudo conectar. Inténtalo de nuevo."),
+      screen.getByText('No se pudo conectar. Inténtalo de nuevo.'),
     ).toBeInTheDocument(),
   );
   expect(
-    screen.getByRole("button", { name: "Reintentar" }),
+    screen.getByRole('button', { name: 'Reintentar' }),
   ).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-  await waitFor(() => expect(screen.getByText("Compras")).toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+  await waitFor(() => expect(screen.getByText('Compras')).toBeInTheDocument());
 });
 
-test("shows list emoji from preview instead of hardcoded icon", async () => {
+test('shows list emoji from preview instead of hardcoded icon', async () => {
   vi.mocked(api.getInvitePreview).mockResolvedValue({
     ...previewData,
-    list_emoji: "🍎",
+    list_emoji: '🍎',
   });
   render(<InviteScreen />);
-  await waitFor(() => expect(screen.getByText("Compras")).toBeInTheDocument());
-  expect(screen.getByText("🍎")).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByText('Compras')).toBeInTheDocument());
+  expect(screen.getByText('🍎')).toBeInTheDocument();
 });
 
-test("falls back to ShoppingCart icon when list_emoji is null", async () => {
+test('falls back to ShoppingCart icon when list_emoji is null', async () => {
   vi.mocked(api.getInvitePreview).mockResolvedValue({
     ...previewData,
     list_emoji: null,
   });
   const { container } = render(<InviteScreen />);
-  await waitFor(() => expect(screen.getByText("Compras")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText('Compras')).toBeInTheDocument());
   expect(
-    container.querySelector(".invite-screen__icon svg"),
+    container.querySelector('.invite-screen__icon svg'),
   ).toBeInTheDocument();
 });
 
-test("renders WaitlistScreen with invite context when isWaitlisted is true", async () => {
+test('renders WaitlistScreen with invite context when isWaitlisted is true', async () => {
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: null,
     getToken: vi.fn(),
@@ -240,7 +240,7 @@ test("renders WaitlistScreen with invite context when isWaitlisted is true", asy
   expect(screen.getByText(/acceso anticipado/i)).toBeInTheDocument();
   // After preview loads, invite context (inviterName + listName) should reach WaitlistScreen
   await waitFor(() => {
-    expect(screen.getByText("Ana")).toBeInTheDocument();
-    expect(screen.getByText("Compras")).toBeInTheDocument();
+    expect(screen.getByText('Ana')).toBeInTheDocument();
+    expect(screen.getByText('Compras')).toBeInTheDocument();
   });
 });

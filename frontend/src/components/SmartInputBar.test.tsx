@@ -1,17 +1,17 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { parseInput } from "../lib/parseInput";
-import type { ListItem } from "../types";
-import { SmartInputBar } from "./SmartInputBar";
+import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { parseInput } from '../lib/parseInput';
+import type { ListItem } from '../types';
+import { SmartInputBar } from './SmartInputBar';
 
 const NO_ITEMS: ListItem[] = [];
 const noop = () => {};
 
-test("renders syntax legend chips", () => {
+test('renders syntax legend chips', () => {
   render(
     <SmartInputBar
       value=""
-      parsed={parseInput("")}
+      parsed={parseInput('')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -26,11 +26,11 @@ test("renders syntax legend chips", () => {
   expect(screen.getByText(/@/)).toBeInTheDocument(); // store chip
 });
 
-test("add button is disabled when name is empty", () => {
+test('add button is disabled when name is empty', () => {
   render(
     <SmartInputBar
       value=""
-      parsed={parseInput("")}
+      parsed={parseInput('')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -40,14 +40,14 @@ test("add button is disabled when name is empty", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.getByRole("button", { name: /^añadir$/i })).toBeDisabled();
+  expect(screen.getByRole('button', { name: /^añadir$/i })).toBeDisabled();
 });
 
-test("add button is enabled when name is present", () => {
+test('add button is enabled when name is present', () => {
   render(
     <SmartInputBar
       value="Leche"
-      parsed={parseInput("Leche")}
+      parsed={parseInput('Leche')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -57,15 +57,15 @@ test("add button is enabled when name is present", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.getByRole("button", { name: /^añadir$/i })).not.toBeDisabled();
+  expect(screen.getByRole('button', { name: /^añadir$/i })).not.toBeDisabled();
 });
 
-test("onChange is called when user types", async () => {
+test('onChange is called when user types', async () => {
   const onChange = vi.fn();
   render(
     <SmartInputBar
       value=""
-      parsed={parseInput("")}
+      parsed={parseInput('')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={onChange}
@@ -75,16 +75,16 @@ test("onChange is called when user types", async () => {
       onEanSearch={noop}
     />,
   );
-  await userEvent.type(screen.getByRole("textbox"), "L");
+  await userEvent.type(screen.getByRole('textbox'), 'L');
   expect(onChange).toHaveBeenCalled();
 });
 
-test("onSubmit called when add button clicked", () => {
+test('onSubmit called when add button clicked', () => {
   const onSubmit = vi.fn();
   render(
     <SmartInputBar
       value="Leche"
-      parsed={parseInput("Leche")}
+      parsed={parseInput('Leche')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -94,15 +94,15 @@ test("onSubmit called when add button clicked", () => {
       onEanSearch={noop}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: /^añadir$/i }));
+  fireEvent.click(screen.getByRole('button', { name: /^añadir$/i }));
   expect(onSubmit).toHaveBeenCalledTimes(1);
 });
 
-test("parse preview not shown when no sigil detected", () => {
+test('parse preview not shown when no sigil detected', () => {
   render(
     <SmartInputBar
       value="Leche"
-      parsed={parseInput("Leche")}
+      parsed={parseInput('Leche')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -112,14 +112,14 @@ test("parse preview not shown when no sigil detected", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.queryByTestId("parse-preview")).not.toBeInTheDocument();
+  expect(screen.queryByTestId('parse-preview')).not.toBeInTheDocument();
 });
 
-test("parse preview shown when sigil detected", () => {
+test('parse preview shown when sigil detected', () => {
   render(
     <SmartInputBar
       value="Leche +2"
-      parsed={parseInput("Leche +2")}
+      parsed={parseInput('Leche +2')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -129,14 +129,14 @@ test("parse preview shown when sigil detected", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.getByTestId("parse-preview")).toBeInTheDocument();
+  expect(screen.getByTestId('parse-preview')).toBeInTheDocument();
 });
 
-test("parse preview shows parsed name and quantity", () => {
+test('parse preview shows parsed name and quantity', () => {
   render(
     <SmartInputBar
       value="Leche +2"
-      parsed={parseInput("Leche +2")}
+      parsed={parseInput('Leche +2')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -146,15 +146,15 @@ test("parse preview shows parsed name and quantity", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.getByTestId("parse-preview")).toHaveTextContent("Leche");
-  expect(screen.getByTestId("parse-preview")).toHaveTextContent("2");
+  expect(screen.getByTestId('parse-preview')).toHaveTextContent('Leche');
+  expect(screen.getByTestId('parse-preview')).toHaveTextContent('2');
 });
 
 test('shows "No item name" warning when input has sigil but no name', () => {
   render(
     <SmartInputBar
       value="+3"
-      parsed={parseInput("+3")}
+      parsed={parseInput('+3')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -167,15 +167,15 @@ test('shows "No item name" warning when input has sigil but no name', () => {
   expect(screen.getByText(/sin nombre de producto/i)).toBeInTheDocument();
 });
 
-test("suggestion dropdown shown when suggestions provided", () => {
+test('suggestion dropdown shown when suggestions provided', () => {
   render(
     <SmartInputBar
       value="Le"
-      parsed={parseInput("Le")}
+      parsed={parseInput('Le')}
       items={NO_ITEMS}
       suggestions={[
-        { name: "Leche", brand: "Puleva", stores: ["Mercadona"] },
-        { name: "Lechuga", brand: null, stores: [] },
+        { name: 'Leche', brand: 'Puleva', stores: ['Mercadona'] },
+        { name: 'Lechuga', brand: null, stores: [] },
       ]}
       onChange={noop}
       onSubmit={noop}
@@ -184,17 +184,17 @@ test("suggestion dropdown shown when suggestions provided", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.getByText("Leche")).toBeInTheDocument();
-  expect(screen.getByText("Lechuga")).toBeInTheDocument();
+  expect(screen.getByText('Leche')).toBeInTheDocument();
+  expect(screen.getByText('Lechuga')).toBeInTheDocument();
 });
 
-test("clicking a product suggestion adds it directly with metadata", async () => {
+test('clicking a product suggestion adds it directly with metadata', async () => {
   const onSuggestionAdd = vi.fn();
-  const suggestion = { name: "Leche", brand: "Puleva", stores: ["Mercadona"] };
+  const suggestion = { name: 'Leche', brand: 'Puleva', stores: ['Mercadona'] };
   render(
     <SmartInputBar
       value="Le"
-      parsed={parseInput("Le")}
+      parsed={parseInput('Le')}
       items={NO_ITEMS}
       suggestions={[suggestion]}
       onChange={noop}
@@ -205,16 +205,16 @@ test("clicking a product suggestion adds it directly with metadata", async () =>
       onEanSearch={noop}
     />,
   );
-  await userEvent.click(screen.getByRole("button", { name: "Leche" }));
+  await userEvent.click(screen.getByRole('button', { name: 'Leche' }));
   expect(onSuggestionAdd).toHaveBeenCalledWith(suggestion);
 });
 
-test("tapping a legend chip appends its sigil when not already present", () => {
+test('tapping a legend chip appends its sigil when not already present', () => {
   const onChange = vi.fn();
   render(
     <SmartInputBar
       value="Leche"
-      parsed={parseInput("Leche")}
+      parsed={parseInput('Leche')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={onChange}
@@ -224,16 +224,16 @@ test("tapping a legend chip appends its sigil when not already present", () => {
       onEanSearch={noop}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: /añadir marca/i }));
-  expect(onChange).toHaveBeenCalledWith("Leche #");
+  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }));
+  expect(onChange).toHaveBeenCalledWith('Leche #');
 });
 
-test("tapping brand chip is a no-op when # already present", () => {
+test('tapping brand chip is a no-op when # already present', () => {
   const onChange = vi.fn();
   render(
     <SmartInputBar
       value="Leche #Puleva"
-      parsed={parseInput("Leche #Puleva")}
+      parsed={parseInput('Leche #Puleva')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={onChange}
@@ -243,16 +243,16 @@ test("tapping brand chip is a no-op when # already present", () => {
       onEanSearch={noop}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: /añadir marca/i }));
+  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }));
   expect(onChange).not.toHaveBeenCalled();
 });
 
-test("tapping a legend chip on empty input sets value to just the sigil", () => {
+test('tapping a legend chip on empty input sets value to just the sigil', () => {
   const onChange = vi.fn();
   render(
     <SmartInputBar
       value=""
-      parsed={parseInput("")}
+      parsed={parseInput('')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={onChange}
@@ -262,16 +262,16 @@ test("tapping a legend chip on empty input sets value to just the sigil", () => 
       onEanSearch={noop}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: /añadir tienda/i }));
-  expect(onChange).toHaveBeenCalledWith("@");
+  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }));
+  expect(onChange).toHaveBeenCalledWith('@');
 });
 
-test("tapping a different chip when input ends with a bare sigil replaces it", () => {
+test('tapping a different chip when input ends with a bare sigil replaces it', () => {
   const onChange = vi.fn();
   render(
     <SmartInputBar
       value="Leche #"
-      parsed={parseInput("Leche #")}
+      parsed={parseInput('Leche #')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={onChange}
@@ -281,16 +281,16 @@ test("tapping a different chip when input ends with a bare sigil replaces it", (
       onEanSearch={noop}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: /añadir tienda/i }));
-  expect(onChange).toHaveBeenCalledWith("Leche @");
+  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }));
+  expect(onChange).toHaveBeenCalledWith('Leche @');
 });
 
-test("tapping the same chip when input ends with that bare sigil is a no-op", () => {
+test('tapping the same chip when input ends with that bare sigil is a no-op', () => {
   const onChange = vi.fn();
   render(
     <SmartInputBar
       value="Leche #"
-      parsed={parseInput("Leche #")}
+      parsed={parseInput('Leche #')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={onChange}
@@ -300,51 +300,51 @@ test("tapping the same chip when input ends with that bare sigil is a no-op", ()
       onEanSearch={noop}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: /añadir marca/i }));
+  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }));
   expect(onChange).not.toHaveBeenCalled();
 });
 
-test("client-side store suggestions filtered from items when @ typed", () => {
+test('client-side store suggestions filtered from items when @ typed', () => {
   const items: ListItem[] = [
     {
-      id: "i1",
-      list_id: "l1",
-      name: "X",
+      id: 'i1',
+      list_id: 'l1',
+      name: 'X',
       quantity: null,
       brand: null,
-      stores: ["Mercadona"],
+      stores: ['Mercadona'],
       purchased: false,
       purchased_at: null,
       ean: null,
       price: null,
       price_per: null,
       price_store: null,
-      added_by: "u1",
-      created_at: "",
-      updated_at: "",
+      added_by: 'u1',
+      created_at: '',
+      updated_at: '',
     },
     {
-      id: "i2",
-      list_id: "l1",
-      name: "Y",
+      id: 'i2',
+      list_id: 'l1',
+      name: 'Y',
       quantity: null,
       brand: null,
-      stores: ["Lidl"],
+      stores: ['Lidl'],
       purchased: false,
       purchased_at: null,
       ean: null,
       price: null,
       price_per: null,
       price_store: null,
-      added_by: "u1",
-      created_at: "",
-      updated_at: "",
+      added_by: 'u1',
+      created_at: '',
+      updated_at: '',
     },
   ];
   render(
     <SmartInputBar
       value="Leche @Mer"
-      parsed={parseInput("Leche @Mer")}
+      parsed={parseInput('Leche @Mer')}
       items={items}
       suggestions={[]}
       onChange={noop}
@@ -354,15 +354,15 @@ test("client-side store suggestions filtered from items when @ typed", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.getByText("Mercadona")).toBeInTheDocument();
-  expect(screen.queryByText("Lidl")).not.toBeInTheDocument();
+  expect(screen.getByText('Mercadona')).toBeInTheDocument();
+  expect(screen.queryByText('Lidl')).not.toBeInTheDocument();
 });
 
-test("parse preview shows multiple store chips", () => {
+test('parse preview shows multiple store chips', () => {
   render(
     <SmartInputBar
       value="Leche @Mercadona @Carrefour"
-      parsed={parseInput("Leche @Mercadona @Carrefour")}
+      parsed={parseInput('Leche @Mercadona @Carrefour')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -372,16 +372,16 @@ test("parse preview shows multiple store chips", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.getByTestId("parse-preview")).toHaveTextContent("Mercadona");
-  expect(screen.getByTestId("parse-preview")).toHaveTextContent("Carrefour");
+  expect(screen.getByTestId('parse-preview')).toHaveTextContent('Mercadona');
+  expect(screen.getByTestId('parse-preview')).toHaveTextContent('Carrefour');
 });
 
-test("tapping tienda chip appends another @ when one is already present", () => {
+test('tapping tienda chip appends another @ when one is already present', () => {
   const onChange = vi.fn();
   render(
     <SmartInputBar
       value="Leche @Mercadona"
-      parsed={parseInput("Leche @Mercadona")}
+      parsed={parseInput('Leche @Mercadona')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={onChange}
@@ -391,17 +391,17 @@ test("tapping tienda chip appends another @ when one is already present", () => 
       onEanSearch={noop}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: /añadir tienda/i }));
-  expect(onChange).toHaveBeenCalledWith("Leche @Mercadona @");
+  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }));
+  expect(onChange).toHaveBeenCalledWith('Leche @Mercadona @');
 });
 
 // ── EAN mode ──────────────────────────────────────────────────────────────────
 
-test("| cod. barras chip appears in legend", () => {
+test('| cod. barras chip appears in legend', () => {
   render(
     <SmartInputBar
       value=""
-      parsed={parseInput("")}
+      parsed={parseInput('')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -412,15 +412,15 @@ test("| cod. barras chip appears in legend", () => {
     />,
   );
   expect(
-    screen.getByRole("button", { name: /añadir cod\. barras/i }),
+    screen.getByRole('button', { name: /añadir cod\. barras/i }),
   ).toBeInTheDocument();
 });
 
-test("EAN preview shown when valid EAN parsed", () => {
+test('EAN preview shown when valid EAN parsed', () => {
   render(
     <SmartInputBar
       value="|4011200296908"
-      parsed={parseInput("|4011200296908")}
+      parsed={parseInput('|4011200296908')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -430,15 +430,15 @@ test("EAN preview shown when valid EAN parsed", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.getByTestId("ean-preview")).toBeInTheDocument();
-  expect(screen.getByTestId("ean-preview")).toHaveTextContent("4011200296908");
+  expect(screen.getByTestId('ean-preview')).toBeInTheDocument();
+  expect(screen.getByTestId('ean-preview')).toHaveTextContent('4011200296908');
 });
 
-test("Buscar button shown in EAN preview", () => {
+test('Buscar button shown in EAN preview', () => {
   render(
     <SmartInputBar
       value="|4011200296908"
-      parsed={parseInput("|4011200296908")}
+      parsed={parseInput('|4011200296908')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -449,16 +449,16 @@ test("Buscar button shown in EAN preview", () => {
     />,
   );
   expect(
-    screen.getByRole("button", { name: /buscar producto/i }),
+    screen.getByRole('button', { name: /buscar producto/i }),
   ).toBeInTheDocument();
 });
 
-test("Buscar button calls onEanSearch with the EAN", async () => {
+test('Buscar button calls onEanSearch with the EAN', async () => {
   const onEanSearch = vi.fn();
   render(
     <SmartInputBar
       value="|4011200296908"
-      parsed={parseInput("|4011200296908")}
+      parsed={parseInput('|4011200296908')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -469,16 +469,16 @@ test("Buscar button calls onEanSearch with the EAN", async () => {
     />,
   );
   await userEvent.click(
-    screen.getByRole("button", { name: /buscar producto/i }),
+    screen.getByRole('button', { name: /buscar producto/i }),
   );
-  expect(onEanSearch).toHaveBeenCalledWith("4011200296908");
+  expect(onEanSearch).toHaveBeenCalledWith('4011200296908');
 });
 
-test("Buscar button shows loading state when eanLoading=true", () => {
+test('Buscar button shows loading state when eanLoading=true', () => {
   render(
     <SmartInputBar
       value="|4011200296908"
-      parsed={parseInput("|4011200296908")}
+      parsed={parseInput('|4011200296908')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -490,15 +490,15 @@ test("Buscar button shows loading state when eanLoading=true", () => {
     />,
   );
   expect(
-    screen.getByRole("button", { name: /buscar producto/i }),
+    screen.getByRole('button', { name: /buscar producto/i }),
   ).toBeDisabled();
 });
 
-test("eanError shown in EAN preview", () => {
+test('eanError shown in EAN preview', () => {
   render(
     <SmartInputBar
       value="|4011200296908"
-      parsed={parseInput("|4011200296908")}
+      parsed={parseInput('|4011200296908')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -509,17 +509,17 @@ test("eanError shown in EAN preview", () => {
       eanError="Código no encontrado"
     />,
   );
-  expect(screen.getByText("Código no encontrado")).toBeInTheDocument();
+  expect(screen.getByText('Código no encontrado')).toBeInTheDocument();
   expect(
-    screen.queryByRole("button", { name: /buscar producto/i }),
+    screen.queryByRole('button', { name: /buscar producto/i }),
   ).not.toBeInTheDocument();
 });
 
-test("add button is disabled in EAN mode", () => {
+test('add button is disabled in EAN mode', () => {
   render(
     <SmartInputBar
       value="|4011200296908"
-      parsed={parseInput("|4011200296908")}
+      parsed={parseInput('|4011200296908')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -529,14 +529,14 @@ test("add button is disabled in EAN mode", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.getByRole("button", { name: /^añadir$/i })).toBeDisabled();
+  expect(screen.getByRole('button', { name: /^añadir$/i })).toBeDisabled();
 });
 
-test("regular parse preview not shown when in EAN mode", () => {
+test('regular parse preview not shown when in EAN mode', () => {
   render(
     <SmartInputBar
       value="|4011200296908"
-      parsed={parseInput("|4011200296908")}
+      parsed={parseInput('|4011200296908')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -546,16 +546,16 @@ test("regular parse preview not shown when in EAN mode", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.queryByTestId("parse-preview")).not.toBeInTheDocument();
+  expect(screen.queryByTestId('parse-preview')).not.toBeInTheDocument();
 });
 
 // ── Clear button ───────────────────────────────────────────────────────────────
 
-test("clear button shown when input has text", () => {
+test('clear button shown when input has text', () => {
   render(
     <SmartInputBar
       value="Leche"
-      parsed={parseInput("Leche")}
+      parsed={parseInput('Leche')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -565,14 +565,14 @@ test("clear button shown when input has text", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.getByRole("button", { name: /borrar/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /borrar/i })).toBeInTheDocument();
 });
 
-test("scan button not shown when input has text", () => {
+test('scan button not shown when input has text', () => {
   render(
     <SmartInputBar
       value="Leche"
-      parsed={parseInput("Leche")}
+      parsed={parseInput('Leche')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -583,15 +583,15 @@ test("scan button not shown when input has text", () => {
     />,
   );
   expect(
-    screen.queryByRole("button", { name: /escanear/i }),
+    screen.queryByRole('button', { name: /escanear/i }),
   ).not.toBeInTheDocument();
 });
 
-test("scan button shown when input is empty", () => {
+test('scan button shown when input is empty', () => {
   render(
     <SmartInputBar
       value=""
-      parsed={parseInput("")}
+      parsed={parseInput('')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -601,15 +601,15 @@ test("scan button shown when input is empty", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.getByRole("button", { name: /escanear/i })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /escanear/i })).toBeInTheDocument();
 });
 
-test("clear button calls onClear", async () => {
+test('clear button calls onClear', async () => {
   const onClear = vi.fn();
   render(
     <SmartInputBar
       value="Leche"
-      parsed={parseInput("Leche")}
+      parsed={parseInput('Leche')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -619,17 +619,17 @@ test("clear button calls onClear", async () => {
       onEanSearch={noop}
     />,
   );
-  await userEvent.click(screen.getByRole("button", { name: /borrar/i }));
+  await userEvent.click(screen.getByRole('button', { name: /borrar/i }));
   expect(onClear).toHaveBeenCalled();
 });
 
 // ── Own-brand inferred store chip ────────────────────────────────────────────
 
-test("inferredStoreChip renders with --inferred class", () => {
+test('inferredStoreChip renders with --inferred class', () => {
   render(
     <SmartInputBar
       value="Leche #Hacendado"
-      parsed={parseInput("Leche #Hacendado")}
+      parsed={parseInput('Leche #Hacendado')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -641,22 +641,22 @@ test("inferredStoreChip renders with --inferred class", () => {
       onDismissInferredStore={noop}
     />,
   );
-  const chip = screen.getByTestId("inferred-store-chip");
+  const chip = screen.getByTestId('inferred-store-chip');
   expect(chip).toBeInTheDocument();
-  expect(chip).toHaveClass("smart-input__suggestion--inferred");
-  expect(chip).toHaveTextContent("Mercadona");
+  expect(chip).toHaveClass('smart-input__suggestion--inferred');
+  expect(chip).toHaveTextContent('Mercadona');
 });
 
-test("inferredStoreChip renders before regular suggestions", () => {
+test('inferredStoreChip renders before regular suggestions', () => {
   // value has no active sigil so the suggestions prop is used as-is
   render(
     <SmartInputBar
       value="Le"
-      parsed={parseInput("Le")}
+      parsed={parseInput('Le')}
       items={NO_ITEMS}
       suggestions={[
-        { name: "Leche", brand: null, stores: [] },
-        { name: "Lechuga", brand: null, stores: [] },
+        { name: 'Leche', brand: null, stores: [] },
+        { name: 'Lechuga', brand: null, stores: [] },
       ]}
       onChange={noop}
       onSubmit={noop}
@@ -667,22 +667,22 @@ test("inferredStoreChip renders before regular suggestions", () => {
       onDismissInferredStore={noop}
     />,
   );
-  const allButtons = screen.getAllByRole("button");
+  const allButtons = screen.getAllByRole('button');
   const chipIndex = allButtons.findIndex(
-    (b) => b.getAttribute("data-testid") === "inferred-store-chip",
+    (b) => b.getAttribute('data-testid') === 'inferred-store-chip',
   );
   const lecheIndex = allButtons.findIndex((b) =>
-    b.textContent?.includes("Leche"),
+    b.textContent?.includes('Leche'),
   );
   expect(chipIndex).toBeLessThan(lecheIndex);
 });
 
-test("tapping inferredStoreChip calls onDismissInferredStore", async () => {
+test('tapping inferredStoreChip calls onDismissInferredStore', async () => {
   const onDismiss = vi.fn();
   render(
     <SmartInputBar
       value="Leche #Hacendado"
-      parsed={parseInput("Leche #Hacendado")}
+      parsed={parseInput('Leche #Hacendado')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -694,15 +694,15 @@ test("tapping inferredStoreChip calls onDismissInferredStore", async () => {
       onDismissInferredStore={onDismiss}
     />,
   );
-  await userEvent.click(screen.getByTestId("inferred-store-chip"));
+  await userEvent.click(screen.getByTestId('inferred-store-chip'));
   expect(onDismiss).toHaveBeenCalledTimes(1);
 });
 
-test("no inferredStoreChip prop — no extra chip rendered", () => {
+test('no inferredStoreChip prop — no extra chip rendered', () => {
   render(
     <SmartInputBar
       value="Leche"
-      parsed={parseInput("Leche")}
+      parsed={parseInput('Leche')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -712,14 +712,14 @@ test("no inferredStoreChip prop — no extra chip rendered", () => {
       onEanSearch={noop}
     />,
   );
-  expect(screen.queryByTestId("inferred-store-chip")).not.toBeInTheDocument();
+  expect(screen.queryByTestId('inferred-store-chip')).not.toBeInTheDocument();
 });
 
-test("inferredStoreChip=null — no extra chip rendered", () => {
+test('inferredStoreChip=null — no extra chip rendered', () => {
   render(
     <SmartInputBar
       value="Leche"
-      parsed={parseInput("Leche")}
+      parsed={parseInput('Leche')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -731,14 +731,14 @@ test("inferredStoreChip=null — no extra chip rendered", () => {
       onDismissInferredStore={noop}
     />,
   );
-  expect(screen.queryByTestId("inferred-store-chip")).not.toBeInTheDocument();
+  expect(screen.queryByTestId('inferred-store-chip')).not.toBeInTheDocument();
 });
 
-test("barcode scan button is disabled when isOffline is true", () => {
+test('barcode scan button is disabled when isOffline is true', () => {
   render(
     <SmartInputBar
       value=""
-      parsed={parseInput("")}
+      parsed={parseInput('')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -750,15 +750,15 @@ test("barcode scan button is disabled when isOffline is true", () => {
     />,
   );
   expect(
-    screen.getByRole("button", { name: /escanear código de barras/i }),
+    screen.getByRole('button', { name: /escanear código de barras/i }),
   ).toBeDisabled();
 });
 
-test("barcode scan button is enabled when isOffline is false", () => {
+test('barcode scan button is enabled when isOffline is false', () => {
   render(
     <SmartInputBar
       value=""
-      parsed={parseInput("")}
+      parsed={parseInput('')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -770,17 +770,17 @@ test("barcode scan button is enabled when isOffline is false", () => {
     />,
   );
   expect(
-    screen.getByRole("button", { name: /escanear código de barras/i }),
+    screen.getByRole('button', { name: /escanear código de barras/i }),
   ).not.toBeDisabled();
 });
 
 // ── Due suggestions button ────────────────────────────────────────────────────
 
-test("✨ button renders when dueSuggestionsCount > 0", () => {
+test('✨ button renders when dueSuggestionsCount > 0', () => {
   render(
     <SmartInputBar
       value=""
-      parsed={parseInput("")}
+      parsed={parseInput('')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -793,15 +793,15 @@ test("✨ button renders when dueSuggestionsCount > 0", () => {
     />,
   );
   expect(
-    screen.getByRole("button", { name: /sugerencias pendientes/i }),
+    screen.getByRole('button', { name: /sugerencias pendientes/i }),
   ).toBeInTheDocument();
 });
 
-test("✨ button absent when dueSuggestionsCount is 0", () => {
+test('✨ button absent when dueSuggestionsCount is 0', () => {
   render(
     <SmartInputBar
       value=""
-      parsed={parseInput("")}
+      parsed={parseInput('')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -814,15 +814,15 @@ test("✨ button absent when dueSuggestionsCount is 0", () => {
     />,
   );
   expect(
-    screen.queryByRole("button", { name: /sugerencias pendientes/i }),
+    screen.queryByRole('button', { name: /sugerencias pendientes/i }),
   ).not.toBeInTheDocument();
 });
 
-test("✨ button absent when dueSuggestionsCount is omitted", () => {
+test('✨ button absent when dueSuggestionsCount is omitted', () => {
   render(
     <SmartInputBar
       value=""
-      parsed={parseInput("")}
+      parsed={parseInput('')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -833,16 +833,16 @@ test("✨ button absent when dueSuggestionsCount is omitted", () => {
     />,
   );
   expect(
-    screen.queryByRole("button", { name: /sugerencias pendientes/i }),
+    screen.queryByRole('button', { name: /sugerencias pendientes/i }),
   ).not.toBeInTheDocument();
 });
 
-test("✨ button click calls onDueSuggestionsOpen", () => {
+test('✨ button click calls onDueSuggestionsOpen', () => {
   const onDueSuggestionsOpen = vi.fn();
   render(
     <SmartInputBar
       value=""
-      parsed={parseInput("")}
+      parsed={parseInput('')}
       items={NO_ITEMS}
       suggestions={[]}
       onChange={noop}
@@ -855,7 +855,7 @@ test("✨ button click calls onDueSuggestionsOpen", () => {
     />,
   );
   fireEvent.click(
-    screen.getByRole("button", { name: /sugerencias pendientes/i }),
+    screen.getByRole('button', { name: /sugerencias pendientes/i }),
   );
   expect(onDueSuggestionsOpen).toHaveBeenCalledTimes(1);
 });

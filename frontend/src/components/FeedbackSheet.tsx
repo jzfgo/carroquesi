@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
-import type { FeedbackPayload } from "../lib/api";
-import "./FeedbackSheet.css";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import type { FeedbackPayload } from '../lib/api';
+import './FeedbackSheet.css';
 
 interface Props {
   defaultEmail: string | null | undefined;
@@ -16,8 +16,8 @@ export function FeedbackSheet({
   onSubmit,
   onClose,
 }: Props) {
-  const [message, setMessage] = useState("");
-  const [email, setEmail] = useState(defaultEmail ?? "");
+  const [message, setMessage] = useState('');
+  const [email, setEmail] = useState(defaultEmail ?? '');
   const trimmedMessage = useMemo(() => message.trim(), [message]);
   const canSubmit = trimmedMessage.length > 0 && !isSubmitting;
   const sheetRef = useRef<HTMLFormElement>(null);
@@ -25,10 +25,10 @@ export function FeedbackSheet({
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === 'Escape') onClose();
     }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -38,7 +38,7 @@ export function FeedbackSheet({
     onSubmit({
       message: trimmedMessage,
       email: trimmedEmail.length > 0 ? trimmedEmail : null,
-      source: "manual",
+      source: 'manual',
     });
   }
 
@@ -86,7 +86,7 @@ export function FeedbackSheet({
             className="feedback-sheet__primary"
             disabled={!canSubmit}
           >
-            {isSubmitting ? "Enviando..." : "Enviar"}
+            {isSubmitting ? 'Enviando...' : 'Enviar'}
           </button>
         </div>
       </form>

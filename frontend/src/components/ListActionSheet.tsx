@@ -1,10 +1,10 @@
-import { Pencil, Receipt, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
-import type { ApiList } from "../types";
-import "./ListActionSheet.css";
+import { Pencil, Receipt, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import type { ApiList } from '../types';
+import './ListActionSheet.css';
 
-type SubState = "actions" | "rename" | "confirm-delete";
+type SubState = 'actions' | 'rename' | 'confirm-delete';
 
 interface Props {
   list: ApiList;
@@ -23,24 +23,24 @@ export function ListActionSheet({
   onReceiptScan,
   onClose,
 }: Props) {
-  const [subState, setSubState] = useState<SubState>("actions");
+  const [subState, setSubState] = useState<SubState>('actions');
   const [renameValue, setRenameValue] = useState(list.name);
   const sheetRef = useRef<HTMLDivElement>(null);
   const swipe = useSwipeToDismiss(sheetRef, onClose);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === 'Escape') onClose();
     }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
   const overlay = (
     <div className="list-action-sheet__overlay" onClick={onClose} />
   );
 
-  if (subState === "actions") {
+  if (subState === 'actions') {
     return (
       <>
         {overlay}
@@ -55,7 +55,7 @@ export function ListActionSheet({
           <p className="list-action-sheet__list-name">{list.name}</p>
           <button
             className="list-action-sheet__action"
-            onClick={() => setSubState("rename")}
+            onClick={() => setSubState('rename')}
           >
             <Pencil size={18} /> Renombrar
           </button>
@@ -73,7 +73,7 @@ export function ListActionSheet({
           {isOwner && (
             <button
               className="list-action-sheet__action list-action-sheet__action--danger"
-              onClick={() => setSubState("confirm-delete")}
+              onClick={() => setSubState('confirm-delete')}
             >
               <Trash2 size={18} /> Eliminar lista
             </button>
@@ -83,7 +83,7 @@ export function ListActionSheet({
     );
   }
 
-  if (subState === "rename") {
+  if (subState === 'rename') {
     const trimmed = renameValue.trim();
     return (
       <>
@@ -106,7 +106,7 @@ export function ListActionSheet({
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && trimmed) onRename(trimmed);
+                if (e.key === 'Enter' && trimmed) onRename(trimmed);
               }}
               autoFocus
               aria-label="Nombre de la lista"
@@ -122,7 +122,7 @@ export function ListActionSheet({
           </div>
           <button
             className="list-action-sheet__cancel-link"
-            onClick={() => setSubState("actions")}
+            onClick={() => setSubState('actions')}
             aria-label="Cancelar"
           >
             Cancelar
@@ -157,7 +157,7 @@ export function ListActionSheet({
         </button>
         <button
           className="list-action-sheet__cancel-btn"
-          onClick={() => setSubState("actions")}
+          onClick={() => setSubState('actions')}
           aria-label="Cancelar"
         >
           Cancelar

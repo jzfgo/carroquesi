@@ -1,17 +1,17 @@
-import { Coins, Hash, RotateCcw, Store, Tag } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
-import { formatPrice } from "../lib/formatPrice";
-import type { ListItem, Member, TagField } from "../types";
-import "./ItemCard.css";
+import { Coins, Hash, RotateCcw, Store, Tag } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { formatPrice } from '../lib/formatPrice';
+import type { ListItem, Member, TagField } from '../types';
+import './ItemCard.css';
 
 const TAG_CONFIG: { field: TagField; icon: React.ReactNode; label: string }[] =
-  [{ field: "brand", icon: <Tag size={13} />, label: "marca" }];
+  [{ field: 'brand', icon: <Tag size={13} />, label: 'marca' }];
 
 interface Props {
   item: ListItem;
   members: Map<string, Member>;
   onTogglePurchased: (itemId: string) => void;
-  onTagClick: (itemId: string, field: TagField | "stores") => void;
+  onTagClick: (itemId: string, field: TagField | 'stores') => void;
   onMenuOpen: (itemId: string) => void;
   onPriceClick?: (itemId: string) => void;
   onClone?: (itemId: string) => void;
@@ -27,12 +27,12 @@ export function ItemCard({
   onClone,
 }: Props) {
   const member = members.get(item.added_by);
-  const initial = member?.initial ?? "?";
+  const initial = member?.initial ?? '?';
   const { user } = useAuth();
   const isSelf = member?.id === user?.id;
   const avatarStyle = isSelf
-    ? { background: "var(--tinta-0)", color: "var(--accent-fg)" }
-    : { background: "var(--paper-2)", color: "var(--ink-1)" };
+    ? { background: 'var(--tinta-0)', color: 'var(--accent-fg)' }
+    : { background: 'var(--paper-2)', color: 'var(--ink-1)' };
 
   // For purchased items, show actual purchased qty; fall back to planned qty.
   const displayQty =
@@ -42,7 +42,7 @@ export function ItemCard({
 
   return (
     <div
-      className={`item-card${item.purchased ? " item-card--purchased" : ""}`}
+      className={`item-card${item.purchased ? ' item-card--purchased' : ''}`}
     >
       <button
         role="checkbox"
@@ -50,7 +50,7 @@ export function ItemCard({
         className="item-card__checkbox"
         onClick={() => onTogglePurchased(item.id)}
         aria-label={
-          item.purchased ? "Marcar como no comprado" : "Marcar como comprado"
+          item.purchased ? 'Marcar como no comprado' : 'Marcar como comprado'
         }
       />
 
@@ -63,7 +63,7 @@ export function ItemCard({
             ) : (
               <button
                 className="item-card__qty"
-                onClick={() => onTagClick(item.id, "quantity")}
+                onClick={() => onTagClick(item.id, 'quantity')}
                 aria-label={displayQty}
               >
                 {displayQty}
@@ -73,7 +73,7 @@ export function ItemCard({
             !item.purchased && (
               <button
                 className="item-card__tag item-card__tag--cta"
-                onClick={() => onTagClick(item.id, "quantity")}
+                onClick={() => onTagClick(item.id, 'quantity')}
                 aria-label="Añadir cantidad"
               >
                 <span aria-hidden>
@@ -122,18 +122,18 @@ export function ItemCard({
                   <span key={store} className="item-card__tag">
                     <span aria-hidden>
                       <Store size={13} />
-                    </span>{" "}
+                    </span>{' '}
                     {store}
                   </span>
                 ) : (
                   <button
                     key={store}
                     className="item-card__tag"
-                    onClick={() => onTagClick(item.id, "stores")}
+                    onClick={() => onTagClick(item.id, 'stores')}
                   >
                     <span aria-hidden>
                       <Store size={13} />
-                    </span>{" "}
+                    </span>{' '}
                     {store}
                   </button>
                 ),
@@ -141,7 +141,7 @@ export function ItemCard({
             : !item.purchased && (
                 <button
                   className="item-card__tag item-card__tag--cta"
-                  onClick={() => onTagClick(item.id, "stores")}
+                  onClick={() => onTagClick(item.id, 'stores')}
                   aria-label="Añadir tienda"
                 >
                   <span aria-hidden>
@@ -161,7 +161,7 @@ export function ItemCard({
             >
               <span aria-hidden>
                 <Coins size={13} />
-              </span>{" "}
+              </span>{' '}
               {formatPrice(item.price, item.price_per)}
             </button>
           ) : (
@@ -172,7 +172,7 @@ export function ItemCard({
                 onPriceClick?.(item.id);
               }}
               aria-label={
-                item.purchased ? "Registrar precio" : "Historial de precios"
+                item.purchased ? 'Registrar precio' : 'Historial de precios'
               }
             >
               <span aria-hidden>
@@ -191,7 +191,7 @@ export function ItemCard({
             >
               <span aria-hidden>
                 <RotateCcw size={13} />
-              </span>{" "}
+              </span>{' '}
               Volver a comprar
             </button>
           )}

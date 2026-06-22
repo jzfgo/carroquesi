@@ -1,17 +1,17 @@
-import type { ParsedInput } from "../types";
+import type { ParsedInput } from '../types';
 
 const SINGLE_SIGIL_MAP: Record<
   string,
-  keyof Omit<ParsedInput, "name" | "stores">
+  keyof Omit<ParsedInput, 'name' | 'stores'>
 > = {
-  "+": "quantity",
-  "#": "brand",
+  '+': 'quantity',
+  '#': 'brand',
 };
 
 const QUOTED_RE = /([+#@|]?)(?:"([^"]*)"|'([^']*)')/g;
 // Null-byte sentinel — cannot appear in user-typed text input.
 const PH = String.fromCharCode(0);
-const RESTORE_RE = new RegExp(PH + "q(\\d+)" + PH, "g");
+const RESTORE_RE = new RegExp(PH + 'q(\\d+)' + PH, 'g');
 
 export function parseInput(raw: string): ParsedInput {
   // Replace complete quoted sequences with null-byte-delimited placeholders so
@@ -29,14 +29,14 @@ export function parseInput(raw: string): ParsedInput {
   const words = withPlaceholders.trim().split(/\s+/).filter(Boolean);
 
   const result: ParsedInput = {
-    name: "",
+    name: '',
     quantity: null,
     brand: null,
     stores: [],
   };
   const nameWords: string[] = [];
 
-  let currentField: keyof Omit<ParsedInput, "name" | "stores"> | "@" | null =
+  let currentField: keyof Omit<ParsedInput, 'name' | 'stores'> | '@' | null =
     null;
   const tokenWords: Record<string, string[]> = {};
   const storeEntries: string[][] = [];
@@ -44,21 +44,21 @@ export function parseInput(raw: string): ParsedInput {
   for (const word of words) {
     const sigil = word[0];
 
-    if (sigil === "|") {
+    if (sigil === '|') {
       const digits = word.slice(1);
       if (/^\d{8}$|^\d{13}$/.test(digits) && result.ean === undefined) {
         result.ean = digits;
       }
-    } else if (sigil === "@") {
+    } else if (sigil === '@') {
       storeEntries.push([word.slice(1)]);
-      currentField = "@";
+      currentField = '@';
     } else if (sigil in SINGLE_SIGIL_MAP) {
       const field = SINGLE_SIGIL_MAP[sigil];
       if (!(field in tokenWords)) {
         tokenWords[field] = [word.slice(1)];
       }
       currentField = field;
-    } else if (currentField === "@") {
+    } else if (currentField === '@') {
       storeEntries[storeEntries.length - 1].push(word);
     } else if (currentField) {
       tokenWords[currentField as string].push(word);
@@ -67,10 +67,10 @@ export function parseInput(raw: string): ParsedInput {
     }
   }
 
-  result.name = restore(nameWords.join(" "));
+  result.name = restore(nameWords.join(' '));
 
   for (const [field, parts] of Object.entries(tokenWords)) {
-    const value = restore(parts.join(" ")).trim();
+    const value = restore(parts.join(' ')).trim();
     if (value.length > 0) {
       (result as unknown as Record<string, unknown>)[field] = value;
     }
@@ -79,7 +79,7 @@ export function parseInput(raw: string): ParsedInput {
   result.stores = [
     ...new Set(
       storeEntries
-        .map((parts) => restore(parts.join(" ")).trim())
+        .map((parts) => restore(parts.join(' ')).trim())
         .filter((s) => s.length > 0),
     ),
   ];

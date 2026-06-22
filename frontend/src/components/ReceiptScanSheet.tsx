@@ -1,16 +1,16 @@
-import { Calendar, Check, Coins, Pencil, X } from "lucide-react";
-import { useRef, useState } from "react";
-import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
-import { formatPrice } from "../lib/formatPrice";
-import { parseQuantityFactor, purchasedDateLabel } from "../lib/itemCost";
+import { Calendar, Check, Coins, Pencil, X } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import { formatPrice } from '../lib/formatPrice';
+import { parseQuantityFactor, purchasedDateLabel } from '../lib/itemCost';
 import type {
   MatchedLine,
   NameMapping,
   PricePatch,
   ReceiptScanResult,
   UnmatchedLine,
-} from "../types";
-import "./ReceiptScanSheet.css";
+} from '../types';
+import './ReceiptScanSheet.css';
 
 interface PurchasedItemRef {
   id: string;
@@ -26,7 +26,7 @@ interface LineState {
   itemId: string | null;
   quantity: string;
   unitPrice: number;
-  pricePer: "KILOGRAM" | null;
+  pricePer: 'KILOGRAM' | null;
 }
 
 interface Props {
@@ -38,15 +38,15 @@ interface Props {
 }
 
 function initialQuantity(line: MatchedLine | UnmatchedLine): string {
-  if (line.price_type === "KILOGRAM" && line.quantity != null) {
+  if (line.price_type === 'KILOGRAM' && line.quantity != null) {
     return line.quantity < 1
       ? `${Math.round(line.quantity * 1000)}g`
       : `${line.quantity}kg`;
   }
-  if (line.price_type === "MULTI" && line.quantity != null) {
+  if (line.price_type === 'MULTI' && line.quantity != null) {
     return String(Math.round(line.quantity));
   }
-  return "1";
+  return '1';
 }
 
 function initState(result: ReceiptScanResult): LineState[] {
@@ -56,25 +56,25 @@ function initState(result: ReceiptScanResult): LineState[] {
       itemId: m.item_id,
       quantity: initialQuantity(m),
       unitPrice: m.unit_price,
-      pricePer: m.price_type === "KILOGRAM" ? ("KILOGRAM" as const) : null,
+      pricePer: m.price_type === 'KILOGRAM' ? ('KILOGRAM' as const) : null,
     })),
     ...result.unmatched.map((u) => ({
       included: false,
       itemId: null,
       quantity: initialQuantity(u),
       unitPrice: u.unit_price,
-      pricePer: u.price_type === "KILOGRAM" ? ("KILOGRAM" as const) : null,
+      pricePer: u.price_type === 'KILOGRAM' ? ('KILOGRAM' as const) : null,
     })),
   ];
 }
 
 function formatQtySummary(ls: LineState): string {
-  const price = ls.unitPrice.toLocaleString("es-ES", {
+  const price = ls.unitPrice.toLocaleString('es-ES', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  const unit = ls.pricePer === "KILOGRAM" ? "€/kg" : "€/ud";
-  const sep = ls.pricePer === "KILOGRAM" ? " × " : "× ";
+  const unit = ls.pricePer === 'KILOGRAM' ? '€/kg' : '€/ud';
+  const sep = ls.pricePer === 'KILOGRAM' ? ' × ' : '× ';
   return `${ls.quantity}${sep}${price} ${unit}`;
 }
 
@@ -199,10 +199,10 @@ export default function ReceiptScanSheet({
   }
 
   const formattedDate = result.receipt_date
-    ? new Date(result.receipt_date).toLocaleDateString("es-ES", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
+    ? new Date(result.receipt_date).toLocaleDateString('es-ES', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
       })
     : null;
 
@@ -243,7 +243,7 @@ export default function ReceiptScanSheet({
           {checkedCount} de {lineStates.length} seleccionados
         </span>
         <button className="rss-toolbar-toggle" onClick={toggleAll}>
-          {allChecked ? "Deseleccionar todo" : "Seleccionar todo"}
+          {allChecked ? 'Deseleccionar todo' : 'Seleccionar todo'}
         </button>
       </div>
 
@@ -257,7 +257,7 @@ export default function ReceiptScanSheet({
           return (
             <div
               key={i}
-              className={`rss-row${ls.included ? " checked" : ""}${isExpanded ? " expanded" : ""}`}
+              className={`rss-row${ls.included ? ' checked' : ''}${isExpanded ? ' expanded' : ''}`}
             >
               <div className="rss-summary" onClick={() => toggleExpanded(i)}>
                 <input
@@ -272,8 +272,8 @@ export default function ReceiptScanSheet({
                 />
                 <div className="rss-text">
                   <div className="rss-ocr">{line.receipt_name}</div>
-                  <div className={`rss-item${ls.itemId ? "" : " unlinked"}`}>
-                    {linkedItem ? linkedItem.name : "sin vincular"}
+                  <div className={`rss-item${ls.itemId ? '' : ' unlinked'}`}>
+                    {linkedItem ? linkedItem.name : 'sin vincular'}
                   </div>
                   <div className="rss-qty-summary">{formatQtySummary(ls)}</div>
                 </div>
@@ -292,7 +292,7 @@ export default function ReceiptScanSheet({
                   <div className="rss-field-label">Vincular a</div>
                   <select
                     className="rss-link-select"
-                    value={ls.itemId ?? ""}
+                    value={ls.itemId ?? ''}
                     onChange={(e) => {
                       const newId = e.target.value || null;
                       updateLine(i, {
@@ -343,15 +343,15 @@ export default function ReceiptScanSheet({
                     <div className="rss-unit-toggle">
                       <button
                         type="button"
-                        className={`rss-unit-btn${ls.pricePer === null ? " rss-unit-btn--active" : ""}`}
+                        className={`rss-unit-btn${ls.pricePer === null ? ' rss-unit-btn--active' : ''}`}
                         onClick={() => updateLine(i, { pricePer: null })}
                       >
                         /ud
                       </button>
                       <button
                         type="button"
-                        className={`rss-unit-btn${ls.pricePer === "KILOGRAM" ? " rss-unit-btn--active" : ""}`}
-                        onClick={() => updateLine(i, { pricePer: "KILOGRAM" })}
+                        className={`rss-unit-btn${ls.pricePer === 'KILOGRAM' ? ' rss-unit-btn--active' : ''}`}
+                        onClick={() => updateLine(i, { pricePer: 'KILOGRAM' })}
                       >
                         /kg
                       </button>
@@ -379,8 +379,8 @@ export default function ReceiptScanSheet({
                 </span>
               ) : (
                 <span className="rss-footer-diff">
-                  ({diff > 0 ? "+" : "−"}
-                  {formatPrice(Math.abs(diff)).replace(" ", "")})
+                  ({diff > 0 ? '+' : '−'}
+                  {formatPrice(Math.abs(diff)).replace(' ', '')})
                 </span>
               ))}
           </div>
@@ -395,7 +395,7 @@ export default function ReceiptScanSheet({
         >
           Guardar precios
           <span className="confirm-count">
-            {checkedCount} {checkedCount === 1 ? "elemento" : "elementos"}
+            {checkedCount} {checkedCount === 1 ? 'elemento' : 'elementos'}
           </span>
         </button>
       </div>

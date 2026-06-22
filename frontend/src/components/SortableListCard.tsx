@@ -1,7 +1,7 @@
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import type { ApiList } from "../types";
-import { ListCard } from "./ListCard";
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import type { ApiList } from '../types';
+import { ListCard } from './ListCard';
 
 interface Props {
   list: ApiList;

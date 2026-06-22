@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
-import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
-import { CURATED_EMOJIS } from "../lib/curatedEmojis";
-import "./EmojiPickerSheet.css";
+import { useEffect, useRef } from 'react';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import { CURATED_EMOJIS } from '../lib/curatedEmojis';
+import './EmojiPickerSheet.css';
 
 interface Props {
   current: string | null;
@@ -15,10 +15,10 @@ export function EmojiPickerSheet({ current, onSelect, onClose }: Props) {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === 'Escape') onClose();
     }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
   return (
@@ -35,7 +35,7 @@ export function EmojiPickerSheet({ current, onSelect, onClose }: Props) {
         <p className="emoji-picker-sheet__title">Elegir emoji</p>
         <div className="emoji-picker-sheet__grid">
           <button
-            className={`emoji-picker-sheet__item emoji-picker-sheet__item--none${current === null ? " emoji-picker-sheet__item--active" : ""}`}
+            className={`emoji-picker-sheet__item emoji-picker-sheet__item--none${current === null ? ' emoji-picker-sheet__item--active' : ''}`}
             onClick={() => onSelect(null)}
             aria-label="Ninguno"
           >
@@ -44,7 +44,7 @@ export function EmojiPickerSheet({ current, onSelect, onClose }: Props) {
           {CURATED_EMOJIS.map((emoji) => (
             <button
               key={emoji}
-              className={`emoji-picker-sheet__item${emoji === current ? " emoji-picker-sheet__item--active" : ""}`}
+              className={`emoji-picker-sheet__item${emoji === current ? ' emoji-picker-sheet__item--active' : ''}`}
               onClick={() => onSelect(emoji)}
               aria-label={emoji}
             >

@@ -1,5 +1,5 @@
-import { Menu } from "lucide-react";
-import "./ListHeader.css";
+import { Menu } from 'lucide-react';
+import './ListHeader.css';
 
 interface Props {
   title: string;

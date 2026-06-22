@@ -1,8 +1,8 @@
-import { GripVertical, MoreHorizontal } from "lucide-react";
-import type { CSSProperties } from "react";
-import type { ApiList } from "../types";
-import "./ListCard.css";
-import { ProgressBar } from "./ProgressBar";
+import { GripVertical, MoreHorizontal } from 'lucide-react';
+import type { CSSProperties } from 'react';
+import type { ApiList } from '../types';
+import './ListCard.css';
+import { ProgressBar } from './ProgressBar';
 
 interface Props {
   list: ApiList;
@@ -31,14 +31,14 @@ export function ListCard({
     if (isOwner) {
       return (
         <button
-          className={`list-card__emoji${!emoji ? " list-card__emoji--placeholder" : ""}`}
+          className={`list-card__emoji${!emoji ? ' list-card__emoji--placeholder' : ''}`}
           onClick={(e) => {
             e.stopPropagation();
             onEmojiTap?.();
           }}
-          aria-label={emoji ? "Cambiar emoji" : "Añadir emoji"}
+          aria-label={emoji ? 'Cambiar emoji' : 'Añadir emoji'}
         >
-          {emoji ?? "＋"}
+          {emoji ?? '＋'}
         </button>
       );
     }
@@ -52,7 +52,7 @@ export function ListCard({
 
   return (
     <div
-      className={`list-card${isDragging ? " list-card--dragging" : ""}`}
+      className={`list-card${isDragging ? ' list-card--dragging' : ''}`}
       style={style}
     >
       <span className="list-card__drag-handle" aria-hidden {...dragHandleProps}>
@@ -68,7 +68,7 @@ export function ListCard({
         <ProgressBar
           purchased={purchased_count}
           total={item_count}
-          variant={purchased_count === item_count ? "success" : "primary"}
+          variant={purchased_count === item_count ? 'success' : 'primary'}
         />
         {item_count > 0 && (
           <span className="list-card__subtitle">

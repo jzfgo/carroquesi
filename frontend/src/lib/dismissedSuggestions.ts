@@ -1,11 +1,11 @@
-const KEY = "cqs_dismissed_suggestions";
+const KEY = 'cqs_dismissed_suggestions';
 
 let cache: Record<string, string> | null = null;
 
 function read(): Record<string, string> {
   if (cache !== null) return cache;
   try {
-    cache = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Record<
+    cache = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<
       string,
       string
     >;

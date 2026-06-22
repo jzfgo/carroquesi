@@ -1,5 +1,5 @@
-import { parseInput } from "../lib/parseInput";
-import type { ListItem } from "../types";
+import { parseInput } from '../lib/parseInput';
+import type { ListItem } from '../types';
 
 export function filterItems(
   items: ListItem[],

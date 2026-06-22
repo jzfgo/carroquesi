@@ -1,4 +1,4 @@
-import "./Wordmark.css";
+import './Wordmark.css';
 
 interface WordmarkProps {
   size?: number;

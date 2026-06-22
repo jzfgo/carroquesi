@@ -1,8 +1,8 @@
-import { X } from "lucide-react";
-import { useState } from "react";
-import "./InstallBanner.css";
+import { X } from 'lucide-react';
+import { useState } from 'react';
+import './InstallBanner.css';
 
-const DISMISSED_KEY = "pwa-install-dismissed";
+const DISMISSED_KEY = 'pwa-install-dismissed';
 
 interface Props {
   isInstallable: boolean;
@@ -24,7 +24,7 @@ export function InstallBanner({
   if (isInstalled || dismissed || (!isInstallable && !isIOS)) return null;
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, "1");
+    localStorage.setItem(DISMISSED_KEY, '1');
     setDismissed(true);
   };
 
@@ -36,7 +36,7 @@ export function InstallBanner({
       <p className="install-banner__text">
         {isIOS ? (
           <>
-            Toca <strong>Compartir</strong> →{" "}
+            Toca <strong>Compartir</strong> →{' '}
             <strong>Añadir a pantalla de inicio</strong>
           </>
         ) : (

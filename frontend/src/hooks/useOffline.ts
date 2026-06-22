@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createItem, deleteItem, updateItem } from "../lib/api";
-import { isNetworkError } from "../lib/networkError";
-import { getAll, remove } from "../lib/offlineQueue";
-import type { ListItem } from "../types";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createItem, deleteItem, updateItem } from '../lib/api';
+import { isNetworkError } from '../lib/networkError';
+import { getAll, remove } from '../lib/offlineQueue';
+import type { ListItem } from '../types';
 
 interface Params {
   listId: string;
@@ -32,8 +32,8 @@ export function useOffline({ listId, getToken, onDrained, showToast }: Params) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshCount();
-    window.addEventListener("cqs:queue-changed", refreshCount);
-    return () => window.removeEventListener("cqs:queue-changed", refreshCount);
+    window.addEventListener('cqs:queue-changed', refreshCount);
+    return () => window.removeEventListener('cqs:queue-changed', refreshCount);
   }, [refreshCount]);
 
   const drain = useCallback(async () => {
@@ -47,7 +47,7 @@ export function useOffline({ listId, getToken, onDrained, showToast }: Params) {
 
     for (const op of myOps) {
       try {
-        if (op.type === "addItem") {
+        if (op.type === 'addItem') {
           const p = op.payload as Parameters<typeof createItem>[2];
           const created = (await createItem(
             getToken,
@@ -55,7 +55,7 @@ export function useOffline({ listId, getToken, onDrained, showToast }: Params) {
             p,
           )) as ListItem;
           if (op.tempId) tempIdMap.set(op.tempId, created.id);
-        } else if (op.type === "updateItem") {
+        } else if (op.type === 'updateItem') {
           let p = op.payload as {
             itemId: string;
             patch: Parameters<typeof updateItem>[3];
@@ -63,7 +63,7 @@ export function useOffline({ listId, getToken, onDrained, showToast }: Params) {
           const realId = tempIdMap.get(p.itemId);
           if (realId) p = { ...p, itemId: realId };
           await updateItem(getToken, op.listId, p.itemId, p.patch);
-        } else if (op.type === "deleteItem") {
+        } else if (op.type === 'deleteItem') {
           let p = op.payload as { itemId: string };
           const realId = tempIdMap.get(p.itemId);
           if (realId) p = { ...p, itemId: realId };
@@ -80,7 +80,7 @@ export function useOffline({ listId, getToken, onDrained, showToast }: Params) {
     onDrainedRef.current();
     if (failures > 0) {
       showToastRef.current(
-        `${failures} ${failures === 1 ? "cambio no se pudo" : "cambios no se pudieron"} sincronizar`,
+        `${failures} ${failures === 1 ? 'cambio no se pudo' : 'cambios no se pudieron'} sincronizar`,
       );
     }
   }, [listId, getToken]);
@@ -91,11 +91,11 @@ export function useOffline({ listId, getToken, onDrained, showToast }: Params) {
       void drain();
     };
     const handleOffline = () => setIsOffline(true);
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, [drain]);
 

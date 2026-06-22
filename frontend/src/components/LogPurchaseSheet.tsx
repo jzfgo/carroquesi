@@ -1,22 +1,22 @@
-import { ShoppingCart, Store } from "lucide-react";
-import { useRef, useState } from "react";
-import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
-import { formatPrice } from "../lib/formatPrice";
-import { isSameCalendarDay } from "../lib/isSameCalendarDay";
-import { parseQuantityFactor } from "../lib/itemCost";
-import type { ListItem } from "../types";
-import "./LogPurchaseSheet.css";
+import { ShoppingCart, Store } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import { formatPrice } from '../lib/formatPrice';
+import { isSameCalendarDay } from '../lib/isSameCalendarDay';
+import { parseQuantityFactor } from '../lib/itemCost';
+import type { ListItem } from '../types';
+import './LogPurchaseSheet.css';
 
 interface Props {
   item: ListItem;
   initialAmount: number | null;
-  initialPricePer: "KILOGRAM" | null;
+  initialPricePer: 'KILOGRAM' | null;
   initialStore: string | null;
   initialPurchasedQuantity: string | null;
   suggestedStore?: string | null;
   onSave: (
     amount: number,
-    pricePer: "KILOGRAM" | null,
+    pricePer: 'KILOGRAM' | null,
     store: string | null,
     purchasedQuantity: string | null,
   ) => void;
@@ -46,17 +46,17 @@ export default function LogPurchaseSheet({
     stores.length === 0 ? (suggestedStore ?? null) : null;
 
   const [amountStr, setAmountStr] = useState(
-    initialAmount !== null ? String(initialAmount) : "",
+    initialAmount !== null ? String(initialAmount) : '',
   );
-  const [pricePer, setPricePer] = useState<"KILOGRAM" | null>(initialPricePer);
+  const [pricePer, setPricePer] = useState<'KILOGRAM' | null>(initialPricePer);
   const [selectedStore, setSelectedStore] = useState<string | null>(
     initialStore ?? effectiveSuggestion,
   );
   const [purchasedQtyStr, setPurchasedQtyStr] = useState(
-    initialPurchasedQuantity ?? "",
+    initialPurchasedQuantity ?? '',
   );
   const [addingStore, setAddingStore] = useState(false);
-  const [newStore, setNewStore] = useState("");
+  const [newStore, setNewStore] = useState('');
   const [deleting, setDeleting] = useState(false);
 
   const amount = parseFloat(amountStr);
@@ -107,7 +107,7 @@ export default function LogPurchaseSheet({
       </div>
       <div className="lps__subtitle">
         {item.name}
-        {item.brand ? ` · ${item.brand}` : ""}
+        {item.brand ? ` · ${item.brand}` : ''}
       </div>
 
       <div className="lps__field">
@@ -116,7 +116,7 @@ export default function LogPurchaseSheet({
           <input
             className="lps__qty-input"
             type="text"
-            placeholder={item.quantity ?? "ej. 3"}
+            placeholder={item.quantity ?? 'ej. 3'}
             value={purchasedQtyStr}
             onChange={(e) => setPurchasedQtyStr(e.target.value)}
           />
@@ -135,15 +135,15 @@ export default function LogPurchaseSheet({
           />
           <div className="lps__unit-toggle">
             <button
-              className={`lps__unit-btn${pricePer === null ? " lps__unit-btn--active" : ""}`}
+              className={`lps__unit-btn${pricePer === null ? ' lps__unit-btn--active' : ''}`}
               onClick={() => setPricePer(null)}
               type="button"
             >
               /ud
             </button>
             <button
-              className={`lps__unit-btn${pricePer === "KILOGRAM" ? " lps__unit-btn--active" : ""}`}
-              onClick={() => setPricePer("KILOGRAM")}
+              className={`lps__unit-btn${pricePer === 'KILOGRAM' ? ' lps__unit-btn--active' : ''}`}
+              onClick={() => setPricePer('KILOGRAM')}
               type="button"
             >
               /kg
@@ -166,7 +166,7 @@ export default function LogPurchaseSheet({
           {stores.map((store) => (
             <button
               key={store}
-              className={`lps__chip${selectedStore === store && !addingStore ? " lps__chip--selected" : ""}`}
+              className={`lps__chip${selectedStore === store && !addingStore ? ' lps__chip--selected' : ''}`}
               onClick={() => handleStoreChip(store)}
               type="button"
             >
@@ -175,7 +175,7 @@ export default function LogPurchaseSheet({
           ))}
           {effectiveSuggestion && (
             <button
-              className={`lps__chip${selectedStore === effectiveSuggestion && !addingStore ? " lps__chip--selected" : ""}`}
+              className={`lps__chip${selectedStore === effectiveSuggestion && !addingStore ? ' lps__chip--selected' : ''}`}
               onClick={() => handleStoreChip(effectiveSuggestion)}
               type="button"
             >
@@ -220,7 +220,7 @@ export default function LogPurchaseSheet({
           disabled={deleting}
           type="button"
         >
-          {deleting ? "Eliminando..." : "Eliminar precio"}
+          {deleting ? 'Eliminando...' : 'Eliminar precio'}
         </button>
       )}
       <button className="lps__cancel" onClick={onClose} type="button">

@@ -56,14 +56,14 @@ export interface BarcodeRead {
   brand: string | null;
   stores: string[];
   community_price: number | null;
-  community_price_per: "KILOGRAM" | null;
+  community_price_per: 'KILOGRAM' | null;
 }
 
-export type TagField = "brand" | "quantity";
+export type TagField = 'brand' | 'quantity';
 
 export interface EditingTag {
   itemId: string;
-  field: TagField | "stores";
+  field: TagField | 'stores';
 }
 
 export interface ApiList {
@@ -93,7 +93,7 @@ export interface PriceHistoryResponse {
 
 /** Receipt Scan Types */
 
-export type PriceType = "UNIT" | "KILOGRAM" | "MULTI";
+export type PriceType = 'UNIT' | 'KILOGRAM' | 'MULTI';
 
 export interface ParsedLine {
   name: string;

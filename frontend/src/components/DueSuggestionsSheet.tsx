@@ -1,9 +1,9 @@
-import { X } from "lucide-react";
-import { useEffect, useRef } from "react";
-import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
-import { formatFrequency, formatRecency } from "../lib/suggestions";
-import type { DueSuggestion } from "../types";
-import "./DueSuggestionsSheet.css";
+import { X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import { formatFrequency, formatRecency } from '../lib/suggestions';
+import type { DueSuggestion } from '../types';
+import './DueSuggestionsSheet.css';
 
 interface Props {
   suggestions: DueSuggestion[];
@@ -27,10 +27,10 @@ export function DueSuggestionsSheet({
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === 'Escape') onClose();
     }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
   if (suggestions.length === 0) return null;
@@ -49,7 +49,7 @@ export function DueSuggestionsSheet({
         <p className="due-suggestions-sheet__title">Toca comprar</p>
         <div className="due-suggestions-sheet__list">
           {suggestions.map((s) => {
-            const meta = [s.brand, ...s.stores].filter(Boolean).join(" · ");
+            const meta = [s.brand, ...s.stores].filter(Boolean).join(' · ');
             return (
               <div key={s.name} className="due-suggestions-sheet__row">
                 <div className="due-suggestions-sheet__info">

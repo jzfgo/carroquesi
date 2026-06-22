@@ -1,4 +1,4 @@
-@import "./colorsAndType.css";
+@import './colorsAndType.css';
 
 /* Compat aliases — map legacy component token names onto new canonical names.
    Remove once every component consumes canonical tokens directly. */

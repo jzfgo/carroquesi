@@ -1,11 +1,11 @@
-import { Camera, Image, Receipt } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { useFeatureFlags } from "../contexts/FeatureFlagsContext";
-import { filterItems } from "../hooks/useItemFilter";
-import { useListItems } from "../hooks/useListItems";
-import { useOffline } from "../hooks/useOffline";
-import { useOwnBrandInference } from "../hooks/useOwnBrandInference";
+import { Camera, Image, Receipt } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
+import { filterItems } from '../hooks/useItemFilter';
+import { useListItems } from '../hooks/useListItems';
+import { useOffline } from '../hooks/useOffline';
+import { useOwnBrandInference } from '../hooks/useOwnBrandInference';
 import {
   ApiError,
   getBarcode,
@@ -13,13 +13,13 @@ import {
   getSuggestions,
   submitParsedReceipt,
   submitReceiptPrices,
-} from "../lib/api";
-import { isDismissed, writeDismissal } from "../lib/dismissedSuggestions";
-import { FLAGS } from "../lib/featureFlags";
-import { computeCostSummary, purchasedDateLabel } from "../lib/itemCost";
-import { getLastPriceStore, setLastPriceStore } from "../lib/lastPriceStore";
-import { parseInput } from "../lib/parseInput";
-import { parseReceiptWithAi } from "../lib/receiptAi";
+} from '../lib/api';
+import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions';
+import { FLAGS } from '../lib/featureFlags';
+import { computeCostSummary, purchasedDateLabel } from '../lib/itemCost';
+import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore';
+import { parseInput } from '../lib/parseInput';
+import { parseReceiptWithAi } from '../lib/receiptAi';
 import type {
   BarcodeRead,
   DueSuggestion,
@@ -29,25 +29,25 @@ import type {
   ReceiptScanResult,
   Suggestion,
   TagField,
-} from "../types";
-import { BarcodeScanner } from "./BarcodeScanner";
-import { BarcodeScanSheet } from "./BarcodeScanSheet";
-import { DueSuggestionsSheet } from "./DueSuggestionsSheet";
-import { FilterBar } from "./FilterBar";
-import { ItemActionSheet } from "./ItemActionSheet";
-import { ItemList } from "./ItemList";
-import { ListHeader } from "./ListHeader";
-import { ListMembersSheet } from "./ListMembersSheet";
-import "./ListScreen.css";
-import LogPurchaseSheet from "./LogPurchaseSheet";
-import PriceHistorySheet from "./PriceHistorySheet";
-import { ProgressBar } from "./ProgressBar";
-import PurchaseToast from "./PurchaseToast";
-import ReceiptScanSheet from "./ReceiptScanSheet";
-import { SmartInputBar } from "./SmartInputBar";
-import { StoreEditSheet } from "./StoreEditSheet";
-import { TagEditSheet } from "./TagEditSheet";
-import { Toast } from "./Toast";
+} from '../types';
+import { BarcodeScanner } from './BarcodeScanner';
+import { BarcodeScanSheet } from './BarcodeScanSheet';
+import { DueSuggestionsSheet } from './DueSuggestionsSheet';
+import { FilterBar } from './FilterBar';
+import { ItemActionSheet } from './ItemActionSheet';
+import { ItemList } from './ItemList';
+import { ListHeader } from './ListHeader';
+import { ListMembersSheet } from './ListMembersSheet';
+import './ListScreen.css';
+import LogPurchaseSheet from './LogPurchaseSheet';
+import PriceHistorySheet from './PriceHistorySheet';
+import { ProgressBar } from './ProgressBar';
+import PurchaseToast from './PurchaseToast';
+import ReceiptScanSheet from './ReceiptScanSheet';
+import { SmartInputBar } from './SmartInputBar';
+import { StoreEditSheet } from './StoreEditSheet';
+import { TagEditSheet } from './TagEditSheet';
+import { Toast } from './Toast';
 
 interface Props {
   listId: string;
@@ -59,10 +59,10 @@ interface Props {
 }
 
 type EanLookupState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "found"; product: BarcodeRead }
-  | { status: "error"; message: string };
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'found'; product: BarcodeRead }
+  | { status: 'error'; message: string };
 
 export function ListScreen({
   listId,
@@ -74,13 +74,13 @@ export function ListScreen({
 }: Props) {
   const { getToken, user } = useAuth();
   const { isEnabled } = useFeatureFlags();
-  const [inputValue, setInputValue] = useState("");
+  const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [filterQuery, setFilterQuery] = useState("");
-  const [filterMode, setFilterMode] = useState<"chips" | "search">("chips");
+  const [filterQuery, setFilterQuery] = useState('');
+  const [filterMode, setFilterMode] = useState<'chips' | 'search'>('chips');
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(
@@ -92,7 +92,7 @@ export function ListScreen({
   const [logPriceFor, setLogPriceFor] = useState<{
     itemId: string;
     initialAmount: number | null;
-    initialPricePer: "KILOGRAM" | null;
+    initialPricePer: 'KILOGRAM' | null;
     initialStore: string | null;
     suggestedStore: string | null;
   } | null>(null);
@@ -111,7 +111,7 @@ export function ListScreen({
   );
 
   const [eanLookup, setEanLookup] = useState<EanLookupState>({
-    status: "idle",
+    status: 'idle',
   });
   const eanRequestIdRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -196,10 +196,10 @@ export function ListScreen({
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      e.target.value = "";
+      e.target.value = '';
       if (!file) return;
       if (file.size > 10 * 1024 * 1024) {
-        setToast("El archivo es demasiado grande (máx. 10 MB)");
+        setToast('El archivo es demasiado grande (máx. 10 MB)');
         return;
       }
       setReceiptUploading(true);
@@ -208,8 +208,8 @@ export function ListScreen({
         const result = await submitParsedReceipt(getToken, listId, parsed);
         setReceiptScanResult(result);
       } catch (e) {
-        console.error("Receipt scan failed:", e);
-        setToast("No se pudo leer el ticket");
+        console.error('Receipt scan failed:', e);
+        setToast('No se pudo leer el ticket');
       } finally {
         setReceiptUploading(false);
       }
@@ -229,10 +229,10 @@ export function ListScreen({
         setReceiptScanResult(null);
         const n = data.items_updated;
         setToast(
-          `${n} precio${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}`,
+          `${n} precio${n !== 1 ? 's' : ''} actualizado${n !== 1 ? 's' : ''}`,
         );
       } catch {
-        setToast("No se pudieron guardar los precios");
+        setToast('No se pudieron guardar los precios');
       }
     },
     [getToken, listId, receiptScanResult],
@@ -251,7 +251,7 @@ export function ListScreen({
   );
 
   const handleTagClick = useCallback(
-    (itemId: string, field: TagField | "stores") => {
+    (itemId: string, field: TagField | 'stores') => {
       setEditingTag({ itemId, field });
     },
     [],
@@ -282,7 +282,7 @@ export function ListScreen({
 
   const handleChange = useCallback((value: string) => {
     eanRequestIdRef.current++;
-    setEanLookup({ status: "idle" });
+    setEanLookup({ status: 'idle' });
     setInputValue(value);
   }, []);
 
@@ -292,7 +292,7 @@ export function ListScreen({
       ? [...new Set([...parsed.stores, storeToAdd])]
       : parsed.stores;
     void addItem({ ...parsed, stores });
-    setInputValue("");
+    setInputValue('');
   }, [parsed, addItem, storeToAdd]);
 
   const handleInputSuggestionAdd = useCallback(
@@ -303,7 +303,7 @@ export function ListScreen({
         stores: suggestion.stores,
         quantity: null,
       });
-      setInputValue("");
+      setInputValue('');
       setSuggestions([]);
     },
     [addItem],
@@ -344,7 +344,7 @@ export function ListScreen({
       setLogPriceFor({
         itemId,
         initialAmount: item?.price ?? null,
-        initialPricePer: (item?.price_per as "KILOGRAM" | null) ?? null,
+        initialPricePer: (item?.price_per as 'KILOGRAM' | null) ?? null,
         initialStore: item?.price_store ?? item?.stores?.[0] ?? null,
         suggestedStore: item?.stores?.length ? null : getLastPriceStore(),
       });
@@ -355,7 +355,7 @@ export function ListScreen({
   const handleSavePrice = useCallback(
     async (
       amount: number,
-      pricePer: "KILOGRAM" | null,
+      pricePer: 'KILOGRAM' | null,
       store: string | null,
       purchasedQuantity: string | null,
     ) => {
@@ -394,11 +394,11 @@ export function ListScreen({
         setPurchaseToast(null);
       } else if (err instanceof ApiError && err.status === 409) {
         setToast(
-          "No se puede eliminar el precio de un artículo comprado en otro día",
+          'No se puede eliminar el precio de un artículo comprado en otro día',
         );
         throw err;
       } else {
-        setToast("No se pudo eliminar el precio");
+        setToast('No se pudo eliminar el precio');
         throw err;
       }
     }
@@ -412,17 +412,17 @@ export function ListScreen({
   const handleEanSearch = useCallback(
     async (ean: string) => {
       const requestId = ++eanRequestIdRef.current;
-      setEanLookup({ status: "loading" });
+      setEanLookup({ status: 'loading' });
       try {
         const product = await getBarcode(getToken, ean);
         if (requestId !== eanRequestIdRef.current) return;
-        setEanLookup({ status: "found", product });
+        setEanLookup({ status: 'found', product });
       } catch (err) {
         if (requestId !== eanRequestIdRef.current) return;
         if (err instanceof ApiError && err.status === 404) {
-          setEanLookup({ status: "error", message: "Código no encontrado" });
+          setEanLookup({ status: 'error', message: 'Código no encontrado' });
         } else {
-          setEanLookup({ status: "error", message: "Error de conexión" });
+          setEanLookup({ status: 'error', message: 'Error de conexión' });
         }
       }
     },
@@ -431,15 +431,15 @@ export function ListScreen({
 
   const handleClear = useCallback(() => {
     eanRequestIdRef.current++;
-    setEanLookup({ status: "idle" });
-    setInputValue("");
+    setEanLookup({ status: 'idle' });
+    setInputValue('');
   }, []);
 
   const handleEanAdd = useCallback(
     (item: { name: string; brand: string | null; stores: string[] }) => {
-      const ean = eanLookup.status === "found" ? eanLookup.product.ean : null;
-      setEanLookup({ status: "idle" });
-      setInputValue("");
+      const ean = eanLookup.status === 'found' ? eanLookup.product.ean : null;
+      setEanLookup({ status: 'idle' });
+      setInputValue('');
       void addItem({
         name: item.name,
         brand: item.brand,
@@ -452,7 +452,7 @@ export function ListScreen({
   );
 
   const handleEanEdit = useCallback((prefill: string) => {
-    setEanLookup({ status: "idle" });
+    setEanLookup({ status: 'idle' });
     setInputValue(prefill);
   }, []);
 
@@ -507,7 +507,7 @@ export function ListScreen({
 
   const filteredItems = useMemo(
     () =>
-      filterItems(items, filterQuery, { strictStore: filterMode === "search" }),
+      filterItems(items, filterQuery, { strictStore: filterMode === 'search' }),
     [items, filterQuery, filterMode],
   );
   const allUnpurchasedCount = useMemo(
@@ -556,8 +556,8 @@ export function ListScreen({
         <div className="offline-banner offline-banner--sticky" role="status">
           Sin conexión
           {pendingCount > 0
-            ? ` · ${pendingCount} ${pendingCount === 1 ? "cambio pendiente" : "cambios pendientes"}`
-            : " · Los cambios se sincronizarán al reconectar"}
+            ? ` · ${pendingCount} ${pendingCount === 1 ? 'cambio pendiente' : 'cambios pendientes'}`
+            : ' · Los cambios se sincronizarán al reconectar'}
         </div>
       )}
       {items.length > 0 && (
@@ -593,7 +593,7 @@ export function ListScreen({
                 disabled={receiptUploading || isOffline}
               >
                 {receiptUploading ? (
-                  "Procesando ticket…"
+                  'Procesando ticket…'
                 ) : (
                   <>
                     <Receipt size={16} /> Escanear ticket para registrar precios
@@ -608,7 +608,7 @@ export function ListScreen({
         (() => {
           const editedItem = items.find((i) => i.id === editingTag.itemId);
           if (!editedItem) return null;
-          if (editingTag.field === "stores") {
+          if (editingTag.field === 'stores') {
             return (
               <StoreEditSheet
                 key={editingTag.itemId}
@@ -686,8 +686,8 @@ export function ListScreen({
             onScanRequest={handleScanRequest}
             onEanSearch={handleEanSearch}
             isOffline={isOffline}
-            eanLoading={eanLookup.status === "loading"}
-            eanError={eanLookup.status === "error" ? eanLookup.message : null}
+            eanLoading={eanLookup.status === 'loading'}
+            eanError={eanLookup.status === 'error' ? eanLookup.message : null}
             inferredStoreChip={visibleChip}
             onDismissInferredStore={dismissInferredStore}
             dueSuggestionsCount={filteredDueSuggestions.length}
@@ -721,7 +721,7 @@ export function ListScreen({
           onClose={() => setScannedProduct(null)}
         />
       )}
-      {eanLookup.status === "found" && (
+      {eanLookup.status === 'found' && (
         <BarcodeScanSheet
           product={eanLookup.product}
           initialBrand={parsed.brand ?? undefined}
@@ -795,7 +795,7 @@ export function ListScreen({
         ref={fileInputRef}
         type="file"
         accept="image/*,application/pdf"
-        style={{ display: "none" }}
+        style={{ display: 'none' }}
         onChange={handleFileChange}
       />
       <input
@@ -803,7 +803,7 @@ export function ListScreen({
         type="file"
         accept="image/*"
         capture="environment"
-        style={{ display: "none" }}
+        style={{ display: 'none' }}
         onChange={handleFileChange}
       />
 

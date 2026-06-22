@@ -1,14 +1,14 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as AuthContext from "../contexts/AuthContext";
-import * as Api from "../lib/api";
-import { WaitlistScreen } from "./WaitlistScreen";
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as AuthContext from '../contexts/AuthContext';
+import * as Api from '../lib/api';
+import { WaitlistScreen } from './WaitlistScreen';
 
-vi.mock("../contexts/AuthContext", () => ({
+vi.mock('../contexts/AuthContext', () => ({
   useAuth: vi.fn(),
 }));
 
-vi.mock("../lib/api");
+vi.mock('../lib/api');
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -22,19 +22,19 @@ beforeEach(() => {
   });
 });
 
-describe("WaitlistScreen", () => {
-  it("renders application brand logo and early access badge", () => {
+describe('WaitlistScreen', () => {
+  it('renders application brand logo and early access badge', () => {
     render(<WaitlistScreen />);
     expect(screen.getByLabelText(/carroquesí/i)).toBeInTheDocument();
     expect(screen.getByText(/acceso anticipado/i)).toBeInTheDocument();
   });
 
-  it("validates invalid email format client-side", async () => {
+  it('validates invalid email format client-side', async () => {
     render(<WaitlistScreen />);
     const input = screen.getByPlaceholderText(/tu@correo.com/i);
-    const button = screen.getByRole("button", { name: /apuntarme/i });
+    const button = screen.getByRole('button', { name: /apuntarme/i });
 
-    fireEvent.change(input, { target: { value: "not-valid-email" } });
+    fireEvent.change(input, { target: { value: 'not-valid-email' } });
     fireEvent.click(button);
 
     expect(
@@ -43,18 +43,18 @@ describe("WaitlistScreen", () => {
     expect(Api.submitWaitlistSignup).not.toHaveBeenCalled();
   });
 
-  it("transitions to success state on successful signup", async () => {
+  it('transitions to success state on successful signup', async () => {
     vi.mocked(Api.submitWaitlistSignup).mockResolvedValue({
-      id: "1",
-      email: "ok@ok.com",
-      created_at: "2026-06-03",
+      id: '1',
+      email: 'ok@ok.com',
+      created_at: '2026-06-03',
     });
     render(<WaitlistScreen />);
 
     const input = screen.getByPlaceholderText(/tu@correo.com/i);
-    const button = screen.getByRole("button", { name: /apuntarme/i });
+    const button = screen.getByRole('button', { name: /apuntarme/i });
 
-    fireEvent.change(input, { target: { value: "ok@ok.com" } });
+    fireEvent.change(input, { target: { value: 'ok@ok.com' } });
     fireEvent.click(button);
 
     await waitFor(() => {
@@ -63,7 +63,7 @@ describe("WaitlistScreen", () => {
     });
   });
 
-  it("shows invite context copy when inviter and list name are provided", () => {
+  it('shows invite context copy when inviter and list name are provided', () => {
     render(
       <WaitlistScreen
         inviteToken="inv123"
@@ -76,43 +76,43 @@ describe("WaitlistScreen", () => {
     expect(screen.getByText(/compras/i)).toBeInTheDocument();
   });
 
-  it("passes inviteToken to submitWaitlistSignup", async () => {
+  it('passes inviteToken to submitWaitlistSignup', async () => {
     vi.mocked(Api.submitWaitlistSignup).mockResolvedValue({
-      id: "1",
-      email: "user@example.com",
-      created_at: "2026-06-03",
+      id: '1',
+      email: 'user@example.com',
+      created_at: '2026-06-03',
     });
     render(<WaitlistScreen inviteToken="inv123" />);
     fireEvent.change(screen.getByPlaceholderText(/tu@correo.com/i), {
-      target: { value: "user@example.com" },
+      target: { value: 'user@example.com' },
     });
-    fireEvent.click(screen.getByRole("button", { name: /apuntarme/i }));
+    fireEvent.click(screen.getByRole('button', { name: /apuntarme/i }));
     await waitFor(() => {
       expect(Api.submitWaitlistSignup).toHaveBeenCalledWith(
-        "user@example.com",
-        "inv123",
+        'user@example.com',
+        'inv123',
       );
     });
   });
 
-  it("shows list name in success copy when listName is provided", async () => {
+  it('shows list name in success copy when listName is provided', async () => {
     vi.mocked(Api.submitWaitlistSignup).mockResolvedValue({
-      id: "1",
-      email: "user@example.com",
-      created_at: "2026-06-03",
+      id: '1',
+      email: 'user@example.com',
+      created_at: '2026-06-03',
     });
     render(<WaitlistScreen inviteToken="inv123" listName="Compras" />);
     fireEvent.change(screen.getByPlaceholderText(/tu@correo.com/i), {
-      target: { value: "user@example.com" },
+      target: { value: 'user@example.com' },
     });
-    fireEvent.click(screen.getByRole("button", { name: /apuntarme/i }));
+    fireEvent.click(screen.getByRole('button', { name: /apuntarme/i }));
     await waitFor(() =>
       expect(screen.getByText(/ya estás en la lista/i)).toBeInTheDocument(),
     );
     expect(screen.getByText(/compras/i)).toBeInTheDocument();
   });
 
-  it("calls signIn on Google button click", () => {
+  it('calls signIn on Google button click', () => {
     const mockSignIn = vi.fn().mockResolvedValue(undefined);
     vi.mocked(AuthContext.useAuth).mockReturnValue({
       user: null,
@@ -124,7 +124,7 @@ describe("WaitlistScreen", () => {
     });
 
     render(<WaitlistScreen />);
-    const googleBtn = screen.getByRole("button", { name: /google/i });
+    const googleBtn = screen.getByRole('button', { name: /google/i });
     fireEvent.click(googleBtn);
     expect(mockSignIn).toHaveBeenCalledOnce();
   });

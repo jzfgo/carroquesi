@@ -110,7 +110,7 @@
 
 .waitlist__divider::before,
 .waitlist__divider::after {
-  content: "";
+  content: '';
   flex: 1;
   border-bottom: 1px solid var(--paper-edge);
 }

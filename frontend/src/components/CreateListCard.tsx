@@ -1,7 +1,7 @@
-import { X } from "lucide-react";
-import { useState } from "react";
-import "./CreateListCard.css";
-import { Mascot } from "./Mascot";
+import { X } from 'lucide-react';
+import { useState } from 'react';
+import './CreateListCard.css';
+import { Mascot } from './Mascot';
 
 interface Props {
   isFirst?: boolean;
@@ -10,31 +10,31 @@ interface Props {
 
 export function CreateListCard({ isFirst, onCreate }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
 
   if (!expanded) {
     return (
       <div
         style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "0.75rem",
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '0.75rem',
         }}
       >
         {isFirst && (
           <>
             <Mascot size={120} />
             <p
-              style={{ margin: 0, fontWeight: 600, color: "var(--color-text)" }}
+              style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}
             >
               Aún no tienes listas
             </p>
           </>
         )}
         <button className="create-list-card" onClick={() => setExpanded(true)}>
-          {isFirst ? "Crea tu primera lista" : "+ Nueva lista"}
+          {isFirst ? 'Crea tu primera lista' : '+ Nueva lista'}
         </button>
       </div>
     );
@@ -45,7 +45,7 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
     setCreating(true);
     try {
       await onCreate(name.trim());
-      setName("");
+      setName('');
       setExpanded(false);
     } finally {
       setCreating(false);
@@ -60,10 +60,10 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
         onChange={(e) => setName(e.target.value)}
         placeholder="Nombre de la lista"
         onKeyDown={(e) => {
-          if (e.key === "Enter") void handleSubmit();
-          if (e.key === "Escape") {
+          if (e.key === 'Enter') void handleSubmit();
+          if (e.key === 'Escape') {
             setExpanded(false);
-            setName("");
+            setName('');
           }
         }}
       />
@@ -77,7 +77,7 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
         className="create-list-card--cancel"
         onClick={() => {
           setExpanded(false);
-          setName("");
+          setName('');
         }}
         aria-label="Cancelar"
       >

@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { FeedbackSheet } from "./FeedbackSheet";
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { FeedbackSheet } from './FeedbackSheet';
 
-describe("FeedbackSheet", () => {
-  it("prefills the optional email field", () => {
+describe('FeedbackSheet', () => {
+  it('prefills the optional email field', () => {
     render(
       <FeedbackSheet
         defaultEmail="alice@example.com"
@@ -13,10 +13,10 @@ describe("FeedbackSheet", () => {
       />,
     );
 
-    expect(screen.getByLabelText(/email/i)).toHaveValue("alice@example.com");
+    expect(screen.getByLabelText(/email/i)).toHaveValue('alice@example.com');
   });
 
-  it("keeps submit disabled for blank messages", () => {
+  it('keeps submit disabled for blank messages', () => {
     render(
       <FeedbackSheet
         defaultEmail="alice@example.com"
@@ -26,14 +26,14 @@ describe("FeedbackSheet", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: /enviar/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /enviar/i })).toBeDisabled();
     fireEvent.change(screen.getByLabelText(/mensaje/i), {
-      target: { value: "   " },
+      target: { value: '   ' },
     });
-    expect(screen.getByRole("button", { name: /enviar/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /enviar/i })).toBeDisabled();
   });
 
-  it("submits trimmed message and nullable email", () => {
+  it('submits trimmed message and nullable email', () => {
     const onSubmit = vi.fn();
     render(
       <FeedbackSheet
@@ -45,21 +45,21 @@ describe("FeedbackSheet", () => {
     );
 
     fireEvent.change(screen.getByLabelText(/mensaje/i), {
-      target: { value: "  Great app  " },
+      target: { value: '  Great app  ' },
     });
     fireEvent.change(screen.getByLabelText(/email/i), {
-      target: { value: "   " },
+      target: { value: '   ' },
     });
-    fireEvent.click(screen.getByRole("button", { name: /enviar/i }));
+    fireEvent.click(screen.getByRole('button', { name: /enviar/i }));
 
     expect(onSubmit).toHaveBeenCalledWith({
-      message: "Great app",
+      message: 'Great app',
       email: null,
-      source: "manual",
+      source: 'manual',
     });
   });
 
-  it("calls onClose when cancel is clicked", () => {
+  it('calls onClose when cancel is clicked', () => {
     const onClose = vi.fn();
     render(
       <FeedbackSheet
@@ -70,12 +70,12 @@ describe("FeedbackSheet", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /cancelar/i }));
+    fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
 
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("calls onClose when Escape key is pressed", () => {
+  it('calls onClose when Escape key is pressed', () => {
     const onClose = vi.fn();
     render(
       <FeedbackSheet
@@ -86,7 +86,7 @@ describe("FeedbackSheet", () => {
       />,
     );
 
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledOnce();
   });
 });

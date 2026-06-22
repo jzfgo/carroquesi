@@ -1,4 +1,4 @@
-import type { ListItem } from "../types";
+import type { ListItem } from '../types';
 
 // SI units → kg equivalent (volume treated as water: 1 L = 1 kg)
 const UNIT_TO_KG: Record<string, number> = {
@@ -28,15 +28,15 @@ export function parseQuantityFactor(
   quantity: string | null,
   pricePer: string | null,
 ): number | null {
-  const isPerKg = pricePer === "KILOGRAM";
+  const isPerKg = pricePer === 'KILOGRAM';
 
   if (!quantity) return isPerKg ? null : 1;
 
   const m = quantity.trim().match(QTY_RE);
   if (!m) return isPerKg ? null : 1;
 
-  const value = parseFloat(m[1].replace(",", "."));
-  const rawUnit = m[2] ? m[2].replace(/\.$/, "").toLowerCase() : null;
+  const value = parseFloat(m[1].replace(',', '.'));
+  const rawUnit = m[2] ? m[2].replace(/\.$/, '').toLowerCase() : null;
   const kgFactor = rawUnit != null ? UNIT_TO_KG[rawUnit] : undefined;
 
   if (isPerKg) {
@@ -48,7 +48,7 @@ export function parseQuantityFactor(
 }
 
 export function parseKgFactor(quantity: string | null): number | null {
-  return parseQuantityFactor(quantity, "KILOGRAM");
+  return parseQuantityFactor(quantity, 'KILOGRAM');
 }
 
 export interface CostSummary {
@@ -88,8 +88,8 @@ export function computeCostSummary(items: ListItem[]): CostSummary | null {
  * keys always match.
  */
 export function purchasedDateLabel(purchased_at: string | null): string {
-  if (!purchased_at) return "Fecha desconocida";
-  return new Date(purchased_at + "Z").toLocaleDateString("es", {
-    dateStyle: "medium",
+  if (!purchased_at) return 'Fecha desconocida';
+  return new Date(purchased_at + 'Z').toLocaleDateString('es', {
+    dateStyle: 'medium',
   });
 }

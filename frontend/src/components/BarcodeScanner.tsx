@@ -1,9 +1,9 @@
-import { BarcodeDetectorPolyfill } from "@undecaf/barcode-detector-polyfill";
-import { CameraOff, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { ApiError, getBarcode } from "../lib/api";
-import type { BarcodeRead } from "../types";
-import "./BarcodeScanner.css";
+import { BarcodeDetectorPolyfill } from '@undecaf/barcode-detector-polyfill';
+import { CameraOff, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ApiError, getBarcode } from '../lib/api';
+import type { BarcodeRead } from '../types';
+import './BarcodeScanner.css';
 
 type DetectorConstructor = typeof BarcodeDetectorPolyfill;
 
@@ -37,10 +37,10 @@ export function BarcodeScanner({
       BarcodeDetector?: DetectorConstructor;
     };
     const DetectorClass: DetectorConstructor =
-      typeof g.BarcodeDetector !== "undefined"
+      typeof g.BarcodeDetector !== 'undefined'
         ? g.BarcodeDetector!
         : BarcodeDetectorPolyfill;
-    const detector = new DetectorClass({ formats: ["ean_8", "ean_13"] });
+    const detector = new DetectorClass({ formats: ['ean_8', 'ean_13'] });
 
     async function scan() {
       if (!scanningRef.current || !videoRef.current) return;
@@ -54,11 +54,11 @@ export function BarcodeScanner({
             onResult(product);
           } catch (err) {
             if (err instanceof ApiError && err.status === 404) {
-              onError("Producto no encontrado");
+              onError('Producto no encontrado');
             } else if (err instanceof ApiError && err.status === 503) {
-              onError("Servicio no disponible, inténtalo más tarde");
+              onError('Servicio no disponible, inténtalo más tarde');
             } else {
-              onError("Error al buscar el producto");
+              onError('Error al buscar el producto');
             }
           }
           return;
@@ -70,7 +70,7 @@ export function BarcodeScanner({
     }
 
     navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: "environment" } })
+      .getUserMedia({ video: { facingMode: 'environment' } })
       .then((stream) => {
         streamRef.current = stream;
         if (videoRef.current) {

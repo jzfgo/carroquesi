@@ -20,13 +20,13 @@
   position: relative;
 }
 
-.item-card__checkbox[aria-checked="true"] {
+.item-card__checkbox[aria-checked='true'] {
   background: var(--accent);
   border-color: var(--accent);
 }
 
-.item-card__checkbox[aria-checked="true"]::after {
-  content: "";
+.item-card__checkbox[aria-checked='true']::after {
+  content: '';
   position: absolute;
   top: 50%;
   left: 50%;

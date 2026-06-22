@@ -1,31 +1,31 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import type { ListItem } from "../types";
-import { TagEditSheet } from "./TagEditSheet";
+import { fireEvent, render, screen } from '@testing-library/react';
+import type { ListItem } from '../types';
+import { TagEditSheet } from './TagEditSheet';
 
 const BASE_ITEM: ListItem = {
-  id: "i1",
-  list_id: "l1",
-  name: "Leche entera",
-  quantity: "2",
-  brand: "Hacendado",
-  stores: ["Mercadona"],
+  id: 'i1',
+  list_id: 'l1',
+  name: 'Leche entera',
+  quantity: '2',
+  brand: 'Hacendado',
+  stores: ['Mercadona'],
   purchased: false,
   purchased_at: null,
   ean: null,
   price: null,
   price_per: null,
   price_store: null,
-  added_by: "u1",
-  created_at: "",
-  updated_at: "",
+  added_by: 'u1',
+  created_at: '',
+  updated_at: '',
 };
 
 const OTHER_ITEMS: ListItem[] = [
-  { ...BASE_ITEM, id: "i2", brand: "Danone" },
-  { ...BASE_ITEM, id: "i3", brand: "Pascual" },
+  { ...BASE_ITEM, id: 'i2', brand: 'Danone' },
+  { ...BASE_ITEM, id: 'i3', brand: 'Pascual' },
 ];
 
-test("pre-fills input with current field value", () => {
+test('pre-fills input with current field value', () => {
   render(
     <TagEditSheet
       item={BASE_ITEM}
@@ -35,10 +35,10 @@ test("pre-fills input with current field value", () => {
       onClose={() => {}}
     />,
   );
-  expect(screen.getByRole("textbox")).toHaveValue("Hacendado");
+  expect(screen.getByRole('textbox')).toHaveValue('Hacendado');
 });
 
-test("shows empty input when field value is null", () => {
+test('shows empty input when field value is null', () => {
   const item = { ...BASE_ITEM, brand: null };
   render(
     <TagEditSheet
@@ -49,10 +49,10 @@ test("shows empty input when field value is null", () => {
       onClose={() => {}}
     />,
   );
-  expect(screen.getByRole("textbox")).toHaveValue("");
+  expect(screen.getByRole('textbox')).toHaveValue('');
 });
 
-test("Save button calls onSave with trimmed value", () => {
+test('Save button calls onSave with trimmed value', () => {
   const onSave = vi.fn();
   render(
     <TagEditSheet
@@ -63,14 +63,14 @@ test("Save button calls onSave with trimmed value", () => {
       onClose={() => {}}
     />,
   );
-  fireEvent.change(screen.getByRole("textbox"), {
-    target: { value: "  Danone  " },
+  fireEvent.change(screen.getByRole('textbox'), {
+    target: { value: '  Danone  ' },
   });
-  fireEvent.click(screen.getByRole("button", { name: /guardar/i }));
-  expect(onSave).toHaveBeenCalledWith("Danone");
+  fireEvent.click(screen.getByRole('button', { name: /guardar/i }));
+  expect(onSave).toHaveBeenCalledWith('Danone');
 });
 
-test("clearing input and saving calls onSave(null)", () => {
+test('clearing input and saving calls onSave(null)', () => {
   const onSave = vi.fn();
   render(
     <TagEditSheet
@@ -81,12 +81,12 @@ test("clearing input and saving calls onSave(null)", () => {
       onClose={() => {}}
     />,
   );
-  fireEvent.change(screen.getByRole("textbox"), { target: { value: "" } });
-  fireEvent.click(screen.getByRole("button", { name: /guardar/i }));
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } });
+  fireEvent.click(screen.getByRole('button', { name: /guardar/i }));
   expect(onSave).toHaveBeenCalledWith(null);
 });
 
-test("Enter key triggers save", () => {
+test('Enter key triggers save', () => {
   const onSave = vi.fn();
   render(
     <TagEditSheet
@@ -97,11 +97,11 @@ test("Enter key triggers save", () => {
       onClose={() => {}}
     />,
   );
-  fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
-  expect(onSave).toHaveBeenCalledWith("Hacendado");
+  fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+  expect(onSave).toHaveBeenCalledWith('Hacendado');
 });
 
-test("ESC key calls onClose", () => {
+test('ESC key calls onClose', () => {
   const onClose = vi.fn();
   render(
     <TagEditSheet
@@ -112,11 +112,11 @@ test("ESC key calls onClose", () => {
       onClose={onClose}
     />,
   );
-  fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+  fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
   expect(onClose).toHaveBeenCalled();
 });
 
-test("Remove button calls onSave(null)", () => {
+test('Remove button calls onSave(null)', () => {
   const onSave = vi.fn();
   render(
     <TagEditSheet
@@ -127,11 +127,11 @@ test("Remove button calls onSave(null)", () => {
       onClose={() => {}}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: /eliminar/i }));
+  fireEvent.click(screen.getByRole('button', { name: /eliminar/i }));
   expect(onSave).toHaveBeenCalledWith(null);
 });
 
-test("Remove button is hidden when field value is null", () => {
+test('Remove button is hidden when field value is null', () => {
   const item = { ...BASE_ITEM, brand: null };
   render(
     <TagEditSheet
@@ -143,11 +143,11 @@ test("Remove button is hidden when field value is null", () => {
     />,
   );
   expect(
-    screen.queryByRole("button", { name: /eliminar/i }),
+    screen.queryByRole('button', { name: /eliminar/i }),
   ).not.toBeInTheDocument();
 });
 
-test("shows filtered suggestions for brand field", () => {
+test('shows filtered suggestions for brand field', () => {
   render(
     <TagEditSheet
       item={BASE_ITEM}
@@ -158,11 +158,11 @@ test("shows filtered suggestions for brand field", () => {
     />,
   );
   // typing 'D' should surface Danone
-  fireEvent.change(screen.getByRole("textbox"), { target: { value: "D" } });
-  expect(screen.getByText("Danone")).toBeInTheDocument();
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'D' } });
+  expect(screen.getByText('Danone')).toBeInTheDocument();
 });
 
-test("clicking a suggestion fills the input", () => {
+test('clicking a suggestion fills the input', () => {
   render(
     <TagEditSheet
       item={BASE_ITEM}
@@ -172,12 +172,12 @@ test("clicking a suggestion fills the input", () => {
       onClose={() => {}}
     />,
   );
-  fireEvent.change(screen.getByRole("textbox"), { target: { value: "D" } });
-  fireEvent.click(screen.getByText("Danone"));
-  expect(screen.getByRole("textbox")).toHaveValue("Danone");
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'D' } });
+  fireEvent.click(screen.getByText('Danone'));
+  expect(screen.getByRole('textbox')).toHaveValue('Danone');
 });
 
-test("ESC calls onClose even when input is not focused", () => {
+test('ESC calls onClose even when input is not focused', () => {
   const onClose = vi.fn();
   render(
     <TagEditSheet
@@ -188,12 +188,12 @@ test("ESC calls onClose even when input is not focused", () => {
       onClose={onClose}
     />,
   );
-  screen.getByRole("textbox").blur();
-  fireEvent.keyDown(document, { key: "Escape" });
+  screen.getByRole('textbox').blur();
+  fireEvent.keyDown(document, { key: 'Escape' });
   expect(onClose).toHaveBeenCalled();
 });
 
-test("tapping the overlay calls onClose", () => {
+test('tapping the overlay calls onClose', () => {
   const onClose = vi.fn();
   const { container } = render(
     <TagEditSheet
@@ -204,11 +204,11 @@ test("tapping the overlay calls onClose", () => {
       onClose={onClose}
     />,
   );
-  fireEvent.click(container.querySelector(".tag-edit-sheet__overlay")!);
+  fireEvent.click(container.querySelector('.tag-edit-sheet__overlay')!);
   expect(onClose).toHaveBeenCalled();
 });
 
-test("does not show suggestions for quantity field", () => {
+test('does not show suggestions for quantity field', () => {
   render(
     <TagEditSheet
       item={BASE_ITEM}
@@ -220,6 +220,6 @@ test("does not show suggestions for quantity field", () => {
   );
   // suggestions row should not appear even with matching items
   expect(
-    screen.queryByRole("button", { name: /Danone/i }),
+    screen.queryByRole('button', { name: /Danone/i }),
   ).not.toBeInTheDocument();
 });

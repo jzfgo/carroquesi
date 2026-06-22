@@ -1,4 +1,4 @@
-const KEY = "cqs_last_price_store";
+const KEY = 'cqs_last_price_store';
 const TTL_MS = 60 * 60 * 1000;
 
 interface Stored {

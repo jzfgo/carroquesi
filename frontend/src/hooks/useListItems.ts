@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ApiError,
   createItem,
@@ -10,15 +10,15 @@ import {
   logPrice,
   updateItem,
   updatePrice,
-} from "../lib/api";
-import { AVATAR_COLORS } from "../lib/avatarColors";
-import { isNetworkError } from "../lib/networkError";
-import { enqueue } from "../lib/offlineQueue";
-import type { ListItem, Member, ParsedInput, TagField } from "../types";
+} from '../lib/api';
+import { AVATAR_COLORS } from '../lib/avatarColors';
+import { isNetworkError } from '../lib/networkError';
+import { enqueue } from '../lib/offlineQueue';
+import type { ListItem, Member, ParsedInput, TagField } from '../types';
 
-const DUPLICATE_TOAST = "Ya está en la lista";
+const DUPLICATE_TOAST = 'Ya está en la lista';
 
-type Status = "loading" | "error" | "success";
+type Status = 'loading' | 'error' | 'success';
 
 interface BackendMember {
   id: string;
@@ -33,7 +33,7 @@ function toMember(m: BackendMember, index: number): Member {
   return {
     id: m.user_id,
     displayName: m.display_name,
-    initial: m.display_name ? m.display_name[0].toUpperCase() : "?",
+    initial: m.display_name ? m.display_name[0].toUpperCase() : '?',
     color: AVATAR_COLORS[index % AVATAR_COLORS.length],
     photoUrl: m.photo_url,
   };
@@ -68,7 +68,7 @@ export function useListItems(
   getToken: () => Promise<string>,
   showToast: (msg: string) => void,
 ) {
-  const [status, setStatus] = useState<Status>("loading");
+  const [status, setStatus] = useState<Status>('loading');
   const [items, setItems] = useState<ListItem[]>([]);
   const [members, setMembers] = useState<Map<string, Member>>(new Map());
   const lastUpdatedAt = useRef<string | null>(null);
@@ -84,9 +84,9 @@ export function useListItems(
       cached.members.forEach((m, i) => map.set(m.user_id, toMember(m, i)));
       setItems(cached.items);
       setMembers(map);
-      setStatus("success");
+      setStatus('success');
     } else {
-      setStatus("loading");
+      setStatus('loading');
     }
     try {
       const [rawItems, rawMembers, updatedAtData] = await Promise.all([
@@ -100,9 +100,9 @@ export function useListItems(
       setMembers(map);
       lastUpdatedAt.current = updatedAtData.updated_at;
       saveListCache(listId, { items: rawItems, members: rawMembers });
-      setStatus("success");
+      setStatus('success');
     } catch {
-      if (!cached) setStatus("error");
+      if (!cached) setStatus('error');
     }
   }, [listId, getToken]);
 
@@ -116,7 +116,7 @@ export function useListItems(
   // triggers an immediate catch-up poll when the tab becomes visible again.
   useEffect(() => {
     const poll = async () => {
-      if (document.visibilityState === "hidden") return;
+      if (document.visibilityState === 'hidden') return;
       try {
         const data = (await getListUpdatedAt(getToken, listId)) as {
           updated_at: string;
@@ -135,10 +135,10 @@ export function useListItems(
     };
 
     const id = setInterval(poll, 5000);
-    document.addEventListener("visibilitychange", poll);
+    document.addEventListener('visibilitychange', poll);
     return () => {
       clearInterval(id);
-      document.removeEventListener("visibilitychange", poll);
+      document.removeEventListener('visibilitychange', poll);
     };
   }, [listId, getToken]);
 
@@ -150,14 +150,14 @@ export function useListItems(
 
       // Prevent unpurchasing items purchased on a previous calendar day
       if (prevPurchased && targetItem?.purchased_at) {
-        const purchasedDate = new Date(targetItem.purchased_at + "Z");
+        const purchasedDate = new Date(targetItem.purchased_at + 'Z');
         const today = new Date();
         const sameDay =
           purchasedDate.getFullYear() === today.getFullYear() &&
           purchasedDate.getMonth() === today.getMonth() &&
           purchasedDate.getDate() === today.getDate();
         if (!sameDay) {
-          showToast("No se puede desmarcar un producto comprado en otro día");
+          showToast('No se puede desmarcar un producto comprado en otro día');
           return;
         }
       }
@@ -184,12 +184,12 @@ export function useListItems(
         if (isNetworkError(err)) {
           await enqueue({
             listId,
-            type: "updateItem",
+            type: 'updateItem',
             payload: { itemId, patch: { purchased: !prevPurchased } },
           });
         } else {
           setItems(snapshot);
-          showToast("No se pudo actualizar el producto");
+          showToast('No se pudo actualizar el producto');
         }
       }
     },
@@ -223,7 +223,7 @@ export function useListItems(
         price: null,
         price_per: null,
         price_store: null,
-        added_by: "",
+        added_by: '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -252,7 +252,7 @@ export function useListItems(
         if (isNetworkError(err)) {
           await enqueue({
             listId,
-            type: "addItem",
+            type: 'addItem',
             tempId,
             payload: {
               name: parsed.name,
@@ -270,7 +270,7 @@ export function useListItems(
           if (err instanceof ApiError && err.status === 409) {
             showToast(DUPLICATE_TOAST);
           } else {
-            showToast("No se pudo añadir el producto");
+            showToast('No se pudo añadir el producto');
           }
         }
       }
@@ -290,12 +290,12 @@ export function useListItems(
         if (isNetworkError(err)) {
           await enqueue({
             listId,
-            type: "updateItem",
+            type: 'updateItem',
             payload: { itemId, patch: { [field]: value } },
           });
         } else {
           setItems(snapshot);
-          showToast("No se pudo actualizar el producto");
+          showToast('No se pudo actualizar el producto');
         }
       }
     },
@@ -312,12 +312,12 @@ export function useListItems(
         if (isNetworkError(err)) {
           await enqueue({
             listId,
-            type: "updateItem",
+            type: 'updateItem',
             payload: { itemId, patch: { stores } },
           });
         } else {
           setItems(snapshot);
-          showToast("No se pudo actualizar el producto");
+          showToast('No se pudo actualizar el producto');
         }
       }
     },
@@ -334,12 +334,12 @@ export function useListItems(
         if (isNetworkError(err)) {
           await enqueue({
             listId,
-            type: "updateItem",
+            type: 'updateItem',
             payload: { itemId, patch: { name } },
           });
         } else {
           setItems(snapshot);
-          showToast("No se pudo renombrar el producto");
+          showToast('No se pudo renombrar el producto');
         }
       }
     },
@@ -354,10 +354,10 @@ export function useListItems(
         await deleteItem(getToken, listId, itemId);
       } catch (err) {
         if (isNetworkError(err)) {
-          await enqueue({ listId, type: "deleteItem", payload: { itemId } });
+          await enqueue({ listId, type: 'deleteItem', payload: { itemId } });
         } else {
           setItems(snapshot);
-          showToast("No se pudo eliminar el producto");
+          showToast('No se pudo eliminar el producto');
         }
       }
     },
@@ -368,7 +368,7 @@ export function useListItems(
     async (
       itemId: string,
       amount: number,
-      pricePer: "KILOGRAM" | null,
+      pricePer: 'KILOGRAM' | null,
       store: string | null,
       purchasedQuantity?: string | null,
     ) => {

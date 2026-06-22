@@ -1,4 +1,4 @@
-import "@testing-library/jest-dom";
+import '@testing-library/jest-dom';
 
 // Node.js 25+ ships a stub Web Storage global that lacks the standard methods.
 // jsdom provides a proper implementation on `window`; re-assert it here so
@@ -23,7 +23,7 @@ const inMemoryStorage = (() => {
   };
 })();
 
-Object.defineProperty(globalThis, "localStorage", {
+Object.defineProperty(globalThis, 'localStorage', {
   value: inMemoryStorage,
   writable: true,
   configurable: true,

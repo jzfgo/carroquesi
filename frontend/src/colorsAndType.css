@@ -11,7 +11,7 @@
      JetBrains Mono  — prices, totals, EAN codes, monospaced data
    ───────────────────────────────────────────────────────────── */
 
-@import "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Bree+Serif&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap";
+@import 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Bree+Serif&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap';
 
 /* ── 1. CORE PALETTE — light (default) ────────────────────── */
 :root {
@@ -99,11 +99,11 @@
   --warn-border: var(--miel-border);
 
   /* ── 3. TYPOGRAPHY ──────────────────────────────────────── */
-  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Bree Serif", ui-serif, Georgia, serif;
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Bree Serif', ui-serif, Georgia, serif;
   --font-serif: var(--font-display); /* legacy alias */
-  --font-hand: "Caveat", "Bradley Hand", cursive;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --font-hand: 'Caveat', 'Bradley Hand', cursive;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
   --fs-12: 12px;
   --fs-13: 13px;
   --fs-14: 14px;
@@ -399,7 +399,7 @@
 .t-price {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
+  font-feature-settings: 'tnum';
   font-size: var(--fs-14);
   font-weight: 500;
   color: var(--fg);

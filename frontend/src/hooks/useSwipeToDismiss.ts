@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef } from 'react';
 
 /**
  * Attaches swipe-down-to-dismiss touch handling to a sheet element.
@@ -15,7 +15,7 @@ export function useSwipeToDismiss(
   const handleTouchStart = (e: React.TouchEvent) => {
     startY.current = e.touches[0].clientY;
     if (sheetRef.current) {
-      sheetRef.current.style.transition = "none";
+      sheetRef.current.style.transition = 'none';
     }
   };
 
@@ -30,11 +30,11 @@ export function useSwipeToDismiss(
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (startY.current === null || !sheetRef.current) return;
     const dy = e.changedTouches[0].clientY - startY.current;
-    sheetRef.current.style.transition = "";
+    sheetRef.current.style.transition = '';
     if (dy > threshold) {
       onClose();
     } else {
-      sheetRef.current.style.transform = "";
+      sheetRef.current.style.transform = '';
     }
     startY.current = null;
   };

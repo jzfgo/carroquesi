@@ -1,9 +1,9 @@
-import { Store } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
-import { clientSideSuggestions } from "../lib/suggestions";
-import type { ListItem } from "../types";
-import "./StoreEditSheet.css";
+import { Store } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
+import { clientSideSuggestions } from '../lib/suggestions';
+import type { ListItem } from '../types';
+import './StoreEditSheet.css';
 
 interface Props {
   item: ListItem;
@@ -13,12 +13,12 @@ interface Props {
 }
 
 export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState('');
   const currentStores = item.stores;
   const sheetRef = useRef<HTMLDivElement>(null);
   const swipe = useSwipeToDismiss(sheetRef, onClose);
 
-  const suggestions = clientSideSuggestions(items, "stores", input).filter(
+  const suggestions = clientSideSuggestions(items, 'stores', input).filter(
     (s) => !currentStores.includes(s),
   );
 
@@ -33,7 +33,7 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       e.preventDefault();
       addStore(input);
     }
@@ -41,10 +41,10 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
 
   useEffect(() => {
     function onDocKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === 'Escape') onClose();
     }
-    document.addEventListener("keydown", onDocKeyDown);
-    return () => document.removeEventListener("keydown", onDocKeyDown);
+    document.addEventListener('keydown', onDocKeyDown);
+    return () => document.removeEventListener('keydown', onDocKeyDown);
   }, [onClose]);
 
   return (

@@ -1,12 +1,12 @@
-import "./ProgressBar.css";
+import './ProgressBar.css';
 
 interface Props {
   purchased: number;
   total: number;
-  variant?: "primary" | "success";
+  variant?: 'primary' | 'success';
 }
 
-export function ProgressBar({ purchased, total, variant = "primary" }: Props) {
+export function ProgressBar({ purchased, total, variant = 'primary' }: Props) {
   if (total === 0) return null;
   const pct = Math.round((purchased / total) * 100);
   return (

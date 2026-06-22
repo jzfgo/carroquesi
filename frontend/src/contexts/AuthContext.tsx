@@ -5,7 +5,7 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   type User as FirebaseUser,
-} from "firebase/auth";
+} from 'firebase/auth';
 import {
   createContext,
   useContext,
@@ -13,9 +13,9 @@ import {
   useRef,
   useState,
   type ReactNode,
-} from "react";
-import { ApiError, syncUser } from "../lib/api";
-import { auth } from "../lib/firebase";
+} from 'react';
+import { ApiError, syncUser } from '../lib/api';
+import { auth } from '../lib/firebase';
 
 export interface AuthUser {
   id: string;
@@ -39,7 +39,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
 
@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (DEV_USER_ID) {
       // Dev bypass: skip Firebase, resolve user via backend using the seed firebase_uid
-      const getToken = async () => "dev-bypass";
+      const getToken = async () => 'dev-bypass';
       syncUser(getToken)
         .then((data) => {
           const d = data as {
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (err instanceof ApiError && err.status === 403) {
             try {
               const body = JSON.parse(err.message);
-              if (body.detail === "waitlist") {
+              if (body.detail === 'waitlist') {
                 setUser(null);
                 setIsWaitlisted(true);
                 setLoading(false);
@@ -134,8 +134,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getToken = async (): Promise<string> => {
-    if (DEV_USER_ID) return "dev-bypass";
-    if (!firebaseUserRef.current) throw new Error("Not authenticated");
+    if (DEV_USER_ID) return 'dev-bypass';
+    if (!firebaseUserRef.current) throw new Error('Not authenticated');
     return getIdToken(firebaseUserRef.current, false);
   };
 

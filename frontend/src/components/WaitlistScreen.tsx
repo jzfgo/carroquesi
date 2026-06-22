@@ -1,10 +1,10 @@
-import React, { useState } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { usePageTitle } from "../hooks/usePageTitle";
-import { submitWaitlistSignup } from "../lib/api";
-import { auth } from "../lib/firebase";
-import "./WaitlistScreen.css";
-import { Wordmark } from "./Wordmark";
+import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { usePageTitle } from '../hooks/usePageTitle';
+import { submitWaitlistSignup } from '../lib/api';
+import { auth } from '../lib/firebase';
+import './WaitlistScreen.css';
+import { Wordmark } from './Wordmark';
 
 interface WaitlistScreenProps {
   inviteToken?: string;
@@ -17,13 +17,13 @@ export function WaitlistScreen({
   inviterName,
   listName,
 }: WaitlistScreenProps = {}) {
-  usePageTitle("Acceso anticipado");
+  usePageTitle('Acceso anticipado');
   const { signIn, signOut, isWaitlisted } = useAuth();
-  const [email, setEmail] = useState(() => auth.currentUser?.email ?? "");
-  const [submittedEmail, setSubmittedEmail] = useState("");
+  const [email, setEmail] = useState(() => auth.currentUser?.email ?? '');
+  const [submittedEmail, setSubmittedEmail] = useState('');
   const [isAlreadyAllowed, setIsAlreadyAllowed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,11 +33,11 @@ export function WaitlistScreen({
     // Simple client side validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(cleanEmail)) {
-      setErrorMsg("Introduce un correo válido.");
+      setErrorMsg('Introduce un correo válido.');
       return;
     }
 
-    setErrorMsg("");
+    setErrorMsg('');
     setIsSubmitting(true);
 
     try {
@@ -48,7 +48,7 @@ export function WaitlistScreen({
         setSubmittedEmail(cleanEmail);
       }
     } catch {
-      setErrorMsg("Algo fue mal, inténtalo de nuevo.");
+      setErrorMsg('Algo fue mal, inténtalo de nuevo.');
     } finally {
       setIsSubmitting(false);
     }
@@ -59,7 +59,7 @@ export function WaitlistScreen({
     errorMsg ||
     (isWaitlisted && googleEmail
       ? `La cuenta ${googleEmail} no está registrada en el acceso anticipado. Introduce tu correo arriba para apuntarte.`
-      : "");
+      : '');
 
   if (isAlreadyAllowed) {
     return (
@@ -77,7 +77,7 @@ export function WaitlistScreen({
         <button
           className="waitlist__google-cta"
           onClick={() => void signIn()}
-          style={{ marginTop: "2rem" }}
+          style={{ marginTop: '2rem' }}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -109,7 +109,7 @@ export function WaitlistScreen({
         <button
           className="waitlist__cancel"
           onClick={() => setIsAlreadyAllowed(false)}
-          style={{ marginTop: "1rem" }}
+          style={{ marginTop: '1rem' }}
         >
           Volver
         </button>
@@ -141,7 +141,7 @@ export function WaitlistScreen({
         <button
           className="waitlist__cancel"
           onClick={() => void signOut()}
-          style={{ marginTop: "2rem" }}
+          style={{ marginTop: '2rem' }}
         >
           Salir
         </button>
@@ -165,11 +165,11 @@ export function WaitlistScreen({
               <strong>{inviterName}</strong> te ha invitado a unirse
               {listName ? (
                 <>
-                  {" "}
+                  {' '}
                   a <strong>{listName}</strong>
                 </>
               ) : (
-                ""
+                ''
               )}
               . Apúntate y te damos acceso en cuanto podamos.
             </>
@@ -203,7 +203,7 @@ export function WaitlistScreen({
           type="submit"
           disabled={isSubmitting || !email.trim()}
         >
-          {isSubmitting ? "Apuntando..." : "Apuntarme a la lista"}
+          {isSubmitting ? 'Apuntando...' : 'Apuntarme a la lista'}
         </button>
       </form>
 

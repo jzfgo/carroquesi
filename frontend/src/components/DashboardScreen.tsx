@@ -1,4 +1,4 @@
-import type { DragEndEvent } from "@dnd-kit/core";
+import type { DragEndEvent } from '@dnd-kit/core';
 import {
   DndContext,
   PointerSensor,
@@ -6,37 +6,37 @@ import {
   closestCenter,
   useSensor,
   useSensors,
-} from "@dnd-kit/core";
+} from '@dnd-kit/core';
 import {
   SortableContext,
   arrayMove,
   verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { useFeatureFlags } from "../contexts/FeatureFlagsContext";
-import { usePageTitle } from "../hooks/usePageTitle";
-import { usePWAInstall } from "../hooks/usePWAInstall";
-import type { FeedbackPayload } from "../lib/api";
+} from '@dnd-kit/sortable';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
+import { usePageTitle } from '../hooks/usePageTitle';
+import { usePWAInstall } from '../hooks/usePWAInstall';
+import type { FeedbackPayload } from '../lib/api';
 import {
   createList,
   deleteList,
   getLists,
   submitFeedback,
   updateList,
-} from "../lib/api";
-import { CURATED_EMOJIS } from "../lib/curatedEmojis";
-import { FLAGS } from "../lib/featureFlags";
-import type { ApiList } from "../types";
-import { CreateListCard } from "./CreateListCard";
-import "./DashboardScreen.css";
-import { EmojiPickerSheet } from "./EmojiPickerSheet";
-import { FeedbackSheet } from "./FeedbackSheet";
-import { InstallBanner } from "./InstallBanner";
-import { ListActionSheet } from "./ListActionSheet";
-import { SortableListCard } from "./SortableListCard";
-import { Wordmark } from "./Wordmark";
+} from '../lib/api';
+import { CURATED_EMOJIS } from '../lib/curatedEmojis';
+import { FLAGS } from '../lib/featureFlags';
+import type { ApiList } from '../types';
+import { CreateListCard } from './CreateListCard';
+import './DashboardScreen.css';
+import { EmojiPickerSheet } from './EmojiPickerSheet';
+import { FeedbackSheet } from './FeedbackSheet';
+import { InstallBanner } from './InstallBanner';
+import { ListActionSheet } from './ListActionSheet';
+import { SortableListCard } from './SortableListCard';
+import { Wordmark } from './Wordmark';
 
 function loadOrder(userId: string): string[] | null {
   try {
@@ -109,11 +109,11 @@ export function DashboardScreen() {
   useEffect(() => {
     const onOnline = () => setIsOffline(false);
     const onOffline = () => setIsOffline(true);
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
     return () => {
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
     };
   }, []);
 
@@ -125,13 +125,13 @@ export function DashboardScreen() {
       }
     };
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === 'Escape') setMenuOpen(false);
     };
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleKey);
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
     return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
     };
   }, [menuOpen]);
 
@@ -160,16 +160,16 @@ export function DashboardScreen() {
   const handleFeedbackSubmit = useCallback(
     async (payload: FeedbackPayload) => {
       if (!navigator.onLine) {
-        setToast("No se pudo enviar el feedback");
+        setToast('No se pudo enviar el feedback');
         return;
       }
       setFeedbackSubmitting(true);
       try {
         await submitFeedback(getToken, payload);
         setFeedbackOpen(false);
-        setToast("Feedback enviado");
+        setToast('Feedback enviado');
       } catch {
-        setToast("No se pudo enviar el feedback");
+        setToast('No se pudo enviar el feedback');
       } finally {
         setFeedbackSubmitting(false);
       }
@@ -211,7 +211,7 @@ export function DashboardScreen() {
   const handleCreate = useCallback(
     async (name: string) => {
       if (!navigator.onLine) {
-        setToast("No disponible sin conexión");
+        setToast('No disponible sin conexión');
         return;
       }
       await createList(getToken, { name, emoji: randomEmoji() });
@@ -223,7 +223,7 @@ export function DashboardScreen() {
   const handleRename = useCallback(
     async (list: ApiList, newName: string) => {
       if (!navigator.onLine) {
-        setToast("No disponible sin conexión");
+        setToast('No disponible sin conexión');
         return;
       }
       let snapshot: ApiList[] | null = null;
@@ -238,7 +238,7 @@ export function DashboardScreen() {
         await updateList(getToken, list.id, { name: newName });
       } catch {
         setLists(snapshot);
-        setToast("No se pudo renombrar la lista");
+        setToast('No se pudo renombrar la lista');
       }
     },
     [getToken],
@@ -258,7 +258,7 @@ export function DashboardScreen() {
         await updateList(getToken, list.id, { emoji });
       } catch {
         setLists(snapshot);
-        setToast("No se pudo cambiar el emoji");
+        setToast('No se pudo cambiar el emoji');
       }
     },
     [getToken],
@@ -267,7 +267,7 @@ export function DashboardScreen() {
   const handleDelete = useCallback(
     async (list: ApiList) => {
       if (!navigator.onLine) {
-        setToast("No disponible sin conexión");
+        setToast('No disponible sin conexión');
         return;
       }
       setActiveList(null);
@@ -277,7 +277,7 @@ export function DashboardScreen() {
           prev ? prev.filter((l) => l.id !== list.id) : prev,
         );
       } catch {
-        setToast("No se pudo eliminar la lista");
+        setToast('No se pudo eliminar la lista');
       }
     },
     [getToken],
@@ -286,7 +286,7 @@ export function DashboardScreen() {
   if (fetchError) {
     return (
       <div className="dashboard-screen dashboard-screen--centered">
-        <p style={{ margin: 0, color: "var(--color-text-secondary)" }}>
+        <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>
           No se pudieron cargar tus listas
         </p>
         <button
@@ -330,7 +330,7 @@ export function DashboardScreen() {
             {user?.photoUrl ? (
               <img src={user.photoUrl} alt={user.displayName} />
             ) : (
-              <span>{user?.displayName?.[0] ?? "?"}</span>
+              <span>{user?.displayName?.[0] ?? '?'}</span>
             )}
           </button>
           {menuOpen && (
@@ -396,7 +396,7 @@ export function DashboardScreen() {
               <SortableListCard
                 key={list.id}
                 list={list}
-                isOwner={list.owner_id === (user?.id ?? "")}
+                isOwner={list.owner_id === (user?.id ?? '')}
                 onClick={() => {
                   navigate(`/lists/${list.id}`);
                   setActiveList(null);
@@ -416,7 +416,7 @@ export function DashboardScreen() {
       {activeList && (
         <ListActionSheet
           list={activeList}
-          isOwner={activeList.owner_id === (user?.id ?? "")}
+          isOwner={activeList.owner_id === (user?.id ?? '')}
           onRename={(newName) => void handleRename(activeList, newName)}
           onDelete={() => void handleDelete(activeList)}
           onReceiptScan={

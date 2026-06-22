@@ -1,20 +1,20 @@
-import { useState, type ReactNode } from "react";
-import { formatPrice } from "../lib/formatPrice";
-import type { CostSummary } from "../lib/itemCost";
-import { purchasedDateLabel } from "../lib/itemCost";
-import type { ListItem, Member, TagField } from "../types";
-import { ItemCard } from "./ItemCard";
-import "./ItemList.css";
-import { Mascot } from "./Mascot";
+import { useState, type ReactNode } from 'react';
+import { formatPrice } from '../lib/formatPrice';
+import type { CostSummary } from '../lib/itemCost';
+import { purchasedDateLabel } from '../lib/itemCost';
+import type { ListItem, Member, TagField } from '../types';
+import { ItemCard } from './ItemCard';
+import './ItemList.css';
+import { Mascot } from './Mascot';
 
-type Status = "loading" | "error" | "success";
+type Status = 'loading' | 'error' | 'success';
 
 interface Props {
   status: Status;
   items: ListItem[];
   members: Map<string, Member>;
   onTogglePurchased: (itemId: string) => void;
-  onTagClick: (itemId: string, field: TagField | "stores") => void;
+  onTagClick: (itemId: string, field: TagField | 'stores') => void;
   onMenuOpen: (itemId: string) => void;
   onRetry: () => void;
   onPriceClick: (itemId: string) => void;
@@ -34,7 +34,7 @@ function CostBadge({
 }) {
   return (
     <span className={className}>
-      {cost.partial ? "≥\u202f" : ""}
+      {cost.partial ? '≥\u202f' : ''}
       {formatPrice(cost.total)}
     </span>
   );
@@ -57,7 +57,7 @@ export function ItemList({
 }: Props) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false);
 
-  if (status === "loading") {
+  if (status === 'loading') {
     return (
       <div className="item-list">
         {[0, 1, 2].map((i) => (
@@ -67,7 +67,7 @@ export function ItemList({
     );
   }
 
-  if (status === "error") {
+  if (status === 'error') {
     return (
       <div className="item-list item-list--centered">
         <p>No se pudieron cargar los productos</p>
@@ -98,16 +98,16 @@ export function ItemList({
 
   if (active.length === 0 && purchased.length === 0) {
     return (
-      <div className="item-list item-list--centered" style={{ gap: "0.75rem" }}>
+      <div className="item-list item-list--centered" style={{ gap: '0.75rem' }}>
         <Mascot size={120} />
-        <p style={{ margin: 0, fontWeight: 600, color: "var(--color-text)" }}>
+        <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}>
           Sin productos todavía
         </p>
         <p
           style={{
             margin: 0,
-            color: "var(--color-text-secondary)",
-            fontSize: "0.9rem",
+            color: 'var(--color-text-secondary)',
+            fontSize: '0.9rem',
           }}
         >
           Añade el primero desde abajo
@@ -134,7 +134,7 @@ export function ItemList({
         <span className="item-list__label-text">
           {totalItems !== undefined && totalItems !== active.length
             ? `${active.length} de ${totalItems} productos por comprar`
-            : `${active.length} ${active.length === 1 ? "producto" : "productos"} por comprar`}
+            : `${active.length} ${active.length === 1 ? 'producto' : 'productos'} por comprar`}
         </span>
         {pendingCost && (
           <CostBadge cost={pendingCost} className="item-list__label-cost" />
@@ -163,7 +163,7 @@ export function ItemList({
           >
             Comprados ({purchased.length})
             <span
-              className={`item-list__chevron${purchasedCollapsed ? " item-list__chevron--collapsed" : ""}`}
+              className={`item-list__chevron${purchasedCollapsed ? ' item-list__chevron--collapsed' : ''}`}
               aria-hidden
             />
           </button>

@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
 export interface UsePWAInstallResult {
@@ -17,12 +17,12 @@ export function usePWAInstall(): UsePWAInstallResult {
     useState<BeforeInstallPromptEvent | null>(null);
   const promptingRef = useRef(false);
   const [isInstalled, setIsInstalled] = useState(
-    () => window.matchMedia("(display-mode: standalone)").matches,
+    () => window.matchMedia('(display-mode: standalone)').matches,
   );
 
   const isIOS =
     /iphone|ipad|ipod/i.test(navigator.userAgent) &&
-    "standalone" in navigator &&
+    'standalone' in navigator &&
     !(navigator as Navigator & { standalone?: boolean }).standalone;
 
   useEffect(() => {
@@ -30,14 +30,14 @@ export function usePWAInstall(): UsePWAInstallResult {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
   useEffect(() => {
     const handler = () => setIsInstalled(true);
-    window.addEventListener("appinstalled", handler);
-    return () => window.removeEventListener("appinstalled", handler);
+    window.addEventListener('appinstalled', handler);
+    return () => window.removeEventListener('appinstalled', handler);
   }, []);
 
   const promptInstall = useCallback(async () => {
@@ -48,7 +48,7 @@ export function usePWAInstall(): UsePWAInstallResult {
     try {
       await prompt.prompt();
       const { outcome } = await prompt.userChoice;
-      if (outcome === "accepted") setIsInstalled(true);
+      if (outcome === 'accepted') setIsInstalled(true);
     } finally {
       promptingRef.current = false;
     }

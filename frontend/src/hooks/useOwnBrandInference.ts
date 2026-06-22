@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { lookupOwnBrandStore } from "../lib/ownBrands";
+import { useEffect, useState } from 'react';
+import { lookupOwnBrandStore } from '../lib/ownBrands';
 
 interface OwnBrandInference {
   visibleChip: string | null;
