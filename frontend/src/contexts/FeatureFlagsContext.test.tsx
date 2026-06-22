@@ -1,8 +1,8 @@
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FeatureFlagsProvider, useFeatureFlags } from './FeatureFlagsContext'
-import * as AuthContext from './AuthContext'
 import * as api from '../lib/api'
+import * as AuthContext from './AuthContext'
+import { FeatureFlagsProvider, useFeatureFlags } from './FeatureFlagsContext'
 
 vi.mock('./AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../lib/api')
@@ -86,7 +86,9 @@ describe('FeatureFlagsContext', () => {
   })
 
   it('polls GET /users/me every 60 s and updates flags', async () => {
-    vi.mocked(api.getMe).mockResolvedValue({ features: ['ai_receipt_scanning'] } as never)
+    vi.mocked(api.getMe).mockResolvedValue({
+      features: ['ai_receipt_scanning'],
+    } as never)
 
     render(
       <FeatureFlagsProvider>
@@ -104,7 +106,9 @@ describe('FeatureFlagsContext', () => {
   })
 
   it('stops polling after sign-out (user becomes null)', async () => {
-    vi.mocked(api.getMe).mockResolvedValue({ features: ['ai_receipt_scanning'] } as never)
+    vi.mocked(api.getMe).mockResolvedValue({
+      features: ['ai_receipt_scanning'],
+    } as never)
 
     const { rerender } = render(
       <FeatureFlagsProvider>

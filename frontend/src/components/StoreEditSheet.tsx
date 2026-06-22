@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
 import { Store } from 'lucide-react'
-import './StoreEditSheet.css'
-import type { ListItem } from '../types'
-import { clientSideSuggestions } from '../lib/suggestions'
+import { useEffect, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { clientSideSuggestions } from '../lib/suggestions'
+import type { ListItem } from '../types'
+import './StoreEditSheet.css'
 
 interface Props {
   item: ListItem
@@ -19,7 +19,7 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
   const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   const suggestions = clientSideSuggestions(items, 'stores', input).filter(
-    s => !currentStores.includes(s),
+    (s) => !currentStores.includes(s),
   )
 
   function addStore(name: string) {
@@ -29,7 +29,7 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
   }
 
   function removeStore(name: string) {
-    onSave(currentStores.filter(s => s !== name))
+    onSave(currentStores.filter((s) => s !== name))
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -53,13 +53,15 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
       <div className="store-edit-sheet" ref={sheetRef}>
         <div className="store-edit-sheet__handle" {...swipe} />
         <div className="store-edit-sheet__header">
-          <span><Store size={15} /> Tiendas</span>
+          <span>
+            <Store size={15} /> Tiendas
+          </span>
           <span className="store-edit-sheet__item-name"> · {item.name}</span>
         </div>
 
         {currentStores.length > 0 && (
           <div className="store-edit-sheet__chips">
-            {currentStores.map(store => (
+            {currentStores.map((store) => (
               <span key={store} className="store-edit-sheet__chip">
                 {store}
                 <button
@@ -79,7 +81,7 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
             className="store-edit-sheet__input"
             type="text"
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Añadir tienda…"
             autoFocus
@@ -96,7 +98,7 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
 
         {suggestions.length > 0 && (
           <div className="store-edit-sheet__suggestions">
-            {suggestions.map(s => (
+            {suggestions.map((s) => (
               <button
                 key={s}
                 className="store-edit-sheet__suggestion"

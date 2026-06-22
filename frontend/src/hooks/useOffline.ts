@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createItem, deleteItem, updateItem } from '../lib/api'
-import type { ListItem } from '../types'
 import { isNetworkError } from '../lib/networkError'
 import { getAll, remove } from '../lib/offlineQueue'
+import type { ListItem } from '../types'
 
 interface Params {
   listId: string
@@ -17,8 +17,12 @@ export function useOffline({ listId, getToken, onDrained, showToast }: Params) {
 
   const onDrainedRef = useRef(onDrained)
   const showToastRef = useRef(showToast)
-  useEffect(() => { onDrainedRef.current = onDrained }, [onDrained])
-  useEffect(() => { showToastRef.current = showToast }, [showToast])
+  useEffect(() => {
+    onDrainedRef.current = onDrained
+  }, [onDrained])
+  useEffect(() => {
+    showToastRef.current = showToast
+  }, [showToast])
 
   const refreshCount = useCallback(async () => {
     const ops = await getAll()
@@ -48,7 +52,10 @@ export function useOffline({ listId, getToken, onDrained, showToast }: Params) {
           const created = (await createItem(getToken, op.listId, p)) as ListItem
           if (op.tempId) tempIdMap.set(op.tempId, created.id)
         } else if (op.type === 'updateItem') {
-          let p = op.payload as { itemId: string; patch: Parameters<typeof updateItem>[3] }
+          let p = op.payload as {
+            itemId: string
+            patch: Parameters<typeof updateItem>[3]
+          }
           const realId = tempIdMap.get(p.itemId)
           if (realId) p = { ...p, itemId: realId }
           await updateItem(getToken, op.listId, p.itemId, p.patch)

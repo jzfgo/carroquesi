@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
-import { CameraOff, X } from 'lucide-react'
-import './BarcodeScanner.css'
 import { BarcodeDetectorPolyfill } from '@undecaf/barcode-detector-polyfill'
-import { getBarcode, ApiError } from '../lib/api'
+import { CameraOff, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ApiError, getBarcode } from '../lib/api'
 import type { BarcodeRead } from '../types'
+import './BarcodeScanner.css'
 
 type DetectorConstructor = typeof BarcodeDetectorPolyfill
 
@@ -14,23 +14,32 @@ interface Props {
   onClose: () => void
 }
 
-export function BarcodeScanner({ getToken, onResult, onError, onClose }: Props) {
+export function BarcodeScanner({
+  getToken,
+  onResult,
+  onError,
+  onClose,
+}: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const scanningRef = useRef(true)
   const [cameraError, setCameraError] = useState(false)
 
   function stopStream() {
-    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current?.getTracks().forEach((t) => t.stop())
     streamRef.current = null
   }
 
   useEffect(() => {
-    scanningRef.current = true  // reset in case Strict Mode ran cleanup before remounting
+    scanningRef.current = true // reset in case Strict Mode ran cleanup before remounting
     // Resolve at runtime so test stubs applied in beforeEach take effect
-    const g = globalThis as unknown as { BarcodeDetector?: DetectorConstructor }
+    const g = globalThis as unknown as {
+      BarcodeDetector?: DetectorConstructor
+    }
     const DetectorClass: DetectorConstructor =
-      typeof g.BarcodeDetector !== 'undefined' ? g.BarcodeDetector! : BarcodeDetectorPolyfill
+      typeof g.BarcodeDetector !== 'undefined'
+        ? g.BarcodeDetector!
+        : BarcodeDetectorPolyfill
     const detector = new DetectorClass({ formats: ['ean_8', 'ean_13'] })
 
     async function scan() {
@@ -62,11 +71,15 @@ export function BarcodeScanner({ getToken, onResult, onError, onClose }: Props) 
 
     navigator.mediaDevices
       .getUserMedia({ video: { facingMode: 'environment' } })
-      .then(stream => {
+      .then((stream) => {
         streamRef.current = stream
         if (videoRef.current) {
           videoRef.current.srcObject = stream
-          try { videoRef.current.play()?.catch(() => {}) } catch { /* not supported */ }
+          try {
+            videoRef.current.play()?.catch(() => {})
+          } catch {
+            /* not supported */
+          }
           requestAnimationFrame(scan)
         }
       })
@@ -83,14 +96,25 @@ export function BarcodeScanner({ getToken, onResult, onError, onClose }: Props) 
       <div className="barcode-scanner barcode-scanner--error">
         <CameraOff size={32} />
         <p>No se pudo acceder a la cámara.</p>
-        <button className="barcode-scanner__error-btn" onClick={onClose} aria-label="Cerrar escáner">Cerrar</button>
+        <button
+          className="barcode-scanner__error-btn"
+          onClick={onClose}
+          aria-label="Cerrar escáner"
+        >
+          Cerrar
+        </button>
       </div>
     )
   }
 
   return (
     <div className="barcode-scanner">
-      <video ref={videoRef} className="barcode-scanner__video" playsInline muted />
+      <video
+        ref={videoRef}
+        className="barcode-scanner__video"
+        playsInline
+        muted
+      />
       <div className="barcode-scanner__overlay">
         <div className="barcode-scanner__frame" />
         <p className="barcode-scanner__hint">Apunta al código de barras</p>
@@ -98,7 +122,11 @@ export function BarcodeScanner({ getToken, onResult, onError, onClose }: Props) 
       <button
         className="barcode-scanner__close"
         aria-label="Cerrar escáner"
-        onClick={() => { scanningRef.current = false; stopStream(); onClose() }}
+        onClick={() => {
+          scanningRef.current = false
+          stopStream()
+          onClose()
+        }}
       >
         <X size={20} />
       </button>

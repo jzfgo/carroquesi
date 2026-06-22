@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import type { FeedbackPayload } from '../lib/api'
 import './FeedbackSheet.css'
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 
 interface Props {
   defaultEmail: string | null | undefined
@@ -10,7 +10,12 @@ interface Props {
   onClose: () => void
 }
 
-export function FeedbackSheet({ defaultEmail, isSubmitting, onSubmit, onClose }: Props) {
+export function FeedbackSheet({
+  defaultEmail,
+  isSubmitting,
+  onSubmit,
+  onClose,
+}: Props) {
   const [message, setMessage] = useState('')
   const [email, setEmail] = useState(defaultEmail ?? '')
   const trimmedMessage = useMemo(() => message.trim(), [message])
@@ -69,10 +74,18 @@ export function FeedbackSheet({ defaultEmail, isSubmitting, onSubmit, onClose }:
           />
         </label>
         <div className="feedback-sheet__actions">
-          <button type="button" className="feedback-sheet__secondary" onClick={onClose}>
+          <button
+            type="button"
+            className="feedback-sheet__secondary"
+            onClick={onClose}
+          >
             Cancelar
           </button>
-          <button type="submit" className="feedback-sheet__primary" disabled={!canSubmit}>
+          <button
+            type="submit"
+            className="feedback-sheet__primary"
+            disabled={!canSubmit}
+          >
             {isSubmitting ? 'Enviando...' : 'Enviar'}
           </button>
         </div>

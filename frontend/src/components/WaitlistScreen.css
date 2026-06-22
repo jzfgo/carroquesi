@@ -84,13 +84,13 @@
   transition: background 0.2s;
 }
 
-.waitlist__cta:hover:not(:disabled) {
-  background: var(--tinta-1);
-}
-
 .waitlist__cta:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.waitlist__cta:hover:not(:disabled) {
+  background: var(--tinta-1);
 }
 
 .waitlist__error {
@@ -110,7 +110,7 @@
 
 .waitlist__divider::before,
 .waitlist__divider::after {
-  content: "";
+  content: '';
   flex: 1;
   border-bottom: 1px solid var(--paper-edge);
 }

@@ -7,20 +7,6 @@
   gap: 12px;
 }
 
-.item-card--purchased .item-card__name {
-  text-decoration: line-through;
-  color: var(--purchased);
-}
-
-.item-card--purchased .item-card__qty {
-  background: var(--paper-1);
-  color: var(--purchased);
-}
-
-.item-card--purchased .item-card__tag {
-  opacity: 0.45;
-}
-
 .item-card__checkbox {
   width: 24px;
   height: 24px;
@@ -34,12 +20,12 @@
   position: relative;
 }
 
-.item-card__checkbox[aria-checked="true"] {
+.item-card__checkbox[aria-checked='true'] {
   background: var(--accent);
   border-color: var(--accent);
 }
 
-.item-card__checkbox[aria-checked="true"]::after {
+.item-card__checkbox[aria-checked='true']::after {
   content: '';
   position: absolute;
   top: 50%;
@@ -113,6 +99,20 @@
   background: var(--accent-bg);
 }
 
+.item-card--purchased .item-card__name {
+  text-decoration: line-through;
+  color: var(--purchased);
+}
+
+.item-card--purchased .item-card__qty {
+  background: var(--paper-1);
+  color: var(--purchased);
+}
+
+.item-card--purchased .item-card__tag {
+  opacity: 0.45;
+}
+
 .item-card__right {
   display: flex;
   flex-direction: column;
@@ -163,7 +163,11 @@
   color: var(--accent);
   border: 1.5px dashed var(--accent);
   font-weight: 600;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .item-card__tag--buy-again:hover,

@@ -5,14 +5,15 @@ Revises: 661153072156
 Create Date: 2026-04-06 00:00:00.000000
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = 'd4e5f6a7b8c9'
-down_revision: str | Sequence[str] | None = 'c1d2e3f4a5b6'
+revision: str = "d4e5f6a7b8c9"
+down_revision: str | Sequence[str] | None = "c1d2e3f4a5b6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -20,23 +21,19 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     # 1. Add purchased_at as nullable so existing rows are not rejected
     op.add_column(
-        'list_items',
-        sa.Column('purchased_at', sa.DateTime(), nullable=True),
+        "list_items",
+        sa.Column("purchased_at", sa.DateTime(), nullable=True),
     )
     # 2. Backfill: use updated_at as a proxy for purchase time on already-purchased rows
-    op.execute(
-        "UPDATE list_items SET purchased_at = updated_at WHERE purchased = true"
-    )
+    op.execute("UPDATE list_items SET purchased_at = updated_at WHERE purchased = true")
     # 3. Drop the old boolean column
-    op.drop_column('list_items', 'purchased')
+    op.drop_column("list_items", "purchased")
 
 
 def downgrade() -> None:
     op.add_column(
-        'list_items',
-        sa.Column('purchased', sa.Boolean(), nullable=False, server_default='false'),
+        "list_items",
+        sa.Column("purchased", sa.Boolean(), nullable=False, server_default="false"),
     )
-    op.execute(
-        "UPDATE list_items SET purchased = true WHERE purchased_at IS NOT NULL"
-    )
-    op.drop_column('list_items', 'purchased_at')
+    op.execute("UPDATE list_items SET purchased = true WHERE purchased_at IS NOT NULL")
+    op.drop_column("list_items", "purchased_at")

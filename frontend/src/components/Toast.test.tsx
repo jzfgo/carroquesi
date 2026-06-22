@@ -1,6 +1,6 @@
-import { render, screen, act } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { Toast } from './Toast'
-import { beforeEach, afterEach, test, expect, vi } from 'vitest'
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())

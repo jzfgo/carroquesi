@@ -63,6 +63,7 @@ def test_polling_updated_at(client: TestClient):
 
 def test_polling_updated_at_changes_after_item_add(client: TestClient):
     import time
+
     lst = client.post("/lists", json={"name": "Polling Test"}).json()
     before = client.get(f"/lists/{lst['id']}/updated-at").json()["updated_at"]
     time.sleep(0.01)

@@ -2,12 +2,20 @@ import { parseInput } from './parseInput'
 
 describe('parseInput', () => {
   test('empty string returns empty ParsedInput', () => {
-    expect(parseInput('')).toEqual({ name: '', quantity: null, brand: null, stores: [] })
+    expect(parseInput('')).toEqual({
+      name: '',
+      quantity: null,
+      brand: null,
+      stores: [],
+    })
   })
 
   test('plain name with no sigils', () => {
     expect(parseInput('Leche entera')).toEqual({
-      name: 'Leche entera', quantity: null, brand: null, stores: [],
+      name: 'Leche entera',
+      quantity: null,
+      brand: null,
+      stores: [],
     })
   })
 
@@ -98,7 +106,12 @@ describe('parseInput', () => {
   })
 
   test('only whitespace returns empty', () => {
-    expect(parseInput('   ')).toEqual({ name: '', quantity: null, brand: null, stores: [] })
+    expect(parseInput('   ')).toEqual({
+      name: '',
+      quantity: null,
+      brand: null,
+      stores: [],
+    })
   })
 
   describe('| EAN sigil', () => {
@@ -165,7 +178,7 @@ describe('parseInput', () => {
       expect(result.quantity).toBe('3')
     })
 
-    test("single-quoted multi-word standalone name", () => {
+    test('single-quoted multi-word standalone name', () => {
       const result = parseInput("'Aceite de oliva virgen extra'")
       expect(result.name).toBe('Aceite de oliva virgen extra')
     })

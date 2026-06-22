@@ -1,4 +1,12 @@
 import {
+  signOut as firebaseSignOut,
+  getIdToken,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithPopup,
+  type User as FirebaseUser,
+} from 'firebase/auth'
+import {
   createContext,
   useContext,
   useEffect,
@@ -6,16 +14,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import {
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  getIdToken,
-  type User as FirebaseUser,
-} from 'firebase/auth'
+import { ApiError, syncUser } from '../lib/api'
 import { auth } from '../lib/firebase'
-import { syncUser, ApiError } from '../lib/api'
 
 export interface AuthUser {
   id: string
@@ -57,8 +57,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const getToken = async () => 'dev-bypass'
       syncUser(getToken)
         .then((data) => {
-          const d = data as { id: string; display_name: string; photo_url: string | null; email: string; features?: string[] }
-          setUser({ id: d.id, displayName: d.display_name, photoUrl: d.photo_url, email: d.email, features: d.features ?? [] })
+          const d = data as {
+            id: string
+            display_name: string
+            photo_url: string | null
+            email: string
+            features?: string[]
+          }
+          setUser({
+            id: d.id,
+            displayName: d.display_name,
+            photoUrl: d.photo_url,
+            email: d.email,
+            features: d.features ?? [],
+          })
         })
         .catch(() => {})
         .finally(() => setLoading(false))
@@ -71,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(true)
         try {
           const getToken = () => getIdToken(fbUser, false)
-          const data = await syncUser(getToken) as {
+          const data = (await syncUser(getToken)) as {
             id: string
             display_name: string
             photo_url: string | null
@@ -100,14 +112,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               // Ignore JSON parse errors
             }
           }
-          if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+          if (
+            err instanceof ApiError &&
+            (err.status === 401 || err.status === 403)
+          ) {
             setUser(null)
             setLoading(false)
             return
           }
           // A network error from syncUser should not sign the user out.
           // Keep existing session state; only clear on explicit Firebase sign-out.
-          setUser(prev => prev)
+          setUser((prev) => prev)
         }
       } else {
         setUser(null)
@@ -133,7 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, getToken, signIn, signOut, loading, isWaitlisted }}>
+    <AuthContext.Provider
+      value={{ user, getToken, signIn, signOut, loading, isWaitlisted }}
+    >
       {children}
     </AuthContext.Provider>
   )

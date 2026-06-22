@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
 import { ShoppingCart } from 'lucide-react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { getInvitePreview, acceptInvite, ApiError } from '../lib/api'
 import { usePageTitle } from '../hooks/usePageTitle'
+import { acceptInvite, ApiError, getInvitePreview } from '../lib/api'
+import './InviteScreen.css'
 import { Mascot } from './Mascot'
 import { WaitlistScreen } from './WaitlistScreen'
-import './InviteScreen.css'
 
 type ScreenState = 'loading' | 'preview' | 'accepting' | 'error'
 
@@ -27,7 +27,13 @@ const ERROR_MESSAGES: Record<number, string> = {
 export function InviteScreen() {
   const { id: inviteId } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user, getToken, signIn, loading: authLoading, isWaitlisted } = useAuth()
+  const {
+    user,
+    getToken,
+    signIn,
+    loading: authLoading,
+    isWaitlisted,
+  } = useAuth()
   const [screenState, setScreenState] = useState<ScreenState>('loading')
   const [preview, setPreview] = useState<Preview | null>(null)
   usePageTitle(preview ? `Invitación — ${preview.list_name}` : 'Invitación')
@@ -47,7 +53,10 @@ export function InviteScreen() {
         setScreenState('preview')
       } catch (err) {
         if (err instanceof ApiError) {
-          setErrorMessage(ERROR_MESSAGES[err.status] ?? 'No se pudo conectar. Inténtalo de nuevo.')
+          setErrorMessage(
+            ERROR_MESSAGES[err.status] ??
+              'No se pudo conectar. Inténtalo de nuevo.',
+          )
           setIsNetworkError(false)
         } else {
           setErrorMessage('No se pudo conectar. Inténtalo de nuevo.')
@@ -70,8 +79,9 @@ export function InviteScreen() {
       } catch (err) {
         setErrorMessage(
           err instanceof ApiError
-            ? (ERROR_MESSAGES[err.status] ?? 'No se pudo conectar. Inténtalo de nuevo.')
-            : 'No se pudo conectar. Inténtalo de nuevo.'
+            ? (ERROR_MESSAGES[err.status] ??
+                'No se pudo conectar. Inténtalo de nuevo.')
+            : 'No se pudo conectar. Inténtalo de nuevo.',
         )
         setIsNetworkError(!(err instanceof ApiError))
         setScreenState('error')
@@ -107,8 +117,9 @@ export function InviteScreen() {
     } catch (err) {
       setErrorMessage(
         err instanceof ApiError
-          ? (ERROR_MESSAGES[err.status] ?? 'No se pudo conectar. Inténtalo de nuevo.')
-          : 'No se pudo conectar. Inténtalo de nuevo.'
+          ? (ERROR_MESSAGES[err.status] ??
+              'No se pudo conectar. Inténtalo de nuevo.')
+          : 'No se pudo conectar. Inténtalo de nuevo.',
       )
       setIsNetworkError(!(err instanceof ApiError))
       setScreenState('error')
@@ -135,12 +146,14 @@ export function InviteScreen() {
           {isNetworkError && (
             <button
               className="invite-screen__btn"
-              onClick={() => setRetryCount(c => c + 1)}
+              onClick={() => setRetryCount((c) => c + 1)}
             >
               Reintentar
             </button>
           )}
-          <Link to="/" className="invite-screen__home-link">Ir al inicio →</Link>
+          <Link to="/" className="invite-screen__home-link">
+            Ir al inicio →
+          </Link>
         </div>
       </div>
     )
@@ -150,12 +163,19 @@ export function InviteScreen() {
     <div className="invite-screen">
       <Mascot size={100} />
       <div className="invite-screen__card">
-        <div className="invite-screen__icon">{preview?.list_emoji ?? <ShoppingCart size={32} />}</div>
+        <div className="invite-screen__icon">
+          {preview?.list_emoji ?? <ShoppingCart size={32} />}
+        </div>
         <h1 className="invite-screen__list-name">{preview?.list_name}</h1>
         {preview?.invited_by_name && (
-          <p className="invite-screen__inviter">Invitado por {preview.invited_by_name}</p>
+          <p className="invite-screen__inviter">
+            Invitado por {preview.invited_by_name}
+          </p>
         )}
-        <button className="invite-screen__btn" onClick={() => void handleAccept()}>
+        <button
+          className="invite-screen__btn"
+          onClick={() => void handleAccept()}
+        >
           {user ? 'Unirse a la lista' : 'Iniciar sesión para unirse'}
         </button>
       </div>

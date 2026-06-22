@@ -13,17 +13,32 @@ install:
 dev:
     @overmind start
 
+# Format both frontend and backend code
+format:
+  just backend format
+  just frontend format
+
+# Check formatting of both frontend and backend code
+format-check:
+  just backend format-check
+  just frontend format-check
+
+# Type-check frontend, lint
+lint:
+  just frontend typecheck
+  just frontend lint
+  just backend lint
+
 # Run all tests (frontend + backend)
 test:
     just frontend test
     just backend test
 
-# Type-check + lint frontend, lint + test backend
+# Type-check, lint, and test
 ci:
-    just frontend typecheck
-    just frontend lint
-    just backend lint
-    just backend test
+    just format-check
+    just lint
+    just test
 
 # Update [Unreleased] section in CHANGELOG.md from commits since last tag (requires git-cliff)
 changelog:

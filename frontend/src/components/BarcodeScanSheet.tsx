@@ -1,33 +1,49 @@
-import { useState, useRef } from 'react'
+import { Globe, Pencil, Store, Tag } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
-import { Pencil, Globe, Store, Tag } from 'lucide-react'
 import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
-import './BarcodeScanSheet.css'
 import type { BarcodeRead } from '../types'
+import './BarcodeScanSheet.css'
 
 interface Props {
   product: BarcodeRead
   initialBrand?: string | null
   initialStores?: string[]
-  onAdd: (item: { name: string; brand: string | null; stores: string[] }) => void
+  onAdd: (item: {
+    name: string
+    brand: string | null
+    stores: string[]
+  }) => void
   onEdit: (prefill: string) => void
   onClose: () => void
 }
 
-function buildPrefill(product: BarcodeRead, displayBrand: string | null): string {
+function buildPrefill(
+  product: BarcodeRead,
+  displayBrand: string | null,
+): string {
   const parts = [product.name]
   if (displayBrand) parts.push(`#${displayBrand}`)
   return parts.join(' ')
 }
 
-export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, onEdit, onClose }: Props) {
+export function BarcodeScanSheet({
+  product,
+  initialBrand,
+  initialStores,
+  onAdd,
+  onEdit,
+  onClose,
+}: Props) {
   // Merge product.stores and initialStores so sigil-provided stores are always shown
   const productStoreSet = new Set(product.stores)
-  const extraStores = (initialStores ?? []).filter(s => !productStoreSet.has(s))
+  const extraStores = (initialStores ?? []).filter(
+    (s) => !productStoreSet.has(s),
+  )
   const allStores = [...product.stores, ...extraStores]
 
   const [selectedStores, setSelectedStores] = useState<Set<string>>(
-    new Set(initialStores ?? [])
+    new Set(initialStores ?? []),
   )
 
   const sheetRef = useRef<HTMLDivElement>(null)
@@ -36,7 +52,7 @@ export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, 
   const displayBrand = initialBrand !== undefined ? initialBrand : product.brand
 
   function toggleStore(store: string) {
-    setSelectedStores(prev => {
+    setSelectedStores((prev) => {
       const next = new Set(prev)
       if (next.has(store)) next.delete(store)
       else next.add(store)
@@ -57,11 +73,13 @@ export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, 
             {(displayBrand || allStores.length > 0) && (
               <div className="bss__tags">
                 {displayBrand && (
-                  <span className="bss__tag"><Tag size={13} /> {displayBrand}</span>
+                  <span className="bss__tag">
+                    <Tag size={13} /> {displayBrand}
+                  </span>
                 )}
                 {allStores.length > 0 && (
                   <div className="bss__store-chips" data-testid="store-chips">
-                    {allStores.map(s => (
+                    {allStores.map((s) => (
                       <button
                         key={s}
                         className={`bss__tag bss__tag--store${selectedStores.has(s) ? ' bss__tag--store-selected' : ''}`}
@@ -69,7 +87,10 @@ export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, 
                         aria-pressed={selectedStores.has(s)}
                         aria-label={s}
                       >
-                        <span aria-hidden="true"><Store size={13} /></span> <span>{s}</span>
+                        <span aria-hidden="true">
+                          <Store size={13} />
+                        </span>{' '}
+                        <span>{s}</span>
                       </button>
                     ))}
                   </div>
@@ -88,8 +109,16 @@ export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, 
 
         {product.community_price !== null && (
           <div className="bss__community-price">
-            <span className="bss__community-price-text"><Globe size={14} /> Precio estimado</span>
-            <span className="bss__community-price-value">~{formatPrice(product.community_price, product.community_price_per)}</span>
+            <span className="bss__community-price-text">
+              <Globe size={14} /> Precio estimado
+            </span>
+            <span className="bss__community-price-value">
+              ~
+              {formatPrice(
+                product.community_price,
+                product.community_price_per,
+              )}
+            </span>
             <button
               className="bss__community-price-info"
               title={COMMUNITY_PRICE_TOOLTIP}
@@ -106,11 +135,13 @@ export function BarcodeScanSheet({ product, initialBrand, initialStores, onAdd, 
           </button>
           <button
             className="bss__add"
-            onClick={() => onAdd({
-              name: product.name,
-              brand: displayBrand,
-              stores: allStores.filter(s => selectedStores.has(s)),
-            })}
+            onClick={() =>
+              onAdd({
+                name: product.name,
+                brand: displayBrand,
+                stores: allStores.filter((s) => selectedStores.has(s)),
+              })
+            }
           >
             Añadir a la lista
           </button>

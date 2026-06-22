@@ -10,6 +10,7 @@ Actions:
     off   -- upsert UserFeature with enabled=False
     reset -- delete the row (user reverts to registry default)
 """
+
 import sys
 from datetime import UTC, datetime
 from pathlib import Path

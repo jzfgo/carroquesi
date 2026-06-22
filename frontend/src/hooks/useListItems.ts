@@ -11,7 +11,7 @@ import {
   updateItem,
   updatePrice,
 } from '../lib/api'
-import { AVATAR_COLOURS } from '../mockData'
+import { AVATAR_COLORS } from '../lib/avatarColors'
 import { isNetworkError } from '../lib/networkError'
 import { enqueue } from '../lib/offlineQueue'
 import type { ListItem, Member, ParsedInput, TagField } from '../types'
@@ -34,20 +34,33 @@ function toMember(m: BackendMember, index: number): Member {
     id: m.user_id,
     displayName: m.display_name,
     initial: m.display_name ? m.display_name[0].toUpperCase() : '?',
-    colour: AVATAR_COLOURS[index % AVATAR_COLOURS.length],
+    color: AVATAR_COLORS[index % AVATAR_COLORS.length],
     photoUrl: m.photo_url,
   }
 }
 
-function loadListCache(listId: string): { items: ListItem[]; members: BackendMember[] } | null {
+function loadListCache(
+  listId: string,
+): { items: ListItem[]; members: BackendMember[] } | null {
   try {
     const raw = localStorage.getItem(`cqs_list_cache_${listId}`)
-    return raw ? JSON.parse(raw) as { items: ListItem[]; members: BackendMember[] } : null
-  } catch { return null }
+    return raw
+      ? (JSON.parse(raw) as { items: ListItem[]; members: BackendMember[] })
+      : null
+  } catch {
+    return null
+  }
 }
 
-function saveListCache(listId: string, data: { items: ListItem[]; members: BackendMember[] }) {
-  try { localStorage.setItem(`cqs_list_cache_${listId}`, JSON.stringify(data)) } catch { /* storage unavailable */ }
+function saveListCache(
+  listId: string,
+  data: { items: ListItem[]; members: BackendMember[] },
+) {
+  try {
+    localStorage.setItem(`cqs_list_cache_${listId}`, JSON.stringify(data))
+  } catch {
+    /* storage unavailable */
+  }
 }
 
 export function useListItems(
@@ -169,7 +182,11 @@ export function useListItems(
         })
       } catch (err) {
         if (isNetworkError(err)) {
-          await enqueue({ listId, type: 'updateItem', payload: { itemId, patch: { purchased: !prevPurchased } } })
+          await enqueue({
+            listId,
+            type: 'updateItem',
+            payload: { itemId, patch: { purchased: !prevPurchased } },
+          })
         } else {
           setItems(snapshot)
           showToast('No se pudo actualizar el producto')
@@ -183,7 +200,10 @@ export function useListItems(
     async (parsed: ParsedInput) => {
       const nameLower = parsed.name.trim().toLowerCase()
       const isDuplicate = itemsRef.current.some(
-        (i) => !i.purchased && (i.name.trim().toLowerCase() === nameLower || (parsed.ean != null && i.ean === parsed.ean)),
+        (i) =>
+          !i.purchased &&
+          (i.name.trim().toLowerCase() === nameLower ||
+            (parsed.ean != null && i.ean === parsed.ean)),
       )
       if (isDuplicate) {
         showToast(DUPLICATE_TOAST)
@@ -230,7 +250,21 @@ export function useListItems(
         setItems((prev) => prev.map((i) => (i.id === tempId ? created : i)))
       } catch (err) {
         if (isNetworkError(err)) {
-          await enqueue({ listId, type: 'addItem', tempId, payload: { name: parsed.name, quantity: parsed.quantity, brand: parsed.brand, stores: parsed.stores, ean: parsed.ean ?? null, price: null, price_per: null, price_store: null } })
+          await enqueue({
+            listId,
+            type: 'addItem',
+            tempId,
+            payload: {
+              name: parsed.name,
+              quantity: parsed.quantity,
+              brand: parsed.brand,
+              stores: parsed.stores,
+              ean: parsed.ean ?? null,
+              price: null,
+              price_per: null,
+              price_store: null,
+            },
+          })
         } else {
           setItems((prev) => prev.filter((i) => i.id !== tempId))
           if (err instanceof ApiError && err.status === 409) {
@@ -254,7 +288,11 @@ export function useListItems(
         await updateItem(getToken, listId, itemId, { [field]: value })
       } catch (err) {
         if (isNetworkError(err)) {
-          await enqueue({ listId, type: 'updateItem', payload: { itemId, patch: { [field]: value } } })
+          await enqueue({
+            listId,
+            type: 'updateItem',
+            payload: { itemId, patch: { [field]: value } },
+          })
         } else {
           setItems(snapshot)
           showToast('No se pudo actualizar el producto')
@@ -272,7 +310,11 @@ export function useListItems(
         await updateItem(getToken, listId, itemId, { stores })
       } catch (err) {
         if (isNetworkError(err)) {
-          await enqueue({ listId, type: 'updateItem', payload: { itemId, patch: { stores } } })
+          await enqueue({
+            listId,
+            type: 'updateItem',
+            payload: { itemId, patch: { stores } },
+          })
         } else {
           setItems(snapshot)
           showToast('No se pudo actualizar el producto')
@@ -290,7 +332,11 @@ export function useListItems(
         await updateItem(getToken, listId, itemId, { name })
       } catch (err) {
         if (isNetworkError(err)) {
-          await enqueue({ listId, type: 'updateItem', payload: { itemId, patch: { name } } })
+          await enqueue({
+            listId,
+            type: 'updateItem',
+            payload: { itemId, patch: { name } },
+          })
         } else {
           setItems(snapshot)
           showToast('No se pudo renombrar el producto')
@@ -330,9 +376,11 @@ export function useListItems(
       const payload = { amount, price_per: pricePer, store }
       const fn = item?.price != null ? updatePrice : logPrice
       await fn(getToken, listId, itemId, payload)
-      
+
       if (purchasedQuantity !== undefined) {
-        await updateItem(getToken, listId, itemId, { purchased_quantity: purchasedQuantity })
+        await updateItem(getToken, listId, itemId, {
+          purchased_quantity: purchasedQuantity,
+        })
       }
 
       setItems((prev) =>
@@ -343,7 +391,9 @@ export function useListItems(
                 price: amount,
                 price_per: pricePer,
                 price_store: store,
-                ...(purchasedQuantity !== undefined ? { purchased_quantity: purchasedQuantity } : {}),
+                ...(purchasedQuantity !== undefined
+                  ? { purchased_quantity: purchasedQuantity }
+                  : {}),
               }
             : i,
         ),

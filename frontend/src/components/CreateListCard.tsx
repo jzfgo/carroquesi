@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { X } from 'lucide-react'
+import { useState } from 'react'
 import './CreateListCard.css'
 import { Mascot } from './Mascot'
 
@@ -15,11 +15,20 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
 
   if (!expanded) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '0.75rem',
+        }}
+      >
         {isFirst && (
           <>
             <Mascot size={120} />
-            <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}>
+            <p
+              style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}
+            >
               Aún no tienes listas
             </p>
           </>
@@ -52,7 +61,10 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
         placeholder="Nombre de la lista"
         onKeyDown={(e) => {
           if (e.key === 'Enter') void handleSubmit()
-          if (e.key === 'Escape') { setExpanded(false); setName('') }
+          if (e.key === 'Escape') {
+            setExpanded(false)
+            setName('')
+          }
         }}
       />
       <button
@@ -63,7 +75,10 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
       </button>
       <button
         className="create-list-card--cancel"
-        onClick={() => { setExpanded(false); setName('') }}
+        onClick={() => {
+          setExpanded(false)
+          setName('')
+        }}
         aria-label="Cancelar"
       >
         <X size={16} />

@@ -4,10 +4,6 @@
 
 ---
 
-## Bugs / Known Issues
-
----
-
 ## Features (Backlog)
 
 - [ ] **Impulse buys** - From the ReceiptScanSheet, allow adding items that were purchased but weren't on the list (impulse buys, forgotten items). These are created directly in purchased state for spend tracking purposes; no behavioral distinction between impulse vs. forgotten. Depends on receipt scanning feature.

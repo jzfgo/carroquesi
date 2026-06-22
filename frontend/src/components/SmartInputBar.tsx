@@ -1,14 +1,17 @@
+import { ScanBarcode, Sparkles, Store, Tag, X } from 'lucide-react'
 import { useRef } from 'react'
-import { Tag, Store, ScanBarcode, Sparkles, X } from 'lucide-react'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem, ParsedInput, Suggestion } from '../types'
 import './SmartInputBar.css'
 
 const SIGIL_FIELDS: Record<string, 'brand' | 'stores'> = {
-  '#': 'brand', '@': 'stores',
+  '#': 'brand',
+  '@': 'stores',
 }
 
-function getActiveSigil(raw: string): { sigil: string; partial: string } | null {
+function getActiveSigil(
+  raw: string,
+): { sigil: string; partial: string } | null {
   const words = raw.split(/\s+/)
   for (let i = words.length - 1; i >= 0; i--) {
     const w = words[i]
@@ -20,7 +23,11 @@ function getActiveSigil(raw: string): { sigil: string; partial: string } | null 
 }
 
 function hasSigil(parsed: ParsedInput): boolean {
-  return parsed.quantity !== null || parsed.brand !== null || parsed.stores.length > 0
+  return (
+    parsed.quantity !== null ||
+    parsed.brand !== null ||
+    parsed.stores.length > 0
+  )
 }
 
 const ALL_SIGILS = new Set(['+', '#', '@', '|'])
@@ -74,15 +81,38 @@ interface Props {
   onDueSuggestionsOpen?: () => void
 }
 
-export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onSuggestionAdd, onClear, onScanRequest, onEanSearch, eanLoading, eanError, inferredStoreChip, onDismissInferredStore, isOffline = false, dueSuggestionsCount, onDueSuggestionsOpen }: Props) {
+export function SmartInputBar({
+  value,
+  parsed,
+  items,
+  suggestions,
+  onChange,
+  onSubmit,
+  onSuggestionAdd,
+  onClear,
+  onScanRequest,
+  onEanSearch,
+  eanLoading,
+  eanError,
+  inferredStoreChip,
+  onDismissInferredStore,
+  isOffline = false,
+  dueSuggestionsCount,
+  onDueSuggestionsOpen,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const activeSigil = getActiveSigil(value)
-  const fieldSigil = activeSigil && SIGIL_FIELDS[activeSigil.sigil]
-    ? activeSigil.sigil as '#' | '@'
-    : null
+  const fieldSigil =
+    activeSigil && SIGIL_FIELDS[activeSigil.sigil]
+      ? (activeSigil.sigil as '#' | '@')
+      : null
 
   const displaySuggestions = fieldSigil
-    ? clientSideSuggestions(items, SIGIL_FIELDS[fieldSigil], activeSigil!.partial)
+    ? clientSideSuggestions(
+        items,
+        SIGIL_FIELDS[fieldSigil],
+        activeSigil!.partial,
+      )
     : suggestions.slice(0, 5)
 
   const inEanMode = parsed.ean != null
@@ -104,7 +134,8 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
       return
     }
     const words = value.split(/\s+/)
-    words[words.length - 1] = activeSigil.sigil + suggestionLabel(suggestion) + ' '
+    words[words.length - 1] =
+      activeSigil.sigil + suggestionLabel(suggestion) + ' '
     onChange(words.join(' '))
   }
 
@@ -119,12 +150,16 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
               onClick={onDismissInferredStore}
               type="button"
             >
-              <Store size={13} /> {inferredStoreChip} <X size={13} aria-hidden="true" />
+              <Store size={13} /> {inferredStoreChip}{' '}
+              <X size={13} aria-hidden="true" />
             </button>
           )}
           {displaySuggestions.map((s, i) => (
-            <button key={suggestionLabel(s)} className={`smart-input__suggestion${i === 0 ? ' smart-input__suggestion--top' : ''}`}
-              onClick={() => applySuggestion(s)}>
+            <button
+              key={suggestionLabel(s)}
+              className={`smart-input__suggestion${i === 0 ? ' smart-input__suggestion--top' : ''}`}
+              onClick={() => applySuggestion(s)}
+            >
               {suggestionLabel(s)}
             </button>
           ))}
@@ -138,9 +173,15 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             <span className="smart-input__preview-error">{eanError}</span>
           ) : (
             <>
-              {parsed.brand && <span className="smart-input__preview-tag"><Tag size={13} /> {parsed.brand}</span>}
-              {parsed.stores.map(s => (
-                <span key={s} className="smart-input__preview-tag"><Store size={13} /> {s}</span>
+              {parsed.brand && (
+                <span className="smart-input__preview-tag">
+                  <Tag size={13} /> {parsed.brand}
+                </span>
+              )}
+              {parsed.stores.map((s) => (
+                <span key={s} className="smart-input__preview-tag">
+                  <Store size={13} /> {s}
+                </span>
               ))}
               <button
                 className="smart-input__buscar"
@@ -158,12 +199,26 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
 
       {!inEanMode && showPreview && (
         <div className="smart-input__preview" data-testid="parse-preview">
-          {nameError && <span className="smart-input__preview-error">Sin nombre de producto</span>}
-          {!nameError && <span className="smart-input__preview-name">{parsed.name}</span>}
-          {parsed.quantity && <span className="smart-input__preview-qty">{parsed.quantity}</span>}
-          {parsed.brand && <span className="smart-input__preview-tag"><Tag size={13} /> {parsed.brand}</span>}
-          {parsed.stores.map(s => (
-            <span key={s} className="smart-input__preview-tag"><Store size={13} /> {s}</span>
+          {nameError && (
+            <span className="smart-input__preview-error">
+              Sin nombre de producto
+            </span>
+          )}
+          {!nameError && (
+            <span className="smart-input__preview-name">{parsed.name}</span>
+          )}
+          {parsed.quantity && (
+            <span className="smart-input__preview-qty">{parsed.quantity}</span>
+          )}
+          {parsed.brand && (
+            <span className="smart-input__preview-tag">
+              <Tag size={13} /> {parsed.brand}
+            </span>
+          )}
+          {parsed.stores.map((s) => (
+            <span key={s} className="smart-input__preview-tag">
+              <Store size={13} /> {s}
+            </span>
           ))}
         </div>
       )}
@@ -194,7 +249,9 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             type="button"
           >
             <Sparkles size={18} />
-            <span className="smart-input__due-badge">{dueSuggestionsCount}</span>
+            <span className="smart-input__due-badge">
+              {dueSuggestionsCount}
+            </span>
           </button>
         )}
         <input
@@ -202,15 +259,20 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
           type="text"
           ref={inputRef}
           value={value}
-          onChange={e => onChange(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && hasName && !inEanMode) onSubmit() }}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && hasName && !inEanMode) onSubmit()
+          }}
           placeholder="Añadir producto…"
           aria-label="Añadir producto"
         />
         {value ? (
           <button
             className="smart-input__clear"
-            onClick={() => { onClear(); inputRef.current?.focus() }}
+            onClick={() => {
+              onClear()
+              inputRef.current?.focus()
+            }}
             aria-label="Borrar"
             type="button"
           >

@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from 'react'
-import './ItemList.css'
-import { ItemCard } from './ItemCard'
-import { Mascot } from './Mascot'
-import { purchasedDateLabel } from '../lib/itemCost'
-import type { CostSummary } from '../lib/itemCost'
 import { formatPrice } from '../lib/formatPrice'
+import type { CostSummary } from '../lib/itemCost'
+import { purchasedDateLabel } from '../lib/itemCost'
 import type { ListItem, Member, TagField } from '../types'
+import { ItemCard } from './ItemCard'
+import './ItemList.css'
+import { Mascot } from './Mascot'
 
 type Status = 'loading' | 'error' | 'success'
 
@@ -25,21 +25,42 @@ interface Props {
   footer?: ReactNode
 }
 
-function CostBadge({ cost, className }: { cost: CostSummary; className: string }) {
+function CostBadge({
+  cost,
+  className,
+}: {
+  cost: CostSummary
+  className: string
+}) {
   return (
     <span className={className}>
-      {cost.partial ? '≥\u202f' : ''}{formatPrice(cost.total)}
+      {cost.partial ? '≥\u202f' : ''}
+      {formatPrice(cost.total)}
     </span>
   )
 }
 
-export function ItemList({ status, items, members, onTogglePurchased, onTagClick, onMenuOpen, onRetry, onPriceClick, onClone, pendingCost, purchasedCostByDate, totalItems, footer }: Props) {
+export function ItemList({
+  status,
+  items,
+  members,
+  onTogglePurchased,
+  onTagClick,
+  onMenuOpen,
+  onRetry,
+  onPriceClick,
+  onClone,
+  pendingCost,
+  purchasedCostByDate,
+  totalItems,
+  footer,
+}: Props) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
 
   if (status === 'loading') {
     return (
       <div className="item-list">
-        {[0, 1, 2].map(i => (
+        {[0, 1, 2].map((i) => (
           <div key={i} className="item-list__skeleton" aria-hidden />
         ))}
       </div>
@@ -50,21 +71,29 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
     return (
       <div className="item-list item-list--centered">
         <p>No se pudieron cargar los productos</p>
-        <button className="item-list__retry" onClick={onRetry}>Reintentar</button>
+        <button className="item-list__retry" onClick={onRetry}>
+          Reintentar
+        </button>
       </div>
     )
   }
 
   const active = items
-    .filter(i => !i.purchased)
-    .sort((a, b) => a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0)
+    .filter((i) => !i.purchased)
+    .sort((a, b) =>
+      a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0,
+    )
 
   const purchased = items
-    .filter(i => i.purchased)
+    .filter((i) => i.purchased)
     .sort((a, b) => {
       if (!a.purchased_at) return 1
       if (!b.purchased_at) return -1
-      return b.purchased_at < a.purchased_at ? -1 : b.purchased_at > a.purchased_at ? 1 : 0
+      return b.purchased_at < a.purchased_at
+        ? -1
+        : b.purchased_at > a.purchased_at
+          ? 1
+          : 0
     })
 
   if (active.length === 0 && purchased.length === 0) {
@@ -74,7 +103,13 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
         <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}>
           Sin productos todavía
         </p>
-        <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
+        <p
+          style={{
+            margin: 0,
+            color: 'var(--color-text-secondary)',
+            fontSize: '0.9rem',
+          }}
+        >
           Añade el primero desde abajo
         </p>
       </div>
@@ -101,12 +136,21 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
             ? `${active.length} de ${totalItems} productos por comprar`
             : `${active.length} ${active.length === 1 ? 'producto' : 'productos'} por comprar`}
         </span>
-        {pendingCost && <CostBadge cost={pendingCost} className="item-list__label-cost" />}
+        {pendingCost && (
+          <CostBadge cost={pendingCost} className="item-list__label-cost" />
+        )}
       </p>
-      {active.map(item => (
-        <ItemCard key={item.id} item={item} members={members}
-          onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen}
-          onPriceClick={onPriceClick} onClone={onClone} />
+      {active.map((item) => (
+        <ItemCard
+          key={item.id}
+          item={item}
+          members={members}
+          onTogglePurchased={onTogglePurchased}
+          onTagClick={onTagClick}
+          onMenuOpen={onMenuOpen}
+          onPriceClick={onPriceClick}
+          onClone={onClone}
+        />
       ))}
       {footer}
 
@@ -114,25 +158,46 @@ export function ItemList({ status, items, members, onTogglePurchased, onTagClick
         <>
           <button
             className="item-list__label item-list__label--toggle"
-            onClick={() => setPurchasedCollapsed(c => !c)}
+            onClick={() => setPurchasedCollapsed((c) => !c)}
             aria-expanded={!purchasedCollapsed}
           >
             Comprados ({purchased.length})
-            <span className={`item-list__chevron${purchasedCollapsed ? ' item-list__chevron--collapsed' : ''}`} aria-hidden />
+            <span
+              className={`item-list__chevron${purchasedCollapsed ? ' item-list__chevron--collapsed' : ''}`}
+              aria-hidden
+            />
           </button>
-          {!purchasedCollapsed && purchasedByDate.map(({ label, items: group }) => (
-            <div key={label}>
-              <p className="item-list__date-label">
-                <span className="item-list__label-text">{label}</span>
-                {(() => { const c = purchasedCostByDate?.get(label); return c && <CostBadge cost={c} className="item-list__date-label-cost" />; })()}
-              </p>
-              {group.map(item => (
-                <ItemCard key={item.id} item={item} members={members}
-                  onTogglePurchased={onTogglePurchased} onTagClick={onTagClick} onMenuOpen={onMenuOpen}
-                  onPriceClick={onPriceClick} onClone={onClone} />
-              ))}
-            </div>
-          ))}
+          {!purchasedCollapsed &&
+            purchasedByDate.map(({ label, items: group }) => (
+              <div key={label}>
+                <p className="item-list__date-label">
+                  <span className="item-list__label-text">{label}</span>
+                  {(() => {
+                    const c = purchasedCostByDate?.get(label)
+                    return (
+                      c && (
+                        <CostBadge
+                          cost={c}
+                          className="item-list__date-label-cost"
+                        />
+                      )
+                    )
+                  })()}
+                </p>
+                {group.map((item) => (
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    members={members}
+                    onTogglePurchased={onTogglePurchased}
+                    onTagClick={onTagClick}
+                    onMenuOpen={onMenuOpen}
+                    onPriceClick={onPriceClick}
+                    onClone={onClone}
+                  />
+                ))}
+              </div>
+            ))}
         </>
       )}
     </div>

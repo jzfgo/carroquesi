@@ -29,22 +29,16 @@ def upgrade() -> None:
     conn = op.get_bind()
     if conn.dialect.name == "sqlite":
         conn.execute(
-            sa.text(
-                "UPDATE list_items SET stores = json_array(store) WHERE store IS NOT NULL"
-            )
+            sa.text("UPDATE list_items SET stores = json_array(store) WHERE store IS NOT NULL")
         )
-        conn.execute(
-            sa.text("UPDATE list_items SET stores = json('[]') WHERE store IS NULL")
-        )
+        conn.execute(sa.text("UPDATE list_items SET stores = json('[]') WHERE store IS NULL"))
     else:
         conn.execute(
             sa.text(
                 "UPDATE list_items SET stores = json_build_array(store) WHERE store IS NOT NULL"
             )
         )
-        conn.execute(
-            sa.text("UPDATE list_items SET stores = '[]'::json WHERE store IS NULL")
-        )
+        conn.execute(sa.text("UPDATE list_items SET stores = '[]'::json WHERE store IS NULL"))
     # 3. Enforce NOT NULL now that every row has a value
     with op.batch_alter_table("list_items") as batch_op:
         batch_op.alter_column("stores", nullable=False)
@@ -65,7 +59,5 @@ def downgrade() -> None:
             )
         )
     else:
-        conn.execute(
-            "UPDATE list_items SET store = stores->>0 WHERE json_array_length(stores) > 0"
-        )
+        conn.execute("UPDATE list_items SET store = stores->>0 WHERE json_array_length(stores) > 0")
     op.drop_column("list_items", "stores")

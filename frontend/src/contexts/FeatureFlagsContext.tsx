@@ -7,8 +7,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { useAuth } from './AuthContext'
 import { getMe } from '../lib/api'
+import { useAuth } from './AuthContext'
 
 interface FeatureFlagsContextValue {
   isEnabled: (flag: string) => boolean
@@ -19,7 +19,8 @@ const FeatureFlagsContext = createContext<FeatureFlagsContextValue | null>(null)
 // eslint-disable-next-line react-refresh/only-export-components
 export function useFeatureFlags(): FeatureFlagsContextValue {
   const ctx = useContext(FeatureFlagsContext)
-  if (!ctx) throw new Error('useFeatureFlags must be used within FeatureFlagsProvider')
+  if (!ctx)
+    throw new Error('useFeatureFlags must be used within FeatureFlagsProvider')
   return ctx
 }
 
@@ -34,7 +35,9 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
   const [polledFlags, setPolledFlags] = useState<string[] | null>(null)
 
   // Reset polledFlags when user identity changes (render-phase update, not inside useEffect)
-  const [trackedUserId, setTrackedUserId] = useState<string | undefined>(user?.id)
+  const [trackedUserId, setTrackedUserId] = useState<string | undefined>(
+    user?.id,
+  )
   if (trackedUserId !== user?.id) {
     setTrackedUserId(user?.id)
     setPolledFlags(null)
@@ -45,7 +48,9 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
 
     const poll = async () => {
       try {
-        const data = await getMe(getTokenRef.current) as { features?: string[] }
+        const data = (await getMe(getTokenRef.current)) as {
+          features?: string[]
+        }
         setPolledFlags(data.features ?? [])
       } catch {
         // keep last known state on error
@@ -57,7 +62,7 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const isEnabled = useCallback(
-    (flag: string) => (polledFlags ?? (user?.features ?? [])).includes(flag),
+    (flag: string) => (polledFlags ?? user?.features ?? []).includes(flag),
     [polledFlags, user],
   )
 

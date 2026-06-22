@@ -16,6 +16,7 @@ def test_price_create_kilogram():
 def test_price_create_rejects_zero():
     import pytest
     from pydantic import ValidationError
+
     with pytest.raises(ValidationError):
         PriceCreate(amount=0)
 

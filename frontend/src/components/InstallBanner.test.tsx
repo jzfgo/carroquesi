@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { InstallBanner } from './InstallBanner'
 
 const defaults = {
@@ -45,7 +45,9 @@ describe('InstallBanner', () => {
   })
 
   it('install button calls promptInstall', async () => {
-    const promptInstall = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
+    const promptInstall = vi
+      .fn<() => Promise<void>>()
+      .mockResolvedValue(undefined)
     render(<InstallBanner {...defaults} promptInstall={promptInstall} />)
     await userEvent.click(screen.getByRole('button', { name: /instalar/i }))
     expect(promptInstall).toHaveBeenCalledOnce()
@@ -59,6 +61,8 @@ describe('InstallBanner', () => {
 
   it('hides the install button on iOS', () => {
     render(<InstallBanner {...defaults} isInstallable={false} isIOS={true} />)
-    expect(screen.queryByRole('button', { name: /instalar/i })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /instalar/i }),
+    ).not.toBeInTheDocument()
   })
 })

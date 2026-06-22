@@ -100,8 +100,20 @@ def test_post_receipt_store_stays_null_when_items_have_mixed_stores(client, sess
             "receipt_date": None,
             "receipt_total": None,
             "lines": [
-                {"name": "BEBIDA ALMENDRAS 0%", "price_type": "UNIT", "unit_price": 1.15, "quantity": None, "line_total": 1.15},
-                {"name": "BACON LONCHAS", "price_type": "UNIT", "unit_price": 2.30, "quantity": None, "line_total": 2.30},
+                {
+                    "name": "BEBIDA ALMENDRAS 0%",
+                    "price_type": "UNIT",
+                    "unit_price": 1.15,
+                    "quantity": None,
+                    "line_total": 1.15,
+                },
+                {
+                    "name": "BACON LONCHAS",
+                    "price_type": "UNIT",
+                    "unit_price": 2.30,
+                    "quantity": None,
+                    "line_total": 2.30,
+                },
             ],
         },
     )
@@ -170,8 +182,20 @@ def test_post_receipt_infers_store_when_one_item_has_no_store(client, session):
             "receipt_date": None,
             "receipt_total": None,
             "lines": [
-                {"name": "BEBIDA ALMENDRAS 0%", "price_type": "UNIT", "unit_price": 1.15, "quantity": None, "line_total": 1.15},
-                {"name": "LECHE ENTERA", "price_type": "UNIT", "unit_price": 0.89, "quantity": None, "line_total": 0.89},
+                {
+                    "name": "BEBIDA ALMENDRAS 0%",
+                    "price_type": "UNIT",
+                    "unit_price": 1.15,
+                    "quantity": None,
+                    "line_total": 1.15,
+                },
+                {
+                    "name": "LECHE ENTERA",
+                    "price_type": "UNIT",
+                    "unit_price": 0.89,
+                    "quantity": None,
+                    "line_total": 0.89,
+                },
             ],
         },
     )
@@ -188,7 +212,12 @@ def test_post_receipt_prices_writes_unit_price(client, session):
         json={
             "scan_id": scan_id,
             "patches": [
-                {"item_id": "item-almendras", "price": 1.15, "price_per": None, "store": "Mercadona"}
+                {
+                    "item_id": "item-almendras",
+                    "price": 1.15,
+                    "price_per": None,
+                    "store": "Mercadona",
+                }
             ],
             "mappings": [
                 {
@@ -229,7 +258,7 @@ def test_receipt_prices_updates_quantity(client, session):
     session.expire_all()
     item = session.get(ListItem, "item-almendras")
     assert item.purchased_quantity == "2"
-    assert item.quantity is None   # was never set on this item in seed
+    assert item.quantity is None  # was never set on this item in seed
 
 
 def test_receipt_prices_preserves_quantity_when_null(client, session):
@@ -256,8 +285,8 @@ def test_receipt_prices_preserves_quantity_when_null(client, session):
     assert response.status_code == 200
     session.expire_all()
     item = session.get(ListItem, "item-almendras")
-    assert item.quantity == "500g"            # planning qty untouched
-    assert item.purchased_quantity is None    # no receipt qty provided
+    assert item.quantity == "500g"  # planning qty untouched
+    assert item.purchased_quantity is None  # no receipt qty provided
 
 
 def test_receipt_prices_writes_purchased_quantity_not_quantity(client, session):
@@ -284,8 +313,8 @@ def test_receipt_prices_writes_purchased_quantity_not_quantity(client, session):
     assert response.status_code == 200
     session.expire_all()
     item = session.get(ListItem, "item-almendras")
-    assert item.purchased_quantity == "487g"   # written to new field
-    assert item.quantity == "2"                # planning qty preserved
+    assert item.purchased_quantity == "487g"  # written to new field
+    assert item.quantity == "2"  # planning qty preserved
 
 
 def test_receipt_prices_purchased_quantity_null_when_patch_quantity_null(client, session):

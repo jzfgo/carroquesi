@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
-import { ListCard } from './ListCard'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import type { ApiList } from '../types'
+import { ListCard } from './ListCard'
 
 const makeList = (overrides: Partial<ApiList> = {}): ApiList => ({
   id: 'l1',
@@ -17,42 +17,93 @@ const makeList = (overrides: Partial<ApiList> = {}): ApiList => ({
 
 describe('ListCard', () => {
   it('shows the list name', () => {
-    render(<ListCard list={makeList()} isOwner={false} onClick={vi.fn()} onMenuOpen={vi.fn()} />)
+    render(
+      <ListCard
+        list={makeList()}
+        isOwner={false}
+        onClick={vi.fn()}
+        onMenuOpen={vi.fn()}
+      />,
+    )
     expect(screen.getByText('Mercado semanal')).toBeInTheDocument()
   })
 
   it('shows "X de Y comprados" subtitle when items exist', () => {
-    render(<ListCard list={makeList({ item_count: 8, purchased_count: 3 })} isOwner={false} onClick={vi.fn()} onMenuOpen={vi.fn()} />)
+    render(
+      <ListCard
+        list={makeList({ item_count: 8, purchased_count: 3 })}
+        isOwner={false}
+        onClick={vi.fn()}
+        onMenuOpen={vi.fn()}
+      />,
+    )
     expect(screen.getByText('3 de 8 comprados')).toBeInTheDocument()
   })
 
   it('hides subtitle when item_count is 0', () => {
-    render(<ListCard list={makeList({ item_count: 0, purchased_count: 0 })} isOwner={false} onClick={vi.fn()} onMenuOpen={vi.fn()} />)
+    render(
+      <ListCard
+        list={makeList({ item_count: 0, purchased_count: 0 })}
+        isOwner={false}
+        onClick={vi.fn()}
+        onMenuOpen={vi.fn()}
+      />,
+    )
     expect(screen.queryByText(/comprados/)).not.toBeInTheDocument()
   })
 
   it('calls onClick when tap-target is clicked', () => {
     const onClick = vi.fn()
-    render(<ListCard list={makeList()} isOwner={false} onClick={onClick} onMenuOpen={vi.fn()} />)
+    render(
+      <ListCard
+        list={makeList()}
+        isOwner={false}
+        onClick={onClick}
+        onMenuOpen={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getByRole('button', { name: /mercado semanal/i }))
     expect(onClick).toHaveBeenCalledOnce()
   })
 
   it('⋯ button is present', () => {
-    render(<ListCard list={makeList()} isOwner={false} onClick={vi.fn()} onMenuOpen={vi.fn()} />)
-    expect(screen.getByRole('button', { name: /opciones/i })).toBeInTheDocument()
+    render(
+      <ListCard
+        list={makeList()}
+        isOwner={false}
+        onClick={vi.fn()}
+        onMenuOpen={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByRole('button', { name: /opciones/i }),
+    ).toBeInTheDocument()
   })
 
   it('tapping ⋯ calls onMenuOpen', () => {
     const onMenuOpen = vi.fn()
-    render(<ListCard list={makeList()} isOwner={false} onClick={vi.fn()} onMenuOpen={onMenuOpen} />)
+    render(
+      <ListCard
+        list={makeList()}
+        isOwner={false}
+        onClick={vi.fn()}
+        onMenuOpen={onMenuOpen}
+      />,
+    )
     fireEvent.click(screen.getByRole('button', { name: /opciones/i }))
     expect(onMenuOpen).toHaveBeenCalledOnce()
   })
 
   it('tapping ⋯ does not call onClick', () => {
     const onClick = vi.fn()
-    render(<ListCard list={makeList()} isOwner={false} onClick={onClick} onMenuOpen={vi.fn()} />)
+    render(
+      <ListCard
+        list={makeList()}
+        isOwner={false}
+        onClick={onClick}
+        onMenuOpen={vi.fn()}
+      />,
+    )
     fireEvent.click(screen.getByRole('button', { name: /opciones/i }))
     expect(onClick).not.toHaveBeenCalled()
   })
@@ -67,9 +118,11 @@ describe('ListCard — emoji', () => {
         onClick={vi.fn()}
         onMenuOpen={vi.fn()}
         onEmojiTap={vi.fn()}
-      />
+      />,
     )
-    expect(screen.getByRole('button', { name: /cambiar emoji/i })).toHaveTextContent('🛒')
+    expect(
+      screen.getByRole('button', { name: /cambiar emoji/i }),
+    ).toHaveTextContent('🛒')
   })
 
   it('renders emoji as a non-interactive span for non-owners', () => {
@@ -79,9 +132,11 @@ describe('ListCard — emoji', () => {
         isOwner={false}
         onClick={vi.fn()}
         onMenuOpen={vi.fn()}
-      />
+      />,
     )
-    expect(screen.queryByRole('button', { name: /cambiar emoji/i })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /cambiar emoji/i }),
+    ).not.toBeInTheDocument()
     expect(screen.getByText('🛒')).toBeInTheDocument()
   })
 
@@ -92,7 +147,7 @@ describe('ListCard — emoji', () => {
         isOwner={false}
         onClick={vi.fn()}
         onMenuOpen={vi.fn()}
-      />
+      />,
     )
     expect(container.querySelector('.list-card__emoji')).not.toBeInTheDocument()
   })
@@ -105,9 +160,11 @@ describe('ListCard — emoji', () => {
         onClick={vi.fn()}
         onMenuOpen={vi.fn()}
         onEmojiTap={vi.fn()}
-      />
+      />,
     )
-    expect(screen.getByRole('button', { name: /añadir emoji/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /añadir emoji/i }),
+    ).toBeInTheDocument()
   })
 
   it('tapping emoji button calls onEmojiTap', () => {
@@ -119,7 +176,7 @@ describe('ListCard — emoji', () => {
         onClick={vi.fn()}
         onMenuOpen={vi.fn()}
         onEmojiTap={onEmojiTap}
-      />
+      />,
     )
     fireEvent.click(screen.getByRole('button', { name: /cambiar emoji/i }))
     expect(onEmojiTap).toHaveBeenCalledOnce()
@@ -134,7 +191,7 @@ describe('ListCard — emoji', () => {
         onClick={onClick}
         onMenuOpen={vi.fn()}
         onEmojiTap={vi.fn()}
-      />
+      />,
     )
     fireEvent.click(screen.getByRole('button', { name: /cambiar emoji/i }))
     expect(onClick).not.toHaveBeenCalled()

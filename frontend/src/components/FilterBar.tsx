@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
 import { Search, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import './FilterBar.css'
 
 interface Props {
@@ -20,7 +20,7 @@ export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
     }
   }, [mode])
 
-  const activeChip = stores.find(s => query === `@${s}`) ?? null
+  const activeChip = stores.find((s) => query === `@${s}`) ?? null
 
   return (
     <div
@@ -35,7 +35,11 @@ export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
       >
         <button
           className="filter-bar__search-btn"
-          onClick={() => { setMode('search'); onChange(''); onModeChange?.('search') }}
+          onClick={() => {
+            setMode('search')
+            onChange('')
+            onModeChange?.('search')
+          }}
           aria-label="Buscar"
         >
           <Search size={16} />
@@ -49,7 +53,7 @@ export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
             >
               Todas
             </button>
-            {stores.map(store => (
+            {stores.map((store) => (
               <button
                 key={store}
                 className={`filter-bar__chip${activeChip === store ? ' filter-bar__chip--active' : ''}`}
@@ -69,7 +73,11 @@ export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
       >
         <button
           className="filter-bar__close-btn"
-          onClick={() => { setMode('chips'); onChange(''); onModeChange?.('chips') }}
+          onClick={() => {
+            setMode('chips')
+            onChange('')
+            onModeChange?.('chips')
+          }}
           aria-label="Cerrar búsqueda"
         >
           <X size={16} />
@@ -80,7 +88,7 @@ export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
             className="filter-bar__input"
             type="text"
             value={query}
-            onChange={e => onChange(e.target.value)}
+            onChange={(e) => onChange(e.target.value)}
             placeholder="@tienda #marca nombre…"
             aria-label="Buscar productos"
           />

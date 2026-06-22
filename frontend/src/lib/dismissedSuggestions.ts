@@ -5,7 +5,10 @@ let cache: Record<string, string> | null = null
 function read(): Record<string, string> {
   if (cache !== null) return cache
   try {
-    cache = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, string>
+    cache = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<
+      string,
+      string
+    >
   } catch {
     cache = {}
   }
@@ -17,7 +20,9 @@ function write(map: Record<string, string>) {
   localStorage.setItem(KEY, JSON.stringify(map))
 }
 
-export function _resetCacheForTesting() { cache = null }
+export function _resetCacheForTesting() {
+  cache = null
+}
 
 export function isDismissed(name: string): boolean {
   const expiry = read()[name]

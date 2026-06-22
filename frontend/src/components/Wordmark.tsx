@@ -7,7 +7,11 @@ interface WordmarkProps {
 export function Wordmark({ size = 32 }: WordmarkProps) {
   const tickSize = Math.round(size * 0.55)
   return (
-    <span className="wordmark" style={{ fontSize: size }} aria-label="CarroQueSí">
+    <span
+      className="wordmark"
+      style={{ fontSize: size }}
+      aria-label="CarroQueSí"
+    >
       <span className="wordmark__word">Carro</span>
       <span className="wordmark__word">Que</span>
       <span className="wordmark__word">Sí</span>

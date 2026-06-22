@@ -47,15 +47,15 @@ def get_current_user(
             is_waitlist_approved = False
             if email_clean:
                 from app.db.waitlist_models import WaitlistSignup
+
                 signup = session.exec(
                     select(WaitlistSignup).where(
-                        WaitlistSignup.email == email_clean,
-                        WaitlistSignup.allowed_at.is_not(None)
+                        WaitlistSignup.email == email_clean, WaitlistSignup.allowed_at.is_not(None)
                     )
                 ).first()
                 if signup:
                     is_waitlist_approved = True
-            
+
             if not is_waitlist_approved:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,

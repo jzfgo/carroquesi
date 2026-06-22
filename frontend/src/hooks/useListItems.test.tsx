@@ -1,14 +1,20 @@
-import { renderHook, waitFor, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useListItems } from './useListItems'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
 import { ApiError } from '../lib/api'
-import type { ListItem } from '../types'
 import * as offlineQueue from '../lib/offlineQueue'
+import type { ListItem } from '../types'
+import { useListItems } from './useListItems'
 
 vi.mock('../lib/api')
 vi.mock('../lib/offlineQueue', () => ({
-  enqueue: vi.fn().mockResolvedValue({ id: 'q1', listId: 'list-1', type: 'addItem', payload: {}, enqueuedAt: 0 }),
+  enqueue: vi.fn().mockResolvedValue({
+    id: 'q1',
+    listId: 'list-1',
+    type: 'addItem',
+    payload: {},
+    enqueuedAt: 0,
+  }),
 }))
 
 const mockGetToken = vi.fn().mockResolvedValue('token')
@@ -33,7 +39,14 @@ const item1: ListItem = {
 }
 
 const mockRawMembers = [
-  { id: 'mem-1', user_id: 'user-1', list_id: 'list-1', display_name: 'Alice', photo_url: null, created_at: '' },
+  {
+    id: 'mem-1',
+    user_id: 'user-1',
+    list_id: 'list-1',
+    display_name: 'Alice',
+    photo_url: null,
+    created_at: '',
+  },
 ]
 
 beforeEach(() => {
@@ -41,7 +54,9 @@ beforeEach(() => {
   localStorage.removeItem('cqs_list_cache_list-1')
   vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
   vi.mocked(api.getListMembers).mockResolvedValue(mockRawMembers as never)
-  vi.mocked(api.getListUpdatedAt).mockResolvedValue({ updated_at: '2026-01-01T00:00:00' } as never)
+  vi.mocked(api.getListUpdatedAt).mockResolvedValue({
+    updated_at: '2026-01-01T00:00:00',
+  } as never)
 })
 
 describe('useListItems — initial fetch', () => {
@@ -99,13 +114,19 @@ describe('useListItems — togglePurchased', () => {
     })
 
     expect(result.current.items[0].purchased).toBe(false)
-    expect(mockShowToast).toHaveBeenCalledWith('No se pudo actualizar el producto')
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se pudo actualizar el producto',
+    )
   })
 })
 
 describe('useListItems — addItem', () => {
   it('replaces temp item with real item on success', async () => {
-    const realItem: ListItem = { ...item1, id: 'item-real', name: 'Leche Real' }
+    const realItem: ListItem = {
+      ...item1,
+      id: 'item-real',
+      name: 'Leche Real',
+    }
     vi.mocked(api.createItem).mockResolvedValue(realItem as never)
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -121,7 +142,7 @@ describe('useListItems — addItem', () => {
       })
     })
 
-    const newItem = result.current.items.find(i => i.id === 'item-real')
+    const newItem = result.current.items.find((i) => i.id === 'item-real')
     expect(newItem?.id).toBe('item-real')
     expect(newItem?.name).toBe('Leche Real')
   })
@@ -154,7 +175,12 @@ describe('useListItems — addItem', () => {
     await waitFor(() => expect(result.current.status).toBe('success'))
 
     await act(async () => {
-      await result.current.addItem({ name: 'LECHE', quantity: null, brand: null, stores: [] })
+      await result.current.addItem({
+        name: 'LECHE',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
     })
 
     expect(api.createItem).not.toHaveBeenCalled()
@@ -170,7 +196,13 @@ describe('useListItems — addItem', () => {
     await waitFor(() => expect(result.current.status).toBe('success'))
 
     await act(async () => {
-      await result.current.addItem({ name: 'Otro', quantity: null, brand: null, stores: [], ean: '1234567890123' })
+      await result.current.addItem({
+        name: 'Otro',
+        quantity: null,
+        brand: null,
+        stores: [],
+        ean: '1234567890123',
+      })
     })
 
     expect(api.createItem).not.toHaveBeenCalled()
@@ -178,7 +210,11 @@ describe('useListItems — addItem', () => {
   })
 
   it('allows re-adding a name that exists only in purchased items', async () => {
-    const purchasedItem: ListItem = { ...item1, purchased: true, purchased_at: '2026-01-01T10:00:00' }
+    const purchasedItem: ListItem = {
+      ...item1,
+      purchased: true,
+      purchased_at: '2026-01-01T10:00:00',
+    }
     vi.mocked(api.getListItems).mockResolvedValue([purchasedItem] as never)
     const realItem: ListItem = { ...item1, id: 'item-new' }
     vi.mocked(api.createItem).mockResolvedValue(realItem as never)
@@ -188,7 +224,12 @@ describe('useListItems — addItem', () => {
     await waitFor(() => expect(result.current.status).toBe('success'))
 
     await act(async () => {
-      await result.current.addItem({ name: 'Leche', quantity: null, brand: null, stores: [] })
+      await result.current.addItem({
+        name: 'Leche',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
     })
 
     expect(api.createItem).toHaveBeenCalled()
@@ -206,7 +247,12 @@ describe('useListItems — addItem', () => {
     const initialLength = result.current.items.length
 
     await act(async () => {
-      await result.current.addItem({ name: 'Producto Nuevo', quantity: null, brand: null, stores: [] })
+      await result.current.addItem({
+        name: 'Producto Nuevo',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
     })
 
     expect(result.current.items).toHaveLength(initialLength)
@@ -257,7 +303,9 @@ describe('useListItems — updateTag', () => {
     })
 
     expect(result.current.items[0].brand).toBeNull()
-    expect(mockShowToast).toHaveBeenCalledWith('No se pudo actualizar el producto')
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se pudo actualizar el producto',
+    )
   })
 })
 
@@ -284,7 +332,9 @@ describe('useListItems — polling', () => {
 
     // Now swap to a newer timestamp and updated items
     const updatedItem: ListItem = { ...item1, name: 'Leche Updated' }
-    vi.mocked(api.getListUpdatedAt).mockResolvedValue({ updated_at: '2026-01-02T00:00:00' } as never)
+    vi.mocked(api.getListUpdatedAt).mockResolvedValue({
+      updated_at: '2026-01-02T00:00:00',
+    } as never)
     vi.mocked(api.getListItems).mockResolvedValue([updatedItem] as never)
 
     // Second poll: detects timestamp change, re-fetches
@@ -335,7 +385,9 @@ describe('useListItems — polling', () => {
 
     // Tab becomes visible again with updated data
     const updatedItem: ListItem = { ...item1, name: 'Leche Catch-Up' }
-    vi.mocked(api.getListUpdatedAt).mockResolvedValue({ updated_at: '2026-01-02T00:00:00' } as never)
+    vi.mocked(api.getListUpdatedAt).mockResolvedValue({
+      updated_at: '2026-01-02T00:00:00',
+    } as never)
     vi.mocked(api.getListItems).mockResolvedValue([updatedItem] as never)
 
     Object.defineProperty(document, 'visibilityState', {
@@ -362,7 +414,11 @@ describe('useListItems — stale-while-revalidate cache', () => {
     localStorage.setItem('cqs_list_cache_list-1', JSON.stringify(cached))
 
     let resolveItems!: (v: unknown) => void
-    vi.mocked(api.getListItems).mockReturnValue(new Promise((r) => { resolveItems = r }))
+    vi.mocked(api.getListItems).mockReturnValue(
+      new Promise((r) => {
+        resolveItems = r
+      }),
+    )
 
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -399,9 +455,15 @@ describe('useListItems — stale-while-revalidate cache', () => {
     }
     localStorage.setItem('cqs_list_cache_list-1', JSON.stringify(cached))
 
-    vi.mocked(api.getListItems).mockRejectedValue(new TypeError('Failed to fetch'))
-    vi.mocked(api.getListMembers).mockRejectedValue(new TypeError('Failed to fetch'))
-    vi.mocked(api.getListUpdatedAt).mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.mocked(api.getListItems).mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    )
+    vi.mocked(api.getListMembers).mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    )
+    vi.mocked(api.getListUpdatedAt).mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    )
 
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -416,7 +478,9 @@ describe('useListItems — stale-while-revalidate cache', () => {
 describe('useListItems — write queue on network error', () => {
   it('addItem: keeps temp item in list on network error', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    vi.mocked(api.createItem).mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.mocked(api.createItem).mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    )
 
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -425,12 +489,17 @@ describe('useListItems — write queue on network error', () => {
     expect(result.current.items).toHaveLength(1)
 
     await act(async () => {
-      await result.current.addItem({ name: 'Nueva', quantity: null, brand: null, stores: [] })
+      await result.current.addItem({
+        name: 'Nueva',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
     })
 
     // temp item should still be in list (not rolled back)
     expect(result.current.items).toHaveLength(2)
-    expect(result.current.items.some(i => i.name === 'Nueva')).toBe(true)
+    expect(result.current.items.some((i) => i.name === 'Nueva')).toBe(true)
     expect(offlineQueue.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'addItem', listId: 'list-1' }),
     )
@@ -438,7 +507,9 @@ describe('useListItems — write queue on network error', () => {
 
   it('addItem: removes temp item on server error (ApiError)', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    vi.mocked(api.createItem).mockRejectedValue(new ApiError(500, 'Server Error'))
+    vi.mocked(api.createItem).mockRejectedValue(
+      new ApiError(500, 'Server Error'),
+    )
 
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -446,7 +517,12 @@ describe('useListItems — write queue on network error', () => {
     await waitFor(() => expect(result.current.status).toBe('success'))
 
     await act(async () => {
-      await result.current.addItem({ name: 'Nueva', quantity: null, brand: null, stores: [] })
+      await result.current.addItem({
+        name: 'Nueva',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
     })
 
     // temp item should be removed (rolled back)
@@ -456,7 +532,9 @@ describe('useListItems — write queue on network error', () => {
 
   it('togglePurchased: keeps toggled state on network error', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    vi.mocked(api.updateItem).mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.mocked(api.updateItem).mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    )
 
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -476,7 +554,9 @@ describe('useListItems — write queue on network error', () => {
 
   it('togglePurchased: rolls back on server error', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    vi.mocked(api.updateItem).mockRejectedValue(new ApiError(422, 'Unprocessable'))
+    vi.mocked(api.updateItem).mockRejectedValue(
+      new ApiError(422, 'Unprocessable'),
+    )
 
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),

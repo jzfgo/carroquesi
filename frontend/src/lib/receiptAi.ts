@@ -1,5 +1,5 @@
 import { getGenerativeModel, InferenceMode } from 'firebase/ai'
-import type { ParsedLine, ReceiptScanRequest } from '../types/receipt'
+import type { ParsedLine, ReceiptScanRequest } from '../types'
 import { ai } from './firebase'
 
 const RECEIPT_SCHEMA = {

@@ -1,5 +1,5 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import { CreateListCard } from './CreateListCard'
 
 describe('CreateListCard', () => {
@@ -45,7 +45,9 @@ describe('CreateListCard', () => {
     fireEvent.change(screen.getByPlaceholderText(/nombre/i), {
       target: { value: 'Costco' },
     })
-    fireEvent.keyDown(screen.getByPlaceholderText(/nombre/i), { key: 'Escape' })
+    fireEvent.keyDown(screen.getByPlaceholderText(/nombre/i), {
+      key: 'Escape',
+    })
     expect(screen.queryByPlaceholderText(/nombre/i)).not.toBeInTheDocument()
     // After re-expand, input should be empty
     fireEvent.click(screen.getByRole('button'))
@@ -75,6 +77,8 @@ describe('CreateListCard', () => {
 
   it('does not show mascot when not isFirst', () => {
     render(<CreateListCard onCreate={vi.fn()} />)
-    expect(screen.queryByRole('img', { name: /mascota/i })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('img', { name: /mascota/i }),
+    ).not.toBeInTheDocument()
   })
 })

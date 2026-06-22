@@ -89,5 +89,7 @@ export function computeCostSummary(items: ListItem[]): CostSummary | null {
  */
 export function purchasedDateLabel(purchased_at: string | null): string {
   if (!purchased_at) return 'Fecha desconocida'
-  return new Date(purchased_at + 'Z').toLocaleDateString('es', { dateStyle: 'medium' })
+  return new Date(purchased_at + 'Z').toLocaleDateString('es', {
+    dateStyle: 'medium',
+  })
 }

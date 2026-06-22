@@ -9,12 +9,14 @@ import { WaitlistScreen } from './components/WaitlistScreen'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext'
 
+const WAITLIST_ENABLED = import.meta.env.VITE_WAITLIST_ENABLED === 'true'
+
 function AuthRoute({ element }: { element: React.ReactElement }) {
   const { user, loading, isWaitlisted } = useAuth()
   if (loading) return null
   if (isWaitlisted) return <WaitlistScreen />
   if (!user) {
-    if (import.meta.env.VITE_WAITLIST_ENABLED === 'true') {
+    if (WAITLIST_ENABLED) {
       return <WaitlistScreen />
     }
     return <SignInScreen />
@@ -54,7 +56,7 @@ function AppContent() {
 
   if (isWaitlisted) return <WaitlistScreen />
   if (!user) {
-    if (import.meta.env.VITE_WAITLIST_ENABLED === 'true') {
+    if (WAITLIST_ENABLED) {
       return <WaitlistScreen />
     }
     return <SignInScreen />
@@ -70,7 +72,10 @@ export default function App() {
           <ThemeManager>
             <Routes>
               <Route path="/invite/:id" element={<InviteScreen />} />
-              <Route path="/lists/:id" element={<AuthRoute element={<ListRoute />} />} />
+              <Route
+                path="/lists/:id"
+                element={<AuthRoute element={<ListRoute />} />}
+              />
               <Route path="*" element={<AppContent />} />
             </Routes>
           </ThemeManager>

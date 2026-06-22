@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class PriceCreate(BaseModel):
     amount: float = Field(gt=0)
-    price_per: Literal['KILOGRAM'] | None = None  # None = per unit, "KILOGRAM" = per kg
+    price_per: Literal["KILOGRAM"] | None = None  # None = per unit, "KILOGRAM" = per kg
     store: str | None = None
 
 

@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { X } from 'lucide-react'
+import { useState } from 'react'
 import './InstallBanner.css'
 
 const DISMISSED_KEY = 'pwa-install-dismissed'
@@ -11,8 +11,15 @@ interface Props {
   promptInstall: () => Promise<void>
 }
 
-export function InstallBanner({ isInstallable, isInstalled, isIOS, promptInstall }: Props) {
-  const [dismissed, setDismissed] = useState(() => Boolean(localStorage.getItem(DISMISSED_KEY)))
+export function InstallBanner({
+  isInstallable,
+  isInstalled,
+  isIOS,
+  promptInstall,
+}: Props) {
+  const [dismissed, setDismissed] = useState(() =>
+    Boolean(localStorage.getItem(DISMISSED_KEY)),
+  )
 
   if (isInstalled || dismissed || (!isInstallable && !isIOS)) return null
 
@@ -23,20 +30,34 @@ export function InstallBanner({ isInstallable, isInstalled, isIOS, promptInstall
 
   return (
     <aside className="install-banner" role="complementary">
-      <div className="install-banner__icon" aria-hidden="true">CQ</div>
+      <div className="install-banner__icon" aria-hidden="true">
+        CQ
+      </div>
       <p className="install-banner__text">
         {isIOS ? (
-          <>Toca <strong>Compartir</strong> → <strong>Añadir a pantalla de inicio</strong></>
+          <>
+            Toca <strong>Compartir</strong> →{' '}
+            <strong>Añadir a pantalla de inicio</strong>
+          </>
         ) : (
-          <>Instala <strong>CarroQueSí</strong> en tu pantalla de inicio</>
+          <>
+            Instala <strong>CarroQueSí</strong> en tu pantalla de inicio
+          </>
         )}
       </p>
       {!isIOS && (
-        <button className="install-banner__cta" onClick={() => void promptInstall()}>
+        <button
+          className="install-banner__cta"
+          onClick={() => void promptInstall()}
+        >
           Instalar
         </button>
       )}
-      <button className="install-banner__dismiss" aria-label="Cerrar" onClick={handleDismiss}>
+      <button
+        className="install-banner__dismiss"
+        aria-label="Cerrar"
+        onClick={handleDismiss}
+      >
         <X size={16} />
       </button>
     </aside>

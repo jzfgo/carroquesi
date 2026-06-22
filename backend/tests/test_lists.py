@@ -44,7 +44,9 @@ def test_rename_list(client: TestClient):
     assert response.json()["name"] == "New Name"
 
 
-def test_rename_list_non_owner_returns_403(client: TestClient, other_client: TestClient, session: Session):
+def test_rename_list_non_owner_returns_403(
+    client: TestClient, other_client: TestClient, session: Session
+):
     created = client.post("/lists", json={"name": "Owned"}).json()
     response = other_client.patch(f"/lists/{created['id']}", json={"name": "Hacked"})
     assert response.status_code == 403

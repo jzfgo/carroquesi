@@ -17,6 +17,7 @@ def test_get_members(client: TestClient):
 
 def test_add_member_creates_invite(client: TestClient, other_user, session: Session):
     from app.db.models import ListInvite
+
     lst = _create_list(client)
     # Even when the email matches an existing user, an invite is created (not direct membership)
     response = client.post(f"/lists/{lst['id']}/members", json={"email": other_user.email})
@@ -25,14 +26,13 @@ def test_add_member_creates_invite(client: TestClient, other_user, session: Sess
     assert invite is not None
     assert invite.invited_email == other_user.email
     # No direct membership created
-    members = session.exec(
-        select(ListMember).where(ListMember.list_id == lst["id"])
-    ).all()
+    members = session.exec(select(ListMember).where(ListMember.list_id == lst["id"])).all()
     assert len(members) == 1  # only the owner
 
 
 def test_add_member_unknown_email_creates_invite(client: TestClient, session: Session):
     from app.db.models import ListInvite
+
     lst = _create_list(client)
     response = client.post(f"/lists/{lst['id']}/members", json={"email": "unknown@example.com"})
     assert response.status_code == 202
@@ -56,12 +56,16 @@ def test_remove_member(client: TestClient, other_user, session: Session, user):
     response = client.delete(f"/lists/{lst['id']}/members/{other_user.id}")
     assert response.status_code == 204
     members = session.exec(
-        select(ListMember).where(ListMember.list_id == lst["id"], ListMember.user_id == other_user.id)
+        select(ListMember).where(
+            ListMember.list_id == lst["id"], ListMember.user_id == other_user.id
+        )
     ).all()
     assert len(members) == 0
 
 
-def test_member_can_remove_themselves(client: TestClient, other_client: TestClient, other_user, session: Session):
+def test_member_can_remove_themselves(
+    client: TestClient, other_client: TestClient, other_user, session: Session
+):
     lst = _create_list(client)
     # Add other_user as member directly (bypasses invite flow — test setup only)
     member = ListMember(list_id=lst["id"], user_id=other_user.id)
@@ -98,11 +102,14 @@ def test_get_members_includes_user_fields(client: TestClient, user):
     assert member["photo_url"] is None
 
 
-def test_get_members_display_name_falls_back_to_email_prefix(client: TestClient, user, session: Session):
+def test_get_members_display_name_falls_back_to_email_prefix(
+    client: TestClient, user, session: Session
+):
     """When a user has no display_name, the endpoint returns the email prefix."""
     from sqlmodel import select as sql_select
 
     from app.db.models import User as UserModel
+
     db_user = session.exec(sql_select(UserModel).where(UserModel.id == user.id)).first()
     db_user.display_name = None
     session.add(db_user)

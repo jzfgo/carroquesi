@@ -27,7 +27,9 @@
   font-family: inherit;
 }
 
-.smart-input__suggestion:last-child { border-bottom: none; }
+.smart-input__suggestion:last-child {
+  border-bottom: none;
+}
 
 .smart-input__suggestion--top {
   background: var(--tinta-bg);
@@ -271,8 +273,13 @@
   left: 50%;
 }
 
-.smart-input__clear-icon::before { transform: translate(-50%, -50%) rotate(45deg); }
-.smart-input__clear-icon::after  { transform: translate(-50%, -50%) rotate(-45deg); }
+.smart-input__clear-icon::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.smart-input__clear-icon::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
 
 .smart-input__due-btn {
   background: color-mix(in srgb, var(--tinta-0) 15%, transparent);

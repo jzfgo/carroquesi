@@ -15,7 +15,9 @@ def test_invite_flow_accept(
 ):
     lst = _create_list(client)
     # Seed a pending invite for other_user
-    invite = ListInvite(list_id=lst["id"], invited_email=other_user.email, invited_by=lst["owner_id"])
+    invite = ListInvite(
+        list_id=lst["id"], invited_email=other_user.email, invited_by=lst["owner_id"]
+    )
     session.add(invite)
     session.commit()
     session.refresh(invite)
@@ -29,7 +31,9 @@ def test_invite_flow_accept(
     response = other_client.post(f"/invites/{invite.id}/accept")
     assert response.status_code == 200
     member = session.exec(
-        select(ListMember).where(ListMember.list_id == lst["id"], ListMember.user_id == other_user.id)
+        select(ListMember).where(
+            ListMember.list_id == lst["id"], ListMember.user_id == other_user.id
+        )
     ).first()
     assert member is not None
     assert session.get(ListInvite, invite.id) is None
@@ -39,6 +43,7 @@ def test_public_invite_preview_no_auth(session: Session, user):
     """GET /invites/{id} is public — no auth required."""
     # Create a list via session directly so we have an ID
     from app.db.models import List
+
     lst = List(name="Preview List", owner_id=user.id)
     session.add(lst)
     session.commit()
@@ -54,6 +59,7 @@ def test_public_invite_preview_no_auth(session: Session, user):
 
     from app.db.session import get_session
     from app.routers import invites as invites_router
+
     bare_app = FastAPI()
     bare_app.include_router(invites_router.router)
     bare_app.dependency_overrides[get_session] = lambda: session
@@ -65,10 +71,14 @@ def test_public_invite_preview_no_auth(session: Session, user):
     assert data["list_name"] == "Preview List"
 
 
-def test_wrong_email_cannot_accept(client: TestClient, other_client: TestClient, session: Session, user):
+def test_wrong_email_cannot_accept(
+    client: TestClient, other_client: TestClient, session: Session, user
+):
     lst = _create_list(client)
     # Invite is locked to a different email
-    invite = ListInvite(list_id=lst["id"], invited_email="someone_else@example.com", invited_by=user.id)
+    invite = ListInvite(
+        list_id=lst["id"], invited_email="someone_else@example.com", invited_by=user.id
+    )
     session.add(invite)
     session.commit()
     session.refresh(invite)
@@ -106,6 +116,7 @@ def test_decline_invite(client: TestClient, session: Session, user):
 def test_link_invite_accepted_by_any_user(other_client: TestClient, session: Session, user):
     """A link invite (no email) can be accepted by any authenticated user."""
     from app.db.models import List
+
     lst = List(name="Open List", owner_id=user.id)
     session.add(lst)
     session.commit()
@@ -120,9 +131,7 @@ def test_link_invite_accepted_by_any_user(other_client: TestClient, session: Ses
 
     response = other_client.post(f"/invites/{invite.id}/accept")
     assert response.status_code == 200
-    members = session.exec(
-        select(ListMember).where(ListMember.list_id == lst.id)
-    ).all()
+    members = session.exec(select(ListMember).where(ListMember.list_id == lst.id)).all()
     # owner + other_user = 2 members
     assert len(members) == 2
 
@@ -130,6 +139,7 @@ def test_link_invite_accepted_by_any_user(other_client: TestClient, session: Ses
 def test_unrelated_user_cannot_delete_link_invite(other_client: TestClient, session: Session, user):
     """An unrelated user cannot delete a link invite — only the list owner can."""
     from app.db.models import List
+
     lst = List(name="Locked List", owner_id=user.id)
     session.add(lst)
     session.commit()
@@ -157,6 +167,7 @@ def test_create_open_invite(client, session, user):
 
 def test_non_member_cannot_create_open_invite(other_client, session, user):
     from app.db.models import List
+
     lst = List(name="Private", owner_id=user.id)
     session.add(lst)
     session.commit()
@@ -168,6 +179,7 @@ def test_non_member_cannot_create_open_invite(other_client, session, user):
 def test_list_full_blocks_invite_creation(client, session, user):
     from app.db.models import List
     from app.db.models import User as DBUser
+
     lst = List(name="Full", owner_id=user.id)
     session.add(lst)
     session.commit()
@@ -191,6 +203,7 @@ def test_list_full_blocks_invite_creation(client, session, user):
 
 def test_expired_invites_cleaned_up_on_create(client, session, user):
     from datetime import timedelta
+
     lst = _create_list(client)
     old = ListInvite(
         list_id=lst["id"],
@@ -217,6 +230,7 @@ def test_open_invite_limit_returns_429(client, session, user):
 
 def test_expired_invites_do_not_count_toward_limit(client, session, user):
     from datetime import timedelta
+
     lst = _create_list(client)
     for _ in range(5):
         inv = ListInvite(
@@ -233,6 +247,7 @@ def test_expired_invites_do_not_count_toward_limit(client, session, user):
 def test_accept_invite_blocked_when_list_full(other_client, session, user):
     from app.db.models import List
     from app.db.models import User as DBUser
+
     lst = List(name="Packed", owner_id=user.id)
     session.add(lst)
     session.commit()
@@ -312,6 +327,7 @@ def test_accept_invite_returns_410_when_expired(client: TestClient, session: Ses
 
 def test_invite_preview_includes_emoji(client: TestClient, session: Session, user):
     from app.db.models import List, ListInvite, ListMember
+
     lst = List(name="Frutas", emoji="🍎", owner_id=user.id)
     session.add(lst)
     session.flush()
@@ -328,6 +344,7 @@ def test_invite_preview_includes_emoji(client: TestClient, session: Session, use
 
 def test_invite_preview_list_emoji_null_when_not_set(client: TestClient, session: Session, user):
     from app.db.models import List, ListInvite, ListMember
+
     lst = List(name="Sin emoji", emoji=None, owner_id=user.id)
     session.add(lst)
     session.flush()

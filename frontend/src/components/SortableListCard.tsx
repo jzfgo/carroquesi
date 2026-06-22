@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { ListCard } from './ListCard'
 import type { ApiList } from '../types'
+import { ListCard } from './ListCard'
 
 interface Props {
   list: ApiList
@@ -11,8 +11,21 @@ interface Props {
   onEmojiTap?: () => void
 }
 
-export function SortableListCard({ list, isOwner, onClick, onMenuOpen, onEmojiTap }: Props) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+export function SortableListCard({
+  list,
+  isOwner,
+  onClick,
+  onMenuOpen,
+  onEmojiTap,
+}: Props) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: list.id,
   })
 

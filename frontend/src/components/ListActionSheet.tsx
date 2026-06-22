@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
-import { Pencil, Trash2, Receipt } from 'lucide-react'
-import './ListActionSheet.css'
+import { Pencil, Receipt, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import type { ApiList } from '../types'
+import './ListActionSheet.css'
 
 type SubState = 'actions' | 'rename' | 'confirm-delete'
 
@@ -15,7 +15,14 @@ interface Props {
   onClose: () => void
 }
 
-export function ListActionSheet({ list, isOwner, onRename, onDelete, onReceiptScan, onClose }: Props) {
+export function ListActionSheet({
+  list,
+  isOwner,
+  onRename,
+  onDelete,
+  onReceiptScan,
+  onClose,
+}: Props) {
   const [subState, setSubState] = useState<SubState>('actions')
   const [renameValue, setRenameValue] = useState(list.name)
   const sheetRef = useRef<HTMLDivElement>(null)
@@ -29,13 +36,21 @@ export function ListActionSheet({ list, isOwner, onRename, onDelete, onReceiptSc
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [onClose])
 
-  const overlay = <div className="list-action-sheet__overlay" onClick={onClose} />
+  const overlay = (
+    <div className="list-action-sheet__overlay" onClick={onClose} />
+  )
 
   if (subState === 'actions') {
     return (
       <>
         {overlay}
-        <div className="list-action-sheet" role="dialog" aria-modal="true" aria-label="Opciones de lista" ref={sheetRef}>
+        <div
+          className="list-action-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Opciones de lista"
+          ref={sheetRef}
+        >
           <div className="list-action-sheet__handle" {...swipe} />
           <p className="list-action-sheet__list-name">{list.name}</p>
           <button
@@ -47,7 +62,10 @@ export function ListActionSheet({ list, isOwner, onRename, onDelete, onReceiptSc
           {onReceiptScan && (
             <button
               className="list-action-sheet__action"
-              onClick={() => { onReceiptScan(); onClose() }}
+              onClick={() => {
+                onReceiptScan()
+                onClose()
+              }}
             >
               <Receipt size={18} /> Escanear ticket
             </button>
@@ -70,16 +88,26 @@ export function ListActionSheet({ list, isOwner, onRename, onDelete, onReceiptSc
     return (
       <>
         {overlay}
-        <div className="list-action-sheet" role="dialog" aria-modal="true" aria-label="Renombrar lista" ref={sheetRef}>
+        <div
+          className="list-action-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Renombrar lista"
+          ref={sheetRef}
+        >
           <div className="list-action-sheet__handle" {...swipe} />
-          <p className="list-action-sheet__list-name"><Pencil size={16} /> Renombrar lista</p>
+          <p className="list-action-sheet__list-name">
+            <Pencil size={16} /> Renombrar lista
+          </p>
           <div className="list-action-sheet__input-row">
             <input
               className="list-action-sheet__input"
               type="text"
               value={renameValue}
-              onChange={e => setRenameValue(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && trimmed) onRename(trimmed) }}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && trimmed) onRename(trimmed)
+              }}
               autoFocus
               aria-label="Nombre de la lista"
             />
@@ -108,7 +136,13 @@ export function ListActionSheet({ list, isOwner, onRename, onDelete, onReceiptSc
   return (
     <>
       {overlay}
-      <div className="list-action-sheet" role="dialog" aria-modal="true" aria-label="Confirmar eliminación" ref={sheetRef}>
+      <div
+        className="list-action-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Confirmar eliminación"
+        ref={sheetRef}
+      >
         <div className="list-action-sheet__handle" {...swipe} />
         <p className="list-action-sheet__list-name">{list.name}</p>
         <p className="list-action-sheet__warning">

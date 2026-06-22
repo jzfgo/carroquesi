@@ -6,7 +6,7 @@ on:
 
 jobs:
   frontend:
-    name: Frontend (typecheck + lint)
+    name: Frontend (typecheck + lint + format + test)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -34,8 +34,14 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Test
+        run: pnpm test
+
   backend:
-    name: Backend (tests)
+    name: Backend (lint + format + tests)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -54,6 +60,9 @@ jobs:
 
       - name: Lint
         run: uv run ruff check
+
+      - name: Format check
+        run: uv run ruff format --check
 
       - name: Test
         run: uv run pytest

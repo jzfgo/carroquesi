@@ -1,5 +1,7 @@
 # Developer & Agent Guidelines (AGENTS.md)
 
+> `CLAUDE.md`, `GEMINI.md`, `PI.md`, and `PILENS.md` are symlinks to this file. Edit `AGENTS.md` directly.
+
 This file provides guidance to coding agents (such as Antigravity CLI, Claude Code, Codex CLI, OpenCode, Pi Coding Agent, etc.) and developers when working with code in this repository.
 
 ## Project Overview
@@ -50,6 +52,8 @@ pnpm preview
 pnpm test
 pnpm test -- path/to/file.test.tsx  # a single test file
 pnpm lint
+pnpm format          # Prettier + stylelint
+pnpm format:check    # check without writing (used in CI)
 # root tsconfig has files:[]; use this for real frontend typecheck:
 node_modules/.bin/tsc -p tsconfig.app.json --noEmit
 ```
@@ -156,7 +160,7 @@ The following constraints are enforced by Claude Code hooks (`.claude/hooks/`) a
 - **No edits on `main`** — any `Edit` or `Write` call while on the `main` branch is denied. Run `/worktrunk` first; no exceptions.
 - **Auto-lint on stop** — after each turn, changed Python files are checked with `ruff` and changed TypeScript files with `eslint`. If either fails, Claude Code continues the turn to fix the issue before stopping.
 
-Lefthook pre-commit hooks run on staged files: `ruff check --fix` + `ruff format` (Python), `eslint --fix` (TypeScript/TSX), a platform-native-binding guard on `pnpm-lock.yaml`, and `gitleaks` secret scanning (skipped gracefully if not installed). The `pre-push` hook checks that `CHANGELOG.md` is current.
+Lefthook pre-commit hooks run on staged files: `ruff check --fix` + `ruff format` (Python), `eslint --fix` (TypeScript/TSX), `stylelint --fix` (CSS), a platform-native-binding guard on `pnpm-lock.yaml`, and `gitleaks` secret scanning (skipped gracefully if not installed). The `pre-push` hook checks that `CHANGELOG.md` is current.
 
 ### Architecture Decision Records
 
@@ -203,7 +207,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 - Frontend changes: run lint, relevant tests, and `just frontend typecheck`
 - Backend changes: run relevant `just backend test-file {file}` tests (full suite when feasible `just backend test`)
 - Before push: verify only intentional files are changed and no platform-specific native binding churn was introduced in `pnpm-lock.yaml`
-- Shortcut: `just ci` runs frontend typecheck + lint + backend lint + backend tests in one shot
+- Shortcut: `just ci` runs format-check + typecheck + lint + tests (frontend and backend) in one shot
 - **TODO.md** — remove any items that shipped in this task. This is blocking, not optional cleanup.
 - **CHANGELOG.md** — run `just changelog` and commit the result before pushing. This is blocking, not optional cleanup.
 

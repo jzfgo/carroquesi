@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
 import { X } from 'lucide-react'
+import { useEffect } from 'react'
 import './PurchaseToast.css'
 
 const AUTO_DISMISS_MS = 6000
@@ -21,8 +21,12 @@ export default function PurchaseToast({ itemName, onDismiss }: Props) {
         <div className="pt__progress-fill" />
       </div>
       <div className="pt__body">
-        <div className="pt__text">Compraste <strong>{itemName}</strong></div>
-        <button className="pt__dismiss" onClick={onDismiss} aria-label="Cerrar"><X size={16} /></button>
+        <div className="pt__text">
+          Compraste <strong>{itemName}</strong>
+        </div>
+        <button className="pt__dismiss" onClick={onDismiss} aria-label="Cerrar">
+          <X size={16} />
+        </button>
       </div>
     </div>
   )

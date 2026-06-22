@@ -27,7 +27,9 @@ describe('FeedbackSheet', () => {
     )
 
     expect(screen.getByRole('button', { name: /enviar/i })).toBeDisabled()
-    fireEvent.change(screen.getByLabelText(/mensaje/i), { target: { value: '   ' } })
+    fireEvent.change(screen.getByLabelText(/mensaje/i), {
+      target: { value: '   ' },
+    })
     expect(screen.getByRole('button', { name: /enviar/i })).toBeDisabled()
   })
 
@@ -42,11 +44,19 @@ describe('FeedbackSheet', () => {
       />,
     )
 
-    fireEvent.change(screen.getByLabelText(/mensaje/i), { target: { value: '  Great app  ' } })
-    fireEvent.change(screen.getByLabelText(/email/i), { target: { value: '   ' } })
+    fireEvent.change(screen.getByLabelText(/mensaje/i), {
+      target: { value: '  Great app  ' },
+    })
+    fireEvent.change(screen.getByLabelText(/email/i), {
+      target: { value: '   ' },
+    })
     fireEvent.click(screen.getByRole('button', { name: /enviar/i }))
 
-    expect(onSubmit).toHaveBeenCalledWith({ message: 'Great app', email: null, source: 'manual' })
+    expect(onSubmit).toHaveBeenCalledWith({
+      message: 'Great app',
+      email: null,
+      source: 'manual',
+    })
   })
 
   it('calls onClose when cancel is clicked', () => {

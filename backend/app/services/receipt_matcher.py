@@ -12,10 +12,7 @@ MATCH_THRESHOLD = 70
 
 def normalise(text: str) -> str:
     text = text.lower()
-    text = "".join(
-        c for c in unicodedata.normalize("NFD", text)
-        if unicodedata.category(c) != "Mn"
-    )
+    text = "".join(c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn")
     text = re.sub(r"^\d+\s+", "", text)
     return re.sub(r"\s+", " ", text).strip()
 
@@ -50,15 +47,17 @@ def match_lines(
         if mapping:
             item = item_by_name.get(mapping.item_name)
             if item:
-                matched.append(MatchedLine(
-                    receipt_name=line.name,
-                    item_id=item.id,
-                    item_name=item.name,
-                    price_type=line.price_type,
-                    unit_price=line.unit_price,
-                    quantity=line.quantity,
-                    line_total=line.line_total,
-                ))
+                matched.append(
+                    MatchedLine(
+                        receipt_name=line.name,
+                        item_id=item.id,
+                        item_name=item.name,
+                        price_type=line.price_type,
+                        unit_price=line.unit_price,
+                        quantity=line.quantity,
+                        line_total=line.line_total,
+                    )
+                )
                 continue
 
         best_score = 0
@@ -70,22 +69,26 @@ def match_lines(
                 best_item = item
 
         if best_score >= MATCH_THRESHOLD and best_item:
-            matched.append(MatchedLine(
-                receipt_name=line.name,
-                item_id=best_item.id,
-                item_name=best_item.name,
-                price_type=line.price_type,
-                unit_price=line.unit_price,
-                quantity=line.quantity,
-                line_total=line.line_total,
-            ))
+            matched.append(
+                MatchedLine(
+                    receipt_name=line.name,
+                    item_id=best_item.id,
+                    item_name=best_item.name,
+                    price_type=line.price_type,
+                    unit_price=line.unit_price,
+                    quantity=line.quantity,
+                    line_total=line.line_total,
+                )
+            )
         else:
-            unmatched.append(UnmatchedLine(
-                receipt_name=line.name,
-                price_type=line.price_type,
-                unit_price=line.unit_price,
-                quantity=line.quantity,
-                line_total=line.line_total,
-            ))
+            unmatched.append(
+                UnmatchedLine(
+                    receipt_name=line.name,
+                    price_type=line.price_type,
+                    unit_price=line.unit_price,
+                    quantity=line.quantity,
+                    line_total=line.line_total,
+                )
+            )
 
     return matched, unmatched

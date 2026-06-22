@@ -1,9 +1,12 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { vi, beforeEach } from 'vitest'
-import { DueSuggestionsSheet } from './DueSuggestionsSheet'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, vi } from 'vitest'
 import type { DueSuggestion } from '../types'
+import { DueSuggestionsSheet } from './DueSuggestionsSheet'
 
-const makeSuggestion = (name: string, overrides: Partial<DueSuggestion> = {}): DueSuggestion => ({
+const makeSuggestion = (
+  name: string,
+  overrides: Partial<DueSuggestion> = {},
+): DueSuggestion => ({
   name,
   brand: 'Dodot',
   stores: ['Mercadona'],
@@ -56,7 +59,14 @@ test('clicking ✕ calls onDismiss with the suggestion', () => {
 
 test('calls onClose when suggestions list is empty', () => {
   const onClose = vi.fn()
-  render(<DueSuggestionsSheet suggestions={[]} onAdd={vi.fn()} onDismiss={vi.fn()} onClose={onClose} />)
+  render(
+    <DueSuggestionsSheet
+      suggestions={[]}
+      onAdd={vi.fn()}
+      onDismiss={vi.fn()}
+      onClose={onClose}
+    />,
+  )
   expect(onClose).toHaveBeenCalled()
 })
 

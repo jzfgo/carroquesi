@@ -40,9 +40,13 @@ def test_waitlist_signup_stores_clean_email(client: TestClient, session: Session
     assert stored.email == "test@example.com"
 
 
-def test_waitlist_signup_updates_invite_token_on_existing_entry(client: TestClient, session: Session):
+def test_waitlist_signup_updates_invite_token_on_existing_entry(
+    client: TestClient, session: Session
+):
     client.post("/waitlist", json={"email": "user@example.com"})
-    response = client.post("/waitlist", json={"email": "user@example.com", "invite_token": "inv-abc"})
+    response = client.post(
+        "/waitlist", json={"email": "user@example.com", "invite_token": "inv-abc"}
+    )
     assert response.status_code == 200
     assert response.json()["invite_token"] == "inv-abc"
 
@@ -50,9 +54,13 @@ def test_waitlist_signup_updates_invite_token_on_existing_entry(client: TestClie
     assert stored.invite_token == "inv-abc"
 
 
-def test_waitlist_signup_does_not_overwrite_existing_invite_token(client: TestClient, session: Session):
+def test_waitlist_signup_does_not_overwrite_existing_invite_token(
+    client: TestClient, session: Session
+):
     client.post("/waitlist", json={"email": "user@example.com", "invite_token": "original"})
-    response = client.post("/waitlist", json={"email": "user@example.com", "invite_token": "new-token"})
+    response = client.post(
+        "/waitlist", json={"email": "user@example.com", "invite_token": "new-token"}
+    )
     assert response.status_code == 200
     assert response.json()["invite_token"] == "original"
 
@@ -67,7 +75,9 @@ def test_waitlist_signup_silent_dedup(client: TestClient, session: Session):
 
 
 def test_waitlist_signup_stores_invite_token(client: TestClient, session: Session):
-    response = client.post("/waitlist", json={"email": "user@example.com", "invite_token": "inv-abc123"})
+    response = client.post(
+        "/waitlist", json={"email": "user@example.com", "invite_token": "inv-abc123"}
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["invite_token"] == "inv-abc123"
@@ -88,7 +98,9 @@ def test_waitlist_signup_invalid_email(client: TestClient, session: Session):
     assert session.exec(select(WaitlistSignup)).all() == []
 
 
-def test_list_signups_requires_admin(client: TestClient, admin_client: TestClient, session: Session):
+def test_list_signups_requires_admin(
+    client: TestClient, admin_client: TestClient, session: Session
+):
     session.add(WaitlistSignup(email="wait1@example.com"))
     session.add(WaitlistSignup(email="wait2@example.com"))
     session.commit()
@@ -143,7 +155,9 @@ def test_get_current_user_gate_allowed_for_existing(session: Session, monkeypatc
     monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
 
     # Seed an existing user
-    existing_user = User(firebase_uid="existing-uid", display_name="Existing", email="existing@example.com")
+    existing_user = User(
+        firebase_uid="existing-uid", display_name="Existing", email="existing@example.com"
+    )
     session.add(existing_user)
     session.commit()
     session.refresh(existing_user)
@@ -193,7 +207,12 @@ def test_get_current_user_gate_allowed_for_new_admin(session: Session, monkeypat
     # Mock Firebase verification to return user with is_admin = True
     monkeypatch.setattr(
         "app.dependencies.verify_id_token",
-        lambda token: {"uid": "new-admin-uid", "email": "admin@example.com", "name": "New Admin", "is_admin": True},
+        lambda token: {
+            "uid": "new-admin-uid",
+            "email": "admin@example.com",
+            "name": "New Admin",
+            "is_admin": True,
+        },
     )
 
     with TestClient(gate_app, raise_server_exceptions=False) as client:
@@ -212,7 +231,9 @@ def test_get_current_user_gate_allowed_for_approved_waitlist_user(session: Sessi
     monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
 
     # Seed an approved waitlist signup
-    signup = WaitlistSignup(email="approved-waitlist@example.com", allowed_at=datetime.now(UTC).replace(tzinfo=None))
+    signup = WaitlistSignup(
+        email="approved-waitlist@example.com", allowed_at=datetime.now(UTC).replace(tzinfo=None)
+    )
     session.add(signup)
     session.commit()
 
@@ -231,7 +252,11 @@ def test_get_current_user_gate_allowed_for_approved_waitlist_user(session: Sessi
     # Mock Firebase verification
     monkeypatch.setattr(
         "app.dependencies.verify_id_token",
-        lambda token: {"uid": "new-approved-uid", "email": "approved-waitlist@example.com", "name": "Approved User"},
+        lambda token: {
+            "uid": "new-approved-uid",
+            "email": "approved-waitlist@example.com",
+            "name": "Approved User",
+        },
     )
 
     with TestClient(gate_app, raise_server_exceptions=False) as client:
@@ -267,7 +292,11 @@ def test_get_current_user_gate_blocked_for_unapproved_waitlist_user(session: Ses
     # Mock Firebase verification
     monkeypatch.setattr(
         "app.dependencies.verify_id_token",
-        lambda token: {"uid": "new-unapproved-uid", "email": "unapproved-waitlist@example.com", "name": "Unapproved User"},
+        lambda token: {
+            "uid": "new-unapproved-uid",
+            "email": "unapproved-waitlist@example.com",
+            "name": "Unapproved User",
+        },
     )
 
     with TestClient(gate_app, raise_server_exceptions=False) as client:
@@ -275,4 +304,3 @@ def test_get_current_user_gate_blocked_for_unapproved_waitlist_user(session: Ses
 
     assert resp.status_code == 403
     assert resp.json()["detail"] == "waitlist"
-

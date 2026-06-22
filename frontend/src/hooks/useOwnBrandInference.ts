@@ -22,7 +22,7 @@ export function useOwnBrandInference(
 
   const alreadyAdded =
     inferredStore !== null &&
-    explicitStores.some(s => s.toLowerCase() === inferredStore.toLowerCase())
+    explicitStores.some((s) => s.toLowerCase() === inferredStore.toLowerCase())
 
   const active = !dismissed && !alreadyAdded && inferredStore !== null
 

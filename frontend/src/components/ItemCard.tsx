@@ -1,12 +1,11 @@
-import './ItemCard.css'
-import { Tag, Store, Coins, RotateCcw, Hash } from 'lucide-react'
+import { Coins, Hash, RotateCcw, Store, Tag } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 import { formatPrice } from '../lib/formatPrice'
 import type { ListItem, Member, TagField } from '../types'
-import { useAuth } from '../contexts/AuthContext'
+import './ItemCard.css'
 
-const TAG_CONFIG: { field: TagField; icon: React.ReactNode; label: string }[] = [
-  { field: 'brand', icon: <Tag size={13} />, label: 'marca' },
-]
+const TAG_CONFIG: { field: TagField; icon: React.ReactNode; label: string }[] =
+  [{ field: 'brand', icon: <Tag size={13} />, label: 'marca' }]
 
 interface Props {
   item: ListItem
@@ -18,7 +17,15 @@ interface Props {
   onClone?: (itemId: string) => void
 }
 
-export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuOpen, onPriceClick, onClone }: Props) {
+export function ItemCard({
+  item,
+  members,
+  onTogglePurchased,
+  onTagClick,
+  onMenuOpen,
+  onPriceClick,
+  onClone,
+}: Props) {
   const member = members.get(item.added_by)
   const initial = member?.initial ?? '?'
   const { user } = useAuth()
@@ -34,13 +41,17 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
       : item.quantity
 
   return (
-    <div className={`item-card${item.purchased ? ' item-card--purchased' : ''}`}>
+    <div
+      className={`item-card${item.purchased ? ' item-card--purchased' : ''}`}
+    >
       <button
         role="checkbox"
         aria-checked={item.purchased}
         className="item-card__checkbox"
         onClick={() => onTogglePurchased(item.id)}
-        aria-label={item.purchased ? 'Marcar como no comprado' : 'Marcar como comprado'}
+        aria-label={
+          item.purchased ? 'Marcar como no comprado' : 'Marcar como comprado'
+        }
       />
 
       <div className="item-card__body">
@@ -65,7 +76,9 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
                 onClick={() => onTagClick(item.id, 'quantity')}
                 aria-label="Añadir cantidad"
               >
-                <span aria-hidden><Hash size={13} /></span>
+                <span aria-hidden>
+                  <Hash size={13} />
+                </span>
               </button>
             )
           )}
@@ -95,65 +108,91 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
                   onClick={() => onTagClick(item.id, field)}
                   aria-label={`Añadir ${label}`}
                 >
-                  <span aria-hidden><Tag size={13} /></span>
+                  <span aria-hidden>
+                    <Tag size={13} />
+                  </span>
                 </button>
               )
-            )
+            ),
           )}
 
-          {item.stores.length > 0 ? (
-            item.stores.map(store => (
-              item.purchased ? (
-                <span key={store} className="item-card__tag">
-                  <span aria-hidden><Store size={13} /></span> {store}
-                </span>
-              ) : (
-                <button
-                  key={store}
-                  className="item-card__tag"
-                  onClick={() => onTagClick(item.id, 'stores')}
-                >
-                  <span aria-hidden><Store size={13} /></span> {store}
-                </button>
+          {item.stores.length > 0
+            ? item.stores.map((store) =>
+                item.purchased ? (
+                  <span key={store} className="item-card__tag">
+                    <span aria-hidden>
+                      <Store size={13} />
+                    </span>{' '}
+                    {store}
+                  </span>
+                ) : (
+                  <button
+                    key={store}
+                    className="item-card__tag"
+                    onClick={() => onTagClick(item.id, 'stores')}
+                  >
+                    <span aria-hidden>
+                      <Store size={13} />
+                    </span>{' '}
+                    {store}
+                  </button>
+                ),
               )
-            ))
-          ) : (
-            !item.purchased && (
-              <button
-                className="item-card__tag item-card__tag--cta"
-                onClick={() => onTagClick(item.id, 'stores')}
-                aria-label="Añadir tienda"
-              >
-                <span aria-hidden><Store size={13} /></span>
-              </button>
-            )
-          )}
+            : !item.purchased && (
+                <button
+                  className="item-card__tag item-card__tag--cta"
+                  onClick={() => onTagClick(item.id, 'stores')}
+                  aria-label="Añadir tienda"
+                >
+                  <span aria-hidden>
+                    <Store size={13} />
+                  </span>
+                </button>
+              )}
 
           {/* Price tag — always visible; purchased items can log, unpurchased can view history */}
           {item.price != null ? (
             <button
               className="item-card__tag item-card__tag--price"
-              onClick={e => { e.stopPropagation(); onPriceClick?.(item.id) }}
+              onClick={(e) => {
+                e.stopPropagation()
+                onPriceClick?.(item.id)
+              }}
             >
-              <span aria-hidden><Coins size={13} /></span>{' '}
+              <span aria-hidden>
+                <Coins size={13} />
+              </span>{' '}
               {formatPrice(item.price, item.price_per)}
             </button>
           ) : (
             <button
               className="item-card__tag item-card__tag--cta"
-              onClick={e => { e.stopPropagation(); onPriceClick?.(item.id) }}
-              aria-label={item.purchased ? 'Registrar precio' : 'Historial de precios'}
+              onClick={(e) => {
+                e.stopPropagation()
+                onPriceClick?.(item.id)
+              }}
+              aria-label={
+                item.purchased ? 'Registrar precio' : 'Historial de precios'
+              }
             >
-              <span aria-hidden><Coins size={13} /></span>
+              <span aria-hidden>
+                <Coins size={13} />
+              </span>
             </button>
           )}
 
           {item.purchased && onClone && (
             <button
               className="item-card__tag item-card__tag--buy-again"
-              onClick={e => { e.stopPropagation(); onClone(item.id) }}
+              onClick={(e) => {
+                e.stopPropagation()
+                onClone(item.id)
+              }}
             >
-              <span aria-hidden><RotateCcw size={13} /></span> Volver a comprar
+              <span aria-hidden>
+                <RotateCcw size={13} />
+              </span>{' '}
+              Volver a comprar
             </button>
           )}
         </div>
@@ -165,14 +204,22 @@ export function ItemCard({ item, members, onTogglePurchased, onTagClick, onMenuO
           style={member?.photoUrl ? {} : avatarStyle}
           aria-hidden
         >
-          {member?.photoUrl
-            ? <img src={member.photoUrl} alt={member.displayName} className="item-card__avatar-img" />
-            : initial
-          }
+          {member?.photoUrl ? (
+            <img
+              src={member.photoUrl}
+              alt={member.displayName}
+              className="item-card__avatar-img"
+            />
+          ) : (
+            initial
+          )}
         </div>
         <button
           className="item-card__menu"
-          onClick={e => { e.stopPropagation(); onMenuOpen(item.id) }}
+          onClick={(e) => {
+            e.stopPropagation()
+            onMenuOpen(item.id)
+          }}
           aria-label="Opciones del producto"
         >
           ⋯

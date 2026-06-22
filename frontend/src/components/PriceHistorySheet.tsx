@@ -1,5 +1,5 @@
+import { AlertTriangle, Globe, Pencil, Store } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Globe, Store, Pencil, AlertTriangle } from 'lucide-react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { getPriceHistory } from '../lib/api'
 import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
@@ -46,25 +46,35 @@ function groupByStore(entries: ChartEntry[]): StoreGroup[] {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  return new Date(iso).toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'short',
+  })
 }
 
 function Sparkline({ records }: { records: ChartEntry[] }) {
   const reversed = [...records].reverse()
   const validAmounts = reversed
-    .map(r => r.displayAmount)
+    .map((r) => r.displayAmount)
     .filter((a): a is number => a !== null)
 
-  const w = 60, h = 28, pad = 4
+  const w = 60,
+    h = 28,
+    pad = 4
 
   // Time-proportional X: position each point by its purchase timestamp
-  const timestamps = reversed.map(r => (r.purchased_at ? new Date(r.purchased_at).getTime() : null))
+  const timestamps = reversed.map((r) =>
+    r.purchased_at ? new Date(r.purchased_at).getTime() : null,
+  )
   const validTs = timestamps.filter((t): t is number => t !== null)
   const minMs = validTs.length > 0 ? Math.min(...validTs) : 0
   const maxMs = validTs.length > 0 ? Math.max(...validTs) : 0
   const timeRange = maxMs - minMs
   const getX = (i: number): number => {
-    const evenX = reversed.length === 1 ? w / 2 : pad + (i / (reversed.length - 1)) * (w - 2 * pad)
+    const evenX =
+      reversed.length === 1
+        ? w / 2
+        : pad + (i / (reversed.length - 1)) * (w - 2 * pad)
     if (timeRange === 0 || timestamps[i] === null) return evenX
     return pad + ((timestamps[i]! - minMs) / timeRange) * (w - 2 * pad)
   }
@@ -74,9 +84,22 @@ function Sparkline({ records }: { records: ChartEntry[] }) {
       <svg className="phs__sparkline" viewBox={`0 0 ${w} ${h}`}>
         {reversed.map((r, i) =>
           r.displayAmount !== null ? (
-            <circle key={i} cx={getX(i).toFixed(1)} cy={h / 2} r="2" fill="var(--color-primary, #0a84ff)" />
+            <circle
+              key={i}
+              cx={getX(i).toFixed(1)}
+              cy={h / 2}
+              r="2"
+              fill="var(--color-primary, #0a84ff)"
+            />
           ) : (
-            <circle key={i} cx={getX(i).toFixed(1)} cy={h / 2} r="2" fill="var(--color-primary, #0a84ff)" opacity="0.5" />
+            <circle
+              key={i}
+              cx={getX(i).toFixed(1)}
+              cy={h / 2}
+              r="2"
+              fill="var(--color-primary, #0a84ff)"
+              opacity="0.5"
+            />
           ),
         )}
       </svg>
@@ -117,7 +140,10 @@ function Sparkline({ records }: { records: ChartEntry[] }) {
       const run = pts.slice(runStart, i)
       if (run.length >= 2) {
         const runLine = run
-          .map((p, j) => `${j === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y!.toFixed(1)}`)
+          .map(
+            (p, j) =>
+              `${j === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y!.toFixed(1)}`,
+          )
           .join(' ')
         areaPaths.push(
           `${runLine} L${run[run.length - 1].x.toFixed(1)},${h} L${run[0].x.toFixed(1)},${h} Z`,
@@ -128,12 +154,25 @@ function Sparkline({ records }: { records: ChartEntry[] }) {
   }
 
   return (
-    <svg className="phs__sparkline" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+    <svg
+      className="phs__sparkline"
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+    >
       {areaPaths.map((d, i) => (
-        <path key={i} d={d} fill="var(--color-primary-bg, rgba(10,132,255,0.15))" />
+        <path
+          key={i}
+          d={d}
+          fill="var(--color-primary-bg, rgba(10,132,255,0.15))"
+        />
       ))}
       {pathD && (
-        <path d={pathD} stroke="var(--color-primary, #0a84ff)" strokeWidth="1.5" fill="none" />
+        <path
+          d={pathD}
+          stroke="var(--color-primary, #0a84ff)"
+          strokeWidth="1.5"
+          fill="none"
+        />
       )}
       {pts.map((pt, i) =>
         pt.y === null ? (
@@ -154,8 +193,8 @@ function Sparkline({ records }: { records: ChartEntry[] }) {
 function ExpandedChart({ records }: { records: ChartEntry[] }) {
   const reversed = [...records].reverse()
   const validAmounts = reversed
-    .filter(r => r.displayAmount !== null)
-    .map(r => r.displayAmount as number)
+    .filter((r) => r.displayAmount !== null)
+    .map((r) => r.displayAmount as number)
 
   const latestRecord = records[0]
   const displayPricePer = latestRecord?.displayPricePer ?? null
@@ -163,20 +202,30 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
   const min = validAmounts.length > 0 ? Math.min(...validAmounts) : 0
   const max = validAmounts.length > 0 ? Math.max(...validAmounts) : 0
   const range = max - min || 1
-  const w = 200, h = 48, pad = 6
+  const w = 200,
+    h = 48,
+    pad = 6
   const getY = (amount: number) =>
     min === max ? h / 2 : pad + ((max - amount) / range) * (h - 2 * pad)
 
   // Time-proportional X positioning
-  const timestamps = reversed.map(r => (r.purchased_at ? new Date(r.purchased_at).getTime() : null))
+  const timestamps = reversed.map((r) =>
+    r.purchased_at ? new Date(r.purchased_at).getTime() : null,
+  )
   const validTs = timestamps.filter((t): t is number => t !== null)
   const minMs = validTs.length > 0 ? Math.min(...validTs) : 0
   const maxMs = validTs.length > 0 ? Math.max(...validTs) : 0
   const timeRange = maxMs - minMs
   const getX = (i: number): string => {
-    const evenX = reversed.length === 1 ? w / 2 : pad + (i / (reversed.length - 1)) * (w - 2 * pad)
+    const evenX =
+      reversed.length === 1
+        ? w / 2
+        : pad + (i / (reversed.length - 1)) * (w - 2 * pad)
     if (timeRange === 0 || timestamps[i] === null) return evenX.toFixed(1)
-    return (pad + ((timestamps[i]! - minMs) / timeRange) * (w - 2 * pad)).toFixed(1)
+    return (
+      pad +
+      ((timestamps[i]! - minMs) / timeRange) * (w - 2 * pad)
+    ).toFixed(1)
   }
 
   const pts = reversed.map((r, i) => {
@@ -205,8 +254,12 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
     } else if (!isValid && runStart !== null) {
       const run = pts.slice(runStart, i)
       if (run.length >= 2) {
-        const runLine = run.map((p, j) => `${j === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
-        areaPaths.push(`${runLine} L${run[run.length - 1].x},${h} L${run[0].x},${h} Z`)
+        const runLine = run
+          .map((p, j) => `${j === 0 ? 'M' : 'L'}${p.x},${p.y}`)
+          .join(' ')
+        areaPaths.push(
+          `${runLine} L${run[run.length - 1].x},${h} L${run[0].x},${h} Z`,
+        )
       }
       runStart = null
     }
@@ -215,22 +268,39 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
   return (
     <div className="phs__expand">
       {validAmounts.length >= 2 && (
-        <svg className="phs__expand-chart" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+        <svg
+          className="phs__expand-chart"
+          viewBox={`0 0 ${w} ${h}`}
+          preserveAspectRatio="none"
+        >
           {areaPaths.map((d, i) => (
-            <path key={i} d={d} fill="var(--color-primary-bg, rgba(10,132,255,0.15))" />
+            <path
+              key={i}
+              d={d}
+              fill="var(--color-primary-bg, rgba(10,132,255,0.15))"
+            />
           ))}
           {pathD && (
-            <path d={pathD} stroke="var(--color-primary, #0a84ff)" strokeWidth="2" fill="none" />
+            <path
+              d={pathD}
+              stroke="var(--color-primary, #0a84ff)"
+              strokeWidth="2"
+              fill="none"
+            />
           )}
         </svg>
       )}
       <div className="phs__expand-stats">
         <div className="phs__stat">
-          <strong>{validAmounts.length > 0 ? formatPrice(min, displayPricePer) : '—'}</strong>
+          <strong>
+            {validAmounts.length > 0 ? formatPrice(min, displayPricePer) : '—'}
+          </strong>
           Mínimo
         </div>
         <div className="phs__stat">
-          <strong>{validAmounts.length > 0 ? formatPrice(max, displayPricePer) : '—'}</strong>
+          <strong>
+            {validAmounts.length > 0 ? formatPrice(max, displayPricePer) : '—'}
+          </strong>
           Máximo
         </div>
         <div className="phs__stat">
@@ -238,7 +308,10 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
             {latestRecord
               ? latestRecord.displayAmount !== null
                 ? formatPrice(latestRecord.displayAmount, displayPricePer)
-                : formatPrice(latestRecord.originalAmount, latestRecord.originalPricePer as 'KILOGRAM' | null)
+                : formatPrice(
+                    latestRecord.originalAmount,
+                    latestRecord.originalPricePer as 'KILOGRAM' | null,
+                  )
               : '—'}
           </strong>
           Último
@@ -251,11 +324,17 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
             <span className="phs__record-amount">
               {r.displayAmount !== null
                 ? formatPrice(r.displayAmount, r.displayPricePer)
-                : formatPrice(r.originalAmount, r.originalPricePer as 'KILOGRAM' | null)}
+                : formatPrice(
+                    r.originalAmount,
+                    r.originalPricePer as 'KILOGRAM' | null,
+                  )}
               {r.displayAmount !== null &&
                 r.originalPricePer !== (r.displayPricePer as string | null) && (
                   <span className="phs__record-original">
-                    {formatPrice(r.originalAmount, r.originalPricePer as 'KILOGRAM' | null)}
+                    {formatPrice(
+                      r.originalAmount,
+                      r.originalPricePer as 'KILOGRAM' | null,
+                    )}
                   </span>
                 )}
             </span>
@@ -276,14 +355,16 @@ export default function PriceHistorySheet({
 }: Props) {
   const [scope, setScope] = useState<Scope>('this_list')
   const [history, setHistory] = useState<PriceHistoryResponse | null>(null)
-  const [expandedStore, setExpandedStore] = useState<string | null | undefined>(undefined)
+  const [expandedStore, setExpandedStore] = useState<string | null | undefined>(
+    undefined,
+  )
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   useEffect(() => {
     let cancelled = false
     getPriceHistory(getToken, listId, item.id, scope)
-      .then(data => {
+      .then((data) => {
         if (!cancelled) setHistory(data)
       })
       .catch(() => {})
@@ -295,7 +376,7 @@ export default function PriceHistorySheet({
   const hasExpanded = expandedStore !== undefined
 
   function toggleStore(store: string | null) {
-    setExpandedStore(prev => (prev === store ? undefined : store))
+    setExpandedStore((prev) => (prev === store ? undefined : store))
   }
 
   const normalized = history ? normalizeEntries(history.entries) : null
@@ -306,15 +387,20 @@ export default function PriceHistorySheet({
       <div className="phs__handle" {...swipe} />
       <div className="phs__title">{item.name}</div>
       <div className="phs__scope">
-        {(['this_list', 'my_lists', 'all'] as Scope[]).map(s => (
+        {(['this_list', 'my_lists', 'all'] as Scope[]).map((s) => (
           <button
             key={s}
             className={`phs__scope-btn${scope === s ? ' phs__scope-btn--active' : ''}`}
             onClick={() => {
               setScope(s)
               setExpandedStore(undefined)
-            }}>
-            {s === 'this_list' ? 'Esta lista' : s === 'my_lists' ? 'Mis listas' : 'Todos'}
+            }}
+          >
+            {s === 'this_list'
+              ? 'Esta lista'
+              : s === 'my_lists'
+                ? 'Mis listas'
+                : 'Todos'}
           </button>
         ))}
       </div>
@@ -325,14 +411,17 @@ export default function PriceHistorySheet({
 
       {history?.community_price != null && (
         <div className="phs__community">
-          <span><Globe size={14} /> Precio estimado</span>
+          <span>
+            <Globe size={14} /> Precio estimado
+          </span>
           <span className="phs__community-price">
             ~{formatPrice(history.community_price, history.community_price_per)}
           </span>
           <button
             className="phs__community-info"
             title={COMMUNITY_PRICE_TOOLTIP}
-            aria-label="Información sobre el precio de la comunidad">
+            aria-label="Información sobre el precio de la comunidad"
+          >
             ⓘ
           </button>
         </div>
@@ -342,23 +431,35 @@ export default function PriceHistorySheet({
         {groups?.length === 0 && (
           <div className="phs__empty">No hay precios registrados.</div>
         )}
-        {groups?.map(group => {
+        {groups?.map((group) => {
           const isExpanded = expandedStore === group.store
           const isDimmed = hasExpanded && !isExpanded
           const latest = group.records[0]
-          const groupHasGaps = group.records.some(r => r.displayAmount === null)
+          const groupHasGaps = group.records.some(
+            (r) => r.displayAmount === null,
+          )
 
           return (
             <div
               key={group.store ?? '__none__'}
               className={`phs__store-row${isDimmed ? ' phs__store-row--dimmed' : ''}`}
-              onClick={() => toggleStore(group.store)}>
+              onClick={() => toggleStore(group.store)}
+            >
               <div className="phs__store-summary">
                 <div className="phs__store-info">
                   <div className="phs__store-name">
-                    {group.store ? <><Store size={13} /> {group.store}</> : 'Sin tienda'}
+                    {group.store ? (
+                      <>
+                        <Store size={13} /> {group.store}
+                      </>
+                    ) : (
+                      'Sin tienda'
+                    )}
                     {groupHasGaps && (
-                      <span className="phs__gap-warning" title="Algunos precios no pudieron normalizarse">
+                      <span
+                        className="phs__gap-warning"
+                        title="Algunos precios no pudieron normalizarse"
+                      >
                         <AlertTriangle size={12} />
                       </span>
                     )}
@@ -375,7 +476,10 @@ export default function PriceHistorySheet({
                 <div className="phs__store-price">
                   {latest.displayAmount !== null
                     ? formatPrice(latest.displayAmount, latest.displayPricePer)
-                    : formatPrice(latest.originalAmount, latest.originalPricePer as 'KILOGRAM' | null)}
+                    : formatPrice(
+                        latest.originalAmount,
+                        latest.originalPricePer as 'KILOGRAM' | null,
+                      )}
                 </div>
               </div>
               {isExpanded && <ExpandedChart records={group.records} />}
@@ -386,7 +490,13 @@ export default function PriceHistorySheet({
 
       {!readOnly && (
         <button className="phs__log-btn" onClick={onLogPrice}>
-          {item.price != null ? <><Pencil size={16} /> Actualizar precio</> : '+ Registrar precio'}
+          {item.price != null ? (
+            <>
+              <Pencil size={16} /> Actualizar precio
+            </>
+          ) : (
+            '+ Registrar precio'
+          )}
         </button>
       )}
     </div>

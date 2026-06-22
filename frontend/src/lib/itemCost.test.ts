@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { computeCostSummary } from './itemCost'
+import { describe, expect, it } from 'vitest'
 import type { ListItem } from '../types'
+import { computeCostSummary } from './itemCost'
 
 function makeItem(overrides: Partial<ListItem> = {}): ListItem {
   return {
@@ -35,7 +35,7 @@ describe('computeCostSummary — purchased_quantity', () => {
     const item = makeItem({
       price: 1.79,
       price_per: 'KILOGRAM',
-      quantity: '2',              // planned: 2 units (ignored for purchased)
+      quantity: '2', // planned: 2 units (ignored for purchased)
       purchased_quantity: '487g', // actual: 487g
       purchased: true,
       purchased_at: '2026-05-31T10:00:00',

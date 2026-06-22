@@ -16,4 +16,3 @@ class WaitlistSignupRead(BaseModel):
     created_at: datetime
     allowed_at: datetime | None = None
     invite_token: str | None = None
-
