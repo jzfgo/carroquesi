@@ -145,16 +145,19 @@ Run `just` (no arguments) to list all available recipes.
 
 ### Root
 
-| Command          | Description                                   |
-| ---------------- | --------------------------------------------- |
-| `just setup`     | Wire git hooks (run once after cloning)       |
-| `just install`   | Install all application dependencies          |
-| `just dev`       | Start frontend + backend via overmind         |
-| `just test`      | Run all tests (frontend then backend)         |
-| `just ci`        | Typecheck + lint (frontend), lint + tests (backend) |
-| `just changelog` | Prepend unreleased commits to `CHANGELOG.md`  |
-| `just ss`        | Show processes listening on ports 5173 / 8000 |
-| `just sk`        | Kill processes on ports 5173 / 8000           |
+| Command               | Description                                           |
+| --------------------- | ----------------------------------------------------- |
+| `just setup`          | Wire git hooks (run once after cloning)               |
+| `just install`        | Install all application dependencies                  |
+| `just dev`            | Start frontend + backend via overmind                 |
+| `just test`           | Run all tests (frontend then backend)                 |
+| `just format`         | Format all code (Prettier + ruff)                     |
+| `just format-check`   | Check formatting without writing (used in CI)         |
+| `just lint`           | Typecheck + ESLint (frontend), ruff check (backend)   |
+| `just ci`             | Full CI suite: format-check + lint + tests            |
+| `just changelog`      | Prepend unreleased commits to `CHANGELOG.md`          |
+| `just ss`             | Show processes listening on ports 5173 / 8000         |
+| `just sk`             | Kill processes on ports 5173 / 8000                   |
 
 ### Frontend (`just frontend <recipe>`)
 
@@ -165,9 +168,11 @@ Run `just` (no arguments) to list all available recipes.
 | `build`      | Production build                                                                                             |
 | `preview`    | Preview production build                                                                                     |
 | `test`       | Vitest unit tests                                                                                            |
-| `test-watch` | Vitest in watch mode                                                                                         |
-| `lint`       | ESLint                                                                                                       |
-| `typecheck`  | `tsc -p tsconfig.app.json` (the root tsconfig has `files: []` and always passes silently — use this instead) |
+| `test-watch`   | Vitest in watch mode                                                                                         |
+| `format`       | Prettier (also runs stylelint on CSS)                                                                        |
+| `format-check` | Prettier check without writing                                                                               |
+| `lint`         | ESLint                                                                                                       |
+| `typecheck`    | `tsc -p tsconfig.app.json` (the root tsconfig has `files: []` and always passes silently — use this instead) |
 
 ### Backend (`just backend <recipe>`)
 
@@ -177,6 +182,8 @@ Run `just` (no arguments) to list all available recipes.
 | `dev`                | FastAPI dev server (hot-reload)  |
 | `test`               | `pytest`                         |
 | `test-file <path>`   | Run a single test file           |
+| `format`             | `ruff format`                    |
+| `format-check`       | `ruff format --check`            |
 | `add <package>`      | Add a dependency via uv          |
 | `migrate`            | `alembic upgrade head`           |
 | `migration <name>`   | Generate a new migration         |
