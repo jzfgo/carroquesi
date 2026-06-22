@@ -51,7 +51,6 @@
     "prettier": "3.8.4",
     "prettier-plugin-organize-imports": "^4.3.0",
     "stylelint": "^17.13.0",
-    "stylelint-config-prettier": "^9.0.5",
     "stylelint-config-standard": "^40.0.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
