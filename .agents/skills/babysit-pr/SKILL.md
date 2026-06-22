@@ -81,8 +81,8 @@ Draft a response that is:
 Post it as a reply to the comment thread:
 
 ```bash
-gh api repos/:owner/:repo/pulls/comments/<comment-id>/replies \
-  -f body="<your response>"
+gh api repos/:owner/:repo/pulls/<number>/comments/<comment-id>/replies \
+  -X POST -f body="<your response>"
 ```
 
 ### 4. Trigger Re-Review
