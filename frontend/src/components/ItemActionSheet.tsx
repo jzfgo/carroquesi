@@ -1,18 +1,18 @@
-import { Pencil, RotateCcw, Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
-import type { ListItem } from '../types';
-import './ItemActionSheet.css';
+import { Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import type { ListItem } from '../types'
+import './ItemActionSheet.css'
 
-type SubState = 'actions' | 'rename' | 'confirm-delete';
+type SubState = 'actions' | 'rename' | 'confirm-delete'
 
 interface Props {
-  item: ListItem;
-  onRename: (newName: string) => void;
-  onDelete: () => void;
-  onClose: () => void;
-  purchased?: boolean;
-  onClone?: () => void;
+  item: ListItem
+  onRename: (newName: string) => void
+  onDelete: () => void
+  onClose: () => void
+  purchased?: boolean
+  onClone?: () => void
 }
 
 export function ItemActionSheet({
@@ -23,22 +23,22 @@ export function ItemActionSheet({
   purchased,
   onClone,
 }: Props) {
-  const [subState, setSubState] = useState<SubState>('actions');
-  const [renameValue, setRenameValue] = useState(item.name);
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const swipe = useSwipeToDismiss(sheetRef, onClose);
+  const [subState, setSubState] = useState<SubState>('actions')
+  const [renameValue, setRenameValue] = useState(item.name)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onClose()
     }
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
 
   const overlay = (
     <div className="item-action-sheet__overlay" onClick={onClose} />
-  );
+  )
 
   if (subState === 'actions') {
     return (
@@ -74,11 +74,11 @@ export function ItemActionSheet({
           </button>
         </div>
       </>
-    );
+    )
   }
 
   if (subState === 'rename') {
-    const trimmed = renameValue.trim();
+    const trimmed = renameValue.trim()
     return (
       <>
         {overlay}
@@ -100,7 +100,7 @@ export function ItemActionSheet({
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && trimmed) onRename(trimmed);
+                if (e.key === 'Enter' && trimmed) onRename(trimmed)
               }}
               autoFocus
               aria-label="Nombre del producto"
@@ -123,7 +123,7 @@ export function ItemActionSheet({
           </button>
         </div>
       </>
-    );
+    )
   }
 
   // subState === 'confirm-delete'
@@ -158,5 +158,5 @@ export function ItemActionSheet({
         </button>
       </div>
     </>
-  );
+  )
 }

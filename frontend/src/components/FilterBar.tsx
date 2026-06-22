@@ -1,26 +1,26 @@
-import { Search, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import './FilterBar.css';
+import { Search, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import './FilterBar.css'
 
 interface Props {
-  stores: string[];
-  query: string;
-  onChange: (q: string) => void;
-  onModeChange?: (mode: 'chips' | 'search') => void;
+  stores: string[]
+  query: string
+  onChange: (q: string) => void
+  onModeChange?: (mode: 'chips' | 'search') => void
 }
 
 export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
-  const [mode, setMode] = useState<'chips' | 'search'>('chips');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<'chips' | 'search'>('chips')
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (mode === 'search') {
-      const id = setTimeout(() => inputRef.current?.focus(), 320);
-      return () => clearTimeout(id);
+      const id = setTimeout(() => inputRef.current?.focus(), 320)
+      return () => clearTimeout(id)
     }
-  }, [mode]);
+  }, [mode])
 
-  const activeChip = stores.find((s) => query === `@${s}`) ?? null;
+  const activeChip = stores.find((s) => query === `@${s}`) ?? null
 
   return (
     <div
@@ -36,9 +36,9 @@ export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
         <button
           className="filter-bar__search-btn"
           onClick={() => {
-            setMode('search');
-            onChange('');
-            onModeChange?.('search');
+            setMode('search')
+            onChange('')
+            onModeChange?.('search')
           }}
           aria-label="Buscar"
         >
@@ -74,9 +74,9 @@ export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
         <button
           className="filter-bar__close-btn"
           onClick={() => {
-            setMode('chips');
-            onChange('');
-            onModeChange?.('chips');
+            setMode('chips')
+            onChange('')
+            onModeChange?.('chips')
           }}
           aria-label="Cerrar búsqueda"
         >
@@ -95,5 +95,5 @@ export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
         )}
       </div>
     </div>
-  );
+  )
 }

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef } from 'react'
 
 /**
  * Attaches swipe-down-to-dismiss touch handling to a sheet element.
@@ -10,38 +10,38 @@ export function useSwipeToDismiss(
   onClose: () => void,
   threshold = 80,
 ) {
-  const startY = useRef<number | null>(null);
+  const startY = useRef<number | null>(null)
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    startY.current = e.touches[0].clientY;
+    startY.current = e.touches[0].clientY
     if (sheetRef.current) {
-      sheetRef.current.style.transition = 'none';
+      sheetRef.current.style.transition = 'none'
     }
-  };
+  }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (startY.current === null || !sheetRef.current) return;
-    const dy = e.touches[0].clientY - startY.current;
+    if (startY.current === null || !sheetRef.current) return
+    const dy = e.touches[0].clientY - startY.current
     if (dy > 0) {
-      sheetRef.current.style.transform = `translateY(${dy}px)`;
+      sheetRef.current.style.transform = `translateY(${dy}px)`
     }
-  };
+  }
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (startY.current === null || !sheetRef.current) return;
-    const dy = e.changedTouches[0].clientY - startY.current;
-    sheetRef.current.style.transition = '';
+    if (startY.current === null || !sheetRef.current) return
+    const dy = e.changedTouches[0].clientY - startY.current
+    sheetRef.current.style.transition = ''
     if (dy > threshold) {
-      onClose();
+      onClose()
     } else {
-      sheetRef.current.style.transform = '';
+      sheetRef.current.style.transform = ''
     }
-    startY.current = null;
-  };
+    startY.current = null
+  }
 
   return {
     onTouchStart: handleTouchStart,
     onTouchMove: handleTouchMove,
     onTouchEnd: handleTouchEnd,
-  };
+  }
 }

@@ -1,24 +1,24 @@
-import { parseInput } from '../lib/parseInput';
-import type { ListItem } from '../types';
+import { parseInput } from '../lib/parseInput'
+import type { ListItem } from '../types'
 
 export function filterItems(
   items: ListItem[],
   query: string,
   options?: { strictStore?: boolean },
 ): ListItem[] {
-  if (!query.trim()) return items;
+  if (!query.trim()) return items
 
-  const parsed = parseInput(query);
-  const text = parsed.name.trim().toLowerCase();
-  const stores = parsed.stores.map((s) => s.toLowerCase());
-  const brand = parsed.brand?.toLowerCase() ?? null;
-  const strictStore = options?.strictStore ?? false;
+  const parsed = parseInput(query)
+  const text = parsed.name.trim().toLowerCase()
+  const stores = parsed.stores.map((s) => s.toLowerCase())
+  const brand = parsed.brand?.toLowerCase() ?? null
+  const strictStore = options?.strictStore ?? false
 
   return items.filter((item) => {
-    if (text && !item.name.toLowerCase().includes(text)) return false;
+    if (text && !item.name.toLowerCase().includes(text)) return false
 
     if (stores.length > 0) {
-      const itemStores = item.stores.map((s) => s.toLowerCase());
+      const itemStores = item.stores.map((s) => s.toLowerCase())
       // chip filter: items with no store assigned pass through
       // search filter (strictStore): items with no store are excluded
       if (
@@ -26,12 +26,12 @@ export function filterItems(
           ? !itemStores.some((s) => stores.includes(s))
           : itemStores.length > 0 && !itemStores.some((s) => stores.includes(s))
       )
-        return false;
+        return false
     }
 
     if (brand !== null && !item.brand?.toLowerCase().includes(brand))
-      return false;
+      return false
 
-    return true;
-  });
+    return true
+  })
 }

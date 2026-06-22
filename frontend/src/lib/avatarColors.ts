@@ -6,4 +6,4 @@ export const AVATAR_COLORS = [
   '#d97706',
   '#dc2626',
   '#9333ea',
-];
+]

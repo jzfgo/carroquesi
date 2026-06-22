@@ -1,52 +1,52 @@
-import { Calendar, Check, Coins, Pencil, X } from 'lucide-react';
-import { useRef, useState } from 'react';
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
-import { formatPrice } from '../lib/formatPrice';
-import { parseQuantityFactor, purchasedDateLabel } from '../lib/itemCost';
+import { Calendar, Check, Coins, Pencil, X } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { formatPrice } from '../lib/formatPrice'
+import { parseQuantityFactor, purchasedDateLabel } from '../lib/itemCost'
 import type {
   MatchedLine,
   NameMapping,
   PricePatch,
   ReceiptScanResult,
   UnmatchedLine,
-} from '../types';
-import './ReceiptScanSheet.css';
+} from '../types'
+import './ReceiptScanSheet.css'
 
 interface PurchasedItemRef {
-  id: string;
-  name: string;
-  purchased_at: string | null;
-  brand: string | null;
-  stores: string[];
-  quantity: string | null;
+  id: string
+  name: string
+  purchased_at: string | null
+  brand: string | null
+  stores: string[]
+  quantity: string | null
 }
 
 interface LineState {
-  included: boolean;
-  itemId: string | null;
-  quantity: string;
-  unitPrice: number;
-  pricePer: 'KILOGRAM' | null;
+  included: boolean
+  itemId: string | null
+  quantity: string
+  unitPrice: number
+  pricePer: 'KILOGRAM' | null
 }
 
 interface Props {
-  result: ReceiptScanResult;
-  purchasedItems: PurchasedItemRef[];
-  store: string | null;
-  onConfirm: (patches: PricePatch[], mappings: NameMapping[]) => void;
-  onClose: () => void;
+  result: ReceiptScanResult
+  purchasedItems: PurchasedItemRef[]
+  store: string | null
+  onConfirm: (patches: PricePatch[], mappings: NameMapping[]) => void
+  onClose: () => void
 }
 
 function initialQuantity(line: MatchedLine | UnmatchedLine): string {
   if (line.price_type === 'KILOGRAM' && line.quantity != null) {
     return line.quantity < 1
       ? `${Math.round(line.quantity * 1000)}g`
-      : `${line.quantity}kg`;
+      : `${line.quantity}kg`
   }
   if (line.price_type === 'MULTI' && line.quantity != null) {
-    return String(Math.round(line.quantity));
+    return String(Math.round(line.quantity))
   }
-  return '1';
+  return '1'
 }
 
 function initState(result: ReceiptScanResult): LineState[] {
@@ -65,43 +65,43 @@ function initState(result: ReceiptScanResult): LineState[] {
       unitPrice: u.unit_price,
       pricePer: u.price_type === 'KILOGRAM' ? ('KILOGRAM' as const) : null,
     })),
-  ];
+  ]
 }
 
 function formatQtySummary(ls: LineState): string {
   const price = ls.unitPrice.toLocaleString('es-ES', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  });
-  const unit = ls.pricePer === 'KILOGRAM' ? '€/kg' : '€/ud';
-  const sep = ls.pricePer === 'KILOGRAM' ? ' × ' : '× ';
-  return `${ls.quantity}${sep}${price} ${unit}`;
+  })
+  const unit = ls.pricePer === 'KILOGRAM' ? '€/kg' : '€/ud'
+  const sep = ls.pricePer === 'KILOGRAM' ? ' × ' : '× '
+  return `${ls.quantity}${sep}${price} ${unit}`
 }
 
 function computeLineTotal(ls: LineState): number {
-  const factor = parseQuantityFactor(ls.quantity, ls.pricePer);
-  return factor !== null ? ls.unitPrice * factor : ls.unitPrice;
+  const factor = parseQuantityFactor(ls.quantity, ls.pricePer)
+  return factor !== null ? ls.unitPrice * factor : ls.unitPrice
 }
 
 function groupItemsByDate(
   items: PurchasedItemRef[],
 ): { label: string; items: PurchasedItemRef[] }[] {
   const sorted = [...items].sort((a, b) => {
-    if (!a.purchased_at) return 1;
-    if (!b.purchased_at) return -1;
-    return b.purchased_at.localeCompare(a.purchased_at);
-  });
-  const groups: { label: string; items: PurchasedItemRef[] }[] = [];
+    if (!a.purchased_at) return 1
+    if (!b.purchased_at) return -1
+    return b.purchased_at.localeCompare(a.purchased_at)
+  })
+  const groups: { label: string; items: PurchasedItemRef[] }[] = []
   for (const item of sorted) {
-    const label = purchasedDateLabel(item.purchased_at);
-    const last = groups[groups.length - 1];
+    const label = purchasedDateLabel(item.purchased_at)
+    const last = groups[groups.length - 1]
     if (last && last.label === label) {
-      last.items.push(item);
+      last.items.push(item)
     } else {
-      groups.push({ label, items: [item] });
+      groups.push({ label, items: [item] })
     }
   }
-  return groups;
+  return groups
 }
 
 export default function ReceiptScanSheet({
@@ -114,62 +114,62 @@ export default function ReceiptScanSheet({
   const allLines: (MatchedLine | UnmatchedLine)[] = [
     ...result.matched,
     ...result.unmatched,
-  ];
+  ]
   const [lineStates, setLineStates] = useState<LineState[]>(() =>
     initState(result),
-  );
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const swipe = useSwipeToDismiss(sheetRef, onClose);
+  )
+  const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
-  const checkedCount = lineStates.filter((ls) => ls.included).length;
-  const allChecked = checkedCount === lineStates.length;
+  const checkedCount = lineStates.filter((ls) => ls.included).length
+  const allChecked = checkedCount === lineStates.length
 
   function updateLine(index: number, patch: Partial<LineState>) {
     setLineStates((prev) =>
       prev.map((ls, i) => (i === index ? { ...ls, ...patch } : ls)),
-    );
+    )
   }
 
   function toggleExpanded(index: number) {
     setExpanded((prev) => {
-      const next = new Set(prev);
+      const next = new Set(prev)
       if (next.has(index)) {
-        next.delete(index);
+        next.delete(index)
       } else {
-        next.add(index);
+        next.add(index)
       }
-      return next;
-    });
+      return next
+    })
   }
 
   function toggleAll() {
-    const include = !allChecked;
-    setLineStates((prev) => prev.map((ls) => ({ ...ls, included: include })));
+    const include = !allChecked
+    setLineStates((prev) => prev.map((ls) => ({ ...ls, included: include })))
   }
 
   // Prevent the same item from being linked to multiple rows
   const linkedItemIds = new Set(
     lineStates.map((ls) => ls.itemId).filter(Boolean) as string[],
-  );
+  )
   function availableItems(currentIndex: number): PurchasedItemRef[] {
     return purchasedItems.filter(
       (item) =>
         !linkedItemIds.has(item.id) ||
         lineStates[currentIndex].itemId === item.id,
-    );
+    )
   }
 
   // Footer totals
   const selectedTotal = lineStates
     .filter((ls) => ls.included)
-    .reduce((sum, ls) => sum + computeLineTotal(ls), 0);
-  const receiptTotal = result.receipt_total;
-  const diff = receiptTotal != null ? selectedTotal - receiptTotal : null;
+    .reduce((sum, ls) => sum + computeLineTotal(ls), 0)
+  const receiptTotal = result.receipt_total
+  const diff = receiptTotal != null ? selectedTotal - receiptTotal : null
 
   function handleConfirm() {
     const patches: PricePatch[] = lineStates.flatMap((ls) => {
-      if (!ls.included || !ls.itemId) return [];
+      if (!ls.included || !ls.itemId) return []
       return [
         {
           item_id: ls.itemId,
@@ -178,13 +178,13 @@ export default function ReceiptScanSheet({
           store,
           quantity: ls.quantity,
         },
-      ];
-    });
+      ]
+    })
 
     const mappings: NameMapping[] = lineStates.flatMap((ls, i) => {
-      if (!ls.included || !ls.itemId || !store) return [];
-      const item = purchasedItems.find((p) => p.id === ls.itemId);
-      if (!item) return [];
+      if (!ls.included || !ls.itemId || !store) return []
+      const item = purchasedItems.find((p) => p.id === ls.itemId)
+      if (!item) return []
       return [
         {
           store,
@@ -192,10 +192,10 @@ export default function ReceiptScanSheet({
           item_name: item.name,
           item_brand: null,
         },
-      ];
-    });
+      ]
+    })
 
-    onConfirm(patches, mappings);
+    onConfirm(patches, mappings)
   }
 
   const formattedDate = result.receipt_date
@@ -204,7 +204,7 @@ export default function ReceiptScanSheet({
         month: 'short',
         year: 'numeric',
       })
-    : null;
+    : null
 
   return (
     <div className="sheet" ref={sheetRef}>
@@ -249,10 +249,10 @@ export default function ReceiptScanSheet({
 
       <div className="sheet-body">
         {lineStates.map((ls, i) => {
-          const line = allLines[i];
-          const isExpanded = expanded.has(i);
-          const itemGroups = groupItemsByDate(availableItems(i));
-          const linkedItem = purchasedItems.find((p) => p.id === ls.itemId);
+          const line = allLines[i]
+          const isExpanded = expanded.has(i)
+          const itemGroups = groupItemsByDate(availableItems(i))
+          const linkedItem = purchasedItems.find((p) => p.id === ls.itemId)
 
           return (
             <div
@@ -265,8 +265,8 @@ export default function ReceiptScanSheet({
                   className="rss-check"
                   checked={ls.included}
                   onChange={(e) => {
-                    e.stopPropagation();
-                    updateLine(i, { included: e.target.checked });
+                    e.stopPropagation()
+                    updateLine(i, { included: e.target.checked })
                   }}
                   onClick={(e) => e.stopPropagation()}
                 />
@@ -294,11 +294,11 @@ export default function ReceiptScanSheet({
                     className="rss-link-select"
                     value={ls.itemId ?? ''}
                     onChange={(e) => {
-                      const newId = e.target.value || null;
+                      const newId = e.target.value || null
                       updateLine(i, {
                         itemId: newId,
                         included: newId !== null,
-                      });
+                      })
                     }}
                   >
                     <option value="">— No vincular —</option>
@@ -360,7 +360,7 @@ export default function ReceiptScanSheet({
                 </div>
               </div>
             </div>
-          );
+          )
         })}
       </div>
 
@@ -400,5 +400,5 @@ export default function ReceiptScanSheet({
         </button>
       </div>
     </div>
-  );
+  )
 }

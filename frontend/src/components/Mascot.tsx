@@ -1,7 +1,7 @@
-import mascotUrl from '../assets/mascot.png';
+import mascotUrl from '../assets/mascot.png'
 
 interface Props {
-  size?: number;
+  size?: number
 }
 
 export function Mascot({ size = 160 }: Props) {
@@ -13,5 +13,5 @@ export function Mascot({ size = 160 }: Props) {
       height={size}
       style={{ objectFit: 'contain' }}
     />
-  );
+  )
 }

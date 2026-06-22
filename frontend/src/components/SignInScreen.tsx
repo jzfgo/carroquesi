@@ -1,12 +1,12 @@
-import { useAuth } from '../contexts/AuthContext';
-import { usePageTitle } from '../hooks/usePageTitle';
-import { Mascot } from './Mascot';
-import './SignInScreen.css';
-import { Wordmark } from './Wordmark';
+import { useAuth } from '../contexts/AuthContext'
+import { usePageTitle } from '../hooks/usePageTitle'
+import { Mascot } from './Mascot'
+import './SignInScreen.css'
+import { Wordmark } from './Wordmark'
 
 export function SignInScreen() {
-  usePageTitle();
-  const { signIn } = useAuth();
+  usePageTitle()
+  const { signIn } = useAuth()
 
   return (
     <div className="signin">
@@ -48,5 +48,5 @@ export function SignInScreen() {
         Continuar con Google
       </button>
     </div>
-  );
+  )
 }

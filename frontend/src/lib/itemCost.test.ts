@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import type { ListItem } from '../types';
-import { computeCostSummary } from './itemCost';
+import { describe, expect, it } from 'vitest'
+import type { ListItem } from '../types'
+import { computeCostSummary } from './itemCost'
 
 function makeItem(overrides: Partial<ListItem> = {}): ListItem {
   return {
@@ -21,15 +21,15 @@ function makeItem(overrides: Partial<ListItem> = {}): ListItem {
     created_at: '2026-01-01T00:00:00',
     updated_at: '2026-01-01T00:00:00',
     ...overrides,
-  };
+  }
 }
 
 describe('computeCostSummary — purchased_quantity', () => {
   it('uses quantity when item is not purchased', () => {
-    const item = makeItem({ price: 2.0, quantity: '3', purchased: false });
-    const result = computeCostSummary([item]);
-    expect(result?.total).toBeCloseTo(6.0);
-  });
+    const item = makeItem({ price: 2.0, quantity: '3', purchased: false })
+    const result = computeCostSummary([item])
+    expect(result?.total).toBeCloseTo(6.0)
+  })
 
   it('uses purchased_quantity when purchased and set', () => {
     const item = makeItem({
@@ -39,11 +39,11 @@ describe('computeCostSummary — purchased_quantity', () => {
       purchased_quantity: '487g', // actual: 487g
       purchased: true,
       purchased_at: '2026-05-31T10:00:00',
-    });
-    const result = computeCostSummary([item]);
+    })
+    const result = computeCostSummary([item])
     // 1.79 €/kg × 0.487 kg = 0.87173 ≈ 0.87
-    expect(result?.total).toBeCloseTo(0.872, 2);
-  });
+    expect(result?.total).toBeCloseTo(0.872, 2)
+  })
 
   it('falls back to quantity when purchased but purchased_quantity is null', () => {
     const item = makeItem({
@@ -52,10 +52,10 @@ describe('computeCostSummary — purchased_quantity', () => {
       purchased_quantity: null,
       purchased: true,
       purchased_at: '2026-05-31T10:00:00',
-    });
-    const result = computeCostSummary([item]);
-    expect(result?.total).toBeCloseTo(3.0);
-  });
+    })
+    const result = computeCostSummary([item])
+    expect(result?.total).toBeCloseTo(3.0)
+  })
 
   it('marks partial=true when purchased_quantity is unresolvable per-kg', () => {
     const item = makeItem({
@@ -65,8 +65,8 @@ describe('computeCostSummary — purchased_quantity', () => {
       purchased_quantity: 'unknown', // not parseable as SI unit
       purchased: true,
       purchased_at: '2026-05-31T10:00:00',
-    });
-    const result = computeCostSummary([item]);
-    expect(result).toBeNull(); // total is 0 → null
-  });
-});
+    })
+    const result = computeCostSummary([item])
+    expect(result).toBeNull() // total is 0 → null
+  })
+})

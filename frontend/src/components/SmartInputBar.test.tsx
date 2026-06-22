@@ -1,11 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { parseInput } from '../lib/parseInput';
-import type { ListItem } from '../types';
-import { SmartInputBar } from './SmartInputBar';
+import { fireEvent, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { parseInput } from '../lib/parseInput'
+import type { ListItem } from '../types'
+import { SmartInputBar } from './SmartInputBar'
 
-const NO_ITEMS: ListItem[] = [];
-const noop = () => {};
+const NO_ITEMS: ListItem[] = []
+const noop = () => {}
 
 test('renders syntax legend chips', () => {
   render(
@@ -20,11 +20,11 @@ test('renders syntax legend chips', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByText(/\+/)).toBeInTheDocument(); // qty chip
-  expect(screen.getByText(/#/)).toBeInTheDocument(); // brand chip
-  expect(screen.getByText(/@/)).toBeInTheDocument(); // store chip
-});
+  )
+  expect(screen.getByText(/\+/)).toBeInTheDocument() // qty chip
+  expect(screen.getByText(/#/)).toBeInTheDocument() // brand chip
+  expect(screen.getByText(/@/)).toBeInTheDocument() // store chip
+})
 
 test('add button is disabled when name is empty', () => {
   render(
@@ -39,9 +39,9 @@ test('add button is disabled when name is empty', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByRole('button', { name: /^añadir$/i })).toBeDisabled();
-});
+  )
+  expect(screen.getByRole('button', { name: /^añadir$/i })).toBeDisabled()
+})
 
 test('add button is enabled when name is present', () => {
   render(
@@ -56,12 +56,12 @@ test('add button is enabled when name is present', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByRole('button', { name: /^añadir$/i })).not.toBeDisabled();
-});
+  )
+  expect(screen.getByRole('button', { name: /^añadir$/i })).not.toBeDisabled()
+})
 
 test('onChange is called when user types', async () => {
-  const onChange = vi.fn();
+  const onChange = vi.fn()
   render(
     <SmartInputBar
       value=""
@@ -74,13 +74,13 @@ test('onChange is called when user types', async () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  await userEvent.type(screen.getByRole('textbox'), 'L');
-  expect(onChange).toHaveBeenCalled();
-});
+  )
+  await userEvent.type(screen.getByRole('textbox'), 'L')
+  expect(onChange).toHaveBeenCalled()
+})
 
 test('onSubmit called when add button clicked', () => {
-  const onSubmit = vi.fn();
+  const onSubmit = vi.fn()
   render(
     <SmartInputBar
       value="Leche"
@@ -93,10 +93,10 @@ test('onSubmit called when add button clicked', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  fireEvent.click(screen.getByRole('button', { name: /^añadir$/i }));
-  expect(onSubmit).toHaveBeenCalledTimes(1);
-});
+  )
+  fireEvent.click(screen.getByRole('button', { name: /^añadir$/i }))
+  expect(onSubmit).toHaveBeenCalledTimes(1)
+})
 
 test('parse preview not shown when no sigil detected', () => {
   render(
@@ -111,9 +111,9 @@ test('parse preview not shown when no sigil detected', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.queryByTestId('parse-preview')).not.toBeInTheDocument();
-});
+  )
+  expect(screen.queryByTestId('parse-preview')).not.toBeInTheDocument()
+})
 
 test('parse preview shown when sigil detected', () => {
   render(
@@ -128,9 +128,9 @@ test('parse preview shown when sigil detected', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByTestId('parse-preview')).toBeInTheDocument();
-});
+  )
+  expect(screen.getByTestId('parse-preview')).toBeInTheDocument()
+})
 
 test('parse preview shows parsed name and quantity', () => {
   render(
@@ -145,10 +145,10 @@ test('parse preview shows parsed name and quantity', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByTestId('parse-preview')).toHaveTextContent('Leche');
-  expect(screen.getByTestId('parse-preview')).toHaveTextContent('2');
-});
+  )
+  expect(screen.getByTestId('parse-preview')).toHaveTextContent('Leche')
+  expect(screen.getByTestId('parse-preview')).toHaveTextContent('2')
+})
 
 test('shows "No item name" warning when input has sigil but no name', () => {
   render(
@@ -163,9 +163,9 @@ test('shows "No item name" warning when input has sigil but no name', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByText(/sin nombre de producto/i)).toBeInTheDocument();
-});
+  )
+  expect(screen.getByText(/sin nombre de producto/i)).toBeInTheDocument()
+})
 
 test('suggestion dropdown shown when suggestions provided', () => {
   render(
@@ -183,14 +183,14 @@ test('suggestion dropdown shown when suggestions provided', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByText('Leche')).toBeInTheDocument();
-  expect(screen.getByText('Lechuga')).toBeInTheDocument();
-});
+  )
+  expect(screen.getByText('Leche')).toBeInTheDocument()
+  expect(screen.getByText('Lechuga')).toBeInTheDocument()
+})
 
 test('clicking a product suggestion adds it directly with metadata', async () => {
-  const onSuggestionAdd = vi.fn();
-  const suggestion = { name: 'Leche', brand: 'Puleva', stores: ['Mercadona'] };
+  const onSuggestionAdd = vi.fn()
+  const suggestion = { name: 'Leche', brand: 'Puleva', stores: ['Mercadona'] }
   render(
     <SmartInputBar
       value="Le"
@@ -204,13 +204,13 @@ test('clicking a product suggestion adds it directly with metadata', async () =>
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  await userEvent.click(screen.getByRole('button', { name: 'Leche' }));
-  expect(onSuggestionAdd).toHaveBeenCalledWith(suggestion);
-});
+  )
+  await userEvent.click(screen.getByRole('button', { name: 'Leche' }))
+  expect(onSuggestionAdd).toHaveBeenCalledWith(suggestion)
+})
 
 test('tapping a legend chip appends its sigil when not already present', () => {
-  const onChange = vi.fn();
+  const onChange = vi.fn()
   render(
     <SmartInputBar
       value="Leche"
@@ -223,13 +223,13 @@ test('tapping a legend chip appends its sigil when not already present', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }));
-  expect(onChange).toHaveBeenCalledWith('Leche #');
-});
+  )
+  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }))
+  expect(onChange).toHaveBeenCalledWith('Leche #')
+})
 
 test('tapping brand chip is a no-op when # already present', () => {
-  const onChange = vi.fn();
+  const onChange = vi.fn()
   render(
     <SmartInputBar
       value="Leche #Puleva"
@@ -242,13 +242,13 @@ test('tapping brand chip is a no-op when # already present', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }));
-  expect(onChange).not.toHaveBeenCalled();
-});
+  )
+  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }))
+  expect(onChange).not.toHaveBeenCalled()
+})
 
 test('tapping a legend chip on empty input sets value to just the sigil', () => {
-  const onChange = vi.fn();
+  const onChange = vi.fn()
   render(
     <SmartInputBar
       value=""
@@ -261,13 +261,13 @@ test('tapping a legend chip on empty input sets value to just the sigil', () => 
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }));
-  expect(onChange).toHaveBeenCalledWith('@');
-});
+  )
+  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
+  expect(onChange).toHaveBeenCalledWith('@')
+})
 
 test('tapping a different chip when input ends with a bare sigil replaces it', () => {
-  const onChange = vi.fn();
+  const onChange = vi.fn()
   render(
     <SmartInputBar
       value="Leche #"
@@ -280,13 +280,13 @@ test('tapping a different chip when input ends with a bare sigil replaces it', (
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }));
-  expect(onChange).toHaveBeenCalledWith('Leche @');
-});
+  )
+  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
+  expect(onChange).toHaveBeenCalledWith('Leche @')
+})
 
 test('tapping the same chip when input ends with that bare sigil is a no-op', () => {
-  const onChange = vi.fn();
+  const onChange = vi.fn()
   render(
     <SmartInputBar
       value="Leche #"
@@ -299,10 +299,10 @@ test('tapping the same chip when input ends with that bare sigil is a no-op', ()
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }));
-  expect(onChange).not.toHaveBeenCalled();
-});
+  )
+  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }))
+  expect(onChange).not.toHaveBeenCalled()
+})
 
 test('client-side store suggestions filtered from items when @ typed', () => {
   const items: ListItem[] = [
@@ -340,7 +340,7 @@ test('client-side store suggestions filtered from items when @ typed', () => {
       created_at: '',
       updated_at: '',
     },
-  ];
+  ]
   render(
     <SmartInputBar
       value="Leche @Mer"
@@ -353,10 +353,10 @@ test('client-side store suggestions filtered from items when @ typed', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByText('Mercadona')).toBeInTheDocument();
-  expect(screen.queryByText('Lidl')).not.toBeInTheDocument();
-});
+  )
+  expect(screen.getByText('Mercadona')).toBeInTheDocument()
+  expect(screen.queryByText('Lidl')).not.toBeInTheDocument()
+})
 
 test('parse preview shows multiple store chips', () => {
   render(
@@ -371,13 +371,13 @@ test('parse preview shows multiple store chips', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByTestId('parse-preview')).toHaveTextContent('Mercadona');
-  expect(screen.getByTestId('parse-preview')).toHaveTextContent('Carrefour');
-});
+  )
+  expect(screen.getByTestId('parse-preview')).toHaveTextContent('Mercadona')
+  expect(screen.getByTestId('parse-preview')).toHaveTextContent('Carrefour')
+})
 
 test('tapping tienda chip appends another @ when one is already present', () => {
-  const onChange = vi.fn();
+  const onChange = vi.fn()
   render(
     <SmartInputBar
       value="Leche @Mercadona"
@@ -390,10 +390,10 @@ test('tapping tienda chip appends another @ when one is already present', () => 
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }));
-  expect(onChange).toHaveBeenCalledWith('Leche @Mercadona @');
-});
+  )
+  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
+  expect(onChange).toHaveBeenCalledWith('Leche @Mercadona @')
+})
 
 // ── EAN mode ──────────────────────────────────────────────────────────────────
 
@@ -410,11 +410,11 @@ test('| cod. barras chip appears in legend', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
+  )
   expect(
     screen.getByRole('button', { name: /añadir cod\. barras/i }),
-  ).toBeInTheDocument();
-});
+  ).toBeInTheDocument()
+})
 
 test('EAN preview shown when valid EAN parsed', () => {
   render(
@@ -429,10 +429,10 @@ test('EAN preview shown when valid EAN parsed', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByTestId('ean-preview')).toBeInTheDocument();
-  expect(screen.getByTestId('ean-preview')).toHaveTextContent('4011200296908');
-});
+  )
+  expect(screen.getByTestId('ean-preview')).toBeInTheDocument()
+  expect(screen.getByTestId('ean-preview')).toHaveTextContent('4011200296908')
+})
 
 test('Buscar button shown in EAN preview', () => {
   render(
@@ -447,14 +447,14 @@ test('Buscar button shown in EAN preview', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
+  )
   expect(
     screen.getByRole('button', { name: /buscar producto/i }),
-  ).toBeInTheDocument();
-});
+  ).toBeInTheDocument()
+})
 
 test('Buscar button calls onEanSearch with the EAN', async () => {
-  const onEanSearch = vi.fn();
+  const onEanSearch = vi.fn()
   render(
     <SmartInputBar
       value="|4011200296908"
@@ -467,12 +467,12 @@ test('Buscar button calls onEanSearch with the EAN', async () => {
       onScanRequest={noop}
       onEanSearch={onEanSearch}
     />,
-  );
+  )
   await userEvent.click(
     screen.getByRole('button', { name: /buscar producto/i }),
-  );
-  expect(onEanSearch).toHaveBeenCalledWith('4011200296908');
-});
+  )
+  expect(onEanSearch).toHaveBeenCalledWith('4011200296908')
+})
 
 test('Buscar button shows loading state when eanLoading=true', () => {
   render(
@@ -488,11 +488,11 @@ test('Buscar button shows loading state when eanLoading=true', () => {
       onEanSearch={noop}
       eanLoading={true}
     />,
-  );
+  )
   expect(
     screen.getByRole('button', { name: /buscar producto/i }),
-  ).toBeDisabled();
-});
+  ).toBeDisabled()
+})
 
 test('eanError shown in EAN preview', () => {
   render(
@@ -508,12 +508,12 @@ test('eanError shown in EAN preview', () => {
       onEanSearch={noop}
       eanError="Código no encontrado"
     />,
-  );
-  expect(screen.getByText('Código no encontrado')).toBeInTheDocument();
+  )
+  expect(screen.getByText('Código no encontrado')).toBeInTheDocument()
   expect(
     screen.queryByRole('button', { name: /buscar producto/i }),
-  ).not.toBeInTheDocument();
-});
+  ).not.toBeInTheDocument()
+})
 
 test('add button is disabled in EAN mode', () => {
   render(
@@ -528,9 +528,9 @@ test('add button is disabled in EAN mode', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByRole('button', { name: /^añadir$/i })).toBeDisabled();
-});
+  )
+  expect(screen.getByRole('button', { name: /^añadir$/i })).toBeDisabled()
+})
 
 test('regular parse preview not shown when in EAN mode', () => {
   render(
@@ -545,9 +545,9 @@ test('regular parse preview not shown when in EAN mode', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.queryByTestId('parse-preview')).not.toBeInTheDocument();
-});
+  )
+  expect(screen.queryByTestId('parse-preview')).not.toBeInTheDocument()
+})
 
 // ── Clear button ───────────────────────────────────────────────────────────────
 
@@ -564,9 +564,9 @@ test('clear button shown when input has text', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByRole('button', { name: /borrar/i })).toBeInTheDocument();
-});
+  )
+  expect(screen.getByRole('button', { name: /borrar/i })).toBeInTheDocument()
+})
 
 test('scan button not shown when input has text', () => {
   render(
@@ -581,11 +581,11 @@ test('scan button not shown when input has text', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
+  )
   expect(
     screen.queryByRole('button', { name: /escanear/i }),
-  ).not.toBeInTheDocument();
-});
+  ).not.toBeInTheDocument()
+})
 
 test('scan button shown when input is empty', () => {
   render(
@@ -600,12 +600,12 @@ test('scan button shown when input is empty', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.getByRole('button', { name: /escanear/i })).toBeInTheDocument();
-});
+  )
+  expect(screen.getByRole('button', { name: /escanear/i })).toBeInTheDocument()
+})
 
 test('clear button calls onClear', async () => {
-  const onClear = vi.fn();
+  const onClear = vi.fn()
   render(
     <SmartInputBar
       value="Leche"
@@ -618,10 +618,10 @@ test('clear button calls onClear', async () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  await userEvent.click(screen.getByRole('button', { name: /borrar/i }));
-  expect(onClear).toHaveBeenCalled();
-});
+  )
+  await userEvent.click(screen.getByRole('button', { name: /borrar/i }))
+  expect(onClear).toHaveBeenCalled()
+})
 
 // ── Own-brand inferred store chip ────────────────────────────────────────────
 
@@ -640,12 +640,12 @@ test('inferredStoreChip renders with --inferred class', () => {
       inferredStoreChip="Mercadona"
       onDismissInferredStore={noop}
     />,
-  );
-  const chip = screen.getByTestId('inferred-store-chip');
-  expect(chip).toBeInTheDocument();
-  expect(chip).toHaveClass('smart-input__suggestion--inferred');
-  expect(chip).toHaveTextContent('Mercadona');
-});
+  )
+  const chip = screen.getByTestId('inferred-store-chip')
+  expect(chip).toBeInTheDocument()
+  expect(chip).toHaveClass('smart-input__suggestion--inferred')
+  expect(chip).toHaveTextContent('Mercadona')
+})
 
 test('inferredStoreChip renders before regular suggestions', () => {
   // value has no active sigil so the suggestions prop is used as-is
@@ -666,19 +666,19 @@ test('inferredStoreChip renders before regular suggestions', () => {
       inferredStoreChip="Mercadona"
       onDismissInferredStore={noop}
     />,
-  );
-  const allButtons = screen.getAllByRole('button');
+  )
+  const allButtons = screen.getAllByRole('button')
   const chipIndex = allButtons.findIndex(
     (b) => b.getAttribute('data-testid') === 'inferred-store-chip',
-  );
+  )
   const lecheIndex = allButtons.findIndex((b) =>
     b.textContent?.includes('Leche'),
-  );
-  expect(chipIndex).toBeLessThan(lecheIndex);
-});
+  )
+  expect(chipIndex).toBeLessThan(lecheIndex)
+})
 
 test('tapping inferredStoreChip calls onDismissInferredStore', async () => {
-  const onDismiss = vi.fn();
+  const onDismiss = vi.fn()
   render(
     <SmartInputBar
       value="Leche #Hacendado"
@@ -693,10 +693,10 @@ test('tapping inferredStoreChip calls onDismissInferredStore', async () => {
       inferredStoreChip="Mercadona"
       onDismissInferredStore={onDismiss}
     />,
-  );
-  await userEvent.click(screen.getByTestId('inferred-store-chip'));
-  expect(onDismiss).toHaveBeenCalledTimes(1);
-});
+  )
+  await userEvent.click(screen.getByTestId('inferred-store-chip'))
+  expect(onDismiss).toHaveBeenCalledTimes(1)
+})
 
 test('no inferredStoreChip prop — no extra chip rendered', () => {
   render(
@@ -711,9 +711,9 @@ test('no inferredStoreChip prop — no extra chip rendered', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
-  expect(screen.queryByTestId('inferred-store-chip')).not.toBeInTheDocument();
-});
+  )
+  expect(screen.queryByTestId('inferred-store-chip')).not.toBeInTheDocument()
+})
 
 test('inferredStoreChip=null — no extra chip rendered', () => {
   render(
@@ -730,9 +730,9 @@ test('inferredStoreChip=null — no extra chip rendered', () => {
       inferredStoreChip={null}
       onDismissInferredStore={noop}
     />,
-  );
-  expect(screen.queryByTestId('inferred-store-chip')).not.toBeInTheDocument();
-});
+  )
+  expect(screen.queryByTestId('inferred-store-chip')).not.toBeInTheDocument()
+})
 
 test('barcode scan button is disabled when isOffline is true', () => {
   render(
@@ -748,11 +748,11 @@ test('barcode scan button is disabled when isOffline is true', () => {
       onEanSearch={noop}
       isOffline={true}
     />,
-  );
+  )
   expect(
     screen.getByRole('button', { name: /escanear código de barras/i }),
-  ).toBeDisabled();
-});
+  ).toBeDisabled()
+})
 
 test('barcode scan button is enabled when isOffline is false', () => {
   render(
@@ -768,11 +768,11 @@ test('barcode scan button is enabled when isOffline is false', () => {
       onEanSearch={noop}
       isOffline={false}
     />,
-  );
+  )
   expect(
     screen.getByRole('button', { name: /escanear código de barras/i }),
-  ).not.toBeDisabled();
-});
+  ).not.toBeDisabled()
+})
 
 // ── Due suggestions button ────────────────────────────────────────────────────
 
@@ -791,11 +791,11 @@ test('✨ button renders when dueSuggestionsCount > 0', () => {
       dueSuggestionsCount={3}
       onDueSuggestionsOpen={noop}
     />,
-  );
+  )
   expect(
     screen.getByRole('button', { name: /sugerencias pendientes/i }),
-  ).toBeInTheDocument();
-});
+  ).toBeInTheDocument()
+})
 
 test('✨ button absent when dueSuggestionsCount is 0', () => {
   render(
@@ -812,11 +812,11 @@ test('✨ button absent when dueSuggestionsCount is 0', () => {
       dueSuggestionsCount={0}
       onDueSuggestionsOpen={noop}
     />,
-  );
+  )
   expect(
     screen.queryByRole('button', { name: /sugerencias pendientes/i }),
-  ).not.toBeInTheDocument();
-});
+  ).not.toBeInTheDocument()
+})
 
 test('✨ button absent when dueSuggestionsCount is omitted', () => {
   render(
@@ -831,14 +831,14 @@ test('✨ button absent when dueSuggestionsCount is omitted', () => {
       onScanRequest={noop}
       onEanSearch={noop}
     />,
-  );
+  )
   expect(
     screen.queryByRole('button', { name: /sugerencias pendientes/i }),
-  ).not.toBeInTheDocument();
-});
+  ).not.toBeInTheDocument()
+})
 
 test('✨ button click calls onDueSuggestionsOpen', () => {
-  const onDueSuggestionsOpen = vi.fn();
+  const onDueSuggestionsOpen = vi.fn()
   render(
     <SmartInputBar
       value=""
@@ -853,9 +853,9 @@ test('✨ button click calls onDueSuggestionsOpen', () => {
       dueSuggestionsCount={2}
       onDueSuggestionsOpen={onDueSuggestionsOpen}
     />,
-  );
+  )
   fireEvent.click(
     screen.getByRole('button', { name: /sugerencias pendientes/i }),
-  );
-  expect(onDueSuggestionsOpen).toHaveBeenCalledTimes(1);
-});
+  )
+  expect(onDueSuggestionsOpen).toHaveBeenCalledTimes(1)
+})

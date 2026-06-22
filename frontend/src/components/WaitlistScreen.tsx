@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { usePageTitle } from '../hooks/usePageTitle';
-import { submitWaitlistSignup } from '../lib/api';
-import { auth } from '../lib/firebase';
-import './WaitlistScreen.css';
-import { Wordmark } from './Wordmark';
+import React, { useState } from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import { usePageTitle } from '../hooks/usePageTitle'
+import { submitWaitlistSignup } from '../lib/api'
+import { auth } from '../lib/firebase'
+import './WaitlistScreen.css'
+import { Wordmark } from './Wordmark'
 
 interface WaitlistScreenProps {
-  inviteToken?: string;
-  inviterName?: string;
-  listName?: string;
+  inviteToken?: string
+  inviterName?: string
+  listName?: string
 }
 
 export function WaitlistScreen({
@@ -17,49 +17,49 @@ export function WaitlistScreen({
   inviterName,
   listName,
 }: WaitlistScreenProps = {}) {
-  usePageTitle('Acceso anticipado');
-  const { signIn, signOut, isWaitlisted } = useAuth();
-  const [email, setEmail] = useState(() => auth.currentUser?.email ?? '');
-  const [submittedEmail, setSubmittedEmail] = useState('');
-  const [isAlreadyAllowed, setIsAlreadyAllowed] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  usePageTitle('Acceso anticipado')
+  const { signIn, signOut, isWaitlisted } = useAuth()
+  const [email, setEmail] = useState(() => auth.currentUser?.email ?? '')
+  const [submittedEmail, setSubmittedEmail] = useState('')
+  const [isAlreadyAllowed, setIsAlreadyAllowed] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanEmail = email.trim();
-    if (!cleanEmail) return;
+    e.preventDefault()
+    const cleanEmail = email.trim()
+    if (!cleanEmail) return
 
     // Simple client side validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(cleanEmail)) {
-      setErrorMsg('Introduce un correo válido.');
-      return;
+      setErrorMsg('Introduce un correo válido.')
+      return
     }
 
-    setErrorMsg('');
-    setIsSubmitting(true);
+    setErrorMsg('')
+    setIsSubmitting(true)
 
     try {
-      const res = await submitWaitlistSignup(cleanEmail, inviteToken);
+      const res = await submitWaitlistSignup(cleanEmail, inviteToken)
       if (res.allowed_at) {
-        setIsAlreadyAllowed(true);
+        setIsAlreadyAllowed(true)
       } else {
-        setSubmittedEmail(cleanEmail);
+        setSubmittedEmail(cleanEmail)
       }
     } catch {
-      setErrorMsg('Algo fue mal, inténtalo de nuevo.');
+      setErrorMsg('Algo fue mal, inténtalo de nuevo.')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
-  const googleEmail = auth.currentUser?.email;
+  const googleEmail = auth.currentUser?.email
   const displayError =
     errorMsg ||
     (isWaitlisted && googleEmail
       ? `La cuenta ${googleEmail} no está registrada en el acceso anticipado. Introduce tu correo arriba para apuntarte.`
-      : '');
+      : '')
 
   if (isAlreadyAllowed) {
     return (
@@ -114,7 +114,7 @@ export function WaitlistScreen({
           Volver
         </button>
       </div>
-    );
+    )
   }
 
   if (submittedEmail) {
@@ -146,7 +146,7 @@ export function WaitlistScreen({
           Salir
         </button>
       </div>
-    );
+    )
   }
 
   return (
@@ -251,5 +251,5 @@ export function WaitlistScreen({
         </button>
       )}
     </div>
-  );
+  )
 }

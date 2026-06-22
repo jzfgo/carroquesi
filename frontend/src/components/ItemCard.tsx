@@ -1,20 +1,20 @@
-import { Coins, Hash, RotateCcw, Store, Tag } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { formatPrice } from '../lib/formatPrice';
-import type { ListItem, Member, TagField } from '../types';
-import './ItemCard.css';
+import { Coins, Hash, RotateCcw, Store, Tag } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import { formatPrice } from '../lib/formatPrice'
+import type { ListItem, Member, TagField } from '../types'
+import './ItemCard.css'
 
 const TAG_CONFIG: { field: TagField; icon: React.ReactNode; label: string }[] =
-  [{ field: 'brand', icon: <Tag size={13} />, label: 'marca' }];
+  [{ field: 'brand', icon: <Tag size={13} />, label: 'marca' }]
 
 interface Props {
-  item: ListItem;
-  members: Map<string, Member>;
-  onTogglePurchased: (itemId: string) => void;
-  onTagClick: (itemId: string, field: TagField | 'stores') => void;
-  onMenuOpen: (itemId: string) => void;
-  onPriceClick?: (itemId: string) => void;
-  onClone?: (itemId: string) => void;
+  item: ListItem
+  members: Map<string, Member>
+  onTogglePurchased: (itemId: string) => void
+  onTagClick: (itemId: string, field: TagField | 'stores') => void
+  onMenuOpen: (itemId: string) => void
+  onPriceClick?: (itemId: string) => void
+  onClone?: (itemId: string) => void
 }
 
 export function ItemCard({
@@ -26,19 +26,19 @@ export function ItemCard({
   onPriceClick,
   onClone,
 }: Props) {
-  const member = members.get(item.added_by);
-  const initial = member?.initial ?? '?';
-  const { user } = useAuth();
-  const isSelf = member?.id === user?.id;
+  const member = members.get(item.added_by)
+  const initial = member?.initial ?? '?'
+  const { user } = useAuth()
+  const isSelf = member?.id === user?.id
   const avatarStyle = isSelf
     ? { background: 'var(--tinta-0)', color: 'var(--accent-fg)' }
-    : { background: 'var(--paper-2)', color: 'var(--ink-1)' };
+    : { background: 'var(--paper-2)', color: 'var(--ink-1)' }
 
   // For purchased items, show actual purchased qty; fall back to planned qty.
   const displayQty =
     item.purchased && item.purchased_quantity != null
       ? item.purchased_quantity
-      : item.quantity;
+      : item.quantity
 
   return (
     <div
@@ -155,8 +155,8 @@ export function ItemCard({
             <button
               className="item-card__tag item-card__tag--price"
               onClick={(e) => {
-                e.stopPropagation();
-                onPriceClick?.(item.id);
+                e.stopPropagation()
+                onPriceClick?.(item.id)
               }}
             >
               <span aria-hidden>
@@ -168,8 +168,8 @@ export function ItemCard({
             <button
               className="item-card__tag item-card__tag--cta"
               onClick={(e) => {
-                e.stopPropagation();
-                onPriceClick?.(item.id);
+                e.stopPropagation()
+                onPriceClick?.(item.id)
               }}
               aria-label={
                 item.purchased ? 'Registrar precio' : 'Historial de precios'
@@ -185,8 +185,8 @@ export function ItemCard({
             <button
               className="item-card__tag item-card__tag--buy-again"
               onClick={(e) => {
-                e.stopPropagation();
-                onClone(item.id);
+                e.stopPropagation()
+                onClone(item.id)
               }}
             >
               <span aria-hidden>
@@ -217,8 +217,8 @@ export function ItemCard({
         <button
           className="item-card__menu"
           onClick={(e) => {
-            e.stopPropagation();
-            onMenuOpen(item.id);
+            e.stopPropagation()
+            onMenuOpen(item.id)
           }}
           aria-label="Opciones del producto"
         >
@@ -226,5 +226,5 @@ export function ItemCard({
         </button>
       </div>
     </div>
-  );
+  )
 }

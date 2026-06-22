@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
-import type { FeedbackPayload } from '../lib/api';
-import './FeedbackSheet.css';
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import type { FeedbackPayload } from '../lib/api'
+import './FeedbackSheet.css'
 
 interface Props {
-  defaultEmail: string | null | undefined;
-  isSubmitting: boolean;
-  onSubmit: (payload: FeedbackPayload) => void;
-  onClose: () => void;
+  defaultEmail: string | null | undefined
+  isSubmitting: boolean
+  onSubmit: (payload: FeedbackPayload) => void
+  onClose: () => void
 }
 
 export function FeedbackSheet({
@@ -16,30 +16,30 @@ export function FeedbackSheet({
   onSubmit,
   onClose,
 }: Props) {
-  const [message, setMessage] = useState('');
-  const [email, setEmail] = useState(defaultEmail ?? '');
-  const trimmedMessage = useMemo(() => message.trim(), [message]);
-  const canSubmit = trimmedMessage.length > 0 && !isSubmitting;
-  const sheetRef = useRef<HTMLFormElement>(null);
-  const swipe = useSwipeToDismiss(sheetRef, onClose);
+  const [message, setMessage] = useState('')
+  const [email, setEmail] = useState(defaultEmail ?? '')
+  const trimmedMessage = useMemo(() => message.trim(), [message])
+  const canSubmit = trimmedMessage.length > 0 && !isSubmitting
+  const sheetRef = useRef<HTMLFormElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onClose()
     }
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!canSubmit) return;
-    const trimmedEmail = email.trim();
+    event.preventDefault()
+    if (!canSubmit) return
+    const trimmedEmail = email.trim()
     onSubmit({
       message: trimmedMessage,
       email: trimmedEmail.length > 0 ? trimmedEmail : null,
       source: 'manual',
-    });
+    })
   }
 
   return (
@@ -91,5 +91,5 @@ export function FeedbackSheet({
         </div>
       </form>
     </>
-  );
+  )
 }

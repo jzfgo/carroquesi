@@ -1,19 +1,19 @@
-import { X } from 'lucide-react';
-import { useEffect } from 'react';
-import './PurchaseToast.css';
+import { X } from 'lucide-react'
+import { useEffect } from 'react'
+import './PurchaseToast.css'
 
-const AUTO_DISMISS_MS = 6000;
+const AUTO_DISMISS_MS = 6000
 
 interface Props {
-  itemName: string;
-  onDismiss: () => void;
+  itemName: string
+  onDismiss: () => void
 }
 
 export default function PurchaseToast({ itemName, onDismiss }: Props) {
   useEffect(() => {
-    const timer = setTimeout(onDismiss, AUTO_DISMISS_MS);
-    return () => clearTimeout(timer);
-  }, [onDismiss]);
+    const timer = setTimeout(onDismiss, AUTO_DISMISS_MS)
+    return () => clearTimeout(timer)
+  }, [onDismiss])
 
   return (
     <div className="pt">
@@ -29,5 +29,5 @@ export default function PurchaseToast({ itemName, onDismiss }: Props) {
         </button>
       </div>
     </div>
-  );
+  )
 }

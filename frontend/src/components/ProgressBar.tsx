@@ -1,14 +1,14 @@
-import './ProgressBar.css';
+import './ProgressBar.css'
 
 interface Props {
-  purchased: number;
-  total: number;
-  variant?: 'primary' | 'success';
+  purchased: number
+  total: number
+  variant?: 'primary' | 'success'
 }
 
 export function ProgressBar({ purchased, total, variant = 'primary' }: Props) {
-  if (total === 0) return null;
-  const pct = Math.round((purchased / total) * 100);
+  if (total === 0) return null
+  const pct = Math.round((purchased / total) * 100)
   return (
     <div
       className={`progress-bar progress-bar--${variant}`}
@@ -19,5 +19,5 @@ export function ProgressBar({ purchased, total, variant = 'primary' }: Props) {
     >
       <div className="progress-bar__fill" style={{ width: `${pct}%` }} />
     </div>
-  );
+  )
 }

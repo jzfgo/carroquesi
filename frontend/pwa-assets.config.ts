@@ -1,4 +1,4 @@
-import { defineConfig } from '@vite-pwa/assets-generator/config';
+import { defineConfig } from '@vite-pwa/assets-generator/config'
 
 export default defineConfig({
   preset: {
@@ -12,4 +12,4 @@ export default defineConfig({
     apple: { sizes: [] },
   },
   images: ['public/transparent.png'],
-});
+})

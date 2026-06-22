@@ -1,83 +1,83 @@
-import { AlertTriangle, Globe, Pencil, Store } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
-import { getPriceHistory } from '../lib/api';
-import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice';
-import { normalizeEntries, type ChartEntry } from '../lib/priceNormalization';
-import type { ListItem, PriceHistoryResponse } from '../types';
-import './PriceHistorySheet.css';
+import { AlertTriangle, Globe, Pencil, Store } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { getPriceHistory } from '../lib/api'
+import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
+import { normalizeEntries, type ChartEntry } from '../lib/priceNormalization'
+import type { ListItem, PriceHistoryResponse } from '../types'
+import './PriceHistorySheet.css'
 
-type Scope = 'this_list' | 'my_lists' | 'all';
+type Scope = 'this_list' | 'my_lists' | 'all'
 
 interface Props {
-  item: ListItem;
-  listId: string;
-  getToken: () => Promise<string>;
-  onLogPrice: () => void;
-  onClose: () => void;
-  readOnly?: boolean;
+  item: ListItem
+  listId: string
+  getToken: () => Promise<string>
+  onLogPrice: () => void
+  onClose: () => void
+  readOnly?: boolean
 }
 
 interface StoreGroup {
-  store: string | null;
-  records: ChartEntry[];
+  store: string | null
+  records: ChartEntry[]
 }
 
 function groupByStore(entries: ChartEntry[]): StoreGroup[] {
-  const map = new Map<string, StoreGroup>();
+  const map = new Map<string, StoreGroup>()
   for (const entry of entries) {
-    const key = entry.store ?? '__none__';
-    if (!map.has(key)) map.set(key, { store: entry.store, records: [] });
-    map.get(key)!.records.push(entry);
+    const key = entry.store ?? '__none__'
+    if (!map.has(key)) map.set(key, { store: entry.store, records: [] })
+    map.get(key)!.records.push(entry)
   }
   for (const group of map.values()) {
     group.records.sort((a, b) => {
-      if (!a.purchased_at && !b.purchased_at) return 0;
-      if (!a.purchased_at) return 1;
-      if (!b.purchased_at) return -1;
-      return b.purchased_at.localeCompare(a.purchased_at);
-    });
+      if (!a.purchased_at && !b.purchased_at) return 0
+      if (!a.purchased_at) return 1
+      if (!b.purchased_at) return -1
+      return b.purchased_at.localeCompare(a.purchased_at)
+    })
   }
   return [...map.values()].sort((a, b) => {
-    const aDate = a.records[0]?.purchased_at ?? '';
-    const bDate = b.records[0]?.purchased_at ?? '';
-    return bDate.localeCompare(aDate);
-  });
+    const aDate = a.records[0]?.purchased_at ?? ''
+    const bDate = b.records[0]?.purchased_at ?? ''
+    return bDate.localeCompare(aDate)
+  })
 }
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('es-ES', {
     day: 'numeric',
     month: 'short',
-  });
+  })
 }
 
 function Sparkline({ records }: { records: ChartEntry[] }) {
-  const reversed = [...records].reverse();
+  const reversed = [...records].reverse()
   const validAmounts = reversed
     .map((r) => r.displayAmount)
-    .filter((a): a is number => a !== null);
+    .filter((a): a is number => a !== null)
 
   const w = 60,
     h = 28,
-    pad = 4;
+    pad = 4
 
   // Time-proportional X: position each point by its purchase timestamp
   const timestamps = reversed.map((r) =>
     r.purchased_at ? new Date(r.purchased_at).getTime() : null,
-  );
-  const validTs = timestamps.filter((t): t is number => t !== null);
-  const minMs = validTs.length > 0 ? Math.min(...validTs) : 0;
-  const maxMs = validTs.length > 0 ? Math.max(...validTs) : 0;
-  const timeRange = maxMs - minMs;
+  )
+  const validTs = timestamps.filter((t): t is number => t !== null)
+  const minMs = validTs.length > 0 ? Math.min(...validTs) : 0
+  const maxMs = validTs.length > 0 ? Math.max(...validTs) : 0
+  const timeRange = maxMs - minMs
   const getX = (i: number): number => {
     const evenX =
       reversed.length === 1
         ? w / 2
-        : pad + (i / (reversed.length - 1)) * (w - 2 * pad);
-    if (timeRange === 0 || timestamps[i] === null) return evenX;
-    return pad + ((timestamps[i]! - minMs) / timeRange) * (w - 2 * pad);
-  };
+        : pad + (i / (reversed.length - 1)) * (w - 2 * pad)
+    if (timeRange === 0 || timestamps[i] === null) return evenX
+    return pad + ((timestamps[i]! - minMs) / timeRange) * (w - 2 * pad)
+  }
 
   if (validAmounts.length < 2) {
     return (
@@ -103,53 +103,53 @@ function Sparkline({ records }: { records: ChartEntry[] }) {
           ),
         )}
       </svg>
-    );
+    )
   }
 
-  const min = Math.min(...validAmounts);
-  const max = Math.max(...validAmounts);
-  const range = max - min || 1;
+  const min = Math.min(...validAmounts)
+  const max = Math.max(...validAmounts)
+  const range = max - min || 1
   // Center flat series (all values equal) rather than mapping them to the top edge
   const getY = (amount: number) =>
-    min === max ? h / 2 : pad + ((max - amount) / range) * (h - 2 * pad);
+    min === max ? h / 2 : pad + ((max - amount) / range) * (h - 2 * pad)
 
   const pts = reversed.map((r, i) => {
-    const x = getX(i);
-    if (r.displayAmount === null) return { x, y: null };
-    return { x, y: getY(r.displayAmount) };
-  });
+    const x = getX(i)
+    if (r.displayAmount === null) return { x, y: null }
+    return { x, y: getY(r.displayAmount) }
+  })
 
   const pathD = pts
     .map((pt, i) => {
-      if (pt.y === null) return null;
-      const prev = i > 0 ? pts[i - 1] : null;
-      const cmd = prev === null || prev.y === null ? 'M' : 'L';
-      return `${cmd}${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+      if (pt.y === null) return null
+      const prev = i > 0 ? pts[i - 1] : null
+      const cmd = prev === null || prev.y === null ? 'M' : 'L'
+      return `${cmd}${pt.x.toFixed(1)},${pt.y.toFixed(1)}`
     })
     .filter(Boolean)
-    .join(' ');
+    .join(' ')
 
   // Build an area fill path for each contiguous run of ≥2 valid points
-  const areaPaths: string[] = [];
-  let runStart: number | null = null;
+  const areaPaths: string[] = []
+  let runStart: number | null = null
   for (let i = 0; i <= pts.length; i++) {
-    const isValid = i < pts.length && pts[i].y !== null;
+    const isValid = i < pts.length && pts[i].y !== null
     if (isValid && runStart === null) {
-      runStart = i;
+      runStart = i
     } else if (!isValid && runStart !== null) {
-      const run = pts.slice(runStart, i);
+      const run = pts.slice(runStart, i)
       if (run.length >= 2) {
         const runLine = run
           .map(
             (p, j) =>
               `${j === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y!.toFixed(1)}`,
           )
-          .join(' ');
+          .join(' ')
         areaPaths.push(
           `${runLine} L${run[run.length - 1].x.toFixed(1)},${h} L${run[0].x.toFixed(1)},${h} Z`,
-        );
+        )
       }
-      runStart = null;
+      runStart = null
     }
   }
 
@@ -187,81 +187,81 @@ function Sparkline({ records }: { records: ChartEntry[] }) {
         ) : null,
       )}
     </svg>
-  );
+  )
 }
 
 function ExpandedChart({ records }: { records: ChartEntry[] }) {
-  const reversed = [...records].reverse();
+  const reversed = [...records].reverse()
   const validAmounts = reversed
     .filter((r) => r.displayAmount !== null)
-    .map((r) => r.displayAmount as number);
+    .map((r) => r.displayAmount as number)
 
-  const latestRecord = records[0];
-  const displayPricePer = latestRecord?.displayPricePer ?? null;
+  const latestRecord = records[0]
+  const displayPricePer = latestRecord?.displayPricePer ?? null
 
-  const min = validAmounts.length > 0 ? Math.min(...validAmounts) : 0;
-  const max = validAmounts.length > 0 ? Math.max(...validAmounts) : 0;
-  const range = max - min || 1;
+  const min = validAmounts.length > 0 ? Math.min(...validAmounts) : 0
+  const max = validAmounts.length > 0 ? Math.max(...validAmounts) : 0
+  const range = max - min || 1
   const w = 200,
     h = 48,
-    pad = 6;
+    pad = 6
   const getY = (amount: number) =>
-    min === max ? h / 2 : pad + ((max - amount) / range) * (h - 2 * pad);
+    min === max ? h / 2 : pad + ((max - amount) / range) * (h - 2 * pad)
 
   // Time-proportional X positioning
   const timestamps = reversed.map((r) =>
     r.purchased_at ? new Date(r.purchased_at).getTime() : null,
-  );
-  const validTs = timestamps.filter((t): t is number => t !== null);
-  const minMs = validTs.length > 0 ? Math.min(...validTs) : 0;
-  const maxMs = validTs.length > 0 ? Math.max(...validTs) : 0;
-  const timeRange = maxMs - minMs;
+  )
+  const validTs = timestamps.filter((t): t is number => t !== null)
+  const minMs = validTs.length > 0 ? Math.min(...validTs) : 0
+  const maxMs = validTs.length > 0 ? Math.max(...validTs) : 0
+  const timeRange = maxMs - minMs
   const getX = (i: number): string => {
     const evenX =
       reversed.length === 1
         ? w / 2
-        : pad + (i / (reversed.length - 1)) * (w - 2 * pad);
-    if (timeRange === 0 || timestamps[i] === null) return evenX.toFixed(1);
+        : pad + (i / (reversed.length - 1)) * (w - 2 * pad)
+    if (timeRange === 0 || timestamps[i] === null) return evenX.toFixed(1)
     return (
       pad +
       ((timestamps[i]! - minMs) / timeRange) * (w - 2 * pad)
-    ).toFixed(1);
-  };
+    ).toFixed(1)
+  }
 
   const pts = reversed.map((r, i) => {
-    const x = getX(i);
-    if (r.displayAmount === null) return { x, y: null };
-    return { x, y: getY(r.displayAmount).toFixed(1) };
-  });
+    const x = getX(i)
+    if (r.displayAmount === null) return { x, y: null }
+    return { x, y: getY(r.displayAmount).toFixed(1) }
+  })
 
   const pathD = pts
     .map((pt, i) => {
-      if (pt.y === null) return null;
-      const prev = i > 0 ? pts[i - 1] : null;
-      const cmd = prev === null || prev.y === null ? 'M' : 'L';
-      return `${cmd}${pt.x},${pt.y}`;
+      if (pt.y === null) return null
+      const prev = i > 0 ? pts[i - 1] : null
+      const cmd = prev === null || prev.y === null ? 'M' : 'L'
+      return `${cmd}${pt.x},${pt.y}`
     })
     .filter(Boolean)
-    .join(' ');
+    .join(' ')
 
   // Build area fill paths for each contiguous run of ≥2 valid points
-  const areaPaths: string[] = [];
-  let runStart: number | null = null;
+  const areaPaths: string[] = []
+  let runStart: number | null = null
   for (let i = 0; i <= pts.length; i++) {
-    const isValid = i < pts.length && pts[i].y !== null;
+    const isValid = i < pts.length && pts[i].y !== null
     if (isValid && runStart === null) {
-      runStart = i;
+      runStart = i
     } else if (!isValid && runStart !== null) {
-      const run = pts.slice(runStart, i);
+      const run = pts.slice(runStart, i)
       if (run.length >= 2) {
         const runLine = run
           .map((p, j) => `${j === 0 ? 'M' : 'L'}${p.x},${p.y}`)
-          .join(' ');
+          .join(' ')
         areaPaths.push(
           `${runLine} L${run[run.length - 1].x},${h} L${run[0].x},${h} Z`,
-        );
+        )
       }
-      runStart = null;
+      runStart = null
     }
   }
 
@@ -342,7 +342,7 @@ function ExpandedChart({ records }: { records: ChartEntry[] }) {
         ))}
       </div>
     </div>
-  );
+  )
 }
 
 export default function PriceHistorySheet({
@@ -353,34 +353,34 @@ export default function PriceHistorySheet({
   onClose,
   readOnly,
 }: Props) {
-  const [scope, setScope] = useState<Scope>('this_list');
-  const [history, setHistory] = useState<PriceHistoryResponse | null>(null);
+  const [scope, setScope] = useState<Scope>('this_list')
+  const [history, setHistory] = useState<PriceHistoryResponse | null>(null)
   const [expandedStore, setExpandedStore] = useState<string | null | undefined>(
     undefined,
-  );
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const swipe = useSwipeToDismiss(sheetRef, onClose);
+  )
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelled = false
     getPriceHistory(getToken, listId, item.id, scope)
       .then((data) => {
-        if (!cancelled) setHistory(data);
+        if (!cancelled) setHistory(data)
       })
-      .catch(() => {});
+      .catch(() => {})
     return () => {
-      cancelled = true;
-    };
-  }, [scope, getToken, listId, item.id]);
+      cancelled = true
+    }
+  }, [scope, getToken, listId, item.id])
 
-  const hasExpanded = expandedStore !== undefined;
+  const hasExpanded = expandedStore !== undefined
 
   function toggleStore(store: string | null) {
-    setExpandedStore((prev) => (prev === store ? undefined : store));
+    setExpandedStore((prev) => (prev === store ? undefined : store))
   }
 
-  const normalized = history ? normalizeEntries(history.entries) : null;
-  const groups = normalized ? groupByStore(normalized.entries) : null;
+  const normalized = history ? normalizeEntries(history.entries) : null
+  const groups = normalized ? groupByStore(normalized.entries) : null
 
   return (
     <div className="phs" ref={sheetRef}>
@@ -392,8 +392,8 @@ export default function PriceHistorySheet({
             key={s}
             className={`phs__scope-btn${scope === s ? ' phs__scope-btn--active' : ''}`}
             onClick={() => {
-              setScope(s);
-              setExpandedStore(undefined);
+              setScope(s)
+              setExpandedStore(undefined)
             }}
           >
             {s === 'this_list'
@@ -432,12 +432,12 @@ export default function PriceHistorySheet({
           <div className="phs__empty">No hay precios registrados.</div>
         )}
         {groups?.map((group) => {
-          const isExpanded = expandedStore === group.store;
-          const isDimmed = hasExpanded && !isExpanded;
-          const latest = group.records[0];
+          const isExpanded = expandedStore === group.store
+          const isDimmed = hasExpanded && !isExpanded
+          const latest = group.records[0]
           const groupHasGaps = group.records.some(
             (r) => r.displayAmount === null,
-          );
+          )
 
           return (
             <div
@@ -484,7 +484,7 @@ export default function PriceHistorySheet({
               </div>
               {isExpanded && <ExpandedChart records={group.records} />}
             </div>
-          );
+          )
         })}
       </div>
 
@@ -500,5 +500,5 @@ export default function PriceHistorySheet({
         </button>
       )}
     </div>
-  );
+  )
 }

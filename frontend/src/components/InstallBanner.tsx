@@ -1,14 +1,14 @@
-import { X } from 'lucide-react';
-import { useState } from 'react';
-import './InstallBanner.css';
+import { X } from 'lucide-react'
+import { useState } from 'react'
+import './InstallBanner.css'
 
-const DISMISSED_KEY = 'pwa-install-dismissed';
+const DISMISSED_KEY = 'pwa-install-dismissed'
 
 interface Props {
-  isInstallable: boolean;
-  isInstalled: boolean;
-  isIOS: boolean;
-  promptInstall: () => Promise<void>;
+  isInstallable: boolean
+  isInstalled: boolean
+  isIOS: boolean
+  promptInstall: () => Promise<void>
 }
 
 export function InstallBanner({
@@ -19,14 +19,14 @@ export function InstallBanner({
 }: Props) {
   const [dismissed, setDismissed] = useState(() =>
     Boolean(localStorage.getItem(DISMISSED_KEY)),
-  );
+  )
 
-  if (isInstalled || dismissed || (!isInstallable && !isIOS)) return null;
+  if (isInstalled || dismissed || (!isInstallable && !isIOS)) return null
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, '1');
-    setDismissed(true);
-  };
+    localStorage.setItem(DISMISSED_KEY, '1')
+    setDismissed(true)
+  }
 
   return (
     <aside className="install-banner" role="complementary">
@@ -61,5 +61,5 @@ export function InstallBanner({
         <X size={16} />
       </button>
     </aside>
-  );
+  )
 }

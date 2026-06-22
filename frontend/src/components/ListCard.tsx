@@ -1,18 +1,18 @@
-import { GripVertical, MoreHorizontal } from 'lucide-react';
-import type { CSSProperties } from 'react';
-import type { ApiList } from '../types';
-import './ListCard.css';
-import { ProgressBar } from './ProgressBar';
+import { GripVertical, MoreHorizontal } from 'lucide-react'
+import type { CSSProperties } from 'react'
+import type { ApiList } from '../types'
+import './ListCard.css'
+import { ProgressBar } from './ProgressBar'
 
 interface Props {
-  list: ApiList;
-  isOwner: boolean;
-  onClick: () => void;
-  onMenuOpen: () => void;
-  onEmojiTap?: () => void;
-  dragHandleProps?: Record<string, unknown>;
-  style?: CSSProperties;
-  isDragging?: boolean;
+  list: ApiList
+  isOwner: boolean
+  onClick: () => void
+  onMenuOpen: () => void
+  onEmojiTap?: () => void
+  dragHandleProps?: Record<string, unknown>
+  style?: CSSProperties
+  isDragging?: boolean
 }
 
 export function ListCard({
@@ -25,7 +25,7 @@ export function ListCard({
   style,
   isDragging,
 }: Props) {
-  const { name, emoji, item_count, purchased_count } = list;
+  const { name, emoji, item_count, purchased_count } = list
 
   const emojiSlot = (() => {
     if (isOwner) {
@@ -33,22 +33,22 @@ export function ListCard({
         <button
           className={`list-card__emoji${!emoji ? ' list-card__emoji--placeholder' : ''}`}
           onClick={(e) => {
-            e.stopPropagation();
-            onEmojiTap?.();
+            e.stopPropagation()
+            onEmojiTap?.()
           }}
           aria-label={emoji ? 'Cambiar emoji' : 'Añadir emoji'}
         >
           {emoji ?? '＋'}
         </button>
-      );
+      )
     }
-    if (!emoji) return null;
+    if (!emoji) return null
     return (
       <span className="list-card__emoji" aria-hidden>
         {emoji}
       </span>
-    );
-  })();
+    )
+  })()
 
   return (
     <div
@@ -87,5 +87,5 @@ export function ListCard({
         <MoreHorizontal size={18} />
       </button>
     </div>
-  );
+  )
 }

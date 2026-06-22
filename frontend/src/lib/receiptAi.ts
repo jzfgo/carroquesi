@@ -1,6 +1,6 @@
-import { getGenerativeModel, InferenceMode } from 'firebase/ai';
-import type { ParsedLine, ReceiptScanRequest } from '../types';
-import { ai } from './firebase';
+import { getGenerativeModel, InferenceMode } from 'firebase/ai'
+import type { ParsedLine, ReceiptScanRequest } from '../types'
+import { ai } from './firebase'
 
 const RECEIPT_SCHEMA = {
   type: 'object',
@@ -24,7 +24,7 @@ const RECEIPT_SCHEMA = {
     },
   },
   required: ['lines'],
-};
+}
 
 const PROMPT = `Extract structured data from this Spanish grocery receipt.
 
@@ -39,7 +39,7 @@ RULES:
   - "KILOGRAM": sold by weight. unit_price = price per kg. quantity = weight in kg. line_total = unit_price x quantity.
   - "MULTI": multiple units at combined price. unit_price = line_total divided by quantity. quantity = number of units.
 - Normalise product names to Spanish title case.
-- CRITICAL: If any value is unclear, partially obscured, or you are not fully confident, return null or omit the line. Do not guess. Accuracy over completeness.`;
+- CRITICAL: If any value is unclear, partially obscured, or you are not fully confident, return null or omit the line. Do not guess. Accuracy over completeness.`
 
 const model = getGenerativeModel(ai, {
   mode: InferenceMode.PREFER_IN_CLOUD,
@@ -59,40 +59,40 @@ const model = getGenerativeModel(ai, {
       responseJsonSchema: RECEIPT_SCHEMA,
     },
   },
-});
+})
 
 async function fileToInlinePart(file: File) {
   return new Promise<{ inlineData: { data: string; mimeType: string } }>(
     (resolve, reject) => {
-      const reader = new FileReader();
+      const reader = new FileReader()
       reader.onloadend = () => {
-        const result = reader.result as string;
+        const result = reader.result as string
         resolve({
           inlineData: { data: result.split(',')[1], mimeType: file.type },
-        });
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+        })
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
     },
-  );
+  )
 }
 
 export async function parseReceiptWithAi(
   file: File,
 ): Promise<ReceiptScanRequest> {
-  const filePart = await fileToInlinePart(file);
-  const result = await model.generateContent([filePart, PROMPT]);
-  const text = result.response.text();
+  const filePart = await fileToInlinePart(file)
+  const result = await model.generateContent([filePart, PROMPT])
+  const text = result.response.text()
   const raw = JSON.parse(text) as {
-    store?: string | null;
-    receipt_date?: string | null;
-    receipt_total?: number | null;
-    lines: ParsedLine[];
-  };
+    store?: string | null
+    receipt_date?: string | null
+    receipt_total?: number | null
+    lines: ParsedLine[]
+  }
   return {
     store: raw.store ?? null,
     receipt_date: raw.receipt_date ?? null,
     receipt_total: raw.receipt_total ?? null,
     lines: raw.lines,
-  };
+  }
 }

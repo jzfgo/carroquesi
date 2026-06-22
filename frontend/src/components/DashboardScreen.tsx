@@ -1,4 +1,4 @@
-import type { DragEndEvent } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core'
 import {
   DndContext,
   PointerSensor,
@@ -6,282 +6,277 @@ import {
   closestCenter,
   useSensor,
   useSensors,
-} from '@dnd-kit/core';
+} from '@dnd-kit/core'
 import {
   SortableContext,
   arrayMove,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useFeatureFlags } from '../contexts/FeatureFlagsContext';
-import { usePageTitle } from '../hooks/usePageTitle';
-import { usePWAInstall } from '../hooks/usePWAInstall';
-import type { FeedbackPayload } from '../lib/api';
+} from '@dnd-kit/sortable'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
+import { usePageTitle } from '../hooks/usePageTitle'
+import { usePWAInstall } from '../hooks/usePWAInstall'
+import type { FeedbackPayload } from '../lib/api'
 import {
   createList,
   deleteList,
   getLists,
   submitFeedback,
   updateList,
-} from '../lib/api';
-import { CURATED_EMOJIS } from '../lib/curatedEmojis';
-import { FLAGS } from '../lib/featureFlags';
-import type { ApiList } from '../types';
-import { CreateListCard } from './CreateListCard';
-import './DashboardScreen.css';
-import { EmojiPickerSheet } from './EmojiPickerSheet';
-import { FeedbackSheet } from './FeedbackSheet';
-import { InstallBanner } from './InstallBanner';
-import { ListActionSheet } from './ListActionSheet';
-import { SortableListCard } from './SortableListCard';
-import { Wordmark } from './Wordmark';
+} from '../lib/api'
+import { CURATED_EMOJIS } from '../lib/curatedEmojis'
+import { FLAGS } from '../lib/featureFlags'
+import type { ApiList } from '../types'
+import { CreateListCard } from './CreateListCard'
+import './DashboardScreen.css'
+import { EmojiPickerSheet } from './EmojiPickerSheet'
+import { FeedbackSheet } from './FeedbackSheet'
+import { InstallBanner } from './InstallBanner'
+import { ListActionSheet } from './ListActionSheet'
+import { SortableListCard } from './SortableListCard'
+import { Wordmark } from './Wordmark'
 
 function loadOrder(userId: string): string[] | null {
   try {
-    const raw = localStorage.getItem(`list-order-${userId}`);
-    return raw ? (JSON.parse(raw) as string[]) : null;
+    const raw = localStorage.getItem(`list-order-${userId}`)
+    return raw ? (JSON.parse(raw) as string[]) : null
   } catch {
-    return null;
+    return null
   }
 }
 
 function saveOrder(userId: string, ids: string[]) {
-  localStorage.setItem(`list-order-${userId}`, JSON.stringify(ids));
+  localStorage.setItem(`list-order-${userId}`, JSON.stringify(ids))
 }
 
 function applyOrder(lists: ApiList[], order: string[] | null): ApiList[] {
-  if (!order) return lists;
-  const map = new Map(lists.map((l) => [l.id, l]));
-  const sorted = order.flatMap((id) => (map.has(id) ? [map.get(id)!] : []));
-  const rest = lists.filter((l) => !order.includes(l.id));
-  return [...sorted, ...rest];
+  if (!order) return lists
+  const map = new Map(lists.map((l) => [l.id, l]))
+  const sorted = order.flatMap((id) => (map.has(id) ? [map.get(id)!] : []))
+  const rest = lists.filter((l) => !order.includes(l.id))
+  return [...sorted, ...rest]
 }
 
 function loadDashboardCache(userId: string): ApiList[] | null {
   try {
-    const raw = localStorage.getItem(`cqs_dashboard_cache_${userId}`);
-    return raw ? (JSON.parse(raw) as ApiList[]) : null;
+    const raw = localStorage.getItem(`cqs_dashboard_cache_${userId}`)
+    return raw ? (JSON.parse(raw) as ApiList[]) : null
   } catch {
-    return null;
+    return null
   }
 }
 
 function saveDashboardCache(userId: string, lists: ApiList[]) {
   try {
-    localStorage.setItem(
-      `cqs_dashboard_cache_${userId}`,
-      JSON.stringify(lists),
-    );
+    localStorage.setItem(`cqs_dashboard_cache_${userId}`, JSON.stringify(lists))
   } catch {
     /* storage unavailable */
   }
 }
 
 function randomEmoji(): string {
-  return CURATED_EMOJIS[Math.floor(Math.random() * CURATED_EMOJIS.length)];
+  return CURATED_EMOJIS[Math.floor(Math.random() * CURATED_EMOJIS.length)]
 }
 
 export function DashboardScreen() {
-  const { user, getToken, signOut } = useAuth();
-  const navigate = useNavigate();
-  const { isEnabled } = useFeatureFlags();
-  const [lists, setLists] = useState<ApiList[] | null>(null);
-  const [fetchError, setFetchError] = useState(false);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  usePageTitle(undefined);
-  const [activeList, setActiveList] = useState<ApiList | null>(null);
-  const [emojiList, setEmojiList] = useState<ApiList | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const { user, getToken, signOut } = useAuth()
+  const navigate = useNavigate()
+  const { isEnabled } = useFeatureFlags()
+  const [lists, setLists] = useState<ApiList[] | null>(null)
+  const [fetchError, setFetchError] = useState(false)
+  const [isOffline, setIsOffline] = useState(!navigator.onLine)
+  usePageTitle(undefined)
+  const [activeList, setActiveList] = useState<ApiList | null>(null)
+  const [emojiList, setEmojiList] = useState<ApiList | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
 
   useEffect(() => {
-    if (!toast) return;
-    const id = setTimeout(() => setToast(null), 3000);
-    return () => clearTimeout(id);
-  }, [toast]);
+    if (!toast) return
+    const id = setTimeout(() => setToast(null), 3000)
+    return () => clearTimeout(id)
+  }, [toast])
 
   useEffect(() => {
-    const onOnline = () => setIsOffline(false);
-    const onOffline = () => setIsOffline(true);
-    window.addEventListener('online', onOnline);
-    window.addEventListener('offline', onOffline);
+    const onOnline = () => setIsOffline(false)
+    const onOffline = () => setIsOffline(true)
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
     return () => {
-      window.removeEventListener('online', onOnline);
-      window.removeEventListener('offline', onOffline);
-    };
-  }, []);
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
+  }, [])
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen) return
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
+        setMenuOpen(false)
       }
-    };
+    }
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    document.addEventListener('keydown', handleKey);
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('keydown', handleKey)
     return () => {
-      document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('keydown', handleKey);
-    };
-  }, [menuOpen]);
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleKey)
+    }
+  }, [menuOpen])
 
   const fetchLists = useCallback(
     async (silent = false) => {
-      const cached = loadDashboardCache(user!.id);
+      const cached = loadDashboardCache(user!.id)
       if (cached) {
-        const ordered = applyOrder(cached, loadOrder(user!.id));
-        setLists(ordered);
+        const ordered = applyOrder(cached, loadOrder(user!.id))
+        setLists(ordered)
       } else if (!silent) {
-        setLists(null);
-        setFetchError(false);
+        setLists(null)
+        setFetchError(false)
       }
       try {
-        const data = (await getLists(getToken)) as ApiList[];
-        const ordered = applyOrder(data, loadOrder(user!.id));
-        setLists(ordered);
-        saveDashboardCache(user!.id, data);
+        const data = (await getLists(getToken)) as ApiList[]
+        const ordered = applyOrder(data, loadOrder(user!.id))
+        setLists(ordered)
+        saveDashboardCache(user!.id, data)
       } catch {
-        if (!cached && !silent) setFetchError(true);
+        if (!cached && !silent) setFetchError(true)
       }
     },
     [getToken, user],
-  );
+  )
 
   const handleFeedbackSubmit = useCallback(
     async (payload: FeedbackPayload) => {
       if (!navigator.onLine) {
-        setToast('No se pudo enviar el feedback');
-        return;
+        setToast('No se pudo enviar el feedback')
+        return
       }
-      setFeedbackSubmitting(true);
+      setFeedbackSubmitting(true)
       try {
-        await submitFeedback(getToken, payload);
-        setFeedbackOpen(false);
-        setToast('Feedback enviado');
+        await submitFeedback(getToken, payload)
+        setFeedbackOpen(false)
+        setToast('Feedback enviado')
       } catch {
-        setToast('No se pudo enviar el feedback');
+        setToast('No se pudo enviar el feedback')
       } finally {
-        setFeedbackSubmitting(false);
+        setFeedbackSubmitting(false)
       }
     },
     [getToken],
-  );
+  )
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
+      const { active, over } = event
+      if (!over || active.id === over.id) return
       setLists((prev) => {
-        if (!prev) return prev;
-        const oldIndex = prev.findIndex((l) => l.id === active.id);
-        const newIndex = prev.findIndex((l) => l.id === over.id);
-        const next = arrayMove(prev, oldIndex, newIndex);
+        if (!prev) return prev
+        const oldIndex = prev.findIndex((l) => l.id === active.id)
+        const newIndex = prev.findIndex((l) => l.id === over.id)
+        const next = arrayMove(prev, oldIndex, newIndex)
         saveOrder(
           user!.id,
           next.map((l) => l.id),
-        );
-        return next;
-      });
+        )
+        return next
+      })
     },
     [user],
-  );
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, {
       activationConstraint: { delay: 200, tolerance: 5 },
     }),
-  );
+  )
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: shows cached data synchronously while fresh fetch is in flight
-    void fetchLists();
-  }, [fetchLists]);
+    void fetchLists()
+  }, [fetchLists])
 
   const handleCreate = useCallback(
     async (name: string) => {
       if (!navigator.onLine) {
-        setToast('No disponible sin conexión');
-        return;
+        setToast('No disponible sin conexión')
+        return
       }
-      await createList(getToken, { name, emoji: randomEmoji() });
-      await fetchLists();
+      await createList(getToken, { name, emoji: randomEmoji() })
+      await fetchLists()
     },
     [getToken, fetchLists],
-  );
+  )
 
   const handleRename = useCallback(
     async (list: ApiList, newName: string) => {
       if (!navigator.onLine) {
-        setToast('No disponible sin conexión');
-        return;
+        setToast('No disponible sin conexión')
+        return
       }
-      let snapshot: ApiList[] | null = null;
+      let snapshot: ApiList[] | null = null
       setLists((prev) => {
-        snapshot = prev;
+        snapshot = prev
         return prev
           ? prev.map((l) => (l.id === list.id ? { ...l, name: newName } : l))
-          : prev;
-      });
-      setActiveList(null);
+          : prev
+      })
+      setActiveList(null)
       try {
-        await updateList(getToken, list.id, { name: newName });
+        await updateList(getToken, list.id, { name: newName })
       } catch {
-        setLists(snapshot);
-        setToast('No se pudo renombrar la lista');
+        setLists(snapshot)
+        setToast('No se pudo renombrar la lista')
       }
     },
     [getToken],
-  );
+  )
 
   const handleEmojiChange = useCallback(
     async (list: ApiList, emoji: string | null) => {
-      let snapshot: ApiList[] | null = null;
+      let snapshot: ApiList[] | null = null
       setLists((prev) => {
-        snapshot = prev;
+        snapshot = prev
         return prev
           ? prev.map((l) => (l.id === list.id ? { ...l, emoji } : l))
-          : prev;
-      });
-      setEmojiList(null);
+          : prev
+      })
+      setEmojiList(null)
       try {
-        await updateList(getToken, list.id, { emoji });
+        await updateList(getToken, list.id, { emoji })
       } catch {
-        setLists(snapshot);
-        setToast('No se pudo cambiar el emoji');
+        setLists(snapshot)
+        setToast('No se pudo cambiar el emoji')
       }
     },
     [getToken],
-  );
+  )
 
   const handleDelete = useCallback(
     async (list: ApiList) => {
       if (!navigator.onLine) {
-        setToast('No disponible sin conexión');
-        return;
+        setToast('No disponible sin conexión')
+        return
       }
-      setActiveList(null);
+      setActiveList(null)
       try {
-        await deleteList(getToken, list.id);
-        setLists((prev) =>
-          prev ? prev.filter((l) => l.id !== list.id) : prev,
-        );
+        await deleteList(getToken, list.id)
+        setLists((prev) => (prev ? prev.filter((l) => l.id !== list.id) : prev))
       } catch {
-        setToast('No se pudo eliminar la lista');
+        setToast('No se pudo eliminar la lista')
       }
     },
     [getToken],
-  );
+  )
 
   if (fetchError) {
     return (
@@ -296,7 +291,7 @@ export function DashboardScreen() {
           Reintentar
         </button>
       </div>
-    );
+    )
   }
 
   if (lists === null) {
@@ -308,10 +303,10 @@ export function DashboardScreen() {
       >
         <span className="dashboard-screen__spinner" />
       </div>
-    );
+    )
   }
 
-  const showInstallEntry = (isInstallable || isIOS) && !isInstalled;
+  const showInstallEntry = (isInstallable || isIOS) && !isInstalled
 
   return (
     <div className="dashboard-screen">
@@ -340,8 +335,8 @@ export function DashboardScreen() {
                   className="dashboard-screen__avatar-menu-item"
                   role="menuitem"
                   onClick={() => {
-                    void promptInstall();
-                    setMenuOpen(false);
+                    void promptInstall()
+                    setMenuOpen(false)
                   }}
                 >
                   Instalar app
@@ -351,8 +346,8 @@ export function DashboardScreen() {
                 className="dashboard-screen__avatar-menu-item"
                 role="menuitem"
                 onClick={() => {
-                  setFeedbackOpen(true);
-                  setMenuOpen(false);
+                  setFeedbackOpen(true)
+                  setMenuOpen(false)
                 }}
               >
                 Enviar feedback
@@ -361,8 +356,8 @@ export function DashboardScreen() {
                 className="dashboard-screen__avatar-menu-item"
                 role="menuitem"
                 onClick={() => {
-                  void signOut();
-                  setMenuOpen(false);
+                  void signOut()
+                  setMenuOpen(false)
                 }}
               >
                 Cerrar sesión
@@ -398,14 +393,14 @@ export function DashboardScreen() {
                 list={list}
                 isOwner={list.owner_id === (user?.id ?? '')}
                 onClick={() => {
-                  navigate(`/lists/${list.id}`);
-                  setActiveList(null);
+                  navigate(`/lists/${list.id}`)
+                  setActiveList(null)
                 }}
                 onMenuOpen={() => {
-                  setActiveList(list);
+                  setActiveList(list)
                 }}
                 onEmojiTap={() => {
-                  setEmojiList(list);
+                  setEmojiList(list)
                 }}
               />
             ))}
@@ -451,5 +446,5 @@ export function DashboardScreen() {
         </div>
       )}
     </div>
-  );
+  )
 }

@@ -1,51 +1,50 @@
-import { useEffect, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { usePageTitle } from '../hooks/usePageTitle';
-import { ApiError, getList } from '../lib/api';
-import type { ApiList } from '../types';
-import { ListScreen } from './ListScreen';
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { usePageTitle } from '../hooks/usePageTitle'
+import { ApiError, getList } from '../lib/api'
+import type { ApiList } from '../types'
+import { ListScreen } from './ListScreen'
 
 export function ListRoute() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { getToken } = useAuth();
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { getToken } = useAuth()
   // Capture once at mount; clear state so back/forward doesn't re-trigger
   const [autoOpenReceiptScan] = useState(
     !!(location.state as { openReceiptScan?: boolean } | null)?.openReceiptScan,
-  );
+  )
   useEffect(() => {
     if (autoOpenReceiptScan) {
-      navigate(location.pathname, { replace: true, state: null });
+      navigate(location.pathname, { replace: true, state: null })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const [list, setList] = useState<ApiList | null>(null);
+  }, [])
+  const [list, setList] = useState<ApiList | null>(null)
   const [error, setError] = useState<
     'not_found' | 'forbidden' | 'unknown' | null
-  >(null);
-  usePageTitle(list?.name ?? undefined);
+  >(null)
+  usePageTitle(list?.name ?? undefined)
 
   useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
+    if (!id) return
+    let cancelled = false
     getList(getToken, id)
       .then((data) => {
-        if (!cancelled) setList(data as ApiList);
+        if (!cancelled) setList(data as ApiList)
       })
       .catch((err: unknown) => {
-        if (cancelled) return;
-        if (err instanceof ApiError && err.status === 404)
-          setError('not_found');
+        if (cancelled) return
+        if (err instanceof ApiError && err.status === 404) setError('not_found')
         else if (err instanceof ApiError && err.status === 403)
-          setError('forbidden');
-        else setError('unknown');
-      });
+          setError('forbidden')
+        else setError('unknown')
+      })
     return () => {
-      cancelled = true;
-    };
-  }, [id, getToken]);
+      cancelled = true
+    }
+  }, [id, getToken])
 
   if (error) {
     return (
@@ -79,7 +78,7 @@ export function ListRoute() {
           Volver al inicio
         </button>
       </div>
-    );
+    )
   }
 
   if (!list) {
@@ -106,7 +105,7 @@ export function ListRoute() {
           }}
         />
       </div>
-    );
+    )
   }
 
   return (
@@ -118,5 +117,5 @@ export function ListRoute() {
       autoOpenReceiptScan={autoOpenReceiptScan}
       onBack={() => navigate('/')}
     />
-  );
+  )
 }

@@ -1,25 +1,25 @@
-import { ScanBarcode, Sparkles, Store, Tag, X } from 'lucide-react';
-import { useRef } from 'react';
-import { clientSideSuggestions } from '../lib/suggestions';
-import type { ListItem, ParsedInput, Suggestion } from '../types';
-import './SmartInputBar.css';
+import { ScanBarcode, Sparkles, Store, Tag, X } from 'lucide-react'
+import { useRef } from 'react'
+import { clientSideSuggestions } from '../lib/suggestions'
+import type { ListItem, ParsedInput, Suggestion } from '../types'
+import './SmartInputBar.css'
 
 const SIGIL_FIELDS: Record<string, 'brand' | 'stores'> = {
   '#': 'brand',
   '@': 'stores',
-};
+}
 
 function getActiveSigil(
   raw: string,
 ): { sigil: string; partial: string } | null {
-  const words = raw.split(/\s+/);
+  const words = raw.split(/\s+/)
   for (let i = words.length - 1; i >= 0; i--) {
-    const w = words[i];
+    const w = words[i]
     if (w && '#@+'.includes(w[0])) {
-      return { sigil: w[0], partial: w.slice(1) };
+      return { sigil: w[0], partial: w.slice(1) }
     }
   }
-  return null;
+  return null
 }
 
 function hasSigil(parsed: ParsedInput): boolean {
@@ -27,10 +27,10 @@ function hasSigil(parsed: ParsedInput): boolean {
     parsed.quantity !== null ||
     parsed.brand !== null ||
     parsed.stores.length > 0
-  );
+  )
 }
 
-const ALL_SIGILS = new Set(['+', '#', '@', '|']);
+const ALL_SIGILS = new Set(['+', '#', '@', '|'])
 
 /**
  * Returns the new input value after a chip tap, or null if no change is needed.
@@ -38,20 +38,20 @@ const ALL_SIGILS = new Set(['+', '#', '@', '|']);
  * - Otherwise append the sigil if not already present anywhere in the input.
  */
 function sigilChipAction(currentValue: string, sigil: string): string | null {
-  const trimmed = currentValue.trimEnd();
-  const words = trimmed ? trimmed.split(/\s+/) : [];
-  const lastWord = words[words.length - 1] ?? '';
-  const endsWithBareSigil = lastWord.length === 1 && ALL_SIGILS.has(lastWord);
+  const trimmed = currentValue.trimEnd()
+  const words = trimmed ? trimmed.split(/\s+/) : []
+  const lastWord = words[words.length - 1] ?? ''
+  const endsWithBareSigil = lastWord.length === 1 && ALL_SIGILS.has(lastWord)
 
   if (endsWithBareSigil) {
-    if (lastWord === sigil) return null; // same chip tapped again, just refocus
-    words[words.length - 1] = sigil;
-    return words.join(' ');
+    if (lastWord === sigil) return null // same chip tapped again, just refocus
+    words[words.length - 1] = sigil
+    return words.join(' ')
   }
 
-  if (sigil !== '@' && currentValue.includes(sigil)) return null;
-  const sep = currentValue === '' || currentValue.endsWith(' ') ? '' : ' ';
-  return currentValue + sep + sigil;
+  if (sigil !== '@' && currentValue.includes(sigil)) return null
+  const sep = currentValue === '' || currentValue.endsWith(' ') ? '' : ' '
+  return currentValue + sep + sigil
 }
 
 const LEGEND_CHIPS: { sigil: string; label: string }[] = [
@@ -59,26 +59,26 @@ const LEGEND_CHIPS: { sigil: string; label: string }[] = [
   { sigil: '#', label: 'marca' },
   { sigil: '@', label: 'tienda' },
   { sigil: '|', label: 'cod. barras' },
-];
+]
 
 interface Props {
-  value: string;
-  parsed: ParsedInput;
-  items: ListItem[];
-  suggestions: Suggestion[];
-  onChange: (v: string) => void;
-  onSubmit: () => void;
-  onSuggestionAdd?: (suggestion: Suggestion) => void;
-  onClear: () => void;
-  onScanRequest: () => void;
-  onEanSearch: (ean: string) => void;
-  eanLoading?: boolean;
-  eanError?: string | null;
-  inferredStoreChip?: string | null;
-  onDismissInferredStore?: () => void;
-  isOffline?: boolean;
-  dueSuggestionsCount?: number;
-  onDueSuggestionsOpen?: () => void;
+  value: string
+  parsed: ParsedInput
+  items: ListItem[]
+  suggestions: Suggestion[]
+  onChange: (v: string) => void
+  onSubmit: () => void
+  onSuggestionAdd?: (suggestion: Suggestion) => void
+  onClear: () => void
+  onScanRequest: () => void
+  onEanSearch: (ean: string) => void
+  eanLoading?: boolean
+  eanError?: string | null
+  inferredStoreChip?: string | null
+  onDismissInferredStore?: () => void
+  isOffline?: boolean
+  dueSuggestionsCount?: number
+  onDueSuggestionsOpen?: () => void
 }
 
 export function SmartInputBar({
@@ -100,12 +100,12 @@ export function SmartInputBar({
   dueSuggestionsCount,
   onDueSuggestionsOpen,
 }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const activeSigil = getActiveSigil(value);
+  const inputRef = useRef<HTMLInputElement>(null)
+  const activeSigil = getActiveSigil(value)
   const fieldSigil =
     activeSigil && SIGIL_FIELDS[activeSigil.sigil]
       ? (activeSigil.sigil as '#' | '@')
-      : null;
+      : null
 
   const displaySuggestions = fieldSigil
     ? clientSideSuggestions(
@@ -113,30 +113,30 @@ export function SmartInputBar({
         SIGIL_FIELDS[fieldSigil],
         activeSigil!.partial,
       )
-    : suggestions.slice(0, 5);
+    : suggestions.slice(0, 5)
 
-  const inEanMode = parsed.ean != null;
-  const showPreview = !inEanMode && hasSigil(parsed);
-  const hasName = parsed.name.trim().length > 0;
-  const nameError = showPreview && !hasName;
+  const inEanMode = parsed.ean != null
+  const showPreview = !inEanMode && hasSigil(parsed)
+  const hasName = parsed.name.trim().length > 0
+  const nameError = showPreview && !hasName
 
   function suggestionLabel(suggestion: string | Suggestion): string {
-    return typeof suggestion === 'string' ? suggestion : suggestion.name;
+    return typeof suggestion === 'string' ? suggestion : suggestion.name
   }
 
   function applySuggestion(suggestion: string | Suggestion) {
     if (!activeSigil) {
       if (typeof suggestion === 'string') {
-        onChange(suggestion);
+        onChange(suggestion)
       } else {
-        onSuggestionAdd?.(suggestion);
+        onSuggestionAdd?.(suggestion)
       }
-      return;
+      return
     }
-    const words = value.split(/\s+/);
+    const words = value.split(/\s+/)
     words[words.length - 1] =
-      activeSigil.sigil + suggestionLabel(suggestion) + ' ';
-    onChange(words.join(' '));
+      activeSigil.sigil + suggestionLabel(suggestion) + ' '
+    onChange(words.join(' '))
   }
 
   return (
@@ -230,9 +230,9 @@ export function SmartInputBar({
             className={`smart-input__chip${sigil === '|' && inEanMode ? ' smart-input__chip--active' : ''}`}
             aria-label={`Añadir ${label}`}
             onClick={() => {
-              const newValue = sigilChipAction(value, sigil);
-              if (newValue !== null) onChange(newValue);
-              inputRef.current?.focus();
+              const newValue = sigilChipAction(value, sigil)
+              if (newValue !== null) onChange(newValue)
+              inputRef.current?.focus()
             }}
           >
             <b>{sigil}</b> {label}
@@ -261,7 +261,7 @@ export function SmartInputBar({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && hasName && !inEanMode) onSubmit();
+            if (e.key === 'Enter' && hasName && !inEanMode) onSubmit()
           }}
           placeholder="Añadir producto…"
           aria-label="Añadir producto"
@@ -270,8 +270,8 @@ export function SmartInputBar({
           <button
             className="smart-input__clear"
             onClick={() => {
-              onClear();
-              inputRef.current?.focus();
+              onClear()
+              inputRef.current?.focus()
             }}
             aria-label="Borrar"
             type="button"
@@ -299,5 +299,5 @@ export function SmartInputBar({
         </button>
       </div>
     </div>
-  );
+  )
 }

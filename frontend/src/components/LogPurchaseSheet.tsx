@@ -1,28 +1,28 @@
-import { ShoppingCart, Store } from 'lucide-react';
-import { useRef, useState } from 'react';
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
-import { formatPrice } from '../lib/formatPrice';
-import { isSameCalendarDay } from '../lib/isSameCalendarDay';
-import { parseQuantityFactor } from '../lib/itemCost';
-import type { ListItem } from '../types';
-import './LogPurchaseSheet.css';
+import { ShoppingCart, Store } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { formatPrice } from '../lib/formatPrice'
+import { isSameCalendarDay } from '../lib/isSameCalendarDay'
+import { parseQuantityFactor } from '../lib/itemCost'
+import type { ListItem } from '../types'
+import './LogPurchaseSheet.css'
 
 interface Props {
-  item: ListItem;
-  initialAmount: number | null;
-  initialPricePer: 'KILOGRAM' | null;
-  initialStore: string | null;
-  initialPurchasedQuantity: string | null;
-  suggestedStore?: string | null;
+  item: ListItem
+  initialAmount: number | null
+  initialPricePer: 'KILOGRAM' | null
+  initialStore: string | null
+  initialPurchasedQuantity: string | null
+  suggestedStore?: string | null
   onSave: (
     amount: number,
     pricePer: 'KILOGRAM' | null,
     store: string | null,
     purchasedQuantity: string | null,
-  ) => void;
-  onDelete?: () => Promise<void>;
-  onClose: () => void;
-  isOffline?: boolean;
+  ) => void
+  onDelete?: () => Promise<void>
+  onClose: () => void
+  isOffline?: boolean
 }
 
 export default function LogPurchaseSheet({
@@ -37,66 +37,66 @@ export default function LogPurchaseSheet({
   onClose,
   isOffline,
 }: Props) {
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const swipe = useSwipeToDismiss(sheetRef, onClose);
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
-  const stores = item.stores ?? [];
+  const stores = item.stores ?? []
   // Guard again here so the component stays self-contained if reused elsewhere
   const effectiveSuggestion =
-    stores.length === 0 ? (suggestedStore ?? null) : null;
+    stores.length === 0 ? (suggestedStore ?? null) : null
 
   const [amountStr, setAmountStr] = useState(
     initialAmount !== null ? String(initialAmount) : '',
-  );
-  const [pricePer, setPricePer] = useState<'KILOGRAM' | null>(initialPricePer);
+  )
+  const [pricePer, setPricePer] = useState<'KILOGRAM' | null>(initialPricePer)
   const [selectedStore, setSelectedStore] = useState<string | null>(
     initialStore ?? effectiveSuggestion,
-  );
+  )
   const [purchasedQtyStr, setPurchasedQtyStr] = useState(
     initialPurchasedQuantity ?? '',
-  );
-  const [addingStore, setAddingStore] = useState(false);
-  const [newStore, setNewStore] = useState('');
-  const [deleting, setDeleting] = useState(false);
+  )
+  const [addingStore, setAddingStore] = useState(false)
+  const [newStore, setNewStore] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
-  const amount = parseFloat(amountStr);
-  const canSave = !isNaN(amount) && amount > 0;
+  const amount = parseFloat(amountStr)
+  const canSave = !isNaN(amount) && amount > 0
   const canDelete =
-    item.price != null && !!onDelete && isSameCalendarDay(item.purchased_at);
+    item.price != null && !!onDelete && isSameCalendarDay(item.purchased_at)
 
   const liveCost: number | null = (() => {
-    const price = parseFloat(amountStr);
-    if (isNaN(price) || price <= 0) return null;
-    const trimmed = purchasedQtyStr.trim();
-    if (!trimmed) return null;
-    const factor = parseQuantityFactor(trimmed, pricePer);
-    if (factor === null) return null;
-    return price * factor;
-  })();
+    const price = parseFloat(amountStr)
+    if (isNaN(price) || price <= 0) return null
+    const trimmed = purchasedQtyStr.trim()
+    if (!trimmed) return null
+    const factor = parseQuantityFactor(trimmed, pricePer)
+    if (factor === null) return null
+    return price * factor
+  })()
 
   function handleSave() {
-    if (!canSave) return;
+    if (!canSave) return
     const finalStore =
-      addingStore && newStore.trim() ? newStore.trim() : selectedStore;
-    const finalPurchasedQty = purchasedQtyStr.trim() || null;
-    onSave(amount, pricePer, finalStore, finalPurchasedQty);
+      addingStore && newStore.trim() ? newStore.trim() : selectedStore
+    const finalPurchasedQty = purchasedQtyStr.trim() || null
+    onSave(amount, pricePer, finalStore, finalPurchasedQty)
   }
 
   async function handleDelete() {
-    if (!onDelete) return;
-    setDeleting(true);
+    if (!onDelete) return
+    setDeleting(true)
     try {
-      await onDelete();
+      await onDelete()
     } catch {
       // parent shows error toast
     } finally {
-      setDeleting(false);
+      setDeleting(false)
     }
   }
 
   function handleStoreChip(store: string) {
-    setAddingStore(false);
-    setSelectedStore(store === selectedStore ? null : store);
+    setAddingStore(false)
+    setSelectedStore(store === selectedStore ? null : store)
   }
 
   return (
@@ -185,8 +185,8 @@ export default function LogPurchaseSheet({
           <button
             className="lps__chip lps__chip--add"
             onClick={() => {
-              setSelectedStore(null);
-              setAddingStore(true);
+              setSelectedStore(null)
+              setAddingStore(true)
             }}
             type="button"
           >
@@ -227,5 +227,5 @@ export default function LogPurchaseSheet({
         Cancelar
       </button>
     </div>
-  );
+  )
 }

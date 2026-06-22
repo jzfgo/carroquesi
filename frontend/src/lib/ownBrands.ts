@@ -75,9 +75,9 @@ const OWN_BRAND_MAP: Record<string, string> = {
   'eco+': 'E.Leclerc',
   kado: 'E.Leclerc',
   tissaia: 'E.Leclerc',
-};
+}
 
 export function lookupOwnBrandStore(brand: string | null): string | null {
-  if (!brand) return null;
-  return OWN_BRAND_MAP[brand.toLowerCase().trim()] ?? null;
+  if (!brand) return null
+  return OWN_BRAND_MAP[brand.toLowerCase().trim()] ?? null
 }

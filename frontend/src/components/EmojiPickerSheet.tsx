@@ -1,25 +1,25 @@
-import { useEffect, useRef } from 'react';
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
-import { CURATED_EMOJIS } from '../lib/curatedEmojis';
-import './EmojiPickerSheet.css';
+import { useEffect, useRef } from 'react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { CURATED_EMOJIS } from '../lib/curatedEmojis'
+import './EmojiPickerSheet.css'
 
 interface Props {
-  current: string | null;
-  onSelect: (emoji: string | null) => void;
-  onClose: () => void;
+  current: string | null
+  onSelect: (emoji: string | null) => void
+  onClose: () => void
 }
 
 export function EmojiPickerSheet({ current, onSelect, onClose }: Props) {
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const swipe = useSwipeToDismiss(sheetRef, onClose);
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onClose()
     }
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
 
   return (
     <>
@@ -54,5 +54,5 @@ export function EmojiPickerSheet({ current, onSelect, onClose }: Props) {
         </div>
       </div>
     </>
-  );
+  )
 }

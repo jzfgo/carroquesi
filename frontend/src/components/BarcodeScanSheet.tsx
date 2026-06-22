@@ -1,30 +1,30 @@
-import { Globe, Pencil, Store, Tag } from 'lucide-react';
-import { useRef, useState } from 'react';
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
-import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice';
-import type { BarcodeRead } from '../types';
-import './BarcodeScanSheet.css';
+import { Globe, Pencil, Store, Tag } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
+import type { BarcodeRead } from '../types'
+import './BarcodeScanSheet.css'
 
 interface Props {
-  product: BarcodeRead;
-  initialBrand?: string | null;
-  initialStores?: string[];
+  product: BarcodeRead
+  initialBrand?: string | null
+  initialStores?: string[]
   onAdd: (item: {
-    name: string;
-    brand: string | null;
-    stores: string[];
-  }) => void;
-  onEdit: (prefill: string) => void;
-  onClose: () => void;
+    name: string
+    brand: string | null
+    stores: string[]
+  }) => void
+  onEdit: (prefill: string) => void
+  onClose: () => void
 }
 
 function buildPrefill(
   product: BarcodeRead,
   displayBrand: string | null,
 ): string {
-  const parts = [product.name];
-  if (displayBrand) parts.push(`#${displayBrand}`);
-  return parts.join(' ');
+  const parts = [product.name]
+  if (displayBrand) parts.push(`#${displayBrand}`)
+  return parts.join(' ')
 }
 
 export function BarcodeScanSheet({
@@ -36,29 +36,28 @@ export function BarcodeScanSheet({
   onClose,
 }: Props) {
   // Merge product.stores and initialStores so sigil-provided stores are always shown
-  const productStoreSet = new Set(product.stores);
+  const productStoreSet = new Set(product.stores)
   const extraStores = (initialStores ?? []).filter(
     (s) => !productStoreSet.has(s),
-  );
-  const allStores = [...product.stores, ...extraStores];
+  )
+  const allStores = [...product.stores, ...extraStores]
 
   const [selectedStores, setSelectedStores] = useState<Set<string>>(
     new Set(initialStores ?? []),
-  );
+  )
 
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const swipe = useSwipeToDismiss(sheetRef, onClose);
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
-  const displayBrand =
-    initialBrand !== undefined ? initialBrand : product.brand;
+  const displayBrand = initialBrand !== undefined ? initialBrand : product.brand
 
   function toggleStore(store: string) {
     setSelectedStores((prev) => {
-      const next = new Set(prev);
-      if (next.has(store)) next.delete(store);
-      else next.add(store);
-      return next;
-    });
+      const next = new Set(prev)
+      if (next.has(store)) next.delete(store)
+      else next.add(store)
+      return next
+    })
   }
 
   return (
@@ -149,5 +148,5 @@ export function BarcodeScanSheet({
         </div>
       </div>
     </>
-  );
+  )
 }

@@ -1,18 +1,18 @@
-import { Pencil, Receipt, Trash2 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss';
-import type { ApiList } from '../types';
-import './ListActionSheet.css';
+import { Pencil, Receipt, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import type { ApiList } from '../types'
+import './ListActionSheet.css'
 
-type SubState = 'actions' | 'rename' | 'confirm-delete';
+type SubState = 'actions' | 'rename' | 'confirm-delete'
 
 interface Props {
-  list: ApiList;
-  isOwner: boolean;
-  onRename: (newName: string) => void;
-  onDelete: () => void;
-  onReceiptScan?: () => void;
-  onClose: () => void;
+  list: ApiList
+  isOwner: boolean
+  onRename: (newName: string) => void
+  onDelete: () => void
+  onReceiptScan?: () => void
+  onClose: () => void
 }
 
 export function ListActionSheet({
@@ -23,22 +23,22 @@ export function ListActionSheet({
   onReceiptScan,
   onClose,
 }: Props) {
-  const [subState, setSubState] = useState<SubState>('actions');
-  const [renameValue, setRenameValue] = useState(list.name);
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const swipe = useSwipeToDismiss(sheetRef, onClose);
+  const [subState, setSubState] = useState<SubState>('actions')
+  const [renameValue, setRenameValue] = useState(list.name)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onClose()
     }
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
 
   const overlay = (
     <div className="list-action-sheet__overlay" onClick={onClose} />
-  );
+  )
 
   if (subState === 'actions') {
     return (
@@ -63,8 +63,8 @@ export function ListActionSheet({
             <button
               className="list-action-sheet__action"
               onClick={() => {
-                onReceiptScan();
-                onClose();
+                onReceiptScan()
+                onClose()
               }}
             >
               <Receipt size={18} /> Escanear ticket
@@ -80,11 +80,11 @@ export function ListActionSheet({
           )}
         </div>
       </>
-    );
+    )
   }
 
   if (subState === 'rename') {
-    const trimmed = renameValue.trim();
+    const trimmed = renameValue.trim()
     return (
       <>
         {overlay}
@@ -106,7 +106,7 @@ export function ListActionSheet({
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && trimmed) onRename(trimmed);
+                if (e.key === 'Enter' && trimmed) onRename(trimmed)
               }}
               autoFocus
               aria-label="Nombre de la lista"
@@ -129,7 +129,7 @@ export function ListActionSheet({
           </button>
         </div>
       </>
-    );
+    )
   }
 
   // subState === 'confirm-delete'
@@ -164,5 +164,5 @@ export function ListActionSheet({
         </button>
       </div>
     </>
-  );
+  )
 }

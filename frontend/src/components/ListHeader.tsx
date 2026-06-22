@@ -1,11 +1,11 @@
-import { Menu } from 'lucide-react';
-import './ListHeader.css';
+import { Menu } from 'lucide-react'
+import './ListHeader.css'
 
 interface Props {
-  title: string;
-  emoji: string | null;
-  onMenuOpen: () => void;
-  onBack?: () => void;
+  title: string
+  emoji: string | null
+  onMenuOpen: () => void
+  onBack?: () => void
 }
 
 export function ListHeader({ title, emoji, onMenuOpen, onBack }: Props) {
@@ -38,5 +38,5 @@ export function ListHeader({ title, emoji, onMenuOpen, onBack }: Props) {
         <Menu size={20} />
       </button>
     </header>
-  );
+  )
 }

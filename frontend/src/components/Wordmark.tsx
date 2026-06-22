@@ -1,11 +1,11 @@
-import './Wordmark.css';
+import './Wordmark.css'
 
 interface WordmarkProps {
-  size?: number;
+  size?: number
 }
 
 export function Wordmark({ size = 32 }: WordmarkProps) {
-  const tickSize = Math.round(size * 0.55);
+  const tickSize = Math.round(size * 0.55)
   return (
     <span
       className="wordmark"
@@ -30,5 +30,5 @@ export function Wordmark({ size = 32 }: WordmarkProps) {
         <path d="M4 12 l5 5 L20 6" />
       </svg>
     </span>
-  );
+  )
 }
