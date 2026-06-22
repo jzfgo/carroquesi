@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { getList, ApiError } from '../lib/api'
 import { usePageTitle } from '../hooks/usePageTitle'
-import { ListScreen } from './ListScreen'
+import { ApiError, getList } from '../lib/api'
 import type { ApiList } from '../types'
+import { ListScreen } from './ListScreen'
 
 export function ListRoute() {
   const { id } = useParams<{ id: string }>()

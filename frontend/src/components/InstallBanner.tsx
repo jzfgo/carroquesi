@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { X } from 'lucide-react'
+import { useState } from 'react'
 import './InstallBanner.css'
 
 const DISMISSED_KEY = 'pwa-install-dismissed'

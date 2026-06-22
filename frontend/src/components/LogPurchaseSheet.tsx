@@ -1,10 +1,10 @@
-import { useState, useRef } from 'react'
 import { ShoppingCart, Store } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
-import type { ListItem } from '../types'
+import { formatPrice } from '../lib/formatPrice'
 import { isSameCalendarDay } from '../lib/isSameCalendarDay'
 import { parseQuantityFactor } from '../lib/itemCost'
-import { formatPrice } from '../lib/formatPrice'
+import type { ListItem } from '../types'
 import './LogPurchaseSheet.css'
 
 interface Props {
@@ -95,7 +95,7 @@ export default function LogPurchaseSheet({
       <div className="lps__handle" {...swipe} />
       <div className="lps__title"><ShoppingCart size={18} /> Registrar compra</div>
       <div className="lps__subtitle">{item.name}{item.brand ? ` · ${item.brand}` : ''}</div>
-      
+
       <div className="lps__field">
         <div className="lps__field-label">Cantidad · Precio</div>
         <div className="lps__qp-row">

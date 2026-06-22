@@ -1,0 +1,6 @@
+# environment variables
+.env
+.env.production
+
+# CV full profile (contains phone — never commit)
+src/content/profile/full.json

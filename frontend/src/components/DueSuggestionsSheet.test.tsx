@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { vi, beforeEach } from 'vitest'
-import { DueSuggestionsSheet } from './DueSuggestionsSheet'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, vi } from 'vitest'
 import type { DueSuggestion } from '../types'
+import { DueSuggestionsSheet } from './DueSuggestionsSheet'
 
 const makeSuggestion = (name: string, overrides: Partial<DueSuggestion> = {}): DueSuggestion => ({
   name,

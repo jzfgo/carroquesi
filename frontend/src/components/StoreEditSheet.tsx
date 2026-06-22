@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
 import { Store } from 'lucide-react'
-import './StoreEditSheet.css'
-import type { ListItem } from '../types'
-import { clientSideSuggestions } from '../lib/suggestions'
+import { useEffect, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { clientSideSuggestions } from '../lib/suggestions'
+import type { ListItem } from '../types'
+import './StoreEditSheet.css'
 
 interface Props {
   item: ListItem

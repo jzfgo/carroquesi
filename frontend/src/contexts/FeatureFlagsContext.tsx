@@ -7,8 +7,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { useAuth } from './AuthContext'
 import { getMe } from '../lib/api'
+import { useAuth } from './AuthContext'
 
 interface FeatureFlagsContextValue {
   isEnabled: (flag: string) => boolean

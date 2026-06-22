@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi } from 'vitest'
-import { BarcodeScanSheet } from './BarcodeScanSheet'
+import { describe, expect, it, vi } from 'vitest'
 import type { BarcodeRead } from '../types'
+import { BarcodeScanSheet } from './BarcodeScanSheet'
 
 const product: BarcodeRead = {
   ean: '1234567890123',

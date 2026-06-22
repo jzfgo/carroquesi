@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
-import { ListCard } from './ListCard'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import type { ApiList } from '../types'
+import { ListCard } from './ListCard'
 
 const makeList = (overrides: Partial<ApiList> = {}): ApiList => ({
   id: 'l1',

@@ -1,12 +1,23 @@
 # Worktrunk project config — shared by all contributors
-# See: https://worktrunk.dev/reference/hook
+# See: https://worktrunk.dev
 
-# Validate quality gates before merging back to main
-# Runs: frontend typecheck + lint, then backend tests
-pre-merge = "just ci"
+[[post-start]]
+# See: .worktreeinclude
+copy = "wt step copy-ignored"
 
-[[pre-start]]
-frontend = "just frontend install"
+[[post-start]]
+deps = "just install"
 
-[[pre-start]]
-backend = "just backend install"
+[[post-start]]
+migrate = "just backend migrate"
+
+[[post-start]]
+seed = "just backend seed"
+
+[[pre-commit]]
+lint = "just lint"
+
+[[pre-merge]]
+ci = "just ci"
+build = "just frontend build"
+

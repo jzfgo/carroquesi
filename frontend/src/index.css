@@ -1,32 +1,34 @@
-@import './colors_and_type.css';
+@import './colorsAndType.css';
 
 /* Compat aliases — map legacy component token names onto new canonical names.
    Remove once every component consumes canonical tokens directly. */
 :root {
-  --color-bg:             var(--paper-0);
-  --color-surface:        var(--paper-0);
-  --color-border:         var(--border);
-  --color-text:           var(--ink-0);
+  --color-bg: var(--paper-0);
+  --color-surface: var(--paper-0);
+  --color-border: var(--border);
+  --color-text: var(--ink-0);
   --color-text-secondary: var(--ink-2);
-  --color-primary:        var(--accent);
-  --color-muted:          var(--ink-2);
-  --text:                 var(--ink-1);
-  --text-h:               var(--ink-0);
-  --bg:                   var(--paper-0);
-  --bg2:                  var(--paper-1);
-  --border:               var(--paper-edge);
-  --accent:               var(--tinta-0);
-  --accent-bg:            var(--tinta-bg);
-  --accent-border:        var(--tinta-border);
-  --purchased:            var(--ink-strike);
-  --sans:                 var(--font-sans);
-  --heading:              var(--font-display);
-  --mono:                 var(--font-mono);
-  --shadow:               var(--shadow-md);
+  --color-primary: var(--accent);
+  --color-muted: var(--ink-2);
+  --text: var(--ink-1);
+  --text-h: var(--ink-0);
+  --bg: var(--paper-0);
+  --bg2: var(--paper-1);
+  --border: var(--paper-edge);
+  --accent: var(--tinta-0);
+  --accent-bg: var(--tinta-bg);
+  --accent-border: var(--tinta-border);
+  --purchased: var(--ink-strike);
+  --sans: var(--font-sans);
+  --heading: var(--font-display);
+  --mono: var(--font-mono);
+  --shadow: var(--shadow-md);
 }
 
 /* Align all lucide-react icons with surrounding text */
-.lucide { vertical-align: middle; }
+.lucide {
+  vertical-align: middle;
+}
 
 #root {
   width: 1126px;
@@ -84,7 +86,9 @@ code {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .offline-banner {

@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import LogPurchaseSheet from './LogPurchaseSheet'
 import { isSameCalendarDay } from '../lib/isSameCalendarDay'
 import type { ListItem } from '../types'
+import LogPurchaseSheet from './LogPurchaseSheet'
 
 const BASE_ITEM: ListItem = {
   id: 'i1', list_id: 'l1',

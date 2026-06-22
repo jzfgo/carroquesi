@@ -14,7 +14,9 @@
   padding: 0 16px;
   overflow-x: auto;
   scrollbar-width: none;
-  transition: transform 320ms ease, opacity 320ms ease;
+  transition:
+    transform 320ms ease,
+    opacity 320ms ease;
 }
 
 .filter-bar__chips::-webkit-scrollbar {
@@ -30,7 +32,9 @@
   padding: 0 12px;
   transform: translateX(-100%);
   opacity: 0;
-  transition: transform 320ms ease, opacity 320ms ease;
+  transition:
+    transform 320ms ease,
+    opacity 320ms ease;
 }
 
 .filter-bar--search-active .filter-bar__chips {

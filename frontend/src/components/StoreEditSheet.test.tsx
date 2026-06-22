@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
-import { StoreEditSheet } from './StoreEditSheet'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import type { ListItem } from '../types'
+import { StoreEditSheet } from './StoreEditSheet'
 
 const BASE_ITEM: ListItem = {
   id: 'i1', list_id: 'l1', name: 'Leche', quantity: null,

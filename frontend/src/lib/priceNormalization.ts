@@ -26,12 +26,12 @@ export interface NormalizationResult {
  */
 export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
   const shouldNormalize = entries.some(
-    e => e.price_per === 'KILOGRAM' || parseKgFactor(e.quantity) !== null,
+    (e) => e.price_per === 'KILOGRAM' || parseKgFactor(e.quantity) !== null,
   )
 
   if (!shouldNormalize) {
     return {
-      entries: entries.map(e => ({
+      entries: entries.map((e) => ({
         displayAmount: e.amount,
         displayPricePer: e.price_per as 'KILOGRAM' | null,
         store: e.store,
@@ -47,7 +47,7 @@ export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
   let isNormalized = false
   let hasGaps = false
 
-  const normalized: ChartEntry[] = entries.map(e => {
+  const normalized: ChartEntry[] = entries.map((e) => {
     let displayAmount: number | null
 
     if (e.price_per === 'KILOGRAM') {

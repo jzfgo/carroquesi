@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import type { FeedbackPayload } from '../lib/api'
 import './FeedbackSheet.css'
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 
 interface Props {
   defaultEmail: string | null | undefined

@@ -1,7 +1,10 @@
 const KEY = 'cqs_last_price_store'
 const TTL_MS = 60 * 60 * 1000
 
-interface Stored { store: string; at: number }
+interface Stored {
+  store: string
+  at: number
+}
 
 export function getLastPriceStore(): string | null {
   try {

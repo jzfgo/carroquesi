@@ -1,10 +1,10 @@
-import { renderHook, waitFor, act } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useListItems } from './useListItems'
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
 import { ApiError } from '../lib/api'
-import type { ListItem } from '../types'
 import * as offlineQueue from '../lib/offlineQueue'
+import type { ListItem } from '../types'
+import { useListItems } from './useListItems'
 
 vi.mock('../lib/api')
 vi.mock('../lib/offlineQueue', () => ({

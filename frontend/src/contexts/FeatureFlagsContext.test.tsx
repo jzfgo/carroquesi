@@ -1,8 +1,8 @@
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { FeatureFlagsProvider, useFeatureFlags } from './FeatureFlagsContext'
-import * as AuthContext from './AuthContext'
 import * as api from '../lib/api'
+import * as AuthContext from './AuthContext'
+import { FeatureFlagsProvider, useFeatureFlags } from './FeatureFlagsContext'
 
 vi.mock('./AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../lib/api')

@@ -1,4 +1,12 @@
 import {
+  signOut as firebaseSignOut,
+  getIdToken,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithPopup,
+  type User as FirebaseUser,
+} from 'firebase/auth'
+import {
   createContext,
   useContext,
   useEffect,
@@ -6,16 +14,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import {
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut as firebaseSignOut,
-  getIdToken,
-  type User as FirebaseUser,
-} from 'firebase/auth'
+import { ApiError, syncUser } from '../lib/api'
 import { auth } from '../lib/firebase'
-import { syncUser, ApiError } from '../lib/api'
 
 export interface AuthUser {
   id: string
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const d = data as { id: string; display_name: string; photo_url: string | null; email: string; features?: string[] }
           setUser({ id: d.id, displayName: d.display_name, photoUrl: d.photo_url, email: d.email, features: d.features ?? [] })
         })
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setLoading(false))
       return
     }

@@ -1,7 +1,9 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { vi } from 'vitest'
-import { ItemList } from './ItemList'
+import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
+import type { ListItem, Member } from '../types'
+import { ItemList } from './ItemList'
 
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: vi.fn().mockReturnValue({
@@ -12,8 +14,6 @@ vi.mock('../contexts/AuthContext', () => ({
     loading: false,
   }),
 }))
-import type { CostSummary } from '../lib/itemCost'
-import type { ListItem, Member } from '../types'
 
 const MEMBERS: Map<string, Member> = new Map()
 

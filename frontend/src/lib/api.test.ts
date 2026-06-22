@@ -1,5 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getLists, createList, createItem, updateItem, getListUpdatedAt, updateList, deleteList, getInvitePreview, acceptInvite, ApiError, submitFeedback, submitWaitlistSignup } from './api'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  acceptInvite,
+  ApiError,
+  createItem,
+  createList,
+  deleteList,
+  getInvitePreview,
+  getLists,
+  getListUpdatedAt,
+  submitFeedback,
+  submitWaitlistSignup,
+  updateItem,
+  updateList,
+} from './api'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -29,7 +42,9 @@ describe('apiFetch — authorization', () => {
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists'),
       expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: 'Bearer test-token' }),
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-token',
+        }),
       }),
     )
   })
@@ -97,8 +112,12 @@ describe('updateItem', () => {
 
 describe('getListUpdatedAt', () => {
   it('GET /lists/{id}/updated-at', async () => {
-    mockFetch.mockReturnValue(mockResponse({ updated_at: '2026-01-01T00:00:00' }))
-    const result = await getListUpdatedAt(mockGetToken, 'list-1') as { updated_at: string }
+    mockFetch.mockReturnValue(
+      mockResponse({ updated_at: '2026-01-01T00:00:00' }),
+    )
+    const result = (await getListUpdatedAt(mockGetToken, 'list-1')) as {
+      updated_at: string
+    }
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists/list-1/updated-at'),
       expect.any(Object),
@@ -123,11 +142,14 @@ describe('updateList', () => {
 
 describe('deleteList', () => {
   it('DELETE /lists/{id} returns null on 204', async () => {
-    mockFetch.mockReturnValue(Promise.resolve({
-      ok: true, status: 204,
-      json: () => Promise.resolve(null),
-      text: () => Promise.resolve(''),
-    }))
+    mockFetch.mockReturnValue(
+      Promise.resolve({
+        ok: true,
+        status: 204,
+        json: () => Promise.resolve(null),
+        text: () => Promise.resolve(''),
+      }),
+    )
     const result = await deleteList(mockGetToken, 'l1')
     expect(result).toBeNull()
     expect(mockFetch).toHaveBeenCalledWith(
@@ -139,16 +161,30 @@ describe('deleteList', () => {
 
 describe('getInvitePreview', () => {
   it('GET /invites/:id — fetches without auth header', async () => {
-    mockFetch.mockReturnValue(mockResponse({ id: 'inv1', list_name: 'Compras', invited_by_name: 'Ana' }))
+    mockFetch.mockReturnValue(
+      mockResponse({
+        id: 'inv1',
+        list_name: 'Compras',
+        invited_by_name: 'Ana',
+      }),
+    )
     const result = await getInvitePreview('inv1')
-    expect(result).toEqual({ id: 'inv1', list_name: 'Compras', invited_by_name: 'Ana' })
-    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/invites/inv1'))
+    expect(result).toEqual({
+      id: 'inv1',
+      list_name: 'Compras',
+      invited_by_name: 'Ana',
+    })
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/invites/inv1'),
+    )
     expect(mockFetch.mock.calls[0][1]).toBeUndefined()
   })
 
   it('throws ApiError on non-2xx', async () => {
     mockFetch.mockReturnValue(mockResponse('Not found', 404))
-    await expect(getInvitePreview('bad-id')).rejects.toMatchObject({ status: 404 })
+    await expect(getInvitePreview('bad-id')).rejects.toMatchObject({
+      status: 404,
+    })
   })
 })
 
@@ -161,7 +197,9 @@ describe('acceptInvite', () => {
       expect.stringContaining('/invites/inv1/accept'),
       expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({ Authorization: 'Bearer test-token' }),
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-token',
+        }),
       }),
     )
   })
@@ -169,7 +207,9 @@ describe('acceptInvite', () => {
 
 describe('submitFeedback', () => {
   it('submitFeedback posts feedback payload', async () => {
-    mockFetch.mockReturnValue(mockResponse({ id: 'fb-1', created_at: '2026-05-31T10:00:00' }))
+    mockFetch.mockReturnValue(
+      mockResponse({ id: 'fb-1', created_at: '2026-05-31T10:00:00' }),
+    )
 
     const result = await submitFeedback(mockGetToken, {
       message: 'Great app',
@@ -212,4 +252,3 @@ describe('submitWaitlistSignup', () => {
     await expect(submitWaitlistSignup('bad-email')).rejects.toThrow(ApiError)
   })
 })
-

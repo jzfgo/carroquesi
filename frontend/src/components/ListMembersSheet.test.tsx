@@ -1,8 +1,8 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { vi, beforeEach } from 'vitest'
-import { ListMembersSheet, type BackendMember } from './ListMembersSheet'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as api from '../lib/api'
+import { ListMembersSheet, type BackendMember } from './ListMembersSheet'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../lib/api', async (importOriginal) => {
@@ -39,7 +39,7 @@ beforeEach(() => {
 })
 
 test('shows spinner while loading', () => {
-  vi.mocked(api.getListMembers).mockReturnValue(new Promise(() => {}))
+  vi.mocked(api.getListMembers).mockReturnValue(new Promise(() => { }))
   render(<ListMembersSheet listId="l1" currentUserId="u1" isOwner={true} onClose={vi.fn()} />)
   expect(screen.getByRole('status', { name: /cargando/i })).toBeInTheDocument()
 })

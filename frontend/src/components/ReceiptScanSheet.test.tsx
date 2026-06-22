@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import type { ReceiptScanResult } from "../types";
 import ReceiptScanSheet from "./ReceiptScanSheet";
-import type { ReceiptScanResult } from "../types/receipt";
 
 const mockResult: ReceiptScanResult = {
   scan_id: "scan-1",
@@ -50,9 +50,9 @@ const mockResult: ReceiptScanResult = {
 
 const mockPurchasedItems = [
   { id: "item-1", name: "Bebida de almendra 0% azúcares", purchased_at: "2026-04-11T15:00:00", brand: null, stores: ["Mercadona"], quantity: null },
-  { id: "item-2", name: "Bacon lonchas",                  purchased_at: "2026-04-11T15:00:00", brand: null, stores: ["Mercadona"], quantity: null },
-  { id: "item-3", name: "Yogur natural",                  purchased_at: "2026-04-11T15:00:00", brand: null, stores: [],            quantity: null },
-  { id: "item-4", name: "Maní dulce",                     purchased_at: "2026-04-10T12:00:00", brand: null, stores: [],            quantity: null },
+  { id: "item-2", name: "Bacon lonchas", purchased_at: "2026-04-11T15:00:00", brand: null, stores: ["Mercadona"], quantity: null },
+  { id: "item-3", name: "Yogur natural", purchased_at: "2026-04-11T15:00:00", brand: null, stores: [], quantity: null },
+  { id: "item-4", name: "Maní dulce", purchased_at: "2026-04-10T12:00:00", brand: null, stores: [], quantity: null },
 ];
 
 function renderSheet(overrides: Partial<ReceiptScanResult> = {}) {

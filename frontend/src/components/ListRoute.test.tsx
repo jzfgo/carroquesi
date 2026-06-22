@@ -1,8 +1,8 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { vi, beforeEach, describe, it, expect } from 'vitest'
-import { ListRoute } from './ListRoute'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as api from '../lib/api'
+import { ListRoute } from './ListRoute'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../lib/api', async (importOriginal) => {
@@ -48,7 +48,7 @@ const listData = { id: 'l1', name: 'Mercado', emoji: '🛒', owner_id: 'u1', cre
 
 describe('ListRoute', () => {
   it('shows a loading spinner while fetching', () => {
-    vi.mocked(api.getList).mockReturnValue(new Promise(() => {}))
+    vi.mocked(api.getList).mockReturnValue(new Promise(() => { }))
     render(<ListRoute />)
     expect(screen.getByRole('status', { name: /cargando/i })).toBeInTheDocument()
   })

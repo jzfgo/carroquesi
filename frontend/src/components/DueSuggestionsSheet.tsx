@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
-import './DueSuggestionsSheet.css'
+import { useEffect, useRef } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { formatFrequency, formatRecency } from '../lib/suggestions'
 import type { DueSuggestion } from '../types'
+import './DueSuggestionsSheet.css'
 
 interface Props {
   suggestions: DueSuggestion[]

@@ -11,8 +11,14 @@
 }
 
 @keyframes pt-slide-up {
-  from { transform: translateY(100px); opacity: 0; }
-  to   { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .pt__progress {
@@ -28,8 +34,12 @@
 }
 
 @keyframes pt-drain {
-  from { width: 100%; }
-  to   { width: 0%; }
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
 }
 
 .pt__body {

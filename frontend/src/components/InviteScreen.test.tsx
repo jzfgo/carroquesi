@@ -1,9 +1,9 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import React from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { vi, beforeEach, test, expect } from 'vitest'
-import { InviteScreen } from './InviteScreen'
+import { beforeEach, expect, test, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as api from '../lib/api'
+import { InviteScreen } from './InviteScreen'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../lib/api', async (importOriginal) => {
@@ -46,7 +46,7 @@ beforeEach(() => {
 })
 
 test('shows spinner while loading', () => {
-  vi.mocked(api.getInvitePreview).mockReturnValue(new Promise(() => {}))
+  vi.mocked(api.getInvitePreview).mockReturnValue(new Promise(() => { }))
   render(<InviteScreen />)
   expect(screen.getByRole('status')).toBeInTheDocument()
 })

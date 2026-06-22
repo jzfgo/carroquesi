@@ -13,17 +13,21 @@ install:
 dev:
     @overmind start
 
+# Type-check frontend, lint
+lint:
+  just frontend typecheck
+  just frontend lint
+  just backend lint
+
 # Run all tests (frontend + backend)
 test:
     just frontend test
     just backend test
 
-# Type-check + lint frontend, lint + test backend
+# Type-check, lint, and test
 ci:
-    just frontend typecheck
-    just frontend lint
-    just backend lint
-    just backend test
+    just lint
+    just test
 
 # Update [Unreleased] section in CHANGELOG.md from commits since last tag (requires git-cliff)
 changelog:

@@ -1,5 +1,5 @@
+import { ScanBarcode, Sparkles, Store, Tag, X } from 'lucide-react'
 import { useRef } from 'react'
-import { Tag, Store, ScanBarcode, Sparkles, X } from 'lucide-react'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem, ParsedInput, Suggestion } from '../types'
 import './SmartInputBar.css'

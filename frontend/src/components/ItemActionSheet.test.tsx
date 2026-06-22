@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { vi, beforeEach } from 'vitest'
-import { ItemActionSheet } from './ItemActionSheet'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, vi } from 'vitest'
 import type { ListItem } from '../types'
+import { ItemActionSheet } from './ItemActionSheet'
 
 const item: ListItem = {
   id: 'i1', list_id: 'l1', name: 'Leche entera',

@@ -1,11 +1,11 @@
-import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { ListScreen } from './ListScreen'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import * as api from '../lib/api'
 import type { ListItem } from '../types'
+import { ListScreen } from './ListScreen'
 
 vi.mock('@undecaf/barcode-detector-polyfill', () => ({
   BarcodeDetectorPolyfill: class {

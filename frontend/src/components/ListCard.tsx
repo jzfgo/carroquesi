@@ -1,8 +1,8 @@
-import type { CSSProperties } from 'react'
 import { GripVertical, MoreHorizontal } from 'lucide-react'
+import type { CSSProperties } from 'react'
+import type { ApiList } from '../types'
 import './ListCard.css'
 import { ProgressBar } from './ProgressBar'
-import type { ApiList } from '../types'
 
 interface Props {
   list: ApiList

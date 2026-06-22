@@ -11,7 +11,11 @@ export function clientSideSuggestions(
     const vals: (string | null)[] =
       field === 'stores' ? item.stores : [item[field]]
     for (const val of vals) {
-      if (val && val.toLowerCase().startsWith(partial.toLowerCase()) && !seen.has(val)) {
+      if (
+        val &&
+        val.toLowerCase().startsWith(partial.toLowerCase()) &&
+        !seen.has(val)
+      ) {
         seen.add(val)
         results.push(val)
       }

@@ -1,14 +1,15 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { DashboardScreen } from './DashboardScreen'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import * as reactRouter from 'react-router-dom'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContext from '../contexts/FeatureFlagsContext'
+import * as usePWAInstallModule from '../hooks/usePWAInstall'
 import * as api from '../lib/api'
+import { DashboardScreen } from './DashboardScreen'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../contexts/FeatureFlagsContext', () => ({ useFeatureFlags: vi.fn() }))
 vi.mock('../lib/api')
-import * as reactRouter from 'react-router-dom'
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>()
   return {
@@ -16,7 +17,6 @@ vi.mock('react-router-dom', async (importOriginal) => {
     useNavigate: vi.fn().mockReturnValue(vi.fn()),
   }
 })
-import * as usePWAInstallModule from '../hooks/usePWAInstall'
 vi.mock('../hooks/usePWAInstall')
 
 const mockGetToken = vi.fn().mockResolvedValue('token')
@@ -59,7 +59,7 @@ const twoLists = [
 
 describe('DashboardScreen', () => {
   it('shows loading spinner while fetching', () => {
-    vi.mocked(api.getLists).mockReturnValue(new Promise(() => {}))
+    vi.mocked(api.getLists).mockReturnValue(new Promise(() => { }))
     render(<DashboardScreen />)
     expect(screen.getByRole('status')).toBeInTheDocument()
   })

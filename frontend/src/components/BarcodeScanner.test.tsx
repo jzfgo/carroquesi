@@ -1,10 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Mock } from 'vitest'
-import { BarcodeScanner } from './BarcodeScanner'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
 import { ApiError } from '../lib/api'
+import { BarcodeScanner } from './BarcodeScanner'
 
 vi.mock('@undecaf/barcode-detector-polyfill', () => ({
   BarcodeDetectorPolyfill: class {
@@ -68,7 +68,7 @@ describe('BarcodeScanner', () => {
       detect = vi.fn().mockResolvedValue([{ rawValue: '8411327122016' }])
     })
     const product = { name: 'Leche', brand: 'Pascual', stores: [] }
-    ;(api.getBarcode as Mock).mockResolvedValue(product)
+      ; (api.getBarcode as Mock).mockResolvedValue(product)
 
     const onResult = vi.fn()
     render(
@@ -81,7 +81,7 @@ describe('BarcodeScanner', () => {
     vi.stubGlobal('BarcodeDetector', class {
       detect = vi.fn().mockResolvedValue([{ rawValue: '8411327122016' }])
     })
-    ;(api.getBarcode as Mock).mockRejectedValue(new ApiError(404, 'not found'))
+      ; (api.getBarcode as Mock).mockRejectedValue(new ApiError(404, 'not found'))
 
     const onError = vi.fn()
     render(
@@ -94,7 +94,7 @@ describe('BarcodeScanner', () => {
     vi.stubGlobal('BarcodeDetector', class {
       detect = vi.fn().mockResolvedValue([{ rawValue: '8411327122016' }])
     })
-    ;(api.getBarcode as Mock).mockRejectedValue(new ApiError(503, 'unavailable'))
+      ; (api.getBarcode as Mock).mockRejectedValue(new ApiError(503, 'unavailable'))
 
     const onError = vi.fn()
     render(
@@ -107,7 +107,7 @@ describe('BarcodeScanner', () => {
     vi.stubGlobal('BarcodeDetector', class {
       detect = vi.fn().mockResolvedValue([{ rawValue: '8411327122016' }])
     })
-    ;(api.getBarcode as Mock).mockRejectedValue(new Error('network failure'))
+      ; (api.getBarcode as Mock).mockRejectedValue(new Error('network failure'))
 
     const onError = vi.fn()
     render(

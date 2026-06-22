@@ -1,5 +1,5 @@
-import 'fake-indexeddb/auto'
 import { act, renderHook, waitFor } from '@testing-library/react'
+import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
 import { enqueue, getAll, remove } from '../lib/offlineQueue'

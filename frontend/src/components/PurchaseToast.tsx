@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
 import { X } from 'lucide-react'
+import { useEffect } from 'react'
 import './PurchaseToast.css'
 
 const AUTO_DISMISS_MS = 6000

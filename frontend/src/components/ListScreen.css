@@ -1,6 +1,6 @@
 .list-screen {
   width: 100%;
-  max-width: 430px;    /* comfortable on large phones / tablet emulation */
+  max-width: 430px; /* comfortable on large phones / tablet emulation */
   margin: 0 auto;
   min-height: 100svh;
   display: flex;
@@ -25,12 +25,16 @@
 }
 
 .sheet-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.5);
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
   z-index: 100;
 }
 .sheet-container {
-  position: fixed; bottom: 0; left: 0; right: 0;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 101;
 }
 
@@ -47,7 +51,9 @@
   font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
 }
 .receipt-scan-cta__btn:hover:not(:disabled) {
   background: var(--color-surface-hover, var(--color-border));
@@ -109,7 +115,7 @@
   background: var(--color-surface);
   border-radius: 16px;
   padding: 24px 32px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
   color: var(--color-text);
   font-size: 0.95rem;
 }

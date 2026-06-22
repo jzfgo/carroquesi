@@ -1,5 +1,5 @@
+import { AlertTriangle, Globe, Pencil, Store } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Globe, Store, Pencil, AlertTriangle } from 'lucide-react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { getPriceHistory } from '../lib/api'
 import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
@@ -286,7 +286,7 @@ export default function PriceHistorySheet({
       .then(data => {
         if (!cancelled) setHistory(data)
       })
-      .catch(() => {})
+      .catch(() => { })
     return () => {
       cancelled = true
     }

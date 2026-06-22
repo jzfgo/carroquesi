@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
 import { ShoppingCart } from 'lucide-react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { getInvitePreview, acceptInvite, ApiError } from '../lib/api'
 import { usePageTitle } from '../hooks/usePageTitle'
+import { acceptInvite, ApiError, getInvitePreview } from '../lib/api'
+import './InviteScreen.css'
 import { Mascot } from './Mascot'
 import { WaitlistScreen } from './WaitlistScreen'
-import './InviteScreen.css'
 
 type ScreenState = 'loading' | 'preview' | 'accepting' | 'error'
 

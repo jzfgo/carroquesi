@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { parseInput } from '../parseInput'
+import { parseInput } from '../lib/parseInput'
 import type { ListItem } from '../types'
 import { SmartInputBar } from './SmartInputBar'
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
-import './EmojiPickerSheet.css'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
-import { CURATED_EMOJIS } from '../lib/curated-emojis'
+import { CURATED_EMOJIS } from '../lib/curatedEmojis'
+import './EmojiPickerSheet.css'
 
 interface Props {
   current: string | null

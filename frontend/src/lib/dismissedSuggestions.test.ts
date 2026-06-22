@@ -1,5 +1,9 @@
 import { beforeEach, expect, test, vi } from 'vitest'
-import { _resetCacheForTesting, isDismissed, writeDismissal } from './dismissedSuggestions'
+import {
+  _resetCacheForTesting,
+  isDismissed,
+  writeDismissal,
+} from './dismissedSuggestions'
 
 const KEY = 'cqs_dismissed_suggestions'
 
@@ -32,7 +36,10 @@ test('writeDismissal prunes expired entries', () => {
   writeDismissal('OldItem', 1)
   vi.spyOn(Date, 'now').mockReturnValue(now + 2 * 86400000)
   writeDismissal('NewItem', 3)
-  const stored = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, string>
+  const stored = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<
+    string,
+    string
+  >
   expect(stored['OldItem']).toBeUndefined()
   expect(stored['NewItem']).toBeDefined()
   vi.restoreAllMocks()

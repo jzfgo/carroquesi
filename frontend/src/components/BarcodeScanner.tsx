@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
-import { CameraOff, X } from 'lucide-react'
-import './BarcodeScanner.css'
 import { BarcodeDetectorPolyfill } from '@undecaf/barcode-detector-polyfill'
-import { getBarcode, ApiError } from '../lib/api'
+import { CameraOff, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ApiError, getBarcode } from '../lib/api'
 import type { BarcodeRead } from '../types'
+import './BarcodeScanner.css'
 
 type DetectorConstructor = typeof BarcodeDetectorPolyfill
 
@@ -66,7 +66,7 @@ export function BarcodeScanner({ getToken, onResult, onError, onClose }: Props) 
         streamRef.current = stream
         if (videoRef.current) {
           videoRef.current.srcObject = stream
-          try { videoRef.current.play()?.catch(() => {}) } catch { /* not supported */ }
+          try { videoRef.current.play()?.catch(() => { }) } catch { /* not supported */ }
           requestAnimationFrame(scan)
         }
       })

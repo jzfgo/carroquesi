@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react'
+import { Globe, Pencil, Store, Tag } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
-import { Pencil, Globe, Store, Tag } from 'lucide-react'
 import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
-import './BarcodeScanSheet.css'
 import type { BarcodeRead } from '../types'
+import './BarcodeScanSheet.css'
 
 interface Props {
   product: BarcodeRead

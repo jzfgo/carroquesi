@@ -1,8 +1,8 @@
+import { Camera, Image, Receipt } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Receipt, Image } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { useFeatureFlags } from "../contexts/FeatureFlagsContext";
-import { FLAGS } from "../lib/featureFlags";
+import { filterItems } from "../hooks/useItemFilter";
 import { useListItems } from "../hooks/useListItems";
 import { useOffline } from "../hooks/useOffline";
 import { useOwnBrandInference } from "../hooks/useOwnBrandInference";
@@ -14,23 +14,26 @@ import {
   submitParsedReceipt,
   submitReceiptPrices,
 } from "../lib/api";
-import { parseReceiptWithAi } from "../lib/receiptAi";
-import type { ReceiptScanResult, PricePatch, NameMapping } from "../types/receipt";
-import ReceiptScanSheet from "./ReceiptScanSheet";
+import { isDismissed, writeDismissal } from "../lib/dismissedSuggestions";
+import { FLAGS } from "../lib/featureFlags";
 import { computeCostSummary, purchasedDateLabel } from "../lib/itemCost";
 import { getLastPriceStore, setLastPriceStore } from "../lib/lastPriceStore";
-import { isDismissed, writeDismissal } from "../lib/dismissedSuggestions";
-import { parseInput } from "../parseInput";
+import { parseInput } from "../lib/parseInput";
+import { parseReceiptWithAi } from "../lib/receiptAi";
 import type {
   BarcodeRead,
   DueSuggestion,
   EditingTag,
+  NameMapping,
+  PricePatch,
+  ReceiptScanResult,
   Suggestion,
   TagField,
 } from "../types";
 import { BarcodeScanner } from "./BarcodeScanner";
 import { BarcodeScanSheet } from "./BarcodeScanSheet";
 import { DueSuggestionsSheet } from "./DueSuggestionsSheet";
+import { FilterBar } from "./FilterBar";
 import { ItemActionSheet } from "./ItemActionSheet";
 import { ItemList } from "./ItemList";
 import { ListHeader } from "./ListHeader";
@@ -40,10 +43,9 @@ import LogPurchaseSheet from "./LogPurchaseSheet";
 import PriceHistorySheet from "./PriceHistorySheet";
 import { ProgressBar } from "./ProgressBar";
 import PurchaseToast from "./PurchaseToast";
+import ReceiptScanSheet from "./ReceiptScanSheet";
 import { SmartInputBar } from "./SmartInputBar";
 import { StoreEditSheet } from "./StoreEditSheet";
-import { FilterBar } from "./FilterBar";
-import { filterItems } from "../hooks/useItemFilter";
 import { TagEditSheet } from "./TagEditSheet";
 import { Toast } from "./Toast";
 

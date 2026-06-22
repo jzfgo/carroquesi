@@ -1,6 +1,9 @@
-import type { ParsedInput } from './types'
+import type { ParsedInput } from '../types'
 
-const SINGLE_SIGIL_MAP: Record<string, keyof Omit<ParsedInput, 'name' | 'stores'>> = {
+const SINGLE_SIGIL_MAP: Record<
+  string,
+  keyof Omit<ParsedInput, 'name' | 'stores'>
+> = {
   '+': 'quantity',
   '#': 'brand',
 }
@@ -25,10 +28,16 @@ export function parseInput(raw: string): ParsedInput {
 
   const words = withPlaceholders.trim().split(/\s+/).filter(Boolean)
 
-  const result: ParsedInput = { name: '', quantity: null, brand: null, stores: [] }
+  const result: ParsedInput = {
+    name: '',
+    quantity: null,
+    brand: null,
+    stores: [],
+  }
   const nameWords: string[] = []
 
-  let currentField: keyof Omit<ParsedInput, 'name' | 'stores'> | '@' | null = null
+  let currentField: keyof Omit<ParsedInput, 'name' | 'stores'> | '@' | null =
+    null
   const tokenWords: Record<string, string[]> = {}
   const storeEntries: string[][] = []
 
@@ -63,15 +72,17 @@ export function parseInput(raw: string): ParsedInput {
   for (const [field, parts] of Object.entries(tokenWords)) {
     const value = restore(parts.join(' ')).trim()
     if (value.length > 0) {
-      (result as unknown as Record<string, unknown>)[field] = value
+      ;(result as unknown as Record<string, unknown>)[field] = value
     }
   }
 
-  result.stores = [...new Set(
-    storeEntries
-      .map(parts => restore(parts.join(' ')).trim())
-      .filter(s => s.length > 0)
-  )]
+  result.stores = [
+    ...new Set(
+      storeEntries
+        .map((parts) => restore(parts.join(' ')).trim())
+        .filter((s) => s.length > 0),
+    ),
+  ]
 
   return result
 }
