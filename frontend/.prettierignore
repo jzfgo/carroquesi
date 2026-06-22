@@ -1,0 +1,7 @@
+dist
+coverage
+
+.env*
+.*rc
+.*ignore
+pnpm-lock.yaml

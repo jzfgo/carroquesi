@@ -80,7 +80,7 @@ export function ListScreen({
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [filterQuery, setFilterQuery] = useState("");
-  const [filterMode, setFilterMode] = useState<'chips' | 'search'>('chips');
+  const [filterMode, setFilterMode] = useState<"chips" | "search">("chips");
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(
@@ -117,17 +117,19 @@ export function ListScreen({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const autoOpenFiredRef = useRef(false);
-  const [receiptScanResult, setReceiptScanResult] = useState<ReceiptScanResult | null>(null);
+  const [receiptScanResult, setReceiptScanResult] =
+    useState<ReceiptScanResult | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
   const [receiptSourcePickerOpen, setReceiptSourcePickerOpen] = useState(false);
   const currentUserId = user!.id;
   const isOwner = listOwnerId === currentUserId;
 
   const parsed = useMemo(() => parseInput(inputValue), [inputValue]);
-  const { visibleChip, storeToAdd, dismiss: dismissInferredStore } = useOwnBrandInference(
-    parsed.brand,
-    parsed.stores,
-  );
+  const {
+    visibleChip,
+    storeToAdd,
+    dismiss: dismissInferredStore,
+  } = useOwnBrandInference(parsed.brand, parsed.stores);
   const {
     status,
     items,
@@ -153,18 +155,21 @@ export function ListScreen({
   // Debounced suggestions — only when name has 2+ chars
   useEffect(() => {
     const q = parsed.name.trim();
-    const timer = setTimeout(async () => {
-      if (q.length < 2) {
-        setSuggestions([]);
-        return;
-      }
-      try {
-        const data = await getSuggestions(getToken, q);
-        setSuggestions(data);
-      } catch {
-        // suggestion errors are non-critical
-      }
-    }, q.length < 2 ? 0 : 300);
+    const timer = setTimeout(
+      async () => {
+        if (q.length < 2) {
+          setSuggestions([]);
+          return;
+        }
+        try {
+          const data = await getSuggestions(getToken, q);
+          setSuggestions(data);
+        } catch {
+          // suggestion errors are non-critical
+        }
+      },
+      q.length < 2 ? 0 : 300,
+    );
     return () => clearTimeout(timer);
   }, [parsed.name, getToken]);
 
@@ -223,7 +228,9 @@ export function ListScreen({
         });
         setReceiptScanResult(null);
         const n = data.items_updated;
-        setToast(`${n} precio${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}`);
+        setToast(
+          `${n} precio${n !== 1 ? "s" : ""} actualizado${n !== 1 ? "s" : ""}`,
+        );
       } catch {
         setToast("No se pudieron guardar los precios");
       }
@@ -270,7 +277,7 @@ export function ListScreen({
   );
 
   const handleMenuToggle = useCallback(() => {
-    setMenuOpen(prev => !prev);
+    setMenuOpen((prev) => !prev);
   }, []);
 
   const handleChange = useCallback((value: string) => {
@@ -354,7 +361,13 @@ export function ListScreen({
     ) => {
       if (!logPriceFor) return;
       try {
-        await savePrice(logPriceFor.itemId, amount, pricePer, store, purchasedQuantity);
+        await savePrice(
+          logPriceFor.itemId,
+          amount,
+          pricePer,
+          store,
+          purchasedQuantity,
+        );
         if (store) setLastPriceStore(store);
       } catch {
         // non-critical
@@ -380,10 +393,12 @@ export function ListScreen({
         setPriceItemId(null);
         setPurchaseToast(null);
       } else if (err instanceof ApiError && err.status === 409) {
-        setToast('No se puede eliminar el precio de un artículo comprado en otro día');
+        setToast(
+          "No se puede eliminar el precio de un artículo comprado en otro día",
+        );
         throw err;
       } else {
-        setToast('No se pudo eliminar el precio');
+        setToast("No se pudo eliminar el precio");
         throw err;
       }
     }
@@ -454,13 +469,10 @@ export function ListScreen({
     [addItem],
   );
 
-  const handleSuggestionDismiss = useCallback(
-    (s: DueSuggestion) => {
-      writeDismissal(s.name, s.dismissal_ttl_days);
-      setDueSuggestions(prev => prev.filter(x => x.name !== s.name));
-    },
-    [],
-  );
+  const handleSuggestionDismiss = useCallback((s: DueSuggestion) => {
+    writeDismissal(s.name, s.dismissal_ttl_days);
+    setDueSuggestions((prev) => prev.filter((x) => x.name !== s.name));
+  }, []);
 
   const { purchasedCount, totalCount } = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD' UTC
@@ -494,16 +506,17 @@ export function ListScreen({
   }, [items]);
 
   const filteredItems = useMemo(
-    () => filterItems(items, filterQuery, { strictStore: filterMode === 'search' }),
+    () =>
+      filterItems(items, filterQuery, { strictStore: filterMode === "search" }),
     [items, filterQuery, filterMode],
   );
   const allUnpurchasedCount = useMemo(
-    () => items.filter(i => !i.purchased).length,
+    () => items.filter((i) => !i.purchased).length,
     [items],
   );
 
   const filteredDueSuggestions = useMemo(
-    () => dueSuggestions.filter(s => !isDismissed(s.name)),
+    () => dueSuggestions.filter((s) => !isDismissed(s.name)),
     [dueSuggestions],
   );
 
@@ -524,7 +537,10 @@ export function ListScreen({
     for (const [label, group] of byDate) {
       costByDate.set(label, computeCostSummary(group));
     }
-    return { pendingCost: computeCostSummary(pendingItems), purchasedCostByDate: costByDate };
+    return {
+      pendingCost: computeCostSummary(pendingItems),
+      purchasedCostByDate: costByDate,
+    };
   }, [filteredItems]);
 
   return (
@@ -538,7 +554,10 @@ export function ListScreen({
       <ProgressBar purchased={purchasedCount} total={totalCount} />
       {isOffline && (
         <div className="offline-banner offline-banner--sticky" role="status">
-          Sin conexión{pendingCount > 0 ? ` · ${pendingCount} ${pendingCount === 1 ? 'cambio pendiente' : 'cambios pendientes'}` : ' · Los cambios se sincronizarán al reconectar'}
+          Sin conexión
+          {pendingCount > 0
+            ? ` · ${pendingCount} ${pendingCount === 1 ? "cambio pendiente" : "cambios pendientes"}`
+            : " · Los cambios se sincronizarán al reconectar"}
         </div>
       )}
       {items.length > 0 && (
@@ -562,17 +581,28 @@ export function ListScreen({
         onClone={handleCloneItem}
         pendingCost={pendingCost}
         purchasedCostByDate={purchasedCostByDate}
-        footer={allUnpurchasedCount === 0 && items.length > 0 && !receiptScanResult && isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
-          <div className="receipt-scan-cta">
-            <button
-              className="receipt-scan-cta__btn"
-              onClick={handleReceiptScan}
-              disabled={receiptUploading || isOffline}
-            >
-              {receiptUploading ? "Procesando ticket…" : <><Receipt size={16} /> Escanear ticket para registrar precios</>}
-            </button>
-          </div>
-        ) : undefined}
+        footer={
+          allUnpurchasedCount === 0 &&
+          items.length > 0 &&
+          !receiptScanResult &&
+          isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
+            <div className="receipt-scan-cta">
+              <button
+                className="receipt-scan-cta__btn"
+                onClick={handleReceiptScan}
+                disabled={receiptUploading || isOffline}
+              >
+                {receiptUploading ? (
+                  "Procesando ticket…"
+                ) : (
+                  <>
+                    <Receipt size={16} /> Escanear ticket para registrar precios
+                  </>
+                )}
+              </button>
+            </div>
+          ) : undefined
+        }
       />
       {editingTag &&
         (() => {
@@ -779,18 +809,27 @@ export function ListScreen({
 
       {receiptSourcePickerOpen && (
         <>
-          <div className="sheet-overlay" onClick={() => setReceiptSourcePickerOpen(false)} />
+          <div
+            className="sheet-overlay"
+            onClick={() => setReceiptSourcePickerOpen(false)}
+          />
           <div className="sheet-container">
             <div className="receipt-source-picker">
               <button
                 className="receipt-source-picker__btn"
-                onClick={() => { setReceiptSourcePickerOpen(false); cameraInputRef.current?.click(); }}
+                onClick={() => {
+                  setReceiptSourcePickerOpen(false);
+                  cameraInputRef.current?.click();
+                }}
               >
                 <Camera size={16} /> Tomar foto
               </button>
               <button
                 className="receipt-source-picker__btn"
-                onClick={() => { setReceiptSourcePickerOpen(false); fileInputRef.current?.click(); }}
+                onClick={() => {
+                  setReceiptSourcePickerOpen(false);
+                  fileInputRef.current?.click();
+                }}
               >
                 <Image size={16} /> Elegir de galería
               </button>
@@ -809,7 +848,11 @@ export function ListScreen({
         <>
           <div className="sheet-overlay" />
           <div className="receipt-uploading-indicator">
-            <span className="receipt-uploading-indicator__spinner" role="status" aria-label="Procesando ticket" />
+            <span
+              className="receipt-uploading-indicator__spinner"
+              role="status"
+              aria-label="Procesando ticket"
+            />
             <span>Procesando ticket…</span>
           </div>
         </>
@@ -817,7 +860,10 @@ export function ListScreen({
 
       {receiptScanResult && (
         <>
-          <div className="sheet-overlay" onClick={() => setReceiptScanResult(null)} />
+          <div
+            className="sheet-overlay"
+            onClick={() => setReceiptScanResult(null)}
+          />
           <div className="sheet-container">
             <ReceiptScanSheet
               result={receiptScanResult}

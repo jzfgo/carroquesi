@@ -1,51 +1,51 @@
-import { Store } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
-import { clientSideSuggestions } from '../lib/suggestions'
-import type { ListItem } from '../types'
-import './StoreEditSheet.css'
+import { Store } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
+import { clientSideSuggestions } from "../lib/suggestions";
+import type { ListItem } from "../types";
+import "./StoreEditSheet.css";
 
 interface Props {
-  item: ListItem
-  items: ListItem[]
-  onSave: (stores: string[]) => void
-  onClose: () => void
+  item: ListItem;
+  items: ListItem[];
+  onSave: (stores: string[]) => void;
+  onClose: () => void;
 }
 
 export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
-  const [input, setInput] = useState('')
-  const currentStores = item.stores
-  const sheetRef = useRef<HTMLDivElement>(null)
-  const swipe = useSwipeToDismiss(sheetRef, onClose)
+  const [input, setInput] = useState("");
+  const currentStores = item.stores;
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const swipe = useSwipeToDismiss(sheetRef, onClose);
 
-  const suggestions = clientSideSuggestions(items, 'stores', input).filter(
-    s => !currentStores.includes(s),
-  )
+  const suggestions = clientSideSuggestions(items, "stores", input).filter(
+    (s) => !currentStores.includes(s),
+  );
 
   function addStore(name: string) {
-    const trimmed = name.trim()
-    if (!trimmed || currentStores.includes(trimmed)) return
-    onSave([...currentStores, trimmed])
+    const trimmed = name.trim();
+    if (!trimmed || currentStores.includes(trimmed)) return;
+    onSave([...currentStores, trimmed]);
   }
 
   function removeStore(name: string) {
-    onSave(currentStores.filter(s => s !== name))
+    onSave(currentStores.filter((s) => s !== name));
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      addStore(input)
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addStore(input);
     }
   }
 
   useEffect(() => {
     function onDocKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === "Escape") onClose();
     }
-    document.addEventListener('keydown', onDocKeyDown)
-    return () => document.removeEventListener('keydown', onDocKeyDown)
-  }, [onClose])
+    document.addEventListener("keydown", onDocKeyDown);
+    return () => document.removeEventListener("keydown", onDocKeyDown);
+  }, [onClose]);
 
   return (
     <>
@@ -53,13 +53,15 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
       <div className="store-edit-sheet" ref={sheetRef}>
         <div className="store-edit-sheet__handle" {...swipe} />
         <div className="store-edit-sheet__header">
-          <span><Store size={15} /> Tiendas</span>
+          <span>
+            <Store size={15} /> Tiendas
+          </span>
           <span className="store-edit-sheet__item-name"> · {item.name}</span>
         </div>
 
         {currentStores.length > 0 && (
           <div className="store-edit-sheet__chips">
-            {currentStores.map(store => (
+            {currentStores.map((store) => (
               <span key={store} className="store-edit-sheet__chip">
                 {store}
                 <button
@@ -79,7 +81,7 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
             className="store-edit-sheet__input"
             type="text"
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Añadir tienda…"
             autoFocus
@@ -96,7 +98,7 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
 
         {suggestions.length > 0 && (
           <div className="store-edit-sheet__suggestions">
-            {suggestions.map(s => (
+            {suggestions.map((s) => (
               <button
                 key={s}
                 className="store-edit-sheet__suggestion"
@@ -109,5 +111,5 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
         )}
       </div>
     </>
-  )
+  );
 }

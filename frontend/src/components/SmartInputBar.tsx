@@ -1,29 +1,36 @@
-import { ScanBarcode, Sparkles, Store, Tag, X } from 'lucide-react'
-import { useRef } from 'react'
-import { clientSideSuggestions } from '../lib/suggestions'
-import type { ListItem, ParsedInput, Suggestion } from '../types'
-import './SmartInputBar.css'
+import { ScanBarcode, Sparkles, Store, Tag, X } from "lucide-react";
+import { useRef } from "react";
+import { clientSideSuggestions } from "../lib/suggestions";
+import type { ListItem, ParsedInput, Suggestion } from "../types";
+import "./SmartInputBar.css";
 
-const SIGIL_FIELDS: Record<string, 'brand' | 'stores'> = {
-  '#': 'brand', '@': 'stores',
-}
+const SIGIL_FIELDS: Record<string, "brand" | "stores"> = {
+  "#": "brand",
+  "@": "stores",
+};
 
-function getActiveSigil(raw: string): { sigil: string; partial: string } | null {
-  const words = raw.split(/\s+/)
+function getActiveSigil(
+  raw: string,
+): { sigil: string; partial: string } | null {
+  const words = raw.split(/\s+/);
   for (let i = words.length - 1; i >= 0; i--) {
-    const w = words[i]
-    if (w && '#@+'.includes(w[0])) {
-      return { sigil: w[0], partial: w.slice(1) }
+    const w = words[i];
+    if (w && "#@+".includes(w[0])) {
+      return { sigil: w[0], partial: w.slice(1) };
     }
   }
-  return null
+  return null;
 }
 
 function hasSigil(parsed: ParsedInput): boolean {
-  return parsed.quantity !== null || parsed.brand !== null || parsed.stores.length > 0
+  return (
+    parsed.quantity !== null ||
+    parsed.brand !== null ||
+    parsed.stores.length > 0
+  );
 }
 
-const ALL_SIGILS = new Set(['+', '#', '@', '|'])
+const ALL_SIGILS = new Set(["+", "#", "@", "|"]);
 
 /**
  * Returns the new input value after a chip tap, or null if no change is needed.
@@ -31,81 +38,105 @@ const ALL_SIGILS = new Set(['+', '#', '@', '|'])
  * - Otherwise append the sigil if not already present anywhere in the input.
  */
 function sigilChipAction(currentValue: string, sigil: string): string | null {
-  const trimmed = currentValue.trimEnd()
-  const words = trimmed ? trimmed.split(/\s+/) : []
-  const lastWord = words[words.length - 1] ?? ''
-  const endsWithBareSigil = lastWord.length === 1 && ALL_SIGILS.has(lastWord)
+  const trimmed = currentValue.trimEnd();
+  const words = trimmed ? trimmed.split(/\s+/) : [];
+  const lastWord = words[words.length - 1] ?? "";
+  const endsWithBareSigil = lastWord.length === 1 && ALL_SIGILS.has(lastWord);
 
   if (endsWithBareSigil) {
-    if (lastWord === sigil) return null // same chip tapped again, just refocus
-    words[words.length - 1] = sigil
-    return words.join(' ')
+    if (lastWord === sigil) return null; // same chip tapped again, just refocus
+    words[words.length - 1] = sigil;
+    return words.join(" ");
   }
 
-  if (sigil !== '@' && currentValue.includes(sigil)) return null
-  const sep = currentValue === '' || currentValue.endsWith(' ') ? '' : ' '
-  return currentValue + sep + sigil
+  if (sigil !== "@" && currentValue.includes(sigil)) return null;
+  const sep = currentValue === "" || currentValue.endsWith(" ") ? "" : " ";
+  return currentValue + sep + sigil;
 }
 
 const LEGEND_CHIPS: { sigil: string; label: string }[] = [
-  { sigil: '+', label: 'cant.' },
-  { sigil: '#', label: 'marca' },
-  { sigil: '@', label: 'tienda' },
-  { sigil: '|', label: 'cod. barras' },
-]
+  { sigil: "+", label: "cant." },
+  { sigil: "#", label: "marca" },
+  { sigil: "@", label: "tienda" },
+  { sigil: "|", label: "cod. barras" },
+];
 
 interface Props {
-  value: string
-  parsed: ParsedInput
-  items: ListItem[]
-  suggestions: Suggestion[]
-  onChange: (v: string) => void
-  onSubmit: () => void
-  onSuggestionAdd?: (suggestion: Suggestion) => void
-  onClear: () => void
-  onScanRequest: () => void
-  onEanSearch: (ean: string) => void
-  eanLoading?: boolean
-  eanError?: string | null
-  inferredStoreChip?: string | null
-  onDismissInferredStore?: () => void
-  isOffline?: boolean
-  dueSuggestionsCount?: number
-  onDueSuggestionsOpen?: () => void
+  value: string;
+  parsed: ParsedInput;
+  items: ListItem[];
+  suggestions: Suggestion[];
+  onChange: (v: string) => void;
+  onSubmit: () => void;
+  onSuggestionAdd?: (suggestion: Suggestion) => void;
+  onClear: () => void;
+  onScanRequest: () => void;
+  onEanSearch: (ean: string) => void;
+  eanLoading?: boolean;
+  eanError?: string | null;
+  inferredStoreChip?: string | null;
+  onDismissInferredStore?: () => void;
+  isOffline?: boolean;
+  dueSuggestionsCount?: number;
+  onDueSuggestionsOpen?: () => void;
 }
 
-export function SmartInputBar({ value, parsed, items, suggestions, onChange, onSubmit, onSuggestionAdd, onClear, onScanRequest, onEanSearch, eanLoading, eanError, inferredStoreChip, onDismissInferredStore, isOffline = false, dueSuggestionsCount, onDueSuggestionsOpen }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const activeSigil = getActiveSigil(value)
-  const fieldSigil = activeSigil && SIGIL_FIELDS[activeSigil.sigil]
-    ? activeSigil.sigil as '#' | '@'
-    : null
+export function SmartInputBar({
+  value,
+  parsed,
+  items,
+  suggestions,
+  onChange,
+  onSubmit,
+  onSuggestionAdd,
+  onClear,
+  onScanRequest,
+  onEanSearch,
+  eanLoading,
+  eanError,
+  inferredStoreChip,
+  onDismissInferredStore,
+  isOffline = false,
+  dueSuggestionsCount,
+  onDueSuggestionsOpen,
+}: Props) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const activeSigil = getActiveSigil(value);
+  const fieldSigil =
+    activeSigil && SIGIL_FIELDS[activeSigil.sigil]
+      ? (activeSigil.sigil as "#" | "@")
+      : null;
 
   const displaySuggestions = fieldSigil
-    ? clientSideSuggestions(items, SIGIL_FIELDS[fieldSigil], activeSigil!.partial)
-    : suggestions.slice(0, 5)
+    ? clientSideSuggestions(
+        items,
+        SIGIL_FIELDS[fieldSigil],
+        activeSigil!.partial,
+      )
+    : suggestions.slice(0, 5);
 
-  const inEanMode = parsed.ean != null
-  const showPreview = !inEanMode && hasSigil(parsed)
-  const hasName = parsed.name.trim().length > 0
-  const nameError = showPreview && !hasName
+  const inEanMode = parsed.ean != null;
+  const showPreview = !inEanMode && hasSigil(parsed);
+  const hasName = parsed.name.trim().length > 0;
+  const nameError = showPreview && !hasName;
 
   function suggestionLabel(suggestion: string | Suggestion): string {
-    return typeof suggestion === 'string' ? suggestion : suggestion.name
+    return typeof suggestion === "string" ? suggestion : suggestion.name;
   }
 
   function applySuggestion(suggestion: string | Suggestion) {
     if (!activeSigil) {
-      if (typeof suggestion === 'string') {
-        onChange(suggestion)
+      if (typeof suggestion === "string") {
+        onChange(suggestion);
       } else {
-        onSuggestionAdd?.(suggestion)
+        onSuggestionAdd?.(suggestion);
       }
-      return
+      return;
     }
-    const words = value.split(/\s+/)
-    words[words.length - 1] = activeSigil.sigil + suggestionLabel(suggestion) + ' '
-    onChange(words.join(' '))
+    const words = value.split(/\s+/);
+    words[words.length - 1] =
+      activeSigil.sigil + suggestionLabel(suggestion) + " ";
+    onChange(words.join(" "));
   }
 
   return (
@@ -119,12 +150,16 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
               onClick={onDismissInferredStore}
               type="button"
             >
-              <Store size={13} /> {inferredStoreChip} <X size={13} aria-hidden="true" />
+              <Store size={13} /> {inferredStoreChip}{" "}
+              <X size={13} aria-hidden="true" />
             </button>
           )}
           {displaySuggestions.map((s, i) => (
-            <button key={suggestionLabel(s)} className={`smart-input__suggestion${i === 0 ? ' smart-input__suggestion--top' : ''}`}
-              onClick={() => applySuggestion(s)}>
+            <button
+              key={suggestionLabel(s)}
+              className={`smart-input__suggestion${i === 0 ? " smart-input__suggestion--top" : ""}`}
+              onClick={() => applySuggestion(s)}
+            >
               {suggestionLabel(s)}
             </button>
           ))}
@@ -138,9 +173,15 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             <span className="smart-input__preview-error">{eanError}</span>
           ) : (
             <>
-              {parsed.brand && <span className="smart-input__preview-tag"><Tag size={13} /> {parsed.brand}</span>}
-              {parsed.stores.map(s => (
-                <span key={s} className="smart-input__preview-tag"><Store size={13} /> {s}</span>
+              {parsed.brand && (
+                <span className="smart-input__preview-tag">
+                  <Tag size={13} /> {parsed.brand}
+                </span>
+              )}
+              {parsed.stores.map((s) => (
+                <span key={s} className="smart-input__preview-tag">
+                  <Store size={13} /> {s}
+                </span>
               ))}
               <button
                 className="smart-input__buscar"
@@ -149,7 +190,7 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
                 aria-label="Buscar producto"
                 type="button"
               >
-                {eanLoading ? '…' : 'Buscar'}
+                {eanLoading ? "…" : "Buscar"}
               </button>
             </>
           )}
@@ -158,12 +199,26 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
 
       {!inEanMode && showPreview && (
         <div className="smart-input__preview" data-testid="parse-preview">
-          {nameError && <span className="smart-input__preview-error">Sin nombre de producto</span>}
-          {!nameError && <span className="smart-input__preview-name">{parsed.name}</span>}
-          {parsed.quantity && <span className="smart-input__preview-qty">{parsed.quantity}</span>}
-          {parsed.brand && <span className="smart-input__preview-tag"><Tag size={13} /> {parsed.brand}</span>}
-          {parsed.stores.map(s => (
-            <span key={s} className="smart-input__preview-tag"><Store size={13} /> {s}</span>
+          {nameError && (
+            <span className="smart-input__preview-error">
+              Sin nombre de producto
+            </span>
+          )}
+          {!nameError && (
+            <span className="smart-input__preview-name">{parsed.name}</span>
+          )}
+          {parsed.quantity && (
+            <span className="smart-input__preview-qty">{parsed.quantity}</span>
+          )}
+          {parsed.brand && (
+            <span className="smart-input__preview-tag">
+              <Tag size={13} /> {parsed.brand}
+            </span>
+          )}
+          {parsed.stores.map((s) => (
+            <span key={s} className="smart-input__preview-tag">
+              <Store size={13} /> {s}
+            </span>
           ))}
         </div>
       )}
@@ -172,12 +227,12 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
         {LEGEND_CHIPS.map(({ sigil, label }) => (
           <button
             key={sigil}
-            className={`smart-input__chip${sigil === '|' && inEanMode ? ' smart-input__chip--active' : ''}`}
+            className={`smart-input__chip${sigil === "|" && inEanMode ? " smart-input__chip--active" : ""}`}
             aria-label={`Añadir ${label}`}
             onClick={() => {
-              const newValue = sigilChipAction(value, sigil)
-              if (newValue !== null) onChange(newValue)
-              inputRef.current?.focus()
+              const newValue = sigilChipAction(value, sigil);
+              if (newValue !== null) onChange(newValue);
+              inputRef.current?.focus();
             }}
           >
             <b>{sigil}</b> {label}
@@ -194,7 +249,9 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
             type="button"
           >
             <Sparkles size={18} />
-            <span className="smart-input__due-badge">{dueSuggestionsCount}</span>
+            <span className="smart-input__due-badge">
+              {dueSuggestionsCount}
+            </span>
           </button>
         )}
         <input
@@ -202,15 +259,20 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
           type="text"
           ref={inputRef}
           value={value}
-          onChange={e => onChange(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && hasName && !inEanMode) onSubmit() }}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && hasName && !inEanMode) onSubmit();
+          }}
           placeholder="Añadir producto…"
           aria-label="Añadir producto"
         />
         {value ? (
           <button
             className="smart-input__clear"
-            onClick={() => { onClear(); inputRef.current?.focus() }}
+            onClick={() => {
+              onClear();
+              inputRef.current?.focus();
+            }}
             aria-label="Borrar"
             type="button"
           >
@@ -237,5 +299,5 @@ export function SmartInputBar({ value, parsed, items, suggestions, onChange, onS
         </button>
       </div>
     </div>
-  )
+  );
 }

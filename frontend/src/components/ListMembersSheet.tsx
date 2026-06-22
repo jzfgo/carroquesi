@@ -1,115 +1,128 @@
-import { Crown, Link2 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
-import { ApiError, createOpenInvite, getListMembers, removeMember } from '../lib/api'
-import './ListMembersSheet.css'
-import { Toast } from './Toast'
+import { Crown, Link2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
+import {
+  ApiError,
+  createOpenInvite,
+  getListMembers,
+  removeMember,
+} from "../lib/api";
+import "./ListMembersSheet.css";
+import { Toast } from "./Toast";
 
 export interface BackendMember {
-  id: string
-  user_id: string
-  list_id: string
-  display_name: string
-  photo_url: string | null
-  created_at: string
+  id: string;
+  user_id: string;
+  list_id: string;
+  display_name: string;
+  photo_url: string | null;
+  created_at: string;
 }
 
 interface Props {
-  listId: string
-  currentUserId: string
-  isOwner: boolean
-  onClose: () => void
+  listId: string;
+  currentUserId: string;
+  isOwner: boolean;
+  onClose: () => void;
 }
 
-type LoadState = 'loading' | 'error' | 'ready'
+type LoadState = "loading" | "error" | "ready";
 
-const MAX_MEMBERS = 5
+const MAX_MEMBERS = 5;
 
-export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Props) {
-  const { getToken } = useAuth()
-  const [loadState, setLoadState] = useState<LoadState>('loading')
-  const [members, setMembers] = useState<BackendMember[]>([])
-  const [inviteLimitReached, setInviteLimitReached] = useState(false)
-  const [fallbackUrl, setFallbackUrl] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
-  const sheetRef = useRef<HTMLDivElement>(null)
-  const swipe = useSwipeToDismiss(sheetRef, onClose)
+export function ListMembersSheet({
+  listId,
+  currentUserId,
+  isOwner,
+  onClose,
+}: Props) {
+  const { getToken } = useAuth();
+  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [members, setMembers] = useState<BackendMember[]>([]);
+  const [inviteLimitReached, setInviteLimitReached] = useState(false);
+  const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const swipe = useSwipeToDismiss(sheetRef, onClose);
 
   const load = useCallback(async () => {
-    setLoadState('loading')
+    setLoadState("loading");
     try {
-      const data = (await getListMembers(getToken, listId)) as BackendMember[]
-      setMembers(data)
-      setLoadState('ready')
+      const data = (await getListMembers(getToken, listId)) as BackendMember[];
+      setMembers(data);
+      setLoadState("ready");
     } catch {
-      setLoadState('error')
+      setLoadState("error");
     }
-  }, [getToken, listId])
+  }, [getToken, listId]);
 
   useEffect(() => {
     void (async () => {
-      setLoadState('loading')
+      setLoadState("loading");
       try {
-        const data = (await getListMembers(getToken, listId)) as BackendMember[]
-        setMembers(data)
-        setLoadState('ready')
+        const data = (await getListMembers(
+          getToken,
+          listId,
+        )) as BackendMember[];
+        setMembers(data);
+        setLoadState("ready");
       } catch {
-        setLoadState('error')
+        setLoadState("error");
       }
-    })()
-  }, [getToken, listId])
+    })();
+  }, [getToken, listId]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === "Escape") onClose();
     }
 
     function handleClickOutside(e: MouseEvent) {
       if (sheetRef.current && !sheetRef.current.contains(e.target as Node)) {
-        onClose()
+        onClose();
       }
     }
 
-    document.addEventListener('keydown', onKeyDown)
-    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('keydown', onKeyDown)
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [onClose])
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
 
   async function handleRemove(userId: string) {
-    const snapshot = members
-    setMembers(prev => prev.filter(m => m.user_id !== userId))
+    const snapshot = members;
+    setMembers((prev) => prev.filter((m) => m.user_id !== userId));
     try {
-      await removeMember(getToken, listId, userId)
+      await removeMember(getToken, listId, userId);
     } catch {
-      setMembers(snapshot)
-      setToast('No se pudo eliminar el miembro')
+      setMembers(snapshot);
+      setToast("No se pudo eliminar el miembro");
     }
   }
 
   async function handleCopyInvite() {
-    setInviteLimitReached(false)
-    setFallbackUrl(null)
+    setInviteLimitReached(false);
+    setFallbackUrl(null);
     try {
-      const data = (await createOpenInvite(getToken, listId)) as { id: string }
-      const url = `${window.location.origin}/i/${data.id}`
+      const data = (await createOpenInvite(getToken, listId)) as { id: string };
+      const url = `${window.location.origin}/i/${data.id}`;
       try {
-        await navigator.clipboard.writeText(url)
-        setToast('Enlace copiado')
+        await navigator.clipboard.writeText(url);
+        setToast("Enlace copiado");
       } catch {
-        setFallbackUrl(url)
+        setFallbackUrl(url);
       }
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
-        setInviteLimitReached(true)
+        setInviteLimitReached(true);
       }
     }
   }
 
-  const listFull = members.length >= MAX_MEMBERS
+  const listFull = members.length >= MAX_MEMBERS;
 
   return (
     <>
@@ -123,7 +136,7 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
       >
         <div className="list-members-sheet__handle" {...swipe} />
 
-        {loadState === 'loading' && (
+        {loadState === "loading" && (
           <span
             className="list-members-sheet__spinner"
             role="status"
@@ -131,7 +144,7 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
           />
         )}
 
-        {loadState === 'error' && (
+        {loadState === "error" && (
           <div className="list-members-sheet__error">
             <span>No se pudieron cargar los miembros</span>
             <button
@@ -143,23 +156,28 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
           </div>
         )}
 
-        {loadState === 'ready' && (
+        {loadState === "ready" && (
           <>
             <p className="list-members-sheet__section-title">
               Miembros · {members.length}
             </p>
 
-            {members.map(member => {
-              const isCurrentUser = member.user_id === currentUserId
-              const isOwnerRow = isCurrentUser && isOwner
+            {members.map((member) => {
+              const isCurrentUser = member.user_id === currentUserId;
+              const isOwnerRow = isCurrentUser && isOwner;
 
               return (
-                <div key={member.user_id} className="list-members-sheet__member-row">
+                <div
+                  key={member.user_id}
+                  className="list-members-sheet__member-row"
+                >
                   <div className="list-members-sheet__avatar">
                     {member.photo_url ? (
                       <img src={member.photo_url} alt={member.display_name} />
                     ) : (
-                      <span>{member.display_name?.[0]?.toUpperCase() ?? '?'}</span>
+                      <span>
+                        {member.display_name?.[0]?.toUpperCase() ?? "?"}
+                      </span>
                     )}
                   </div>
                   <span className="list-members-sheet__member-name">
@@ -189,7 +207,7 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
                     </button>
                   )}
                 </div>
-              )
+              );
             })}
 
             {!listFull && (
@@ -201,7 +219,7 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
                     readOnly
                     value={fallbackUrl}
                     aria-label="Enlace de invitación"
-                    onFocus={e => e.target.select()}
+                    onFocus={(e) => e.target.select()}
                   />
                 ) : (
                   <button
@@ -214,7 +232,8 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
                 )}
                 {inviteLimitReached && (
                   <p className="list-members-sheet__invite-limit">
-                    Límite de invitaciones alcanzado. Espera a que expiren o sean aceptadas.
+                    Límite de invitaciones alcanzado. Espera a que expiren o
+                    sean aceptadas.
                   </p>
                 )}
               </>
@@ -225,5 +244,5 @@ export function ListMembersSheet({ listId, currentUserId, isOwner, onClose }: Pr
         {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
       </div>
     </>
-  )
+  );
 }

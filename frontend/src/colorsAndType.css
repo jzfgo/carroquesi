@@ -201,12 +201,9 @@
     --miel-border: rgb(230 197 106 / 36%);
     --highlight-yellow: rgb(230 197 106 / 28%);
     --highlight-green: rgb(123 198 139 / 22%);
-    --shadow-sm:
-      0 1px 1px rgb(0 0 0 / 30%), 0 2px 6px -2px rgb(0 0 0 / 45%);
-    --shadow-md:
-      0 1px 2px rgb(0 0 0 / 35%), 0 8px 18px -4px rgb(0 0 0 / 55%);
-    --shadow-lg:
-      0 2px 4px rgb(0 0 0 / 40%), 0 18px 36px -8px rgb(0 0 0 / 65%);
+    --shadow-sm: 0 1px 1px rgb(0 0 0 / 30%), 0 2px 6px -2px rgb(0 0 0 / 45%);
+    --shadow-md: 0 1px 2px rgb(0 0 0 / 35%), 0 8px 18px -4px rgb(0 0 0 / 55%);
+    --shadow-lg: 0 2px 4px rgb(0 0 0 / 40%), 0 18px 36px -8px rgb(0 0 0 / 65%);
     --shadow-sheet:
       0 -2px 4px rgb(0 0 0 / 30%), 0 -18px 40px -6px rgb(0 0 0 / 55%);
     --focus-ring: 0 0 0 3px rgb(145 168 255 / 40%);
@@ -302,10 +299,8 @@
   --miel-border: rgb(230 197 106 / 36%);
   --highlight-yellow: rgb(230 197 106 / 28%);
   --shadow-sm: 0 1px 1px rgb(0 0 0 / 30%), 0 2px 6px -2px rgb(0 0 0 / 45%);
-  --shadow-md:
-    0 1px 2px rgb(0 0 0 / 35%), 0 8px 18px -4px rgb(0 0 0 / 55%);
-  --shadow-lg:
-    0 2px 4px rgb(0 0 0 / 40%), 0 18px 36px -8px rgb(0 0 0 / 65%);
+  --shadow-md: 0 1px 2px rgb(0 0 0 / 35%), 0 8px 18px -4px rgb(0 0 0 / 55%);
+  --shadow-lg: 0 2px 4px rgb(0 0 0 / 40%), 0 18px 36px -8px rgb(0 0 0 / 65%);
   --shadow-sheet:
     0 -2px 4px rgb(0 0 0 / 30%), 0 -18px 40px -6px rgb(0 0 0 / 55%);
   --focus-ring: 0 0 0 3px rgb(145 168 255 / 40%);

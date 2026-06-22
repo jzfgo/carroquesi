@@ -23,9 +23,9 @@ const mockResult: ReceiptScanResult = {
       item_id: "item-2",
       item_name: "Bacon lonchas",
       price_type: "KILOGRAM",
-      unit_price: 11.40,
+      unit_price: 11.4,
       quantity: 0.202,
-      line_total: 2.30,
+      line_total: 2.3,
     },
     {
       receipt_name: "YOGUR NATURAL",
@@ -49,10 +49,38 @@ const mockResult: ReceiptScanResult = {
 };
 
 const mockPurchasedItems = [
-  { id: "item-1", name: "Bebida de almendra 0% azúcares", purchased_at: "2026-04-11T15:00:00", brand: null, stores: ["Mercadona"], quantity: null },
-  { id: "item-2", name: "Bacon lonchas", purchased_at: "2026-04-11T15:00:00", brand: null, stores: ["Mercadona"], quantity: null },
-  { id: "item-3", name: "Yogur natural", purchased_at: "2026-04-11T15:00:00", brand: null, stores: [], quantity: null },
-  { id: "item-4", name: "Maní dulce", purchased_at: "2026-04-10T12:00:00", brand: null, stores: [], quantity: null },
+  {
+    id: "item-1",
+    name: "Bebida de almendra 0% azúcares",
+    purchased_at: "2026-04-11T15:00:00",
+    brand: null,
+    stores: ["Mercadona"],
+    quantity: null,
+  },
+  {
+    id: "item-2",
+    name: "Bacon lonchas",
+    purchased_at: "2026-04-11T15:00:00",
+    brand: null,
+    stores: ["Mercadona"],
+    quantity: null,
+  },
+  {
+    id: "item-3",
+    name: "Yogur natural",
+    purchased_at: "2026-04-11T15:00:00",
+    brand: null,
+    stores: [],
+    quantity: null,
+  },
+  {
+    id: "item-4",
+    name: "Maní dulce",
+    purchased_at: "2026-04-10T12:00:00",
+    brand: null,
+    stores: [],
+    quantity: null,
+  },
 ];
 
 function renderSheet(overrides: Partial<ReceiptScanResult> = {}) {
@@ -66,7 +94,7 @@ function renderSheet(overrides: Partial<ReceiptScanResult> = {}) {
       store="Mercadona"
       onConfirm={onConfirm}
       onClose={onClose}
-    />
+    />,
   );
   return { onConfirm, onClose };
 }
@@ -159,7 +187,7 @@ describe("ReceiptScanSheet", () => {
         store="Mercadona"
         onConfirm={vi.fn()}
         onClose={vi.fn()}
-      />
+      />,
     );
     const checkboxes = screen.getAllByRole("checkbox");
     fireEvent.click(checkboxes[0]); // uncheck first
@@ -174,17 +202,21 @@ describe("ReceiptScanSheet", () => {
     const [patches] = onConfirm.mock.calls[0];
     expect(patches).toHaveLength(3); // 3 matched, 0 unmatched linked
 
-    const unit = patches.find((p: { item_id: string }) => p.item_id === "item-1");
+    const unit = patches.find(
+      (p: { item_id: string }) => p.item_id === "item-1",
+    );
     expect(unit.price).toBe(1.15);
     expect(unit.price_per).toBeNull();
     expect(unit.quantity).toBe("1");
 
     const kg = patches.find((p: { item_id: string }) => p.item_id === "item-2");
-    expect(kg.price).toBeCloseTo(11.40);
+    expect(kg.price).toBeCloseTo(11.4);
     expect(kg.price_per).toBe("KILOGRAM");
     expect(kg.quantity).toBe("202g");
 
-    const multi = patches.find((p: { item_id: string }) => p.item_id === "item-3");
+    const multi = patches.find(
+      (p: { item_id: string }) => p.item_id === "item-3",
+    );
     expect(multi.price).toBeCloseTo(0.95);
     expect(multi.price_per).toBeNull();
     expect(multi.quantity).toBe("3");
@@ -213,7 +245,7 @@ describe("ReceiptScanSheet", () => {
         store="Mercadona"
         onConfirm={vi.fn()}
         onClose={vi.fn()}
-      />
+      />,
     );
     expect(screen.getByText(/coincide/)).toBeInTheDocument();
   });

@@ -3,7 +3,13 @@ import { useRef, useState } from "react";
 import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
 import { formatPrice } from "../lib/formatPrice";
 import { parseQuantityFactor, purchasedDateLabel } from "../lib/itemCost";
-import type { MatchedLine, NameMapping, PricePatch, ReceiptScanResult, UnmatchedLine } from "../types";
+import type {
+  MatchedLine,
+  NameMapping,
+  PricePatch,
+  ReceiptScanResult,
+  UnmatchedLine,
+} from "../types";
 import "./ReceiptScanSheet.css";
 
 interface PurchasedItemRef {
@@ -63,7 +69,10 @@ function initState(result: ReceiptScanResult): LineState[] {
 }
 
 function formatQtySummary(ls: LineState): string {
-  const price = ls.unitPrice.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const price = ls.unitPrice.toLocaleString("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   const unit = ls.pricePer === "KILOGRAM" ? "€/kg" : "€/ud";
   const sep = ls.pricePer === "KILOGRAM" ? " × " : "× ";
   return `${ls.quantity}${sep}${price} ${unit}`;
@@ -74,7 +83,9 @@ function computeLineTotal(ls: LineState): number {
   return factor !== null ? ls.unitPrice * factor : ls.unitPrice;
 }
 
-function groupItemsByDate(items: PurchasedItemRef[]): { label: string; items: PurchasedItemRef[] }[] {
+function groupItemsByDate(
+  items: PurchasedItemRef[],
+): { label: string; items: PurchasedItemRef[] }[] {
   const sorted = [...items].sort((a, b) => {
     if (!a.purchased_at) return 1;
     if (!b.purchased_at) return -1;
@@ -93,9 +104,20 @@ function groupItemsByDate(items: PurchasedItemRef[]): { label: string; items: Pu
   return groups;
 }
 
-export default function ReceiptScanSheet({ result, purchasedItems, store, onConfirm, onClose }: Props) {
-  const allLines: (MatchedLine | UnmatchedLine)[] = [...result.matched, ...result.unmatched];
-  const [lineStates, setLineStates] = useState<LineState[]>(() => initState(result));
+export default function ReceiptScanSheet({
+  result,
+  purchasedItems,
+  store,
+  onConfirm,
+  onClose,
+}: Props) {
+  const allLines: (MatchedLine | UnmatchedLine)[] = [
+    ...result.matched,
+    ...result.unmatched,
+  ];
+  const [lineStates, setLineStates] = useState<LineState[]>(() =>
+    initState(result),
+  );
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const sheetRef = useRef<HTMLDivElement>(null);
   const swipe = useSwipeToDismiss(sheetRef, onClose);
@@ -104,13 +126,19 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
   const allChecked = checkedCount === lineStates.length;
 
   function updateLine(index: number, patch: Partial<LineState>) {
-    setLineStates((prev) => prev.map((ls, i) => (i === index ? { ...ls, ...patch } : ls)));
+    setLineStates((prev) =>
+      prev.map((ls, i) => (i === index ? { ...ls, ...patch } : ls)),
+    );
   }
 
   function toggleExpanded(index: number) {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(index)) { next.delete(index); } else { next.add(index); }
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
       return next;
     });
   }
@@ -121,10 +149,14 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
   }
 
   // Prevent the same item from being linked to multiple rows
-  const linkedItemIds = new Set(lineStates.map((ls) => ls.itemId).filter(Boolean) as string[]);
+  const linkedItemIds = new Set(
+    lineStates.map((ls) => ls.itemId).filter(Boolean) as string[],
+  );
   function availableItems(currentIndex: number): PurchasedItemRef[] {
     return purchasedItems.filter(
-      (item) => !linkedItemIds.has(item.id) || lineStates[currentIndex].itemId === item.id
+      (item) =>
+        !linkedItemIds.has(item.id) ||
+        lineStates[currentIndex].itemId === item.id,
     );
   }
 
@@ -136,36 +168,42 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
   const diff = receiptTotal != null ? selectedTotal - receiptTotal : null;
 
   function handleConfirm() {
-    const patches: PricePatch[] = lineStates
-      .flatMap((ls) => {
-        if (!ls.included || !ls.itemId) return [];
-        return [{
+    const patches: PricePatch[] = lineStates.flatMap((ls) => {
+      if (!ls.included || !ls.itemId) return [];
+      return [
+        {
           item_id: ls.itemId,
           price: ls.unitPrice,
           price_per: ls.pricePer,
           store,
           quantity: ls.quantity,
-        }];
-      });
+        },
+      ];
+    });
 
-    const mappings: NameMapping[] = lineStates
-      .flatMap((ls, i) => {
-        if (!ls.included || !ls.itemId || !store) return [];
-        const item = purchasedItems.find((p) => p.id === ls.itemId);
-        if (!item) return [];
-        return [{
+    const mappings: NameMapping[] = lineStates.flatMap((ls, i) => {
+      if (!ls.included || !ls.itemId || !store) return [];
+      const item = purchasedItems.find((p) => p.id === ls.itemId);
+      if (!item) return [];
+      return [
+        {
           store,
           receipt_name: allLines[i].receipt_name.toLowerCase(),
           item_name: item.name,
           item_brand: null,
-        }];
-      });
+        },
+      ];
+    });
 
     onConfirm(patches, mappings);
   }
 
   const formattedDate = result.receipt_date
-    ? new Date(result.receipt_date).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })
+    ? new Date(result.receipt_date).toLocaleDateString("es-ES", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
     : null;
 
   return (
@@ -178,11 +216,25 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
             Ticket escaneado
             {store && <span className="store-badge">{store}</span>}
           </div>
-          <button className="sheet-close-btn" onClick={onClose} aria-label="Cerrar"><X size={18} /></button>
+          <button
+            className="sheet-close-btn"
+            onClick={onClose}
+            aria-label="Cerrar"
+          >
+            <X size={18} />
+          </button>
         </div>
         <div className="sheet-meta">
-          {formattedDate && <span><Calendar size={13} /> {formattedDate}</span>}
-          {receiptTotal != null && <span><Coins size={13} /> {formatPrice(receiptTotal)}</span>}
+          {formattedDate && (
+            <span>
+              <Calendar size={13} /> {formattedDate}
+            </span>
+          )}
+          {receiptTotal != null && (
+            <span>
+              <Coins size={13} /> {formatPrice(receiptTotal)}
+            </span>
+          )}
         </div>
       </div>
 
@@ -203,7 +255,10 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
           const linkedItem = purchasedItems.find((p) => p.id === ls.itemId);
 
           return (
-            <div key={i} className={`rss-row${ls.included ? " checked" : ""}${isExpanded ? " expanded" : ""}`}>
+            <div
+              key={i}
+              className={`rss-row${ls.included ? " checked" : ""}${isExpanded ? " expanded" : ""}`}
+            >
               <div className="rss-summary" onClick={() => toggleExpanded(i)}>
                 <input
                   type="checkbox"
@@ -223,8 +278,12 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
                   <div className="rss-qty-summary">{formatQtySummary(ls)}</div>
                 </div>
                 <div className="rss-right">
-                  <div className="rss-total">{formatPrice(computeLineTotal(ls))}</div>
-                  <div className="rss-edit-icon"><Pencil size={14} /></div>
+                  <div className="rss-total">
+                    {formatPrice(computeLineTotal(ls))}
+                  </div>
+                  <div className="rss-edit-icon">
+                    <Pencil size={14} />
+                  </div>
                 </div>
               </div>
 
@@ -246,7 +305,9 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
                     {itemGroups.map((group) => (
                       <optgroup key={group.label} label={group.label}>
                         {group.items.map((item) => (
-                          <option key={item.id} value={item.id}>{item.name}</option>
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
                         ))}
                       </optgroup>
                     ))}
@@ -261,7 +322,9 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
                       type="text"
                       value={ls.quantity}
                       placeholder="ej. 500g"
-                      onChange={(e) => updateLine(i, { quantity: e.target.value })}
+                      onChange={(e) =>
+                        updateLine(i, { quantity: e.target.value })
+                      }
                     />
                     <span className="rss-sep">×</span>
                     <span className="rss-euro">€</span>
@@ -271,19 +334,27 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
                       value={ls.unitPrice}
                       step="0.01"
                       min="0"
-                      onChange={(e) => updateLine(i, { unitPrice: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        updateLine(i, {
+                          unitPrice: parseFloat(e.target.value) || 0,
+                        })
+                      }
                     />
                     <div className="rss-unit-toggle">
                       <button
                         type="button"
                         className={`rss-unit-btn${ls.pricePer === null ? " rss-unit-btn--active" : ""}`}
                         onClick={() => updateLine(i, { pricePer: null })}
-                      >/ud</button>
+                      >
+                        /ud
+                      </button>
                       <button
                         type="button"
                         className={`rss-unit-btn${ls.pricePer === "KILOGRAM" ? " rss-unit-btn--active" : ""}`}
                         onClick={() => updateLine(i, { pricePer: "KILOGRAM" })}
-                      >/kg</button>
+                      >
+                        /kg
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -297,14 +368,21 @@ export default function ReceiptScanSheet({ result, purchasedItems, store, onConf
         <div className="rss-footer-totals">
           <div>
             <span>Seleccionado </span>
-            <span className="rss-footer-selected">{formatPrice(selectedTotal)}</span>
-            {diff !== null && checkedCount > 0 && (
-              Math.abs(diff) < 0.02
-                ? <span className="rss-footer-match"><Check size={12} /> coincide</span>
-                : <span className="rss-footer-diff">
-                  ({diff > 0 ? "+" : "−"}{formatPrice(Math.abs(diff)).replace(" ", "")})
+            <span className="rss-footer-selected">
+              {formatPrice(selectedTotal)}
+            </span>
+            {diff !== null &&
+              checkedCount > 0 &&
+              (Math.abs(diff) < 0.02 ? (
+                <span className="rss-footer-match">
+                  <Check size={12} /> coincide
                 </span>
-            )}
+              ) : (
+                <span className="rss-footer-diff">
+                  ({diff > 0 ? "+" : "−"}
+                  {formatPrice(Math.abs(diff)).replace(" ", "")})
+                </span>
+              ))}
           </div>
           {receiptTotal != null && (
             <span>Ticket {formatPrice(receiptTotal)}</span>

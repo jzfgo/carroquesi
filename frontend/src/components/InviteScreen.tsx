@@ -1,83 +1,93 @@
-import { ShoppingCart } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-import { usePageTitle } from '../hooks/usePageTitle'
-import { acceptInvite, ApiError, getInvitePreview } from '../lib/api'
-import './InviteScreen.css'
-import { Mascot } from './Mascot'
-import { WaitlistScreen } from './WaitlistScreen'
+import { ShoppingCart } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { usePageTitle } from "../hooks/usePageTitle";
+import { acceptInvite, ApiError, getInvitePreview } from "../lib/api";
+import "./InviteScreen.css";
+import { Mascot } from "./Mascot";
+import { WaitlistScreen } from "./WaitlistScreen";
 
-type ScreenState = 'loading' | 'preview' | 'accepting' | 'error'
+type ScreenState = "loading" | "preview" | "accepting" | "error";
 
 interface Preview {
-  id: string
-  list_name: string
-  list_emoji: string | null
-  invited_by_name: string | null
+  id: string;
+  list_name: string;
+  list_emoji: string | null;
+  invited_by_name: string | null;
 }
 
 const ERROR_MESSAGES: Record<number, string> = {
-  403: 'Esta invitación es para otra cuenta',
-  404: 'Esta invitación no existe',
-  409: 'La lista ya está llena',
-  410: 'Esta invitación ha expirado',
-}
+  403: "Esta invitación es para otra cuenta",
+  404: "Esta invitación no existe",
+  409: "La lista ya está llena",
+  410: "Esta invitación ha expirado",
+};
 
 export function InviteScreen() {
-  const { id: inviteId } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const { user, getToken, signIn, loading: authLoading, isWaitlisted } = useAuth()
-  const [screenState, setScreenState] = useState<ScreenState>('loading')
-  const [preview, setPreview] = useState<Preview | null>(null)
-  usePageTitle(preview ? `Invitación — ${preview.list_name}` : 'Invitación')
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [isNetworkError, setIsNetworkError] = useState(false)
-  const [retryCount, setRetryCount] = useState(0)
-  const pendingAcceptRef = useRef(false)
+  const { id: inviteId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const {
+    user,
+    getToken,
+    signIn,
+    loading: authLoading,
+    isWaitlisted,
+  } = useAuth();
+  const [screenState, setScreenState] = useState<ScreenState>("loading");
+  const [preview, setPreview] = useState<Preview | null>(null);
+  usePageTitle(preview ? `Invitación — ${preview.list_name}` : "Invitación");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isNetworkError, setIsNetworkError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const pendingAcceptRef = useRef(false);
 
   useEffect(() => {
-    if (!inviteId) return
+    if (!inviteId) return;
     void (async () => {
-      setScreenState('loading')
-      setIsNetworkError(false)
+      setScreenState("loading");
+      setIsNetworkError(false);
       try {
-        const data = await getInvitePreview(inviteId)
-        setPreview(data)
-        setScreenState('preview')
+        const data = await getInvitePreview(inviteId);
+        setPreview(data);
+        setScreenState("preview");
       } catch (err) {
         if (err instanceof ApiError) {
-          setErrorMessage(ERROR_MESSAGES[err.status] ?? 'No se pudo conectar. Inténtalo de nuevo.')
-          setIsNetworkError(false)
+          setErrorMessage(
+            ERROR_MESSAGES[err.status] ??
+              "No se pudo conectar. Inténtalo de nuevo.",
+          );
+          setIsNetworkError(false);
         } else {
-          setErrorMessage('No se pudo conectar. Inténtalo de nuevo.')
-          setIsNetworkError(true)
+          setErrorMessage("No se pudo conectar. Inténtalo de nuevo.");
+          setIsNetworkError(true);
         }
-        setScreenState('error')
+        setScreenState("error");
       }
-    })()
-  }, [inviteId, retryCount])
+    })();
+  }, [inviteId, retryCount]);
 
   // Auto-accept after sign-in completes (unauthenticated flow)
   useEffect(() => {
-    if (authLoading || !user || !pendingAcceptRef.current || !inviteId) return
-    pendingAcceptRef.current = false
+    if (authLoading || !user || !pendingAcceptRef.current || !inviteId) return;
+    pendingAcceptRef.current = false;
     void (async () => {
-      setScreenState('accepting')
+      setScreenState("accepting");
       try {
-        const data = await acceptInvite(getToken, inviteId)
-        navigate(`/lists/${data.list_id}`)
+        const data = await acceptInvite(getToken, inviteId);
+        navigate(`/lists/${data.list_id}`);
       } catch (err) {
         setErrorMessage(
           err instanceof ApiError
-            ? (ERROR_MESSAGES[err.status] ?? 'No se pudo conectar. Inténtalo de nuevo.')
-            : 'No se pudo conectar. Inténtalo de nuevo.'
-        )
-        setIsNetworkError(!(err instanceof ApiError))
-        setScreenState('error')
+            ? (ERROR_MESSAGES[err.status] ??
+                "No se pudo conectar. Inténtalo de nuevo.")
+            : "No se pudo conectar. Inténtalo de nuevo.",
+        );
+        setIsNetworkError(!(err instanceof ApiError));
+        setScreenState("error");
       }
-    })()
-  }, [authLoading, user, inviteId, getToken, navigate])
+    })();
+  }, [authLoading, user, inviteId, getToken, navigate]);
 
   if (isWaitlisted) {
     return (
@@ -86,48 +96,49 @@ export function InviteScreen() {
         inviterName={preview?.invited_by_name ?? undefined}
         listName={preview?.list_name ?? undefined}
       />
-    )
+    );
   }
 
   async function handleAccept() {
-    if (!inviteId) return
+    if (!inviteId) return;
     if (!user) {
-      pendingAcceptRef.current = true
+      pendingAcceptRef.current = true;
       try {
-        await signIn()
+        await signIn();
       } catch {
-        pendingAcceptRef.current = false
+        pendingAcceptRef.current = false;
       }
-      return
+      return;
     }
-    setScreenState('accepting')
+    setScreenState("accepting");
     try {
-      const data = await acceptInvite(getToken, inviteId)
-      navigate(`/lists/${data.list_id}`)
+      const data = await acceptInvite(getToken, inviteId);
+      navigate(`/lists/${data.list_id}`);
     } catch (err) {
       setErrorMessage(
         err instanceof ApiError
-          ? (ERROR_MESSAGES[err.status] ?? 'No se pudo conectar. Inténtalo de nuevo.')
-          : 'No se pudo conectar. Inténtalo de nuevo.'
-      )
-      setIsNetworkError(!(err instanceof ApiError))
-      setScreenState('error')
+          ? (ERROR_MESSAGES[err.status] ??
+              "No se pudo conectar. Inténtalo de nuevo.")
+          : "No se pudo conectar. Inténtalo de nuevo.",
+      );
+      setIsNetworkError(!(err instanceof ApiError));
+      setScreenState("error");
     }
   }
 
-  if (screenState === 'loading' || screenState === 'accepting') {
+  if (screenState === "loading" || screenState === "accepting") {
     return (
       <div
         className="invite-screen"
         role="status"
-        aria-label={screenState === 'accepting' ? 'Uniéndose' : 'Cargando'}
+        aria-label={screenState === "accepting" ? "Uniéndose" : "Cargando"}
       >
         <span className="invite-screen__spinner" />
       </div>
-    )
+    );
   }
 
-  if (screenState === 'error') {
+  if (screenState === "error") {
     return (
       <div className="invite-screen">
         <div className="invite-screen__card">
@@ -135,30 +146,39 @@ export function InviteScreen() {
           {isNetworkError && (
             <button
               className="invite-screen__btn"
-              onClick={() => setRetryCount(c => c + 1)}
+              onClick={() => setRetryCount((c) => c + 1)}
             >
               Reintentar
             </button>
           )}
-          <Link to="/" className="invite-screen__home-link">Ir al inicio →</Link>
+          <Link to="/" className="invite-screen__home-link">
+            Ir al inicio →
+          </Link>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <div className="invite-screen">
       <Mascot size={100} />
       <div className="invite-screen__card">
-        <div className="invite-screen__icon">{preview?.list_emoji ?? <ShoppingCart size={32} />}</div>
+        <div className="invite-screen__icon">
+          {preview?.list_emoji ?? <ShoppingCart size={32} />}
+        </div>
         <h1 className="invite-screen__list-name">{preview?.list_name}</h1>
         {preview?.invited_by_name && (
-          <p className="invite-screen__inviter">Invitado por {preview.invited_by_name}</p>
+          <p className="invite-screen__inviter">
+            Invitado por {preview.invited_by_name}
+          </p>
         )}
-        <button className="invite-screen__btn" onClick={() => void handleAccept()}>
-          {user ? 'Unirse a la lista' : 'Iniciar sesión para unirse'}
+        <button
+          className="invite-screen__btn"
+          onClick={() => void handleAccept()}
+        >
+          {user ? "Unirse a la lista" : "Iniciar sesión para unirse"}
         </button>
       </div>
     </div>
-  )
+  );
 }
