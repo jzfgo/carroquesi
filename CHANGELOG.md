@@ -7,16 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.19.1] — 2026-06-22
 
 ### Fixed
 - Exclude unit-suffixed quantities from avg_quantity in due suggestions (#87)
 
 - Allow text input in quantity field on mobile (#88)
-
-- Mock firebase module in tests that transitively import it
-
-- Typo in justfile format recipe comments (Fornat → Format)
 
 
 ---
