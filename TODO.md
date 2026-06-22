@@ -6,8 +6,6 @@
 
 ## Bugs / Known Issues
 
-- [ ] **LogPriceSheet — quantity field blocks text input on mobile** — the quantity field when adding or updating a price only accepts numbers on mobile (likely `type="number"` or `inputmode="numeric"`), preventing unit input (e.g. "kg", "500g", "2 l"). Field should accept alphanumeric input.
-
 ---
 
 ## Features (Backlog)
