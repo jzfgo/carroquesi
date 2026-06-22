@@ -102,7 +102,6 @@ export default function LogPurchaseSheet({
           <input
             className="lps__qty-input"
             type="text"
-            inputMode="decimal"
             placeholder={item.quantity ?? 'ej. 3'}
             value={purchasedQtyStr}
             onChange={e => setPurchasedQtyStr(e.target.value)}
