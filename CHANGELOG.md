@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Exclude unit-suffixed quantities from avg_quantity in due suggestions (#87)
 
+- Allow text input in quantity field on mobile
+
 
 ---
 ## [0.19.0] — 2026-06-18
