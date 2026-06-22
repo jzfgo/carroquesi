@@ -32,7 +32,7 @@ def get_members(
             user_id=member.user_id,
             list_id=member.list_id,
             created_at=member.created_at,
-            display_name=user.display_name or user.email.split('@')[0],
+            display_name=user.display_name or user.email.split("@")[0],
             photo_url=user.photo_url,
         )
         for member, user in results

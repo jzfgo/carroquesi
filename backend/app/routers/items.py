@@ -74,7 +74,7 @@ def update_item(
     if item is None or item.list_id != lst.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
     data = body.model_dump(exclude_unset=True)
-    purchased = data.pop('purchased', None)
+    purchased = data.pop("purchased", None)
     for field, value in data.items():
         setattr(item, field, value)
     if purchased is True and item.purchased_at is None:

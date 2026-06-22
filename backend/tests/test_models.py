@@ -24,6 +24,7 @@ def test_price_cache_instantiation():
 
 def test_list_item_has_price_fields():
     from app.db.models import ListItem
+
     item = ListItem(
         list_id="list-1",
         name="Leche",
@@ -39,7 +40,8 @@ def test_list_item_has_price_fields():
 
 def test_price_record_does_not_exist():
     import app.db.models as m
-    assert not hasattr(m, 'PriceRecord')
+
+    assert not hasattr(m, "PriceRecord")
 
 
 def test_feedback_submission_fields():

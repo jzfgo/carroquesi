@@ -8,15 +8,14 @@ Usage:
 The user must refresh their Firebase ID token before the claim takes effect.
 Firebase caches tokens for up to 1 hour.
 """
+
 import sys
 from pathlib import Path
 
 import firebase_admin
 from firebase_admin import auth, credentials
 
-cred = credentials.Certificate(
-    Path(__file__).parent.parent / "firebase-credentials.json"
-)
+cred = credentials.Certificate(Path(__file__).parent.parent / "firebase-credentials.json")
 firebase_admin.initialize_app(cred)
 
 uid = sys.argv[1]

@@ -20,4 +20,3 @@ class WaitlistSignup(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
     allowed_at: datetime | None = Field(default=None, nullable=True)
     invite_token: str | None = Field(default=None, nullable=True)
-

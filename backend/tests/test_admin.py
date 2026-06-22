@@ -31,9 +31,7 @@ def test_patch_features_requires_admin(client: TestClient, other_user: User):
     assert response.status_code == 403
 
 
-def test_patch_features_enables_flag(
-    admin_client: TestClient, session: Session, user: User
-):
+def test_patch_features_enables_flag(admin_client: TestClient, session: Session, user: User):
     response = admin_client.patch(
         f"/admin/users/{user.id}/features",
         json={"feature": "ai_receipt_scanning", "enabled": True},
@@ -52,11 +50,11 @@ def test_patch_features_enables_flag(
     assert row.enabled is True
 
 
-def test_patch_features_disables_flag(
-    admin_client: TestClient, session: Session, user: User
-):
+def test_patch_features_disables_flag(admin_client: TestClient, session: Session, user: User):
     session.add(
-        UserFeature(user_id=user.id, feature="ai_receipt_scanning", enabled=True, granted_by="admin")
+        UserFeature(
+            user_id=user.id, feature="ai_receipt_scanning", enabled=True, granted_by="admin"
+        )
     )
     session.commit()
 
@@ -91,9 +89,7 @@ def test_patch_features_upserts_not_duplicates(
     assert rows[0].enabled is False
 
 
-def test_patch_features_unknown_flag_returns_422(
-    admin_client: TestClient, user: User
-):
+def test_patch_features_unknown_flag_returns_422(admin_client: TestClient, user: User):
     response = admin_client.patch(
         f"/admin/users/{user.id}/features",
         json={"feature": "unknown_flag", "enabled": True},

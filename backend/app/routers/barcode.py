@@ -77,7 +77,6 @@ def _fetch_product(ean: str) -> tuple[str, str | None, str | None] | None:
     return None
 
 
-
 @router.get("/barcode/{ean}", response_model=BarcodeRead)
 def get_barcode(
     ean: Annotated[str, Path(pattern=_EAN_PATTERN)],

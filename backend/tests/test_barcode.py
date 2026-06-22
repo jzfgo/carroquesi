@@ -148,6 +148,7 @@ def test_barcode_community_price_null_when_no_results(client: TestClient, httpx_
 
 def test_fetch_community_price_from_results_spanish_first():
     from app.services.community_price import _fetch_community_price_from_results
+
     results = [
         {"price": 1.0, "price_per": None, "location": {"osm_address_country_code": "ES"}},
         {"price": 2.0, "price_per": None, "location": {"osm_address_country_code": "ES"}},
@@ -160,6 +161,7 @@ def test_fetch_community_price_from_results_spanish_first():
 
 def test_fetch_community_price_from_results_fallback_to_eur():
     from app.services.community_price import _fetch_community_price_from_results
+
     results = [
         {"price": 3.0, "price_per": "UNIT", "location": {"osm_address_country_code": "FR"}},
         {"price": 5.0, "price_per": "UNIT", "location": {"osm_address_country_code": "DE"}},
@@ -171,6 +173,7 @@ def test_fetch_community_price_from_results_fallback_to_eur():
 
 def test_fetch_community_price_from_results_kilogram():
     from app.services.community_price import _fetch_community_price_from_results
+
     results = [
         {"price": 3.0, "price_per": "KILOGRAM", "location": {"osm_address_country_code": "ES"}},
         {"price": 5.0, "price_per": "KILOGRAM", "location": {"osm_address_country_code": "ES"}},
@@ -182,6 +185,7 @@ def test_fetch_community_price_from_results_kilogram():
 
 def test_fetch_community_price_from_results_discards_unknown_price_per():
     from app.services.community_price import _fetch_community_price_from_results
+
     results = [
         {"price": 1.0, "price_per": "LITER", "location": {"osm_address_country_code": "ES"}},
     ]

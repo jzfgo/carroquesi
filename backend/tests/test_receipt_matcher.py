@@ -63,9 +63,7 @@ def test_match_via_fuzzy(session):
 
 def test_unmatched_when_score_too_low(session):
     items = [_item("item-1", "Bebida de almendra")]
-    matched, unmatched = match_lines(
-        [_unit("XXXXXX ZZZZ", 9.99)], "Mercadona", items, session
-    )
+    matched, unmatched = match_lines([_unit("XXXXXX ZZZZ", 9.99)], "Mercadona", items, session)
     assert len(matched) == 0
     assert len(unmatched) == 1
     assert unmatched[0].receipt_name == "XXXXXX ZZZZ"
@@ -83,9 +81,7 @@ def test_mapping_lookup_takes_priority(session):
     session.commit()
 
     items = [_item("item-1", "Maní dulce"), _item("item-2", "Frutos secos mix")]
-    matched, unmatched = match_lines(
-        [_unit("MANI DULCE", 3.15)], "Mercadona", items, session
-    )
+    matched, unmatched = match_lines([_unit("MANI DULCE", 3.15)], "Mercadona", items, session)
     assert len(matched) == 1
     assert matched[0].item_id == "item-1"
 

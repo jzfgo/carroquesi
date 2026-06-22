@@ -32,6 +32,7 @@ def _fetch_community_price_from_results(
     Filters to Spanish prices first; falls back to all results if none found.
     Returns (None, None) if no usable results.
     """
+
     def _usable(r: dict) -> tuple[float, str | None] | None:
         mapped = _map_price_per(r.get("price_per"))
         if mapped == "DISCARD":

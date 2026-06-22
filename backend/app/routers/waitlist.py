@@ -48,6 +48,4 @@ def list_signups(
     current_admin: AdminUser,
     session: CurrentSession,
 ):
-    return session.exec(
-        select(WaitlistSignup).order_by(WaitlistSignup.created_at.desc())
-    ).all()
+    return session.exec(select(WaitlistSignup).order_by(WaitlistSignup.created_at.desc())).all()

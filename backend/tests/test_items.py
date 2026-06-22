@@ -26,7 +26,6 @@ def test_get_items(client: TestClient):
     assert len(response.json()) == 2
 
 
-
 def test_update_item_marks_purchased(client: TestClient):
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
@@ -37,6 +36,7 @@ def test_update_item_marks_purchased(client: TestClient):
 
 def test_delete_item(client: TestClient, session: Session):
     from app.db.models import ListItem
+
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "To Delete"}).json()
     response = client.delete(f"/lists/{lst['id']}/items/{item['id']}")
@@ -52,6 +52,7 @@ def test_non_member_cannot_add_item(other_client: TestClient, client: TestClient
 
 def test_add_item_bumps_updated_at(client: TestClient, session: Session):
     from app.db.models import List
+
     lst = _create_list(client)
     old_updated_at = session.get(List, lst["id"]).updated_at
     client.post(f"/lists/{lst['id']}/items", json={"name": "Tomato"})
@@ -97,6 +98,7 @@ def test_update_item_clears_stores(client: TestClient):
 
 def test_update_item_sets_purchased_at(client: TestClient, session: Session):
     from app.db.models import ListItem
+
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     assert item["purchased"] is False
@@ -112,6 +114,7 @@ def test_update_item_sets_purchased_at(client: TestClient, session: Session):
 
 def test_update_item_clears_purchased_at(client: TestClient, session: Session):
     from app.db.models import ListItem
+
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
@@ -127,6 +130,7 @@ def test_update_item_clears_purchased_at(client: TestClient, session: Session):
 
 def test_repurchase_does_not_overwrite_purchased_at(client: TestClient, session: Session):
     from app.db.models import ListItem
+
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
@@ -143,6 +147,7 @@ def test_repurchase_does_not_overwrite_purchased_at(client: TestClient, session:
 
 def test_cannot_unpurchase_item_from_previous_day(client: TestClient, session: Session):
     from app.db.models import ListItem
+
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
@@ -245,7 +250,9 @@ def test_add_duplicate_name_rejected(client: TestClient):
 def test_add_duplicate_ean_rejected(client: TestClient):
     lst = _create_list(client)
     client.post(f"/lists/{lst['id']}/items", json={"name": "Yogur", "ean": "1234567890123"})
-    response = client.post(f"/lists/{lst['id']}/items", json={"name": "Otro yogur", "ean": "1234567890123"})
+    response = client.post(
+        f"/lists/{lst['id']}/items", json={"name": "Otro yogur", "ean": "1234567890123"}
+    )
     assert response.status_code == 409
 
 

@@ -100,7 +100,7 @@ def apply_receipt_prices(
         if patch.store:
             item.price_store = patch.store
         if patch.quantity is not None:
-            item.purchased_quantity = patch.quantity   # actual receipt qty → new field
+            item.purchased_quantity = patch.quantity  # actual receipt qty → new field
             # item.quantity (planned qty) is intentionally left untouched
         session.add(item)
         updated += 1
