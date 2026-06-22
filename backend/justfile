@@ -9,6 +9,10 @@ install:
 dev:
     uv run fastapi dev --host 0.0.0.0 --port 8000
 
+# Start production server
+serve:
+    uv run fastapi run --host 0.0.0.0 --port 8000
+
 # Lint (ruff check)
 lint:
     uv run ruff check

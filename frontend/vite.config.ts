@@ -52,6 +52,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/vitest.setup.ts'],
     globals: true,
+    include: ['src/**/*.test.{ts,tsx}'],
     fakeTimers: {
       shouldAdvanceTime: true,
     },
