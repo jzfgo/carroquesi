@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Mock firebase module in tests that transitively import it
 
+- Typo in justfile format recipe comments (Fornat → Format)
+
 
 ---
 ## [0.19.0] — 2026-06-18
