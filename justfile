@@ -13,6 +13,16 @@ install:
 dev:
     @overmind start
 
+# Format both frontend and backend code
+format:
+  just backend format
+  just frontend format
+
+# Check formatting of both frontend and backend code
+format-check:
+  just backend format-check
+  just frontend format-check
+
 # Type-check frontend, lint
 lint:
   just frontend typecheck
@@ -26,6 +36,7 @@ test:
 
 # Type-check, lint, and test
 ci:
+    just format-check
     just lint
     just test
 

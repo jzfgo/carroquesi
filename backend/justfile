@@ -17,6 +17,10 @@ lint:
 format:
     uv run ruff format
 
+# Formatting check (ruff format --check)
+format-check:
+    uv run ruff format --check
+
 # Run all tests
 test:
     uv run pytest

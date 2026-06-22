@@ -28,6 +28,14 @@ test:
 test-watch:
     {{nvm-exec}} pnpm test:watch
 
+# Fornat
+format:
+    {{nvm-exec}} pnpm format
+
+# Check Fornat
+format-check:
+    {{nvm-exec}} pnpm format:check
+
 # Lint
 lint:
     {{nvm-exec}} pnpm lint
