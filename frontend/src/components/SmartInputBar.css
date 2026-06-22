@@ -191,7 +191,7 @@
 
 .smart-input__add-icon::before,
 .smart-input__add-icon::after {
-  content: '';
+  content: "";
   position: absolute;
   background: white;
   border-radius: 2px;
@@ -263,7 +263,7 @@
 
 .smart-input__clear-icon::before,
 .smart-input__clear-icon::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 10px;
   height: 1.5px;
@@ -276,6 +276,7 @@
 .smart-input__clear-icon::before {
   transform: translate(-50%, -50%) rotate(45deg);
 }
+
 .smart-input__clear-icon::after {
   transform: translate(-50%, -50%) rotate(-45deg);
 }

@@ -11,7 +11,9 @@
   font-size: var(--fs-15);
   font-family: var(--font-display);
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .create-list-card:hover {

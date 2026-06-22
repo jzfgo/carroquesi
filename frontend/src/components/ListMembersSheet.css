@@ -14,10 +14,7 @@
 
 .list-members-sheet__overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   z-index: 99;
   background: transparent;
   cursor: default;
@@ -101,6 +98,10 @@
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .list-members-sheet__invite-btn:disabled {
@@ -138,7 +139,9 @@
 }
 
 @keyframes lms-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .list-members-sheet__error {
@@ -163,13 +166,6 @@
   font-weight: 600;
   color: var(--tinta-0);
   vertical-align: middle;
-}
-
-.list-members-sheet__invite-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
 }
 
 .list-members-sheet__retry-btn {

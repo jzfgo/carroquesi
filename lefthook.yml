@@ -25,6 +25,12 @@ pre-commit:
       run: pnpm exec eslint --fix {staged_files}
       stage_fixed: true
 
+    frontend-stylelint:
+      root: "frontend/"
+      glob: "**/*.css"
+      run: pnpm exec stylelint --fix {staged_files}
+      stage_fixed: true
+
     # Never commit platform-specific (darwin/linux) native bindings to pnpm-lock.yaml
     lockfile-guard:
       glob: "frontend/pnpm-lock.yaml"

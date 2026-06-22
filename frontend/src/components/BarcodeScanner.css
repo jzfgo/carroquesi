@@ -22,7 +22,7 @@
   align-items: center;
   justify-content: center;
   gap: 20px;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgb(0 0 0 / 85%);
 }
 
 .barcode-scanner__frame {
@@ -38,7 +38,7 @@
   color: var(--paper-0);
   font-size: var(--fs-14);
   text-align: center;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
 }
 
 .barcode-scanner__close {
@@ -48,8 +48,8 @@
   width: 40px;
   height: 40px;
   border-radius: 20px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgb(0 0 0 / 50%);
+  border: 1px solid rgb(255 255 255 / 30%);
   color: var(--paper-0);
   font-size: 18px;
   cursor: pointer;
@@ -69,8 +69,8 @@
 
 .barcode-scanner__error-btn {
   padding: 10px 24px;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgb(255 255 255 / 15%);
+  border: 1px solid rgb(255 255 255 / 30%);
   border-radius: 8px;
   color: var(--paper-0);
   font-size: var(--fs-15);
