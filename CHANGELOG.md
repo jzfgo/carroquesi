@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow text input in quantity field on mobile (#88)
 
+- Mock firebase module in tests that transitively import it
+
 
 ---
 ## [0.19.0] — 2026-06-18
