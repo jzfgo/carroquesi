@@ -15,10 +15,7 @@ If a PR number was passed as an argument, use it. Otherwise find the PR for the 
 gh pr view --json number,title,url,state,reviewDecision
 ```
 
-Confirm it exists and is open. Get the repo's `{owner}/{repo}` slug:
-```bash
-gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"'
-```
+Confirm it exists and is open.
 
 ---
 
@@ -37,7 +34,7 @@ gh pr view <number> --json number,title,reviewDecision,statusCheckRollup,reviews
 Then fetch all inline review comments (these are the per-line ones reviewers leave on the diff):
 
 ```bash
-gh api repos/{owner}/{repo}/pulls/<number>/comments --paginate
+gh api repos/:owner/:repo/pulls/<number>/comments --paginate
 ```
 
 Check three things:
@@ -84,7 +81,7 @@ Draft a response that is:
 Post it as a reply to the comment thread:
 
 ```bash
-gh api repos/{owner}/{repo}/pulls/comments/<comment-id>/replies \
+gh api repos/:owner/:repo/pulls/comments/<comment-id>/replies \
   -f body="<your response>"
 ```
 
