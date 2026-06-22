@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- Exclude unit-suffixed quantities from avg_quantity in due suggestions
+
+
+---
 ## [0.19.0] — 2026-06-18
 
 ### Added

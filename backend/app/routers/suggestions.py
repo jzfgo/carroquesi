@@ -14,7 +14,7 @@ from app.schemas.suggestions import SuggestionRead
 
 router = APIRouter(tags=["suggestions"])
 
-_LEADING_NUMBER = re.compile(r"^\+?([0-9]+(?:[.,][0-9]+)?)")
+_LEADING_NUMBER = re.compile(r"^\+?([0-9]+(?:[.,][0-9]+)?)$")
 
 
 def _parse_quantity_numeric(q: str | None) -> float | None:
