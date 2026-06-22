@@ -61,7 +61,9 @@ def test_due_suggestions_excludes_unpurchased_items(client: TestClient, session:
     assert "Eggs" not in names
 
 
-def test_due_suggestions_excludes_items_outside_upper_bound(client: TestClient, session: Session, user):
+def test_due_suggestions_excludes_items_outside_upper_bound(
+    client: TestClient, session: Session, user
+):
     lst = _create_list(client)
     now = datetime.now(UTC).replace(tzinfo=None)
     # median=14, upper=21. Last purchase 30 days ago → outside window
@@ -74,7 +76,9 @@ def test_due_suggestions_excludes_items_outside_upper_bound(client: TestClient, 
     assert "Cheese" not in names
 
 
-def test_due_suggestions_excludes_items_below_lower_bound(client: TestClient, session: Session, user):
+def test_due_suggestions_excludes_items_below_lower_bound(
+    client: TestClient, session: Session, user
+):
     lst = _create_list(client)
     now = datetime.now(UTC).replace(tzinfo=None)
     # median=14, lower=12.6. Last purchase 10 days ago → below lower bound
@@ -136,3 +140,35 @@ def test_due_suggestions_includes_days_since_last(client: TestClient, session: S
     data = response.json()
     cream = next(s for s in data if s["name"] == "Cream")
     assert abs(cream["days_since_last"] - 14) < 0.1
+
+
+def test_due_suggestions_unit_suffixed_quantities_excluded_from_avg(
+    client: TestClient, session: Session, user
+):
+    """Quantities like '500g' must not be parsed as raw numbers (e.g. 500)."""
+    lst = _create_list(client)
+    now = datetime.now(UTC).replace(tzinfo=None)
+
+    def _add_with_qty(name, purchased_at, quantity):
+        item = ListItem(
+            list_id=lst["id"],
+            name=name,
+            added_by=user.id,
+            purchased_at=purchased_at,
+            quantity=quantity,
+        )
+        session.add(item)
+
+    session.commit()
+
+    for i, qty in enumerate(["500g", "400g", "450g"], start=1):
+        _add_with_qty("Plátano", now - timedelta(days=14 * i), qty)
+    session.commit()
+
+    response = client.get(f"/lists/{lst['id']}/due-suggestions")
+    assert response.status_code == 200
+    data = response.json()
+    platano = next((s for s in data if s["name"] == "Plátano"), None)
+    # avg_quantity must be None — unit-suffixed quantities are not item counts
+    assert platano is not None
+    assert platano["avg_quantity"] is None

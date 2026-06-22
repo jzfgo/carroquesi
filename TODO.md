@@ -1,12 +1,11 @@
 # CarroQueSí — TODO
 
-> Last updated: 2026-06-15
+> Last updated: 2026-06-22
 
 ---
 
 ## Bugs / Known Issues
 
-- [ ] **Due suggestions — inflated purchase count** — items in the "Toca comprar" section show wildly incorrect purchase counts (e.g. "Plátano ×416"). Likely a count aggregation bug in the frequency suggestion logic. Reported 2026-06-09.
 - [ ] **LogPriceSheet — quantity field blocks text input on mobile** — the quantity field when adding or updating a price only accepts numbers on mobile (likely `type="number"` or `inputmode="numeric"`), preventing unit input (e.g. "kg", "500g", "2 l"). Field should accept alphanumeric input.
 
 ---
