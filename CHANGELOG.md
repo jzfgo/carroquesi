@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- Use :owner/:repo placeholders in gh api commands
+
+- Correct gh api reply endpoint path (missing PR number)
+
+
+---
 ## [0.19.1] — 2026-06-22
 
 ### Fixed
