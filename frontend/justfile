@@ -28,11 +28,11 @@ test:
 test-watch:
     {{nvm-exec}} pnpm test:watch
 
-# Fornat
+# Format
 format:
     {{nvm-exec}} pnpm format
 
-# Check Fornat
+# Check format
 format-check:
     {{nvm-exec}} pnpm format:check
 
