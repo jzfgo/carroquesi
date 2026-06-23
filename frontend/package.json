@@ -16,8 +16,8 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "typecheck:watch": "tsc -p tsconfig.app.json --noEmit --watch",
-    "deploy": "firebase deploy --only hosting --non-interactive",
-    "generate-pwa-assets": "pwa-assets-generator -c pwa-assets.config.ts && pwa-assets-generator -c pwa-assets.maskable.config.ts"
+    "generate-pwa-assets": "pwa-assets-generator -c pwa-assets.config.ts && pwa-assets-generator -c pwa-assets.maskable.config.ts",
+    "deploy": "firebase deploy --only hosting --non-interactive"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

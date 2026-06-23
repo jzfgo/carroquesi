@@ -7,6 +7,11 @@ backend-port := env('BACKEND_PORT', '8000')
 default:
     @just --list
 
+# Wire up lefthook (run once after cloning)
+setup:
+    -git config --unset core.hooksPath
+    lefthook install
+
 # Install all app dependencies
 install:
     just backend install
@@ -22,12 +27,12 @@ format:
     just backend format
     just frontend format
 
-# Check formatting of both frontend and backend code
+# Check formatting of both frontend and backend code (used in CI)
 format-check:
     just backend format-check
     just frontend format-check
 
-# Type-check frontend, lint
+# Type-check frontend, lint (frontend + backend)
 lint:
     just frontend typecheck
     just frontend lint
@@ -38,7 +43,7 @@ test:
     just frontend test
     just backend test
 
-# Type-check, lint, and test
+# Check formatting, type-check, lint, and test
 ci:
     just format-check
     just lint
@@ -48,11 +53,6 @@ ci:
 changelog:
     python3 scripts/strip-unreleased.py
     git cliff --unreleased --prepend CHANGELOG.md
-
-# Wire up lefthook (run once after cloning)
-setup:
-    -git config --unset core.hooksPath
-    lefthook install
 
 alias ss := servers-status
 alias sk := servers-kill

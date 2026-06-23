@@ -26,8 +26,11 @@ This file provides guidance to coding agents (such as Antigravity CLI, Claude Co
 - `list_items`: item data, purchase state (`purchased_at`), actual purchased quantity (`purchased_quantity`), and pricing (`price`, `price_per`, `price_store`)
 - `list_invites`: opt-in invitations; `id` is the share token
 - `barcode_cache`: cached barcode lookup data
+- `price_cache`: cached community price data by EAN (amount, price_per, fetched_at); negative-caches misses too
 - `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results)
 - `receipt_name_mappings`: learned receipt→item name mappings per store; improves auto-matching on future scans
+- `feedback_submissions`: in-app user feedback (message, email, source, user_agent)
+- `waitlist_signups`: early-access waitlist (email, allowed_at, invite_token)
 - `user_features`: per-user feature flag overrides; `feature` must match a key in the flag registry in `backend/app/services/feature_flags.py`
 
 Important invariants:
@@ -39,24 +42,11 @@ Important invariants:
 
 ## Frontend
 
+Requires **Node.js v24** (pinned in `frontend/.nvmrc`)
+
 ### Commands
 
-Prefer `just` from repo root (`just` lists recipes). Direct `pnpm` commands when needed:
-
-```bash
-cd frontend
-pnpm install
-pnpm dev
-pnpm build
-pnpm preview
-pnpm test
-pnpm test -- path/to/file.test.tsx  # a single test file
-pnpm lint
-pnpm format          # Prettier + stylelint
-pnpm format:check    # check without writing (used in CI)
-# root tsconfig has files:[]; use this for real frontend typecheck:
-node_modules/.bin/tsc -p tsconfig.app.json --noEmit
-```
+Prefer `just` from repo root (`just frontend` lists recipes).
 
 ### PWA
 
@@ -73,6 +63,26 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 - Firebase SDK used in the frontend for Auth (Google Sign-In) and AI (Gemini receipt parsing via Firebase AI SDK)
 - All data fetched from the FastAPI backend via REST
 - Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
+- When mocking modules with partial overrides (e.g. `react-router-dom`), use `importOriginal` to preserve unspecified exports. Plain `vi.mock('module', () => ({...}))` drops everything not listed and throws at runtime.
+- Environment constants are centralized in `frontend/src/lib/environment.ts`; import from there instead of accessing `import.meta.env` directly
+
+### Project layout
+
+`frontend/src/`: `App.tsx`, `main.tsx`, `types.ts`
+- `components/` — one file per component (`*.tsx`, `*.css`, `*.test.tsx`)
+- `lib/` — pure logic, hooks, API client (`api.ts`), feature flags, receipt AI, parseInput
+- `contexts/` — React contexts (`AuthContext`, `FeatureFlagsContext`)
+
+### E2E Testing (Playwright)
+
+Run with `just frontend test-e2e` (alias: `pnpm test:e2e`). Config: `frontend/playwright.config.ts`. Tests live in `frontend/tests/`.
+
+Key gotchas:
+- Runs against the **preview build** (`pnpm build && pnpm preview`), not the dev server — changes must be built first
+- Default port is `4173`; override with `FRONTEND_PORT_E2E` / `FRONTEND_URL_E2E`
+- `DEV_AUTH_BYPASS` is hardcoded to `true` in the config; defaults to `seed-alice`; set `VITE_DEV_USER_ID` to switch users
+- Uses `loadEnvFile()` which does **not** expand `${VAR}` syntax — config explicitly overrides `VITE_BACKEND_URL` to work around this
+- Browsers: Chromium, Firefox, WebKit, Mobile Chrome (Pixel 10), Mobile Safari (iPhone 17)
 
 ### SmartInputBar sigil system
 
@@ -86,31 +96,13 @@ Four-step flow: client parse (`receiptAi.ts` via Gemini) → backend fuzzy match
 
 Purchased items are mostly read-only (rename/qty/brand/store edits disabled). Price deletion has a **same-day guard**: enforced in both `LogPurchaseSheet` (frontend) and `DELETE /lists/{id}/items/{item_id}/prices` (returns 422 for prior-day purchases).
 
-### Testing conventions
-
-When mocking modules with partial overrides (e.g. `react-router-dom`), use `importOriginal` to preserve unspecified exports. Plain `vi.mock('module', () => ({...}))` drops everything not listed and throws at runtime.
-
 ## Backend
 
 Requires **Python 3.13** (pinned in `backend/.python-version`).
 
 ### Commands
 
-Prefer `just` from repo root (`just` lists recipes). Direct `uv` commands when needed:
-
-```bash
-cd backend
-uv sync                              # install / sync dependencies
-uv run fastapi dev --host 0.0.0.0 --port 8000 # dev server
-uv run pytest                        # run all tests
-uv run pytest tests/path/to/test.py  # run single test file
-uv add <package>                     # add a dependency
-uv run alembic upgrade head          # run migrations
-uv run alembic revision --autogenerate -m "description"  # generate migration
-uv run python scripts/seed.py        # seed local DB with test data (or: just seed)
-just backend set-admin <firebase_uid>              # grant admin (Firebase custom claim)
-just backend feature <firebase_uid> <flag> on|off|reset  # enable/disable/reset a flag
-```
+Prefer `just` from repo root (`just backend` lists recipes).
 
 ### Key conventions
 
@@ -135,14 +127,10 @@ just backend feature <firebase_uid> <flag> on|off|reset  # enable/disable/reset 
 
 `backend/app/`: `main.py`, `core/` (config, firebase, http), `db/` (session, models), `routers/` (one per resource), `schemas/`, `services/` (community_price, receipt_matcher, feature_flags), `dependencies.py`. Migrations in `alembic/`.
 
-### Environment variables
-
-See `backend/.env.example` and `frontend/.env.example`.
-
 ## Infrastructure
 
 - Firebase project config lives in `frontend/src/lib/firebase.ts` (Auth only — no Firestore, no Storage)
-- Environment variables go in `.env` files — never committed
+- Environment variables go in `.env` files (see `backend/.env.example` and `frontend/.env.example`)
 - Cloud Run service URL stored as an env var in the frontend for API calls
 
 ## Workflows
@@ -151,6 +139,7 @@ See `backend/.env.example` and `frontend/.env.example`.
 
 - Check `git status --short` before and after changes
 - Implement the smallest complete fix first, then iterate
+- Start both servers: `just dev` (uses overmind + `Procfile.local`); use `just dev network` to expose on LAN
 
 ### Agent Guardrails
 
@@ -190,6 +179,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 
 ### Local Dev Environment
 
+- Use direnv (`.envrc` in repo root) for local environment variables — run `direnv allow` after cloning
 - Use nvm (respect `.nvmrc`) for Node version management
 - Use uv for Python toolchain and virtual environment management
 - Backend uses FastAPI with Firebase; ensure `.env` and Firebase config are present before running
