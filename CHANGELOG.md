@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Strip trailing slash from BACKEND_URL; use concrete default in .env.example
 
+- Use FRONTEND_URL (not BACKEND_URL) in backend .env.example CORS config
+
 
 ---
 ## [0.19.1] — 2026-06-22
