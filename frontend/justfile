@@ -1,49 +1,55 @@
 nvm-dir := env('NVM_DIR', env('HOME') + PATH_SEP + '.nvm')
 nvm-exec := nvm-dir + PATH_SEP + 'nvm-exec'
+port := env('FRONTEND_PORT', '5173')
 
 default:
     @just --list
 
 # Install dependencies
 install:
-    {{nvm-exec}} pnpm install
+    {{ nvm-exec }} pnpm install
 
-# Start dev server
-dev:
-    {{nvm-exec}} pnpm dev -- --host 0.0.0.0
+# Start dev server with hot-reload
+[arg('scope', pattern='local|network')]
+dev scope="local":
+    {{ nvm-exec }} pnpm dev {{ if scope == "network" { "--host 0.0.0.0" } else { "--host localhost" } }} --port {{ port }}
 
 # Production build
 build:
-    {{nvm-exec}} pnpm build
+    {{ nvm-exec }} pnpm build
 
 # Preview production build
 preview:
-    {{nvm-exec}} pnpm preview
+    {{ nvm-exec }} pnpm preview
 
 # Run unit tests
 test:
-    {{nvm-exec}} pnpm test
+    {{ nvm-exec }} pnpm test
 
 # Run tests in watch mode
 test-watch:
-    {{nvm-exec}} pnpm test:watch
+    {{ nvm-exec }} pnpm test:watch
+
+# Run end-to-end tests
+test-e2e:
+    {{ nvm-exec }} pnpm test:e2e
 
 # Format
 format:
-    {{nvm-exec}} pnpm format
+    {{ nvm-exec }} pnpm format
 
 # Check format
 format-check:
-    {{nvm-exec}} pnpm format:check
+    {{ nvm-exec }} pnpm format:check
 
 # Lint
 lint:
-    {{nvm-exec}} pnpm lint
+    {{ nvm-exec }} pnpm lint
 
 # Type-check (uses tsconfig.app.json — root tsconfig has files:[] and always passes silently)
 typecheck:
-    {{nvm-exec}} pnpm typecheck
+    {{ nvm-exec }} pnpm typecheck
 
 # Regenerate PWA icons from source assets in public/
 pwa-icons:
-    {{nvm-exec}} pnpm generate-pwa-assets
+    {{ nvm-exec }} pnpm generate-pwa-assets

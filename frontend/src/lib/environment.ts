@@ -20,17 +20,8 @@ export const FIREBASE_MEASUREMENT_ID = import.meta.env
 
 export const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY ?? ''
 
-const BACKEND_PROTO = import.meta.env.VITE_BACKEND_PROTO ?? 'http'
-const BACKEND_HOST = import.meta.env.VITE_BACKEND_HOST ?? 'localhost'
-const BACKEND_PORT = import.meta.env.VITE_BACKEND_PORT ?? '8000'
-
-export const BACKEND_URL = `${BACKEND_PROTO}://${BACKEND_HOST}${BACKEND_PORT ? `:${BACKEND_PORT}` : ''}`
-
-const FRONTEND_PROTO = import.meta.env.VITE_FRONTEND_PROTO ?? 'http'
-const FRONTEND_HOST = import.meta.env.VITE_FRONTEND_HOST ?? 'localhost'
-const FRONTEND_PORT = import.meta.env.VITE_FRONTEND_PORT ?? '5173'
-
-export const FRONTEND_URL = `${FRONTEND_PROTO}://${FRONTEND_HOST}${FRONTEND_PORT ? `:${FRONTEND_PORT}` : ''}`
+export const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 
 export const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID as
   | string

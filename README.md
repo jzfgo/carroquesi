@@ -145,29 +145,29 @@ Run `just` (no arguments) to list all available recipes.
 
 ### Root
 
-| Command               | Description                                           |
-| --------------------- | ----------------------------------------------------- |
-| `just setup`          | Wire git hooks (run once after cloning)               |
-| `just install`        | Install all application dependencies                  |
-| `just dev`            | Start frontend + backend via overmind                 |
-| `just test`           | Run all tests (frontend then backend)                 |
-| `just format`         | Format all code (Prettier + ruff)                     |
-| `just format-check`   | Check formatting without writing (used in CI)         |
-| `just lint`           | Typecheck + ESLint (frontend), ruff check (backend)   |
-| `just ci`             | Full CI suite: format-check + lint + tests            |
-| `just changelog`      | Prepend unreleased commits to `CHANGELOG.md`          |
-| `just ss`             | Show processes listening on ports 5173 / 8000         |
-| `just sk`             | Kill processes on ports 5173 / 8000                   |
+| Command             | Description                                         |
+| ------------------- | --------------------------------------------------- |
+| `just setup`        | Wire git hooks (run once after cloning)             |
+| `just install`      | Install all application dependencies                |
+| `just dev`          | Start frontend + backend via overmind               |
+| `just test`         | Run all tests (frontend then backend)               |
+| `just format`       | Format all code (Prettier + ruff)                   |
+| `just format-check` | Check formatting without writing (used in CI)       |
+| `just lint`         | Typecheck + ESLint (frontend), ruff check (backend) |
+| `just ci`           | Full CI suite: format-check + lint + tests          |
+| `just changelog`    | Prepend unreleased commits to `CHANGELOG.md`        |
+| `just ss`           | Show processes listening on ports 5173 / 8000       |
+| `just sk`           | Kill processes on ports 5173 / 8000                 |
 
 ### Frontend (`just frontend <recipe>`)
 
-| Recipe       | Description                                                                                                  |
-| ------------ | ------------------------------------------------------------------------------------------------------------ |
-| `install`    | `pnpm install`                                                                                               |
-| `dev`        | Vite dev server                                                                                              |
-| `build`      | Production build                                                                                             |
-| `preview`    | Preview production build                                                                                     |
-| `test`       | Vitest unit tests                                                                                            |
+| Recipe         | Description                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| `install`      | `pnpm install`                                                                                               |
+| `dev`          | Vite dev server                                                                                              |
+| `build`        | Production build                                                                                             |
+| `preview`      | Preview production build                                                                                     |
+| `test`         | Vitest unit tests                                                                                            |
 | `test-watch`   | Vitest in watch mode                                                                                         |
 | `format`       | Prettier (also runs stylelint on CSS)                                                                        |
 | `format-check` | Prettier check without writing                                                                               |

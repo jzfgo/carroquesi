@@ -1,11 +1,22 @@
 import { defineConfig, devices } from '@playwright/test'
 import { loadEnvFile } from 'node:process'
 
+// Load .env — note: does NOT expand ${VAR} syntax (unlike Vite's dotenv-expand)
 loadEnvFile()
 
 const IS_CI = process.env.CI
-const BACKEND_URL = `${process.env.VITE_BACKEND_PROTO}://${process.env.VITE_BACKEND_HOST}${process.env.VITE_BACKEND_PORT ? `:${process.env.VITE_BACKEND_PORT}` : ''}`
-const FRONTEND_PORT_E2E = process.env.VITE_FRONTEND_PORT_E2E
+
+const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8000'
+const DEV_AUTH_BYPASS = 'true'
+
+const FRONTEND_PORT = process.env.FRONTEND_PORT_E2E ?? '4173'
+const FRONTEND_URL = process.env.FRONTEND_URL_E2E || 'http://localhost:4173'
+const VITE_DEV_USER_ID = process.env.VITE_DEV_USER_ID || 'seed-alice'
+
+// loadEnvFile() sets VITE_BACKEND_URL as the literal "${BACKEND_URL}" since it
+// doesn't expand variable references. Override it now so the Vite build
+// subprocess (pnpm build) doesn't inherit the unexpanded literal.
+process.env.VITE_BACKEND_URL = BACKEND_URL
 
 export default defineConfig({
   testDir: './tests',
@@ -15,7 +26,7 @@ export default defineConfig({
   workers: IS_CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: `http://localhost:${FRONTEND_PORT_E2E}`,
+    baseURL: FRONTEND_URL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -45,14 +56,16 @@ export default defineConfig({
 
   webServer: [
     {
-      command: `pnpm build && pnpm preview -- --port ${FRONTEND_PORT_E2E}`,
-      url: `http://localhost:${FRONTEND_PORT_E2E}`,
+      command: `pnpm build && pnpm preview -- --port ${FRONTEND_PORT}`,
+      url: FRONTEND_URL,
       reuseExistingServer: !IS_CI,
+      env: { VITE_DEV_USER_ID },
     },
     {
       command: 'just ../backend serve',
       url: `${BACKEND_URL}/health`,
       reuseExistingServer: !IS_CI,
+      env: { FRONTEND_URL, DEV_AUTH_BYPASS },
     },
   ],
 })

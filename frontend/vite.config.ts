@@ -2,6 +2,15 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 
+function escapeRegex(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+const BACKEND_PROTO = process.env.BACKEND_PROTO ?? 'http'
+const BACKEND_HOST = process.env.BACKEND_HOST ?? 'localhost'
+const BACKEND_PORT = process.env.BACKEND_PORT ?? 8000
+const BACKEND_URL = `${BACKEND_PROTO}://${BACKEND_HOST}${BACKEND_PORT ? `:${BACKEND_PORT}` : ''}`
+
 export default defineConfig({
   plugins: [
     react(),
@@ -12,7 +21,7 @@ export default defineConfig({
         navigateFallback: null,
         runtimeCaching: [
           {
-            urlPattern: /^http:\/\/localhost:8000\//,
+            urlPattern: new RegExp(`^${escapeRegex(BACKEND_URL)}/`),
             handler: 'NetworkOnly',
           },
         ],
