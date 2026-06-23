@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "typecheck": "tsc -p tsconfig.app.json --noEmit",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "typecheck:watch": "tsc -p tsconfig.app.json --noEmit --watch",
     "generate-pwa-assets": "pwa-assets-generator -c pwa-assets.config.ts && pwa-assets-generator -c pwa-assets.maskable.config.ts",
     "deploy": "firebase deploy --only hosting --non-interactive"

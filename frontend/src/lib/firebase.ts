@@ -31,10 +31,12 @@ if (IS_DEV) {
   self.FIREBASE_APPCHECK_DEBUG_TOKEN = true
 }
 
-initializeAppCheck(app, {
-  provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
-  isTokenAutoRefreshEnabled: true,
-})
+if (RECAPTCHA_SITE_KEY) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+    isTokenAutoRefreshEnabled: true,
+  })
+}
 
 export const auth = getAuth(app)
 export const ai = getAI(app, { backend: new GoogleAIBackend() })

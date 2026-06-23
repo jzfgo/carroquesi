@@ -12,17 +12,20 @@ try {
 
 const IS_CI = process.env.CI
 
-const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8000'
-const DEV_AUTH_BYPASS = 'true'
-
 const FRONTEND_PORT = process.env.FRONTEND_PORT_E2E ?? '4173'
 const FRONTEND_URL = process.env.FRONTEND_URL_E2E || 'http://localhost:4173'
-const VITE_DEV_USER_ID = process.env.VITE_DEV_USER_ID || 'seed-alice'
 
-// loadEnvFile() sets VITE_BACKEND_URL as the literal "${BACKEND_URL}" since it
-// doesn't expand variable references. Override it now so the Vite build
-// subprocess (pnpm build) doesn't inherit the unexpanded literal.
-process.env.VITE_BACKEND_URL = BACKEND_URL
+const VITE_DEV_USER_ID = process.env.VITE_DEV_USER_ID || 'seed-alice'
+const VITE_BACKEND_URL = 'http://localhost:8000'
+
+// Dummy Firebase config — SDK must initialize cleanly at module load.
+// Dev auth bypass means no actual Firebase API calls are made.
+const VITE_FIREBASE_API_KEY = 'test-api-key'
+const VITE_FIREBASE_AUTH_DOMAIN = 'test-project.firebaseapp.com'
+const VITE_FIREBASE_PROJECT_ID = 'test-project'
+const VITE_FIREBASE_STORAGE_BUCKET = 'test-project.appspot.com'
+const VITE_FIREBASE_MESSAGING_SENDER_ID = '000000000000'
+const VITE_FIREBASE_APP_ID = '1:000000000000:web:0000000000000000000000'
 
 export default defineConfig({
   testDir: './tests',
@@ -60,23 +63,19 @@ export default defineConfig({
     },
   ],
 
-  webServer: [
-    {
-      command: `pnpm build && pnpm preview -- --port ${FRONTEND_PORT}`,
-      url: FRONTEND_URL,
-      reuseExistingServer: !IS_CI,
-      env: { VITE_DEV_USER_ID },
+  webServer: {
+    command: `pnpm build && pnpm preview -- --port ${FRONTEND_PORT}`,
+    url: FRONTEND_URL,
+    reuseExistingServer: !IS_CI,
+    env: {
+      VITE_DEV_USER_ID,
+      VITE_BACKEND_URL,
+      VITE_FIREBASE_API_KEY,
+      VITE_FIREBASE_AUTH_DOMAIN,
+      VITE_FIREBASE_PROJECT_ID,
+      VITE_FIREBASE_STORAGE_BUCKET,
+      VITE_FIREBASE_MESSAGING_SENDER_ID,
+      VITE_FIREBASE_APP_ID,
     },
-    // Backend not available in CI — omit so smoke tests can run without full stack
-    ...(!IS_CI
-      ? [
-          {
-            command: 'just ../backend serve',
-            url: `${BACKEND_URL}/health`,
-            reuseExistingServer: true,
-            env: { FRONTEND_URL, DEV_AUTH_BYPASS },
-          },
-        ]
-      : []),
-  ],
+  },
 })
