@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Correct Playwright CI workflow — set working-directory to frontend
 
+- Make loadEnvFile optional in playwright.config — .env absent in CI
+
 
 ---
 ## [0.19.1] — 2026-06-22
