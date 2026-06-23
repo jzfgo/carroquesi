@@ -2,7 +2,11 @@ import { defineConfig, devices } from '@playwright/test'
 import { loadEnvFile } from 'node:process'
 
 // Load .env if present — note: does NOT expand ${VAR} syntax (unlike Vite's dotenv-expand)
-try { loadEnvFile() } catch { /* .env is optional in CI */ }
+try {
+  loadEnvFile()
+} catch {
+  /* .env is optional in CI */
+}
 
 const IS_CI = process.env.CI
 
