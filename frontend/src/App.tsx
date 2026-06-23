@@ -8,15 +8,14 @@ import { ThemeManager } from './components/ThemeManager'
 import { WaitlistScreen } from './components/WaitlistScreen'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext'
-
-const WAITLIST_ENABLED = import.meta.env.VITE_WAITLIST_ENABLED === 'true'
+import { IS_WAITLIST_ENABLED } from './lib/environment'
 
 function AuthRoute({ element }: { element: React.ReactElement }) {
   const { user, loading, isWaitlisted } = useAuth()
   if (loading) return null
   if (isWaitlisted) return <WaitlistScreen />
   if (!user) {
-    if (WAITLIST_ENABLED) {
+    if (IS_WAITLIST_ENABLED) {
       return <WaitlistScreen />
     }
     return <SignInScreen />
@@ -56,7 +55,7 @@ function AppContent() {
 
   if (isWaitlisted) return <WaitlistScreen />
   if (!user) {
-    if (WAITLIST_ENABLED) {
+    if (IS_WAITLIST_ENABLED) {
       return <WaitlistScreen />
     }
     return <SignInScreen />
