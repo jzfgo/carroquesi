@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Skip backend webServer in CI — only smoke tests run there
 
+- Anchor loadEnvFile to config dir; honour BACKEND_URL in vite config
+
 
 ---
 ## [0.19.1] — 2026-06-22
