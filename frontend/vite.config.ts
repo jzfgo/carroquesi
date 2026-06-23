@@ -6,10 +6,11 @@ function escapeRegex(str: string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-const BACKEND_URL =
+const BACKEND_URL = (
   process.env.BACKEND_URL ||
   process.env.VITE_BACKEND_URL ||
   'http://localhost:8000'
+).replace(/\/$/, '')
 
 export default defineConfig({
   plugins: [
