@@ -1,9 +1,11 @@
 import { defineConfig, devices } from '@playwright/test'
+import { join } from 'node:path'
 import { loadEnvFile } from 'node:process'
 
 // Load .env if present — note: does NOT expand ${VAR} syntax (unlike Vite's dotenv-expand)
+// Use import.meta.dirname so the path is correct regardless of cwd when tests are launched
 try {
-  loadEnvFile()
+  loadEnvFile(join(import.meta.dirname, '.env'))
 } catch {
   /* .env is optional in CI */
 }
