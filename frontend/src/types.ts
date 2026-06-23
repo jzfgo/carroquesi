@@ -93,7 +93,7 @@ export interface PriceHistoryResponse {
 
 /** Receipt Scan Types */
 
-export type PriceType = 'UNIT' | 'KILOGRAM' | 'MULTI'
+type PriceType = 'UNIT' | 'KILOGRAM' | 'MULTI'
 
 export interface ParsedLine {
   name: string

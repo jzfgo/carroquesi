@@ -2,6 +2,15 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 
+function escapeRegex(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+const BACKEND_URL =
+  process.env.BACKEND_URL ||
+  process.env.VITE_BACKEND_URL ||
+  'http://localhost:8000'
+
 export default defineConfig({
   plugins: [
     react(),
@@ -12,7 +21,7 @@ export default defineConfig({
         navigateFallback: null,
         runtimeCaching: [
           {
-            urlPattern: /^http:\/\/localhost:8000\//,
+            urlPattern: new RegExp(`^${escapeRegex(BACKEND_URL)}/`),
             handler: 'NetworkOnly',
           },
         ],
@@ -52,6 +61,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/vitest.setup.ts'],
     globals: true,
+    include: ['src/**/*.test.{ts,tsx}'],
     fakeTimers: {
       shouldAdvanceTime: true,
     },

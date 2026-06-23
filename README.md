@@ -4,7 +4,7 @@
 
 <h1 align="center">CarroQueSí</h1>
 
-<p align="center"><em>Juntos compramos mejor · Together we shop better</em></p>
+<p align="center"><em>Together we shop better</em></p>
 
 <p align="center">
   <a href="https://github.com/jzfgo/carroquesi/releases"><img src="https://img.shields.io/github/v/tag/jzfgo/carroquesi?sort=semver&label=version&color=blue" alt="Version"></a>
@@ -36,6 +36,7 @@ Significant tradeoffs are documented in [`docs/decisions/`](docs/decisions/) (e.
 
 | Tool                                                                         | Purpose                                                              | Install                                                     |
 | ---------------------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------- |
+| [direnv](https://direnv.net/)                                                | Environment variable auto-loader for shells                          | `brew install direnv`                                       |
 | [just](https://just.systems)                                                 | Task runner (replaces Make)                                          | `brew install just`                                         |
 | [lefthook](https://lefthook.dev/)                                            | Git hooks (lint, format, secrets on commit; changelog check on push) | `brew install lefthook`                                     |
 | [gitleaks](https://github.com/gitleaks/gitleaks)                             | Secret scanning in the pre-commit hook                               | `brew install gitleaks`                                     |
@@ -50,28 +51,9 @@ Significant tradeoffs are documented in [`docs/decisions/`](docs/decisions/) (e.
 
 ### 1. Environment files
 
-**Backend** — copy and fill in `backend/.env`:
-
-```
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/carroquesi
-FIREBASE_CREDENTIALS_PATH=firebase-credentials.json
-ALLOWED_ORIGINS=["http://localhost:5173"]
-# DEV_AUTH_BYPASS=true   # optional — skips Firebase token validation locally (see below)
-```
-
-**Frontend** — copy and fill in `frontend/.env.local`:
-
-```
-VITE_BACKEND_URL=http://localhost:8000
-VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=...
-VITE_FIREBASE_STORAGE_BUCKET=...
-VITE_FIREBASE_MESSAGING_SENDER_ID=...
-VITE_FIREBASE_APP_ID=...
-VITE_RECAPTCHA_SITE_KEY=...   # Firebase App Check (reCAPTCHA v3) — required in production for AI receipt scanning
-# VITE_DEV_USER_ID=seed-alice   # optional — pair with DEV_AUTH_BYPASS (see below)
-```
+**Global** — customize local servers (protocol, hostname, and port)
+**Backend** — copy and fill in `backend/.env` (check `backend/.env.example` for reference):
+**Frontend** — copy and fill in `frontend/.env` (check `frontend/.env.example` for reference):
 
 ### 2. Install dependencies
 
@@ -117,7 +99,7 @@ To log in as a seed user without a real Google account, set in `backend/.env`:
 DEV_AUTH_BYPASS=true
 ```
 
-And in `frontend/.env.local`:
+And in `frontend/.env`:
 
 ```
 VITE_DEV_USER_ID=seed-alice   # or seed-bob / seed-carol
@@ -131,7 +113,7 @@ The frontend skips Firebase and sends `X-Dev-User-Id` instead of a real token. *
 just dev
 ```
 
-This runs both servers via overmind (each with a labeled, color-coded stream):
+This runs both servers via overmind (URLs are customizable in `.envrc`):
 
 | Process  | URL                        |
 | -------- | -------------------------- |
@@ -143,59 +125,9 @@ This runs both servers via overmind (each with a labeled, color-coded stream):
 
 Run `just` (no arguments) to list all available recipes.
 
-### Root
-
-| Command               | Description                                           |
-| --------------------- | ----------------------------------------------------- |
-| `just setup`          | Wire git hooks (run once after cloning)               |
-| `just install`        | Install all application dependencies                  |
-| `just dev`            | Start frontend + backend via overmind                 |
-| `just test`           | Run all tests (frontend then backend)                 |
-| `just format`         | Format all code (Prettier + ruff)                     |
-| `just format-check`   | Check formatting without writing (used in CI)         |
-| `just lint`           | Typecheck + ESLint (frontend), ruff check (backend)   |
-| `just ci`             | Full CI suite: format-check + lint + tests            |
-| `just changelog`      | Prepend unreleased commits to `CHANGELOG.md`          |
-| `just ss`             | Show processes listening on ports 5173 / 8000         |
-| `just sk`             | Kill processes on ports 5173 / 8000                   |
-
-### Frontend (`just frontend <recipe>`)
-
-| Recipe       | Description                                                                                                  |
-| ------------ | ------------------------------------------------------------------------------------------------------------ |
-| `install`    | `pnpm install`                                                                                               |
-| `dev`        | Vite dev server                                                                                              |
-| `build`      | Production build                                                                                             |
-| `preview`    | Preview production build                                                                                     |
-| `test`       | Vitest unit tests                                                                                            |
-| `test-watch`   | Vitest in watch mode                                                                                         |
-| `format`       | Prettier (also runs stylelint on CSS)                                                                        |
-| `format-check` | Prettier check without writing                                                                               |
-| `lint`         | ESLint                                                                                                       |
-| `typecheck`    | `tsc -p tsconfig.app.json` (the root tsconfig has `files: []` and always passes silently — use this instead) |
-
-### Backend (`just backend <recipe>`)
-
-| Recipe               | Description                      |
-| -------------------- | -------------------------------- |
-| `install`            | `uv sync`                        |
-| `dev`                | FastAPI dev server (hot-reload)  |
-| `test`               | `pytest`                         |
-| `test-file <path>`   | Run a single test file           |
-| `format`             | `ruff format`                    |
-| `format-check`       | `ruff format --check`            |
-| `add <package>`      | Add a dependency via uv          |
-| `migrate`            | `alembic upgrade head`           |
-| `migration <name>`   | Generate a new migration         |
-| `migration-status`   | Show current migration revision  |
-| `migration-rollback` | Downgrade one revision           |
-| `seed`               | Populate local DB with test data |
-
 ## Deployment
 
 | Layer    | Target                    |
 | -------- | ------------------------- |
 | Frontend | Firebase Hosting          |
 | Backend  | Google Cloud Run (Docker) |
-
-The backend Docker image runs `alembic upgrade head` on startup before launching the server.

@@ -13,10 +13,11 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "typecheck:watch": "tsc -p tsconfig.app.json --noEmit --watch",
-    "deploy": "firebase deploy --only hosting --non-interactive",
-    "generate-pwa-assets": "pwa-assets-generator -c pwa-assets.config.ts && pwa-assets-generator -c pwa-assets.maskable.config.ts"
+    "generate-pwa-assets": "pwa-assets-generator -c pwa-assets.config.ts && pwa-assets-generator -c pwa-assets.maskable.config.ts",
+    "deploy": "firebase deploy --only hosting --non-interactive"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -30,7 +31,9 @@
     "react-router-dom": "^7.13.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.61.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -48,6 +51,7 @@
     "firebase-tools": "^15.20.0",
     "globals": "^17.4.0",
     "jsdom": "^25.0.0",
+    "playwright": "^1.61.0",
     "prettier": "3.8.4",
     "prettier-plugin-organize-imports": "^4.3.0",
     "stylelint": "^17.13.0",

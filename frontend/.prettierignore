@@ -1,7 +1,20 @@
-dist
-coverage
+# Package managers
+pnpm-lock.yaml
 
+# Environment and runtime configuration
 .env*
 .*rc
 .*ignore
-pnpm-lock.yaml
+
+# Miscellaneous
+dist
+coverage
+
+# Dry-run worktrees live here; never let Prettier walk nested repo copies
+tmp/
+tmp/dry-run/
+
+# HAR fixtures are opaque recorded artifacts — don't reformat them
+tests/fixtures/*.har
+playwright/recordings/*.har
+

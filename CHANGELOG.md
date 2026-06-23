@@ -10,9 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Use :owner/:repo placeholders in gh api commands
+- Correct Playwright CI workflow — set working-directory to frontend
 
-- Correct gh api reply endpoint path (missing PR number)
+- Make loadEnvFile optional in playwright.config — .env absent in CI
+
+- Skip backend webServer in CI — only smoke tests run there
+
+- Anchor loadEnvFile to config dir; honour BACKEND_URL in vite config
+
+- Strip trailing slash from BACKEND_URL; use concrete default in .env.example
+
+- Use FRONTEND_URL (not BACKEND_URL) in backend .env.example CORS config
 
 
 ---

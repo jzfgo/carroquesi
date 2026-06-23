@@ -1,6 +1,10 @@
 # Worktrunk project config — shared by all contributors
 # See: https://worktrunk.dev
 
+[pre-start]
+# See: .envrc
+direnv = "direnv allow"
+
 [[post-start]]
 # See: .worktreeinclude
 copy = "wt step copy-ignored"

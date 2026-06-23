@@ -1,49 +1,62 @@
 nvm-dir := env('NVM_DIR', env('HOME') + PATH_SEP + '.nvm')
 nvm-exec := nvm-dir + PATH_SEP + 'nvm-exec'
+port := env('FRONTEND_PORT', '5173')
 
 default:
     @just --list
 
 # Install dependencies
 install:
-    {{nvm-exec}} pnpm install
+    {{ nvm-exec }} pnpm install
 
-# Start dev server
-dev:
-    {{nvm-exec}} pnpm dev -- --host 0.0.0.0
+# Start dev server with hot-reload (vite)
+[arg('scope', pattern='local|network')]
+dev scope="local":
+    {{ nvm-exec }} pnpm dev {{ if scope == "network" { "--host 0.0.0.0" } else { "--host localhost" } }} --port {{ port }}
 
-# Production build
+# Production build (tsc -b & vite build)
 build:
-    {{nvm-exec}} pnpm build
+    {{ nvm-exec }} pnpm build
 
-# Preview production build
+# Preview production build (vite preview)
 preview:
-    {{nvm-exec}} pnpm preview
+    {{ nvm-exec }} pnpm preview
 
-# Run unit tests
+# Run unit tests (vitest run)
 test:
-    {{nvm-exec}} pnpm test
+    {{ nvm-exec }} pnpm test
 
-# Run tests in watch mode
+# Run tests in watch mode (vitest)
 test-watch:
-    {{nvm-exec}} pnpm test:watch
+    {{ nvm-exec }} pnpm test:watch
 
-# Format
+# Run end-to-end tests (playwright test)
+test-e2e:
+    {{ nvm-exec }} pnpm test:e2e
+
+# Format (prettier --write ., code + styles)
 format:
-    {{nvm-exec}} pnpm format
+    {{ nvm-exec }} pnpm format
 
-# Check format
+# Check format (prettier --check ., code + styles)
 format-check:
-    {{nvm-exec}} pnpm format:check
+    {{ nvm-exec }} pnpm format:check
 
-# Lint
+# Lint (eslint + stylelint)
 lint:
-    {{nvm-exec}} pnpm lint
+    {{ nvm-exec }} pnpm lint
 
-# Type-check (uses tsconfig.app.json — root tsconfig has files:[] and always passes silently)
+# Type-check (tsc -p tsconfig.app.json --noEmit)
 typecheck:
-    {{nvm-exec}} pnpm typecheck
+    {{ nvm-exec }} pnpm typecheck
+
+typecheck-watch:
+    {{ nvm-exec }} pnpm typecheck:watch
 
 # Regenerate PWA icons from source assets in public/
 pwa-icons:
-    {{nvm-exec}} pnpm generate-pwa-assets
+    {{ nvm-exec }} pnpm generate-pwa-assets
+
+# Deploy to Firebase Hosting
+deploy:
+    {{ nvm-exec }} pnpm deploy

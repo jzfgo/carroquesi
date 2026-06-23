@@ -8,9 +8,7 @@ import type {
   ReceiptScanResult,
   Suggestion,
 } from '../types'
-
-const BASE = import.meta.env.VITE_BACKEND_URL ?? 'http://localhost:8000'
-const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID as string | undefined
+import { BACKEND_URL, DEV_USER_ID } from './environment'
 
 export class ApiError extends Error {
   status: number
@@ -27,7 +25,7 @@ async function apiFetch(
   options: RequestInit = {},
 ): Promise<unknown> {
   const token = await getToken()
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${BACKEND_URL}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -198,7 +196,7 @@ export async function getInvitePreview(inviteId: string): Promise<{
   list_emoji: string | null
   invited_by_name: string | null
 }> {
-  const res = await fetch(`${BASE}/invites/${inviteId}`)
+  const res = await fetch(`${BACKEND_URL}/invites/${inviteId}`)
   if (!res.ok) throw new ApiError(res.status, await res.text())
   return res.json() as Promise<{
     id: string
@@ -315,7 +313,7 @@ export function submitFeedback(
 }
 
 export function submitWaitlistSignup(email: string, inviteToken?: string) {
-  return fetch(`${BASE}/waitlist`, {
+  return fetch(`${BACKEND_URL}/waitlist`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

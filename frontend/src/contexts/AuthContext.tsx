@@ -15,6 +15,7 @@ import {
   type ReactNode,
 } from 'react'
 import { ApiError, syncUser } from '../lib/api'
+import { DEV_USER_ID } from '../lib/environment'
 import { auth } from '../lib/firebase'
 
 export interface AuthUser {
@@ -42,8 +43,6 @@ export function useAuth(): AuthContextValue {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
 }
-
-const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID as string | undefined
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
