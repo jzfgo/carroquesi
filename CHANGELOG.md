@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Anchor loadEnvFile to config dir; honour BACKEND_URL in vite config
 
+- Strip trailing slash from BACKEND_URL; use concrete default in .env.example
+
 
 ---
 ## [0.19.1] — 2026-06-22
