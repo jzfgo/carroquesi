@@ -9,9 +9,10 @@ function escapeRegex(str: string) {
 const BACKEND_PROTO = process.env.BACKEND_PROTO ?? 'http'
 const BACKEND_HOST = process.env.BACKEND_HOST ?? 'localhost'
 const BACKEND_PORT = process.env.BACKEND_PORT ?? 8000
-const BACKEND_URL =
+const BACKEND_URL = (
   process.env.BACKEND_URL ||
   `${BACKEND_PROTO}://${BACKEND_HOST}${BACKEND_PORT ? `:${BACKEND_PORT}` : ''}`
+).replace(/\/$/, '')
 
 export default defineConfig({
   plugins: [

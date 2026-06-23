@@ -20,8 +20,9 @@ export const FIREBASE_MEASUREMENT_ID = import.meta.env
 
 export const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY ?? ''
 
-export const BACKEND_URL =
+export const BACKEND_URL = (
   import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+).replace(/\/$/, '')
 
 export const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID as
   | string
