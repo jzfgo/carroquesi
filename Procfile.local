@@ -1,2 +1,2 @@
 frontend: just frontend dev
-backend: env TERM=dumb just backend dev
+backend: just backend dev

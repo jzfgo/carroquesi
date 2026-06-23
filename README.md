@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/node-24-green" alt="Node">
 </p>
 
-A collaborative grocery shopping list. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history. Includes price logging with per-item history, barcode lookup, AI-powered receipt scanning, running cost totals per shopping session, and in-app feedback.
+A collaborative grocery shopping list. Multiple users share lists, mark items as purchased, and get smart product suggestions based on purchase history. Includes price logging with per-item history, barcode lookup, AI-powered receipt scanning, and running cost totals per shopping session.
 
 ## Architecture
 

@@ -1,2 +1,2 @@
 frontend: just frontend dev network
-backend: env TERM=dumb just backend dev network
+backend: just backend dev network
