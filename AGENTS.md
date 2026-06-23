@@ -215,15 +215,19 @@ A task is complete only when **all** of the following are true:
 
 - Submitting prices to Open Prices (requires proof image + OSM location)
 
-## Open Action Items (1:1 — 2026-06-15)
+## Open Action Items (1:1 — 2026-06-22)
 
 **AI:**
 
 - [ ] Before any `alembic revision` step, explicitly prompt: "confirm you're on the current head after rebasing on main" _(unverified — confirm when next migration ships)_
-- [ ] When shipping UI features, include a mobile QA note listing specific things to check on device _(unverified — confirm when bug fixes ship)_
-      **You:**
-- [ ] Run `/brainstorming` before starting MCP Server / Siri Shortcuts implementation
-- [ ] Set a user threshold (e.g. 10 waitlist users) at which infra risks get addressed (secrets rotation, DB backups, Cloud Run migration job)
+- [ ] End every agent-driven UI fix session with explicit on-device QA checklist before closing _(confirmed miss on #87 and #88 — user found both bugs independently)_
+- [ ] Flag mobile-path issues (input type, viewport, safe area) during implementation, not just at handoff
+
+**You:**
+
+- [ ] Research agent queue / autonomous loop state-of-the-art before designing the system
+- [ ] Run `/brainstorming` before implementing Playwright e2e + visual regression (tooling choice has CI cost implications)
+- [ ] Run `/brainstorming` before MCP Server / Siri Shortcuts implementation
 - [ ] Bring a Document AI vs. Gemini comparison into the next receipt scanning `/brainstorming` session
 
 > When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
