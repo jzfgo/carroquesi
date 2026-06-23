@@ -61,11 +61,16 @@ export default defineConfig({
       reuseExistingServer: !IS_CI,
       env: { VITE_DEV_USER_ID },
     },
-    {
-      command: 'just ../backend serve',
-      url: `${BACKEND_URL}/health`,
-      reuseExistingServer: !IS_CI,
-      env: { FRONTEND_URL, DEV_AUTH_BYPASS },
-    },
+    // Backend not available in CI — omit so smoke tests can run without full stack
+    ...(!IS_CI
+      ? [
+          {
+            command: 'just ../backend serve',
+            url: `${BACKEND_URL}/health`,
+            reuseExistingServer: true,
+            env: { FRONTEND_URL, DEV_AUTH_BYPASS },
+          },
+        ]
+      : []),
   ],
 })
