@@ -1,21 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
-import type { ApiList } from '../types'
 import { ListActionSheet } from './ListActionSheet'
 
-const list: ApiList = {
-  id: 'l1',
-  name: 'Mercado semanal',
-  emoji: null,
-  owner_id: 'u1',
-  created_at: '',
-  updated_at: '',
-  item_count: 8,
-  purchased_count: 3,
-}
-
 const baseProps = {
-  list,
+  listId: 'l1',
+  listName: 'Mercado semanal',
+  currentUserId: 'u1',
   isOwner: true,
   onRename: vi.fn(),
   onDelete: vi.fn(),

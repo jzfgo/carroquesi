@@ -78,20 +78,6 @@
   font-size: var(--fs-16);
 }
 
-.dashboard-screen__toast {
-  position: fixed;
-  bottom: 1.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--ink-0);
-  color: var(--paper-0);
-  padding: 10px 20px;
-  border-radius: 999px;
-  font-size: var(--fs-14);
-  white-space: nowrap;
-  z-index: 200;
-}
-
 .dashboard-screen__avatar-wrapper {
   position: relative;
 }

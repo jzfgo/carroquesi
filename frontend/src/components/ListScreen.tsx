@@ -8,11 +8,13 @@ import { useOffline } from '../hooks/useOffline'
 import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
 import {
   ApiError,
+  deleteList,
   getBarcode,
   getDueSuggestions,
   getSuggestions,
   submitParsedReceipt,
   submitReceiptPrices,
+  updateList,
 } from '../lib/api'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
@@ -21,6 +23,7 @@ import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
 import { parseReceiptWithAi } from '../lib/receiptAi'
 import type {
+  ApiList,
   BarcodeRead,
   DueSuggestion,
   EditingTag,
@@ -36,13 +39,12 @@ import { DueSuggestionsSheet } from './DueSuggestionsSheet'
 import { FilterBar } from './FilterBar'
 import { ItemActionSheet } from './ItemActionSheet'
 import { ItemList } from './ItemList'
+import { ListActionSheet } from './ListActionSheet'
 import { ListHeader } from './ListHeader'
-import { ListMembersSheet } from './ListMembersSheet'
 import './ListScreen.css'
 import LogPurchaseSheet from './LogPurchaseSheet'
 import PriceHistorySheet from './PriceHistorySheet'
 import { ProgressBar } from './ProgressBar'
-import PurchaseToast from './PurchaseToast'
 import ReceiptScanSheet from './ReceiptScanSheet'
 import { SmartInputBar } from './SmartInputBar'
 import { StoreEditSheet } from './StoreEditSheet'
@@ -54,7 +56,6 @@ interface Props {
   listName: string
   listEmoji?: string | null
   listOwnerId: string
-  autoOpenReceiptScan?: boolean
   onBack?: () => void
 }
 
@@ -69,7 +70,6 @@ export function ListScreen({
   listName,
   listEmoji = null,
   listOwnerId,
-  autoOpenReceiptScan = false,
   onBack,
 }: Props) {
   const { getToken, user } = useAuth()
@@ -94,18 +94,40 @@ export function ListScreen({
     initialStore: string | null
     suggestedStore: string | null
   } | null>(null)
-  const [purchaseToast, setPurchaseToast] = useState<{
-    itemId: string
-    itemName: string
-  } | null>(null)
-  const handleDismissPurchaseToast = useCallback(
-    () => setPurchaseToast(null),
-    [],
-  )
 
   const handleDueSuggestionsClose = useCallback(
     () => setDueSuggestionsOpen(false),
     [],
+  )
+
+  const handleRename = useCallback(
+    async (list: ApiList, newName: string) => {
+      if (!navigator.onLine) {
+        setToast('No disponible sin conexión')
+        return
+      }
+      try {
+        await updateList(getToken, list.id, { name: newName })
+      } catch {
+        setToast('No se pudo renombrar la lista')
+      }
+    },
+    [getToken],
+  )
+
+  const handleDelete = useCallback(
+    async (list: ApiList) => {
+      if (!navigator.onLine) {
+        setToast('No disponible sin conexión')
+        return
+      }
+      try {
+        await deleteList(getToken, list.id)
+      } catch {
+        setToast('No se pudo eliminar la lista')
+      }
+    },
+    [getToken],
   )
 
   const [eanLookup, setEanLookup] = useState<EanLookupState>({
@@ -114,7 +136,6 @@ export function ListScreen({
   const eanRequestIdRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
-  const autoOpenFiredRef = useRef(false)
   const [receiptScanResult, setReceiptScanResult] =
     useState<ReceiptScanResult | null>(null)
   const [receiptUploading, setReceiptUploading] = useState(false)
@@ -179,14 +200,6 @@ export function ListScreen({
       })
   }, [listId, getToken])
 
-  useEffect(() => {
-    if (autoOpenReceiptScan && !autoOpenFiredRef.current) {
-      autoOpenFiredRef.current = true
-      setReceiptSourcePickerOpen(true)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   const handleReceiptScan = useCallback(() => {
     setReceiptSourcePickerOpen(true)
   }, [])
@@ -238,14 +251,9 @@ export function ListScreen({
 
   const handleTogglePurchased = useCallback(
     (itemId: string) => {
-      const item = items.find((i) => i.id === itemId)
       void togglePurchased(itemId)
-      // Show toast when marking as purchased (not when unmarking)
-      if (item && !item.purchased) {
-        setPurchaseToast({ itemId, itemName: item.name })
-      }
     },
-    [togglePurchased, items],
+    [togglePurchased],
   )
 
   const handleTagClick = useCallback(
@@ -372,7 +380,6 @@ export function ListScreen({
       }
       setLogPriceFor(null)
       setPriceItemId(null)
-      setPurchaseToast(null)
     },
     [logPriceFor, savePrice],
   )
@@ -383,13 +390,11 @@ export function ListScreen({
       await clearItemPrice(logPriceFor.itemId)
       setLogPriceFor(null)
       setPriceItemId(null)
-      setPurchaseToast(null)
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         // price already gone — treat as success, close sheet
         setLogPriceFor(null)
         setPriceItemId(null)
-        setPurchaseToast(null)
       } else if (err instanceof ApiError && err.status === 409) {
         setToast(
           'No se puede eliminar el precio de un artículo comprado en otro día',
@@ -489,6 +494,17 @@ export function ListScreen({
     return { purchasedCount: purchased, totalCount: total }
   }, [items])
 
+  const active: ApiList = {
+    id: listId,
+    name: listName,
+    emoji: listEmoji,
+    owner_id: listOwnerId,
+    created_at: '',
+    updated_at: '',
+    item_count: totalCount,
+    purchased_count: purchasedCount,
+  }
+
   const stores = useMemo(() => {
     const seen = new Set<string>()
     const result: string[] = []
@@ -549,7 +565,9 @@ export function ListScreen({
         onMenuOpen={handleMenuToggle}
         onBack={onBack}
       />
+
       <ProgressBar purchased={purchasedCount} total={totalCount} />
+
       {isOffline && (
         <div className="offline-banner offline-banner--sticky" role="status">
           Sin conexión
@@ -558,6 +576,7 @@ export function ListScreen({
             : ' · Los cambios se sincronizarán al reconectar'}
         </div>
       )}
+
       {items.length > 0 && (
         <FilterBar
           stores={stores}
@@ -566,6 +585,7 @@ export function ListScreen({
           onModeChange={setFilterMode}
         />
       )}
+
       <ItemList
         status={status}
         items={filteredItems}
@@ -581,9 +601,9 @@ export function ListScreen({
         purchasedCostByDate={purchasedCostByDate}
         footer={
           allUnpurchasedCount === 0 &&
-          items.length > 0 &&
-          !receiptScanResult &&
-          isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
+            items.length > 0 &&
+            !receiptScanResult &&
+            isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
             <div className="receipt-scan-cta">
               <button
                 className="receipt-scan-cta__btn"
@@ -602,6 +622,7 @@ export function ListScreen({
           ) : undefined
         }
       />
+
       {editingTag &&
         (() => {
           const editedItem = items.find((i) => i.id === editingTag.itemId)
@@ -638,6 +659,7 @@ export function ListScreen({
             />
           )
         })()}
+
       {activeItemId &&
         (() => {
           const activeItem = items.find((i) => i.id === activeItemId)
@@ -662,11 +684,19 @@ export function ListScreen({
             />
           )
         })()}
+
       {menuOpen && (
-        <ListMembersSheet
+        <ListActionSheet
           listId={listId}
+          listName={listName}
           currentUserId={currentUserId}
           isOwner={isOwner}
+          onRename={(newName) => void handleRename(active, newName)}
+          onDelete={() => void handleDelete(active)}
+          onReceiptScan={
+            isEnabled(FLAGS.AI_RECEIPT_SCANNING)
+              ? () => handleReceiptScan() : undefined
+          }
           onClose={() => setMenuOpen(false)}
         />
       )}
@@ -781,13 +811,6 @@ export function ListScreen({
             </>
           )
         })()}
-
-      {purchaseToast && (
-        <PurchaseToast
-          itemName={purchaseToast.itemName}
-          onDismiss={handleDismissPurchaseToast}
-        />
-      )}
 
       <input
         ref={fileInputRef}

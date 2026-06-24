@@ -116,13 +116,13 @@ describe('ListScreen', () => {
     ).toBeInTheDocument()
   })
 
-  it('opens ListMembersSheet when menu button is clicked', () => {
+  it('opens ListActionSheet when menu button is clicked', () => {
     render(
       <ListScreen listId="l1" listName="Mercado Semanal" listOwnerId="u1" />,
     )
     fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
     expect(
-      screen.getByRole('dialog', { name: /miembros/i }),
+      screen.getByRole('dialog', { name: /Opciones de lista/i }),
     ).toBeInTheDocument()
   })
 

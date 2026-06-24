@@ -15,7 +15,6 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import type { FeedbackPayload } from '../lib/api'
@@ -27,7 +26,6 @@ import {
   updateList,
 } from '../lib/api'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
-import { FLAGS } from '../lib/featureFlags'
 import type { ApiList } from '../types'
 import { CreateListCard } from './CreateListCard'
 import './DashboardScreen.css'
@@ -36,6 +34,7 @@ import { FeedbackSheet } from './FeedbackSheet'
 import { InstallBanner } from './InstallBanner'
 import { ListActionSheet } from './ListActionSheet'
 import { SortableListCard } from './SortableListCard'
+import { Toast } from './Toast'
 import { Wordmark } from './Wordmark'
 
 function loadOrder(userId: string): string[] | null {
@@ -83,7 +82,6 @@ function randomEmoji(): string {
 export function DashboardScreen() {
   const { user, getToken, signOut } = useAuth()
   const navigate = useNavigate()
-  const { isEnabled } = useFeatureFlags()
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
@@ -410,18 +408,12 @@ export function DashboardScreen() {
       </main>
       {activeList && (
         <ListActionSheet
-          list={activeList}
+          listId={activeList.id}
+          listName={activeList.name}
+          currentUserId={user?.id ?? ''}
           isOwner={activeList.owner_id === (user?.id ?? '')}
           onRename={(newName) => void handleRename(activeList, newName)}
           onDelete={() => void handleDelete(activeList)}
-          onReceiptScan={
-            isEnabled(FLAGS.AI_RECEIPT_SCANNING)
-              ? () =>
-                  navigate(`/lists/${activeList.id}`, {
-                    state: { openReceiptScan: true },
-                  })
-              : undefined
-          }
           onClose={() => setActiveList(null)}
         />
       )}
@@ -440,11 +432,7 @@ export function DashboardScreen() {
           onClose={() => setFeedbackOpen(false)}
         />
       )}
-      {toast && (
-        <div className="dashboard-screen__toast" role="alert">
-          {toast}
-        </div>
-      )}
+      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
   )
 }
