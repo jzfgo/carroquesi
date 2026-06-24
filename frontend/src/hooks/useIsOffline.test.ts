@@ -9,7 +9,7 @@ describe('useIsOffline — online state', () => {
       value: true,
       configurable: true,
     })
-    const { result } = renderHook(() => useIsOffline(!navigator.onLine))
+    const { result } = renderHook(() => useIsOffline())
     expect(result.current.isOffline).toBe(false)
   })
 
@@ -18,12 +18,16 @@ describe('useIsOffline — online state', () => {
       value: false,
       configurable: true,
     })
-    const { result } = renderHook(() => useIsOffline(!navigator.onLine))
+    const { result } = renderHook(() => useIsOffline())
     expect(result.current.isOffline).toBe(true)
   })
 
   it('isOffline becomes true on offline event', () => {
-    const { result } = renderHook(() => useIsOffline(false))
+    Object.defineProperty(navigator, 'onLine', {
+      value: true,
+      configurable: true,
+    })
+    const { result } = renderHook(() => useIsOffline())
     act(() => {
       window.dispatchEvent(new Event('offline'))
     })
@@ -35,7 +39,7 @@ describe('useIsOffline — online state', () => {
       value: false,
       configurable: true,
     })
-    const { result } = renderHook(() => useIsOffline(true))
+    const { result } = renderHook(() => useIsOffline())
     act(() => {
       window.dispatchEvent(new Event('online'))
     })

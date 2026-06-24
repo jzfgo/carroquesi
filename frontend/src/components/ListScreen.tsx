@@ -75,7 +75,7 @@ export function ListScreen({
   const { getToken, user } = useAuth()
   const [localListName, setLocalListName] = useState(listName)
   const { isEnabled } = useFeatureFlags()
-  const { isOffline } = useIsOffline(!navigator.onLine)
+  const { isOffline } = useIsOffline()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [toast, setToast] = useState<string | null>(null)

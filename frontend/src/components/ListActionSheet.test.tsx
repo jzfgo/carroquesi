@@ -2,6 +2,12 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { ListActionSheet } from './ListActionSheet'
 
+vi.mock('./ListMembersSheet', () => ({
+  ListMembersSheet: () => (
+    <div role="dialog" aria-label="Miembros de la lista">Miembros de la lista</div>
+  ),
+}))
+
 const baseProps = {
   listId: 'l1',
   listName: 'Mercado semanal',

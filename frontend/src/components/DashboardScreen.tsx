@@ -85,7 +85,7 @@ export function DashboardScreen() {
   const navigate = useNavigate()
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
-  const { isOffline } = useIsOffline(!navigator.onLine)
+  const { isOffline } = useIsOffline()
   usePageTitle(undefined)
   const [activeList, setActiveList] = useState<ApiList | null>(null)
   const [emojiList, setEmojiList] = useState<ApiList | null>(null)
