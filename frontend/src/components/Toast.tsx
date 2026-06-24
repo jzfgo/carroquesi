@@ -16,15 +16,15 @@ export function Toast({ message, onDismiss }: Props) {
   }, [onDismiss])
 
   return (
-    <div className="pt">
-      <div className="pt__progress">
-        <div className="pt__progress-fill" />
+    <div className="toast">
+      <div className="toast__progress">
+        <div className="toast__progress-fill" />
       </div>
-      <div className="pt__body">
-        <div className="pt__text">
+      <div className="toast__body">
+        <div className="toast__text">
           {message}
         </div>
-        <button className="pt__dismiss" onClick={onDismiss} aria-label="Cerrar">
+        <button className="toast__dismiss" onClick={onDismiss} aria-label="Cerrar">
           <X size={16} />
         </button>
       </div>
