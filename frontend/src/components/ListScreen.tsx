@@ -74,6 +74,10 @@ export function ListScreen({
 }: Props) {
   const { getToken, user } = useAuth()
   const [localListName, setLocalListName] = useState(listName)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: resets optimistic local title when polling confirms external rename
+    setLocalListName(listName)
+  }, [listName])
   const { isEnabled } = useFeatureFlags()
   const { isOffline } = useIsOffline()
   const [inputValue, setInputValue] = useState('')

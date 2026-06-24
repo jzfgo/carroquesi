@@ -23,7 +23,7 @@ export function Toast({ message, onDismiss }: Props) {
   return (
     <div className="toast" role="alert">
       <div className="toast__progress">
-        <div className="toast__progress-fill" />
+        <div key={message} className="toast__progress-fill" />
       </div>
       <div className="toast__body">
         <div className="toast__text">{message}</div>
