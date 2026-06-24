@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Sync localListName with prop on external rename, restart Toast animation on new message
 
+- Propagate rename back to ListRoute via onRename callback
+
 
 ---
 ## [0.19.1] — 2026-06-22
