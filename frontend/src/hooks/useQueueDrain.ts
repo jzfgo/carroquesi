@@ -86,6 +86,7 @@ export function useQueueDrain({
   }, [listId, getToken])
 
   useEffect(() => {
+    if (navigator.onLine) void drain()
     const handleOnline = () => void drain()
     window.addEventListener('online', handleOnline)
     return () => window.removeEventListener('online', handleOnline)

@@ -43,6 +43,43 @@ describe('useQueueDrain — pendingCount', () => {
   })
 })
 
+describe('useQueueDrain — drain on mount', () => {
+  it('drains addItem ops immediately when online on mount', async () => {
+    const createdItem = {
+      id: 'real-1',
+      list_id: 'l1',
+      name: 'Leche',
+      quantity: null,
+      brand: null,
+      stores: [],
+      purchased: false,
+      purchased_at: null,
+      ean: null,
+      price: null,
+      price_per: null,
+      price_store: null,
+      added_by: '',
+      created_at: '',
+      updated_at: '',
+    }
+    vi.mocked(api.createItem).mockResolvedValue(createdItem as never)
+    await enqueue({ listId: 'l1', type: 'addItem', tempId: 'tmp-1', payload: { name: 'Leche' } })
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+    await waitFor(() => expect(mockOnDrained).toHaveBeenCalled())
+    await waitFor(() => expect(result.current.pendingCount).toBe(0))
+  })
+
+  it('does not drain on mount when offline', async () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    await enqueue({ listId: 'l1', type: 'addItem', payload: { name: 'Leche' } })
+
+    renderHook(() => useQueueDrain(defaultParams))
+    await new Promise((r) => setTimeout(r, 50))
+    expect(mockOnDrained).not.toHaveBeenCalled()
+  })
+})
+
 describe('useQueueDrain — drain on reconnect', () => {
   it('drains addItem ops and calls onDrained', async () => {
     const createdItem = {
@@ -63,20 +100,17 @@ describe('useQueueDrain — drain on reconnect', () => {
       updated_at: '',
     }
     vi.mocked(api.createItem).mockResolvedValue(createdItem as never)
-    await enqueue({
-      listId: 'l1',
-      type: 'addItem',
-      tempId: 'tmp-1',
-      payload: { name: 'Leche' },
-    })
 
     const { result } = renderHook(() => useQueueDrain(defaultParams))
+    await waitFor(() => expect(result.current.pendingCount).toBe(0))
+
+    await enqueue({ listId: 'l1', type: 'addItem', tempId: 'tmp-1', payload: { name: 'Leche' } })
     await waitFor(() => expect(result.current.pendingCount).toBe(1))
 
     await act(async () => {
       window.dispatchEvent(new Event('online'))
     })
-    await waitFor(() => expect(mockOnDrained).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(mockOnDrained).toHaveBeenCalled())
     await waitFor(() => expect(result.current.pendingCount).toBe(0))
   })
 
