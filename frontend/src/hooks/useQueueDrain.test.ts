@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
 import { enqueue, getAll, remove } from '../lib/offlineQueue'
-import { useOffline } from './useOffline'
+import { useQueueDrain } from './useQueueDrain'
 
 vi.mock('../lib/api')
 
@@ -29,21 +29,21 @@ beforeEach(async () => {
   })
 })
 
-describe('useOffline — pendingCount', () => {
+describe('useQueueDrain — pendingCount', () => {
   it('starts at 0 with empty queue', async () => {
-    const { result } = renderHook(() => useOffline(defaultParams))
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
     await waitFor(() => expect(result.current.pendingCount).toBe(0))
   })
 
   it('updates when an op is enqueued', async () => {
-    const { result } = renderHook(() => useOffline(defaultParams))
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
     await waitFor(() => expect(result.current.pendingCount).toBe(0))
     await act(() => enqueue({ listId: 'l1', type: 'addItem', payload: {} }))
     await waitFor(() => expect(result.current.pendingCount).toBe(1))
   })
 })
 
-describe('useOffline — drain on reconnect', () => {
+describe('useQueueDrain — drain on reconnect', () => {
   it('drains addItem ops and calls onDrained', async () => {
     const createdItem = {
       id: 'real-1',
@@ -70,7 +70,7 @@ describe('useOffline — drain on reconnect', () => {
       payload: { name: 'Leche' },
     })
 
-    const { result } = renderHook(() => useOffline(defaultParams))
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
     await waitFor(() => expect(result.current.pendingCount).toBe(1))
 
     await act(async () => {
@@ -90,7 +90,7 @@ describe('useOffline — drain on reconnect', () => {
       payload: { name: 'Leche' },
     })
 
-    renderHook(() => useOffline(defaultParams))
+    renderHook(() => useQueueDrain(defaultParams))
     await act(async () => {
       window.dispatchEvent(new Event('online'))
     })
@@ -109,7 +109,7 @@ describe('useOffline — drain on reconnect', () => {
       payload: { name: 'Leche' },
     })
 
-    renderHook(() => useOffline(defaultParams))
+    renderHook(() => useQueueDrain(defaultParams))
     await act(async () => {
       window.dispatchEvent(new Event('online'))
     })

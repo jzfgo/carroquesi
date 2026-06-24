@@ -5,7 +5,7 @@ import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
 import { useIsOffline } from '../hooks/useIsOffline'
 import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
-import { useOffline } from '../hooks/useOffline'
+import { useQueueDrain } from '../hooks/useQueueDrain'
 import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
 import {
   ApiError,
@@ -170,7 +170,7 @@ export function ListScreen({
     retry,
   } = useListItems(listId, getToken, setToast)
 
-  const { pendingCount } = useOffline({
+  const { pendingCount } = useQueueDrain({
     listId,
     getToken,
     onDrained: retry,

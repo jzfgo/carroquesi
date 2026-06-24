@@ -20,8 +20,8 @@ vi.mock('../contexts/FeatureFlagsContext', () => ({
   useFeatureFlags: vi.fn(),
 }))
 vi.mock('../hooks/useListItems')
-vi.mock('../hooks/useOffline', () => ({
-  useOffline: vi.fn(() => ({ isOffline: false, pendingCount: 0 })),
+vi.mock('../hooks/useQueueDrain', () => ({
+  useQueueDrain: vi.fn(() => ({ pendingCount: 0 })),
 }))
 vi.mock('../lib/api')
 vi.mock('../lib/receiptAi', () => ({ parseReceiptWithAi: vi.fn() }))
