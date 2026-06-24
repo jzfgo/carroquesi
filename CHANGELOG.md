@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Stable Toast timer, a11y role, mock ListMembersSheet in tests, simplify useIsOffline
 
+- Sync localListName with prop on external rename, restart Toast animation on new message
+
 
 ---
 ## [0.19.1] — 2026-06-22
