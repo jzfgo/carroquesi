@@ -29,9 +29,7 @@ const app = initializeApp(firebaseConfig)
 if (IS_DEV) {
   // @ts-expect-error - Firebase App Check debug token for localhost
   self.FIREBASE_APPCHECK_DEBUG_TOKEN = true
-}
-
-if (RECAPTCHA_SITE_KEY) {
+} else if (RECAPTCHA_SITE_KEY) {
   initializeAppCheck(app, {
     provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
     isTokenAutoRefreshEnabled: true,
