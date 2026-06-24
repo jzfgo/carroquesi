@@ -10,9 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Restore dev-only guard on initializeAppCheck to unblock receipt scan
-
-- Simplify App Check guard — remove dead debug token assignment
+- Restore dev-only App Check guard to unblock receipt scanning (#94)
 
 
 ---
