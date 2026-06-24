@@ -103,7 +103,9 @@ export function ListRoute() {
       listName={list.name}
       listEmoji={list.emoji}
       listOwnerId={list.owner_id}
-      onRename={(newName) => setList((prev) => (prev ? { ...prev, name: newName } : null))}
+      onRename={(newName) =>
+        setList((prev) => (prev ? { ...prev, name: newName } : null))
+      }
       onBack={() => navigate('/')}
     />
   )
