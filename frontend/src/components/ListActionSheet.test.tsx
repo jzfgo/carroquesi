@@ -82,11 +82,12 @@ test('Cancelar in rename sub-state returns to actions sub-state', () => {
   expect(baseProps.onClose).not.toHaveBeenCalled()
 })
 
-test('ESC calls onClose from rename sub-state', () => {
+test('ESC from rename sub-state returns to actions, not closing the sheet', () => {
   render(<ListActionSheet {...baseProps} />)
   fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
   fireEvent.keyDown(document, { key: 'Escape' })
-  expect(baseProps.onClose).toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
+  expect(baseProps.onClose).not.toHaveBeenCalled()
 })
 
 test('tapping Eliminar lista shows confirmation sub-state with warning text', () => {
@@ -118,9 +119,10 @@ test('tapping the overlay calls onClose from actions sub-state', () => {
   expect(baseProps.onClose).toHaveBeenCalled()
 })
 
-test('ESC calls onClose from confirm-delete sub-state', () => {
+test('ESC from confirm-delete sub-state returns to actions, not closing the sheet', () => {
   render(<ListActionSheet {...baseProps} />)
   fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
   fireEvent.keyDown(document, { key: 'Escape' })
-  expect(baseProps.onClose).toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
+  expect(baseProps.onClose).not.toHaveBeenCalled()
 })

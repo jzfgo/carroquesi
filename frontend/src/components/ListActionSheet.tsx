@@ -14,7 +14,7 @@ interface Props {
   onRename: (newName: string) => void
   onDelete: () => void
   onReceiptScan?: () => void
-  onClose?: () => void
+  onClose: () => void
 }
 
 export function ListActionSheet({
@@ -34,8 +34,10 @@ export function ListActionSheet({
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      // When ListMembersSheet is shown, it manages its own Escape; don't also fire onClose
-      if (e.key === 'Escape' && subState !== 'members') onClose?.()
+      if (e.key !== 'Escape') return
+      if (subState === 'actions') onClose()
+      // 'members' manages its own Escape; 'rename'/'confirm-delete' navigate back
+      else if (subState !== 'members') setSubState('actions')
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
@@ -75,7 +77,7 @@ export function ListActionSheet({
               className="list-action-sheet__action"
               onClick={() => {
                 onReceiptScan()
-                onClose?.()
+                onClose()
               }}
             >
               <Receipt size={18} /> Escanear ticket

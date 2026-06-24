@@ -12,7 +12,6 @@ interface Params {
 }
 
 export function useOffline({ listId, getToken, onDrained, showToast }: Params) {
-  const [isOffline, setIsOffline] = useState(!navigator.onLine)
   const [pendingCount, setPendingCount] = useState(0)
 
   const onDrainedRef = useRef(onDrained)
@@ -82,18 +81,10 @@ export function useOffline({ listId, getToken, onDrained, showToast }: Params) {
   }, [listId, getToken])
 
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOffline(false)
-      void drain()
-    }
-    const handleOffline = () => setIsOffline(true)
+    const handleOnline = () => void drain()
     window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
+    return () => window.removeEventListener('online', handleOnline)
   }, [drain])
 
-  return { isOffline, pendingCount }
+  return { pendingCount }
 }

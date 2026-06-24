@@ -2,6 +2,7 @@ import { Camera, Image, Receipt } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
+import { useIsOffline } from '../hooks/useIsOffline'
 import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
 import { useOffline } from '../hooks/useOffline'
@@ -23,7 +24,6 @@ import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
 import { parseReceiptWithAi } from '../lib/receiptAi'
 import type {
-  ApiList,
   BarcodeRead,
   DueSuggestion,
   EditingTag,
@@ -31,7 +31,7 @@ import type {
   PricePatch,
   ReceiptScanResult,
   Suggestion,
-  TagField,
+  TagField
 } from '../types'
 import { BarcodeScanner } from './BarcodeScanner'
 import { BarcodeScanSheet } from './BarcodeScanSheet'
@@ -75,6 +75,7 @@ export function ListScreen({
   const { getToken, user } = useAuth()
   const [localListName, setLocalListName] = useState(listName)
   const { isEnabled } = useFeatureFlags()
+  const { isOffline } = useIsOffline(!navigator.onLine)
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [toast, setToast] = useState<string | null>(null)
@@ -102,37 +103,37 @@ export function ListScreen({
   )
 
   const handleRename = useCallback(
-    async (list: ApiList, newName: string) => {
-      if (!navigator.onLine) {
+    async (listId: string, newName: string) => {
+      if (isOffline) {
         setToast('No disponible sin conexión')
         return
       }
       try {
-        await updateList(getToken, list.id, { name: newName })
+        await updateList(getToken, listId, { name: newName })
         setLocalListName(newName)
         setMenuOpen(false)
       } catch {
         setToast('No se pudo renombrar la lista')
       }
     },
-    [getToken],
+    [getToken, isOffline],
   )
 
   const handleDelete = useCallback(
-    async (list: ApiList) => {
-      if (!navigator.onLine) {
+    async (listId: string) => {
+      if (isOffline) {
         setToast('No disponible sin conexión')
         return
       }
       try {
-        await deleteList(getToken, list.id)
+        await deleteList(getToken, listId)
         setMenuOpen(false)
         onBack?.()
       } catch {
         setToast('No se pudo eliminar la lista')
       }
     },
-    [getToken, onBack],
+    [getToken, onBack, isOffline],
   )
 
   const [eanLookup, setEanLookup] = useState<EanLookupState>({
@@ -169,7 +170,7 @@ export function ListScreen({
     retry,
   } = useListItems(listId, getToken, setToast)
 
-  const { isOffline, pendingCount } = useOffline({
+  const { pendingCount } = useOffline({
     listId,
     getToken,
     onDrained: retry,
@@ -499,17 +500,6 @@ export function ListScreen({
     return { purchasedCount: purchased, totalCount: total }
   }, [items])
 
-  const active: ApiList = {
-    id: listId,
-    name: localListName,
-    emoji: listEmoji,
-    owner_id: listOwnerId,
-    created_at: '',
-    updated_at: '',
-    item_count: totalCount,
-    purchased_count: purchasedCount,
-  }
-
   const stores = useMemo(() => {
     const seen = new Set<string>()
     const result: string[] = []
@@ -696,8 +686,8 @@ export function ListScreen({
           listName={localListName}
           currentUserId={currentUserId}
           isOwner={isOwner}
-          onRename={(newName) => void handleRename(active, newName)}
-          onDelete={() => void handleDelete(active)}
+          onRename={(newName) => void handleRename(listId, newName)}
+          onDelete={() => void handleDelete(listId)}
           onReceiptScan={
             isEnabled(FLAGS.AI_RECEIPT_SCANNING)
               ? () => handleReceiptScan() : undefined

@@ -29,42 +29,6 @@ beforeEach(async () => {
   })
 })
 
-describe('useOffline — online state', () => {
-  it('isOffline is false when navigator.onLine is true', () => {
-    const { result } = renderHook(() => useOffline(defaultParams))
-    expect(result.current.isOffline).toBe(false)
-  })
-
-  it('isOffline is true when navigator.onLine is false', () => {
-    Object.defineProperty(navigator, 'onLine', {
-      value: false,
-      configurable: true,
-    })
-    const { result } = renderHook(() => useOffline(defaultParams))
-    expect(result.current.isOffline).toBe(true)
-  })
-
-  it('isOffline becomes true on offline event', () => {
-    const { result } = renderHook(() => useOffline(defaultParams))
-    act(() => {
-      window.dispatchEvent(new Event('offline'))
-    })
-    expect(result.current.isOffline).toBe(true)
-  })
-
-  it('isOffline becomes false on online event', () => {
-    Object.defineProperty(navigator, 'onLine', {
-      value: false,
-      configurable: true,
-    })
-    const { result } = renderHook(() => useOffline(defaultParams))
-    act(() => {
-      window.dispatchEvent(new Event('online'))
-    })
-    expect(result.current.isOffline).toBe(false)
-  })
-})
-
 describe('useOffline — pendingCount', () => {
   it('starts at 0 with empty queue', async () => {
     const { result } = renderHook(() => useOffline(defaultParams))

@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useIsOffline } from '../hooks/useIsOffline'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import type { FeedbackPayload } from '../lib/api'
@@ -84,7 +85,7 @@ export function DashboardScreen() {
   const navigate = useNavigate()
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
-  const [isOffline, setIsOffline] = useState(!navigator.onLine)
+  const { isOffline } = useIsOffline(!navigator.onLine)
   usePageTitle(undefined)
   const [activeList, setActiveList] = useState<ApiList | null>(null)
   const [emojiList, setEmojiList] = useState<ApiList | null>(null)
@@ -100,17 +101,6 @@ export function DashboardScreen() {
     const id = setTimeout(() => setToast(null), 3000)
     return () => clearTimeout(id)
   }, [toast])
-
-  useEffect(() => {
-    const onOnline = () => setIsOffline(false)
-    const onOffline = () => setIsOffline(true)
-    window.addEventListener('online', onOnline)
-    window.addEventListener('offline', onOffline)
-    return () => {
-      window.removeEventListener('online', onOnline)
-      window.removeEventListener('offline', onOffline)
-    }
-  }, [])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -154,7 +144,7 @@ export function DashboardScreen() {
 
   const handleFeedbackSubmit = useCallback(
     async (payload: FeedbackPayload) => {
-      if (!navigator.onLine) {
+      if (isOffline) {
         setToast('No se pudo enviar el feedback')
         return
       }
@@ -169,7 +159,7 @@ export function DashboardScreen() {
         setFeedbackSubmitting(false)
       }
     },
-    [getToken],
+    [getToken, isOffline],
   )
 
   const handleDragEnd = useCallback(
@@ -205,19 +195,19 @@ export function DashboardScreen() {
 
   const handleCreate = useCallback(
     async (name: string) => {
-      if (!navigator.onLine) {
+      if (isOffline) {
         setToast('No disponible sin conexión')
         return
       }
       await createList(getToken, { name, emoji: randomEmoji() })
       await fetchLists()
     },
-    [getToken, fetchLists],
+    [getToken, fetchLists, isOffline],
   )
 
   const handleRename = useCallback(
     async (list: ApiList, newName: string) => {
-      if (!navigator.onLine) {
+      if (isOffline) {
         setToast('No disponible sin conexión')
         return
       }
@@ -236,7 +226,7 @@ export function DashboardScreen() {
         setToast('No se pudo renombrar la lista')
       }
     },
-    [getToken],
+    [getToken, isOffline],
   )
 
   const handleEmojiChange = useCallback(
@@ -261,7 +251,7 @@ export function DashboardScreen() {
 
   const handleDelete = useCallback(
     async (list: ApiList) => {
-      if (!navigator.onLine) {
+      if (isOffline) {
         setToast('No disponible sin conexión')
         return
       }
@@ -273,7 +263,7 @@ export function DashboardScreen() {
         setToast('No se pudo eliminar la lista')
       }
     },
-    [getToken],
+    [getToken, isOffline],
   )
 
   if (fetchError) {
