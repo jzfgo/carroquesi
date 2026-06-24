@@ -63,7 +63,12 @@ describe('useQueueDrain — drain on mount', () => {
       updated_at: '',
     }
     vi.mocked(api.createItem).mockResolvedValue(createdItem as never)
-    await enqueue({ listId: 'l1', type: 'addItem', tempId: 'tmp-1', payload: { name: 'Leche' } })
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      tempId: 'tmp-1',
+      payload: { name: 'Leche' },
+    })
 
     const { result } = renderHook(() => useQueueDrain(defaultParams))
     await waitFor(() => expect(mockOnDrained).toHaveBeenCalled())
@@ -71,7 +76,10 @@ describe('useQueueDrain — drain on mount', () => {
   })
 
   it('does not drain on mount when offline', async () => {
-    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    Object.defineProperty(navigator, 'onLine', {
+      value: false,
+      configurable: true,
+    })
     await enqueue({ listId: 'l1', type: 'addItem', payload: { name: 'Leche' } })
 
     renderHook(() => useQueueDrain(defaultParams))
@@ -104,7 +112,12 @@ describe('useQueueDrain — drain on reconnect', () => {
     const { result } = renderHook(() => useQueueDrain(defaultParams))
     await waitFor(() => expect(result.current.pendingCount).toBe(0))
 
-    await enqueue({ listId: 'l1', type: 'addItem', tempId: 'tmp-1', payload: { name: 'Leche' } })
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      tempId: 'tmp-1',
+      payload: { name: 'Leche' },
+    })
     await waitFor(() => expect(result.current.pendingCount).toBe(1))
 
     await act(async () => {
