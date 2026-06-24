@@ -108,15 +108,17 @@ export function ListScreen({
         setToast('No disponible sin conexión')
         return
       }
+      const previous = localListName
+      setLocalListName(newName)
+      setMenuOpen(false)
       try {
         await updateList(getToken, listId, { name: newName })
-        setLocalListName(newName)
-        setMenuOpen(false)
       } catch {
+        setLocalListName(previous)
         setToast('No se pudo renombrar la lista')
       }
     },
-    [getToken, isOffline],
+    [getToken, isOffline, localListName],
   )
 
   const handleDelete = useCallback(
