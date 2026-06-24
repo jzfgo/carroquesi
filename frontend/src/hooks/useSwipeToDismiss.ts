@@ -7,7 +7,7 @@ import { useRef } from 'react'
  */
 export function useSwipeToDismiss(
   sheetRef: React.RefObject<HTMLElement | null>,
-  onClose?: () => void,
+  onClose: () => void,
   threshold = 80,
 ) {
   const startY = useRef<number | null>(null)
@@ -32,7 +32,7 @@ export function useSwipeToDismiss(
     const dy = e.changedTouches[0].clientY - startY.current
     sheetRef.current.style.transition = ''
     if (dy > threshold) {
-      onClose?.()
+      onClose()
     } else {
       sheetRef.current.style.transform = ''
     }
