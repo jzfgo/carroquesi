@@ -10,17 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Correct Playwright CI workflow — set working-directory to frontend
-
-- Make loadEnvFile optional in playwright.config — .env absent in CI
-
-- Skip backend webServer in CI — only smoke tests run there
-
-- Anchor loadEnvFile to config dir; honour BACKEND_URL in vite config
-
-- Strip trailing slash from BACKEND_URL; use concrete default in .env.example
-
-- Use FRONTEND_URL (not BACKEND_URL) in backend .env.example CORS config
+- Restore dev-only guard on initializeAppCheck to unblock receipt scan
 
 
 ---
