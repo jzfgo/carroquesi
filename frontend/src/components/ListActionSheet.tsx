@@ -1,13 +1,15 @@
-import { Pencil, Receipt, Trash2 } from 'lucide-react'
+import { Pencil, Receipt, Trash2, Users } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
-import type { ApiList } from '../types'
 import './ListActionSheet.css'
+import { ListMembersSheet } from './ListMembersSheet'
 
-type SubState = 'actions' | 'rename' | 'confirm-delete'
+type SubState = 'actions' | 'rename' | 'members' | 'confirm-delete'
 
 interface Props {
-  list: ApiList
+  listId: string
+  listName: string
+  currentUserId: string
   isOwner: boolean
   onRename: (newName: string) => void
   onDelete: () => void
@@ -16,7 +18,9 @@ interface Props {
 }
 
 export function ListActionSheet({
-  list,
+  listId,
+  listName,
+  currentUserId,
   isOwner,
   onRename,
   onDelete,
@@ -24,17 +28,20 @@ export function ListActionSheet({
   onClose,
 }: Props) {
   const [subState, setSubState] = useState<SubState>('actions')
-  const [renameValue, setRenameValue] = useState(list.name)
+  const [renameValue, setRenameValue] = useState(listName)
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      if (subState === 'actions') onClose()
+      // 'members' manages its own Escape; 'rename'/'confirm-delete' navigate back
+      else if (subState !== 'members') setSubState('actions')
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
+  }, [onClose, subState])
 
   const overlay = (
     <div className="list-action-sheet__overlay" onClick={onClose} />
@@ -52,12 +59,18 @@ export function ListActionSheet({
           ref={sheetRef}
         >
           <div className="list-action-sheet__handle" {...swipe} />
-          <p className="list-action-sheet__list-name">{list.name}</p>
+          <p className="list-action-sheet__list-name">{listName}</p>
           <button
             className="list-action-sheet__action"
             onClick={() => setSubState('rename')}
           >
             <Pencil size={18} /> Renombrar
+          </button>
+          <button
+            className="list-action-sheet__action"
+            onClick={() => setSubState('members')}
+          >
+            <Users size={18} /> Gestionar Miembros
           </button>
           {onReceiptScan && (
             <button
@@ -132,6 +145,17 @@ export function ListActionSheet({
     )
   }
 
+  if (subState === 'members') {
+    return (
+      <ListMembersSheet
+        listId={listId}
+        currentUserId={currentUserId}
+        isOwner={isOwner}
+        onClose={() => setSubState('actions')}
+      />
+    )
+  }
+
   // subState === 'confirm-delete'
   return (
     <>
@@ -144,7 +168,7 @@ export function ListActionSheet({
         ref={sheetRef}
       >
         <div className="list-action-sheet__handle" {...swipe} />
-        <p className="list-action-sheet__list-name">{list.name}</p>
+        <p className="list-action-sheet__list-name">{listName}</p>
         <p className="list-action-sheet__warning">
           Se eliminarán todos los productos. Esta acción no se puede deshacer.
         </p>

@@ -20,8 +20,8 @@ vi.mock('../contexts/FeatureFlagsContext', () => ({
   useFeatureFlags: vi.fn(),
 }))
 vi.mock('../hooks/useListItems')
-vi.mock('../hooks/useOffline', () => ({
-  useOffline: vi.fn(() => ({ isOffline: false, pendingCount: 0 })),
+vi.mock('../hooks/useQueueDrain', () => ({
+  useQueueDrain: vi.fn(() => ({ pendingCount: 0 })),
 }))
 vi.mock('../lib/api')
 vi.mock('../lib/receiptAi', () => ({ parseReceiptWithAi: vi.fn() }))
@@ -116,13 +116,13 @@ describe('ListScreen', () => {
     ).toBeInTheDocument()
   })
 
-  it('opens ListMembersSheet when menu button is clicked', () => {
+  it('opens ListActionSheet when menu button is clicked', () => {
     render(
       <ListScreen listId="l1" listName="Mercado Semanal" listOwnerId="u1" />,
     )
     fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
     expect(
-      screen.getByRole('dialog', { name: /miembros/i }),
+      screen.getByRole('dialog', { name: /Opciones de lista/i }),
     ).toBeInTheDocument()
   })
 

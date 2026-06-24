@@ -15,7 +15,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
+import { useIsOffline } from '../hooks/useIsOffline'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import type { FeedbackPayload } from '../lib/api'
@@ -27,7 +27,6 @@ import {
   updateList,
 } from '../lib/api'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
-import { FLAGS } from '../lib/featureFlags'
 import type { ApiList } from '../types'
 import { CreateListCard } from './CreateListCard'
 import './DashboardScreen.css'
@@ -36,6 +35,7 @@ import { FeedbackSheet } from './FeedbackSheet'
 import { InstallBanner } from './InstallBanner'
 import { ListActionSheet } from './ListActionSheet'
 import { SortableListCard } from './SortableListCard'
+import { Toast } from './Toast'
 import { Wordmark } from './Wordmark'
 
 function loadOrder(userId: string): string[] | null {
@@ -83,10 +83,9 @@ function randomEmoji(): string {
 export function DashboardScreen() {
   const { user, getToken, signOut } = useAuth()
   const navigate = useNavigate()
-  const { isEnabled } = useFeatureFlags()
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
-  const [isOffline, setIsOffline] = useState(!navigator.onLine)
+  const { isOffline } = useIsOffline()
   usePageTitle(undefined)
   const [activeList, setActiveList] = useState<ApiList | null>(null)
   const [emojiList, setEmojiList] = useState<ApiList | null>(null)
@@ -102,17 +101,6 @@ export function DashboardScreen() {
     const id = setTimeout(() => setToast(null), 3000)
     return () => clearTimeout(id)
   }, [toast])
-
-  useEffect(() => {
-    const onOnline = () => setIsOffline(false)
-    const onOffline = () => setIsOffline(true)
-    window.addEventListener('online', onOnline)
-    window.addEventListener('offline', onOffline)
-    return () => {
-      window.removeEventListener('online', onOnline)
-      window.removeEventListener('offline', onOffline)
-    }
-  }, [])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -156,7 +144,7 @@ export function DashboardScreen() {
 
   const handleFeedbackSubmit = useCallback(
     async (payload: FeedbackPayload) => {
-      if (!navigator.onLine) {
+      if (isOffline) {
         setToast('No se pudo enviar el feedback')
         return
       }
@@ -171,7 +159,7 @@ export function DashboardScreen() {
         setFeedbackSubmitting(false)
       }
     },
-    [getToken],
+    [getToken, isOffline],
   )
 
   const handleDragEnd = useCallback(
@@ -207,19 +195,19 @@ export function DashboardScreen() {
 
   const handleCreate = useCallback(
     async (name: string) => {
-      if (!navigator.onLine) {
+      if (isOffline) {
         setToast('No disponible sin conexión')
         return
       }
       await createList(getToken, { name, emoji: randomEmoji() })
       await fetchLists()
     },
-    [getToken, fetchLists],
+    [getToken, fetchLists, isOffline],
   )
 
   const handleRename = useCallback(
     async (list: ApiList, newName: string) => {
-      if (!navigator.onLine) {
+      if (isOffline) {
         setToast('No disponible sin conexión')
         return
       }
@@ -238,7 +226,7 @@ export function DashboardScreen() {
         setToast('No se pudo renombrar la lista')
       }
     },
-    [getToken],
+    [getToken, isOffline],
   )
 
   const handleEmojiChange = useCallback(
@@ -263,7 +251,7 @@ export function DashboardScreen() {
 
   const handleDelete = useCallback(
     async (list: ApiList) => {
-      if (!navigator.onLine) {
+      if (isOffline) {
         setToast('No disponible sin conexión')
         return
       }
@@ -275,7 +263,7 @@ export function DashboardScreen() {
         setToast('No se pudo eliminar la lista')
       }
     },
-    [getToken],
+    [getToken, isOffline],
   )
 
   if (fetchError) {
@@ -410,18 +398,12 @@ export function DashboardScreen() {
       </main>
       {activeList && (
         <ListActionSheet
-          list={activeList}
+          listId={activeList.id}
+          listName={activeList.name}
+          currentUserId={user?.id ?? ''}
           isOwner={activeList.owner_id === (user?.id ?? '')}
           onRename={(newName) => void handleRename(activeList, newName)}
           onDelete={() => void handleDelete(activeList)}
-          onReceiptScan={
-            isEnabled(FLAGS.AI_RECEIPT_SCANNING)
-              ? () =>
-                  navigate(`/lists/${activeList.id}`, {
-                    state: { openReceiptScan: true },
-                  })
-              : undefined
-          }
           onClose={() => setActiveList(null)}
         />
       )}
@@ -440,11 +422,7 @@ export function DashboardScreen() {
           onClose={() => setFeedbackOpen(false)}
         />
       )}
-      {toast && (
-        <div className="dashboard-screen__toast" role="alert">
-          {toast}
-        </div>
-      )}
+      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
   )
 }

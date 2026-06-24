@@ -10,9 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Restore dev-only guard on initializeAppCheck to unblock receipt scan
+- Restore dev-only App Check guard to unblock receipt scanning (#94)
 
-- Simplify App Check guard — remove dead debug token assignment
+- Stable Toast timer, a11y role, mock ListMembersSheet in tests, simplify useIsOffline
+
+- Sync localListName with prop on external rename, restart Toast animation on new message
+
+- Propagate rename back to ListRoute via onRename callback
+
+- Drain offline queue on mount when already online
 
 
 ---

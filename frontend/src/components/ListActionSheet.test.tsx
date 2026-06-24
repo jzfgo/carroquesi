@@ -1,21 +1,19 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
-import type { ApiList } from '../types'
 import { ListActionSheet } from './ListActionSheet'
 
-const list: ApiList = {
-  id: 'l1',
-  name: 'Mercado semanal',
-  emoji: null,
-  owner_id: 'u1',
-  created_at: '',
-  updated_at: '',
-  item_count: 8,
-  purchased_count: 3,
-}
+vi.mock('./ListMembersSheet', () => ({
+  ListMembersSheet: () => (
+    <div role="dialog" aria-label="Miembros de la lista">
+      Miembros de la lista
+    </div>
+  ),
+}))
 
 const baseProps = {
-  list,
+  listId: 'l1',
+  listName: 'Mercado semanal',
+  currentUserId: 'u1',
   isOwner: true,
   onRename: vi.fn(),
   onDelete: vi.fn(),
@@ -92,11 +90,12 @@ test('Cancelar in rename sub-state returns to actions sub-state', () => {
   expect(baseProps.onClose).not.toHaveBeenCalled()
 })
 
-test('ESC calls onClose from rename sub-state', () => {
+test('ESC from rename sub-state returns to actions, not closing the sheet', () => {
   render(<ListActionSheet {...baseProps} />)
   fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
   fireEvent.keyDown(document, { key: 'Escape' })
-  expect(baseProps.onClose).toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
+  expect(baseProps.onClose).not.toHaveBeenCalled()
 })
 
 test('tapping Eliminar lista shows confirmation sub-state with warning text', () => {
@@ -128,9 +127,10 @@ test('tapping the overlay calls onClose from actions sub-state', () => {
   expect(baseProps.onClose).toHaveBeenCalled()
 })
 
-test('ESC calls onClose from confirm-delete sub-state', () => {
+test('ESC from confirm-delete sub-state returns to actions, not closing the sheet', () => {
   render(<ListActionSheet {...baseProps} />)
   fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
   fireEvent.keyDown(document, { key: 'Escape' })
-  expect(baseProps.onClose).toHaveBeenCalled()
+  expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
+  expect(baseProps.onClose).not.toHaveBeenCalled()
 })

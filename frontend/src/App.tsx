@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { DashboardScreen } from './components/DashboardScreen'
 import { InviteScreen } from './components/InviteScreen'
 import { ListRoute } from './components/ListRoute'
+import { Loading } from './components/Loading'
 import { SignInScreen } from './components/SignInScreen'
 import { ThemeManager } from './components/ThemeManager'
 import { WaitlistScreen } from './components/WaitlistScreen'
@@ -27,33 +28,11 @@ function AppContent() {
   const { user, loading, isWaitlisted } = useAuth()
 
   if (loading) {
-    return (
-      <div
-        role="status"
-        aria-label="Cargando"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100dvh',
-        }}
-      >
-        <span
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            border: '3px solid var(--color-border)',
-            borderTopColor: 'var(--color-primary)',
-            animation: 'spin 0.8s linear infinite',
-            display: 'block',
-          }}
-        />
-      </div>
-    )
+    return <Loading />
   }
 
   if (isWaitlisted) return <WaitlistScreen />
+
   if (!user) {
     if (IS_WAITLIST_ENABLED) {
       return <WaitlistScreen />

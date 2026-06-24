@@ -2,17 +2,20 @@ import { Camera, Image, Receipt } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
+import { useIsOffline } from '../hooks/useIsOffline'
 import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
-import { useOffline } from '../hooks/useOffline'
 import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
+import { useQueueDrain } from '../hooks/useQueueDrain'
 import {
   ApiError,
+  deleteList,
   getBarcode,
   getDueSuggestions,
   getSuggestions,
   submitParsedReceipt,
   submitReceiptPrices,
+  updateList,
 } from '../lib/api'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
@@ -36,13 +39,12 @@ import { DueSuggestionsSheet } from './DueSuggestionsSheet'
 import { FilterBar } from './FilterBar'
 import { ItemActionSheet } from './ItemActionSheet'
 import { ItemList } from './ItemList'
+import { ListActionSheet } from './ListActionSheet'
 import { ListHeader } from './ListHeader'
-import { ListMembersSheet } from './ListMembersSheet'
 import './ListScreen.css'
 import LogPurchaseSheet from './LogPurchaseSheet'
 import PriceHistorySheet from './PriceHistorySheet'
 import { ProgressBar } from './ProgressBar'
-import PurchaseToast from './PurchaseToast'
 import ReceiptScanSheet from './ReceiptScanSheet'
 import { SmartInputBar } from './SmartInputBar'
 import { StoreEditSheet } from './StoreEditSheet'
@@ -54,7 +56,7 @@ interface Props {
   listName: string
   listEmoji?: string | null
   listOwnerId: string
-  autoOpenReceiptScan?: boolean
+  onRename?: (newName: string) => void
   onBack?: () => void
 }
 
@@ -69,11 +71,17 @@ export function ListScreen({
   listName,
   listEmoji = null,
   listOwnerId,
-  autoOpenReceiptScan = false,
+  onRename,
   onBack,
 }: Props) {
   const { getToken, user } = useAuth()
+  const [localListName, setLocalListName] = useState(listName)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: resets optimistic local title when polling confirms external rename
+    setLocalListName(listName)
+  }, [listName])
   const { isEnabled } = useFeatureFlags()
+  const { isOffline } = useIsOffline()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [toast, setToast] = useState<string | null>(null)
@@ -94,18 +102,47 @@ export function ListScreen({
     initialStore: string | null
     suggestedStore: string | null
   } | null>(null)
-  const [purchaseToast, setPurchaseToast] = useState<{
-    itemId: string
-    itemName: string
-  } | null>(null)
-  const handleDismissPurchaseToast = useCallback(
-    () => setPurchaseToast(null),
-    [],
-  )
 
   const handleDueSuggestionsClose = useCallback(
     () => setDueSuggestionsOpen(false),
     [],
+  )
+
+  const handleRename = useCallback(
+    async (listId: string, newName: string) => {
+      if (isOffline) {
+        setToast('No disponible sin conexión')
+        return
+      }
+      const previous = localListName
+      setLocalListName(newName)
+      setMenuOpen(false)
+      try {
+        await updateList(getToken, listId, { name: newName })
+        onRename?.(newName)
+      } catch {
+        setLocalListName(previous)
+        setToast('No se pudo renombrar la lista')
+      }
+    },
+    [getToken, isOffline, localListName, onRename],
+  )
+
+  const handleDelete = useCallback(
+    async (listId: string) => {
+      if (isOffline) {
+        setToast('No disponible sin conexión')
+        return
+      }
+      try {
+        await deleteList(getToken, listId)
+        setMenuOpen(false)
+        onBack?.()
+      } catch {
+        setToast('No se pudo eliminar la lista')
+      }
+    },
+    [getToken, onBack, isOffline],
   )
 
   const [eanLookup, setEanLookup] = useState<EanLookupState>({
@@ -114,7 +151,6 @@ export function ListScreen({
   const eanRequestIdRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
-  const autoOpenFiredRef = useRef(false)
   const [receiptScanResult, setReceiptScanResult] =
     useState<ReceiptScanResult | null>(null)
   const [receiptUploading, setReceiptUploading] = useState(false)
@@ -143,7 +179,7 @@ export function ListScreen({
     retry,
   } = useListItems(listId, getToken, setToast)
 
-  const { isOffline, pendingCount } = useOffline({
+  const { pendingCount } = useQueueDrain({
     listId,
     getToken,
     onDrained: retry,
@@ -178,14 +214,6 @@ export function ListScreen({
         /* non-critical */
       })
   }, [listId, getToken])
-
-  useEffect(() => {
-    if (autoOpenReceiptScan && !autoOpenFiredRef.current) {
-      autoOpenFiredRef.current = true
-      setReceiptSourcePickerOpen(true)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const handleReceiptScan = useCallback(() => {
     setReceiptSourcePickerOpen(true)
@@ -238,14 +266,9 @@ export function ListScreen({
 
   const handleTogglePurchased = useCallback(
     (itemId: string) => {
-      const item = items.find((i) => i.id === itemId)
       void togglePurchased(itemId)
-      // Show toast when marking as purchased (not when unmarking)
-      if (item && !item.purchased) {
-        setPurchaseToast({ itemId, itemName: item.name })
-      }
     },
-    [togglePurchased, items],
+    [togglePurchased],
   )
 
   const handleTagClick = useCallback(
@@ -372,7 +395,6 @@ export function ListScreen({
       }
       setLogPriceFor(null)
       setPriceItemId(null)
-      setPurchaseToast(null)
     },
     [logPriceFor, savePrice],
   )
@@ -383,13 +405,11 @@ export function ListScreen({
       await clearItemPrice(logPriceFor.itemId)
       setLogPriceFor(null)
       setPriceItemId(null)
-      setPurchaseToast(null)
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         // price already gone — treat as success, close sheet
         setLogPriceFor(null)
         setPriceItemId(null)
-        setPurchaseToast(null)
       } else if (err instanceof ApiError && err.status === 409) {
         setToast(
           'No se puede eliminar el precio de un artículo comprado en otro día',
@@ -544,12 +564,14 @@ export function ListScreen({
   return (
     <div className="list-screen">
       <ListHeader
-        title={listName}
+        title={localListName}
         emoji={listEmoji}
         onMenuOpen={handleMenuToggle}
         onBack={onBack}
       />
+
       <ProgressBar purchased={purchasedCount} total={totalCount} />
+
       {isOffline && (
         <div className="offline-banner offline-banner--sticky" role="status">
           Sin conexión
@@ -558,6 +580,7 @@ export function ListScreen({
             : ' · Los cambios se sincronizarán al reconectar'}
         </div>
       )}
+
       {items.length > 0 && (
         <FilterBar
           stores={stores}
@@ -566,6 +589,7 @@ export function ListScreen({
           onModeChange={setFilterMode}
         />
       )}
+
       <ItemList
         status={status}
         items={filteredItems}
@@ -602,6 +626,7 @@ export function ListScreen({
           ) : undefined
         }
       />
+
       {editingTag &&
         (() => {
           const editedItem = items.find((i) => i.id === editingTag.itemId)
@@ -638,6 +663,7 @@ export function ListScreen({
             />
           )
         })()}
+
       {activeItemId &&
         (() => {
           const activeItem = items.find((i) => i.id === activeItemId)
@@ -662,11 +688,20 @@ export function ListScreen({
             />
           )
         })()}
+
       {menuOpen && (
-        <ListMembersSheet
+        <ListActionSheet
           listId={listId}
+          listName={localListName}
           currentUserId={currentUserId}
           isOwner={isOwner}
+          onRename={(newName) => void handleRename(listId, newName)}
+          onDelete={() => void handleDelete(listId)}
+          onReceiptScan={
+            isEnabled(FLAGS.AI_RECEIPT_SCANNING)
+              ? () => handleReceiptScan()
+              : undefined
+          }
           onClose={() => setMenuOpen(false)}
         />
       )}
@@ -781,13 +816,6 @@ export function ListScreen({
             </>
           )
         })()}
-
-      {purchaseToast && (
-        <PurchaseToast
-          itemName={purchaseToast.itemName}
-          onDismiss={handleDismissPurchaseToast}
-        />
-      )}
 
       <input
         ref={fileInputRef}

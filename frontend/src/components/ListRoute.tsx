@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { ApiError, getList } from '../lib/api'
@@ -9,18 +9,7 @@ import { ListScreen } from './ListScreen'
 export function ListRoute() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const location = useLocation()
   const { getToken } = useAuth()
-  // Capture once at mount; clear state so back/forward doesn't re-trigger
-  const [autoOpenReceiptScan] = useState(
-    !!(location.state as { openReceiptScan?: boolean } | null)?.openReceiptScan,
-  )
-  useEffect(() => {
-    if (autoOpenReceiptScan) {
-      navigate(location.pathname, { replace: true, state: null })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
   const [list, setList] = useState<ApiList | null>(null)
   const [error, setError] = useState<
     'not_found' | 'forbidden' | 'unknown' | null
@@ -114,7 +103,9 @@ export function ListRoute() {
       listName={list.name}
       listEmoji={list.emoji}
       listOwnerId={list.owner_id}
-      autoOpenReceiptScan={autoOpenReceiptScan}
+      onRename={(newName) =>
+        setList((prev) => (prev ? { ...prev, name: newName } : null))
+      }
       onBack={() => navigate('/')}
     />
   )
