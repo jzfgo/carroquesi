@@ -56,6 +56,7 @@ interface Props {
   listName: string
   listEmoji?: string | null
   listOwnerId: string
+  onRename?: (newName: string) => void
   onBack?: () => void
 }
 
@@ -70,6 +71,7 @@ export function ListScreen({
   listName,
   listEmoji = null,
   listOwnerId,
+  onRename,
   onBack,
 }: Props) {
   const { getToken, user } = useAuth()
@@ -117,12 +119,13 @@ export function ListScreen({
       setMenuOpen(false)
       try {
         await updateList(getToken, listId, { name: newName })
+        onRename?.(newName)
       } catch {
         setLocalListName(previous)
         setToast('No se pudo renombrar la lista')
       }
     },
-    [getToken, isOffline, localListName],
+    [getToken, isOffline, localListName, onRename],
   )
 
   const handleDelete = useCallback(
