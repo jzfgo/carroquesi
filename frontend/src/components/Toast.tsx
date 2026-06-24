@@ -21,10 +21,12 @@ export function Toast({ message, onDismiss }: Props) {
         <div className="toast__progress-fill" />
       </div>
       <div className="toast__body">
-        <div className="toast__text">
-          {message}
-        </div>
-        <button className="toast__dismiss" onClick={onDismiss} aria-label="Cerrar">
+        <div className="toast__text">{message}</div>
+        <button
+          className="toast__dismiss"
+          onClick={onDismiss}
+          aria-label="Cerrar"
+        >
           <X size={16} />
         </button>
       </div>

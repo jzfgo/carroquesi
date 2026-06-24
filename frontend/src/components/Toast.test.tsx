@@ -6,7 +6,7 @@ beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
 
 test('renders message', () => {
-  render(<Toast message="Could not update item" onDismiss={() => { }} />)
+  render(<Toast message="Could not update item" onDismiss={() => {}} />)
   expect(screen.getByText('Could not update item')).toBeInTheDocument()
 })
 

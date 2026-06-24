@@ -11,7 +11,12 @@ interface Params {
   showToast: (msg: string) => void
 }
 
-export function useQueueDrain({ listId, getToken, onDrained, showToast }: Params) {
+export function useQueueDrain({
+  listId,
+  getToken,
+  onDrained,
+  showToast,
+}: Params) {
   const [pendingCount, setPendingCount] = useState(0)
 
   const onDrainedRef = useRef(onDrained)

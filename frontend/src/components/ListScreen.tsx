@@ -5,8 +5,8 @@ import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
 import { useIsOffline } from '../hooks/useIsOffline'
 import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
-import { useQueueDrain } from '../hooks/useQueueDrain'
 import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
+import { useQueueDrain } from '../hooks/useQueueDrain'
 import {
   ApiError,
   deleteList,
@@ -31,7 +31,7 @@ import type {
   PricePatch,
   ReceiptScanResult,
   Suggestion,
-  TagField
+  TagField,
 } from '../types'
 import { BarcodeScanner } from './BarcodeScanner'
 import { BarcodeScanSheet } from './BarcodeScanSheet'
@@ -598,9 +598,9 @@ export function ListScreen({
         purchasedCostByDate={purchasedCostByDate}
         footer={
           allUnpurchasedCount === 0 &&
-            items.length > 0 &&
-            !receiptScanResult &&
-            isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
+          items.length > 0 &&
+          !receiptScanResult &&
+          isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
             <div className="receipt-scan-cta">
               <button
                 className="receipt-scan-cta__btn"
@@ -692,7 +692,8 @@ export function ListScreen({
           onDelete={() => void handleDelete(listId)}
           onReceiptScan={
             isEnabled(FLAGS.AI_RECEIPT_SCANNING)
-              ? () => handleReceiptScan() : undefined
+              ? () => handleReceiptScan()
+              : undefined
           }
           onClose={() => setMenuOpen(false)}
         />
