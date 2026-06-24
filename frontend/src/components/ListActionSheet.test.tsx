@@ -4,7 +4,9 @@ import { ListActionSheet } from './ListActionSheet'
 
 vi.mock('./ListMembersSheet', () => ({
   ListMembersSheet: () => (
-    <div role="dialog" aria-label="Miembros de la lista">Miembros de la lista</div>
+    <div role="dialog" aria-label="Miembros de la lista">
+      Miembros de la lista
+    </div>
   ),
 }))
 
