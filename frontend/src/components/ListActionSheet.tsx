@@ -34,11 +34,12 @@ export function ListActionSheet({
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose?.()
+      // When ListMembersSheet is shown, it manages its own Escape; don't also fire onClose
+      if (e.key === 'Escape' && subState !== 'members') onClose?.()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
+  }, [onClose, subState])
 
   const overlay = (
     <div className="list-action-sheet__overlay" onClick={onClose} />

@@ -73,6 +73,7 @@ export function ListScreen({
   onBack,
 }: Props) {
   const { getToken, user } = useAuth()
+  const [localListName, setLocalListName] = useState(listName)
   const { isEnabled } = useFeatureFlags()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
@@ -108,6 +109,8 @@ export function ListScreen({
       }
       try {
         await updateList(getToken, list.id, { name: newName })
+        setLocalListName(newName)
+        setMenuOpen(false)
       } catch {
         setToast('No se pudo renombrar la lista')
       }
@@ -123,11 +126,13 @@ export function ListScreen({
       }
       try {
         await deleteList(getToken, list.id)
+        setMenuOpen(false)
+        onBack?.()
       } catch {
         setToast('No se pudo eliminar la lista')
       }
     },
-    [getToken],
+    [getToken, onBack],
   )
 
   const [eanLookup, setEanLookup] = useState<EanLookupState>({
@@ -496,7 +501,7 @@ export function ListScreen({
 
   const active: ApiList = {
     id: listId,
-    name: listName,
+    name: localListName,
     emoji: listEmoji,
     owner_id: listOwnerId,
     created_at: '',
@@ -560,7 +565,7 @@ export function ListScreen({
   return (
     <div className="list-screen">
       <ListHeader
-        title={listName}
+        title={localListName}
         emoji={listEmoji}
         onMenuOpen={handleMenuToggle}
         onBack={onBack}
@@ -688,7 +693,7 @@ export function ListScreen({
       {menuOpen && (
         <ListActionSheet
           listId={listId}
-          listName={listName}
+          listName={localListName}
           currentUserId={currentUserId}
           isOwner={isOwner}
           onRename={(newName) => void handleRename(active, newName)}
