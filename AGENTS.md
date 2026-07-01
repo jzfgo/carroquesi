@@ -169,7 +169,6 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 ### Changelog & Release Workflow
 
 - `CHANGELOG.md` is the canonical record of what shipped.
-- `TODO.md` tracks only open work items — remove entries when they ship.
 - `cliff.toml` drives automated generation via `git-cliff`. Commit types map as: `feat` → Added, `fix` → Fixed, `refactor/perf` → Changed; `chore/docs/test/ci` are excluded.
 - A lefthook `pre-push` hook (`scripts/check-changelog.sh`) aborts if `CHANGELOG.md` is out of date and prompts you to run `just changelog`, commit, and push again. Activate with `just setup` after cloning (requires `lefthook`: `brew install lefthook` and `git-cliff`: `brew install git-cliff`).
 - Before a release:
@@ -198,7 +197,6 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 - Backend changes: run relevant `just backend test-file {file}` tests (full suite when feasible `just backend test`)
 - Before push: verify only intentional files are changed and no platform-specific native binding churn was introduced in `pnpm-lock.yaml`
 - Shortcut: `just ci` runs format-check + typecheck + lint + tests (frontend and backend) in one shot
-- **TODO.md** — remove any items that shipped in this task. This is blocking, not optional cleanup.
 - **CHANGELOG.md** — run `just changelog` and commit the result before pushing. This is blocking, not optional cleanup.
 
 ## Definition of Done
@@ -207,7 +205,6 @@ A task is complete only when **all** of the following are true:
 
 - [ ] Worktree confirmed active (not on `main`) before any file was touched
 - [ ] Lint and relevant tests pass (`just ci` for full check)
-- [ ] `TODO.md` updated — any shipped items removed
 - [ ] `CHANGELOG.md` updated — `just changelog` run and result committed
 - [ ] Only intentional files changed (no platform-specific `pnpm-lock.yaml` churn)
 
