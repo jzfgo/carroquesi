@@ -82,7 +82,6 @@ just ci   # frontend typecheck + lint + backend tests
 Make sure:
 
 - [ ] Lint and tests pass
-- [ ] `TODO.md` updated — remove any items your PR ships
 - [ ] `CHANGELOG.md` updated — run `just changelog` and commit the result
 - [ ] Only intentional files are changed (no `pnpm-lock.yaml` platform churn)
 
