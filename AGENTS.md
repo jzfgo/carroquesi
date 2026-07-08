@@ -212,18 +212,18 @@ A task is complete only when **all** of the following are true:
 
 - Submitting prices to Open Prices (requires proof image + OSM location)
 
-## Open Action Items (1:1 — 2026-06-22)
+## Open Action Items (1:1 — 2026-07-08)
 
 **AI:**
 
-- [ ] Before any `alembic revision` step, explicitly prompt: "confirm you're on the current head after rebasing on main" _(unverified — confirm when next migration ships)_
-- [ ] End every agent-driven UI fix session with explicit on-device QA checklist before closing _(confirmed miss on #87 and #88 — user found both bugs independently)_
+- [ ] For refactors touching environment-conditional logic (dev/prod branches, feature flags, config gating), explicitly verify both branches' behavior before calling the change done — not just tests/lint _(prompted by #94: e2e refactor split an if/else guard and broke App Check in dev, caught by user via console 403)_
+- [ ] End every agent-driven UI fix session with explicit on-device QA checklist before closing _(unverified for 2 reviews running — no UI-only fix shipped in this window to test against)_
 - [ ] Flag mobile-path issues (input type, viewport, safe area) during implementation, not just at handoff
 
 **You:**
 
-- [ ] Research agent queue / autonomous loop state-of-the-art before designing the system
-- [ ] Run `/brainstorming` before implementing Playwright e2e + visual regression (tooling choice has CI cost implications)
+- [ ] Research agent queue / autonomous loop state-of-the-art before designing the system _(parked — on vacation)_
+- [ ] Run `/brainstorming` before the full Playwright e2e + visual regression rollout — initial setup (#92, #93) is done, full rollout still pending
 - [ ] Run `/brainstorming` before MCP Server / Siri Shortcuts implementation
 - [ ] Bring a Document AI vs. Gemini comparison into the next receipt scanning `/brainstorming` session
 
