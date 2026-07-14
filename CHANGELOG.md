@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Extract semver via regex instead of stripping range prefixes
 
+- Preserve prerelease/build-metadata tags in version extraction
+
 
 ---
 ## [0.19.2] — 2026-07-08
