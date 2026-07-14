@@ -34,6 +34,19 @@ test-watch:
 test-e2e:
     {{ nvm-exec }} pnpm test:e2e
 
+# Regenerate Playwright visual-regression baselines via Docker (matches CI's Linux font rendering)
+update-snapshots:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    version=$(node -p "require('./package.json').devDependencies['@playwright/test']" | tr -d '^')
+    docker run --rm \
+      -v "$(pwd):/work" \
+      -v carroquesi-playwright-node-modules:/work/node_modules \
+      -v carroquesi-playwright-pnpm-store:/pnpm-store \
+      -w /work \
+      "mcr.microsoft.com/playwright:v${version}-noble" \
+      bash -c "corepack enable && pnpm --config.store-dir=/pnpm-store install --frozen-lockfile && pnpm exec playwright test --update-snapshots"
+
 # Format (prettier --write ., code + styles)
 format:
     {{ nvm-exec }} pnpm format
