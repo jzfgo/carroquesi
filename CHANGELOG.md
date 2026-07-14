@@ -14,15 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Barcode scanner overlay illegible in dark mode (#99)
 
-- Isolate Docker baseline-generation from host node_modules/pnpm store
+- Isolate Docker baseline-generation from host node_modules/pnpm store (#104)
 
-- Use nvm-exec and strip ~ in update-snapshots version extraction
+- Restore host ownership of baseline PNGs after Docker snapshot regen
 
-- Extract semver via regex instead of stripping range prefixes
+- Always restore host ownership even if playwright test fails
 
-- Preserve prerelease/build-metadata tags in version extraction
-
-- Pin Docker baseline generation to linux/amd64 to match CI runners
+- Also restore ownership of playwright-report and test-results dirs
 
 
 ---
