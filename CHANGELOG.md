@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Barcode scanner overlay illegible in dark mode (#99)
 
+- Capture full-page visual regression screenshots
+
 
 ---
 ## [0.19.2] — 2026-07-08
