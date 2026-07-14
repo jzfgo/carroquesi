@@ -1,5 +1,11 @@
 import type { Page } from '@playwright/test'
-import { expect, expectScreenshot, SEED_ITEMS, SEED_LISTS, test } from './fixtures'
+import {
+  expect,
+  expectScreenshot,
+  SEED_ITEMS,
+  SEED_LISTS,
+  test,
+} from './fixtures'
 
 async function assertDashboardLoaded(page: Page) {
   await page.goto('/')
