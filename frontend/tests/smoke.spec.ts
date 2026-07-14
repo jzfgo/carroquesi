@@ -21,17 +21,38 @@ async function addItemManzanas(page: Page) {
   await expect(page.getByText('Manzanas')).toBeVisible()
 }
 
-test('dashboard shows all lists', async ({ page }) => {
-  await assertDashboardLoaded(page)
-  await expectScreenshot(page, 'dashboard-light.png')
+test.describe('light mode', () => {
+  test('dashboard shows all lists', async ({ page }) => {
+    await assertDashboardLoaded(page)
+    await expectScreenshot(page, 'dashboard-light.png')
+  })
+
+  test('list screen shows items', async ({ page }) => {
+    await assertListScreenLoaded(page)
+    await expectScreenshot(page, 'list-screen-light.png')
+  })
+
+  test('adding an item appears immediately', async ({ page }) => {
+    await addItemManzanas(page)
+    await expectScreenshot(page, 'add-item-light.png')
+  })
 })
 
-test('list screen shows items', async ({ page }) => {
-  await assertListScreenLoaded(page)
-  await expectScreenshot(page, 'list-screen-light.png')
-})
+test.describe('dark mode', () => {
+  test.use({ colorScheme: 'dark' })
 
-test('adding an item appears immediately', async ({ page }) => {
-  await addItemManzanas(page)
-  await expectScreenshot(page, 'add-item-light.png')
+  test('dashboard shows all lists', async ({ page }) => {
+    await assertDashboardLoaded(page)
+    await expectScreenshot(page, 'dashboard-dark.png')
+  })
+
+  test('list screen shows items', async ({ page }) => {
+    await assertListScreenLoaded(page)
+    await expectScreenshot(page, 'list-screen-dark.png')
+  })
+
+  test('adding an item appears immediately', async ({ page }) => {
+    await addItemManzanas(page)
+    await expectScreenshot(page, 'add-item-dark.png')
+  })
 })
