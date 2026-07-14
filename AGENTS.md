@@ -83,6 +83,7 @@ Key gotchas:
 - `DEV_AUTH_BYPASS` is hardcoded to `true` in the config; defaults to `seed-alice`; set `VITE_DEV_USER_ID` to switch users
 - Uses `loadEnvFile()` which does **not** expand `${VAR}` syntax — config explicitly overrides `VITE_BACKEND_URL` to work around this
 - Browsers: Chromium, Firefox, WebKit, Mobile Chrome (Pixel 10), Mobile Safari (iPhone 17)
+- Visual regression: key screens are also checked via `toHaveScreenshot()` (wrapped in the `expectScreenshot` helper in `fixtures.ts`), baselines committed under `frontend/tests/*-snapshots/`. Only `chromium`/`Mobile Chrome` carry baselines. Regenerate with `just frontend update-snapshots` (runs Docker, matching CI's Linux font rendering) — see `frontend/tests/README.md` for why and how.
 
 ### SmartInputBar sigil system
 

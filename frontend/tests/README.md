@@ -12,16 +12,20 @@ Baseline PNGs live alongside each spec file (e.g. `smoke.spec.ts-snapshots/`) an
 
 Baselines must be generated on the same OS Playwright's CI step runs on (Ubuntu), not natively on macOS — font rendering differs enough between platforms to produce false-positive diffs, and Playwright suffixes the generated filename by platform (`-linux.png` vs `-darwin.png`), so a macOS-generated baseline is simply never picked up by CI.
 
-Use the official Playwright Docker image, pinned to the version in `package.json`:
+Run:
 
 ```bash
-cd frontend
-docker run --rm -v "$(pwd):/work" -w /work \
-  mcr.microsoft.com/playwright:v1.61.0-noble \
-  bash -c "corepack enable && pnpm install --frozen-lockfile && pnpm exec playwright test --update-snapshots"
+just frontend update-snapshots
 ```
 
-Update the image tag if `@playwright/test`'s version in `package.json` changes.
+This runs the official Playwright Docker image (version read straight from `package.json`, so it can't drift out of sync) with `frontend/` bind-mounted in, then `pnpm install`s and re-runs the suite with `--update-snapshots` inside the container. The container is pinned to `--platform linux/amd64` — CI's `ubuntu-latest` runners are amd64, and on an Apple Silicon Mac, Docker otherwise defaults to pulling the native `arm64` image, which can render fonts subtly differently and reintroduce the exact false-positive diffs this whole workflow exists to avoid.
+
+Two things are deliberately kept **out** of the `frontend/` bind mount, each via its own named Docker volume, so the container's Linux-side `pnpm install` can never bleed onto your macOS host:
+
+- `node_modules` → `carroquesi-playwright-node-modules`, mounted over `/work/node_modules`. Without this, the container's `pnpm install --frozen-lockfile` — running on Linux — overwrites your host `node_modules` with Linux-only native bindings (esbuild, rollup, etc.), silently breaking `pnpm dev`/`vite` on macOS until you reinstall natively.
+- pnpm's content-addressable store → `carroquesi-playwright-pnpm-store`, mounted at `/pnpm-store` with `store-dir` pointed there via `pnpm --config.store-dir=/pnpm-store install` (pnpm v11 defaults the store to a project-relative `.pnpm-store/` rather than a `$HOME`-based path — the `npm_config_store_dir` env var is _not_ honored for this key, the explicit `--config.store-dir` flag is required). Without it, the container dumps a multi-hundred-MB untracked `.pnpm-store/` into the bind-mounted `frontend/` on the host.
+
+Only source files and the generated PNGs cross the bind mount; both volumes are cached across runs, so only the first invocation pays the full `pnpm install` cost. If either ever gets into a bad state, drop it: `docker volume rm carroquesi-playwright-node-modules carroquesi-playwright-pnpm-store`.
 
 Commit the updated PNGs **in the same PR** as the UI change that caused them to change — a visual diff failing on an unrelated PR is a real regression signal, not noise to dismiss.
 
