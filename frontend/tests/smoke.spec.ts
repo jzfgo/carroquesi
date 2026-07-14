@@ -1,9 +1,10 @@
-import { expect, SEED_ITEMS, SEED_LISTS, test } from './fixtures'
+import { expect, expectScreenshot, SEED_ITEMS, SEED_LISTS, test } from './fixtures'
 
 test('dashboard shows all lists', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByLabel(SEED_LISTS[0].name)).toBeVisible()
   await expect(page.getByLabel(SEED_LISTS[1].name)).toBeVisible()
+  await expectScreenshot(page, 'dashboard-light.png')
 })
 
 test('list screen shows items', async ({ page }) => {

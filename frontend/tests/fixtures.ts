@@ -262,3 +262,16 @@ export const test = base.extend<object>({
     await provide(page)
   },
 })
+
+// ── Visual regression helper ─────────────────────────────────────────────────
+// Only these two projects carry visual baselines — one desktop, one mobile,
+// both Chromium-based so a single rendering engine keeps diffs meaningful.
+// The other three projects still run full functional assertions, they just
+// don't own screenshot baselines.
+const VISUAL_PROJECTS = new Set(['chromium', 'Mobile Chrome'])
+
+export async function expectScreenshot(page: Page, name: string): Promise<void> {
+  const projectName = test.info().project.name
+  if (!VISUAL_PROJECTS.has(projectName)) return
+  await expect(page).toHaveScreenshot(name)
+}
