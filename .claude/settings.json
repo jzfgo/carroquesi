@@ -1,4 +1,7 @@
 {
+  "permissions": {
+    "deny": ["EnterWorktree", "ExitWorktree"]
+  },
   "hooks": {
     "PreToolUse": [
       {
