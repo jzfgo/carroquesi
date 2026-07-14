@@ -27,38 +27,28 @@ async function addItemManzanas(page: Page) {
   await expect(page.getByText('Manzanas')).toBeVisible()
 }
 
-test.describe('light mode', () => {
-  test('dashboard shows all lists', async ({ page }) => {
-    await assertDashboardLoaded(page)
-    await expectScreenshot(page, 'dashboard-light.png')
-  })
+const THEMES = [
+  { name: 'light', colorScheme: 'light' as const },
+  { name: 'dark', colorScheme: 'dark' as const },
+]
 
-  test('list screen shows items', async ({ page }) => {
-    await assertListScreenLoaded(page)
-    await expectScreenshot(page, 'list-screen-light.png')
-  })
+for (const { name: themeName, colorScheme } of THEMES) {
+  test.describe(`${themeName} mode`, () => {
+    test.use({ colorScheme })
 
-  test('adding an item appears immediately', async ({ page }) => {
-    await addItemManzanas(page)
-    await expectScreenshot(page, 'add-item-light.png')
-  })
-})
+    test('dashboard shows all lists', async ({ page }) => {
+      await assertDashboardLoaded(page)
+      await expectScreenshot(page, `dashboard-${themeName}.png`)
+    })
 
-test.describe('dark mode', () => {
-  test.use({ colorScheme: 'dark' })
+    test('list screen shows items', async ({ page }) => {
+      await assertListScreenLoaded(page)
+      await expectScreenshot(page, `list-screen-${themeName}.png`)
+    })
 
-  test('dashboard shows all lists', async ({ page }) => {
-    await assertDashboardLoaded(page)
-    await expectScreenshot(page, 'dashboard-dark.png')
+    test('adding an item appears immediately', async ({ page }) => {
+      await addItemManzanas(page)
+      await expectScreenshot(page, `add-item-${themeName}.png`)
+    })
   })
-
-  test('list screen shows items', async ({ page }) => {
-    await assertListScreenLoaded(page)
-    await expectScreenshot(page, 'list-screen-dark.png')
-  })
-
-  test('adding an item appears immediately', async ({ page }) => {
-    await addItemManzanas(page)
-    await expectScreenshot(page, 'add-item-dark.png')
-  })
-})
+}
