@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use nvm-exec and strip ~ in update-snapshots version extraction
 
+- Extract semver via regex instead of stripping range prefixes
+
 
 ---
 ## [0.19.2] — 2026-07-08
