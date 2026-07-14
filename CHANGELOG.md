@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Capture full-page visual regression screenshots
 
+- Tolerate minor emoji/symbol font-rendering diffs in visual regression
+
 
 ---
 ## [0.19.2] — 2026-07-08
