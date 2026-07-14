@@ -38,7 +38,7 @@ test-e2e:
 update-snapshots:
     #!/usr/bin/env bash
     set -euo pipefail
-    version=$({{ nvm-exec }} node -p "require('./package.json').devDependencies['@playwright/test'].replace(/^[^0-9]+/, '')")
+    version=$({{ nvm-exec }} node -p "require('./package.json').devDependencies['@playwright/test'].match(/\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?/)[0]")
     docker run --rm \
       -v "$(pwd):/work" \
       -v carroquesi-playwright-node-modules:/work/node_modules \
