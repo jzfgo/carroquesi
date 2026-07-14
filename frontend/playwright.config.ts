@@ -38,6 +38,13 @@ export default defineConfig({
     baseURL: FRONTEND_URL,
     trace: 'on-first-retry',
   },
+  // Baselines are generated locally via Docker (see tests/README.md); a handful of pixels
+  // on emoji/symbol glyphs (🛒, €, ⋯) still render slightly differently than on the actual
+  // CI runner's font stack. 0.1% is well above that noise floor but far below what any real
+  // visual regression (misplaced element, wrong theme, stray overlay) would produce.
+  expect: {
+    toHaveScreenshot: { maxDiffPixelRatio: 0.001 },
+  },
   projects: [
     {
       name: 'chromium',

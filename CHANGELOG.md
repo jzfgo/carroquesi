@@ -9,10 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Parameterize light/dark mode smoke tests over a theme loop
+
+
 ### Fixed
 - Pin pnpm/action-setup to frontend's packageManager version (#100)
 
 - Barcode scanner overlay illegible in dark mode (#99)
+
+- Capture full-page visual regression screenshots
+
+- Tolerate minor emoji/symbol font-rendering diffs in visual regression
 
 
 ---
