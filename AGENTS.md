@@ -224,7 +224,6 @@ A task is complete only when **all** of the following are true:
 **You:**
 
 - [ ] Research agent queue / autonomous loop state-of-the-art before designing the system _(parked — on vacation)_
-- [ ] Run `/brainstorming` before the full Playwright e2e + visual regression rollout — initial setup (#92, #93) is done, full rollout still pending
 - [ ] Run `/brainstorming` before MCP Server / Siri Shortcuts implementation
 - [ ] Bring a Document AI vs. Gemini comparison into the next receipt scanning `/brainstorming` session
 
