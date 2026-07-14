@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Pin pnpm/action-setup to frontend's packageManager version
+- Pin pnpm/action-setup to frontend's packageManager version (#100)
+
+- Barcode scanner overlay illegible in dark mode (JAV-19)
 
 
 ---
