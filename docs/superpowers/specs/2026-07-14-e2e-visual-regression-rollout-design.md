@@ -48,7 +48,7 @@ Visual assertions are embedded as additional `expect()` calls inside the same fl
 export async function expectScreenshot(page: Page, name: string) {
   const projectName = test.info().project.name
   if (projectName !== 'chromium' && projectName !== 'Mobile Chrome') return
-  await expect(page).toHaveScreenshot(name)
+  await expect(page).toHaveScreenshot(name, { fullPage: true })
 }
 ```
 
