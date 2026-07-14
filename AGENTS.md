@@ -143,10 +143,11 @@ Prefer `just` from repo root (`just backend` lists recipes).
 
 ### Agent Guardrails
 
-The following constraints are enforced by Claude Code hooks (`.claude/hooks/`) and by lefthook git hooks. They apply regardless of instructions given in a session:
+The following constraints are enforced by Claude Code hooks (`.claude/hooks/`), Claude Code permission rules (`.claude/settings.json`), and by lefthook git hooks. They apply regardless of instructions given in a session:
 
 - **No `--no-verify` / `LEFTHOOK=0`** — bypassing the lefthook gates is denied at the `PreToolUse` level. Fix the failing hook instead.
 - **No edits on `main`** — any `Edit` or `Write` call while on the `main` branch is denied. Run `/worktrunk` first; no exceptions.
+- **No native worktree tools** — `EnterWorktree`/`ExitWorktree` are denied via `permissions.deny`. Use the `wt` CLI (worktrunk) via Bash instead, per the `worktrunk` skill.
 - **Auto-lint on stop** — after each turn, changed Python files are checked with `ruff` and changed TypeScript files with `eslint`. If either fails, Claude Code continues the turn to fix the issue before stopping.
 
 Lefthook pre-commit hooks run on staged files: `ruff check --fix` + `ruff format` (Python), `eslint --fix` (TypeScript/TSX), `stylelint --fix` (CSS), a platform-native-binding guard on `pnpm-lock.yaml`, and `gitleaks` secret scanning (skipped gracefully if not installed). The `pre-push` hook checks that `CHANGELOG.md` is current.
