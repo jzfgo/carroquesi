@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Isolate Docker baseline-generation from host node_modules/pnpm store
 
+- Use nvm-exec and strip ~ in update-snapshots version extraction
+
 
 ---
 ## [0.19.2] — 2026-07-08
