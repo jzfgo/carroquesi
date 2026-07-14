@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Always restore host ownership even if playwright test fails
 
+- Also restore ownership of playwright-report and test-results dirs
+
 
 ---
 ## [0.19.2] — 2026-07-08
