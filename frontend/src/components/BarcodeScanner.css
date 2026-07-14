@@ -28,14 +28,14 @@
 .barcode-scanner__frame {
   width: 260px;
   height: 160px;
-  border: 2px solid var(--paper-0);
+  border: 2px solid #fff;
   border-radius: 12px;
   box-shadow: 0 0 0 2000px transparent;
   background: transparent;
 }
 
 .barcode-scanner__hint {
-  color: var(--paper-0);
+  color: #fff;
   font-size: var(--fs-14);
   text-align: center;
   text-shadow: 0 1px 3px rgb(0 0 0 / 50%);
@@ -50,7 +50,7 @@
   border-radius: 20px;
   background: rgb(0 0 0 / 50%);
   border: 1px solid rgb(255 255 255 / 30%);
-  color: var(--paper-0);
+  color: #fff;
   font-size: 18px;
   cursor: pointer;
   display: flex;
@@ -60,7 +60,7 @@
 }
 
 .barcode-scanner--error {
-  color: var(--paper-0);
+  color: #fff;
   flex-direction: column;
   gap: 16px;
   padding: 24px;
@@ -72,7 +72,7 @@
   background: rgb(255 255 255 / 15%);
   border: 1px solid rgb(255 255 255 / 30%);
   border-radius: 8px;
-  color: var(--paper-0);
+  color: #fff;
   font-size: var(--fs-15);
   font-family: inherit;
   cursor: pointer;
