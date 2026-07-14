@@ -273,5 +273,5 @@ const VISUAL_PROJECTS = new Set(['chromium', 'Mobile Chrome'])
 export async function expectScreenshot(page: Page, name: string): Promise<void> {
   const projectName = test.info().project.name
   if (!VISUAL_PROJECTS.has(projectName)) return
-  await expect(page).toHaveScreenshot(name)
+  await expect(page).toHaveScreenshot(name, { fullPage: true })
 }
