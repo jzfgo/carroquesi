@@ -18,7 +18,7 @@ Run:
 just frontend update-snapshots
 ```
 
-This runs the official Playwright Docker image (version read straight from `package.json`, so it can't drift out of sync) with `frontend/` bind-mounted in, then `pnpm install`s and re-runs the suite with `--update-snapshots` inside the container.
+This runs the official Playwright Docker image (version read straight from `package.json`, so it can't drift out of sync) with `frontend/` bind-mounted in, then `pnpm install`s and re-runs the suite with `--update-snapshots` inside the container. The container is pinned to `--platform linux/amd64` — CI's `ubuntu-latest` runners are amd64, and on an Apple Silicon Mac, Docker otherwise defaults to pulling the native `arm64` image, which can render fonts subtly differently and reintroduce the exact false-positive diffs this whole workflow exists to avoid.
 
 Two things are deliberately kept **out** of the `frontend/` bind mount, each via its own named Docker volume, so the container's Linux-side `pnpm install` can never bleed onto your macOS host:
 
