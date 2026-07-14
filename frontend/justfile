@@ -45,7 +45,7 @@ update-snapshots:
       -v carroquesi-playwright-pnpm-store:/pnpm-store \
       -w /work \
       "mcr.microsoft.com/playwright:v${version}-noble" \
-      bash -c "corepack enable && pnpm --config.store-dir=/pnpm-store install --frozen-lockfile && pnpm exec playwright test --update-snapshots"
+      bash -c "corepack enable && pnpm --config.store-dir=/pnpm-store install --frozen-lockfile && pnpm exec playwright test --update-snapshots && chown -R $(id -u):$(id -g) tests"
 
 # Format (prettier --write ., code + styles)
 format:
