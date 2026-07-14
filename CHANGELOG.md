@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Preserve prerelease/build-metadata tags in version extraction
 
+- Pin Docker baseline generation to linux/amd64 to match CI runners
+
 
 ---
 ## [0.19.2] — 2026-07-08
