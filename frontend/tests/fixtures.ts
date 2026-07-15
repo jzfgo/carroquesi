@@ -240,6 +240,73 @@ export async function installApiMocks(page: Page): Promise<void> {
         }
         if (method === 'DELETE') return route.fulfill({ status: 204 })
       }
+
+      // /lists/:id/items/:itemId/prices
+      const priceMatch = sub.match(/^\/items\/([^/]+)\/prices$/)
+      if (priceMatch) {
+        const itemId = priceMatch[1]
+        const items = SEED_ITEMS[listId] ?? []
+        const item = items.find((i) => i.id === itemId)
+        if (!item) return json({ detail: 'Not found' }, 404)
+
+        if (method === 'GET') {
+          const entries =
+            item.price != null
+              ? [
+                  {
+                    amount: item.price,
+                    price_per: item.price_per,
+                    store: item.price_store,
+                    purchased_at: item.purchased_at,
+                    quantity: item.purchased_quantity,
+                  },
+                ]
+              : []
+          return json({
+            entries,
+            community_price: null,
+            community_price_per: null,
+          })
+        }
+
+        const body = (req.postDataJSON() ?? {}) as {
+          amount: number
+          price_per: string | null
+          store: string | null
+        }
+        if (method === 'POST') {
+          if (item.price != null)
+            return json(
+              { detail: 'Item already has a price; use PATCH to update it' },
+              409,
+            )
+          return json(
+            {
+              ...body,
+              purchased_at: item.purchased_at,
+              quantity: item.purchased_quantity,
+            },
+            201,
+          )
+        }
+        if (method === 'PATCH') {
+          if (item.price == null)
+            return json(
+              { detail: 'Item has no price yet; use POST to set it' },
+              404,
+            )
+          return json({
+            ...body,
+            purchased_at: item.purchased_at,
+            quantity: item.purchased_quantity,
+          })
+        }
+        if (method === 'DELETE') {
+          if (item.price == null)
+            return json({ detail: 'Item has no price to delete' }, 404)
+          return route.fulfill({ status: 204 })
+        }
+      }
     }
 
     // Unhandled: surface loudly so missing mocks are easy to spot

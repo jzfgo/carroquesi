@@ -37,6 +37,13 @@ export default defineConfig({
   use: {
     baseURL: FRONTEND_URL,
     trace: 'on-first-retry',
+    // These specs test app/API contract behavior, not PWA/offline behavior — the
+    // active service worker (devOptions.enabled: true) otherwise proxies fetches
+    // in a way that makes route mocking unreliable on WebKit-based projects
+    // (webkit, Mobile Safari), causing UI-triggered POST/PATCH requests to
+    // intermittently fail with "no-response" even though the same mock works
+    // fine for Chromium/Firefox and for requests fired outside a click handler.
+    serviceWorkers: 'block',
   },
   // Baselines are generated locally via Docker (see tests/README.md); a handful of pixels
   // on emoji/symbol glyphs (🛒, €, ⋯) still render slightly differently than on the actual
