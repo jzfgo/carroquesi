@@ -337,6 +337,124 @@ def test_receipt_prices_purchased_quantity_null_when_patch_quantity_null(client,
     assert session.get(ListItem, "item-almendras").purchased_quantity is None
 
 
+def test_post_receipt_matches_most_recently_purchased_duplicate(client, session):
+    """Re-buying an item creates a second row with the same name; the scan
+    must match the recent purchase, not an older one. Both purchases are kept
+    inside the +-3 day match window so this exercises match_lines' recency
+    preference, not the window filter itself."""
+    old_item = session.get(ListItem, "item-almendras")
+    old_item.name = "Leche entera"
+    old_item.purchased_at = datetime(2026, 4, 9, 9, 0, 0)
+    session.add(old_item)
+
+    recent_item = ListItem(
+        id="item-leche-recent",
+        list_id=LIST_ID,
+        name="Leche entera",
+        added_by=old_item.added_by,
+        purchased_at=datetime(2026, 4, 11, 15, 57, 0),
+    )
+    session.add(recent_item)
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json={
+            "store": "Mercadona",
+            "receipt_date": "2026-04-11",
+            "receipt_total": 0.89,
+            "lines": [
+                {
+                    "name": "LECHE ENTERA",
+                    "price_type": "UNIT",
+                    "unit_price": 0.89,
+                    "quantity": None,
+                    "line_total": 0.89,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["matched"]) == 1
+    assert body["matched"][0]["item_id"] == "item-leche-recent"
+
+
+def test_post_receipt_prefers_purchase_closest_to_receipt_date_over_more_recent_one(
+    client, session
+):
+    """Scanning an older receipt after already buying the same item again more
+    recently must still match the purchase closest to the receipt date, not
+    the newer unrelated purchase."""
+    close_item = session.get(ListItem, "item-almendras")
+    close_item.name = "Leche entera"
+    close_item.purchased_at = datetime(2026, 4, 9, 9, 0, 0)  # same day as receipt
+    session.add(close_item)
+
+    newer_item = ListItem(
+        id="item-leche-newer",
+        list_id=LIST_ID,
+        name="Leche entera",
+        added_by=close_item.added_by,
+        purchased_at=datetime(2026, 4, 11, 15, 57, 0),  # 2 days after receipt, more recent
+    )
+    session.add(newer_item)
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json={
+            "store": "Mercadona",
+            "receipt_date": "2026-04-09",
+            "receipt_total": 0.89,
+            "lines": [
+                {
+                    "name": "LECHE ENTERA",
+                    "price_type": "UNIT",
+                    "unit_price": 0.89,
+                    "quantity": None,
+                    "line_total": 0.89,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["matched"]) == 1
+    assert body["matched"][0]["item_id"] == "item-almendras"
+
+
+def test_post_receipt_ignores_items_purchased_outside_match_window(client, session):
+    """Items purchased more than 3 days from the receipt date are excluded
+    from the candidate pool entirely, so an unrelated old purchase can't be
+    fuzzy-matched even when no closer candidate exists."""
+    item = session.get(ListItem, "item-almendras")
+    item.purchased_at = datetime(2026, 3, 1, 9, 0, 0)  # 41 days before receipt
+    session.add(item)
+    session.commit()
+
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body())
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["matched"]) == 0
+    assert len(body["unmatched"]) == 1
+
+
+def test_post_receipt_includes_items_purchased_within_window_after_receipt_date(client, session):
+    """Items marked purchased a few days after the printed receipt date
+    (e.g. the user scans late) are still matchable."""
+    item = session.get(ListItem, "item-almendras")
+    item.purchased_at = datetime(2026, 4, 14, 9, 0, 0)  # 3 days after receipt_date
+    session.add(item)
+    session.commit()
+
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body())
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["matched"]) == 1
+    assert body["matched"][0]["item_id"] == "item-almendras"
+
+
 def test_post_receipt_returns_403_when_flag_disabled(session, other_user, other_client):
     from app.db.models import List, ListMember
 

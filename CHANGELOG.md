@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Use half-open interval for receipt date window
+
+
 ### Fixed
 - Pin pnpm/action-setup to frontend's packageManager version (#100)
 
@@ -18,9 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Restore host ownership of baseline PNGs after Docker snapshot regen (#105)
 
-- Address receipt scanning e2e review feedback
+- Match receipt lines to recently purchased items within a date window
 
-- Stop running functional-only receipt scan tests per theme
+- Dedupe purchased_items before fuzzy matching loop
+
+- Prefer purchase closest to receipt date, dedupe by normalised name
 
 
 ---

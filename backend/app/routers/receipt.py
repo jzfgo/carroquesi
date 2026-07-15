@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select
@@ -14,6 +14,10 @@ from app.services import feature_flags
 from app.services.receipt_matcher import match_lines
 
 router = APIRouter(tags=["receipt"])
+
+# Purchases are matched against a window centered on the receipt date, since
+# items can be marked purchased a few days after the physical receipt date.
+RECEIPT_MATCH_WINDOW_DAYS = 3
 
 
 @router.post("/lists/{list_id}/receipt", response_model=ReceiptScanResult)
@@ -31,11 +35,38 @@ def scan_receipt(
             detail="ai_receipt_scanning feature not enabled",
         )
 
-    stmt = select(ListItem).where(
-        ListItem.list_id == list_id,
-        ListItem.purchased_at.isnot(None),
+    receipt_date: date | None = None
+    if body.receipt_date:
+        try:
+            receipt_date = date.fromisoformat(body.receipt_date)
+        except ValueError:
+            pass
+
+    stmt = (
+        select(ListItem)
+        .where(
+            ListItem.list_id == list_id,
+            ListItem.purchased_at.isnot(None),
+        )
+        .order_by(ListItem.purchased_at.desc())
     )
+    if receipt_date:
+        window_start = datetime.combine(
+            receipt_date - timedelta(days=RECEIPT_MATCH_WINDOW_DAYS), time.min
+        )
+        window_end = datetime.combine(
+            receipt_date + timedelta(days=RECEIPT_MATCH_WINDOW_DAYS + 1), time.min
+        )
+        stmt = stmt.where(
+            ListItem.purchased_at >= window_start,
+            ListItem.purchased_at < window_end,
+        )
     purchased_items = list(session.exec(stmt).all())
+    if receipt_date:
+        # Prefer the purchase closest to the receipt date over the most
+        # recent one, so scanning an older receipt after a newer purchase of
+        # the same item doesn't steal the match.
+        purchased_items.sort(key=lambda item: abs(item.purchased_at.date() - receipt_date))
 
     matched, unmatched = match_lines(body.lines, body.store, purchased_items, session)
 
@@ -49,13 +80,6 @@ def scan_receipt(
         }
         if len(stores) == 1:
             store = stores.pop()
-
-    receipt_date: date | None = None
-    if body.receipt_date:
-        try:
-            receipt_date = date.fromisoformat(body.receipt_date)
-        except ValueError:
-            pass
 
     scan = ReceiptScan(
         list_id=list_id,

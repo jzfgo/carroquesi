@@ -38,7 +38,18 @@ def match_lines(
     matched: list[MatchedLine] = []
     unmatched: list[UnmatchedLine] = []
 
-    item_by_name: dict[str, ListItem] = {i.name: i for i in purchased_items}
+    # purchased_items is ordered by relevance (most recent, or closest to the
+    # receipt date when known); keep only the first (most relevant) item per
+    # normalised name so duplicate purchases of the same item — even with
+    # minor casing/accent differences — don't resolve to the wrong row.
+    item_by_name: dict[str, ListItem] = {}
+    seen_normalised: set[str] = set()
+    for i in purchased_items:
+        norm_name = normalise(i.name)
+        if norm_name not in seen_normalised:
+            seen_normalised.add(norm_name)
+            item_by_name[i.name] = i
+    purchased_items = list(item_by_name.values())
 
     for line in lines:
         norm = normalise(line.name)
