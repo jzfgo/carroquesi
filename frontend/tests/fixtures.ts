@@ -258,7 +258,7 @@ export async function installApiMocks(page: Page): Promise<void> {
                     price_per: item.price_per,
                     store: item.price_store,
                     purchased_at: item.purchased_at,
-                    quantity: item.purchased_quantity,
+                    quantity: item.quantity,
                   },
                 ]
               : []
@@ -284,7 +284,7 @@ export async function installApiMocks(page: Page): Promise<void> {
             {
               ...body,
               purchased_at: item.purchased_at,
-              quantity: item.purchased_quantity,
+              quantity: item.quantity,
             },
             201,
           )
@@ -298,7 +298,7 @@ export async function installApiMocks(page: Page): Promise<void> {
           return json({
             ...body,
             purchased_at: item.purchased_at,
-            quantity: item.purchased_quantity,
+            quantity: item.quantity,
           })
         }
         if (method === 'DELETE') {
