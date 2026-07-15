@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Match receipt lines to recently purchased items within a date window
 
+- Dedupe purchased_items before fuzzy matching loop
+
 
 ---
 ## [0.19.2] — 2026-07-08
