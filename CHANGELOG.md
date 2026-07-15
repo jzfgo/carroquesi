@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Use half-open interval for receipt date window
+
+
 ### Fixed
 - Pin pnpm/action-setup to frontend's packageManager version (#100)
 
