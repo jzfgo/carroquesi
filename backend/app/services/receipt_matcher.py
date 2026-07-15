@@ -44,6 +44,7 @@ def match_lines(
     item_by_name: dict[str, ListItem] = {}
     for i in purchased_items:
         item_by_name.setdefault(i.name, i)
+    purchased_items = list(item_by_name.values())
 
     for line in lines:
         norm = normalise(line.name)
