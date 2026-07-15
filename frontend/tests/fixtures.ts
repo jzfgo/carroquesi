@@ -1,7 +1,8 @@
 import { test as base, expect, type Page } from '@playwright/test'
-import type { ApiList, ListItem, Member } from '../src/types'
+import type { ApiList, ListItem, Member, ReceiptScanResult } from '../src/types'
 
 const BACKEND = 'http://localhost:8000'
+const GEMINI_ENDPOINT_PATTERN = 'https://firebasevertexai.googleapis.com/**'
 
 // ── Seed data (mirrors scripts/seed.py) ──────────────────────────────────────
 
@@ -11,7 +12,7 @@ export const ALICE = {
   display_name: 'Alice (seed)',
   email: 'alice@seed.local',
   photo_url: null,
-  features: [] as string[],
+  features: ['ai_receipt_scanning'] as string[],
 }
 
 export const SEED_LISTS: ApiList[] = [
@@ -126,6 +127,45 @@ const SEED_MEMBERS: Record<string, Member[]> = {
   ],
 }
 
+// A ReceiptScanSheet review, matching item-leche (existing price, gets updated)
+// and item-cafe (no price yet), plus one unmatched line — mirrors the shape
+// used in ReceiptScanSheet.test.tsx.
+export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
+  scan_id: 'scan-e2e-1',
+  store: 'Mercadona',
+  receipt_date: '2026-07-10',
+  receipt_total: 4.35,
+  matched: [
+    {
+      receipt_name: 'LECHE HACENDADO',
+      item_id: 'item-leche',
+      item_name: 'Leche Hacendado',
+      price_type: 'UNIT',
+      unit_price: 0.75,
+      quantity: null,
+      line_total: 0.75,
+    },
+    {
+      receipt_name: 'CAFE MOLIDO NESCAFE',
+      item_id: 'item-cafe',
+      item_name: 'Cafe molido Nescafe',
+      price_type: 'UNIT',
+      unit_price: 2.6,
+      quantity: null,
+      line_total: 2.6,
+    },
+  ],
+  unmatched: [
+    {
+      receipt_name: 'PAN INTEGRAL',
+      price_type: 'UNIT',
+      unit_price: 1.0,
+      quantity: null,
+      line_total: 1.0,
+    },
+  ],
+}
+
 // ── Route installer ───────────────────────────────────────────────────────────
 
 export async function installApiMocks(page: Page): Promise<void> {
@@ -225,6 +265,16 @@ export async function installApiMocks(page: Page): Promise<void> {
 
       // /lists/:id/due-suggestions
       if (sub === '/due-suggestions') return json([])
+
+      // /lists/:id/receipt (backend fuzzy-match step)
+      if (sub === '/receipt' && method === 'POST')
+        return json(SEED_RECEIPT_RESULT)
+
+      // /lists/:id/receipt-prices (apply reviewed prices)
+      if (sub === '/receipt-prices' && method === 'POST') {
+        const body = (req.postDataJSON() ?? {}) as { patches?: unknown[] }
+        return json({ items_updated: body.patches?.length ?? 0 })
+      }
 
       // /lists/:id/items/:itemId
       const itemMatch = sub.match(/^\/items\/([^/]+)$/)
@@ -344,4 +394,47 @@ export async function expectScreenshot(
   const projectName = test.info().project.name
   if (!VISUAL_PROJECTS.has(projectName)) return
   await expect(page).toHaveScreenshot(name, { fullPage: true })
+}
+
+// ── Gemini network-boundary mock ─────────────────────────────────────────────
+// receiptAi.ts calls the Firebase AI SDK, which — regardless of GoogleAIBackend
+// vs VertexAIBackend — issues a real fetch to this proxy domain. Intercepting
+// it here (rather than mocking receiptAi.ts itself) keeps the test exercising
+// the actual client parse -> backend match -> review -> apply pipeline; only
+// the non-deterministic Gemini call is stubbed.
+export interface GeminiParsedLine {
+  name: string
+  price_type: 'UNIT' | 'KILOGRAM' | 'MULTI'
+  unit_price: number
+  quantity: number | null
+  line_total: number
+}
+
+export async function mockGeminiReceiptParse(
+  page: Page,
+  parsed: {
+    store: string | null
+    receipt_date: string | null
+    receipt_total: number | null
+    lines: GeminiParsedLine[]
+  },
+): Promise<void> {
+  await page.route(GEMINI_ENDPOINT_PATTERN, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        candidates: [
+          {
+            content: {
+              role: 'model',
+              parts: [{ text: JSON.stringify(parsed) }],
+            },
+            finishReason: 'STOP',
+            index: 0,
+          },
+        ],
+      }),
+    })
+  })
 }
