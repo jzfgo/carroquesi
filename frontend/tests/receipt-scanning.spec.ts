@@ -3,6 +3,7 @@ import path from 'node:path'
 import {
   expect,
   expectScreenshot,
+  GEMINI_ENDPOINT_PATTERN,
   mockGeminiReceiptParse,
   SEED_ITEMS,
   SEED_LISTS,
@@ -141,19 +142,6 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await markPurchased(page, ITEM_CAFE.name)
       await mockGeminiReceiptParse(page, PARSED_RECEIPT)
 
-      let capturedPatches: { item_id: string }[] = []
-      await page.route(`**/lists/${LIST_ID}/receipt-prices`, async (route) => {
-        const body = route.request().postDataJSON() as {
-          patches: { item_id: string }[]
-        }
-        capturedPatches = body.patches
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ items_updated: body.patches.length }),
-        })
-      })
-
       await uploadReceipt(page)
       const sheet = page
         .locator('.sheet')
@@ -168,18 +156,27 @@ for (const { name: themeName, colorScheme } of THEMES) {
       )
       await expect(sheet.locator('.confirm-count')).toHaveText('1 elemento')
 
+      const responsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/lists/${LIST_ID}/receipt-prices`) &&
+          resp.status() === 200,
+      )
       await sheet.getByRole('button', { name: 'Guardar precios' }).click()
+      const response = await responsePromise
       await expect(sheet).toBeHidden()
 
-      expect(capturedPatches).toHaveLength(1)
-      expect(capturedPatches[0].item_id).toBe(ITEM_CAFE.id)
+      const body = response.request().postDataJSON() as {
+        patches: { item_id: string }[]
+      }
+      expect(body.patches).toHaveLength(1)
+      expect(body.patches[0].item_id).toBe(ITEM_CAFE.id)
     })
 
     test('a failed AI parse surfaces an error toast without opening the review sheet', async ({
       page,
     }) => {
       await gotoList(page)
-      await page.route('https://firebasevertexai.googleapis.com/**', (route) =>
+      await page.route(GEMINI_ENDPOINT_PATTERN, (route) =>
         route.fulfill({ status: 500, body: 'Internal Server Error' }),
       )
 

@@ -2,7 +2,8 @@ import { test as base, expect, type Page } from '@playwright/test'
 import type { ApiList, ListItem, Member, ReceiptScanResult } from '../src/types'
 
 const BACKEND = 'http://localhost:8000'
-const GEMINI_ENDPOINT_PATTERN = 'https://firebasevertexai.googleapis.com/**'
+export const GEMINI_ENDPOINT_PATTERN =
+  'https://firebasevertexai.googleapis.com/**'
 
 // ── Seed data (mirrors scripts/seed.py) ──────────────────────────────────────
 
