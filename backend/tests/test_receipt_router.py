@@ -380,6 +380,50 @@ def test_post_receipt_matches_most_recently_purchased_duplicate(client, session)
     assert body["matched"][0]["item_id"] == "item-leche-recent"
 
 
+def test_post_receipt_prefers_purchase_closest_to_receipt_date_over_more_recent_one(
+    client, session
+):
+    """Scanning an older receipt after already buying the same item again more
+    recently must still match the purchase closest to the receipt date, not
+    the newer unrelated purchase."""
+    close_item = session.get(ListItem, "item-almendras")
+    close_item.name = "Leche entera"
+    close_item.purchased_at = datetime(2026, 4, 9, 9, 0, 0)  # same day as receipt
+    session.add(close_item)
+
+    newer_item = ListItem(
+        id="item-leche-newer",
+        list_id=LIST_ID,
+        name="Leche entera",
+        added_by=close_item.added_by,
+        purchased_at=datetime(2026, 4, 11, 15, 57, 0),  # 2 days after receipt, more recent
+    )
+    session.add(newer_item)
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json={
+            "store": "Mercadona",
+            "receipt_date": "2026-04-09",
+            "receipt_total": 0.89,
+            "lines": [
+                {
+                    "name": "LECHE ENTERA",
+                    "price_type": "UNIT",
+                    "unit_price": 0.89,
+                    "quantity": None,
+                    "line_total": 0.89,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["matched"]) == 1
+    assert body["matched"][0]["item_id"] == "item-almendras"
+
+
 def test_post_receipt_ignores_items_purchased_outside_match_window(client, session):
     """Items purchased more than 3 days from the receipt date are excluded
     from the candidate pool entirely, so an unrelated old purchase can't be

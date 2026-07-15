@@ -62,6 +62,11 @@ def scan_receipt(
             ListItem.purchased_at < window_end,
         )
     purchased_items = list(session.exec(stmt).all())
+    if receipt_date:
+        # Prefer the purchase closest to the receipt date over the most
+        # recent one, so scanning an older receipt after a newer purchase of
+        # the same item doesn't steal the match.
+        purchased_items.sort(key=lambda item: abs(item.purchased_at.date() - receipt_date))
 
     matched, unmatched = match_lines(body.lines, body.store, purchased_items, session)
 
