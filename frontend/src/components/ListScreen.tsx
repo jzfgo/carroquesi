@@ -410,7 +410,7 @@ export function ListScreen({
         // price already gone — treat as success, close sheet
         setLogPriceFor(null)
         setPriceItemId(null)
-      } else if (err instanceof ApiError && err.status === 409) {
+      } else if (err instanceof ApiError && err.status === 422) {
         setToast(
           'No se puede eliminar el precio de un artículo comprado en otro día',
         )

@@ -16,11 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Isolate Docker baseline-generation from host node_modules/pnpm store (#104)
 
-- Restore host ownership of baseline PNGs after Docker snapshot regen
+- Restore host ownership of baseline PNGs after Docker snapshot regen (#105)
 
-- Always restore host ownership even if playwright test fails
-
-- Also restore ownership of playwright-report and test-results dirs
+- Align mock price quantity field with backend contract
 
 
 ---
