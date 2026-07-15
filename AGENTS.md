@@ -214,18 +214,17 @@ A task is complete only when **all** of the following are true:
 
 - Submitting prices to Open Prices (requires proof image + OSM location)
 
-## Open Action Items (1:1 — 2026-07-08)
+## Open Action Items (1:1 — 2026-07-15)
 
 **AI:**
 
-- [ ] For refactors touching environment-conditional logic (dev/prod branches, feature flags, config gating), explicitly verify both branches' behavior before calling the change done — not just tests/lint _(prompted by #94: e2e refactor split an if/else guard and broke App Check in dev, caught by user via console 403)_
-- [ ] End every agent-driven UI fix session with explicit on-device QA checklist before closing _(unverified for 2 reviews running — no UI-only fix shipped in this window to test against)_
+- [ ] For refactors touching environment-conditional logic (dev/prod branches, feature flags, config gating), explicitly verify both branches' behavior before calling the change done — not just tests/lint _(carried from #94; still no real test case)_
 - [ ] Flag mobile-path issues (input type, viewport, safe area) during implementation, not just at handoff
+- [ ] Check whether Docker-isolated visual regression baseline generation (#104) warrants an ADR entry — new infra dependency, per the ADR criteria above
 
 **You:**
 
-- [ ] Research agent queue / autonomous loop state-of-the-art before designing the system _(parked — on vacation)_
-- [ ] Run `/brainstorming` before MCP Server / Siri Shortcuts implementation
+- [ ] Decide: are agent queue/loop research and MCP/Siri `/brainstorming` still active goals? _(parked 3 reviews running — 06-22, 07-08, 07-15)_
 - [ ] Bring a Document AI vs. Gemini comparison into the next receipt scanning `/brainstorming` session
 
 > When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
