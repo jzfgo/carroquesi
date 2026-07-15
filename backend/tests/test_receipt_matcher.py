@@ -102,6 +102,34 @@ def test_kilogram_line_carries_quantity(session):
     assert matched[0].line_total == pytest.approx(2.30)
 
 
+def test_fuzzy_match_prefers_most_recent_duplicate(session):
+    # purchased_items is expected to arrive ordered most-recently-purchased
+    # first (see receipt.py's order_by); a re-bought item can produce two
+    # rows with the same name, and the fuzzy match must pick the recent one.
+    items = [_item("item-recent", "Leche"), _item("item-old", "Leche")]
+    matched, unmatched = match_lines([_unit("LECHE", 1.10)], "Mercadona", items, session)
+    assert len(matched) == 1
+    assert matched[0].item_id == "item-recent"
+    assert len(unmatched) == 0
+
+
+def test_mapping_lookup_prefers_most_recent_duplicate(session):
+    mapping = ReceiptNameMapping(
+        id="map-1",
+        store="Mercadona",
+        receipt_name="leche",
+        item_name="Leche",
+        confirmed_by="user-1",
+    )
+    session.add(mapping)
+    session.commit()
+
+    items = [_item("item-recent", "Leche"), _item("item-old", "Leche")]
+    matched, unmatched = match_lines([_unit("LECHE", 1.10)], "Mercadona", items, session)
+    assert len(matched) == 1
+    assert matched[0].item_id == "item-recent"
+
+
 def test_multi_line_carries_quantity(session):
     items = [_item("item-1", "Yogur natural")]
     line = ParsedLine(

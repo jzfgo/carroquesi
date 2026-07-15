@@ -38,7 +38,12 @@ def match_lines(
     matched: list[MatchedLine] = []
     unmatched: list[UnmatchedLine] = []
 
-    item_by_name: dict[str, ListItem] = {i.name: i for i in purchased_items}
+    # purchased_items is ordered most-recently-purchased first; keep only the
+    # first (most recent) item per name so duplicate purchases of the same
+    # item don't resolve to an older row.
+    item_by_name: dict[str, ListItem] = {}
+    for i in purchased_items:
+        item_by_name.setdefault(i.name, i)
 
     for line in lines:
         norm = normalise(line.name)
