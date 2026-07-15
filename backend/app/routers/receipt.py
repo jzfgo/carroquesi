@@ -55,11 +55,11 @@ def scan_receipt(
             receipt_date - timedelta(days=RECEIPT_MATCH_WINDOW_DAYS), time.min
         )
         window_end = datetime.combine(
-            receipt_date + timedelta(days=RECEIPT_MATCH_WINDOW_DAYS), time.max
+            receipt_date + timedelta(days=RECEIPT_MATCH_WINDOW_DAYS + 1), time.min
         )
         stmt = stmt.where(
             ListItem.purchased_at >= window_start,
-            ListItem.purchased_at <= window_end,
+            ListItem.purchased_at < window_end,
         )
     purchased_items = list(session.exec(stmt).all())
 
