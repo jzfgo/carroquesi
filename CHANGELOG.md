@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dedupe purchased_items before fuzzy matching loop
 
+- Prefer purchase closest to receipt date, dedupe by normalised name
+
 
 ---
 ## [0.19.2] — 2026-07-08
