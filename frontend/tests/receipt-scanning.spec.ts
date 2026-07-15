@@ -133,59 +133,63 @@ for (const { name: themeName, colorScheme } of THEMES) {
         '2 precios actualizados',
       )
     })
-
-    test('deselecting a matched line excludes it from the applied price patch', async ({
-      page,
-    }) => {
-      await gotoList(page)
-      await markPurchased(page, ITEM_LECHE.name)
-      await markPurchased(page, ITEM_CAFE.name)
-      await mockGeminiReceiptParse(page, PARSED_RECEIPT)
-
-      await uploadReceipt(page)
-      const sheet = page
-        .locator('.sheet')
-        .filter({ has: page.locator('.rss-toolbar') })
-      await expect(sheet).toBeVisible()
-
-      const lecheRow = receiptRow(page, 'LECHE HACENDADO')
-      await lecheRow.locator('.rss-check').click()
-
-      await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
-        '1 de 3 seleccionados',
-      )
-      await expect(sheet.locator('.confirm-count')).toHaveText('1 elemento')
-
-      const responsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes(`/lists/${LIST_ID}/receipt-prices`) &&
-          resp.status() === 200,
-      )
-      await sheet.getByRole('button', { name: 'Guardar precios' }).click()
-      const response = await responsePromise
-      await expect(sheet).toBeHidden()
-
-      const body = response.request().postDataJSON() as {
-        patches: { item_id: string }[]
-      }
-      expect(body.patches).toHaveLength(1)
-      expect(body.patches[0].item_id).toBe(ITEM_CAFE.id)
-    })
-
-    test('a failed AI parse surfaces an error toast without opening the review sheet', async ({
-      page,
-    }) => {
-      await gotoList(page)
-      await page.route(GEMINI_ENDPOINT_PATTERN, (route) =>
-        route.fulfill({ status: 500, body: 'Internal Server Error' }),
-      )
-
-      await uploadReceipt(page)
-
-      await expect(page.getByRole('alert')).toContainText(
-        'No se pudo leer el ticket',
-      )
-      await expect(page.locator('.rss-toolbar')).toHaveCount(0)
-    })
   })
 }
+
+// Neither test below asserts anything theme-dependent (no expectScreenshot
+// call), so they run once instead of once per THEMES entry.
+test.describe('functional', () => {
+  test('deselecting a matched line excludes it from the applied price patch', async ({
+    page,
+  }) => {
+    await gotoList(page)
+    await markPurchased(page, ITEM_LECHE.name)
+    await markPurchased(page, ITEM_CAFE.name)
+    await mockGeminiReceiptParse(page, PARSED_RECEIPT)
+
+    await uploadReceipt(page)
+    const sheet = page
+      .locator('.sheet')
+      .filter({ has: page.locator('.rss-toolbar') })
+    await expect(sheet).toBeVisible()
+
+    const lecheRow = receiptRow(page, 'LECHE HACENDADO')
+    await lecheRow.locator('.rss-check').click()
+
+    await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
+      '1 de 3 seleccionados',
+    )
+    await expect(sheet.locator('.confirm-count')).toHaveText('1 elemento')
+
+    const responsePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/lists/${LIST_ID}/receipt-prices`) &&
+        resp.status() === 200,
+    )
+    await sheet.getByRole('button', { name: 'Guardar precios' }).click()
+    const response = await responsePromise
+    await expect(sheet).toBeHidden()
+
+    const body = response.request().postDataJSON() as {
+      patches: { item_id: string }[]
+    }
+    expect(body.patches).toHaveLength(1)
+    expect(body.patches[0].item_id).toBe(ITEM_CAFE.id)
+  })
+
+  test('a failed AI parse surfaces an error toast without opening the review sheet', async ({
+    page,
+  }) => {
+    await gotoList(page)
+    await page.route(GEMINI_ENDPOINT_PATTERN, (route) =>
+      route.fulfill({ status: 500, body: 'Internal Server Error' }),
+    )
+
+    await uploadReceipt(page)
+
+    await expect(page.getByRole('alert')).toContainText(
+      'No se pudo leer el ticket',
+    )
+    await expect(page.locator('.rss-toolbar')).toHaveCount(0)
+  })
+})
