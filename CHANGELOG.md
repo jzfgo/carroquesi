@@ -18,9 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Restore host ownership of baseline PNGs after Docker snapshot regen (#105)
 
-- Address receipt scanning e2e review feedback
-
-- Stop running functional-only receipt scan tests per theme
+- Match receipt lines to recently purchased items within a date window
 
 
 ---
