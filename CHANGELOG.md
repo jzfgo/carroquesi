@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- Add ApiKey model and migration
+
+- Add API key generation, hashing, and encryption service
+
+- Add X-Api-Key auth fallback to get_current_user
+
+- Add .shortcut binary plist builder
+
+- Add .shortcut download and API key regeneration endpoints
+
+- Expose has_api_key on /users/me and /auth/sync
+
+- Add useApplePlatform hook
+
+- Add downloadShortcut and regenerateApiKey to api client
+
+- Add Siri shortcut and key regeneration to avatar menu
+
+
+### Fixed
+- Anchor superpowers gitignore pattern to repo root
+
+
+---
 ## [0.19.3] — 2026-07-15
 
 ### Fixed
