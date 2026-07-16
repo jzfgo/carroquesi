@@ -280,7 +280,9 @@ describe('downloadShortcut', () => {
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/shortcuts/cqs.shortcut'),
       expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: 'Bearer test-token' }),
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-token',
+        }),
       }),
     )
     expect(clickSpy).toHaveBeenCalledOnce()
@@ -293,10 +295,13 @@ describe('downloadShortcut', () => {
       Promise.resolve({
         ok: false,
         status: 409,
-        text: () => Promise.resolve('Create or join a list before setting up Siri'),
+        text: () =>
+          Promise.resolve('Create or join a list before setting up Siri'),
       }),
     )
-    await expect(downloadShortcut(mockGetToken)).rejects.toMatchObject({ status: 409 })
+    await expect(downloadShortcut(mockGetToken)).rejects.toMatchObject({
+      status: 409,
+    })
   })
 })
 
