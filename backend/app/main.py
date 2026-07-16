@@ -17,6 +17,7 @@ from app.routers import (
     prices,
     receipt,
     share,
+    shortcuts,
     suggestions,
     waitlist,
 )
@@ -56,6 +57,7 @@ app.include_router(receipt.router)
 app.include_router(share.router)
 app.include_router(feedback.router)
 app.include_router(waitlist.router)
+app.include_router(shortcuts.router)
 
 
 @app.get("/health")
