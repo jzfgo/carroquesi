@@ -39,6 +39,32 @@ async function apiFetch(
   return res.json()
 }
 
+export async function downloadShortcut(
+  getToken: () => Promise<string>,
+): Promise<void> {
+  const token = await getToken()
+  const res = await fetch(`${BACKEND_URL}/shortcuts/cqs.shortcut`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(DEV_USER_ID ? { 'X-Dev-User-Id': DEV_USER_ID } : {}),
+    },
+  })
+  if (!res.ok) throw new ApiError(res.status, await res.text())
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = 'CarroQueSi.shortcut'
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
+
+export function regenerateApiKey(getToken: () => Promise<string>) {
+  return apiFetch(getToken, '/account/api-key/regenerate', { method: 'POST' })
+}
+
 export function syncUser(getToken: () => Promise<string>) {
   return apiFetch(getToken, '/auth/sync', { method: 'POST' })
 }
