@@ -3,6 +3,7 @@ import * as reactRouter from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContext from '../contexts/FeatureFlagsContext'
+import * as useApplePlatformModule from '../hooks/useApplePlatform'
 import * as usePWAInstallModule from '../hooks/usePWAInstall'
 import * as api from '../lib/api'
 import { DashboardScreen } from './DashboardScreen'
@@ -20,6 +21,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
   }
 })
 vi.mock('../hooks/usePWAInstall')
+vi.mock('../hooks/useApplePlatform')
 
 const mockGetToken = vi.fn().mockResolvedValue('token')
 const mockSignOut = vi.fn().mockResolvedValue(undefined)
@@ -70,6 +72,12 @@ beforeEach(() => {
     isIOS: false,
     promptInstall: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   })
+  vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(false)
+  vi.mocked(api.getMe).mockResolvedValue({ has_api_key: false } as never)
+  vi.mocked(api.downloadShortcut).mockResolvedValue(undefined)
+  vi.mocked(api.regenerateApiKey).mockResolvedValue({
+    regenerated_at: '',
+  } as never)
 })
 
 const twoLists = [
@@ -401,6 +409,141 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     expect(
       screen.getByRole('dialog', { name: /enviar feedback/i }),
     ).toBeInTheDocument()
+  })
+
+  it('avatar menu shows "Añadir atajo a Siri" on Apple platforms', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(
+      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('avatar menu hides "Añadir atajo a Siri" on non-Apple platforms', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(
+      screen.queryByRole('menuitem', { name: /añadir atajo a siri/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('avatar menu shows "Regenerar clave" only when the user already has a key', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getMe).mockResolvedValue({ has_api_key: true } as never)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await waitFor(() => expect(api.getMe).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(
+      screen.getByRole('menuitem', { name: /regenerar clave/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('avatar menu hides "Regenerar clave" when the user has no key yet', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(
+      screen.queryByRole('menuitem', { name: /regenerar clave/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('clicking "Añadir atajo a Siri" downloads the shortcut and closes the menu', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
+    )
+    await waitFor(() => expect(api.downloadShortcut).toHaveBeenCalledOnce())
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('shows an error toast when downloading the shortcut fails', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.downloadShortcut).mockRejectedValue(new Error('boom'))
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByText('No se pudo generar el atajo de Siri'),
+      ).toBeInTheDocument(),
+    )
+  })
+
+  it('clicking "Regenerar clave" rotates the key, re-downloads, and toasts', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getMe).mockResolvedValue({ has_api_key: true } as never)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await waitFor(() => expect(api.getMe).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /regenerar clave/i }))
+    await waitFor(() => expect(api.regenerateApiKey).toHaveBeenCalledOnce())
+    await waitFor(() => expect(api.downloadShortcut).toHaveBeenCalledOnce())
+    expect(screen.getByText('Clave regenerada')).toBeInTheDocument()
+  })
+
+  it('shows a distinct toast when regeneration succeeds but re-download fails', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getMe).mockResolvedValue({ has_api_key: true } as never)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    vi.mocked(api.downloadShortcut).mockRejectedValue(new Error('boom'))
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await waitFor(() => expect(api.getMe).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /regenerar clave/i }))
+    await waitFor(() => expect(api.regenerateApiKey).toHaveBeenCalledOnce())
+    await waitFor(() => expect(api.downloadShortcut).toHaveBeenCalledOnce())
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'Clave regenerada, pero no se pudo descargar el archivo — usa "Añadir atajo a Siri" para volver a descargarlo.',
+        ),
+      ).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByText('No se pudo regenerar la clave'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows an actionable toast when adding the Siri shortcut fails with a 409 (no lists yet)', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    const apiErr = new api.ApiError(
+      409,
+      'Create or join a list before setting up Siri',
+    )
+    apiErr.status = 409
+    vi.mocked(api.downloadShortcut).mockRejectedValue(apiErr)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByText('Crea o únete a una lista antes de configurar Siri'),
+      ).toBeInTheDocument(),
+    )
   })
 })
 

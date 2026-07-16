@@ -15,14 +15,19 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useApplePlatform } from '../hooks/useApplePlatform'
 import { useIsOffline } from '../hooks/useIsOffline'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import type { FeedbackPayload } from '../lib/api'
 import {
+  ApiError,
   createList,
   deleteList,
+  downloadShortcut,
   getLists,
+  getMe,
+  regenerateApiKey,
   submitFeedback,
   updateList,
 } from '../lib/api'
@@ -95,6 +100,48 @@ export function DashboardScreen() {
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
+  const isApplePlatform = useApplePlatform()
+  const [hasApiKey, setHasApiKey] = useState(false)
+
+  useEffect(() => {
+    if (!isApplePlatform) return
+    getMe(getToken)
+      .then((data) => {
+        const d = data as { has_api_key?: boolean }
+        setHasApiKey(d.has_api_key ?? false)
+      })
+      .catch(() => {})
+  }, [isApplePlatform, getToken])
+
+  const handleAddSiriShortcut = async () => {
+    try {
+      await downloadShortcut(getToken)
+      setHasApiKey(true)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setToast('Crea o únete a una lista antes de configurar Siri')
+      } else {
+        setToast('No se pudo generar el atajo de Siri')
+      }
+    }
+  }
+
+  const handleRegenerateKey = async () => {
+    try {
+      await regenerateApiKey(getToken)
+    } catch {
+      setToast('No se pudo regenerar la clave')
+      return
+    }
+    setToast('Clave regenerada')
+    try {
+      await downloadShortcut(getToken)
+    } catch {
+      setToast(
+        'Clave regenerada, pero no se pudo descargar el archivo — usa "Añadir atajo a Siri" para volver a descargarlo.',
+      )
+    }
+  }
 
   useEffect(() => {
     if (!toast) return
@@ -340,6 +387,30 @@ export function DashboardScreen() {
               >
                 Enviar feedback
               </button>
+              {isApplePlatform && (
+                <button
+                  className="dashboard-screen__avatar-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    void handleAddSiriShortcut()
+                    setMenuOpen(false)
+                  }}
+                >
+                  Añadir atajo a Siri
+                </button>
+              )}
+              {isApplePlatform && hasApiKey && (
+                <button
+                  className="dashboard-screen__avatar-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    void handleRegenerateKey()
+                    setMenuOpen(false)
+                  }}
+                >
+                  Regenerar clave
+                </button>
+              )}
               <button
                 className="dashboard-screen__avatar-menu-item"
                 role="menuitem"
