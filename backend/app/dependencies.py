@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Annotated, Any, TypeAlias
 
 from fastapi import Depends, Header, HTTPException, status
@@ -6,8 +7,9 @@ from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.firebase import verify_id_token
-from app.db.models import List, ListMember, User
+from app.db.models import ApiKey, List, ListMember, User
 from app.db.session import get_session
+from app.services.api_keys import hash_key
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -16,6 +18,7 @@ def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     x_dev_user_id: Annotated[str | None, Header()] = None,
     x_dev_is_admin: Annotated[str | None, Header()] = None,
+    x_api_key: Annotated[str | None, Header()] = None,
     session: Annotated[Session, Depends(get_session)] = None,
 ) -> User:
     if settings.dev_auth_bypass and x_dev_user_id:
@@ -28,50 +31,63 @@ def get_current_user(
         object.__setattr__(user, "is_admin", x_dev_is_admin == "true")
         return user
 
-    if credentials is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    if credentials is not None:
+        try:
+            decoded: dict[str, Any] = verify_id_token(credentials.credentials)
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+            ) from None
 
-    try:
-        decoded: dict[str, Any] = verify_id_token(credentials.credentials)
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
-        ) from None
+        user = session.exec(select(User).where(User.firebase_uid == decoded["uid"])).first()
+        if user is None:
+            # First login — create the user record
+            if settings.waitlist_enabled and not decoded.get("is_admin", False):
+                # Check if their email has a waitlist signup that was allowed access
+                email_clean = decoded.get("email", "").strip().lower()
+                is_waitlist_approved = False
+                if email_clean:
+                    from app.db.waitlist_models import WaitlistSignup
 
-    user = session.exec(select(User).where(User.firebase_uid == decoded["uid"])).first()
-    if user is None:
-        # First login — create the user record
-        if settings.waitlist_enabled and not decoded.get("is_admin", False):
-            # Check if their email has a waitlist signup that was allowed access
-            email_clean = decoded.get("email", "").strip().lower()
-            is_waitlist_approved = False
-            if email_clean:
-                from app.db.waitlist_models import WaitlistSignup
+                    signup = session.exec(
+                        select(WaitlistSignup).where(
+                            WaitlistSignup.email == email_clean,
+                            WaitlistSignup.allowed_at.is_not(None),
+                        )
+                    ).first()
+                    if signup:
+                        is_waitlist_approved = True
 
-                signup = session.exec(
-                    select(WaitlistSignup).where(
-                        WaitlistSignup.email == email_clean, WaitlistSignup.allowed_at.is_not(None)
+                if not is_waitlist_approved:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="waitlist",
                     )
-                ).first()
-                if signup:
-                    is_waitlist_approved = True
+            user = User(
+                firebase_uid=decoded["uid"],
+                email=decoded.get("email", ""),
+                display_name=decoded.get("name"),
+                photo_url=decoded.get("picture"),
+            )
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+        object.__setattr__(user, "is_admin", decoded.get("is_admin", False))
+        return user
 
-            if not is_waitlist_approved:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="waitlist",
-                )
-        user = User(
-            firebase_uid=decoded["uid"],
-            email=decoded.get("email", ""),
-            display_name=decoded.get("name"),
-            photo_url=decoded.get("picture"),
-        )
-        session.add(user)
+    if x_api_key is not None:
+        api_key = session.exec(select(ApiKey).where(ApiKey.key_hash == hash_key(x_api_key))).first()
+        if api_key is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+        user = session.get(User, api_key.user_id)
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+        api_key.last_used_at = datetime.now(UTC).replace(tzinfo=None)
         session.commit()
-        session.refresh(user)
-    object.__setattr__(user, "is_admin", decoded.get("is_admin", False))
-    return user
+        object.__setattr__(user, "is_admin", False)
+        return user
+
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
 
 # ---------------------------------------------------------------------------
