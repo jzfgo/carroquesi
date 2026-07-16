@@ -5,6 +5,7 @@ description = "CarroQueSí API – grocery list and receipt analysis service"
 requires-python = ">=3.13"
 dependencies = [
     "alembic>=1.18.4",
+    "cryptography>=46.0.5",
     "email-validator>=2.3.0",
     "fastapi[standard]>=0.135.1",
     "firebase-admin>=7.2.0",
