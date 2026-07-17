@@ -1,100 +1,62 @@
-import plistlib
-
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from app.db.models import ApiKey, User
 
 
-def test_download_without_any_lists_returns_409(client: TestClient):
+def test_download_returns_404_when_no_static_file_exists(client: TestClient):
+    # In CI/test envs, backend/app/static/cqs.shortcut doesn't exist (it's a
+    # hand-built, hand-signed artifact — see the plan's Task 6). 404 is the
+    # correct, expected response until that file is placed.
     response = client.get("/shortcuts/cqs.shortcut")
-    assert response.status_code == 409
+    assert response.status_code == 404
 
 
-def test_download_returns_binary_plist_and_creates_a_key(
-    client: TestClient, session: Session, user: User
-):
-    client.post("/lists", json={"name": "Mercado"})
+def test_download_serves_the_static_file_when_present(client: TestClient, tmp_path, monkeypatch):
+    fake_bytes = b"fake-shortcut-binary-content"
+    fake_path = tmp_path / "cqs.shortcut"
+    fake_path.write_bytes(fake_bytes)
+    monkeypatch.setattr("app.routers.shortcuts._SHORTCUT_PATH", fake_path)
 
     response = client.get("/shortcuts/cqs.shortcut")
 
     assert response.status_code == 200
-    assert response.headers["content-type"] == "application/octet-stream"
+    assert response.content == fake_bytes
     assert response.headers["content-disposition"] == 'attachment; filename="CarroQueSi.shortcut"'
-    workflow = plistlib.loads(response.content)
-    identifiers = {a["WFWorkflowActionIdentifier"] for a in workflow["WFWorkflowActions"]}
-    assert "is.workflow.actions.downloadurl" in identifiers
-
-    api_key = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first()
-    assert api_key is not None
 
 
-def test_download_reuses_existing_key_on_second_call(
-    client: TestClient, session: Session, user: User
-):
-    client.post("/lists", json={"name": "Mercado"})
-    client.get("/shortcuts/cqs.shortcut")
-    first = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first()
-    first_hash = first.key_hash
-
-    client.get("/shortcuts/cqs.shortcut")
-    session.refresh(first)
-    assert first.key_hash == first_hash
-
-
-def test_download_embeds_most_recently_updated_list(client: TestClient):
-    client.post("/lists", json={"name": "Old"})
-    newest = client.post("/lists", json={"name": "New"}).json()
-    client.patch(f"/lists/{newest['id']}", json={"name": "New"})  # bump updated_at
-
-    response = client.get("/shortcuts/cqs.shortcut")
-    workflow = plistlib.loads(response.content)
-    post_action = next(
-        a
-        for a in workflow["WFWorkflowActions"]
-        if a["WFWorkflowActionIdentifier"] == "is.workflow.actions.downloadurl"
-        and a["WFWorkflowActionParameters"].get("WFHTTPMethod") == "POST"
-    )
-    assert newest["id"] in post_action["WFWorkflowActionParameters"]["WFURL"]
-
-
-def test_download_never_embeds_another_users_list(client: TestClient, other_client: TestClient):
-    mine = client.post("/lists", json={"name": "Mine"}).json()
-
-    theirs = other_client.post("/lists", json={"name": "Theirs"}).json()
-    other_client.patch(f"/lists/{theirs['id']}", json={"name": "Theirs"})  # bump updated_at
-
-    response = client.get("/shortcuts/cqs.shortcut")
-    workflow = plistlib.loads(response.content)
-    post_action = next(
-        a
-        for a in workflow["WFWorkflowActions"]
-        if a["WFWorkflowActionIdentifier"] == "is.workflow.actions.downloadurl"
-        and a["WFWorkflowActionParameters"].get("WFHTTPMethod") == "POST"
-    )
-    embedded_url = post_action["WFWorkflowActionParameters"]["WFURL"]
-    assert mine["id"] in embedded_url
-    assert theirs["id"] not in embedded_url
-
-
-def test_regenerate_rotates_the_key_hash(client: TestClient, session: Session, user: User):
-    client.post("/lists", json={"name": "Mercado"})
-    client.get("/shortcuts/cqs.shortcut")
-    before = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first()
-    before_hash = before.key_hash
-
-    response = client.post("/account/api-key/regenerate")
-
-    assert response.status_code == 200
-    session.refresh(before)
-    assert before.key_hash != before_hash
-    assert before.last_used_at is None
-
-
-def test_regenerate_without_existing_key_creates_one(
+def test_regenerate_returns_the_plaintext_key_once(
     client: TestClient, session: Session, user: User
 ):
     response = client.post("/account/api-key/regenerate")
+
     assert response.status_code == 200
+    body = response.json()
+    assert "key" in body
+    assert body["key"].startswith("cqs_")
+
     api_key = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first()
-    assert api_key is not None
+    from app.services.api_keys import hash_key
+
+    assert api_key.key_hash == hash_key(body["key"])
+
+
+def test_regenerate_rotates_an_existing_key(client: TestClient, session: Session, user: User):
+    first = client.post("/account/api-key/regenerate").json()
+    second = client.post("/account/api-key/regenerate").json()
+
+    assert first["key"] != second["key"]
+    api_key = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first()
+    from app.services.api_keys import hash_key
+
+    assert api_key.key_hash == hash_key(second["key"])
+    # the old key no longer authenticates: `ApiKey.user_id` is unique, so
+    # rotation overwrote the single row for this user — no row anywhere
+    # still hashes to the stale plaintext. (Not exercised via HTTP here:
+    # the shared `client` fixture overrides `get_current_user` directly,
+    # so `X-Api-Key` headers are never actually checked through it — see
+    # `test_api_key_auth.py` for the real end-to-end auth-path coverage.)
+    stale_key_row = session.exec(
+        select(ApiKey).where(ApiKey.key_hash == hash_key(first["key"]))
+    ).first()
+    assert stale_key_row is None
