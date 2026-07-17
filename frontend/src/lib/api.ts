@@ -56,7 +56,9 @@ export async function downloadShortcut(): Promise<void> {
 export function regenerateApiKey(
   getToken: () => Promise<string>,
 ): Promise<{ key: string; regenerated_at: string }> {
-  return apiFetch(getToken, '/account/api-key/regenerate', { method: 'POST' }) as Promise<{
+  return apiFetch(getToken, '/account/api-key/regenerate', {
+    method: 'POST',
+  }) as Promise<{
     key: string
     regenerated_at: string
   }>
