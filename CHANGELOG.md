@@ -28,6 +28,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add Siri shortcut and key regeneration to avatar menu
 
+- Resolve list_id=default to caller's most-recently-updated list
+
+- Show plaintext API key once on Siri setup and key regeneration
+
+
+### Changed
+- Drop reversible key_ciphertext storage from ApiKey
+
+- Remove Fernet encryption machinery, no longer needed
+
+- Serve a static pre-signed shortcut instead of generating per-user
+
+- Extract API key panel into its own sheet component
+
 
 ### Fixed
 - Anchor superpowers gitignore pattern to repo root
