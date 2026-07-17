@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { copyToClipboard } from './clipboard'
 
-const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+const originalClipboard = Object.getOwnPropertyDescriptor(
+  navigator,
+  'clipboard',
+)
 
 function setClipboard(value: unknown) {
   Object.defineProperty(navigator, 'clipboard', { value, configurable: true })
@@ -15,7 +18,8 @@ function setExecCommand(result: boolean) {
 }
 
 afterEach(() => {
-  if (originalClipboard) Object.defineProperty(navigator, 'clipboard', originalClipboard)
+  if (originalClipboard)
+    Object.defineProperty(navigator, 'clipboard', originalClipboard)
   else setClipboard(undefined)
   delete (document as unknown as { execCommand?: unknown }).execCommand
   vi.restoreAllMocks()
