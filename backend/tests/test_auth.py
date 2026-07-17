@@ -54,7 +54,6 @@ def test_users_me_reflects_api_key_state(client: TestClient, session: Session, u
         ApiKey(
             user_id=user.id,
             key_hash="a" * 64,
-            key_ciphertext="ciphertext",
             last_used_at=last_used,
         )
     )

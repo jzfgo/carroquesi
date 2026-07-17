@@ -1,14 +1,13 @@
 from sqlmodel import Session, select
 
 from app.db.models import ApiKey, User
-from app.services.api_keys import KEY_PREFIX, decrypt_key, encrypt_key, generate_key, hash_key
+from app.services.api_keys import KEY_PREFIX, generate_key, hash_key
 
 
 def test_api_key_round_trips_through_db(session: Session, user: User):
     api_key = ApiKey(
         user_id=user.id,
         key_hash="a" * 64,
-        key_ciphertext="gAAAAA-fake-ciphertext",
     )
     session.add(api_key)
     session.commit()
@@ -35,10 +34,3 @@ def test_hash_key_is_deterministic():
 
 def test_hash_key_differs_for_different_keys():
     assert hash_key(generate_key()) != hash_key(generate_key())
-
-
-def test_encrypt_decrypt_round_trip():
-    key = generate_key()
-    ciphertext = encrypt_key(key)
-    assert ciphertext != key
-    assert decrypt_key(ciphertext) == key

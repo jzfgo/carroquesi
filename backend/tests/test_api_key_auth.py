@@ -56,7 +56,7 @@ def keyed_user_fixture(auth_session: Session) -> tuple[User, str]:
     auth_session.refresh(user)
 
     plaintext = "cqs_test_plaintext_key"
-    api_key = ApiKey(user_id=user.id, key_hash=hash_key(plaintext), key_ciphertext="unused")
+    api_key = ApiKey(user_id=user.id, key_hash=hash_key(plaintext))
     auth_session.add(api_key)
     auth_session.commit()
     return user, plaintext
@@ -107,9 +107,7 @@ def test_valid_api_key_updates_last_used_at(auth_session, keyed_user):
 
 def test_api_key_with_orphaned_user_id_returns_401(auth_session):
     plaintext = "cqs_orphaned_key"
-    orphaned = ApiKey(
-        user_id="nonexistent-user-id", key_hash=hash_key(plaintext), key_ciphertext="unused"
-    )
+    orphaned = ApiKey(user_id="nonexistent-user-id", key_hash=hash_key(plaintext))
     auth_session.add(orphaned)
     auth_session.commit()
 

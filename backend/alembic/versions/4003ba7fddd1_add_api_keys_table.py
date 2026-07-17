@@ -24,7 +24,6 @@ def upgrade() -> None:
         sa.Column("id", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("user_id", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("key_hash", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-        sa.Column("key_ciphertext", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.Column("last_used_at", sa.DateTime(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"]),

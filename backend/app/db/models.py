@@ -161,6 +161,5 @@ class ApiKey(SQLModel, table=True):
     id: str = Field(default_factory=_uuid, primary_key=True)
     user_id: str = Field(foreign_key="users.id", unique=True)
     key_hash: str = Field(unique=True, index=True)
-    key_ciphertext: str
     last_used_at: datetime | None = None
     created_at: datetime = Field(default_factory=_now)
