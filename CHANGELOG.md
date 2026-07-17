@@ -12,9 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Siri Shortcuts integration (JAV-7) (#111)
 
+- Explicit per-user default list (JAV-43)
+
+
+### Changed
+- Extract _read_with_default helper in lists router
+
 
 ### Fixed
-- Name the Siri shortcut download 'Carro Que Sí' for better Siri recognition
+- Name the Siri shortcut 'Carro Que Sí' for better Siri recognition (#112)
+
+- Correct is_default on PATCH /lists and announce default status
 
 
 ---

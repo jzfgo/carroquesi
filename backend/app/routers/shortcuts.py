@@ -7,6 +7,7 @@ from sqlmodel import select
 from app.db.models import ApiKey
 from app.dependencies import CurrentSession, CurrentUser
 from app.services.api_keys import generate_key, hash_key
+from app.services.default_list import has_default
 
 router = APIRouter(tags=["shortcuts"])
 
@@ -45,7 +46,14 @@ def issue_api_key(current_user: CurrentUser, session: CurrentSession) -> dict:
     ever triggered by the explicit /account/api-key/regenerate call. When a key
     already exists we return key=None, since the stored hash can't be reversed to
     re-display the plaintext.
+
+    Gated on the user having a default list: the shortcut sends list_id="default",
+    which only resolves for a user with an explicit default. Setting Siri up without
+    one would just produce a shortcut that 404s, so we block the flow here (detail
+    "no_default_list") and the client nudges the user to mark a list as default first.
     """
+    if not has_default(session, current_user.id):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="no_default_list")
     existing = session.exec(select(ApiKey).where(ApiKey.user_id == current_user.id)).first()
     if existing is not None:
         return {"key": None, "created": False}

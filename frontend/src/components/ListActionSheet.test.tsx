@@ -15,8 +15,10 @@ const baseProps = {
   listName: 'Mercado semanal',
   currentUserId: 'u1',
   isOwner: true,
+  isDefault: false,
   onRename: vi.fn(),
   onDelete: vi.fn(),
+  onSetDefault: vi.fn(),
   onClose: vi.fn(),
 }
 
@@ -30,6 +32,24 @@ test('renders list name in header', () => {
 test('shows Renombrar button', () => {
   render(<ListActionSheet {...baseProps} />)
   expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
+})
+
+test('shows "Marcar como predeterminada" and fires onSetDefault + onClose when not default', () => {
+  render(<ListActionSheet {...baseProps} isDefault={false} />)
+  const btn = screen.getByRole('button', {
+    name: /marcar como predeterminada/i,
+  })
+  fireEvent.click(btn)
+  expect(baseProps.onSetDefault).toHaveBeenCalledOnce()
+  expect(baseProps.onClose).toHaveBeenCalledOnce()
+})
+
+test('shows non-actionable "Lista predeterminada" indicator when already default', () => {
+  render(<ListActionSheet {...baseProps} isDefault />)
+  expect(screen.getByText('Lista predeterminada')).toBeInTheDocument()
+  expect(
+    screen.queryByRole('button', { name: /marcar como predeterminada/i }),
+  ).not.toBeInTheDocument()
 })
 
 test('shows Eliminar lista when isOwner is true', () => {

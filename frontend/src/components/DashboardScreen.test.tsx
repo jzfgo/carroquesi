@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import * as reactRouter from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
@@ -60,9 +66,11 @@ beforeEach(() => {
     updated_at: '',
     item_count: 0,
     purchased_count: 0,
+    is_default: false,
   } as never)
   vi.mocked(api.updateList).mockResolvedValue({} as never)
   vi.mocked(api.deleteList).mockResolvedValue(null as never)
+  vi.mocked(api.setDefaultList).mockResolvedValue(null as never)
   vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
     isEnabled: () => false,
   })
@@ -96,6 +104,7 @@ const twoLists = [
     updated_at: '',
     item_count: 8,
     purchased_count: 3,
+    is_default: true,
   },
   {
     id: 'l2',
@@ -106,6 +115,7 @@ const twoLists = [
     updated_at: '',
     item_count: 2,
     purchased_count: 0,
+    is_default: false,
   },
 ]
 
@@ -190,6 +200,35 @@ describe('DashboardScreen — list management', () => {
     await waitFor(() =>
       expect(screen.getByText('Mercado Nuevo')).toBeInTheDocument(),
     )
+  })
+
+  it('marking a non-default list as default calls the API for that list', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Costco'))
+    // Second list (Costco) is not the default → its sheet offers the action.
+    fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[1])
+    fireEvent.click(
+      screen.getByRole('button', { name: /marcar como predeterminada/i }),
+    )
+    await waitFor(() =>
+      expect(api.setDefaultList).toHaveBeenCalledWith(
+        expect.any(Function),
+        'l2',
+      ),
+    )
+  })
+
+  it("a default list's sheet shows the non-actionable indicator, not the action", async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    // First list (Mercado) is the default.
+    fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
+    expect(screen.getByText('Lista predeterminada')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /marcar como predeterminada/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('rename failure reverts the name and shows a toast', async () => {
@@ -463,6 +502,42 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     // regeneration now lives inside the sheet, not the avatar menu
     expect(
       screen.queryByRole('menuitem', { name: /regenerar clave/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('Siri sheet names the default list as the destination', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await openSiriSheet()
+    // "Mercado" is the flagged default in twoLists.
+    expect(screen.getByText(/se añadirán a/i)).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('dialog', { name: /atajo de siri/i })).getByText(
+        'Mercado',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('blocks Siri setup and nudges when the user has no default list', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    const noDefault = twoLists.map((l) => ({ ...l, is_default: false }))
+    vi.mocked(api.getLists).mockResolvedValue(noDefault as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByText(/marca una lista como predeterminada/i),
+      ).toBeInTheDocument(),
+    )
+    expect(api.issueApiKey).not.toHaveBeenCalled()
+    expect(
+      screen.queryByRole('dialog', { name: /atajo de siri/i }),
     ).not.toBeInTheDocument()
   })
 

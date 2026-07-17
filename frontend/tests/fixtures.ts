@@ -26,6 +26,7 @@ export const SEED_LISTS: ApiList[] = [
     updated_at: '2026-06-23T10:00:00Z',
     item_count: 2,
     purchased_count: 0,
+    is_default: true,
   },
   {
     id: 'seed-list-fiesta',
@@ -36,6 +37,7 @@ export const SEED_LISTS: ApiList[] = [
     updated_at: '2026-06-23T10:00:00Z',
     item_count: 1,
     purchased_count: 0,
+    is_default: false,
   },
 ]
 

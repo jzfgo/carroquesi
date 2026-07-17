@@ -22,3 +22,5 @@ class ListRead(BaseModel):
     updated_at: datetime
     item_count: int = 0
     purchased_count: int = 0
+    # Whether this list is the requesting user's default (Siri target).
+    is_default: bool = False

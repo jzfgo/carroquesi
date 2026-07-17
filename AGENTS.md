@@ -22,7 +22,7 @@ This file provides guidance to coding agents (such as Antigravity CLI, Claude Co
 
 - `users`: user profile and Firebase identity (`firebase_uid`)
 - `lists`: list metadata and ownership (`owner_id`)
-- `list_members`: list membership links
+- `list_members`: list membership links; `is_default` flags the member's default list (the Siri `list_id="default"` target)
 - `list_items`: item data, purchase state (`purchased_at`), actual purchased quantity (`purchased_quantity`), and pricing (`price`, `price_per`, `price_store`)
 - `list_invites`: opt-in invitations; `id` is the share token
 - `barcode_cache`: cached barcode lookup data
@@ -39,6 +39,7 @@ Important invariants:
 - `list_items.purchased_at = NULL` means unpurchased; first purchase sets timestamp
 - keep derived `purchased: bool` in API responses for backward compatibility
 - invite acceptance is explicit before access is granted
+- at most one `list_members.is_default=true` per user; the Siri `"default"` resolver is explicit-only (no most-recently-updated fallback) and 404s when unset. Auto-assigned on a user's first list; never auto-promoted when a default list is deleted. Managed via `backend/app/services/default_list.py`. See [ADR-007](docs/decisions/007-per-user-default-list.md)
 
 ## Frontend
 

@@ -116,6 +116,14 @@ export function deleteList(getToken: () => Promise<string>, listId: string) {
   return apiFetch(getToken, `/lists/${listId}`, { method: 'DELETE' })
 }
 
+/** Mark a list as the caller's default (Siri target), clearing any prior one. */
+export function setDefaultList(
+  getToken: () => Promise<string>,
+  listId: string,
+) {
+  return apiFetch(getToken, `/lists/${listId}/default`, { method: 'PUT' })
+}
+
 export function getListItems(getToken: () => Promise<string>, listId: string) {
   return apiFetch(getToken, `/lists/${listId}/items`)
 }

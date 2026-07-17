@@ -31,7 +31,18 @@ def test_download_serves_the_static_file_when_present(client: TestClient, tmp_pa
     )
 
 
+def test_issue_requires_a_default_list(client: TestClient):
+    """Siri setup is gated: without a default list the shortcut would only 404,
+    so issuance is blocked with a machine-readable detail the client branches on."""
+    response = client.post("/account/api-key")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "no_default_list"
+
+
 def test_issue_creates_a_key_when_none_exists(client: TestClient, session: Session, user: User):
+    client.post("/lists", json={"name": "Compra"})  # first list → auto-default
+
     response = client.post("/account/api-key")
 
     assert response.status_code == 200
@@ -48,6 +59,7 @@ def test_issue_creates_a_key_when_none_exists(client: TestClient, session: Sessi
 def test_issue_is_idempotent_and_never_rotates_an_existing_key(
     client: TestClient, session: Session, user: User
 ):
+    client.post("/lists", json={"name": "Compra"})  # first list → auto-default
     first = client.post("/account/api-key").json()
     stored_hash = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first().key_hash
 

@@ -1,4 +1,4 @@
-import { GripVertical, MoreHorizontal } from 'lucide-react'
+import { GripVertical, MoreHorizontal, Star } from 'lucide-react'
 import type { CSSProperties } from 'react'
 import type { ApiList } from '../types'
 import './ListCard.css'
@@ -25,7 +25,7 @@ export function ListCard({
   style,
   isDragging,
 }: Props) {
-  const { name, emoji, item_count, purchased_count } = list
+  const { name, emoji, item_count, purchased_count, is_default } = list
 
   const emojiSlot = (() => {
     if (isOwner) {
@@ -62,9 +62,19 @@ export function ListCard({
       <button
         className="list-card__tap-target"
         onClick={onClick}
-        aria-label={name}
+        aria-label={is_default ? `${name} (lista predeterminada)` : name}
       >
-        <span className="list-card__name">{name}</span>
+        <span className="list-card__name">
+          {is_default && (
+            <Star
+              size={13}
+              fill="currentColor"
+              className="list-card__default-star"
+              aria-hidden
+            />
+          )}
+          {name}
+        </span>
         <ProgressBar
           purchased={purchased_count}
           total={item_count}

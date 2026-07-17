@@ -75,6 +75,8 @@ export interface ApiList {
   updated_at: string
   item_count: number
   purchased_count: number
+  /** Whether this list is the requesting user's default (Siri target). */
+  is_default: boolean
 }
 
 export interface PriceEntry {

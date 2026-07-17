@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 from datetime import date as date_type
 
-from sqlalchemy import JSON, Column, UniqueConstraint, text
+from sqlalchemy import JSON, Boolean, Column, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 from app.db.waitlist_models import WaitlistSignup  # noqa: F401
@@ -45,6 +45,13 @@ class ListMember(SQLModel, table=True):
     list_id: str = Field(foreign_key="lists.id")
     user_id: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=_now)
+    # Per-user default list, used to resolve the Siri Shortcut's literal
+    # list_id="default". At most one membership per user carries this flag;
+    # the invariant is enforced in-app within each mutating transaction
+    # (see app/services/default_list.py), not by a DB constraint.
+    is_default: bool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default=text("0"))
+    )
 
 
 class ListItem(SQLModel, table=True):
