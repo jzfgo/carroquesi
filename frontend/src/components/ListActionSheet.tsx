@@ -1,4 +1,4 @@
-import { Pencil, Receipt, Trash2, Users } from 'lucide-react'
+import { Pencil, Receipt, Star, Trash2, Users } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import './ListActionSheet.css'
@@ -11,8 +11,11 @@ interface Props {
   listName: string
   currentUserId: string
   isOwner: boolean
+  /** Whether this list is the current user's default (Siri target). */
+  isDefault: boolean
   onRename: (newName: string) => void
   onDelete: () => void
+  onSetDefault: () => void
   onReceiptScan?: () => void
   onClose: () => void
 }
@@ -22,8 +25,10 @@ export function ListActionSheet({
   listName,
   currentUserId,
   isOwner,
+  isDefault,
   onRename,
   onDelete,
+  onSetDefault,
   onReceiptScan,
   onClose,
 }: Props) {
@@ -60,6 +65,24 @@ export function ListActionSheet({
         >
           <div className="list-action-sheet__handle" {...swipe} />
           <p className="list-action-sheet__list-name">{listName}</p>
+          {isDefault ? (
+            <div
+              className="list-action-sheet__action list-action-sheet__action--default"
+              aria-disabled="true"
+            >
+              <Star size={18} fill="currentColor" /> Lista predeterminada
+            </div>
+          ) : (
+            <button
+              className="list-action-sheet__action"
+              onClick={() => {
+                onSetDefault()
+                onClose()
+              }}
+            >
+              <Star size={18} /> Marcar como predeterminada
+            </button>
+          )}
           <button
             className="list-action-sheet__action"
             onClick={() => setSubState('rename')}

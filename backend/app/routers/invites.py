@@ -7,6 +7,7 @@ from sqlmodel import select
 from app.db.models import List, ListInvite, ListMember, User
 from app.dependencies import CurrentSession, CurrentUser, MemberDep
 from app.schemas.invites import AcceptInviteResult, InvitePreview, InviteRead, OpenInviteCreated
+from app.services.default_list import ensure_default
 
 router = APIRouter(prefix="/invites", tags=["invites"])
 
@@ -121,6 +122,8 @@ def accept_invite(
     if not existing:
         member = ListMember(list_id=invite.list_id, user_id=current_user.id)
         session.add(member)
+        # First list a user ever creates or joins becomes their default (for Siri).
+        ensure_default(session, member)
         # Bump lists.updated_at for polling
         lst = session.get(List, invite.list_id)
         if lst:

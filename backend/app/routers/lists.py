@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 from app.db.models import List, ListInvite, ListItem, ListMember, ReceiptScan
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
 from app.schemas.lists import ListCreate, ListRead, ListUpdate
+from app.services.default_list import ensure_default, set_default
 
 router = APIRouter(prefix="/lists", tags=["lists"])
 
@@ -22,6 +23,7 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
         select(ListMember).where(ListMember.user_id == current_user.id)
     ).all()
     list_ids = [m.list_id for m in memberships]
+    default_list_ids = {m.list_id for m in memberships if m.is_default}
 
     if not list_ids:
         return []
@@ -58,6 +60,7 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
             **lst.model_dump(),
             item_count=counts.get(lst.id, (0, 0))[0],
             purchased_count=counts.get(lst.id, (0, 0))[1],
+            is_default=lst.id in default_list_ids,
         )
         for lst in lists
     ]
@@ -74,15 +77,23 @@ def create_list(
     session.flush()
     member = ListMember(list_id=lst.id, user_id=current_user.id)
     session.add(member)
+    # First list a user ever creates or joins becomes their default (for Siri).
+    ensure_default(session, member)
     session.commit()
     session.refresh(lst)
-    return lst
+    session.refresh(member)
+    return ListRead(**lst.model_dump(), is_default=member.is_default)
 
 
 @router.get("/{list_id}", response_model=ListRead)
-def get_list(list_and_user: MemberDep):
-    lst, _ = list_and_user
-    return lst
+def get_list(list_and_user: MemberDep, session: CurrentSession):
+    lst, current_user = list_and_user
+    membership = session.exec(
+        select(ListMember).where(
+            ListMember.list_id == lst.id, ListMember.user_id == current_user.id
+        )
+    ).first()
+    return ListRead(**lst.model_dump(), is_default=bool(membership and membership.is_default))
 
 
 @router.patch("/{list_id}", response_model=ListRead)
@@ -100,6 +111,21 @@ def update_list(
     session.commit()
     session.refresh(lst)
     return lst
+
+
+@router.put("/{list_id}/default", status_code=status.HTTP_204_NO_CONTENT)
+def set_default_list(
+    list_and_user: MemberDep,
+    session: CurrentSession,
+):
+    """Mark this list as the caller's default (for Siri), clearing any prior one.
+
+    Per-user membership state — deliberately does NOT bump lists.updated_at, since
+    the flag is invisible to co-members and shouldn't trigger their polls.
+    """
+    lst, current_user = list_and_user
+    set_default(session, current_user.id, lst.id)
+    session.commit()
 
 
 @router.delete("/{list_id}", status_code=status.HTTP_204_NO_CONTENT)

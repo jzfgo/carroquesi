@@ -33,6 +33,13 @@
   color: var(--ink-0);
 }
 
+/* Default-list star sits just before the name, tinted with the accent. */
+.list-card__default-star {
+  color: var(--accent);
+  vertical-align: -1px;
+  margin-right: 4px;
+}
+
 .list-card__subtitle {
   font-size: var(--fs-12);
   color: var(--ink-2);

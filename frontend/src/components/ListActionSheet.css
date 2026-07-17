@@ -52,6 +52,12 @@
   color: var(--tomate-0);
 }
 
+/* Current default — informational, not an action (aria-disabled div). */
+.list-action-sheet__action--default {
+  color: var(--accent);
+  cursor: default;
+}
+
 /* Rename sub-state */
 .list-action-sheet__input-row {
   display: flex;

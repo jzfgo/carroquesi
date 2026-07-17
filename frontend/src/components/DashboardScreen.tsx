@@ -27,6 +27,7 @@ import {
   issueApiKey,
   openShortcutImport,
   regenerateApiKey,
+  setDefaultList,
   submitFeedback,
   updateList,
 } from '../lib/api'
@@ -105,7 +106,16 @@ export function DashboardScreen() {
   const [siriSheetOpen, setSiriSheetOpen] = useState(false)
   const [shownKey, setShownKey] = useState<string | null>(null)
 
+  const defaultList = lists?.find((l) => l.is_default) ?? null
+
   const handleOpenSiriSheet = async () => {
+    // The shortcut sends list_id="default"; without a default it would only 404.
+    // Gate the setup here so the user marks a default first (mirrors the backend
+    // guard on POST /account/api-key).
+    if (!defaultList) {
+      setToast('Marca una lista como predeterminada para usar el atajo de Siri')
+      return
+    }
     try {
       // Idempotent: returns a plaintext key only on first issuance (created=true);
       // a returning user gets null, since the stored hash can't be re-displayed.
@@ -286,6 +296,31 @@ export function DashboardScreen() {
     [getToken],
   )
 
+  const handleSetDefault = useCallback(
+    async (list: ApiList) => {
+      if (isOffline) {
+        setToast('No disponible sin conexión')
+        return
+      }
+      let snapshot: ApiList[] | null = null
+      setLists((prev) => {
+        snapshot = prev
+        // Per-user, single default: flag the target, clear every other list.
+        return prev
+          ? prev.map((l) => ({ ...l, is_default: l.id === list.id }))
+          : prev
+      })
+      setActiveList(null)
+      try {
+        await setDefaultList(getToken, list.id)
+      } catch {
+        setLists(snapshot)
+        setToast('No se pudo marcar como predeterminada')
+      }
+    },
+    [getToken, isOffline],
+  )
+
   const handleDelete = useCallback(
     async (list: ApiList) => {
       if (isOffline) {
@@ -451,8 +486,10 @@ export function DashboardScreen() {
           listName={activeList.name}
           currentUserId={user?.id ?? ''}
           isOwner={activeList.owner_id === (user?.id ?? '')}
+          isDefault={activeList.is_default}
           onRename={(newName) => void handleRename(activeList, newName)}
           onDelete={() => void handleDelete(activeList)}
+          onSetDefault={() => void handleSetDefault(activeList)}
           onClose={() => setActiveList(null)}
         />
       )}
@@ -474,6 +511,7 @@ export function DashboardScreen() {
       {siriSheetOpen && (
         <ApiKeySheet
           apiKey={shownKey}
+          defaultListName={defaultList?.name ?? null}
           onCopy={() => void handleCopyKey()}
           onImport={() => openShortcutImport()}
           onRegenerate={handleRegenerateKey}

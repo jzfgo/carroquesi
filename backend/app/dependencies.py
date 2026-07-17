@@ -10,6 +10,7 @@ from app.core.firebase import verify_id_token
 from app.db.models import ApiKey, List, ListMember, User
 from app.db.session import get_session
 from app.services.api_keys import hash_key
+from app.services.default_list import resolve_default
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -134,24 +135,25 @@ def require_member_or_default(
     current_user: CurrentUser,
     session: CurrentSession,
 ) -> tuple[List, User]:
-    """Resolve list_id="default" to the caller's most-recently-updated list, for the
+    """Resolve list_id="default" to the caller's explicit default list, for the
     static Siri Shortcut that can't know a real list ID ahead of time. Kept separate
     from require_member/MemberDep rather than folded in, since that would silently
     widen "default" support to every list-scoped router (members, invites, etc.),
     which isn't needed and isn't reviewed for that use.
+
+    The default is the caller's membership flagged is_default (see
+    app/services/default_list.py) — explicit and user-controlled, with no
+    most-recently-updated fallback. A 404 here means the caller has no default
+    set (usually because they belong to no lists, or just deleted the one they'd
+    flagged), and should create/join a list or mark one as default.
     """
     if list_id != "default":
         return require_member(list_id, current_user, session)
-    lst = session.exec(
-        select(List)
-        .join(ListMember, ListMember.list_id == List.id)
-        .where(ListMember.user_id == current_user.id)
-        .order_by(List.updated_at.desc())
-    ).first()
+    lst = resolve_default(session, current_user.id)
     if lst is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No lists found — create or join a list first",
+            detail="No default list — create or join a list, or mark one as default",
         )
     return lst, current_user
 

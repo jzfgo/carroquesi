@@ -46,6 +46,16 @@
   font-size: var(--fs-14);
 }
 
+/* Tells the user which list Siri-added items will land in. */
+.api-key-sheet__target {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--accent-bg);
+  color: var(--ink-1);
+  font-size: var(--fs-14);
+}
+
 .api-key-sheet__key {
   display: flex;
   align-items: center;

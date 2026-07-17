@@ -63,6 +63,7 @@ const listData = {
   updated_at: '',
   item_count: 3,
   purchased_count: 1,
+  is_default: false,
 }
 
 describe('ListRoute', () => {

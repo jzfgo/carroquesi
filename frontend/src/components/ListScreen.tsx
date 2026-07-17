@@ -13,6 +13,7 @@ import {
   getBarcode,
   getDueSuggestions,
   getSuggestions,
+  setDefaultList,
   submitParsedReceipt,
   submitReceiptPrices,
   updateList,
@@ -56,7 +57,9 @@ interface Props {
   listName: string
   listEmoji?: string | null
   listOwnerId: string
+  isDefault?: boolean
   onRename?: (newName: string) => void
+  onSetDefault?: (isDefault: boolean) => void
   onBack?: () => void
 }
 
@@ -71,7 +74,9 @@ export function ListScreen({
   listName,
   listEmoji = null,
   listOwnerId,
+  isDefault = false,
   onRename,
+  onSetDefault,
   onBack,
 }: Props) {
   const { getToken, user } = useAuth()
@@ -80,6 +85,11 @@ export function ListScreen({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: resets optimistic local title when polling confirms external rename
     setLocalListName(listName)
   }, [listName])
+  const [localIsDefault, setLocalIsDefault] = useState(isDefault)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs optimistic default flag when the route's list data refreshes
+    setLocalIsDefault(isDefault)
+  }, [isDefault])
   const { isEnabled } = useFeatureFlags()
   const { isOffline } = useIsOffline()
   const [inputValue, setInputValue] = useState('')
@@ -127,6 +137,22 @@ export function ListScreen({
     },
     [getToken, isOffline, localListName, onRename],
   )
+
+  const handleSetDefault = useCallback(async () => {
+    if (isOffline) {
+      setToast('No disponible sin conexión')
+      return
+    }
+    setLocalIsDefault(true)
+    setMenuOpen(false)
+    try {
+      await setDefaultList(getToken, listId)
+      onSetDefault?.(true)
+    } catch {
+      setLocalIsDefault(false)
+      setToast('No se pudo marcar como predeterminada')
+    }
+  }, [getToken, isOffline, listId, onSetDefault])
 
   const handleDelete = useCallback(
     async (listId: string) => {
@@ -695,8 +721,10 @@ export function ListScreen({
           listName={localListName}
           currentUserId={currentUserId}
           isOwner={isOwner}
+          isDefault={localIsDefault}
           onRename={(newName) => void handleRename(listId, newName)}
           onDelete={() => void handleDelete(listId)}
+          onSetDefault={() => void handleSetDefault()}
           onReceiptScan={
             isEnabled(FLAGS.AI_RECEIPT_SCANNING)
               ? () => handleReceiptScan()

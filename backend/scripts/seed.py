@@ -93,12 +93,25 @@ SEED_LISTS = [
     List(id="seed-list-carol", name="Lista de Carol", emoji="🌿", owner_id=CAROL_ID),
 ]
 
+# is_default is per-user (the Siri "default" target). Alice's default is the
+# shared "Compra semanal"; Bob's is his own list — the same shared membership is
+# not his default — which exercises the per-membership isolation on real data.
 SEED_MEMBERS = [
-    ListMember(id="seed-mem-alice-compra", list_id="seed-list-compra", user_id=ALICE_ID),
+    ListMember(
+        id="seed-mem-alice-compra",
+        list_id="seed-list-compra",
+        user_id=ALICE_ID,
+        is_default=True,
+    ),
     ListMember(id="seed-mem-bob-compra", list_id="seed-list-compra", user_id=BOB_ID),
     ListMember(id="seed-mem-alice-fiesta", list_id="seed-list-fiesta", user_id=ALICE_ID),
-    ListMember(id="seed-mem-bob-bob", list_id="seed-list-bob", user_id=BOB_ID),
-    ListMember(id="seed-mem-carol-carol", list_id="seed-list-carol", user_id=CAROL_ID),
+    ListMember(id="seed-mem-bob-bob", list_id="seed-list-bob", user_id=BOB_ID, is_default=True),
+    ListMember(
+        id="seed-mem-carol-carol",
+        list_id="seed-list-carol",
+        user_id=CAROL_ID,
+        is_default=True,
+    ),
 ]
 
 SEED_ITEMS = [

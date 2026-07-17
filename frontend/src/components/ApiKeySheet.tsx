@@ -6,6 +6,8 @@ import './ApiKeySheet.css'
 interface Props {
   /** Plaintext key to display, or null when the user already has one (unrecoverable). */
   apiKey: string | null
+  /** Name of the user's default list — where Siri-added items will land. */
+  defaultListName?: string | null
   onCopy: () => void
   onImport: () => void
   /** Rotate the key. Resolves once done; the parent updates `apiKey` with the new value. */
@@ -17,6 +19,7 @@ const MASK = '••••••••••••••••'
 
 export function ApiKeySheet({
   apiKey,
+  defaultListName,
   onCopy,
   onImport,
   onRegenerate,
@@ -93,6 +96,11 @@ export function ApiKeySheet({
               Añade el atajo y pega tu clave en su acción de texto, en la app
               Shortcuts.
             </p>
+            {defaultListName && (
+              <p className="api-key-sheet__target">
+                Los productos se añadirán a <strong>{defaultListName}</strong>.
+              </p>
+            )}
 
             <div className="api-key-sheet__key">
               <code>{apiKey ?? MASK}</code>
