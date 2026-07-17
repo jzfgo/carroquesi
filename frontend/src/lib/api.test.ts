@@ -5,12 +5,12 @@ import {
   createItem,
   createList,
   deleteList,
-  downloadShortcut,
   getInvitePreview,
   getLists,
   getListUpdatedAt,
   issueApiKey,
   regenerateApiKey,
+  shortcutImportUrl,
   submitFeedback,
   submitWaitlistSignup,
   updateItem,
@@ -256,47 +256,20 @@ describe('submitWaitlistSignup', () => {
   })
 })
 
-describe('downloadShortcut', () => {
-  beforeEach(() => {
-    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url')
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+describe('shortcutImportUrl', () => {
+  it('builds a shortcuts://import-shortcut deep link pointing at the backend file', () => {
+    const url = shortcutImportUrl()
+    expect(url.startsWith('shortcuts://import-shortcut?')).toBe(true)
+
+    const params = new URLSearchParams(url.split('?')[1])
+    expect(params.get('url')).toContain('/shortcuts/cqs.shortcut')
+    expect(params.get('name')).toBe('CarroQueSí')
   })
 
-  it('fetches without auth headers and triggers a blob download', async () => {
-    const blob = new Blob(['fake-plist-bytes'])
-    mockFetch.mockReturnValue(
-      Promise.resolve({
-        ok: true,
-        status: 200,
-        blob: () => Promise.resolve(blob),
-        text: () => Promise.resolve(''),
-      }),
-    )
-    const clickSpy = vi
-      .spyOn(HTMLAnchorElement.prototype, 'click')
-      .mockImplementation(() => {})
-
-    await downloadShortcut()
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('/shortcuts/cqs.shortcut'),
-    )
-    expect(clickSpy).toHaveBeenCalledOnce()
-    expect(URL.createObjectURL).toHaveBeenCalledWith(blob)
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
-  })
-
-  it('throws ApiError on a non-2xx response', async () => {
-    mockFetch.mockReturnValue(
-      Promise.resolve({
-        ok: false,
-        status: 404,
-        text: () => Promise.resolve('Shortcut not available'),
-      }),
-    )
-    await expect(downloadShortcut()).rejects.toMatchObject({
-      status: 404,
-    })
+  it('percent-encodes the name so the accented character survives', () => {
+    // URLSearchParams encodes "CarroQueSí" — the raw í must not appear unencoded
+    expect(shortcutImportUrl()).not.toContain('Sí')
+    expect(shortcutImportUrl()).toContain('name=CarroQueS')
   })
 })
 

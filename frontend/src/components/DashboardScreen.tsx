@@ -23,10 +23,10 @@ import type { FeedbackPayload } from '../lib/api'
 import {
   createList,
   deleteList,
-  downloadShortcut,
   getLists,
   getMe,
   issueApiKey,
+  openShortcutImport,
   regenerateApiKey,
   submitFeedback,
   updateList,
@@ -117,13 +117,19 @@ export function DashboardScreen() {
 
   const handleAddSiriShortcut = async () => {
     try {
-      // Issuance is idempotent server-side: it only shows a key the first time
-      // (key is non-null only when created), so re-adding the shortcut can never
-      // rotate a key the user already pasted — even if our hasApiKey state is stale.
+      // Issuance is idempotent server-side: it only returns a key the first time
+      // (key is non-null only when created), so re-adding can never rotate a key
+      // the user already pasted — even if our hasApiKey state is stale.
       const { key } = await issueApiKey(getToken)
-      if (key) setShownKey(key)
       setHasApiKey(true)
-      await downloadShortcut()
+      if (key) {
+        // First issuance: show the key so the user can copy it *before* importing.
+        // Importing navigates to the Shortcuts app, which would lose the panel.
+        setShownKey(key)
+      } else {
+        // Key already exists — nothing to copy, so go straight to import.
+        openShortcutImport()
+      }
     } catch {
       setToast('No se pudo preparar el atajo de Siri. Inténtalo de nuevo.')
     }
@@ -502,6 +508,7 @@ export function DashboardScreen() {
         <ApiKeySheet
           apiKey={shownKey}
           onCopy={() => void handleCopyKey()}
+          onImport={() => openShortcutImport()}
           onClose={() => setShownKey(null)}
         />
       )}

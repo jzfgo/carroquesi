@@ -39,18 +39,25 @@ async function apiFetch(
   return res.json()
 }
 
-export async function downloadShortcut(): Promise<void> {
-  const res = await fetch(`${BACKEND_URL}/shortcuts/cqs.shortcut`)
-  if (!res.ok) throw new ApiError(res.status, await res.text())
-  const blob = await res.blob()
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = 'CarroQueSi.shortcut'
-  document.body.appendChild(anchor)
-  anchor.click()
-  document.body.removeChild(anchor)
-  URL.revokeObjectURL(url)
+/**
+ * Deep link that asks the Shortcuts app to import our hosted, pre-signed shortcut
+ * directly from the backend.
+ *
+ * The previous approach (fetch → blob → <a download>) is silently ignored by iOS
+ * Safari — it never hands the file to Shortcuts — which defeats the whole feature
+ * on its primary platform. `shortcuts://import-shortcut` is Apple's purpose-built
+ * import entry point and is registered on both iOS and macOS. It requires the
+ * `url` to be reachable by the device, so BACKEND_URL must be the public
+ * deployment (not localhost) when testing on a real phone.
+ */
+export function shortcutImportUrl(): string {
+  const fileUrl = `${BACKEND_URL}/shortcuts/cqs.shortcut`
+  const params = new URLSearchParams({ url: fileUrl, name: 'CarroQueSí' })
+  return `shortcuts://import-shortcut?${params.toString()}`
+}
+
+export function openShortcutImport(): void {
+  window.location.href = shortcutImportUrl()
 }
 
 export function issueApiKey(

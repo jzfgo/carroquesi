@@ -6,10 +6,11 @@ import './ApiKeySheet.css'
 interface Props {
   apiKey: string
   onCopy: () => void
+  onImport: () => void
   onClose: () => void
 }
 
-export function ApiKeySheet({ apiKey, onCopy, onClose }: Props) {
+export function ApiKeySheet({ apiKey, onCopy, onImport, onClose }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
 
@@ -34,7 +35,8 @@ export function ApiKeySheet({ apiKey, onCopy, onClose }: Props) {
         <div className="api-key-sheet__handle" {...swipe} />
         <h2 className="api-key-sheet__title">Tu clave de API</h2>
         <p className="api-key-sheet__instructions">
-          Pega esta clave en la acción de texto del Atajo, en la app Shortcuts.
+          Copia esta clave, añade el Atajo y pégala en su acción de texto, en la
+          app Shortcuts.
         </p>
         <div className="api-key-sheet__key">
           <code>{apiKey}</code>
@@ -42,6 +44,13 @@ export function ApiKeySheet({ apiKey, onCopy, onClose }: Props) {
             <Copy size={16} />
           </button>
         </div>
+        <button
+          type="button"
+          className="api-key-sheet__import"
+          onClick={onImport}
+        >
+          Añadir a Shortcuts
+        </button>
         <button
           type="button"
           className="api-key-sheet__close"

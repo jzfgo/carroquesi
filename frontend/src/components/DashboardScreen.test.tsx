@@ -74,7 +74,7 @@ beforeEach(() => {
   })
   vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(false)
   vi.mocked(api.getMe).mockResolvedValue({ has_api_key: false } as never)
-  vi.mocked(api.downloadShortcut).mockResolvedValue(undefined)
+  vi.mocked(api.openShortcutImport).mockImplementation(() => {})
   // Steady state: the user already has a key, so issuance is a no-op that returns
   // no plaintext. Tests exercising first-time issuance override this per-case.
   vi.mocked(api.issueApiKey).mockResolvedValue({
@@ -463,7 +463,7 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('first issuance: clicking "Añadir atajo a Siri" issues the key, downloads the shortcut, and shows the key panel', async () => {
+  it('first issuance: clicking "Añadir atajo a Siri" issues the key and shows the panel without auto-importing', async () => {
     vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
     vi.mocked(api.getMe).mockResolvedValue({ has_api_key: false } as never)
     vi.mocked(api.issueApiKey).mockResolvedValue({
@@ -479,7 +479,6 @@ describe('DashboardScreen — avatar menu and install banner', () => {
       screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
     )
     await waitFor(() => expect(api.issueApiKey).toHaveBeenCalledOnce())
-    await waitFor(() => expect(api.downloadShortcut).toHaveBeenCalledOnce())
     // issuance must never rotate an existing key from this flow
     expect(api.regenerateApiKey).not.toHaveBeenCalled()
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
@@ -487,9 +486,35 @@ describe('DashboardScreen — avatar menu and install banner', () => {
       screen.getByRole('dialog', { name: /clave de api/i }),
     ).toBeInTheDocument()
     expect(screen.getByText('cqs_test-key')).toBeInTheDocument()
+    // import is deferred to an explicit tap so the user can copy the key first
+    expect(api.openShortcutImport).not.toHaveBeenCalled()
   })
 
-  it('key already exists: clicking "Añadir atajo a Siri" only downloads, without rotating or showing the key panel', async () => {
+  it('first issuance: tapping "Añadir a Shortcuts" in the panel launches the import', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getMe).mockResolvedValue({ has_api_key: false } as never)
+    vi.mocked(api.issueApiKey).mockResolvedValue({
+      key: 'cqs_test-key',
+      created: true,
+    } as never)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await waitFor(() => expect(api.getMe).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByRole('dialog', { name: /clave de api/i }),
+      ).toBeInTheDocument(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /añadir a shortcuts/i }))
+    expect(api.openShortcutImport).toHaveBeenCalledOnce()
+  })
+
+  it('key already exists: clicking "Añadir atajo a Siri" imports directly, without rotating or showing the panel', async () => {
     vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
     vi.mocked(api.getMe).mockResolvedValue({ has_api_key: true } as never)
     // default issueApiKey mock returns { key: null, created: false }
@@ -501,7 +526,7 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     fireEvent.click(
       screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
     )
-    await waitFor(() => expect(api.downloadShortcut).toHaveBeenCalledOnce())
+    await waitFor(() => expect(api.openShortcutImport).toHaveBeenCalledOnce())
     expect(api.issueApiKey).toHaveBeenCalledOnce()
     expect(api.regenerateApiKey).not.toHaveBeenCalled()
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
@@ -510,36 +535,11 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows a generic error toast when downloading the shortcut fails', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    vi.mocked(api.getMe).mockResolvedValue({ has_api_key: true } as never)
-    vi.mocked(api.downloadShortcut).mockRejectedValue(new Error('boom'))
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    await waitFor(() => expect(api.getMe).toHaveBeenCalled())
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    fireEvent.click(
-      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
-    )
-    await waitFor(() =>
-      expect(
-        screen.getByText(
-          'No se pudo preparar el atajo de Siri. Inténtalo de nuevo.',
-        ),
-      ).toBeInTheDocument(),
-    )
-  })
-
-  it('first issuance: still shows the key panel plus the generic error toast when issuance succeeds but download fails', async () => {
+  it('shows a generic error toast when issuing the key fails', async () => {
     vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
     vi.mocked(api.getMe).mockResolvedValue({ has_api_key: false } as never)
-    vi.mocked(api.issueApiKey).mockResolvedValue({
-      key: 'cqs_test-key',
-      created: true,
-    } as never)
+    vi.mocked(api.issueApiKey).mockRejectedValue(new Error('boom'))
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    vi.mocked(api.downloadShortcut).mockRejectedValue(new Error('boom'))
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
     await waitFor(() => expect(api.getMe).toHaveBeenCalled())
@@ -547,7 +547,6 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     fireEvent.click(
       screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
     )
-    await waitFor(() => expect(api.issueApiKey).toHaveBeenCalledOnce())
     await waitFor(() =>
       expect(
         screen.getByText(
@@ -555,13 +554,10 @@ describe('DashboardScreen — avatar menu and install banner', () => {
         ),
       ).toBeInTheDocument(),
     )
-    expect(
-      screen.getByRole('dialog', { name: /clave de api/i }),
-    ).toBeInTheDocument()
-    expect(screen.getByText('cqs_test-key')).toBeInTheDocument()
+    expect(api.openShortcutImport).not.toHaveBeenCalled()
   })
 
-  it('clicking "Regenerar clave" shows the key panel with the newly issued key, without re-downloading', async () => {
+  it('clicking "Regenerar clave" shows the key panel with the newly issued key, without auto-importing', async () => {
     vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
     vi.mocked(api.getMe).mockResolvedValue({ has_api_key: true } as never)
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
@@ -571,7 +567,7 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
     fireEvent.click(screen.getByRole('menuitem', { name: /regenerar clave/i }))
     await waitFor(() => expect(api.regenerateApiKey).toHaveBeenCalledOnce())
-    expect(api.downloadShortcut).not.toHaveBeenCalled()
+    expect(api.openShortcutImport).not.toHaveBeenCalled()
     expect(
       screen.getByRole('dialog', { name: /clave de api/i }),
     ).toBeInTheDocument()
