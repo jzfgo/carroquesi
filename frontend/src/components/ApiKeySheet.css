@@ -40,6 +40,12 @@
   font-size: var(--fs-14);
 }
 
+.api-key-sheet__hint {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
+}
+
 .api-key-sheet__key {
   display: flex;
   align-items: center;
@@ -86,6 +92,57 @@
   cursor: pointer;
 }
 
+.api-key-sheet__import:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.api-key-sheet__regenerate {
+  align-self: center;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  background: none;
+  color: var(--tomate-0);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.api-key-sheet__warning {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
+}
+
+.api-key-sheet__confirm-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--tomate-0);
+  color: var(--accent-fg);
+  font-size: var(--fs-14);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.api-key-sheet__cancel-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: none;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.api-key-sheet__confirm-btn:disabled,
+.api-key-sheet__cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .api-key-sheet__close {
   align-self: center;
   border: none;
@@ -96,4 +153,9 @@
   font-size: var(--fs-14);
   font-weight: 600;
   cursor: pointer;
+}
+
+.api-key-sheet__close:disabled {
+  opacity: 0.6;
+  cursor: default;
 }

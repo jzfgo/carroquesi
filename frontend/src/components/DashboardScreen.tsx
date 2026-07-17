@@ -24,13 +24,13 @@ import {
   createList,
   deleteList,
   getLists,
-  getMe,
   issueApiKey,
   openShortcutImport,
   regenerateApiKey,
   submitFeedback,
   updateList,
 } from '../lib/api'
+import { copyToClipboard } from '../lib/clipboard'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
 import type { ApiList } from '../types'
 import { ApiKeySheet } from './ApiKeySheet'
@@ -102,34 +102,17 @@ export function DashboardScreen() {
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const isApplePlatform = useApplePlatform()
-  const [hasApiKey, setHasApiKey] = useState(false)
+  const [siriSheetOpen, setSiriSheetOpen] = useState(false)
   const [shownKey, setShownKey] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!isApplePlatform) return
-    getMe(getToken)
-      .then((data) => {
-        const d = data as { has_api_key?: boolean }
-        setHasApiKey(d.has_api_key ?? false)
-      })
-      .catch(() => {})
-  }, [isApplePlatform, getToken])
-
-  const handleAddSiriShortcut = async () => {
+  const handleOpenSiriSheet = async () => {
     try {
-      // Issuance is idempotent server-side: it only returns a key the first time
-      // (key is non-null only when created), so re-adding can never rotate a key
-      // the user already pasted — even if our hasApiKey state is stale.
+      // Idempotent: returns a plaintext key only on first issuance (created=true);
+      // a returning user gets null, since the stored hash can't be re-displayed.
+      // Either way the sheet opens and walks the user through adding the shortcut.
       const { key } = await issueApiKey(getToken)
-      setHasApiKey(true)
-      if (key) {
-        // First issuance: show the key so the user can copy it *before* importing.
-        // Importing navigates to the Shortcuts app, which would lose the panel.
-        setShownKey(key)
-      } else {
-        // Key already exists — nothing to copy, so go straight to import.
-        openShortcutImport()
-      }
+      setShownKey(key)
+      setSiriSheetOpen(true)
     } catch {
       setToast('No se pudo preparar el atajo de Siri. Inténtalo de nuevo.')
     }
@@ -146,12 +129,8 @@ export function DashboardScreen() {
 
   async function handleCopyKey() {
     if (!shownKey) return
-    try {
-      await navigator.clipboard.writeText(shownKey)
-      setToast('Clave copiada')
-    } catch {
-      setToast('No se pudo copiar la clave')
-    }
+    const ok = await copyToClipboard(shownKey)
+    setToast(ok ? 'Clave copiada' : 'No se pudo copiar la clave')
   }
 
   useEffect(() => {
@@ -403,23 +382,11 @@ export function DashboardScreen() {
                   className="dashboard-screen__avatar-menu-item"
                   role="menuitem"
                   onClick={() => {
-                    void handleAddSiriShortcut()
+                    void handleOpenSiriSheet()
                     setMenuOpen(false)
                   }}
                 >
                   Añadir atajo a Siri
-                </button>
-              )}
-              {isApplePlatform && hasApiKey && (
-                <button
-                  className="dashboard-screen__avatar-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    void handleRegenerateKey()
-                    setMenuOpen(false)
-                  }}
-                >
-                  Regenerar clave
                 </button>
               )}
               <button
@@ -504,12 +471,16 @@ export function DashboardScreen() {
           onClose={() => setFeedbackOpen(false)}
         />
       )}
-      {shownKey !== null && (
+      {siriSheetOpen && (
         <ApiKeySheet
           apiKey={shownKey}
           onCopy={() => void handleCopyKey()}
           onImport={() => openShortcutImport()}
-          onClose={() => setShownKey(null)}
+          onRegenerate={handleRegenerateKey}
+          onClose={() => {
+            setSiriSheetOpen(false)
+            setShownKey(null)
+          }}
         />
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
