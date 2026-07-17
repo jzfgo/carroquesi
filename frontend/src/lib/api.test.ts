@@ -261,7 +261,7 @@ describe('downloadShortcut', () => {
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
   })
 
-  it('fetches with auth headers and triggers a blob download', async () => {
+  it('fetches without auth headers and triggers a blob download', async () => {
     const blob = new Blob(['fake-plist-bytes'])
     mockFetch.mockReturnValue(
       Promise.resolve({
@@ -275,15 +275,10 @@ describe('downloadShortcut', () => {
       .spyOn(HTMLAnchorElement.prototype, 'click')
       .mockImplementation(() => {})
 
-    await downloadShortcut(mockGetToken)
+    await downloadShortcut()
 
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/shortcuts/cqs.shortcut'),
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: 'Bearer test-token',
-        }),
-      }),
     )
     expect(clickSpy).toHaveBeenCalledOnce()
     expect(URL.createObjectURL).toHaveBeenCalledWith(blob)
@@ -294,31 +289,38 @@ describe('downloadShortcut', () => {
     mockFetch.mockReturnValue(
       Promise.resolve({
         ok: false,
-        status: 409,
-        text: () =>
-          Promise.resolve('Create or join a list before setting up Siri'),
+        status: 404,
+        text: () => Promise.resolve('Shortcut not available'),
       }),
     )
-    await expect(downloadShortcut(mockGetToken)).rejects.toMatchObject({
-      status: 409,
+    await expect(downloadShortcut()).rejects.toMatchObject({
+      status: 404,
     })
   })
 })
 
 describe('regenerateApiKey', () => {
-  it('POSTs to the regenerate endpoint', async () => {
+  it('POSTs to the regenerate endpoint and surfaces the plaintext key', async () => {
     mockFetch.mockReturnValue(
       Promise.resolve({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ regenerated_at: '2026-07-16T00:00:00' }),
+        json: () =>
+          Promise.resolve({
+            key: 'cqs_abc123',
+            regenerated_at: '2026-07-16T00:00:00',
+          }),
         text: () => Promise.resolve(''),
       }),
     )
-    await regenerateApiKey(mockGetToken)
+    const result = await regenerateApiKey(mockGetToken)
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/account/api-key/regenerate'),
       expect.objectContaining({ method: 'POST' }),
     )
+    expect(result).toEqual({
+      key: 'cqs_abc123',
+      regenerated_at: '2026-07-16T00:00:00',
+    })
   })
 })

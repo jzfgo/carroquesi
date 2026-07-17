@@ -12,6 +12,7 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { Copy } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -21,7 +22,6 @@ import { usePageTitle } from '../hooks/usePageTitle'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import type { FeedbackPayload } from '../lib/api'
 import {
-  ApiError,
   createList,
   deleteList,
   downloadShortcut,
@@ -102,6 +102,7 @@ export function DashboardScreen() {
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const isApplePlatform = useApplePlatform()
   const [hasApiKey, setHasApiKey] = useState(false)
+  const [shownKey, setShownKey] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isApplePlatform) return
@@ -115,33 +116,44 @@ export function DashboardScreen() {
 
   const handleAddSiriShortcut = async () => {
     try {
-      await downloadShortcut(getToken)
-      setHasApiKey(true)
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setToast('Crea o únete a una lista antes de configurar Siri')
-      } else {
-        setToast('No se pudo generar el atajo de Siri')
+      if (!hasApiKey) {
+        const { key } = await regenerateApiKey(getToken)
+        setShownKey(key)
+        setHasApiKey(true)
       }
+      await downloadShortcut()
+    } catch {
+      setToast('No se pudo preparar el atajo de Siri. Inténtalo de nuevo.')
     }
   }
 
   const handleRegenerateKey = async () => {
     try {
-      await regenerateApiKey(getToken)
+      const { key } = await regenerateApiKey(getToken)
+      setShownKey(key)
     } catch {
-      setToast('No se pudo regenerar la clave')
-      return
-    }
-    setToast('Clave regenerada')
-    try {
-      await downloadShortcut(getToken)
-    } catch {
-      setToast(
-        'Clave regenerada, pero no se pudo descargar el archivo — usa "Añadir atajo a Siri" para volver a descargarlo.',
-      )
+      setToast('No se pudo regenerar la clave. Inténtalo de nuevo.')
     }
   }
+
+  async function handleCopyKey() {
+    if (!shownKey) return
+    try {
+      await navigator.clipboard.writeText(shownKey)
+      setToast('Clave copiada')
+    } catch {
+      setToast('No se pudo copiar la clave')
+    }
+  }
+
+  useEffect(() => {
+    if (shownKey === null) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setShownKey(null)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [shownKey])
 
   useEffect(() => {
     if (!toast) return
@@ -492,6 +504,45 @@ export function DashboardScreen() {
           onSubmit={(payload) => void handleFeedbackSubmit(payload)}
           onClose={() => setFeedbackOpen(false)}
         />
+      )}
+      {shownKey !== null && (
+        <>
+          <div
+            className="dashboard-screen__key-overlay"
+            onClick={() => setShownKey(null)}
+          />
+          <div
+            className="dashboard-screen__key-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Clave de API"
+          >
+            <h2 className="dashboard-screen__key-panel-title">
+              Tu clave de API
+            </h2>
+            <p className="dashboard-screen__key-panel-instructions">
+              Pega esta clave en la acción de texto del Atajo, en la app
+              Shortcuts.
+            </p>
+            <div className="dashboard-screen__key-panel-key">
+              <code>{shownKey}</code>
+              <button
+                type="button"
+                onClick={() => void handleCopyKey()}
+                aria-label="Copiar clave"
+              >
+                <Copy size={16} />
+              </button>
+            </div>
+            <button
+              type="button"
+              className="dashboard-screen__key-panel-close"
+              onClick={() => setShownKey(null)}
+            >
+              Cerrar
+            </button>
+          </div>
+        </>
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
