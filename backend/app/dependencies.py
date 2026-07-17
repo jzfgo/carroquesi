@@ -134,6 +134,12 @@ def require_member_or_default(
     current_user: CurrentUser,
     session: CurrentSession,
 ) -> tuple[List, User]:
+    """Resolve list_id="default" to the caller's most-recently-updated list, for the
+    static Siri Shortcut that can't know a real list ID ahead of time. Kept separate
+    from require_member/MemberDep rather than folded in, since that would silently
+    widen "default" support to every list-scoped router (members, invites, etc.),
+    which isn't needed and isn't reviewed for that use.
+    """
     if list_id != "default":
         return require_member(list_id, current_user, session)
     lst = session.exec(
