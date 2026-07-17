@@ -24,6 +24,27 @@ def download_shortcut() -> Response:
     )
 
 
+@router.post("/account/api-key")
+def issue_api_key(current_user: CurrentUser, session: CurrentSession) -> dict:
+    """Issue an API key only if the user doesn't already have one — never rotates.
+
+    First-time issuance and regeneration are deliberately separate: this endpoint is
+    idempotent so the "Añadir atajo a Siri" flow can't silently invalidate a key the
+    user already pasted into their Shortcut (which would happen if the client's
+    has_api_key state were stale or its /users/me load had failed). Rotation is only
+    ever triggered by the explicit /account/api-key/regenerate call. When a key
+    already exists we return key=None, since the stored hash can't be reversed to
+    re-display the plaintext.
+    """
+    existing = session.exec(select(ApiKey).where(ApiKey.user_id == current_user.id)).first()
+    if existing is not None:
+        return {"key": None, "created": False}
+    plaintext = generate_key()
+    session.add(ApiKey(user_id=current_user.id, key_hash=hash_key(plaintext)))
+    session.commit()
+    return {"key": plaintext, "created": True}
+
+
 @router.post("/account/api-key/regenerate")
 def regenerate_api_key(current_user: CurrentUser, session: CurrentSession) -> dict:
     plaintext = generate_key()

@@ -9,6 +9,7 @@ import {
   getInvitePreview,
   getLists,
   getListUpdatedAt,
+  issueApiKey,
   regenerateApiKey,
   submitFeedback,
   submitWaitlistSignup,
@@ -296,6 +297,38 @@ describe('downloadShortcut', () => {
     await expect(downloadShortcut()).rejects.toMatchObject({
       status: 404,
     })
+  })
+})
+
+describe('issueApiKey', () => {
+  it('POSTs to the issue endpoint and returns the plaintext key on first issuance', async () => {
+    mockFetch.mockReturnValue(
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ key: 'cqs_abc123', created: true }),
+        text: () => Promise.resolve(''),
+      }),
+    )
+    const result = await issueApiKey(mockGetToken)
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/account/api-key'),
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(result).toEqual({ key: 'cqs_abc123', created: true })
+  })
+
+  it('returns key=null, created=false when a key already exists', async () => {
+    mockFetch.mockReturnValue(
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ key: null, created: false }),
+        text: () => Promise.resolve(''),
+      }),
+    )
+    const result = await issueApiKey(mockGetToken)
+    expect(result).toEqual({ key: null, created: false })
   })
 })
 

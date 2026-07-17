@@ -53,15 +53,20 @@ export async function downloadShortcut(): Promise<void> {
   URL.revokeObjectURL(url)
 }
 
+export function issueApiKey(
+  getToken: () => Promise<string>,
+): Promise<{ key: string | null; created: boolean }> {
+  return apiFetch(getToken, '/account/api-key', {
+    method: 'POST',
+  }) as Promise<{ key: string | null; created: boolean }>
+}
+
 export function regenerateApiKey(
   getToken: () => Promise<string>,
 ): Promise<{ key: string; regenerated_at: string }> {
   return apiFetch(getToken, '/account/api-key/regenerate', {
     method: 'POST',
-  }) as Promise<{
-    key: string
-    regenerated_at: string
-  }>
+  }) as Promise<{ key: string; regenerated_at: string }>
 }
 
 export function syncUser(getToken: () => Promise<string>) {

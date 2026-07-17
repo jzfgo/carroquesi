@@ -25,6 +25,39 @@ def test_download_serves_the_static_file_when_present(client: TestClient, tmp_pa
     assert response.headers["content-disposition"] == 'attachment; filename="CarroQueSi.shortcut"'
 
 
+def test_issue_creates_a_key_when_none_exists(client: TestClient, session: Session, user: User):
+    response = client.post("/account/api-key")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["created"] is True
+    assert body["key"].startswith("cqs_")
+
+    from app.services.api_keys import hash_key
+
+    api_key = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first()
+    assert api_key.key_hash == hash_key(body["key"])
+
+
+def test_issue_is_idempotent_and_never_rotates_an_existing_key(
+    client: TestClient, session: Session, user: User
+):
+    first = client.post("/account/api-key").json()
+    stored_hash = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first().key_hash
+
+    second = client.post("/account/api-key").json()
+
+    assert second["created"] is False
+    assert second["key"] is None
+    # the existing key's hash is untouched — no rotation happened
+    session.expire_all()
+    assert (
+        session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first().key_hash
+        == stored_hash
+    )
+    assert first["key"].startswith("cqs_")
+
+
 def test_regenerate_returns_the_plaintext_key_once(
     client: TestClient, session: Session, user: User
 ):

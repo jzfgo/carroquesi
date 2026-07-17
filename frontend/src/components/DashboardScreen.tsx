@@ -26,6 +26,7 @@ import {
   downloadShortcut,
   getLists,
   getMe,
+  issueApiKey,
   regenerateApiKey,
   submitFeedback,
   updateList,
@@ -116,11 +117,12 @@ export function DashboardScreen() {
 
   const handleAddSiriShortcut = async () => {
     try {
-      if (!hasApiKey) {
-        const { key } = await regenerateApiKey(getToken)
-        setShownKey(key)
-        setHasApiKey(true)
-      }
+      // Issuance is idempotent server-side: it only shows a key the first time
+      // (key is non-null only when created), so re-adding the shortcut can never
+      // rotate a key the user already pasted — even if our hasApiKey state is stale.
+      const { key } = await issueApiKey(getToken)
+      if (key) setShownKey(key)
+      setHasApiKey(true)
       await downloadShortcut()
     } catch {
       setToast('No se pudo preparar el atajo de Siri. Inténtalo de nuevo.')
