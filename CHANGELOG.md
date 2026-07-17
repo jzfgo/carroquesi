@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Show plaintext API key once on Siri setup and key regeneration
 
+- Ship the signed production Siri shortcut
+
 
 ### Changed
 - Drop reversible key_ciphertext storage from ApiKey
