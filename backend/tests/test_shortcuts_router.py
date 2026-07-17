@@ -4,10 +4,11 @@ from sqlmodel import Session, select
 from app.db.models import ApiKey, User
 
 
-def test_download_returns_404_when_no_static_file_exists(client: TestClient):
-    # In CI/test envs, backend/app/static/cqs.shortcut doesn't exist (it's a
-    # hand-built, hand-signed artifact — see the plan's Task 6). 404 is the
-    # correct, expected response until that file is placed.
+def test_download_returns_404_when_no_static_file_exists(client: TestClient, tmp_path, monkeypatch):
+    # The signed artifact ships committed at backend/app/static/cqs.shortcut, so
+    # point the router at a path that doesn't exist to exercise the missing-file
+    # branch deterministically regardless of the real artifact's presence.
+    monkeypatch.setattr("app.routers.shortcuts._SHORTCUT_PATH", tmp_path / "missing.shortcut")
     response = client.get("/shortcuts/cqs.shortcut")
     assert response.status_code == 404
 
