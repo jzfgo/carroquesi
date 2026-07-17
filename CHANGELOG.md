@@ -44,13 +44,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Drop unused api_base_url config left over from per-user shortcut generation
 
+- Fold Siri setup into a single sheet with in-sheet regenerate
+
 
 ### Fixed
 - Anchor superpowers gitignore pattern to repo root
 
 - Make Siri API-key issuance idempotent so re-adding can't rotate a live key
 
-- Import Siri shortcut via shortcuts:// deep link instead of a blob download
+- Deliver the Siri shortcut via a direct file download
+
+- Copy the API key on insecure origins via an execCommand fallback
 
 
 ---
