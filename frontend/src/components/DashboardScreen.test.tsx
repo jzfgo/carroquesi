@@ -3,6 +3,7 @@ import * as reactRouter from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContext from '../contexts/FeatureFlagsContext'
+import * as useApplePlatformModule from '../hooks/useApplePlatform'
 import * as usePWAInstallModule from '../hooks/usePWAInstall'
 import * as api from '../lib/api'
 import { DashboardScreen } from './DashboardScreen'
@@ -20,6 +21,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
   }
 })
 vi.mock('../hooks/usePWAInstall')
+vi.mock('../hooks/useApplePlatform')
 
 const mockGetToken = vi.fn().mockResolvedValue('token')
 const mockSignOut = vi.fn().mockResolvedValue(undefined)
@@ -70,6 +72,18 @@ beforeEach(() => {
     isIOS: false,
     promptInstall: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   })
+  vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(false)
+  vi.mocked(api.openShortcutImport).mockImplementation(() => {})
+  // Steady state: the user already has a key, so issuance is a no-op that returns
+  // no plaintext. Tests exercising first-time issuance override this per-case.
+  vi.mocked(api.issueApiKey).mockResolvedValue({
+    key: null,
+    created: false,
+  } as never)
+  vi.mocked(api.regenerateApiKey).mockResolvedValue({
+    key: 'cqs_test-key',
+    regenerated_at: '',
+  } as never)
 })
 
 const twoLists = [
@@ -401,6 +415,237 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     expect(
       screen.getByRole('dialog', { name: /enviar feedback/i }),
     ).toBeInTheDocument()
+  })
+
+  it('avatar menu shows "Añadir atajo a Siri" on Apple platforms', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(
+      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('avatar menu hides "Añadir atajo a Siri" on non-Apple platforms', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(
+      screen.queryByRole('menuitem', { name: /añadir atajo a siri/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  // Opens the Siri sheet via the single menu item and waits for it to appear.
+  async function openSiriSheet() {
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByRole('dialog', { name: /atajo de siri/i }),
+      ).toBeInTheDocument(),
+    )
+  }
+
+  it('there is a single Siri menu item — no separate "Regenerar clave" entry', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    expect(
+      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
+    ).toBeInTheDocument()
+    // regeneration now lives inside the sheet, not the avatar menu
+    expect(
+      screen.queryByRole('menuitem', { name: /regenerar clave/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('first issuance: opens the sheet showing the key, without auto-importing or rotating', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.issueApiKey).mockResolvedValue({
+      key: 'cqs_test-key',
+      created: true,
+    } as never)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await openSiriSheet()
+    expect(api.issueApiKey).toHaveBeenCalledOnce()
+    expect(api.regenerateApiKey).not.toHaveBeenCalled()
+    expect(screen.getByText('cqs_test-key')).toBeInTheDocument()
+    // import is deferred to an explicit tap, and never auto-fires on open
+    expect(api.openShortcutImport).not.toHaveBeenCalled()
+  })
+
+  it('returning user (key already exists): opens the sheet with no key shown, steering to regenerate', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    // default issueApiKey mock returns { key: null, created: false }
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await openSiriSheet()
+    expect(api.issueApiKey).toHaveBeenCalledOnce()
+    expect(api.regenerateApiKey).not.toHaveBeenCalled()
+    expect(api.openShortcutImport).not.toHaveBeenCalled()
+    // no key is displayed (it's unrecoverable) — the masked field + hint show instead
+    expect(screen.queryByText('cqs_test-key')).not.toBeInTheDocument()
+    expect(screen.getByText(/tu clave está oculta/i)).toBeInTheDocument()
+  })
+
+  it('tapping "Añadir a Shortcuts" launches the import', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await openSiriSheet()
+    fireEvent.click(screen.getByRole('button', { name: /añadir a shortcuts/i }))
+    expect(api.openShortcutImport).toHaveBeenCalledOnce()
+  })
+
+  it('shows a generic error toast when issuing the key fails, and does not open the sheet', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.issueApiKey).mockRejectedValue(new Error('boom'))
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(
+      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          'No se pudo preparar el atajo de Siri. Inténtalo de nuevo.',
+        ),
+      ).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByRole('dialog', { name: /atajo de siri/i }),
+    ).not.toBeInTheDocument()
+    expect(api.openShortcutImport).not.toHaveBeenCalled()
+  })
+
+  it('regenerate: opens a follow-up confirm sheet; confirming rotates the key', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.issueApiKey).mockResolvedValue({
+      key: 'cqs_old-key',
+      created: true,
+    } as never)
+    vi.mocked(api.regenerateApiKey).mockResolvedValue({
+      key: 'cqs_new-key',
+      regenerated_at: '',
+    } as never)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await openSiriSheet()
+    expect(screen.getByText('cqs_old-key')).toBeInTheDocument()
+
+    // tapping opens a separate confirm sheet — no rotation yet
+    fireEvent.click(screen.getByRole('button', { name: /regenerar clave/i }))
+    expect(api.regenerateApiKey).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('dialog', { name: /regenerar clave/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/se invalidará tu clave actual/i),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /sí, regenerar/i }))
+    await waitFor(() => expect(api.regenerateApiKey).toHaveBeenCalledOnce())
+    // the base sheet's key field updates and the confirm sheet closes
+    await waitFor(() =>
+      expect(screen.getByText('cqs_new-key')).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByRole('dialog', { name: /regenerar clave/i }),
+    ).not.toBeInTheDocument()
+    expect(api.openShortcutImport).not.toHaveBeenCalled()
+  })
+
+  it('regenerate: cancelling the follow-up confirm sheet does not rotate the key', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.issueApiKey).mockResolvedValue({
+      key: 'cqs_old-key',
+      created: true,
+    } as never)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await openSiriSheet()
+    fireEvent.click(screen.getByRole('button', { name: /regenerar clave/i }))
+    fireEvent.click(screen.getByRole('button', { name: /cancelar/i }))
+    expect(api.regenerateApiKey).not.toHaveBeenCalled()
+    expect(screen.getByText('cqs_old-key')).toBeInTheDocument()
+    // the confirm sheet is gone; the base sheet remains
+    expect(
+      screen.queryByRole('dialog', { name: /regenerar clave/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('dialog', { name: /atajo de siri/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows an error toast when regenerating fails, keeping the sheet open', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.issueApiKey).mockResolvedValue({
+      key: 'cqs_old-key',
+      created: true,
+    } as never)
+    vi.mocked(api.regenerateApiKey).mockRejectedValue(new Error('boom'))
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await openSiriSheet()
+    fireEvent.click(screen.getByRole('button', { name: /regenerar clave/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, regenerar/i }))
+    await waitFor(() =>
+      expect(
+        screen.getByText('No se pudo regenerar la clave. Inténtalo de nuevo.'),
+      ).toBeInTheDocument(),
+    )
+    expect(
+      screen.getByRole('dialog', { name: /atajo de siri/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('dismissing the sheet hides it', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await openSiriSheet()
+    fireEvent.click(screen.getByRole('button', { name: /cerrar/i }))
+    expect(
+      screen.queryByRole('dialog', { name: /atajo de siri/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('copying the key writes it to the clipboard and toasts, without leaking it into any error message', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.issueApiKey).mockResolvedValue({
+      key: 'cqs_test-key',
+      created: true,
+    } as never)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      writable: true,
+      configurable: true,
+    })
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    await openSiriSheet()
+    fireEvent.click(screen.getByRole('button', { name: /copiar clave/i }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('cqs_test-key'))
+    expect(screen.getByText('Clave copiada')).toBeInTheDocument()
   })
 })
 

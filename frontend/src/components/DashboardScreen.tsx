@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useApplePlatform } from '../hooks/useApplePlatform'
 import { useIsOffline } from '../hooks/useIsOffline'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { usePWAInstall } from '../hooks/usePWAInstall'
@@ -23,11 +24,16 @@ import {
   createList,
   deleteList,
   getLists,
+  issueApiKey,
+  openShortcutImport,
+  regenerateApiKey,
   submitFeedback,
   updateList,
 } from '../lib/api'
+import { copyToClipboard } from '../lib/clipboard'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
 import type { ApiList } from '../types'
+import { ApiKeySheet } from './ApiKeySheet'
 import { CreateListCard } from './CreateListCard'
 import './DashboardScreen.css'
 import { EmojiPickerSheet } from './EmojiPickerSheet'
@@ -95,6 +101,37 @@ export function DashboardScreen() {
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
+  const isApplePlatform = useApplePlatform()
+  const [siriSheetOpen, setSiriSheetOpen] = useState(false)
+  const [shownKey, setShownKey] = useState<string | null>(null)
+
+  const handleOpenSiriSheet = async () => {
+    try {
+      // Idempotent: returns a plaintext key only on first issuance (created=true);
+      // a returning user gets null, since the stored hash can't be re-displayed.
+      // Either way the sheet opens and walks the user through adding the shortcut.
+      const { key } = await issueApiKey(getToken)
+      setShownKey(key)
+      setSiriSheetOpen(true)
+    } catch {
+      setToast('No se pudo preparar el atajo de Siri. Inténtalo de nuevo.')
+    }
+  }
+
+  const handleRegenerateKey = async () => {
+    try {
+      const { key } = await regenerateApiKey(getToken)
+      setShownKey(key)
+    } catch {
+      setToast('No se pudo regenerar la clave. Inténtalo de nuevo.')
+    }
+  }
+
+  async function handleCopyKey() {
+    if (!shownKey) return
+    const ok = await copyToClipboard(shownKey)
+    setToast(ok ? 'Clave copiada' : 'No se pudo copiar la clave')
+  }
 
   useEffect(() => {
     if (!toast) return
@@ -340,6 +377,18 @@ export function DashboardScreen() {
               >
                 Enviar feedback
               </button>
+              {isApplePlatform && (
+                <button
+                  className="dashboard-screen__avatar-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    void handleOpenSiriSheet()
+                    setMenuOpen(false)
+                  }}
+                >
+                  Añadir atajo a Siri
+                </button>
+              )}
               <button
                 className="dashboard-screen__avatar-menu-item"
                 role="menuitem"
@@ -420,6 +469,18 @@ export function DashboardScreen() {
           isSubmitting={feedbackSubmitting}
           onSubmit={(payload) => void handleFeedbackSubmit(payload)}
           onClose={() => setFeedbackOpen(false)}
+        />
+      )}
+      {siriSheetOpen && (
+        <ApiKeySheet
+          apiKey={shownKey}
+          onCopy={() => void handleCopyKey()}
+          onImport={() => openShortcutImport()}
+          onRegenerate={handleRegenerateKey}
+          onClose={() => {
+            setSiriSheetOpen(false)
+            setShownKey(null)
+          }}
         />
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}

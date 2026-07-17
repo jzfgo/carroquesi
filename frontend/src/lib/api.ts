@@ -39,6 +39,42 @@ async function apiFetch(
   return res.json()
 }
 
+/** URL the hosted, pre-signed shortcut is served from. */
+export function shortcutFileUrl(): string {
+  return `${BACKEND_URL}/shortcuts/cqs.shortcut`
+}
+
+/**
+ * Trigger a Shortcuts import by navigating straight to the hosted .shortcut file:
+ * the browser downloads it and the OS opens it in Shortcuts (the same path as
+ * double-clicking a .shortcut, which imports cleanly).
+ *
+ * Two approaches were ruled out empirically:
+ *  - fetch → blob → <a download>: iOS Safari ignores it, never hands the file to Shortcuts.
+ *  - shortcuts://import-shortcut?url=…: rejected with "The shortcut URL provided was
+ *    invalid" for any http/self-hosted URL (localhost and LAN alike). That scheme
+ *    wants an https, Apple-reachable (iCloud-style) URL, so it can't target our backend.
+ */
+export function openShortcutImport(): void {
+  window.location.href = shortcutFileUrl()
+}
+
+export function issueApiKey(
+  getToken: () => Promise<string>,
+): Promise<{ key: string | null; created: boolean }> {
+  return apiFetch(getToken, '/account/api-key', {
+    method: 'POST',
+  }) as Promise<{ key: string | null; created: boolean }>
+}
+
+export function regenerateApiKey(
+  getToken: () => Promise<string>,
+): Promise<{ key: string; regenerated_at: string }> {
+  return apiFetch(getToken, '/account/api-key/regenerate', {
+    method: 'POST',
+  }) as Promise<{ key: string; regenerated_at: string }>
+}
+
 export function syncUser(getToken: () => Promise<string>) {
   return apiFetch(getToken, '/auth/sync', { method: 'POST' })
 }

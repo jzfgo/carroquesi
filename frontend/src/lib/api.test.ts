@@ -8,6 +8,9 @@ import {
   getInvitePreview,
   getLists,
   getListUpdatedAt,
+  issueApiKey,
+  regenerateApiKey,
+  shortcutFileUrl,
   submitFeedback,
   submitWaitlistSignup,
   updateItem,
@@ -250,5 +253,69 @@ describe('submitWaitlistSignup', () => {
   it('throws ApiError on non-2xx response', async () => {
     mockFetch.mockReturnValue(mockResponse('Error message', 400))
     await expect(submitWaitlistSignup('bad-email')).rejects.toThrow(ApiError)
+  })
+})
+
+describe('shortcutFileUrl', () => {
+  it('points at the backend shortcut download endpoint', () => {
+    expect(shortcutFileUrl()).toContain('/shortcuts/cqs.shortcut')
+  })
+})
+
+describe('issueApiKey', () => {
+  it('POSTs to the issue endpoint and returns the plaintext key on first issuance', async () => {
+    mockFetch.mockReturnValue(
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ key: 'cqs_abc123', created: true }),
+        text: () => Promise.resolve(''),
+      }),
+    )
+    const result = await issueApiKey(mockGetToken)
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/account/api-key'),
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(result).toEqual({ key: 'cqs_abc123', created: true })
+  })
+
+  it('returns key=null, created=false when a key already exists', async () => {
+    mockFetch.mockReturnValue(
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ key: null, created: false }),
+        text: () => Promise.resolve(''),
+      }),
+    )
+    const result = await issueApiKey(mockGetToken)
+    expect(result).toEqual({ key: null, created: false })
+  })
+})
+
+describe('regenerateApiKey', () => {
+  it('POSTs to the regenerate endpoint and surfaces the plaintext key', async () => {
+    mockFetch.mockReturnValue(
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            key: 'cqs_abc123',
+            regenerated_at: '2026-07-16T00:00:00',
+          }),
+        text: () => Promise.resolve(''),
+      }),
+    )
+    const result = await regenerateApiKey(mockGetToken)
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/account/api-key/regenerate'),
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(result).toEqual({
+      key: 'cqs_abc123',
+      regenerated_at: '2026-07-16T00:00:00',
+    })
   })
 })

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Query
 from sqlmodel import func, select
 
 from app.db.models import ListItem, ListMember
-from app.dependencies import CurrentSession, CurrentUser, MemberDep
+from app.dependencies import CurrentSession, CurrentUser, MemberDep, MemberOrDefaultDep
 from app.schemas.due_suggestions import DueSuggestionRead
 from app.schemas.suggestions import SuggestionRead
 
@@ -83,7 +83,7 @@ def get_suggestions(
 
 @router.get("/lists/{list_id}/due-suggestions", response_model=list[DueSuggestionRead])
 def get_due_suggestions(
-    list_and_user: MemberDep,
+    list_and_user: MemberOrDefaultDep,
     session: CurrentSession,
 ):
     lst, _ = list_and_user

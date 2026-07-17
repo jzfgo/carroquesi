@@ -1,7 +1,9 @@
+from datetime import UTC, datetime
+
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.db.models import User
+from app.db.models import ApiKey, User
 
 
 def test_sync_creates_new_user(session: Session, client: TestClient, user: User):
@@ -38,3 +40,27 @@ def test_users_me_returns_features(session: Session, client: TestClient, user: U
     data = response.json()
     assert "features" in data
     assert isinstance(data["features"], list)
+
+
+def test_users_me_reflects_api_key_state(client: TestClient, session: Session, user: User):
+    response = client.get("/users/me")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["has_api_key"] is False
+    assert data["api_key_last_used_at"] is None
+
+    last_used = datetime.now(UTC).replace(tzinfo=None)
+    session.add(
+        ApiKey(
+            user_id=user.id,
+            key_hash="a" * 64,
+            last_used_at=last_used,
+        )
+    )
+    session.commit()
+
+    response = client.get("/users/me")
+    data = response.json()
+    assert data["has_api_key"] is True
+    assert data["api_key_last_used_at"] is not None
+    assert datetime.fromisoformat(data["api_key_last_used_at"]) == last_used
