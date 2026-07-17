@@ -23,7 +23,12 @@ def test_download_serves_the_static_file_when_present(client: TestClient, tmp_pa
 
     assert response.status_code == 200
     assert response.content == fake_bytes
-    assert response.headers["content-disposition"] == 'attachment; filename="CarroQueSi.shortcut"'
+    # Imported name (and Siri trigger) comes from this filename — spaced/accented via
+    # RFC 6266 filename*, with an ASCII filename fallback.
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="Carro Que Si.shortcut"; '
+        "filename*=UTF-8''Carro%20Que%20S%C3%AD.shortcut"
+    )
 
 
 def test_issue_creates_a_key_when_none_exists(client: TestClient, session: Session, user: User):

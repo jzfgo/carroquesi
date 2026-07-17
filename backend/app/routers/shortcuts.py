@@ -17,10 +17,20 @@ _SHORTCUT_PATH = Path(__file__).resolve().parent.parent / "static" / "cqs.shortc
 def download_shortcut() -> Response:
     if not _SHORTCUT_PATH.exists():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shortcut not available")
+    # The imported shortcut takes its name — and thus its Siri trigger phrase — from
+    # this download filename. "Carro Que Sí" (spaced, natural Spanish) is far easier
+    # for Siri to recognise than the single token "CarroQueSi". The accented, spaced
+    # form goes in the RFC 6266 `filename*` (UTF-8); an ASCII `filename` is kept as a
+    # fallback for clients that don't parse the extended parameter.
     return Response(
         content=_SHORTCUT_PATH.read_bytes(),
         media_type="application/octet-stream",
-        headers={"Content-Disposition": 'attachment; filename="CarroQueSi.shortcut"'},
+        headers={
+            "Content-Disposition": (
+                'attachment; filename="Carro Que Si.shortcut"; '
+                "filename*=UTF-8''Carro%20Que%20S%C3%AD.shortcut"
+            )
+        },
     )
 
 
