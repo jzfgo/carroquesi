@@ -17,6 +17,18 @@ def _bump(lst: List, session: Session) -> None:
     session.add(lst)
 
 
+def _read_with_default(lst: List, session: Session, user_id: str) -> ListRead:
+    """Build a ListRead carrying this user's per-membership is_default flag.
+
+    (item_count/purchased_count keep their ListRead defaults — the single-list
+    endpoints don't recompute the aggregate; only get_lists does.)
+    """
+    membership = session.exec(
+        select(ListMember).where(ListMember.list_id == lst.id, ListMember.user_id == user_id)
+    ).first()
+    return ListRead(**lst.model_dump(), is_default=bool(membership and membership.is_default))
+
+
 @router.get("", response_model=list[ListRead])
 def get_lists(current_user: CurrentUser, session: CurrentSession):
     memberships = session.exec(
@@ -88,12 +100,7 @@ def create_list(
 @router.get("/{list_id}", response_model=ListRead)
 def get_list(list_and_user: MemberDep, session: CurrentSession):
     lst, current_user = list_and_user
-    membership = session.exec(
-        select(ListMember).where(
-            ListMember.list_id == lst.id, ListMember.user_id == current_user.id
-        )
-    ).first()
-    return ListRead(**lst.model_dump(), is_default=bool(membership and membership.is_default))
+    return _read_with_default(lst, session, current_user.id)
 
 
 @router.patch("/{list_id}", response_model=ListRead)
@@ -110,15 +117,8 @@ def update_list(
     _bump(lst, session)
     session.commit()
     session.refresh(lst)
-    # item_count/purchased_count intentionally left at their ListRead defaults
-    # (this endpoint doesn't recompute the aggregate); is_default is cheap and
-    # carried through so a rename can't misreport the caller's default.
-    membership = session.exec(
-        select(ListMember).where(
-            ListMember.list_id == lst.id, ListMember.user_id == current_user.id
-        )
-    ).first()
-    return ListRead(**lst.model_dump(), is_default=bool(membership and membership.is_default))
+    # is_default carried through so a rename can't misreport the caller's default.
+    return _read_with_default(lst, session, current_user.id)
 
 
 @router.put("/{list_id}/default", status_code=status.HTTP_204_NO_CONTENT)
