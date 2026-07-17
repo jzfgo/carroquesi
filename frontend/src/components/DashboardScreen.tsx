@@ -12,7 +12,6 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Copy } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -33,6 +32,7 @@ import {
 } from '../lib/api'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
 import type { ApiList } from '../types'
+import { ApiKeySheet } from './ApiKeySheet'
 import { CreateListCard } from './CreateListCard'
 import './DashboardScreen.css'
 import { EmojiPickerSheet } from './EmojiPickerSheet'
@@ -145,15 +145,6 @@ export function DashboardScreen() {
       setToast('No se pudo copiar la clave')
     }
   }
-
-  useEffect(() => {
-    if (shownKey === null) return
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setShownKey(null)
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [shownKey])
 
   useEffect(() => {
     if (!toast) return
@@ -506,43 +497,11 @@ export function DashboardScreen() {
         />
       )}
       {shownKey !== null && (
-        <>
-          <div
-            className="dashboard-screen__key-overlay"
-            onClick={() => setShownKey(null)}
-          />
-          <div
-            className="dashboard-screen__key-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Clave de API"
-          >
-            <h2 className="dashboard-screen__key-panel-title">
-              Tu clave de API
-            </h2>
-            <p className="dashboard-screen__key-panel-instructions">
-              Pega esta clave en la acción de texto del Atajo, en la app
-              Shortcuts.
-            </p>
-            <div className="dashboard-screen__key-panel-key">
-              <code>{shownKey}</code>
-              <button
-                type="button"
-                onClick={() => void handleCopyKey()}
-                aria-label="Copiar clave"
-              >
-                <Copy size={16} />
-              </button>
-            </div>
-            <button
-              type="button"
-              className="dashboard-screen__key-panel-close"
-              onClick={() => setShownKey(null)}
-            >
-              Cerrar
-            </button>
-          </div>
-        </>
+        <ApiKeySheet
+          apiKey={shownKey}
+          onCopy={() => void handleCopyKey()}
+          onClose={() => setShownKey(null)}
+        />
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
     </div>
