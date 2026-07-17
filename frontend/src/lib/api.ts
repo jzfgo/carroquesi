@@ -39,25 +39,24 @@ async function apiFetch(
   return res.json()
 }
 
-/**
- * Deep link that asks the Shortcuts app to import our hosted, pre-signed shortcut
- * directly from the backend.
- *
- * The previous approach (fetch → blob → <a download>) is silently ignored by iOS
- * Safari — it never hands the file to Shortcuts — which defeats the whole feature
- * on its primary platform. `shortcuts://import-shortcut` is Apple's purpose-built
- * import entry point and is registered on both iOS and macOS. It requires the
- * `url` to be reachable by the device, so BACKEND_URL must be the public
- * deployment (not localhost) when testing on a real phone.
- */
-export function shortcutImportUrl(): string {
-  const fileUrl = `${BACKEND_URL}/shortcuts/cqs.shortcut`
-  const params = new URLSearchParams({ url: fileUrl, name: 'CarroQueSí' })
-  return `shortcuts://import-shortcut?${params.toString()}`
+/** URL the hosted, pre-signed shortcut is served from. */
+export function shortcutFileUrl(): string {
+  return `${BACKEND_URL}/shortcuts/cqs.shortcut`
 }
 
+/**
+ * Trigger a Shortcuts import by navigating straight to the hosted .shortcut file:
+ * the browser downloads it and the OS opens it in Shortcuts (the same path as
+ * double-clicking a .shortcut, which imports cleanly).
+ *
+ * Two approaches were ruled out empirically:
+ *  - fetch → blob → <a download>: iOS Safari ignores it, never hands the file to Shortcuts.
+ *  - shortcuts://import-shortcut?url=…: rejected with "The shortcut URL provided was
+ *    invalid" for any http/self-hosted URL (localhost and LAN alike). That scheme
+ *    wants an https, Apple-reachable (iCloud-style) URL, so it can't target our backend.
+ */
 export function openShortcutImport(): void {
-  window.location.href = shortcutImportUrl()
+  window.location.href = shortcutFileUrl()
 }
 
 export function issueApiKey(

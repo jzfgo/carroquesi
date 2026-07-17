@@ -10,7 +10,7 @@ import {
   getListUpdatedAt,
   issueApiKey,
   regenerateApiKey,
-  shortcutImportUrl,
+  shortcutFileUrl,
   submitFeedback,
   submitWaitlistSignup,
   updateItem,
@@ -256,20 +256,9 @@ describe('submitWaitlistSignup', () => {
   })
 })
 
-describe('shortcutImportUrl', () => {
-  it('builds a shortcuts://import-shortcut deep link pointing at the backend file', () => {
-    const url = shortcutImportUrl()
-    expect(url.startsWith('shortcuts://import-shortcut?')).toBe(true)
-
-    const params = new URLSearchParams(url.split('?')[1])
-    expect(params.get('url')).toContain('/shortcuts/cqs.shortcut')
-    expect(params.get('name')).toBe('CarroQueSí')
-  })
-
-  it('percent-encodes the name so the accented character survives', () => {
-    // URLSearchParams encodes "CarroQueSí" — the raw í must not appear unencoded
-    expect(shortcutImportUrl()).not.toContain('Sí')
-    expect(shortcutImportUrl()).toContain('name=CarroQueS')
+describe('shortcutFileUrl', () => {
+  it('points at the backend shortcut download endpoint', () => {
+    expect(shortcutFileUrl()).toContain('/shortcuts/cqs.shortcut')
   })
 })
 
