@@ -10,55 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Add ApiKey model and migration
-
-- Add API key generation, hashing, and encryption service
-
-- Add X-Api-Key auth fallback to get_current_user
-
-- Add .shortcut binary plist builder
-
-- Add .shortcut download and API key regeneration endpoints
-
-- Expose has_api_key on /users/me and /auth/sync
-
-- Add useApplePlatform hook
-
-- Add downloadShortcut and regenerateApiKey to api client
-
-- Add Siri shortcut and key regeneration to avatar menu
-
-- Resolve list_id=default to caller's most-recently-updated list
-
-- Show plaintext API key once on Siri setup and key regeneration
-
-- Ship the signed production Siri shortcut
-
-
-### Changed
-- Drop reversible key_ciphertext storage from ApiKey
-
-- Remove Fernet encryption machinery, no longer needed
-
-- Serve a static pre-signed shortcut instead of generating per-user
-
-- Extract API key panel into its own sheet component
-
-- Drop unused api_base_url config left over from per-user shortcut generation
-
-- Fold Siri setup into a single sheet with in-sheet regenerate
+- Siri Shortcuts integration (JAV-7) (#111)
 
 
 ### Fixed
-- Anchor superpowers gitignore pattern to repo root
-
-- Make Siri API-key issuance idempotent so re-adding can't rotate a live key
-
-- Import Siri shortcut via shortcuts:// deep link instead of a blob download
-
-- Deliver the Siri shortcut via a direct file download
-
-- Copy the API key on insecure origins via an execCommand fallback
+- Name the Siri shortcut download 'Carro Que Sí' for better Siri recognition
 
 
 ---
