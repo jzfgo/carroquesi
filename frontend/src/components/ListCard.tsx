@@ -62,7 +62,7 @@ export function ListCard({
       <button
         className="list-card__tap-target"
         onClick={onClick}
-        aria-label={name}
+        aria-label={is_default ? `${name} (lista predeterminada)` : name}
       >
         <span className="list-card__name">
           {is_default && (
@@ -70,7 +70,7 @@ export function ListCard({
               size={13}
               fill="currentColor"
               className="list-card__default-star"
-              aria-label="Lista predeterminada"
+              aria-hidden
             />
           )}
           {name}

@@ -102,7 +102,7 @@ def update_list(
     list_and_user: OwnerDep,
     session: CurrentSession,
 ):
-    lst, _ = list_and_user
+    lst, current_user = list_and_user
     if body.name is not None:
         lst.name = body.name
     if "emoji" in body.model_fields_set:
@@ -110,7 +110,15 @@ def update_list(
     _bump(lst, session)
     session.commit()
     session.refresh(lst)
-    return lst
+    # item_count/purchased_count intentionally left at their ListRead defaults
+    # (this endpoint doesn't recompute the aggregate); is_default is cheap and
+    # carried through so a rename can't misreport the caller's default.
+    membership = session.exec(
+        select(ListMember).where(
+            ListMember.list_id == lst.id, ListMember.user_id == current_user.id
+        )
+    ).first()
+    return ListRead(**lst.model_dump(), is_default=bool(membership and membership.is_default))
 
 
 @router.put("/{list_id}/default", status_code=status.HTTP_204_NO_CONTENT)
