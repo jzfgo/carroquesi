@@ -1,6 +1,6 @@
 # ADR-006: Static per-user API keys for non-browser clients
 
-**Status:** Accepted  
+**Status:** Accepted, storage design amended 2026-07-17  
 **Date:** 2026-07-16
 
 ## Context
@@ -17,9 +17,10 @@ Siri Shortcuts (JAV-7) and, later, an MCP server (JAV-8) need to call the CarroQ
 
 Add an `ApiKey` table (one static key per user) and extend `get_current_user` (`backend/app/dependencies.py`) to accept `X-Api-Key` as a fallback authentication path, tried after the existing dev-bypass and Firebase-bearer checks. Requests authenticated this way always resolve `is_admin=False`, regardless of the underlying user's Firebase custom claims.
 
-The key is stored in two forms, not one:
-- **`key_hash`** (SHA-256, indexed, unique) — irreversible, used to look up the owning user from an incoming header value in O(1)
-- **`key_ciphertext`** (Fernet, symmetric, server-side secret) — reversible, used only so a `.shortcut` file can be re-downloaded on a second device without forcing key rotation
+The key is stored as a single irreversible form:
+- **`key_hash`** (SHA-256, indexed, unique) — used to look up the owning user from an incoming header value in O(1)
+
+*(Amended 2026-07-17 — see below. The original design also stored a reversible `key_ciphertext`; that column never shipped and was dropped before merge once the reason for it stopped applying.)*
 
 ## Rationale
 
@@ -27,13 +28,13 @@ The key is stored in two forms, not one:
 
 **Firebase custom tokens don't fit static, long-lived clients.** They're short-lived by design and expect a client SDK to handle refresh — reasonable for a browser session, awkward for a Shortcut action or an MCP client that just wants to send the same header on every request indefinitely.
 
-**One-way hashing alone isn't enough here — and that's a real tradeoff, not an oversight.** A pure one-way hash (the stronger default for API credentials — see GitHub PATs, which are never re-displayed) would mean a lost or reinstalled Shortcut requires the user to hit "Regenerar clave," which invalidates and breaks any *other* device's Shortcut using the old key. Reversible encryption keeps redownload-on-a-second-device working, at the cost of the key being recoverable if both the database and the encryption secret leak. Rotation ("Regenerar clave") is still the only way to invalidate a specific key, kept as the escape hatch for a suspected leak.
+**One-way hashing turned out to be enough — the case for reversibility didn't survive contact with iOS.** The original rationale for `key_ciphertext` was letting a `.shortcut` redownload silently re-embed the existing key without forcing rotation. That premise depended on the backend generating a unique `.shortcut` file per user at request time. iOS 15+'s hard block on unsigned `.shortcut` imports (discovered via real-device testing, see the design spec's 2026-07-17 addendum) forced a redesign to a single static, secret-free, pre-signed shortcut — there is no more per-user file, so there is nothing to re-embed a key into. The key now lives only as something the user pastes once into the Shortcut's `Text` action. With that use case gone, pure one-way hashing (the stronger default for API credentials — see GitHub PATs, never re-displayed) has no remaining downside here: "lost key → rotate and re-paste" is standard, acceptable UX, and it removes an entire at-rest exposure surface (`key_ciphertext` + `Fernet` + `api_key_encryption_secret`) that no longer bought anything. A freshly generated or rotated key is returned as plaintext exactly once, directly in the issuance/regenerate response body (never persisted in reversible form), for the user to copy into the Shortcut.
 
 **Reuses the existing REST surface instead of bespoke endpoints.** Because the fallback lives in `get_current_user` itself, every existing `CurrentUser`-scoped endpoint (`items.py`, `lists.py`, `suggestions.py`) becomes API-key-authenticatable with zero router changes. Both Siri Shortcut actions and JAV-8's MCP tools call the same endpoints the frontend already uses.
 
 ## Consequences
 
-- **Accepted:** Weaker at-rest guarantee than pure hashing — a combined database + `api_key_encryption_secret` compromise exposes usable keys. Mitigated by keeping the secret out of the database (env-only) and by rotation being cheap and user-initiated.
+- **Accepted:** A lost or reinstalled Shortcut requires the user to hit "Regenerar clave" and re-paste the new key manually — there is no silent re-embed path anymore. Acceptable: this is a one-Text-action edit, not a re-onboarding.
 - **Accepted:** One key per user, not scoped per-integration — a Siri key and a future MCP key are the same credential. Fine at current scale; revisit if per-integration scoping (e.g. read-only keys) becomes a real requirement.
 - **Accepted:** API-key auth can never carry `is_admin=True`, even for admin users — a deliberate ceiling, not a gap to fix later.
 - **Gained:** JAV-8 (MCP server) needs no new auth design — it reuses `get_user_from_api_key` and the same `ApiKey` table as-is.
