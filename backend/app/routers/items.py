@@ -5,7 +5,7 @@ from sqlalchemy import case, func, nulls_last, or_
 from sqlmodel import Session, select
 
 from app.db.models import List, ListItem
-from app.dependencies import CurrentSession, MemberDep
+from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 
 router = APIRouter(prefix="/lists/{list_id}/items", tags=["items"])
@@ -19,7 +19,7 @@ def _bump(lst: List, session: Session) -> None:
 @router.get("", response_model=list[ItemRead])
 def get_items(
     list_id: str,
-    list_and_user: MemberDep,
+    list_and_user: MemberOrDefaultDep,
     session: CurrentSession,
 ):
     lst, _ = list_and_user
@@ -39,7 +39,7 @@ def get_items(
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
 def add_item(
     body: ItemCreate,
-    list_and_user: MemberDep,
+    list_and_user: MemberOrDefaultDep,
     session: CurrentSession,
 ):
     lst, current_user = list_and_user
@@ -66,7 +66,7 @@ def add_item(
 def update_item(
     item_id: str,
     body: ItemUpdate,
-    list_and_user: MemberDep,
+    list_and_user: MemberOrDefaultDep,
     session: CurrentSession,
 ):
     lst, _ = list_and_user

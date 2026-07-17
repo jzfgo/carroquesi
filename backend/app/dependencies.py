@@ -129,7 +129,29 @@ def require_owner(
     return lst, current_user
 
 
+def require_member_or_default(
+    list_id: str,
+    current_user: CurrentUser,
+    session: CurrentSession,
+) -> tuple[List, User]:
+    if list_id != "default":
+        return require_member(list_id, current_user, session)
+    lst = session.exec(
+        select(List)
+        .join(ListMember, ListMember.list_id == List.id)
+        .where(ListMember.user_id == current_user.id)
+        .order_by(List.updated_at.desc())
+    ).first()
+    if lst is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No lists found — create or join a list first",
+        )
+    return lst, current_user
+
+
 MemberDep: TypeAlias = Annotated[tuple[List, User], Depends(require_member)]
+MemberOrDefaultDep: TypeAlias = Annotated[tuple[List, User], Depends(require_member_or_default)]
 OwnerDep: TypeAlias = Annotated[tuple[List, User], Depends(require_owner)]
 
 
