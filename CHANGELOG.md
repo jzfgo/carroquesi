@@ -50,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make Siri API-key issuance idempotent so re-adding can't rotate a live key
 
+- Import Siri shortcut via shortcuts:// deep link instead of a blob download
+
 
 ---
 ## [0.19.3] — 2026-07-15
