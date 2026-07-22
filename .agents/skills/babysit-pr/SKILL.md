@@ -41,9 +41,11 @@ gh api repos/:owner/:repo/pulls/<number>/comments --paginate
 
 Check three things:
 - **Unresolved threads?** Look for comment threads that haven't been replied to and aren't marked resolved.
-- **Completed re-review this run?** Has at least one `@claude` re-review *finished* during
-  this run, and did the most recent finished one raise new actionable findings? A PR with no
-  review yet has **not** met this — go request one (Step 4) rather than treating it as clean.
+- **Completed re-review of the current HEAD?** Has at least one `@claude` re-review
+  *finished* during this run, did the most recent finished one raise new actionable findings,
+  and did it run **against the current HEAD commit**? A PR with no review yet has **not** met
+  this — go request one (Step 4) rather than treating it as clean. Neither has a PR whose
+  last push landed after the review, even if that push only fixed CI.
 - **CI status?** Any failing checks in `statusCheckRollup`?
 
 If all threads are addressed, **a completed re-review came back clean**, and CI is green →
@@ -113,22 +115,46 @@ the last pass so the re-review is targeted.
 
 Poll every 60–90 seconds. The re-review lands as a **comment**, not a review.
 
-**The comment appears immediately and is not the review.** The action posts a
-`### Review in progress` placeholder with an unchecked task list within seconds, then
-**edits that same comment in place** when it finishes. Presence of a `claude` comment
-therefore proves nothing. Treat the review as complete only when **both** hold:
+**The comment appears immediately and is not the review.** The action posts an
+"in progress" placeholder with an unchecked task list within seconds, then **edits that same
+comment in place** when it finishes. Presence of a `claude` comment therefore proves nothing.
 
-- the linked workflow run has finished, and
-- the comment body no longer contains `Review in progress` (it becomes `**Claude finished
-  …**` / `### Review complete`)
+**The workflow run status is the reliable signal — treat the comment text as a secondary
+check only.** The placeholder wording is not stable: it is `### Review in progress` on a
+first pass but `### Re-review in progress` on later ones, so an exact-string match on
+`Review in progress` silently fails to match the re-review form (capital `R`) and reports a
+still-running review as finished. If you match text at all, match case-insensitively on
+`in progress`.
+
+Get the run id from the `[View job](…/actions/runs/<id>)` link inside the `claude` comment
+itself, or filter by workflow — never take the top of an unfiltered `gh run list`, which may
+be a CI run rather than the review action:
 
 ```bash
-# completion check — not mere presence
+# 1. find the review run (NOT any other workflow)
+gh run list --workflow=claude.yml --limit 5 \
+  --json databaseId,status,conclusion,createdAt
+
+# 2. primary gate: that run has finished
 gh run view <run-id> --json status,conclusion --jq '"\(.status)/\(.conclusion)"'
+
+# 3. secondary check + read the result (sort by time, not array order)
 gh pr view <number> --json comments \
   --jq '[.comments[] | select(.author.login == "claude")
-         | select(.body | test("Review in progress") | not)] | last | .body'
+         | select(.body | test("in progress"; "i") | not)]
+        | sort_by(.createdAt) | last | .body'
 ```
+
+Two more traps seen in practice:
+
+- **Each trigger produces two runs** — one that executes and one `completed/skipped`
+  (a duplicate event type). A `skipped` conclusion does not mean the review was skipped;
+  find the run that actually executed.
+- **A comment mentioning `@claude` that is not a request** (e.g. a rebuttal that quotes
+  `@claude`) still fires the workflow, and it may complete successfully **without posting
+  anything**. A successful run is therefore not proof a review was produced — confirm a new
+  finished comment exists. Ask explicitly for findings to be posted even when nothing is
+  found, so a clean pass is distinguishable from a silent one.
 
 > **Login field gotcha:** `gh pr view --json comments` goes through GraphQL, where the bot's
 > `author.login` is `claude`. The REST endpoint (`gh api .../issues/<n>/comments`) reports
@@ -154,6 +180,9 @@ If `statusCheckRollup` has failing checks:
    ```
 2. Read the error. Fix the root cause in the code.
 3. Commit and push. Wait for CI to re-run before the next loop iteration.
+4. **Return to Step 4 and trigger a fresh re-review.** You just pushed a commit. Any prior
+   clean review is now stale — it never saw this code. Do not fall through to the exit
+   check on the strength of a review of an earlier commit.
 
 Never skip or suppress CI checks — fix the underlying problem.
 
@@ -163,9 +192,21 @@ Never skip or suppress CI checks — fix the underlying problem.
 
 Stop looping when **all three** are true:
 1. No open, unresolved comment threads
-2. **At least one** `@claude` re-review has *completed* during this run and came back with no
-   new actionable findings
+2. **At least one** `@claude` re-review has *completed* during this run, came back with no
+   new actionable findings, and ran **against the current HEAD commit**
 3. All `statusCheckRollup` entries are passing
+
+A clean review is tied to the commit it reviewed. **Any push invalidates it** — including a
+push that only fixes CI. Before exiting, confirm no commit landed after the review you are
+relying on:
+
+```bash
+git rev-parse --short HEAD                                  # current HEAD
+git log -1 --format=%cI HEAD                                # its commit time
+# compare against the .createdAt of the clean claude comment
+```
+
+If HEAD is newer than the clean review, that review is stale → go back to **Step 4**.
 
 Condition #2 is deliberately "at least one completed clean re-review", not "the latest one,
 if any, was clean". The weaker phrasing is **vacuously true on a PR that has never been
