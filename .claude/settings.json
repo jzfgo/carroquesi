@@ -1,7 +1,4 @@
 {
-  "permissions": {
-    "deny": ["EnterWorktree", "ExitWorktree"]
-  },
   "hooks": {
     "PreToolUse": [
       {
@@ -19,6 +16,15 @@
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/block_main_edits.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "EnterWorktree|ExitWorktree|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/enforce_worktrunk.py\""
           }
         ]
       }
