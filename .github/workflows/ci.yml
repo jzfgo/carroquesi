@@ -66,3 +66,15 @@ jobs:
 
       - name: Test
         run: uv run pytest
+
+  hooks:
+    name: Agent guardrail hooks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Deliberately no uv/pnpm setup: these hooks guard the agent's own
+      # tooling and must run on a bare checkout with only system python3.
+      - name: Test hooks
+        run: python3 .claude/hooks/test_hooks.py
