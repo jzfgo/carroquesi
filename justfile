@@ -43,11 +43,16 @@ test:
     just frontend test
     just backend test
 
+# Test the agent guardrail hooks (no deps — runs on a bare checkout)
+test-hooks:
+    python3 .claude/hooks/test_hooks.py
+
 # Check formatting, type-check, lint, and test
 ci:
     just format-check
     just lint
     just test
+    just test-hooks
 
 # Update [Unreleased] section in CHANGELOG.md from commits since last tag (requires git-cliff)
 changelog:

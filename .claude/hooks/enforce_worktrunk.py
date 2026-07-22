@@ -35,6 +35,50 @@ GIT_WORKTREE_MUTATION = re.compile(
     r"\bgit\b(?:\s+-\S+(?:\s+\S+)?)*\s+worktree\s+(?:add|remove|prune|move)\b"
 )
 
+# Prose that *mentions* these commands is not running them. Without this,
+# `gh pr create` with a body describing the guard trips the guard — which is
+# exactly how this was found. Same treatment as block_no_verify.py.
+#
+# `\s*` after the `<<` accepts `cat << EOF`, which bash allows; omitting it
+# only ever over-blocked, but over-blocking prose is the bug being fixed.
+HEREDOC = re.compile(
+    r"<<[-~]?\s*(?P<q>['\"]?)(?P<delim>\w+)(?P=q)[^\n]*\n.*?\n[ \t]*(?P=delim)[ \t]*(?=\n|$)",
+    re.DOTALL,
+)
+INLINE_MESSAGE = re.compile(
+    r"""(?:-\w*m|--message|--body|--title)\s*=?\s*"""
+    r"""(?:(?P<single>'(?:[^'\\]|\\.)*')|(?P<double>"(?:[^"\\]|\\.)*"))"""
+)
+
+# A span is inert only if the shell will not evaluate anything inside it.
+# Bash runs `$(...)` and backticks during argument expansion — before the
+# outer command is invoked — so `--body "$(git worktree add x)"` genuinely
+# creates a worktree. Blanking that span would hide a live call behind
+# quotes rather than ignore prose, so it is left visible to the matcher.
+#
+# Quoting decides: single quotes suppress expansion entirely, and so does a
+# quoted heredoc delimiter (`<<'EOF'`). An unquoted delimiter (`<<EOF`) does
+# not — its body expands like a double-quoted string.
+SUBSTITUTION = re.compile(r"\$\(|`")
+
+
+def _strip_prose(command: str) -> str:
+    """Blank out heredoc bodies and quoted message args before matching.
+
+    Stripping may only ever justify *allowing* something — it must never
+    hide a command the shell will actually run.
+    """
+
+    def drop_heredoc(match: re.Match[str]) -> str:
+        inert = match.group("q") or not SUBSTITUTION.search(match.group(0))
+        return "" if inert else match.group(0)
+
+    def drop_message(match: re.Match[str]) -> str:
+        inert = match.group("single") or not SUBSTITUTION.search(match.group(0))
+        return "''" if inert else match.group(0)
+
+    return INLINE_MESSAGE.sub(drop_message, HEREDOC.sub(drop_heredoc, command))
+
 
 def _deny(reason: str) -> None:
     print(
@@ -90,7 +134,9 @@ def main() -> None:
 
     if tool_name == "Bash":
         command = tool_input.get("command")
-        if isinstance(command, str) and GIT_WORKTREE_MUTATION.search(command):
+        if isinstance(command, str) and GIT_WORKTREE_MUTATION.search(
+            _strip_prose(command)
+        ):
             _deny(
                 "Manage worktrees with the `wt` CLI, not raw git — `wt switch "
                 "--create` runs the project's setup hooks and `wt remove` "
