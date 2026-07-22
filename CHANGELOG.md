@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Name the Siri shortcut 'Carro Que Sí' for better Siri recognition (#112)
 
-- Make the hook tests cwd-independent and actually run them in CI
+- Make the hook tests cwd-independent and run them in CI (#116)
 
 
 ---
