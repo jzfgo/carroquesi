@@ -41,13 +41,18 @@ gh api repos/:owner/:repo/pulls/<number>/comments --paginate
 
 Check three things:
 - **Unresolved threads?** Look for comment threads that haven't been replied to and aren't marked resolved.
-- **Latest re-review?** Did the most recent `claude` comment raise new actionable findings?
+- **Completed re-review this run?** Has at least one `@claude` re-review *finished* during
+  this run, and did the most recent finished one raise new actionable findings? A PR with no
+  review yet has **not** met this — go request one (Step 4) rather than treating it as clean.
 - **CI status?** Any failing checks in `statusCheckRollup`?
 
-If all threads are addressed, the latest re-review is clean, and CI is green → **you're done**.
-Report the final state and exit. Note `reviewDecision` will normally still read
-`REVIEW_REQUIRED` at this point — that is expected and is *not* a reason to keep looping
-(see *Exit Condition*).
+If all threads are addressed, **a completed re-review came back clean**, and CI is green →
+**you're done**. Report the final state and exit. Note `reviewDecision` will normally still
+read `REVIEW_REQUIRED` at this point — that is expected and is *not* a reason to keep
+looping (see *Exit Condition*).
+
+On the first iteration of a fresh PR, expect to fall through to Step 4 — there is nothing to
+triage yet, and exiting here would mean never reviewing at all.
 
 ### 2. Triage Each Open Comment
 
@@ -106,17 +111,35 @@ the last pass so the re-review is targeted.
 
 ### 5. Monitor for Re-Review Completion
 
-Poll every 60–90 seconds. The re-review lands as a **comment**, not a review — look for a
-new comment authored by `claude` posted after your `@claude` request:
+Poll every 60–90 seconds. The re-review lands as a **comment**, not a review.
+
+**The comment appears immediately and is not the review.** The action posts a
+`### Review in progress` placeholder with an unchecked task list within seconds, then
+**edits that same comment in place** when it finishes. Presence of a `claude` comment
+therefore proves nothing. Treat the review as complete only when **both** hold:
+
+- the linked workflow run has finished, and
+- the comment body no longer contains `Review in progress` (it becomes `**Claude finished
+  …**` / `### Review complete`)
 
 ```bash
-gh pr view <number> --json comments,reviewDecision,statusCheckRollup \
-  --jq '.comments[] | select(.author.login == "claude") | .body'
+# completion check — not mere presence
+gh run view <run-id> --json status,conclusion --jq '"\(.status)/\(.conclusion)"'
+gh pr view <number> --json comments \
+  --jq '[.comments[] | select(.author.login == "claude")
+         | select(.body | test("Review in progress") | not)] | last | .body'
 ```
 
-Give it up to 10 minutes. Read the body of that comment and decide whether it raises **new
-actionable findings** — do not wait for `reviewDecision` to change (see *Exit Condition*).
-If there are new findings, go back to **Step 1**. If there are none, the review pass is clean.
+> **Login field gotcha:** `gh pr view --json comments` goes through GraphQL, where the bot's
+> `author.login` is `claude`. The REST endpoint (`gh api .../issues/<n>/comments`) reports
+> the same account as `user.login == "claude[bot]"`. Both are correct for their own API —
+> if you rewrite these queries to REST, you must match `claude[bot]` or the filter silently
+> matches nothing and this step hangs for the full timeout.
+
+Give it up to 10 minutes **after the run completes**. Read the finished body and decide
+whether it raises **new actionable findings** — do not wait for `reviewDecision` to change
+(see *Exit Condition*). If there are new findings, go back to **Step 1**. If there are none,
+record that a clean re-review has completed.
 
 ---
 
@@ -140,8 +163,18 @@ Never skip or suppress CI checks — fix the underlying problem.
 
 Stop looping when **all three** are true:
 1. No open, unresolved comment threads
-2. The most recent `@claude` re-review raised no new actionable findings
+2. **At least one** `@claude` re-review has *completed* during this run and came back with no
+   new actionable findings
 3. All `statusCheckRollup` entries are passing
+
+Condition #2 is deliberately "at least one completed clean re-review", not "the latest one,
+if any, was clean". The weaker phrasing is **vacuously true on a PR that has never been
+reviewed** — a freshly opened PR with no comments and green CI would satisfy all three
+criteria on the very first assessment and exit before requesting a single review. That is
+the mirror image of the bug this skill previously had: instead of hanging forever on an
+unreachable `APPROVED`, it declares victory having done nothing. You must always complete
+at least one review cycle. "Completed" means the run finished — see Step 5; the placeholder
+comment does not count.
 
 **Short-circuit:** if `reviewDecision == "APPROVED"` (a human approved, or the repo later
 gains a reviewer that submits real reviews), you are done early regardless of #2.
