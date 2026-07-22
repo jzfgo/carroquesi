@@ -219,9 +219,9 @@ A task is complete only when **all** of the following are true:
 
 **AI:**
 
+- [ ] **Vary the environment before calling anything verified.** Running a check once proves it works *there*. Re-run it somewhere the ambient state differs — the other checkout, a different working directory, CI vs. local, the other side of a dev/prod or feature-flag branch — before saying it passes. _(Was "verify both branches of environment-conditional logic", carried unproven from #94 since 2026-07-08. It finally has real test cases, three in one afternoon on 2026-07-22: a guard that blocked its own PR (#115), one bypassable by quoting (#115), and a test suite that only passed in the directory it was written in while CI never ran it at all (#116). Every one was "verified" before it shipped.)_
 - [ ] In every `/brainstorming` session, add an explicit **failure-space section** before converging — how the proposal breaks with multiple users, with state changing between calls, with zero items, with many. Its own named section, not woven into prose. _(from #111's non-deterministic default-list resolver, which #113 had to replace)_
 - [ ] Take positions in design discussions, not neutral considerations — "this is wrong because X", not "one consideration might be". The user has explicitly asked for more pushback.
-- [ ] For refactors touching environment-conditional logic (dev/prod branches, feature flags, config gating), explicitly verify both branches' behavior before calling the change done — not just tests/lint _(carried from #94; still no real test case)_
 - [ ] Flag mobile-path issues (input type, viewport, safe area) during implementation, not just at handoff
 
 **You:**
