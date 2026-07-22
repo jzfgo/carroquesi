@@ -35,6 +35,21 @@ GIT_WORKTREE_MUTATION = re.compile(
     r"\bgit\b(?:\s+-\S+(?:\s+\S+)?)*\s+worktree\s+(?:add|remove|prune|move)\b"
 )
 
+# Prose that *mentions* these commands is not running them. Without this,
+# `gh pr create` with a body describing the guard trips the guard — which is
+# exactly how this was found. Same treatment as block_no_verify.py.
+HEREDOC = re.compile(
+    r"<<[-~]?['\"]?(\w+)['\"]?[^\n]*\n.*?\n[ \t]*\1[ \t]*(?=\n|$)", re.DOTALL
+)
+INLINE_MESSAGE = re.compile(
+    r"""(?:-\w*m|--message|--body|--title)\s*=?\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')"""
+)
+
+
+def _strip_prose(command: str) -> str:
+    """Remove heredoc bodies and quoted message/body args before matching."""
+    return INLINE_MESSAGE.sub("''", HEREDOC.sub("", command))
+
 
 def _deny(reason: str) -> None:
     print(
@@ -90,7 +105,9 @@ def main() -> None:
 
     if tool_name == "Bash":
         command = tool_input.get("command")
-        if isinstance(command, str) and GIT_WORKTREE_MUTATION.search(command):
+        if isinstance(command, str) and GIT_WORKTREE_MUTATION.search(
+            _strip_prose(command)
+        ):
             _deny(
                 "Manage worktrees with the `wt` CLI, not raw git — `wt switch "
                 "--create` runs the project's setup hooks and `wt remove` "

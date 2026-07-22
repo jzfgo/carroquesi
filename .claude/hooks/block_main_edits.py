@@ -8,14 +8,17 @@ per the Skills/Rules/Hooks taxonomy — 100%-compliance requirements belong
 in a hook, not a markdown bullet the agent re-reads each session.
 
 The branch is resolved from the *target file's* directory, not the hook's
-cwd. Both are the repo root in the common case, but they diverge when a
-session rooted on `main` writes into a worktree by absolute path — the only
-route available here, since `EnterWorktree` is denied in
-`.claude/settings.json` and nothing else can re-root a session. Keying on
-cwd made that route indistinguishable from editing `main` directly, so it
-blocked legitimate worktree writes; it also missed the mirror case, a
-worktree-rooted session reaching back into the main checkout by absolute
-path. Resolving per-path fixes both.
+cwd. Both are the repo root in the common case, but they diverge whenever a
+session writes across checkouts by absolute path, and keying on cwd was
+wrong in both directions: it blocked a session rooted on `main` from writing
+into a worktree, and — the half that mattered — it let a worktree-rooted
+session write straight into the main checkout, which is precisely what this
+hook exists to stop. Resolving per-path fixes both.
+
+The silent direction is the dangerous one. Getting blocked is loud and gets
+reported; getting permitted is not, so only the harmless failure ever
+generated a complaint. See `enforce_worktrunk.py` for the sibling case of a
+guard that gated the wrong thing.
 """
 
 from __future__ import annotations
