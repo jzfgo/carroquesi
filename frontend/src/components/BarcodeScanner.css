@@ -22,19 +22,31 @@
   align-items: center;
   justify-content: center;
   gap: 20px;
-  background: rgb(0 0 0 / 85%);
+
+  /* Deliberately transparent: the dim is painted by __frame's spread shadow
+     so the reticle interior stays clear. A background here would cover the
+     cutout — which is what it used to do. */
+  background: transparent;
 }
 
+/* Spotlight: an oversized spread shadow dims everything *outside* the frame,
+   leaving its interior at full camera brightness. The dim must live here and
+   not on the overlay — that is the whole mechanism. 2000px covers any
+   viewport; the frame is centred, so half the largest realistic dimension is
+   ample. */
 .barcode-scanner__frame {
   width: 260px;
   height: 160px;
   border: 2px solid #fff;
   border-radius: 12px;
-  box-shadow: 0 0 0 2000px transparent;
+  box-shadow: 0 0 0 2000px rgb(0 0 0 / 55%);
   background: transparent;
 }
 
 .barcode-scanner__hint {
+  /* Above the frame's shadow, which would otherwise dim the text. */
+  position: relative;
+  z-index: 1;
   color: #fff;
   font-size: var(--fs-14);
   text-align: center;
