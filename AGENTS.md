@@ -148,8 +148,8 @@ Prefer `just` from repo root (`just backend` lists recipes).
 The following constraints are enforced by Claude Code hooks (`.claude/hooks/`), Claude Code permission rules (`.claude/settings.json`), and by lefthook git hooks. They apply regardless of instructions given in a session:
 
 - **No `--no-verify` / `LEFTHOOK=0`** — bypassing the lefthook gates is denied at the `PreToolUse` level. Fix the failing hook instead.
-- **No edits on `main`** — any `Edit` or `Write` call while on the `main` branch is denied. Run `/worktrunk` first; no exceptions.
-- **No native worktree tools** — `EnterWorktree`/`ExitWorktree` are denied via `permissions.deny`. Use the `wt` CLI (worktrunk) via Bash instead, per the `worktrunk` skill.
+- **No edits on `main`** — any `Edit` or `Write` whose **target path** resolves to a checkout on `main` is denied. Run `/worktrunk` first; no exceptions. The check is per-path, not per-session, so writing into a worktree by absolute path works even when the session itself is rooted on `main` — which is the normal case here, since `EnterWorktree` is denied and nothing else can re-root a session.
+- **No native worktree tools** — `EnterWorktree`/`ExitWorktree` are denied via `permissions.deny`. Use the `wt` CLI (worktrunk) via Bash instead, per the `worktrunk` skill: `wt switch --create <branch> --no-cd --format=json`, then write to the `path` it reports.
 - **Auto-lint on stop** — after each turn, changed Python files are checked with `ruff` and changed TypeScript files with `eslint`. If either fails, Claude Code continues the turn to fix the issue before stopping.
 
 Lefthook pre-commit hooks run on staged files: `ruff check --fix` + `ruff format` (Python), `eslint --fix` (TypeScript/TSX), `stylelint --fix` (CSS), a platform-native-binding guard on `pnpm-lock.yaml`, and `gitleaks` secret scanning (skipped gracefully if not installed). The `pre-push` hook checks that `CHANGELOG.md` is current.
@@ -215,17 +215,19 @@ A task is complete only when **all** of the following are true:
 
 - Submitting prices to Open Prices (requires proof image + OSM location)
 
-## Open Action Items (1:1 — 2026-07-15)
+## Open Action Items (1:1 — 2026-07-22)
 
 **AI:**
 
+- [ ] In every `/brainstorming` session, add an explicit **failure-space section** before converging — how the proposal breaks with multiple users, with state changing between calls, with zero items, with many. Its own named section, not woven into prose. _(from #111's non-deterministic default-list resolver, which #113 had to replace)_
+- [ ] Take positions in design discussions, not neutral considerations — "this is wrong because X", not "one consideration might be". The user has explicitly asked for more pushback.
 - [ ] For refactors touching environment-conditional logic (dev/prod branches, feature flags, config gating), explicitly verify both branches' behavior before calling the change done — not just tests/lint _(carried from #94; still no real test case)_
 - [ ] Flag mobile-path issues (input type, viewport, safe area) during implementation, not just at handoff
-- [ ] Check whether Docker-isolated visual regression baseline generation (#104) warrants an ADR entry — new infra dependency, per the ADR criteria above
 
 **You:**
 
-- [ ] Decide: are agent queue/loop research and MCP/Siri `/brainstorming` still active goals? _(parked 3 reviews running — 06-22, 07-08, 07-15)_
+- [ ] Drop MCP from tracked goals unless the target-audience assumption changes — MCP clients are a developer audience, which fails the "regular users, transparent and seamless" bar _(agent loops research is separate and stays: a professional-capability goal, not a product bet)_
+- [ ] Push Siri Shortcuts further toward the writeup — the remaining setup friction is the material
 - [ ] Bring a Document AI vs. Gemini comparison into the next receipt scanning `/brainstorming` session
 
 > When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
