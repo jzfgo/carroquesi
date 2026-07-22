@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Give Handling CI Failures an entry point and match reviews by run id
 
+- Reconcile the CI-failure return path and scope Step 5's run lookup
+
 
 ---
 ## [0.20.0] — 2026-07-22
