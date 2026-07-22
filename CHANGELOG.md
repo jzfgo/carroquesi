@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Require a completed clean re-review before babysit-pr exits
 
+- Tie babysit-pr's clean-review gate to the reviewed commit
+
 
 ---
 ## [0.20.0] — 2026-07-22
