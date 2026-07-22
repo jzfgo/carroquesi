@@ -134,8 +134,11 @@ itself, or filter by workflow — never take the top of an unfiltered `gh run li
 be a CI run rather than the review action:
 
 ```bash
-# 1. find the review run (NOT any other workflow)
-gh run list --workflow=claude.yml --limit 5 \
+# 1. find the review run — scope by BOTH workflow and branch.
+#    Unscoped, concurrent @claude activity on other branches can push your run
+#    off the list, and the run id you then carry into step 3 matches nothing —
+#    stalling this step for the full timeout even though the review finished.
+gh run list --workflow=claude.yml --branch <branch> --limit 5 \
   --json databaseId,status,conclusion,createdAt
 
 # 2. primary gate: that run has finished
@@ -194,9 +197,12 @@ If `statusCheckRollup` has failing checks:
    ```
 2. Read the error. Fix the root cause in the code.
 3. Commit and push. Wait for CI to re-run before the next loop iteration.
-4. **Return to Step 4 and trigger a fresh re-review.** You just pushed a commit. Any prior
-   clean review is now stale — it never saw this code. Do not fall through to the exit
-   check on the strength of a review of an earlier commit.
+4. **Return to Step 1.** You just pushed a commit, so any prior clean review is stale — it
+   never saw this code. Do not fall through to the exit check on the strength of a review of
+   an earlier commit. Going back to Step 1 rather than straight to Step 4 is deliberate: a
+   PR can have red CI *and* open comment threads at the same time, and jumping directly to a
+   re-review would request one while known issues in the diff are still untriaged. Step 1's
+   HEAD-freshness check (condition #2) is what guarantees the re-review still happens.
 
 Never skip or suppress CI checks — fix the underlying problem.
 
