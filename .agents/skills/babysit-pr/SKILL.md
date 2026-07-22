@@ -1,6 +1,6 @@
 ---
 name: babysit-pr
-description: Autonomously wrangle a PR through review until it is approved and ready to merge. Analyzes every open reviewer comment, fixes real issues with commits, posts polite fact-based rebuttals for hallucinated or false-positive feedback, triggers `/gemini review` re-reviews, and loops until CI is green and the PR is approved. Invoke as `/babysit-pr` to target the current branch's PR, or `/babysit-pr <number>` for a specific PR. Use this whenever you want Claude to fully own a PR until it merges — handling reviewer back-and-forth, CI failures, and re-review cycles without manual intervention.
+description: Autonomously wrangle a PR through review until it is approved and ready to merge. Analyzes every open reviewer comment, fixes real issues with commits, posts polite fact-based rebuttals for hallucinated or false-positive feedback, triggers `@claude` re-reviews, and loops until CI is green and the PR is approved. Invoke as `/babysit-pr` to target the current branch's PR, or `/babysit-pr <number>` for a specific PR. Use this whenever you want Claude to fully own a PR until it merges — handling reviewer back-and-forth, CI failures, and re-review cycles without manual intervention.
 ---
 
 # PR Babysitter
@@ -87,15 +87,21 @@ gh api repos/:owner/:repo/pulls/<number>/comments/<comment-id>/replies \
 
 ### 4. Trigger Re-Review
 
-Once you've addressed a batch of comments (fixes pushed, responses posted), trigger the review bot with this exact comment — no variation:
+Once you've addressed a batch of comments (fixes pushed, responses posted), trigger a
+re-review by posting a comment that mentions `@claude` and asks for a review:
 
 ```bash
-gh pr comment <number> --body "/gemini review"
+gh pr comment <number> --body "@claude please re-review this PR — I've pushed fixes and replies for the open threads."
 ```
+
+The mention is what matters, not an exact phrase: `.github/workflows/claude.yml` fires
+`anthropics/claude-code-action` on any issue or review comment *containing* `@claude`,
+and the rest of the comment is the instruction Claude follows. Say what changed since
+the last pass so the re-review is targeted.
 
 ### 5. Monitor for Re-Review Completion
 
-Poll every 60–90 seconds. Look for new reviews or comments appearing after your `/gemini review` post:
+Poll every 60–90 seconds. Look for new reviews or comments appearing after your `@claude` post:
 
 ```bash
 gh pr view <number> --json reviews,comments,reviewDecision,statusCheckRollup

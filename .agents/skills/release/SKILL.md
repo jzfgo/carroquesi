@@ -74,8 +74,12 @@ Use today's date in `YYYY-MM-DD` format.
 git add CHANGELOG.md frontend/package.json backend/pyproject.toml
 git commit -m "chore: release X.Y.Z
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+Co-Authored-By: <your session's co-author trailer>"
 ```
+
+Use the `Co-Authored-By:` trailer for the model you are actually running as — do
+not copy a model name from this file. Hardcoding one here just goes stale on the
+next model release.
 
 ## 6. Create a local tag
 
