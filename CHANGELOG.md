@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reconcile the CI-failure return path and scope Step 5's run lookup
 
+- Count CI-fix cycles against the cap, correct the branch-protection claim
+
 
 ---
 ## [0.20.0] — 2026-07-22
