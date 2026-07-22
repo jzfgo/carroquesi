@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Tie babysit-pr's clean-review gate to the reviewed commit
 
+- Give Handling CI Failures an entry point and match reviews by run id
+
 
 ---
 ## [0.20.0] — 2026-07-22
