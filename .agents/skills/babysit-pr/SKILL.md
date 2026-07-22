@@ -240,17 +240,51 @@ comment does not count.
 **Short-circuit:** if `reviewDecision == "APPROVED"` (a human approved, or the repo later
 gains a reviewer that submits real reviews), you are done early regardless of #2.
 
+**Report, don't claim.** Meeting all three conditions means *your* work is done — it does
+not mean the PR can merge. `main` requires a human approval (see below), and
+`dismiss_stale_reviews_on_push: true` means any later push drops an approval that already
+exists. State the merge-blocking status as you found it; do not describe the PR as
+merge-ready on the strength of the loop's own exit.
+
 ### Do not gate on `reviewDecision`
 
-`APPROVED` is not a reachable state in this repo's current workflow, so requiring it would
-loop forever. Review bots here post an **issue comment**, not a review: on every PR where a
-bot actually ran — #111 (gemini), #115 and #116 (claude) — `reviews` was empty and
-`reviewDecision` stayed `REVIEW_REQUIRED`, including on PRs that merged. `main` has no
-branch protection and requires no approvals. Treat `APPROVED` as a bonus, never a gate.
+`APPROVED` is not something **this loop can produce**, so requiring it would loop forever.
+Review bots here post an **issue comment**, not a review: on every PR where a bot actually
+ran — #111 (gemini), #115 and #116 (claude) — `reviews` was empty and `reviewDecision`
+stayed `REVIEW_REQUIRED`, including on PRs that merged. Nothing the loop does changes that,
+and the PR author cannot approve their own PR.
+
+**`main` *is* protected — approval is a human step outside this loop.** A repository
+ruleset (`default`, active) sets `required_approving_review_count: 1` on `main`, so
+`mergeStateStatus` reads `BLOCKED` until a human approves. Two things make this compatible
+with not gating on it:
+
+- the ruleset has a `RepositoryRole` bypass actor with `bypass_mode: always`, so the repo
+  owner can merge without the approval; and
+- an approval could only come from a human anyway — the loop cannot generate one.
+
+So: treat `APPROVED` as a bonus, never a gate, and when you exit, **say plainly that human
+approval is still outstanding** rather than implying the PR is merge-ready.
+
+> Verifying this yourself: `gh api repos/:owner/:repo/branches/main/protection` returns
+> **404 "Branch not protected"** even though `main` is protected — classic branch protection
+> and rulesets are different APIs. Use
+> `gh api repos/:owner/:repo/rules/branches/main` instead. Concluding "unprotected" from the
+> 404 is wrong, and this file previously did exactly that.
 
 ### Iteration cap
 
-Run at most **5** full loop iterations. If you hit the cap without meeting the exit
-condition — most likely a rebut → re-review → same-finding-again cycle, or a judgment call
-in #2 that keeps misfiring — **stop and report to the user**: what is still open, what you
-tried, and where you think it is stuck. Do not keep looping silently.
+Run at most **5** iterations.
+
+**Increment the counter every time Step 1 begins — no exceptions.** That includes
+re-entering Step 1 from *Handling CI Failures*, not only completing a Step 4 → Step 5 review
+cycle. Without this, a persistently red CI can cycle `Step 1 ⇄ Handling CI Failures`
+indefinitely — fixing the wrong root cause, a flaky test, or a new failure each pass — never
+reaching Steps 4/5, and so never spending an iteration under a "full pass through the
+protocol" reading of the cap. The cap is the backstop for every other rule in this file; it
+has to count the cheapest cycle, not just the expensive one.
+
+If you hit the cap without meeting the exit condition — a rebut → re-review →
+same-finding-again cycle, a judgment call in #2 that keeps misfiring, or a CI failure you
+cannot fix — **stop and report to the user**: what is still open, what you tried, and where
+you think it is stuck. Do not keep looping silently.
