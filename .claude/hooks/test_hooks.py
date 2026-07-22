@@ -24,12 +24,20 @@ SUB_OPEN, SUB_CLOSE, BT = "$(", ")", chr(96)
 failures: list[str] = []
 
 
-def verdict(hook: str, payload: dict) -> str:
+def verdict(hook: str, payload: dict, cwd: pathlib.Path | None = None) -> str:
+    """Run a hook against a payload.
+
+    `cwd` must be given for any case whose expected answer depends on it —
+    block_main_edits falls back to the working directory when the payload
+    carries no usable file_path. Leaving it implicit makes the test pass in
+    a worktree and fail on main, which is exactly what happened.
+    """
     proc = subprocess.run(
         [sys.executable, str(HOOKS / hook)],
         input=json.dumps(payload),
         capture_output=True,
         text=True,
+        cwd=cwd,
     )
     return "deny" if proc.stdout.strip() else "allow"
 
@@ -192,10 +200,13 @@ def test_block_main_edits() -> None:
         check("nonexistent nested dir under worktree", at(tree / "x/y/z.txt"), "allow")
         check("path outside any repo", at(root / "loose.txt"), "allow")
 
-        # A malformed payload falls back to cwd rather than allowing outright.
-        check(
-            "null file_path", verdict(h, {"tool_input": {"file_path": None}}), "allow"
-        )
+        # With no usable file_path the check falls back to cwd rather than
+        # allowing outright, so both directions are pinned explicitly. Without
+        # an explicit cwd these pass in a worktree and fail on main.
+        no_path = {"tool_input": {"file_path": None}}
+        check("null file_path, cwd on main", verdict(h, no_path, cwd=repo), "deny")
+        check("null file_path, cwd on a branch", verdict(h, no_path, cwd=tree), "allow")
+        check("no file_path key, cwd on main", verdict(h, {}, cwd=repo), "deny")
         check("malformed JSON", _raw(h, "not json"), "allow")
 
         run("git", "worktree", "remove", "--force", str(tree), cwd=repo)
