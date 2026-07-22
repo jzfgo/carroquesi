@@ -46,7 +46,10 @@ Check three things:
   and did it run **against the current HEAD commit**? A PR with no review yet has **not** met
   this — go request one (Step 4) rather than treating it as clean. Neither has a PR whose
   last push landed after the review, even if that push only fixed CI.
-- **CI status?** Any failing checks in `statusCheckRollup`?
+- **CI status?** Any failing checks in `statusCheckRollup`? **If yes, go to
+  [Handling CI Failures](#handling-ci-failures) now**, then return here. Do not fall through
+  to comment triage — Steps 2–3 only handle review comments, so a red-CI PR with no open
+  threads would otherwise loop through re-reviews forever without anyone reading the CI logs.
 
 If all threads are addressed, **a completed re-review came back clean**, and CI is green →
 **you're done**. Report the final state and exit. Note `reviewDecision` will normally still
@@ -138,12 +141,20 @@ gh run list --workflow=claude.yml --limit 5 \
 # 2. primary gate: that run has finished
 gh run view <run-id> --json status,conclusion --jq '"\(.status)/\(.conclusion)"'
 
-# 3. secondary check + read the result (sort by time, not array order)
-gh pr view <number> --json comments \
-  --jq '[.comments[] | select(.author.login == "claude")
-         | select(.body | test("in progress"; "i") | not)]
-        | sort_by(.createdAt) | last | .body'
+# 3. read THAT run's comment, matched by run id — not by text, not by recency
+gh api repos/:owner/:repo/issues/<number>/comments --paginate \
+  --jq '.[] | select(.body | test("runs/<run-id>")) | .body'
 ```
+
+**Match the comment by run id.** Filtering on the absence of "in progress" text is
+unreliable in both directions: a *finished* review that happens to discuss the phrase (for
+instance, a review of this very skill file) is wrongly excluded, and the wording varies
+between passes. The run id in the comment's `[View job]` link is unambiguous.
+
+Do not sort by `createdAt` either. The action **edits its comment in place**, so `createdAt`
+is when the placeholder appeared, not when the review finished; `updated_at` is what moves.
+Each trigger does post its own comment, but ordering on `createdAt` after filtering has
+already produced the wrong comment in practice.
 
 Two more traps seen in practice:
 
@@ -170,6 +181,9 @@ record that a clean re-review has completed.
 ---
 
 ## Handling CI Failures
+
+**Entered from Step 1** whenever `statusCheckRollup` has failing checks. This is part of the
+loop, not an appendix — Steps 2–3 are scoped to comment threads and will never fix CI.
 
 If `statusCheckRollup` has failing checks:
 
