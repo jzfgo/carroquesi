@@ -26,6 +26,10 @@ preview:
 test:
     {{ nvm-exec }} pnpm test
 
+# Run tests with coverage (vitest run --coverage)
+test-coverage:
+    {{ nvm-exec }} pnpm test:coverage
+
 # Run tests in watch mode (vitest)
 test-watch:
     {{ nvm-exec }} pnpm test:watch
