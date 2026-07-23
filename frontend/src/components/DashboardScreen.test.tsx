@@ -851,3 +851,40 @@ describe('DashboardScreen — offline', () => {
     localStorage.removeItem('cqs_dashboard_cache_u1')
   })
 })
+
+describe('notifications toggle', () => {
+  beforeEach(() => {
+    // The shared setup disables every flag; this control is gated on one.
+    // Enable only that flag — a blanket `() => true` switches on unrelated
+    // features whose code paths this file does not mock.
+    vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
+      isEnabled: (flag: string) => flag === 'push_notifications',
+    })
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+  })
+
+  it('offers to enable notifications when permission has not been answered', async () => {
+    vi.stubGlobal('Notification', { permission: 'default' })
+
+    render(<DashboardScreen />)
+
+    expect(
+      await screen.findByRole('button', { name: /avisarme de cambios/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('explains how to unblock instead of offering a dead button when denied', async () => {
+    // Once denied, requestPermission() returns without prompting, so a button
+    // here would look broken: tapping it could never change anything.
+    vi.stubGlobal('Notification', { permission: 'denied' })
+
+    render(<DashboardScreen />)
+
+    expect(
+      await screen.findByText(/ajustes de tu navegador/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /avisarme de cambios/i }),
+    ).toBeNull()
+  })
+})

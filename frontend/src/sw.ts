@@ -42,6 +42,15 @@ cleanupOutdatedCaches()
 registerRoute(new RegExp(`^${escapeRegex(BACKEND_URL)}/`), new NetworkOnly())
 
 // Data-only messages: FCM wraps the payload, so read `data` when present.
+// The three guards below return without displaying anything, which is a
+// deliberate exception to the "always show something" rule noted further down —
+// worth stating, because it reads like a bug otherwise. We are the only sender,
+// and every payload we send carries these fields, so reaching a guard means the
+// message is not ours or is malformed, and there is nothing truthful to show.
+// The accepted risk is that Safari may eventually drop a subscription that
+// repeatedly receives a push and displays nothing. If device testing ever shows
+// that happening, the fix is a generic fallback notification here rather than a
+// silent return — not removing the guards.
 self.addEventListener('push', (event: PushEvent) => {
   if (!event.data) return
   let payload: PushPayload
@@ -54,7 +63,7 @@ self.addEventListener('push', (event: PushEvent) => {
   if (!payload.list_id) return
 
   const note = buildNotification(payload)
-  // Safari forbids silent push: every push event must display something.
+  // Safari forbids silent push: a well-formed push must display something.
   event.waitUntil(
     self.registration.showNotification(note.title, {
       body: note.body,

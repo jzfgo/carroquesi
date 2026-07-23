@@ -438,6 +438,21 @@ export { expect }
 
 export const test = base.extend<object>({
   page: async ({ page }, provide) => {
+    // Headless Chromium hard-codes Notification.permission to 'denied', so
+    // without this every screenshot would show the dashboard's "you have
+    // blocked notifications" notice instead of the ordinary control.
+    // context.grantPermissions() does NOT fix it — verified: the value stays
+    // 'denied' whether granted for all origins or scoped to this one. Override
+    // the getter instead, which is consistent with a suite that already mocks
+    // the whole backend. The denied branch has unit coverage.
+    // Passed as source text, not a closure: this runs in the browser, but the
+    // test project is typechecked with lib ES2023 only, where `Notification`
+    // does not exist.
+    await page.addInitScript({
+      content:
+        "Object.defineProperty(Notification, 'permission', " +
+        "{ get: () => 'default', configurable: true })",
+    })
     await installApiMocks(page)
     await provide(page)
   },

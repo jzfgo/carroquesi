@@ -41,6 +41,7 @@ import {
   disablePush,
   enablePush,
   isPushEnabled,
+  permissionState,
 } from '../lib/push'
 import type { ApiList } from '../types'
 import { ApiKeySheet } from './ApiKeySheet'
@@ -462,7 +463,20 @@ export function DashboardScreen() {
           promptInstall={promptInstall}
         />
         {isEnabled(FLAGS.PUSH_NOTIFICATIONS) &&
-          canReceivePush({ isIOS, isInstalled }) && (
+          canReceivePush({ isIOS, isInstalled }) &&
+          // Once permission is denied the browser will not re-prompt, so a
+          // button here would call requestPermission(), return immediately and
+          // change nothing — a control that looks broken. Explain the way out
+          // instead of offering a dead action.
+          (permissionState() === 'denied' ? (
+            <p className="notifications-toggle notifications-toggle--blocked">
+              <span className="notifications-toggle__icon" aria-hidden="true">
+                <BellOff size={18} />
+              </span>
+              Has bloqueado los avisos. Actívalos en los ajustes de tu navegador
+              para volver a recibirlos.
+            </p>
+          ) : (
             <button
               className="notifications-toggle"
               onClick={async () => {
@@ -480,7 +494,7 @@ export function DashboardScreen() {
                 ? 'Desactivar avisos'
                 : 'Avisarme de cambios en mis listas'}
             </button>
-          )}
+          ))}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

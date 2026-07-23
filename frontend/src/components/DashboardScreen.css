@@ -142,3 +142,15 @@
   display: flex;
   flex-shrink: 0;
 }
+
+/* Blocked state: informational, not actionable — muted so it does not invite a
+   tap that the browser would ignore. */
+.notifications-toggle--blocked {
+  margin: 0;
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--fg-muted, #353742);
+  cursor: default;
+  background: var(--bg-raised, #fff);
+  border-color: var(--border, #e2e6ee);
+}
