@@ -96,3 +96,11 @@ remains the right tool in the *page*, where it manages token lifecycle and rotat
   So: leave `globPatterns` unset, and treat the before/after precache diff as the gate
   for any future worker configuration change. Checking that the build succeeds proves
   nothing here — every variant above builds cleanly.
+
+  When diffing, extract entries with `"?url"?:"[^"]+"` and **assert the entry count**.
+  The two strategies serialize the manifest differently — `generateSW` emitted
+  `{url:"x",revision:...}` with bare keys, `injectManifest` emits
+  `{"revision":...,"url":"x"}` with quoted keys in the opposite order. A regex written
+  against one shape silently matches nothing against the other, and two empty
+  extractions diff as "identical" — a false pass on the one gate that matters. Compare
+  against the `precache N entries (M KiB)` line the build prints.
