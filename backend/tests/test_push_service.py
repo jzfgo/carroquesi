@@ -246,3 +246,58 @@ def test_send_returns_within_budget_when_fcm_hangs(session, user, other_user):
         release.set()
 
     assert elapsed < 5
+
+
+def test_adding_an_item_notifies(client, session, user, other_user):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    session.add(ListMember(list_id=lst["id"], user_id=other_user.id))
+    session.add(PushToken(user_id=other_user.id, token="tok"))
+    session.commit()
+
+    with patch("app.routers.items.notify_list_change") as notify:
+        client.post(f"/lists/{lst['id']}/items", json={"name": "leche"})
+
+    notify.assert_called_once()
+    assert notify.call_args.args[3] == "added"
+
+
+def test_purchasing_notifies_and_records_purchaser(client, session, user):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "leche"}).json()
+
+    with patch("app.routers.items.notify_list_change") as notify:
+        client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    assert notify.call_args.args[3] == "purchased"
+    session.expire_all()
+    assert session.get(ListItem, item["id"]).purchased_by == user.id
+
+
+def test_unpurchasing_does_not_notify(client, session, user):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "leche"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    with patch("app.routers.items.notify_list_change") as notify:
+        client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+
+    notify.assert_not_called()
+
+
+def test_renaming_does_not_notify(client, session, user):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "leche"}).json()
+
+    with patch("app.routers.items.notify_list_change") as notify:
+        client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"name": "leche entera"})
+
+    notify.assert_not_called()
+
+
+def test_item_write_succeeds_when_push_raises(client, session, user):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+
+    with patch("app.routers.items.notify_list_change", side_effect=RuntimeError("boom")):
+        resp = client.post(f"/lists/{lst['id']}/items", json={"name": "leche"})
+
+    assert resp.status_code == 201
