@@ -38,3 +38,4 @@ Use short-polling: the frontend calls `GET /lists/{list_id}/updated-at` every 5 
 - **Accepted:** Slightly higher request volume vs. push-based approaches.
 - **Gained:** No persistent connection management, no WebSocket infra, no Firestore dependency.
 - **Watch:** If the app moves toward higher-frequency collaboration (e.g. live cursor positions, typing indicators), revisit WebSockets or SSE.
+- **Related:** [ADR-010](010-web-push-via-fcm.md) adds web push for out-of-app notifications. It complements this decision rather than replacing it — polling keeps an *open* app fresh, push reaches a *closed* one. Push is best-effort and unavailable to iOS users without an installed PWA, so it can never be relied on as a sync mechanism.
