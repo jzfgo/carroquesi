@@ -180,6 +180,8 @@ neonctl snapshots restore <snapshot-id> --project-id $PROJECT --name restore-tes
 # inspect. Cutting over is then a separate, deliberate decision.
 neonctl snapshots restore <snapshot-id> --project-id $PROJECT \
   --target-branch production
+#   ^ prints the new branch as restored_branch.id / .name — note it down; if you
+#     lose the output, `neonctl branches list --project-id $PROJECT` finds it.
 # ...inspect the restored branch, then either cut over:
 neonctl snapshots finalize <restored-branch> --project-id $PROJECT
 #   (--name <label> renames the replaced branch; it is kept, not deleted)
