@@ -131,6 +131,17 @@ def apply_receipt_prices(
     list_and_user: MemberDep = None,
 ):
     _, current_user = list_and_user
+
+    # Gate the apply step on the same flag as the scan step. The UI reaches
+    # here only after a successful scan, so a flag-less user is already stopped
+    # upstream — but this endpoint writes prices and creates impulse buys, and
+    # must not be reachable by a direct call that skips the scan.
+    if not feature_flags.is_enabled(current_user.id, "ai_receipt_scanning", session):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ai_receipt_scanning feature not enabled",
+        )
+
     now = datetime.now(UTC).replace(tzinfo=None)
     purchase_ts = _parse_receipt_at(body.receipt_date) or now
     updated = 0

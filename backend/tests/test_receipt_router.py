@@ -470,6 +470,25 @@ def test_post_receipt_returns_403_when_flag_disabled(session, other_user, other_
     assert response.status_code == 403
 
 
+def test_receipt_prices_returns_403_when_flag_disabled(session, other_user, other_client):
+    """The apply step must gate on ai_receipt_scanning too, not just the scan
+    step. other_user is a member of their own list but lacks the flag, so a
+    direct call to /receipt-prices (bypassing the UI's scan-first flow) must be
+    rejected before it can write prices or create impulse buys."""
+    from app.db.models import List, ListMember
+
+    lst = List(id="list-receipt-other", name="Other List", owner_id=other_user.id)
+    mem = ListMember(list_id="list-receipt-other", user_id=other_user.id)
+    session.add_all([lst, mem])
+    session.commit()
+
+    response = other_client.post(
+        "/lists/list-receipt-other/receipt-prices",
+        json={"scan_id": None, "patches": [], "mappings": []},
+    )
+    assert response.status_code == 403
+
+
 def test_receipt_prices_is_backward_compatible_with_pre_new_items_clients(client, session):
     """A cached PWA client deployed before this change omits new_items and
     receipt_date. The endpoint must still succeed and must not create anything."""
