@@ -303,10 +303,18 @@ an unapproved PR is *not* blocked on that account. What the ruleset actually enf
 | bypass actor | `RepositoryRole` with `bypass_mode: always` — the repo owner can merge regardless. |
 
 So when `mergeStateStatus` reads `BLOCKED`, **do not report it as "awaiting human approval"** —
-that was true of an earlier ruleset and is now wrong. Check which rule is unsatisfied; in
-practice it is a required status check that is failing, still running, or *absent*. Absent is
-the trap: if GitHub drops a `synchronize` event, the PR head advances with **no checks
-reported at all**, which is neither passing nor failing and blocks the merge silently.
+that was true of an earlier ruleset and is now wrong. Check which rule is unsatisfied. One
+common real cause is a required status check that is failing, still running, or *absent*.
+Absent is the trap: if GitHub drops a `synchronize` event, the PR head advances with **no
+checks reported at all**, which is neither passing nor failing and blocks the merge silently.
+
+**"None" is a valid answer, and it is the usual one here.** `BLOCKED` is not authoritative
+under rulesets: GraphQL tends to report it whenever a ruleset with a `pull_request` rule
+applies, satisfied or not. Observed on #121 with every requirement met — `mergeable:
+MERGEABLE`, both required checks green from the right integration, zero approvals required,
+not a draft, `strict_required_status_checks_policy: false` — and still `BLOCKED`. Do not
+keep querying for the missing rule; there isn't one, and the `bypass_mode: always` actor
+means the owner can merge regardless. Confirm the requirements individually, then say so.
 
 Note that only those two checks gate. `Playwright Tests` and `Agent guardrail hooks` are
 not in the required set, so a pending Playwright run does not block merging — though exit
@@ -315,8 +323,10 @@ condition #3 is deliberately stricter and waits for every check.
 `strict_required_status_checks_policy: false`, so the branch does not need to be up to date
 with `main` before merging.
 
-Treat `APPROVED` as a bonus, never a gate. At exit, state which specific rule is outstanding
-rather than asserting either "merge-ready" or "awaiting approval".
+Treat `APPROVED` as a bonus, never a gate. At exit, report the requirements you actually
+checked and their state — not a bare `BLOCKED`, and never "awaiting approval". If all of
+them are satisfied, say that plainly and hand the merge to the user. **Do not self-merge:**
+finishing the loop authorises no outward-facing action.
 
 > Verifying this yourself: `gh api repos/:owner/:repo/branches/main/protection` returns
 > **404 "Branch not protected"** even though `main` is protected — classic branch protection
