@@ -175,7 +175,17 @@ neonctl snapshots restore <snapshot-id> --project-id $PROJECT --name restore-tes
 # Verify before trusting it: compare against production
 #   psql "$(neonctl connection-string restore-test --project-id $PROJECT)"
 
-# Only if the restore is meant to replace production:
+# Stage a production cutover WITHOUT committing to it. Anchors the restore to
+# production but does NOT touch it — production keeps serving traffic while you
+# inspect. Cutting over is then a separate, deliberate decision.
+neonctl snapshots restore <snapshot-id> --project-id $PROJECT \
+  --target-branch production
+# ...inspect the restored branch, then either cut over:
+neonctl snapshots finalize <restored-branch> --project-id $PROJECT
+#   (--name <label> renames the replaced branch; it is kept, not deleted)
+# ...or walk away and delete the restored branch — production never moved.
+
+# Or do both at once, if you are certain: restore and cut over in one step
 neonctl snapshots restore <snapshot-id> --project-id $PROJECT \
   --target-branch production --finalize
 
