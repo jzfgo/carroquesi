@@ -173,12 +173,21 @@ Called **synchronously inside the request handler**. This is safe and preferable
   latency is not user-visible.
 
 Recipients are all `list_members` **except the actor, excluded by `user_id`** so the
-actor's other devices stay quiet. Delivery via `send_each_for_multicast` — one call
-covers every recipient device, batched at 500 tokens.
+actor's other devices stay quiet.
 
-The entire send is wrapped in try/except **with an explicit timeout**. A push failure
-must never fail a grocery-list write, and a hung FCM call must not occupy a
-threadpool worker and slow item adds.
+**Delivery is one multicast per recipient *user*, not one for the whole list.**
+`unseen_count` is computed per recipient from that member's own watermark — Bob may be
+three changes behind while Carol is five — and `send_each_for_multicast` transmits a
+single identical payload to every token it is given. Recipients therefore cannot share
+one call. The send groups tokens by `user_id`, computes that user's count once, and
+issues one multicast per user; a user's own devices legitimately share a count and a
+call. Token lists are batched at 500 per call.
+
+The entire send is wrapped in try/except with a **total timeout budget across all
+recipients**, not a per-call timeout. A push failure must never fail a grocery-list
+write, and N recipients must not mean N sequential round-trips holding a threadpool
+worker — a five-member list would otherwise add roughly a second to every item add.
+Sends run concurrently within that budget.
 
 ### Triggers
 
@@ -294,6 +303,10 @@ The priming card belongs in the scroll flow near the top of the list, not floati
 and must respect `env(safe-area-inset-*)`.
 
 On grant: `getToken({ vapidKey, serviceWorkerRegistration })` → `POST /notifications/tokens`.
+
+**App Check checkpoint:** `firebase.ts` initialises App Check with reCAPTCHA v3 in
+production. FCM `getToken` requires a valid App Check token, so registration failures
+in production that do not reproduce locally should be investigated there first.
 `VITE_FIREBASE_VAPID_KEY` is exposed through `frontend/src/lib/environment.ts`, per
 the project convention of never reading `import.meta.env` directly.
 
@@ -318,8 +331,10 @@ UI-only blast radius, but it is the inverse of how `ai_receipt_scanning` behaves
 
 - Actor excluded **by `user_id`, never by token** — otherwise your laptop buzzes about
   what you just typed on your phone.
-- One user with N devices: all tokens receive the message; `unseen_count` is per-user,
-  so every device agrees.
+- One user with N devices: all tokens receive the same payload in one multicast;
+  `unseen_count` is per-user, so every device agrees.
+- **Never multicast across users.** Counts differ per recipient, and a shared call
+  would broadcast one user's count to everyone.
 - `send_each_for_multicast` caps at 500 tokens per call; batch beyond that.
 
 ### State changing between calls
@@ -362,6 +377,24 @@ UI-only blast radius, but it is the inverse of how `ai_receipt_scanning` behaves
 ---
 
 ## 10. Testing
+
+### Device spike — before anything else is built
+
+The entire copy-and-coalescing scheme rests on one unverified platform assumption:
+that a **data-only** FCM message reliably wakes the service worker via
+`onBackgroundMessage` on an **installed iOS PWA**, letting us compose the count
+client-side. The pattern is Safari-compliant on paper, but iOS Web Push is the least
+reliable target in this design, and if the assumption is wrong the fallback is
+`notification`-payload messages — which lose service-worker composition entirely and
+invalidate §6.
+
+So this is validated **first**, with a throwaway spike: send one data-only push to a
+real installed iOS PWA and confirm `onBackgroundMessage` fires and `showNotification`
+renders. Not after the token table, endpoints, and triggers exist.
+
+Deferring this to the §11 rollout step would repeat a known failure pattern: building
+the whole pipeline against local behaviour, then discovering at the end that the one
+environment that matters behaves differently.
 
 **Backend** (SQLite in-memory, no network):
 

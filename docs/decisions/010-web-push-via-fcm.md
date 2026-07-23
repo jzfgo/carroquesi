@@ -101,8 +101,11 @@ shows it is needed; it composes on top of this design without rework.
 
 ## Consequences
 
-- **Accepted:** One FCM call per qualifying write. At this app's scale that is
-  negligible, but it does scale with write volume rather than with burst count.
+- **Accepted:** One FCM call per recipient *user* per qualifying write. Because the
+  change count is per-recipient, recipients cannot share a multicast; only a user's own
+  devices can. Call volume therefore scales with write volume times member count
+  rather than with burst count. Negligible at this app's scale, but it is why the send
+  runs concurrently under a total timeout budget.
 - **Accepted:** Delivery is best-effort. Web Push has no read receipts; we can know
   what FCM accepted, never what the user saw.
 - **Accepted:** The tray count resets if the user dismisses the notification without
