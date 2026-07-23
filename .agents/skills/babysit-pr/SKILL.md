@@ -291,17 +291,32 @@ ran — #111 (gemini), #115 and #116 (claude) — `reviews` was empty and `revie
 stayed `REVIEW_REQUIRED`, including on PRs that merged. Nothing the loop does changes that,
 and the PR author cannot approve their own PR.
 
-**`main` *is* protected — approval is a human step outside this loop.** A repository
-ruleset (`default`, active) sets `required_approving_review_count: 1` on `main`, so
-`mergeStateStatus` reads `BLOCKED` until a human approves. Two things make this compatible
-with not gating on it:
+**`main` *is* protected, but not by an approval requirement.** The `default` ruleset
+(active) sets **`required_approving_review_count: 0`**. No human approval is required, and
+an unapproved PR is *not* blocked on that account. What the ruleset actually enforces:
 
-- the ruleset has a `RepositoryRole` bypass actor with `bypass_mode: always`, so the repo
-  owner can merge without the approval; and
-- an approval could only come from a human anyway — the loop cannot generate one.
+| Rule | Effect |
+|---|---|
+| `required_status_checks` | **`Frontend (typecheck + lint + format + test)`** and **`Backend (lint + format + tests)`** must pass. These two are the real merge gate. |
+| `pull_request` | `required_approving_review_count: 0`, `required_review_thread_resolution: false` — neither approvals nor resolved threads block merge. |
+| `required_linear_history` | Squash or rebase only; no merge commits. |
+| bypass actor | `RepositoryRole` with `bypass_mode: always` — the repo owner can merge regardless. |
 
-So: treat `APPROVED` as a bonus, never a gate, and when you exit, **say plainly that human
-approval is still outstanding** rather than implying the PR is merge-ready.
+So when `mergeStateStatus` reads `BLOCKED`, **do not report it as "awaiting human approval"** —
+that was true of an earlier ruleset and is now wrong. Check which rule is unsatisfied; in
+practice it is a required status check that is failing, still running, or *absent*. Absent is
+the trap: if GitHub drops a `synchronize` event, the PR head advances with **no checks
+reported at all**, which is neither passing nor failing and blocks the merge silently.
+
+Note that only those two checks gate. `Playwright Tests` and `Agent guardrail hooks` are
+not in the required set, so a pending Playwright run does not block merging — though exit
+condition #3 is deliberately stricter and waits for every check.
+
+`strict_required_status_checks_policy: false`, so the branch does not need to be up to date
+with `main` before merging.
+
+Treat `APPROVED` as a bonus, never a gate. At exit, state which specific rule is outstanding
+rather than asserting either "merge-ready" or "awaiting approval".
 
 > Verifying this yourself: `gh api repos/:owner/:repo/branches/main/protection` returns
 > **404 "Branch not protected"** even though `main` is protected — classic branch protection
