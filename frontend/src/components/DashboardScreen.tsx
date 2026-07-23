@@ -12,6 +12,7 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { Bell, BellOff } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -472,6 +473,9 @@ export function DashboardScreen() {
                 setPushOn(isPushEnabled())
               }}
             >
+              <span className="notifications-toggle__icon" aria-hidden="true">
+                {pushOn ? <BellOff size={18} /> : <Bell size={18} />}
+              </span>
               {pushOn
                 ? 'Desactivar avisos'
                 : 'Avisarme de cambios en mis listas'}

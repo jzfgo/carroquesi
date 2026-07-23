@@ -117,16 +117,28 @@
   border-top: 1px solid var(--border);
 }
 
+/* Reads as a control, not a text field: accent-tinted like InstallBanner, with
+   a leading icon. A pale left-aligned box with a hairline border was being
+   mistaken for a disabled input, which is fatal for an opt-in affordance. */
 .notifications-toggle {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
   width: 100%;
   min-height: var(--hit-min, 44px);
   padding: 0.625rem 0.75rem;
   font-family: inherit;
   font-size: var(--fs-14);
-  color: var(--fg-muted, #353742);
+  font-weight: 600;
+  color: var(--accent, #1a3fa0);
   text-align: left;
   cursor: pointer;
-  background: var(--bg-raised, #fff);
-  border: 1px solid var(--border, #e2e6ee);
+  background: var(--accent-bg, rgb(26 63 160 / 8%));
+  border: 1px solid var(--accent-border, rgb(26 63 160 / 28%));
   border-radius: 12px;
+}
+
+.notifications-toggle__icon {
+  display: flex;
+  flex-shrink: 0;
 }
