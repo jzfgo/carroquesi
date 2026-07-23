@@ -1,40 +1,69 @@
-import { Calendar, Check, Coins, Pencil, X } from 'lucide-react'
+import { Calendar, Check, Coins, Pencil, ScanBarcode, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { formatPrice } from '../lib/formatPrice'
 import { parseQuantityFactor, purchasedDateLabel } from '../lib/itemCost'
+import { parseInput } from '../lib/parseInput'
 import type {
+  BarcodeRead,
   MatchedLine,
   NameMapping,
+  NewPurchasedItem,
   PricePatch,
   ReceiptScanResult,
   UnmatchedLine,
 } from '../types'
 import './ReceiptScanSheet.css'
 
-interface PurchasedItemRef {
+export interface ItemRef {
   id: string
   name: string
+  purchased: boolean
   purchased_at: string | null
   brand: string | null
   stores: string[]
   quantity: string | null
 }
 
+type LineMode = 'ignore' | 'link' | 'create'
+
+const CREATE_OPTION = '__create__'
+
 interface LineState {
   included: boolean
+  mode: LineMode
   itemId: string | null
+  createText: string
+  createEan: string | null
   quantity: string
   unitPrice: number
   pricePer: 'KILOGRAM' | null
 }
 
+type PendingScan = { index: number; product: BarcodeRead } | null
+
 interface Props {
   result: ReceiptScanResult
-  purchasedItems: PurchasedItemRef[]
+  candidateItems: ItemRef[]
   store: string | null
-  onConfirm: (patches: PricePatch[], mappings: NameMapping[]) => void
+  /** Resolves to whether the submit succeeded; false (or a throw) re-enables the confirm button. */
+  onConfirm: (
+    patches: PricePatch[],
+    mappings: NameMapping[],
+    newItems: NewPurchasedItem[],
+  ) => Promise<boolean>
   onClose: () => void
+  pendingScan?: PendingScan
+  onRequestScan?: (index: number) => void
+}
+
+/** Name a create row will produce, after sigils are stripped. */
+function createdName(ls: LineState): string {
+  return parseInput(ls.createText).name.trim()
+}
+
+function isInvalidCreate(ls: LineState): boolean {
+  return ls.included && ls.mode === 'create' && createdName(ls) === ''
 }
 
 function initialQuantity(line: MatchedLine | UnmatchedLine): string {
@@ -53,14 +82,20 @@ function initState(result: ReceiptScanResult): LineState[] {
   return [
     ...result.matched.map((m) => ({
       included: true,
+      mode: 'link' as const,
       itemId: m.item_id,
+      createText: '',
+      createEan: null,
       quantity: initialQuantity(m),
       unitPrice: m.unit_price,
       pricePer: m.price_type === 'KILOGRAM' ? ('KILOGRAM' as const) : null,
     })),
     ...result.unmatched.map((u) => ({
       included: false,
+      mode: 'ignore' as const,
       itemId: null,
+      createText: '',
+      createEan: null,
       quantity: initialQuantity(u),
       unitPrice: u.unit_price,
       pricePer: u.price_type === 'KILOGRAM' ? ('KILOGRAM' as const) : null,
@@ -84,14 +119,14 @@ function computeLineTotal(ls: LineState): number {
 }
 
 function groupItemsByDate(
-  items: PurchasedItemRef[],
-): { label: string; items: PurchasedItemRef[] }[] {
+  items: ItemRef[],
+): { label: string; items: ItemRef[] }[] {
   const sorted = [...items].sort((a, b) => {
     if (!a.purchased_at) return 1
     if (!b.purchased_at) return -1
     return b.purchased_at.localeCompare(a.purchased_at)
   })
-  const groups: { label: string; items: PurchasedItemRef[] }[] = []
+  const groups: { label: string; items: ItemRef[] }[] = []
   for (const item of sorted) {
     const label = purchasedDateLabel(item.purchased_at)
     const last = groups[groups.length - 1]
@@ -104,12 +139,30 @@ function groupItemsByDate(
   return groups
 }
 
+/**
+ * Unpurchased items must be split out before date grouping —
+ * `purchasedDateLabel(null)` returns "Fecha desconocida", which is wrong for an
+ * item that simply hasn't been bought yet.
+ */
+function groupItems(items: ItemRef[]): { label: string; items: ItemRef[] }[] {
+  const unpurchased = items.filter((i) => !i.purchased)
+  const purchased = items.filter((i) => i.purchased)
+  return [
+    ...(unpurchased.length
+      ? [{ label: 'Sin comprar', items: unpurchased }]
+      : []),
+    ...groupItemsByDate(purchased),
+  ]
+}
+
 export default function ReceiptScanSheet({
   result,
-  purchasedItems,
+  candidateItems,
   store,
   onConfirm,
   onClose,
+  pendingScan,
+  onRequestScan,
 }: Props) {
   const allLines: (MatchedLine | UnmatchedLine)[] = [
     ...result.matched,
@@ -119,11 +172,42 @@ export default function ReceiptScanSheet({
     initState(result),
   )
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [submitted, setSubmitted] = useState(false)
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
 
+  // Adjusts state in response to a prop change, per React's "you might not
+  // need an effect" guidance — a scan result is an event the parent hands
+  // down, not an external system to synchronize with. Tracking the last
+  // applied scan by identity lets the same row be scanned again (the parent
+  // always hands down a fresh object) without re-applying on every render.
+  const [appliedScan, setAppliedScan] = useState<PendingScan>(null)
+  if (pendingScan && pendingScan !== appliedScan) {
+    setAppliedScan(pendingScan)
+    const { index, product } = pendingScan
+    const text = product.brand
+      ? `${product.name} #${product.brand}`
+      : product.name
+    setLineStates((prev) =>
+      prev.map((ls, i) =>
+        i === index
+          ? {
+              ...ls,
+              mode: 'create' as const,
+              itemId: null,
+              included: true,
+              createText: text,
+              createEan: product.ean,
+            }
+          : ls,
+      ),
+    )
+    setExpanded((prev) => new Set(prev).add(index))
+  }
+
   const checkedCount = lineStates.filter((ls) => ls.included).length
   const allChecked = checkedCount === lineStates.length
+  const hasInvalidCreate = lineStates.some(isInvalidCreate)
 
   function updateLine(index: number, patch: Partial<LineState>) {
     setLineStates((prev) =>
@@ -152,8 +236,8 @@ export default function ReceiptScanSheet({
   const linkedItemIds = new Set(
     lineStates.map((ls) => ls.itemId).filter(Boolean) as string[],
   )
-  function availableItems(currentIndex: number): PurchasedItemRef[] {
-    return purchasedItems.filter(
+  function availableItems(currentIndex: number): ItemRef[] {
+    return candidateItems.filter(
       (item) =>
         !linkedItemIds.has(item.id) ||
         lineStates[currentIndex].itemId === item.id,
@@ -167,9 +251,12 @@ export default function ReceiptScanSheet({
   const receiptTotal = result.receipt_total
   const diff = receiptTotal != null ? selectedTotal - receiptTotal : null
 
-  function handleConfirm() {
+  async function handleConfirm() {
+    if (submitted) return
+    setSubmitted(true)
+
     const patches: PricePatch[] = lineStates.flatMap((ls) => {
-      if (!ls.included || !ls.itemId) return []
+      if (!ls.included || ls.mode !== 'link' || !ls.itemId) return []
       return [
         {
           item_id: ls.itemId,
@@ -181,21 +268,55 @@ export default function ReceiptScanSheet({
       ]
     })
 
+    const newItems: NewPurchasedItem[] = lineStates.flatMap((ls) => {
+      if (!ls.included || ls.mode !== 'create') return []
+      const parsed = parseInput(ls.createText)
+      const name = parsed.name.trim()
+      if (!name) return []
+      return [
+        {
+          name,
+          brand: parsed.brand,
+          // +qty and @store are parsed out of the name but discarded: the row's
+          // quantity field and the receipt header already own those values.
+          ean: parsed.ean ?? ls.createEan,
+          price: ls.unitPrice,
+          price_per: ls.pricePer,
+          store,
+          quantity: ls.quantity,
+        },
+      ]
+    })
+
     const mappings: NameMapping[] = lineStates.flatMap((ls, i) => {
-      if (!ls.included || !ls.itemId || !store) return []
-      const item = purchasedItems.find((p) => p.id === ls.itemId)
-      if (!item) return []
+      if (!ls.included || !store) return []
+      let itemName: string | null = null
+      if (ls.mode === 'link' && ls.itemId) {
+        itemName = candidateItems.find((p) => p.id === ls.itemId)?.name ?? null
+      } else if (ls.mode === 'create') {
+        itemName = createdName(ls) || null
+      }
+      if (!itemName) return []
       return [
         {
           store,
           receipt_name: allLines[i].receipt_name.toLowerCase(),
-          item_name: item.name,
+          item_name: itemName,
           item_brand: null,
         },
       ]
     })
 
-    onConfirm(patches, mappings)
+    // onConfirm resolves to whether the submit succeeded. On success the
+    // parent unmounts this sheet; on failure (or an unexpected throw) we
+    // re-enable the button so a flaky-connection user can retry without
+    // losing their edits and re-scanning.
+    try {
+      const ok = await onConfirm(patches, mappings, newItems)
+      if (!ok) setSubmitted(false)
+    } catch {
+      setSubmitted(false)
+    }
   }
 
   const formattedDate = result.receipt_date
@@ -251,8 +372,8 @@ export default function ReceiptScanSheet({
         {lineStates.map((ls, i) => {
           const line = allLines[i]
           const isExpanded = expanded.has(i)
-          const itemGroups = groupItemsByDate(availableItems(i))
-          const linkedItem = purchasedItems.find((p) => p.id === ls.itemId)
+          const itemGroups = groupItems(availableItems(i))
+          const linkedItem = candidateItems.find((p) => p.id === ls.itemId)
 
           return (
             <div
@@ -273,7 +394,11 @@ export default function ReceiptScanSheet({
                 <div className="rss-text">
                   <div className="rss-ocr">{line.receipt_name}</div>
                   <div className={`rss-item${ls.itemId ? '' : ' unlinked'}`}>
-                    {linkedItem ? linkedItem.name : 'sin vincular'}
+                    {ls.mode === 'create'
+                      ? `✚ ${createdName(ls) || 'artículo nuevo'}`
+                      : linkedItem
+                        ? linkedItem.name
+                        : 'sin vincular'}
                   </div>
                   <div className="rss-qty-summary">{formatQtySummary(ls)}</div>
                 </div>
@@ -292,16 +417,36 @@ export default function ReceiptScanSheet({
                   <div className="rss-field-label">Vincular a</div>
                   <select
                     className="rss-link-select"
-                    value={ls.itemId ?? ''}
+                    value={
+                      ls.mode === 'create' ? CREATE_OPTION : (ls.itemId ?? '')
+                    }
                     onChange={(e) => {
-                      const newId = e.target.value || null
-                      updateLine(i, {
-                        itemId: newId,
-                        included: newId !== null,
-                      })
+                      const v = e.target.value
+                      if (v === CREATE_OPTION) {
+                        updateLine(i, {
+                          mode: 'create',
+                          itemId: null,
+                          included: true,
+                        })
+                      } else if (v === '') {
+                        updateLine(i, {
+                          mode: 'ignore',
+                          itemId: null,
+                          included: false,
+                        })
+                      } else {
+                        updateLine(i, {
+                          mode: 'link',
+                          itemId: v,
+                          included: true,
+                        })
+                      }
                     }}
                   >
                     <option value="">— No vincular —</option>
+                    <option value={CREATE_OPTION}>
+                      ✚ Crear artículo nuevo
+                    </option>
                     {itemGroups.map((group) => (
                       <optgroup key={group.label} label={group.label}>
                         {group.items.map((item) => (
@@ -313,6 +458,69 @@ export default function ReceiptScanSheet({
                     ))}
                   </select>
                 </div>
+
+                {ls.mode === 'create' && (
+                  <div className="rss-field">
+                    <div className="rss-field-label">Artículo nuevo</div>
+                    <div className="rss-create-row">
+                      <input
+                        className="rss-create-input"
+                        type="text"
+                        value={ls.createText}
+                        placeholder="ej. Leche semi #Hacendado"
+                        aria-describedby={
+                          [
+                            `rss-create-hint-${i}`,
+                            isInvalidCreate(ls)
+                              ? `rss-create-error-${i}`
+                              : null,
+                            ls.included && ls.unitPrice <= 0
+                              ? `rss-create-warning-${i}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' ') || undefined
+                        }
+                        onChange={(e) =>
+                          updateLine(i, { createText: e.target.value })
+                        }
+                      />
+                      {onRequestScan && (
+                        <button
+                          type="button"
+                          className="rss-scan-btn"
+                          onClick={() => onRequestScan(i)}
+                          aria-label="Escanear código de barras"
+                        >
+                          <ScanBarcode size={16} />
+                        </button>
+                      )}
+                    </div>
+                    <div
+                      className="rss-create-hint"
+                      id={`rss-create-hint-${i}`}
+                    >
+                      #marca · usa comillas si hay espacios
+                    </div>
+                    {isInvalidCreate(ls) && (
+                      <div
+                        className="rss-create-error"
+                        id={`rss-create-error-${i}`}
+                        role="alert"
+                      >
+                        Escribe un nombre
+                      </div>
+                    )}
+                    {ls.included && ls.unitPrice <= 0 && (
+                      <div
+                        className="rss-create-warning"
+                        id={`rss-create-warning-${i}`}
+                      >
+                        Precio cero o negativo — ¿es un descuento?
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="rss-field">
                   <div className="rss-field-label">Cantidad · Precio</div>
@@ -390,7 +598,7 @@ export default function ReceiptScanSheet({
         </div>
         <button
           className="confirm-btn"
-          disabled={checkedCount === 0}
+          disabled={checkedCount === 0 || hasInvalidCreate || submitted}
           onClick={handleConfirm}
         >
           Guardar precios

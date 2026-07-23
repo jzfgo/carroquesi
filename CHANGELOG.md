@@ -10,7 +10,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Configure vitest coverage and fill test coverage gaps
+- Accept new_items and receipt_date in the receipt price batch
+
+- Parse receipt dates and instants into naive UTC
+
+- Mark an unpurchased item purchased when a receipt price is applied
+
+- Type new_items and receipt_date on the receipt price batch
+
+- Create purchased items from unmatched receipt lines
+
+- Create a new purchased item from an unmatched receipt line
+
+- Offer unpurchased list items when linking a receipt line
+
+- Send created items and the receipt date when applying prices
+
+- Warn on non-positive receipt prices and prevent double submit
+
+- Extract the receipt time and send it as a UTC instant
+
+- Fill a new receipt item from a barcode scan
+
+- Store the receipt time on the scan record
+
+- Migrate receipt_scans.receipt_date to a receipt_at timestamp
+
+- Configure vitest coverage and fill test coverage gaps (#126)
+
+
+### Changed
+- Give receipt rows an explicit link/create/ignore mode
+
+- **receipt-scan:** Rename purchasedItems to candidateItems, tighten guards
+
+- **receipt-ai:** Fold redundant date guard, document asymmetry, drop duplicate test
 
 
 ### Fixed
@@ -21,6 +55,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Patch 31 Dependabot vulnerabilities in backend dependencies (#124)
 
 - Patch 19 Dependabot vulnerabilities in frontend dependencies (#125)
+
+- Validate new_items name and price_per against ItemCreate's rules
+
+- Suppress leading-zero toast clause when a receipt count is zero
+
+- Reject out-of-range date components instead of rolling or throwing
+
+- Re-enable receipt confirm after a failed submit so users can retry
+
+- Parse receipt instants instead of silently discarding them
+
+- **test:** Stop receiptAi unit tests depending on Firebase credentials
+
+- Gate receipt-prices apply on the ai_receipt_scanning flag
 
 
 ---

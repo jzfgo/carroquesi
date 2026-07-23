@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select
@@ -20,6 +20,24 @@ router = APIRouter(tags=["receipt"])
 RECEIPT_MATCH_WINDOW_DAYS = 3
 
 
+def _parse_receipt_at(raw: str | None) -> datetime | None:
+    """Parse a receipt date or instant into a naive UTC datetime.
+
+    Accepts a bare date ("2026-04-11" -> midnight) or a full ISO 8601 instant
+    ("2026-04-11T17:42:00Z"). `date.fromisoformat` rejects the latter, so this
+    must use `datetime.fromisoformat`.
+    """
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(UTC)
+    return dt.replace(tzinfo=None)
+
+
 @router.post("/lists/{list_id}/receipt", response_model=ReceiptScanResult)
 def scan_receipt(
     list_id: str,
@@ -35,12 +53,13 @@ def scan_receipt(
             detail="ai_receipt_scanning feature not enabled",
         )
 
-    receipt_date: date | None = None
-    if body.receipt_date:
-        try:
-            receipt_date = date.fromisoformat(body.receipt_date)
-        except ValueError:
-            pass
+    # _parse_receipt_at normalises to naive UTC, so a receipt printed just
+    # after local midnight can yield a UTC date one day earlier than the
+    # wall-clock date. That skew is at most a few hours and is absorbed by
+    # the +-3 day window below; don't narrow the window without accounting
+    # for it.
+    receipt_at = _parse_receipt_at(body.receipt_date)
+    receipt_date = receipt_at.date() if receipt_at else None
 
     stmt = (
         select(ListItem)
@@ -85,7 +104,7 @@ def scan_receipt(
         list_id=list_id,
         scanned_by=current_user.id,
         store=store,
-        receipt_date=receipt_date,
+        receipt_at=receipt_at,
         receipt_total=body.receipt_total,
         parsed_lines=[line.model_dump() for line in body.lines],
         match_result=[m.model_dump() for m in matched],
@@ -112,7 +131,19 @@ def apply_receipt_prices(
     list_and_user: MemberDep = None,
 ):
     _, current_user = list_and_user
+
+    # Gate the apply step on the same flag as the scan step. The UI reaches
+    # here only after a successful scan, so a flag-less user is already stopped
+    # upstream — but this endpoint writes prices and creates impulse buys, and
+    # must not be reachable by a direct call that skips the scan.
+    if not feature_flags.is_enabled(current_user.id, "ai_receipt_scanning", session):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ai_receipt_scanning feature not enabled",
+        )
+
     now = datetime.now(UTC).replace(tzinfo=None)
+    purchase_ts = _parse_receipt_at(body.receipt_date) or now
     updated = 0
 
     for patch in body.patches:
@@ -126,8 +157,32 @@ def apply_receipt_prices(
         if patch.quantity is not None:
             item.purchased_quantity = patch.quantity  # actual receipt qty → new field
             # item.quantity (planned qty) is intentionally left untouched
+        # Infer the unpurchased -> purchased transition from server state. A
+        # client-sent flag could rewrite a timestamp set by another member.
+        if item.purchased_at is None:
+            item.purchased_at = purchase_ts
         session.add(item)
         updated += 1
+
+    created = 0
+    for new in body.new_items:
+        session.add(
+            ListItem(
+                list_id=list_id,
+                added_by=current_user.id,
+                name=new.name,
+                brand=new.brand,
+                ean=new.ean,
+                stores=[new.store] if new.store else [],
+                quantity=None,  # planned qty — an impulse buy was never planned
+                purchased_quantity=new.quantity,
+                price=new.price,
+                price_per=new.price_per,
+                price_store=new.store,
+                purchased_at=purchase_ts,
+            )
+        )
+        created += 1
 
     for m in body.mappings:
         stmt = select(ReceiptNameMapping).where(
@@ -156,7 +211,7 @@ def apply_receipt_prices(
     if body.scan_id:
         scan = session.get(ReceiptScan, body.scan_id)
         if scan:
-            scan.items_updated = updated
+            scan.items_updated = updated + created
             session.add(scan)
 
     lst = session.get(List, list_id)
@@ -166,4 +221,4 @@ def apply_receipt_prices(
 
     session.commit()
 
-    return {"items_updated": updated}
+    return {"items_updated": updated, "items_created": created}

@@ -1,9 +1,12 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
+from sqlmodel import select
 
-from app.db.models import List, ListItem, ListMember
+from app.db.models import List, ListItem, ListMember, ReceiptScan
 from app.db.models import UserFeature as _UserFeature
+from app.routers.receipt import _parse_receipt_at
+from app.schemas.receipt import ReceiptPriceBatch
 
 LIST_ID = "list-receipt-test"
 
@@ -465,3 +468,377 @@ def test_post_receipt_returns_403_when_flag_disabled(session, other_user, other_
 
     response = other_client.post("/lists/list-receipt-other/receipt", json=_unit_body())
     assert response.status_code == 403
+
+
+def test_receipt_prices_returns_403_when_flag_disabled(session, other_user, other_client):
+    """The apply step must gate on ai_receipt_scanning too, not just the scan
+    step. other_user is a member of their own list but lacks the flag, so a
+    direct call to /receipt-prices (bypassing the UI's scan-first flow) must be
+    rejected before it can write prices or create impulse buys."""
+    from app.db.models import List, ListMember
+
+    lst = List(id="list-receipt-other", name="Other List", owner_id=other_user.id)
+    mem = ListMember(list_id="list-receipt-other", user_id=other_user.id)
+    session.add_all([lst, mem])
+    session.commit()
+
+    response = other_client.post(
+        "/lists/list-receipt-other/receipt-prices",
+        json={"scan_id": None, "patches": [], "mappings": []},
+    )
+    assert response.status_code == 403
+
+
+def test_receipt_prices_is_backward_compatible_with_pre_new_items_clients(client, session):
+    """A cached PWA client deployed before this change omits new_items and
+    receipt_date. The endpoint must still succeed and must not create anything."""
+    before = len(session.exec(select(ListItem).where(ListItem.list_id == LIST_ID)).all())
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={"scan_id": None, "patches": [], "mappings": []},
+    )
+
+    assert response.status_code == 200
+    after = len(session.exec(select(ListItem).where(ListItem.list_id == LIST_ID)).all())
+    assert after == before
+
+
+def test_receipt_price_batch_parses_new_items_and_receipt_date():
+    """Guards the schema itself: the endpoint tolerates unknown keys either way,
+    so only direct model validation distinguishes parsed from silently dropped."""
+    batch = ReceiptPriceBatch.model_validate(
+        {
+            "scan_id": None,
+            "receipt_date": "2026-04-11",
+            "patches": [],
+            "new_items": [
+                {
+                    "name": "Chocolate negro",
+                    "brand": "Valor",
+                    "ean": None,
+                    "price": 1.8,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": "1",
+                }
+            ],
+            "mappings": [],
+        }
+    )
+
+    assert batch.receipt_date == "2026-04-11"
+    assert len(batch.new_items) == 1
+    assert batch.new_items[0].name == "Chocolate negro"
+    assert batch.new_items[0].brand == "Valor"
+    assert batch.new_items[0].price == 1.8
+    assert batch.new_items[0].store == "Mercadona"
+    assert batch.new_items[0].quantity == "1"
+    assert batch.new_items[0].ean is None
+
+
+def test_receipt_price_batch_defaults_new_fields():
+    """An older cached client omits both new fields entirely."""
+    batch = ReceiptPriceBatch.model_validate({"scan_id": None})
+    assert batch.receipt_date is None
+    assert batch.new_items == []
+    assert batch.patches == []
+    assert batch.mappings == []
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("2026-04-11", datetime(2026, 4, 11, 0, 0)),
+        ("2026-04-11T17:42:00Z", datetime(2026, 4, 11, 17, 42)),
+        ("2026-04-11T17:42:00+02:00", datetime(2026, 4, 11, 15, 42)),
+        (None, None),
+        ("", None),
+        ("not-a-date", None),
+    ],
+)
+def test_parse_receipt_at(raw, expected):
+    assert _parse_receipt_at(raw) == expected
+
+
+def test_parse_receipt_at_returns_naive_datetimes():
+    """Stored timestamps are naive UTC throughout the codebase."""
+    assert _parse_receipt_at("2026-04-11T17:42:00Z").tzinfo is None
+
+
+def test_receipt_prices_marks_unpurchased_item_as_purchased(client, session, user):
+    session.add(
+        ListItem(
+            id="item-pan",
+            list_id=LIST_ID,
+            name="Pan de molde",
+            added_by=user.id,
+            purchased_at=None,
+        )
+    )
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": "2026-04-11T17:42:00Z",
+            "patches": [
+                {
+                    "item_id": "item-pan",
+                    "price": 1.25,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": "1",
+                }
+            ],
+            "new_items": [],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    item = session.get(ListItem, "item-pan")
+    assert item.purchased_at == datetime(2026, 4, 11, 17, 42)
+    assert item.price == pytest.approx(1.25)
+
+
+def test_receipt_prices_does_not_rewrite_an_existing_purchase_timestamp(client, session):
+    """A co-shopper may have purchased it days ago; only prices should change."""
+    original = session.get(ListItem, "item-almendras").purchased_at
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": "2026-04-11T17:42:00Z",
+            "patches": [
+                {
+                    "item_id": "item-almendras",
+                    "price": 1.15,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": None,
+                }
+            ],
+            "new_items": [],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    assert session.get(ListItem, "item-almendras").purchased_at == original
+
+
+def test_receipt_prices_falls_back_to_now_without_a_receipt_date(client, session, user):
+    """Older clients omit receipt_date; the purchase still gets a timestamp."""
+    session.add(
+        ListItem(
+            id="item-leche",
+            list_id=LIST_ID,
+            name="Leche",
+            added_by=user.id,
+            purchased_at=None,
+        )
+    )
+    session.commit()
+    before = datetime.now(UTC).replace(tzinfo=None)
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "patches": [
+                {
+                    "item_id": "item-leche",
+                    "price": 0.99,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": None,
+                }
+            ],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    item = session.get(ListItem, "item-leche")
+    assert item.purchased_at is not None
+    assert item.purchased_at >= before
+
+
+def _new_item_body(**overrides):
+    item = {
+        "name": "Chocolate negro 85%",
+        "brand": "Valor",
+        "ean": "8412345678901",
+        "price": 1.8,
+        "price_per": None,
+        "store": "Mercadona",
+        "quantity": "2",
+    }
+    item.update(overrides)
+    return {
+        "scan_id": None,
+        "receipt_date": "2026-04-11T17:42:00Z",
+        "patches": [],
+        "new_items": [item],
+        "mappings": [],
+    }
+
+
+def test_receipt_prices_creates_a_purchased_item(client, session, user):
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=_new_item_body())
+    assert response.status_code == 200
+    assert response.json()["items_created"] == 1
+
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.list_id == LIST_ID
+    assert created.added_by == user.id
+    assert created.brand == "Valor"
+    assert created.ean == "8412345678901"
+    assert created.price == pytest.approx(1.8)
+    assert created.price_store == "Mercadona"
+    assert created.stores == ["Mercadona"]
+    assert created.purchased_at == datetime(2026, 4, 11, 17, 42)
+
+
+def test_created_item_uses_purchased_quantity_not_planned_quantity(client, session):
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=_new_item_body())
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.purchased_quantity == "2"
+    assert created.quantity is None
+
+
+def test_created_item_falls_back_to_now_without_a_receipt_date(client, session):
+    before = datetime.now(UTC).replace(tzinfo=None)
+    body = _new_item_body()
+    body["receipt_date"] = None
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.purchased_at >= before
+
+
+def test_created_item_has_empty_stores_without_a_store(client, session):
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=_new_item_body(store=None))
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.stores == []
+    assert created.price_store is None
+
+
+def test_receipt_prices_reports_updated_and_created_counts(client, session, user):
+    session.add(ListItem(id="item-pan2", list_id=LIST_ID, name="Pan", added_by=user.id))
+    session.commit()
+
+    body = _new_item_body()
+    body["patches"] = [
+        {
+            "item_id": "item-pan2",
+            "price": 1.25,
+            "price_per": None,
+            "store": "Mercadona",
+            "quantity": "1",
+        }
+    ]
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+    assert response.json() == {"items_updated": 1, "items_created": 1}
+
+
+def test_new_item_rejects_an_empty_name(client):
+    body = _new_item_body(name="")
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+    assert response.status_code == 422
+
+
+def test_new_item_rejects_an_unknown_price_per(client):
+    body = _new_item_body(price_per="LITRE")
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+    assert response.status_code == 422
+
+
+def test_scan_audit_counts_created_and_updated_items(client, session, user):
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id)
+    session.add(scan)
+    session.add(ListItem(id="item-pan3", list_id=LIST_ID, name="Pan", added_by=user.id))
+    session.commit()
+    scan_id = scan.id
+
+    body = _new_item_body()
+    body["scan_id"] = scan_id
+    body["patches"] = [
+        {
+            "item_id": "item-pan3",
+            "price": 1.25,
+            "price_per": None,
+            "store": "Mercadona",
+            "quantity": "1",
+        }
+    ]
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+
+    session.expire_all()
+    assert session.get(ReceiptScan, scan_id).items_updated == 2
+
+
+def test_post_receipt_matches_when_the_date_is_a_full_instant(client):
+    """An instant must not fall through the ValueError handler and disable the
+    match window."""
+    body = _unit_body()
+    body["receipt_date"] = "2026-04-11T17:42:00Z"
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=body)
+
+    assert response.status_code == 200
+    assert len(response.json()["matched"]) == 1
+
+
+def test_post_receipt_still_matches_with_a_bare_date(client):
+    """Cached older clients keep sending YYYY-MM-DD."""
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body())
+    assert len(response.json()["matched"]) == 1
+
+
+def test_post_receipt_full_instant_excludes_items_outside_match_window(client, session):
+    """Discriminating case for the two tests above: a full ISO instant must
+    still enforce the +-3 day match window, not silently disable it.
+
+    Without the fix, `date.fromisoformat` raises on the "T...Z" suffix, the
+    bare `except ValueError: pass` swallows it, `receipt_date` stays None,
+    and the window filter is skipped entirely -- so this item (purchased 41
+    days before the receipt) would still be an eligible fuzzy-match
+    candidate and this test would fail with `matched` non-empty. Mirrors
+    test_post_receipt_ignores_items_purchased_outside_match_window, but sent
+    as an instant instead of a bare date so it actually exercises the parser
+    used by the bug fix.
+    """
+    item = session.get(ListItem, "item-almendras")
+    item.purchased_at = datetime(2026, 3, 1, 9, 0, 0)  # 41 days before receipt
+    session.add(item)
+    session.commit()
+
+    body = _unit_body()
+    body["receipt_date"] = "2026-04-11T17:42:00Z"
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=body)
+
+    assert response.status_code == 200
+    result = response.json()
+    assert len(result["matched"]) == 0
+    assert len(result["unmatched"]) == 1
+
+
+def test_scan_record_keeps_the_receipt_time(client, session):
+    body = _unit_body()
+    body["receipt_date"] = "2026-04-11T17:42:00Z"
+    scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=body).json()["scan_id"]
+
+    scan = session.get(ReceiptScan, scan_id)
+    assert scan.receipt_at == datetime(2026, 4, 11, 17, 42)
+
+
+def test_scan_record_stores_midnight_for_a_bare_date(client, session):
+    scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body()).json()["scan_id"]
+    scan = session.get(ReceiptScan, scan_id)
+    assert scan.receipt_at == datetime(2026, 4, 11, 0, 0)

@@ -50,6 +50,11 @@ const PARSED_RECEIPT = {
   ],
 }
 
+// Mirrors the sentinel <option value> in ReceiptScanSheet, which is module-private.
+// Selecting by value rather than by its "✚ Crear artículo nuevo" label keeps the
+// test off a string that carries a decorative glyph.
+const CREATE_OPTION = '__create__'
+
 function itemCard(page: Page, name: string) {
   return page.locator('.item-card').filter({ hasText: name })
 }
@@ -175,6 +180,73 @@ test.describe('functional', () => {
     }
     expect(body.patches).toHaveLength(1)
     expect(body.patches[0].item_id).toBe(ITEM_CAFE.id)
+  })
+
+  // The impulse-buy path: a receipt line that matches nothing on the list
+  // becomes a new item that is already purchased. Asserts the persisted card
+  // rather than the toast — a toast-only check would still pass if the
+  // new_items payload never reached the database.
+  test('an unmatched line can be created as an already-purchased item', async ({
+    page,
+  }) => {
+    await gotoList(page)
+    await markPurchased(page, ITEM_LECHE.name)
+    await markPurchased(page, ITEM_CAFE.name)
+    await mockGeminiReceiptParse(page, PARSED_RECEIPT)
+
+    await uploadReceipt(page)
+    const sheet = page
+      .locator('.sheet')
+      .filter({ has: page.locator('.rss-toolbar') })
+    await expect(sheet).toBeVisible()
+
+    // Switching the unmatched line to "create" also selects it, so the row
+    // needs no separate checkbox tick.
+    const panRow = receiptRow(page, 'PAN INTEGRAL')
+    // The per-row form is collapsed until the summary is tapped.
+    await panRow.locator('.rss-summary').click()
+    await expect(panRow).toHaveClass(/expanded/)
+    await panRow.locator('.rss-link-select').selectOption(CREATE_OPTION)
+    await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
+      '3 de 3 seleccionados',
+    )
+
+    // The brand rides in on the sigil grammar rather than a separate field.
+    await panRow.locator('.rss-create-input').fill('Pan integral #Bimbo')
+
+    const responsePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/lists/${LIST_ID}/receipt-prices`) &&
+        resp.status() === 200,
+    )
+    await sheet.getByRole('button', { name: 'Guardar precios' }).click()
+    const response = await responsePromise
+    await expect(sheet).toBeHidden()
+
+    const body = response.request().postDataJSON() as {
+      new_items: { name: string; brand: string | null; price: number }[]
+    }
+    expect(body.new_items).toHaveLength(1)
+    expect(body.new_items[0]).toMatchObject({
+      name: 'Pan integral',
+      brand: 'Bimbo',
+      price: 1.0,
+    })
+
+    // The round trip that matters: it comes back from the API already
+    // purchased, carrying the sigil brand and the receipt's price.
+    const created = itemCard(page, 'Pan integral')
+    await expect(created).toBeVisible()
+    await expect(
+      created.getByRole('checkbox', { name: 'Marcar como no comprado' }),
+    ).toBeVisible()
+    await expect(created.getByText('Bimbo', { exact: true })).toBeVisible()
+    // formatPrice() uses Intl with the *browser's* locale and the config pins
+    // none, so the decimal separator differs between a local run and CI's
+    // container. Match either rather than baking in one environment's output.
+    await expect(created.locator('.item-card__tag--price')).toContainText(
+      /1[.,]00/,
+    )
   })
 
   test('a failed AI parse surfaces an error toast without opening the review sheet', async ({

@@ -1,6 +1,5 @@
 import uuid
 from datetime import UTC, datetime
-from datetime import date as date_type
 
 from sqlalchemy import JSON, Boolean, Column, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
@@ -114,7 +113,7 @@ class ReceiptScan(SQLModel, table=True):
     list_id: str = Field(foreign_key="lists.id")
     scanned_by: str = Field(foreign_key="users.id")
     store: str | None = None
-    receipt_date: date_type | None = None
+    receipt_at: datetime | None = None
     receipt_total: float | None = None
     parsed_lines: list[dict] | None = Field(default=None, sa_column=Column(JSON))
     match_result: list[dict] | None = Field(default=None, sa_column=Column(JSON))

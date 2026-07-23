@@ -1,0 +1,76 @@
+import { describe, expect, it, vi } from 'vitest'
+
+// toReceiptInstant is pure, but it lives beside the Gemini client, and
+// receiptAi.ts builds its model at module scope — so merely importing the
+// function needs a Firebase API key. Without one, ./firebase throws on
+// getAuth() and getGenerativeModel() throws AI/no-api-key. That is the state
+// of every CI runner; only a local .env made these tests appear to pass.
+// Stubbing both keeps them independent of ambient credentials, matching how
+// the rest of the suite handles Firebase.
+vi.mock('./firebase', () => ({
+  auth: { currentUser: null },
+  ai: {},
+}))
+
+vi.mock('firebase/ai', () => ({
+  InferenceMode: { PREFER_IN_CLOUD: 'prefer_in_cloud' },
+  getGenerativeModel: () => ({}),
+}))
+
+import { toReceiptInstant } from './receiptAi'
+
+describe('toReceiptInstant', () => {
+  it('returns null without a date', () => {
+    expect(toReceiptInstant(null, '17:42')).toBeNull()
+    expect(toReceiptInstant(null, null)).toBeNull()
+  })
+
+  it('combines date and time as local wall-clock', () => {
+    const iso = toReceiptInstant('2026-07-12', '17:42')
+    const parsed = new Date(iso as string)
+    expect(parsed.getFullYear()).toBe(2026)
+    expect(parsed.getMonth()).toBe(6)
+    expect(parsed.getDate()).toBe(12)
+    expect(parsed.getHours()).toBe(17)
+    expect(parsed.getMinutes()).toBe(42)
+  })
+
+  it('uses local midnight when no time was extracted', () => {
+    const parsed = new Date(toReceiptInstant('2026-07-12', null) as string)
+    expect(parsed.getDate()).toBe(12)
+    expect(parsed.getHours()).toBe(0)
+  })
+
+  it('round-trips a late-evening receipt to the same local date', () => {
+    const parsed = new Date(toReceiptInstant('2026-07-12', '23:30') as string)
+    expect(parsed.getDate()).toBe(12)
+    expect(parsed.getHours()).toBe(23)
+  })
+
+  it('emits a UTC instant, not a naive local string', () => {
+    expect(toReceiptInstant('2026-07-12', '17:42')).toMatch(/Z$/)
+  })
+
+  it('ignores a malformed time rather than throwing', () => {
+    const parsed = new Date(toReceiptInstant('2026-07-12', '99:99') as string)
+    expect(parsed.getDate()).toBe(12)
+    expect(parsed.getHours()).toBe(0)
+  })
+
+  it('rejects an out-of-range day rather than rolling into the next month', () => {
+    expect(toReceiptInstant('2026-01-32', null)).toBeNull()
+  })
+
+  it('rejects an out-of-range month rather than rolling into the next year', () => {
+    expect(toReceiptInstant('2026-13-01', null)).toBeNull()
+  })
+
+  it('returns null instead of throwing on an absurd year', () => {
+    expect(() => toReceiptInstant('999999-01-01', null)).not.toThrow()
+    expect(toReceiptInstant('999999-01-01', null)).toBeNull()
+  })
+
+  it('still accepts a real leap day', () => {
+    expect(toReceiptInstant('2028-02-29', null)).not.toBeNull()
+  })
+})

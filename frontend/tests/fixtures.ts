@@ -1,5 +1,11 @@
 import { test as base, expect, type Page } from '@playwright/test'
-import type { ApiList, ListItem, Member, ReceiptScanResult } from '../src/types'
+import type {
+  ApiList,
+  ListItem,
+  Member,
+  NewPurchasedItem,
+  ReceiptScanResult,
+} from '../src/types'
 
 const BACKEND = 'http://localhost:8000'
 export const GEMINI_ENDPOINT_PATTERN =
@@ -172,6 +178,16 @@ export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
 // ── Route installer ───────────────────────────────────────────────────────────
 
 export async function installApiMocks(page: Page): Promise<void> {
+  // Impulse buys created mid-test, keyed by list. The rest of this mock is
+  // deliberately stateless — echo a response, persist nothing — but a created
+  // item is the one thing that has to outlive its request: the client refetches
+  // straight after applying prices, and would otherwise never see it at all.
+  const createdItems: Record<string, ListItem[]> = {}
+
+  // The backend stores naive UTC and the client re-attaches the 'Z' when
+  // parsing (itemCost.ts), so timestamps here must carry no zone suffix.
+  const naiveUtc = (iso: string) => iso.replace(/Z$/, '')
+
   await page.route(`${BACKEND}/**`, async (route) => {
     const req = route.request()
     const url = new URL(req.url())
@@ -238,7 +254,11 @@ export async function installApiMocks(page: Page): Promise<void> {
 
       // /lists/:id/items
       if (sub === '/items') {
-        if (method === 'GET') return json(SEED_ITEMS[listId] ?? [])
+        if (method === 'GET')
+          return json([
+            ...(SEED_ITEMS[listId] ?? []),
+            ...(createdItems[listId] ?? []),
+          ])
         if (method === 'POST') {
           const body = (req.postDataJSON() ?? {}) as Partial<ListItem>
           return json({
@@ -275,8 +295,38 @@ export async function installApiMocks(page: Page): Promise<void> {
 
       // /lists/:id/receipt-prices (apply reviewed prices)
       if (sub === '/receipt-prices' && method === 'POST') {
-        const body = (req.postDataJSON() ?? {}) as { patches?: unknown[] }
-        return json({ items_updated: body.patches?.length ?? 0 })
+        const body = (req.postDataJSON() ?? {}) as {
+          patches?: unknown[]
+          new_items?: NewPurchasedItem[]
+          receipt_date?: string | null
+        }
+        const now = new Date().toISOString()
+        // Mirrors the router: an impulse buy is born purchased, stamped with
+        // the receipt's own instant when there is one.
+        const purchasedAt = naiveUtc(body.receipt_date || now)
+        const created = (body.new_items ?? []).map((n, idx) => ({
+          id: `created-item-${idx}-${now}`,
+          list_id: listId,
+          name: n.name,
+          quantity: null, // never planned — that is what makes it an impulse buy
+          purchased_quantity: n.quantity,
+          brand: n.brand,
+          stores: n.store ? [n.store] : [],
+          purchased: true,
+          purchased_at: purchasedAt,
+          ean: n.ean,
+          price: n.price,
+          price_per: n.price_per,
+          price_store: n.store,
+          added_by: ALICE.id,
+          created_at: naiveUtc(now),
+          updated_at: naiveUtc(now),
+        }))
+        createdItems[listId] = [...(createdItems[listId] ?? []), ...created]
+        return json({
+          items_updated: body.patches?.length ?? 0,
+          items_created: created.length,
+        })
       }
 
       // /lists/:id/items/:itemId

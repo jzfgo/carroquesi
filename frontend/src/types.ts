@@ -154,8 +154,21 @@ export interface NameMapping {
   item_brand: string | null
 }
 
+export interface NewPurchasedItem {
+  name: string
+  brand: string | null
+  ean: string | null
+  price: number
+  price_per: string | null
+  store: string | null
+  quantity: string | null
+}
+
 export interface ReceiptPriceBatch {
   scan_id: string | null
+  /** Receipt date, or a full UTC instant when a time was extracted. */
+  receipt_date: string | null
   patches: PricePatch[]
+  new_items: NewPurchasedItem[]
   mappings: NameMapping[]
 }

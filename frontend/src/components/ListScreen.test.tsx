@@ -4,7 +4,15 @@ import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import * as api from '../lib/api'
-import type { ListItem } from '../types'
+import * as receiptAi from '../lib/receiptAi'
+import type {
+  BarcodeRead,
+  ListItem,
+  NameMapping,
+  NewPurchasedItem,
+  PricePatch,
+  ReceiptScanResult,
+} from '../types'
 import { ListScreen } from './ListScreen'
 
 vi.mock('@undecaf/barcode-detector-polyfill', () => ({
@@ -12,6 +20,29 @@ vi.mock('@undecaf/barcode-detector-polyfill', () => ({
     detect() {
       return Promise.resolve([])
     }
+  },
+}))
+
+// Shared fixtures referenced from vi.mock factories below — vi.mock calls are
+// hoisted above regular top-level const declarations, so anything a factory
+// closes over must come from vi.hoisted() to avoid a TDZ error at import time.
+const { mockNewItem, mockScannedProduct } = vi.hoisted(() => ({
+  mockNewItem: {
+    name: 'Cacahuetes dulces',
+    brand: 'Hacendado',
+    ean: null,
+    price: 3.15,
+    price_per: null,
+    store: 'Mercadona',
+    quantity: '1',
+  },
+  mockScannedProduct: {
+    ean: '8412345678901',
+    name: 'Cacahuetes dulces',
+    brand: 'Hacendado',
+    stores: [],
+    community_price: null,
+    community_price_per: null,
   },
 }))
 
@@ -29,6 +60,51 @@ vi.mock('./ListMembersSheet', () => ({
   ListMembersSheet: () => (
     <div role="dialog" aria-label="Miembros">
       Sheet
+    </div>
+  ),
+}))
+// Simulates the real scanner resolving a single fixed product, so tests can
+// drive the receipt-line-scan flow without a camera or barcode API.
+vi.mock('./BarcodeScanner', () => ({
+  BarcodeScanner: ({
+    onResult,
+  }: {
+    onResult: (product: BarcodeRead) => void
+  }) => (
+    <button onClick={() => onResult(mockScannedProduct)}>
+      Escanear producto (mock)
+    </button>
+  ),
+}))
+vi.mock('./ReceiptScanSheet', () => ({
+  default: ({
+    onConfirm,
+    onRequestScan,
+    pendingScan,
+  }: {
+    onConfirm: (
+      patches: PricePatch[],
+      mappings: NameMapping[],
+      newItems: NewPurchasedItem[],
+    ) => Promise<boolean>
+    onRequestScan?: (index: number) => void
+    pendingScan?: { index: number; product: BarcodeRead } | null
+  }) => (
+    <div>
+      {/* Surfaces the pendingScan this instance was mounted with, so tests
+          can prove a stale scan from a prior session doesn't leak in. */}
+      <div data-testid="mock-pending-scan">
+        {pendingScan ? pendingScan.product.ean : 'null'}
+      </div>
+      <button onClick={() => void onConfirm([], [], [])}>
+        Confirmar (mock)
+      </button>
+      <button onClick={() => void onConfirm([], [], [mockNewItem])}>
+        Confirmar con artículo nuevo (mock)
+      </button>
+      {onRequestScan && (
+        <button onClick={() => onRequestScan(0)}>Escanear línea (mock)</button>
+      )}
     </div>
   ),
 }))
@@ -575,5 +651,173 @@ describe('receipt scan CTA', () => {
     })
     render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
     expect(screen.queryByText(/Escanear ticket/)).not.toBeInTheDocument()
+  })
+})
+
+describe('receipt price confirmation toast', () => {
+  const mockScanResult: ReceiptScanResult = {
+    scan_id: 'scan-1',
+    store: 'Mercadona',
+    receipt_date: '2026-07-20',
+    receipt_total: 10,
+    matched: [],
+    unmatched: [],
+  }
+
+  beforeEach(() => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
+      store: 'Mercadona',
+      receipt_date: '2026-07-20',
+      receipt_total: 10,
+      lines: [],
+    })
+    vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
+  })
+
+  async function openReceiptSheetAndConfirm() {
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    const fileInput = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+    fireEvent.click(await screen.findByText('Confirmar (mock)'))
+  }
+
+  it('reports only the price clause when nothing was created', async () => {
+    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
+      items_updated: 2,
+      items_created: 0,
+    })
+    await openReceiptSheetAndConfirm()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('2 precios actualizados')
+    expect(alert).not.toHaveTextContent('artículo')
+  })
+
+  it('reports only the created-items clause when no prices changed', async () => {
+    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
+      items_updated: 0,
+      items_created: 3,
+    })
+    await openReceiptSheetAndConfirm()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('3 artículos añadidos')
+    expect(alert).not.toHaveTextContent('precio')
+  })
+
+  it('reports both clauses when prices and new items are both present', async () => {
+    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
+      items_updated: 1,
+      items_created: 1,
+    })
+    await openReceiptSheetAndConfirm()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('1 precio actualizado · 1 artículo añadido')
+  })
+
+  it('falls back to a neutral toast when nothing changed', async () => {
+    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
+      items_updated: 0,
+      items_created: 0,
+    })
+    await openReceiptSheetAndConfirm()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('No se guardó nada')
+  })
+
+  it('calls submitReceiptPrices with the payload the sheet produced, not just a truthy shape', async () => {
+    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
+      items_updated: 0,
+      items_created: 1,
+    })
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    const fileInput = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+    fireEvent.click(
+      await screen.findByText('Confirmar con artículo nuevo (mock)'),
+    )
+    await waitFor(() =>
+      expect(api.submitReceiptPrices).toHaveBeenCalledTimes(1),
+    )
+    // scan_id and receipt_date are asserted as distinct values on purpose —
+    // this is what would catch one being sent in the other's place.
+    expect(api.submitReceiptPrices).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      {
+        scan_id: 'scan-1',
+        receipt_date: '2026-07-20',
+        patches: [],
+        new_items: [mockNewItem],
+        mappings: [],
+      },
+    )
+  })
+})
+
+describe('pendingScan session isolation', () => {
+  const mockScanResult: ReceiptScanResult = {
+    scan_id: 'scan-1',
+    store: 'Mercadona',
+    receipt_date: '2026-07-20',
+    receipt_total: 10,
+    matched: [],
+    unmatched: [],
+  }
+
+  beforeEach(() => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
+      store: 'Mercadona',
+      receipt_date: '2026-07-20',
+      receipt_total: 10,
+      lines: [],
+    })
+    vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
+    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
+      items_updated: 1,
+      items_created: 0,
+    })
+  })
+
+  it('does not leak a scanned product from one receipt session into the next', async () => {
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    const fileInput = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+
+    // Session 1: open the sheet, request a scan for a row, and let the
+    // (mocked) scanner resolve a product into it.
+    fireEvent.change(fileInput, {
+      target: { files: [new File(['x'], 'r1.jpg', { type: 'image/jpeg' })] },
+    })
+    fireEvent.click(await screen.findByText('Escanear línea (mock)'))
+    fireEvent.click(await screen.findByText('Escanear producto (mock)'))
+    expect(await screen.findByTestId('mock-pending-scan')).toHaveTextContent(
+      mockScannedProduct.ean,
+    )
+
+    // Confirm session 1 — the sheet unmounts.
+    fireEvent.click(screen.getByText('Confirmar (mock)'))
+    await waitFor(() =>
+      expect(api.submitReceiptPrices).toHaveBeenCalledTimes(1),
+    )
+
+    // Session 2: a fresh scan session must start with no pendingScan.
+    fireEvent.change(fileInput, {
+      target: { files: [new File(['x'], 'r2.jpg', { type: 'image/jpeg' })] },
+    })
+    expect(await screen.findByTestId('mock-pending-scan')).toHaveTextContent(
+      'null',
+    )
   })
 })

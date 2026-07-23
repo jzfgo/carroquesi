@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ReceiptScanResult } from '../types'
 import ReceiptScanSheet from './ReceiptScanSheet'
@@ -52,6 +52,7 @@ const mockPurchasedItems = [
   {
     id: 'item-1',
     name: 'Bebida de almendra 0% azúcares',
+    purchased: true,
     purchased_at: '2026-04-11T15:00:00',
     brand: null,
     stores: ['Mercadona'],
@@ -60,6 +61,7 @@ const mockPurchasedItems = [
   {
     id: 'item-2',
     name: 'Bacon lonchas',
+    purchased: true,
     purchased_at: '2026-04-11T15:00:00',
     brand: null,
     stores: ['Mercadona'],
@@ -68,6 +70,7 @@ const mockPurchasedItems = [
   {
     id: 'item-3',
     name: 'Yogur natural',
+    purchased: true,
     purchased_at: '2026-04-11T15:00:00',
     brand: null,
     stores: [],
@@ -76,6 +79,7 @@ const mockPurchasedItems = [
   {
     id: 'item-4',
     name: 'Maní dulce',
+    purchased: true,
     purchased_at: '2026-04-10T12:00:00',
     brand: null,
     stores: [],
@@ -83,17 +87,21 @@ const mockPurchasedItems = [
   },
 ]
 
-function renderSheet(overrides: Partial<ReceiptScanResult> = {}) {
-  const result = { ...mockResult, ...overrides }
-  const onConfirm = vi.fn()
+function renderSheet(
+  overrides: Partial<Parameters<typeof ReceiptScanSheet>[0]> = {},
+) {
+  // Resolves true (success) by default, matching the real onConfirm contract —
+  // guardrail tests that need a failure/pending outcome override this.
+  const onConfirm = vi.fn().mockResolvedValue(true)
   const onClose = vi.fn()
   render(
     <ReceiptScanSheet
-      result={result}
-      purchasedItems={mockPurchasedItems}
+      result={mockResult}
+      candidateItems={mockPurchasedItems}
       store="Mercadona"
       onConfirm={onConfirm}
       onClose={onClose}
+      {...overrides}
     />,
   )
   return { onConfirm, onClose }
@@ -183,7 +191,7 @@ describe('ReceiptScanSheet', () => {
     render(
       <ReceiptScanSheet
         result={result}
-        purchasedItems={mockPurchasedItems}
+        candidateItems={mockPurchasedItems}
         store="Mercadona"
         onConfirm={vi.fn()}
         onClose={vi.fn()}
@@ -241,12 +249,388 @@ describe('ReceiptScanSheet', () => {
     render(
       <ReceiptScanSheet
         result={result}
-        purchasedItems={mockPurchasedItems}
+        candidateItems={mockPurchasedItems}
         store="Mercadona"
         onConfirm={vi.fn()}
         onClose={vi.fn()}
       />,
     )
     expect(screen.getByText(/coincide/)).toBeInTheDocument()
+  })
+})
+
+/** The unmatched row "MANI DULCE" is the last row in the sheet. */
+function selectCreateOnUnmatchedRow() {
+  const selects = screen.getAllByRole('combobox')
+  fireEvent.change(selects[selects.length - 1], {
+    target: { value: '__create__' },
+  })
+}
+
+describe('create mode', () => {
+  it('reveals a name field when "Crear artículo nuevo" is chosen', () => {
+    renderSheet()
+    expect(screen.queryByPlaceholderText(/Leche semi/)).toBeNull()
+    selectCreateOnUnmatchedRow()
+    expect(screen.getByPlaceholderText(/Leche semi/)).toBeTruthy()
+  })
+
+  it('sends the parsed name and brand as a new item', () => {
+    const { onConfirm } = renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Cacahuetes dulces #Hacendado' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
+
+    const newItems = onConfirm.mock.calls[0][2]
+    expect(newItems).toHaveLength(1)
+    expect(newItems[0].name).toBe('Cacahuetes dulces')
+    expect(newItems[0].brand).toBe('Hacendado')
+    expect(newItems[0].price).toBeCloseTo(3.15)
+    expect(newItems[0].store).toBe('Mercadona')
+  })
+
+  it('honours |EAN and discards +qty and @store', () => {
+    const { onConfirm } = renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Cacahuetes +5 @Lidl |8412345678901' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
+
+    const newItems = onConfirm.mock.calls[0][2]
+    expect(newItems[0].name).toBe('Cacahuetes')
+    expect(newItems[0].ean).toBe('8412345678901')
+    // The row's own quantity field and the receipt header own these.
+    expect(newItems[0].quantity).toBe('1')
+    expect(newItems[0].store).toBe('Mercadona')
+  })
+
+  it('blocks confirm when the name parses to empty', () => {
+    renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: '#Hacendado' },
+    })
+    const confirm = screen.getByRole('button', { name: /Guardar precios/ })
+    expect((confirm as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText(/Escribe un nombre/)).toBeTruthy()
+  })
+
+  it('emits a name mapping from the receipt text to the created name', () => {
+    const { onConfirm } = renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Cacahuetes dulces #Hacendado' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
+
+    const mappings = onConfirm.mock.calls[0][1]
+    const created = mappings.find(
+      (m: { receipt_name: string }) => m.receipt_name === 'mani dulce',
+    )
+    expect(created).toBeTruthy()
+    expect(created.item_name).toBe('Cacahuetes dulces')
+    expect(created.store).toBe('Mercadona')
+  })
+
+  it('maps to the parsed name, not the raw sigil text', () => {
+    const { onConfirm } = renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Cacahuetes +5 @Lidl #Hacendado' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
+
+    const mappings = onConfirm.mock.calls[0][1]
+    const created = mappings.find(
+      (m: { receipt_name: string }) => m.receipt_name === 'mani dulce',
+    )
+    expect(created.item_name).toBe('Cacahuetes')
+  })
+})
+
+describe('unpurchased items', () => {
+  const withUnpurchased = [
+    ...mockPurchasedItems,
+    {
+      id: 'item-9',
+      name: 'Pan de molde',
+      purchased: false,
+      purchased_at: null,
+      brand: null,
+      stores: [],
+      quantity: null,
+    },
+  ]
+
+  it('groups unpurchased items under "Sin comprar"', () => {
+    renderSheet({ candidateItems: withUnpurchased })
+    // The item isn't linked to any row yet, so every row's dropdown offers
+    // it — getAllByRole rather than getByRole, since multiple <optgroup>s
+    // legitimately share this label until the item is linked somewhere.
+    const groups = screen.getAllByRole('group', { name: 'Sin comprar' })
+    expect(groups.length).toBeGreaterThan(0)
+    expect(groups[0].textContent).toContain('Pan de molde')
+  })
+
+  it('never labels an unpurchased item "Fecha desconocida"', () => {
+    renderSheet({ candidateItems: withUnpurchased })
+    expect(
+      screen.queryByRole('group', { name: 'Fecha desconocida' }),
+    ).toBeNull()
+  })
+
+  it('links an unpurchased item instead of creating a duplicate', () => {
+    const { onConfirm } = renderSheet({ candidateItems: withUnpurchased })
+    const selects = screen.getAllByRole('combobox')
+    fireEvent.change(selects[selects.length - 1], {
+      target: { value: 'item-9' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
+
+    const patches = onConfirm.mock.calls[0][0]
+    const newItems = onConfirm.mock.calls[0][2]
+    expect(
+      patches.some((p: { item_id: string }) => p.item_id === 'item-9'),
+    ).toBe(true)
+    // Linking must REPLACE creating — this is the duplicate-items fix.
+    expect(newItems).toHaveLength(0)
+  })
+})
+
+describe('confirm guardrails', () => {
+  it('warns when a create row has a non-positive price', () => {
+    renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Descuento tarjeta' },
+    })
+    const priceInputs = screen.getAllByRole('spinbutton')
+    fireEvent.change(priceInputs[priceInputs.length - 1], {
+      target: { value: '-2' },
+    })
+    expect(screen.getByText(/Precio cero o negativo/)).toBeTruthy()
+  })
+
+  it('does not warn on a non-positive price when the row is unchecked', () => {
+    renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Descuento tarjeta' },
+    })
+    const priceInputs = screen.getAllByRole('spinbutton')
+    fireEvent.change(priceInputs[priceInputs.length - 1], {
+      target: { value: '-2' },
+    })
+    const checkboxes = screen.getAllByRole('checkbox')
+    fireEvent.click(checkboxes[checkboxes.length - 1]) // uncheck the row
+    expect(screen.queryByText(/Precio cero o negativo/)).toBeNull()
+  })
+
+  it('does not block confirm on a non-positive price', () => {
+    renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Descuento tarjeta' },
+    })
+    const priceInputs = screen.getAllByRole('spinbutton')
+    fireEvent.change(priceInputs[priceInputs.length - 1], {
+      target: { value: '-2' },
+    })
+    const confirm = screen.getByRole('button', {
+      name: /Guardar precios/,
+    }) as HTMLButtonElement
+    expect(confirm.disabled).toBe(false)
+  })
+
+  it('disables confirm after the first submit', () => {
+    const { onConfirm } = renderSheet()
+    const confirm = screen.getByRole('button', {
+      name: /Guardar precios/,
+    }) as HTMLButtonElement
+    fireEvent.click(confirm)
+    expect(confirm.disabled).toBe(true)
+    fireEvent.click(confirm)
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('associates the create input with its validation messages', () => {
+    renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: '#Hacendado' },
+    })
+    const input = screen.getByPlaceholderText(/Leche semi/)
+    const describedBy = input.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    const error = screen.getByRole('alert')
+    expect(describedBy!.split(' ')).toContain(error.id)
+    expect(error.textContent).toMatch(/Escribe un nombre/)
+  })
+
+  it('re-enables confirm after a rejected submit, so the user can retry', async () => {
+    const onConfirm = vi.fn().mockRejectedValue(new Error('network'))
+    renderSheet({ onConfirm })
+    const confirm = screen.getByRole('button', {
+      name: /Guardar precios/,
+    }) as HTMLButtonElement
+    fireEvent.click(confirm)
+    await waitFor(() => expect(confirm.disabled).toBe(false))
+  })
+
+  it('re-enables confirm after onConfirm resolves false, so the user can retry', async () => {
+    // This is the branch the real ListScreen hits: submitReceiptPrices
+    // rejects, handleReceiptConfirm catches it and resolves false — it
+    // never rejects across the onConfirm boundary.
+    const onConfirm = vi.fn().mockResolvedValue(false)
+    renderSheet({ onConfirm })
+    const confirm = screen.getByRole('button', {
+      name: /Guardar precios/,
+    }) as HTMLButtonElement
+    fireEvent.click(confirm)
+    await waitFor(() => expect(confirm.disabled).toBe(false))
+  })
+
+  it('keeps confirm disabled while a submit is in flight', async () => {
+    let resolveSubmit: (ok: boolean) => void = () => {}
+    const pending = new Promise<boolean>((resolve) => {
+      resolveSubmit = resolve
+    })
+    const onConfirm = vi.fn().mockReturnValue(pending)
+    renderSheet({ onConfirm })
+    const confirm = screen.getByRole('button', {
+      name: /Guardar precios/,
+    }) as HTMLButtonElement
+    fireEvent.click(confirm)
+    expect(confirm.disabled).toBe(true)
+    resolveSubmit(true)
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1))
+  })
+})
+
+const mockProduct = {
+  ean: '8412345678901',
+  name: 'Cacahuetes dulces',
+  brand: 'Hacendado',
+  stores: [],
+  community_price: null,
+  community_price_per: null,
+}
+
+describe('barcode scan into a create row', () => {
+  it('asks the parent to scan for a specific row', () => {
+    const onRequestScan = vi.fn()
+    renderSheet({ onRequestScan })
+    selectCreateOnUnmatchedRow()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Escanear código de barras' }),
+    )
+    expect(onRequestScan).toHaveBeenCalledWith(3)
+  })
+
+  it('fills the row from a scanned product and expands it', () => {
+    renderSheet({
+      pendingScan: { index: 3, product: mockProduct },
+    })
+
+    const field = screen.getByPlaceholderText(/Leche semi/) as HTMLInputElement
+    expect(field.value).toBe('Cacahuetes dulces #Hacendado')
+    expect(field.closest('.rss-row')).toHaveClass('expanded')
+  })
+
+  it('omits the brand sigil when the product has no brand', () => {
+    renderSheet({
+      pendingScan: { index: 3, product: { ...mockProduct, brand: null } },
+    })
+    const field = screen.getByPlaceholderText(/Leche semi/) as HTMLInputElement
+    expect(field.value).toBe('Cacahuetes dulces')
+  })
+
+  it('sends the scanned EAN with the created item', async () => {
+    const { onConfirm } = renderSheet({
+      pendingScan: { index: 3, product: mockProduct },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+
+    const newItems = onConfirm.mock.calls[0][2]
+    expect(newItems[0].ean).toBe('8412345678901')
+    expect(newItems[0].name).toBe('Cacahuetes dulces')
+    expect(newItems[0].brand).toBe('Hacendado')
+  })
+
+  it('applies a second scan into the same row, proving identity — not latch — drives it', () => {
+    const onConfirm = vi.fn().mockResolvedValue(true)
+    const onClose = vi.fn()
+    const { rerender } = render(
+      <ReceiptScanSheet
+        result={mockResult}
+        candidateItems={mockPurchasedItems}
+        store="Mercadona"
+        onConfirm={onConfirm}
+        onClose={onClose}
+        pendingScan={{ index: 3, product: mockProduct }}
+      />,
+    )
+    expect(
+      (screen.getByPlaceholderText(/Leche semi/) as HTMLInputElement).value,
+    ).toBe('Cacahuetes dulces #Hacendado')
+
+    const secondProduct = {
+      ean: '1111111111111',
+      name: 'Almendras crudas',
+      brand: 'Auchan',
+      stores: [],
+      community_price: null,
+      community_price_per: null,
+    }
+    rerender(
+      <ReceiptScanSheet
+        result={mockResult}
+        candidateItems={mockPurchasedItems}
+        store="Mercadona"
+        onConfirm={onConfirm}
+        onClose={onClose}
+        pendingScan={{ index: 3, product: secondProduct }}
+      />,
+    )
+    expect(
+      (screen.getByPlaceholderText(/Leche semi/) as HTMLInputElement).value,
+    ).toBe('Almendras crudas #Auchan')
+  })
+
+  it('does not re-apply the same pendingScan object on an unrelated re-render', () => {
+    const onConfirm = vi.fn().mockResolvedValue(true)
+    const onClose = vi.fn()
+    const pendingScan = { index: 3, product: mockProduct }
+    const { rerender } = render(
+      <ReceiptScanSheet
+        result={mockResult}
+        candidateItems={mockPurchasedItems}
+        store="Mercadona"
+        onConfirm={onConfirm}
+        onClose={onClose}
+        pendingScan={pendingScan}
+      />,
+    )
+    const field = screen.getByPlaceholderText(/Leche semi/) as HTMLInputElement
+    fireEvent.change(field, { target: { value: 'Edited by hand' } })
+    // Re-render with the SAME pendingScan object reference — must not
+    // clobber the user's hand edit.
+    rerender(
+      <ReceiptScanSheet
+        result={mockResult}
+        candidateItems={mockPurchasedItems}
+        store="Mercadona"
+        onConfirm={onConfirm}
+        onClose={onClose}
+        pendingScan={pendingScan}
+      />,
+    )
+    expect(
+      (screen.getByPlaceholderText(/Leche semi/) as HTMLInputElement).value,
+    ).toBe('Edited by hand')
   })
 })
