@@ -6,9 +6,8 @@ description: >
   or mentions a specific version like "release 0.19.1". Handles the full workflow:
   determine the next version, create a worktree, regenerate the changelog, bump
   versions in package.json and pyproject.toml, refresh uv.lock, commit, tag
-  locally, push, and open a PR with post-merge tagging instructions.
-  Always use this skill — do not
-  try to do the release workflow manually without it.
+  locally, push, and open a PR with post-merge tagging instructions. Always use
+  this skill — do not try to do the release workflow manually without it.
 ---
 
 # Release Workflow
