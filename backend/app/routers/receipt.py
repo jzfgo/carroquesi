@@ -104,7 +104,7 @@ def scan_receipt(
         list_id=list_id,
         scanned_by=current_user.id,
         store=store,
-        receipt_date=receipt_date,
+        receipt_at=receipt_at,
         receipt_total=body.receipt_total,
         parsed_lines=[line.model_dump() for line in body.lines],
         match_result=[m.model_dump() for m in matched],

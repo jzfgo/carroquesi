@@ -808,3 +808,18 @@ def test_post_receipt_full_instant_excludes_items_outside_match_window(client, s
     result = response.json()
     assert len(result["matched"]) == 0
     assert len(result["unmatched"]) == 1
+
+
+def test_scan_record_keeps_the_receipt_time(client, session):
+    body = _unit_body()
+    body["receipt_date"] = "2026-04-11T17:42:00Z"
+    scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=body).json()["scan_id"]
+
+    scan = session.get(ReceiptScan, scan_id)
+    assert scan.receipt_at == datetime(2026, 4, 11, 17, 42)
+
+
+def test_scan_record_stores_midnight_for_a_bare_date(client, session):
+    scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body()).json()["scan_id"]
+    scan = session.get(ReceiptScan, scan_id)
+    assert scan.receipt_at == datetime(2026, 4, 11, 0, 0)
