@@ -26,6 +26,8 @@ natural move produces a duplicate of each.
 - Let a user link an unmatched line to an item that is on the list but not yet
   marked purchased, which marks it purchased rather than duplicating it.
 - Optionally fill a created item from a barcode scan.
+- Honour the time printed on the receipt, not just the date, when stamping
+  `purchased_at`.
 
 ## Non-goals
 
@@ -43,14 +45,83 @@ natural move produces a duplicate of each.
 
 ## Data model
 
-No migration. `ListItem` already carries every field required: `name`, `brand`,
-`ean`, `stores`, `price`, `price_per`, `price_store`, `purchased_at`,
+`ListItem` needs no change. It already carries every field required: `name`,
+`brand`, `ean`, `stores`, `price`, `price_per`, `price_store`, `purchased_at`,
 `purchased_quantity`. An impulse buy is a row born with `purchased_at` already
 set.
 
-This also keeps the branch clear of the constraint in AGENTS.md that Alembic
-migrations must be the last step before merging and must never be created in
-parallel with another branch that has one.
+One migration is required, for the receipt timestamp (below):
+
+```python
+op.alter_column(
+    "receipt_scans",
+    "receipt_date",
+    new_column_name="receipt_at",
+    type_=sa.DateTime(),
+    existing_nullable=True,
+)
+```
+
+`DATE` widens to `DATETIME` cleanly; existing rows backfill at midnight.
+
+**Sequencing constraint:** AGENTS.md requires Alembic migrations to be the last
+step before merging, created after rebasing on `main`, and never in parallel with
+another branch that also has one. The implementation plan must order this
+revision last, after all other work on the branch is complete.
+
+## Receipt timestamp
+
+### Extraction
+
+`receiptAi.ts` currently instructs `receipt_date: purchase date as YYYY-MM-DD`
+(line 33) with no time field. It gains a nullable `receipt_time` in both
+`RECEIPT_SCHEMA` and `PROMPT`, extracted as `HH:MM` in 24-hour form, null when
+not clearly readable — consistent with the prompt's existing "accuracy over
+completeness" rule.
+
+### Timezone
+
+This is the part most likely to produce a wrong-looking date, so it is fixed by
+construction rather than left to the backend.
+
+`purchased_at` is stored naive-UTC throughout the codebase
+(`datetime.now(UTC).replace(tzinfo=None)`), and the frontend renders it by
+appending `'Z'` (`lib/itemCost.ts:92`). A receipt prints **local wall-clock
+time**. Stamping "23:30" from a Madrid receipt directly as naive-UTC would render
+back as 01:30 the following day, putting the item in the wrong date group.
+
+So **`parseReceiptWithAi` performs the conversion**: it combines the extracted
+date and time as local wall-clock, and emits a UTC instant. The browser already
+knows the user's zone; the backend stays UTC-only and needs no timezone
+awareness. When no time is extracted, local midnight is converted the same way,
+which round-trips back to the correct local date.
+
+### Wire format
+
+`receipt_date` **keeps its name on the wire** and widens to accept either a date
+(`"2026-07-12"`) or a full instant (`"2026-07-12T17:42:00Z"`).
+
+The DB column is renamed to `receipt_at` because its type genuinely changes and a
+field named `…_date` holding `17:42` invites a future reader to assume `.date()`
+semantics are safe. The wire field is *not* renamed: this is a PWA with an active
+service worker, and Hosting and Cloud Run deploy independently, so cached older
+frontends will keep sending `receipt_date` during a rollout. Widening an existing
+`str | None` field is backward compatible by construction; renaming it would not
+be.
+
+### Match window
+
+`scan_receipt` must now call `.date()` before its `timedelta` arithmetic:
+
+```python
+receipt_day = receipt_at.date()
+window_start = datetime.combine(receipt_day - timedelta(days=RECEIPT_MATCH_WINDOW_DAYS), time.min)
+```
+
+Note this date is derived in **UTC**, so a receipt printed at 00:30 local yields a
+UTC date one day earlier. This is harmless only because the window is ±3 days and
+absorbs a ≤2h skew. If `RECEIPT_MATCH_WINDOW_DAYS` is ever narrowed, revisit
+this.
 
 ## Backend
 
@@ -69,7 +140,7 @@ class NewPurchasedItem(BaseModel):
 
 class ReceiptPriceBatch(BaseModel):
     scan_id: str | None = None
-    receipt_date: str | None = None          # NEW
+    receipt_date: str | None = None          # NEW — date or full UTC instant
     patches: list[PricePatch]
     new_items: list[NewPurchasedItem] = []   # NEW
     mappings: list[NameMappingCreate]
@@ -89,8 +160,9 @@ sent.
 
 Three changes:
 
-1. **Resolve a single purchase timestamp.** `receipt_date` parsed to a date and
-   combined with midnight; if absent or unparseable, `datetime.now(UTC)`. Used
+1. **Resolve a single purchase timestamp.** `receipt_date` parsed as an ISO 8601
+   value — a bare date yields midnight, a full instant is used as sent — and
+   normalised to naive UTC. If absent or unparseable, `datetime.now(UTC)`. Used
    for both created items and newly-purchased linked items so one confirm
    produces one consistent timestamp.
 
@@ -233,6 +305,12 @@ product. Only name, brand and EAN are filled.
 | Case | Behaviour |
 |---|---|
 | `receipt_date` null or unparseable | `purchased_at` falls back to `now()` |
+| Time extracted but date null | Time alone is meaningless; treated as no timestamp, falls back to `now()` |
+| Date extracted, time null | Local midnight converted to UTC — round-trips to the correct local date |
+| Receipt printed near local midnight (23:30 / 00:30) | Correct, because the frontend converts local wall-clock to a UTC instant before sending |
+| Receipt from the other side of a DST change | Correct if the conversion uses the browser's zone rules for *that* date rather than the current offset — implementation must not use a fixed offset |
+| Cached older PWA client sends a bare `"YYYY-MM-DD"` | Accepted; parses as midnight. Wire field deliberately not renamed for this reason |
+| Receipt at 00:30 local vs. the ±3-day match window | Window day derived in UTC, so up to one day off; absorbed by the ±3-day slack. Revisit if the window narrows |
 | Create selected, name empty after parse (user types only `#Hacendado`) | Row invalid; confirm disabled with inline error |
 | Price ≤ 0 — e.g. `DTO. TARJETA CLIENTE −2,00` | Warn inline; a negative-priced "item" is almost never intended |
 | Junk lines — `BOLSA PLASTICO`, `TOTAL`, `IVA 10%` | No guard. Unmatched rows keep today's `included: false` default, so junk requires deliberate opt-in |
@@ -251,8 +329,12 @@ product. Only name, brand and EAN are filled.
 **Backend** (`backend/tests/test_receipt.py`):
 
 - `new_items` creates a row with every field set correctly
-- `purchased_at` taken from `receipt_date`
-- `purchased_at` falls back to `now()` when `receipt_date` is absent
+- `purchased_at` taken from `receipt_date` when it is a bare date (midnight)
+- `purchased_at` preserves the time when `receipt_date` is a full instant
+- `purchased_at` falls back to `now()` when `receipt_date` is absent or unparseable
+- a bare `"YYYY-MM-DD"` from an older client is still accepted
+- `scan_receipt` stores `receipt_at` with its time, and the ±3-day window still
+  matches items either side of the receipt day
 - linking an unpurchased item sets `purchased_at`
 - linking an already-purchased item leaves `purchased_at` untouched
 - a name mapping is written for a created item
@@ -266,6 +348,13 @@ product. Only name, brand and EAN are filled.
 - a scan fills the field and captures the EAN
 - `Sin comprar` optgroup renders and linking one is included in the batch
 
+**Receipt time** (`frontend/src/lib/receiptAi.test.ts` or equivalent):
+
+- date + time combine to the correct UTC instant for a known zone
+- date with null time yields local midnight as a UTC instant that renders back to
+  the same local date
+- a date on the other side of a DST change uses that date's offset, not today's
+
 **Visual:** the sheet's committed screenshot baselines will need regenerating via
 `just frontend update-snapshots` (Docker, to match CI's Linux font rendering).
 
@@ -273,7 +362,10 @@ product. Only name, brand and EAN are filled.
 
 - `backend/app/schemas/receipt.py`
 - `backend/app/routers/receipt.py`
+- `backend/app/db/models.py` — `ReceiptScan.receipt_date` → `receipt_at: datetime`
+- `backend/alembic/versions/` — one revision, **created last**
 - `backend/tests/test_receipt.py`
+- `frontend/src/lib/receiptAi.ts` — prompt, schema, local→UTC conversion
 - `frontend/src/components/ReceiptScanSheet.tsx` + `.css` + `.test.tsx`
 - `frontend/src/components/ListScreen.tsx`
 - `frontend/src/types.ts`
@@ -281,4 +373,6 @@ product. Only name, brand and EAN are filled.
 - `CHANGELOG.md`
 
 The barcode scan-target routing is the most separable layer, and is the natural
-split point if implementation has to span more than one PR.
+split point if implementation has to span more than one PR. The receipt-timestamp
+work is the second most separable, but it owns the migration, so it must land
+last regardless of how the work is divided.
