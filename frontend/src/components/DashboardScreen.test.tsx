@@ -18,6 +18,14 @@ vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../contexts/FeatureFlagsContext', () => ({
   useFeatureFlags: vi.fn(),
 }))
+// lib/push imports lib/firebase, which calls getAuth() at module scope and
+// throws auth/invalid-api-key without Firebase env vars -- as in CI, where a
+// local .env would otherwise hide it. Mock the module, not the env.
+vi.mock('../lib/firebase', () => ({
+  auth: {},
+  ai: {},
+  messagingPromise: Promise.resolve(null),
+}))
 vi.mock('../lib/api')
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>()
