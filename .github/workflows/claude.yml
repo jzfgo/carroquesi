@@ -41,12 +41,33 @@ on:
 
 jobs:
   claude:
+    # THIS REPOSITORY IS PUBLIC, so anyone can open an issue or leave a comment.
+    #
+    # Only `pull_request` is protected by GitHub withholding secrets from fork runs.
+    # The other four triggers execute in the BASE repo context with full secrets no
+    # matter who authored the comment, and for them `prompt` is empty, so the agent
+    # follows whatever the comment says. Gating on `@claude` alone therefore lets any
+    # stranger drive this agent with the tools in `claude_args` — including
+    # `Bash(gh api:*)`, which permits `-X POST`/`-X DELETE`.
+    #
+    # So every trigger also requires a trusted author. Do not remove these checks
+    # while `claude_args` grants write-capable tools.
     if: |
-      (github.event_name == 'pull_request' && github.event.pull_request.draft == false) ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'pull_request' &&
+        github.event.pull_request.draft == false &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)) ||
+      (github.event_name == 'issue_comment' &&
+        contains(github.event.comment.body, '@claude') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review_comment' &&
+        contains(github.event.comment.body, '@claude') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review' &&
+        contains(github.event.review.body, '@claude') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)) ||
+      (github.event_name == 'issues' &&
+        (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -95,7 +116,9 @@ jobs:
           # without it, and both correctly declined to assert them on the author's word.
           #
           # Broader than read-only: `gh api` accepts `-X POST`/`-X DELETE`, and prefix
-          # matching cannot exclude those. Granted deliberately, on a repo whose PRs come
-          # only from its owner — fork PRs receive no secrets, so this workflow cannot run
-          # for them.
+          # matching cannot exclude those. What keeps that safe is the author gate in the
+          # job's `if:` above, NOT fork-secret withholding — this repo is public, and four
+          # of the five triggers run in the base repo context with full secrets whoever
+          # wrote the comment. Removing the author gate re-opens arbitrary API writes to
+          # any commenter.
           claude_args: '--allowedTools "WebSearch,WebFetch,Bash(gh api:*)"'
