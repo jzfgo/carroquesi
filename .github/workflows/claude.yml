@@ -1,5 +1,22 @@
 name: Claude Code
 
+# Make each run identifiable by the PR/issue it belongs to.
+#
+# Runs triggered by `issue_comment` are always attributed to the DEFAULT branch —
+# an issue comment carries no ref, so GitHub reads the workflow from `main` and
+# reports `headBranch: main` even when the comment is on a PR whose head is a
+# feature branch. (That is a security property, not a quirk: it stops a PR author
+# from editing this file in their branch and running it with repository secrets.)
+#
+# Consequence: `gh run list --branch <feature-branch>` can never find a review run.
+# This run-name restores a PR-scoped handle, so runs can be located with:
+#   gh run list --workflow=claude.yml --json databaseId,displayTitle
+#
+# NOTE: the value must stay quoted. Unquoted, YAML treats the " #" before the
+# expression as the start of a comment and the name silently truncates to
+# "Claude —", losing the number this exists to carry.
+run-name: "Claude — #${{ github.event.issue.number || github.event.pull_request.number }}"
+
 on:
   issue_comment:
     types: [created]

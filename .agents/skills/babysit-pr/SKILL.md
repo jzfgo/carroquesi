@@ -150,6 +150,17 @@ which may be a CI run rather than the review action.
 >
 > `--branch main` is no better: it sweeps in reviews for *other* PRs running concurrently,
 > which is the ambiguity the `[View job]` link exists to remove.
+>
+> `claude.yml` sets `run-name: "Claude — #<number>"`, which restores a PR-scoped handle for
+> the cases where no comment has appeared yet:
+>
+> ```bash
+> gh run list --workflow=claude.yml --limit 10 --json databaseId,status,displayTitle \
+>   --jq '.[] | select(.displayTitle | test("#<number>$"))'
+> ```
+>
+> Use this only to *find* a run — it does not tell you which trigger it belongs to when
+> several re-reviews target the same PR. The `[View job]` link remains the exact answer.
 
 ```bash
 # 1. resolve the run id(s) from the claude comment(s) on THIS PR
