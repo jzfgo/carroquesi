@@ -545,3 +545,69 @@ def test_parse_receipt_at(raw, expected):
 def test_parse_receipt_at_returns_naive_datetimes():
     """Stored timestamps are naive UTC throughout the codebase."""
     assert _parse_receipt_at("2026-04-11T17:42:00Z").tzinfo is None
+
+
+def test_receipt_prices_marks_unpurchased_item_as_purchased(client, session, user):
+    session.add(
+        ListItem(
+            id="item-pan",
+            list_id=LIST_ID,
+            name="Pan de molde",
+            added_by=user.id,
+            purchased_at=None,
+        )
+    )
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": "2026-04-11T17:42:00Z",
+            "patches": [
+                {
+                    "item_id": "item-pan",
+                    "price": 1.25,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": "1",
+                }
+            ],
+            "new_items": [],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    item = session.get(ListItem, "item-pan")
+    assert item.purchased_at == datetime(2026, 4, 11, 17, 42)
+    assert item.price == pytest.approx(1.25)
+
+
+def test_receipt_prices_does_not_rewrite_an_existing_purchase_timestamp(client, session):
+    """A co-shopper may have purchased it days ago; only prices should change."""
+    original = session.get(ListItem, "item-almendras").purchased_at
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": "2026-04-11T17:42:00Z",
+            "patches": [
+                {
+                    "item_id": "item-almendras",
+                    "price": 1.15,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": None,
+                }
+            ],
+            "new_items": [],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    assert session.get(ListItem, "item-almendras").purchased_at == original

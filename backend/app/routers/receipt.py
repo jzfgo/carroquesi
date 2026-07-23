@@ -131,6 +131,7 @@ def apply_receipt_prices(
 ):
     _, current_user = list_and_user
     now = datetime.now(UTC).replace(tzinfo=None)
+    purchase_ts = _parse_receipt_at(body.receipt_date) or now
     updated = 0
 
     for patch in body.patches:
@@ -144,6 +145,10 @@ def apply_receipt_prices(
         if patch.quantity is not None:
             item.purchased_quantity = patch.quantity  # actual receipt qty → new field
             # item.quantity (planned qty) is intentionally left untouched
+        # Infer the unpurchased -> purchased transition from server state. A
+        # client-sent flag could rewrite a timestamp set by another member.
+        if item.purchased_at is None:
+            item.purchased_at = purchase_ts
         session.add(item)
         updated += 1
 
