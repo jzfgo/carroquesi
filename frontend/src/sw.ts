@@ -7,6 +7,7 @@ import {
 } from 'workbox-precaching'
 import { registerRoute } from 'workbox-routing'
 import { NetworkOnly } from 'workbox-strategies'
+import { buildNotification, type PushPayload } from './lib/pushCopy'
 
 declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: (string | PrecacheEntry)[]
@@ -39,6 +40,58 @@ cleanupOutdatedCaches()
 // Offline behaviour is handled in-app by the IndexedDB write queue and
 // localStorage read cache, not by the worker.
 registerRoute(new RegExp(`^${escapeRegex(BACKEND_URL)}/`), new NetworkOnly())
+
+// Data-only messages: FCM wraps the payload, so read `data` when present.
+self.addEventListener('push', (event: PushEvent) => {
+  if (!event.data) return
+  let payload: PushPayload
+  try {
+    const raw = event.data.json() as { data?: PushPayload } & PushPayload
+    payload = (raw.data ?? raw) as PushPayload
+  } catch {
+    return
+  }
+  if (!payload.list_id) return
+
+  const note = buildNotification(payload)
+  // Safari forbids silent push: every push event must display something.
+  event.waitUntil(
+    self.registration.showNotification(note.title, {
+      body: note.body,
+      // Same tag replaces the existing entry without sound or vibration, so a
+      // burst produces one alert and then silent updates. renotify is left
+      // unset deliberately: quiet replacement is the spec default.
+      tag: note.tag,
+      icon: '/pwa-192x192.png',
+      badge: '/monochrome.svg',
+      data: { url: note.url },
+    }),
+  )
+})
+
+self.addEventListener('notificationclick', (event: NotificationEvent) => {
+  event.notification.close()
+  const url =
+    (event.notification.data as { url?: string } | undefined)?.url ?? '/'
+
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      })
+      const existing = all[0] as WindowClient | undefined
+      if (existing) {
+        await existing.focus()
+        // postMessage, not client.navigate(): navigate() forces a full reload,
+        // while the app can route in place with React Router.
+        existing.postMessage({ type: 'NAVIGATE', url })
+        return
+      }
+      await self.clients.openWindow(url)
+    })(),
+  )
+})
 
 // registerType: 'autoUpdate' expects the worker to activate immediately.
 self.skipWaiting()
