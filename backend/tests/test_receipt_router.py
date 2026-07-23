@@ -4,6 +4,7 @@ import pytest
 
 from app.db.models import List, ListItem, ListMember
 from app.db.models import UserFeature as _UserFeature
+from app.schemas.receipt import ReceiptPriceBatch
 
 LIST_ID = "list-receipt-test"
 
@@ -498,3 +499,43 @@ def test_receipt_prices_still_accepts_batch_without_new_items(client):
         json={"scan_id": None, "patches": [], "mappings": []},
     )
     assert response.status_code == 200
+
+
+def test_receipt_price_batch_parses_new_items_and_receipt_date():
+    """Guards the schema itself: the endpoint tolerates unknown keys either way,
+    so only direct model validation distinguishes parsed from silently dropped."""
+    batch = ReceiptPriceBatch.model_validate(
+        {
+            "scan_id": None,
+            "receipt_date": "2026-04-11",
+            "patches": [],
+            "new_items": [
+                {
+                    "name": "Chocolate negro",
+                    "brand": "Valor",
+                    "ean": None,
+                    "price": 1.8,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": "1",
+                }
+            ],
+            "mappings": [],
+        }
+    )
+
+    assert batch.receipt_date == "2026-04-11"
+    assert len(batch.new_items) == 1
+    assert batch.new_items[0].name == "Chocolate negro"
+    assert batch.new_items[0].brand == "Valor"
+    assert batch.new_items[0].price == 1.8
+    assert batch.new_items[0].store == "Mercadona"
+    assert batch.new_items[0].quantity == "1"
+    assert batch.new_items[0].ean is None
+
+
+def test_receipt_price_batch_defaults_new_fields():
+    """An older cached client omits both new fields entirely."""
+    batch = ReceiptPriceBatch.model_validate({"scan_id": None})
+    assert batch.receipt_date is None
+    assert batch.new_items == []
