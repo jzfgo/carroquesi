@@ -20,9 +20,11 @@ A collaborative grocery shopping list. Multiple users share lists, mark items as
 
 ```
 carroquesi/
-├── frontend/   # React + TypeScript (Vite) → Firebase Hosting
-└── backend/    # Python + FastAPI + PostgreSQL → Cloud Run
+├── frontend/   # React + TypeScript (Vite) → static bundle
+└── backend/    # Python + FastAPI + PostgreSQL → Docker image
 ```
+
+Those two artifacts are the deployable output; where they run is a separate choice — see [Deployment](#deployment).
 
 - **Auth & AI:** Firebase handles Google Sign-In and AI-powered receipt parsing (Gemini via Firebase AI SDK). The frontend sends a Firebase ID token on every request; the backend validates it via the Firebase Admin SDK.
 - **Data:** All CRUD goes through the FastAPI backend. No Firestore.
@@ -127,7 +129,16 @@ Run `just` (no arguments) to list all available recipes.
 
 ## Deployment
 
-| Layer    | Target                    |
-| -------- | ------------------------- |
-| Frontend | Firebase Hosting          |
-| Backend  | Google Cloud Run (Docker) |
+The app builds to two portable artifacts — a static frontend bundle and a Docker image for the backend. Neither is tied to a particular host; deploy them wherever you like.
+
+For reference, the **canonical deployment** (the one the maintainer runs) uses:
+
+| Layer    | Canonical deployment      | Swappable?                                                                                              |
+| -------- | ------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Frontend | Firebase Hosting          | Yes — any static host serves the Vite build                                                             |
+| Backend  | Google Cloud Run (Docker) | Yes — any container runtime                                                                             |
+| Database | Neon (managed Postgres)   | Yes — any Postgres instance; `DATABASE_URL` is the backend's entire contract with it                    |
+
+**Firebase Auth is the one genuine exception.** It is a dependency, not a deployment choice: the backend validates Firebase ID tokens via the Admin SDK ([ADR-002](docs/decisions/002-firebase-auth-only-postgres-for-data.md)), so a Firebase project is required no matter where you host. Firebase *Hosting* is not required — the two are independent despite the shared name.
+
+Whatever you deploy on, the backup policy for it is yours to own. [ADR-008](docs/decisions/008-database-backup-policy.md) documents the canonical deployment's; the Neon commands won't apply elsewhere, but the decision structure does.
