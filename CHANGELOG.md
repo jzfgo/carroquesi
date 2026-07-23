@@ -72,6 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Explain blocked notifications instead of showing a dead toggle
 
+- Re-render the notifications control when a permission prompt is denied
+
 
 ---
 ## [0.20.0] — 2026-07-22
