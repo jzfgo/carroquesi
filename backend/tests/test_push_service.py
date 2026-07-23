@@ -35,7 +35,7 @@ def test_list_member_watermark_defaults_to_null(session: Session, user: User):
     assert isinstance(member.created_at, datetime)
 
 
-def test_list_item_records_purchaser(session: Session, user: User):
+def test_list_item_purchaser_defaults_to_null(session: Session, user: User):
     lst = List(name="Casa", owner_id=user.id)
     session.add(lst)
     session.commit()
