@@ -378,7 +378,7 @@ describe('unpurchased items', () => {
     expect(screen.queryByRole('group', { name: 'Fecha desconocida' })).toBeNull()
   })
 
-  it('sends a linked unpurchased item as a normal patch', () => {
+  it('links an unpurchased item instead of creating a duplicate', () => {
     const { onConfirm } = renderSheet({ purchasedItems: withUnpurchased })
     const selects = screen.getAllByRole('combobox')
     fireEvent.change(selects[selects.length - 1], {
@@ -387,8 +387,11 @@ describe('unpurchased items', () => {
     fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
 
     const patches = onConfirm.mock.calls[0][0]
+    const newItems = onConfirm.mock.calls[0][2]
     expect(patches.some((p: { item_id: string }) => p.item_id === 'item-9')).toBe(
       true,
     )
+    // Linking must REPLACE creating — this is the duplicate-items fix.
+    expect(newItems).toHaveLength(0)
   })
 })
