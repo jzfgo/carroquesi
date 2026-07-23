@@ -465,3 +465,36 @@ def test_post_receipt_returns_403_when_flag_disabled(session, other_user, other_
 
     response = other_client.post("/lists/list-receipt-other/receipt", json=_unit_body())
     assert response.status_code == 403
+
+
+def test_receipt_prices_accepts_new_items_payload(client):
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": "2026-04-11",
+            "patches": [],
+            "new_items": [
+                {
+                    "name": "Chocolate negro",
+                    "brand": "Valor",
+                    "ean": None,
+                    "price": 1.8,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": "1",
+                }
+            ],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+
+def test_receipt_prices_still_accepts_batch_without_new_items(client):
+    """Older cached PWA clients omit new_items and receipt_date entirely."""
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={"scan_id": None, "patches": [], "mappings": []},
+    )
+    assert response.status_code == 200
