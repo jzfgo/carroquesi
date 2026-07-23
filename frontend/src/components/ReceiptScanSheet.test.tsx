@@ -254,3 +254,80 @@ describe('ReceiptScanSheet', () => {
     expect(screen.getByText(/coincide/)).toBeInTheDocument()
   })
 })
+
+function renderSheet2(
+  overrides: Partial<Parameters<typeof ReceiptScanSheet>[0]> = {},
+) {
+  const onConfirm = vi.fn()
+  render(
+    <ReceiptScanSheet
+      result={mockResult}
+      purchasedItems={mockPurchasedItems}
+      store="Mercadona"
+      onConfirm={onConfirm}
+      onClose={vi.fn()}
+      {...overrides}
+    />,
+  )
+  return { onConfirm }
+}
+
+/** The unmatched row "MANI DULCE" is the last row in the sheet. */
+function selectCreateOnUnmatchedRow() {
+  const selects = screen.getAllByRole('combobox')
+  fireEvent.change(selects[selects.length - 1], {
+    target: { value: '__create__' },
+  })
+}
+
+describe('create mode', () => {
+  it('reveals a name field when "Crear artículo nuevo" is chosen', () => {
+    renderSheet2()
+    expect(screen.queryByPlaceholderText(/Leche semi/)).toBeNull()
+    selectCreateOnUnmatchedRow()
+    expect(screen.getByPlaceholderText(/Leche semi/)).toBeTruthy()
+  })
+
+  it('sends the parsed name and brand as a new item', () => {
+    const { onConfirm } = renderSheet2()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Cacahuetes dulces #Hacendado' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
+
+    const newItems = onConfirm.mock.calls[0][2]
+    expect(newItems).toHaveLength(1)
+    expect(newItems[0].name).toBe('Cacahuetes dulces')
+    expect(newItems[0].brand).toBe('Hacendado')
+    expect(newItems[0].price).toBeCloseTo(3.15)
+    expect(newItems[0].store).toBe('Mercadona')
+  })
+
+  it('honours |EAN and discards +qty and @store', () => {
+    const { onConfirm } = renderSheet2()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Cacahuetes +5 @Lidl |8412345678901' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
+
+    const newItems = onConfirm.mock.calls[0][2]
+    expect(newItems[0].name).toBe('Cacahuetes')
+    expect(newItems[0].ean).toBe('8412345678901')
+    // The row's own quantity field and the receipt header own these.
+    expect(newItems[0].quantity).toBe('1')
+    expect(newItems[0].store).toBe('Mercadona')
+  })
+
+  it('blocks confirm when the name parses to empty', () => {
+    renderSheet2()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: '#Hacendado' },
+    })
+    const confirm = screen.getByRole('button', { name: /Guardar precios/ })
+    expect((confirm as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText(/Escribe un nombre/)).toBeTruthy()
+  })
+})

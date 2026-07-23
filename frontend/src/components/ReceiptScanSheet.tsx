@@ -3,9 +3,11 @@ import { useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { formatPrice } from '../lib/formatPrice'
 import { parseQuantityFactor, purchasedDateLabel } from '../lib/itemCost'
+import { parseInput } from '../lib/parseInput'
 import type {
   MatchedLine,
   NameMapping,
+  NewPurchasedItem,
   PricePatch,
   ReceiptScanResult,
   UnmatchedLine,
@@ -41,8 +43,21 @@ interface Props {
   result: ReceiptScanResult
   purchasedItems: ItemRef[]
   store: string | null
-  onConfirm: (patches: PricePatch[], mappings: NameMapping[]) => void
+  onConfirm: (
+    patches: PricePatch[],
+    mappings: NameMapping[],
+    newItems: NewPurchasedItem[],
+  ) => void
   onClose: () => void
+}
+
+/** Name a create row will produce, after sigils are stripped. */
+function createdName(ls: LineState): string {
+  return parseInput(ls.createText).name.trim()
+}
+
+function isInvalidCreate(ls: LineState): boolean {
+  return ls.included && ls.mode === 'create' && createdName(ls) === ''
 }
 
 function initialQuantity(line: MatchedLine | UnmatchedLine): string {
@@ -138,6 +153,7 @@ export default function ReceiptScanSheet({
 
   const checkedCount = lineStates.filter((ls) => ls.included).length
   const allChecked = checkedCount === lineStates.length
+  const hasInvalidCreate = lineStates.some(isInvalidCreate)
 
   function updateLine(index: number, patch: Partial<LineState>) {
     setLineStates((prev) =>
@@ -183,7 +199,7 @@ export default function ReceiptScanSheet({
 
   function handleConfirm() {
     const patches: PricePatch[] = lineStates.flatMap((ls) => {
-      if (!ls.included || !ls.itemId) return []
+      if (!ls.included || ls.mode !== 'link' || !ls.itemId) return []
       return [
         {
           item_id: ls.itemId,
@@ -195,21 +211,46 @@ export default function ReceiptScanSheet({
       ]
     })
 
+    const newItems: NewPurchasedItem[] = lineStates.flatMap((ls) => {
+      if (!ls.included || ls.mode !== 'create') return []
+      const parsed = parseInput(ls.createText)
+      const name = parsed.name.trim()
+      if (!name) return []
+      return [
+        {
+          name,
+          brand: parsed.brand,
+          // +qty and @store are parsed out of the name but discarded: the row's
+          // quantity field and the receipt header already own those values.
+          ean: parsed.ean ?? ls.createEan,
+          price: ls.unitPrice,
+          price_per: ls.pricePer,
+          store,
+          quantity: ls.quantity,
+        },
+      ]
+    })
+
     const mappings: NameMapping[] = lineStates.flatMap((ls, i) => {
-      if (!ls.included || !ls.itemId || !store) return []
-      const item = purchasedItems.find((p) => p.id === ls.itemId)
-      if (!item) return []
+      if (!ls.included || !store) return []
+      let itemName: string | null = null
+      if (ls.mode === 'link' && ls.itemId) {
+        itemName = purchasedItems.find((p) => p.id === ls.itemId)?.name ?? null
+      } else if (ls.mode === 'create') {
+        itemName = createdName(ls) || null
+      }
+      if (!itemName) return []
       return [
         {
           store,
           receipt_name: allLines[i].receipt_name.toLowerCase(),
-          item_name: item.name,
+          item_name: itemName,
           item_brand: null,
         },
       ]
     })
 
-    onConfirm(patches, mappings)
+    onConfirm(patches, mappings, newItems)
   }
 
   const formattedDate = result.receipt_date
@@ -287,7 +328,11 @@ export default function ReceiptScanSheet({
                 <div className="rss-text">
                   <div className="rss-ocr">{line.receipt_name}</div>
                   <div className={`rss-item${ls.itemId ? '' : ' unlinked'}`}>
-                    {linkedItem ? linkedItem.name : 'sin vincular'}
+                    {ls.mode === 'create'
+                      ? `✚ ${createdName(ls) || 'artículo nuevo'}`
+                      : linkedItem
+                        ? linkedItem.name
+                        : 'sin vincular'}
                   </div>
                   <div className="rss-qty-summary">{formatQtySummary(ls)}</div>
                 </div>
@@ -347,6 +392,27 @@ export default function ReceiptScanSheet({
                     ))}
                   </select>
                 </div>
+
+                {ls.mode === 'create' && (
+                  <div className="rss-field">
+                    <div className="rss-field-label">Artículo nuevo</div>
+                    <input
+                      className="rss-create-input"
+                      type="text"
+                      value={ls.createText}
+                      placeholder="ej. Leche semi #Hacendado"
+                      onChange={(e) =>
+                        updateLine(i, { createText: e.target.value })
+                      }
+                    />
+                    <div className="rss-create-hint">
+                      #marca · usa comillas si hay espacios
+                    </div>
+                    {isInvalidCreate(ls) && (
+                      <div className="rss-create-error">Escribe un nombre</div>
+                    )}
+                  </div>
+                )}
 
                 <div className="rss-field">
                   <div className="rss-field-label">Cantidad · Precio</div>
@@ -424,7 +490,7 @@ export default function ReceiptScanSheet({
         </div>
         <button
           className="confirm-btn"
-          disabled={checkedCount === 0}
+          disabled={checkedCount === 0 || hasInvalidCreate}
           onClick={handleConfirm}
         >
           Guardar precios
