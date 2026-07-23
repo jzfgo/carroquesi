@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Patch 31 Dependabot vulnerabilities in backend dependencies (#124)
 
+- Make the lockfile guard detect platform-narrowing, not native bindings
+
 - Patch 19 Dependabot vulnerabilities in frontend dependencies (#125)
 
 
