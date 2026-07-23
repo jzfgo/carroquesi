@@ -377,7 +377,9 @@ describe('unpurchased items', () => {
 
   it('never labels an unpurchased item "Fecha desconocida"', () => {
     renderSheet({ purchasedItems: withUnpurchased })
-    expect(screen.queryByRole('group', { name: 'Fecha desconocida' })).toBeNull()
+    expect(
+      screen.queryByRole('group', { name: 'Fecha desconocida' }),
+    ).toBeNull()
   })
 
   it('links an unpurchased item instead of creating a duplicate', () => {
@@ -390,9 +392,9 @@ describe('unpurchased items', () => {
 
     const patches = onConfirm.mock.calls[0][0]
     const newItems = onConfirm.mock.calls[0][2]
-    expect(patches.some((p: { item_id: string }) => p.item_id === 'item-9')).toBe(
-      true,
-    )
+    expect(
+      patches.some((p: { item_id: string }) => p.item_id === 'item-9'),
+    ).toBe(true)
     // Linking must REPLACE creating — this is the duplicate-items fix.
     expect(newItems).toHaveLength(0)
   })

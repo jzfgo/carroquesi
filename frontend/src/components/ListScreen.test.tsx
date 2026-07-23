@@ -43,9 +43,7 @@ vi.mock('./ReceiptScanSheet', () => ({
       newItems: unknown[],
     ) => Promise<boolean>
   }) => (
-    <button onClick={() => void onConfirm([], [], [])}>
-      Confirmar (mock)
-    </button>
+    <button onClick={() => void onConfirm([], [], [])}>Confirmar (mock)</button>
   ),
 }))
 
@@ -434,9 +432,7 @@ describe('receipt price confirmation toast', () => {
     })
     await openReceiptSheetAndConfirm()
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent(
-      '1 precio actualizado · 1 artículo añadido',
-    )
+    expect(alert).toHaveTextContent('1 precio actualizado · 1 artículo añadido')
   })
 
   it('falls back to a neutral toast when nothing changed', async () => {

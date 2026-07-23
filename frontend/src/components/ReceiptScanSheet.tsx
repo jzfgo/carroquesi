@@ -443,7 +443,10 @@ export default function ReceiptScanSheet({
                         updateLine(i, { createText: e.target.value })
                       }
                     />
-                    <div className="rss-create-hint" id={`rss-create-hint-${i}`}>
+                    <div
+                      className="rss-create-hint"
+                      id={`rss-create-hint-${i}`}
+                    >
                       #marca · usa comillas si hay espacios
                     </div>
                     {isInvalidCreate(ls) && (
