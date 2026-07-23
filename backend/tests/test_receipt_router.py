@@ -763,3 +763,48 @@ def test_scan_audit_counts_created_and_updated_items(client, session, user):
 
     session.expire_all()
     assert session.get(ReceiptScan, scan_id).items_updated == 2
+
+
+def test_post_receipt_matches_when_the_date_is_a_full_instant(client):
+    """An instant must not fall through the ValueError handler and disable the
+    match window."""
+    body = _unit_body()
+    body["receipt_date"] = "2026-04-11T17:42:00Z"
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=body)
+
+    assert response.status_code == 200
+    assert len(response.json()["matched"]) == 1
+
+
+def test_post_receipt_still_matches_with_a_bare_date(client):
+    """Cached older clients keep sending YYYY-MM-DD."""
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body())
+    assert len(response.json()["matched"]) == 1
+
+
+def test_post_receipt_full_instant_excludes_items_outside_match_window(client, session):
+    """Discriminating case for the two tests above: a full ISO instant must
+    still enforce the +-3 day match window, not silently disable it.
+
+    Without the fix, `date.fromisoformat` raises on the "T...Z" suffix, the
+    bare `except ValueError: pass` swallows it, `receipt_date` stays None,
+    and the window filter is skipped entirely -- so this item (purchased 41
+    days before the receipt) would still be an eligible fuzzy-match
+    candidate and this test would fail with `matched` non-empty. Mirrors
+    test_post_receipt_ignores_items_purchased_outside_match_window, but sent
+    as an instant instead of a bare date so it actually exercises the parser
+    used by the bug fix.
+    """
+    item = session.get(ListItem, "item-almendras")
+    item.purchased_at = datetime(2026, 3, 1, 9, 0, 0)  # 41 days before receipt
+    session.add(item)
+    session.commit()
+
+    body = _unit_body()
+    body["receipt_date"] = "2026-04-11T17:42:00Z"
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=body)
+
+    assert response.status_code == 200
+    result = response.json()
+    assert len(result["matched"]) == 0
+    assert len(result["unmatched"]) == 1

@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select
@@ -53,12 +53,13 @@ def scan_receipt(
             detail="ai_receipt_scanning feature not enabled",
         )
 
-    receipt_date: date | None = None
-    if body.receipt_date:
-        try:
-            receipt_date = date.fromisoformat(body.receipt_date)
-        except ValueError:
-            pass
+    # _parse_receipt_at normalises to naive UTC, so a receipt printed just
+    # after local midnight can yield a UTC date one day earlier than the
+    # wall-clock date. That skew is at most a few hours and is absorbed by
+    # the +-3 day window below; don't narrow the window without accounting
+    # for it.
+    receipt_at = _parse_receipt_at(body.receipt_date)
+    receipt_date = receipt_at.date() if receipt_at else None
 
     stmt = (
         select(ListItem)
