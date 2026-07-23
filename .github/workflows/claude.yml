@@ -89,5 +89,13 @@ jobs:
           #
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options.
-          claude_args: '--allowedTools "WebSearch,WebFetch"'
-
+          # `Bash(gh api:*)` lets the reviewer check repository configuration that is not
+          # in the tree — rulesets, required checks, run status. Two independent reviews of
+          # #122 had to report the ruleset claims in babysit-pr/SKILL.md as unverifiable
+          # without it, and both correctly declined to assert them on the author's word.
+          #
+          # Broader than read-only: `gh api` accepts `-X POST`/`-X DELETE`, and prefix
+          # matching cannot exclude those. Granted deliberately, on a repo whose PRs come
+          # only from its owner — fork PRs receive no secrets, so this workflow cannot run
+          # for them.
+          claude_args: '--allowedTools "WebSearch,WebFetch,Bash(gh api:*)"'
