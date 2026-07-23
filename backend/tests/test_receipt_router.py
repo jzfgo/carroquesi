@@ -649,3 +649,81 @@ def test_receipt_prices_falls_back_to_now_without_a_receipt_date(client, session
     item = session.get(ListItem, "item-leche")
     assert item.purchased_at is not None
     assert item.purchased_at >= before
+
+
+def _new_item_body(**overrides):
+    item = {
+        "name": "Chocolate negro 85%",
+        "brand": "Valor",
+        "ean": "8412345678901",
+        "price": 1.8,
+        "price_per": None,
+        "store": "Mercadona",
+        "quantity": "2",
+    }
+    item.update(overrides)
+    return {
+        "scan_id": None,
+        "receipt_date": "2026-04-11T17:42:00Z",
+        "patches": [],
+        "new_items": [item],
+        "mappings": [],
+    }
+
+
+def test_receipt_prices_creates_a_purchased_item(client, session, user):
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=_new_item_body())
+    assert response.status_code == 200
+    assert response.json()["items_created"] == 1
+
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.list_id == LIST_ID
+    assert created.added_by == user.id
+    assert created.brand == "Valor"
+    assert created.ean == "8412345678901"
+    assert created.price == pytest.approx(1.8)
+    assert created.price_store == "Mercadona"
+    assert created.stores == ["Mercadona"]
+    assert created.purchased_at == datetime(2026, 4, 11, 17, 42)
+
+
+def test_created_item_uses_purchased_quantity_not_planned_quantity(client, session):
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=_new_item_body())
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.purchased_quantity == "2"
+    assert created.quantity is None
+
+
+def test_created_item_falls_back_to_now_without_a_receipt_date(client, session):
+    before = datetime.now(UTC).replace(tzinfo=None)
+    body = _new_item_body()
+    body["receipt_date"] = None
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.purchased_at >= before
+
+
+def test_created_item_has_empty_stores_without_a_store(client, session):
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=_new_item_body(store=None))
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.stores == []
+    assert created.price_store is None
+
+
+def test_receipt_prices_reports_updated_and_created_counts(client, session, user):
+    session.add(ListItem(id="item-pan2", list_id=LIST_ID, name="Pan", added_by=user.id))
+    session.commit()
+
+    body = _new_item_body()
+    body["patches"] = [
+        {
+            "item_id": "item-pan2",
+            "price": 1.25,
+            "price_per": None,
+            "store": "Mercadona",
+            "quantity": "1",
+        }
+    ]
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+    assert response.json() == {"items_updated": 1, "items_created": 1}

@@ -152,6 +152,26 @@ def apply_receipt_prices(
         session.add(item)
         updated += 1
 
+    created = 0
+    for new in body.new_items:
+        session.add(
+            ListItem(
+                list_id=list_id,
+                added_by=current_user.id,
+                name=new.name,
+                brand=new.brand,
+                ean=new.ean,
+                stores=[new.store] if new.store else [],
+                quantity=None,  # planned qty — an impulse buy was never planned
+                purchased_quantity=new.quantity,
+                price=new.price,
+                price_per=new.price_per,
+                price_store=new.store,
+                purchased_at=purchase_ts,
+            )
+        )
+        created += 1
+
     for m in body.mappings:
         stmt = select(ReceiptNameMapping).where(
             ReceiptNameMapping.store == m.store,
@@ -179,7 +199,7 @@ def apply_receipt_prices(
     if body.scan_id:
         scan = session.get(ReceiptScan, body.scan_id)
         if scan:
-            scan.items_updated = updated
+            scan.items_updated = updated + created
             session.add(scan)
 
     lst = session.get(List, list_id)
@@ -189,4 +209,4 @@ def apply_receipt_prices(
 
     session.commit()
 
-    return {"items_updated": updated}
+    return {"items_updated": updated, "items_created": created}
