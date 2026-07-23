@@ -25,6 +25,9 @@ to receive background messages, compose notification copy, and handle clicks. Wi
 Switch to `strategies: 'injectManifest'` and maintain a single `src/sw.ts` that
 handles precaching, backend routing, and push.
 
+The worker handles push with a **plain `push` event listener and no Firebase SDK at
+all**. The FCM SDK is used only in the page, to obtain and register the token.
+
 ## Rationale
 
 **A `public/` worker is invisible to every quality gate in this repo.**
@@ -36,8 +39,9 @@ untested code handling notification display, in a file nothing in CI looks at.
 cannot import from `node_modules`, so the worker would have to `importScripts()` the
 Firebase *compat* build from the gstatic CDN at a hardcoded version. That is a second
 copy of Firebase, drifting away from the `firebase` version in `package.json`, updated
-by nobody. `injectManifest` lets the worker import `firebase/messaging/sw` from
-`node_modules`, version-locked and bundled.
+by nobody. `injectManifest` removes the problem at the root: the worker is bundled from
+source, so it can import from `node_modules` — and, as it turns out, needs to import
+nothing from Firebase at all.
 
 **Two workers carry a known failure mode with this exact configuration.**
 vite-plugin-pwa [issue #777](https://github.com/vite-pwa/vite-plugin-pwa/issues/777)
@@ -52,8 +56,17 @@ for worker behaviour is a build artifact that carries a "do not edit" warning. A
 precache the injected manifest, `cleanupOutdatedCaches()`, `skipWaiting()`,
 `clientsClaim()`, and one `NetworkOnly` route.
 
-**A hand-rolled `push` listener was rejected** as the worst of both worlds: it avoids
-the SDK but depends on the undocumented internal shape of FCM's payload envelope.
+**No Firebase SDK belongs in the worker.** `getToken({ serviceWorkerRegistration })`
+creates a `PushSubscription` on that registration, and FCM then delivers over the
+standard Web Push protocol — so a data-only message arrives as an ordinary `push`
+event whether or not the SDK is present. `onBackgroundMessage` is a convenience wrapper
+over exactly that event, not a privileged channel.
+
+Importing `firebase/messaging/sw` into the worker was considered and rejected: it adds
+bundle weight and a version coupling to buy an event listener we can write in four
+lines. The one real cost of going without is parsing FCM's payload envelope, handled
+defensively with `raw.data ?? raw` so both the wrapped and bare shapes work. The SDK
+remains the right tool in the *page*, where it manages token lifecycle and rotation.
 
 ## Consequences
 

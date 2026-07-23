@@ -381,16 +381,20 @@ UI-only blast radius, but it is the inverse of how `ai_receipt_scanning` behaves
 ### Device spike — before anything else is built
 
 The entire copy-and-coalescing scheme rests on one unverified platform assumption:
-that a **data-only** FCM message reliably wakes the service worker via
-`onBackgroundMessage` on an **installed iOS PWA**, letting us compose the count
-client-side. The pattern is Safari-compliant on paper, but iOS Web Push is the least
+that a **data-only** FCM message reliably wakes the service worker's `push` listener on
+an **installed iOS PWA**, letting us compose the copy client-side. The pattern is
+Safari-compliant on paper, but iOS Web Push is the least
 reliable target in this design, and if the assumption is wrong the fallback is
 `notification`-payload messages — which lose service-worker composition entirely and
 invalidate §6.
 
 So this is validated **first**, with a throwaway spike: send one data-only push to a
-real installed iOS PWA and confirm `onBackgroundMessage` fires and `showNotification`
+real installed iOS PWA and confirm the `push` listener fires and `showNotification`
 renders. Not after the token table, endpoints, and triggers exist.
+
+The worker carries **no Firebase SDK** — `getToken({ serviceWorkerRegistration })`
+subscribes our own worker to standard Web Push, so data messages arrive as plain
+`push` events. See [ADR-009](../../decisions/009-single-service-worker.md).
 
 Deferring this to the §11 rollout step would repeat a known failure pattern: building
 the whole pipeline against local behaviour, then discovering at the end that the one
