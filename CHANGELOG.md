@@ -10,17 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Stop babysit-pr gating its exit on an unreachable APPROVED decision
-
-- Require a completed clean re-review before babysit-pr exits
-
-- Tie babysit-pr's clean-review gate to the reviewed commit
-
-- Give Handling CI Failures an entry point and match reviews by run id
-
-- Reconcile the CI-failure return path and scope Step 5's run lookup
-
-- Count CI-fix cycles against the cap, correct the branch-protection claim
+- Retarget babysit-pr at @claude and make its loop terminate correctly (#120)
 
 
 ---
