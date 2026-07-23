@@ -34,6 +34,22 @@ export function permissionState(): PermissionState {
 }
 
 /**
+ * Whether THIS device is currently subscribed — the source of truth for a
+ * notifications toggle.
+ *
+ * Deliberately not the same as `permissionState() === 'granted'`: turning
+ * notifications off in-app deletes our token but leaves OS permission granted,
+ * so a permission-based toggle would still read "on" right after being switched
+ * off. Both conditions must hold.
+ */
+export function isPushEnabled(): boolean {
+  return (
+    permissionState() === 'granted' &&
+    localStorage.getItem(DEVICE_SUBSCRIBED_KEY) === '1'
+  )
+}
+
+/**
  * Must be called from a user gesture. On iOS this prompt can only ever be shown
  * once — a denial is origin-wide and permanent — so callers prime first.
  */

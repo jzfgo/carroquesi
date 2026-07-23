@@ -8,6 +8,7 @@ import {
 } from 'firebase/auth'
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -17,6 +18,7 @@ import {
 import { ApiError, syncUser } from '../lib/api'
 import { DEV_USER_ID } from '../lib/environment'
 import { auth } from '../lib/firebase'
+import { disablePush, syncPushToken } from '../lib/push'
 
 export interface AuthUser {
   id: string
@@ -132,17 +134,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe
   }, [])
 
-  const getToken = async (): Promise<string> => {
+  // useCallback so the identity is stable: getToken is handed to consumers that
+  // put it in effect dependency arrays (useListSeen, useQueueDrain), where a
+  // fresh function each render would re-fire their effects for no reason. It
+  // closes over nothing but a module constant and a ref, so [] is correct.
+  const getToken = useCallback(async (): Promise<string> => {
     if (DEV_USER_ID) return 'dev-bypass'
     if (!firebaseUserRef.current) throw new Error('Not authenticated')
     return getIdToken(firebaseUserRef.current, false)
-  }
+  }, [])
+
+  // FCM rotates tokens silently, so refresh this device's registration once a
+  // user is established. Only ever refreshes a device that already opted in —
+  // syncPushToken will not create a registration on its own, so this cannot
+  // resurrect notifications the user turned off.
+  const userId = user?.id
+  useEffect(() => {
+    if (!userId) return
+    void syncPushToken(getToken)
+  }, [userId, getToken])
 
   const signIn = async () => {
     await signInWithPopup(auth, new GoogleAuthProvider())
   }
 
   const signOut = async () => {
+    // Before dropping credentials: a shared or handed-down phone must not keep
+    // receiving the previous user's lists. Best-effort — a failure here must
+    // never block signing out.
+    await disablePush(getToken).catch(() => undefined)
     await firebaseSignOut(auth)
   }
 

@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
 import { useApplePlatform } from '../hooks/useApplePlatform'
 import { useIsOffline } from '../hooks/useIsOffline'
 import { usePageTitle } from '../hooks/usePageTitle'
@@ -33,6 +34,13 @@ import {
 } from '../lib/api'
 import { copyToClipboard } from '../lib/clipboard'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
+import { FLAGS } from '../lib/featureFlags'
+import {
+  canReceivePush,
+  disablePush,
+  enablePush,
+  isPushEnabled,
+} from '../lib/push'
 import type { ApiList } from '../types'
 import { ApiKeySheet } from './ApiKeySheet'
 import { CreateListCard } from './CreateListCard'
@@ -100,6 +108,8 @@ export function DashboardScreen() {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
+  const { isEnabled } = useFeatureFlags()
+  const [pushOn, setPushOn] = useState(() => isPushEnabled())
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const isApplePlatform = useApplePlatform()
@@ -450,6 +460,23 @@ export function DashboardScreen() {
           isIOS={isIOS}
           promptInstall={promptInstall}
         />
+        {isEnabled(FLAGS.PUSH_NOTIFICATIONS) &&
+          canReceivePush({ isIOS, isInstalled }) && (
+            <button
+              className="notifications-toggle"
+              onClick={async () => {
+                // Reads back the real state rather than assuming success: the
+                // OS prompt can be denied, and on iOS that denial is permanent.
+                if (pushOn) await disablePush(getToken).catch(() => undefined)
+                else await enablePush(getToken).catch(() => undefined)
+                setPushOn(isPushEnabled())
+              }}
+            >
+              {pushOn
+                ? 'Desactivar avisos'
+                : 'Avisarme de cambios en mis listas'}
+            </button>
+          )}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

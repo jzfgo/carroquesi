@@ -116,3 +116,17 @@
 .dashboard-screen__avatar-menu-item + .dashboard-screen__avatar-menu-item {
   border-top: 1px solid var(--border);
 }
+
+.notifications-toggle {
+  width: 100%;
+  min-height: var(--hit-min, 44px);
+  padding: 0.625rem 0.75rem;
+  font-family: inherit;
+  font-size: var(--fs-14);
+  color: var(--fg-muted, #353742);
+  text-align: left;
+  cursor: pointer;
+  background: var(--bg-raised, #fff);
+  border: 1px solid var(--border, #e2e6ee);
+  border-radius: 12px;
+}
