@@ -3,8 +3,8 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Response, status
 from sqlmodel import select
 
-from app.db.models import PushToken
-from app.dependencies import CurrentSession, CurrentUser
+from app.db.models import ListMember, PushToken
+from app.dependencies import CurrentSession, CurrentUser, MemberDep
 from app.schemas.notifications import PushTokenBody
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -36,5 +36,27 @@ def unregister_token(body: PushTokenBody, session: CurrentSession, current_user:
     ).first()
     if existing is not None:
         session.delete(existing)
+        session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@list_seen_router.post("/{list_id}/seen", status_code=status.HTTP_204_NO_CONTENT)
+def mark_list_seen(list_and_user: MemberDep, session: CurrentSession):
+    """Reset the caller's unseen watermark for this list.
+
+    Deliberately an explicit endpoint rather than a side effect of GET
+    /lists/{id}/items: hanging it off the GET would make notification
+    correctness depend on the visibilityState guard in useListItems.ts, an
+    implicit cross-module invariant a refactor could remove silently. It also
+    keeps a write out of a GET, which the offline queue retries. See ADR-010.
+    """
+    lst, current_user = list_and_user
+    membership = session.exec(
+        select(ListMember).where(
+            ListMember.list_id == lst.id, ListMember.user_id == current_user.id
+        )
+    ).first()
+    if membership is not None:
+        membership.last_seen_at = _now()
         session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
