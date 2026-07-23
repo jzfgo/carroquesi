@@ -20,6 +20,24 @@ router = APIRouter(tags=["receipt"])
 RECEIPT_MATCH_WINDOW_DAYS = 3
 
 
+def _parse_receipt_at(raw: str | None) -> datetime | None:
+    """Parse a receipt date or instant into a naive UTC datetime.
+
+    Accepts a bare date ("2026-04-11" -> midnight) or a full ISO 8601 instant
+    ("2026-04-11T17:42:00Z"). `date.fromisoformat` rejects the latter, so this
+    must use `datetime.fromisoformat`.
+    """
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(UTC)
+    return dt.replace(tzinfo=None)
+
+
 @router.post("/lists/{list_id}/receipt", response_model=ReceiptScanResult)
 def scan_receipt(
     list_id: str,

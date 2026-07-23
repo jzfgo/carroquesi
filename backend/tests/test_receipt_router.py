@@ -5,6 +5,7 @@ from sqlmodel import select
 
 from app.db.models import List, ListItem, ListMember
 from app.db.models import UserFeature as _UserFeature
+from app.routers.receipt import _parse_receipt_at
 from app.schemas.receipt import ReceiptPriceBatch
 
 LIST_ID = "list-receipt-test"
@@ -524,3 +525,23 @@ def test_receipt_price_batch_defaults_new_fields():
     assert batch.new_items == []
     assert batch.patches == []
     assert batch.mappings == []
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("2026-04-11", datetime(2026, 4, 11, 0, 0)),
+        ("2026-04-11T17:42:00Z", datetime(2026, 4, 11, 17, 42)),
+        ("2026-04-11T17:42:00+02:00", datetime(2026, 4, 11, 15, 42)),
+        (None, None),
+        ("", None),
+        ("not-a-date", None),
+    ],
+)
+def test_parse_receipt_at(raw, expected):
+    assert _parse_receipt_at(raw) == expected
+
+
+def test_parse_receipt_at_returns_naive_datetimes():
+    """Stored timestamps are naive UTC throughout the codebase."""
+    assert _parse_receipt_at("2026-04-11T17:42:00Z").tzinfo is None
