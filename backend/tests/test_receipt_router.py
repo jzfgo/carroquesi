@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 from sqlmodel import select
@@ -611,3 +611,41 @@ def test_receipt_prices_does_not_rewrite_an_existing_purchase_timestamp(client, 
 
     session.expire_all()
     assert session.get(ListItem, "item-almendras").purchased_at == original
+
+
+def test_receipt_prices_falls_back_to_now_without_a_receipt_date(client, session, user):
+    """Older clients omit receipt_date; the purchase still gets a timestamp."""
+    session.add(
+        ListItem(
+            id="item-leche",
+            list_id=LIST_ID,
+            name="Leche",
+            added_by=user.id,
+            purchased_at=None,
+        )
+    )
+    session.commit()
+    before = datetime.now(UTC).replace(tzinfo=None)
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "patches": [
+                {
+                    "item_id": "item-leche",
+                    "price": 0.99,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": None,
+                }
+            ],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    item = session.get(ListItem, "item-leche")
+    assert item.purchased_at is not None
+    assert item.purchased_at >= before
