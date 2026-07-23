@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import pytest
+from sqlmodel import select
 
 from app.db.models import List, ListItem, ListMember
 from app.db.models import UserFeature as _UserFeature
@@ -468,37 +469,19 @@ def test_post_receipt_returns_403_when_flag_disabled(session, other_user, other_
     assert response.status_code == 403
 
 
-def test_receipt_prices_accepts_new_items_payload(client):
-    response = client.post(
-        f"/lists/{LIST_ID}/receipt-prices",
-        json={
-            "scan_id": None,
-            "receipt_date": "2026-04-11",
-            "patches": [],
-            "new_items": [
-                {
-                    "name": "Chocolate negro",
-                    "brand": "Valor",
-                    "ean": None,
-                    "price": 1.8,
-                    "price_per": None,
-                    "store": "Mercadona",
-                    "quantity": "1",
-                }
-            ],
-            "mappings": [],
-        },
-    )
-    assert response.status_code == 200
+def test_receipt_prices_is_backward_compatible_with_pre_new_items_clients(client, session):
+    """A cached PWA client deployed before this change omits new_items and
+    receipt_date. The endpoint must still succeed and must not create anything."""
+    before = len(session.exec(select(ListItem).where(ListItem.list_id == LIST_ID)).all())
 
-
-def test_receipt_prices_still_accepts_batch_without_new_items(client):
-    """Older cached PWA clients omit new_items and receipt_date entirely."""
     response = client.post(
         f"/lists/{LIST_ID}/receipt-prices",
         json={"scan_id": None, "patches": [], "mappings": []},
     )
+
     assert response.status_code == 200
+    after = len(session.exec(select(ListItem).where(ListItem.list_id == LIST_ID)).all())
+    assert after == before
 
 
 def test_receipt_price_batch_parses_new_items_and_receipt_date():
@@ -539,3 +522,5 @@ def test_receipt_price_batch_defaults_new_fields():
     batch = ReceiptPriceBatch.model_validate({"scan_id": None})
     assert batch.receipt_date is None
     assert batch.new_items == []
+    assert batch.patches == []
+    assert batch.mappings == []
