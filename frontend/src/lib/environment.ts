@@ -19,6 +19,11 @@ export const FIREBASE_APP_ID = import.meta.env.VITE_FIREBASE_APP_ID as
 export const FIREBASE_MEASUREMENT_ID = import.meta.env
   .VITE_FIREBASE_MEASUREMENT_ID as string | undefined
 
+/** Web Push public key (VAPID). Absent locally; push registration no-ops without it. */
+export const FIREBASE_VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as
+  | string
+  | undefined
+
 export const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY ?? ''
 
 export const BACKEND_URL = (
