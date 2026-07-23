@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Kept in its own file so mocking the Firebase AI SDK never touches the pure
-// toReceiptInstant unit tests in receiptAi.test.ts.
+// Kept in its own file so stubbing generateContent — a whole fake model
+// response — never constrains the pure toReceiptInstant tests next door. Both
+// files stub ./firebase; only this one needs to fake the SDK's behaviour.
 vi.mock('./firebase', () => ({
   auth: { currentUser: null },
   ai: {},

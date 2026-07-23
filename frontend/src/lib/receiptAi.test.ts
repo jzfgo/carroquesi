@@ -1,4 +1,22 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// toReceiptInstant is pure, but it lives beside the Gemini client, and
+// receiptAi.ts builds its model at module scope — so merely importing the
+// function needs a Firebase API key. Without one, ./firebase throws on
+// getAuth() and getGenerativeModel() throws AI/no-api-key. That is the state
+// of every CI runner; only a local .env made these tests appear to pass.
+// Stubbing both keeps them independent of ambient credentials, matching how
+// the rest of the suite handles Firebase.
+vi.mock('./firebase', () => ({
+  auth: { currentUser: null },
+  ai: {},
+}))
+
+vi.mock('firebase/ai', () => ({
+  InferenceMode: { PREFER_IN_CLOUD: 'prefer_in_cloud' },
+  getGenerativeModel: () => ({}),
+}))
+
 import { toReceiptInstant } from './receiptAi'
 
 describe('toReceiptInstant', () => {
