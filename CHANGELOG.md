@@ -64,6 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Parse receipt instants instead of silently discarding them
 
+- **test:** Stop receiptAi unit tests depending on Firebase credentials
+
 
 ---
 ## [0.20.0] — 2026-07-22
