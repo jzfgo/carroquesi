@@ -14,7 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make Claude review runs findable, and review new PRs automatically (#122)
 
-- Patch 31 Dependabot vulnerabilities in backend dependencies
+- Patch 31 Dependabot vulnerabilities in backend dependencies (#124)
+
+- Make the lockfile guard detect platform-narrowing, not native bindings
+
+- Patch 19 Dependabot vulnerabilities in frontend dependencies
 
 
 ---

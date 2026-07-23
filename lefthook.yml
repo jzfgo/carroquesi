@@ -31,12 +31,41 @@ pre-commit:
       run: pnpm exec stylelint --fix {staged_files}
       stage_fixed: true
 
-    # Never commit platform-specific (darwin/linux) native bindings to pnpm-lock.yaml
+    # Never commit platform-narrowed native bindings to pnpm-lock.yaml.
+    #
+    # The failure this catches is a lockfile that resolved optional deps for the
+    # committer's platform only, so installs break everywhere else. It is NOT
+    # "a native binding appeared" — packages like sharp legitimately ship a full
+    # per-platform matrix, and every version bump necessarily adds new entries.
+    # So we judge completeness, not presence: for each native-binding family
+    # added, the staged lockfile must name that family at that version for more
+    # than one OS.
     lockfile-guard:
       glob: "frontend/pnpm-lock.yaml"
       run: |
-        if git diff --cached -- frontend/pnpm-lock.yaml | grep -qE "^\+.*(darwin|linux)-(x64|arm64)"; then
-          echo "✗ pnpm-lock.yaml stages a platform-specific optional dependency."
+        # Arch segments may be hyphenated (linux-x64-gnu, linux-arm-musleabihf),
+        # so arch is [a-z0-9-]+. Longer OS names precede their prefixes in the
+        # alternation so linuxmusl is not swallowed by linux.
+        OS='(darwin|linuxmusl|linux|win32)'
+        staged=$(git show :frontend/pnpm-lock.yaml)
+        added=$(git diff --cached -- frontend/pnpm-lock.yaml \
+          | grep -E "^\+" \
+          | grep -oE "[@a-z0-9/.-]+-${OS}-[a-z0-9-]+@[0-9][0-9.]*" \
+          | sort -u)
+        fail=0
+        for pkg in $added; do
+          fam=$(printf '%s' "$pkg" | sed -E "s/-${OS}-[a-z0-9-]+@.*//")
+          ver=${pkg##*@}
+          oses=$(printf '%s' "$staged" \
+            | grep -oE "$(printf '%s' "$fam" | sed 's/[.[\*^$]/\\&/g')-${OS}-[a-z0-9-]+@${ver}" \
+            | sed -E "s/.*-${OS}-[a-z0-9-]+@.*/\1/" \
+            | sort -u | wc -l | tr -d ' ')
+          if [ "$oses" -lt 2 ]; then
+            echo "✗ ${fam}@${ver} is platform-narrowed (only $oses OS in the lockfile)."
+            fail=1
+          fi
+        done
+        if [ "$fail" -eq 1 ]; then
           echo "  Re-run 'pnpm install' on a clean checkout before committing, per AGENTS.md."
           exit 1
         fi

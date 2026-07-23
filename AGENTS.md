@@ -154,7 +154,7 @@ The following constraints are enforced by Claude Code hooks (`.claude/hooks/`), 
 - **Worktree lifecycle belongs to worktrunk** — creating or removing a worktree any other way skips this project's `wt` hooks (direnv, deps, migrate, seed) and produces a worktree with no `.env`, no `node_modules`, and an unmigrated DB. So `EnterWorktree` without a `path`, `ExitWorktree` with `action: "remove"`, and `git worktree add|remove|prune|move` are all denied. **Navigation is not** — `EnterWorktree({path})` into an existing worktree and `ExitWorktree({action: "keep"})` are allowed, since they touch no git state. The flow is `wt switch --create <branch> --no-cd --format=json`, then `EnterWorktree` with the `path` it reports.
 - **Auto-lint on stop** — after each turn, changed Python files are checked with `ruff` and changed TypeScript files with `eslint`. If either fails, Claude Code continues the turn to fix the issue before stopping.
 
-Lefthook pre-commit hooks run on staged files: `ruff check --fix` + `ruff format` (Python), `eslint --fix` (TypeScript/TSX), `stylelint --fix` (CSS), a platform-native-binding guard on `pnpm-lock.yaml`, and `gitleaks` secret scanning (skipped gracefully if not installed). The `pre-push` hook checks that `CHANGELOG.md` is current.
+Lefthook pre-commit hooks run on staged files: `ruff check --fix` + `ruff format` (Python), `eslint --fix` (TypeScript/TSX), `stylelint --fix` (CSS), a platform-narrowing guard on `pnpm-lock.yaml`, and `gitleaks` secret scanning (skipped gracefully if not installed). The `pre-push` hook checks that `CHANGELOG.md` is current.
 
 ### Architecture Decision Records
 
@@ -188,7 +188,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 - Use uv for Python toolchain and virtual environment management
 - Backend uses FastAPI with Firebase; ensure `.env` and Firebase config are present before running
 - Frontend typecheck must use `tsconfig.app.json` (root tsconfig.json has files:[] and silently passes)
-- Never commit platform-specific (darwin/linux) native bindings to `pnpm-lock.yaml`
+- Never commit a **platform-narrowed** `pnpm-lock.yaml` — one where a native binding resolved for your platform only, so installs break everywhere else. Note this is about *completeness, not presence*: packages like `sharp` and `@rollup/rollup` legitimately ship a full per-platform matrix, and every version bump of them adds new per-platform entries. That is expected and fine. The `lockfile-guard` pre-commit hook enforces exactly this — for each native binding family added, the lockfile must name it for more than one OS
 
 ## Bug Investigation
 
@@ -200,7 +200,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 
 - Frontend changes: run lint, relevant tests, and `just frontend typecheck`
 - Backend changes: run relevant `just backend test-file {file}` tests (full suite when feasible `just backend test`)
-- Before push: verify only intentional files are changed and no platform-specific native binding churn was introduced in `pnpm-lock.yaml`
+- Before push: verify only intentional files are changed, and that `pnpm-lock.yaml` was not platform-narrowed (a full per-platform matrix from a dependency upgrade is fine; only *your* platform appearing is not)
 - Shortcut: `just ci` runs format-check + typecheck + lint + tests (frontend and backend) in one shot
 - **CHANGELOG.md** — run `just changelog` and commit the result before pushing. This is blocking, not optional cleanup.
 
@@ -211,7 +211,7 @@ A task is complete only when **all** of the following are true:
 - [ ] Worktree confirmed active (not on `main`) before any file was touched
 - [ ] Lint and relevant tests pass (`just ci` for full check)
 - [ ] `CHANGELOG.md` updated — `just changelog` run and result committed
-- [ ] Only intentional files changed (no platform-specific `pnpm-lock.yaml` churn)
+- [ ] Only intentional files changed (no platform-narrowed `pnpm-lock.yaml`)
 
 ## Out of Scope
 
