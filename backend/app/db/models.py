@@ -51,6 +51,10 @@ class ListMember(SQLModel, table=True):
     is_default: bool = Field(
         default=False, sa_column=Column(Boolean, nullable=False, server_default=text("0"))
     )
+    # Watermark: when this member last actually looked at the list. Drives the
+    # unseen count in push notifications. NULL means "never opened since joining";
+    # resolved with COALESCE(last_seen_at, created_at). See ADR-010.
+    last_seen_at: datetime | None = Field(default=None)
 
 
 class ListItem(SQLModel, table=True):
@@ -66,6 +70,7 @@ class ListItem(SQLModel, table=True):
         default_factory=list, sa_column=Column(JSON, server_default=text("'[]'"))
     )
     purchased_at: datetime | None = Field(default=None)
+    purchased_by: str | None = Field(default=None, foreign_key="users.id")
     added_by: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
@@ -169,3 +174,15 @@ class ApiKey(SQLModel, table=True):
     key_hash: str = Field(unique=True, index=True)
     last_used_at: datetime | None = None
     created_at: datetime = Field(default_factory=_now)
+
+
+class PushToken(SQLModel, table=True):
+    __tablename__ = "push_tokens"
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    user_id: str = Field(foreign_key="users.id")
+    token: str = Field(unique=True, index=True)
+    created_at: datetime = Field(default_factory=_now)
+    # Named last_registered_at, not last_seen_at, to avoid colliding with the
+    # ListMember.last_seen_at read watermark — they mean different things.
+    last_registered_at: datetime = Field(default_factory=_now)
