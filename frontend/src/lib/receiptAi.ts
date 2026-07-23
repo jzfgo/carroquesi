@@ -95,8 +95,12 @@ export function toReceiptInstant(
 ): string | null {
   if (!date) return null
   const [y, m, d] = date.split('-').map(Number)
-  if (!y || !m || !d) return null
 
+  // Deliberately asymmetric with the date validation below: a malformed time
+  // silently degrades to 0 (midnight) — the same value as "no time was
+  // extracted" — because losing intraday ordering is cosmetic and same-day.
+  // A malformed date is rejected outright below, because a garbled date could
+  // point anywhere and there's no safe fallback to degrade to.
   let hours = 0
   let minutes = 0
   if (time) {
@@ -106,10 +110,12 @@ export function toReceiptInstant(
   }
 
   const dt = new Date(y, m - 1, d, hours, minutes, 0, 0)
-  // JS Date normalises out-of-range components instead of rejecting them
-  // ('2026-01-32' becomes Feb 1), and toISOString() throws on an extreme year.
-  // Round-tripping the components catches both: a rolled value no longer
-  // matches what we fed in, and an invalid date fails the NaN check first.
+  // JS Date normalises out-of-range and NaN/zero components instead of
+  // rejecting them ('2026-01-32' becomes Feb 1; `new Date(0, ...)` maps to
+  // 1900; a NaN component yields an Invalid Date), and toISOString() throws
+  // on an extreme year. Round-tripping the components catches all of these:
+  // a rolled or coerced value no longer matches what we fed in, and an
+  // invalid date fails the NaN check first.
   if (
     Number.isNaN(dt.getTime()) ||
     dt.getFullYear() !== y ||

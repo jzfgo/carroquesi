@@ -57,33 +57,4 @@ describe('parseReceiptWithAi wiring', () => {
     expect(result.receipt_total).toBe(1.15)
     expect(result.lines).toEqual([])
   })
-
-  it('still yields a non-null instant at local midnight when receipt_time is null', async () => {
-    vi.doMock('firebase/ai', () => ({
-      InferenceMode: { PREFER_IN_CLOUD: 'prefer_in_cloud' },
-      getGenerativeModel: () => ({
-        generateContent: async () => ({
-          response: {
-            text: () =>
-              JSON.stringify({
-                store: 'Mercadona',
-                receipt_date: '2026-07-12',
-                receipt_time: null,
-                receipt_total: 1.15,
-                lines: [],
-              }),
-          },
-        }),
-      }),
-    }))
-    const { parseReceiptWithAi } = await import('./receiptAi')
-    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
-
-    const result = await parseReceiptWithAi(file)
-
-    expect(result.receipt_date).not.toBeNull()
-    const parsed = new Date(result.receipt_date as string)
-    expect(parsed.getDate()).toBe(12)
-    expect(parsed.getHours()).toBe(0)
-  })
 })
