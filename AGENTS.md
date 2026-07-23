@@ -134,6 +134,7 @@ Prefer `just` from repo root (`just backend` lists recipes).
 - Firebase project config lives in `frontend/src/lib/firebase.ts` (Auth only — no Firestore, no Storage)
 - Environment variables go in `.env` files (see `backend/.env.example` and `frontend/.env.example`)
 - Cloud Run service URL stored as an env var in the frontend for API calls
+- Production Postgres is hosted on **Neon** (nothing in the repo names it — the backend only reads `DATABASE_URL`). Backup/restore policy, RPO/RTO, and the restore runbook are in [ADR-008](docs/decisions/008-database-backup-policy.md); read it before a risky migration or any recovery attempt
 
 ## Workflows
 
