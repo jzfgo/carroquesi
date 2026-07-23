@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Retarget babysit-pr at @claude and make its loop terminate correctly (#120)
 
+- Make Claude review runs findable, and review new PRs automatically (#122)
+
 
 ---
 ## [0.20.0] — 2026-07-22
