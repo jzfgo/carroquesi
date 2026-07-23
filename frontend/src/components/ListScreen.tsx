@@ -29,6 +29,7 @@ import type {
   DueSuggestion,
   EditingTag,
   NameMapping,
+  NewPurchasedItem,
   PricePatch,
   ReceiptScanResult,
   Suggestion,
@@ -270,24 +271,38 @@ export function ListScreen({
   )
 
   const handleReceiptConfirm = useCallback(
-    async (patches: PricePatch[], mappings: NameMapping[]) => {
+    async (
+      patches: PricePatch[],
+      mappings: NameMapping[],
+      newItems: NewPurchasedItem[],
+    ) => {
       if (!receiptScanResult) return
       try {
         const data = await submitReceiptPrices(getToken, listId, {
           scan_id: receiptScanResult.scan_id,
+          receipt_date: receiptScanResult.receipt_date,
           patches,
+          new_items: newItems,
           mappings,
         })
         setReceiptScanResult(null)
         const n = data.items_updated
-        setToast(
+        const c = data.items_created
+        const parts = [
           `${n} precio${n !== 1 ? 's' : ''} actualizado${n !== 1 ? 's' : ''}`,
-        )
+        ]
+        if (c > 0) {
+          parts.push(
+            `${c} artículo${c !== 1 ? 's' : ''} añadido${c !== 1 ? 's' : ''}`,
+          )
+        }
+        setToast(parts.join(' · '))
+        retry()
       } catch {
         setToast('No se pudieron guardar los precios')
       }
     },
-    [getToken, listId, receiptScanResult],
+    [getToken, listId, receiptScanResult, retry],
   )
 
   const handleTogglePurchased = useCallback(
@@ -921,16 +936,15 @@ export function ListScreen({
           <div className="sheet-container">
             <ReceiptScanSheet
               result={receiptScanResult}
-              purchasedItems={items
-                .filter((i) => i.purchased)
-                .map((i) => ({
-                  id: i.id,
-                  name: i.name,
-                  purchased_at: i.purchased_at,
-                  brand: i.brand,
-                  stores: i.stores,
-                  quantity: i.quantity,
-                }))}
+              purchasedItems={items.map((i) => ({
+                id: i.id,
+                name: i.name,
+                purchased: i.purchased,
+                purchased_at: i.purchased_at,
+                brand: i.brand,
+                stores: i.stores,
+                quantity: i.quantity,
+              }))}
               store={receiptScanResult.store}
               onConfirm={handleReceiptConfirm}
               onClose={() => setReceiptScanResult(null)}
