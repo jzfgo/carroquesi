@@ -97,7 +97,7 @@ function renderSheet(
   render(
     <ReceiptScanSheet
       result={mockResult}
-      purchasedItems={mockPurchasedItems}
+      candidateItems={mockPurchasedItems}
       store="Mercadona"
       onConfirm={onConfirm}
       onClose={onClose}
@@ -191,7 +191,7 @@ describe('ReceiptScanSheet', () => {
     render(
       <ReceiptScanSheet
         result={result}
-        purchasedItems={mockPurchasedItems}
+        candidateItems={mockPurchasedItems}
         store="Mercadona"
         onConfirm={vi.fn()}
         onClose={vi.fn()}
@@ -249,7 +249,7 @@ describe('ReceiptScanSheet', () => {
     render(
       <ReceiptScanSheet
         result={result}
-        purchasedItems={mockPurchasedItems}
+        candidateItems={mockPurchasedItems}
         store="Mercadona"
         onConfirm={vi.fn()}
         onClose={vi.fn()}
@@ -366,7 +366,7 @@ describe('unpurchased items', () => {
   ]
 
   it('groups unpurchased items under "Sin comprar"', () => {
-    renderSheet({ purchasedItems: withUnpurchased })
+    renderSheet({ candidateItems: withUnpurchased })
     // The item isn't linked to any row yet, so every row's dropdown offers
     // it — getAllByRole rather than getByRole, since multiple <optgroup>s
     // legitimately share this label until the item is linked somewhere.
@@ -376,14 +376,14 @@ describe('unpurchased items', () => {
   })
 
   it('never labels an unpurchased item "Fecha desconocida"', () => {
-    renderSheet({ purchasedItems: withUnpurchased })
+    renderSheet({ candidateItems: withUnpurchased })
     expect(
       screen.queryByRole('group', { name: 'Fecha desconocida' }),
     ).toBeNull()
   })
 
   it('links an unpurchased item instead of creating a duplicate', () => {
-    const { onConfirm } = renderSheet({ purchasedItems: withUnpurchased })
+    const { onConfirm } = renderSheet({ candidateItems: withUnpurchased })
     const selects = screen.getAllByRole('combobox')
     fireEvent.change(selects[selects.length - 1], {
       target: { value: 'item-9' },
@@ -411,7 +411,22 @@ describe('confirm guardrails', () => {
     fireEvent.change(priceInputs[priceInputs.length - 1], {
       target: { value: '-2' },
     })
-    expect(screen.getByText(/Precio no positivo/)).toBeTruthy()
+    expect(screen.getByText(/Precio cero o negativo/)).toBeTruthy()
+  })
+
+  it('does not warn on a non-positive price when the row is unchecked', () => {
+    renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Descuento tarjeta' },
+    })
+    const priceInputs = screen.getAllByRole('spinbutton')
+    fireEvent.change(priceInputs[priceInputs.length - 1], {
+      target: { value: '-2' },
+    })
+    const checkboxes = screen.getAllByRole('checkbox')
+    fireEvent.click(checkboxes[checkboxes.length - 1]) // uncheck the row
+    expect(screen.queryByText(/Precio cero o negativo/)).toBeNull()
   })
 
   it('does not block confirm on a non-positive price', () => {
@@ -552,7 +567,7 @@ describe('barcode scan into a create row', () => {
     const { rerender } = render(
       <ReceiptScanSheet
         result={mockResult}
-        purchasedItems={mockPurchasedItems}
+        candidateItems={mockPurchasedItems}
         store="Mercadona"
         onConfirm={onConfirm}
         onClose={onClose}
@@ -574,7 +589,7 @@ describe('barcode scan into a create row', () => {
     rerender(
       <ReceiptScanSheet
         result={mockResult}
-        purchasedItems={mockPurchasedItems}
+        candidateItems={mockPurchasedItems}
         store="Mercadona"
         onConfirm={onConfirm}
         onClose={onClose}
@@ -593,7 +608,7 @@ describe('barcode scan into a create row', () => {
     const { rerender } = render(
       <ReceiptScanSheet
         result={mockResult}
-        purchasedItems={mockPurchasedItems}
+        candidateItems={mockPurchasedItems}
         store="Mercadona"
         onConfirm={onConfirm}
         onClose={onClose}
@@ -607,7 +622,7 @@ describe('barcode scan into a create row', () => {
     rerender(
       <ReceiptScanSheet
         result={mockResult}
-        purchasedItems={mockPurchasedItems}
+        candidateItems={mockPurchasedItems}
         store="Mercadona"
         onConfirm={onConfirm}
         onClose={onClose}

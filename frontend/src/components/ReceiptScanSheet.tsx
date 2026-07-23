@@ -44,8 +44,9 @@ type PendingScan = { index: number; product: BarcodeRead } | null
 
 interface Props {
   result: ReceiptScanResult
-  purchasedItems: ItemRef[]
+  candidateItems: ItemRef[]
   store: string | null
+  /** Resolves to whether the submit succeeded; false (or a throw) re-enables the confirm button. */
   onConfirm: (
     patches: PricePatch[],
     mappings: NameMapping[],
@@ -156,7 +157,7 @@ function groupItems(items: ItemRef[]): { label: string; items: ItemRef[] }[] {
 
 export default function ReceiptScanSheet({
   result,
-  purchasedItems,
+  candidateItems,
   store,
   onConfirm,
   onClose,
@@ -236,7 +237,7 @@ export default function ReceiptScanSheet({
     lineStates.map((ls) => ls.itemId).filter(Boolean) as string[],
   )
   function availableItems(currentIndex: number): ItemRef[] {
-    return purchasedItems.filter(
+    return candidateItems.filter(
       (item) =>
         !linkedItemIds.has(item.id) ||
         lineStates[currentIndex].itemId === item.id,
@@ -291,7 +292,7 @@ export default function ReceiptScanSheet({
       if (!ls.included || !store) return []
       let itemName: string | null = null
       if (ls.mode === 'link' && ls.itemId) {
-        itemName = purchasedItems.find((p) => p.id === ls.itemId)?.name ?? null
+        itemName = candidateItems.find((p) => p.id === ls.itemId)?.name ?? null
       } else if (ls.mode === 'create') {
         itemName = createdName(ls) || null
       }
@@ -372,7 +373,7 @@ export default function ReceiptScanSheet({
           const line = allLines[i]
           const isExpanded = expanded.has(i)
           const itemGroups = groupItems(availableItems(i))
-          const linkedItem = purchasedItems.find((p) => p.id === ls.itemId)
+          const linkedItem = candidateItems.find((p) => p.id === ls.itemId)
 
           return (
             <div
@@ -473,7 +474,7 @@ export default function ReceiptScanSheet({
                             isInvalidCreate(ls)
                               ? `rss-create-error-${i}`
                               : null,
-                            ls.unitPrice <= 0
+                            ls.included && ls.unitPrice <= 0
                               ? `rss-create-warning-${i}`
                               : null,
                           ]
@@ -510,12 +511,12 @@ export default function ReceiptScanSheet({
                         Escribe un nombre
                       </div>
                     )}
-                    {ls.unitPrice <= 0 && (
+                    {ls.included && ls.unitPrice <= 0 && (
                       <div
                         className="rss-create-warning"
                         id={`rss-create-warning-${i}`}
                       >
-                        Precio no positivo — ¿es un descuento?
+                        Precio cero o negativo — ¿es un descuento?
                       </div>
                     )}
                   </div>

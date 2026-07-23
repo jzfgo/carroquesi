@@ -972,7 +972,7 @@ export function ListScreen({
           <div className="sheet-container">
             <ReceiptScanSheet
               result={receiptScanResult}
-              purchasedItems={items.map((i) => ({
+              candidateItems={items.map((i) => ({
                 id: i.id,
                 name: i.name,
                 purchased: i.purchased,
