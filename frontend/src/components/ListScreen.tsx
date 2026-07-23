@@ -5,7 +5,9 @@ import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
 import { useIsOffline } from '../hooks/useIsOffline'
 import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
+import { useListSeen } from '../hooks/useListSeen'
 import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
+import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useQueueDrain } from '../hooks/useQueueDrain'
 import {
   ApiError,
@@ -23,6 +25,7 @@ import { FLAGS } from '../lib/featureFlags'
 import { computeCostSummary, purchasedDateLabel } from '../lib/itemCost'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
+import { canReceivePush, enablePush, permissionState } from '../lib/push'
 import { parseReceiptWithAi } from '../lib/receiptAi'
 import type {
   BarcodeRead,
@@ -45,6 +48,7 @@ import { ListActionSheet } from './ListActionSheet'
 import { ListHeader } from './ListHeader'
 import './ListScreen.css'
 import LogPurchaseSheet from './LogPurchaseSheet'
+import { NotificationPrimingCard } from './NotificationPrimingCard'
 import PriceHistorySheet from './PriceHistorySheet'
 import { ProgressBar } from './ProgressBar'
 import ReceiptScanSheet from './ReceiptScanSheet'
@@ -92,6 +96,10 @@ export function ListScreen({
     setLocalIsDefault(isDefault)
   }, [isDefault])
   const { isEnabled } = useFeatureFlags()
+  const { isIOS, isInstalled } = usePWAInstall()
+  // Resets the push unseen watermark and clears this list's tray notifications
+  // whenever the list is actually on screen.
+  useListSeen(listId, getToken)
   const { isOffline } = useIsOffline()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
@@ -651,6 +659,27 @@ export function ListScreen({
       />
 
       <ProgressBar purchased={purchasedCount} total={totalCount} />
+
+      {isEnabled(FLAGS.PUSH_NOTIFICATIONS) && (
+        <NotificationPrimingCard
+          canReceive={canReceivePush({ isIOS, isInstalled })}
+          permission={permissionState()}
+          // Sharing intent, not just a shared list: every list starts solo, so
+          // gating on member count alone would only offer notifications to an
+          // owner AFTER they had already missed the first change.
+          // Known limitation, accepted: push-sharing-intent is one global key,
+          // not per-list, so sharing list A makes the card eligible on solo
+          // list B too. Permission is per-origin anyway and the card disappears
+          // for good after any grant or dismissal, so a per-list key is not
+          // worth the storage complexity.
+          hasSharingIntent={
+            members.size > 1 ||
+            Boolean(localStorage.getItem('push-sharing-intent'))
+          }
+          isIOS={isIOS}
+          onEnable={() => void enablePush(getToken)}
+        />
+      )}
 
       {isOffline && (
         <div className="offline-banner offline-banner--sticky" role="status">

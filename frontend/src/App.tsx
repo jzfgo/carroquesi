@@ -9,7 +9,14 @@ import { ThemeManager } from './components/ThemeManager'
 import { WaitlistScreen } from './components/WaitlistScreen'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { FeatureFlagsProvider } from './contexts/FeatureFlagsContext'
+import { usePushNavigation } from './hooks/usePushNavigation'
 import { IS_WAITLIST_ENABLED } from './lib/environment'
+
+/** Listens for notification taps app-wide; renders nothing. */
+function PushNavigation() {
+  usePushNavigation()
+  return null
+}
 
 function AuthRoute({ element }: { element: React.ReactElement }) {
   const { user, loading, isWaitlisted } = useAuth()
@@ -48,6 +55,7 @@ export default function App() {
       <AuthProvider>
         <FeatureFlagsProvider>
           <ThemeManager>
+            <PushNavigation />
             <Routes>
               <Route path="/invite/:id" element={<InviteScreen />} />
               <Route

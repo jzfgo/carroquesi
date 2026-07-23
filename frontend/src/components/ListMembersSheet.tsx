@@ -105,6 +105,9 @@ export function ListMembersSheet({
     setFallbackUrl(null)
     try {
       const data = (await createOpenInvite(getToken, listId)) as { id: string }
+      // Creating an invite is the demonstrated sharing intent that makes the
+      // notification priming card eligible, even while the list is still solo.
+      localStorage.setItem('push-sharing-intent', '1')
       const url = `${window.location.origin}/i/${data.id}`
       try {
         await navigator.clipboard.writeText(url)

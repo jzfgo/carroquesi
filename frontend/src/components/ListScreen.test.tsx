@@ -128,6 +128,9 @@ const emptyHookResult = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // useListSeen fires on mount and chains .catch on the result; the api
+  // automock would otherwise return undefined.
+  vi.mocked(api.markListSeen).mockResolvedValue(null)
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: {
       id: 'u1',
