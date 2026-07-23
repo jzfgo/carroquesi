@@ -523,6 +523,12 @@
   color: var(--danger);
 }
 
+.rss-create-warning {
+  margin-top: 6px;
+  font-size: 0.7rem;
+  color: var(--warn);
+}
+
 /* footer totals comparison row */
 .rss-footer-totals {
   display: flex;

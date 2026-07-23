@@ -395,3 +395,59 @@ describe('unpurchased items', () => {
     expect(newItems).toHaveLength(0)
   })
 })
+
+describe('confirm guardrails', () => {
+  it('warns when a create row has a non-positive price', () => {
+    renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Descuento tarjeta' },
+    })
+    const priceInputs = screen.getAllByRole('spinbutton')
+    fireEvent.change(priceInputs[priceInputs.length - 1], {
+      target: { value: '-2' },
+    })
+    expect(screen.getByText(/Precio no positivo/)).toBeTruthy()
+  })
+
+  it('does not block confirm on a non-positive price', () => {
+    renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Descuento tarjeta' },
+    })
+    const priceInputs = screen.getAllByRole('spinbutton')
+    fireEvent.change(priceInputs[priceInputs.length - 1], {
+      target: { value: '-2' },
+    })
+    const confirm = screen.getByRole('button', {
+      name: /Guardar precios/,
+    }) as HTMLButtonElement
+    expect(confirm.disabled).toBe(false)
+  })
+
+  it('disables confirm after the first submit', () => {
+    const { onConfirm } = renderSheet()
+    const confirm = screen.getByRole('button', {
+      name: /Guardar precios/,
+    }) as HTMLButtonElement
+    fireEvent.click(confirm)
+    expect(confirm.disabled).toBe(true)
+    fireEvent.click(confirm)
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('associates the create input with its validation messages', () => {
+    renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: '#Hacendado' },
+    })
+    const input = screen.getByPlaceholderText(/Leche semi/)
+    const describedBy = input.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    const error = screen.getByRole('alert')
+    expect(describedBy!.split(' ')).toContain(error.id)
+    expect(error.textContent).toMatch(/Escribe un nombre/)
+  })
+})

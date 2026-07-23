@@ -164,6 +164,7 @@ export default function ReceiptScanSheet({
     initState(result),
   )
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
+  const [submitted, setSubmitted] = useState(false)
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
 
@@ -214,6 +215,9 @@ export default function ReceiptScanSheet({
   const diff = receiptTotal != null ? selectedTotal - receiptTotal : null
 
   function handleConfirm() {
+    if (submitted) return
+    setSubmitted(true)
+
     const patches: PricePatch[] = lineStates.flatMap((ls) => {
       if (!ls.included || ls.mode !== 'link' || !ls.itemId) return []
       return [
@@ -417,15 +421,38 @@ export default function ReceiptScanSheet({
                       type="text"
                       value={ls.createText}
                       placeholder="ej. Leche semi #Hacendado"
+                      aria-describedby={
+                        [
+                          `rss-create-hint-${i}`,
+                          isInvalidCreate(ls) ? `rss-create-error-${i}` : null,
+                          ls.unitPrice <= 0 ? `rss-create-warning-${i}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' ') || undefined
+                      }
                       onChange={(e) =>
                         updateLine(i, { createText: e.target.value })
                       }
                     />
-                    <div className="rss-create-hint">
+                    <div className="rss-create-hint" id={`rss-create-hint-${i}`}>
                       #marca · usa comillas si hay espacios
                     </div>
                     {isInvalidCreate(ls) && (
-                      <div className="rss-create-error">Escribe un nombre</div>
+                      <div
+                        className="rss-create-error"
+                        id={`rss-create-error-${i}`}
+                        role="alert"
+                      >
+                        Escribe un nombre
+                      </div>
+                    )}
+                    {ls.unitPrice <= 0 && (
+                      <div
+                        className="rss-create-warning"
+                        id={`rss-create-warning-${i}`}
+                      >
+                        Precio no positivo — ¿es un descuento?
+                      </div>
                     )}
                   </div>
                 )}
@@ -506,7 +533,7 @@ export default function ReceiptScanSheet({
         </div>
         <button
           className="confirm-btn"
-          disabled={checkedCount === 0 || hasInvalidCreate}
+          disabled={checkedCount === 0 || hasInvalidCreate || submitted}
           onClick={handleConfirm}
         >
           Guardar precios
