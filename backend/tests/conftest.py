@@ -69,6 +69,7 @@ def _make_client(session: Session, user: User) -> TestClient:
         items,
         lists,
         members,
+        notifications,
         prices,
         receipt,
         shortcuts,
@@ -99,6 +100,8 @@ def _make_client(session: Session, user: User) -> TestClient:
     test_app.include_router(feedback.router)
     test_app.include_router(waitlist.router)
     test_app.include_router(shortcuts.router)
+    test_app.include_router(notifications.router)
+    test_app.include_router(notifications.list_seen_router)
 
     def _get_session():
         yield session
