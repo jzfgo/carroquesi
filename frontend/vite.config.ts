@@ -2,33 +2,17 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 
-function escapeRegex(str: string) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-const BACKEND_URL = (
-  process.env.BACKEND_URL ||
-  process.env.VITE_BACKEND_URL ||
-  'http://localhost:8000'
-).replace(/\/$/, '')
-
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      strategies: 'generateSW',
-      workbox: {
-        navigateFallback: null,
-        runtimeCaching: [
-          {
-            urlPattern: new RegExp(`^${escapeRegex(BACKEND_URL)}/`),
-            handler: 'NetworkOnly',
-          },
-        ],
-      },
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       devOptions: {
         enabled: true,
+        type: 'module',
       },
       manifest: {
         name: 'CarroQueSí',
