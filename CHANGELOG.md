@@ -68,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **test:** Stop receiptAi unit tests depending on Firebase credentials
 
+- Gate receipt-prices apply on the ai_receipt_scanning flag
+
 
 ---
 ## [0.20.0] — 2026-07-22
