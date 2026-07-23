@@ -183,12 +183,22 @@ neonctl snapshots restore <snapshot-id> --project-id $PROJECT \
 neonctl branches delete <branch-id> --project-id $PROJECT
 ```
 
-Two notes that matter under pressure:
+Three notes that matter under pressure:
 
-- **`restore` without `--finalize` is non-destructive.** It creates a separate
-  branch and leaves it un-finalized so you can inspect it first. Nothing touches
+- **`restore` without `--finalize` is non-destructive — including with
+  `--target-branch production`.** Naming a target branch only anchors the
+  operation for a later finalize; it does not modify that branch. The restore
+  lands in a separate branch you can connect to and query first. Nothing touches
   production until `--finalize` (or a later `neonctl snapshots finalize`).
-  Always inspect before finalizing.
+  Always inspect before finalizing. If you want to re-confirm this at 3am rather
+  than trust this document, `neonctl snapshots restore --help` states it in its
+  own examples — don't take a runbook's word for its most dangerous claim.
+- **Finalizing keeps the old data.** Finalize moves the computes onto the
+  restored branch, renames it to the original branch's name, and renames the
+  *original* branch to `<name> (old)` — it is not deleted. Backup schedules and
+  branch protection move to the restored branch, so the daily snapshot schedule
+  survives a recovery rather than needing to be re-created. A finalize is
+  therefore recoverable too, as long as you don't delete the `(old)` branch.
 - **Settings are not on `neonctl projects update`.** The history window is
   reachable only through the raw API passthrough:
   `neonctl api /projects/$PROJECT -X PATCH -d '{"project":{"history_retention_seconds":604800}}'`.
