@@ -38,4 +38,21 @@ describe('toReceiptInstant', () => {
     expect(parsed.getDate()).toBe(12)
     expect(parsed.getHours()).toBe(0)
   })
+
+  it('rejects an out-of-range day rather than rolling into the next month', () => {
+    expect(toReceiptInstant('2026-01-32', null)).toBeNull()
+  })
+
+  it('rejects an out-of-range month rather than rolling into the next year', () => {
+    expect(toReceiptInstant('2026-13-01', null)).toBeNull()
+  })
+
+  it('returns null instead of throwing on an absurd year', () => {
+    expect(() => toReceiptInstant('999999-01-01', null)).not.toThrow()
+    expect(toReceiptInstant('999999-01-01', null)).toBeNull()
+  })
+
+  it('still accepts a real leap day', () => {
+    expect(toReceiptInstant('2028-02-29', null)).not.toBeNull()
+  })
 })

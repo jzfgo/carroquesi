@@ -105,7 +105,20 @@ export function toReceiptInstant(
     if (Number.isInteger(min) && min >= 0 && min <= 59) minutes = min
   }
 
-  return new Date(y, m - 1, d, hours, minutes, 0, 0).toISOString()
+  const dt = new Date(y, m - 1, d, hours, minutes, 0, 0)
+  // JS Date normalises out-of-range components instead of rejecting them
+  // ('2026-01-32' becomes Feb 1), and toISOString() throws on an extreme year.
+  // Round-tripping the components catches both: a rolled value no longer
+  // matches what we fed in, and an invalid date fails the NaN check first.
+  if (
+    Number.isNaN(dt.getTime()) ||
+    dt.getFullYear() !== y ||
+    dt.getMonth() !== m - 1 ||
+    dt.getDate() !== d
+  ) {
+    return null
+  }
+  return dt.toISOString()
 }
 
 export async function parseReceiptWithAi(
