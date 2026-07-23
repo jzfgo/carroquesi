@@ -5,6 +5,11 @@ import { messagingPromise } from './firebase'
 
 export type PermissionState = 'unsupported' | 'default' | 'granted' | 'denied'
 
+// Per-device mirror of "this device opted in". Necessary because an in-app
+// disable removes our token but leaves OS permission 'granted', so permission
+// alone cannot tell an opted-in device from an opted-out one on the next start.
+const DEVICE_SUBSCRIBED_KEY = 'push-device-subscribed'
+
 interface PlatformContext {
   isIOS: boolean
   isInstalled: boolean
@@ -35,11 +40,17 @@ export function permissionState(): PermissionState {
 export async function enablePush(
   getAuthToken: () => Promise<string>,
 ): Promise<string | null> {
-  const messaging = await messagingPromise
-  if (!messaging || !FIREBASE_VAPID_KEY) return null
-
+  // Request permission FIRST, straight off the user gesture. Any await before
+  // Notification.requestPermission() risks WebKit dropping the transient
+  // activation, and on iOS a denial is permanent per-origin — a bet with no
+  // upside. The unsupported guard stays ahead of the prompt so iOS Safari
+  // (no Notification API) bails cleanly instead of throwing ReferenceError.
+  if (typeof Notification === 'undefined') return null
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') return null
+
+  const messaging = await messagingPromise
+  if (!messaging || !FIREBASE_VAPID_KEY) return null
 
   const registration = await navigator.serviceWorker.ready
   const token = await getFcmToken(messaging, {
@@ -49,6 +60,9 @@ export async function enablePush(
   if (!token) return null
 
   await registerPushToken(getAuthToken, token)
+  // Record opt-in only after the backend accepted the token, so syncPushToken
+  // refreshes it on later starts rather than treating this device as subscribed.
+  localStorage.setItem(DEVICE_SUBSCRIBED_KEY, '1')
   return token
 }
 
@@ -56,6 +70,10 @@ export async function enablePush(
 export async function disablePush(
   getAuthToken: () => Promise<string>,
 ): Promise<void> {
+  // Clear the local opt-in first: the intent is "off" regardless of whether we
+  // can reach FCM to delete the token. Otherwise a failed delete would leave
+  // syncPushToken believing the device is still subscribed and re-register it.
+  localStorage.removeItem(DEVICE_SUBSCRIBED_KEY)
   const messaging = await messagingPromise
   if (!messaging) return
   const registration = await navigator.serviceWorker.ready
@@ -70,12 +88,15 @@ export async function disablePush(
 }
 
 /**
- * Re-register on every app start: FCM rotates tokens silently, and the backend
- * upsert is idempotent.
+ * Refresh this device's token on app start: FCM rotates tokens silently and the
+ * backend upsert is idempotent. Gated on the device opt-in flag, so it never
+ * re-creates a token the user removed in-app — permission stays 'granted' after
+ * an in-app disable, so that flag is the only thing distinguishing the two.
  *
- * Also handles permission revoked out-of-band. A user who turns notifications
- * off in OS settings leaves a live token in our database that will never
- * deliver, so drop it rather than sending into the void.
+ * If permission was revoked out-of-band (OS settings), clear the opt-in. We
+ * cannot delete the backend row here — getToken rejects once permission is
+ * denied — so it is left for the send path's typed-verdict pruning to remove on
+ * its first failed delivery.
  */
 export async function syncPushToken(
   getAuthToken: () => Promise<string>,
@@ -85,6 +106,7 @@ export async function syncPushToken(
     return
   }
   if (permissionState() !== 'granted') return
+  if (localStorage.getItem(DEVICE_SUBSCRIBED_KEY) !== '1') return
   const messaging = await messagingPromise
   if (!messaging || !FIREBASE_VAPID_KEY) return
   const registration = await navigator.serviceWorker.ready
