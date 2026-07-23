@@ -16,6 +16,10 @@ REGISTRY: dict[str, FlagDef] = {
     f.name: f
     for f in [
         FlagDef("ai_receipt_scanning", default=False, description="Gemini receipt scanning"),
+        # default=True makes this a kill switch rather than a rollout gate:
+        # is_enabled only supports per-user overrides, so turning it off for
+        # everyone needs a deploy. Acceptable — the blast radius is UI only.
+        FlagDef("push_notifications", default=True, description="Web push notifications"),
     ]
 }
 
