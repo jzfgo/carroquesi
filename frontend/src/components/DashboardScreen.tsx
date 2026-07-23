@@ -112,6 +112,12 @@ export function DashboardScreen() {
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
   const { isEnabled } = useFeatureFlags()
   const [pushOn, setPushOn] = useState(() => isPushEnabled())
+  // Permission is held in state rather than read inline in JSX. A denial does
+  // not change isPushEnabled() -- it is false before and after -- so
+  // setPushOn alone is a same-value update, and React may skip the re-render
+  // that would reveal the blocked message. This value genuinely changes
+  // ('default' -> 'denied'), so it cannot hit that bailout.
+  const [permission, setPermission] = useState(() => permissionState())
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const isApplePlatform = useApplePlatform()
@@ -468,7 +474,7 @@ export function DashboardScreen() {
           // button here would call requestPermission(), return immediately and
           // change nothing — a control that looks broken. Explain the way out
           // instead of offering a dead action.
-          (permissionState() === 'denied' ? (
+          (permission === 'denied' ? (
             <p className="notifications-toggle notifications-toggle--blocked">
               <span className="notifications-toggle__icon" aria-hidden="true">
                 <BellOff size={18} />
@@ -485,6 +491,8 @@ export function DashboardScreen() {
                 if (pushOn) await disablePush(getToken).catch(() => undefined)
                 else await enablePush(getToken).catch(() => undefined)
                 setPushOn(isPushEnabled())
+
+                setPermission(permissionState())
               }}
             >
               <span className="notifications-toggle__icon" aria-hidden="true">

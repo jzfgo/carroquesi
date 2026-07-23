@@ -873,6 +873,36 @@ describe('notifications toggle', () => {
     ).toBeInTheDocument()
   })
 
+  it('switches to the blocked message when the user denies the prompt', async () => {
+    // The regression this guards: denying does not change isPushEnabled() --
+    // false before, false after -- so setPushOn is a same-value update and
+    // React may skip the re-render. Reading permission live in JSX would then
+    // leave the stale button on screen, which is the very state this control
+    // exists to avoid.
+    let permission = 'default'
+    vi.stubGlobal('Notification', {
+      get permission() {
+        return permission
+      },
+      requestPermission: vi.fn(async () => {
+        permission = 'denied'
+        return 'denied'
+      }),
+    })
+
+    render(<DashboardScreen />)
+    fireEvent.click(
+      await screen.findByRole('button', { name: /avisarme de cambios/i }),
+    )
+
+    expect(
+      await screen.findByText(/ajustes de tu navegador/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /avisarme de cambios/i }),
+    ).toBeNull()
+  })
+
   it('explains how to unblock instead of offering a dead button when denied', async () => {
     // Once denied, requestPermission() returns without prompting, so a button
     // here would look broken: tapping it could never change anything.
