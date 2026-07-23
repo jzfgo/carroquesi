@@ -13,8 +13,10 @@ declare const self: ServiceWorkerGlobalScope & {
 }
 
 // Kept in sync with src/lib/environment.ts, which the app itself uses to build
-// request URLs. That module can't be imported here: it is typechecked against
-// the DOM lib, the worker against WebWorker.
+// request URLs. Duplicated rather than imported: environment.ts happens to be
+// DOM-free today, but it is the natural home for a future DOM-dependent
+// constant, and importing it here would pin the whole module to the WebWorker
+// lib forever. One duplicated string is the cheaper constraint.
 const BACKEND_URL = (
   import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 ).replace(/\/$/, '')
@@ -28,8 +30,14 @@ function escapeRegex(str: string) {
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
-// All backend calls go to the network. Offline behaviour is handled in-app by
-// the IndexedDB write queue and localStorage read cache, not by the worker.
+// Carried over from the generateSW config for parity, but note it is INERT: a
+// request matching no route already falls through to the network, and
+// registerRoute defaults to GET, so backend writes were never covered anyway.
+// Deleting it would change nothing today. It is kept as the anchor that keeps
+// that true — if a catch handler or offline fallback is ever added, an
+// unmatched backend call would otherwise start being swallowed by it.
+// Offline behaviour is handled in-app by the IndexedDB write queue and
+// localStorage read cache, not by the worker.
 registerRoute(new RegExp(`^${escapeRegex(BACKEND_URL)}/`), new NetworkOnly())
 
 // registerType: 'autoUpdate' expects the worker to activate immediately.
