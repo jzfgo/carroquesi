@@ -39,6 +39,17 @@ def test_delete_unknown_token_is_noop(client):
     assert resp.status_code == 204
 
 
+def test_delete_cannot_remove_another_users_token(client, other_client, session: Session):
+    """Deletion is scoped to the caller. Without the user_id filter this returns
+    204 and silently unsubscribes someone else's device."""
+    client.post("/notifications/tokens", json={"token": "tok-mine"})
+
+    resp = other_client.request("DELETE", "/notifications/tokens", json={"token": "tok-mine"})
+
+    assert resp.status_code == 204
+    assert session.exec(select(PushToken).where(PushToken.token == "tok-mine")).one()
+
+
 def test_seen_sets_watermark_for_caller_only(
     client, other_client, session: Session, user: User, other_user: User
 ):
