@@ -69,6 +69,19 @@ step before merging, created after rebasing on `main`, and never in parallel wit
 another branch that also has one. The implementation plan must order this
 revision last, after all other work on the branch is complete.
 
+**The test suite will not exercise this migration.** Tests build their schema with
+SQLite via `create_all`, so `alter_column` never runs until `alembic upgrade head`
+executes against Neon on deploy. A green suite is therefore no evidence the
+migration works. It must be run against a real Postgres locally before merge —
+`DATE` → `DATETIME` with a column rename is exactly the kind of statement where
+SQLite and Postgres diverge.
+
+**Deploy ordering: backend first.** The cached-old-client case is handled by
+keeping the wire field name and widening its accepted values. The mirror case is
+not: a new frontend emitting an instant to a not-yet-deployed backend hits the
+`except ValueError: pass` above and silently loses the date. Ship Cloud Run before
+Hosting.
+
 ## Receipt timestamp
 
 ### Extraction
@@ -108,6 +121,36 @@ service worker, and Hosting and Cloud Run deploy independently, so cached older
 frontends will keep sending `receipt_date` during a rollout. Widening an existing
 `str | None` field is backward compatible by construction; renaming it would not
 be.
+
+### Parsing — required change, silent failure if missed
+
+`scan_receipt` currently parses with `date.fromisoformat` inside a bare
+`except ValueError: pass` (`receipt.py:38-43`). Verified on Python 3.13:
+
+```
+date.fromisoformat('2026-07-12')             -> date(2026, 7, 12)
+date.fromisoformat('2026-07-12T17:42:00Z')   -> ValueError
+date.fromisoformat('2026-07-12T17:42:00+02:00') -> ValueError
+```
+
+So sending an instant to the *unchanged* endpoint yields `receipt_date = None`
+via the swallowed exception. That disables the ±3-day match window and stores
+NULL in the audit row — while `ReceiptScanResult` echoes the original string back
+to the client, so the sheet still displays the correct date and **nothing looks
+broken**. Matching silently degrades.
+
+Both endpoints must parse with `datetime.fromisoformat`, which handles all three
+forms (verified):
+
+```python
+dt = datetime.fromisoformat(body.receipt_date)      # bare date -> midnight
+if dt.tzinfo:
+    dt = dt.astimezone(UTC)
+receipt_at = dt.replace(tzinfo=None)                # naive UTC for storage
+receipt_day = receipt_at.date()                     # for the match window
+```
+
+An explicit offset normalises correctly too: `…T17:42:00+02:00` → `15:42` UTC.
 
 ### Match window
 
@@ -306,6 +349,8 @@ product. Only name, brand and EAN are filled.
 |---|---|
 | `receipt_date` null or unparseable | `purchased_at` falls back to `now()` |
 | Time extracted but date null | Time alone is meaningless; treated as no timestamp, falls back to `now()` |
+| Gemini never returns a time for a given receipt layout | **Intended degradation, not a bug.** Null time → local midnight → correct local date. There is no way to unit-test the model's extraction, so this fallback is the safety net; do not "fix" it into an error |
+| Instant sent to a backend that still uses `date.fromisoformat` | Silently nulls the date and disables the match window. Prevented by deploy ordering, not by code |
 | Date extracted, time null | Local midnight converted to UTC — round-trips to the correct local date |
 | Receipt printed near local midnight (23:30 / 00:30) | Correct, because the frontend converts local wall-clock to a UTC instant before sending |
 | Receipt from the other side of a DST change | Correct if the conversion uses the browser's zone rules for *that* date rather than the current offset — implementation must not use a fixed offset |
@@ -355,8 +400,14 @@ product. Only name, brand and EAN are filled.
   the same local date
 - a date on the other side of a DST change uses that date's offset, not today's
 
+- an instant with an explicit offset (`…+02:00`) normalises to the right UTC time
+
 **Visual:** the sheet's committed screenshot baselines will need regenerating via
 `just frontend update-snapshots` (Docker, to match CI's Linux font rendering).
+
+**Migration, manually:** `alembic upgrade head` against a real Postgres, with rows
+present, then confirm existing dates survived as midnight timestamps. The SQLite
+test suite cannot cover this.
 
 ## Surface touched
 
