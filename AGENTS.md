@@ -134,7 +134,8 @@ Prefer `just` from repo root (`just backend` lists recipes).
 - Firebase project config lives in `frontend/src/lib/firebase.ts` (Auth only — no Firestore, no Storage)
 - Environment variables go in `.env` files (see `backend/.env.example` and `frontend/.env.example`)
 - Cloud Run service URL stored as an env var in the frontend for API calls
-- Production Postgres is hosted on **Neon** (nothing in the repo names it — the backend only reads `DATABASE_URL`). Backup/restore policy, RPO/RTO, and the restore runbook are in [ADR-008](docs/decisions/008-database-backup-policy.md); read it before a risky migration or any recovery attempt
+- **The app is Postgres-host-agnostic** — the backend's entire contract with the database is `DATABASE_URL`, and no code path assumes a particular provider. Keep it that way: don't introduce host-specific assumptions without an ADR
+- The **canonical deployment** (the one the maintainer runs) hosts Postgres on Neon. Its backup policy, RPO/RTO, and restore runbook are in [ADR-008](docs/decisions/008-database-backup-policy.md) — read it before a risky migration or any recovery attempt. If you deployed this yourself elsewhere, the Neon specifics don't apply to you; the decision structure does
 
 ## Workflows
 

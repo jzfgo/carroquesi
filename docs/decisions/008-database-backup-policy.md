@@ -3,13 +3,27 @@
 **Status:** Accepted
 **Date:** 2026-07-23
 
+> **Scope — read this first if you are self-hosting.**
+> **The application has no dependency on any particular Postgres host.** The
+> backend's entire contract with the database is `DATABASE_URL`; nothing in the
+> codebase names a provider, and the README's Docker Postgres works fine.
+>
+> This ADR documents the backup policy for the **canonical deployment** (the one
+> serving carroquesi.app), which happens to run on Neon. If you deploy elsewhere,
+> the *commands* here do not apply to you — but the **shape of the decision
+> does**, and it transfers to any host: two layers at different resolutions,
+> snapshot retention deliberately exceeding the continuous window, an explicit
+> RPO/RTO, and a restore you have actually performed. Substitute your provider's
+> equivalents (RDS automated backups + snapshots, Cloud SQL PITR + on-demand
+> backups, `pg_dump` on a timer) and the reasoning below still holds.
+>
+> Nothing here is a requirement for running the app.
+
 ## Context
 
-Production Postgres runs on **Neon** — project `carroquesi` /
+The canonical deployment's Postgres runs on **Neon** — project `carroquesi` /
 `plain-dream-30513527`, org `org-tiny-meadow-05489456`, `aws-eu-central-1`,
-PG 17, primary branch `production` (`br-little-salad-ag3wqaqs`). Note that
-nothing in this repository names the provider; the backend only reads
-`DATABASE_URL`.
+PG 17, primary branch `production` (`br-little-salad-ag3wqaqs`).
 
 Until 2026-07-23 there was no backup policy at all (JAV-23, open since
 2026-07-01; flagged in the 2026-06-15 review as infra risk accumulating quietly
@@ -132,6 +146,11 @@ worked once, on that day, against that schema.
 
 ## Runbook
 
+**Neon-specific — canonical deployment only.** On another host, the equivalent
+sequence is the transferable part: inspect what exists, snapshot before anything
+risky, restore to a *separate* target, verify it against the live database, and
+only then cut over.
+
 Requires the `neonctl` CLI, authenticated (`neonctl auth`). `PROJECT` below is
 `plain-dream-30513527`.
 
@@ -192,3 +211,9 @@ Two notes that matter under pressure:
 - This policy assumes a single production branch. Introducing a second
   long-lived branch (a staging environment on the same project) would need its
   own schedule decision — schedules are per-branch.
+- **Self-hosted deployments are unaffected.** Nothing here changes how the app
+  is built or run, and no code path assumes Neon. A self-hoster inherits the
+  obligation to have *a* backup policy, not this one. If the app ever does grow
+  a provider-specific coupling, that belongs in its own ADR and would need
+  calling out in the README — it would be a change in what the project *is*,
+  not just how it happens to be hosted.
