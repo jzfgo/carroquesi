@@ -47,7 +47,7 @@ interface Props {
     patches: PricePatch[],
     mappings: NameMapping[],
     newItems: NewPurchasedItem[],
-  ) => void
+  ) => Promise<boolean>
   onClose: () => void
 }
 
@@ -214,7 +214,7 @@ export default function ReceiptScanSheet({
   const receiptTotal = result.receipt_total
   const diff = receiptTotal != null ? selectedTotal - receiptTotal : null
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (submitted) return
     setSubmitted(true)
 
@@ -270,7 +270,16 @@ export default function ReceiptScanSheet({
       ]
     })
 
-    onConfirm(patches, mappings, newItems)
+    // onConfirm resolves to whether the submit succeeded. On success the
+    // parent unmounts this sheet; on failure (or an unexpected throw) we
+    // re-enable the button so a flaky-connection user can retry without
+    // losing their edits and re-scanning.
+    try {
+      const ok = await onConfirm(patches, mappings, newItems)
+      if (!ok) setSubmitted(false)
+    } catch {
+      setSubmitted(false)
+    }
   }
 
   const formattedDate = result.receipt_date

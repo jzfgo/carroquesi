@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ReceiptScanResult } from '../types'
 import ReceiptScanSheet from './ReceiptScanSheet'
@@ -90,7 +90,9 @@ const mockPurchasedItems = [
 function renderSheet(
   overrides: Partial<Parameters<typeof ReceiptScanSheet>[0]> = {},
 ) {
-  const onConfirm = vi.fn()
+  // Resolves true (success) by default, matching the real onConfirm contract —
+  // guardrail tests that need a failure/pending outcome override this.
+  const onConfirm = vi.fn().mockResolvedValue(true)
   const onClose = vi.fn()
   render(
     <ReceiptScanSheet
@@ -449,5 +451,44 @@ describe('confirm guardrails', () => {
     const error = screen.getByRole('alert')
     expect(describedBy!.split(' ')).toContain(error.id)
     expect(error.textContent).toMatch(/Escribe un nombre/)
+  })
+
+  it('re-enables confirm after a rejected submit, so the user can retry', async () => {
+    const onConfirm = vi.fn().mockRejectedValue(new Error('network'))
+    renderSheet({ onConfirm })
+    const confirm = screen.getByRole('button', {
+      name: /Guardar precios/,
+    }) as HTMLButtonElement
+    fireEvent.click(confirm)
+    await waitFor(() => expect(confirm.disabled).toBe(false))
+  })
+
+  it('re-enables confirm after onConfirm resolves false, so the user can retry', async () => {
+    // This is the branch the real ListScreen hits: submitReceiptPrices
+    // rejects, handleReceiptConfirm catches it and resolves false — it
+    // never rejects across the onConfirm boundary.
+    const onConfirm = vi.fn().mockResolvedValue(false)
+    renderSheet({ onConfirm })
+    const confirm = screen.getByRole('button', {
+      name: /Guardar precios/,
+    }) as HTMLButtonElement
+    fireEvent.click(confirm)
+    await waitFor(() => expect(confirm.disabled).toBe(false))
+  })
+
+  it('keeps confirm disabled while a submit is in flight', async () => {
+    let resolveSubmit: (ok: boolean) => void = () => {}
+    const pending = new Promise<boolean>((resolve) => {
+      resolveSubmit = resolve
+    })
+    const onConfirm = vi.fn().mockReturnValue(pending)
+    renderSheet({ onConfirm })
+    const confirm = screen.getByRole('button', {
+      name: /Guardar precios/,
+    }) as HTMLButtonElement
+    fireEvent.click(confirm)
+    expect(confirm.disabled).toBe(true)
+    resolveSubmit(true)
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1))
   })
 })

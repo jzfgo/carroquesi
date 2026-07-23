@@ -41,9 +41,11 @@ vi.mock('./ReceiptScanSheet', () => ({
       patches: unknown[],
       mappings: unknown[],
       newItems: unknown[],
-    ) => void
+    ) => Promise<boolean>
   }) => (
-    <button onClick={() => onConfirm([], [], [])}>Confirmar (mock)</button>
+    <button onClick={() => void onConfirm([], [], [])}>
+      Confirmar (mock)
+    </button>
   ),
 }))
 

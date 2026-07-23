@@ -275,8 +275,8 @@ export function ListScreen({
       patches: PricePatch[],
       mappings: NameMapping[],
       newItems: NewPurchasedItem[],
-    ) => {
-      if (!receiptScanResult) return
+    ): Promise<boolean> => {
+      if (!receiptScanResult) return false
       try {
         const data = await submitReceiptPrices(getToken, listId, {
           scan_id: receiptScanResult.scan_id,
@@ -301,8 +301,13 @@ export function ListScreen({
         }
         setToast(parts.length > 0 ? parts.join(' · ') : 'No se guardó nada')
         retry()
+        return true
       } catch {
+        // The sheet stays mounted and awaits our return value — signalling
+        // failure re-enables its confirm button instead of stranding the
+        // user with edits they'd otherwise lose by closing and rescanning.
         setToast('No se pudieron guardar los precios')
+        return false
       }
     },
     [getToken, listId, receiptScanResult, retry],
