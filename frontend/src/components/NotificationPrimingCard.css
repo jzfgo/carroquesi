@@ -1,0 +1,64 @@
+.push-priming {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  background: var(--accent-bg, rgb(26 63 160 / 8%));
+  border: 1px solid var(--accent-border, rgb(26 63 160 / 28%));
+  color: var(--fg, #15161b);
+  border-radius: var(--r-md, 10px);
+  padding: 0.75rem;
+  font-size: var(--fs-14, 14px);
+}
+
+.push-priming__icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--accent, #1a3fa0);
+}
+
+.push-priming__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.push-priming__text {
+  margin: 0;
+  line-height: 1.4;
+  color: var(--fg-muted, #353742);
+}
+
+.push-priming__cta {
+  min-height: var(--hit-min, 44px);
+  padding: 0.4rem 1rem;
+  font-family: inherit;
+  font-size: var(--fs-14, 14px);
+  font-weight: 700;
+  color: var(--accent-fg, #eef1f5);
+  cursor: pointer;
+  background: var(--accent, #1a3fa0);
+  border: none;
+  border-radius: var(--r-sm, 6px);
+}
+
+.push-priming__dismiss {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--hit-min, 44px);
+  min-height: var(--hit-min, 44px);
+
+  /* Pull the oversized touch target back visually so it hugs the corner. */
+  margin: -0.5rem -0.5rem -0.5rem 0;
+  color: var(--fg-subtle, #6b7280);
+  cursor: pointer;
+  background: none;
+  border: none;
+}
