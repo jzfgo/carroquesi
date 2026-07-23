@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlmodel import Session, select
 
 from app.db.models import ListMember, PushToken, User
@@ -37,6 +39,31 @@ def test_delete_token_removes_row(client, session: Session):
 def test_delete_unknown_token_is_noop(client):
     resp = client.request("DELETE", "/notifications/tokens", json={"token": "nope"})
     assert resp.status_code == 204
+
+
+def test_blank_token_is_rejected(client):
+    for blank in ("", "   ", "\t\n"):
+        resp = client.post("/notifications/tokens", json={"token": blank})
+        assert resp.status_code == 422, blank
+
+
+def test_padded_token_is_stored_trimmed(client, session: Session):
+    client.post("/notifications/tokens", json={"token": "  tok-padded  "})
+    assert session.exec(select(PushToken).where(PushToken.token == "tok-padded")).one()
+
+
+def test_reregistering_moves_the_registration_timestamp(client, session: Session):
+    client.post("/notifications/tokens", json={"token": "tok-abc"})
+    row = session.exec(select(PushToken).where(PushToken.token == "tok-abc")).one()
+    row.last_registered_at = datetime(2020, 1, 1)
+    session.add(row)
+    session.commit()
+
+    client.post("/notifications/tokens", json={"token": "tok-abc"})
+
+    session.expire_all()
+    refreshed = session.exec(select(PushToken).where(PushToken.token == "tok-abc")).one()
+    assert refreshed.last_registered_at > datetime(2020, 1, 1)
 
 
 def test_delete_cannot_remove_another_users_token(client, other_client, session: Session):

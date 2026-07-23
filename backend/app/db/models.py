@@ -180,7 +180,9 @@ class PushToken(SQLModel, table=True):
     __tablename__ = "push_tokens"
 
     id: str = Field(default_factory=_uuid, primary_key=True)
-    user_id: str = Field(foreign_key="users.id")
+    # Indexed: the send path resolves tokens by user on every qualifying write,
+    # and Postgres does not index FK columns automatically.
+    user_id: str = Field(foreign_key="users.id", index=True)
     token: str = Field(unique=True, index=True)
     created_at: datetime = Field(default_factory=_now)
     # Named last_registered_at, not last_seen_at, to avoid colliding with the
