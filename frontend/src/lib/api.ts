@@ -328,11 +328,11 @@ export function submitReceiptPrices(
   getToken: () => Promise<string>,
   listId: string,
   batch: ReceiptPriceBatch,
-): Promise<{ items_updated: number }> {
+): Promise<{ items_updated: number; items_created: number }> {
   return apiFetch(getToken, `/lists/${listId}/receipt-prices`, {
     method: 'POST',
     body: JSON.stringify(batch),
-  }) as Promise<{ items_updated: number }>
+  }) as Promise<{ items_updated: number; items_created: number }>
 }
 
 export interface FeedbackPayload {
