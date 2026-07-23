@@ -336,6 +336,78 @@ describe('ListScreen', () => {
       ean: '8412345678901',
     })
   })
+
+  it('opens DueSuggestionsSheet and handles adding suggestions', async () => {
+    const addItemMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      addItem: addItemMock,
+    })
+
+    vi.mocked(api.getDueSuggestions).mockResolvedValueOnce([
+      {
+        name: 'Yogur',
+        brand: 'Danone',
+        stores: ['Mercadona'],
+        days_overdue: 1,
+        dismissal_ttl_days: 7,
+        median_interval_days: 7,
+        days_since_last: 8,
+        avg_quantity: 2,
+      },
+    ])
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const suggestionsBtn = await screen.findByRole('button', {
+      name: /sugerencias pendientes \(1\)/i,
+    })
+    fireEvent.click(suggestionsBtn)
+
+    expect(screen.getByText('Toca comprar')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /añadir Yogur/i }))
+
+    expect(addItemMock).toHaveBeenCalledWith({
+      name: 'Yogur',
+      brand: 'Danone',
+      stores: ['Mercadona'],
+      quantity: '2',
+    })
+  })
+
+  it('handles cloning a purchased item', async () => {
+    const addItemMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({
+          id: 'i1',
+          name: 'Manzanas',
+          purchased: true,
+          purchased_at: TODAY,
+        }),
+      ],
+      addItem: addItemMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const optionsButton = screen.getByRole('button', {
+      name: 'Opciones del producto',
+    })
+    fireEvent.click(optionsButton)
+
+    fireEvent.click(screen.getByRole('button', { name: /comprar de nuevo/i }))
+
+    expect(addItemMock).toHaveBeenCalledWith({
+      name: 'Manzanas',
+      brand: null,
+      stores: [],
+      quantity: null,
+      ean: null,
+    })
+  })
 })
 
 describe('ProgressBar scoping', () => {
