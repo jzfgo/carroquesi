@@ -52,6 +52,7 @@ const mockPurchasedItems = [
   {
     id: 'item-1',
     name: 'Bebida de almendra 0% azúcares',
+    purchased: true,
     purchased_at: '2026-04-11T15:00:00',
     brand: null,
     stores: ['Mercadona'],
@@ -60,6 +61,7 @@ const mockPurchasedItems = [
   {
     id: 'item-2',
     name: 'Bacon lonchas',
+    purchased: true,
     purchased_at: '2026-04-11T15:00:00',
     brand: null,
     stores: ['Mercadona'],
@@ -68,6 +70,7 @@ const mockPurchasedItems = [
   {
     id: 'item-3',
     name: 'Yogur natural',
+    purchased: true,
     purchased_at: '2026-04-11T15:00:00',
     brand: null,
     stores: [],
@@ -76,6 +79,7 @@ const mockPurchasedItems = [
   {
     id: 'item-4',
     name: 'Maní dulce',
+    purchased: true,
     purchased_at: '2026-04-10T12:00:00',
     brand: null,
     stores: [],

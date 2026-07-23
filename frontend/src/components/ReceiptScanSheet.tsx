@@ -12,18 +12,26 @@ import type {
 } from '../types'
 import './ReceiptScanSheet.css'
 
-interface PurchasedItemRef {
+export interface ItemRef {
   id: string
   name: string
+  purchased: boolean
   purchased_at: string | null
   brand: string | null
   stores: string[]
   quantity: string | null
 }
 
+type LineMode = 'ignore' | 'link' | 'create'
+
+const CREATE_OPTION = '__create__'
+
 interface LineState {
   included: boolean
+  mode: LineMode
   itemId: string | null
+  createText: string
+  createEan: string | null
   quantity: string
   unitPrice: number
   pricePer: 'KILOGRAM' | null
@@ -31,7 +39,7 @@ interface LineState {
 
 interface Props {
   result: ReceiptScanResult
-  purchasedItems: PurchasedItemRef[]
+  purchasedItems: ItemRef[]
   store: string | null
   onConfirm: (patches: PricePatch[], mappings: NameMapping[]) => void
   onClose: () => void
@@ -53,14 +61,20 @@ function initState(result: ReceiptScanResult): LineState[] {
   return [
     ...result.matched.map((m) => ({
       included: true,
+      mode: 'link' as const,
       itemId: m.item_id,
+      createText: '',
+      createEan: null,
       quantity: initialQuantity(m),
       unitPrice: m.unit_price,
       pricePer: m.price_type === 'KILOGRAM' ? ('KILOGRAM' as const) : null,
     })),
     ...result.unmatched.map((u) => ({
       included: false,
+      mode: 'ignore' as const,
       itemId: null,
+      createText: '',
+      createEan: null,
       quantity: initialQuantity(u),
       unitPrice: u.unit_price,
       pricePer: u.price_type === 'KILOGRAM' ? ('KILOGRAM' as const) : null,
@@ -84,14 +98,14 @@ function computeLineTotal(ls: LineState): number {
 }
 
 function groupItemsByDate(
-  items: PurchasedItemRef[],
-): { label: string; items: PurchasedItemRef[] }[] {
+  items: ItemRef[],
+): { label: string; items: ItemRef[] }[] {
   const sorted = [...items].sort((a, b) => {
     if (!a.purchased_at) return 1
     if (!b.purchased_at) return -1
     return b.purchased_at.localeCompare(a.purchased_at)
   })
-  const groups: { label: string; items: PurchasedItemRef[] }[] = []
+  const groups: { label: string; items: ItemRef[] }[] = []
   for (const item of sorted) {
     const label = purchasedDateLabel(item.purchased_at)
     const last = groups[groups.length - 1]
@@ -152,7 +166,7 @@ export default function ReceiptScanSheet({
   const linkedItemIds = new Set(
     lineStates.map((ls) => ls.itemId).filter(Boolean) as string[],
   )
-  function availableItems(currentIndex: number): PurchasedItemRef[] {
+  function availableItems(currentIndex: number): ItemRef[] {
     return purchasedItems.filter(
       (item) =>
         !linkedItemIds.has(item.id) ||
@@ -292,16 +306,36 @@ export default function ReceiptScanSheet({
                   <div className="rss-field-label">Vincular a</div>
                   <select
                     className="rss-link-select"
-                    value={ls.itemId ?? ''}
+                    value={
+                      ls.mode === 'create' ? CREATE_OPTION : (ls.itemId ?? '')
+                    }
                     onChange={(e) => {
-                      const newId = e.target.value || null
-                      updateLine(i, {
-                        itemId: newId,
-                        included: newId !== null,
-                      })
+                      const v = e.target.value
+                      if (v === CREATE_OPTION) {
+                        updateLine(i, {
+                          mode: 'create',
+                          itemId: null,
+                          included: true,
+                        })
+                      } else if (v === '') {
+                        updateLine(i, {
+                          mode: 'ignore',
+                          itemId: null,
+                          included: false,
+                        })
+                      } else {
+                        updateLine(i, {
+                          mode: 'link',
+                          itemId: v,
+                          included: true,
+                        })
+                      }
                     }}
                   >
                     <option value="">— No vincular —</option>
+                    <option value={CREATE_OPTION}>
+                      ✚ Crear artículo nuevo
+                    </option>
                     {itemGroups.map((group) => (
                       <optgroup key={group.label} label={group.label}>
                         {group.items.map((item) => (
