@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Make Claude review runs findable, and review new PRs automatically (#122)
 
+- Patch 31 Dependabot vulnerabilities in backend dependencies
+
 
 ---
 ## [0.20.0] — 2026-07-22
