@@ -78,9 +78,21 @@ remains the right tool in the *page*, where it manages token lifecycle and rotat
   re-verification rather than assumption.
 - **Gained:** One worker, in `src/`, linted and typechecked; Firebase from
   `node_modules`; no CDN compat build; no reload-loop exposure.
-- **Watch — the silent failure mode.** `generateSW` defaults `globPatterns` to
-  `**/*.{js,css,html,ico,png,svg}`; `injectManifest` defaults to `**/*.{js,css,html}`.
-  Migrating without an explicit override drops every PWA icon and
-  `manifest.webmanifest` from the precache — with a successful build, passing tests,
-  and no error anywhere. Any future change to worker configuration should diff the
-  generated precache manifest, not just check that the build succeeds.
+- **Watch — diff the precache manifest, and do not "fix" it with `globPatterns`.**
+  The PWA icons and `manifest.webmanifest` do *not* come from `globPatterns`. The
+  plugin injects them as `additionalManifestEntries`, derived from `manifest.icons`
+  and gated on `includeManifestIcons` (default `true`) — and it does this identically
+  for both strategies. The icons therefore survive the migration on their own.
+
+  This was verified empirically rather than assumed, after an earlier draft of this
+  ADR claimed the opposite. Under `generateSW` with no override, the precache holds
+  exactly 10 entries (612 KiB) and *excludes* `assets/mascot-*.png` — which a
+  `**/*.png` default would have caught. Adding the "safety" override
+  `globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}']` takes the precache to
+  23 entries (2103 KiB), pulling in `og-image.png`, `favicon.ico`, `maskable.png`,
+  `transparent.png`, `apple-touch-icon-180x180.png` and the 228 KB mascot. That is a
+  3.4× payload regression dressed as a precaution.
+
+  So: leave `globPatterns` unset, and treat the before/after precache diff as the gate
+  for any future worker configuration change. Checking that the build succeeds proves
+  nothing here — every variant above builds cleanly.
