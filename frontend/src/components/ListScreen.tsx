@@ -288,15 +288,18 @@ export function ListScreen({
         setReceiptScanResult(null)
         const n = data.items_updated
         const c = data.items_created
-        const parts = [
-          `${n} precio${n !== 1 ? 's' : ''} actualizado${n !== 1 ? 's' : ''}`,
-        ]
+        const parts: string[] = []
+        if (n > 0) {
+          parts.push(
+            `${n} precio${n !== 1 ? 's' : ''} actualizado${n !== 1 ? 's' : ''}`,
+          )
+        }
         if (c > 0) {
           parts.push(
             `${c} artículo${c !== 1 ? 's' : ''} añadido${c !== 1 ? 's' : ''}`,
           )
         }
-        setToast(parts.join(' · '))
+        setToast(parts.length > 0 ? parts.join(' · ') : 'No se guardó nada')
         retry()
       } catch {
         setToast('No se pudieron guardar los precios')
