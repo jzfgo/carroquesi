@@ -1,9 +1,17 @@
+import threading
+import time
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 from sqlmodel import Session, select
 
 from app.db.models import List, ListItem, ListMember, PushToken, User
-from app.services.push import recipients_for, unseen_count_for, watermark_for
+from app.services.push import (
+    notify_list_change,
+    recipients_for,
+    unseen_count_for,
+    watermark_for,
+)
 
 
 def test_push_token_round_trips(session: Session, user: User):
@@ -140,3 +148,101 @@ def test_count_uses_join_time_when_never_seen(session, user, other_user):
     # recipients_for would return {} and tell us nothing about the fallback.
     assert watermark_for(member) == datetime(2026, 1, 10)
     assert unseen_count_for(session, lst.id, other_user.id, watermark_for(member)) == 1
+
+
+def _fake_response(success: bool, exception=None):
+    resp = MagicMock()
+    resp.success = success
+    resp.exception = exception
+    return resp
+
+
+def test_send_is_one_multicast_per_recipient_user(session, user, other_user):
+    """Counts differ per recipient, so recipients must not share a multicast."""
+    third = User(firebase_uid="uid-carol", display_name="Carol", email="c@example.com")
+    session.add(third)
+    session.commit()
+    lst = _make_shared_list(session, user, other_user)
+    session.add(ListMember(list_id=lst.id, user_id=third.id))
+    session.add(PushToken(user_id=other_user.id, token="bob-phone"))
+    session.add(PushToken(user_id=other_user.id, token="bob-laptop"))
+    session.add(PushToken(user_id=third.id, token="carol-phone"))
+    session.commit()
+
+    with patch("app.services.push.messaging") as fcm:
+        fcm.send_each_for_multicast.return_value = MagicMock(responses=[])
+        notify_list_change(session, lst, user, "added", "leche")
+
+    # Two users -> two calls. Bob's two devices share one.
+    assert fcm.send_each_for_multicast.call_count == 2
+
+
+def test_send_skipped_entirely_when_no_recipients(session, user):
+    lst = List(name="Solo", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+    session.add(ListMember(list_id=lst.id, user_id=user.id))
+    session.commit()
+
+    with patch("app.services.push.messaging") as fcm:
+        notify_list_change(session, lst, user, "added", "leche")
+
+    fcm.send_each_for_multicast.assert_not_called()
+
+
+def test_unregistered_token_is_pruned(session, user, other_user):
+    lst = _make_shared_list(session, user, other_user)
+    session.add(PushToken(user_id=other_user.id, token="dead-tok"))
+    session.commit()
+
+    with patch("app.services.push.messaging") as fcm:
+        fcm.UnregisteredError = RuntimeError
+        fcm.send_each_for_multicast.return_value = MagicMock(
+            responses=[_fake_response(False, RuntimeError("Requested entity was not found"))]
+        )
+        notify_list_change(session, lst, user, "added", "leche")
+
+    assert session.exec(select(PushToken).where(PushToken.token == "dead-tok")).first() is None
+
+
+def test_fcm_failure_never_raises(session, user, other_user):
+    lst = _make_shared_list(session, user, other_user)
+    session.add(PushToken(user_id=other_user.id, token="tok"))
+    session.commit()
+
+    with patch("app.services.push.messaging") as fcm:
+        fcm.send_each_for_multicast.side_effect = RuntimeError("FCM down")
+        notify_list_change(session, lst, user, "added", "leche")  # must not raise
+
+
+def test_send_returns_within_budget_when_fcm_hangs(session, user, other_user):
+    """The timeout must actually bound the handler.
+
+    A `with ThreadPoolExecutor(...)` block joins every submitted future on exit,
+    so `wait(timeout=...)` alone bounds nothing — a hung send would still hold
+    the request open. Every other test here returns or raises instantly and so
+    cannot tell the difference; this one can.
+    """
+    lst = _make_shared_list(session, user, other_user)
+    session.add(PushToken(user_id=other_user.id, token="tok"))
+    session.commit()
+
+    release = threading.Event()
+
+    def _hang(*args, **kwargs):
+        release.wait(30)
+        return MagicMock(responses=[])
+
+    try:
+        with (
+            patch("app.services.push.messaging") as fcm,
+            patch("app.services.push.SEND_TIMEOUT_SECONDS", 0.1),
+        ):
+            fcm.send_each_for_multicast.side_effect = _hang
+            started = time.monotonic()
+            notify_list_change(session, lst, user, "added", "leche")
+            elapsed = time.monotonic() - started
+    finally:
+        release.set()
+
+    assert elapsed < 5
