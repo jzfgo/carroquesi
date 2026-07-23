@@ -66,5 +66,18 @@ export default defineConfig({
     fakeTimers: {
       shouldAdvanceTime: true,
     },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json-summary'],
+      exclude: [
+        'node_modules/**',
+        'dist/**',
+        'tests/**',
+        '**/*.test.{ts,tsx}',
+        '**/*.config.{ts,js}',
+        'src/vitest.setup.ts',
+        'eslint.config.js',
+      ],
+    },
   },
 })

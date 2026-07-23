@@ -187,6 +187,227 @@ describe('ListScreen', () => {
     })
     vi.useRealTimers()
   })
+
+  it('opens TagEditSheet when clicking on brand tag and calls updateTag on save', async () => {
+    const updateTagMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Manzanas', brand: 'Hacendado' })],
+      updateTag: updateTagMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const brandTag = screen.getByText('Hacendado')
+    fireEvent.click(brandTag)
+
+    expect(document.querySelector('.tag-edit-sheet')).toBeInTheDocument()
+
+    const input = document.querySelector('.tag-edit-sheet__input')!
+    fireEvent.change(input, { target: { value: 'Danone' } })
+    fireEvent.click(document.querySelector('.tag-edit-sheet__save')!)
+
+    expect(updateTagMock).toHaveBeenCalledWith('i1', 'brand', 'Danone')
+  })
+
+  it('opens StoreEditSheet when clicking on stores tag and calls updateStores on save', async () => {
+    const updateStoresMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Manzanas', stores: ['Mercadona'] })],
+      updateStores: updateStoresMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const storeTag = document.querySelector(
+      '.item-card__tag:not(.item-card__tag--cta)',
+    )!
+    fireEvent.click(storeTag)
+
+    expect(document.querySelector('.store-edit-sheet')).toBeInTheDocument()
+
+    const input = screen.getByRole('textbox', { name: /nueva tienda/i })
+    fireEvent.change(input, { target: { value: 'Carrefour' } })
+    fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
+
+    expect(updateStoresMock).toHaveBeenCalledWith('i1', [
+      'Mercadona',
+      'Carrefour',
+    ])
+  })
+
+  it('opens ItemActionSheet when menu button is clicked and handles rename', async () => {
+    const renameItemMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Manzanas' })],
+      renameItem: renameItemMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const optionsButton = screen.getByRole('button', {
+      name: 'Opciones del producto',
+    })
+    fireEvent.click(optionsButton)
+
+    expect(
+      screen.getByRole('dialog', { name: /Opciones del producto/i }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
+    const input = screen.getByRole('textbox', { name: 'Nombre del producto' })
+    fireEvent.change(input, { target: { value: 'Manzanas Rojas' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
+
+    expect(renameItemMock).toHaveBeenCalledWith('i1', 'Manzanas Rojas')
+  })
+
+  it('opens ItemActionSheet when menu button is clicked and handles delete', async () => {
+    const removeItemMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Manzanas' })],
+      removeItem: removeItemMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const optionsButton = screen.getByRole('button', {
+      name: 'Opciones del producto',
+    })
+    fireEvent.click(optionsButton)
+
+    expect(
+      screen.getByRole('dialog', { name: /Opciones del producto/i }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /eliminar producto/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
+
+    expect(removeItemMock).toHaveBeenCalledWith('i1')
+  })
+
+  it('handles EanSearch finding a product and adding it', async () => {
+    const addItemMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      addItem: addItemMock,
+    })
+
+    vi.mocked(api.getBarcode).mockResolvedValueOnce({
+      ean: '8412345678901',
+      name: 'Tomates',
+      brand: 'Carrefour',
+      stores: ['Carrefour'],
+      community_price: null,
+      community_price_per: null,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const input = screen.getByRole('textbox', { name: /añadir producto/i })
+    fireEvent.change(input, { target: { value: '|8412345678901' } })
+
+    const searchButton = screen.getByRole('button', {
+      name: /buscar producto/i,
+    })
+    fireEvent.click(searchButton)
+
+    await waitFor(() => {
+      expect(api.getBarcode).toHaveBeenCalledWith(
+        expect.any(Function),
+        '8412345678901',
+      )
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Tomates')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /añadir a la lista/i }))
+
+    expect(addItemMock).toHaveBeenCalledWith({
+      name: 'Tomates',
+      brand: 'Carrefour',
+      stores: [],
+      quantity: null,
+      ean: '8412345678901',
+    })
+  })
+
+  it('opens DueSuggestionsSheet and handles adding suggestions', async () => {
+    const addItemMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      addItem: addItemMock,
+    })
+
+    vi.mocked(api.getDueSuggestions).mockResolvedValueOnce([
+      {
+        name: 'Yogur',
+        brand: 'Danone',
+        stores: ['Mercadona'],
+        days_overdue: 1,
+        dismissal_ttl_days: 7,
+        median_interval_days: 7,
+        days_since_last: 8,
+        avg_quantity: 2,
+      },
+    ])
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const suggestionsBtn = await screen.findByRole('button', {
+      name: /sugerencias pendientes \(1\)/i,
+    })
+    fireEvent.click(suggestionsBtn)
+
+    expect(screen.getByText('Toca comprar')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /añadir Yogur/i }))
+
+    expect(addItemMock).toHaveBeenCalledWith({
+      name: 'Yogur',
+      brand: 'Danone',
+      stores: ['Mercadona'],
+      quantity: '2',
+    })
+  })
+
+  it('handles cloning a purchased item', async () => {
+    const addItemMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({
+          id: 'i1',
+          name: 'Manzanas',
+          purchased: true,
+          purchased_at: TODAY,
+        }),
+      ],
+      addItem: addItemMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const optionsButton = screen.getByRole('button', {
+      name: 'Opciones del producto',
+    })
+    fireEvent.click(optionsButton)
+
+    fireEvent.click(screen.getByRole('button', { name: /comprar de nuevo/i }))
+
+    expect(addItemMock).toHaveBeenCalledWith({
+      name: 'Manzanas',
+      brand: null,
+      stores: [],
+      quantity: null,
+      ean: null,
+    })
+  })
 })
 
 describe('ProgressBar scoping', () => {
