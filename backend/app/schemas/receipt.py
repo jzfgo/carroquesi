@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ParsedLine(BaseModel):
@@ -61,11 +61,11 @@ class NameMappingCreate(BaseModel):
 
 
 class NewPurchasedItem(BaseModel):
-    name: str
+    name: str = Field(min_length=1)
     brand: str | None = None
     ean: str | None = None
     price: float
-    price_per: str | None = None
+    price_per: Literal["KILOGRAM"] | None = None
     store: str | None = None
     quantity: str | None = None
 

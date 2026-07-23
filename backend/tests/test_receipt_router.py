@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import pytest
 from sqlmodel import select
 
-from app.db.models import List, ListItem, ListMember
+from app.db.models import List, ListItem, ListMember, ReceiptScan
 from app.db.models import UserFeature as _UserFeature
 from app.routers.receipt import _parse_receipt_at
 from app.schemas.receipt import ReceiptPriceBatch
@@ -727,3 +727,39 @@ def test_receipt_prices_reports_updated_and_created_counts(client, session, user
     ]
     response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
     assert response.json() == {"items_updated": 1, "items_created": 1}
+
+
+def test_new_item_rejects_an_empty_name(client):
+    body = _new_item_body(name="")
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+    assert response.status_code == 422
+
+
+def test_new_item_rejects_an_unknown_price_per(client):
+    body = _new_item_body(price_per="LITRE")
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+    assert response.status_code == 422
+
+
+def test_scan_audit_counts_created_and_updated_items(client, session, user):
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id)
+    session.add(scan)
+    session.add(ListItem(id="item-pan3", list_id=LIST_ID, name="Pan", added_by=user.id))
+    session.commit()
+    scan_id = scan.id
+
+    body = _new_item_body()
+    body["scan_id"] = scan_id
+    body["patches"] = [
+        {
+            "item_id": "item-pan3",
+            "price": 1.25,
+            "price_per": None,
+            "store": "Mercadona",
+            "quantity": "1",
+        }
+    ]
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+
+    session.expire_all()
+    assert session.get(ReceiptScan, scan_id).items_updated == 2
