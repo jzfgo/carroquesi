@@ -123,23 +123,50 @@ Poll every 60–90 seconds. The re-review lands as a **comment**, not a review.
 comment in place** when it finishes. Presence of a `claude` comment therefore proves nothing.
 
 **The workflow run status is the reliable signal — treat the comment text as a secondary
-check only.** The placeholder wording is not stable: it is `### Review in progress` on a
-first pass but `### Re-review in progress` on later ones, so an exact-string match on
-`Review in progress` silently fails to match the re-review form (capital `R`) and reports a
-still-running review as finished. If you match text at all, match case-insensitively on
-`in progress`.
+check only.** The placeholder wording is not stable and the known variants do not form a
+closed set: `### Review in progress`, `### Re-review in progress` (capital `R`, so an
+exact-string match on the first form silently misses it and reports a still-running review
+as finished), and `### Reviewing PR #<number>` — which contains no "in progress" substring
+at all, so even the case-insensitive match fails open on it. Treat any text match as a
+hint, never as the gate; the run status in step 2 below is the gate.
 
-Get the run id from the `[View job](…/actions/runs/<id>)` link inside the `claude` comment
-itself, or filter by workflow — never take the top of an unfiltered `gh run list`, which may
-be a CI run rather than the review action:
+**Resolve the run id from the `[View job](…/actions/runs/<id>)` link inside the `claude`
+comment on this PR.** That link is the only PR-scoped identifier available — get it first
+and use it for every subsequent query. Never take the top of an unfiltered `gh run list`,
+which may be a CI run rather than the review action.
+
+> **Do not scope the review lookup with `--branch <feature-branch>` — it matches nothing.**
+> `claude.yml` triggers on `issue_comment`, and GitHub runs `issue_comment` workflows in the
+> **default-branch** context: an issue comment carries no ref, so the workflow is read from
+> and attributed to `main`. Every review run reports `headBranch: main` even when the
+> comment is on a PR whose head is a feature branch. Scoping by the PR's branch returns an
+> empty list, the run id you carry forward matches nothing, and this step stalls for the
+> full timeout even though the review already finished. Confirm for yourself with:
+>
+> ```bash
+> gh run list --workflow=claude.yml --limit 5 --json databaseId,headBranch,event
+> # → every row is headBranch=main, event=issue_comment
+> ```
+>
+> `--branch main` is no better: it sweeps in reviews for *other* PRs running concurrently,
+> which is the ambiguity the `[View job]` link exists to remove.
+>
+> `claude.yml` sets `run-name: "Claude — #<number>"`, which restores a PR-scoped handle for
+> the cases where no comment has appeared yet:
+>
+> ```bash
+> gh run list --workflow=claude.yml --limit 10 --json databaseId,status,displayTitle \
+>   --jq '.[] | select(.displayTitle | test("#<number>$"))'
+> ```
+>
+> Use this only to *find* a run — it does not tell you which trigger it belongs to when
+> several re-reviews target the same PR. The `[View job]` link remains the exact answer.
 
 ```bash
-# 1. find the review run — scope by BOTH workflow and branch.
-#    Unscoped, concurrent @claude activity on other branches can push your run
-#    off the list, and the run id you then carry into step 3 matches nothing —
-#    stalling this step for the full timeout even though the review finished.
-gh run list --workflow=claude.yml --branch <branch> --limit 5 \
-  --json databaseId,status,conclusion,createdAt
+# 1. resolve the run id(s) from the claude comment(s) on THIS PR
+gh api repos/:owner/:repo/issues/<number>/comments --paginate \
+  --jq '.[] | select(.user.login=="claude[bot]") | .body' \
+  | grep -oE 'actions/runs/[0-9]+' | grep -oE '[0-9]+$' | sort -u
 
 # 2. primary gate: that run has finished
 gh run view <run-id> --json status,conclusion --jq '"\(.status)/\(.conclusion)"'
@@ -148,6 +175,11 @@ gh run view <run-id> --json status,conclusion --jq '"\(.status)/\(.conclusion)"'
 gh api repos/:owner/:repo/issues/<number>/comments --paginate \
   --jq '.[] | select(.body | test("runs/<run-id>")) | .body'
 ```
+
+On a re-review, step 1 returns **every** run id the bot has posted on this PR, including
+ones you already consumed. Carry the known-old ids forward and skip them explicitly, then
+gate on run status in step 2 — the newest id is typically a placeholder for a run still in
+flight, so "newest" and "finished" are not the same question. Answer both.
 
 **Match the comment by run id.** Filtering on the absence of "in progress" text is
 unreliable in both directions: a *finished* review that happens to discuss the phrase (for
@@ -195,6 +227,11 @@ If `statusCheckRollup` has failing checks:
    gh run list --branch <branch> --limit 5
    gh run view <run-id> --log-failed
    ```
+
+   `--branch` **is** correct here, unlike in Step 5. CI runs fire on `pull_request`, which
+   carries the PR's head ref, so they report `headBranch: <feature-branch>`. Only the
+   `issue_comment`-triggered review workflow is attributed to `main`. Do not "harmonize"
+   these two lookups — they need opposite treatment.
 2. Read the error. Fix the root cause in the code.
 3. Commit and push. Wait for CI to re-run before the next loop iteration.
 4. **Return to Step 1.** You just pushed a commit, so any prior clean review is stale — it
@@ -254,17 +291,42 @@ ran — #111 (gemini), #115 and #116 (claude) — `reviews` was empty and `revie
 stayed `REVIEW_REQUIRED`, including on PRs that merged. Nothing the loop does changes that,
 and the PR author cannot approve their own PR.
 
-**`main` *is* protected — approval is a human step outside this loop.** A repository
-ruleset (`default`, active) sets `required_approving_review_count: 1` on `main`, so
-`mergeStateStatus` reads `BLOCKED` until a human approves. Two things make this compatible
-with not gating on it:
+**`main` *is* protected, but not by an approval requirement.** The `default` ruleset
+(active) sets **`required_approving_review_count: 0`**. No human approval is required, and
+an unapproved PR is *not* blocked on that account. What the ruleset actually enforces:
 
-- the ruleset has a `RepositoryRole` bypass actor with `bypass_mode: always`, so the repo
-  owner can merge without the approval; and
-- an approval could only come from a human anyway — the loop cannot generate one.
+| Rule | Effect |
+|---|---|
+| `required_status_checks` | **`Frontend (typecheck + lint + format + test)`** and **`Backend (lint + format + tests)`** must pass. These two are the real merge gate. |
+| `pull_request` | `required_approving_review_count: 0`, `required_review_thread_resolution: false` — neither approvals nor resolved threads block merge. |
+| `required_linear_history` | Squash or rebase only; no merge commits. |
+| bypass actor | `RepositoryRole` with `bypass_mode: always` — the repo owner can merge regardless. |
 
-So: treat `APPROVED` as a bonus, never a gate, and when you exit, **say plainly that human
-approval is still outstanding** rather than implying the PR is merge-ready.
+So when `mergeStateStatus` reads `BLOCKED`, **do not report it as "awaiting human approval"** —
+that was true of an earlier ruleset and is now wrong. Check which rule is unsatisfied. One
+common real cause is a required status check that is failing, still running, or *absent*.
+Absent is the trap: if GitHub drops a `synchronize` event, the PR head advances with **no
+checks reported at all**, which is neither passing nor failing and blocks the merge silently.
+
+**"None" is a valid answer, and it is the usual one here.** `BLOCKED` is not authoritative
+under rulesets: GraphQL tends to report it whenever a ruleset with a `pull_request` rule
+applies, satisfied or not. Observed on #121 with every requirement met — `mergeable:
+MERGEABLE`, both required checks green from the right integration, zero approvals required,
+not a draft, `strict_required_status_checks_policy: false` — and still `BLOCKED`. Do not
+keep querying for the missing rule; there isn't one, and the `bypass_mode: always` actor
+means the owner can merge regardless. Confirm the requirements individually, then say so.
+
+Note that only those two checks gate. `Playwright Tests` and `Agent guardrail hooks` are
+not in the required set, so a pending Playwright run does not block merging — though exit
+condition #3 is deliberately stricter and waits for every check.
+
+`strict_required_status_checks_policy: false`, so the branch does not need to be up to date
+with `main` before merging.
+
+Treat `APPROVED` as a bonus, never a gate. At exit, report the requirements you actually
+checked and their state — not a bare `BLOCKED`, and never "awaiting approval". If all of
+them are satisfied, say that plainly and hand the merge to the user. **Do not self-merge:**
+finishing the loop authorises no outward-facing action.
 
 > Verifying this yourself: `gh api repos/:owner/:repo/branches/main/protection` returns
 > **404 "Branch not protected"** even though `main` is protected — classic branch protection

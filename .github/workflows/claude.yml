@@ -1,6 +1,35 @@
 name: Claude Code
 
+# Make each run identifiable by the PR/issue it belongs to.
+#
+# Runs triggered by `issue_comment` are always attributed to the DEFAULT branch —
+# an issue comment carries no ref, so GitHub reads the workflow from `main` and
+# reports `headBranch: main` even when the comment is on a PR whose head is a
+# feature branch. (That is a security property, not a quirk: it stops a PR author
+# from editing this file in their branch and running it with repository secrets.)
+#
+# Consequence: `gh run list --branch <feature-branch>` can never find a review run.
+# This run-name restores a PR-scoped handle, so runs can be located with:
+#   gh run list --workflow=claude.yml --json databaseId,displayTitle
+#
+# NOTE: the value must stay quoted. Unquoted, YAML treats the " #" before the
+# expression as the start of a comment and the name silently truncates to
+# "Claude —", losing the number this exists to carry.
+run-name: "Claude — #${{ github.event.issue.number || github.event.pull_request.number }}"
+
 on:
+  # Automatic first-pass review. Deliberately NOT `synchronize` — that would fire a
+  # full review on every push, which is both noisy and costly. Ask for follow-up
+  # passes with an `@claude` comment, which the triggers below already handle.
+  #
+  # Unlike `issue_comment`, `pull_request` runs ARE attributed to the PR's head ref,
+  # so these show up under `gh run list --branch <feature-branch>`.
+  #
+  # Caveat if this repo ever takes outside contributions: `pull_request` runs from a
+  # FORK get no secrets, so CLAUDE_CODE_OAUTH_TOKEN is empty and the run fails rather
+  # than reviewing. Same-repo branches (the current workflow) are unaffected.
+  pull_request:
+    types: [opened, ready_for_review]
   issue_comment:
     types: [created]
   pull_request_review_comment:
@@ -12,11 +41,33 @@ on:
 
 jobs:
   claude:
+    # THIS REPOSITORY IS PUBLIC, so anyone can open an issue or leave a comment.
+    #
+    # Only `pull_request` is protected by GitHub withholding secrets from fork runs.
+    # The other four triggers execute in the BASE repo context with full secrets no
+    # matter who authored the comment, and for them `prompt` is empty, so the agent
+    # follows whatever the comment says. Gating on `@claude` alone therefore lets any
+    # stranger drive this agent with the tools in `claude_args` — including
+    # `Bash(gh api:*)`, which permits `-X POST`/`-X DELETE`.
+    #
+    # So every trigger also requires a trusted author. Do not remove these checks
+    # while `claude_args` grants write-capable tools.
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'pull_request' &&
+        github.event.pull_request.draft == false &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)) ||
+      (github.event_name == 'issue_comment' &&
+        contains(github.event.comment.body, '@claude') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review_comment' &&
+        contains(github.event.comment.body, '@claude') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review' &&
+        contains(github.event.review.body, '@claude') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)) ||
+      (github.event_name == 'issues' &&
+        (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,11 +91,34 @@ jobs:
           additional_permissions: |
             actions: read
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
+          # `pull_request` runs have no comment to follow, so give them an explicit
+          # brief. Every other trigger passes an empty string, which leaves the action
+          # following the instruction in the comment that mentioned @claude.
+          prompt: ${{ github.event_name == 'pull_request' && 'Review this pull request. Focus on correctness, security, and whether the change actually does what its description claims. Verify factual assertions in the diff against the real files rather than assuming they hold. Post your findings as a comment even when you find nothing, so that a clean pass is distinguishable from a silent one.' || '' }}
 
-          # Optional: Add claude_args to customize behavior and configuration
+          # Let the reviewer check claims against primary sources instead of recalling
+          # them. Without this, WebSearch/WebFetch fail closed: `--allowedTools` is an
+          # AUTO-APPROVAL list, not an availability restriction (use `--tools` for
+          # that), so an omitted tool still exists but hits a permission prompt — and
+          # in headless CI nothing can answer it, so the call comes back denied. That
+          # is what a reviewer on #122 hit: "I still don't have working
+          # WebSearch/WebFetch (both came back as permission-denied)".
+          #
+          # This ADDS to the defaults rather than replacing them — per the action docs,
+          # "the base GitHub tools are always included" — so file reading and comment
+          # posting are unaffected.
+          #
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr:*)'
-
+          # or https://code.claude.com/docs/en/cli-reference for available options.
+          # `Bash(gh api:*)` lets the reviewer check repository configuration that is not
+          # in the tree — rulesets, required checks, run status. Two independent reviews of
+          # #122 had to report the ruleset claims in babysit-pr/SKILL.md as unverifiable
+          # without it, and both correctly declined to assert them on the author's word.
+          #
+          # Broader than read-only: `gh api` accepts `-X POST`/`-X DELETE`, and prefix
+          # matching cannot exclude those. What keeps that safe is the author gate in the
+          # job's `if:` above, NOT fork-secret withholding — this repo is public, and four
+          # of the five triggers run in the base repo context with full secrets whoever
+          # wrote the comment. Removing the author gate re-opens arbitrary API writes to
+          # any commenter.
+          claude_args: '--allowedTools "WebSearch,WebFetch,Bash(gh api:*)"'
