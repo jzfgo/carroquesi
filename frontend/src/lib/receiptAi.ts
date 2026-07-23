@@ -7,6 +7,7 @@ const RECEIPT_SCHEMA = {
   properties: {
     store: { type: 'string', nullable: true },
     receipt_date: { type: 'string', nullable: true },
+    receipt_time: { type: 'string', nullable: true },
     receipt_total: { type: 'number', nullable: true },
     lines: {
       type: 'array',
@@ -31,6 +32,7 @@ const PROMPT = `Extract structured data from this Spanish grocery receipt.
 RULES:
 - store: the supermarket name (e.g. "Mercadona", "Carrefour"). Return null if not clearly visible. Do not infer from product names.
 - receipt_date: purchase date as YYYY-MM-DD. Return null if not clearly readable.
+- receipt_time: purchase time as HH:MM in 24-hour form, exactly as printed on the receipt. Return null if not clearly readable. Do not infer or guess.
 - receipt_total: final total charged. Return null if not clearly readable.
 - lines: purchased product lines only. Omit any line where name or price is not clearly legible.
 - Skip: subtotals, taxes, VAT, loyalty discounts, cashier info, store address, payment lines.
@@ -77,6 +79,35 @@ async function fileToInlinePart(file: File) {
   )
 }
 
+/**
+ * Combine the receipt's printed date and time — which are LOCAL wall-clock — into
+ * a UTC instant.
+ *
+ * `purchased_at` is stored naive-UTC and rendered by appending 'Z', so sending
+ * local time unconverted would shift an evening receipt onto the following day.
+ * Using the Date constructor (rather than string concatenation) applies the
+ * browser's offset rules for that specific date, which keeps receipts from the
+ * other side of a DST change correct.
+ */
+export function toReceiptInstant(
+  date: string | null,
+  time: string | null,
+): string | null {
+  if (!date) return null
+  const [y, m, d] = date.split('-').map(Number)
+  if (!y || !m || !d) return null
+
+  let hours = 0
+  let minutes = 0
+  if (time) {
+    const [h, min] = time.split(':').map(Number)
+    if (Number.isInteger(h) && h >= 0 && h <= 23) hours = h
+    if (Number.isInteger(min) && min >= 0 && min <= 59) minutes = min
+  }
+
+  return new Date(y, m - 1, d, hours, minutes, 0, 0).toISOString()
+}
+
 export async function parseReceiptWithAi(
   file: File,
 ): Promise<ReceiptScanRequest> {
@@ -86,12 +117,16 @@ export async function parseReceiptWithAi(
   const raw = JSON.parse(text) as {
     store?: string | null
     receipt_date?: string | null
+    receipt_time?: string | null
     receipt_total?: number | null
     lines: ParsedLine[]
   }
   return {
     store: raw.store ?? null,
-    receipt_date: raw.receipt_date ?? null,
+    receipt_date: toReceiptInstant(
+      raw.receipt_date ?? null,
+      raw.receipt_time ?? null,
+    ),
     receipt_total: raw.receipt_total ?? null,
     lines: raw.lines,
   }
