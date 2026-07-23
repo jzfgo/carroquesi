@@ -15,14 +15,14 @@ Vitest coverage is now permanently configured using `@vitest/coverage-v8` in `vi
 
 ## Overall Coverage Statistics
 
-The frontend test suite consists of **599 tests** (up from 586) across **48 test files** (up from 45). The overall coverage metrics improved significantly after writing new tests:
+The frontend test suite consists of **603 tests** (up from 586) across **48 test files** (up from 45). The overall coverage metrics improved significantly after writing new tests:
 
 | Metric | Before Audit | After Resolution |
 | :--- | :--- | :--- |
-| **Statements** | 71.37% | **79.37%** |
-| **Branches** | 65.93% | **75.98%** |
-| **Functions** | 67.07% | **73.74%** |
-| **Lines** | 72.63% | **80.95%** |
+| **Statements** | 71.37% | **80.91%** |
+| **Branches** | 65.93% | **76.97%** |
+| **Functions** | 67.07% | **75.41%** |
+| **Lines** | 72.63% | **82.57%** |
 
 ---
 
@@ -42,10 +42,14 @@ We wrote comprehensive test files to resolve the major test gaps identified duri
 - **Test File:** `frontend/src/lib/lastPriceStore.test.ts`
 - **Coverage Added:** Unit tests cover local storage get/set interactions, TTL duration expiration, JSON parse error recovery, and security/quota exception safety blocks.
 
+### 4. `ListScreen.tsx` (Increased from 39.19% to 49.38%)
+- **Test File:** `frontend/src/components/ListScreen.test.tsx`
+- **Coverage Added:** Added integration tests covering interactive tag/brand edits (opening/saving via `TagEditSheet`), store additions (opening/saving via `StoreEditSheet`), item actions (renaming/deleting via `ItemActionSheet`), and EAN barcode lookup integrations (searching/resolving/adding found product).
+
 ---
 
 ## Remaining Gaps / Actionable Recommendations
 
 For future coverage expansion, developers can target:
-1. **Increase `ListScreen.tsx` Coverage (currently 39.19%):** Write integration tests in `ListScreen.test.tsx` targeting mutating handlers, drag-drop sorting, and complex render paths.
+1. **Increase `ListScreen.tsx` Coverage (currently 49.38%):** Write further integration tests in `ListScreen.test.tsx` targeting remaining mutating handlers (e.g. clone/suggestions) and complex render paths.
 2. **Expand `api.ts` Coverage (currently 61.22%):** Add mock API handler tests covering token validation recovery and other edge cases.

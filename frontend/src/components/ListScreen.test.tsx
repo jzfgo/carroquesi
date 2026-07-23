@@ -187,6 +187,132 @@ describe('ListScreen', () => {
     })
     vi.useRealTimers()
   })
+
+  it('opens TagEditSheet when clicking on brand tag and calls updateTag on save', async () => {
+    const updateTagMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Manzanas', brand: 'Hacendado' })],
+      updateTag: updateTagMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const brandTag = screen.getByText('Hacendado')
+    fireEvent.click(brandTag)
+
+    expect(document.querySelector('.tag-edit-sheet')).toBeInTheDocument()
+
+    const input = document.querySelector('.tag-edit-sheet__input')!
+    fireEvent.change(input, { target: { value: 'Danone' } })
+    fireEvent.click(document.querySelector('.tag-edit-sheet__save')!)
+
+    expect(updateTagMock).toHaveBeenCalledWith('i1', 'brand', 'Danone')
+  })
+
+  it('opens StoreEditSheet when clicking on stores tag and calls updateStores on save', async () => {
+    const updateStoresMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Manzanas', stores: ['Mercadona'] })],
+      updateStores: updateStoresMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const storeTag = document.querySelector(
+      '.item-card__tag:not(.item-card__tag--cta)',
+    )!
+    fireEvent.click(storeTag)
+
+    expect(document.querySelector('.store-edit-sheet')).toBeInTheDocument()
+
+    const input = screen.getByRole('textbox', { name: /nueva tienda/i })
+    fireEvent.change(input, { target: { value: 'Carrefour' } })
+    fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
+
+    expect(updateStoresMock).toHaveBeenCalledWith('i1', [
+      'Mercadona',
+      'Carrefour',
+    ])
+  })
+
+  it('opens ItemActionSheet when menu button is clicked and handles rename and delete', async () => {
+    const renameItemMock = vi.fn()
+    const removeItemMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Manzanas' })],
+      renameItem: renameItemMock,
+      removeItem: removeItemMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const optionsButton = screen.getByRole('button', {
+      name: 'Opciones del producto',
+    })
+    fireEvent.click(optionsButton)
+
+    expect(
+      screen.getByRole('dialog', { name: /Opciones del producto/i }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
+    const input = screen.getByRole('textbox', { name: 'Nombre del producto' })
+    fireEvent.change(input, { target: { value: 'Manzanas Rojas' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
+
+    expect(renameItemMock).toHaveBeenCalledWith('i1', 'Manzanas Rojas')
+  })
+
+  it('handles EanSearch finding a product and adding it', async () => {
+    const addItemMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      addItem: addItemMock,
+    })
+
+    vi.mocked(api.getBarcode).mockResolvedValueOnce({
+      ean: '8412345678901',
+      name: 'Tomates',
+      brand: 'Carrefour',
+      stores: ['Carrefour'],
+      community_price: null,
+      community_price_per: null,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const input = screen.getByRole('textbox', { name: /añadir producto/i })
+    fireEvent.change(input, { target: { value: '|8412345678901' } })
+
+    const searchButton = screen.getByRole('button', {
+      name: /buscar producto/i,
+    })
+    fireEvent.click(searchButton)
+
+    await waitFor(() => {
+      expect(api.getBarcode).toHaveBeenCalledWith(
+        expect.any(Function),
+        '8412345678901',
+      )
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Tomates')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /añadir a la lista/i }))
+
+    expect(addItemMock).toHaveBeenCalledWith({
+      name: 'Tomates',
+      brand: 'Carrefour',
+      stores: [],
+      quantity: null,
+      ean: '8412345678901',
+    })
+  })
 })
 
 describe('ProgressBar scoping', () => {
