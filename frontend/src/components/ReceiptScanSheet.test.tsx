@@ -87,17 +87,19 @@ const mockPurchasedItems = [
   },
 ]
 
-function renderSheet(overrides: Partial<ReceiptScanResult> = {}) {
-  const result = { ...mockResult, ...overrides }
+function renderSheet(
+  overrides: Partial<Parameters<typeof ReceiptScanSheet>[0]> = {},
+) {
   const onConfirm = vi.fn()
   const onClose = vi.fn()
   render(
     <ReceiptScanSheet
-      result={result}
+      result={mockResult}
       purchasedItems={mockPurchasedItems}
       store="Mercadona"
       onConfirm={onConfirm}
       onClose={onClose}
+      {...overrides}
     />,
   )
   return { onConfirm, onClose }
@@ -255,23 +257,6 @@ describe('ReceiptScanSheet', () => {
   })
 })
 
-function renderSheet2(
-  overrides: Partial<Parameters<typeof ReceiptScanSheet>[0]> = {},
-) {
-  const onConfirm = vi.fn()
-  render(
-    <ReceiptScanSheet
-      result={mockResult}
-      purchasedItems={mockPurchasedItems}
-      store="Mercadona"
-      onConfirm={onConfirm}
-      onClose={vi.fn()}
-      {...overrides}
-    />,
-  )
-  return { onConfirm }
-}
-
 /** The unmatched row "MANI DULCE" is the last row in the sheet. */
 function selectCreateOnUnmatchedRow() {
   const selects = screen.getAllByRole('combobox')
@@ -282,14 +267,14 @@ function selectCreateOnUnmatchedRow() {
 
 describe('create mode', () => {
   it('reveals a name field when "Crear artículo nuevo" is chosen', () => {
-    renderSheet2()
+    renderSheet()
     expect(screen.queryByPlaceholderText(/Leche semi/)).toBeNull()
     selectCreateOnUnmatchedRow()
     expect(screen.getByPlaceholderText(/Leche semi/)).toBeTruthy()
   })
 
   it('sends the parsed name and brand as a new item', () => {
-    const { onConfirm } = renderSheet2()
+    const { onConfirm } = renderSheet()
     selectCreateOnUnmatchedRow()
     fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
       target: { value: 'Cacahuetes dulces #Hacendado' },
@@ -305,7 +290,7 @@ describe('create mode', () => {
   })
 
   it('honours |EAN and discards +qty and @store', () => {
-    const { onConfirm } = renderSheet2()
+    const { onConfirm } = renderSheet()
     selectCreateOnUnmatchedRow()
     fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
       target: { value: 'Cacahuetes +5 @Lidl |8412345678901' },
@@ -321,7 +306,7 @@ describe('create mode', () => {
   })
 
   it('blocks confirm when the name parses to empty', () => {
-    renderSheet2()
+    renderSheet()
     selectCreateOnUnmatchedRow()
     fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
       target: { value: '#Hacendado' },
