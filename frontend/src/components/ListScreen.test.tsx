@@ -237,14 +237,12 @@ describe('ListScreen', () => {
     ])
   })
 
-  it('opens ItemActionSheet when menu button is clicked and handles rename and delete', async () => {
+  it('opens ItemActionSheet when menu button is clicked and handles rename', async () => {
     const renameItemMock = vi.fn()
-    const removeItemMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
       items: [makeItem({ id: 'i1', name: 'Manzanas' })],
       renameItem: renameItemMock,
-      removeItem: removeItemMock,
     })
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
@@ -264,6 +262,31 @@ describe('ListScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
 
     expect(renameItemMock).toHaveBeenCalledWith('i1', 'Manzanas Rojas')
+  })
+
+  it('opens ItemActionSheet when menu button is clicked and handles delete', async () => {
+    const removeItemMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Manzanas' })],
+      removeItem: removeItemMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const optionsButton = screen.getByRole('button', {
+      name: 'Opciones del producto',
+    })
+    fireEvent.click(optionsButton)
+
+    expect(
+      screen.getByRole('dialog', { name: /Opciones del producto/i }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /eliminar producto/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
+
+    expect(removeItemMock).toHaveBeenCalledWith('i1')
   })
 
   it('handles EanSearch finding a product and adding it', async () => {
