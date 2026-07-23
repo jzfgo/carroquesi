@@ -23,8 +23,12 @@ logger = logging.getLogger(__name__)
 MULTICAST_BATCH_SIZE = 500
 
 # Total budget for all recipients combined, not per call. N members must not mean
-# N sequential round-trips holding a threadpool worker on every item write.
-SEND_TIMEOUT_SECONDS = 5.0
+# N sequential round-trips holding a threadpool worker on every item write. Kept
+# short because the write has already committed and the send finishes on its own
+# thread regardless of whether we wait — so a lower budget only shortens how long
+# the request holds its Cloud Run slot, at the cost of skipping dead-token pruning
+# for a slow batch (harmless: that batch's dead tokens are pruned next time).
+SEND_TIMEOUT_SECONDS = 2.5
 MAX_CONCURRENT_SENDS = 8
 
 
@@ -112,12 +116,16 @@ def _build_message(
 
 
 def _is_dead_token(exc: Exception | None) -> bool:
-    if exc is None:
-        return False
-    unregistered = getattr(messaging, "UnregisteredError", None)
-    if isinstance(unregistered, type) and isinstance(exc, unregistered):
-        return True
-    return "not found" in str(exc).lower() or "not registered" in str(exc).lower()
+    """Only a typed FCM verdict prunes a token, never a substring of the message.
+
+    Pruning deletes the row, so the signal must be unambiguous. Matching free
+    text like "not found" would let a project/credential/quota misconfiguration
+    that fails every send delete the entire token table — disabling push for
+    exactly the closed-app audience the feature exists for, recoverable only when
+    each user reopens the app. UnregisteredError and SenderIdMismatchError are the
+    two FCM raises that genuinely mean "this token will never deliver again".
+    """
+    return isinstance(exc, messaging.UnregisteredError | messaging.SenderIdMismatchError)
 
 
 def notify_list_change(
@@ -150,6 +158,15 @@ def notify_list_change(
         # via shutdown(wait=True), which joins every submitted future and would make
         # the timeout below decorative. shutdown(wait=False) lets a hung send finish
         # on its own thread while the request returns inside its budget.
+        #
+        # KNOWN LIMITATION (deferred, see JAV-9): this pool is per-call. A send
+        # that outlives the budget keeps running on a non-daemon thread — up to
+        # firebase_admin's 120s HTTP timeout — so during an FCM outage threads and
+        # sockets accumulate rather than being bounded process-wide. A module-level
+        # pool would cap them, but must never be .shutdown() per request and would
+        # need the hang test to release its worker; not worth that at this app's
+        # scale, where the count is tens during an outage and Cloud Run's SIGTERM
+        # grace bounds process exit. Revisit if member counts or traffic grow.
         pool = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_SENDS)
         try:
             futures = {
@@ -167,7 +184,9 @@ def notify_list_change(
                 except Exception:
                     logger.exception("push send failed for list %s", lst.id)
                     continue
-                for token, response in zip(batch, result.responses, strict=False):
+                # strict=True: FCM returns exactly one response per token sent, so
+                # a length mismatch is a real bug, not something to zip past quietly.
+                for token, response in zip(batch, result.responses, strict=True):
                     if not response.success and _is_dead_token(response.exception):
                         dead.append(token)
         finally:
@@ -178,4 +197,7 @@ def notify_list_change(
                 session.delete(row)
             session.commit()
     except Exception:
+        # A push failure must not surface as a failed list write. Roll back so the
+        # request handler is never handed a session left mid-transaction.
+        session.rollback()
         logger.exception("push notification failed for list %s", lst.id)

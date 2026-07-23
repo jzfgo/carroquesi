@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
+from firebase_admin import messaging
 from sqlmodel import Session, select
 
 from app.db.models import List, ListItem, ListMember, PushToken, User
@@ -157,24 +158,62 @@ def _fake_response(success: bool, exception=None):
     return resp
 
 
+def _batch_for(message, exception=None):
+    """A BatchResponse-shaped mock with exactly one response per token sent.
+
+    We patch send_each_for_multicast, NOT the whole messaging module, so
+    _build_message constructs a real MulticastMessage and _is_dead_token sees the
+    real typed exceptions. Production zips tokens against responses with
+    strict=True, so the response count here must match message.tokens — a
+    mismatch is a genuine bug we want surfaced, not swallowed.
+    """
+    return MagicMock(
+        responses=[_fake_response(exception is None, exception) for _ in message.tokens]
+    )
+
+
 def test_send_is_one_multicast_per_recipient_user(session, user, other_user):
     """Counts differ per recipient, so recipients must not share a multicast."""
     third = User(firebase_uid="uid-carol", display_name="Carol", email="c@example.com")
     session.add(third)
     session.commit()
     lst = _make_shared_list(session, user, other_user)
-    session.add(ListMember(list_id=lst.id, user_id=third.id))
+    third_member = ListMember(list_id=lst.id, user_id=third.id)
+    session.add(third_member)
+    # Deterministic watermarks so the counts are stable and genuinely differ.
+    for m in session.exec(select(ListMember).where(ListMember.list_id == lst.id)).all():
+        m.last_seen_at = datetime(2026, 1, 1)
     session.add(PushToken(user_id=other_user.id, token="bob-phone"))
     session.add(PushToken(user_id=other_user.id, token="bob-laptop"))
     session.add(PushToken(user_id=third.id, token="carol-phone"))
+    # Actor's item counts for both; Bob's item counts for Carol but not Bob.
+    session.add(
+        ListItem(list_id=lst.id, name="por-user", added_by=user.id, created_at=datetime(2026, 1, 2))
+    )
+    session.add(
+        ListItem(
+            list_id=lst.id, name="por-bob", added_by=other_user.id, created_at=datetime(2026, 1, 2)
+        )
+    )
     session.commit()
 
-    with patch("app.services.push.messaging") as fcm:
-        fcm.send_each_for_multicast.return_value = MagicMock(responses=[])
+    with patch("app.services.push.messaging.send_each_for_multicast") as send:
+        send.side_effect = lambda message: _batch_for(message)
         notify_list_change(session, lst, user, "added", "leche")
 
     # Two users -> two calls. Bob's two devices share one.
-    assert fcm.send_each_for_multicast.call_count == 2
+    assert send.call_count == 2
+
+    # And each recipient got THEIR OWN count, not a shared one. This is the
+    # invariant the whole derived-count design rests on: call_count alone passes
+    # even if both recipients received an identical wrong number.
+    count_by_token = {}
+    for call in send.call_args_list:
+        message = call.args[0]
+        for tok in message.tokens:
+            count_by_token[tok] = message.data["unseen_count"]
+    assert count_by_token["bob-phone"] == count_by_token["bob-laptop"] == "1"
+    assert count_by_token["carol-phone"] == "2"
 
 
 def test_send_skipped_entirely_when_no_recipients(session, user):
@@ -184,10 +223,10 @@ def test_send_skipped_entirely_when_no_recipients(session, user):
     session.add(ListMember(list_id=lst.id, user_id=user.id))
     session.commit()
 
-    with patch("app.services.push.messaging") as fcm:
+    with patch("app.services.push.messaging.send_each_for_multicast") as send:
         notify_list_change(session, lst, user, "added", "leche")
 
-    fcm.send_each_for_multicast.assert_not_called()
+    send.assert_not_called()
 
 
 def test_unregistered_token_is_pruned(session, user, other_user):
@@ -195,14 +234,32 @@ def test_unregistered_token_is_pruned(session, user, other_user):
     session.add(PushToken(user_id=other_user.id, token="dead-tok"))
     session.commit()
 
-    with patch("app.services.push.messaging") as fcm:
-        fcm.UnregisteredError = RuntimeError
-        fcm.send_each_for_multicast.return_value = MagicMock(
-            responses=[_fake_response(False, RuntimeError("Requested entity was not found"))]
+    with patch("app.services.push.messaging.send_each_for_multicast") as send:
+        # A real typed UnregisteredError, the only signal that prunes. A prior
+        # version matched the substring "not found" in any exception, which would
+        # have let a global misconfiguration wipe the whole table.
+        send.side_effect = lambda message: _batch_for(
+            message, exception=messaging.UnregisteredError("Requested entity was not found")
         )
         notify_list_change(session, lst, user, "added", "leche")
 
     assert session.exec(select(PushToken).where(PushToken.token == "dead-tok")).first() is None
+
+
+def test_generic_send_failure_does_not_prune(session, user, other_user):
+    """A non-typed failure (outage, quota, credential) must NOT delete tokens —
+    that would disable push for exactly the closed-app audience it serves."""
+    lst = _make_shared_list(session, user, other_user)
+    session.add(PushToken(user_id=other_user.id, token="live-tok"))
+    session.commit()
+
+    with patch("app.services.push.messaging.send_each_for_multicast") as send:
+        send.side_effect = lambda message: _batch_for(
+            message, exception=messaging.QuotaExceededError("quota")
+        )
+        notify_list_change(session, lst, user, "added", "leche")
+
+    assert session.exec(select(PushToken).where(PushToken.token == "live-tok")).one()
 
 
 def test_fcm_failure_never_raises(session, user, other_user):
@@ -210,8 +267,8 @@ def test_fcm_failure_never_raises(session, user, other_user):
     session.add(PushToken(user_id=other_user.id, token="tok"))
     session.commit()
 
-    with patch("app.services.push.messaging") as fcm:
-        fcm.send_each_for_multicast.side_effect = RuntimeError("FCM down")
+    with patch("app.services.push.messaging.send_each_for_multicast") as send:
+        send.side_effect = RuntimeError("FCM down")
         notify_list_change(session, lst, user, "added", "leche")  # must not raise
 
 
@@ -229,20 +286,21 @@ def test_send_returns_within_budget_when_fcm_hangs(session, user, other_user):
 
     release = threading.Event()
 
-    def _hang(*args, **kwargs):
+    def _hang(message):
         release.wait(30)
-        return MagicMock(responses=[])
+        return _batch_for(message)
 
     try:
         with (
-            patch("app.services.push.messaging") as fcm,
+            patch("app.services.push.messaging.send_each_for_multicast") as send,
             patch("app.services.push.SEND_TIMEOUT_SECONDS", 0.1),
         ):
-            fcm.send_each_for_multicast.side_effect = _hang
+            send.side_effect = _hang
             started = time.monotonic()
             notify_list_change(session, lst, user, "added", "leche")
             elapsed = time.monotonic() - started
     finally:
+        # Release the abandoned worker so it cannot linger into later tests.
         release.set()
 
     assert elapsed < 5
