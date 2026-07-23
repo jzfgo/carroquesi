@@ -75,8 +75,19 @@ jobs:
           # following the instruction in the comment that mentioned @claude.
           prompt: ${{ github.event_name == 'pull_request' && 'Review this pull request. Focus on correctness, security, and whether the change actually does what its description claims. Verify factual assertions in the diff against the real files rather than assuming they hold. Post your findings as a comment even when you find nothing, so that a clean pass is distinguishable from a silent one.' || '' }}
 
-          # Optional: Add claude_args to customize behavior and configuration
+          # Let the reviewer check claims against primary sources instead of recalling
+          # them. Without this, WebSearch/WebFetch fail closed: `--allowedTools` is an
+          # AUTO-APPROVAL list, not an availability restriction (use `--tools` for
+          # that), so an omitted tool still exists but hits a permission prompt — and
+          # in headless CI nothing can answer it, so the call comes back denied. That
+          # is what a reviewer on #122 hit: "I still don't have working
+          # WebSearch/WebFetch (both came back as permission-denied)".
+          #
+          # This ADDS to the defaults rather than replacing them — per the action docs,
+          # "the base GitHub tools are always included" — so file reading and comment
+          # posting are unaffected.
+          #
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr:*)'
+          # or https://code.claude.com/docs/en/cli-reference for available options.
+          claude_args: '--allowedTools "WebSearch,WebFetch"'
 
