@@ -68,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Harden the push token lifecycle for iOS gestures and opt-out persistence
 
+- Stop ListScreen and DashboardScreen tests initialising real Firebase
+
 
 ---
 ## [0.20.0] — 2026-07-22
