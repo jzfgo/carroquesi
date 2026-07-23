@@ -10,41 +10,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Accept new_items and receipt_date in the receipt price batch
-
-- Parse receipt dates and instants into naive UTC
-
-- Mark an unpurchased item purchased when a receipt price is applied
-
-- Type new_items and receipt_date on the receipt price batch
-
-- Create purchased items from unmatched receipt lines
-
-- Create a new purchased item from an unmatched receipt line
-
-- Offer unpurchased list items when linking a receipt line
-
-- Send created items and the receipt date when applying prices
-
-- Warn on non-positive receipt prices and prevent double submit
-
-- Extract the receipt time and send it as a UTC instant
-
-- Fill a new receipt item from a barcode scan
-
-- Store the receipt time on the scan record
-
-- Migrate receipt_scans.receipt_date to a receipt_at timestamp
-
 - Configure vitest coverage and fill test coverage gaps (#126)
+
+- Add impulse buys from the receipt scan sheet (#127)
+
+- Add push_tokens, member watermark and item purchaser models
+
+- Add push token register and unregister endpoints
+
+- Add POST /lists/{id}/seen to reset the unseen watermark
+
+- Add push recipient resolution and derived unseen count
+
+- Send push per recipient user with pruning and a total timeout
+
+- Notify members on item add and first purchase
+
+- Add push env var, feature flag constant and API client calls
+
+- Add notification copy builder
+
+- Register the push_notifications feature flag, on by default
+
+- Display and route push notifications from the service worker
+
+- Add push permission and token registration module
+
+- Add notification priming card
+
+- Mark a list seen only while it is actually visible
+
+- Wire notification priming, seen-on-visible and tap routing into the app
+
+- Add notifications toggle and clear the token on sign-out
+
+- Add push notifications migration
 
 
 ### Changed
-- Give receipt rows an explicit link/create/ignore mode
+- Build the service worker from source via injectManifest
 
-- **receipt-scan:** Rename purchasedItems to candidateItems, tighten guards
-
-- **receipt-ai:** Fold redundant date guard, document asymmetry, drop duplicate test
+- Correct two misleading comments in the service worker
 
 
 ### Fixed
@@ -56,19 +62,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Patch 19 Dependabot vulnerabilities in frontend dependencies (#125)
 
-- Validate new_items name and price_per against ItemCreate's rules
+- Make push token registration race-safe and close test gaps
 
-- Suppress leading-zero toast clause when a receipt count is zero
+- Prune push tokens only on a typed FCM verdict, and harden the send path
 
-- Reject out-of-range date components instead of rolling or throwing
-
-- Re-enable receipt confirm after a failed submit so users can retry
-
-- Parse receipt instants instead of silently discarding them
-
-- **test:** Stop receiptAi unit tests depending on Firebase credentials
-
-- Gate receipt-prices apply on the ai_receipt_scanning flag
+- Harden the push token lifecycle for iOS gestures and opt-out persistence
 
 
 ---
