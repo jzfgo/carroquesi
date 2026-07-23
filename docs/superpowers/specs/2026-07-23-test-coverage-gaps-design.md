@@ -7,67 +7,45 @@
 
 ## Overview
 
-As part of technical debt investigation for **JAV-16**, this document captures a point-in-time audit of the frontend test suite coverage using `vitest --coverage`. The goal is to identify testing gaps in critical UI screens, hooks, and libraries, and guide future test-writing efforts.
+As part of technical debt investigation for **JAV-16**, this document captures the audit and subsequent resolution of frontend test suite coverage gaps. 
 
-Per project owner direction, no permanent coverage dependencies, configuration options, or scripts are committed to the codebase. The audit was conducted using a temporary installation of `@vitest/coverage-v8`.
+Vitest coverage is now permanently configured using `@vitest/coverage-v8` in `vite.config.ts`, with a dedicated `pnpm test:coverage` script in `package.json` and a modular `just frontend test-coverage` recipe.
 
 ---
 
 ## Overall Coverage Statistics
 
-The frontend test suite consists of **586 tests** across **45 test files**. The overall coverage metrics are as follows:
+The frontend test suite consists of **599 tests** (up from 586) across **48 test files** (up from 45). The overall coverage metrics improved significantly after writing new tests:
 
-| Metric | Coverage |
-| :--- | :--- |
-| **Statements** | 71.37% |
-| **Branches** | 65.93% |
-| **Functions** | 67.07% |
-| **Lines** | 72.63% |
-
----
-
-## Key Gaps Identified
-
-We analyzed the Vitest coverage report to find files with the lowest coverage or high complexity but missing test cases. The major test gaps are categorized below:
-
-### 1. Completely Untested Components (0% Coverage)
-
-- **`ProductHistorySheet.tsx`** (Statements: 0%, Lines: 0%)
-  - *Gaps:* Uncovered lines `27-446`. This component handles the list's product suggestions from history and has zero unit tests.
-
-### 2. Core Components with Critical Gaps
-
-- **`ListScreen.tsx`** (Statements: 39.19%, Lines: 41.15%)
-  - *Gaps:* Uncovered lines `443-545` (handles list item mutations, item filtering, sorting details) and `628-936` (render logic, drag-and-drop state, action handlers). This is the main UI screen of the application and contains significant untested complex rendering/interaction logic.
-- **`LogPurchaseSheet.tsx`** (Statements: 73.46%, Lines: 77.27%)
-  - *Gaps:* Uncovered lines `98-99`, `139-202` (handles logging prices, validating quantities, date pickers, store selectors).
-- **`ReceiptScanSheet.tsx`** (Statements: 82.6%, Lines: 83.95%)
-  - *Gaps:* Uncovered lines `297-298`, `326-354` (receipt review table, line matching overrides, and custom receipt action items).
-
-### 3. Untested Hooks and Libraries
-
-- **`useSwipeToDismiss.ts`** (Statements: 23.8%, Lines: 26.31%)
-  - *Gaps:* Uncovered lines `16-18`, `23-26`, `31-39` (touch event listeners, translation calculations, swipe thresholds).
-- **`useListItems.ts`** (Statements: 68.94%, Lines: 68.96%)
-  - *Gaps:* Uncovered lines `375-388` (offline item update rollbacks) and `407-410`.
-- **`api.ts`** (Statements: 61.22%, Lines: 57.77%)
-  - *Gaps:* Uncovered lines `189-234` (Firebase token validation / error formatting) and `268-332` (receipt fuzzy match API wrapper, feedback form posting).
-- **`lowestPriceStore.ts`** (Statements: 18.18%, Lines: 20.00%)
-  - *Gaps:* Uncovered lines `10-22` (caching strategies and store price comparison helpers).
+| Metric | Before Audit | After Resolution |
+| :--- | :--- | :--- |
+| **Statements** | 71.37% | **79.37%** |
+| **Branches** | 65.93% | **75.98%** |
+| **Functions** | 67.07% | **73.74%** |
+| **Lines** | 72.63% | **80.95%** |
 
 ---
 
-## Actionable Recommendations for Future Work
+## Key Gaps Resolved
 
-When prioritizing coverage improvement tasks, the following sequential path is recommended:
+We wrote comprehensive test files to resolve the major test gaps identified during the audit:
 
-1. **Test `ProductHistorySheet.tsx`:** Write a dedicated `ProductHistorySheet.test.tsx` file asserting suggestion selection, history list rendering, and empty states.
-2. **Increase `ListScreen.tsx` Coverage:** Write integration tests in `ListScreen.test.tsx` targeting specific interaction sequences (e.g., drag and drop, filtering/sorting behavior changes).
-3. **Isolate Touch Logic Tests for `useSwipeToDismiss.ts`:** Write hook-specific unit tests mocking touch events to verify swipe/dismiss translation calculations.
+### 1. `PriceHistorySheet.tsx` (Increased from 0% to 92.99%)
+- **Test File:** `frontend/src/components/PriceHistorySheet.test.tsx`
+- **Coverage Added:** Asserts title rendering, API scope fetching ('this_list', 'my_lists', 'all'), empty states, community pricing display, grouping by store, sparkline charts, store row expansion detailed statistics, and log price triggers.
+
+### 2. `useSwipeToDismiss.ts` (Increased from 23.8% to 100%)
+- **Test File:** `frontend/src/hooks/useSwipeToDismiss.test.ts`
+- **Coverage Added:** Unit tests cover React swipe-down calculations, style mutations (transition, transform) during drag events, snap-back logic, dismiss triggers, direction constraints (e.g. ignoring upward swipes), and graceful null-ref handling.
+
+### 3. `lastPriceStore.ts` (Increased from 18.18% to 100%)
+- **Test File:** `frontend/src/lib/lastPriceStore.test.ts`
+- **Coverage Added:** Unit tests cover local storage get/set interactions, TTL duration expiration, JSON parse error recovery, and security/quota exception safety blocks.
 
 ---
 
-## Out of Scope
+## Remaining Gaps / Actionable Recommendations
 
-- Excludes permanent configuration of Vitest coverage options in `vite.config.ts`.
-- Excludes adding scripts to `package.json` or `justfile`.
+For future coverage expansion, developers can target:
+1. **Increase `ListScreen.tsx` Coverage (currently 39.19%):** Write integration tests in `ListScreen.test.tsx` targeting mutating handlers, drag-drop sorting, and complex render paths.
+2. **Expand `api.ts` Coverage (currently 61.22%):** Add mock API handler tests covering token validation recovery and other edge cases.
