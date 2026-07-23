@@ -315,4 +315,36 @@ describe('create mode', () => {
     expect((confirm as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByText(/Escribe un nombre/)).toBeTruthy()
   })
+
+  it('emits a name mapping from the receipt text to the created name', () => {
+    const { onConfirm } = renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Cacahuetes dulces #Hacendado' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
+
+    const mappings = onConfirm.mock.calls[0][1]
+    const created = mappings.find(
+      (m: { receipt_name: string }) => m.receipt_name === 'mani dulce',
+    )
+    expect(created).toBeTruthy()
+    expect(created.item_name).toBe('Cacahuetes dulces')
+    expect(created.store).toBe('Mercadona')
+  })
+
+  it('maps to the parsed name, not the raw sigil text', () => {
+    const { onConfirm } = renderSheet()
+    selectCreateOnUnmatchedRow()
+    fireEvent.change(screen.getByPlaceholderText(/Leche semi/), {
+      target: { value: 'Cacahuetes +5 @Lidl #Hacendado' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
+
+    const mappings = onConfirm.mock.calls[0][1]
+    const created = mappings.find(
+      (m: { receipt_name: string }) => m.receipt_name === 'mani dulce',
+    )
+    expect(created.item_name).toBe('Cacahuetes')
+  })
 })
