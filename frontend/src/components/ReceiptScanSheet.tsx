@@ -1,10 +1,11 @@
-import { Calendar, Check, Coins, Pencil, X } from 'lucide-react'
+import { Calendar, Check, Coins, Pencil, ScanBarcode, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { formatPrice } from '../lib/formatPrice'
 import { parseQuantityFactor, purchasedDateLabel } from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
 import type {
+  BarcodeRead,
   MatchedLine,
   NameMapping,
   NewPurchasedItem,
@@ -39,6 +40,8 @@ interface LineState {
   pricePer: 'KILOGRAM' | null
 }
 
+type PendingScan = { index: number; product: BarcodeRead } | null
+
 interface Props {
   result: ReceiptScanResult
   purchasedItems: ItemRef[]
@@ -49,6 +52,8 @@ interface Props {
     newItems: NewPurchasedItem[],
   ) => Promise<boolean>
   onClose: () => void
+  pendingScan?: PendingScan
+  onRequestScan?: (index: number) => void
 }
 
 /** Name a create row will produce, after sigils are stripped. */
@@ -155,6 +160,8 @@ export default function ReceiptScanSheet({
   store,
   onConfirm,
   onClose,
+  pendingScan,
+  onRequestScan,
 }: Props) {
   const allLines: (MatchedLine | UnmatchedLine)[] = [
     ...result.matched,
@@ -167,6 +174,35 @@ export default function ReceiptScanSheet({
   const [submitted, setSubmitted] = useState(false)
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
+
+  // Adjusts state in response to a prop change, per React's "you might not
+  // need an effect" guidance — a scan result is an event the parent hands
+  // down, not an external system to synchronize with. Tracking the last
+  // applied scan by identity lets the same row be scanned again (the parent
+  // always hands down a fresh object) without re-applying on every render.
+  const [appliedScan, setAppliedScan] = useState<PendingScan>(null)
+  if (pendingScan && pendingScan !== appliedScan) {
+    setAppliedScan(pendingScan)
+    const { index, product } = pendingScan
+    const text = product.brand
+      ? `${product.name} #${product.brand}`
+      : product.name
+    setLineStates((prev) =>
+      prev.map((ls, i) =>
+        i === index
+          ? {
+              ...ls,
+              mode: 'create' as const,
+              itemId: null,
+              included: true,
+              createText: text,
+              createEan: product.ean,
+            }
+          : ls,
+      ),
+    )
+    setExpanded((prev) => new Set(prev).add(index))
+  }
 
   const checkedCount = lineStates.filter((ls) => ls.included).length
   const allChecked = checkedCount === lineStates.length
@@ -425,24 +461,40 @@ export default function ReceiptScanSheet({
                 {ls.mode === 'create' && (
                   <div className="rss-field">
                     <div className="rss-field-label">Artículo nuevo</div>
-                    <input
-                      className="rss-create-input"
-                      type="text"
-                      value={ls.createText}
-                      placeholder="ej. Leche semi #Hacendado"
-                      aria-describedby={
-                        [
-                          `rss-create-hint-${i}`,
-                          isInvalidCreate(ls) ? `rss-create-error-${i}` : null,
-                          ls.unitPrice <= 0 ? `rss-create-warning-${i}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' ') || undefined
-                      }
-                      onChange={(e) =>
-                        updateLine(i, { createText: e.target.value })
-                      }
-                    />
+                    <div className="rss-create-row">
+                      <input
+                        className="rss-create-input"
+                        type="text"
+                        value={ls.createText}
+                        placeholder="ej. Leche semi #Hacendado"
+                        aria-describedby={
+                          [
+                            `rss-create-hint-${i}`,
+                            isInvalidCreate(ls)
+                              ? `rss-create-error-${i}`
+                              : null,
+                            ls.unitPrice <= 0
+                              ? `rss-create-warning-${i}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' ') || undefined
+                        }
+                        onChange={(e) =>
+                          updateLine(i, { createText: e.target.value })
+                        }
+                      />
+                      {onRequestScan && (
+                        <button
+                          type="button"
+                          className="rss-scan-btn"
+                          onClick={() => onRequestScan(i)}
+                          aria-label="Escanear código de barras"
+                        >
+                          <ScanBarcode size={16} />
+                        </button>
+                      )}
+                    </div>
                     <div
                       className="rss-create-hint"
                       id={`rss-create-hint-${i}`}

@@ -494,3 +494,128 @@ describe('confirm guardrails', () => {
     await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1))
   })
 })
+
+const mockProduct = {
+  ean: '8412345678901',
+  name: 'Cacahuetes dulces',
+  brand: 'Hacendado',
+  stores: [],
+  community_price: null,
+  community_price_per: null,
+}
+
+describe('barcode scan into a create row', () => {
+  it('asks the parent to scan for a specific row', () => {
+    const onRequestScan = vi.fn()
+    renderSheet({ onRequestScan })
+    selectCreateOnUnmatchedRow()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Escanear código de barras' }),
+    )
+    expect(onRequestScan).toHaveBeenCalledWith(3)
+  })
+
+  it('fills the row from a scanned product and expands it', () => {
+    renderSheet({
+      pendingScan: { index: 3, product: mockProduct },
+    })
+
+    const field = screen.getByPlaceholderText(/Leche semi/) as HTMLInputElement
+    expect(field.value).toBe('Cacahuetes dulces #Hacendado')
+    expect(field.closest('.rss-row')).toHaveClass('expanded')
+  })
+
+  it('omits the brand sigil when the product has no brand', () => {
+    renderSheet({
+      pendingScan: { index: 3, product: { ...mockProduct, brand: null } },
+    })
+    const field = screen.getByPlaceholderText(/Leche semi/) as HTMLInputElement
+    expect(field.value).toBe('Cacahuetes dulces')
+  })
+
+  it('sends the scanned EAN with the created item', async () => {
+    const { onConfirm } = renderSheet({
+      pendingScan: { index: 3, product: mockProduct },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+
+    const newItems = onConfirm.mock.calls[0][2]
+    expect(newItems[0].ean).toBe('8412345678901')
+    expect(newItems[0].name).toBe('Cacahuetes dulces')
+    expect(newItems[0].brand).toBe('Hacendado')
+  })
+
+  it('applies a second scan into the same row, proving identity — not latch — drives it', () => {
+    const onConfirm = vi.fn().mockResolvedValue(true)
+    const onClose = vi.fn()
+    const { rerender } = render(
+      <ReceiptScanSheet
+        result={mockResult}
+        purchasedItems={mockPurchasedItems}
+        store="Mercadona"
+        onConfirm={onConfirm}
+        onClose={onClose}
+        pendingScan={{ index: 3, product: mockProduct }}
+      />,
+    )
+    expect(
+      (screen.getByPlaceholderText(/Leche semi/) as HTMLInputElement).value,
+    ).toBe('Cacahuetes dulces #Hacendado')
+
+    const secondProduct = {
+      ean: '1111111111111',
+      name: 'Almendras crudas',
+      brand: 'Auchan',
+      stores: [],
+      community_price: null,
+      community_price_per: null,
+    }
+    rerender(
+      <ReceiptScanSheet
+        result={mockResult}
+        purchasedItems={mockPurchasedItems}
+        store="Mercadona"
+        onConfirm={onConfirm}
+        onClose={onClose}
+        pendingScan={{ index: 3, product: secondProduct }}
+      />,
+    )
+    expect(
+      (screen.getByPlaceholderText(/Leche semi/) as HTMLInputElement).value,
+    ).toBe('Almendras crudas #Auchan')
+  })
+
+  it('does not re-apply the same pendingScan object on an unrelated re-render', () => {
+    const onConfirm = vi.fn().mockResolvedValue(true)
+    const onClose = vi.fn()
+    const pendingScan = { index: 3, product: mockProduct }
+    const { rerender } = render(
+      <ReceiptScanSheet
+        result={mockResult}
+        purchasedItems={mockPurchasedItems}
+        store="Mercadona"
+        onConfirm={onConfirm}
+        onClose={onClose}
+        pendingScan={pendingScan}
+      />,
+    )
+    const field = screen.getByPlaceholderText(/Leche semi/) as HTMLInputElement
+    fireEvent.change(field, { target: { value: 'Edited by hand' } })
+    // Re-render with the SAME pendingScan object reference — must not
+    // clobber the user's hand edit.
+    rerender(
+      <ReceiptScanSheet
+        result={mockResult}
+        purchasedItems={mockPurchasedItems}
+        store="Mercadona"
+        onConfirm={onConfirm}
+        onClose={onClose}
+        pendingScan={pendingScan}
+      />,
+    )
+    expect(
+      (screen.getByPlaceholderText(/Leche semi/) as HTMLInputElement).value,
+    ).toBe('Edited by hand')
+  })
+})

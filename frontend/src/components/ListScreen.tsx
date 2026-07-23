@@ -101,7 +101,12 @@ export function ListScreen({
   const [filterQuery, setFilterQuery] = useState('')
   const [filterMode, setFilterMode] = useState<'chips' | 'search'>('chips')
   const [activeItemId, setActiveItemId] = useState<string | null>(null)
-  const [scannerOpen, setScannerOpen] = useState(false)
+  type ScanTarget = { kind: 'add' } | { kind: 'receipt-line'; index: number }
+  const [scanTarget, setScanTarget] = useState<ScanTarget | null>(null)
+  const [pendingScan, setPendingScan] = useState<{
+    index: number
+    product: BarcodeRead
+  } | null>(null)
   const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(null)
   const [dueSuggestions, setDueSuggestions] = useState<DueSuggestion[]>([])
   const [dueSuggestionsOpen, setDueSuggestionsOpen] = useState(false)
@@ -260,6 +265,10 @@ export function ListScreen({
         const parsed = await parseReceiptWithAi(file)
         const result = await submitParsedReceipt(getToken, listId, parsed)
         setReceiptScanResult(result)
+        // Belt-and-suspenders alongside the exit-path clears below: guarantees
+        // a fresh session never starts primed with a scan from a stale one,
+        // without depending on every exit path having been enumerated.
+        setPendingScan(null)
       } catch (e) {
         console.error('Receipt scan failed:', e)
         setToast('No se pudo leer el ticket')
@@ -286,6 +295,7 @@ export function ListScreen({
           mappings,
         })
         setReceiptScanResult(null)
+        setPendingScan(null)
         const n = data.items_updated
         const c = data.items_created
         const parts: string[] = []
@@ -380,17 +390,38 @@ export function ListScreen({
   )
 
   const handleScanRequest = useCallback(() => {
-    setScannerOpen(true)
+    setScanTarget({ kind: 'add' })
   }, [])
 
-  const handleScanResult = useCallback((product: BarcodeRead) => {
-    setScannerOpen(false)
-    setScannedProduct(product)
-  }, [])
+  const handleScanResult = useCallback(
+    (product: BarcodeRead) => {
+      const target = scanTarget
+      setScanTarget(null)
+      if (target?.kind === 'receipt-line') {
+        setPendingScan({ index: target.index, product })
+        return
+      }
+      setScannedProduct(product)
+    },
+    [scanTarget],
+  )
 
   const handleScanError = useCallback((message: string) => {
-    setScannerOpen(false)
+    setScanTarget(null)
     setToast(message)
+  }, [])
+
+  const handleReceiptScanRequest = useCallback((index: number) => {
+    setScanTarget({ kind: 'receipt-line', index })
+  }, [])
+
+  // Closing (or completing) a receipt session must drop any pendingScan —
+  // otherwise a stale scanned product from a finished session would get
+  // applied to whichever row shares its index the next time a fresh
+  // ReceiptScanSheet mounts, since the sheet only compares by identity.
+  const handleReceiptSheetClose = useCallback(() => {
+    setReceiptScanResult(null)
+    setPendingScan(null)
   }, [])
 
   const handleScanAdd = useCallback(
@@ -788,12 +819,12 @@ export function ListScreen({
         />
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
-      {scannerOpen && (
+      {scanTarget && (
         <BarcodeScanner
           getToken={getToken}
           onResult={handleScanResult}
           onError={handleScanError}
-          onClose={() => setScannerOpen(false)}
+          onClose={() => setScanTarget(null)}
         />
       )}
       {scannedProduct && (
@@ -937,10 +968,7 @@ export function ListScreen({
 
       {receiptScanResult && (
         <>
-          <div
-            className="sheet-overlay"
-            onClick={() => setReceiptScanResult(null)}
-          />
+          <div className="sheet-overlay" onClick={handleReceiptSheetClose} />
           <div className="sheet-container">
             <ReceiptScanSheet
               result={receiptScanResult}
@@ -955,7 +983,9 @@ export function ListScreen({
               }))}
               store={receiptScanResult.store}
               onConfirm={handleReceiptConfirm}
-              onClose={() => setReceiptScanResult(null)}
+              onClose={handleReceiptSheetClose}
+              pendingScan={pendingScan}
+              onRequestScan={handleReceiptScanRequest}
             />
           </div>
         </>
