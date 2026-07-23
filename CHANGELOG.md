@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Configure vitest coverage and fill test coverage gaps
+
+
 ### Fixed
 - Retarget babysit-pr at @claude and make its loop terminate correctly (#120)
 
