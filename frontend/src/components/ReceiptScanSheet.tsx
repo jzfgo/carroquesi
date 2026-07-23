@@ -133,6 +133,22 @@ function groupItemsByDate(
   return groups
 }
 
+/**
+ * Unpurchased items must be split out before date grouping —
+ * `purchasedDateLabel(null)` returns "Fecha desconocida", which is wrong for an
+ * item that simply hasn't been bought yet.
+ */
+function groupItems(items: ItemRef[]): { label: string; items: ItemRef[] }[] {
+  const unpurchased = items.filter((i) => !i.purchased)
+  const purchased = items.filter((i) => i.purchased)
+  return [
+    ...(unpurchased.length
+      ? [{ label: 'Sin comprar', items: unpurchased }]
+      : []),
+    ...groupItemsByDate(purchased),
+  ]
+}
+
 export default function ReceiptScanSheet({
   result,
   purchasedItems,
@@ -306,7 +322,7 @@ export default function ReceiptScanSheet({
         {lineStates.map((ls, i) => {
           const line = allLines[i]
           const isExpanded = expanded.has(i)
-          const itemGroups = groupItemsByDate(availableItems(i))
+          const itemGroups = groupItems(availableItems(i))
           const linkedItem = purchasedItems.find((p) => p.id === ls.itemId)
 
           return (

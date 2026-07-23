@@ -348,3 +348,47 @@ describe('create mode', () => {
     expect(created.item_name).toBe('Cacahuetes')
   })
 })
+
+describe('unpurchased items', () => {
+  const withUnpurchased = [
+    ...mockPurchasedItems,
+    {
+      id: 'item-9',
+      name: 'Pan de molde',
+      purchased: false,
+      purchased_at: null,
+      brand: null,
+      stores: [],
+      quantity: null,
+    },
+  ]
+
+  it('groups unpurchased items under "Sin comprar"', () => {
+    renderSheet({ purchasedItems: withUnpurchased })
+    // The item isn't linked to any row yet, so every row's dropdown offers
+    // it — getAllByRole rather than getByRole, since multiple <optgroup>s
+    // legitimately share this label until the item is linked somewhere.
+    const groups = screen.getAllByRole('group', { name: 'Sin comprar' })
+    expect(groups.length).toBeGreaterThan(0)
+    expect(groups[0].textContent).toContain('Pan de molde')
+  })
+
+  it('never labels an unpurchased item "Fecha desconocida"', () => {
+    renderSheet({ purchasedItems: withUnpurchased })
+    expect(screen.queryByRole('group', { name: 'Fecha desconocida' })).toBeNull()
+  })
+
+  it('sends a linked unpurchased item as a normal patch', () => {
+    const { onConfirm } = renderSheet({ purchasedItems: withUnpurchased })
+    const selects = screen.getAllByRole('combobox')
+    fireEvent.change(selects[selects.length - 1], {
+      target: { value: 'item-9' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
+
+    const patches = onConfirm.mock.calls[0][0]
+    expect(patches.some((p: { item_id: string }) => p.item_id === 'item-9')).toBe(
+      true,
+    )
+  })
+})
