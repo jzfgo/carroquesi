@@ -14,43 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add impulse buys from the receipt scan sheet (#127)
 
-- Add push_tokens, member watermark and item purchaser models
-
-- Add push token register and unregister endpoints
-
-- Add POST /lists/{id}/seen to reset the unseen watermark
-
-- Add push recipient resolution and derived unseen count
-
-- Send push per recipient user with pruning and a total timeout
-
-- Notify members on item add and first purchase
-
-- Add push env var, feature flag constant and API client calls
-
-- Add notification copy builder
-
-- Register the push_notifications feature flag, on by default
-
-- Display and route push notifications from the service worker
-
-- Add push permission and token registration module
-
-- Add notification priming card
-
-- Mark a list seen only while it is actually visible
-
-- Wire notification priming, seen-on-visible and tap routing into the app
-
-- Add notifications toggle and clear the token on sign-out
-
-- Add push notifications migration
-
-
-### Changed
-- Build the service worker from source via injectManifest
-
-- Correct two misleading comments in the service worker
+- Notify list members when items are added or purchased (#128)
 
 
 ### Fixed
@@ -61,18 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Patch 31 Dependabot vulnerabilities in backend dependencies (#124)
 
 - Patch 19 Dependabot vulnerabilities in frontend dependencies (#125)
-
-- Make push token registration race-safe and close test gaps
-
-- Prune push tokens only on a typed FCM verdict, and harden the send path
-
-- Harden the push token lifecycle for iOS gestures and opt-out persistence
-
-- Stop ListScreen and DashboardScreen tests initialising real Firebase
-
-- Explain blocked notifications instead of showing a dead toggle
-
-- Re-render the notifications control when a permission prompt is denied
 
 
 ---
