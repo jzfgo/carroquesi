@@ -369,9 +369,14 @@ toast, dragging card, and the two sheets below.
 separate physical objects, so each casts a real shadow — onto the **table**, not
 onto each other. They lie at the same elevation, side by side. The thicker list
 stock casts slightly deeper (`0 1px 1.5px`, `0 4px 9px -4px`) than the thin till
-roll (`0 1px 1px`, `0 2px 5px -3px`), and the receipt carries a 2px rim light on
-its cut edge to suggest thickness. This is the **only** sanctioned in-page shadow
-and it does not generalise to cards, rows, or sections.
+roll (`0 1px 1px`, `0 2px 5px -3px`), and the receipt carries a **1.5px** rim
+light on its cut edge to suggest thickness — 58% white over the first pixel, 22%
+over the remaining half, then nothing. The falloff is the point: a flat band
+reads as a drawn line rather than a lit edge, and thin stock cannot support a
+thick highlight. Do not round this to 2px to match `--r-sheet`; the rim and the
+sheet radius are unrelated geometry that happen to sit near the same number.
+This is the **only** sanctioned in-page shadow and it does not generalise to
+cards, rows, or sections.
 
 ## Shapes
 
