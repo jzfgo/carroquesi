@@ -297,7 +297,7 @@ an unapproved PR is *not* blocked on that account. What the ruleset actually enf
 
 | Rule | Effect |
 |---|---|
-| `required_status_checks` | **`Frontend (typecheck + lint + format + test)`** and **`Backend (lint + format + tests)`** must pass. These two are the real merge gate. |
+| `required_status_checks` | **`CI gate`** must pass. That single context is the real merge gate. It aggregates the per-area jobs in `ci.yml` (`if: always()`, fails if any upstream job failed), so the individual job names are not required and can be renamed freely. |
 | `pull_request` | `required_approving_review_count: 0`, `required_review_thread_resolution: false` — neither approvals nor resolved threads block merge. |
 | `required_linear_history` | Squash or rebase only; no merge commits. |
 | bypass actor | `RepositoryRole` with `bypass_mode: always` — the repo owner can merge regardless. |
@@ -311,14 +311,19 @@ checks reported at all**, which is neither passing nor failing and blocks the me
 **"None" is a valid answer, and it is the usual one here.** `BLOCKED` is not authoritative
 under rulesets: GraphQL tends to report it whenever a ruleset with a `pull_request` rule
 applies, satisfied or not. Observed on #121 with every requirement met — `mergeable:
-MERGEABLE`, both required checks green from the right integration, zero approvals required,
+MERGEABLE`, every required check green from the right integration, zero approvals required,
 not a draft, `strict_required_status_checks_policy: false` — and still `BLOCKED`. Do not
 keep querying for the missing rule; there isn't one, and the `bypass_mode: always` actor
 means the owner can merge regardless. Confirm the requirements individually, then say so.
 
-Note that only those two checks gate. `Playwright Tests` and `Agent guardrail hooks` are
-not in the required set, so a pending Playwright run does not block merging — though exit
-condition #3 is deliberately stricter and waits for every check.
+Note that only `CI gate` gates. `Playwright Tests` is deliberately **not** in its `needs:`,
+so a pending or failing Playwright run does not block merging — though exit condition #3 is
+deliberately stricter and waits for every check.
+
+Per-area jobs (`Frontend …`, `Backend …`, `Repo tooling …`) are **skipped** on PRs that do
+not touch their area, and a skipped job reports **success**. So "green" on those does not
+mean "ran" — read the `Detect changed areas` job's log if you need to know which actually
+executed.
 
 `strict_required_status_checks_policy: false`, so the branch does not need to be up to date
 with `main` before merging.
