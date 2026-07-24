@@ -9,21 +9,48 @@
         "displayName": "Composition Paper",
         "canonical": "#eef1f5",
         "dark": "#131419",
-        "tonalRamp": ["#15161b", "#2b2e36", "#454951", "#6a6d7a", "#94969f", "#b4bac4", "#d5dae2", "#eef1f5"]
+        "tonalRamp": [
+          "#15161b",
+          "#2b2e36",
+          "#454951",
+          "#6a6d7a",
+          "#94969f",
+          "#b4bac4",
+          "#d5dae2",
+          "#eef1f5"
+        ]
       },
       "paper-1": {
         "role": "neutral",
         "displayName": "Recessed Paper",
         "canonical": "#e3e7ed",
         "dark": "#1b1c22",
-        "tonalRamp": ["#141519", "#282b32", "#41454d", "#646873", "#8d9099", "#adb2bb", "#cbd0d8", "#e3e7ed"]
+        "tonalRamp": [
+          "#141519",
+          "#282b32",
+          "#41454d",
+          "#646873",
+          "#8d9099",
+          "#adb2bb",
+          "#cbd0d8",
+          "#e3e7ed"
+        ]
       },
       "paper-edge": {
         "role": "neutral",
         "displayName": "Paper Edge",
         "canonical": "#b4bac4",
         "dark": "#3a3c44",
-        "tonalRamp": ["#171920", "#2a2d35", "#43474f", "#616671", "#828892", "#9ba1ab", "#b4bac4", "#d6dae1"]
+        "tonalRamp": [
+          "#171920",
+          "#2a2d35",
+          "#43474f",
+          "#616671",
+          "#828892",
+          "#9ba1ab",
+          "#b4bac4",
+          "#d6dae1"
+        ]
       },
       "table": {
         "role": "secondary",
@@ -31,14 +58,32 @@
         "canonical": "#c2a982",
         "dark": "#3b2f22",
         "note": "The surface the sheets lie on. Visible only in the seam between them, never behind content. The one warm colour in the product, and the only one exempt from the grayscale ink rule.",
-        "tonalRamp": ["#241c12", "#3b2f22", "#584732", "#7a6344", "#9b8058", "#c2a982", "#dcc9ab", "#efe4d2"]
+        "tonalRamp": [
+          "#241c12",
+          "#3b2f22",
+          "#584732",
+          "#7a6344",
+          "#9b8058",
+          "#c2a982",
+          "#dcc9ab",
+          "#efe4d2"
+        ]
       },
       "ink-0": {
         "role": "neutral",
         "displayName": "Pencil Black",
         "canonical": "#15161b",
         "dark": "#edeef2",
-        "tonalRamp": ["#15161b", "#353742", "#4e515c", "#6a6d7a", "#94969f", "#b0b2b9", "#d3d5da", "#edeef2"]
+        "tonalRamp": [
+          "#15161b",
+          "#353742",
+          "#4e515c",
+          "#6a6d7a",
+          "#94969f",
+          "#b0b2b9",
+          "#d3d5da",
+          "#edeef2"
+        ]
       },
       "tinta-0": {
         "role": "primary",
@@ -46,7 +91,16 @@
         "canonical": "#1a3fa0",
         "dark": "#91a8ff",
         "note": "Named after the ballpoint it came from. Resolves to an ink on either sheet under the grayscale rule; applies in full outside them.",
-        "tonalRamp": ["#0a1a45", "#12296b", "#1a3fa0", "#2c56c1", "#5478d6", "#8ba4e8", "#b8c6f2", "#e0e7fb"]
+        "tonalRamp": [
+          "#0a1a45",
+          "#12296b",
+          "#1a3fa0",
+          "#2c56c1",
+          "#5478d6",
+          "#8ba4e8",
+          "#b8c6f2",
+          "#e0e7fb"
+        ]
       },
       "verde-0": {
         "role": "tertiary",
@@ -54,32 +108,71 @@
         "canonical": "#2f7a4a",
         "dark": "#7bc68b",
         "note": "Semantic only: purchase confirmed, price recorded.",
-        "tonalRamp": ["#0d2416", "#173d26", "#2f7a4a", "#459362", "#6bb287", "#9bd0ae", "#c4e5d0", "#e6f5ec"]
+        "tonalRamp": [
+          "#0d2416",
+          "#173d26",
+          "#2f7a4a",
+          "#459362",
+          "#6bb287",
+          "#9bd0ae",
+          "#c4e5d0",
+          "#e6f5ec"
+        ]
       },
       "tomate-0": {
         "role": "tertiary",
         "displayName": "Red Pen",
         "canonical": "#c0392b",
         "dark": "#e68a82",
-        "tonalRamp": ["#2e0c08", "#5c1a14", "#8e2820", "#c0392b", "#d4645a", "#e39189", "#f0bdb8", "#fae4e2"]
+        "tonalRamp": [
+          "#2e0c08",
+          "#5c1a14",
+          "#8e2820",
+          "#c0392b",
+          "#d4645a",
+          "#e39189",
+          "#f0bdb8",
+          "#fae4e2"
+        ]
       },
       "miel-0": {
         "role": "tertiary",
         "displayName": "Highlighter Honey",
         "canonical": "#c9941f",
         "dark": "#e6c56a",
-        "tonalRamp": ["#2e2104", "#5c430c", "#8e6714", "#c9941f", "#dcae44", "#e8c778", "#f2dfae", "#fbf3dd"]
+        "tonalRamp": [
+          "#2e2104",
+          "#5c430c",
+          "#8e6714",
+          "#c9941f",
+          "#dcae44",
+          "#e8c778",
+          "#f2dfae",
+          "#fbf3dd"
+        ]
       }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Sign-in and waitlist screens only." },
-      "headline": { "displayName": "Headline", "purpose": "Screen titles in list header and dashboard." },
-      "body": { "displayName": "Body", "purpose": "Default UI text. 15px is the floor for content text; labels, meta and secondary figures go smaller by design and are governed by contrast instead." },
-      "label": { "displayName": "Label", "purpose": "Uppercase eyebrows and section headers." },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Sign-in and waitlist screens only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Screen titles in list header and dashboard."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default UI text. 15px is the floor for content text; labels, meta and secondary figures go smaller by design and are governed by contrast instead."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase eyebrows and section headers."
+      },
       "hand": {
         "displayName": "Hand",
         "purpose": "Unpurchased item names — what the household wrote. TARGET; face provisional, a runtime appearance setting is planned.",
-        "opticalScale": 0.90,
+        "opticalScale": 0.9,
         "measuredCapHeight": "13.03px at 18.9px size"
       },
       "data": {
@@ -89,55 +182,165 @@
       }
     },
     "shadows": [
-      { "name": "shadow-sm", "value": "0 1px 1px rgb(30 35 55 / 10%), 0 2px 4px -2px rgb(30 35 55 / 14%)", "purpose": "Card lifted off the stack; suggestion popover." },
-      { "name": "shadow-md", "value": "0 1px 2px rgb(30 35 55 / 12%), 0 6px 14px -4px rgb(30 35 55 / 18%)", "purpose": "Dropdown and avatar menus." },
-      { "name": "shadow-lg", "value": "0 2px 4px rgb(30 35 55 / 14%), 0 16px 32px -8px rgb(30 35 55 / 24%)", "purpose": "Toast; card being dragged." },
-      { "name": "shadow-sheet", "value": "0 -2px 4px rgb(30 35 55 / 10%), 0 -16px 40px -6px rgb(30 35 55 / 22%)", "purpose": "Bottom sheet — casts upward." },
-      { "name": "cast-list", "value": "0 1px 1.5px rgb(22 27 45 / 16%), 0 4px 9px -4px rgb(22 27 45 / 30%)", "purpose": "TARGET. The ~80 g/m2 list sheet casting onto the table." },
-      { "name": "cast-receipt", "value": "0 1px 1px rgb(22 27 45 / 16%), 0 2px 5px -3px rgb(22 27 45 / 30%)", "purpose": "TARGET. The ~50 g/m2 receipt — thinner stock, shallower cast." },
-      { "name": "rim-receipt", "value": "linear-gradient(to bottom, rgb(255 255 255 / 58%) 0 1px, rgb(255 255 255 / 22%) 1px 1.5px, transparent 1.5px)", "purpose": "TARGET. Rim light on the receipt's cut edge. Must be a layer above the paper canvas AND the multiply veil — an inset box-shadow paints beneath an element's children and is covered." },
-      { "name": "focus-ring", "value": "0 0 0 3px rgb(26 63 160 / 30%)", "purpose": "Keyboard focus. Applied to the wrapper, not the raw input." }
+      {
+        "name": "shadow-sm",
+        "value": "0 1px 1px rgb(30 35 55 / 10%), 0 2px 4px -2px rgb(30 35 55 / 14%)",
+        "purpose": "Card lifted off the stack; suggestion popover."
+      },
+      {
+        "name": "shadow-md",
+        "value": "0 1px 2px rgb(30 35 55 / 12%), 0 6px 14px -4px rgb(30 35 55 / 18%)",
+        "purpose": "Dropdown and avatar menus."
+      },
+      {
+        "name": "shadow-lg",
+        "value": "0 2px 4px rgb(30 35 55 / 14%), 0 16px 32px -8px rgb(30 35 55 / 24%)",
+        "purpose": "Toast; card being dragged."
+      },
+      {
+        "name": "shadow-sheet",
+        "value": "0 -2px 4px rgb(30 35 55 / 10%), 0 -16px 40px -6px rgb(30 35 55 / 22%)",
+        "purpose": "Bottom sheet — casts upward."
+      },
+      {
+        "name": "cast-list",
+        "value": "0 1px 1.5px rgb(22 27 45 / 16%), 0 4px 9px -4px rgb(22 27 45 / 30%)",
+        "purpose": "TARGET. The ~80 g/m2 list sheet casting onto the table."
+      },
+      {
+        "name": "cast-receipt",
+        "value": "0 1px 1px rgb(22 27 45 / 16%), 0 2px 5px -3px rgb(22 27 45 / 30%)",
+        "purpose": "TARGET. The ~50 g/m2 receipt — thinner stock, shallower cast."
+      },
+      {
+        "name": "rim-receipt",
+        "value": "linear-gradient(to bottom, rgb(255 255 255 / 58%) 0 1px, rgb(255 255 255 / 22%) 1px 1.5px, transparent 1.5px)",
+        "purpose": "TARGET. Rim light on the receipt's cut edge. Must be a layer above the paper canvas AND the multiply veil — an inset box-shadow paints beneath an element's children and is covered."
+      },
+      {
+        "name": "focus-ring",
+        "value": "0 0 0 3px rgb(26 63 160 / 30%)",
+        "purpose": "Keyboard focus. Applied to the wrapper, not the raw input."
+      }
     ],
     "motion": [
-      { "name": "ease-out", "value": "cubic-bezier(0.2, 0.8, 0.2, 1)", "purpose": "Default for state transitions." },
-      { "name": "ease-in-out", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Symmetric moves." },
-      { "name": "ease-spring", "value": "cubic-bezier(0.34, 1.56, 0.64, 1)", "purpose": "Sheet open; buy-again chip. The only overshoot in the system." },
-      { "name": "dur-fast", "value": "120ms", "purpose": "Hover and press feedback." },
-      { "name": "dur-base", "value": "200ms", "purpose": "Default." },
-      { "name": "dur-slow", "value": "320ms", "purpose": "Sheet and filter-bar transitions." }
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.2, 0.8, 0.2, 1)",
+        "purpose": "Default for state transitions."
+      },
+      {
+        "name": "ease-in-out",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Symmetric moves."
+      },
+      {
+        "name": "ease-spring",
+        "value": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "purpose": "Sheet open; buy-again chip. The only overshoot in the system."
+      },
+      {
+        "name": "dur-fast",
+        "value": "120ms",
+        "purpose": "Hover and press feedback."
+      },
+      {
+        "name": "dur-base",
+        "value": "200ms",
+        "purpose": "Default."
+      },
+      {
+        "name": "dur-slow",
+        "value": "320ms",
+        "purpose": "Sheet and filter-bar transitions."
+      }
     ],
     "hitTargets": [
-      { "name": "hit-min", "value": "44px", "purpose": "WCAG/iOS minimum. The floor, not the target." },
-      { "name": "hit-tap", "value": "48px", "purpose": "Primary affordances." },
-      { "name": "hit-sheet", "value": "56px", "purpose": "Sheet rows and large CTAs." }
+      {
+        "name": "hit-min",
+        "value": "44px",
+        "purpose": "WCAG/iOS minimum. The floor, not the target."
+      },
+      {
+        "name": "hit-tap",
+        "value": "48px",
+        "purpose": "Primary affordances."
+      },
+      {
+        "name": "hit-sheet",
+        "value": "56px",
+        "purpose": "Sheet rows and large CTAs."
+      }
     ],
     "paper": {
-      "note": "TARGET. Procedural low-poly crease. Delaunay over a jittered grid, flat-shaded per facet; per-vertex height from 2-octave value noise, lit by one distant lamp. Deterministic from seed.",
-      "light": { "azimuth": 235, "vector": [-0.45, -0.72, 0.53] },
-      "jitter": 0.66,
-      "seed": 62,
-      "stocks": [
-        { "name": "list", "grammage": "~80 g/m2", "facetPx": 80, "relief": 0.55 },
-        { "name": "receipt", "grammage": "~50 g/m2", "facetPx": 16, "relief": 0.80 }
-      ],
-      "amplitude": { "light": 10, "dark": 20, "unit": "absolute RGB delta", "why": "A multiplier yields no usable range on a near-black paper." },
-      "veil": { "mode": "multiply", "color": "rgb(230,230,230)", "brightness": "90%", "why": "Multiply scales the crease instead of replacing it, so contrast survives — and multiply is what a cast shadow physically is." },
-      "scope": "One canvas per sheet, never per row. The canvas covers the sheet including its header.",
-      "tiling": {
-        "receipt": { "mode": "seamless-tile", "tilePx": 512, "verts": 1024, "why": "Receipt grows with every purchase; keyed to height it is ~14400 verts at 200 items. Tile is generated once from the seed and repeated." },
-        "list": { "mode": "procedural-full-sheet", "verts@500items": 1248, "why": "Never had the cost problem, carries no veil, and a long fold reads across it. Tiling would show here first." },
-        "constraint": "Tile must wrap toroidally: ghost points across each edge of the jittered grid, value noise periodic at the tile size. 512/16 = 32 cells exactly; keep that divisible if either number moves.",
-        "rejected": "Viewport-windowed generation - constant cost, but moves it from the purchase tap onto scroll.",
-        "sharedGenerator": "Both sheets must use one height function and one noise function. Two paths off the same parameters can diverge algorithmically (an extra octave, a different relief curve) and that would not show as an eyeballable diff. Periodicity is the only permitted difference.",
-        "lighting": "No separate wrap needed. The lamp is one fixed direction, a global constant, so facet tone is a pure function of the normal and nothing reads absolute canvas position. Wrapping grid + noise wraps shading for free. Do not add anything position-keyed to the canvas (vignette, AO, gradient overlay) or the seam breaks.",
-        "risk": "Repetition, not contrast. Amplitude (+/-10 light = 7.8% peak-to-peak, +/-20 dark = 15.7%, veil damps a further 10%) settles whether a single facet is perceptible, NOT whether a repeat is - separate thresholds, and the eye is more sensitive to periodic recurrence. One fixed lamp means every tile highlights in the same relative place, reading as a beat under scroll. A bigger tile does not fix it. 512px is smaller than the raw viewport of both Playwright-targeted devices (iPhone 17 681px, Pixel 10 732px), so even before subtracting the 56px header and sticky input bar at least one whole period is on screen, ~1.0-1.2 after chrome. The repeat is visible without scrolling. Fix: 2-4 seed-offset variants alternated, keeping O(1) cost. UNVERIFIED - no tile generated yet."
+      "decision": "The crease splits by surface. The live product uses a single STATIC crease; the full procedural generator is reserved for marketing/onboarding, where there is no scroll, no growing list and no purchase tap. Chosen 2026-07-24: the procedural crease's payoff is mostly non-conscious (amplitude tuned near the visibility floor), its cost concentrates on the one-handed purchase tap the Aisle-Wins-The-Tie rule protects, and it spends contrast margin under text already at 4.54:1. Nothing was built, so the split was free.",
+      "liveCrease": {
+        "mode": "static",
+        "why": "One pre-composed crease treatment, identical across sheets and item counts. No per-list state, no growth, no scroll-repeat, no vertex budget. List-vs-receipt weight is carried by cast shadows and the veil, not facet density.",
+        "carriers": "The paper metaphor's legible carriers are the cast shadow (list deeper, receipt shallower), the rim light on the receipt cut edge, the veil on a purchased sheet, and grammage implied by the shadows - not the crease."
       },
-      "rejected": "feDisplacementMap text warping via a facet normal map. Implemented and working (blur the map first or glyphs tear at facet edges), ~24ms to generate, but the filter re-evaluates on every paint and the list scrolls, polls and animates."
+      "procedural": {
+        "scope": "Marketing and onboarding only: store screenshots, first-open, about screen. Static render, one sheet, once, at full quality.",
+        "note": "Procedural low-poly crease. Delaunay over a jittered grid, flat-shaded per facet; per-vertex height from 2-octave value noise, lit by one distant lamp. Deterministic from seed.",
+        "light": {
+          "azimuth": 235,
+          "vector": [
+            -0.45,
+            -0.72,
+            0.53
+          ]
+        },
+        "jitter": 0.66,
+        "seed": 62,
+        "stocks": [
+          {
+            "name": "list",
+            "grammage": "~80 g/m2",
+            "facetPx": 80,
+            "relief": 0.55
+          },
+          {
+            "name": "receipt",
+            "grammage": "~50 g/m2",
+            "facetPx": 16,
+            "relief": 0.8
+          }
+        ],
+        "amplitude": {
+          "light": 10,
+          "dark": 20,
+          "unit": "absolute RGB delta",
+          "why": "A multiplier yields no usable range on a near-black paper."
+        },
+        "veil": {
+          "mode": "multiply",
+          "color": "rgb(230,230,230)",
+          "brightness": "90%",
+          "why": "Multiply scales the crease instead of replacing it, so contrast survives — and multiply is what a cast shadow physically is."
+        },
+        "rejectedFilter": "feDisplacementMap text warping via a facet normal map. Implemented and working (blur the map first or glyphs tear at facet edges), ~24ms to generate, but the filter re-evaluates on every paint and the list scrolls, polls and animates."
+      },
+      "ifEverInLiveList": {
+        "status": "Not the plan. Retained because the analysis is hard-won.",
+        "problem": "The receipt grows with every purchase; triangulation keyed to sheet height runs ~1400 verts at 20 items, ~4300 at 60, ~14400 at 200, and lands its worst frame on the purchase tap.",
+        "tile": "512px seamless tile, 1024 verts, O(1) in item count. Wrap toroidally: ghost points across each edge, value noise periodic at tile size. 512/16 = 32 cells exactly; keep divisible if either number moves.",
+        "sharedGenerator": "Both sheets must use one height and one noise function, or the two paths diverge algorithmically in a way no diff catches.",
+        "lighting": "No separate wrap: the lamp is a global constant, so wrapping grid+noise wraps shading for free. Nothing position-keyed may be added to the canvas.",
+        "periodicity": "UNVERIFIED. Amplitude settles single-facet visibility, not repeat visibility - separate thresholds. A fixed lamp repeats the highlight in the same relative place; the 512px tile is smaller than the raw viewport of both Playwright targets (iPhone 17 681px, Pixel 10 732px), so ~1.0-1.2 periods are on screen without scrolling. Needs 2-4 seed-offset variants alternated. No tile has been generated.",
+        "rejectedAlternatives": "Viewport-windowed generation (constant cost but moves it from the tap onto scroll). feDisplacementMap text warping (per-frame filter cost on a scrolling/polling list)."
+      }
     },
     "layout": {
       "note": "There are no width breakpoints. The app is fluid and mobile-first; the only width constraint is a content cap. Do not author min-width/max-width media queries -- the CSS carries none, and the only media queries in the product are prefers-color-scheme and prefers-reduced-motion.",
-      "contentCap": { "selector": "#root", "value": "1126px", "where": "index.css" },
-      "mediaQueries": ["prefers-color-scheme", "prefers-reduced-motion"]
+      "contentCap": {
+        "selector": "#root",
+        "value": "1126px",
+        "where": "index.css"
+      },
+      "mediaQueries": [
+        "prefers-color-scheme",
+        "prefers-reduced-motion"
+      ]
     }
   },
   "components": [
@@ -209,17 +412,61 @@
       "Amounts sit in one right-aligned tabular column in both states; only their truth-value changes"
     ],
     "rules": [
-      { "name": "The Grayscale Ink Rule", "body": "Inside a sheet, ink is achromatic: tinta and verde both resolve to --ink-1 and become indistinguishable there, which is the point -- the typography already encodes who wrote each line, so colour would repeat a signal carried better. This governs content, not controls: the purchase tick keeps --verde-0 as an affordance, while names, quantities, brands, shops, prices and totals are ink. Outside a sheet the palette applies in full.", "section": "colors" },
-      { "name": "The Surfaces-Keep-Their-Colour Rule", "body": "Grayscale is a rule about content, not about the world. The table stays wooden and the paper stays cool-blue under it.", "section": "colors" },
-      { "name": "The Dark Is A Re-Theme Rule", "body": "Dark mode is authored, not inverted — a late-night desk: graphite paper, cream ink, accents lifted rather than flipped. Never derive one with filter: invert().", "section": "colors" },
-      { "name": "The Cap-Height Rule", "body": "Faces are matched by measured cap height, never by px value. Patrick Hand SC at 18.9px measures a 13.03px cap; JetBrains Mono only reaches that at 17.5px.", "section": "typography" },
-      { "name": "The Tabular Numerals Rule", "body": "Every figure in the amount column, plus every EAN, is tabular-nums in JetBrains Mono. Amounts must stay aligned across rows. Inline quantities on either sheet are exempt: they are not in the column, and on the unpurchased sheet they are handwriting, not a record.", "section": "typography" },
-      { "name": "The Uppercase Tracking Rule", "body": "All caps costs the word-shape cue people scan by, so tracking is always added back; never set caps at default tracking. How much depends on the face as much as the size (the hand is tracked wider than the mono despite setting larger), so each role carries its own figure in its typography entry and this rule names none of them. The single exception is hand meta text, which has no role of its own and takes 0.05em. Negative tracking belongs to large lowercase type only, at whatever value that role's entry carries, and never appears on caps; a negative value on an uppercase role is always a sign error.", "section": "typography" },
-      { "name": "The Provisional Face Rule", "body": "The hand face is not settled and an appearance section in settings is planned, so no face is hard-coded in a component.", "section": "typography" },
-      { "name": "The Aisle Wins The Tie Rule", "body": "When the composing-at-home moment and the in-store moment want different layouts, design for the store.", "section": "layout" },
-      { "name": "The Ruled-Not-Raised Rule", "body": "Separation inside a screen is a hairline or a tone change, never a shadow.", "section": "elevation" },
-      { "name": "The Two Sheets Exception", "body": "The list and the receipt are genuinely separate physical objects, so each casts a real shadow — onto the table, not onto each other. The only sanctioned in-page shadow.", "section": "elevation" },
-      { "name": "The Cut-Edge Rule", "body": "Anything representing paper gets the sheet radius (--r-sheet, rounded.sheet). Anything representing interface gets the interface scale. Never mix them on one element.", "section": "shapes" }
+      {
+        "name": "The Grayscale Ink Rule",
+        "body": "Inside a sheet, ink is achromatic: tinta and verde both resolve to --ink-1 and become indistinguishable there, which is the point -- the typography already encodes who wrote each line, so colour would repeat a signal carried better. This governs content, not controls: the purchase tick keeps --verde-0 as an affordance, while names, quantities, brands, shops, prices and totals are ink. Outside a sheet the palette applies in full.",
+        "section": "colors"
+      },
+      {
+        "name": "The Surfaces-Keep-Their-Colour Rule",
+        "body": "Grayscale is a rule about content, not about the world. The table stays wooden and the paper stays cool-blue under it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Dark Is A Re-Theme Rule",
+        "body": "Dark mode is authored, not inverted — a late-night desk: graphite paper, cream ink, accents lifted rather than flipped. Never derive one with filter: invert().",
+        "section": "colors"
+      },
+      {
+        "name": "The Cap-Height Rule",
+        "body": "Faces are matched by measured cap height, never by px value. Patrick Hand SC at 18.9px measures a 13.03px cap; JetBrains Mono only reaches that at 17.5px.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Numerals Rule",
+        "body": "Every figure in the amount column, plus every EAN, is tabular-nums in JetBrains Mono. Amounts must stay aligned across rows. Inline quantities on either sheet are exempt: they are not in the column, and on the unpurchased sheet they are handwriting, not a record.",
+        "section": "typography"
+      },
+      {
+        "name": "The Uppercase Tracking Rule",
+        "body": "All caps costs the word-shape cue people scan by, so tracking is always added back; never set caps at default tracking. How much depends on the face as much as the size (the hand is tracked wider than the mono despite setting larger), so each role carries its own figure in its typography entry and this rule names none of them. The single exception is hand meta text, which has no role of its own and takes 0.05em. Negative tracking belongs to large lowercase type only, at whatever value that role's entry carries, and never appears on caps; a negative value on an uppercase role is always a sign error.",
+        "section": "typography"
+      },
+      {
+        "name": "The Provisional Face Rule",
+        "body": "The hand face is not settled and an appearance section in settings is planned, so no face is hard-coded in a component.",
+        "section": "typography"
+      },
+      {
+        "name": "The Aisle Wins The Tie Rule",
+        "body": "When the composing-at-home moment and the in-store moment want different layouts, design for the store.",
+        "section": "layout"
+      },
+      {
+        "name": "The Ruled-Not-Raised Rule",
+        "body": "Separation inside a screen is a hairline or a tone change, never a shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Two Sheets Exception",
+        "body": "The list and the receipt are genuinely separate physical objects, so each casts a real shadow — onto the table, not onto each other. The only sanctioned in-page shadow.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Cut-Edge Rule",
+        "body": "Anything representing paper gets the sheet radius (--r-sheet, rounded.sheet). Anything representing interface gets the interface scale. Never mix them on one element.",
+        "section": "shapes"
+      }
     ],
     "dos": [
       "Do set type through --font-* variables and size it from the scale; a runtime appearance setting is planned.",

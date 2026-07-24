@@ -151,9 +151,11 @@ because on real stock the header is pre-printed before anything is written on it
 The palette is cool blue-grey paper and near-black ink, on a warm wooden table.
 On either sheet, ink is **grayscale**: the two hands already carry the state, so
 colour has nothing left to do there. The world is deliberately physical —
-procedurally creased paper, cast shadows, a rim-lit cut edge — but never
-illustrated. There is no drawn torn edge, no paper photograph, no curled corner.
-The material lives in the palette, the geometry and the light.
+creased paper, cast shadows, a rim-lit cut edge — but never illustrated. There
+is no drawn torn edge, no paper photograph, no curled corner. The material lives
+in the palette, the geometry and the light. (The crease is a single static
+treatment in the live product; the full procedural version is reserved for
+marketing surfaces — see *Paper Sheet*.)
 
 **Key Characteristics:**
 
@@ -484,90 +486,73 @@ the amount column.
 
 ### Paper Sheet
 
-Two sheets, procedurally creased, on a table.
+Two sheets on a table. What tells them apart at a glance — and carries the paper
+metaphor — is **not** the crease. It is the **cast shadow** (the list casts
+deeper, the receipt shallower — *The Two Sheets Exception*), the **rim light** on
+the receipt's cut edge, the **veil** over a purchased sheet, and the grammage
+those shadows imply. Those read one-handed in an aisle. A triangulated
+micro-crease, tuned near the visibility floor, does not.
 
-- **Geometry:** Delaunay triangulation over a jittered grid (jitter 0.66),
+So the crease splits by surface.
+
+**Live product — a single static crease.** Every sheet gets one subtle,
+pre-composed crease treatment: identical whether the receipt holds five items or
+five hundred, cheap to paint, with no per-list state, no growth, no
+scroll-repeat, and no vertex budget. The list-vs-receipt weight difference is
+carried by the cast shadows and the veil, not by facet density. This is what
+ships to a phone in an aisle.
+
+**Marketing and onboarding — the full procedural crease.** The "El Ticket"
+identity is *looked at* on store screenshots, first-open and an about screen —
+static, well-lit, zoomed, not mid-scroll, not one-handed. There the procedural
+system earns its keep, and every problem that made it costly in the live product
+(scroll periodicity, a receipt that grows to thousands of vertices, the worst
+frame landing on the purchase tap) simply does not arise, because there is no
+scroll, no growing list and no tap. It renders one well-composed sheet, once, at
+full quality:
+
+- **Geometry:** Delaunay triangulation over a jittered grid (jitter `0.66`),
   flat-shaded per facet. Per-vertex height from 2-octave value noise; the facet
   normal is lit by one distant lamp at `[-0.45, -0.72, 0.53]`.
-- **Grammage carries state.** List stock ≈80 g/m²: 80px facets, relief 0.55.
-  Receipt stock ≈50 g/m²: 16px facets, relief 0.80. Lower grammage creases finer
-  *and* harder, so relief scales with facet pitch rather than staying fixed.
+- **Grammage carries state.** List stock ≈80 g/m²: 80px facets, relief `0.55`.
+  Receipt stock ≈50 g/m²: 16px facets, relief `0.80`. Lower grammage creases
+  finer *and* harder, so relief scales with facet pitch rather than staying fixed.
 - **Amplitude** is an absolute RGB delta, ±10 in light and ±20 in dark — not a
   multiplier, because multiplying a near-black paper yields no usable range.
 - **Veil:** the purchased sheet is darkened by a `multiply` layer of
   `rgb(230,230,230)` (90% brightness), covering the sheet **including its
   header**. Multiply scales the crease instead of replacing it, so contrast
   survives — and multiply is what a cast shadow physically is.
-- **Scope:** one canvas per sheet, never per row. Deterministic from a seed
-  (currently `62`), so a sheet is reproducible from parameters, not an asset.
-- **The receipt tiles; the list does not.** This is the one place the paper
-  metaphor collides with the product, and the two sheets resolve it
-  differently because they sit at opposite ends of every relevant axis.
+- **Deterministic from a seed** (currently `62`), so the sheet is reproducible
+  from parameters, rendered at runtime rather than shipped as an image.
 
-  The receipt's 16px facets are five times finer than the list's 80px, and the
-  receipt is the sheet that *grows* — every purchase lengthens it. Keyed to
-  sheet height at a 380px phone width, its vertex count runs ~1,400 at 20
-  items, ~4,300 at 60 and **~14,400 at 200**. So the receipt's crease is a
-  **seamless tile, generated once from the seed and repeated**: 512px square,
-  1,024 vertices, paid once no matter how long the shop runs. Seamlessness is
-  a real constraint on the generator, not a filter applied afterwards — the
-  jittered grid must wrap toroidally with ghost points across each edge, and
-  the value noise must be periodic at the tile size. 512 ÷ 16 = 32 cells
-  exactly, so the lattice divides cleanly; keep that true if either number
-  moves. The **lighting needs no separate wrap**: the lamp is one fixed
-  direction (`[-0.45, -0.72, 0.53]`), a global constant, so a facet's tone is a
-  pure function of its normal and nothing in the pipeline reads absolute canvas
-  position. Wrapping the grid and the noise therefore wraps the shading for
-  free — but that only holds while it stays true, so anything position-keyed
-  (a vignette, ambient occlusion, a gradient overlay) would break the seam and
-  must not be added to the canvas.
+**Why the split** — recorded so it is revisited deliberately, not silently
+inherited:
 
-  The list stays fully procedural. At 500 items it is 1,248 vertices — it
-  never had the problem, it is the sheet a long fold reads across, and it
-  carries no veil, so tile repetition would show there first.
+- The crease's payoff is mostly non-conscious: amplitude was tuned near the
+  visibility floor *on purpose*, so a shopper glancing at a phone reads "slightly
+  less flat than a fill," not "paper." The metaphor's legible carriers are
+  elsewhere and don't need it.
+- Its cost concentrated on the one interaction *The Aisle Wins The Tie Rule*
+  commits to protecting: a procedural crease keyed to a growing receipt lands its
+  heaviest frame on the one-handed purchase tap.
+- It spends contrast margin. `--ink-2` already runs at 4.54:1, `0.04` above the
+  AA floor; a varying facet field under text at that edge is a bad trade for a
+  shopper in inconsistent aisle light.
+- Nothing was built, so the split cost nothing to make.
 
-  Two things this deliberately does **not** do. It does not key generation to
-  sheet height: that puts the worst frame on the tap marking an item
-  purchased, one-handed, in an aisle, and degrades as the shop goes *better* —
-  the scene *The Aisle Wins The Tie Rule* names as the one to design for. And
-  it does not window generation to the viewport, which only moves the same
-  cost from the tap onto scroll.
-
-  The tile is generated at runtime from seed `62`, not shipped as an image, so
-  the sheet remains reproducible from parameters.
-
-  **Both sheets must share one height function and one noise function.** Tiling
-  the receipt and not the list means two generation paths off the same
-  parameters, and an algorithmic divergence between them — a third octave added
-  on one side, a different relief curve — would not show up as a diff anyone
-  can eyeball. They are the same paper in different stock; the only thing that
-  may differ between the paths is periodicity.
-
-  **Repetition, not contrast, is the risk — and amplitude does not answer it.**
-  Amplitude is an absolute ±10 RGB delta in light (7.8% of range peak-to-peak)
-  and ±20 in dark (15.7%), and the receipt's multiply veil damps it a further
-  10%. That settles whether a *single* facet's shading is perceptible. It says
-  nothing about whether a *repeat* is, and those are separate thresholds: the
-  eye is far more sensitive to periodic recurrence than to isolated local
-  contrast, and one fixed-direction lamp means every tile catches its highlight
-  in the same relative place, which under scroll reads as a beat.
-
-  A bigger tile does not fix this; it repeats less often, exactly. And 512px is
-  **smaller than the raw viewport** of both devices the Playwright config
-  targets — iPhone 17 at 681px tall, Pixel 10 at 732px — so even before
-  subtracting the 56px header and the sticky input bar, at least one whole tile
-  period is on screen, and after that chrome it is roughly 1.0–1.2 periods. The
-  repeat is available to the eye in a single glance, before any scrolling. The
-  fix is to break *exact* repetition while keeping O(1) cost: derive **2–4
-  seed-offset variants** at init and alternate them, so no two adjacent tiles
-  are bit-identical.
-
-  Periodicity under scroll is **unverified** — no tile has been generated. Do
-  not read the amplitude figures as settling it.
-
-  Note the `feDisplacementMap` rejection below was reasoned the same way and
-  got the per-frame cost right, while this one-off cost went unsized on the
-  finer-faceted sheet. The discipline was applied to the smaller risk.
+**If the procedural crease is ever wanted in the live, scrolling list**, it must
+solve what the static version sidesteps, and the analysis is kept because it is
+hard-won, not because it is the plan. The receipt grows, so keying triangulation
+to sheet height runs ~14,400 vertices at 200 items; the fix is a seed-generated
+**512px seamless tile** (1,024 verts, O(1) in item count), wrapped toroidally
+with noise periodic at the tile size (512 ÷ 16 = 32 cells), driven by the **same
+height and noise function as the list** so the two paths cannot diverge unseen.
+Even then a fixed-lamp tile *repeats visibly* — one period more than fills the
+viewport (iPhone 17 681px, Pixel 10 732px, both above the 512px tile), and
+amplitude settles single-facet visibility, not periodicity — so it needs **2–4
+seed-offset variants** alternated. Do not read the amplitude figures as settling
+periodicity; it is unverified, and no tile has been generated.
 
 ## Do's and Don'ts
 
@@ -612,7 +597,9 @@ Two sheets, procedurally creased, on a table.
 - **Don't** round paper. Sheets are `2px`; a 14px corner turns paper into a card.
 - **Don't** illustrate the paper metaphor. No torn edges, no photographic paper
   texture, no curled corners, no coffee stains. The material lives in the
-  palette, the geometry and the light — procedurally, never as an image.
+  palette, the geometry and the light — generated from parameters, not drawn.
+  (A pre-composed static crease is fine; a *depicted* one — a photo, a hand-drawn
+  fold — is not.)
 - **Don't** add a shadow between sections, rows, or cards inside a screen. The
   two-sheet shadow is an exception for genuinely separate objects, not licence.
 - **Don't** desaturate surfaces when applying the grayscale ink rule.
@@ -640,10 +627,10 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 | Palette, type scale, radii, shadows, font stacks | **Shipping** — consumed throughout | `colorsAndType.css` |
 | Spacing and motion tokens | Defined — **0 consumers**; components hardcode the same values as literals | `colorsAndType.css` |
 | Hit-target tokens | Partial — `--hit-min` used 4× in 2 files; `--hit-tap`, `--hit-sheet` unused, their values written as literals | `colorsAndType.css` |
-| Table, cast/rim, crease geometry, `--font-written` tokens | **Shipping** (added with this file, unused so far) | `colorsAndType.css` |
-| Two sheets with per-grammage crease, veil, rim light | To build | `.impeccable/design.json` → `extensions.paper` |
-| Seamless-tiled receipt crease, procedural list crease | To build — **unmeasured**; the 200-item figures are arithmetic, not observation, and no tile has been generated | `extensions.paper.tiling` |
-| Tile periodicity under scroll | **Unverified risk** — amplitude does not settle it; needs 2–4 seed-offset variants and a look on a real device | `extensions.paper.tiling.risk` |
+| Table, cast/rim, `--font-written` tokens | **Shipping** (added with this file, unused so far) | `colorsAndType.css` |
+| Two sheets: cast shadow, veil, rim light | To build | `.impeccable/design.json` → `extensions.paper` |
+| Live-product **static** crease | To build — one pre-composed treatment, no per-list state | `extensions.paper.liveCrease` |
+| **Marketing/onboarding** procedural crease | To build — full generator, static render only; the tiling/periodicity analysis applies solely if it ever returns to the live list | `extensions.paper.procedural` |
 | Instruction vs. outcome row anatomy | To build | *Components → Item Row* |
 | Removal of the strikethrough on purchased items | To build | *Do's and Don'ts* |
 | Pre-printed serif sheet titles | To build | *Components → Pre-printed Sheet Title* |
