@@ -509,7 +509,9 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 
 | Piece | State | Where the values live |
 |---|---|---|
-| Palette, type scale, spacing, radii, shadows, motion, hit targets | **Shipping** | `colorsAndType.css` |
+| Palette, type scale, radii, shadows, font stacks | **Shipping** — consumed throughout | `colorsAndType.css` |
+| Spacing and motion tokens | Defined — **0 consumers**; components hardcode the same values as literals | `colorsAndType.css` |
+| Hit-target tokens | Partial — `--hit-min` used 4× in 2 files; `--hit-tap`, `--hit-sheet` unused, their values written as literals | `colorsAndType.css` |
 | Table, cast/rim, crease geometry, `--font-written` tokens | **Shipping** (added with this file, unused so far) | `colorsAndType.css` |
 | Two sheets with per-grammage crease, veil, rim light | To build | `.impeccable/design.json` → `extensions.paper` |
 | Instruction vs. outcome row anatomy | To build | *Components → Item Row* |
