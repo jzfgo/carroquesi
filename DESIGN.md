@@ -500,6 +500,24 @@ Two sheets, procedurally creased, on a table.
   survives — and multiply is what a cast shadow physically is.
 - **Scope:** one canvas per sheet, never per row. Deterministic from a seed
   (currently `62`), so a sheet is reproducible from parameters, not an asset.
+- **The crease must be bounded by the viewport, not the sheet.** This is the
+  one place the paper metaphor collides with the product. The receipt's 16px
+  facets are five times finer than the list's 80px, and the receipt is the
+  sheet that *grows* — every purchase lengthens it. At a phone width of 380px
+  the vertex count runs roughly 1,400 at 20 items, 4,300 at 60, and **14,400 at
+  200**, against the list's ~500 at the same length. So the sheet's height must
+  never be an input to the triangulation. Generate against the visible window at
+  an absolute grid origin — absolute, so a windowed canvas produces the same
+  facets as an unwindowed one and the crease does not swim while scrolling —
+  and the cost stays flat in item count.
+
+  The failure this avoids is specific: regeneration keyed to sheet height would
+  put its worst frame on the tap that marks an item purchased, one-handed, in
+  an aisle, and would degrade as the shop goes *better*. That is the scene
+  *The Aisle Wins The Tie Rule* names as the one to design for. Note the
+  `feDisplacementMap` rejection below was reasoned the same way and reached the
+  right answer for the per-frame cost, while this one-off cost went unsized —
+  the discipline was applied to the smaller risk.
 
 ## Do's and Don'ts
 
@@ -512,7 +530,9 @@ Two sheets, procedurally creased, on a table.
   adding new UI. They are defined in `colorsAndType.css`, they ship today, and
   they are the intended hierarchy.
 - **Do** reference canonical tokens: `--ink-1`, `--paper-0`, `--tinta-0`.
-- **Do** give every figure `font-variant-numeric: tabular-nums` in JetBrains Mono.
+- **Do** give every figure **in the amount column** — and every EAN —
+  `font-variant-numeric: tabular-nums` in JetBrains Mono. Inline quantities on
+  either sheet are exempt; see *The Tabular Numerals Rule*.
 - **Do** match paired faces by measured cap height, not by px value.
 - **Do** keep touch targets at `--hit-min` (44px) or larger; the design scene is
   one-handed use in a supermarket aisle.
@@ -572,6 +592,7 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 | Hit-target tokens | Partial — `--hit-min` used 4× in 2 files; `--hit-tap`, `--hit-sheet` unused, their values written as literals | `colorsAndType.css` |
 | Table, cast/rim, crease geometry, `--font-written` tokens | **Shipping** (added with this file, unused so far) | `colorsAndType.css` |
 | Two sheets with per-grammage crease, veil, rim light | To build | `.impeccable/design.json` → `extensions.paper` |
+| Viewport-bounded crease generation | To build — **unmeasured**; the prototype only ever rendered a short sheet, so the 200-item figures are arithmetic, not observation | `extensions.paper.bounding` |
 | Instruction vs. outcome row anatomy | To build | *Components → Item Row* |
 | Removal of the strikethrough on purchased items | To build | *Do's and Don'ts* |
 | Pre-printed serif sheet titles | To build | *Components → Pre-printed Sheet Title* |

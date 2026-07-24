@@ -123,6 +123,7 @@
       "amplitude": { "light": 10, "dark": 20, "unit": "absolute RGB delta", "why": "A multiplier yields no usable range on a near-black paper." },
       "veil": { "mode": "multiply", "color": "rgb(230,230,230)", "brightness": "90%", "why": "Multiply scales the crease instead of replacing it, so contrast survives — and multiply is what a cast shadow physically is." },
       "scope": "One canvas per sheet, never per row. The canvas covers the sheet including its header.",
+      "bounding": "Generate against the visible window at an absolute grid origin, never against sheet height. The receipt uses 16px facets and grows with every purchase: at 380px wide the vertex count runs ~1400 at 20 items, ~4300 at 60, ~14400 at 200, against the list's ~500. Absolute origin so a windowed canvas matches an unwindowed one and the crease does not swim while scrolling. Keyed to sheet height, the worst frame lands on the purchase tap and degrades as the shop goes better.",
       "rejected": "feDisplacementMap text warping via a facet normal map. Implemented and working (blur the map first or glyphs tear at facet edges), ~24ms to generate, but the filter re-evaluates on every paint and the list scrolls, polls and animates."
     },
     "layout": {
@@ -204,7 +205,7 @@
       { "name": "The Surfaces-Keep-Their-Colour Rule", "body": "Grayscale is a rule about content, not about the world. The table stays wooden and the paper stays cool-blue under it.", "section": "colors" },
       { "name": "The Dark Is A Re-Theme Rule", "body": "Dark mode is authored, not inverted — a late-night desk: graphite paper, cream ink, accents lifted rather than flipped. Never derive one with filter: invert().", "section": "colors" },
       { "name": "The Cap-Height Rule", "body": "Faces are matched by measured cap height, never by px value. Patrick Hand SC at 18.9px measures a 13.03px cap; JetBrains Mono only reaches that at 17.5px.", "section": "typography" },
-      { "name": "The Tabular Numerals Rule", "body": "Every figure is tabular-nums in JetBrains Mono. Amounts sit in a right-aligned column and must stay aligned across rows.", "section": "typography" },
+      { "name": "The Tabular Numerals Rule", "body": "Every figure in the amount column, plus every EAN, is tabular-nums in JetBrains Mono. Amounts must stay aligned across rows. Inline quantities on either sheet are exempt: they are not in the column, and on the unpurchased sheet they are handwriting, not a record.", "section": "typography" },
       { "name": "The Uppercase Tracking Rule", "body": "All caps costs the word-shape cue people scan by, so tracking is always added back; never set caps at default tracking. How much depends on the face as much as the size (the hand is tracked wider than the mono despite setting larger), so each role carries its own figure in its typography entry and this rule names none of them. The single exception is hand meta text, which has no role of its own and takes 0.05em. Negative tracking belongs to large lowercase type only, at whatever value that role's entry carries, and never appears on caps; a negative value on an uppercase role is always a sign error.", "section": "typography" },
       { "name": "The Provisional Face Rule", "body": "The hand face is not settled and an appearance section in settings is planned, so no face is hard-coded in a component.", "section": "typography" },
       { "name": "The Aisle Wins The Tie Rule", "body": "When the composing-at-home moment and the in-store moment want different layouts, design for the store.", "section": "layout" },
@@ -216,7 +217,7 @@
       "Do set type through --font-* variables and size it from the scale; a runtime appearance setting is planned.",
       "Do use the semantic type classes (.t-h2, .t-price, .t-caption) when adding new UI.",
       "Do reference canonical tokens: --ink-1, --paper-0, --tinta-0.",
-      "Do give every figure font-variant-numeric: tabular-nums in JetBrains Mono.",
+      "Do give every figure in the amount column, and every EAN, font-variant-numeric: tabular-nums in JetBrains Mono. Inline quantities are exempt.",
       "Do match paired faces by measured cap height, not by px value.",
       "Do keep touch targets at --hit-min (44px) or larger.",
       "Do author dark-mode values by hand for every new colour.",
