@@ -260,9 +260,12 @@ column and the column is the point.
 by, so tracking is added back — and more of it the smaller the type gets:
 `0.02em` on sans and mono at reading size, `0.045em` on the hand, `0.05em` on
 hand meta text, `0.1em` on the 12px label. Never set caps at default tracking.
-Negative tracking belongs to large lowercase type only — Display and Title set
-it to `-0.02em` — and never appears on caps. A negative value on an uppercase
-role is always a sign error, not a choice.
+Negative tracking belongs to large lowercase type only — Display and Title,
+each at the value its own frontmatter entry carries — and never appears on
+caps. A negative value on an uppercase role is always a sign error, not a
+choice. The figures above are the prescription for caps, which no frontmatter
+entry covers; for the lowercase roles the frontmatter is the source of truth
+and this rule deliberately names no number.
 
 **The Provisional Face Rule.** The hand face is not settled and an appearance
 section in settings is planned, so no face is hard-coded in a component. Type
