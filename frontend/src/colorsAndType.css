@@ -5,13 +5,16 @@
 
    Fonts (via Google Fonts — see fonts/README.md for self-host):
      Geist           — body & UI (clean neutral grotesque)
-     Instrument Serif — wordmark & display italic accents
-     Caveat          — sparing hand-written accent (annotations,
-                       checkmarks, "done" overlays)
-     JetBrains Mono  — prices, totals, EAN codes, monospaced data
+     Bree Serif      — display, screen titles, pre-printed sheet titles
+     Caveat          — sparing hand-written accent (wordmark, annotations,
+                       encouraging asides). A brand voice, not body copy.
+     Patrick Hand SC — the household's handwriting: unpurchased list content.
+                       Distinct role from Caveat — this one has to stay legible
+                       at meta size, one-handed, in a supermarket aisle.
+     JetBrains Mono  — prices, totals, EAN codes, purchased (printed) content
    ───────────────────────────────────────────────────────────── */
 
-@import 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Bree+Serif&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap';
+@import 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Bree+Serif&family=Caveat:wght@500;600;700&family=Patrick+Hand+SC&family=JetBrains+Mono:wght@400;500;600&display=swap';
 
 /* ── 1. CORE PALETTE — light (default) ────────────────────── */
 :root {
@@ -70,6 +73,38 @@
   /* Focus ring — accessible, brand-colored */
   --focus-ring: 0 0 0 3px rgb(26 63 160 / 30%);
 
+  /* ── SHEET MODEL — the two-paper world (see DESIGN.md "El Ticket") ──
+     The surface the sheets lie on. Warm on purpose: it is the only colour in
+     the product that is not paper or ink, and it survives the grayscale rule
+     because that rule governs content, not surfaces. */
+  --table: #c2a982;
+  --table-edge: #a08a6a;
+
+  /* Each sheet casts onto the TABLE, never onto the other sheet: they lie at
+     the same elevation. Thicker list stock casts deeper than the till roll. */
+  --cast-1: rgb(22 27 45 / 16%);
+  --cast-2: rgb(22 27 45 / 30%);
+
+  /* Rim light on the receipt's cut edge. Must be painted ABOVE the paper
+     texture and the veil — an inset box-shadow renders beneath an element's
+     children and is covered by them. */
+  --lip: rgb(255 255 255 / 58%);
+  --lip-soft: rgb(255 255 255 / 22%);
+
+  /* Absolute RGB delta, not a multiplier: multiplying a near-black paper
+     yields no usable range, which is why light and dark differ so much. */
+  --paper-amp: 10;
+
+  /* Crease geometry, shared by both themes. Lower grammage creases finer AND
+     harder, so relief is not constant across the two stocks. Deterministic
+     from the seed: a sheet is reproducible from parameters, never an asset. */
+  --paper-facet-list: 80px;
+  --paper-facet-receipt: 16px;
+  --paper-relief-list: 0.55;
+  --paper-relief-receipt: 0.8;
+  --paper-seed: 62;
+  --paper-veil: rgb(230 230 230); /* multiply => 90% brightness */
+
   /* ── 2. SEMANTIC ALIASES ────────────────────────────────── */
   --bg: var(--paper-0);
   --bg-sunken: var(--paper-1);
@@ -103,7 +138,18 @@
   --font-display: 'Bree Serif', ui-serif, Georgia, serif;
   --font-serif: var(--font-display); /* legacy alias */
   --font-hand: 'Caveat', 'Bradley Hand', cursive;
+
+  /* The household's handwriting, as distinct from --font-hand's brand voice.
+     Provisional: an appearance section in settings is planned, so never
+     hard-code a face in a component — always resolve through this token. */
+  --font-written: 'Patrick Hand SC', 'Bradley Hand', cursive;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+
+  /* Optical-size correction for --font-written. Script faces differ enormously
+     in cap height, so sizes are calc()'d against this rather than set in px:
+     Patrick Hand SC at 18.9px measures a 13.03px cap, which JetBrains Mono
+     only reaches at 17.5px. Swapping the face means re-measuring this number. */
+  --written-scale: 0.9;
   --fs-12: 12px;
   --fs-13: 13px;
   --fs-14: 14px;
@@ -143,6 +189,7 @@
   --r-lg: 14px;
   --r-xl: 20px;
   --r-pill: 999px;
+  --r-sheet: 2px; /* paper is cut, not rounded — never use an interface radius on a sheet */
 
   /* ── 6. HIT TARGETS / SIZES ─────────────────────────────── */
   --hit-min: 44px; /* WCAG/iOS minimum touch target */
@@ -209,6 +256,13 @@
     --focus-ring: 0 0 0 3px rgb(145 168 255 / 40%);
     --accent-fg: #131419;
     --border-strong: #4a4c55;
+    --table: #3b2f22;
+    --table-edge: #3a2f24;
+    --cast-1: rgb(0 0 0 / 45%);
+    --cast-2: rgb(0 0 0 / 65%);
+    --lip: rgb(255 255 255 / 19%);
+    --lip-soft: rgb(255 255 255 / 7%);
+    --paper-amp: 20;
   }
 }
 
@@ -269,6 +323,28 @@
   --success: var(--verde-0);
   --danger: var(--tomate-0);
   --warn: var(--miel-0);
+
+  /* ── SHEET MODEL — the two-paper world (see DESIGN.md "El Ticket") ──
+     The surface the sheets lie on. Warm on purpose: it is the only colour in
+     the product that is not paper or ink, and it survives the grayscale rule
+     because that rule governs content, not surfaces. */
+  --table: #c2a982;
+  --table-edge: #a08a6a;
+
+  /* Each sheet casts onto the TABLE, never onto the other sheet: they lie at
+     the same elevation. Thicker list stock casts deeper than the till roll. */
+  --cast-1: rgb(22 27 45 / 16%);
+  --cast-2: rgb(22 27 45 / 30%);
+
+  /* Rim light on the receipt's cut edge. Must be painted ABOVE the paper
+     texture and the veil — an inset box-shadow renders beneath an element's
+     children and is covered by them. */
+  --lip: rgb(255 255 255 / 58%);
+  --lip-soft: rgb(255 255 255 / 22%);
+
+  /* Absolute RGB delta, not a multiplier: multiplying a near-black paper
+     yields no usable range, which is why light and dark differ so much. */
+  --paper-amp: 10;
 }
 
 .theme-dark {
@@ -323,6 +399,13 @@
   --success: var(--verde-0);
   --danger: var(--tomate-0);
   --warn: var(--miel-0);
+  --table: #3b2f22;
+  --table-edge: #3a2f24;
+  --cast-1: rgb(0 0 0 / 45%);
+  --cast-2: rgb(0 0 0 / 65%);
+  --lip: rgb(255 255 255 / 19%);
+  --lip-soft: rgb(255 255 255 / 7%);
+  --paper-amp: 20;
 }
 
 /* ── 10. SEMANTIC TYPE CLASSES ────────────────────────────── */

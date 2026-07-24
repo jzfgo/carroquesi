@@ -1,0 +1,241 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-24T14:02:22Z",
+  "title": "Design System: CarroQueSí",
+  "extensions": {
+    "colorMeta": {
+      "paper-0": {
+        "role": "neutral",
+        "displayName": "Composition Paper",
+        "canonical": "#eef1f5",
+        "dark": "#131419",
+        "tonalRamp": ["#15161b", "#2b2e36", "#454951", "#6a6d7a", "#94969f", "#b4bac4", "#d5dae2", "#eef1f5"]
+      },
+      "paper-1": {
+        "role": "neutral",
+        "displayName": "Recessed Paper",
+        "canonical": "#e3e7ed",
+        "dark": "#1b1c22",
+        "tonalRamp": ["#141519", "#282b32", "#41454d", "#646873", "#8d9099", "#adb2bb", "#cbd0d8", "#e3e7ed"]
+      },
+      "paper-edge": {
+        "role": "neutral",
+        "displayName": "Paper Edge",
+        "canonical": "#b4bac4",
+        "dark": "#3a3c44",
+        "tonalRamp": ["#171920", "#2a2d35", "#43474f", "#616671", "#828892", "#9ba1ab", "#b4bac4", "#d6dae1"]
+      },
+      "table": {
+        "role": "secondary",
+        "displayName": "Wooden Table",
+        "canonical": "#c2a982",
+        "dark": "#3b2f22",
+        "note": "The surface the sheets lie on. Visible only in the seam between them, never behind content. The one warm colour in the product, and the only one exempt from the grayscale ink rule.",
+        "tonalRamp": ["#241c12", "#3b2f22", "#584732", "#7a6344", "#9b8058", "#c2a982", "#dcc9ab", "#efe4d2"]
+      },
+      "ink-0": {
+        "role": "neutral",
+        "displayName": "Pencil Black",
+        "canonical": "#15161b",
+        "dark": "#edeef2",
+        "tonalRamp": ["#15161b", "#353742", "#4e515c", "#6a6d7a", "#94969f", "#b0b2b9", "#d3d5da", "#edeef2"]
+      },
+      "tinta-0": {
+        "role": "primary",
+        "displayName": "BIC Pen Blue",
+        "canonical": "#1a3fa0",
+        "dark": "#91a8ff",
+        "note": "Named after the ballpoint it came from. Resolves to an ink inside lists under the grayscale rule; applies in full outside them.",
+        "tonalRamp": ["#0a1a45", "#12296b", "#1a3fa0", "#2c56c1", "#5478d6", "#8ba4e8", "#b8c6f2", "#e0e7fb"]
+      },
+      "verde-0": {
+        "role": "tertiary",
+        "displayName": "Grocer Green",
+        "canonical": "#2f7a4a",
+        "dark": "#7bc68b",
+        "note": "Semantic only: purchase confirmed, price recorded.",
+        "tonalRamp": ["#0d2416", "#173d26", "#2f7a4a", "#459362", "#6bb287", "#9bd0ae", "#c4e5d0", "#e6f5ec"]
+      },
+      "tomate-0": {
+        "role": "tertiary",
+        "displayName": "Red Pen",
+        "canonical": "#c0392b",
+        "dark": "#e68a82",
+        "tonalRamp": ["#2e0c08", "#5c1a14", "#8e2820", "#c0392b", "#d4645a", "#e39189", "#f0bdb8", "#fae4e2"]
+      },
+      "miel-0": {
+        "role": "tertiary",
+        "displayName": "Highlighter Honey",
+        "canonical": "#c9941f",
+        "dark": "#e6c56a",
+        "tonalRamp": ["#2e2104", "#5c430c", "#8e6714", "#c9941f", "#dcae44", "#e8c778", "#f2dfae", "#fbf3dd"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Sign-in and waitlist screens only." },
+      "headline": { "displayName": "Headline", "purpose": "Screen titles in list header and dashboard." },
+      "body": { "displayName": "Body", "purpose": "Default UI text. 15px is the touch-readable floor." },
+      "label": { "displayName": "Label", "purpose": "Uppercase eyebrows and section headers." },
+      "hand": {
+        "displayName": "Hand",
+        "purpose": "Unpurchased item names — what the household wrote. TARGET; face provisional, a runtime appearance setting is planned.",
+        "opticalScale": 0.90,
+        "measuredCapHeight": "13.03px at 18.9px size"
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Purchased item names, all prices, totals, EANs. Always tabular-nums.",
+        "measuredCapHeight": "12.95px at 17.5px size — matched to Hand by cap height, not px"
+      }
+    },
+    "shadows": [
+      { "name": "shadow-sm", "value": "0 1px 1px rgb(30 35 55 / 10%), 0 2px 4px -2px rgb(30 35 55 / 14%)", "purpose": "Card lifted off the stack; suggestion popover." },
+      { "name": "shadow-md", "value": "0 1px 2px rgb(30 35 55 / 12%), 0 6px 14px -4px rgb(30 35 55 / 18%)", "purpose": "Dropdown and avatar menus." },
+      { "name": "shadow-lg", "value": "0 2px 4px rgb(30 35 55 / 14%), 0 16px 32px -8px rgb(30 35 55 / 24%)", "purpose": "Toast; card being dragged." },
+      { "name": "shadow-sheet", "value": "0 -2px 4px rgb(30 35 55 / 10%), 0 -16px 40px -6px rgb(30 35 55 / 22%)", "purpose": "Bottom sheet — casts upward." },
+      { "name": "cast-list", "value": "0 1px 1.5px rgb(22 27 45 / 16%), 0 4px 9px -4px rgb(22 27 45 / 30%)", "purpose": "TARGET. The ~80 g/m2 list sheet casting onto the table." },
+      { "name": "cast-receipt", "value": "0 1px 1px rgb(22 27 45 / 16%), 0 2px 5px -3px rgb(22 27 45 / 30%)", "purpose": "TARGET. The ~50 g/m2 receipt — thinner stock, shallower cast." },
+      { "name": "rim-receipt", "value": "linear-gradient(to bottom, rgb(255 255 255 / 58%) 0 1px, rgb(255 255 255 / 22%) 1px 1.5px, transparent 1.5px)", "purpose": "TARGET. Rim light on the receipt's cut edge. Must be a layer above the paper canvas AND the multiply veil — an inset box-shadow paints beneath an element's children and is covered." },
+      { "name": "focus-ring", "value": "0 0 0 3px rgb(26 63 160 / 30%)", "purpose": "Keyboard focus. Applied to the wrapper, not the raw input." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.2, 0.8, 0.2, 1)", "purpose": "Default for state transitions." },
+      { "name": "ease-in-out", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Symmetric moves." },
+      { "name": "ease-spring", "value": "cubic-bezier(0.34, 1.56, 0.64, 1)", "purpose": "Sheet open; buy-again chip. The only overshoot in the system." },
+      { "name": "dur-fast", "value": "120ms", "purpose": "Hover and press feedback." },
+      { "name": "dur-base", "value": "200ms", "purpose": "Default." },
+      { "name": "dur-slow", "value": "320ms", "purpose": "Sheet and filter-bar transitions." }
+    ],
+    "hitTargets": [
+      { "name": "hit-min", "value": "44px", "purpose": "WCAG/iOS minimum. The floor, not the target." },
+      { "name": "hit-tap", "value": "48px", "purpose": "Primary affordances." },
+      { "name": "hit-sheet", "value": "56px", "purpose": "Sheet rows and large CTAs." }
+    ],
+    "paper": {
+      "note": "TARGET. Procedural low-poly crease. Delaunay over a jittered grid, flat-shaded per facet; per-vertex height from 2-octave value noise, lit by one distant lamp. Deterministic from seed.",
+      "light": { "azimuth": 235, "vector": [-0.45, -0.72, 0.53] },
+      "seed": 62,
+      "stocks": [
+        { "name": "list", "grammage": "~80 g/m2", "facetPx": 80, "relief": 0.55 },
+        { "name": "receipt", "grammage": "~50 g/m2", "facetPx": 16, "relief": 0.80 }
+      ],
+      "amplitude": { "light": 10, "dark": 20, "unit": "absolute RGB delta", "why": "A multiplier yields no usable range on a near-black paper." },
+      "veil": { "mode": "multiply", "color": "rgb(230,230,230)", "brightness": "90%", "why": "Multiply scales the crease instead of replacing it, so contrast survives — and multiply is what a cast shadow physically is." },
+      "scope": "One canvas per sheet, never per row. The canvas covers the sheet including its header.",
+      "rejected": "feDisplacementMap text warping via a facet normal map. Implemented and working (blur the map first or glyphs tear at facet edges), ~24ms to generate, but the filter re-evaluates on every paint and the list scrolls, polls and animates."
+    },
+    "breakpoints": [
+      { "name": "pane", "value": "780px" },
+      { "name": "root-max", "value": "1126px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one filled control. Accent ground, no lift, no glow.",
+      "html": "<button class=\"ds-btn-primary\">Guardar</button>",
+      "css": ".ds-btn-primary { background: var(--tinta-0, #1a3fa0); color: var(--accent-fg, #eef1f5); font-family: var(--font-sans, 'Geist', system-ui, sans-serif); font-size: 15px; font-weight: 600; min-height: 44px; padding: 9px 16px; border: none; border-radius: 10px; cursor: pointer; transition: background 120ms cubic-bezier(0.2,0.8,0.2,1); } .ds-btn-primary:hover { background: var(--tinta-1, #2c56c1); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgb(26 63 160 / 30%); } .ds-btn-primary:disabled { background: var(--paper-edge, #b4bac4); cursor: not-allowed; }"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "chip-filter",
+      "description": "Horizontally scrolling filter. Pill, hairline, selected state fills with accent.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip is-on\">Todas</button><button class=\"ds-chip\">Carrefour</button><button class=\"ds-chip\">Lidl</button></div>",
+      "css": ".ds-chips { display: flex; gap: 6px; } .ds-chip { flex-shrink: 0; padding: 4px 12px; border: 1px solid var(--paper-edge, #b4bac4); border-radius: 999px; background: var(--paper-1, #e3e7ed); font-family: var(--font-sans, 'Geist', system-ui, sans-serif); font-size: 13px; color: var(--ink-1, #353742); cursor: pointer; } .ds-chip.is-on { background: var(--tinta-0, #1a3fa0); border-color: var(--tinta-0, #1a3fa0); color: var(--accent-fg, #eef1f5); }"
+    },
+    {
+      "name": "Smart Input Bar",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Sticky bottom entry with the sigil legend above it. The focus ring lands on the wrapper so the whole control reads as focused.",
+      "html": "<div class=\"ds-sib\"><div class=\"ds-sib-legend\"><span class=\"ds-sib-chip\"><b>+</b> cant.</span><span class=\"ds-sib-chip\"><b>#</b> marca</span><span class=\"ds-sib-chip\"><b>@</b> tienda</span><span class=\"ds-sib-chip\"><b>|</b> cod. barras</span></div><div class=\"ds-sib-row\"><span class=\"ds-sib-field\">Añadir producto…</span><button class=\"ds-sib-add\" aria-label=\"Añadir\">+</button></div></div>",
+      "css": ".ds-sib { font-family: var(--font-sans, 'Geist', system-ui, sans-serif); } .ds-sib-legend { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; } .ds-sib-chip { font-size: 12px; color: var(--ink-1, #353742); background: var(--paper-1, #e3e7ed); border: 1px solid var(--paper-edge, #b4bac4); border-radius: 4px; padding: 2px 7px; } .ds-sib-chip b { color: var(--tinta-0, #1a3fa0); font-family: var(--font-mono, 'JetBrains Mono', monospace); } .ds-sib-row { display: flex; gap: 10px; align-items: center; background: var(--paper-1, #e3e7ed); border: 1.5px solid var(--paper-edge, #b4bac4); border-radius: 14px; padding: 10px 12px; } .ds-sib-row:focus-within { border-color: var(--tinta-0, #1a3fa0); } .ds-sib-field { flex: 1; font-size: 16px; color: var(--ink-3, #94969f); } .ds-sib-add { width: 36px; height: 36px; border-radius: 10px; background: var(--tinta-0, #1a3fa0); color: var(--accent-fg, #eef1f5); border: none; font-size: 22px; line-height: 1; cursor: pointer; }"
+    },
+    {
+      "name": "Item Row — Unpurchased",
+      "kind": "custom",
+      "refersTo": "row-item",
+      "description": "TARGET. An instruction: how many, which brand, which shop. Hand face, uppercase, no price.",
+      "html": "<div class=\"ds-row\"><span class=\"ds-box\"></span><div class=\"ds-body\"><div class=\"ds-name\">LECHE ENTERA</div><div class=\"ds-meta\"><span class=\"ds-qty\">×6</span><span>·</span><span>HACENDADO</span><span>·</span><span>CARREFOUR</span></div></div></div>",
+      "css": ".ds-row { display: flex; gap: 11px; align-items: center; padding: 9px 14px; } .ds-box { width: 21px; height: 21px; border-radius: 50%; border: 2px solid var(--paper-edge, #b4bac4); flex-shrink: 0; } .ds-body { flex: 1; min-width: 0; } .ds-name { font-family: var(--font-hand, 'Patrick Hand SC', cursive); font-size: 18.9px; font-weight: 700; letter-spacing: 0.045em; text-transform: uppercase; color: var(--ink-0, #15161b); line-height: 1.25; } .ds-meta { display: flex; gap: 5px; margin-top: 2px; font-family: var(--font-hand, 'Patrick Hand SC', cursive); font-size: 13.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-2, #6a6d7a); } .ds-qty { color: var(--ink-1, #353742); }"
+    },
+    {
+      "name": "Item Row — Purchased",
+      "kind": "custom",
+      "refersTo": "row-item",
+      "description": "TARGET. A record: what was actually bought and what it cost. Monospace, uppercase, amount right-aligned. No strikethrough.",
+      "html": "<div class=\"ds-prow\"><span class=\"ds-pbox\"></span><div class=\"ds-pbody\"><div class=\"ds-pname\">CAFÉ MOLIDO</div><div class=\"ds-pmeta\">500 G · LIDL</div></div><span class=\"ds-pamt\"><span class=\"ds-pmain\">5,00</span><span class=\"ds-psub\">10,00 / kg</span></span></div>",
+      "css": ".ds-prow { display: flex; gap: 11px; align-items: center; padding: 9px 14px; } .ds-pbox { width: 21px; height: 21px; border-radius: 50%; background: var(--verde-0, #2f7a4a); flex-shrink: 0; position: relative; } .ds-pbox::after { content: ''; position: absolute; top: 50%; left: 50%; width: 9px; height: 5px; border-left: 2px solid var(--paper-0, #eef1f5); border-bottom: 2px solid var(--paper-0, #eef1f5); transform: translate(-50%, -62%) rotate(-45deg); } .ds-pbody { flex: 1; min-width: 0; } .ds-pname { font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 17.5px; font-weight: 600; letter-spacing: -0.02em; text-transform: uppercase; color: var(--ink-1, #353742); } .ds-pmeta { font-family: var(--font-mono, 'JetBrains Mono', monospace); font-size: 12.5px; text-transform: uppercase; color: var(--ink-2, #6a6d7a); margin-top: 2px; } .ds-pamt { font-family: var(--font-mono, 'JetBrains Mono', monospace); font-variant-numeric: tabular-nums; text-align: right; flex-shrink: 0; } .ds-pmain { display: block; font-size: 16.5px; font-weight: 600; color: var(--verde-0, #2f7a4a); } .ds-psub { display: block; font-size: 11px; color: var(--ink-3, #94969f); margin-top: 1px; }"
+    },
+    {
+      "name": "Pre-printed Sheet Title",
+      "kind": "custom",
+      "refersTo": "sheet-paper",
+      "description": "TARGET. Both sheets share one pre-printed voice — the app's serif with a dashed rule, as on stock printed before anything is written on it.",
+      "html": "<p class=\"ds-title\"><span>Comprados (3) · 15 jul</span><span class=\"ds-title-cost\">10,44</span></p>",
+      "css": ".ds-title { display: flex; align-items: center; justify-content: space-between; margin: 0 14px 6px; padding: 13px 0 7px; font-family: var(--font-display, 'Bree Serif', Georgia, serif); font-size: 15px; font-weight: 400; color: var(--ink-1, #353742); border-bottom: 1px dashed rgb(148 150 159 / 62%); } .ds-title-cost { font-family: var(--font-display, 'Bree Serif', Georgia, serif); font-size: 15px; }"
+    },
+    {
+      "name": "Toast",
+      "kind": "custom",
+      "description": "Fixed above the input bar, respecting the safe area. A draining progress bar reads as time remaining.",
+      "html": "<div class=\"ds-toast\"><div class=\"ds-toast-bar\"><div class=\"ds-toast-fill\"></div></div><div class=\"ds-toast-body\"><span class=\"ds-toast-text\"><strong>Leche entera</strong> añadida</span><button class=\"ds-toast-cta\">Deshacer</button></div></div>",
+      "css": ".ds-toast { border-radius: 14px; overflow: hidden; box-shadow: 0 2px 4px rgb(30 35 55 / 14%), 0 16px 32px -8px rgb(30 35 55 / 24%); font-family: var(--font-sans, 'Geist', system-ui, sans-serif); } .ds-toast-bar { height: 3px; background: rgb(47 122 74 / 32%); } .ds-toast-fill { height: 100%; width: 60%; background: var(--verde-0, #2f7a4a); border-radius: 0 2px 2px 0; } .ds-toast-body { background: var(--paper-0, #eef1f5); border: 1px solid rgb(47 122 74 / 32%); border-top: none; padding: 11px 14px; display: flex; align-items: center; gap: 8px; } .ds-toast-text { flex: 1; font-size: 14px; color: var(--ink-1, #353742); } .ds-toast-text strong { color: var(--ink-0, #15161b); font-weight: 600; } .ds-toast-cta { font-size: 14px; font-weight: 700; color: var(--tinta-0, #1a3fa0); background: none; border: none; cursor: pointer; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "El Ticket",
+    "overview": "El ticket is what a receipt is called in Spain, and it is the whole idea. This is not a shopping-list app that happens to store prices; it is a list that becomes a receipt as you shop. Before the shop, a line is an instruction — six of these, that brand, that shop. After the shop, the same line is a record — what was actually bought, what it actually cost. Two different documents, so two different sheets of paper, in two different hands.\n\nThat resolves what the interface is made of. You write the list; the till prints the receipt. So the list is set in a handwriting face in block capitals, and the receipt in monospace, also in capitals — the same case arrived at from two unrelated causes, which is exactly why the two can share it without the distinction collapsing. Both sheets carry their titles in the app's serif, because on real stock the header is pre-printed before anything is written on it.\n\nThe palette is cool blue-grey paper and near-black ink, on a warm wooden table. Within a list, ink is grayscale: the two hands already carry the state, so colour has nothing left to do there. The world is deliberately physical — procedurally creased paper, cast shadows, a rim-lit cut edge — but never illustrated.",
+    "keyCharacteristics": [
+      "Two sheets of different grammage, lying at the same level on a table",
+      "Zero rules inside a sheet; whitespace and an aligned numeric column separate",
+      "Handwriting for intent, monospace for record, serif for pre-printed",
+      "Grayscale ink inside lists; the table is the only warm thing in frame",
+      "Flat by default — depth is for objects that are genuinely separate",
+      "Amounts sit in one right-aligned tabular column in both states; only their truth-value changes"
+    ],
+    "rules": [
+      { "name": "The Grayscale Ink Rule", "body": "Inside a list, ink is achromatic — tinta and verde resolve to inks. The typography already encodes who wrote each line, so colour would repeat a signal carried better. Outside a list the palette applies in full.", "section": "colors" },
+      { "name": "The Surfaces-Keep-Their-Colour Rule", "body": "Grayscale is a rule about content, not about the world. The table stays wooden and the paper stays cool-blue under it.", "section": "colors" },
+      { "name": "The Dark Is A Re-Theme Rule", "body": "Dark mode is authored, not inverted — a late-night desk: graphite paper, cream ink, accents lifted rather than flipped. Never derive one with filter: invert().", "section": "colors" },
+      { "name": "The Cap-Height Rule", "body": "Faces are matched by measured cap height, never by px value. Patrick Hand SC at 18.9px measures a 13.03px cap; JetBrains Mono only reaches that at 17.5px.", "section": "typography" },
+      { "name": "The Tabular Numerals Rule", "body": "Every figure is tabular-nums in JetBrains Mono. Amounts sit in a right-aligned column and must stay aligned across rows.", "section": "typography" },
+      { "name": "The Uppercase Tracking Rule", "body": "All caps costs the word-shape cue people scan by, so tracking is added back: 0.02em for sans and mono, 0.045em for the hand.", "section": "typography" },
+      { "name": "The Provisional Face Rule", "body": "The hand face is not settled and an appearance section in settings is planned, so no face is hard-coded in a component.", "section": "typography" },
+      { "name": "The Aisle Wins The Tie Rule", "body": "When the composing-at-home moment and the in-store moment want different layouts, design for the store.", "section": "layout" },
+      { "name": "The Ruled-Not-Raised Rule", "body": "Separation inside a screen is a hairline or a tone change, never a shadow.", "section": "elevation" },
+      { "name": "The Two Sheets Exception", "body": "The list and the receipt are genuinely separate physical objects, so each casts a real shadow — onto the table, not onto each other. The only sanctioned in-page shadow.", "section": "elevation" },
+      { "name": "The Cut-Edge Rule", "body": "Anything representing paper gets 2px. Anything representing interface gets the interface scale. Never mix them on one element.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do set type through --font-* variables and size it from the scale; a runtime appearance setting is planned.",
+      "Do use the semantic type classes (.t-h2, .t-price, .t-caption) when adding new UI.",
+      "Do reference canonical tokens: --ink-1, --paper-0, --tinta-0.",
+      "Do give every figure font-variant-numeric: tabular-nums in JetBrains Mono.",
+      "Do match paired faces by measured cap height, not by px value.",
+      "Do keep touch targets at --hit-min (44px) or larger.",
+      "Do author dark-mode values by hand for every new colour.",
+      "Do add tracking whenever setting uppercase.",
+      "Do keep the accent rare — it marks what is interactive, not what is present."
+    ],
+    "donts": [
+      "Don't write a raw font-size in px in a component.",
+      "Don't use the compatibility aliases in index.css (--text, --text-h, --bg2, --shadow).",
+      "Don't put a rule between rows inside a sheet.",
+      "Don't strike through purchased items.",
+      "Don't show a price on an unpurchased item unless it is a real recorded figure, styled as a hint.",
+      "Don't round paper. Sheets are 2px.",
+      "Don't illustrate the paper metaphor — no torn edges, photographic texture, curled corners or stains.",
+      "Don't add a shadow between sections, rows or cards inside a screen.",
+      "Don't desaturate surfaces when applying the grayscale ink rule.",
+      "Don't derive dark mode with filter: invert().",
+      "Don't build a glossy consumer look: gradients, blobs, confetti, celebration on a checkmark.",
+      "Don't build an enterprise dashboard: dense sortable grids, sidebar nav, KPI tiles.",
+      "Don't style a store name as a brand — store names are user-entered data.",
+      "Don't ship feDisplacementMap text warping on the live list."
+    ]
+  }
+}
