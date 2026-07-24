@@ -553,12 +553,14 @@ Two sheets, procedurally creased, on a table.
   in the same relative place, which under scroll reads as a beat.
 
   A bigger tile does not fix this; it repeats less often, exactly. And 512px is
-  **smaller** than the visible sheet area on every target device — 531px on the
-  narrowest, 779px on a Pixel 10 — so between 1.0 and 1.5 whole periods are on
-  screen at once and the repeat is available to the eye in a single glance,
-  before any scrolling. The fix is to break *exact* repetition while keeping
-  O(1) cost: derive **2–4 seed-offset variants** at init and alternate them, so
-  no two adjacent tiles are bit-identical.
+  **smaller than the raw viewport** of both devices the Playwright config
+  targets — iPhone 17 at 681px tall, Pixel 10 at 732px — so even before
+  subtracting the 56px header and the sticky input bar, at least one whole tile
+  period is on screen, and after that chrome it is roughly 1.0–1.2 periods. The
+  repeat is available to the eye in a single glance, before any scrolling. The
+  fix is to break *exact* repetition while keeping O(1) cost: derive **2–4
+  seed-offset variants** at init and alternate them, so no two adjacent tiles
+  are bit-identical.
 
   Periodicity under scroll is **unverified** — no tile has been generated. Do
   not read the amplitude figures as settling it.
