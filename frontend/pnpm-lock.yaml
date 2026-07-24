@@ -40,6 +40,18 @@ importers:
       react-router-dom:
         specifier: ^7.13.2
         version: 7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      workbox-core:
+        specifier: ^7.4.1
+        version: 7.4.1
+      workbox-precaching:
+        specifier: ^7.4.1
+        version: 7.4.1
+      workbox-routing:
+        specifier: ^7.4.1
+        version: 7.4.1
+      workbox-strategies:
+        specifier: ^7.4.1
+        version: 7.4.1
     devDependencies:
       '@axe-core/playwright':
         specifier: ^4.11.3

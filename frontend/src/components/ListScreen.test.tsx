@@ -54,6 +54,14 @@ vi.mock('../hooks/useListItems')
 vi.mock('../hooks/useQueueDrain', () => ({
   useQueueDrain: vi.fn(() => ({ pendingCount: 0 })),
 }))
+// lib/push imports lib/firebase, which calls getAuth() at module scope and
+// throws auth/invalid-api-key without Firebase env vars -- as in CI, where a
+// local .env would otherwise hide it. Mock the module, not the env.
+vi.mock('../lib/firebase', () => ({
+  auth: {},
+  ai: {},
+  messagingPromise: Promise.resolve(null),
+}))
 vi.mock('../lib/api')
 vi.mock('../lib/receiptAi', () => ({ parseReceiptWithAi: vi.fn() }))
 vi.mock('./ListMembersSheet', () => ({
@@ -128,6 +136,9 @@ const emptyHookResult = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // useListSeen fires on mount and chains .catch on the result; the api
+  // automock would otherwise return undefined.
+  vi.mocked(api.markListSeen).mockResolvedValue(null)
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: {
       id: 'u1',

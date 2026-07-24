@@ -19,7 +19,11 @@ export const ALICE = {
   display_name: 'Alice (seed)',
   email: 'alice@seed.local',
   photo_url: null,
-  features: ['ai_receipt_scanning'] as string[],
+  // push_notifications defaults to true in the backend registry, so a real
+  // user's /me response carries it. Keep this list in step with the registry:
+  // omitting a default-on flag hides its UI from E2E and from the visual
+  // baselines, which then stop reflecting what production actually renders.
+  features: ['ai_receipt_scanning', 'push_notifications'] as string[],
 }
 
 export const SEED_LISTS: ApiList[] = [
@@ -289,6 +293,12 @@ export async function installApiMocks(page: Page): Promise<void> {
       // /lists/:id/due-suggestions
       if (sub === '/due-suggestions') return json([])
 
+      // /lists/:id/seen — the push unseen-count watermark reset. Fired by
+      // useListSeen on every list view, so without this the mock logs an
+      // unhandled request on each one.
+      if (sub === '/seen' && method === 'POST')
+        return route.fulfill({ status: 204, body: '' })
+
       // /lists/:id/receipt (backend fuzzy-match step)
       if (sub === '/receipt' && method === 'POST')
         return json(SEED_RECEIPT_RESULT)
@@ -428,6 +438,21 @@ export { expect }
 
 export const test = base.extend<object>({
   page: async ({ page }, provide) => {
+    // Headless Chromium hard-codes Notification.permission to 'denied', so
+    // without this every screenshot would show the dashboard's "you have
+    // blocked notifications" notice instead of the ordinary control.
+    // context.grantPermissions() does NOT fix it — verified: the value stays
+    // 'denied' whether granted for all origins or scoped to this one. Override
+    // the getter instead, which is consistent with a suite that already mocks
+    // the whole backend. The denied branch has unit coverage.
+    // Passed as source text, not a closure: this runs in the browser, but the
+    // test project is typechecked with lib ES2023 only, where `Notification`
+    // does not exist.
+    await page.addInitScript({
+      content:
+        "Object.defineProperty(Notification, 'permission', " +
+        "{ get: () => 'default', configurable: true })",
+    })
     await installApiMocks(page)
     await provide(page)
   },

@@ -18,6 +18,14 @@ vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../contexts/FeatureFlagsContext', () => ({
   useFeatureFlags: vi.fn(),
 }))
+// lib/push imports lib/firebase, which calls getAuth() at module scope and
+// throws auth/invalid-api-key without Firebase env vars -- as in CI, where a
+// local .env would otherwise hide it. Mock the module, not the env.
+vi.mock('../lib/firebase', () => ({
+  auth: {},
+  ai: {},
+  messagingPromise: Promise.resolve(null),
+}))
 vi.mock('../lib/api')
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>()
@@ -841,5 +849,72 @@ describe('DashboardScreen — offline', () => {
     const raw = localStorage.getItem('cqs_dashboard_cache_u1')
     expect(raw).not.toBeNull()
     localStorage.removeItem('cqs_dashboard_cache_u1')
+  })
+})
+
+describe('notifications toggle', () => {
+  beforeEach(() => {
+    // The shared setup disables every flag; this control is gated on one.
+    // Enable only that flag — a blanket `() => true` switches on unrelated
+    // features whose code paths this file does not mock.
+    vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
+      isEnabled: (flag: string) => flag === 'push_notifications',
+    })
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+  })
+
+  it('offers to enable notifications when permission has not been answered', async () => {
+    vi.stubGlobal('Notification', { permission: 'default' })
+
+    render(<DashboardScreen />)
+
+    expect(
+      await screen.findByRole('button', { name: /avisarme de cambios/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('switches to the blocked message when the user denies the prompt', async () => {
+    // The regression this guards: denying does not change isPushEnabled() --
+    // false before, false after -- so setPushOn is a same-value update and
+    // React may skip the re-render. Reading permission live in JSX would then
+    // leave the stale button on screen, which is the very state this control
+    // exists to avoid.
+    let permission = 'default'
+    vi.stubGlobal('Notification', {
+      get permission() {
+        return permission
+      },
+      requestPermission: vi.fn(async () => {
+        permission = 'denied'
+        return 'denied'
+      }),
+    })
+
+    render(<DashboardScreen />)
+    fireEvent.click(
+      await screen.findByRole('button', { name: /avisarme de cambios/i }),
+    )
+
+    expect(
+      await screen.findByText(/ajustes de tu navegador/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /avisarme de cambios/i }),
+    ).toBeNull()
+  })
+
+  it('explains how to unblock instead of offering a dead button when denied', async () => {
+    // Once denied, requestPermission() returns without prompting, so a button
+    // here would look broken: tapping it could never change anything.
+    vi.stubGlobal('Notification', { permission: 'denied' })
+
+    render(<DashboardScreen />)
+
+    expect(
+      await screen.findByText(/ajustes de tu navegador/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /avisarme de cambios/i }),
+    ).toBeNull()
   })
 })

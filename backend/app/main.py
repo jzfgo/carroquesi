@@ -14,6 +14,7 @@ from app.routers import (
     items,
     lists,
     members,
+    notifications,
     prices,
     receipt,
     share,
@@ -58,6 +59,8 @@ app.include_router(share.router)
 app.include_router(feedback.router)
 app.include_router(waitlist.router)
 app.include_router(shortcuts.router)
+app.include_router(notifications.router)
+app.include_router(notifications.list_seen_router)
 
 
 @app.get("/health")

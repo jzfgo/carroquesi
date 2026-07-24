@@ -75,6 +75,8 @@ export function InviteScreen() {
       setScreenState('accepting')
       try {
         const data = await acceptInvite(getToken, inviteId)
+        // Accepting an invite is sharing intent: enable notification priming.
+        localStorage.setItem('push-sharing-intent', '1')
         navigate(`/lists/${data.list_id}`)
       } catch (err) {
         setErrorMessage(
@@ -113,6 +115,8 @@ export function InviteScreen() {
     setScreenState('accepting')
     try {
       const data = await acceptInvite(getToken, inviteId)
+      // Accepting an invite is sharing intent: enable notification priming.
+      localStorage.setItem('push-sharing-intent', '1')
       navigate(`/lists/${data.list_id}`)
     } catch (err) {
       setErrorMessage(

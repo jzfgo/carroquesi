@@ -17,6 +17,7 @@ This file provides guidance to coding agents (such as Antigravity CLI, Claude Co
 
 - Data path: all CRUD goes through FastAPI + PostgreSQL (no Firestore)
 - Sync: frontend polls `GET /lists/{list_id}/updated-at` every 5s and re-fetches when timestamp changes
+- Notifications: Web Push via FCM, sent synchronously on item add and first purchase. This **complements** polling rather than replacing it — polling keeps an *open* app fresh, push reaches a *closed* one. Push is best-effort and unavailable on iOS without a home-screen install, so it can never be relied on as a sync mechanism. See [ADR-010](docs/decisions/010-web-push-via-fcm.md)
 
 ## Core Data Model
 
@@ -32,6 +33,7 @@ This file provides guidance to coding agents (such as Antigravity CLI, Claude Co
 - `feedback_submissions`: in-app user feedback (message, email, source, user_agent)
 - `waitlist_signups`: early-access waitlist (email, allowed_at, invite_token)
 - `user_features`: per-user feature flag overrides; `feature` must match a key in the flag registry in `backend/app/services/feature_flags.py`
+- `push_tokens`: FCM device tokens per user. **Token presence is the on/off state** — disabling notifications deletes the row, there is no `enabled` column
 
 Important invariants:
 
@@ -40,6 +42,9 @@ Important invariants:
 - keep derived `purchased: bool` in API responses for backward compatibility
 - invite acceptance is explicit before access is granted
 - at most one `list_members.is_default=true` per user; the Siri `"default"` resolver is explicit-only (no most-recently-updated fallback) and 404s when unset. Auto-assigned on a user's first list; never auto-promoted when a default list is deleted. Managed via `backend/app/services/default_list.py`. See [ADR-007](docs/decisions/007-per-user-default-list.md)
+- `list_members.last_seen_at` is the push unseen-count watermark. Reset it **only while the list is actually visible** (`POST /lists/{id}/seen`, called from `useListSeen`) — marking a backgrounded tab as seen silently defeats the feature. The count is *derived* from `list_items` at send time, never accumulated, so dropped or duplicate pushes cannot cause drift. See [ADR-010](docs/decisions/010-web-push-via-fcm.md)
+- push notifications fire on item creation and on `purchased_at` going `NULL` → set, and on nothing else. Un-purchasing is a correction and must stay silent
+- prune a push token only on a **typed** FCM verdict (`UnregisteredError`, `SenderIdMismatchError`), never on an error-message substring — a global misconfiguration would otherwise delete every token in the table
 
 ## Frontend
 
@@ -51,7 +56,13 @@ Prefer `just` from repo root (`just frontend` lists recipes).
 
 ### PWA
 
-PWA uses `vite-plugin-pwa`; service worker is active in dev (`devOptions.enabled: true`). `sw.js` is Workbox-generated and should not be edited manually.
+PWA uses `vite-plugin-pwa` with `strategies: 'injectManifest'`; the service worker is active in dev (`devOptions.enabled: true`, `type: 'module'`).
+
+The worker is **`frontend/src/sw.ts`** — real source, linted and typechecked via `tsconfig.worker.json` — not a generated artifact. It handles precaching, the backend `NetworkOnly` route, and Web Push (display + tap routing). It carries **no Firebase SDK**: `getToken({serviceWorkerRegistration})` subscribes it to standard Web Push, so data messages arrive as ordinary `push` events. `dist/sw.js` is build output; never edit it.
+
+Anything imported by `sw.ts` must stay DOM-free and WebWorker-safe, and must be listed in `tsconfig.worker.json`'s `include` (currently `sw.ts` and `lib/pushCopy.ts`).
+
+Leave `injectManifest.globPatterns` **unset**. The PWA icons and `manifest.webmanifest` are injected from `manifest.icons` via `includeManifestIcons`, not globbed — setting an explicit pattern triples the precache instead of protecting it. Diff the precache manifest before and after any worker config change; a successful build proves nothing. See [ADR-009](docs/decisions/009-single-service-worker.md).
 
 ### Dev auth bypass
 

@@ -1738,6 +1738,15 @@ SEED_FEATURES = [
         enabled=True,
         granted_by="admin",
     ),
+    # push_notifications defaults on, so the only override worth seeding is the
+    # off state — gives a dev the toggle-disabled path without a live grant.
+    UserFeature(
+        id="seed-feat-carol-push-off",
+        user_id=CAROL_ID,
+        feature="push_notifications",
+        enabled=False,
+        granted_by="admin",
+    ),
 ]
 
 

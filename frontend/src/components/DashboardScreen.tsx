@@ -12,9 +12,11 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import { Bell, BellOff } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
 import { useApplePlatform } from '../hooks/useApplePlatform'
 import { useIsOffline } from '../hooks/useIsOffline'
 import { usePageTitle } from '../hooks/usePageTitle'
@@ -33,6 +35,14 @@ import {
 } from '../lib/api'
 import { copyToClipboard } from '../lib/clipboard'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
+import { FLAGS } from '../lib/featureFlags'
+import {
+  canReceivePush,
+  disablePush,
+  enablePush,
+  isPushEnabled,
+  permissionState,
+} from '../lib/push'
 import type { ApiList } from '../types'
 import { ApiKeySheet } from './ApiKeySheet'
 import { CreateListCard } from './CreateListCard'
@@ -100,6 +110,14 @@ export function DashboardScreen() {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
+  const { isEnabled } = useFeatureFlags()
+  const [pushOn, setPushOn] = useState(() => isPushEnabled())
+  // Permission is held in state rather than read inline in JSX. A denial does
+  // not change isPushEnabled() -- it is false before and after -- so
+  // setPushOn alone is a same-value update, and React may skip the re-render
+  // that would reveal the blocked message. This value genuinely changes
+  // ('default' -> 'denied'), so it cannot hit that bailout.
+  const [permission, setPermission] = useState(() => permissionState())
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const isApplePlatform = useApplePlatform()
@@ -450,6 +468,41 @@ export function DashboardScreen() {
           isIOS={isIOS}
           promptInstall={promptInstall}
         />
+        {isEnabled(FLAGS.PUSH_NOTIFICATIONS) &&
+          canReceivePush({ isIOS, isInstalled }) &&
+          // Once permission is denied the browser will not re-prompt, so a
+          // button here would call requestPermission(), return immediately and
+          // change nothing — a control that looks broken. Explain the way out
+          // instead of offering a dead action.
+          (permission === 'denied' ? (
+            <p className="notifications-toggle notifications-toggle--blocked">
+              <span className="notifications-toggle__icon" aria-hidden="true">
+                <BellOff size={18} />
+              </span>
+              Has bloqueado los avisos. Actívalos en los ajustes de tu navegador
+              para volver a recibirlos.
+            </p>
+          ) : (
+            <button
+              className="notifications-toggle"
+              onClick={async () => {
+                // Reads back the real state rather than assuming success: the
+                // OS prompt can be denied, and on iOS that denial is permanent.
+                if (pushOn) await disablePush(getToken).catch(() => undefined)
+                else await enablePush(getToken).catch(() => undefined)
+                setPushOn(isPushEnabled())
+
+                setPermission(permissionState())
+              }}
+            >
+              <span className="notifications-toggle__icon" aria-hidden="true">
+                {pushOn ? <BellOff size={18} /> : <Bell size={18} />}
+              </span>
+              {pushOn
+                ? 'Desactivar avisos'
+                : 'Avisarme de cambios en mis listas'}
+            </button>
+          ))}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

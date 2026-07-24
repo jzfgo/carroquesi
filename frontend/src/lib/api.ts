@@ -142,6 +142,15 @@ export function getListUpdatedAt(
   return apiFetch(getToken, `/lists/${listId}/updated-at`)
 }
 
+/**
+ * Reset the caller's unseen watermark for this list, which is what the push
+ * notification change count is derived from. Explicit rather than a side effect
+ * of fetching items — see ADR-010.
+ */
+export function markListSeen(getToken: () => Promise<string>, listId: string) {
+  return apiFetch(getToken, `/lists/${listId}/seen`, { method: 'POST' })
+}
+
 export function createItem(
   getToken: () => Promise<string>,
   listId: string,
@@ -333,6 +342,31 @@ export function submitReceiptPrices(
     method: 'POST',
     body: JSON.stringify(batch),
   }) as Promise<{ items_updated: number; items_created: number }>
+}
+
+/**
+ * Register this device's FCM token. Idempotent: the backend upserts, so it is
+ * safe to call on every app start, which is what keeps rotated tokens current.
+ */
+export function registerPushToken(
+  getToken: () => Promise<string>,
+  token: string,
+) {
+  return apiFetch(getToken, '/notifications/tokens', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  })
+}
+
+/** Drop this device's token. Token presence is the on/off preference. */
+export function deletePushToken(
+  getToken: () => Promise<string>,
+  token: string,
+) {
+  return apiFetch(getToken, '/notifications/tokens', {
+    method: 'DELETE',
+    body: JSON.stringify({ token }),
+  })
 }
 
 export interface FeedbackPayload {
