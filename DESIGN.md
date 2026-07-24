@@ -257,15 +257,14 @@ aligned column and must stay aligned across rows; proportional digits break the
 column and the column is the point.
 
 **The Uppercase Tracking Rule.** All caps costs the word-shape cue people scan
-by, so tracking is added back — and more of it the smaller the type gets:
-`0.02em` on sans and mono at reading size, `0.045em` on the hand, `0.05em` on
-hand meta text, `0.1em` on the 12px label. Never set caps at default tracking.
-Negative tracking belongs to large lowercase type only — Display and Title,
-each at the value its own frontmatter entry carries — and never appears on
-caps. A negative value on an uppercase role is always a sign error, not a
-choice. The figures above are the prescription for caps, which no frontmatter
-entry covers; for the lowercase roles the frontmatter is the source of truth
-and this rule deliberately names no number.
+by, so tracking is always added back. Never set caps at default tracking. How
+much depends on the face as much as the size — the hand is tracked wider than
+the mono despite setting larger — so each role carries its own figure in its
+frontmatter entry and this rule names none of them. The single exception is
+hand meta text, which has no role of its own and takes `0.05em`. Negative
+tracking belongs to large lowercase type only, again at whatever value that
+role's entry carries, and never appears on caps: a negative value on an
+uppercase role is always a sign error, not a choice.
 
 **The Provisional Face Rule.** The hand face is not settled and an appearance
 section in settings is planned, so no face is hard-coded in a component. Type
@@ -352,8 +351,9 @@ pre-printed rule under a sheet title.
 
 ### Named Rules
 
-**The Cut-Edge Rule.** Anything representing paper gets `2px`. Anything
-representing interface gets the interface scale. Never mix them on one element.
+**The Cut-Edge Rule.** Anything representing paper gets the sheet radius
+(`--r-sheet`, `rounded.sheet`). Anything representing interface gets the
+interface scale. Never mix them on one element.
 
 ## Components
 
