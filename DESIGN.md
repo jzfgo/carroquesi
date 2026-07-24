@@ -435,7 +435,8 @@ contract, since no stylesheet enforces them.
 - **Style:** `--paper-1` ground, 1.5px `--border`, `14px` radius.
 - **Focus:** border becomes `--accent`; the ring is on the wrapper, not the input,
   so the whole control reads as focused.
-- **Placeholder:** `--ink-3`.
+- **Placeholder:** `--ink-2`. Not `--ink-3` — see *The Measured Ink Rule*; the
+  shipped components still use `--ink-3` and that is recorded as a defect.
 - **Error:** `--danger` text beneath, never colour alone.
 
 ### Navigation
@@ -514,8 +515,9 @@ Two sheets, procedurally creased, on a table.
   whitespace; a hairline per row cuts the crease into strips. The only line inside a sheet is the dashed rule under a pre-printed title.
 - **Don't** strike through purchased items.
 - **Don't** show a price on an unpurchased item unless it is a real recorded
-  figure, and then style it as a hint — smaller, italic, `--ink-3`, never bold —
-  so it cannot be mistaken for the receipt's actuals.
+  figure, and then style it as a hint — smaller, italic, `--ink-2`, never bold —
+  so it cannot be mistaken for the receipt's actuals. Size and slant carry the
+  distinction; contrast does not, because the hint is still meant to be read.
 - **Don't** round paper. Sheets are `2px`; a 14px corner turns paper into a card.
 - **Don't** illustrate the paper metaphor. No torn edges, no photographic paper
   texture, no curled corners, no coffee stains. The material lives in the
