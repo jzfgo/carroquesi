@@ -70,7 +70,21 @@ fi
 echo "Changed files:" >&2
 printf '%s\n' "$files" >&2
 
-match() { printf '%s\n' "$files" | grep -qE "$1"; }
+# grep distinguishes "no match" (exit 1) from "I failed" (exit 2+): a bad regex,
+# a missing binary, an unreadable locale. Collapsing those into "no match" would
+# make the one helper in this script fail CLOSED — every area resolves to false,
+# every job skips, and skipped jobs report success. The symptom would be a green
+# PR with nothing verified, which is the exact outcome the rest of this file is
+# built to prevent. So anything above 1 is treated as a match: the area runs.
+match() {
+  printf '%s\n' "$files" | grep -qE "$1"
+  rc=$?
+  if [ "$rc" -gt 1 ]; then
+    echo "grep failed (exit $rc) on pattern: $1 — treating as a match." >&2
+    return 0
+  fi
+  return "$rc"
+}
 
 if match "$SHARED"; then
   echo "Shared tooling touched — running all checks." >&2

@@ -12,29 +12,50 @@ and why the fail-open cases below matter more than the happy path.
 
 from __future__ import annotations
 
+import os
 import pathlib
 import shutil
 import subprocess
 import sys
+import tempfile
 
 SCRIPT = pathlib.Path(__file__).parent / "ci-changed-areas.sh"
 
 failures: list[str] = []
 
 
-def classify(files: list[str], *, shell: list[str] | None = None) -> dict[str, str]:
+def classify(
+    files: list[str],
+    *,
+    shell: list[str] | None = None,
+    broken_grep: bool = False,
+) -> dict[str, str]:
     """Run the classifier over `files` and parse its key=value stdout.
 
     `shell` defaults to invoking the script directly via its shebang, which is
     how CI runs it. Override it to check behaviour under a different invocation.
+
+    `broken_grep` puts a `grep` that exits 2 ahead of the real one on PATH, to
+    check the classifier fails open when its own tooling breaks.
     """
     cmd = [*shell, str(SCRIPT)] if shell else [str(SCRIPT)]
+    env = None
+    stub_dir = None
+    if broken_grep:
+        stub_dir = tempfile.mkdtemp()
+        stub = pathlib.Path(stub_dir) / "grep"
+        stub.write_text("#!/bin/sh\nexit 2\n")
+        stub.chmod(0o755)
+        env = {**os.environ, "PATH": f"{stub_dir}:{os.environ['PATH']}"}
     proc = subprocess.run(
         cmd,
         input="\n".join(files),
         capture_output=True,
         text=True,
+        env=env,
     )
+    if stub_dir:
+        shutil.rmtree(stub_dir, ignore_errors=True)
     if proc.returncode != 0:
         failures.append(f"{files!r}: exited {proc.returncode}\n{proc.stderr}")
     out = {}
@@ -94,6 +115,17 @@ check("a nested justfile", ["frontend/justfile"], (True, False, False))
 # checks report success — a PR merged with a green page and no verification.
 check("empty input", [], (True, True, True))
 check("blank lines only", ["", "  ", ""], (True, True, True))
+
+# The classifier's own tooling breaking must also fail open. grep exits 1 for
+# "no match" and 2+ for "I failed"; collapsing those made a frontend-only diff
+# resolve to all-false — every job skipped, every skip reported as success, a
+# green PR with nothing verified. Caught in review on PR #133.
+for label, shell in [("via shebang", None), ("under sh", ["sh"])]:
+    got = classify(["frontend/src/App.tsx"], shell=shell, broken_grep=True)
+    ok = got == {"frontend": "true", "backend": "true", "tooling": "true"}
+    if not ok:
+        failures.append(f"broken grep {label}: got {got}, want all true")
+    print(f"  {'ok  ' if ok else 'FAIL'} fail-open when grep itself fails ({label})")
 
 # ── Invocation environment ──────────────────────────────────────────────────
 # Two distinct failures live here, both of which have actually shipped.
