@@ -13,6 +13,7 @@ and why the fail-open cases below matter more than the happy path.
 from __future__ import annotations
 
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -95,16 +96,31 @@ check("empty input", [], (True, True, True))
 check("blank lines only", ["", "  ", ""], (True, True, True))
 
 # ── Invocation environment ──────────────────────────────────────────────────
-# GitHub runs `run:` steps as `bash -e`, and `set -u` does not clear an
-# inherited `-e`. A previous version of this logic lived inline in the workflow
-# and was silently running fail-CLOSED for exactly that reason, while a local
-# harness that used plain `bash -c` reported it healthy. Pin both invocations.
-for label, shell in [("under bash -e", ["bash", "-e"]), ("under sh", ["sh"])]:
+# Two distinct failures live here, both of which have actually shipped.
+#
+# 1. GitHub runs `run:` steps as `bash -e`, and `set -u` does not clear an
+#    inherited `-e`. An earlier version of this logic lived inline in the
+#    workflow and was silently running fail-CLOSED for exactly that reason,
+#    while a local harness using plain `bash -c` reported it healthy.
+#
+# 2. `sh` is not one shell. On macOS /bin/sh IS bash, so bashisms pass locally
+#    and fail on the CI runner where /bin/sh is dash. `${var//pat/}` shipped
+#    once and died there with "Bad substitution".
+#
+# So `sh` alone is not enough of a check on a Mac — run dash explicitly when it
+# is installed (`brew install dash`), which is what gives case 2 teeth locally.
+shells = [("bash -e", ["bash", "-e"]), ("sh", ["sh"])]
+if shutil.which("dash"):
+    shells.append(("dash", ["dash"]))
+else:
+    print("  note dash not installed — `brew install dash` to catch bashisms locally")
+
+for label, shell in shells:
     got = classify([], shell=shell)
     ok = got == {"frontend": "true", "backend": "true", "tooling": "true"}
     if not ok:
-        failures.append(f"fail-open {label}: got {got}")
-    print(f"  {'ok  ' if ok else 'FAIL'} fail-open {label}")
+        failures.append(f"fail-open under {label}: got {got}")
+    print(f"  {'ok  ' if ok else 'FAIL'} fail-open under {label}")
 
 print()
 if failures:

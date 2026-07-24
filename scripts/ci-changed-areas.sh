@@ -55,7 +55,13 @@ emit() {
 files=$(cat)
 
 # No input means we could not determine what changed — run everything.
-if [ -z "${files//[[:space:]]/}" ]; then
+#
+# The whitespace strip uses `tr` rather than `${files//[[:space:]]/}` on
+# purpose: pattern substitution is a bashism, and this script should not care
+# which shell invokes it. That distinction is invisible on macOS, where
+# /bin/sh IS bash — the dash-only failure appeared on the CI runner, caught by
+# the "fail-open under sh" case in test-ci-changed-areas.py. Keep that case.
+if [ -z "$(printf '%s' "$files" | tr -d '[:space:]')" ]; then
   echo "No changed files could be determined — running all checks." >&2
   emit true true true
   exit 0
