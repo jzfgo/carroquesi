@@ -50,7 +50,7 @@ typography:
     lineHeight: 1
     letterSpacing: "0.1em"
   hand:
-    fontFamily: "var(--font-written): Patrick Hand SC, Bradley Hand, cursive"
+    fontFamily: "Patrick Hand SC, Bradley Hand, cursive"
     fontSize: "18.9px"
     fontWeight: 700
     lineHeight: 1.25
@@ -60,7 +60,7 @@ typography:
     fontSize: "17.5px"
     fontWeight: 600
     lineHeight: 1.2
-    letterSpacing: "-0.02em"
+    letterSpacing: "0.02em"
 rounded:
   xs: "4px"
   sm: "6px"
@@ -240,7 +240,8 @@ voice would have to justify itself against those four.
 - **Label** (600, 12px, 0.1em, uppercase): eyebrows and section headers.
 - **Hand** (700, `calc(21px * var(--written-scale))`, 0.045em, uppercase):
   unpurchased item names.
-- **Data** (600, 17.5px, tabular): purchased item names, all prices, EANs, totals.
+- **Data** (600, 17.5px, 0.02em, uppercase, tabular): purchased item names, all
+  prices, EANs, totals.
 
 ### Named Rules
 
@@ -256,8 +257,12 @@ aligned column and must stay aligned across rows; proportional digits break the
 column and the column is the point.
 
 **The Uppercase Tracking Rule.** All caps costs the word-shape cue people scan
-by, so tracking is added back: `0.02em` for sans and mono, `0.045em` for the
-hand. Never set caps at default tracking.
+by, so tracking is added back — and more of it the smaller the type gets:
+`0.02em` on sans and mono at reading size, `0.045em` on the hand, `0.05em` on
+hand meta text, `0.1em` on the 12px label. Never set caps at default tracking.
+Negative tracking belongs to large lowercase type only — Display and Title set
+it to `-0.02em` — and never appears on caps. A negative value on an uppercase
+role is always a sign error, not a choice.
 
 **The Provisional Face Rule.** The hand face is not settled and an appearance
 section in settings is planned, so no face is hard-coded in a component. Type
