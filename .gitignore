@@ -19,6 +19,8 @@ skills-lock.json
 .impeccable/config.local.json
 .impeccable/hook.cache.json
 .impeccable/hook.pending.json
+# Live-mode session journals are local recovery state; the live config is shared.
+.impeccable/live/sessions/
 
 # Python
 __pycache__/
