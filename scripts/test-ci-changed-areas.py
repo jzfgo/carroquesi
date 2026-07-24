@@ -23,6 +23,10 @@ SCRIPT = pathlib.Path(__file__).parent / "ci-changed-areas.sh"
 
 failures: list[str] = []
 
+# stderr of the most recent classify() call, so a case can assert which branch
+# ran rather than only what came out of it.
+LAST_STDERR = ""
+
 
 def classify(
     files: list[str],
@@ -73,6 +77,8 @@ def classify(
     )
     if stub_dir:
         shutil.rmtree(stub_dir, ignore_errors=True)
+    global LAST_STDERR
+    LAST_STDERR = proc.stderr
     if proc.returncode != 0:
         failures.append(f"{files!r}: exited {proc.returncode}\n{proc.stderr}")
     out = {}
@@ -149,6 +155,24 @@ for mode in ("all", "per_area"):
         if not ok:
             failures.append(f"broken grep [{mode}] {label}: got {got}, want all true")
         print(f"  {'ok  ' if ok else 'FAIL'} fail-open when grep fails [{mode}] ({label})")
+
+# Assert the BRANCH, not just the answer. `per_area` distinguishes call sites by
+# a substring of the SHARED pattern; if SHARED is ever rewritten so that stops
+# matching, the stub silently degenerates into `all` — short-circuiting at SHARED
+# again and losing the per-area coverage, while the all-true assertion above
+# stays green and reports nothing. Counting the per-call diagnostics closes that:
+# three failures means all three per-area matches ran; the SHARED banner means
+# they didn't.
+classify(["frontend/src/App.tsx"], broken_grep="per_area")
+hits = LAST_STDERR.count("grep failed")
+shorted = "Shared tooling touched" in LAST_STDERR
+ok = hits == 3 and not shorted
+if not ok:
+    failures.append(
+        f"per_area did not reach the per-area branch: "
+        f"{hits} grep-failure lines (want 3), short-circuited={shorted}"
+    )
+print(f"  {'ok  ' if ok else 'FAIL'} per_area exercises the per-area branch, not SHARED")
 
 # ── Invocation environment ──────────────────────────────────────────────────
 # Two distinct failures live here, both of which have actually shipped.
