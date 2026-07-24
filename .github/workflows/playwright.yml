@@ -1,8 +1,43 @@
 name: Playwright Tests
 
+# ⚠️  This workflow uses a trigger-level `paths:` filter, which is only safe
+# because none of its checks are REQUIRED by the repository ruleset. A workflow
+# skipped by `paths:` never posts a status at all, so the moment "Playwright
+# Tests" becomes a required check this filter will deadlock every PR it skips.
+# To make it required, move the job into `ci.yml` behind the `changes` job and
+# add it to `CI gate`'s `needs:` — do not just tick the box in the ruleset.
+#
+# NOTE ON SCOPE — deliberately NOT triggered by `backend/**`.
+#
+# These specs never talk to a real backend. No FastAPI process or Postgres
+# service runs in this job; `tests/fixtures.ts` mocks every backend route with
+# frozen TypeScript literals typed against `src/types`. A Python change
+# therefore cannot fail them, and running the suite on backend PRs bought
+# confidence it was never in a position to provide. (The genuine gap that
+# leaves — backend response shapes drifting from those fixtures while the suite
+# stays green — needs a contract test, not a wider trigger.)
+
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/playwright.yml"
+      # Shared tooling, kept in step with the SHARED pattern in ci.yml's
+      # `changes` job. Over-running here is the safe direction; under-running
+      # skips the suite silently and still shows a green PR.
+      - "justfile"
+      - "lefthook.yml"
+      - "scripts/**"
+      - ".config/**"
+      - ".envrc"
+
+# Supersede in-flight runs for the same PR. This suite takes 3–5 minutes and
+# branches routinely push 5–10 times, so most runs were obsolete before they
+# finished.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:

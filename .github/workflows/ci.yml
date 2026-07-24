@@ -4,9 +4,82 @@ on:
   pull_request:
     branches: [main]
 
+# NOTE: deliberately NO top-level `paths:` filter here.
+#
+# A workflow skipped by a path filter never posts its checks at all, so any
+# required context it owns sits at "Expected — waiting for status" forever and
+# the PR can never merge. A JOB skipped by an `if:` condition posts SUCCESS.
+# That asymmetry is why the gating below lives on the jobs, not on the trigger.
+# https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks
+
+# Supersede in-flight runs for the same PR. Before this, a single branch could
+# rack up ten runs where only the last one mattered.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      hooks: ${{ steps.filter.outputs.hooks }}
+
+    steps:
+      - id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # No `set -e`. This step must FAIL OPEN: if it exits non-zero the
+          # dependent jobs are skipped, and a skipped job reports success — so
+          # failing closed here would wave a PR through with nothing verified.
+          # (`CI gate` catches that case too; this is belt and braces.)
+          set -uo pipefail
+
+          run_everything() {
+            echo "::notice::Could not classify the diff — running all checks."
+            printf 'frontend=true\nbackend=true\nhooks=true\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          # Ask GitHub for the file list rather than computing a merge base
+          # locally: this is exactly what the PR's Files tab shows, and it is
+          # immune to shallow clones, force pushes, and the synthesized merge
+          # commit that `pull_request` events check out (where HEAD~1 is the
+          # base branch, not the previous commit on the PR).
+          files=$(gh pr diff "$PR" --repo "$REPO" --name-only) || run_everything
+          [ -n "$files" ] || run_everything
+
+          echo "Changed files:"
+          printf '%s\n' "$files"
+
+          # Shared tooling can break either app, so it forces everything to run.
+          # Keep this list BROAD. A filter that is too narrow silently skips the
+          # one check that would have caught the change, and reports green while
+          # doing it — the failure is invisible, which is the worst kind.
+          SHARED='^(\.github/workflows/|justfile|lefthook\.yml|scripts/|\.config/|\.envrc)'
+
+          match() { printf '%s\n' "$files" | grep -qE "$1"; }
+
+          if match "$SHARED"; then
+            frontend=true; backend=true; hooks=true
+          else
+            if match '^frontend/';       then frontend=true; else frontend=false; fi
+            if match '^backend/';        then backend=true;  else backend=false;  fi
+            if match '^\.claude/hooks/'; then hooks=true;    else hooks=false;    fi
+          fi
+
+          printf 'frontend=%s\nbackend=%s\nhooks=%s\n' \
+            "$frontend" "$backend" "$hooks" | tee -a "$GITHUB_OUTPUT"
+
   frontend:
     name: Frontend (typecheck + lint + format + test)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -42,6 +115,8 @@ jobs:
 
   backend:
     name: Backend (lint + format + tests)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -69,6 +144,8 @@ jobs:
 
   hooks:
     name: Agent guardrail hooks
+    needs: changes
+    if: needs.changes.outputs.hooks == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -78,3 +155,30 @@ jobs:
       # tooling and must run on a bare checkout with only system python3.
       - name: Test hooks
         run: python3 .claude/hooks/test_hooks.py
+
+  # The single required status check. Every job above is free to be renamed,
+  # split, or skipped without touching the repository ruleset.
+  #
+  # `if: always()` is what makes this correct rather than decorative — without
+  # it, an upstream failure would skip this job, and a skipped required check
+  # reports SUCCESS. With it, `changes` blowing up fails the gate instead of
+  # silently waving the PR through.
+  ci-gate:
+    name: CI gate
+    needs: [changes, frontend, backend, hooks]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Verify no upstream job failed
+        run: |
+          set -uo pipefail
+          results='${{ join(needs.*.result, ' ') }}'
+          echo "Upstream results: $results"
+          for r in $results; do
+            case "$r" in
+              success|skipped) ;;
+              *) echo "::error::An upstream CI job reported '$r'"; exit 1 ;;
+            esac
+          done
+          echo "All upstream jobs succeeded or were skipped."
