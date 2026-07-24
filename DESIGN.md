@@ -514,7 +514,13 @@ Two sheets, procedurally creased, on a table.
   jittered grid must wrap toroidally with ghost points across each edge, and
   the value noise must be periodic at the tile size. 512 ÷ 16 = 32 cells
   exactly, so the lattice divides cleanly; keep that true if either number
-  moves.
+  moves. The **lighting needs no separate wrap**: the lamp is one fixed
+  direction (`[-0.45, -0.72, 0.53]`), a global constant, so a facet's tone is a
+  pure function of its normal and nothing in the pipeline reads absolute canvas
+  position. Wrapping the grid and the noise therefore wraps the shading for
+  free — but that only holds while it stays true, so anything position-keyed
+  (a vignette, ambient occlusion, a gradient overlay) would break the seam and
+  must not be added to the canvas.
 
   The list stays fully procedural. At 500 items it is 1,248 vertices — it
   never had the problem, it is the sheet a long fold reads across, and it
@@ -528,11 +534,34 @@ Two sheets, procedurally creased, on a table.
   cost from the tap onto scroll.
 
   The tile is generated at runtime from seed `62`, not shipped as an image, so
-  the sheet remains reproducible from parameters. The cost of tiling is
-  periodicity — ~19 repeats down a 200-item receipt. Amplitude is an absolute
-  ±10 RGB delta in light, 7.8% of range peak-to-peak, which is near the floor
-  of what repetition makes visible. **Dark is ±20, twice that, and is where
-  tiling will show first** — judge it there, not in light.
+  the sheet remains reproducible from parameters.
+
+  **Both sheets must share one height function and one noise function.** Tiling
+  the receipt and not the list means two generation paths off the same
+  parameters, and an algorithmic divergence between them — a third octave added
+  on one side, a different relief curve — would not show up as a diff anyone
+  can eyeball. They are the same paper in different stock; the only thing that
+  may differ between the paths is periodicity.
+
+  **Repetition, not contrast, is the risk — and amplitude does not answer it.**
+  Amplitude is an absolute ±10 RGB delta in light (7.8% of range peak-to-peak)
+  and ±20 in dark (15.7%), and the receipt's multiply veil damps it a further
+  10%. That settles whether a *single* facet's shading is perceptible. It says
+  nothing about whether a *repeat* is, and those are separate thresholds: the
+  eye is far more sensitive to periodic recurrence than to isolated local
+  contrast, and one fixed-direction lamp means every tile catches its highlight
+  in the same relative place, which under scroll reads as a beat.
+
+  A bigger tile does not fix this; it repeats less often, exactly. And 512px is
+  **smaller** than the visible sheet area on every target device — 531px on the
+  narrowest, 779px on a Pixel 10 — so between 1.0 and 1.5 whole periods are on
+  screen at once and the repeat is available to the eye in a single glance,
+  before any scrolling. The fix is to break *exact* repetition while keeping
+  O(1) cost: derive **2–4 seed-offset variants** at init and alternate them, so
+  no two adjacent tiles are bit-identical.
+
+  Periodicity under scroll is **unverified** — no tile has been generated. Do
+  not read the amplitude figures as settling it.
 
   Note the `feDisplacementMap` rejection below was reasoned the same way and
   got the per-frame cost right, while this one-off cost went unsized on the
@@ -611,7 +640,8 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 | Hit-target tokens | Partial — `--hit-min` used 4× in 2 files; `--hit-tap`, `--hit-sheet` unused, their values written as literals | `colorsAndType.css` |
 | Table, cast/rim, crease geometry, `--font-written` tokens | **Shipping** (added with this file, unused so far) | `colorsAndType.css` |
 | Two sheets with per-grammage crease, veil, rim light | To build | `.impeccable/design.json` → `extensions.paper` |
-| Seamless-tiled receipt crease, procedural list crease | To build — **unmeasured**; the prototype only rendered short sheets, so the 200-item figures are arithmetic, not observation, and no tile has been generated yet | `extensions.paper.tiling` |
+| Seamless-tiled receipt crease, procedural list crease | To build — **unmeasured**; the 200-item figures are arithmetic, not observation, and no tile has been generated | `extensions.paper.tiling` |
+| Tile periodicity under scroll | **Unverified risk** — amplitude does not settle it; needs 2–4 seed-offset variants and a look on a real device | `extensions.paper.tiling.risk` |
 | Instruction vs. outcome row anatomy | To build | *Components → Item Row* |
 | Removal of the strikethrough on purchased items | To build | *Do's and Don'ts* |
 | Pre-printed serif sheet titles | To build | *Components → Pre-printed Sheet Title* |
