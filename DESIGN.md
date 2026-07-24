@@ -500,24 +500,43 @@ Two sheets, procedurally creased, on a table.
   survives — and multiply is what a cast shadow physically is.
 - **Scope:** one canvas per sheet, never per row. Deterministic from a seed
   (currently `62`), so a sheet is reproducible from parameters, not an asset.
-- **The crease must be bounded by the viewport, not the sheet.** This is the
-  one place the paper metaphor collides with the product. The receipt's 16px
-  facets are five times finer than the list's 80px, and the receipt is the
-  sheet that *grows* — every purchase lengthens it. At a phone width of 380px
-  the vertex count runs roughly 1,400 at 20 items, 4,300 at 60, and **14,400 at
-  200**, against the list's ~500 at the same length. So the sheet's height must
-  never be an input to the triangulation. Generate against the visible window at
-  an absolute grid origin — absolute, so a windowed canvas produces the same
-  facets as an unwindowed one and the crease does not swim while scrolling —
-  and the cost stays flat in item count.
+- **The receipt tiles; the list does not.** This is the one place the paper
+  metaphor collides with the product, and the two sheets resolve it
+  differently because they sit at opposite ends of every relevant axis.
 
-  The failure this avoids is specific: regeneration keyed to sheet height would
-  put its worst frame on the tap that marks an item purchased, one-handed, in
-  an aisle, and would degrade as the shop goes *better*. That is the scene
-  *The Aisle Wins The Tie Rule* names as the one to design for. Note the
-  `feDisplacementMap` rejection below was reasoned the same way and reached the
-  right answer for the per-frame cost, while this one-off cost went unsized —
-  the discipline was applied to the smaller risk.
+  The receipt's 16px facets are five times finer than the list's 80px, and the
+  receipt is the sheet that *grows* — every purchase lengthens it. Keyed to
+  sheet height at a 380px phone width, its vertex count runs ~1,400 at 20
+  items, ~4,300 at 60 and **~14,400 at 200**. So the receipt's crease is a
+  **seamless tile, generated once from the seed and repeated**: 512px square,
+  1,024 vertices, paid once no matter how long the shop runs. Seamlessness is
+  a real constraint on the generator, not a filter applied afterwards — the
+  jittered grid must wrap toroidally with ghost points across each edge, and
+  the value noise must be periodic at the tile size. 512 ÷ 16 = 32 cells
+  exactly, so the lattice divides cleanly; keep that true if either number
+  moves.
+
+  The list stays fully procedural. At 500 items it is 1,248 vertices — it
+  never had the problem, it is the sheet a long fold reads across, and it
+  carries no veil, so tile repetition would show there first.
+
+  Two things this deliberately does **not** do. It does not key generation to
+  sheet height: that puts the worst frame on the tap marking an item
+  purchased, one-handed, in an aisle, and degrades as the shop goes *better* —
+  the scene *The Aisle Wins The Tie Rule* names as the one to design for. And
+  it does not window generation to the viewport, which only moves the same
+  cost from the tap onto scroll.
+
+  The tile is generated at runtime from seed `62`, not shipped as an image, so
+  the sheet remains reproducible from parameters. The cost of tiling is
+  periodicity — ~19 repeats down a 200-item receipt. Amplitude is an absolute
+  ±10 RGB delta in light, 7.8% of range peak-to-peak, which is near the floor
+  of what repetition makes visible. **Dark is ±20, twice that, and is where
+  tiling will show first** — judge it there, not in light.
+
+  Note the `feDisplacementMap` rejection below was reasoned the same way and
+  got the per-frame cost right, while this one-off cost went unsized on the
+  finer-faceted sheet. The discipline was applied to the smaller risk.
 
 ## Do's and Don'ts
 
@@ -592,7 +611,7 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 | Hit-target tokens | Partial — `--hit-min` used 4× in 2 files; `--hit-tap`, `--hit-sheet` unused, their values written as literals | `colorsAndType.css` |
 | Table, cast/rim, crease geometry, `--font-written` tokens | **Shipping** (added with this file, unused so far) | `colorsAndType.css` |
 | Two sheets with per-grammage crease, veil, rim light | To build | `.impeccable/design.json` → `extensions.paper` |
-| Viewport-bounded crease generation | To build — **unmeasured**; the prototype only ever rendered a short sheet, so the 200-item figures are arithmetic, not observation | `extensions.paper.bounding` |
+| Seamless-tiled receipt crease, procedural list crease | To build — **unmeasured**; the prototype only rendered short sheets, so the 200-item figures are arithmetic, not observation, and no tile has been generated yet | `extensions.paper.tiling` |
 | Instruction vs. outcome row anatomy | To build | *Components → Item Row* |
 | Removal of the strikethrough on purchased items | To build | *Do's and Don'ts* |
 | Pre-printed serif sheet titles | To build | *Components → Pre-printed Sheet Title* |

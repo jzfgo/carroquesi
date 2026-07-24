@@ -123,7 +123,13 @@
       "amplitude": { "light": 10, "dark": 20, "unit": "absolute RGB delta", "why": "A multiplier yields no usable range on a near-black paper." },
       "veil": { "mode": "multiply", "color": "rgb(230,230,230)", "brightness": "90%", "why": "Multiply scales the crease instead of replacing it, so contrast survives — and multiply is what a cast shadow physically is." },
       "scope": "One canvas per sheet, never per row. The canvas covers the sheet including its header.",
-      "bounding": "Generate against the visible window at an absolute grid origin, never against sheet height. The receipt uses 16px facets and grows with every purchase: at 380px wide the vertex count runs ~1400 at 20 items, ~4300 at 60, ~14400 at 200, against the list's ~500. Absolute origin so a windowed canvas matches an unwindowed one and the crease does not swim while scrolling. Keyed to sheet height, the worst frame lands on the purchase tap and degrades as the shop goes better.",
+      "tiling": {
+        "receipt": { "mode": "seamless-tile", "tilePx": 512, "verts": 1024, "why": "Receipt grows with every purchase; keyed to height it is ~14400 verts at 200 items. Tile is generated once from the seed and repeated." },
+        "list": { "mode": "procedural-full-sheet", "verts@500items": 1248, "why": "Never had the cost problem, carries no veil, and a long fold reads across it. Tiling would show here first." },
+        "constraint": "Tile must wrap toroidally: ghost points across each edge of the jittered grid, value noise periodic at the tile size. 512/16 = 32 cells exactly; keep that divisible if either number moves.",
+        "rejected": "Viewport-windowed generation - constant cost, but moves it from the purchase tap onto scroll.",
+        "risk": "Periodicity, ~19 repeats down a 200-item receipt. Amplitude is +/-10 absolute RGB in light (7.8% peak-to-peak, near the visibility floor) but +/-20 in dark (15.7%). Judge tiling in dark mode."
+      },
       "rejected": "feDisplacementMap text warping via a facet normal map. Implemented and working (blur the map first or glyphs tear at facet edges), ~24ms to generate, but the filter re-evaluates on every paint and the list scrolls, polls and animates."
     },
     "layout": {
