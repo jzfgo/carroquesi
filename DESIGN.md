@@ -278,7 +278,10 @@ voice would have to justify itself against those four.
 - **Display** (400, 56px, 1.15): sign-in and waitlist screens only.
 - **Headline** (400, 26px, 1.15): screen titles in the list header and dashboard.
 - **Title** (600, 24px, 1.3): section titles inside sheets.
-- **Body** (400, 16px, 1.5): the default. 15px is the floor for touch-readable text.
+- **Body** (400, 16px, 1.5): the default. 15px is the floor for **content** text —
+  anything a person reads to decide something. Labels, meta lines and secondary
+  figures go smaller by design and are governed by contrast instead (see *The
+  Measured Ink Rule*); the floor is not a blanket minimum.
 - **Label** (600, 12px, 0.1em, uppercase): eyebrows and section headers.
 - **Hand** (700, `calc(21px * var(--written-scale))`, 0.045em, uppercase):
   unpurchased item names.
@@ -293,10 +296,15 @@ reaches that at **17.5px**. Setting both to the same number leaves the receipt a
 third too small. Any new face pairing is calibrated the same way, with a
 per-face optical scale factor rather than a shared size.
 
-**The Tabular Numerals Rule.** Every figure — price, quantity, total, EAN — is
-`font-variant-numeric: tabular-nums` in JetBrains Mono. Amounts sit in a right
-aligned column and must stay aligned across rows; proportional digits break the
-column and the column is the point.
+**The Tabular Numerals Rule.** Every figure in the **amount column** — price,
+unit price, total — plus every EAN is `font-variant-numeric: tabular-nums` in
+JetBrains Mono. Amounts must stay aligned across rows; proportional digits break
+the column and the column is the point.
+
+The exception is the quantity on an unpurchased line. It sits inline in the meta
+row, not in the column, and it is something the household *wrote* — so it takes
+the hand face with the rest of that line. Alignment is not a property an inline
+figure has, so there is nothing for tabular numerals to buy there.
 
 **The Uppercase Tracking Rule.** All caps costs the word-shape cue people scan
 by, so tracking is always added back. Never set caps at default tracking. How
@@ -370,8 +378,11 @@ separate physical objects, so each casts a real shadow — onto the **table**, n
 onto each other. They lie at the same elevation, side by side. The thicker list
 stock casts slightly deeper (`0 1px 1.5px`, `0 4px 9px -4px`) than the thin till
 roll (`0 1px 1px`, `0 2px 5px -3px`), and the receipt carries a **1.5px** rim
-light on its cut edge to suggest thickness — 58% white over the first pixel, 22%
-over the remaining half, then nothing. The falloff is the point: a flat band
+light on its cut edge to suggest thickness — `--lip` over the first pixel,
+`--lip-soft` over the remaining half, then nothing. Both are per-theme and much
+weaker in dark, where a bright lip on graphite reads as a glowing seam rather
+than a cut edge; take the values from the tokens, never from here. The falloff
+is the point: a flat band
 reads as a drawn line rather than a lit edge, and thin stock cannot support a
 thick highlight. Do not round this to 2px to match `--r-sheet`; the rim and the
 sheet radius are unrelated geometry that happen to sit near the same number.
@@ -520,9 +531,14 @@ Two sheets, procedurally creased, on a table.
   whitespace; a hairline per row cuts the crease into strips. The only line inside a sheet is the dashed rule under a pre-printed title.
 - **Don't** strike through purchased items.
 - **Don't** show a price on an unpurchased item unless it is a real recorded
-  figure, and then style it as a hint — smaller, italic, `--ink-2`, never bold —
-  so it cannot be mistaken for the receipt's actuals. Size and slant carry the
-  distinction; contrast does not, because the hint is still meant to be read.
+  figure, and then style it as a hint: the **Data** face at `--fs-12`, `--ink-2`,
+  never bold, in the amount column. It is a recorded figure, so it is printed
+  matter and takes the mono face and tabular numerals like every other figure in
+  that column. What separates it from a receipt actual is the sheet it is on, its
+  size, and its lighter ink — **not** slant. No family in this system loads an
+  italic face, so `font-style: italic` is synthesized oblique; on the hand face
+  that shears an already-slanted script into something that reads as broken.
+  Never use italic to carry meaning here.
 - **Don't** round paper. Sheets are `2px`; a 14px corner turns paper into a card.
 - **Don't** illustrate the paper metaphor. No torn edges, no photographic paper
   texture, no curled corners, no coffee stains. The material lives in the
@@ -562,6 +578,7 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 | Grayscale ink on both sheets | To build | *Colors → The Grayscale Ink Rule* |
 | Smart Input add/scan buttons at `--hit-min` | To build — currently 36px | `SmartInputBar.css` |
 | Placeholder contrast (WCAG 1.4.3) | **To fix — live failure**, `--ink-3` at 2.60 / 3.55 | `CreateListCard.css`, `SmartInputBar.css` |
+| Component sample sizes mapped to the `--fs-*` scale | To build — samples carry tuned raw values (11px, 12.5px, 13.5px) with no scale step | `.impeccable/design.json` → `components` |
 | Semantic type classes (`.t-*`) adopted by components | To build — 13 defined, 0 used | `colorsAndType.css` |
 | Legacy alias removal | Partial — `--text` (5, in `ItemCard.css`/`ItemList.css`) and `--text-h` (3, in `ItemCard.css` plus `index.css`'s own `h1, h2` and `code` base rules, so it styles headings app-wide) are still live; `--bg2`, `--shadow`, `--sans`, `--heading` are already dead and can be deleted today | `index.css` |
 

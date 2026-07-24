@@ -74,7 +74,7 @@
     "typographyMeta": {
       "display": { "displayName": "Display", "purpose": "Sign-in and waitlist screens only." },
       "headline": { "displayName": "Headline", "purpose": "Screen titles in list header and dashboard." },
-      "body": { "displayName": "Body", "purpose": "Default UI text. 15px is the touch-readable floor." },
+      "body": { "displayName": "Body", "purpose": "Default UI text. 15px is the floor for content text; labels, meta and secondary figures go smaller by design and are governed by contrast instead." },
       "label": { "displayName": "Label", "purpose": "Uppercase eyebrows and section headers." },
       "hand": {
         "displayName": "Hand",
