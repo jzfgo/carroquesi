@@ -226,6 +226,30 @@ It is delivered by `@media (prefers-color-scheme: dark)` plus `.theme-light` /
 `<body>`. Every colour above has a hand-picked dark counterpart in
 `colorsAndType.css`; never derive one with `filter: invert()`.
 
+**The Measured Ink Rule.** The ink ramp is contrast-tested against
+`--paper-0`, not assumed, and only the top three steps carry text. Measured
+against WCAG's 4.5:1 floor:
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `--ink-0` | 15.95 | 15.86 | Item names, headings |
+| `--ink-1` | 10.43 | 11.00 | Body, amounts, secondary |
+| `--ink-2` | 4.54 | 5.84 | Meta text — clears the floor by 0.04 in light; do not darken the paper beneath it |
+| `--ink-3` | **2.60** | **3.55** | **Below AA in both themes. Never live text** |
+
+Anything a person is meant to read stops at `--ink-2`. `--ink-3` has exactly two
+consumers today, both `::placeholder` (`CreateListCard.css`, `SmartInputBar.css`).
+That is not a settled exemption: WCAG exempts inactive components and incidental
+text, and placeholder text is neither — it carries information. Treat it as an
+open accessibility question, not a resolved one.
+
+Two consequences follow. `--ink-2` is a hard floor, not a starting point — the
+0.04 of headroom means any future darkening of `--paper-0`, or any lightening
+of `--ink-2`, drops meta text below AA with nothing to catch it. And moving the
+purchased amount from `--verde-0` to `--ink-1` under the Grayscale Ink Rule
+raised it from 4.63 to 10.43; the grayscale decision is an accessibility gain,
+not a cost.
+
 ## Typography
 
 **Display Font:** Bree Serif (with Georgia, serif)
