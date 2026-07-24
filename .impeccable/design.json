@@ -45,7 +45,7 @@
         "displayName": "BIC Pen Blue",
         "canonical": "#1a3fa0",
         "dark": "#91a8ff",
-        "note": "Named after the ballpoint it came from. Resolves to an ink inside lists under the grayscale rule; applies in full outside them.",
+        "note": "Named after the ballpoint it came from. Resolves to an ink on either sheet under the grayscale rule; applies in full outside them.",
         "tonalRamp": ["#0a1a45", "#12296b", "#1a3fa0", "#2c56c1", "#5478d6", "#8ba4e8", "#b8c6f2", "#e0e7fb"]
       },
       "verde-0": {
@@ -190,12 +190,12 @@
   ],
   "narrative": {
     "northStar": "El Ticket",
-    "overview": "El ticket is what a receipt is called in Spain, and it is the whole idea. This is not a shopping-list app that happens to store prices; it is a list that becomes a receipt as you shop. Before the shop, a line is an instruction — six of these, that brand, that shop. After the shop, the same line is a record — what was actually bought, what it actually cost. Two different documents, so two different sheets of paper, in two different hands.\n\nThat resolves what the interface is made of. You write the list; the till prints the receipt. So the list is set in a handwriting face in block capitals, and the receipt in monospace, also in capitals — the same case arrived at from two unrelated causes, which is exactly why the two can share it without the distinction collapsing. Both sheets carry their titles in the app's serif, because on real stock the header is pre-printed before anything is written on it.\n\nThe palette is cool blue-grey paper and near-black ink, on a warm wooden table. Within a list, ink is grayscale: the two hands already carry the state, so colour has nothing left to do there. The world is deliberately physical — procedurally creased paper, cast shadows, a rim-lit cut edge — but never illustrated.",
+    "overview": "El ticket is what a receipt is called in Spain, and it is the whole idea. This is not a shopping-list app that happens to store prices; it is a list that becomes a receipt as you shop. Before the shop, a line is an instruction — six of these, that brand, that shop. After the shop, the same line is a record — what was actually bought, what it actually cost. Two different documents, so two different sheets of paper, in two different hands.\n\nThat resolves what the interface is made of. You write the list; the till prints the receipt. So the list is set in a handwriting face in block capitals, and the receipt in monospace, also in capitals — the same case arrived at from two unrelated causes, which is exactly why the two can share it without the distinction collapsing. Both sheets carry their titles in the app's serif, because on real stock the header is pre-printed before anything is written on it.\n\nThe palette is cool blue-grey paper and near-black ink, on a warm wooden table. On either sheet, ink is grayscale: the two hands already carry the state, so colour has nothing left to do there. The world is deliberately physical — procedurally creased paper, cast shadows, a rim-lit cut edge — but never illustrated.",
     "keyCharacteristics": [
       "Two sheets of different grammage, lying at the same level on a table",
       "Zero rules inside a sheet; whitespace and an aligned numeric column separate",
       "Handwriting for intent, monospace for record, serif for pre-printed",
-      "Grayscale ink inside lists; the table is the only warm thing in frame",
+      "Grayscale ink on both sheets; the table is the only warm thing in frame",
       "Flat by default — depth is for objects that are genuinely separate",
       "Amounts sit in one right-aligned tabular column in both states; only their truth-value changes"
     ],

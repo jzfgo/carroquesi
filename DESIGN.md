@@ -149,7 +149,7 @@ the distinction collapsing. Both sheets carry their titles in the app's serif,
 because on real stock the header is pre-printed before anything is written on it.
 
 The palette is cool blue-grey paper and near-black ink, on a warm wooden table.
-Within a list, ink is **grayscale**: the two hands already carry the state, so
+On either sheet, ink is **grayscale**: the two hands already carry the state, so
 colour has nothing left to do there. The world is deliberately physical —
 procedurally creased paper, cast shadows, a rim-lit cut edge — but never
 illustrated. There is no drawn torn edge, no paper photograph, no curled corner.
@@ -160,7 +160,7 @@ The material lives in the palette, the geometry and the light.
 - Two sheets of different grammage, lying at the same level on a table
 - Zero rules inside a sheet; whitespace and an aligned numeric column separate
 - Handwriting for intent, monospace for record, serif for pre-printed
-- Grayscale ink inside lists; the table is the only warm thing in frame
+- Grayscale ink on both sheets; the table is the only warm thing in frame
 - Flat by default — depth is for objects that are genuinely separate
 - Amounts sit in one right-aligned tabular column in both states; only their
   truth-value changes
@@ -198,7 +198,9 @@ Semantic only, never decorative:
 - **Hover Paper** (`#d5dae2`): pointer feedback only.
 - **Paper Edge** (`#b4bac4`): borders and dividers outside a sheet.
 - **Pencil Black** (`#15161b`) → **Secondary** (`#353742`) → **Muted**
-  (`#6a6d7a`) → **Placeholder** (`#94969f`): the ink ramp.
+  (`#6a6d7a`) → **Non-text** (`#94969f`): the ink ramp. The fourth step is named
+  for what it may *not* do — see *The Measured Ink Rule*. Only the first three
+  carry text.
 
 ### Named Rules
 
@@ -550,7 +552,7 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 | Instruction vs. outcome row anatomy | To build | *Components → Item Row* |
 | Removal of the strikethrough on purchased items | To build | *Do's and Don'ts* |
 | Pre-printed serif sheet titles | To build | *Components → Pre-printed Sheet Title* |
-| Grayscale ink inside lists | To build | *Colors → The Grayscale Ink Rule* |
+| Grayscale ink on both sheets | To build | *Colors → The Grayscale Ink Rule* |
 | Smart Input add/scan buttons at `--hit-min` | To build — currently 36px | `SmartInputBar.css` |
 | Placeholder contrast (WCAG 1.4.3) | **To fix — live failure**, `--ink-3` at 2.60 / 3.55 | `CreateListCard.css`, `SmartInputBar.css` |
 | Semantic type classes (`.t-*`) adopted by components | To build — 13 defined, 0 used | `colorsAndType.css` |
