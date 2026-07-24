@@ -238,10 +238,19 @@ against WCAG's 4.5:1 floor:
 | `--ink-3` | **2.60** | **3.55** | **Below AA in both themes. Never live text** |
 
 Anything a person is meant to read stops at `--ink-2`. `--ink-3` has exactly two
-consumers today, both `::placeholder` (`CreateListCard.css`, `SmartInputBar.css`).
-That is not a settled exemption: WCAG exempts inactive components and incidental
-text, and placeholder text is neither — it carries information. Treat it as an
-open accessibility question, not a resolved one.
+consumers today, both `::placeholder` (`CreateListCard.css`, `SmartInputBar.css`),
+and **both fail SC 1.4.3**. This is not a grey area — the Understanding document
+for 1.4.3 addresses it by name: *"This success criterion applies to text in the
+page, including placeholder text… the text needs to provide sufficient
+contrast."* The incidental exception covers inactive components, pure decoration
+and invisible text; a placeholder is none of those.
+
+The fix is constrained in a way worth knowing before attempting it. Holding
+`--ink-3`'s hue, the lightest value that reaches 4.5:1 is `#6c6d74` in light and
+`#7a7e87` in dark — the first is `--ink-2` to within a shade. **There is no
+compliant fourth text step in this ramp.** So the resolution is not a new colour:
+either placeholders take `--ink-2`, or the design stops asking placeholder text
+to carry information a person needs.
 
 Two consequences follow. `--ink-2` is a hard floor, not a starting point — the
 0.04 of headroom means any future darkening of `--paper-0`, or any lightening
@@ -543,6 +552,7 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 | Pre-printed serif sheet titles | To build | *Components → Pre-printed Sheet Title* |
 | Grayscale ink inside lists | To build | *Colors → The Grayscale Ink Rule* |
 | Smart Input add/scan buttons at `--hit-min` | To build — currently 36px | `SmartInputBar.css` |
+| Placeholder contrast (WCAG 1.4.3) | **To fix — live failure**, `--ink-3` at 2.60 / 3.55 | `CreateListCard.css`, `SmartInputBar.css` |
 | Semantic type classes (`.t-*`) adopted by components | To build — 13 defined, 0 used | `colorsAndType.css` |
 | Legacy alias removal | Partial — `--text` (5, in `ItemCard.css`/`ItemList.css`) and `--text-h` (3, in `ItemCard.css` plus `index.css`'s own `h1, h2` and `code` base rules, so it styles headings app-wide) are still live; `--bg2`, `--shadow`, `--sans`, `--heading` are already dead and can be deleted today | `index.css` |
 
