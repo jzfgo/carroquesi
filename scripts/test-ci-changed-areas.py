@@ -28,15 +28,23 @@ def classify(
     files: list[str],
     *,
     shell: list[str] | None = None,
-    broken_grep: bool = False,
+    broken_grep: str | None = None,
 ) -> dict[str, str]:
     """Run the classifier over `files` and parse its key=value stdout.
 
     `shell` defaults to invoking the script directly via its shebang, which is
     how CI runs it. Override it to check behaviour under a different invocation.
 
-    `broken_grep` puts a `grep` that exits 2 ahead of the real one on PATH, to
-    check the classifier fails open when its own tooling breaks.
+    `broken_grep` puts a failing `grep` ahead of the real one on PATH, to check
+    the classifier fails open when its own tooling breaks:
+
+      "all"      — every invocation exits 2. Short-circuits via the SHARED
+                   check, which is the first call site.
+      "per_area" — SHARED reports a clean "no match" (exit 1) and only the
+                   per-area patterns exit 2, so the failure is exercised at the
+                   per-area call sites instead. Both paths are worth pinning:
+                   they share one `match()` today, but a future split would
+                   leave "all" passing while the per-area path regressed.
     """
     cmd = [*shell, str(SCRIPT)] if shell else [str(SCRIPT)]
     env = None
@@ -44,7 +52,16 @@ def classify(
     if broken_grep:
         stub_dir = tempfile.mkdtemp()
         stub = pathlib.Path(stub_dir) / "grep"
-        stub.write_text("#!/bin/sh\nexit 2\n")
+        if broken_grep == "per_area":
+            # The SHARED pattern is the only one mentioning .github/workflows.
+            stub.write_text(
+                "#!/bin/sh\ncase \"$*\" in\n"
+                "  *github/workflows*) exit 1 ;;\n"
+                "  *) exit 2 ;;\n"
+                "esac\n"
+            )
+        else:
+            stub.write_text("#!/bin/sh\nexit 2\n")
         stub.chmod(0o755)
         env = {**os.environ, "PATH": f"{stub_dir}:{os.environ['PATH']}"}
     proc = subprocess.run(
@@ -120,12 +137,18 @@ check("blank lines only", ["", "  ", ""], (True, True, True))
 # "no match" and 2+ for "I failed"; collapsing those made a frontend-only diff
 # resolve to all-false — every job skipped, every skip reported as success, a
 # green PR with nothing verified. Caught in review on PR #133.
-for label, shell in [("via shebang", None), ("under sh", ["sh"])]:
-    got = classify(["frontend/src/App.tsx"], shell=shell, broken_grep=True)
-    ok = got == {"frontend": "true", "backend": "true", "tooling": "true"}
-    if not ok:
-        failures.append(f"broken grep {label}: got {got}, want all true")
-    print(f"  {'ok  ' if ok else 'FAIL'} fail-open when grep itself fails ({label})")
+#
+# Both call sites are covered on purpose. A stub that fails unconditionally
+# short-circuits at the SHARED check and never reaches the per-area branch —
+# right answer, wrong path — so "per_area" makes SHARED miss cleanly and pins
+# the branch the original report actually named.
+for mode in ("all", "per_area"):
+    for label, shell in [("via shebang", None), ("under sh", ["sh"])]:
+        got = classify(["frontend/src/App.tsx"], shell=shell, broken_grep=mode)
+        ok = got == {"frontend": "true", "backend": "true", "tooling": "true"}
+        if not ok:
+            failures.append(f"broken grep [{mode}] {label}: got {got}, want all true")
+        print(f"  {'ok  ' if ok else 'FAIL'} fail-open when grep fails [{mode}] ({label})")
 
 # ── Invocation environment ──────────────────────────────────────────────────
 # Two distinct failures live here, both of which have actually shipped.
