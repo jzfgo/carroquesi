@@ -14,6 +14,12 @@ cache/
 docs/superpowers/plans/
 skills-lock.json
 
+# Impeccable: per-developer hook state. The shared .impeccable/config.json
+# (detector rules, ignores, hook settings) is meant to be committed.
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/hook.pending.json
+
 # Python
 __pycache__/
 *.py[oc]
