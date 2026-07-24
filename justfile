@@ -43,16 +43,18 @@ test:
     just frontend test
     just backend test
 
-# Test the agent guardrail hooks (no deps — runs on a bare checkout)
-test-hooks:
+# Test repo tooling: agent guardrail hooks + the CI changed-area filter
+# (no deps — runs on a bare checkout, same as the CI job)
+test-tooling:
     python3 .claude/hooks/test_hooks.py
+    python3 scripts/test-ci-changed-areas.py
 
 # Check formatting, type-check, lint, and test
 ci:
     just format-check
     just lint
     just test
-    just test-hooks
+    just test-tooling
 
 # Update [Unreleased] section in CHANGELOG.md from commits since last tag (requires git-cliff)
 changelog:

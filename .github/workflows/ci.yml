@@ -25,7 +25,7 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
-      hooks: ${{ steps.filter.outputs.hooks }}
+      tooling: ${{ steps.filter.outputs.tooling }}
 
     # Only what `gh pr diff` needs. Stated explicitly so the job does not
     # inherit — or silently lose — its capability from a repository-wide
@@ -35,56 +35,22 @@ jobs:
       pull-requests: read
 
     steps:
+      - uses: actions/checkout@v5
+
       - id: filter
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          # `set +e` is deliberate and load-bearing. GitHub runs `run:` steps as
-          # `bash -e`, so errexit is already ON before the first line and
-          # `set -uo pipefail` would NOT clear it. This step must FAIL OPEN: if
-          # it exits non-zero the dependent jobs are skipped, and a skipped job
-          # reports success — so failing closed here would wave a PR through
-          # with nothing verified. (`CI gate` catches that too; belt and braces.)
+          # `set +e` so a failure here cannot skip the jobs below: a skipped
+          # job reports SUCCESS to a required check, so failing closed would
+          # wave the PR through with nothing verified. `gh` returning nothing
+          # reaches the classifier as empty stdin, which it treats as
+          # "run everything". `CI gate` catches this case too.
           set +e
-          set -uo pipefail
-
-          run_everything() {
-            echo "::notice::Could not classify the diff — running all checks."
-            printf 'frontend=true\nbackend=true\nhooks=true\n' >> "$GITHUB_OUTPUT"
-            exit 0
-          }
-
-          # Ask GitHub for the file list rather than computing a merge base
-          # locally: this is exactly what the PR's Files tab shows, and it is
-          # immune to shallow clones, force pushes, and the synthesized merge
-          # commit that `pull_request` events check out (where HEAD~1 is the
-          # base branch, not the previous commit on the PR).
-          files=$(gh pr diff "$PR" --repo "$REPO" --name-only) || run_everything
-          [ -n "$files" ] || run_everything
-
-          echo "Changed files:"
-          printf '%s\n' "$files"
-
-          # Shared tooling can break either app, so it forces everything to run.
-          # Keep this list BROAD. A filter that is too narrow silently skips the
-          # one check that would have caught the change, and reports green while
-          # doing it — the failure is invisible, which is the worst kind.
-          SHARED='^(\.github/workflows/|justfile|lefthook\.yml|scripts/|\.config/|\.envrc)'
-
-          match() { printf '%s\n' "$files" | grep -qE "$1"; }
-
-          if match "$SHARED"; then
-            frontend=true; backend=true; hooks=true
-          else
-            if match '^frontend/';       then frontend=true; else frontend=false; fi
-            if match '^backend/';        then backend=true;  else backend=false;  fi
-            if match '^\.claude/hooks/'; then hooks=true;    else hooks=false;    fi
-          fi
-
-          printf 'frontend=%s\nbackend=%s\nhooks=%s\n' \
-            "$frontend" "$backend" "$hooks" | tee -a "$GITHUB_OUTPUT"
+          files=$(gh pr diff "$PR" --repo "$REPO" --name-only)
+          printf '%s\n' "$files" | scripts/ci-changed-areas.sh | tee -a "$GITHUB_OUTPUT"
 
   frontend:
     name: Frontend (typecheck + lint + format + test)
@@ -152,19 +118,74 @@ jobs:
       - name: Test
         run: uv run pytest
 
-  hooks:
-    name: Agent guardrail hooks
+  tooling:
+    name: Repo tooling (guardrail hooks + CI filter)
     needs: changes
-    if: needs.changes.outputs.hooks == 'true'
+    if: needs.changes.outputs.tooling == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v5
 
-      # Deliberately no uv/pnpm setup: these hooks guard the agent's own
-      # tooling and must run on a bare checkout with only system python3.
-      - name: Test hooks
+      # Deliberately no uv/pnpm setup: these guard the agent's own tooling and
+      # the CI filter itself, and must run on a bare checkout with only system
+      # python3. Do not add a dependency to either test — needing one is a sign
+      # the thing under test belongs in a script, not embedded somewhere that
+      # requires a parser to reach.
+      - name: Test guardrail hooks
         run: python3 .claude/hooks/test_hooks.py
+
+      - name: Test CI changed-area filter
+        run: python3 scripts/test-ci-changed-areas.py
+
+  # E2E. Shares the `changes` classifier with everything else rather than
+  # carrying its own `paths:` list — two encodings of one rule drift, and the
+  # previous pair already had (SHARED covered all of .github/workflows/, the
+  # paths list only covered playwright.yml).
+  #
+  # Gated on `frontend` because these specs never touch a real backend: no
+  # FastAPI process or Postgres runs here, and tests/fixtures.ts mocks every
+  # backend route with frozen TypeScript literals. A Python change cannot fail
+  # them. The gap that leaves is tracked in JAV-48, and needs a contract test
+  # rather than a wider trigger.
+  playwright:
+    name: Playwright Tests
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Browsers
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: pnpm exec playwright test
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 30
 
   # The single required status check. Every job above is free to be renamed,
   # split, or skipped without touching the repository ruleset.
@@ -173,9 +194,15 @@ jobs:
   # it, an upstream failure would skip this job, and a skipped required check
   # reports SUCCESS. With it, `changes` blowing up fails the gate instead of
   # silently waving the PR through.
+  #
+  # `playwright` is deliberately ABSENT from `needs`. E2E is advisory today —
+  # a PR can merge with it red. Adding it here makes it blocking, which is a
+  # real policy change and should be made on purpose, not inherited from the
+  # refactor that moved it into this file. Flakiness is being assessed in
+  # JAV-49; promote it after that settles, not before.
   ci-gate:
     name: CI gate
-    needs: [changes, frontend, backend, hooks]
+    needs: [changes, frontend, backend, tooling]
     if: always()
     runs-on: ubuntu-latest
 
