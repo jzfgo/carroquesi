@@ -13,7 +13,7 @@ This file provides guidance to coding agents (such as Antigravity CLI, Claude Co
 - `frontend/`: React + TypeScript (Vite), deployed to Firebase Hosting
 - `backend/`: FastAPI + PostgreSQL (Docker), deployed to Cloud Run
 
-- Auth: Google Sign-In via Firebase Auth; frontend sends `Authorization: Bearer <token>`, backend validates with Firebase Admin SDK
+- Auth: two paths into `get_current_user` — Google Sign-In via Firebase Auth (frontend sends `Authorization: Bearer <token>`, backend validates with Firebase Admin SDK), and a static `X-Api-Key` header for non-browser clients like Siri Shortcuts ([ADR-006](docs/decisions/006-api-key-auth-for-non-browser-clients.md))
 
 - Data path: all CRUD goes through FastAPI + PostgreSQL (no Firestore)
 - Sync: frontend polls `GET /lists/{list_id}/updated-at` every 5s and re-fetches when timestamp changes
@@ -34,6 +34,7 @@ This file provides guidance to coding agents (such as Antigravity CLI, Claude Co
 - `waitlist_signups`: early-access waitlist (email, allowed_at, invite_token)
 - `user_features`: per-user feature flag overrides; `feature` must match a key in the flag registry in `backend/app/services/feature_flags.py`
 - `push_tokens`: FCM device tokens per user. **Token presence is the on/off state** — disabling notifications deletes the row, there is no `enabled` column
+- `api_keys`: one static per-user key for non-browser clients (Siri Shortcuts); stored hashed, never in plaintext. See [ADR-006](docs/decisions/006-api-key-auth-for-non-browser-clients.md)
 
 Important invariants:
 
@@ -75,6 +76,7 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 - Firebase SDK used in the frontend for Auth (Google Sign-In) and AI (Gemini receipt parsing via Firebase AI SDK)
 - All data fetched from the FastAPI backend via REST
 - Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
+- Item writes go through an **offline queue**, not straight to the API: `useListItems` calls `enqueue()` (`lib/offlineQueue.ts`, IndexedDB store `cqs_offline`) and `useQueueDrain` replays ops on reconnect. Adding a new item mutation means adding a `QueuedOp` type and a drain branch — an API call that bypasses the queue silently loses the write offline
 - When mocking modules with partial overrides (e.g. `react-router-dom`), use `importOriginal` to preserve unspecified exports. Plain `vi.mock('module', () => ({...}))` drops everything not listed and throws at runtime.
 - Environment constants are centralized in `frontend/src/lib/environment.ts`; import from there instead of accessing `import.meta.env` directly
 
@@ -132,7 +134,7 @@ Prefer `just` from repo root (`just backend` lists recipes).
 ### Feature Flag Management
 
 - **Registry** — all known flags and defaults live in `backend/app/services/feature_flags.py`. Adding a flag = one `FlagDef` entry in `REGISTRY`.
-- **Adding a new flag**: add `FlagDef` to `REGISTRY` + add constant to `frontend/src/lib/featureFlags.ts` + seed test data in `scripts/seed.py` + add tests + gate the endpoint/UI
+- **Adding a new flag**: add `FlagDef` to `REGISTRY` + add constant to `frontend/src/lib/featureFlags.ts` + seed test data in `backend/scripts/seed.py` + add tests + gate the endpoint/UI
 - **Granting/revoking**: `just backend feature <firebase_uid> <flag> on|off|reset`
 - **Setting admin**: `just backend set-admin <firebase_uid>` — sets Firebase custom claim; user must refresh their token (up to 1 hour wait, or force-refresh in the app)
 
