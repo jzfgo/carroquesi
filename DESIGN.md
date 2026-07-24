@@ -470,8 +470,8 @@ Two sheets, procedurally creased, on a table.
 
 ### Don't:
 
-- **Don't** write a raw `font-size` in px in a component. There are 157 of these
-  today against 59 token-based ones; that ratio is debt, not precedent.
+- **Don't** write a raw `font-size` in px in a component. Roughly half of all
+  `font-size` declarations still are; that half is debt, not precedent.
 - **Don't** use the compatibility aliases in `index.css` (`--text`, `--text-h`,
   `--bg2`, `--shadow`, `--sans`, `--heading`). They are explicitly marked for
   removal once components consume canonical tokens.
@@ -517,8 +517,8 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 | Pre-printed serif sheet titles | To build | *Components → Pre-printed Sheet Title* |
 | Grayscale ink inside lists | To build | *Colors → The Grayscale Ink Rule* |
 | Smart Input add/scan buttons at `--hit-min` | To build — currently 36px | `SmartInputBar.css` |
-| Semantic type classes (`.t-*`) adopted by components | Partial — 13 defined, 2 used | `colorsAndType.css` |
-| Legacy alias removal | Partial — `--text` (5) and `--text-h` (1) still consumed in `ItemCard.css`/`ItemList.css`; `--bg2`, `--shadow`, `--sans`, `--heading` are already dead and can be deleted | `index.css` |
+| Semantic type classes (`.t-*`) adopted by components | To build — 13 defined, 0 used | `colorsAndType.css` |
+| Legacy alias removal | Partial — `--text` (5, in `ItemCard.css`/`ItemList.css`) and `--text-h` (3, in `ItemCard.css` plus `index.css`'s own `h1, h2` and `code` base rules, so it styles headings app-wide) are still live; `--bg2`, `--shadow`, `--sans`, `--heading` are already dead and can be deleted today | `index.css` |
 
 Two consequences worth stating plainly:
 

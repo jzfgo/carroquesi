@@ -125,10 +125,11 @@
       "scope": "One canvas per sheet, never per row. The canvas covers the sheet including its header.",
       "rejected": "feDisplacementMap text warping via a facet normal map. Implemented and working (blur the map first or glyphs tear at facet edges), ~24ms to generate, but the filter re-evaluates on every paint and the list scrolls, polls and animates."
     },
-    "breakpoints": [
-      { "name": "pane", "value": "780px" },
-      { "name": "root-max", "value": "1126px" }
-    ]
+    "layout": {
+      "note": "There are no width breakpoints. The app is fluid and mobile-first; the only width constraint is a content cap. Do not author min-width/max-width media queries -- the CSS carries none, and the only media queries in the product are prefers-color-scheme and prefers-reduced-motion.",
+      "contentCap": { "selector": "#root", "value": "1126px", "where": "index.css" },
+      "mediaQueries": ["prefers-color-scheme", "prefers-reduced-motion"]
+    }
   },
   "components": [
     {
