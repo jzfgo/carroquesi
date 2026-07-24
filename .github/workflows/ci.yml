@@ -27,6 +27,13 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       hooks: ${{ steps.filter.outputs.hooks }}
 
+    # Only what `gh pr diff` needs. Stated explicitly so the job does not
+    # inherit — or silently lose — its capability from a repository-wide
+    # default that someone can flip in Settings.
+    permissions:
+      contents: read
+      pull-requests: read
+
     steps:
       - id: filter
         env:
@@ -34,10 +41,13 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          # No `set -e`. This step must FAIL OPEN: if it exits non-zero the
-          # dependent jobs are skipped, and a skipped job reports success — so
-          # failing closed here would wave a PR through with nothing verified.
-          # (`CI gate` catches that case too; this is belt and braces.)
+          # `set +e` is deliberate and load-bearing. GitHub runs `run:` steps as
+          # `bash -e`, so errexit is already ON before the first line and
+          # `set -uo pipefail` would NOT clear it. This step must FAIL OPEN: if
+          # it exits non-zero the dependent jobs are skipped, and a skipped job
+          # reports success — so failing closed here would wave a PR through
+          # with nothing verified. (`CI gate` catches that too; belt and braces.)
+          set +e
           set -uo pipefail
 
           run_everything() {
