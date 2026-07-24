@@ -202,11 +202,18 @@ Semantic only, never decorative:
 
 ### Named Rules
 
-**The Grayscale Ink Rule.** Inside a list, ink is achromatic — `tinta` and
-`verde` resolve to inks (`#3f424a`, `#2f3238`). The typography already encodes
-who wrote each line, so colour would be repeating a signal that is carried
-better. Outside a list — buttons, sheets, errors, toasts — the palette applies
-in full.
+**The Grayscale Ink Rule.** Inside a sheet, ink is achromatic: `tinta` and
+`verde` both resolve to `--ink-1`. They become indistinguishable there, and
+that is the point — the typography already encodes who wrote each line, so
+colour would repeat a signal that is carried better, and a hue that means
+nothing is worse than no hue. Dark mode follows for free, since `--ink-1`
+re-themes with the rest of the ramp.
+
+This governs **content**, not controls. The purchase tick keeps `--verde-0`:
+it is an affordance reporting its own state, not ink on paper. Everything the
+household wrote or the shop printed — names, quantities, brands, shops, prices,
+totals — is ink. Outside a sheet — buttons, sheets, errors, toasts — the
+palette applies in full.
 
 **The Surfaces-Keep-Their-Colour Rule.** Grayscale is a rule about *content*, not
 about the world. The table stays wooden and the paper stays cool-blue under it.
@@ -414,7 +421,8 @@ authority of a record.
 
 **Purchased — a record.** What happened: actual quantity or weight, the shop it
 came from, what it actually cost, unit price beneath. Set in monospace,
-uppercase, with the amount in `--verde-0` in the right-hand column.
+uppercase, with the amount in `--ink-1` in the right-hand column — it is
+printed matter, so the Grayscale Ink Rule applies; only the tick is green.
 
 **No strikethrough.** It defaces the one field that did *not* change — the
 product's identity — while giving no acknowledgement to the fields that did. It
@@ -508,8 +516,9 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 | Removal of the strikethrough on purchased items | To build | *Do's and Don'ts* |
 | Pre-printed serif sheet titles | To build | *Components → Pre-printed Sheet Title* |
 | Grayscale ink inside lists | To build | *Colors → The Grayscale Ink Rule* |
-| Semantic type classes (`.t-*`) adopted by components | Partial — defined, ~0 usages | `colorsAndType.css` |
-| Legacy alias removal (`--text`, `--bg2`, …) | Partial — still consumed | `index.css` |
+| Smart Input add/scan buttons at `--hit-min` | To build — currently 36px | `SmartInputBar.css` |
+| Semantic type classes (`.t-*`) adopted by components | Partial — 13 defined, 2 used | `colorsAndType.css` |
+| Legacy alias removal | Partial — `--text` (5) and `--text-h` (1) still consumed in `ItemCard.css`/`ItemList.css`; `--bg2`, `--shadow`, `--sans`, `--heading` are already dead and can be deleted | `index.css` |
 
 Two consequences worth stating plainly:
 
