@@ -1,9 +1,22 @@
-import { Calendar, Check, Coins, Pencil, ScanBarcode, X } from 'lucide-react'
+import {
+  Calendar,
+  Check,
+  Coins,
+  Pencil,
+  ScanBarcode,
+  TriangleAlert,
+  X,
+} from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { formatPrice } from '../lib/formatPrice'
 import { parseQuantityFactor, purchasedDateLabel } from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
+import {
+  isReceiptDateWorthConfirming,
+  toDateInputValue,
+  withDatePart,
+} from '../lib/receiptDate'
 import type {
   BarcodeRead,
   MatchedLine,
@@ -55,6 +68,14 @@ interface Props {
   onClose: () => void
   pendingScan?: PendingScan
   onRequestScan?: (index: number) => void
+  /**
+   * Re-run the match with a user-corrected receipt date. The parent replaces
+   * `result`, which remounts this sheet — matched/unmatched change wholesale,
+   * so any line edits made against the old result are no longer meaningful.
+   */
+  onDateCorrected?: (receiptDate: string) => void
+  /** A re-match is in flight; the date editor stays open and disabled. */
+  rematching?: boolean
 }
 
 /** Name a create row will produce, after sigils are stripped. */
@@ -163,6 +184,8 @@ export default function ReceiptScanSheet({
   onClose,
   pendingScan,
   onRequestScan,
+  onDateCorrected,
+  rematching = false,
 }: Props) {
   const allLines: (MatchedLine | UnmatchedLine)[] = [
     ...result.matched,
@@ -173,6 +196,11 @@ export default function ReceiptScanSheet({
   )
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
   const [submitted, setSubmitted] = useState(false)
+  const [editingDate, setEditingDate] = useState(false)
+  const [dateCheckDismissed, setDateCheckDismissed] = useState(false)
+  const [dateDraft, setDateDraft] = useState(() =>
+    toDateInputValue(result.receipt_date),
+  )
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
 
@@ -327,6 +355,27 @@ export default function ReceiptScanSheet({
       })
     : null
 
+  const canCorrectDate = Boolean(onDateCorrected)
+  // Only worth querying a date the user can actually act on -- without a
+  // correction handler the prompt would be a dead end.
+  const askAboutDate =
+    canCorrectDate &&
+    !dateCheckDismissed &&
+    isReceiptDateWorthConfirming(result.receipt_date)
+  // A receipt cannot be printed in the future (see the scanning prompt in
+  // lib/receiptAi.ts), so the native picker refuses those outright.
+  const todayIso = new Date().toISOString().slice(0, 10)
+
+  function applyDateCorrection() {
+    if (!dateDraft || !onDateCorrected) return
+    onDateCorrected(withDatePart(result.receipt_date, dateDraft))
+  }
+
+  function cancelDateCorrection() {
+    setDateDraft(toDateInputValue(result.receipt_date))
+    setEditingDate(false)
+  }
+
   return (
     <div className="sheet" ref={sheetRef}>
       <div className="sheet-handle" {...swipe} />
@@ -346,17 +395,98 @@ export default function ReceiptScanSheet({
           </button>
         </div>
         <div className="sheet-meta">
-          {formattedDate && (
-            <span>
-              <Calendar size={13} /> {formattedDate}
-            </span>
-          )}
+          {formattedDate &&
+            (canCorrectDate ? (
+              <button
+                type="button"
+                className={`rss-date-btn${askAboutDate ? ' rss-date-btn--flagged' : ''}`}
+                onClick={() => setEditingDate((open) => !open)}
+                aria-expanded={editingDate}
+                aria-label={`Cambiar la fecha del ticket (${formattedDate})`}
+              >
+                <Calendar size={13} /> {formattedDate}
+                <Pencil size={11} className="rss-date-btn__pencil" />
+              </button>
+            ) : (
+              <span>
+                <Calendar size={13} /> {formattedDate}
+              </span>
+            ))}
           {receiptTotal != null && (
             <span>
               <Coins size={13} /> {formatPrice(receiptTotal)}
             </span>
           )}
         </div>
+
+        {askAboutDate && !editingDate && (
+          <div className="rss-date-check" role="status">
+            <TriangleAlert size={15} className="rss-date-check__icon" />
+            <div className="rss-date-check__body">
+              <p className="rss-date-check__title">¿Es correcta la fecha?</p>
+              <p className="rss-date-check__text">
+                Una fecha exacta nos ayuda a emparejar tus compras.
+              </p>
+              <button
+                type="button"
+                className="rss-date-check__action"
+                onClick={() => setEditingDate(true)}
+              >
+                Corregir fecha
+              </button>
+            </div>
+            <button
+              type="button"
+              className="rss-date-dismiss"
+              onClick={() => setDateCheckDismissed(true)}
+              aria-label="La fecha es correcta"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
+
+        {editingDate && (
+          <div className="rss-date-edit">
+            <div className="rss-date-edit__head">
+              <label className="rss-date-edit__label" htmlFor="rss-date-input">
+                Fecha del ticket
+              </label>
+              <button
+                type="button"
+                className="rss-date-dismiss"
+                onClick={cancelDateCorrection}
+                disabled={rematching}
+                aria-label="Cancelar"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div className="rss-date-edit__row">
+              <input
+                id="rss-date-input"
+                type="date"
+                className="rss-date-edit__input"
+                value={dateDraft}
+                max={todayIso}
+                disabled={rematching}
+                onChange={(e) => setDateDraft(e.target.value)}
+              />
+              <button
+                type="button"
+                className="rss-date-edit__apply"
+                onClick={applyDateCorrection}
+                disabled={
+                  rematching ||
+                  !dateDraft ||
+                  dateDraft === toDateInputValue(result.receipt_date)
+                }
+              >
+                {rematching ? 'Buscando…' : 'Volver a buscar'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="rss-toolbar">

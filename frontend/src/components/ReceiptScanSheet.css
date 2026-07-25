@@ -5,7 +5,10 @@
   box-shadow: var(--shadow-sheet);
   display: flex;
   flex-direction: column;
-  max-height: 80vh;
+
+  /* Reduce scrolling in a sheet that routinely holds a full shop. dvh keeps
+     the footer reachable when a mobile browser's chrome is showing. */
+  max-height: 92dvh;
   overflow: hidden;
 }
 
@@ -67,6 +70,160 @@
   gap: 12px;
   font-size: 0.82rem;
   color: var(--ink-2);
+}
+
+/* --- receipt date: always correctable, queried when it looks misread --- */
+
+.rss-date-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  margin: -2px -6px; /* keep the meta row's baseline alignment */
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.rss-date-btn:hover {
+  background: var(--paper-2);
+}
+
+.rss-date-btn--flagged {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.rss-date-btn__pencil {
+  opacity: 0.55;
+}
+
+.rss-date-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--paper-1);
+
+  /* The sheet centres its rows; a paragraph is the one thing in here that
+     has to read as prose, so it opts out. */
+  text-align: left;
+}
+
+.rss-date-check__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rss-date-check__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--warn);
+}
+
+.rss-date-check__title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-0);
+}
+
+.rss-date-check__text {
+  margin: 2px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.rss-date-check__action {
+  margin-top: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.rss-date-edit {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--paper-1);
+  text-align: left;
+}
+
+.rss-date-edit__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Shared by the prompt and the editor: same glyph, same position, so the
+   affordance reads the same in both. */
+.rss-date-dismiss {
+  flex-shrink: 0;
+  margin: -4px -4px 0 0;
+  padding: 4px;
+  border: none;
+  background: none;
+  line-height: 1;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.rss-date-dismiss:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.rss-date-edit__label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.rss-date-edit__row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.rss-date-edit__input {
+  flex: 1;
+  min-width: 0; /* let the native picker shrink on <=375px instead of overflowing */
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--paper-0);
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink-0);
+}
+
+.rss-date-edit__apply {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent-fg);
+  cursor: pointer;
+}
+
+.rss-date-edit__apply:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .sheet-body {
@@ -567,13 +724,13 @@
 .rss-footer-match {
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--color-success);
+  color: var(--success);
   margin-left: 4px;
 }
 
 .rss-footer-diff {
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--color-warning);
+  color: var(--warn);
   margin-left: 4px;
 }

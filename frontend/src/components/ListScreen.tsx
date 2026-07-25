@@ -34,6 +34,7 @@ import type {
   NameMapping,
   NewPurchasedItem,
   PricePatch,
+  ReceiptScanRequest,
   ReceiptScanResult,
   Suggestion,
   TagField,
@@ -193,6 +194,10 @@ export function ListScreen({
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const [receiptScanResult, setReceiptScanResult] =
     useState<ReceiptScanResult | null>(null)
+  const [receiptParsed, setReceiptParsed] = useState<ReceiptScanRequest | null>(
+    null,
+  )
+  const [receiptRematching, setReceiptRematching] = useState(false)
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [receiptSourcePickerOpen, setReceiptSourcePickerOpen] = useState(false)
   const currentUserId = user!.id
@@ -272,6 +277,10 @@ export function ListScreen({
       try {
         const parsed = await parseReceiptWithAi(file)
         const result = await submitParsedReceipt(getToken, listId, parsed)
+        // Kept so a corrected date can be re-matched against the same lines
+        // without re-reading the image (another Gemini call, another chance
+        // for the transient 500 in JAV-51).
+        setReceiptParsed(parsed)
         setReceiptScanResult(result)
         // Belt-and-suspenders alongside the exit-path clears below: guarantees
         // a fresh session never starts primed with a scan from a stale one,
@@ -285,6 +294,33 @@ export function ListScreen({
       }
     },
     [getToken, listId],
+  )
+
+  // Re-runs the backend match against the same parsed lines with a date the
+  // user corrected. A wrong year puts the +-3 day match window years off the
+  // real purchases, so the first pass legitimately matched nothing; this is
+  // what lets them recover without re-scanning the receipt.
+  const handleReceiptDateCorrected = useCallback(
+    async (receiptDate: string) => {
+      if (!receiptParsed) return
+      setReceiptRematching(true)
+      try {
+        const result = await submitParsedReceipt(getToken, listId, {
+          ...receiptParsed,
+          receipt_date: receiptDate,
+        })
+        setReceiptParsed((prev) =>
+          prev ? { ...prev, receipt_date: receiptDate } : prev,
+        )
+        setReceiptScanResult(result)
+      } catch (e) {
+        console.error('Receipt re-match failed:', e)
+        setToast('No se pudo volver a buscar')
+      } finally {
+        setReceiptRematching(false)
+      }
+    },
+    [getToken, listId, receiptParsed],
   )
 
   const handleReceiptConfirm = useCallback(
@@ -303,6 +339,7 @@ export function ListScreen({
           mappings,
         })
         setReceiptScanResult(null)
+        setReceiptParsed(null)
         setPendingScan(null)
         const n = data.items_updated
         const c = data.items_created
@@ -429,6 +466,7 @@ export function ListScreen({
   // ReceiptScanSheet mounts, since the sheet only compares by identity.
   const handleReceiptSheetClose = useCallback(() => {
     setReceiptScanResult(null)
+    setReceiptParsed(null)
     setPendingScan(null)
   }, [])
 
@@ -1000,6 +1038,10 @@ export function ListScreen({
           <div className="sheet-overlay" onClick={handleReceiptSheetClose} />
           <div className="sheet-container">
             <ReceiptScanSheet
+              // A re-match replaces matched/unmatched wholesale, so line edits
+              // made against the old result are no longer meaningful. Remount
+              // rather than trying to reconcile them.
+              key={receiptScanResult.scan_id}
               result={receiptScanResult}
               candidateItems={items.map((i) => ({
                 id: i.id,
@@ -1015,6 +1057,8 @@ export function ListScreen({
               onClose={handleReceiptSheetClose}
               pendingScan={pendingScan}
               onRequestScan={handleReceiptScanRequest}
+              onDateCorrected={handleReceiptDateCorrected}
+              rematching={receiptRematching}
             />
           </div>
         </>

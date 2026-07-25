@@ -96,6 +96,16 @@ const THEMES = [
   { name: 'dark', colorScheme: 'dark' as const },
 ]
 
+/**
+ * The sheet asks the user to confirm a receipt date that falls outside the
+ * match window (see lib/receiptDate.ts). PARSED_RECEIPT carries a fixed date,
+ * so without a fixed clock that prompt would appear on its own as real-world
+ * time moves on — silently changing the committed screenshots on a day nobody
+ * touched the code. Pin "now" inside the window so the baselines capture the
+ * ordinary path and keep meaning the same thing.
+ */
+const FIXED_NOW = new Date('2026-07-12T10:00:00Z')
+
 for (const { name: themeName, colorScheme } of THEMES) {
   test.describe(`${themeName} mode`, () => {
     test.use({ colorScheme })
@@ -103,6 +113,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
     test('scanning a receipt reviews matched and unmatched lines, then applies prices', async ({
       page,
     }) => {
+      await page.clock.setFixedTime(FIXED_NOW)
       await gotoList(page)
       await markPurchased(page, ITEM_LECHE.name)
       await markPurchased(page, ITEM_CAFE.name)

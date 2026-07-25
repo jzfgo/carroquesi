@@ -634,3 +634,134 @@ describe('barcode scan into a create row', () => {
     ).toBe('Edited by hand')
   })
 })
+
+// --- Receipt date confirmation (JAV-54) --------------------------------------
+//
+// Dates are expressed relative to now on purpose: the threshold in
+// lib/receiptDate.ts is relative to today, so a literal would silently change
+// verdict as real-world time passes.
+
+const daysAway = (delta: number) =>
+  new Date(Date.now() + delta * 86_400_000).toISOString().slice(0, 10)
+
+const openEditor = () =>
+  fireEvent.click(screen.getByRole('button', { name: 'Corregir fecha' }))
+
+describe('ReceiptScanSheet receipt date', () => {
+  test('asks about a date outside the match window', () => {
+    renderSheet({
+      result: { ...mockResult, receipt_date: daysAway(-10) },
+      onDateCorrected: vi.fn(),
+    })
+    expect(screen.getByText('¿Es correcta la fecha?')).toBeInTheDocument()
+    expect(
+      screen.getByText('Una fecha exacta nos ayuda a emparejar tus compras.'),
+    ).toBeInTheDocument()
+  })
+
+  test('asks about a misread day, not just a misread year', () => {
+    // A few days off empties the same match window a wrong year does.
+    renderSheet({
+      result: { ...mockResult, receipt_date: daysAway(-4) },
+      onDateCorrected: vi.fn(),
+    })
+    expect(screen.getByText('¿Es correcta la fecha?')).toBeInTheDocument()
+  })
+
+  test('stays quiet inside the match window', () => {
+    renderSheet({
+      result: { ...mockResult, receipt_date: daysAway(-3) },
+      onDateCorrected: vi.fn(),
+    })
+    expect(screen.queryByText('¿Es correcta la fecha?')).not.toBeInTheDocument()
+  })
+
+  test('stays quiet when the date cannot be corrected', () => {
+    // Without a handler the prompt would be a dead end, so it is not shown
+    // even though the date is far from today.
+    renderSheet({ result: { ...mockResult, receipt_date: daysAway(-30) } })
+    expect(screen.queryByText('¿Es correcta la fecha?')).not.toBeInTheDocument()
+  })
+
+  test('confirming the date dismisses the prompt for good', () => {
+    renderSheet({
+      result: { ...mockResult, receipt_date: daysAway(-30) },
+      onDateCorrected: vi.fn(),
+    })
+    fireEvent.click(
+      screen.getByRole('button', { name: 'La fecha es correcta' }),
+    )
+    expect(screen.queryByText('¿Es correcta la fecha?')).not.toBeInTheDocument()
+  })
+
+  test('sends the corrected date back for a re-match', () => {
+    const onDateCorrected = vi.fn()
+    renderSheet({
+      result: { ...mockResult, receipt_date: daysAway(-30) },
+      onDateCorrected,
+    })
+
+    openEditor()
+    fireEvent.change(screen.getByLabelText('Fecha del ticket'), {
+      target: { value: '2026-04-11' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a buscar' }))
+
+    expect(onDateCorrected).toHaveBeenCalledWith('2026-04-11')
+  })
+
+  test('keeps the time of day when only the date is corrected', () => {
+    const onDateCorrected = vi.fn()
+    renderSheet({
+      result: { ...mockResult, receipt_date: `${daysAway(-30)}T17:42:00Z` },
+      onDateCorrected,
+    })
+
+    openEditor()
+    fireEvent.change(screen.getByLabelText('Fecha del ticket'), {
+      target: { value: '2026-04-11' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a buscar' }))
+
+    expect(onDateCorrected).toHaveBeenCalledWith('2026-04-11T17:42:00Z')
+  })
+
+  test('will not re-match an unchanged date', () => {
+    renderSheet({
+      result: { ...mockResult, receipt_date: daysAway(-30) },
+      onDateCorrected: vi.fn(),
+    })
+    openEditor()
+    expect(
+      screen.getByRole('button', { name: 'Volver a buscar' }),
+    ).toBeDisabled()
+  })
+
+  test('a date inside the window is still correctable from the header', () => {
+    renderSheet({
+      result: { ...mockResult, receipt_date: daysAway(-1) },
+      onDateCorrected: vi.fn(),
+    })
+    // No prompt, but the affordance is there for a misread we did not catch.
+    fireEvent.click(
+      screen.getByRole('button', { name: /Cambiar la fecha del ticket/ }),
+    )
+    expect(screen.getByLabelText('Fecha del ticket')).toBeInTheDocument()
+  })
+
+  test('cancelling the editor restores the original date', () => {
+    const onDateCorrected = vi.fn()
+    renderSheet({
+      result: { ...mockResult, receipt_date: daysAway(-30) },
+      onDateCorrected,
+    })
+    openEditor()
+    fireEvent.change(screen.getByLabelText('Fecha del ticket'), {
+      target: { value: '2026-04-11' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(screen.getByText('¿Es correcta la fecha?')).toBeInTheDocument()
+    expect(onDateCorrected).not.toHaveBeenCalled()
+  })
+})
