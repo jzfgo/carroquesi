@@ -7,6 +7,7 @@ import {
   mockGeminiReceiptParse,
   SEED_ITEMS,
   SEED_LISTS,
+  SEED_RECEIPT_RESULT,
   test,
 } from './fixtures'
 
@@ -100,11 +101,18 @@ const THEMES = [
  * The sheet asks the user to confirm a receipt date that falls outside the
  * match window (see lib/receiptDate.ts). PARSED_RECEIPT carries a fixed date,
  * so without a fixed clock that prompt would appear on its own as real-world
- * time moves on — silently changing the committed screenshots on a day nobody
- * touched the code. Pin "now" inside the window so the baselines capture the
- * ordinary path and keep meaning the same thing.
+ * time moves on — silently changing the committed screenshots, and quietly
+ * putting every other test in this file in front of a banner it was never
+ * written for. Pin "now" inside the window so each test starts on the
+ * ordinary path; the one test that wants the prompt moves the clock itself.
  */
 const FIXED_NOW = new Date('2026-07-12T10:00:00Z')
+
+// File-level, not per-test: the receipt fixture's date is what makes the
+// prompt appear, and every test in this file uses it.
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW)
+})
 
 for (const { name: themeName, colorScheme } of THEMES) {
   test.describe(`${themeName} mode`, () => {
@@ -113,7 +121,6 @@ for (const { name: themeName, colorScheme } of THEMES) {
     test('scanning a receipt reviews matched and unmatched lines, then applies prices', async ({
       page,
     }) => {
-      await page.clock.setFixedTime(FIXED_NOW)
       await gotoList(page)
       await markPurchased(page, ITEM_LECHE.name)
       await markPurchased(page, ITEM_CAFE.name)
@@ -258,6 +265,98 @@ test.describe('functional', () => {
     await expect(created.locator('.item-card__tag--price')).toContainText(
       /1[.,]00/,
     )
+  })
+
+  // The seam JAV-54 exists to close, end to end: a misread date empties the
+  // backend's match window, so the sheet asks about it, and correcting it
+  // re-runs the match. The API is mocked here (see installApiMocks), so this
+  // proves the *wiring* — that the correction reaches a second POST carrying
+  // the new date, and that its result replaces the first one on screen. That
+  // the window itself is +-3 days is the backend's own test.
+  test('correcting a flagged receipt date re-runs the match with the new date', async ({
+    page,
+  }) => {
+    // The production scenario: the user shopped today and the AI misread the
+    // date as 2026-07-10, so the window landed two weeks off. Overrides the
+    // file-level clock, which deliberately sits inside the window.
+    const TODAY = '2026-07-25'
+    await page.clock.setFixedTime(new Date(`${TODAY}T10:00:00Z`))
+
+    const receiptDatesSent: (string | null)[] = []
+    // Registered after installApiMocks, so it wins: Playwright resolves routes
+    // most-recently-registered first.
+    await page.route(
+      (url) => url.pathname.endsWith('/receipt'),
+      async (route) => {
+        const body = route.request().postDataJSON() as {
+          receipt_date: string | null
+        }
+        receiptDatesSent.push(body.receipt_date)
+        // First scan: the window landed on the wrong week, so the matcher had
+        // no candidates to score. Second: the corrected date finds them.
+        const emptyWindow = receiptDatesSent.length === 1
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            ...SEED_RECEIPT_RESULT,
+            // The router echoes the submitted date rather than restating its
+            // own; the sheet re-reads it to decide whether to keep asking.
+            receipt_date: body.receipt_date,
+            scan_id: `scan-e2e-${receiptDatesSent.length}`,
+            matched: emptyWindow ? [] : SEED_RECEIPT_RESULT.matched,
+            unmatched: emptyWindow
+              ? [
+                  // Same lines, minus the item they would have matched: with
+                  // no candidates in the window there is nothing to link to.
+                  ...SEED_RECEIPT_RESULT.matched.map((m) => ({
+                    receipt_name: m.receipt_name,
+                    price_type: m.price_type,
+                    unit_price: m.unit_price,
+                    quantity: m.quantity,
+                    line_total: m.line_total,
+                  })),
+                  ...SEED_RECEIPT_RESULT.unmatched,
+                ]
+              : SEED_RECEIPT_RESULT.unmatched,
+          }),
+        })
+      },
+    )
+
+    await gotoList(page)
+    await mockGeminiReceiptParse(page, PARSED_RECEIPT)
+    await uploadReceipt(page)
+
+    const sheet = page
+      .locator('.sheet')
+      .filter({ has: page.locator('.rss-toolbar') })
+    await expect(sheet).toBeVisible()
+    await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
+      '0 de 3 seleccionados',
+    )
+
+    // The prompt is a question, not an error — it offers the correction rather
+    // than performing one.
+    const prompt = sheet.locator('.rss-date-check')
+    await expect(prompt).toBeVisible()
+    await prompt.getByRole('button', { name: 'Corregir fecha' }).click()
+
+    await sheet.locator('#rss-date-input').fill(TODAY)
+    await sheet.getByRole('button', { name: 'Volver a buscar' }).click()
+
+    // The corrected day reaches the backend, and no second Gemini call is made
+    // to get there — the parsed receipt is reused verbatim apart from the date.
+    await expect(async () => {
+      expect(receiptDatesSent).toHaveLength(2)
+    }).toPass()
+    expect(receiptDatesSent[1]).toContain(TODAY)
+
+    // The re-match replaces what is on screen, prompt included.
+    await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
+      '2 de 3 seleccionados',
+    )
+    await expect(sheet.locator('.rss-date-check')).toHaveCount(0)
   })
 
   test('a failed AI parse surfaces an error toast without opening the review sheet', async ({
