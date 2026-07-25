@@ -198,6 +198,8 @@ export function ListScreen({
     null,
   )
   const [receiptRematching, setReceiptRematching] = useState(false)
+  // Survives the remount a date correction causes; reset with the scan session.
+  const [receiptDateConfirmed, setReceiptDateConfirmed] = useState(false)
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [receiptSourcePickerOpen, setReceiptSourcePickerOpen] = useState(false)
   const currentUserId = user!.id
@@ -286,6 +288,7 @@ export function ListScreen({
         // a fresh session never starts primed with a scan from a stale one,
         // without depending on every exit path having been enumerated.
         setPendingScan(null)
+        setReceiptDateConfirmed(false)
       } catch (e) {
         console.error('Receipt scan failed:', e)
         setToast('No se pudo leer el ticket')
@@ -303,6 +306,13 @@ export function ListScreen({
   const handleReceiptDateCorrected = useCallback(
     async (receiptDate: string) => {
       if (!receiptParsed) return
+      // Same reason handleReceiptSheetClose clears it: the corrected match
+      // replaces matched/unmatched wholesale and remounts the sheet, where
+      // `appliedScan` starts at null again -- so a surviving pendingScan would
+      // silently reapply its product to whatever line now sits at that index.
+      setPendingScan(null)
+      // They typed this date themselves; don't turn round and query it.
+      setReceiptDateConfirmed(true)
       setReceiptRematching(true)
       try {
         const result = await submitParsedReceipt(getToken, listId, {
@@ -341,6 +351,7 @@ export function ListScreen({
         setReceiptScanResult(null)
         setReceiptParsed(null)
         setPendingScan(null)
+        setReceiptDateConfirmed(false)
         const n = data.items_updated
         const c = data.items_created
         const parts: string[] = []
@@ -468,6 +479,7 @@ export function ListScreen({
     setReceiptScanResult(null)
     setReceiptParsed(null)
     setPendingScan(null)
+    setReceiptDateConfirmed(false)
   }, [])
 
   const handleScanAdd = useCallback(
@@ -1059,6 +1071,7 @@ export function ListScreen({
               onRequestScan={handleReceiptScanRequest}
               onDateCorrected={handleReceiptDateCorrected}
               rematching={receiptRematching}
+              dateConfirmed={receiptDateConfirmed}
             />
           </div>
         </>

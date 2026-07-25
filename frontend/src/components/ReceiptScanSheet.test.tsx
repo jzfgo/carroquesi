@@ -712,8 +712,9 @@ describe('ReceiptScanSheet receipt date', () => {
 
   test('keeps the time of day when only the date is corrected', () => {
     const onDateCorrected = vi.fn()
+    const printed = `${daysAway(-30)}T17:42:00Z`
     renderSheet({
-      result: { ...mockResult, receipt_date: `${daysAway(-30)}T17:42:00Z` },
+      result: { ...mockResult, receipt_date: printed },
       onDateCorrected,
     })
 
@@ -723,7 +724,17 @@ describe('ReceiptScanSheet receipt date', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Volver a buscar' }))
 
-    expect(onDateCorrected).toHaveBeenCalledWith('2026-04-11T17:42:00Z')
+    // Asserted as an instant, not a literal string: the correction is
+    // re-encoded the way receiptAi emits dates, so the exact UTC text depends
+    // on the viewer's offset. What has to hold is the day they picked and the
+    // wall-clock time the receipt was printed at.
+    const sent = new Date(onDateCorrected.mock.calls[0][0] as string)
+    const printedAt = new Date(printed)
+    expect([sent.getFullYear(), sent.getMonth(), sent.getDate()]).toEqual([
+      2026, 3, 11,
+    ])
+    expect(sent.getHours()).toBe(printedAt.getHours())
+    expect(sent.getMinutes()).toBe(printedAt.getMinutes())
   })
 
   test('will not re-match an unchanged date', () => {

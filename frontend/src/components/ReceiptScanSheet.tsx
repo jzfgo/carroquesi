@@ -15,6 +15,7 @@ import { parseInput } from '../lib/parseInput'
 import {
   isReceiptDateWorthConfirming,
   toDateInputValue,
+  todayInputValue,
   withDatePart,
 } from '../lib/receiptDate'
 import type {
@@ -76,6 +77,11 @@ interface Props {
   onDateCorrected?: (receiptDate: string) => void
   /** A re-match is in flight; the date editor stays open and disabled. */
   rematching?: boolean
+  /**
+   * The user has already set this date by hand, so stop asking about it. Held
+   * by the parent because a correction remounts this sheet.
+   */
+  dateConfirmed?: boolean
 }
 
 /** Name a create row will produce, after sigils are stripped. */
@@ -186,6 +192,7 @@ export default function ReceiptScanSheet({
   onRequestScan,
   onDateCorrected,
   rematching = false,
+  dateConfirmed = false,
 }: Props) {
   const allLines: (MatchedLine | UnmatchedLine)[] = [
     ...result.matched,
@@ -358,13 +365,19 @@ export default function ReceiptScanSheet({
   const canCorrectDate = Boolean(onDateCorrected)
   // Only worth querying a date the user can actually act on -- without a
   // correction handler the prompt would be a dead end.
+  //
+  // `dateConfirmed` outlives the remount a correction causes. Without it the
+  // user who fixes a genuinely old receipt gets asked about the very date they
+  // just typed: the new result carries a new scan_id, the sheet remounts, and
+  // `dateCheckDismissed` resets with it.
   const askAboutDate =
     canCorrectDate &&
+    !dateConfirmed &&
     !dateCheckDismissed &&
     isReceiptDateWorthConfirming(result.receipt_date)
   // A receipt cannot be printed in the future (see the scanning prompt in
   // lib/receiptAi.ts), so the native picker refuses those outright.
-  const todayIso = new Date().toISOString().slice(0, 10)
+  const todayIso = todayInputValue()
 
   function applyDateCorrection() {
     if (!dateDraft || !onDateCorrected) return
