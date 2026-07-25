@@ -300,8 +300,20 @@ export async function installApiMocks(page: Page): Promise<void> {
         return route.fulfill({ status: 204, body: '' })
 
       // /lists/:id/receipt (backend fuzzy-match step)
-      if (sub === '/receipt' && method === 'POST')
-        return json(SEED_RECEIPT_RESULT)
+      if (sub === '/receipt' && method === 'POST') {
+        const body = (req.postDataJSON() ?? {}) as {
+          receipt_date?: string | null
+        }
+        // The router echoes the submitted date back verbatim
+        // (`receipt_date=body.receipt_date`) rather than restating its own
+        // fixture. Mirroring that matters: the sheet re-reads this field to
+        // decide whether to keep asking about the date, so a mock that
+        // ignored the correction would re-flag a date the user just fixed.
+        return json({
+          ...SEED_RECEIPT_RESULT,
+          receipt_date: body.receipt_date ?? SEED_RECEIPT_RESULT.receipt_date,
+        })
+      }
 
       // /lists/:id/receipt-prices (apply reviewed prices)
       if (sub === '/receipt-prices' && method === 'POST') {

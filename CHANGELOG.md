@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- Let users confirm and correct a misread receipt date
+
+- Judge the receipt date in the viewer's calendar, not UTC
+
+- Keep a pending barcode scan through a failed re-match
+
+
+---
 ## [0.21.0] — 2026-07-24
 
 ### Added

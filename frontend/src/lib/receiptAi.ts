@@ -31,7 +31,7 @@ const PROMPT = `Extract structured data from this Spanish grocery receipt.
 
 RULES:
 - store: the supermarket name (e.g. "Mercadona", "Carrefour"). Return null if not clearly visible. Do not infer from product names.
-- receipt_date: purchase date as YYYY-MM-DD. Return null if not clearly readable.
+- receipt_date: purchase date as YYYY-MM-DD. Return null if not clearly readable. A receipt is printed at the moment of purchase, so its date is never in the future — if the digits you read would produce a future date you have misread them, so return null rather than a guess.
 - receipt_time: purchase time as HH:MM in 24-hour form, exactly as printed on the receipt. Return null if not clearly readable. Do not infer or guess.
 - receipt_total: final total charged. Return null if not clearly readable.
 - lines: purchased product lines only. Omit any line where name or price is not clearly legible.
