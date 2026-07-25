@@ -916,6 +916,31 @@ describe('receipt date correction', () => {
     )
   })
 
+  it('keeps a pending scan when the re-match failed', async () => {
+    // The sheet never remounts on this path — no new scan_id — so the reapply
+    // hazard that motivates clearing it never arises. Dropping it anyway would
+    // make a transient failure cost the user a barcode they already scanned.
+    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(mockScanResult)
+    vi.mocked(api.submitParsedReceipt).mockRejectedValueOnce(
+      new Error('network'),
+    )
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await openSheet()
+    fireEvent.click(await screen.findByText('Escanear línea (mock)'))
+    fireEvent.click(await screen.findByText('Escanear producto (mock)'))
+    expect(await screen.findByTestId('mock-pending-scan')).toHaveTextContent(
+      mockScannedProduct.ean,
+    )
+
+    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
+
+    await screen.findByRole('alert')
+    expect(screen.getByTestId('mock-pending-scan')).toHaveTextContent(
+      mockScannedProduct.ean,
+    )
+  })
+
   it('keeps asking when the re-match failed', async () => {
     // Nothing changed on screen, so suppressing the prompt would strand the
     // misread date with nothing left pointing at it.

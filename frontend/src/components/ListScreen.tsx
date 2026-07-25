@@ -306,11 +306,6 @@ export function ListScreen({
   const handleReceiptDateCorrected = useCallback(
     async (receiptDate: string) => {
       if (!receiptParsed) return
-      // Same reason handleReceiptSheetClose clears it: the corrected match
-      // replaces matched/unmatched wholesale and remounts the sheet, where
-      // `appliedScan` starts at null again -- so a surviving pendingScan would
-      // silently reapply its product to whatever line now sits at that index.
-      setPendingScan(null)
       setReceiptRematching(true)
       try {
         const result = await submitParsedReceipt(getToken, listId, {
@@ -320,11 +315,22 @@ export function ListScreen({
         setReceiptParsed((prev) =>
           prev ? { ...prev, receipt_date: receiptDate } : prev,
         )
-        // Only once the correction actually took. Setting it up front would
-        // drop the prompt -- and the date button's flagged styling -- on a
-        // failed re-match, leaving the misread date on screen with nothing
-        // left pointing at it.
+        // Both of these belong on the success path, and for the same reason:
+        // nothing on screen changes when the re-match fails, so anything reset
+        // up front is lost for no gain. `dateConfirmed` set early would drop
+        // the prompt and the date button's flagged styling, stranding the
+        // misread date with nothing pointing at it; `pendingScan` cleared
+        // early would discard a barcode the user had already scanned in, and
+        // make them scan it again after a transient failure.
+        //
+        // On the success path pendingScan must still go, for the reason
+        // handleReceiptSheetClose clears it: the corrected match replaces
+        // matched/unmatched wholesale and remounts the sheet, where
+        // `appliedScan` starts at null again, so a surviving scan would
+        // reapply its product to whatever line now sits at that index. These
+        // batch with setReceiptScanResult, so the remount already sees null.
         setReceiptDateConfirmed(true)
+        setPendingScan(null)
         setReceiptScanResult(result)
       } catch (e) {
         console.error('Receipt re-match failed:', e)
