@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- Let users confirm and correct a misread receipt date
+
+
+---
 ## [0.21.0] — 2026-07-24
 
 ### Added
