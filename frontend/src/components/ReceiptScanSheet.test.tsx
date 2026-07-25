@@ -683,6 +683,25 @@ describe('ReceiptScanSheet receipt date', () => {
     expect(screen.queryByText('¿Es correcta la fecha?')).not.toBeInTheDocument()
   })
 
+  test('does not re-query a date the user already corrected', () => {
+    // The scenario JAV-6 has to keep working: a genuinely old receipt, dated
+    // by hand and still far outside the match window. A correction remounts
+    // this sheet with a new scan_id, resetting its own dismissal state, so
+    // without the parent's flag the user is asked about the date they just
+    // typed. Deliberately still out of window — that is what makes it a
+    // regression test rather than a restatement of the threshold.
+    renderSheet({
+      result: { ...mockResult, receipt_date: daysAway(-30) },
+      onDateCorrected: vi.fn(),
+      dateConfirmed: true,
+    })
+    expect(screen.queryByText('¿Es correcta la fecha?')).not.toBeInTheDocument()
+    // Still correctable — suppressing the question must not remove the way in.
+    expect(
+      screen.getByRole('button', { name: /Cambiar la fecha del ticket/ }),
+    ).toBeInTheDocument()
+  })
+
   test('confirming the date dismisses the prompt for good', () => {
     renderSheet({
       result: { ...mockResult, receipt_date: daysAway(-30) },

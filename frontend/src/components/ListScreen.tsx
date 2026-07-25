@@ -311,8 +311,6 @@ export function ListScreen({
       // `appliedScan` starts at null again -- so a surviving pendingScan would
       // silently reapply its product to whatever line now sits at that index.
       setPendingScan(null)
-      // They typed this date themselves; don't turn round and query it.
-      setReceiptDateConfirmed(true)
       setReceiptRematching(true)
       try {
         const result = await submitParsedReceipt(getToken, listId, {
@@ -322,6 +320,11 @@ export function ListScreen({
         setReceiptParsed((prev) =>
           prev ? { ...prev, receipt_date: receiptDate } : prev,
         )
+        // Only once the correction actually took. Setting it up front would
+        // drop the prompt -- and the date button's flagged styling -- on a
+        // failed re-match, leaving the misread date on screen with nothing
+        // left pointing at it.
+        setReceiptDateConfirmed(true)
         setReceiptScanResult(result)
       } catch (e) {
         console.error('Receipt re-match failed:', e)
