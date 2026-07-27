@@ -100,6 +100,26 @@ updates:
       # the matching major, not before.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # TypeScript 7 is the Go-native compiler rewrite. Our own code is already
+      # fine on it — #155 typechecked clean against 7.0.2 across all three
+      # tsconfigs. What breaks is the linter: typescript-eslint reaches into
+      # TypeScript's *internal* API surface, which the rewrite reshaped, so
+      # @typescript-eslint/typescript-estree dies at load with
+      # `TypeError: Cannot read properties of undefined (reading 'Cjs')`.
+      #
+      # No published typescript-eslint supports it — latest (8.65.0), canary
+      # (8.65.1-alpha.8) and every alpha still peer `typescript: >=4.8.4
+      # <6.1.0`. There is no version we could pair it with, so this is upstream
+      # and not solvable here.
+      #
+      # Deliberately `versions: [">=7"]` and NOT an update-types major ignore:
+      # that peer range admits 6.0.x, so a blanket major ignore would also block
+      # a TypeScript 6 upgrade we *can* take. Bounding at 7 leaves Dependabot
+      # free to propose 6.x.
+      #
+      # Remove once typescript-eslint's peer range admits 7.x.
+      - dependency-name: "typescript"
+        versions: [">=7"]
 
   # ── Backend (uv) ──────────────────────────────────────────────────────────
   - package-ecosystem: "uv"
