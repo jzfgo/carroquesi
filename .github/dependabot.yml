@@ -18,7 +18,7 @@
 # occasional `security_update_not_possible` on a transitive package is still
 # expected — but against a current tree it should be rare rather than the norm.
 #
-# COOLDOWN IS LOAD-BEARING — DO NOT LOWER IT
+# COOLDOWN IS LOAD-BEARING — DO NOT LOWER IT, AND DO NOT DELETE IT
 #
 # Both ecosystems quarantine new releases for 7 days as supply-chain defence:
 #   - frontend/pnpm-workspace.yaml  minimumReleaseAge: 10080  (minutes = 7d)
@@ -29,6 +29,19 @@
 # fails on arrival. `default-days: 8` sits one day clear of both windows rather
 # than exactly on the boundary, so a package sitting at ~7.0 days cannot land in
 # the gap between Dependabot's clock and the resolver's.
+#
+# Deleting these blocks does NOT fall back to "no cooldown": since 2026-07-14
+# Dependabot applies a default cooldown of 3 days, which sits *inside* the 7-day
+# quarantine and reintroduces exactly the red-on-arrival failure this is here to
+# prevent. The explicit value is doing real work.
+#
+# SCOPE — this covers *version* updates only. Per GitHub's options reference,
+# "the cooldown option is only available for version updates, not security
+# updates", so a security-update PR for a package whose fixed release is younger
+# than 7 days will still be opened immediately and will still be refused by the
+# resolver. That gap is not closable from this file; it is why a fresh advisory
+# on a just-published patch may still need patching by hand. Keeping the tree
+# current is what makes that rare, which is the whole point of the section above.
 #
 # If you change either quarantine value, change this to match plus a day.
 #
