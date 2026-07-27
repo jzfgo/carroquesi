@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **deps:** Patch react-router and fast-uri Dependabot advisories (#138)
 
-- **deps:** Patch postcss path-traversal advisory
+- **deps:** Patch postcss path-traversal advisory (#139)
 
 
 ---
