@@ -87,6 +87,19 @@ updates:
     # Majors stay ungrouped on purpose — they get an individual PR each, because
     # they need reading rather than rubber-stamping. react-router v8 is the live
     # example: it removes react-router-dom entirely.
+    ignore:
+      # @types/node describes the Node runtime, so its major must track .nvmrc
+      # (currently 24.14.1) rather than move on its own. A newer @types/node is
+      # strictly *more* permissive: it declares APIs the installed runtime does
+      # not have, so `pnpm typecheck` still passes and the mismatch surfaces at
+      # runtime instead. CI going green on such a bump is expected and proves
+      # nothing — which is why this is ignored here rather than judged per PR.
+      #
+      # Closing the PR by hand does not hold: without this rule Dependabot
+      # reopens it on the next run. Drop this block as part of bumping .nvmrc to
+      # the matching major, not before.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # ── Backend (uv) ──────────────────────────────────────────────────────────
   - package-ecosystem: "uv"
