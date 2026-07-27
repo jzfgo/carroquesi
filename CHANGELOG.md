@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **deps:** Patch postcss path-traversal advisory (#139)
 
+- Repair pnpm-lock.yaml broken by concurrent lockfile merges
+
 
 ---
 ## [0.21.0] — 2026-07-24
