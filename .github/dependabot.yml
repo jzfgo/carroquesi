@@ -1,0 +1,125 @@
+# Dependabot configuration.
+#
+# WHY THIS FILE EXISTS
+#
+# Dependabot *security* updates were already enabled, but had never once opened
+# a PR — every run failed with `security_update_not_possible`. The job runs with
+# `allowed-updates: [{dependency-type: direct}]` and `update-subdependencies:
+# false`, so it only ever patches direct dependencies. Every advisory this repo
+# has received landed on a transitive one instead: react-router (via
+# react-router-dom), postcss (via vite/stylelint), fast-uri (via ajv). Dependabot
+# structurally could not fix any of them, so each became a manual sweep.
+#
+# The lever is *version* updates, configured here. Routinely bumping the direct
+# parents (vite, stylelint, firebase-tools, react-router-dom) drags transitive
+# packages forward as a side effect, so advisories increasingly land on versions
+# the tree is already past. This reduces the manual work; it does not eliminate
+# it. Dependabot's pnpm support for transitive dependencies is weak, so an
+# occasional `security_update_not_possible` on a transitive package is still
+# expected — but against a current tree it should be rare rather than the norm.
+#
+# COOLDOWN IS LOAD-BEARING — DO NOT LOWER IT
+#
+# Both ecosystems quarantine new releases for 7 days as supply-chain defence:
+#   - frontend/pnpm-workspace.yaml  minimumReleaseAge: 10080  (minutes = 7d)
+#   - backend/uv.lock               exclude-newer-span = "P7D"
+#
+# Dependabot updates the lockfile by running the package manager itself, so a
+# proposal younger than that window is one the resolver will refuse — the PR
+# fails on arrival. `default-days: 8` sits one day clear of both windows rather
+# than exactly on the boundary, so a package sitting at ~7.0 days cannot land in
+# the gap between Dependabot's clock and the resolver's.
+#
+# If you change either quarantine value, change this to match plus a day.
+#
+# COMMIT PREFIX
+#
+# `chore` is skipped by cliff.toml's commit_parsers, so routine bumps produce no
+# CHANGELOG entry. That is deliberate: the changelog records what shipped to
+# users, not dependency churn. Security fixes are raised by hand as `fix(deps):`
+# when they warrant an entry.
+
+version: 2
+
+updates:
+  # ── Frontend (pnpm) ───────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 8
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
+    groups:
+      # Dev tooling moves constantly and carries the transitive advisories
+      # (postcss, fast-uri, ajv all arrive through vite/stylelint/firebase-tools).
+      # One PR a week keeps that current without the noise of one PR per package.
+      frontend-dev:
+        patterns: ["*"]
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      # Production minor/patch grouped separately so runtime changes are reviewed
+      # as their own diff rather than buried among dev-tool bumps.
+      frontend-prod:
+        patterns: ["*"]
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+    # Majors stay ungrouped on purpose — they get an individual PR each, because
+    # they need reading rather than rubber-stamping. react-router v8 is the live
+    # example: it removes react-router-dom entirely.
+
+  # ── Backend (uv) ──────────────────────────────────────────────────────────
+  - package-ecosystem: "uv"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Madrid"
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 8
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      backend-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # ── GitHub Actions ────────────────────────────────────────────────────────
+  # Not subject to the pnpm/uv quarantines, but a cooldown is still worthwhile:
+  # a compromised action tag is a direct path into CI, which holds deploy
+  # credentials. One grouped PR a month.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    cooldown:
+      default-days: 8
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # ── Backend container base image ──────────────────────────────────────────
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 8
+    commit-message:
+      prefix: "chore"
+      include: "scope"
