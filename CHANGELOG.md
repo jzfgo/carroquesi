@@ -10,11 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Let users confirm and correct a misread receipt date
+- Let users confirm and correct a misread receipt date (JAV-54) (#137)
 
-- Judge the receipt date in the viewer's calendar, not UTC
-
-- Keep a pending barcode scan through a failed re-match
+- **deps:** Patch react-router and fast-uri Dependabot advisories
 
 
 ---
