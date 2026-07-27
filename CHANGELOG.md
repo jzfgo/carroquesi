@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Let users confirm and correct a misread receipt date (JAV-54) (#137)
 
-- **deps:** Patch react-router and fast-uri Dependabot advisories
+- **deps:** Patch react-router and fast-uri Dependabot advisories (#138)
+
+- **deps:** Patch postcss path-traversal advisory
 
 
 ---
