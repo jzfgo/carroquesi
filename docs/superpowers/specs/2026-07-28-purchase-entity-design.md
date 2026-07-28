@@ -337,8 +337,9 @@ After this phase there is one predicate, and the trip owns it.
 
 ## Testing and verification
 
-Baselines measured on this worktree before any change: **847 frontend / 63
-files**, **306 backend**, **90 e2e**. A test-count *drop* is the tell for local
+Baselines measured on this worktree before any change, after rebasing onto the
+integration branch with #171 in it: **860 frontend / 64 files**, **306
+backend**, **90 e2e**. A test-count *drop* is the tell for local
 `.env` keys masking a failure CI will hit.
 
 1. **A test that runs the migration.** Required, not optional: the phase's whole
