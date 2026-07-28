@@ -91,7 +91,7 @@ export const SEED_ITEMS: Record<string, ListItem[]> = {
     },
     // Five shops, which is the widest heading the list can draw: past three it
     // stops naming them and counts instead, so this renders as one line under
-    // "Alcampo, Carrefour u otras 3 tiendas" -- longer than any spelled-out
+    // "Alcampo u otras 4 tiendas" -- longer than any spelled-out
     // set, and therefore the case worth pinning. Named out of alphabetical
     // order on purpose: the heading sorts whatever order they were typed, and
     // it is the *set* that groups, so this is one line and not five.

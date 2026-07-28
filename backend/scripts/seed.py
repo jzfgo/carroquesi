@@ -165,7 +165,7 @@ SEED_ITEMS = [
     ),
     # Five shops, named out of alphabetical order on purpose. Past three the
     # heading stops naming them and counts instead, so this is the widest one
-    # the list can draw -- "Alcampo, Carrefour u otras 3 tiendas" -- and it
+    # the list can draw -- "Alcampo u otras 4 tiendas" -- and it
     # shows every part of the rule at once: the set groups (one line, not
     # five), the names sort, and the tail counts.
     ListItem(

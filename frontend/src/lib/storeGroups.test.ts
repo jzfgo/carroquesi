@@ -32,25 +32,41 @@ describe('formatShops', () => {
     expect(formatShops(['Dia', 'Mercadona'])).toBe('Dia o Mercadona')
   })
 
-  test('three take a comma and then the conjunction', () => {
-    expect(formatShops(['Carrefour', 'Dia', 'Mercadona'])).toBe(
-      'Carrefour, Dia o Mercadona',
-    )
-  })
-
-  describe('past three, the heading counts instead of naming', () => {
-    // Four shops wrap the heading, and a wrapped heading breaks its own
-    // underline in two -- which reads as two headings.
-    test('four: two named, the rest counted', () => {
-      expect(formatShops(['Alcampo', 'Carrefour', 'Dia', 'Mercadona'])).toBe(
-        'Alcampo, Carrefour u otras 2 tiendas',
+  describe('past two, the heading counts instead of naming', () => {
+    // Measured, not guessed: rendered in the written hand against the 294px a
+    // Pixel 10 leaves between the side margins, "BM Supermercados, El Corte
+    // Inglés o Mercadona" comes to 379px. The spelled-out triple was always
+    // the widest thing here, so the rule has to start above two -- counting
+    // only past three never touches the case that wraps.
+    test('three: one named, the rest counted', () => {
+      expect(formatShops(['Carrefour', 'Dia', 'Mercadona'])).toBe(
+        'Carrefour u otras 2 tiendas',
       )
     })
 
     test('five', () => {
       expect(
         formatShops(['Alcampo', 'Carrefour', 'Dia', 'Lidl', 'Mercadona']),
-      ).toBe('Alcampo, Carrefour u otras 3 tiendas')
+      ).toBe('Alcampo u otras 4 tiendas')
+    })
+
+    test('two are still named in full -- the rule starts above them', () => {
+      expect(formatShops(['Dia', 'Mercadona'])).toBe('Dia o Mercadona')
+    })
+
+    test('the widest heading the real chain list can produce', () => {
+      // The one measured at 288px, against 294px available.
+      const many = [
+        'BM Supermercados',
+        'Carrefour',
+        'Consum',
+        'DIA',
+        'E.Leclerc',
+        'El Corte Inglés',
+        'Eroski',
+        'Gadis',
+      ]
+      expect(formatShops(many)).toBe('BM Supermercados u otras 7 tiendas')
     })
 
     test('the conjunction is always u, because otras starts with the /o/ sound', () => {
@@ -60,18 +76,12 @@ describe('formatShops', () => {
 
     test('the count is a numeral, the shortest thing readable at a glance', () => {
       const eight = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
-      expect(formatShops(eight)).toBe('A, B u otras 6 tiendas')
+      expect(formatShops(eight)).toBe('A u otras 7 tiendas')
     })
 
     test('and stays a numeral however many there are', () => {
       const fourteen = Array.from({ length: 14 }, (_, n) => `T${n}`)
-      expect(formatShops(fourteen)).toBe('T0, T1 u otras 12 tiendas')
-    })
-
-    test('three is still named in full -- the rule starts above it', () => {
-      expect(formatShops(['Alcampo', 'Carrefour', 'Dia'])).not.toContain(
-        'otras',
-      )
+      expect(formatShops(fourteen)).toBe('T0 u otras 13 tiendas')
     })
   })
 
@@ -101,10 +111,9 @@ describe('formatShops', () => {
     })
 
     test('only the shop after the conjunction decides it', () => {
-      // "Opencor" sits mid-list, where no conjunction touches it.
-      expect(formatShops(['Opencor', 'Dia', 'Mercadona'])).toBe(
-        'Opencor, Dia o Mercadona',
-      )
+      // "Opencor" leads, where no conjunction touches it, so the /o/ that
+      // decides is Dia's -- and Dia takes the plain "o".
+      expect(formatShops(['Opencor', 'Dia'])).toBe('Opencor o Dia')
     })
   })
 })
@@ -130,8 +139,10 @@ describe('groupByShops', () => {
   })
 
   test('shops are written alphabetically, whatever order they were named in', () => {
+    // Three shops, so the heading counts -- but which shop it names is still
+    // decided by the sort, not by the order the household typed.
     expect(headings([at('a', 'Mercadona', 'Carrefour', 'Dia')])).toEqual([
-      'Carrefour, Dia o Mercadona',
+      'Carrefour u otras 2 tiendas',
     ])
   })
 
@@ -163,7 +174,7 @@ describe('groupByShops', () => {
       ]),
     ).toEqual([
       '',
-      'Carrefour, Dia o Mercadona',
+      'Carrefour u otras 2 tiendas',
       'Dia o Mercadona',
       'Mercadona',
     ])

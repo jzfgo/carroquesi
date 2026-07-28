@@ -47,24 +47,40 @@ function conjunction(next: string): string {
 
 /**
  * Past this many shops the heading stops naming them and counts them instead.
- * Three fit on one line in the written hand; four wrap, and a wrapped heading
- * breaks its own underline in two, which reads as two headings.
+ *
+ * Two, measured rather than guessed. Rendered in the written hand at 17px
+ * uppercase, against the 294px a Pixel 10 leaves between the side margins,
+ * every one of the 144 headings the real chain list can produce fits under
+ * this rule — the widest, "BM Supermercados u otras 7 tiendas", comes to
+ * 288px. Naming three overflows 42 of them, because "BM Supermercados, El
+ * Corte Inglés o Mercadona" is 379px on its own: the spelled-out triple was
+ * always the widest thing here, not the counted form, so a rule that only
+ * starts counting above three never touches the case that wraps.
+ *
+ * And a wrapped heading is not a cosmetic problem: the underline is drawn on
+ * the name, so wrapping breaks it into two underlined fragments, which reads
+ * as two headings.
  */
-const NAMED_LIMIT = 3
+const NAMED_LIMIT = 2
 
-/** How many are still named once the heading gives up on naming them all. */
-const NAMED_BEFORE_COUNT = 2
+/**
+ * How many are still named once the heading gives up on naming them all.
+ *
+ * One. The tail costs a fixed ~18 characters, so a second name is what pushes
+ * the counted form past the width it was introduced to save.
+ */
+const NAMED_BEFORE_COUNT = 1
 
 /**
  * The shops of a group, written the way you would say them.
  *
- * One shop is its own name; two are joined by the conjunction; three take a
- * comma and then the conjunction. No Oxford comma — Spanish does not use one.
+ * One shop is its own name; two are joined by the conjunction — "Dia o
+ * Mercadona". No Oxford comma anywhere; Spanish does not use one.
  *
- * Beyond three the heading names the first two and counts the rest: "Mercadona,
- * Dia u otras 3 tiendas". Naming five shops is not information anyone reads —
- * it is a wall of proper nouns wide enough to wrap — and what the line actually
- * says is "this is easy to find". The count says that in a breath. Which shops
+ * Beyond two the heading names the first and counts the rest: "Dia u otras 3
+ * tiendas". Naming five shops is not information anyone reads — it is a wall
+ * of proper nouns wide enough to wrap — and what the line actually says is
+ * "this one is easy to find". The count says that in a breath. Which shops
  * they are is still one tap away, in the item.
  *
  * The remainder is a numeral rather than a word: it is the shortest thing that
