@@ -269,13 +269,6 @@ export function ItemList({
         </>
       )}
 
-      {/* Where the paper stops and the board's own controls begin. It belongs
-          to neither of them, so it is drawn once for both — putting it on the
-          first control made it disappear whenever that control did. */}
-      {(folded > 0 || footer) && (
-        <div className="item-list__board-rule" aria-hidden />
-      )}
-
       {/* Lettered straight onto the board with no sheet of its own: what is
           not paper is not drawn as paper (rule 14). It counts trips rather
           than things, because that is what a purchase is — one shop, one day
@@ -288,23 +281,39 @@ export function ItemList({
           Sending it to a screen of its own would make the archive somewhere
           you go, when it is really just further down. */}
       {folded > 0 && (
-        <button
-          className="item-list__more-trips"
-          onClick={() => setTripsShown((n) => n + TRIPS_SHOWN)}
-        >
-          <span className="item-list__more-trips-text">Compras anteriores</span>
-          <span className="item-list__more-trips-meta">
-            <span className="item-list__more-trips-count">{folded}</span>
-            <ChevronDown className="item-list__more-trips-chevron" size={16} />
-          </span>
-        </button>
+        <>
+          {/* The pad's ruling, one above each thing written on the board.
+              Putting a single rule above the pair made it vanish whenever the
+              first of them did. */}
+          <div className="item-list__board-rule" aria-hidden />
+          <button
+            className="item-list__more-trips"
+            onClick={() => setTripsShown((n) => n + TRIPS_SHOWN)}
+          >
+            <span className="item-list__more-trips-text">
+              Compras anteriores
+            </span>
+            <span className="item-list__more-trips-meta">
+              <span className="item-list__more-trips-count">{folded}</span>
+              <ChevronDown
+                className="item-list__more-trips-chevron"
+                size={16}
+              />
+            </span>
+          </button>
+        </>
       )}
 
       {/* Last thing on the board, under everything it could ever produce. It
           used to sit inside the list sheet, between the shops and the cart —
           which put a way of *recording* a shop in the middle of the shop you
           are still doing. */}
-      {footer}
+      {footer && (
+        <>
+          <div className="item-list__board-rule" aria-hidden />
+          {footer}
+        </>
+      )}
     </div>
   )
 }

@@ -214,7 +214,7 @@ test('the rule between paper and board survives having nothing to load', () => {
   expect(container.querySelector('.item-list__board-rule')).not.toBeNull()
 })
 
-test('and is drawn once, not once per control', () => {
+test('and each thing on the board gets its own', () => {
   const { container } = render(
     <ItemList
       status="success"
@@ -226,7 +226,24 @@ test('and is drawn once, not once per control', () => {
     />,
   )
   expect(screen.getByText('Compras anteriores')).toBeInTheDocument()
-  expect(container.querySelectorAll('.item-list__board-rule')).toHaveLength(1)
+  expect(container.querySelectorAll('.item-list__board-rule')).toHaveLength(2)
+})
+
+test('a rule is ruled above, never below', () => {
+  const { container } = render(
+    <ItemList
+      status="success"
+      items={[makeItem('a'), ...tripsAgo(1)]}
+      onTogglePurchased={() => {}}
+      onOpen={() => {}}
+      onRetry={() => {}}
+      footer={<button>Guardar un ticket</button>}
+    />,
+  )
+  const rule = container.querySelector('.item-list__board-rule')!
+  expect(rule.nextElementSibling).toBe(
+    screen.getByRole('button', { name: 'Guardar un ticket' }),
+  )
 })
 
 test('the footer is the last thing on the board, not inside the list sheet', () => {
