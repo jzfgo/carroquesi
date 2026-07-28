@@ -16,19 +16,31 @@ export function SortableListCard({ list, onClick }: Props) {
     transform,
     transition,
     isDragging,
-  } = useSortable({
-    id: list.id,
-    // dnd-kit defaults this to the literal English 'sortable'
-    // (@dnd-kit/sortable dist :395), and aria-roledescription *replaces* the
-    // role rather than adding to it — so the row would announce as
-    // "Mercado, sortable" instead of "Mercado, botón": an English word in a
-    // Spanish app, naming the secondary interaction over the primary one.
-    //
-    // It rode here on the same {...attributes} spread as the instructions,
-    // and for the same reason: it used to land on the grip, which was
-    // aria-hidden and swallowed it.
-    attributes: { roleDescription: 'lista' },
-  })
+  } = useSortable({ id: list.id })
+
+  // No aria-roledescription at all, rather than a translated one.
+  //
+  // The attribute *replaces* the role announcement instead of adding to it, so
+  // any value here costs the row its "botón" — and this row is a button whose
+  // job is to open a list. dnd-kit's default is the English 'sortable'; the
+  // obvious repair, 'lista', is worse, because "lista" is what Spanish screen
+  // readers already say for role="list", so the control would announce itself
+  // with the vocabulary of a static container.
+  //
+  // The list-ness is carried twice already: the accessible name is the list's
+  // name, and the panel above is headed "Tus listas". aria-roledescription is
+  // for widgets whose role genuinely fails to describe them; "botón" describes
+  // this one exactly.
+  //
+  // Worth keeping in mind: this rode here on the same {...attributes} spread
+  // as the screen-reader instructions, and reached the button for the same
+  // reason — the grip it used to sit on was aria-hidden and swallowed it. One
+  // aria-hidden was suppressing three separate problems at once.
+  //
+  // Overridden to undefined rather than destructured out, because React omits
+  // an attribute set to undefined entirely — and an *absent*
+  // aria-roledescription is what ARIA asks for; an empty one is invalid and
+  // only works because user agents are told to ignore it.
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -40,7 +52,11 @@ export function SortableListCard({ list, onClick }: Props) {
       <ListCard
         list={list}
         onClick={onClick}
-        dragHandleProps={{ ...attributes, ...listeners }}
+        dragHandleProps={{
+          ...attributes,
+          'aria-roledescription': undefined,
+          ...listeners,
+        }}
         style={style}
         isDragging={isDragging}
       />

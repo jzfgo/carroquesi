@@ -1190,6 +1190,11 @@ describe('with no connection', () => {
     // the file. Removing the own property uncovers jsdom's real accessor
     // again, so nothing here depends on this block running last.
     delete (navigator as { onLine?: boolean }).onLine
+    // Assert it rather than trust the comment. jsdom installs onLine on
+    // Navigator.prototype, so deleting the own property uncovers it — but if a
+    // future jsdom made it an instance property, this delete would leave it
+    // undefined and every later test in the file would silently run offline.
+    expect(navigator.onLine).toBe(true)
   })
 
   const openMenu = () =>

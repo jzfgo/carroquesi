@@ -1,4 +1,8 @@
-import type { DragEndEvent } from '@dnd-kit/core'
+import type {
+  Announcements,
+  DragEndEvent,
+  UniqueIdentifier,
+} from '@dnd-kit/core'
 import {
   DndContext,
   PointerSensor,
@@ -251,8 +255,8 @@ export function DashboardScreen() {
   //
   // A name and a position are what someone who cannot see the row move
   // actually needs; the id is of no use to anyone.
-  const announcements = useMemo(() => {
-    const describe = (id: string | number) => {
+  const announcements = useMemo<Announcements>(() => {
+    const describe = (id: UniqueIdentifier) => {
       const index = lists?.findIndex((l) => l.id === id) ?? -1
       const list = index >= 0 ? lists![index] : null
       return {
@@ -261,29 +265,32 @@ export function DashboardScreen() {
       }
     }
     return {
-      onDragStart({ active }: { active: { id: string | number } }) {
+      onDragStart({ active }) {
         return `Has cogido ${describe(active.id).name}.`
       },
-      onDragOver({ over }: { over: { id: string | number } | null }) {
-        if (!over) return undefined
+      onDragOver({ active, over }) {
+        // dnd-kit dispatches its first DragOver as the drag starts, and with
+        // closestCenter — which has no distance cutoff — that first `over` is
+        // the dragged row itself, matching its own droppable at distance zero.
+        // Announcing it would say "sobre" of the thing already in your hand,
+        // to the one person who cannot see that. Same no-op handleDragEnd
+        // already makes of active.id === over.id.
+        if (!over || over.id === active.id) return undefined
         const { name, position } = describe(over.id)
         return position ? `Sobre ${name}, posición ${position}.` : undefined
       },
-      onDragEnd({
-        active,
-        over,
-      }: {
-        active: { id: string | number }
-        over: { id: string | number } | null
-      }) {
+      onDragEnd({ active, over }) {
         const { name } = describe(active.id)
+        // Barely reachable with closestCenter, which always returns a nearest
+        // droppable — but the type allows null and so does a list that
+        // refetches to empty under a held finger.
         if (!over) return `Has soltado ${name} donde estaba.`
         const { position } = describe(over.id)
         return position
           ? `Has soltado ${name} en la posición ${position}.`
           : `Has soltado ${name}.`
       },
-      onDragCancel({ active }: { active: { id: string | number } }) {
+      onDragCancel({ active }) {
         return `Movimiento cancelado. ${describe(active.id).name} vuelve a su sitio.`
       },
     }

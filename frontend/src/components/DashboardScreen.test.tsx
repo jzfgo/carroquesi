@@ -261,6 +261,18 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
 
+  // The row is a button that opens a list, and aria-roledescription replaces
+  // the role announcement rather than adding to it — so any value here costs
+  // it its "botón". dnd-kit sets one by default; this pins that it does not
+  // reach the button. Nothing else in the suite can see an aria attribute
+  // that is merely wrong rather than missing.
+  it('does not let the drag attributes rename what the row is', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    const row = await screen.findByRole('button', { name: /^Mercado/ })
+    expect(row).not.toHaveAttribute('aria-roledescription')
+  })
+
   it('renders InstallBanner when installable', async () => {
     vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
       isInstallable: true,
