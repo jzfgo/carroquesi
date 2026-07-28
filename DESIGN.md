@@ -7,8 +7,12 @@ colors:
   paper-2: "#d5dae2"
   paper-edge: "#b4bac4"
   paper-line: "#c7d2e1"
-  table: "#c2a982"
-  table-edge: "#a08a6a"
+  board-kraft: "#c2a982"
+  board-lino: "#c8c2b3"
+  board-salvia: "#a9b8a5"
+  board-niebla: "#a9b6c6"
+  board-barro: "#c59a8a"
+  board-pizarra: "#a8a8ad"
   ink-0: "#15161b"
   ink-1: "#353742"
   ink-2: "#6a6d7a"
@@ -123,12 +127,13 @@ components:
 > and every token it names exists in `frontend/src/colorsAndType.css` — build
 > against it directly.
 >
-> The **sheet model** (two sheets of different stock, instruction-vs-outcome rows,
-> no rules inside a sheet, no strikethrough) is designed and tokenised but not yet
-> assembled in components. That is an implementation backlog, not an ambiguity
-> here: where this file and the current UI disagree, **this file wins** and the UI
-> is what needs to change. Items still to be built are listed in
-> *Implementation status* at the end.
+> The **sheet model** (two sheets of different stock on a board, no rules inside a
+> sheet, no strikethrough) is now partly assembled: the board, the two sheet
+> weights, the veil and the two modes' relief are live. Instruction-vs-outcome row
+> anatomy, the die-cut and the pre-printed titles are not. That remainder is an
+> implementation backlog, not an ambiguity here: where this file and the current
+> UI disagree, **this file wins** and the UI is what needs to change. Items still
+> to be built are listed in *Implementation status* at the end.
 
 ## Overview
 
@@ -148,7 +153,7 @@ at from two unrelated causes, which is exactly why the two can share it without
 the distinction collapsing. Both sheets carry their titles in the app's serif,
 because on real stock the header is pre-printed before anything is written on it.
 
-The palette is cool blue-grey paper and near-black ink, on a warm wooden table.
+The palette is cool blue-grey paper and near-black ink, on a board of cardboard.
 On either sheet, ink is **grayscale**: the two hands already carry the state, so
 colour has nothing left to do there. The world is deliberately physical —
 creased paper, cast shadows, a rim-lit cut edge — but never illustrated. There
@@ -159,10 +164,10 @@ marketing surfaces — see *Paper Sheet*.)
 
 **Key Characteristics:**
 
-- Two sheets of different grammage, lying at the same level on a table
+- Two sheets of different grammage, lying at the same level on a board
 - Zero rules inside a sheet; whitespace and an aligned numeric column separate
 - Handwriting for intent, monospace for record, serif for pre-printed
-- Grayscale ink on both sheets; the table is the only warm thing in frame
+- Grayscale ink on both sheets; the board carries nearly all the hue in frame
 - Flat by default — depth is for objects that are genuinely separate
 - Amounts sit in one right-aligned tabular column in both states; only their
   truth-value changes
@@ -180,10 +185,12 @@ Cool paper, cool ink, one warm surface underneath. Hue is spent almost nowhere.
 
 ### Secondary
 
-- **Wooden Table** (`#c2a982`): the surface the sheets lie on. It is visible
-  *only* in the seam between them and never behind content. In dark it deepens to
-  `#3b2f22`. This is the only warm colour in the product and the only one that
-  survives the grayscale rule below.
+- **The Board** (`--board`): the surface the sheets lie on, visible in the seam
+  between them and never behind content. It is one of six — kraft `#c2a982`,
+  lino `#c8c2b3`, salvia `#a9b8a5`, niebla `#a9b6c6`, barro `#c59a8a`, pizarra
+  `#a8a8ad` — chosen per person per list, and it is where nearly all of the
+  product's hue is spent. It is the only family that survives the grayscale rule
+  below. See *The Board Is Yours Rule*.
 
 ### Tertiary
 
@@ -220,15 +227,49 @@ totals — is ink. Outside a sheet — buttons, sheets, errors, toasts — the
 palette applies in full.
 
 **The Surfaces-Keep-Their-Colour Rule.** Grayscale is a rule about *content*, not
-about the world. The table stays wooden and the paper stays cool-blue under it.
+about the world. The board stays warm and the paper stays cool-blue on it.
 Desaturating the surface as well produces a monochrome mockup, not a photograph.
+
+**The Board Is Yours Rule.** The surface the sheets lie on is one of six —
+kraft, lino, salvia, niebla, barro, pizarra — and which one you see is a
+**per-person, per-list** preference, not a property of the list. A list's
+identity is shared and is never local: the emoji and the name are what the
+whole household sees. Its *orientation* — the colour that helps you find it
+among your own lists — is yours alone, changed by any member for themselves and
+seen by nobody else. Neither is explained in the interface; they are told apart
+by where they live. Two consequences follow. Setting a board is **not an owner
+action**. And the board never leaves an open list: bringing its colour out to
+the dashboard was drawn twice, as an edge and as a tile, and refused both times,
+because entering a list has to mean something.
+
+A board is assigned on first entry by rotating the six, so two of your lists
+never open the same colour. `--board-ink` — the ink written straight onto the
+board, for the controls that live between sheets — is computed per hue and never
+picked; all twelve pairs clear 4.5:1, the tightest at 7.19. In dark the six keep
+their hue and double their chroma rather than fading to tinted greys, because at
+that luminance the eye separates hue long before lightness.
 
 **The Dark Is A Re-Theme Rule.** Dark mode is authored, not inverted — a
 late-night desk: graphite paper, cream ink, accents lifted rather than flipped.
 It is delivered by `@media (prefers-color-scheme: dark)` plus `.theme-light` /
-`.theme-dark` overrides, with `ThemeManager` mirroring the OS preference onto
-`<body>`. Every colour above has a hand-picked dark counterpart in
-`colorsAndType.css`; never derive one with `filter: invert()`.
+`.theme-dark` overrides. `ThemeManager` puts the class on **`<html>`**, not
+`<body>`, and that is load-bearing rather than stylistic: every semantic alias
+is declared on `:root` as `var(--some-palette-entry)`, and a custom property is
+substituted on the element that declares it, so a palette override on a
+descendant would repaint `--paper-0` and leave `--bg` holding the old value.
+Same element, no such split. Every colour above has a hand-picked dark
+counterpart in `colorsAndType.css`; never derive one with `filter: invert()`.
+
+The choice is three-way — light, dark, or **system**, which is the default —
+and it persists on the device rather than on the account: the same household
+reads the same list on a phone in bed and on a tablet in the kitchen, and those
+two want different answers.
+
+This dark mode is deliberately **more luminous than most**. The sheet fills the
+screen and the sheet has to stay the lightest thing on it, which is the direct
+consequence of keeping paper above board in both lights. Lowering the sheet was
+proposed and refused; if it ever becomes a real complaint the answer is a third
+night-reading mode that lowers the whole set without touching the order.
 
 **The Measured Ink Rule.** The ink ramp is contrast-tested against
 `--paper-0`, not assumed, and only the top three steps carry text. Measured
@@ -236,10 +277,10 @@ against WCAG's 4.5:1 floor:
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--ink-0` | 15.95 | 15.86 | Item names, headings |
-| `--ink-1` | 10.43 | 11.00 | Body, amounts, secondary |
-| `--ink-2` | 4.54 | 5.84 | Meta text — clears the floor by 0.04 in light; do not darken the paper beneath it |
-| `--ink-3` | **2.60** | **3.55** | **Below AA in both themes. Never live text** |
+| `--ink-0` | 15.95 | 13.17 | Item names, headings |
+| `--ink-1` | 10.43 | 8.53 | Body, amounts, secondary |
+| `--ink-2` | 4.54 | 4.97 | Meta text — clears the floor by 0.04 in light; do not darken the paper beneath it |
+| `--ink-3` | **2.60** | **3.09** | **Below AA in both themes. Never live text** |
 
 Anything a person is meant to read stops at `--ink-2`. `--ink-3` has exactly two
 consumers today, both `::placeholder` (`CreateListCard.css`, `SmartInputBar.css`),
@@ -376,7 +417,7 @@ change, never a shadow. Shadows are reserved for: bottom sheet, dropdown menu,
 toast, dragging card, and the two sheets below.
 
 **The Two Sheets Exception.** The list and the receipt are genuinely
-separate physical objects, so each casts a real shadow — onto the **table**, not
+separate physical objects, so each casts a real shadow — onto the **board**, not
 onto each other. They lie at the same elevation, side by side. The thicker list
 stock casts slightly deeper (`0 1px 1.5px`, `0 4px 9px -4px`) than the thin till
 roll (`0 1px 1px`, `0 2px 5px -3px`), and the receipt carries a **1.5px** rim
@@ -486,7 +527,7 @@ the amount column.
 
 ### Paper Sheet
 
-Two sheets on a table. What tells them apart at a glance — and carries the paper
+Two sheets on a board. What tells them apart at a glance — and carries the paper
 metaphor — is **not** the crease. It is the **cast shadow** (the list casts
 deeper, the receipt shallower — *The Two Sheets Exception*), the **rim light** on
 the receipt's cut edge, the **veil** over a purchased sheet, and the grammage
@@ -625,14 +666,14 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 | Piece | State | Where the values live |
 |---|---|---|
 | Palette, type scale, radii, shadows, font stacks | **Shipping** — consumed throughout | `colorsAndType.css` |
-| Spacing and motion tokens | Defined — **0 consumers**; components hardcode the same values as literals | `colorsAndType.css` |
-| Hit-target tokens | Partial — `--hit-min` used 4× in 2 files; `--hit-tap`, `--hit-sheet` unused, their values written as literals | `colorsAndType.css` |
-| Table, cast/rim, `--font-written` tokens | **Shipping** (added with this file, unused so far) | `colorsAndType.css` |
-| Two sheets: cast shadow, veil, rim light | To build | `.impeccable/design.json` → `extensions.paper` |
+| Spacing and motion tokens | Partial — `--side-margin`, `--dur-fast`, `--ease-out` consumed by the panel and the appearance segment; the `--space-*` ladder still has 0 consumers | `colorsAndType.css` |
+| Hit-target tokens | Partial — `--hit-min`, `--hit-tap`, `--row-short`, `--row-meta`, `--swatch`, `--segment` consumed; `--hit-sheet` unused | `colorsAndType.css` |
+| Board (×6), cast/rim, edge, `--font-written` tokens | **Shipping** — board, edge and cast consumed by `ItemList`/`BoardPicker` | `colorsAndType.css` |
+| Two sheets: cast shadow, veil, rim light | **Shipping** — list sheet and receipt sheets in `ItemList.css`; crease still to build | `.impeccable/design.json` → `extensions.paper` |
 | Live-product **static** crease | To build — one pre-composed treatment, no per-list state | `extensions.paper.liveCrease` |
 | **Marketing/onboarding** procedural crease | To build — full generator, static render only; the tiling/periodicity analysis applies solely if it ever returns to the live list | `extensions.paper.procedural` |
 | Instruction vs. outcome row anatomy | To build | *Components → Item Row* |
-| Removal of the strikethrough on purchased items | To build | *Do's and Don'ts* |
+| Removal of the strikethrough on purchased items | **Shipping** — said with `--purchased` ink instead | *Do's and Don'ts* |
 | Pre-printed serif sheet titles | To build | *Components → Pre-printed Sheet Title* |
 | Grayscale ink on both sheets | To build | *Colors → The Grayscale Ink Rule* |
 | Smart Input add/scan buttons at `--hit-min` | To build — currently 36px | `SmartInputBar.css` |
@@ -643,10 +684,9 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 
 Two consequences worth stating plainly:
 
-- **Removing the strikethrough will break the committed Playwright visual
-  baselines** (`item-purchased-*`, `purchase-lifecycle-*`). Regenerate with
-  `just frontend update-snapshots`, which runs Docker to match CI's Linux font
-  rendering — do not regenerate them locally on macOS.
+- **Any visual change breaks the committed Playwright baselines.** Regenerate
+  with `just frontend update-snapshots`, which runs Docker to match CI's Linux
+  font rendering — do not regenerate them locally on macOS.
 - **The reference implementation of the sheet model is not in this repository.**
   It was built and tuned as an interactive prototype; the parameters it produced
   are recorded in `.impeccable/design.json` under `extensions.paper`, which is
