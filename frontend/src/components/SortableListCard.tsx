@@ -6,9 +6,20 @@ import { ListCard } from './ListCard'
 interface Props {
   list: ApiList
   onClick: () => void
+  reordering?: boolean
+  onMove?: (direction: 'up' | 'down') => void
+  isFirst?: boolean
+  isLast?: boolean
 }
 
-export function SortableListCard({ list, onClick }: Props) {
+export function SortableListCard({
+  list,
+  onClick,
+  reordering,
+  onMove,
+  isFirst,
+  isLast,
+}: Props) {
   const {
     attributes,
     listeners,
@@ -55,13 +66,28 @@ export function SortableListCard({ list, onClick }: Props) {
            the same reason — the grip it used to sit on was aria-hidden and
            swallowed it. One aria-hidden was suppressing three separate
            problems at once. */
-        dragHandleProps={{
-          ...attributes,
-          ...listeners,
-          'aria-roledescription': undefined,
-        }}
+        /* Withheld entirely while arranging, and not as a precaution: these
+           are the props of a button. `attributes` carries role="button",
+           tabIndex and aria-describedby, and the reordering row is a span —
+           putting them on it would announce a control that cannot be operated
+           and point aria-describedby at instructions for a gesture that is
+           switched off. A declaration that is right on one host and wrong on
+           another is exactly what cost #171 four rounds. */
+        dragHandleProps={
+          reordering
+            ? undefined
+            : {
+                ...attributes,
+                ...listeners,
+                'aria-roledescription': undefined,
+              }
+        }
         style={style}
         isDragging={isDragging}
+        reordering={reordering}
+        onMove={onMove}
+        isFirst={isFirst}
+        isLast={isLast}
       />
     </div>
   )

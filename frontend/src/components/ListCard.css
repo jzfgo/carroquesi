@@ -142,3 +142,66 @@
 .list-card__tap-target:focus-visible::after {
   box-shadow: var(--focus-ring);
 }
+
+/* Arranging. Three columns, not four: the count and the chevron are gone —
+   the chevron because it promises somewhere to go and the row goes nowhere
+   while the mode is on, the count because the buttons need the width more than
+   a figure that is not being acted on. */
+.list-card--reordering {
+  grid-template-columns: 36px 1fr auto;
+}
+
+/* The row-wide hit area has to go with the button it belonged to.
+
+   It is absolutely positioned at inset: 0 and the move buttons are not
+   positioned at all, so it paints over both of them and swallows every click —
+   the buttons look present and do nothing. This is the same shape of fault as
+   the touch-action one above: a declaration that is exactly right for a row
+   whose only target is the row, and wrong the moment the row grows a second
+   one. */
+.list-card--reordering .list-card__tap-target::after {
+  content: none;
+}
+
+.list-card--reordering .list-card__tap-target {
+  cursor: default;
+}
+
+.list-card__move {
+  display: flex;
+  gap: 4px;
+}
+
+/* 40px, not the 16px the glyph needs: WCAG 2.5.8 asks for 24, iOS asks for 44,
+   and these two sit side by side on a phone where hitting the wrong one moves
+   the list the wrong way. Negative margin keeps the taller target from pushing
+   the row past var(--row-short). */
+.list-card__move-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: -8px 0;
+  padding: 0;
+  color: var(--ink-1);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Unavailable, and still there — both halves matter. At the ends of the panel
+   one of the two always is, and the move that reaches an end is the move that
+   disables the very button that made it. Hiding it would take the focus with
+   it; so would `disabled`, which browsers blur. aria-disabled is what leaves
+   the button focusable, so this styles that rather than :disabled. */
+.list-card__move-button[aria-disabled='true'] {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.list-card__move-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

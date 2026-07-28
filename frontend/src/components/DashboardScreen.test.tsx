@@ -848,3 +848,226 @@ describe('notifications toggle', () => {
     ).toBeNull()
   })
 })
+
+describe('DashboardScreen — arranging', () => {
+  const openCreateAndSubmit = async (name: string) => {
+    fireEvent.click(screen.getByRole('button', { name: /nueva lista/i }))
+    fireEvent.change(await screen.findByPlaceholderText(/nombre/i), {
+      target: { value: name },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /crear/i }))
+  }
+
+  const enterReorderMode = async () => {
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Reordenar' }))
+  }
+
+  // By class, not by role. DndContext mounts its own role="status" region for
+  // drag announcements, so "the status region" is ambiguous on this screen.
+  const moveStatus = () =>
+    document.querySelector('.dashboard-screen__move-status')!
+
+  const order = () =>
+    JSON.parse(localStorage.getItem('list-order-u1') ?? 'null') as
+      string[] | null
+
+  beforeEach(() => {
+    localStorage.removeItem('list-order-u1')
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+  })
+
+  it('is not offered when there is nothing to arrange', async () => {
+    vi.mocked(api.getLists).mockResolvedValue([twoLists[0]] as never)
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+    expect(
+      screen.queryByRole('button', { name: 'Reordenar' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('turns the rows from ways in into things to arrange, and back', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+
+    // Costco rather than Mercado: Mercado is the default list, so its label
+    // carries a suffix and an exact match on the bare name would pass here
+    // whether the row were a button or not.
+    expect(
+      screen.queryByRole('button', { name: 'Costco' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Subir Costco' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Listo' }))
+    expect(screen.getByRole('button', { name: 'Costco' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Subir Costco' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('moves a list and remembers the new order', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+    fireEvent.click(screen.getByRole('button', { name: 'Subir Costco' }))
+
+    await waitFor(() => expect(order()).toEqual(['l2', 'l1']))
+  })
+
+  it('refuses the move that would go off the end, and saves nothing', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+    fireEvent.click(screen.getByRole('button', { name: 'Subir Mercado' }))
+
+    expect(order()).toBeNull()
+  })
+
+  // The assertion the rest of the suite cannot make. jsdom performs no layout,
+  // so a row moving is invisible to it — but it does hold live-region text, and
+  // that text is the entire feedback anyone not watching the panel receives.
+  it('says where the list landed, and says it again on the next move', async () => {
+    vi.mocked(api.getLists).mockResolvedValue([
+      ...twoLists,
+      { ...twoLists[0], id: 'l3', name: 'Farmacia', is_default: false },
+    ] as never)
+    render(<DashboardScreen />)
+    await enterReorderMode()
+
+    const region = moveStatus()
+    fireEvent.click(screen.getByRole('button', { name: 'Subir Farmacia' }))
+    await waitFor(() =>
+      expect(region).toHaveTextContent('Farmacia movida a la posición 2 de 3.'),
+    )
+
+    // A polite region re-announces on a change of text. Had the message been
+    // "Farmacia movida arriba", this second press would have been silence.
+    fireEvent.click(screen.getByRole('button', { name: 'Subir Farmacia' }))
+    await waitFor(() =>
+      expect(region).toHaveTextContent('Farmacia movida a la posición 1 de 3.'),
+    )
+  })
+
+  it('goes quiet when the arranging stops', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+    fireEvent.click(screen.getByRole('button', { name: 'Subir Costco' }))
+    await waitFor(() => expect(moveStatus()).toHaveTextContent('posición'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Listo' }))
+    expect(moveStatus()).toHaveTextContent('')
+  })
+
+  // Pressing the toggle changes the accessible name of the element you are
+  // already focused on, which VoiceOver on iOS generally does not re-announce.
+  // The live region is the part that does not depend on the screen reader
+  // noticing.
+  it('announces entering the mode, and goes quiet on leaving', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+    expect(moveStatus()).toHaveTextContent(/modo reordenar/i)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Listo' }))
+    expect(moveStatus()).toHaveTextContent('')
+  })
+
+  // Where the region sits is load-bearing, and it is checkable — DOM order is
+  // not layout, so jsdom models it exactly.
+  //
+  // Both bounds, because either one alone passes a move that breaks the claim.
+  // Asserting only "before the first row" still passes with the region hoisted
+  // above the panel head, which would have a screen reader meet the
+  // instructions before the control that produced them; asserting only "after
+  // the toggle" still passes with it dropped below every row, beside
+  // DndContext's own region, where nothing would reach it in time.
+  it('is read after the toggle and before the first row', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+
+    const region = moveStatus()
+    expect(
+      region.compareDocumentPosition(
+        screen.getByRole('button', { name: 'Listo' }),
+      ) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy()
+    expect(
+      region.compareDocumentPosition(
+        screen.getByRole('button', { name: 'Subir Mercado' }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  // The invariant is that arranging does not survive the row *set* changing —
+  // not that it does not survive a fetch. The two are close enough today, and
+  // come apart the moment this screen grows the short poll the rest of the app
+  // has, at which point clearing per fetch would drop you out every tick.
+  it('survives a refetch that brings back the same lists', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+    fireEvent.click(screen.getByRole('button', { name: 'Subir Costco' }))
+    await waitFor(() => expect(moveStatus()).toHaveTextContent('posición'))
+
+    // getLists is still stubbed with the same two, so the refetch this create
+    // triggers returns an identical set.
+    await openCreateAndSubmit('Farmacia')
+    await waitFor(() => expect(api.createList).toHaveBeenCalled())
+
+    expect(
+      screen.getByRole('button', { name: 'Subir Costco' }),
+    ).toBeInTheDocument()
+    expect(moveStatus()).toHaveTextContent('posición')
+  })
+
+  // The request has to die with the mode, or it comes back on its own. Deriving
+  // `reordering` only stops it displaying; the flag underneath outlives the
+  // condition that emptied it.
+  it('does not return to arranging when the panel refills', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+    expect(
+      screen.getByRole('button', { name: 'Subir Costco' }),
+    ).toBeInTheDocument()
+
+    // A list goes away elsewhere, and something here causes a refetch.
+    vi.mocked(api.getLists).mockResolvedValue([twoLists[0]] as never)
+    await openCreateAndSubmit('Costco')
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Reordenar' }),
+      ).not.toBeInTheDocument(),
+    )
+
+    // It comes back. Arranging must not.
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    await openCreateAndSubmit('Farmacia')
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Reordenar' }),
+      ).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Subir Costco' }),
+    ).not.toBeInTheDocument()
+  })
+
+  // Without this the mode is unusable by the people it exists for: press Subir,
+  // the DOM reorders underneath, and if focus is not carried along a keyboard
+  // user is returned to the top of the document after every single move.
+  it('keeps focus on the button that was pressed, including at the top', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+
+    const up = screen.getByRole('button', { name: 'Subir Costco' })
+    up.focus()
+    expect(document.activeElement).toBe(up)
+
+    fireEvent.click(up)
+    await waitFor(() => expect(order()).toEqual(['l2', 'l1']))
+
+    // Costco is now first, so its own Subir is the unavailable one — which is
+    // exactly the case a real `disabled` would have blurred.
+    const upAfter = screen.getByRole('button', { name: 'Subir Costco' })
+    expect(upAfter).toHaveAttribute('aria-disabled', 'true')
+    expect(document.activeElement).toBe(upAfter)
+  })
+})

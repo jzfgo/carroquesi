@@ -146,3 +146,124 @@ describe('ListCard — the row is only a way in', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('ListCard — arranging', () => {
+  it('stops being a way in: no button, no chevron', () => {
+    const onClick = vi.fn()
+    const { container } = render(
+      <ListCard list={makeList()} onClick={onClick} reordering />,
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Mercado semanal' }),
+    ).not.toBeInTheDocument()
+    expect(container.querySelector('.list-card__chevron')).toBeNull()
+    expect(screen.getByText('Mercado semanal')).toBeInTheDocument()
+  })
+
+  it('offers a move in each direction, named for the list they move', () => {
+    render(
+      <ListCard
+        list={makeList()}
+        onClick={vi.fn()}
+        reordering
+        onMove={vi.fn()}
+      />,
+    )
+    // The name is in the label because a screen reader reaches these buttons
+    // one at a time, out of the row's context.
+    expect(
+      screen.getByRole('button', { name: 'Subir Mercado semanal' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Bajar Mercado semanal' }),
+    ).toBeInTheDocument()
+  })
+
+  it('reports the direction it was asked for', () => {
+    const onMove = vi.fn()
+    render(
+      <ListCard
+        list={makeList()}
+        onClick={vi.fn()}
+        reordering
+        onMove={onMove}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^Subir/ }))
+    expect(onMove).toHaveBeenCalledWith('up')
+    fireEvent.click(screen.getByRole('button', { name: /^Bajar/ }))
+    expect(onMove).toHaveBeenCalledWith('down')
+  })
+
+  it('marks the move that would go off the end unavailable, but still focusable', () => {
+    const onMove = vi.fn()
+    const { rerender } = render(
+      <ListCard
+        list={makeList()}
+        onClick={vi.fn()}
+        reordering
+        isFirst
+        onMove={onMove}
+      />,
+    )
+    const up = screen.getByRole('button', { name: /^Subir/ })
+    expect(up).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('button', { name: /^Bajar/ })).toHaveAttribute(
+      'aria-disabled',
+      'false',
+    )
+
+    // aria-disabled leaves it clickable, so the handler is what has to refuse.
+    fireEvent.click(up)
+    expect(onMove).not.toHaveBeenCalled()
+
+    // And genuinely disabled it is not — that is what keeps focus from being
+    // dropped on the move that reaches an end.
+    expect(up).not.toBeDisabled()
+    up.focus()
+    expect(document.activeElement).toBe(up)
+
+    rerender(<ListCard list={makeList()} onClick={vi.fn()} reordering isLast />)
+    expect(screen.getByRole('button', { name: /^Subir/ })).toHaveAttribute(
+      'aria-disabled',
+      'false',
+    )
+    expect(screen.getByRole('button', { name: /^Bajar/ })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    )
+  })
+
+  it('still says which list is the default while arranging', () => {
+    render(
+      <ListCard
+        list={makeList({ is_default: true })}
+        onClick={vi.fn()}
+        reordering
+      />,
+    )
+    // The star is aria-hidden and the label carrying this belongs to the button
+    // branch, so the mode built for people who cannot see the row would
+    // otherwise be the one state that stops telling them.
+    expect(screen.getByText(/lista predeterminada/i)).toBeInTheDocument()
+  })
+
+  // Withholding these is the point of the mode, not an oversight: dnd-kit's
+  // attributes carry role="button", tabIndex and aria-describedby, and the
+  // reordering row is a span. Landing them there would announce a control that
+  // cannot be operated.
+  it('takes no drag props while arranging', () => {
+    const onPointerDown = vi.fn()
+    const { container } = render(
+      <ListCard
+        list={makeList()}
+        onClick={vi.fn()}
+        reordering
+        dragHandleProps={{ onPointerDown, role: 'button', tabIndex: 0 }}
+      />,
+    )
+    const target = container.querySelector('.list-card__tap-target')!
+    expect(target.getAttribute('role')).toBeNull()
+    expect(target.getAttribute('tabindex')).toBeNull()
+  })
+})
