@@ -195,13 +195,31 @@ driven by what the receipt matched. Store and total come from the `ReceiptScan`
 row that `scan_id` names — not from new request fields, because those two
 figures are exactly what the scan already recorded.
 
-- Affected items (patched, plus impulse `new_items`) that sit in the **open**
-  trip are split out into a new closed trip, exactly as a manual subset close.
-- Affected items already in a **closed** trip keep their trip. If every affected
-  item is in one such trip and it has no store or total, fill those in from the
-  scan — the scan is confirming a trip that was torn off unreconciled.
-- `receipt_scans.purchase_id` records whichever trip the scan reconciled, and
-  stays `NULL` when the matches span several.
+**A scan reconciles a trip only when every affected item belongs to that one
+trip.** Otherwise it applies its prices and reconciles nothing, leaving
+`receipt_scans.purchase_id` NULL.
+
+- All affected items in the **open** trip → split out into a new closed trip,
+  exactly as a manual subset close.
+- All affected items in one **torn-off** trip → confirm it: fill in `store` and
+  `total` where they are NULL, never overwriting what was already said, and set
+  `closed_at`. **Confirming is closing.** A confirmed trip left open would still
+  be found by `trip_for`, so a later backdated tap would join a trip whose total
+  was confirmed for a different set of lines.
+- Affected items spanning **more than one** trip → reconcile nothing.
+
+That last rule is a deliberate trade of ergonomics for truth, and the first
+draft got it wrong. It short-circuited as soon as *any* affected item was in the
+open trip, without checking whether the others were elsewhere — so a scan
+matching two already-filed items plus one still in the cart attached the whole
+receipt total to a ticket holding one line, while the other two sat under a
+different ticket. `total` is the figure read off a paper receipt for the lines on
+that receipt; a total describing some other set of lines is precisely the
+silent-corruption failure this entity exists to prevent.
+
+The cost is that a scan which fuzzy-matches one stale item now reconciles
+nothing, and the cart must be closed by hand. That is recoverable. A wrong
+confirmed total is not.
 
 The `±3 day` match window in `scan_receipt` is what makes the multi-trip case
 reachable. Receipt scanning is behind the `ai_receipt_scanning` flag, so for
