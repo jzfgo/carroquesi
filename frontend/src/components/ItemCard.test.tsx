@@ -153,6 +153,64 @@ describe('the figure column', () => {
   })
 })
 
+describe('the second line', () => {
+  it('holds the brand while the line is still to buy', () => {
+    const { container } = renderCard({ brand: 'Hacendado' })
+    expect(container.querySelector('.item-card__sub')).toHaveTextContent(
+      'Hacendado',
+    )
+  })
+
+  it('leaves the quantity in the figure column while it is an instruction', () => {
+    // Quantity and brand do not share the second line until the figure column
+    // has been taken over by what the thing cost.
+    const { container } = renderCard({ brand: 'Hacendado', quantity: '2 ud' })
+    expect(container.querySelector('.item-card__sub')).toHaveTextContent(
+      'Hacendado',
+    )
+    expect(container.querySelector('.item-card__figure')).toHaveTextContent(
+      '2 ud',
+    )
+  })
+
+  it('is quantity then brand once the line is settled', () => {
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: EARLIER,
+      purchased_quantity: '12 ud',
+      brand: 'Puleva',
+    })
+    expect(container.querySelector('.item-card__sub')).toHaveTextContent(
+      '12 ud · Puleva',
+    )
+  })
+
+  it('drops the separator when a settled line has only one of them', () => {
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: EARLIER,
+      purchased_quantity: '1 ud',
+    })
+    expect(container.querySelector('.item-card__sub')?.textContent).toBe('1 ud')
+  })
+
+  it('is not drawn at all when there is nothing to put on it (rule 6)', () => {
+    const { container } = renderCard()
+    expect(container.querySelector('.item-card__sub')).toBeNull()
+  })
+
+  it('carries the brand in the cart too — the line has not come off the list', () => {
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: TODAY,
+      brand: 'Hacendado',
+    })
+    expect(container.querySelector('.item-card__sub')).toHaveTextContent(
+      'Hacendado',
+    )
+  })
+})
+
 describe('the day boundary', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())

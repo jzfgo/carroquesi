@@ -48,6 +48,20 @@ export function ItemCard({ item, onTogglePurchased, onOpen, onClone }: Props) {
   // not a figure at all (rule 10).
   const showsAmount = state !== 'pending' && item.price != null
 
+  // The second line, and what it says depends on which way the row is facing.
+  //
+  // Still to buy, the quantity is a figure and sits in the figure column, so
+  // the only thing left under the name is the brand — which is a preference,
+  // not an instruction: "leche, and Hacendado if they have it".
+  //
+  // Settled, the figure column has been taken over by what it cost, so the
+  // quantity comes down here and the brand follows it: "12 UD · PULEVA". Both
+  // are singular on a purchase, and either can be missing — a row with neither
+  // simply has no second line rather than an empty one held open (rule 6).
+  const subline = settled
+    ? [displayQty, item.brand].filter(Boolean).join(' · ')
+    : item.brand
+
   return (
     <div className={`item-card item-card--${state}`}>
       {settled ? (
@@ -85,9 +99,7 @@ export function ItemCard({ item, onTogglePurchased, onOpen, onClone }: Props) {
         aria-label={item.name}
       >
         <span className="item-card__name">{item.name}</span>
-        {settled && displayQty && (
-          <span className="item-card__sub">{displayQty}</span>
-        )}
+        {subline && <span className="item-card__sub">{subline}</span>}
       </button>
 
       {/* One column for the figure, whichever figure this line has. Once a
