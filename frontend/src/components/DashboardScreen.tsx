@@ -35,6 +35,8 @@ import { CURATED_EMOJIS } from '../lib/curatedEmojis'
 import type { DragState } from '../lib/dragAnnouncements'
 import { createDragAnnouncements } from '../lib/dragAnnouncements'
 import { FLAGS } from '../lib/featureFlags'
+import type { Direction } from '../lib/listOrder'
+import { moveAnnouncement, moveList } from '../lib/listOrder'
 import {
   canReceivePush,
   disablePush,
@@ -221,6 +223,43 @@ export function DashboardScreen() {
       }
     },
     [getToken, isOffline],
+  )
+
+  // Arranging is a mode, not a second affordance bolted to every row. #171
+  // reduced the row to one control on purpose, and a permanent pair of arrows
+  // would put the duplication straight back; asking for the mode is what buys
+  // the space to show them.
+  //
+  // Derived rather than stored, so it cannot survive the condition that makes
+  // it meaningless. With one list there is nothing to arrange and the toggle is
+  // not drawn — and if a refetch or another tab takes the panel down to one
+  // while the mode is on, a stored flag would leave someone inside a mode whose
+  // only exit had just been removed.
+  const [reorderRequested, setReorderRequested] = useState(false)
+  const reordering = reorderRequested && (lists?.length ?? 0) > 1
+
+  const [moveMessage, setMoveMessage] = useState('')
+
+  // Reads `lists` from the closure rather than using the updater form, because
+  // it has to do three things and only one of them is computing the next state.
+  // A setState updater must be pure — StrictMode calls it twice — so saving the
+  // order and setting the announcement cannot live inside one. Only ever called
+  // from a click, so the closed-over `lists` is the rendered one.
+  const handleMove = useCallback(
+    (id: string, direction: Direction) => {
+      if (!lists) return
+      const next = moveList(lists, id, direction)
+      // Identical reference: the move was off the end. Nothing changed, so
+      // nothing is saved and nothing is announced.
+      if (next === lists) return
+      setLists(next)
+      saveOrder(
+        user!.id,
+        next.map((l) => l.id),
+      )
+      setMoveMessage(moveAnnouncement(next, id))
+    },
+    [lists, user],
   )
 
   const handleDragEnd = useCallback(
@@ -440,8 +479,36 @@ export function DashboardScreen() {
             <span className="dashboard-screen__panel-count">
               {lists.length}
             </span>
+            {lists.length > 1 && (
+              <button
+                className="dashboard-screen__reorder-toggle"
+                onClick={() => {
+                  setReorderRequested((on) => !on)
+                  // The region belongs to the arranging, so it goes quiet when
+                  // the arranging does. Left standing, the next screen reader
+                  // to reach it would read out a move made minutes ago.
+                  setMoveMessage('')
+                }}
+                aria-pressed={reordering}
+              >
+                {reordering ? 'Listo' : 'Reordenar'}
+              </button>
+            )}
           </div>
         )}
+        {/* Only the button path needs this. A drag has DndContext's own live
+            region, which says considerably more than a landing position — see
+            lib/dragAnnouncements.
+
+            aria-live rather than role="status", which is what it would
+            otherwise be written as. DndContext mounts a role="status" region of
+            its own, and a second one makes "the status region" ambiguous — for
+            a test picking it out, and for anyone navigating by role. The
+            announcement behaviour is identical; only the implicit role is not
+            claimed twice. */}
+        <p className="sr-only dashboard-screen__move-status" aria-live="polite">
+          {moveMessage}
+        </p>
         {/* Say the gesture that exists, not the one dnd-kit assumes.
 
             Its default instructions tell a screen reader to press the space
@@ -451,10 +518,14 @@ export function DashboardScreen() {
             here, so space does nothing. Describing a gesture that isn't there
             is worse than describing none.
 
-            Reordering by keyboard stays unavailable, which is honest rather
-            than ideal: KeyboardSensor activates on Space/Enter, the same keys
-            that open the list from this button, so it needs an activator of
-            its own — and the row no longer has a spare element to be one. */}
+            KeyboardSensor is still not registered, and now never will be. It
+            activates on Space/Enter — the keys that open a list from this
+            button — so it would need an activator element of its own, and the
+            row has none to spare. Reordering without a pointer is the
+            Reordenar mode above instead, which is better than a keyboard drag
+            rather than a substitute for one: two buttons per row serve screen
+            readers, switch access and voice control, none of which can hold
+            something down and steer it. */}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -471,11 +542,15 @@ export function DashboardScreen() {
             items={lists.map((l) => l.id)}
             strategy={verticalListSortingStrategy}
           >
-            {lists.map((list) => (
+            {lists.map((list, index) => (
               <SortableListCard
                 key={list.id}
                 list={list}
                 onClick={() => navigate(`/lists/${list.id}`)}
+                reordering={reordering}
+                onMove={(direction) => handleMove(list.id, direction)}
+                isFirst={index === 0}
+                isLast={index === lists.length - 1}
               />
             ))}
           </SortableContext>

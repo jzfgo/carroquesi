@@ -76,7 +76,7 @@
 .dashboard-screen__panel-head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
+  gap: 8px;
   padding: 20px var(--side-margin) 8px;
 }
 
@@ -89,13 +89,46 @@
   text-transform: uppercase;
 }
 
+/* The count sits with the label it counts rather than at the far edge, and the
+   auto margin is what carries the toggle to the right. The head used to be two
+   children under space-between, which put the count against the opposite edge
+   and left nowhere for a third child to go without landing between them. */
 .dashboard-screen__panel-count {
+  margin-right: auto;
   font-family: var(--font-mono);
   font-size: var(--fs-12);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: var(--ink-2);
+}
+
+/* Reads as the label's sibling, not as a button pressed into the panel: same
+   size and tracking, ink rather than accent, and no box until it is focused.
+   It is a mode switch that is usually off, and it should not out-shout the
+   lists it arranges. */
+.dashboard-screen__reorder-toggle {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.dashboard-screen__reorder-toggle[aria-pressed='true'] {
+  color: var(--tinta-0);
+}
+
+.dashboard-screen__reorder-toggle:focus-visible {
+  outline: none;
+  border-radius: 4px;
+  box-shadow: var(--focus-ring);
 }
 
 .dashboard-screen__create {
