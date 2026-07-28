@@ -26,6 +26,11 @@
    empty ring is still on the list, a cart on accent is picked up. A settled
    line has no circle at all — see .item-card__again. */
 .item-card__checkbox {
+  /* Above the row-wide hit area that .item-card__open stretches across the
+     whole line: without this the circle sits underneath it and tapping the
+     circle opens the item instead of marking it. Grid items take z-index
+     without needing position. */
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -49,6 +54,7 @@
 /* Buy it again. A record has no state to toggle, so the column that held the
    circle holds the one thing still worth doing to the line. */
 .item-card__again {
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -157,6 +163,7 @@
   color: var(--ink-2);
 }
 
+.item-card--cart .item-card__figure--amount,
 .item-card--bought .item-card__figure {
   font-family: var(--font-mono);
   font-size: 15px;
