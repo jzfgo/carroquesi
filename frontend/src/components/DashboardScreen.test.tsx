@@ -718,14 +718,18 @@ describe('DashboardScreen — offline', () => {
     await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
     await openCreateAndSubmit('Costco')
 
-    await waitFor(() =>
+    // Both inside the same waitFor, and the refresh pinned to an exact count.
+    // createList is called synchronously on the click, so a waitFor that only
+    // awaits it resolves before the refresh it triggers has landed — asserting
+    // the count outside would be relying on microtask timing rather than
+    // testing for it. Exactly 2: the fetch on mount, then this refresh.
+    await waitFor(() => {
       expect(api.createList).toHaveBeenCalledWith(mockGetToken, {
         name: 'Costco',
         emoji: expect.any(String),
-      }),
-    )
-    // Two calls: the fetch on mount, then the refresh handleCreate awaits.
-    expect(vi.mocked(api.getLists).mock.calls.length).toBeGreaterThan(1)
+      })
+      expect(api.getLists).toHaveBeenCalledTimes(2)
+    })
   })
 
   it('will not create a list without a connection, and says why', async () => {
@@ -764,10 +768,14 @@ describe('DashboardScreen — offline', () => {
         screen.getByText(/no se pudo enviar el feedback/i),
       ).toBeInTheDocument(),
     )
-    // The toast is the same string the network-failure path shows, so it cannot
-    // tell the two apart on its own. These two can: nothing was sent, and the
-    // sheet stayed open for the message to survive until there is a connection.
+    // This is the assertion that separates the two, and the only one that does:
+    // the toast string is shared with the network-failure path, and so is the
+    // sheet staying open — see the failure test above, which asserts that same
+    // pair, because the catch skips setFeedbackOpen(false) just as the guard's
+    // early return does.
     expect(api.submitFeedback).not.toHaveBeenCalled()
+    // Pinned rather than discriminating: the message has to survive for there
+    // to be anything to send once there is a connection.
     expect(
       screen.getByRole('dialog', { name: /enviar feedback/i }),
     ).toBeInTheDocument()
