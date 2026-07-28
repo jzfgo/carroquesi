@@ -145,24 +145,6 @@ def test_repurchase_does_not_overwrite_purchased_at(client: TestClient, session:
     assert db_item.purchased_at == original_purchased_at
 
 
-def test_cannot_unpurchase_item_from_previous_day(client: TestClient, session: Session):
-    from app.db.models import ListItem
-
-    lst = _create_list(client)
-    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
-    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
-
-    # Backdate purchased_at to yesterday
-    db_item = session.get(ListItem, item["id"])
-    session.refresh(db_item)
-    db_item.purchased_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
-    session.add(db_item)
-    session.commit()
-
-    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
-    assert response.status_code == 409
-
-
 def test_add_item_with_ean(client: TestClient):
     lst = _create_list(client)
     response = client.post(
@@ -269,3 +251,122 @@ def test_add_unique_item_allowed(client: TestClient):
     client.post(f"/lists/{lst['id']}/items", json={"name": "Tomate"})
     response = client.post(f"/lists/{lst['id']}/items", json={"name": "Lechuga"})
     assert response.status_code == 201
+
+
+def test_an_item_read_carries_its_trip(client):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+
+    assert item["purchase_id"] is None
+    assert item["purchase_ends_at"] is None
+
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    fetched = client.get(f"/lists/{lst['id']}/items").json()[0]
+
+    assert fetched["purchase_id"] is not None
+    assert fetched["purchase_ends_at"] is not None
+
+
+def test_the_client_tap_time_decides_the_trip(client):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    now_item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    old = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"}).json()
+
+    three_days_ago = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=3)).isoformat()
+    client.patch(f"/lists/{lst['id']}/items/{now_item['id']}", json={"purchased": True})
+    client.patch(
+        f"/lists/{lst['id']}/items/{old['id']}",
+        json={"purchased": True, "purchased_at": three_days_ago},
+    )
+
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    assert fetched["Leche"]["purchase_id"] != fetched["Pan"]["purchase_id"]
+
+
+def test_a_tap_time_from_the_future_is_clamped_to_now(client):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    far_future = (datetime.now(UTC).replace(tzinfo=None) + timedelta(days=400)).isoformat()
+
+    client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"purchased": True, "purchased_at": far_future},
+    )
+    fetched = client.get(f"/lists/{lst['id']}/items").json()[0]
+
+    purchased_at = datetime.fromisoformat(fetched["purchased_at"])
+    assert purchased_at <= datetime.now(UTC).replace(tzinfo=None)
+
+
+def test_a_tap_time_older_than_the_backdate_limit_is_clamped(client):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    ancient = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=400)).isoformat()
+
+    client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"purchased": True, "purchased_at": ancient},
+    )
+    fetched = client.get(f"/lists/{lst['id']}/items").json()[0]
+
+    purchased_at = datetime.fromisoformat(fetched["purchased_at"])
+    assert purchased_at > datetime.now(UTC).replace(tzinfo=None) - timedelta(days=31)
+
+
+def test_unpurchasing_within_the_open_trip_is_allowed(client):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    resp = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+
+    assert resp.status_code == 200
+    assert resp.json()["purchase_id"] is None
+
+
+def test_unpurchasing_a_torn_off_item_is_refused(client):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    three_days_ago = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=3)).isoformat()
+    client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"purchased": True, "purchased_at": three_days_ago},
+    )
+
+    resp = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+
+    assert resp.status_code == 409
+
+
+def test_two_items_purchased_together_share_one_trip_end(client):
+    """Pins that _annotate_trips batches by trip id rather than computing a
+    per-item value that could drift between two items on the same trip."""
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    milk = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    bread = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"}).json()
+
+    client.patch(f"/lists/{lst['id']}/items/{milk['id']}", json={"purchased": True})
+    client.patch(f"/lists/{lst['id']}/items/{bread['id']}", json={"purchased": True})
+
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    assert fetched["Leche"]["purchase_id"] == fetched["Pan"]["purchase_id"]
+    assert fetched["Leche"]["purchase_ends_at"] == fetched["Pan"]["purchase_ends_at"]
+    assert fetched["Leche"]["purchase_ends_at"] is not None
+
+
+def test_get_items_annotates_purchased_and_unpurchased_items_correctly(client):
+    """A mixed list should not require one trip lookup per item -- pins that
+    _annotate_trips collects distinct purchase ids into a single IN query
+    (rather than looking each item up individually) by asserting the
+    unpurchased item gets no trip end while the purchased one does, in the
+    same response."""
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    bought = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{bought['id']}", json={"purchased": True})
+
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+
+    assert fetched["Leche"]["purchase_ends_at"] is not None
+    assert fetched["Pan"]["purchase_ends_at"] is None
+    assert fetched["Pan"]["purchase_id"] is None

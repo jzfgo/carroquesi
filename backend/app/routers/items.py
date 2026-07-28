@@ -1,13 +1,14 @@
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import case, func, nulls_last, or_
 from sqlmodel import Session, select
 
-from app.db.models import List, ListItem, User
+from app.db.models import List, ListItem, Purchase, User
 from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
+from app.services import trips
 from app.services.push import notify_list_change
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,47 @@ def _notify_safely(session: Session, lst: List, actor: User, event: str, name: s
         logger.exception("push notification failed for list %s", lst.id)
 
 
+# How far back a client-supplied tap time may reach. Long enough for a phone
+# that was offline over a holiday, short enough that a broken clock cannot
+# invent a trip in another year.
+MAX_BACKDATE = timedelta(days=30)
+
+
+def _tap_time(supplied: datetime | None, now: datetime) -> datetime:
+    """The instant to file a purchase under, clamped against a wrong clock.
+
+    The upper bound is `now`, with no tolerance for a fast client clock, and
+    that is load-bearing rather than fussy. Five minutes of slack lets a tap at
+    23:57 Madrid arrive claiming 00:02, which computes *tomorrow's* tear-off
+    while tonight's trip is still open — two trips would then satisfy
+    "unreconciled and not yet torn off" and open_trip() would pick one
+    arbitrarily. There is no such thing as a purchase in the future, so the
+    server's clock wins.
+    """
+    if supplied is None:
+        return now
+    if supplied.tzinfo is not None:
+        supplied = supplied.astimezone(UTC).replace(tzinfo=None)
+    return min(max(supplied, now - MAX_BACKDATE), now)
+
+
+def _annotate_trips(session: Session, items: list[ListItem]) -> None:
+    """Denormalise each trip's effective end onto its items.
+
+    A transient attribute read by ItemRead — the same pattern User.is_admin
+    uses. It is what keeps itemState() on the client a function of one item.
+    """
+    ids = {item.purchase_id for item in items if item.purchase_id}
+    found = (
+        {p.id: p for p in session.exec(select(Purchase).where(Purchase.id.in_(ids))).all()}
+        if ids
+        else {}
+    )
+    for item in items:
+        trip = found.get(item.purchase_id) if item.purchase_id else None
+        object.__setattr__(item, "purchase_ends_at", trips.ends_at(trip) if trip else None)
+
+
 @router.get("", response_model=list[ItemRead])
 def get_items(
     list_id: str,
@@ -45,7 +87,9 @@ def get_items(
             ListItem.created_at.asc(),
         )
     )
-    return session.exec(query).all()
+    items = list(session.exec(query).all())
+    _annotate_trips(session, items)
+    return items
 
 
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
@@ -89,19 +133,23 @@ def update_item(
     was_purchased = item.purchased_at is not None
     data = body.model_dump(exclude_unset=True)
     purchased = data.pop("purchased", None)
+    supplied_at = data.pop("purchased_at", None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     for field, value in data.items():
         setattr(item, field, value)
     if purchased is True and item.purchased_at is None:
-        item.purchased_at = datetime.now(UTC).replace(tzinfo=None)
+        item.purchased_at = _tap_time(supplied_at, now)
         item.purchased_by = current_user.id
+        trips.attach(session, item, item.purchased_at)
     elif purchased is False:
-        if item.purchased_at is not None:
-            today = datetime.now(UTC).date()
-            if item.purchased_at.date() != today:
+        if item.purchase_id is not None:
+            trip = session.get(Purchase, item.purchase_id)
+            if trip is not None and not trips.is_open(trip, now):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Cannot unpurchase an item purchased on a previous day",
+                    detail="Cannot unpurchase an item from a trip that has ended",
                 )
+        trips.detach(session, item)
         item.purchased_at = None
     item.updated_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(item)
@@ -112,6 +160,7 @@ def update_item(
     # should not buzz every member's phone.
     if not was_purchased and item.purchased_at is not None:
         _notify_safely(session, lst, current_user, "purchased", item.name)
+    _annotate_trips(session, [item])
     return item
 
 
