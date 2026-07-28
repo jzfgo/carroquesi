@@ -504,12 +504,35 @@ test('a list where nobody named a shop is just a list, with no headings at all',
   expect(container.querySelector('.item-list__store-name')).toBeNull()
 })
 
-test('an item naming several shops sits under the first one', () => {
+test('an item naming two shops appears under both — either trip can get it', () => {
   const { container } = renderList([atStore('a', 'Dia', 'Mercadona')])
   const headings = [
     ...container.querySelectorAll('.item-list__store-name'),
   ].map((n) => n.textContent)
-  expect(headings).toEqual(['Dia'])
+  expect(headings).toEqual(['Dia', 'Mercadona'])
+  expect(container.querySelectorAll('.item-card__name')).toHaveLength(2)
+})
+
+test('a shop nobody named first still gets its section', () => {
+  // The bug this replaces: filing each item under stores[0] only meant Dia
+  // vanished from a list where it was always the second shop named.
+  const { container } = renderList([
+    atStore('a', 'Mercadona'),
+    atStore('b', 'Mercadona', 'Dia'),
+  ])
+  const headings = [
+    ...container.querySelectorAll('.item-list__store-name'),
+  ].map((n) => n.textContent)
+  expect(headings).toEqual(['Mercadona', 'Dia'])
+})
+
+test('the count says how many things there are to buy, not how many lines', () => {
+  // One item in two shops is still one thing to buy.
+  const { container } = renderList([atStore('a', 'Dia', 'Mercadona')])
+  expect(container.querySelector('.item-list__rubric-count')).toHaveTextContent(
+    '1',
+  )
+  expect(container.querySelectorAll('.item-card')).toHaveLength(2)
 })
 
 test('groups keep the order they first appear in, so the list stays the list', () => {
