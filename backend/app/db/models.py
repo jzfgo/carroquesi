@@ -78,6 +78,36 @@ class ListItem(SQLModel, table=True):
     price: float | None = Field(default=None)
     price_per: str | None = Field(default=None)
     price_store: str | None = Field(default=None)
+    purchase_id: str | None = Field(default=None, foreign_key="purchases.id", index=True)
+
+
+class Purchase(SQLModel, table=True):
+    """A shopping trip: what the household says the shop was.
+
+    Deliberately not merged into ReceiptScan. A ReceiptScan is *parsed
+    evidence* — what the OCR read, possibly wrong, possibly abandoned before
+    anything was applied. A Purchase is *confirmed truth*. Collapse the two and
+    a bad OCR read silently overwrites a total someone confirmed, with no error
+    message. See docs/decisions/011-purchase-entity-and-trip-boundary.md.
+    """
+
+    __tablename__ = "purchases"
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    list_id: str = Field(foreign_key="lists.id", index=True)
+    opened_at: datetime = Field(default_factory=_now)
+    # Local midnight after opened_at, in app.services.trips.TRIP_TIMEZONE.
+    # Stamped at creation so the tear-off is an instant comparison everywhere
+    # else — and so revisiting the policy later cannot re-file trips that have
+    # already torn off.
+    tears_off_at: datetime
+    # Set only by an explicit reconciliation. NULL with tears_off_at in the
+    # past means nobody wrote this shop down; the paper simply got torn.
+    closed_at: datetime | None = Field(default=None)
+    store: str | None = None
+    # Confirmed from the receipt — never the sum of the lines. A trip whose
+    # total was never confirmed keeps NULL, and the UI says so with ≥.
+    total: float | None = Field(default=None)
 
 
 class ListInvite(SQLModel, table=True):
@@ -124,6 +154,10 @@ class ReceiptScan(SQLModel, table=True):
     match_result: list[dict] | None = Field(default=None, sa_column=Column(JSON))
     items_updated: int = 0
     created_at: datetime = Field(default_factory=_now)
+    # The trip this scan reconciled, when it reconciled exactly one. NULL when
+    # the matches spanned several — scan_receipt matches across a ±3 day
+    # window, so that is reachable.
+    purchase_id: str | None = Field(default=None, foreign_key="purchases.id")
 
 
 class ReceiptNameMapping(SQLModel, table=True):
