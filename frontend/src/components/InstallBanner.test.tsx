@@ -7,7 +7,12 @@ const defaults = {
   isInstallable: true,
   isInstalled: false,
   isIOS: false,
-  promptInstall: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  // Constructor-argument form, like the module-scope helpers elsewhere in
+  // this sweep: `defaults` is built once at module load, so an
+  // implementation attached afterwards is cleared before the first test and
+  // this would read as a promptInstall that resolves while returning
+  // undefined.
+  promptInstall: vi.fn<() => Promise<void>>(async () => {}),
 }
 
 beforeEach(() => {
