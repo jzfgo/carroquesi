@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Boolean, Column, UniqueConstraint, text
+from sqlalchemy import JSON, Boolean, Column, Index, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 from app.db.waitlist_models import WaitlistSignup  # noqa: F401
@@ -96,6 +96,24 @@ class Purchase(SQLModel, table=True):
     """
 
     __tablename__ = "purchases"
+    # At most one open trip per list, enforced at the database rather than
+    # left to app.services.trips.trip_for's SELECT-then-INSERT: a future
+    # instant (a fast-clock tap) or two members tapping at the same instant
+    # can both miss the SELECT and both attempt the INSERT. sqlite_where is
+    # required alongside postgresql_where — tests build the schema from these
+    # models via create_all, so without it SQLite would enforce a *plain*
+    # unique (list_id, tears_off_at), which breaks the legitimate case of a
+    # closed trip and a fresh trip sharing a tears_off_at on the same list.
+    __table_args__ = (
+        Index(
+            "uq_purchases_open_per_list",
+            "list_id",
+            "tears_off_at",
+            unique=True,
+            sqlite_where=text("closed_at IS NULL"),
+            postgresql_where=text("closed_at IS NULL"),
+        ),
+    )
 
     id: str = Field(default_factory=_uuid, primary_key=True)
     list_id: str = Field(foreign_key="lists.id", index=True)

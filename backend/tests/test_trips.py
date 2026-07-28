@@ -134,6 +134,10 @@ def test_two_taps_on_one_day_find_one_trip(session: Session, lst: List):
     first = trips.trip_for(session, lst.id, datetime(2026, 7, 28, 16, 0))
     second = trips.trip_for(session, lst.id, datetime(2026, 7, 28, 18, 0))
     assert first.id == second.id
+    # The later tap must not move opened_at — only an earlier tap back-dates
+    # it. Otherwise a random ordering of taps within a day could shift when
+    # the trip is said to have started.
+    assert second.opened_at == datetime(2026, 7, 28, 16, 0)
 
 
 def test_a_tap_that_predates_the_trip_back_dates_it(session: Session, lst: List):
@@ -201,3 +205,56 @@ def test_different_lists_never_share_a_trip(session: Session, user: User):
     trip_a = trips.trip_for(session, list_a.id, same_instant)
     trip_b = trips.trip_for(session, list_b.id, same_instant)
     assert trip_a.id != trip_b.id
+
+
+def test_open_trip_never_crosses_lists(session: Session, user: User):
+    # list_a has an open trip; list_b has none. Without list_id in
+    # open_trip's own WHERE, list_b's lookup would find list_a's row -- the
+    # unreconciled-and-not-torn-off predicate alone can't tell them apart.
+    now = datetime(2026, 7, 28, 18, 0)
+    list_a = List(name="Casa", owner_id=user.id)
+    list_b = List(name="Oficina", owner_id=user.id)
+    session.add(list_a)
+    session.add(list_b)
+    session.commit()
+    session.refresh(list_a)
+    session.refresh(list_b)
+
+    trip_a = trips.trip_for(session, list_a.id, now)
+
+    assert trips.open_trip(session, list_b.id, now) is None
+    assert trips.open_trip(session, list_a.id, now) is trip_a
+
+
+def test_a_missed_lookup_still_yields_one_trip_via_the_unique_index(
+    session: Session, lst: List, monkeypatch: pytest.MonkeyPatch
+):
+    # Two members tapping at the same instant can both run trip_for's SELECT
+    # before either has committed an INSERT, so both find no existing trip.
+    # That race is what uq_purchases_open_per_list closes: the loser's INSERT
+    # fails, and trip_for must catch it and hand back the winner's row rather
+    # than crash. We can't get two real transactions to interleave inside one
+    # synchronous test, so we simulate the *effect* of the race: the winner's
+    # row already exists and is committed, but we force this call's own
+    # lookup to miss it once, the way the loser's lookup would have.
+    instant = datetime(2026, 7, 28, 16, 0)
+    winner = trips.trip_for(session, lst.id, instant)
+    session.commit()
+
+    real_exec = session.exec
+    calls = {"n": 0}
+
+    class _EmptyResult:
+        def first(self):
+            return None
+
+    def exec_missing_the_winner_once(statement):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return _EmptyResult()
+        return real_exec(statement)
+
+    monkeypatch.setattr(session, "exec", exec_missing_the_winner_once)
+
+    loser = trips.trip_for(session, lst.id, instant)
+    assert loser.id == winner.id
