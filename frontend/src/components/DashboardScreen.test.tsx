@@ -683,6 +683,103 @@ describe('DashboardScreen — offline', () => {
     expect(raw).not.toBeNull()
     localStorage.removeItem('cqs_dashboard_cache_u1')
   })
+
+  // Losing the connection is an event, not just a property. useIsOffline seeds
+  // its state from navigator.onLine at mount and thereafter only moves on the
+  // window's online/offline events, so flipping the property alone leaves the
+  // component still believing it is online — and the guard under test never
+  // fires. Dispatching is also the truer scenario: signal lost mid-session,
+  // with the screen already mounted, rather than a reload while offline.
+  function goOffline() {
+    Object.defineProperty(navigator, 'onLine', {
+      value: false,
+      configurable: true,
+    })
+    fireEvent(window, new Event('offline'))
+  }
+
+  async function openCreateAndSubmit(name: string) {
+    fireEvent.click(screen.getByRole('button', { name: /nueva lista/i }))
+    fireEvent.change(await screen.findByPlaceholderText(/nombre/i), {
+      target: { value: name },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /crear/i }))
+  }
+
+  // The two guards below only mean something next to a passing online case —
+  // otherwise a handleCreate broken outright would satisfy them too. Both take
+  // navigator.onLine offline the way the banner test above does, and rely on the
+  // file's beforeEach redefining it back to true rather than restoring it here.
+
+  it('creates a list and refreshes, with a connection', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+    await openCreateAndSubmit('Costco')
+
+    // Both inside the same waitFor, and the refresh pinned to an exact count.
+    // createList is called synchronously on the click, so a waitFor that only
+    // awaits it resolves before the refresh it triggers has landed — asserting
+    // the count outside would be relying on microtask timing rather than
+    // testing for it. Exactly 2: the fetch on mount, then this refresh.
+    await waitFor(() => {
+      expect(api.createList).toHaveBeenCalledWith(mockGetToken, {
+        name: 'Costco',
+        emoji: expect.any(String),
+      })
+      expect(api.getLists).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  it('will not create a list without a connection, and says why', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+
+    goOffline()
+    await openCreateAndSubmit('Costco')
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/no disponible sin conexión/i),
+      ).toBeInTheDocument(),
+    )
+    expect(api.createList).not.toHaveBeenCalled()
+  })
+
+  it('will not submit feedback without a connection, and says why', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+
+    goOffline()
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /enviar feedback/i }))
+    fireEvent.change(screen.getByLabelText(/mensaje/i), {
+      target: { value: 'Great app' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^enviar$/i }))
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/no se pudo enviar el feedback/i),
+      ).toBeInTheDocument(),
+    )
+    // This is the assertion that separates the two, and the only one that does:
+    // the toast string is shared with the network-failure path, and so is the
+    // sheet staying open — see the failure test above, which asserts that same
+    // pair, because the catch skips setFeedbackOpen(false) just as the guard's
+    // early return does.
+    expect(api.submitFeedback).not.toHaveBeenCalled()
+    // Pinned rather than discriminating: the message has to survive for there
+    // to be anything to send once there is a connection.
+    expect(
+      screen.getByRole('dialog', { name: /enviar feedback/i }),
+    ).toBeInTheDocument()
+  })
 })
 
 describe('notifications toggle', () => {
