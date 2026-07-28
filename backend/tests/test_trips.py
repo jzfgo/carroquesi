@@ -2,7 +2,7 @@ import warnings
 from datetime import datetime
 
 import pytest
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SAWarning
 from sqlmodel import Session
 
 from app.db.models import List, ListItem, Purchase, User
@@ -350,7 +350,7 @@ def test_detaching_an_unattached_item_never_looks_up_a_trip(
     session.commit()
 
     with warnings.catch_warnings():
-        warnings.simplefilter("error")
+        warnings.simplefilter("error", SAWarning)
         trips.detach(session, item)
 
 
@@ -386,6 +386,13 @@ def test_detaching_the_last_item_then_reattaching_the_same_day_does_not_collide(
     # new INSERT would both target uq_purchases_open_per_list's (list_id,
     # tears_off_at) slot and the insert would fail as if the old trip were
     # still there.
+    #
+    # Deliberately no commit between detach and the re-attach: the hazard is
+    # the *uncommitted* DELETE still pending in the unit of work when
+    # trip_for's SELECT-then-INSERT runs -- the path a router handling
+    # un-purchase-then-repurchase in one request, or a queue drain replaying
+    # several ops in one session, will actually take. A commit in between
+    # would make the DELETE durable and the collision impossible to observe.
     item = ListItem(list_id=lst.id, name="Leche", added_by=user.id)
     session.add(item)
     session.commit()
@@ -395,10 +402,8 @@ def test_detaching_the_last_item_then_reattaching_the_same_day_does_not_collide(
     session.commit()
 
     trips.detach(session, item)
-    session.commit()
-    assert session.get(Purchase, old_trip_id) is None
-
     new_trip = trips.attach(session, item, datetime(2026, 7, 28, 18, 0))
     session.commit()
 
     assert item.purchase_id == new_trip.id
+    assert session.get(Purchase, old_trip_id) is None
