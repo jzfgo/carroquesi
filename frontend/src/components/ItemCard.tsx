@@ -1,230 +1,132 @@
-import { Coins, Hash, RotateCcw, Store, Tag } from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
+import { ChevronRight, RotateCcw, ShoppingCart } from 'lucide-react'
 import { formatPrice } from '../lib/formatPrice'
-import type { ListItem, Member, TagField } from '../types'
+import { itemState } from '../lib/itemState'
+import type { ListItem } from '../types'
 import './ItemCard.css'
 
-const TAG_CONFIG: { field: TagField; icon: React.ReactNode; label: string }[] =
-  [{ field: 'brand', icon: <Tag size={13} />, label: 'marca' }]
+/** Nothing on screen labels the three states — the circle is the whole
+ *  sentence — so the label has to carry the distinction on its own. */
+const CIRCLE_LABEL = {
+  pending: 'Poner en el carro',
+  cart: 'Sacar del carro',
+  bought: 'Marcar como no comprado',
+} as const
 
 interface Props {
   item: ListItem
-  members: Map<string, Member>
   onTogglePurchased: (itemId: string) => void
-  onTagClick: (itemId: string, field: TagField | 'stores') => void
-  onMenuOpen: (itemId: string) => void
-  onPriceClick?: (itemId: string) => void
+  /** Opens the item — where its brand, its shop, its price, who added it and
+   *  everything that can be done to it live. The row says only what it is. */
+  onOpen: (itemId: string) => void
   onClone?: (itemId: string) => void
 }
 
-export function ItemCard({
-  item,
-  members,
-  onTogglePurchased,
-  onTagClick,
-  onMenuOpen,
-  onPriceClick,
-  onClone,
-}: Props) {
-  const member = members.get(item.added_by)
-  const initial = member?.initial ?? '?'
-  const { user } = useAuth()
-  const isSelf = member?.id === user?.id
-  const avatarStyle = isSelf
-    ? { background: 'var(--tinta-0)', color: 'var(--accent-fg)' }
-    : { background: 'var(--paper-2)', color: 'var(--ink-1)' }
+/**
+ * One line of the list. Two hit targets and no more (rule 7): the circle on the
+ * left, and the rest of the row, which opens the item.
+ *
+ * What the row does *not* carry is the point of it. No chips to fill in, no
+ * avatar, no ⋯ — inside a sheet there is only ink (rule 2), and a row offering
+ * four small controls is a form pretending to be a list. Brand, shop, price,
+ * who added it and what can be done to it all live one tap away, in the item's
+ * own sheet, where there is room to say them properly.
+ */
+export function ItemCard({ item, onTogglePurchased, onOpen, onClone }: Props) {
+  // Three states, not two. The middle one is what the old boolean could not
+  // say: picked up, but the trip is not over. See lib/itemState.
+  const state = itemState(item)
+  const settled = state === 'bought'
 
-  // For purchased items, show actual purchased qty; fall back to planned qty.
+  // For a settled line, what was actually bought; otherwise what was asked for.
   const displayQty =
-    item.purchased && item.purchased_quantity != null
+    settled && item.purchased_quantity != null
       ? item.purchased_quantity
       : item.quantity
 
+  // A price only becomes a figure once someone picked the thing up. Before
+  // that it is a proposal inherited from history, and an unconfirmed price is
+  // not a figure at all (rule 10).
+  const showsAmount = state !== 'pending' && item.price != null
+
+  // Whether the figure column is still the quantity's, or has been taken over.
+  //
+  // It holds the quantity only while nothing has displaced it: an amount does
+  // (money outranks a count once the thing is in hand), and so does settling,
+  // because on a record the column *is* the money column — and when no price
+  // was ever captured the honest answer there is a gap, which is exactly what
+  // should show, since the missing price is the thing worth noticing.
+  const qtyInFigure = !showsAmount && !settled
+
+  const figure = showsAmount
+    ? formatPrice(item.price!, item.price_per)
+    : qtyInFigure
+      ? displayQty
+      : null
+
+  // The second line. The brand always, and the quantity too whenever the
+  // figure column is no longer carrying it — "12 UD · PULEVA".
+  //
+  // Keyed on where the quantity actually went rather than on the row's state:
+  // keying on `settled` looked equivalent and was not, because a line in the
+  // cart with a price logged has already given its figure column over to the
+  // money. Its quantity fell out of the row altogether until midnight settled
+  // it. Both parts are optional, and a row with neither has no second line
+  // rather than an empty one held open (rule 6).
+  const subline = qtyInFigure
+    ? item.brand
+    : [displayQty, item.brand].filter(Boolean).join(' · ')
+
   return (
-    <div
-      className={`item-card${item.purchased ? ' item-card--purchased' : ''}`}
-    >
-      <button
-        role="checkbox"
-        aria-checked={item.purchased}
-        className="item-card__checkbox"
-        onClick={() => onTogglePurchased(item.id)}
-        aria-label={
-          item.purchased ? 'Marcar como no comprado' : 'Marcar como comprado'
-        }
-      />
-
-      <div className="item-card__body">
-        <div className="item-card__name-row">
-          <span className="item-card__name">{item.name}</span>
-          {displayQty ? (
-            item.purchased ? (
-              <span className="item-card__qty">{displayQty}</span>
-            ) : (
-              <button
-                className="item-card__qty"
-                onClick={() => onTagClick(item.id, 'quantity')}
-                aria-label={displayQty}
-              >
-                {displayQty}
-              </button>
-            )
-          ) : (
-            !item.purchased && (
-              <button
-                className="item-card__tag item-card__tag--cta"
-                onClick={() => onTagClick(item.id, 'quantity')}
-                aria-label="Añadir cantidad"
-              >
-                <span aria-hidden>
-                  <Hash size={13} />
-                </span>
-              </button>
-            )
-          )}
-        </div>
-
-        <div className="item-card__tags">
-          {TAG_CONFIG.map(({ field, icon, label }) =>
-            item[field] ? (
-              item.purchased ? (
-                <span key={field} className="item-card__tag">
-                  <span aria-hidden>{icon}</span> {item[field]}
-                </span>
-              ) : (
-                <button
-                  key={field}
-                  className="item-card__tag"
-                  onClick={() => onTagClick(item.id, field)}
-                >
-                  <span aria-hidden>{icon}</span> {item[field]}
-                </button>
-              )
-            ) : (
-              !item.purchased && (
-                <button
-                  key={field}
-                  className="item-card__tag item-card__tag--cta"
-                  onClick={() => onTagClick(item.id, field)}
-                  aria-label={`Añadir ${label}`}
-                >
-                  <span aria-hidden>
-                    <Tag size={13} />
-                  </span>
-                </button>
-              )
-            ),
-          )}
-
-          {item.stores.length > 0
-            ? item.stores.map((store) =>
-                item.purchased ? (
-                  <span key={store} className="item-card__tag">
-                    <span aria-hidden>
-                      <Store size={13} />
-                    </span>{' '}
-                    {store}
-                  </span>
-                ) : (
-                  <button
-                    key={store}
-                    className="item-card__tag"
-                    onClick={() => onTagClick(item.id, 'stores')}
-                  >
-                    <span aria-hidden>
-                      <Store size={13} />
-                    </span>{' '}
-                    {store}
-                  </button>
-                ),
-              )
-            : !item.purchased && (
-                <button
-                  className="item-card__tag item-card__tag--cta"
-                  onClick={() => onTagClick(item.id, 'stores')}
-                  aria-label="Añadir tienda"
-                >
-                  <span aria-hidden>
-                    <Store size={13} />
-                  </span>
-                </button>
-              )}
-
-          {/* Price tag — always visible; purchased items can log, unpurchased can view history */}
-          {item.price != null ? (
-            <button
-              className="item-card__tag item-card__tag--price"
-              onClick={(e) => {
-                e.stopPropagation()
-                onPriceClick?.(item.id)
-              }}
-            >
-              <span aria-hidden>
-                <Coins size={13} />
-              </span>{' '}
-              {formatPrice(item.price, item.price_per)}
-            </button>
-          ) : (
-            <button
-              className="item-card__tag item-card__tag--cta"
-              onClick={(e) => {
-                e.stopPropagation()
-                onPriceClick?.(item.id)
-              }}
-              aria-label={
-                item.purchased ? 'Registrar precio' : 'Historial de precios'
-              }
-            >
-              <span aria-hidden>
-                <Coins size={13} />
-              </span>
-            </button>
-          )}
-
-          {item.purchased && onClone && (
-            <button
-              className="item-card__tag item-card__tag--buy-again"
-              onClick={(e) => {
-                e.stopPropagation()
-                onClone(item.id)
-              }}
-            >
-              <span aria-hidden>
-                <RotateCcw size={13} />
-              </span>{' '}
-              Volver a comprar
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="item-card__right">
-        <div
-          className="item-card__avatar"
-          style={member?.photoUrl ? {} : avatarStyle}
-          aria-hidden
-        >
-          {member?.photoUrl ? (
-            <img
-              src={member.photoUrl}
-              alt={member.displayName}
-              className="item-card__avatar-img"
-            />
-          ) : (
-            initial
-          )}
-        </div>
+    <div className={`item-card item-card--${state}`}>
+      {settled ? (
+        // A record has no state to toggle. The one thing left to do with it is
+        // buy it again, so that is what the leading column becomes. Un-marking
+        // a purchase is still possible, from inside the item.
         <button
-          className="item-card__menu"
-          onClick={(e) => {
-            e.stopPropagation()
-            onMenuOpen(item.id)
-          }}
-          aria-label="Opciones del producto"
+          className="item-card__again"
+          onClick={() => onClone?.(item.id)}
+          disabled={!onClone}
+          aria-label={`Volver a comprar ${item.name}`}
         >
-          ⋯
+          <RotateCcw size={20} strokeWidth={2} aria-hidden />
         </button>
-      </div>
+      ) : (
+        <button
+          role="checkbox"
+          // `mixed` is the honest value for the cart: picked up, not settled.
+          // A screen reader that only knows two states still hears "not
+          // unchecked", and the label says which of the two it is.
+          aria-checked={state === 'cart' ? 'mixed' : false}
+          className={`item-card__checkbox item-card__checkbox--${state}`}
+          onClick={() => onTogglePurchased(item.id)}
+          aria-label={CIRCLE_LABEL[state]}
+        >
+          {state === 'cart' && (
+            <ShoppingCart size={12} strokeWidth={2.4} aria-hidden />
+          )}
+        </button>
+      )}
+
+      <button
+        className="item-card__open"
+        onClick={() => onOpen(item.id)}
+        aria-label={item.name}
+      >
+        <span className="item-card__name">{item.name}</span>
+        {subline && <span className="item-card__sub">{subline}</span>}
+      </button>
+
+      {/* One column for the figure, whichever figure this line has: a quantity
+          while it is still an instruction, an amount once it is a record.
+          Empty when there is neither — no dash and no rule, because a dash
+          turns a column into a form (rule 6). */}
+      <span
+        className={`item-card__figure${showsAmount ? ' item-card__figure--amount' : ''}`}
+      >
+        {figure}
+      </span>
+
+      <ChevronRight className="item-card__chevron" size={14} aria-hidden />
     </div>
   )
 }

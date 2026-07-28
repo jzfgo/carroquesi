@@ -1,4 +1,4 @@
-import { Camera, Image, Receipt } from 'lucide-react'
+import { Camera, ChevronRight, Image, Receipt } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
@@ -24,6 +24,7 @@ import {
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
 import { computeCostSummary, purchasedDateLabel } from '../lib/itemCost'
+import { itemState } from '../lib/itemState'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
@@ -641,16 +642,18 @@ export function ListScreen({
     setDueSuggestions((prev) => prev.filter((x) => x.name !== s.name))
   }, [])
 
+  // The bar measures this trip: what is still to find, and what is already in
+  // the cart. Settled purchases from earlier days are not part of it — they
+  // tore off with the stub. The cart rule lives in lib/itemState and nowhere
+  // else, so the day boundary is local midnight rather than UTC's.
   const { purchasedCount, totalCount } = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10) // 'YYYY-MM-DD' UTC
-    const isPurchasedToday = (i: (typeof items)[number]) =>
-      !!i.purchased_at && i.purchased_at.slice(0, 10) === today
     let purchased = 0
     let total = 0
     for (const i of items) {
-      if (!i.purchased) {
+      const state = itemState(i)
+      if (state === 'pending') {
         total++
-      } else if (isPurchasedToday(i)) {
+      } else if (state === 'cart') {
         purchased++
         total++
       }
@@ -766,35 +769,43 @@ export function ListScreen({
         status={status}
         items={filteredItems}
         totalItems={allUnpurchasedCount}
-        members={members}
         onTogglePurchased={handleTogglePurchased}
-        onTagClick={handleTagClick}
-        onMenuOpen={handleItemMenuOpen}
+        onOpen={handleItemMenuOpen}
         onRetry={retry}
-        onPriceClick={(itemId) => setPriceItemId(itemId)}
         onClone={handleCloneItem}
         pendingCost={pendingCost}
         purchasedCostByDate={purchasedCostByDate}
         footer={
-          allUnpurchasedCount === 0 &&
-          items.length > 0 &&
-          !receiptScanResult &&
-          isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
-            <div className="receipt-scan-cta">
-              <button
-                className="receipt-scan-cta__btn"
-                onClick={handleReceiptScan}
-                disabled={receiptUploading || isOffline}
-              >
-                {receiptUploading ? (
-                  'Procesando ticket…'
-                ) : (
-                  <>
-                    <Receipt size={16} /> Escanear ticket para registrar precios
-                  </>
-                )}
-              </button>
-            </div>
+          !receiptScanResult && isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
+            /* A way in, not a prompt. It used to appear only once the list
+               was empty, which made it a reward for finishing — but the shop
+               it is for is precisely the one that never went on the list, so
+               waiting for the list to be done was waiting for the wrong
+               thing. It says what it does and stays out of the way. */
+            <button
+              className="save-ticket"
+              onClick={handleReceiptScan}
+              disabled={receiptUploading || isOffline}
+            >
+              <span className="save-ticket__stub" aria-hidden>
+                <Receipt size={17} strokeWidth={1.75} />
+              </span>
+              <span className="save-ticket__words">
+                <span className="save-ticket__title">
+                  {receiptUploading
+                    ? 'Procesando ticket…'
+                    : 'Guardar un ticket'}
+                </span>
+                <span className="save-ticket__note">
+                  De una compra que no apuntaste aquí
+                </span>
+              </span>
+              <ChevronRight
+                className="save-ticket__chevron"
+                size={16}
+                aria-hidden
+              />
+            </button>
           ) : undefined
         }
       />
@@ -843,7 +854,17 @@ export function ListScreen({
           return (
             <ItemActionSheet
               item={activeItem}
+              members={members}
               purchased={activeItem.purchased}
+              // The row stopped carrying these, so the sheet took them on.
+              onTagClick={(field) => {
+                setActiveItemId(null)
+                handleTagClick(activeItemId, field)
+              }}
+              onPriceClick={() => {
+                setActiveItemId(null)
+                setPriceItemId(activeItemId)
+              }}
               onRename={(name) => {
                 void renameItem(activeItemId, name)
                 setActiveItemId(null)

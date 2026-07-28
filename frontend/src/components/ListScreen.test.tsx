@@ -178,6 +178,8 @@ afterEach(() => {
 })
 
 const TODAY = new Date().toISOString().slice(0, 19)
+/** A settled purchase. Marked TODAY an item is still in the cart, on the list's
+ *  own sheet, and has no date label — only a torn-off trip gets one. */
 const YESTERDAY = new Date(Date.now() - 86_400_000).toISOString().slice(0, 19)
 
 function makeItem(overrides: Partial<ListItem>): ListItem {
@@ -297,8 +299,9 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const brandTag = screen.getByText('Hacendado')
-    fireEvent.click(brandTag)
+    // The row carries no chips now — brand lives one tap in, on the item.
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
+    fireEvent.click(screen.getByRole('button', { name: /marca/i }))
 
     expect(document.querySelector('.tag-edit-sheet')).toBeInTheDocument()
 
@@ -319,10 +322,9 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const storeTag = document.querySelector(
-      '.item-card__tag:not(.item-card__tag--cta)',
-    )!
-    fireEvent.click(storeTag)
+    // The row carries no chips now — the shop lives one tap in, on the item.
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
+    fireEvent.click(screen.getByRole('button', { name: /tienda/i }))
 
     expect(document.querySelector('.store-edit-sheet')).toBeInTheDocument()
 
@@ -346,10 +348,7 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const optionsButton = screen.getByRole('button', {
-      name: 'Opciones del producto',
-    })
-    fireEvent.click(optionsButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
 
     expect(
       screen.getByRole('dialog', { name: /Opciones del producto/i }),
@@ -358,7 +357,9 @@ describe('ListScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
     const input = screen.getByRole('textbox', { name: 'Nombre del producto' })
     fireEvent.change(input, { target: { value: 'Manzanas Rojas' } })
-    fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
+    // Exact, because "Guardar un ticket" also starts with "Guardar" now and a
+    // loose match picks up both.
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(renameItemMock).toHaveBeenCalledWith('i1', 'Manzanas Rojas')
   })
@@ -373,10 +374,7 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const optionsButton = screen.getByRole('button', {
-      name: 'Opciones del producto',
-    })
-    fireEvent.click(optionsButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
 
     expect(
       screen.getByRole('dialog', { name: /Opciones del producto/i }),
@@ -492,10 +490,7 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const optionsButton = screen.getByRole('button', {
-      name: 'Opciones del producto',
-    })
-    fireEvent.click(optionsButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
 
     fireEvent.click(screen.getByRole('button', { name: /comprar de nuevo/i }))
 
@@ -627,7 +622,12 @@ describe('cost totals', () => {
 
   it('shows cost next to the purchased date label', () => {
     renderWithItems([
-      makeItem({ id: '1', purchased: true, purchased_at: TODAY, price: 3.0 }),
+      makeItem({
+        id: '1',
+        purchased: true,
+        purchased_at: YESTERDAY,
+        price: 3.0,
+      }),
     ])
     expect(
       document.querySelector('.item-list__date-label-cost'),
@@ -652,7 +652,7 @@ describe('receipt scan CTA', () => {
     purchased_at: TODAY,
   })
 
-  it('shows receipt scan CTA when all items are purchased and flag is enabled', () => {
+  it('offers to save a ticket when the flag is enabled', () => {
     vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({
       isEnabled: () => true,
     })
@@ -661,7 +661,21 @@ describe('receipt scan CTA', () => {
       items: [PURCHASED_ITEM],
     })
     render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
-    expect(screen.getByText(/Escanear ticket/)).toBeInTheDocument()
+    expect(screen.getByText('Guardar un ticket')).toBeInTheDocument()
+  })
+
+  it('offers it while there is still shopping to do, not only once the list is done', () => {
+    // It used to wait for an empty list, which made it a reward for finishing.
+    // The shop it exists for is the one that never went on the list at all.
+    vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({
+      isEnabled: () => true,
+    })
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', purchased: false })],
+    })
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    expect(screen.getByText('Guardar un ticket')).toBeInTheDocument()
   })
 
   it('hides receipt scan CTA when flag is disabled', () => {

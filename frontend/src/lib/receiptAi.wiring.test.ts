@@ -31,14 +31,18 @@ describe('parseReceiptWithAi wiring', () => {
     vi.resetModules()
   })
 
-  it('converts receipt_date/receipt_time to a UTC instant, not the raw date', async () => {
+  it('merges receipt_date/receipt_time into a placed instant, not the raw date', async () => {
     const { parseReceiptWithAi } = await import('./receiptAi')
     const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
 
     const result = await parseReceiptWithAi(file)
 
     expect(result.receipt_date).not.toBe('2026-07-12')
-    expect(result.receipt_date).toMatch(/Z$/)
+    // Placed by its offset rather than flattened to UTC: the printed day has
+    // to survive the trip, because the backend centres its match window on
+    // it. See lib/receiptDate.ts.
+    expect(result.receipt_date).toMatch(/[+-]\d{2}:\d{2}$/)
+    expect(result.receipt_date?.slice(0, 10)).toBe('2026-07-12')
 
     const parsed = new Date(result.receipt_date as string)
     expect(parsed.getFullYear()).toBe(2026)

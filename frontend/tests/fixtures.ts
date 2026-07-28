@@ -34,7 +34,7 @@ export const SEED_LISTS: ApiList[] = [
     owner_id: ALICE.id,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-06-23T10:00:00Z',
-    item_count: 2,
+    item_count: 3,
     purchased_count: 0,
     is_default: true,
   },
@@ -86,6 +86,35 @@ export const SEED_ITEMS: Record<string, ListItem[]> = {
       price_per: null,
       price_store: null,
       added_by: ALICE.id,
+      created_at: '2026-06-01T00:00:00Z',
+      updated_at: '2026-06-23T10:00:00Z',
+    },
+    // Five shops, which is the widest heading the list can draw: past three it
+    // stops naming them and counts instead, so this renders as one line under
+    // "Alcampo u otras 4 tiendas" -- longer than any spelled-out
+    // set, and therefore the case worth pinning. Named out of alphabetical
+    // order on purpose: the heading sorts whatever order they were typed, and
+    // it is the *set* that groups, so this is one line and not five.
+    //
+    // It is here to hold that heading under visual regression: an underline
+    // that wraps across two lines reads as two headings, and only a
+    // screenshot can catch that. Appended, never inserted -- the specs index
+    // this array ([0] is leche, [1] is cafe).
+    {
+      id: 'item-papel',
+      list_id: 'seed-list-compra',
+      name: 'Papel de cocina',
+      quantity: '2',
+      purchased_quantity: null,
+      brand: null,
+      stores: ['Mercadona', 'Carrefour', 'Dia', 'Lidl', 'Alcampo'],
+      purchased: false,
+      purchased_at: null,
+      ean: null,
+      price: null,
+      price_per: null,
+      price_store: null,
+      added_by: 'seed-user-bob',
       created_at: '2026-06-01T00:00:00Z',
       updated_at: '2026-06-23T10:00:00Z',
     },
@@ -190,7 +219,16 @@ export async function installApiMocks(page: Page): Promise<void> {
 
   // The backend stores naive UTC and the client re-attaches the 'Z' when
   // parsing (itemCost.ts), so timestamps here must carry no zone suffix.
-  const naiveUtc = (iso: string) => iso.replace(/Z$/, '')
+  //
+  // Converting rather than stripping, because the receipt endpoints are sent
+  // an offset-bearing instant ('2026-07-25T00:30:00+02:00' — see
+  // lib/receiptDate.ts) and the router normalises it with `astimezone(UTC)`.
+  // A regex that only knew about 'Z' would leave the offset in place, and the
+  // client would then re-append its own 'Z' to a string that already had a
+  // zone and get an Invalid Date — a mock failure wearing a product bug's
+  // clothes.
+  const naiveUtc = (iso: string) =>
+    new Date(iso).toISOString().replace(/Z$/, '')
 
   await page.route(`${BACKEND}/**`, async (route) => {
     const req = route.request()

@@ -20,13 +20,23 @@ async function gotoList(page: Page) {
   await expect(page.getByText(ITEM_CAFE.name)).toBeVisible()
 }
 
+/** The row carries no price control any more — brand, shop and price all live
+ *  one tap in, on the item itself. */
+async function openPrice(page: Page, name: string) {
+  await itemCard(page, name).locator('.item-card__open').click()
+  await page
+    .locator('.item-action-sheet')
+    .getByRole('button', { name: /precio/i })
+    .click()
+}
+
 async function markPurchased(page: Page, name: string) {
   await itemCard(page, name)
-    .getByRole('checkbox', { name: 'Marcar como comprado' })
+    .getByRole('checkbox', { name: 'Poner en el carro' })
     .click()
   await expect(
     itemCard(page, name).getByRole('checkbox', {
-      name: 'Marcar como no comprado',
+      name: 'Sacar del carro',
     }),
   ).toBeVisible()
 }
@@ -47,19 +57,24 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await markPurchased(page, ITEM_CAFE.name)
 
       const card = itemCard(page, ITEM_CAFE.name)
-      await expect(card).toHaveClass(/item-card--purchased/)
+      // Marked today, so it is in the cart: picked up, but the trip is not over
+      // and it has not torn off into a purchase yet.
+      await expect(card).toHaveClass(/item-card--cart/)
       await expectScreenshot(page, `item-purchased-${themeName}.png`)
 
-      // Read-only: brand/store are no longer editable buttons, just text
-      await expect(
-        card.getByRole('button', { name: ITEM_CAFE.brand ?? '' }),
-      ).toHaveCount(0)
-      await expect(
-        card.getByText(ITEM_CAFE.brand ?? '', { exact: true }),
-      ).toBeVisible()
+      // No chips — the shop, the price and everything you can do to the line
+      // live in the item. The brand is not a chip: it is the second line,
+      // under the name, because it is what you are looking for on the shelf.
+      await expect(card.locator('.item-card__tag')).toHaveCount(0)
+      await expect(card.locator('.item-card__sub')).toHaveText(
+        ITEM_CAFE.brand ?? '',
+      )
 
-      // Menu offers "buy again" instead of rename
-      await card.getByRole('button', { name: 'Opciones del producto' }).click()
+      // Opening the item: it offers "buy again" instead of rename.
+      await card.locator('.item-card__open').click()
+      await expect(
+        page.getByText(ITEM_CAFE.brand ?? '', { exact: true }).first(),
+      ).toBeVisible()
       await expect(page.getByRole('button', { name: 'Renombrar' })).toHaveCount(
         0,
       )
@@ -75,9 +90,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await gotoList(page)
       await markPurchased(page, ITEM_CAFE.name)
 
-      await itemCard(page, ITEM_CAFE.name)
-        .getByRole('button', { name: 'Registrar precio' })
-        .click()
+      await openPrice(page, ITEM_CAFE.name)
       await page
         .locator('.phs')
         .getByRole('button', { name: '+ Registrar precio' })
@@ -93,7 +106,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
 
       await expect(sheet).toBeHidden()
       await expect(
-        itemCard(page, ITEM_CAFE.name).locator('.item-card__tag--price'),
+        itemCard(page, ITEM_CAFE.name).locator('.item-card__figure--amount'),
       ).toBeVisible()
     })
 
@@ -122,9 +135,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
         },
       )
 
-      await itemCard(page, ITEM_LECHE.name)
-        .locator('.item-card__tag--price')
-        .click()
+      await openPrice(page, ITEM_LECHE.name)
       await page
         .locator('.phs')
         .getByRole('button', { name: 'Actualizar precio' })
@@ -140,7 +151,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
       // Sheet stays open and the price is untouched
       await expect(sheet).toBeVisible()
       await expect(
-        itemCard(page, ITEM_LECHE.name).locator('.item-card__tag--price'),
+        itemCard(page, ITEM_LECHE.name).locator('.item-card__figure--amount'),
       ).toBeVisible()
     })
   })

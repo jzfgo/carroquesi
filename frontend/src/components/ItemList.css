@@ -78,6 +78,80 @@
   content: '';
 }
 
+/* The sheet's own title, pre-printed before anything was written on it — so
+   it is the serif, not the hand and not the mono (rule 15). The dashed rule
+   under it is the pad's ruling, not a divider between two things. */
+.item-list__rubric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px var(--side-margin) 8px;
+  border-bottom: 1px dashed var(--border);
+}
+
+/* Nothing is written under it, so it rules nothing — see the note in
+   ItemList.tsx. Left as a rule with no line rather than removed, because the
+   spacing above the cut is still the rubric's to keep. */
+.item-list__rubric--unruled {
+  border-bottom-color: transparent;
+}
+
+.item-list__rubric-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--ink-0);
+}
+
+.item-list__rubric-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.item-list__rubric-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--ink-2);
+}
+
+/* A shop heading, in the household's own hand and underlined the way anyone
+   underlines a heading on paper. The rule is on the words, not across the
+   sheet: a full-width line would be a divider, and there are no dividers
+   inside a sheet. */
+.item-list__store {
+  margin: 0;
+  padding: 14px var(--side-margin) 4px;
+}
+
+/* The underline is on the name, not the line, so it draws exactly as wide as
+   the words — the way you underline a heading on paper.
+
+   That is also why this must never wrap: a wrapped heading breaks its own
+   underline into two, and two underlined fragments read as two headings.
+   lib/storeGroups stops naming shops past two for that reason; the clipping
+   here is the last resort for names long enough to overrun even the short
+   form. Truncating in CSS rather than in the string keeps the full text in the
+   accessibility tree, so a screen reader still hears every shop. */
+.item-list__store-name {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 100%;
+  padding-bottom: 2px;
+  border-bottom: 1.5px solid var(--ink-0);
+  font-family: var(--font-written);
+  font-size: 17px;
+  line-height: 1.2;
+  letter-spacing: 0.05em;
+  color: var(--ink-0);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .item-list__label {
   display: flex;
   align-items: center;
@@ -108,39 +182,75 @@
   margin-left: 8px;
 }
 
-/* Rule 14: what is not paper is not drawn as paper. This control lives between
-   sheets, so it is lettered straight onto the board in --board-ink — no
+/* The board's controls are not indented the way a sheet's contents are: the
+   sheet's --side-margin is the margin of a printed page, and there is no page
+   here. They line up with the ends of the rule instead, which is the board's
+   own edge.
+
+   Where the paper stops and the board's own controls begin. Dashed, because
+   it is the pad's ruling rather than a divider between two things, and mixed
+   *into* the board rather than laid over it with transparency (rule 5) so it
+   stays a real colour on all six boards and in both lights. */
+.item-list__board-rule {
+  height: 0;
+  margin: 4px 4px 0;
+  border-top: 1px dashed color-mix(in srgb, var(--board-ink) 32%, var(--board));
+}
+
+/* Rule 14: what is not paper is not drawn as paper. This control lives on the
+   board between sheets, so it is lettered straight onto it in --board-ink — no
    surface of its own, no fill, no shadow, no edge. The board is already a
    surface and takes ink; what the rule protects is the sheet. */
-.item-list__label--toggle {
+.item-list__more-trips {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  box-sizing: border-box;
   width: 100%;
   min-height: var(--hit-min);
-  padding-right: 16px;
-  background: none;
+  padding: 14px 12px 12px;
   border: none;
+  background: none;
   color: var(--board-ink);
   cursor: pointer;
   font-family: inherit;
 }
 
-/* Only ever appears inside the toggle above, which is lettered on the board, so
-   the chevron takes the board's ink for the same reason the label does. */
-.item-list__chevron {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid var(--board-ink);
-  border-bottom: 2px solid var(--board-ink);
-  transform: rotate(45deg);
-  transition: transform 0.2s;
-  flex-shrink: 0;
+.item-list__more-trips-text {
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.item-list__chevron--collapsed {
-  transform: rotate(-45deg);
+.item-list__more-trips-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Mono and tabular, because it is a figure — and it counts what you cannot
+   see, so the number is what tapping will bring. */
+.item-list__more-trips-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* Down, not right: nothing here navigates, the next few trips arrive
+   underneath. Same icon, size and ink as the one on "Guardar un ticket" —
+   they sit four lines apart, so anything but the same mark reads as two
+   different kinds of control. */
+.item-list__more-trips-chevron {
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--board-ink) 60%, var(--board));
+}
+
+.item-list__more-trips:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .item-list__date-label {

@@ -1,4 +1,13 @@
+/* #root carries `text-align: center` — a leftover from the Vite scaffold that
+   every screen inherits and sixteen components already quietly reset. Left
+   alone here, shop headings and the cart rubric centre themselves, and the
+   item names only look right because .item-card__open sets its own alignment.
+   Reset once for the screen rather than per element.
+
+   The scaffold rule itself is still there; removing it changes all 28 screens
+   at once and belongs with the rest of the sweep, not in a list-screen pass. */
 .list-screen {
+  text-align: left;
   width: 100%;
   max-width: 430px; /* comfortable on large phones / tablet emulation */
   margin: 0 auto;
@@ -27,7 +36,7 @@
 .sheet-overlay {
   position: fixed;
   inset: 0;
-  background: rgb(0 0 0 / 50%);
+  background: var(--scrim);
   z-index: 100;
 }
 
@@ -39,32 +48,75 @@
   z-index: 101;
 }
 
-.receipt-scan-cta {
-  padding: 0 16px 8px;
-}
+/* A way into a shop that never went on the list.
 
-.receipt-scan-cta__btn {
+   It sits on the board, so it is lettered onto the board — no sheet, no fill,
+   no shadow (rule 14). Making it paper would have been a lie about what it is:
+   paper is what it *produces*, and drawing it as the thing it makes would put
+   an empty receipt on the board before there was one. */
+.save-ticket {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  box-sizing: border-box;
   width: 100%;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1.5px dashed var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-primary);
-  font-size: 0.95rem;
-  font-weight: 500;
+  min-height: var(--hit-min);
+  padding: 14px 12px 16px;
+  border: none;
+  background: none;
+  color: var(--board-ink);
   cursor: pointer;
-  transition:
-    background 0.15s,
-    opacity 0.15s;
+  font-family: inherit;
+  text-align: left;
 }
 
-.receipt-scan-cta__btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+/* The empty stub a ticket would be pasted onto — an outline, because there is
+   nothing in it yet. It is the same mark a purchase wears once it has one,
+   which is what makes the offer legible without a word of explanation. */
+.save-ticket__stub {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 34px;
+  height: 34px;
+  border: 1.5px dashed color-mix(in srgb, var(--board-ink) 45%, var(--board));
+  border-radius: var(--r-sheet);
 }
 
-.receipt-scan-cta__btn:hover:not(:disabled) {
-  background: var(--color-surface-hover, var(--color-border));
+.save-ticket__words {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Pre-printed on the pad, so the serif — nobody wrote this line (rule 15). */
+.save-ticket__title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+/* A rung down, mixed into the board rather than veiled over it (rule 5). */
+.save-ticket__note {
+  font-size: var(--fs-12);
+  line-height: 1.25;
+  color: color-mix(in srgb, var(--board-ink) 72%, var(--board));
+}
+
+.save-ticket__chevron {
+  color: color-mix(in srgb, var(--board-ink) 60%, var(--board));
+}
+
+.save-ticket:disabled {
+  cursor: default;
+}
+
+.save-ticket:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .receipt-source-picker {
