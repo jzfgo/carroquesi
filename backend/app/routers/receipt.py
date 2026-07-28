@@ -10,7 +10,7 @@ from app.schemas.receipt import (
     ReceiptScanRequest,
     ReceiptScanResult,
 )
-from app.services import feature_flags
+from app.services import feature_flags, trips
 from app.services.receipt_matcher import match_lines
 
 router = APIRouter(tags=["receipt"])
@@ -185,6 +185,7 @@ def apply_receipt_prices(
     now = datetime.now(UTC).replace(tzinfo=None)
     purchase_ts = _parse_receipt_at(body.receipt_date) or now
     updated = 0
+    affected: list[ListItem] = []
 
     for patch in body.patches:
         item = session.get(ListItem, patch.item_id)
@@ -201,27 +202,31 @@ def apply_receipt_prices(
         # client-sent flag could rewrite a timestamp set by another member.
         if item.purchased_at is None:
             item.purchased_at = purchase_ts
+            trips.attach(session, item, purchase_ts)
         session.add(item)
         updated += 1
+        affected.append(item)
 
     created = 0
     for new in body.new_items:
-        session.add(
-            ListItem(
-                list_id=list_id,
-                added_by=current_user.id,
-                name=new.name,
-                brand=new.brand,
-                ean=new.ean,
-                stores=[new.store] if new.store else [],
-                quantity=None,  # planned qty — an impulse buy was never planned
-                purchased_quantity=new.quantity,
-                price=new.price,
-                price_per=new.price_per,
-                price_store=new.store,
-                purchased_at=purchase_ts,
-            )
+        created_item = ListItem(
+            list_id=list_id,
+            added_by=current_user.id,
+            name=new.name,
+            brand=new.brand,
+            ean=new.ean,
+            stores=[new.store] if new.store else [],
+            quantity=None,  # planned qty — an impulse buy was never planned
+            purchased_quantity=new.quantity,
+            price=new.price,
+            price_per=new.price_per,
+            price_store=new.store,
+            purchased_at=purchase_ts,
         )
+        session.add(created_item)
+        session.flush()
+        trips.attach(session, created_item, purchase_ts)
+        affected.append(created_item)
         created += 1
 
     for m in body.mappings:
@@ -252,6 +257,11 @@ def apply_receipt_prices(
         scan = session.get(ReceiptScan, body.scan_id)
         if scan:
             scan.items_updated = updated + created
+            reconciled = trips.reconcile_scan(
+                session, list_id, affected, scan.store, scan.receipt_total, now
+            )
+            if reconciled is not None:
+                scan.purchase_id = reconciled.id
             session.add(scan)
 
     lst = session.get(List, list_id)

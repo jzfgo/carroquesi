@@ -265,3 +265,40 @@ def close(
         item.purchase_id = split.id
         session.add(item)
     return split
+
+
+def reconcile_scan(
+    session: Session,
+    list_id: str,
+    items: list[ListItem],
+    store: str | None,
+    total: float | None,
+    now: datetime | None = None,
+) -> Purchase | None:
+    """Applying a receipt is a reconciliation, exactly like closing by hand.
+
+    Returns the trip the scan reconciled, or None when the matches spanned
+    several — scan_receipt matches across a ±3 day window, so that is
+    reachable, and guessing which of several trips a receipt "meant" would be
+    inventing a fact.
+    """
+    now = now or _now()
+    live = open_trip(session, list_id, now)
+    in_cart = [item for item in items if live and item.purchase_id == live.id]
+    if in_cart:
+        return close(session, list_id, [item.id for item in in_cart], store, total, now)
+
+    trip_ids = {item.purchase_id for item in items if item.purchase_id}
+    if len(trip_ids) != 1:
+        return None
+    trip = session.get(Purchase, trip_ids.pop())
+    if trip is None:
+        return None
+    # The scan is confirming a trip that tore off unreconciled. Fill in what
+    # was never said; never overwrite what was.
+    if trip.store is None:
+        trip.store = store
+    if trip.total is None:
+        trip.total = total
+    session.add(trip)
+    return trip

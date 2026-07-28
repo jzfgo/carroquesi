@@ -3,10 +3,11 @@ from datetime import UTC, date, datetime
 import pytest
 from sqlmodel import select
 
-from app.db.models import List, ListItem, ListMember, ReceiptScan
+from app.db.models import List, ListItem, ListMember, Purchase, ReceiptScan
 from app.db.models import UserFeature as _UserFeature
 from app.routers.receipt import _parse_receipt_at, _receipt_day
 from app.schemas.receipt import ReceiptPriceBatch
+from app.services import trips
 
 LIST_ID = "list-receipt-test"
 
@@ -899,3 +900,297 @@ def test_scan_record_stores_midnight_for_a_bare_date(client, session):
     scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body()).json()["scan_id"]
     scan = session.get(ReceiptScan, scan_id)
     assert scan.receipt_at == datetime(2026, 4, 11, 0, 0)
+
+
+# --- Task 10: a receipt scan reconciles a trip ------------------------------
+
+
+def test_reconciling_cart_items_splits_a_closed_trip_leaving_unmatched_open(client, session, user):
+    """The Lidl/Mercadona evening, but arriving via a receipt scan instead of
+    the manual close endpoint: two of three cart items are named on the
+    receipt, so they must be carved into a closed trip while the third stays
+    in the still-open cart."""
+    now = datetime.now(UTC).replace(tzinfo=None)
+    item_a = ListItem(
+        id="item-a", list_id=LIST_ID, name="Item A", added_by=user.id, purchased_at=None
+    )
+    item_b = ListItem(
+        id="item-b", list_id=LIST_ID, name="Item B", added_by=user.id, purchased_at=None
+    )
+    item_c = ListItem(
+        id="item-c", list_id=LIST_ID, name="Item C", added_by=user.id, purchased_at=now
+    )
+    session.add_all([item_a, item_b, item_c])
+    session.commit()
+    trips.attach(session, item_c, now)
+    session.commit()
+
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Lidl", receipt_total=14.60)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {"item_id": "item-a", "price": 1.0, "price_per": None, "store": "Lidl"},
+                {"item_id": "item-b", "price": 2.0, "price_per": None, "store": "Lidl"},
+            ],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    a = session.get(ListItem, "item-a")
+    b = session.get(ListItem, "item-b")
+    c = session.get(ListItem, "item-c")
+    assert a.purchase_id == b.purchase_id
+    assert a.purchase_id != c.purchase_id
+
+    closed_trip = session.get(Purchase, a.purchase_id)
+    assert closed_trip.store == "Lidl"
+    assert closed_trip.total == pytest.approx(14.60)
+    assert closed_trip.closed_at is not None
+
+    remaining_trip = session.get(Purchase, c.purchase_id)
+    assert remaining_trip.closed_at is None
+
+
+def test_patched_previously_unpurchased_item_gets_attached_to_a_trip(client, session, user):
+    """A previous task found that receipt.py sets purchased_at directly and
+    never attaches, which would leave purchased items with purchase_id NULL
+    and break the invariant. Guards the patch-loop attach call specifically."""
+    session.add(
+        ListItem(
+            id="item-pan-new",
+            list_id=LIST_ID,
+            name="Pan de molde",
+            added_by=user.id,
+            purchased_at=None,
+        )
+    )
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": "2026-04-11T17:42:00Z",
+            "patches": [
+                {
+                    "item_id": "item-pan-new",
+                    "price": 1.25,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": "1",
+                }
+            ],
+            "new_items": [],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    item = session.get(ListItem, "item-pan-new")
+    assert item.purchase_id is not None
+
+
+def test_impulse_new_item_gets_attached_to_a_trip(client, session):
+    """An impulse buy from new_items must not land with purchase_id NULL."""
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=_new_item_body())
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.purchase_id is not None
+
+
+def test_scan_purchase_id_is_set_when_one_trip_is_reconciled(client, session, user):
+    session.add_all(
+        [
+            ListItem(
+                id="item-x", list_id=LIST_ID, name="Item X", added_by=user.id, purchased_at=None
+            ),
+            ListItem(
+                id="item-y", list_id=LIST_ID, name="Item Y", added_by=user.id, purchased_at=None
+            ),
+        ]
+    )
+    session.commit()
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Lidl", receipt_total=9.99)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {"item_id": "item-x", "price": 1.0, "price_per": None, "store": "Lidl"},
+                {"item_id": "item-y", "price": 2.0, "price_per": None, "store": "Lidl"},
+            ],
+            "mappings": [],
+        },
+    )
+
+    session.expire_all()
+    x = session.get(ListItem, "item-x")
+    scan_row = session.get(ReceiptScan, scan_id)
+    assert scan_row.purchase_id is not None
+    assert scan_row.purchase_id == x.purchase_id
+
+
+def test_scan_spanning_two_trips_leaves_scan_purchase_id_null(client, session, user):
+    """Matches across two different, already-reconciled trips must not be
+    merged and must not pick one arbitrarily -- guessing which trip a receipt
+    "meant" would be inventing a fact."""
+    trip1 = Purchase(
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 1, 10, 0),
+        tears_off_at=datetime(2026, 4, 1, 22, 0),
+        closed_at=datetime(2026, 4, 1, 20, 0),
+        store="Lidl",
+        total=5.0,
+    )
+    trip2 = Purchase(
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 2, 10, 0),
+        tears_off_at=datetime(2026, 4, 2, 22, 0),
+        closed_at=datetime(2026, 4, 2, 20, 0),
+        store="Mercadona",
+        total=8.0,
+    )
+    session.add_all([trip1, trip2])
+    session.commit()
+
+    item_p = ListItem(
+        id="item-p",
+        list_id=LIST_ID,
+        name="Item P",
+        added_by=user.id,
+        purchased_at=datetime(2026, 4, 1, 11, 0),
+        purchase_id=trip1.id,
+    )
+    item_q = ListItem(
+        id="item-q",
+        list_id=LIST_ID,
+        name="Item Q",
+        added_by=user.id,
+        purchased_at=datetime(2026, 4, 2, 11, 0),
+        purchase_id=trip2.id,
+    )
+    session.add_all([item_p, item_q])
+    session.commit()
+
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Aldi", receipt_total=3.0)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {"item_id": "item-p", "price": 1.0, "price_per": None, "store": "Lidl"},
+                {"item_id": "item-q", "price": 2.0, "price_per": None, "store": "Mercadona"},
+            ],
+            "mappings": [],
+        },
+    )
+
+    session.expire_all()
+    assert session.get(ReceiptScan, scan_id).purchase_id is None
+    assert session.get(Purchase, trip1.id).store == "Lidl"
+    assert session.get(Purchase, trip2.id).store == "Mercadona"
+
+
+def test_scan_confirming_a_torn_off_trip_fills_in_missing_store_and_total(client, session, user):
+    trip = Purchase(
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 1, 10, 0),
+        tears_off_at=datetime(2026, 4, 1, 22, 0),  # long torn off; never reconciled
+    )
+    session.add(trip)
+    session.commit()
+
+    item = ListItem(
+        id="item-r",
+        list_id=LIST_ID,
+        name="Item R",
+        added_by=user.id,
+        purchased_at=datetime(2026, 4, 1, 11, 0),
+        purchase_id=trip.id,
+    )
+    session.add(item)
+    session.commit()
+
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Lidl", receipt_total=6.5)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [{"item_id": "item-r", "price": 1.0, "price_per": None, "store": "Lidl"}],
+            "mappings": [],
+        },
+    )
+
+    session.expire_all()
+    confirmed = session.get(Purchase, trip.id)
+    assert confirmed.store == "Lidl"
+    assert confirmed.total == pytest.approx(6.5)
+    assert session.get(ReceiptScan, scan_id).purchase_id == trip.id
+
+
+def test_scan_confirming_a_trip_with_existing_store_and_total_does_not_overwrite(
+    client, session, user
+):
+    trip = Purchase(
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 1, 10, 0),
+        tears_off_at=datetime(2026, 4, 1, 22, 0),
+        store="Original Store",
+        total=1.23,
+    )
+    session.add(trip)
+    session.commit()
+
+    item = ListItem(
+        id="item-s",
+        list_id=LIST_ID,
+        name="Item S",
+        added_by=user.id,
+        purchased_at=datetime(2026, 4, 1, 11, 0),
+        purchase_id=trip.id,
+    )
+    session.add(item)
+    session.commit()
+
+    scan = ReceiptScan(
+        list_id=LIST_ID, scanned_by=user.id, store="Different Store", receipt_total=99.0
+    )
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {"item_id": "item-s", "price": 1.0, "price_per": None, "store": "Different Store"}
+            ],
+            "mappings": [],
+        },
+    )
+
+    session.expire_all()
+    confirmed = session.get(Purchase, trip.id)
+    assert confirmed.store == "Original Store"
+    assert confirmed.total == pytest.approx(1.23)
