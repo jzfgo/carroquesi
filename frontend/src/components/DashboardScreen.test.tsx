@@ -683,6 +683,95 @@ describe('DashboardScreen — offline', () => {
     expect(raw).not.toBeNull()
     localStorage.removeItem('cqs_dashboard_cache_u1')
   })
+
+  // Losing the connection is an event, not just a property. useIsOffline seeds
+  // its state from navigator.onLine at mount and thereafter only moves on the
+  // window's online/offline events, so flipping the property alone leaves the
+  // component still believing it is online — and the guard under test never
+  // fires. Dispatching is also the truer scenario: signal lost mid-session,
+  // with the screen already mounted, rather than a reload while offline.
+  function goOffline() {
+    Object.defineProperty(navigator, 'onLine', {
+      value: false,
+      configurable: true,
+    })
+    fireEvent(window, new Event('offline'))
+  }
+
+  async function openCreateAndSubmit(name: string) {
+    fireEvent.click(screen.getByRole('button', { name: /nueva lista/i }))
+    fireEvent.change(await screen.findByPlaceholderText(/nombre/i), {
+      target: { value: name },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /crear/i }))
+  }
+
+  // The two guards below only mean something next to a passing online case —
+  // otherwise a handleCreate broken outright would satisfy them too. Both take
+  // navigator.onLine offline the way the banner test above does, and rely on the
+  // file's beforeEach redefining it back to true rather than restoring it here.
+
+  it('creates a list and refreshes, with a connection', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+    await openCreateAndSubmit('Costco')
+
+    await waitFor(() =>
+      expect(api.createList).toHaveBeenCalledWith(mockGetToken, {
+        name: 'Costco',
+        emoji: expect.any(String),
+      }),
+    )
+    // Two calls: the fetch on mount, then the refresh handleCreate awaits.
+    expect(vi.mocked(api.getLists).mock.calls.length).toBeGreaterThan(1)
+  })
+
+  it('will not create a list without a connection, and says why', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+
+    goOffline()
+    await openCreateAndSubmit('Costco')
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/no disponible sin conexión/i),
+      ).toBeInTheDocument(),
+    )
+    expect(api.createList).not.toHaveBeenCalled()
+  })
+
+  it('will not submit feedback without a connection, and says why', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+
+    goOffline()
+    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /enviar feedback/i }))
+    fireEvent.change(screen.getByLabelText(/mensaje/i), {
+      target: { value: 'Great app' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /^enviar$/i }))
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/no se pudo enviar el feedback/i),
+      ).toBeInTheDocument(),
+    )
+    // The toast is the same string the network-failure path shows, so it cannot
+    // tell the two apart on its own. These two can: nothing was sent, and the
+    // sheet stayed open for the message to survive until there is a connection.
+    expect(api.submitFeedback).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('dialog', { name: /enviar feedback/i }),
+    ).toBeInTheDocument()
+  })
 })
 
 describe('notifications toggle', () => {
