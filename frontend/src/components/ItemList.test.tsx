@@ -196,6 +196,39 @@ test('it never folds anything back — nothing here was folded', () => {
   expect(screen.getByText('Compra 5')).toBeInTheDocument()
 })
 
+test('the rule between paper and board survives having nothing to load', () => {
+  // The bug: it was drawn by the load-more control, so with three trips or
+  // fewer there was no control and no rule — and "Guardar un ticket" sat
+  // straight against the last receipt with nothing between them.
+  const { container } = render(
+    <ItemList
+      status="success"
+      items={[makeItem('a'), ...tripsAgo(1)]}
+      onTogglePurchased={() => {}}
+      onOpen={() => {}}
+      onRetry={() => {}}
+      footer={<button>Guardar un ticket</button>}
+    />,
+  )
+  expect(screen.queryByText('Compras anteriores')).not.toBeInTheDocument()
+  expect(container.querySelector('.item-list__board-rule')).not.toBeNull()
+})
+
+test('and is drawn once, not once per control', () => {
+  const { container } = render(
+    <ItemList
+      status="success"
+      items={tripsAgo(7)}
+      onTogglePurchased={() => {}}
+      onOpen={() => {}}
+      onRetry={() => {}}
+      footer={<button>Guardar un ticket</button>}
+    />,
+  )
+  expect(screen.getByText('Compras anteriores')).toBeInTheDocument()
+  expect(container.querySelectorAll('.item-list__board-rule')).toHaveLength(1)
+})
+
 test('the footer is the last thing on the board, not inside the list sheet', () => {
   // The bug: it rendered between the shop groups and the die-cut, which put a
   // way of recording a finished shop in the middle of the one you are doing.

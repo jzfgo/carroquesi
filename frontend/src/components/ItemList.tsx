@@ -1,3 +1,4 @@
+import { ChevronDown } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { formatPrice } from '../lib/formatPrice'
 import type { CostSummary } from '../lib/itemCost'
@@ -265,34 +266,38 @@ export function ItemList({
                 />
               </div>
             ))}
-
-          {/* Lettered straight onto the board with no sheet of its own: what
-              is not paper is not drawn as paper (rule 14). It counts trips
-              rather than things, because that is what a purchase is — one
-              shop, one day — and it counts the ones you cannot see, so the
-              number is what tapping will get you.
-
-              It brings the next few onto the board and then goes away, the
-              way a "load more" does — it never folds anything back, because
-              nothing here was folded: those trips were simply not fetched
-              onto the board yet. Sending it to a screen of its own would make
-              the archive somewhere you go, when it is really just further
-              down. */}
-          {folded > 0 && (
-            <button
-              className="item-list__more-trips"
-              onClick={() => setTripsShown((n) => n + TRIPS_SHOWN)}
-            >
-              <span className="item-list__more-trips-text">
-                Compras anteriores
-              </span>
-              <span className="item-list__more-trips-meta">
-                <span className="item-list__more-trips-count">{folded}</span>
-                <span className="item-list__more-trips-chevron" aria-hidden />
-              </span>
-            </button>
-          )}
         </>
+      )}
+
+      {/* Where the paper stops and the board's own controls begin. It belongs
+          to neither of them, so it is drawn once for both — putting it on the
+          first control made it disappear whenever that control did. */}
+      {(folded > 0 || footer) && (
+        <div className="item-list__board-rule" aria-hidden />
+      )}
+
+      {/* Lettered straight onto the board with no sheet of its own: what is
+          not paper is not drawn as paper (rule 14). It counts trips rather
+          than things, because that is what a purchase is — one shop, one day
+          — and it counts the ones you cannot see, so the number is what
+          tapping will get you.
+
+          It brings the next few onto the board and then goes away, the way a
+          "load more" does — it never folds anything back, because nothing
+          here was folded: those trips were simply not put on the board yet.
+          Sending it to a screen of its own would make the archive somewhere
+          you go, when it is really just further down. */}
+      {folded > 0 && (
+        <button
+          className="item-list__more-trips"
+          onClick={() => setTripsShown((n) => n + TRIPS_SHOWN)}
+        >
+          <span className="item-list__more-trips-text">Compras anteriores</span>
+          <span className="item-list__more-trips-meta">
+            <span className="item-list__more-trips-count">{folded}</span>
+            <ChevronDown className="item-list__more-trips-chevron" size={16} />
+          </span>
+        </button>
       )}
 
       {/* Last thing on the board, under everything it could ever produce. It

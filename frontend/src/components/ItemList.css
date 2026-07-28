@@ -202,13 +202,25 @@
   margin-left: 8px;
 }
 
+/* The board's controls are not indented the way a sheet's contents are: the
+   sheet's --side-margin is the margin of a printed page, and there is no page
+   here. They line up with the ends of the rule instead, which is the board's
+   own edge.
+
+   Where the paper stops and the board's own controls begin. Dashed, because
+   it is the pad's ruling rather than a divider between two things, and mixed
+   *into* the board rather than laid over it with transparency (rule 5) so it
+   stays a real colour on all six boards and in both lights. */
+.item-list__board-rule {
+  height: 0;
+  margin: 4px 4px 0;
+  border-top: 1px dashed color-mix(in srgb, var(--board-ink) 32%, var(--board));
+}
+
 /* Rule 14: what is not paper is not drawn as paper. This control lives on the
    board between sheets, so it is lettered straight onto it in --board-ink — no
    surface of its own, no fill, no shadow, no edge. The board is already a
-   surface and takes ink; what the rule protects is the sheet.
-
-   The dashed rule above it is where the board's paper ran out, so it is mixed
-   *into* the board rather than laid over it with transparency (rule 5). */
+   surface and takes ink; what the rule protects is the sheet. */
 .item-list__more-trips {
   display: flex;
   align-items: center;
@@ -216,10 +228,8 @@
   box-sizing: border-box;
   width: 100%;
   min-height: var(--hit-min);
-  margin-top: 4px;
-  padding: 14px 16px 12px var(--side-margin);
+  padding: 14px 4px 12px;
   border: none;
-  border-top: 1px dashed color-mix(in srgb, var(--board-ink) 32%, var(--board));
   background: none;
   color: var(--board-ink);
   cursor: pointer;
@@ -249,16 +259,13 @@
   line-height: 1;
 }
 
-/* Pointing down, not right: nothing here navigates. The next few trips arrive
-   underneath. */
+/* Down, not right: nothing here navigates, the next few trips arrive
+   underneath. Same icon, size and ink as the one on "Guardar un ticket" —
+   they sit four lines apart, so anything but the same mark reads as two
+   different kinds of control. */
 .item-list__more-trips-chevron {
-  display: inline-block;
   flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid var(--board-ink);
-  border-bottom: 2px solid var(--board-ink);
-  transform: translateY(-2px) rotate(45deg);
+  color: color-mix(in srgb, var(--board-ink) 60%, var(--board));
 }
 
 .item-list__more-trips:focus-visible {

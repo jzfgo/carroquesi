@@ -53,7 +53,7 @@
   box-sizing: border-box;
   width: 100%;
   min-height: var(--hit-min);
-  padding: 14px 16px 16px var(--side-margin);
+  padding: 14px 4px 16px;
   border: none;
   background: none;
   color: var(--board-ink);
