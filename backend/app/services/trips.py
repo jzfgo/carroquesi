@@ -278,27 +278,46 @@ def reconcile_scan(
     """Applying a receipt is a reconciliation, exactly like closing by hand.
 
     Returns the trip the scan reconciled, or None when the matches spanned
-    several — scan_receipt matches across a ±3 day window, so that is
-    reachable, and guessing which of several trips a receipt "meant" would be
-    inventing a fact.
+    several — scan_receipt matches across a ±3 day window, with no trip
+    filter, so a scan routinely matches items already filed under different
+    trips (an older closed ticket, a still-open cart, both). A scan reconciles
+    a trip only when *every* affected item belongs to that one trip; checking
+    the spread only among the items not already in the live cart (as an
+    earlier version of this did) let a receipt whose total covers several
+    lines attach in full to whichever one of those lines happened to still be
+    in the open trip -- one paper total, several ticket totals, all of them
+    now claiming it. Guessing which trip a receipt "meant" would be inventing
+    a fact, so a spread scan reconciles nothing: the affected items are left
+    exactly where they were, for a manual close.
     """
     now = now or _now()
-    live = open_trip(session, list_id, now)
-    in_cart = [item for item in items if live and item.purchase_id == live.id]
-    if in_cart:
-        return close(session, list_id, [item.id for item in in_cart], store, total, now)
-
     trip_ids = {item.purchase_id for item in items if item.purchase_id}
     if len(trip_ids) != 1:
         return None
     trip = session.get(Purchase, trip_ids.pop())
     if trip is None:
         return None
-    # The scan is confirming a trip that tore off unreconciled. Fill in what
-    # was never said; never overwrite what was.
-    if trip.store is None:
-        trip.store = store
-    if trip.total is None:
-        trip.total = total
-    session.add(trip)
+
+    live = open_trip(session, list_id, now)
+    if live is not None and trip.id == live.id:
+        in_trip = [item.id for item in items if item.purchase_id == trip.id]
+        return close(session, list_id, in_trip, store, total, now)
+
+    # Every affected item sits on one trip that isn't the live cart. Two ways
+    # to get here: the trip is already closed (by hand, or by an earlier
+    # scan) and this is a repeat or corroborating application -- confirmed
+    # values must not be touched -- or the trip tore off with nobody having
+    # said what it was. In that second case confirming *is* closing: leaving
+    # closed_at NULL would let trip_for's `closed_at IS NULL` lookup hand a
+    # later backdated tap for the same day this same trip, silently adding a
+    # line the confirmed total never covered. The `closed_at is None` guard
+    # below is what tells the two cases apart -- fill in what was never said
+    # and close it in the second, touch nothing in the first.
+    if trip.closed_at is None:
+        if trip.store is None:
+            trip.store = store
+        if trip.total is None:
+            trip.total = total
+        trip.closed_at = now
+        session.add(trip)
     return trip

@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from sqlmodel import select
@@ -1194,3 +1194,100 @@ def test_scan_confirming_a_trip_with_existing_store_and_total_does_not_overwrite
     confirmed = session.get(Purchase, trip.id)
     assert confirmed.store == "Original Store"
     assert confirmed.total == pytest.approx(1.23)
+    # Confirming still closes it -- it just doesn't touch fields someone
+    # already filled in.
+    assert confirmed.closed_at is not None
+
+
+def test_scan_spanning_a_closed_ticket_and_the_still_open_cart_reconciles_nothing(
+    client, session, user
+):
+    """Critical repro: three items tap into one open trip; two are manually
+    closed as a Lidl ticket; the third stays in the still-open cart. A scan
+    matching all three must not attach its total to whichever trip happens to
+    still be open -- that would confess the whole receipt's total to a single
+    line while the other two silently keep a different, already-confirmed
+    total."""
+    a = client.post(f"/lists/{LIST_ID}/items", json={"name": "Item A"}).json()
+    b = client.post(f"/lists/{LIST_ID}/items", json={"name": "Item B"}).json()
+    c = client.post(f"/lists/{LIST_ID}/items", json={"name": "Item C"}).json()
+    for item in (a, b, c):
+        client.patch(f"/lists/{LIST_ID}/items/{item['id']}", json={"purchased": True})
+
+    lidl = client.post(
+        f"/lists/{LIST_ID}/purchases/close",
+        json={"item_ids": [a["id"], b["id"]], "store": "Lidl", "total": 5.0},
+    ).json()
+
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Aldi", receipt_total=99.0)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {"item_id": a["id"], "price": 1.0, "price_per": None, "store": "Aldi"},
+                {"item_id": b["id"], "price": 2.0, "price_per": None, "store": "Aldi"},
+                {"item_id": c["id"], "price": 3.0, "price_per": None, "store": "Aldi"},
+            ],
+            "mappings": [],
+        },
+    )
+
+    session.expire_all()
+    assert session.get(ReceiptScan, scan_id).purchase_id is None
+    lidl_trip = session.get(Purchase, lidl["id"])
+    assert lidl_trip.store == "Lidl"
+    assert lidl_trip.total == pytest.approx(5.0)
+    c_row = session.get(ListItem, c["id"])
+    assert c_row.purchase_id != lidl["id"]
+    c_trip = session.get(Purchase, c_row.purchase_id)
+    assert c_trip.closed_at is None
+
+
+def test_scan_confirming_a_torn_off_trip_closes_it_so_a_later_tap_cannot_join(
+    client, session, user
+):
+    """Critical repro: an item backdated into an already-torn-off,
+    unreconciled trip; a scan confirms only it. Confirming must close the
+    trip -- otherwise trip_for's `closed_at IS NULL` lookup lets a later
+    backdated tap for the same day join it, and the trip would go on
+    reporting the scan's total as if it still covered both items."""
+    three_days_ago = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=3)).isoformat()
+
+    first = client.post(f"/lists/{LIST_ID}/items", json={"name": "Item F"}).json()
+    first = client.patch(
+        f"/lists/{LIST_ID}/items/{first['id']}",
+        json={"purchased": True, "purchased_at": three_days_ago},
+    ).json()
+    trip_id = first["purchase_id"]
+
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Lidl", receipt_total=3.5)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [{"item_id": first["id"], "price": 3.5, "price_per": None, "store": "Lidl"}],
+            "mappings": [],
+        },
+    )
+
+    session.expire_all()
+    trip = session.get(Purchase, trip_id)
+    assert trip.store == "Lidl"
+    assert trip.closed_at is not None
+
+    second = client.post(f"/lists/{LIST_ID}/items", json={"name": "Item G"}).json()
+    second = client.patch(
+        f"/lists/{LIST_ID}/items/{second['id']}",
+        json={"purchased": True, "purchased_at": three_days_ago},
+    ).json()
+
+    assert second["purchase_id"] != trip_id

@@ -239,6 +239,25 @@ def test_open_trips_on_two_lists_do_not_contaminate_each_other(client: TestClien
     assert (by_id[l2["id"]]["item_count"], by_id[l2["id"]]["purchased_count"]) == (1, 1)
 
 
-# Follow-up (Task 9): an item closed early into a ticket via "Cerrar compra"
-# should stop counting immediately, even on the same calendar day. Not
-# testable yet -- the close endpoint doesn't exist until Task 9.
+def test_closing_a_trip_removes_its_items_from_the_progress_bar_immediately(client: TestClient):
+    """Follow-up (Task 9): an item closed early into a ticket via "Cerrar
+    compra" must stop counting immediately, even on the same calendar day --
+    the open-trip subquery keys on `Purchase.closed_at IS NULL`, and closing
+    is exactly what sets it. Pins that dropping the `closed_at.is_(None)`
+    filter (leaving only the tears_off_at comparison) breaks this: without it
+    a just-closed trip would still read as "this shop" until local midnight.
+    """
+    lst = client.post("/lists", json={"name": "Trip"}).json()
+    list_id = lst["id"]
+
+    a = client.post(f"/lists/{list_id}/items", json={"name": "Leche"}).json()
+    b = client.post(f"/lists/{list_id}/items", json={"name": "Pan"}).json()
+    client.patch(f"/lists/{list_id}/items/{a['id']}", json={"purchased": True})
+    client.patch(f"/lists/{list_id}/items/{b['id']}", json={"purchased": True})
+
+    client.post(f"/lists/{list_id}/purchases/close", json={"store": "Lidl", "total": 5.0})
+
+    lists = client.get("/lists").json()
+    target = next(row for row in lists if row["id"] == list_id)
+    assert target["item_count"] == 0
+    assert target["purchased_count"] == 0
