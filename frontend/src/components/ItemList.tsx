@@ -2,10 +2,13 @@ import { useState, type ReactNode } from 'react'
 import { formatPrice } from '../lib/formatPrice'
 import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
+import { itemState } from '../lib/itemState'
 import type { ListItem, Member, TagField } from '../types'
+import { CartRubric } from './CartRubric'
 import { ItemCard } from './ItemCard'
 import './ItemList.css'
 import { Mascot } from './Mascot'
+import { Perforation } from './Perforation'
 
 type Status = 'loading' | 'error' | 'success'
 
@@ -79,24 +82,33 @@ export function ItemList({
   }
 
   const active = items
-    .filter((i) => !i.purchased)
+    .filter((i) => itemState(i) === 'pending')
     .sort((a, b) =>
       a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0,
     )
 
-  const purchased = items
-    .filter((i) => i.purchased)
-    .sort((a, b) => {
-      if (!a.purchased_at) return 1
-      if (!b.purchased_at) return -1
-      return b.purchased_at < a.purchased_at
-        ? -1
-        : b.purchased_at > a.purchased_at
-          ? 1
-          : 0
-    })
+  const byPurchasedAtDesc = (a: ListItem, b: ListItem) => {
+    if (!a.purchased_at) return 1
+    if (!b.purchased_at) return -1
+    return b.purchased_at < a.purchased_at
+      ? -1
+      : b.purchased_at > a.purchased_at
+        ? 1
+        : 0
+  }
 
-  if (active.length === 0 && purchased.length === 0) {
+  // In the cart on this trip. Still on the list's own sheet, below the die-cut,
+  // because it has not come away yet — at midnight it will.
+  const cart = items
+    .filter((i) => itemState(i) === 'cart')
+    .sort(byPurchasedAtDesc)
+
+  // Settled. These have already torn off and are receipts now.
+  const purchased = items
+    .filter((i) => itemState(i) === 'bought')
+    .sort(byPurchasedAtDesc)
+
+  if (active.length === 0 && cart.length === 0 && purchased.length === 0) {
     return (
       <div className="item-list item-list--centered" style={{ gap: '0.75rem' }}>
         <Mascot size={120} />
@@ -135,16 +147,21 @@ export function ItemList({
           purchase — thinner stock, a shorter cast, and the 4% veiling that
           says it has already happened. The board shows between them. */}
       <div className="item-list__sheet">
-        <p className="item-list__label">
-          <span className="item-list__label-text">
-            {totalItems !== undefined && totalItems !== active.length
-              ? `${active.length} de ${totalItems} productos por comprar`
-              : `${active.length} ${active.length === 1 ? 'producto' : 'productos'} por comprar`}
+        {/* Pre-printed, in the serif: the pad brought this line, nobody wrote
+            it. The count sits on the right in mono, where figures go. */}
+        <div className="item-list__rubric">
+          <span className="item-list__rubric-title">Por comprar</span>
+          <span className="item-list__rubric-meta">
+            {pendingCost && (
+              <CostBadge cost={pendingCost} className="item-list__label-cost" />
+            )}
+            <span className="item-list__rubric-count">
+              {totalItems !== undefined && totalItems !== active.length
+                ? `${active.length}/${totalItems}`
+                : active.length}
+            </span>
           </span>
-          {pendingCost && (
-            <CostBadge cost={pendingCost} className="item-list__label-cost" />
-          )}
-        </p>
+        </div>
         {active.map((item) => (
           <ItemCard
             key={item.id}
@@ -158,6 +175,33 @@ export function ItemList({
           />
         ))}
         {footer}
+
+        {/* The stub only exists when there is something to tear off (28c.5):
+            with an empty cart there is no cut, no stamp and no printed
+            rubric — the handwritten one comes back instead. */}
+        {cart.length > 0 ? (
+          <>
+            <Perforation />
+            <CartRubric count={cart.length} />
+            {cart.map((item) => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                members={members}
+                onTogglePurchased={onTogglePurchased}
+                onTagClick={onTagClick}
+                onMenuOpen={onMenuOpen}
+                onPriceClick={onPriceClick}
+                onClone={onClone}
+              />
+            ))}
+          </>
+        ) : (
+          <div className="item-list__cart-empty">
+            <span className="item-list__cart-empty-rubric">En el carro</span>
+            <span className="item-list__cart-empty-note">Nada todavía</span>
+          </div>
+        )}
       </div>
 
       {purchased.length > 0 && (

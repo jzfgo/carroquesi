@@ -78,6 +78,66 @@
   content: '';
 }
 
+/* The sheet's own title, pre-printed before anything was written on it — so
+   it is the serif, not the hand and not the mono (rule 15). The dashed rule
+   under it is the pad's ruling, not a divider between two things. */
+.item-list__rubric {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px var(--side-margin) 8px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.item-list__rubric-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--ink-0);
+}
+
+.item-list__rubric-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.item-list__rubric-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--ink-2);
+}
+
+/* No cut, no stamp, no printed rubric: the stub only exists when there is
+   something to tear off, so the handwritten hand comes back here. */
+.item-list__cart-empty {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 46px;
+  padding: 6px 16px 16px var(--side-margin);
+}
+
+.item-list__cart-empty-rubric {
+  font-family: var(--font-written);
+  font-size: 17px;
+  line-height: 1.2;
+  letter-spacing: 0.05em;
+  color: var(--ink-2);
+  text-transform: uppercase;
+}
+
+.item-list__cart-empty-note {
+  font-size: var(--fs-12);
+  line-height: 1.1;
+  color: var(--ink-2);
+}
+
 .item-list__label {
   display: flex;
   align-items: center;

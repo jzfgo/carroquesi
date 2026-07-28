@@ -178,6 +178,8 @@ afterEach(() => {
 })
 
 const TODAY = new Date().toISOString().slice(0, 19)
+/** A settled purchase. Marked TODAY an item is still in the cart, on the list's
+ *  own sheet, and has no date label — only a torn-off trip gets one. */
 const YESTERDAY = new Date(Date.now() - 86_400_000).toISOString().slice(0, 19)
 
 function makeItem(overrides: Partial<ListItem>): ListItem {
@@ -627,7 +629,12 @@ describe('cost totals', () => {
 
   it('shows cost next to the purchased date label', () => {
     renderWithItems([
-      makeItem({ id: '1', purchased: true, purchased_at: TODAY, price: 3.0 }),
+      makeItem({
+        id: '1',
+        purchased: true,
+        purchased_at: YESTERDAY,
+        price: 3.0,
+      }),
     ])
     expect(
       document.querySelector('.item-list__date-label-cost'),

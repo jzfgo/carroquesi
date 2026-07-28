@@ -24,6 +24,7 @@ import {
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
 import { computeCostSummary, purchasedDateLabel } from '../lib/itemCost'
+import { itemState } from '../lib/itemState'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
@@ -641,16 +642,18 @@ export function ListScreen({
     setDueSuggestions((prev) => prev.filter((x) => x.name !== s.name))
   }, [])
 
+  // The bar measures this trip: what is still to find, and what is already in
+  // the cart. Settled purchases from earlier days are not part of it — they
+  // tore off with the stub. The cart rule lives in lib/itemState and nowhere
+  // else, so the day boundary is local midnight rather than UTC's.
   const { purchasedCount, totalCount } = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10) // 'YYYY-MM-DD' UTC
-    const isPurchasedToday = (i: (typeof items)[number]) =>
-      !!i.purchased_at && i.purchased_at.slice(0, 10) === today
     let purchased = 0
     let total = 0
     for (const i of items) {
-      if (!i.purchased) {
+      const state = itemState(i)
+      if (state === 'pending') {
         total++
-      } else if (isPurchasedToday(i)) {
+      } else if (state === 'cart') {
         purchased++
         total++
       }
