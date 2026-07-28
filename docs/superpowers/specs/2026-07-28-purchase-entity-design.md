@@ -22,7 +22,10 @@ date grouping creates one.
 **In:** the `Purchase` model, `list_items.purchase_id`,
 `receipt_scans.purchase_id`, the migration and its backfill, closing a trip
 (manually and from a receipt scan), collapsing the five duplicated day-rule
-implementations, and a test that actually runs migrations.
+implementations, a test that actually runs migrations, and **an ADR** —
+AGENTS.md asks for one when introducing a data-model pattern, and both the
+`Purchase`/`ReceiptScan` split and the `Europe/Madrid` boundary qualify.
+Landing it beside the migration is cheaper than remembering later.
 
 **Out, to 3b:** the ticket header, `CloseTripSheet`, the offline `QueuedOp` for
 closing, and the `purchases` read endpoint that feeds store/total to the header.
@@ -157,9 +160,20 @@ sides of the wire.
 
 ## Lifecycle
 
-**Tapping an item purchased** attaches it to the list's open trip, creating one
-if none is open (`opened_at = now`, `tears_off_at` = the next Madrid midnight).
-That is the whole rule; there are no branches.
+**Tapping an item purchased** attaches it to the list's **unreconciled trip for
+the Madrid day of its `purchased_at`**, creating that trip if it does not exist
+(`opened_at = purchased_at`, `tears_off_at` = the Madrid midnight after it).
+
+One rule, and it is the same rule the backfill uses — `(list_id, Madrid day)` —
+which is why an offline tap from three days ago, drained today, files itself
+into that day's trip rather than into this evening's shop, and why two such taps
+from the same past day find one trip rather than making two. A trip created for
+a past day is born already torn off, so *at most one open trip per list* still
+holds. "The open trip" is just this rule evaluated for today.
+
+Without this the clamp on `purchased_at` (`now − 30d`) and the tap rule
+disagree: a tap accepted as three days old would be filed into a trip opened
+now.
 
 **Un-tapping** detaches it. If that empties the open trip, the trip row is
 deleted — an empty open trip is not a fact about anything.
@@ -260,11 +274,27 @@ the reason you currently cannot delete the price of something bought an hour
 ago. `useListItems.togglePurchased` sends the tap time, replaces its inline
 day-guard with `itemState`, and carries the timestamp in the queued payload.
 
-`ItemList` groups receipt sheets by `purchase_id` instead of by date label.
-This is UI code in the data PR, deliberately: against backfilled data it
-produces identical groups and identical labels, so no Playwright baseline moves,
-and without it 3a ships an entity nothing reads. The visible ticket header stays
-in 3b.
+`ItemList` groups receipt sheets by `purchase_id` instead of by date label, and
+**`ListScreen`'s `purchasedCostByDate` is re-keyed by `purchase_id` too**
+(`ListScreen.tsx:706`). It is a `Map` keyed by the rendered label string today,
+so the moment two trips share a day — the case this entity exists for — the
+second silently overwrites the first's total. That is a bug this phase
+introduces, and re-keying is the whole fix.
+
+The label itself still comes from a date, derived from `Purchase.opened_at`.
+Against backfilled data that is the earliest `purchased_at` in the group, so
+every group and every label is identical to today's and no Playwright baseline
+moves. This is UI code in the data PR deliberately: without it 3a ships an
+entity nothing reads. The visible ticket header stays in 3b.
+
+**The tear-off needs something to wake it up.** `itemState` compares against
+`Date.now()`, and nothing re-renders on an idle screen: the 5s poll calls
+`setItems` only when `updated_at` changes (`useListItems.ts:124`), and midnight
+changes nothing server-side. So the cart does not visibly tear off today either
+— a pre-existing bug this phase would otherwise inherit and make load-bearing.
+Fix it here with a `setTimeout` to the earliest `purchase_ends_at` still in the
+future, which is only possible *because* the boundary is a stamped instant: a
+value computed at read time can be polled for, a stored one can be waited on.
 
 ### Why this is worth doing at all
 
@@ -301,7 +331,8 @@ After this phase there is one predicate, and the trip owns it.
 | DST | Madrid days of 23 and 25 hours. `tears_off_at` is computed with `ZoneInfo`, and both are tested |
 | traveling member | the boundary is Madrid, not the phone. Deliberate: a trip is a household fact |
 | scan spanning several trips | `receipt_scans.purchase_id` stays `NULL`; each item keeps its own trip |
-| clock skew | `purchased_at` clamped, as above |
+| clock skew | `purchased_at` clamped to `[now − 30d, now + 5min]`; anything older files into that day's trip, not this evening's |
+| midnight with the app open and idle | a `setTimeout` to the earliest future `purchase_ends_at` re-renders the tear-off. Without it nothing wakes the screen — the poll re-renders only when `updated_at` moves |
 | large backfill | grouping loads all purchased rows into memory. Fine at this scale; noted so it is checked, not assumed |
 
 ## Testing and verification
@@ -337,8 +368,6 @@ files**, **306 backend**, **90 e2e**. A test-count *drop* is the tell for local
 - **3b** owes: `CloseTripSheet` with item selection, the ticket header, a
   `purchases` read endpoint, and a `QueuedOp` type plus drain branch for
   closing. An API call that bypasses the offline queue silently loses the write.
-- An **ADR** for `Purchase` vs `ReceiptScan` and the `Europe/Madrid` boundary,
-  since both are the kind of tradeoff `docs/decisions/` exists to record.
 - Per-member trips remain possible if the concurrent case ever bites in a way
   reconciliation does not fix: `list_items.purchased_by` is already populated,
   so trips can be re-split from existing data.
