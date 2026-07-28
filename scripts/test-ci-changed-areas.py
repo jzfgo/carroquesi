@@ -120,7 +120,7 @@ check("guardrail hooks", [".claude/hooks/block_main_edits.py"], (False, False, T
 # skipped job reports success and the PR goes green.
 check("justfile", ["justfile"], (True, True, True))
 check("lefthook config", ["lefthook.yml"], (True, True, True))
-check("scripts/", ["scripts/check-changelog.sh"], (True, True, True))
+check("scripts/", ["scripts/strip-unreleased.py"], (True, True, True))
 check("this classifier", ["scripts/ci-changed-areas.sh"], (True, True, True))
 check("a workflow", [".github/workflows/claude.yml"], (True, True, True))
 check("worktree config", [".config/wt.toml"], (True, True, True))

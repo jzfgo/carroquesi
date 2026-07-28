@@ -77,8 +77,3 @@ pre-commit:
           exit 0
         fi
         gitleaks git --staged --no-banner --redact
-
-pre-push:
-  commands:
-    changelog:
-      run: scripts/check-changelog.sh
