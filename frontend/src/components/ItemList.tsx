@@ -123,20 +123,35 @@ export function ItemList({
     )
   }
 
-  // Group what is still to buy by shop, which is the order you walk in. An item
-  // can name several shops or none; the first named one decides where it sits,
-  // and the ones that name none come first because they can be bought anywhere.
-  // Groups keep the order they first appear in, so the list stays the list.
+  // Group what is still to buy by shop, which is the order you walk in.
+  //
+  // An item naming two shops belongs under *both*, and that is the whole point:
+  // standing in Dia you want the eggs on the Dia part of your list, and standing
+  // in Mercadona you want them there too. Filing each item under only the first
+  // shop it named made a shop nobody happened to name first vanish from the list
+  // altogether. So a line can appear twice — it is one item either way, and
+  // ticking it in one place clears it from both.
+  //
+  // Items naming no shop come first and go unheaded: they can be bought
+  // anywhere, so they belong to every trip. Groups keep the order their shop is
+  // first named in, so the list stays the list.
   const pendingByStore: { store: string | null; items: ListItem[] }[] = []
+  const groupFor = (store: string | null) => {
+    let group = pendingByStore.find((g) => g.store === store)
+    if (!group) {
+      group = { store, items: [] }
+      pendingByStore.push(group)
+    }
+    return group
+  }
   for (const item of active) {
-    const store = item.stores[0] ?? null
-    const group = pendingByStore.find((g) => g.store === store)
-    if (group) group.items.push(item)
-    else pendingByStore.push({ store, items: [item] })
+    if (item.stores.length === 0) groupFor(null).items.push(item)
+    else for (const store of item.stores) groupFor(store).items.push(item)
   }
   pendingByStore.sort((a, b) =>
     a.store === null ? -1 : b.store === null ? 1 : 0,
   )
+
   // One unnamed group is just the list — do not head it with anything.
   const showStoreHeadings = pendingByStore.some((g) => g.store !== null)
 
@@ -186,7 +201,7 @@ export function ItemList({
             )}
             {group.map((item) => (
               <ItemCard
-                key={item.id}
+                key={`${store ?? ''}:${item.id}`}
                 item={item}
                 onTogglePurchased={onTogglePurchased}
                 onOpen={onOpen}
