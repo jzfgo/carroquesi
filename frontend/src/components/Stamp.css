@@ -1,0 +1,65 @@
+/* A stamp, not a button. Outline only: filled solid it becomes a button again,
+   and a button on paper is exactly what the sheet model forbids.
+
+   The 11px type is the one declared exception to the 15px floor in the whole
+   product, and it holds because the stamp is a *mark* — the target is the 48px
+   row that contains it, not the stamp itself. */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 26px;
+  padding: 0 11px;
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r-pill);
+  background: none;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.stamp:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* The row is the target — a full-width strip carrying the rubric on the left
+   and the stamp on the right. */
+.stamp-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--hit-tap);
+  padding: 6px 16px 6px var(--side-margin);
+  background: none;
+  border: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Printed, not written: the pad brought this line, the household did not. */
+.stamp-row__rubric {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.14em;
+  color: var(--ink-0);
+  text-transform: uppercase;
+}
+
+@media (hover: none) {
+  .stamp-row:active {
+    transform: scale(0.99);
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+}

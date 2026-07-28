@@ -1,11 +1,28 @@
-import { Coins, Hash, RotateCcw, Store, Tag } from 'lucide-react'
+import {
+  Check,
+  Coins,
+  Hash,
+  RotateCcw,
+  ShoppingCart,
+  Store,
+  Tag,
+} from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice } from '../lib/formatPrice'
+import { itemState } from '../lib/itemState'
 import type { ListItem, Member, TagField } from '../types'
 import './ItemCard.css'
 
 const TAG_CONFIG: { field: TagField; icon: React.ReactNode; label: string }[] =
   [{ field: 'brand', icon: <Tag size={13} />, label: 'marca' }]
+
+/** Nothing on screen labels the three states — the circle is the whole
+ *  sentence — so the label has to carry the distinction on its own. */
+const CIRCLE_LABEL = {
+  pending: 'Poner en el carro',
+  cart: 'Sacar del carro',
+  bought: 'Marcar como no comprado',
+} as const
 
 interface Props {
   item: ListItem
@@ -26,6 +43,9 @@ export function ItemCard({
   onPriceClick,
   onClone,
 }: Props) {
+  // Three states, not two. The middle one is what the old boolean could not
+  // say: picked up, but the trip is not over. See lib/itemState.
+  const state = itemState(item)
   const member = members.get(item.added_by)
   const initial = member?.initial ?? '?'
   const { user } = useAuth()
@@ -42,17 +62,21 @@ export function ItemCard({
 
   return (
     <div
-      className={`item-card${item.purchased ? ' item-card--purchased' : ''}`}
+      className={`item-card item-card--${state}${item.purchased ? ' item-card--purchased' : ''}`}
     >
       <button
         role="checkbox"
-        aria-checked={item.purchased}
-        className="item-card__checkbox"
+        // `mixed` is the honest value for the cart: picked up, not settled.
+        // A screen reader that only knows two states still hears "not
+        // unchecked", and the label says which of the two it is.
+        aria-checked={state === 'cart' ? 'mixed' : item.purchased}
+        className={`item-card__checkbox item-card__checkbox--${state}`}
         onClick={() => onTogglePurchased(item.id)}
-        aria-label={
-          item.purchased ? 'Marcar como no comprado' : 'Marcar como comprado'
-        }
-      />
+        aria-label={CIRCLE_LABEL[state]}
+      >
+        {state === 'cart' && <ShoppingCart size={12} strokeWidth={2.4} />}
+        {state === 'bought' && <Check size={13} strokeWidth={3} />}
+      </button>
 
       <div className="item-card__body">
         <div className="item-card__name-row">

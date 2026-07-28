@@ -1,0 +1,48 @@
+/* The die-cut. A 12px full-bleed band that says this part of the sheet is
+   meant to come away — which is exactly what happens to it at midnight.
+   It *replaces* the dashed section rule; the two never appear together, or the
+   line of holes reads as one more rule instead of as a cut. */
+.perf {
+  position: relative;
+  height: 12px;
+}
+
+/* The holes. Board-coloured in light, because that is what you would see
+   through them; in dark they go to --void, since a dark board showing through
+   a hole reads as a printed dot rather than as an absence. The one declared
+   exception in the whole grammar, and it is resolved in the token layer, so
+   nothing here branches on the mode. */
+.perf__holes {
+  position: absolute;
+  top: 5px;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background-image: radial-gradient(
+    circle at 3px 1px,
+    var(--void) 1.7px,
+    transparent 1.9px
+  );
+  background-size: 9px 2px;
+}
+
+/* The notches. Not decoration: without them a line of dots is a dotted rule.
+   Two half-discs of board overhanging the edge by 6px are what make it read as
+   a tear. They stay board-coloured in both modes — at the edge, a cut reads
+   without help. */
+.perf__notch {
+  position: absolute;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--board);
+}
+
+.perf__notch--start {
+  left: -6px;
+}
+
+.perf__notch--end {
+  right: -6px;
+}

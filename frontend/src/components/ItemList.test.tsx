@@ -110,7 +110,10 @@ test('renders active items section label', () => {
       onPriceClick={() => {}}
     />,
   )
-  expect(screen.getByText('2 productos por comprar')).toBeInTheDocument()
+  expect(screen.getByText('Por comprar')).toBeInTheDocument()
+  expect(document.querySelector('.item-list__rubric-count')?.textContent).toBe(
+    '2',
+  )
 })
 
 test('section label reads "1 item left" for single item', () => {
@@ -126,7 +129,9 @@ test('section label reads "1 item left" for single item', () => {
       onPriceClick={() => {}}
     />,
   )
-  expect(screen.getByText('1 producto por comprar')).toBeInTheDocument()
+  expect(document.querySelector('.item-list__rubric-count')?.textContent).toBe(
+    '1',
+  )
 })
 
 test('purchased section hidden when no items purchased', () => {
@@ -281,7 +286,11 @@ test('no cost badge when pendingCost is omitted', () => {
 // ---------------------------------------------------------------------------
 
 test('shows cost next to date label in purchased section', () => {
-  const purchasedAt = new Date().toISOString().slice(0, 19) // no trailing Z; purchasedDateLabel appends it
+  // An earlier day: marked *now* would still be in the cart, on the list's own
+  // sheet, and would have no date label to hang a cost on.
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const purchasedAt = yesterday.toISOString().slice(0, 19) // no trailing Z; purchasedDateLabel appends it
   const item: ListItem = {
     ...makeItem('b', true),
     purchased_at: purchasedAt,
@@ -312,7 +321,9 @@ test('shows cost next to date label in purchased section', () => {
 })
 
 test('shows ≥ prefix in date label when purchased cost is partial', () => {
-  const purchasedAt = new Date().toISOString().slice(0, 19)
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const purchasedAt = yesterday.toISOString().slice(0, 19)
   const item: ListItem = { ...makeItem('b', true), purchased_at: purchasedAt }
   const label = purchasedDateLabel(purchasedAt)
   const costByDate = new Map([
@@ -397,7 +408,10 @@ test('shows "X de Y" label when totalItems differs from filtered count', () => {
       totalItems={3}
     />,
   )
-  expect(screen.getByText('1 de 3 productos por comprar')).toBeInTheDocument()
+  // Filtered: the figure says how much of the list you are looking at.
+  expect(document.querySelector('.item-list__rubric-count')?.textContent).toBe(
+    '1/3',
+  )
 })
 
 test('shows normal label when totalItems equals filtered count', () => {
@@ -415,7 +429,9 @@ test('shows normal label when totalItems equals filtered count', () => {
       totalItems={2}
     />,
   )
-  expect(screen.getByText('2 productos por comprar')).toBeInTheDocument()
+  expect(document.querySelector('.item-list__rubric-count')?.textContent).toBe(
+    '2',
+  )
 })
 
 test('shows normal label when totalItems is omitted', () => {
@@ -432,5 +448,87 @@ test('shows normal label when totalItems is omitted', () => {
       onPriceClick={() => {}}
     />,
   )
-  expect(screen.getByText('1 producto por comprar')).toBeInTheDocument()
+  expect(document.querySelector('.item-list__rubric-count')?.textContent).toBe(
+    '1',
+  )
+})
+
+// ---------------------------------------------------------------------------
+// The stub — the cart, the die-cut, and what happens when there is nothing
+// to tear off (28c, variant 5)
+// ---------------------------------------------------------------------------
+
+const renderList = (items: ListItem[]) =>
+  render(
+    <ItemList
+      status="success"
+      items={items}
+      members={MEMBERS}
+      onTogglePurchased={() => {}}
+      onTagClick={() => {}}
+      onMenuOpen={() => {}}
+      onRetry={() => {}}
+      onPriceClick={() => {}}
+    />,
+  )
+
+const inCart = (id: string): ListItem => ({
+  ...makeItem(id, true),
+  purchased_at: new Date().toISOString().slice(0, 19),
+})
+
+const settled = (id: string): ListItem => {
+  const earlier = new Date()
+  earlier.setDate(earlier.getDate() - 3)
+  return {
+    ...makeItem(id, true),
+    purchased_at: earlier.toISOString().slice(0, 19),
+  }
+}
+
+test('the cart stays on the list sheet, below the cut — it has not come away yet', () => {
+  const { container } = renderList([makeItem('a'), inCart('b')])
+
+  const sheet = container.querySelector('.item-list__sheet')!
+  expect(sheet.querySelector('.perf')).not.toBeNull()
+  expect(sheet.textContent).toContain('En el carro · 1')
+  // Not a receipt: a receipt is what the cart becomes at midnight.
+  expect(container.querySelector('.item-list__sheet--receipt')).toBeNull()
+})
+
+test('with an empty cart there is no cut, no stamp and no printed rubric', () => {
+  const { container } = renderList([makeItem('a')])
+
+  expect(container.querySelector('.perf')).toBeNull()
+  expect(container.querySelector('.stamp')).toBeNull()
+  // The handwritten rubric comes back instead — the stub only exists when
+  // there is something to tear off.
+  expect(screen.getByText('En el carro')).toBeInTheDocument()
+  expect(screen.getByText('Nada todavía')).toBeInTheDocument()
+})
+
+test('a settled trip is a receipt sheet, off the list', () => {
+  const { container } = renderList([makeItem('a'), settled('b')])
+
+  expect(container.querySelector('.item-list__sheet--receipt')).not.toBeNull()
+  // It is not in the cart, so nothing is left to tear off.
+  expect(container.querySelector('.perf')).toBeNull()
+})
+
+test('the three states each get their own circle', () => {
+  const { container } = renderList([makeItem('a'), inCart('b'), settled('c')])
+
+  expect(
+    container.querySelector('.item-card__checkbox--pending'),
+  ).not.toBeNull()
+  expect(container.querySelector('.item-card__checkbox--cart')).not.toBeNull()
+  expect(container.querySelector('.item-card__checkbox--bought')).not.toBeNull()
+})
+
+test('an item in the cart reads as neither done nor untouched', () => {
+  renderList([inCart('b')])
+  expect(screen.getByRole('checkbox')).toHaveAttribute('aria-checked', 'mixed')
+  expect(
+    screen.getByRole('checkbox', { name: 'Sacar del carro' }),
+  ).toBeInTheDocument()
 })

@@ -7,34 +7,44 @@
   gap: 12px;
 }
 
+/* Three states in one 24px circle, and no words anywhere to explain them:
+   an empty ring is still on the list, a cart on accent is picked up, a check
+   on green is settled. The shape carries it. */
 .item-card__checkbox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
   width: 24px;
   height: 24px;
-  border-radius: 50%;
-  border: 2px solid var(--border);
-  background: none;
-  cursor: pointer;
-  flex-shrink: 0;
   margin-top: 3px;
   padding: 0;
-  position: relative;
+  border: 2px solid var(--border-strong);
+  border-radius: 50%;
+  background: none;
+  color: var(--accent-fg);
+  cursor: pointer;
 }
 
-.item-card__checkbox[aria-checked='true'] {
+/* In the cart. Accent, because it is this trip's doing and still undoable. */
+.item-card__checkbox--cart {
   background: var(--accent);
   border-color: var(--accent);
 }
 
-.item-card__checkbox[aria-checked='true']::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 12px;
-  height: 7px;
-  border-left: 2px solid white;
-  border-bottom: 2px solid white;
-  transform: translate(-50%, -60%) rotate(-45deg);
+/* Bought. Green is the only place in the product where a state is reported by
+   colour rather than by ink, and it earns it: this is an affordance reporting
+   itself, not ink on paper, so the grayscale rule does not reach it. */
+.item-card__checkbox--bought {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.item-card__checkbox:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .item-card__body {
@@ -50,10 +60,33 @@
   margin-bottom: 5px;
 }
 
+/* Rule 15 — the letterform says who put the line there, and no label ever does.
+   The hand is intention: what you wrote down, still to be done. Mono in caps is
+   record: what already happened. Nothing here announces which is which. */
 .item-card__name {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text-h);
+  font-family: var(--font-written);
+  font-size: 21px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: 0.045em;
+  color: var(--ink-0);
+  text-transform: uppercase;
+}
+
+/* In the cart is still the household's own writing — it has not come away from
+   the list yet. Only the ink changes, never the hand (rule 5). */
+.item-card--cart .item-card__name {
+  color: var(--ink-2);
+}
+
+/* Settled. This line is now on a purchase, so it is set the way a till sets
+   it. 17.5px mono carries the same optical weight as 21px of the hand. */
+.item-card--bought .item-card__name {
+  font-family: var(--font-mono);
+  font-size: 17.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink-1);
 }
 
 .item-card__qty {
