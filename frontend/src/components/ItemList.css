@@ -90,6 +90,13 @@
   border-bottom: 1px dashed var(--border);
 }
 
+/* Nothing is written under it, so it rules nothing — see the note in
+   ItemList.tsx. Left as a rule with no line rather than removed, because the
+   spacing above the cut is still the rubric's to keep. */
+.item-list__rubric--unruled {
+  border-bottom-color: transparent;
+}
+
 .item-list__rubric-title {
   font-family: var(--font-display);
   font-size: 17px;

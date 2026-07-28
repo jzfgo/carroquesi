@@ -266,6 +266,55 @@ test('the footer is the last thing on the board, not inside the list sheet', () 
 })
 
 // ---------------------------------------------------------------------------
+// The rubric's ruling, and the cut below it
+// ---------------------------------------------------------------------------
+
+test('the rubric is ruled while there is still something written under it', () => {
+  const { container } = render(
+    <ItemList
+      status="success"
+      items={[makeItem('a'), inCart('b')]}
+      onTogglePurchased={() => {}}
+      onOpen={() => {}}
+      onRetry={() => {}}
+    />,
+  )
+  expect(container.querySelector('.item-list__rubric--unruled')).toBeNull()
+})
+
+test('and unruled when the cut follows it immediately', () => {
+  // Everything already in the cart: a dashed rule a few pixels above a dashed
+  // cut reads as a mistake, and the cut is the line that means something.
+  const { container } = render(
+    <ItemList
+      status="success"
+      items={[inCart('a')]}
+      onTogglePurchased={() => {}}
+      onOpen={() => {}}
+      onRetry={() => {}}
+    />,
+  )
+  expect(container.querySelector('.perf')).not.toBeNull()
+  expect(container.querySelector('.item-list__rubric--unruled')).not.toBeNull()
+})
+
+test('but keeps its ruling when there is no cut to collide with', () => {
+  // Nothing to buy and nothing in the cart: the handwritten "En el carro"
+  // follows instead, and the ruling still separates the two.
+  const { container } = render(
+    <ItemList
+      status="success"
+      items={[{ ...makeItem('a', true), purchased_at: '2020-01-01T10:00:00' }]}
+      onTogglePurchased={() => {}}
+      onOpen={() => {}}
+      onRetry={() => {}}
+    />,
+  )
+  expect(container.querySelector('.perf')).toBeNull()
+  expect(container.querySelector('.item-list__rubric--unruled')).toBeNull()
+})
+
+// ---------------------------------------------------------------------------
 // Cost badge — pending section
 // ---------------------------------------------------------------------------
 

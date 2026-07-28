@@ -169,8 +169,21 @@ export function ItemList({
           says it has already happened. The board shows between them. */}
       <div className="item-list__sheet">
         {/* Pre-printed, in the serif: the pad brought this line, nobody wrote
-            it. The count sits on the right in mono, where figures go. */}
-        <div className="item-list__rubric">
+            it. The count sits on the right in mono, where figures go.
+
+            Its ruling is dropped when the die-cut follows immediately: with
+            everything already in the cart there is nothing written between
+            the two, and a dashed rule a few pixels above a dashed cut reads
+            as a mistake rather than as ruling. The cut is the stronger line
+            and it is the one that means something, so it is the one that
+            stays. */}
+        <div
+          className={`item-list__rubric${
+            active.length === 0 && cart.length > 0
+              ? ' item-list__rubric--unruled'
+              : ''
+          }`}
+        >
           <span className="item-list__rubric-title">Por comprar</span>
           <span className="item-list__rubric-meta">
             {pendingCost && (
