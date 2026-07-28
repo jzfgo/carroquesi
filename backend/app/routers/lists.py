@@ -4,7 +4,7 @@ from fastapi import APIRouter, status
 from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
-from app.db.models import List, ListInvite, ListItem, ListMember, ReceiptScan
+from app.db.models import List, ListInvite, ListItem, ListMember, Purchase, ReceiptScan
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
 from app.schemas.lists import ListCreate, ListRead, ListUpdate
 from app.services.default_list import ensure_default, set_default
@@ -48,18 +48,27 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
     # Uses session.execute (SQLAlchemy) rather than session.exec (SQLModel)
     # because it returns named-column Row objects from aggregation queries.
     # Only count items that are in-scope for the current shopping session:
-    # unpurchased items, plus items purchased today. Items purchased on prior
-    # days are excluded from both the denominator and the numerator so the
-    # progress bar reflects only the current trip.
-    today = func.current_date()
-    purchased_today = func.date(ListItem.purchased_at) == today
-    in_scope = or_(ListItem.purchased_at.is_(None), purchased_today)
+    # unpurchased items, plus items belonging to the list's still-open trip.
+    # This used to be a UTC-day comparison (func.current_date()), which was
+    # wrong twice over: the database's day is not Madrid's day, so an evening
+    # shop dropped out of the progress bar hours before local midnight; and
+    # once a trip can be closed early (Task 9), "counts toward this shop" is
+    # a trip question, not a date one — an item filed into a ticket at 18:40
+    # must stop counting immediately even though its calendar day hasn't
+    # turned over. Membership in the list's open trip answers both.
+    now = datetime.now(UTC).replace(tzinfo=None)
+    open_trip_ids = select(Purchase.id).where(
+        Purchase.closed_at.is_(None),
+        Purchase.tears_off_at > now,
+    )
+    in_this_shop = ListItem.purchase_id.in_(open_trip_ids)
+    in_scope = or_(ListItem.purchased_at.is_(None), in_this_shop)
 
     count_stmt = (
         select(
             ListItem.list_id,
             func.count(ListItem.id).filter(in_scope).label("item_count"),
-            func.count(ListItem.id).filter(purchased_today).label("purchased_count"),
+            func.count(ListItem.id).filter(in_this_shop).label("purchased_count"),
         )
         .where(ListItem.list_id.in_(list_ids))
         .group_by(ListItem.list_id)
