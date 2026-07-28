@@ -220,6 +220,37 @@ describe('the second line', () => {
     expect(container.querySelector('.item-card__sub')?.textContent).toBe('1 ud')
   })
 
+  it('takes the quantity in the cart too, once a price has taken the column', () => {
+    // The gap: this keyed on `settled`, so a line picked up *and* priced on
+    // the same day showed the amount in the figure column and only the brand
+    // underneath — its quantity fell out of the row entirely until midnight
+    // settled it. Reachable in the ordinary flow: mark purchased, open the
+    // item, log the price.
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: TODAY,
+      quantity: '2 ud',
+      brand: 'Hacendado',
+      price: 1.35,
+    })
+    expect(container.querySelector('.item-card__sub')).toHaveTextContent(
+      '2 ud · Hacendado',
+    )
+    expect(container.querySelector('.item-card__figure')?.textContent).toMatch(
+      /1[,.]35/,
+    )
+  })
+
+  it('and keeps it there for a priced cart line with no brand', () => {
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: TODAY,
+      quantity: '1 kg',
+      price: 2.4,
+    })
+    expect(container.querySelector('.item-card__sub')?.textContent).toBe('1 kg')
+  })
+
   it('is not drawn at all when there is nothing to put on it (rule 6)', () => {
     const { container } = renderCard()
     expect(container.querySelector('.item-card__sub')).toBeNull()

@@ -48,33 +48,33 @@ export function ItemCard({ item, onTogglePurchased, onOpen, onClone }: Props) {
   // not a figure at all (rule 10).
   const showsAmount = state !== 'pending' && item.price != null
 
-  // What the figure column holds, and it is allowed to hold nothing.
+  // Whether the figure column is still the quantity's, or has been taken over.
   //
-  // On a settled line the column is the money column: what this cost. If
-  // nobody ever recorded a price, the honest answer is a gap — and a gap is
-  // exactly what should be visible, because it is the thing still missing.
-  // Filling it with the quantity instead both hides that and says the same
-  // thing twice, since a settled line already prints its quantity on the
-  // second line underneath.
+  // It holds the quantity only while nothing has displaced it: an amount does
+  // (money outranks a count once the thing is in hand), and so does settling,
+  // because on a record the column *is* the money column — and when no price
+  // was ever captured the honest answer there is a gap, which is exactly what
+  // should show, since the missing price is the thing worth noticing.
+  const qtyInFigure = !showsAmount && !settled
+
   const figure = showsAmount
     ? formatPrice(item.price!, item.price_per)
-    : settled
-      ? null
-      : displayQty
+    : qtyInFigure
+      ? displayQty
+      : null
 
-  // The second line, and what it says depends on which way the row is facing.
+  // The second line. The brand always, and the quantity too whenever the
+  // figure column is no longer carrying it — "12 UD · PULEVA".
   //
-  // Still to buy, the quantity is a figure and sits in the figure column, so
-  // the only thing left under the name is the brand — which is a preference,
-  // not an instruction: "leche, and Hacendado if they have it".
-  //
-  // Settled, the figure column has been taken over by what it cost, so the
-  // quantity comes down here and the brand follows it: "12 UD · PULEVA". Both
-  // are singular on a purchase, and either can be missing — a row with neither
-  // simply has no second line rather than an empty one held open (rule 6).
-  const subline = settled
-    ? [displayQty, item.brand].filter(Boolean).join(' · ')
-    : item.brand
+  // Keyed on where the quantity actually went rather than on the row's state:
+  // keying on `settled` looked equivalent and was not, because a line in the
+  // cart with a price logged has already given its figure column over to the
+  // money. Its quantity fell out of the row altogether until midnight settled
+  // it. Both parts are optional, and a row with neither has no second line
+  // rather than an empty one held open (rule 6).
+  const subline = qtyInFigure
+    ? item.brand
+    : [displayQty, item.brand].filter(Boolean).join(' · ')
 
   return (
     <div className={`item-card item-card--${state}`}>
