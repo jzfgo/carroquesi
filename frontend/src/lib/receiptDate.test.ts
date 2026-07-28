@@ -2,6 +2,7 @@ import {
   RECEIPT_DATE_TOLERANCE_DAYS,
   isReceiptDateWorthConfirming,
   toDateInputValue,
+  toLocalInstant,
   todayInputValue,
   withDatePart,
 } from './receiptDate'
@@ -25,6 +26,22 @@ function daysFromNow(delta: number): string {
 
 /** The instant `receiptAi.toReceiptInstant` would produce for a local moment. */
 function instantAt(
+  y: number,
+  m: number,
+  d: number,
+  h: number,
+  min = 0,
+): string {
+  return toLocalInstant(new Date(y, m - 1, d, h, min, 0, 0))
+}
+
+/**
+ * The same moment written the way it used to be sent: flattened to UTC.
+ *
+ * Kept as a fixture rather than deleted, because older scans are stored in
+ * this form and still come back through these functions.
+ */
+function utcInstantAt(
   y: number,
   m: number,
   d: number,
@@ -128,6 +145,43 @@ describe('todayInputValue', () => {
   })
 })
 
+/**
+ * These run in whatever zone the machine is set to — CEST locally, UTC in CI —
+ * so every assertion has to hold in both. The offset assertions are the ones
+ * that discriminate: in UTC a local instant and a UTC instant name the same
+ * wall-clock time and no test could tell them apart, but `toISOString()` ends
+ * in 'Z' where this ends in '+00:00'. That difference survives the zone.
+ */
+describe('toLocalInstant', () => {
+  const smallHours = new Date(2026, 6, 25, 0, 30, 0, 0)
+
+  test("writes the viewer's own day, whatever UTC would call it", () => {
+    expect(toLocalInstant(smallHours).slice(0, 10)).toBe('2026-07-25')
+  })
+
+  test('writes the wall-clock time, not the UTC one', () => {
+    expect(toLocalInstant(smallHours).slice(11, 19)).toBe('00:30:00')
+  })
+
+  test('states the offset rather than folding it away', () => {
+    // The whole point: a 'Z' string has already lost the day it was written
+    // on, and the backend has no timezone to recover it from.
+    expect(toLocalInstant(smallHours)).toMatch(/[+-]\d{2}:\d{2}$/)
+  })
+
+  test('still names the same instant it was given', () => {
+    expect(new Date(toLocalInstant(smallHours)).getTime()).toBe(
+      smallHours.getTime(),
+    )
+  })
+
+  test('reduces back to the day it was written on', () => {
+    // The round trip the sheet depends on: what is sent is what the editor
+    // pre-fills and what the prompt is judged against.
+    expect(toDateInputValue(toLocalInstant(smallHours))).toBe('2026-07-25')
+  })
+})
+
 describe('withDatePart', () => {
   test('keeps the time of day when the original had one', () => {
     const corrected = withDatePart(instantAt(2026, 7, 14, 17, 42), '2026-07-11')
@@ -146,6 +200,27 @@ describe('withDatePart', () => {
   test('lands on the picked day for a late-evening receipt too', () => {
     const corrected = withDatePart(instantAt(2026, 7, 14, 23, 30), '2026-07-25')
     expect(toDateInputValue(corrected)).toBe('2026-07-25')
+  })
+
+  test('sends the day the user picked, as the day they picked', () => {
+    // The bug: the correction was flattened to UTC before being sent, so a
+    // shopper in Madrid picking the 25th sent "2026-07-24T22:00:00.000Z". The
+    // backend has no zone to undo that with, and centred its +-3 day match
+    // window on the 24th — spending a day of the tolerance that exists
+    // because items get marked purchased *after* the receipt date.
+    const corrected = withDatePart(instantAt(2026, 7, 14, 0, 0), '2026-07-25')
+    expect(corrected.slice(0, 10)).toBe('2026-07-25')
+    expect(corrected).toMatch(/[+-]\d{2}:\d{2}$/)
+  })
+
+  test('corrects a scan that was stored in the old UTC form', () => {
+    // Older scans come back flattened; the correction still has to land on
+    // the picked day rather than inheriting the old shape.
+    const corrected = withDatePart(
+      utcInstantAt(2026, 7, 14, 0, 30),
+      '2026-07-25',
+    )
+    expect(corrected.slice(0, 10)).toBe('2026-07-25')
   })
 
   test('stays a bare date when the original was one', () => {

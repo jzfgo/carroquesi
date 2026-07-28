@@ -1,6 +1,7 @@
 import { getGenerativeModel, InferenceMode } from 'firebase/ai'
 import type { ParsedLine, ReceiptScanRequest } from '../types'
 import { ai } from './firebase'
+import { toLocalInstant } from './receiptDate'
 
 const RECEIPT_SCHEMA = {
   type: 'object',
@@ -80,14 +81,20 @@ async function fileToInlinePart(file: File) {
 }
 
 /**
- * Combine the receipt's printed date and time — which are LOCAL wall-clock — into
- * a UTC instant.
+ * Combine the receipt's printed date and time — which are LOCAL wall-clock —
+ * into an instant, written with the offset that places it.
  *
  * `purchased_at` is stored naive-UTC and rendered by appending 'Z', so sending
  * local time unconverted would shift an evening receipt onto the following day.
  * Using the Date constructor (rather than string concatenation) applies the
  * browser's offset rules for that specific date, which keeps receipts from the
  * other side of a DST change correct.
+ *
+ * The offset stays in the string rather than being folded away by
+ * `toISOString()`: the receipt's printed day is what the backend centres its
+ * match window on, and a receipt with no printed time degrades to local
+ * midnight — precisely the hour at which a UTC instant stops naming that day.
+ * See lib/receiptDate.ts.
  */
 export function toReceiptInstant(
   date: string | null,
@@ -112,8 +119,8 @@ export function toReceiptInstant(
   const dt = new Date(y, m - 1, d, hours, minutes, 0, 0)
   // JS Date normalises out-of-range and NaN/zero components instead of
   // rejecting them ('2026-01-32' becomes Feb 1; `new Date(0, ...)` maps to
-  // 1900; a NaN component yields an Invalid Date), and toISOString() throws
-  // on an extreme year. Round-tripping the components catches all of these:
+  // 1900; a NaN component yields an Invalid Date, as does a year past the
+  // representable range). Round-tripping the components catches all of these:
   // a rolled or coerced value no longer matches what we fed in, and an
   // invalid date fails the NaN check first.
   if (
@@ -124,7 +131,7 @@ export function toReceiptInstant(
   ) {
     return null
   }
-  return dt.toISOString()
+  return toLocalInstant(dt)
 }
 
 export async function parseReceiptWithAi(
