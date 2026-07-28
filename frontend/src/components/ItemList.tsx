@@ -3,6 +3,7 @@ import { formatPrice } from '../lib/formatPrice'
 import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
 import { itemState } from '../lib/itemState'
+import { formatShops, groupByShops } from '../lib/storeGroups'
 import type { ListItem } from '../types'
 import { CartRubric } from './CartRubric'
 import { ItemCard } from './ItemCard'
@@ -123,37 +124,21 @@ export function ItemList({
     )
   }
 
-  // Group what is still to buy by shop, which is the order you walk in.
+  // Group what is still to buy by the shops that can supply it.
   //
-  // An item naming two shops belongs under *both*, and that is the whole point:
-  // standing in Dia you want the eggs on the Dia part of your list, and standing
-  // in Mercadona you want them there too. Filing each item under only the first
-  // shop it named made a shop nobody happened to name first vanish from the list
-  // altogether. So a line can appear twice — it is one item either way, and
-  // ticking it in one place clears it from both.
+  // A line naming two shops is one thing to buy, not two, so it appears once
+  // under a heading naming both — "Dia o Mercadona". Filing it under each shop
+  // separately drew the same line twice and read as two errands. What the
+  // household means is "either place will do", and the heading now says that.
   //
-  // Items naming no shop come first and go unheaded: they can be bought
-  // anywhere, so they belong to every trip. Groups keep the order their shop is
-  // first named in, so the list stays the list.
-  const pendingByStore: { store: string | null; items: ListItem[] }[] = []
-  const groupFor = (store: string | null) => {
-    let group = pendingByStore.find((g) => g.store === store)
-    if (!group) {
-      group = { store, items: [] }
-      pendingByStore.push(group)
-    }
-    return group
-  }
-  for (const item of active) {
-    if (item.stores.length === 0) groupFor(null).items.push(item)
-    else for (const store of item.stores) groupFor(store).items.push(item)
-  }
-  pendingByStore.sort((a, b) =>
-    a.store === null ? -1 : b.store === null ? 1 : 0,
-  )
+  // Order is by narrowing constraint: buy-anywhere first and unheaded, then
+  // the shops-plural groups widest first, then the single shops. The further
+  // down you read, the more it matters where you are standing. See
+  // lib/storeGroups.
+  const pendingByStore = groupByShops(active)
 
   // One unnamed group is just the list — do not head it with anything.
-  const showStoreHeadings = pendingByStore.some((g) => g.store !== null)
+  const showStoreHeadings = pendingByStore.some((g) => g.shops.length > 0)
 
   // Group purchased items by local date label, preserving backend order (newest first)
   const purchasedByDate: { label: string; items: ListItem[] }[] = []
@@ -189,19 +174,24 @@ export function ItemList({
             </span>
           </span>
         </div>
-        {pendingByStore.map(({ store, items: group }) => (
-          <div key={store ?? '\u0000none'}>
+        {pendingByStore.map(({ shops, items: group }) => (
+          <div key={shops.join('\u0000')}>
             {/* Written, not printed: a shop is something the household put on
                 the list, so it is in their hand and underlined the way you
                 underline a heading on paper (rule 15). */}
-            {showStoreHeadings && store !== null && (
+            {showStoreHeadings && shops.length > 0 && (
               <p className="item-list__store">
-                <span className="item-list__store-name">{store}</span>
+                <span className="item-list__store-name">
+                  {formatShops(shops)}
+                </span>
               </p>
             )}
+            {/* One line per item now, so the item's own id is the key. A
+                duplicate-key warning here would mean grouping has started
+                fragmenting again — that warning is the regression, not noise. */}
             {group.map((item) => (
               <ItemCard
-                key={`${store ?? ''}:${item.id}`}
+                key={item.id}
                 item={item}
                 onTogglePurchased={onTogglePurchased}
                 onOpen={onOpen}
