@@ -119,3 +119,85 @@ def test_unclosed_trip_before_its_tear_off_is_open():
     )
     assert trips.ends_at(trip) == datetime(2026, 7, 28, 22, 0)
     assert trips.is_open(trip, now=now) is True
+
+
+@pytest.fixture(name="lst")
+def list_fixture(session: Session, user: User) -> List:
+    lst = List(name="Casa", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+    session.refresh(lst)
+    return lst
+
+
+def test_two_taps_on_one_day_find_one_trip(session: Session, lst: List):
+    first = trips.trip_for(session, lst.id, datetime(2026, 7, 28, 16, 0))
+    second = trips.trip_for(session, lst.id, datetime(2026, 7, 28, 18, 0))
+    assert first.id == second.id
+
+
+def test_a_tap_that_predates_the_trip_back_dates_it(session: Session, lst: List):
+    # An offline 18:00 tap draining after a 19:00 one must not make a second
+    # trip, and the trip must start when the shopping did.
+    trip = trips.trip_for(session, lst.id, datetime(2026, 7, 28, 19, 0))
+    again = trips.trip_for(session, lst.id, datetime(2026, 7, 28, 18, 0))
+    assert again.id == trip.id
+    assert again.opened_at == datetime(2026, 7, 28, 18, 0)
+
+
+def test_taps_on_different_days_get_different_trips(session: Session, lst: List):
+    monday = trips.trip_for(session, lst.id, datetime(2026, 7, 27, 16, 0))
+    tuesday = trips.trip_for(session, lst.id, datetime(2026, 7, 28, 16, 0))
+    assert monday.id != tuesday.id
+
+
+def test_two_offline_taps_from_the_same_past_day_find_one_trip(session: Session, lst: List):
+    # Draining three days late must file into that day's trip, not tonight's
+    # shop, and must not make one trip per tap.
+    first = trips.trip_for(session, lst.id, datetime(2026, 7, 25, 11, 0))
+    second = trips.trip_for(session, lst.id, datetime(2026, 7, 25, 12, 0))
+    assert first.id == second.id
+
+
+def test_a_closed_trip_is_never_reused(session: Session, lst: List):
+    closed = trips.trip_for(session, lst.id, datetime(2026, 7, 28, 16, 0))
+    closed.closed_at = datetime(2026, 7, 28, 17, 0)
+    session.add(closed)
+    session.commit()
+
+    later = trips.trip_for(session, lst.id, datetime(2026, 7, 28, 18, 0))
+    assert later.id != closed.id
+
+
+def test_the_open_trip_is_todays_unreconciled_one(session: Session, lst: List):
+    now = datetime(2026, 7, 28, 18, 0)
+    trip = trips.trip_for(session, lst.id, now)
+    assert trips.open_trip(session, lst.id, now) is trip
+    # Yesterday's untouched trip has torn off, so it is not open any more.
+    assert trips.open_trip(session, lst.id, datetime(2026, 7, 29, 18, 0)) is None
+
+
+def test_open_trip_ignores_a_trip_closed_early_before_it_tears_off(session: Session, lst: List):
+    # A trip closed by hand before its tear-off must not read as "open" just
+    # because the clock hasn't caught up to tears_off_at yet.
+    trip = trips.trip_for(session, lst.id, datetime(2026, 7, 28, 16, 0))
+    trip.closed_at = datetime(2026, 7, 28, 17, 0)
+    session.add(trip)
+    session.commit()
+
+    assert trips.open_trip(session, lst.id, datetime(2026, 7, 28, 18, 0)) is None
+
+
+def test_different_lists_never_share_a_trip(session: Session, user: User):
+    same_instant = datetime(2026, 7, 28, 16, 0)
+    list_a = List(name="Casa", owner_id=user.id)
+    list_b = List(name="Oficina", owner_id=user.id)
+    session.add(list_a)
+    session.add(list_b)
+    session.commit()
+    session.refresh(list_a)
+    session.refresh(list_b)
+
+    trip_a = trips.trip_for(session, list_a.id, same_instant)
+    trip_b = trips.trip_for(session, list_b.id, same_instant)
+    assert trip_a.id != trip_b.id
