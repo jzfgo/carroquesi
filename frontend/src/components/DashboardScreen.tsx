@@ -514,8 +514,8 @@ export function DashboardScreen() {
               // mode twice in two vocabularies. One or the other: a fixed label
               // with aria-pressed, or a label that changes without it. The
               // changing label is the better affordance for leaving. Neither
-              // form makes the press itself audible — see the onClick, which is
-              // where that is dealt with.
+              // form makes the press itself audible; the live region in the
+              // onClick does.
               <button
                 className={`dashboard-screen__reorder-toggle${reordering ? ' dashboard-screen__reorder-toggle--on' : ''}`}
                 onClick={() => {
@@ -536,21 +536,24 @@ export function DashboardScreen() {
                   // stale — the entry text is left standing too, for as long as
                   // the mode is on, so persistence is not what separates them.
                   //
-                  // What separates them is that the entry text is
-                  // *instructions*: it stays true for exactly as long as it is
-                  // mounted, and describes controls that exist while it exists.
-                  // An exit message would describe an event, and would be an
-                  // orphan the moment it finished being read — met later by
-                  // someone browsing the panel with nothing on screen to attach
-                  // it to. Entry also creates affordances nobody has a reason to
-                  // go looking for; exit removes ones they just asked to remove.
+                  // What separates them is whether the referent is still there
+                  // to be found. The entry instructions describe controls that
+                  // exist for as long as the text does, and so does a move
+                  // announcement — "movida a la posición 1 de 3" is an account
+                  // of an event, but the row it names is on screen with its
+                  // arrows still under the reader's finger. An exit message
+                  // would be the only one whose subject stops existing as it is
+                  // read: the mode it reports is gone, so anyone meeting it
+                  // later has nothing to attach it to. Entry also creates
+                  // affordances nobody has a reason to go looking for; exit
+                  // removes ones they just asked to remove.
                   //
                   // The gap this leaves, named rather than hidden: on iOS VO,
                   // pressing Listo can be silent, and so can a mis-tap that
                   // fails to leave the mode, so silence does not distinguish
                   // "done" from "nothing happened". Small — the next swipe lands
-                  // on a row that is a button again — and every remedy considered
-                  // was worse than the gap.
+                  // on a row that is a button again, because this region is
+                  // empty by then and is passed over.
                   setMoveMessage(
                     next
                       ? 'Modo reordenar. Usa los botones subir y bajar de cada lista.'
