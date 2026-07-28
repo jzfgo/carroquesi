@@ -971,6 +971,32 @@ describe('DashboardScreen — arranging', () => {
     expect(moveStatus()).toHaveTextContent('')
   })
 
+  // Where the region sits is load-bearing, and it is checkable — DOM order is
+  // not layout, so jsdom models it exactly.
+  //
+  // Both bounds, because either one alone passes a move that breaks the claim.
+  // Asserting only "before the first row" still passes with the region hoisted
+  // above the panel head, which would have a screen reader meet the
+  // instructions before the control that produced them; asserting only "after
+  // the toggle" still passes with it dropped below every row, beside
+  // DndContext's own region, where nothing would reach it in time.
+  it('is read after the toggle and before the first row', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+
+    const region = moveStatus()
+    expect(
+      region.compareDocumentPosition(
+        screen.getByRole('button', { name: 'Listo' }),
+      ) & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy()
+    expect(
+      region.compareDocumentPosition(
+        screen.getByRole('button', { name: 'Subir Mercado' }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
   // The invariant is that arranging does not survive the row *set* changing —
   // not that it does not survive a fetch. The two are close enough today, and
   // come apart the moment this screen grows the short poll the rest of the app

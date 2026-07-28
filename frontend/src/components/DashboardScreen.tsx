@@ -582,9 +582,13 @@ export function DashboardScreen() {
             it is read after the toggle and before the first Subir when it has
             text, and skipped over — leaving the next swipe to land on a row —
             when it does not. Both claims are argued in the toggle's onClick,
-            which is not where someone tidying this markup would look. No test
-            covers it either: jsdom does no layout, and the tests find this
-            element by class, so DOM order is invisible to the whole suite. */}
+            which is not where someone tidying this markup would look.
+
+            The ordering half is pinned by `is read before the first row` — DOM
+            order is not layout, so jsdom models it exactly and a hoist fails
+            that test. What stays uncovered is the empty half: nothing asserts
+            that a blank region is skipped rather than read, because that is a
+            fact about screen readers and not about the tree. */}
         <p className="sr-only dashboard-screen__move-status" aria-live="polite">
           {moveMessage}
         </p>
