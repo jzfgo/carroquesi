@@ -78,6 +78,10 @@ class ListItem(SQLModel, table=True):
     price: float | None = Field(default=None)
     price_per: str | None = Field(default=None)
     price_store: str | None = Field(default=None)
+    # The trip this was bought on — not another "purchased_*" attribute of the
+    # item. NULL means unpurchased, which is most rows; the invariant
+    # "purchased => purchase_id set" is enforced in-app, the way
+    # list_members.is_default is.
     purchase_id: str | None = Field(default=None, foreign_key="purchases.id", index=True)
 
 
@@ -157,6 +161,8 @@ class ReceiptScan(SQLModel, table=True):
     # The trip this scan reconciled, when it reconciled exactly one. NULL when
     # the matches spanned several — scan_receipt matches across a ±3 day
     # window, so that is reachable.
+    # Unindexed on purpose: nothing queries scans by trip yet. Add one when
+    # something does — Postgres will not create it for you.
     purchase_id: str | None = Field(default=None, foreign_key="purchases.id")
 
 
