@@ -127,14 +127,36 @@ def open_trip(session: Session, list_id: str, now: datetime | None = None) -> Pu
     ).first()
 
 
+class AlreadyFiled(Exception):
+    """Raised by `attach` when the item's current trip is already closed.
+
+    A closed trip's total is a fact someone read off a receipt, not a sum
+    computed from its lines. Move a line out from under it and the ticket
+    keeps claiming a total its contents no longer add up to, silently -- the
+    same collapse the spec calls out for merging `Purchase` into
+    `ReceiptScan`. So a closed trip's lines do not move, full stop.
+    """
+
+
 def attach(session: Session, item: ListItem, instant: datetime) -> Purchase:
     """Put a just-purchased item into the trip its timestamp belongs to.
 
-    If the item is already attached to a different trip -- a correction, or a
-    backdated offline tap draining in after today's tap already attached it --
-    it is moved, and the old trip is cleaned up exactly the way `detach` would
-    clean it up. Otherwise a re-tap could leave an orphan open trip behind.
+    If the item is already attached to a different *open* trip -- a
+    correction, or a backdated offline tap draining in after today's tap
+    already attached it -- it is moved, and the old trip is cleaned up
+    exactly the way `detach` would clean it up. Otherwise a re-tap could
+    leave an orphan open trip behind.
+
+    Raises `AlreadyFiled` instead, without touching anything, if the item's
+    current trip is closed. `trip_for` never returns a closed trip, so the
+    resolved trip is guaranteed to differ from a closed current one --
+    there's no same-trip case to special-case here, only the moved-or-not
+    branch below, which this guard must run ahead of.
     """
+    if item.purchase_id is not None:
+        current = session.get(Purchase, item.purchase_id)
+        if current is not None and current.closed_at is not None:
+            raise AlreadyFiled()
     trip = trip_for(session, item.list_id, instant)
     if item.purchase_id is not None and item.purchase_id != trip.id:
         detach(session, item)

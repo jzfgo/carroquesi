@@ -378,21 +378,46 @@ def test_attaching_an_already_attached_item_moves_it_and_cleans_up_the_old_trip(
     assert session.get(Purchase, old_trip_id) is None
 
 
-def test_detaching_the_last_item_then_reattaching_the_same_day_does_not_collide(
+def test_attaching_an_item_already_on_a_closed_trip_raises(session: Session, lst: List, user: User):
+    # A closed trip's total is a fact someone read off a receipt. Moving a
+    # line out from under it would leave the ticket claiming a total its
+    # contents no longer add up to, with no error -- so re-tapping an item
+    # that's already on a reconciled ticket must refuse, not silently move it.
+    item = ListItem(list_id=lst.id, name="Leche", added_by=user.id)
+    session.add(item)
+    session.commit()
+
+    trip = trips.attach(session, item, datetime(2026, 7, 28, 16, 0))
+    trip.closed_at = datetime(2026, 7, 28, 17, 0)
+    trip.store = "Lidl"
+    trip.total = 14.60
+    trip_id = trip.id
+    session.commit()
+
+    with pytest.raises(trips.AlreadyFiled):
+        trips.attach(session, item, datetime(2026, 7, 28, 18, 0))
+
+    assert item.purchase_id == trip_id
+
+
+def test_reattaching_after_emptying_a_trip_does_not_reuse_the_deleted_one(
     session: Session, lst: List, user: User
 ):
     # detach's delete of the emptied open trip must be visible to the very
-    # next trip_for lookup (attach's, here) -- otherwise the delete and the
-    # new INSERT would both target uq_purchases_open_per_list's (list_id,
-    # tears_off_at) slot and the insert would fail as if the old trip were
-    # still there.
+    # next trip_for lookup (attach's, here). `trip_for` is SELECT-first, so
+    # the risk was never an INSERT colliding with an invisible pending
+    # DELETE -- it's quieter than that: if the SELECT doesn't see the
+    # pending delete, it finds and returns the *old, about-to-be-deleted*
+    # trip as though it were fresh, `item.purchase_id` ends up pointing at
+    # it, and that row then disappears out from under the item at the next
+    # flush.
     #
     # Deliberately no commit between detach and the re-attach: the hazard is
     # the *uncommitted* DELETE still pending in the unit of work when
-    # trip_for's SELECT-then-INSERT runs -- the path a router handling
+    # trip_for's SELECT runs -- the path a router handling
     # un-purchase-then-repurchase in one request, or a queue drain replaying
     # several ops in one session, will actually take. A commit in between
-    # would make the DELETE durable and the collision impossible to observe.
+    # would make the DELETE durable and the reuse impossible to observe.
     item = ListItem(list_id=lst.id, name="Leche", added_by=user.id)
     session.add(item)
     session.commit()
@@ -405,5 +430,11 @@ def test_detaching_the_last_item_then_reattaching_the_same_day_does_not_collide(
     new_trip = trips.attach(session, item, datetime(2026, 7, 28, 18, 0))
     session.commit()
 
+    # The assertion that actually matters: a fresh trip was made, not the
+    # stale one handed back. Both of the assertions below hold even when the
+    # stale trip is reused -- purchase_id still equals whatever trip_for
+    # returned, and the old row is still deleted, just later -- so neither
+    # one is sufficient by itself.
+    assert new_trip.id != old_trip_id
     assert item.purchase_id == new_trip.id
     assert session.get(Purchase, old_trip_id) is None
