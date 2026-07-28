@@ -1,14 +1,11 @@
-import { GripVertical, MoreHorizontal, Star } from 'lucide-react'
+import { ChevronRight, Star } from 'lucide-react'
 import type { CSSProperties } from 'react'
 import type { ApiList } from '../types'
 import './ListCard.css'
 
 interface Props {
   list: ApiList
-  isOwner: boolean
   onClick: () => void
-  onMenuOpen: () => void
-  onEmojiTap?: () => void
   dragHandleProps?: Record<string, unknown>
   style?: CSSProperties
   isDragging?: boolean
@@ -19,7 +16,12 @@ interface Props {
  * by a 1px rule and nothing else. No card, no border, no shadow, and above all
  * no board colour: the paper stays inside an open list (rule 8), which is what
  * makes entering one mean something. Two forms proposed for bringing the board
- * out here — as an edge and as a tile behind the emoji — were both refused.
+ * out here — as an edge and as a tile — were both refused.
+ *
+ * Four columns and no more: emoji, name, count, chevron. Everything a list can
+ * have *done* to it — renamed, shared, deleted, its board and its emoji chosen
+ * — is reached by opening the list, so there is one path to each of them and
+ * the panel stays what it is, which is a way in.
  *
  * The emoji column is 36px with a 28px glyph, up from 26/19. It costs 4px of
  * row height per list and buys the one thing the panel owes the household now
@@ -27,10 +29,7 @@ interface Props {
  */
 export function ListCard({
   list,
-  isOwner,
   onClick,
-  onMenuOpen,
-  onEmojiTap,
   dragHandleProps,
   style,
   isDragging,
@@ -45,42 +44,22 @@ export function ListCard({
     return null
   })()
 
-  const emojiSlot = (() => {
-    if (isOwner) {
-      return (
-        <button
-          className={`list-card__emoji${!emoji ? ' list-card__emoji--placeholder' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation()
-            onEmojiTap?.()
-          }}
-          aria-label={emoji ? 'Cambiar emoji' : 'Añadir emoji'}
-        >
-          {emoji ?? '＋'}
-        </button>
-      )
-    }
-    if (!emoji) return <span className="list-card__emoji-empty" aria-hidden />
-    return (
-      <span className="list-card__emoji" aria-hidden>
-        {emoji}
-      </span>
-    )
-  })()
-
   return (
     <div
       className={`list-card${isDragging ? ' list-card--dragging' : ''}${meta ? ' list-card--meta' : ''}`}
       style={style}
     >
-      <span className="list-card__drag-handle" aria-hidden {...dragHandleProps}>
-        <GripVertical size={14} />
+      <span className="list-card__emoji" aria-hidden>
+        {emoji}
       </span>
-      {emojiSlot}
+      {/* Also the drag handle. There is no grip to see: reordering is a
+          long press, which is what a touch device already means by "pick this
+          up and move it", and one less column in a row that has four. */}
       <button
         className="list-card__tap-target"
         onClick={onClick}
         aria-label={is_default ? `${name} (lista predeterminada)` : name}
+        {...dragHandleProps}
       >
         <span className="list-card__name">
           {is_default && (
@@ -98,13 +77,7 @@ export function ListCard({
       {/* Rule 6's sibling: a zero is not a figure, it is the absence of one, and
           the meta line has already said "vacía". Drawing both says it twice. */}
       <span className="list-card__count">{item_count || ''}</span>
-      <button
-        className="list-card__menu-btn"
-        onClick={onMenuOpen}
-        aria-label="Opciones"
-      >
-        <MoreHorizontal size={18} />
-      </button>
+      <ChevronRight className="list-card__chevron" size={14} aria-hidden />
     </div>
   )
 }

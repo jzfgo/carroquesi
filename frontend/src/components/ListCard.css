@@ -1,10 +1,12 @@
 /* A panel row, not a card. The rule between rows is the only thing separating
    them; the sheet underneath is continuous. --rule is the row divider, which is
-   a lighter thing than --border and lighter again than the notebook ruling. */
+   a lighter thing than --border and lighter again than the notebook ruling.
+
+   Four columns: emoji, name, count, chevron. Nothing here edits anything. */
 .list-card {
   position: relative;
   display: grid;
-  grid-template-columns: 16px 36px 1fr auto 32px;
+  grid-template-columns: 36px 1fr auto 14px;
   gap: 12px;
   align-items: center;
   width: 100%;
@@ -31,12 +33,35 @@
   border: none;
   font-family: inherit;
   cursor: pointer;
+
+  /* NOT `touch-action: none`, which the grip used to carry. The grip was a
+     16px column and could afford to refuse scrolling; this button's ::after
+     spans the whole row, so refusing there means the panel cannot be scrolled
+     by touch at all — and it would disable pinch-zoom over every list.
+     `manipulation` keeps panning and pinch-zoom; what it costs is
+     double-tap-to-zoom over the rows. (Not the 300ms click delay — the
+     width=device-width viewport in index.html already removed that, so this
+     declaration never bought it.) Pinch surviving is what keeps WCAG 1.4.4
+     satisfied, which `none` would not have.
+
+     Nothing is lost: TouchSensor activates on `delay: 200, tolerance: 5`, so
+     the browser scrolls during the delay and movement past the tolerance
+     aborts the pending drag. Disambiguation is the sensor's job, and
+     suppressing scroll removes the very alternative the tolerance detects. */
+  touch-action: manipulation;
+
+  /* Both moved off the grip with the listeners. The press that now starts a
+     reorder lands on the name, which is selectable text: without these, a
+     desktop drag selects it before dnd-kit's 8px threshold trips, and iOS
+     raises the selection callout on the same ~200ms press. dnd-kit clears
+     selection ranges itself, but the callout is not a range. */
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
-/* Rule 7: two hit targets per row, and neither below 44px. The row is 50 or 56
-   tall, and this stretches the button's hit area across the whole strip without
-   moving anything — the emoji, the figure, the grip and the menu sit above it
-   on z-index so they keep their own targets. */
+/* Rule 7: the row is 50 or 56 tall, and this stretches the button's hit area
+   across the whole strip without moving anything. It is the only target in the
+   row, so nothing needs to sit above it. */
 .list-card__tap-target::after {
   position: absolute;
   inset: 0;
@@ -70,7 +95,6 @@
 /* How many things are on this list. Mono and tabular so a column of rows lines
    up down the panel instead of wobbling with the digits. */
 .list-card__count {
-  z-index: 1;
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
@@ -79,37 +103,8 @@
   color: var(--ink-1);
 }
 
-.list-card__menu-btn {
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  align-self: stretch;
-  padding: 0;
-  background: none;
-  border: none;
-  color: var(--ink-2);
-  cursor: pointer;
-}
-
-.list-card__menu-btn:active {
-  color: var(--ink-0);
-}
-
-.list-card__drag-handle {
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  align-self: stretch;
+.list-card__chevron {
   color: var(--ink-3);
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-}
-
-.list-card__drag-handle:active {
-  cursor: grabbing;
 }
 
 /* Dragging lifts the row off the panel, which is the one moment a row is
@@ -120,32 +115,30 @@
   box-shadow: var(--shadow-lg);
 }
 
-/* 36px column, 28px glyph — the whole point of the row's new height. */
+/* 36px column, 28px glyph — the whole point of the row's new height. The emoji
+   is shared identity, seen by the whole household, so it is not edited from
+   here: it is content, and this row is a way in. */
 .list-card__emoji {
-  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   align-self: stretch;
-  padding: 0;
-  background: none;
-  border: none;
   font-size: 28px;
   line-height: 1;
-  cursor: pointer;
-}
-
-.list-card__emoji--placeholder {
-  font-size: 18px;
-  color: var(--ink-3);
-}
-
-/* Holds the column open for a member who cannot set the emoji, so their rows
-   line up with everyone else's. */
-.list-card__emoji-empty {
-  display: block;
 }
 
 .list-card:active {
   background: var(--paper-1);
+}
+
+/* On the ::after, not the button: the ::after *is* the hit area, and a ring
+   drawn on the button itself would outline only the name column while the
+   target is the whole strip. What you can focus and what you can press should
+   be the same shape. */
+.list-card__tap-target:focus-visible {
+  outline: none;
+}
+
+.list-card__tap-target:focus-visible::after {
+  box-shadow: var(--focus-ring);
 }

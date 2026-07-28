@@ -67,6 +67,7 @@ interface Props {
   listOwnerId: string
   isDefault?: boolean
   onRename?: (newName: string) => void
+  onEmojiChanged?: (emoji: string | null) => void
   onSetDefault?: (isDefault: boolean) => void
   onBack?: () => void
 }
@@ -84,6 +85,7 @@ export function ListScreen({
   listOwnerId,
   isDefault = false,
   onRename,
+  onEmojiChanged,
   onSetDefault,
   onBack,
 }: Props) {
@@ -93,6 +95,11 @@ export function ListScreen({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: resets optimistic local title when polling confirms external rename
     setLocalListName(listName)
   }, [listName])
+  const [localEmoji, setLocalEmoji] = useState(listEmoji)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: resets optimistic local emoji when polling confirms an external change
+    setLocalEmoji(listEmoji)
+  }, [listEmoji])
   const [localIsDefault, setLocalIsDefault] = useState(isDefault)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs optimistic default flag when the route's list data refreshes
@@ -153,6 +160,29 @@ export function ListScreen({
       }
     },
     [getToken, isOffline, localListName, onRename],
+  )
+
+  const handleEmojiChange = useCallback(
+    async (emoji: string | null) => {
+      if (isOffline) {
+        setToast('No disponible sin conexión')
+        return
+      }
+      const previous = localEmoji
+      setLocalEmoji(emoji)
+      try {
+        await updateList(getToken, listId, { emoji })
+        // Same upward notification the rename and the default flag make: the
+        // route holds the list it handed us, and leaving its copy stale here
+        // and nowhere else is the kind of asymmetry that reads as deliberate
+        // and is not.
+        onEmojiChanged?.(emoji)
+      } catch {
+        setLocalEmoji(previous)
+        setToast('No se pudo cambiar el emoji')
+      }
+    },
+    [getToken, isOffline, listId, localEmoji, onEmojiChanged],
   )
 
   const handleSetDefault = useCallback(async () => {
@@ -719,7 +749,7 @@ export function ListScreen({
     <div className="list-screen" data-board={board}>
       <ListHeader
         title={localListName}
-        emoji={listEmoji}
+        emoji={localEmoji}
         onMenuOpen={handleMenuToggle}
         onBack={onBack}
       />
@@ -889,6 +919,8 @@ export function ListScreen({
           currentUserId={currentUserId}
           isOwner={isOwner}
           isDefault={localIsDefault}
+          listEmoji={localEmoji}
+          onEmojiChange={(emoji) => void handleEmojiChange(emoji)}
           onRename={(newName) => void handleRename(listId, newName)}
           onDelete={() => void handleDelete(listId)}
           onSetDefault={() => void handleSetDefault()}

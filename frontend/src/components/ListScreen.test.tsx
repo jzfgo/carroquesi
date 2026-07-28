@@ -971,3 +971,326 @@ describe('receipt date correction', () => {
     expect(screen.getByTestId('mock-date-confirmed')).toHaveTextContent('false')
   })
 })
+
+// ---------------------------------------------------------------------------
+// The emoji — moved off the dashboard panel, which is now only a way in.
+// ---------------------------------------------------------------------------
+
+describe('the list emoji', () => {
+  const openEmojiPicker = () => {
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^emoji$/i }))
+  }
+
+  it('shows the new emoji before the API answers', async () => {
+    vi.mocked(api.updateList).mockImplementation(
+      () => new Promise(() => {}) as never,
+    )
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listEmoji="🛒"
+        listOwnerId="u1"
+      />,
+    )
+    openEmojiPicker()
+    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading').textContent).toContain('🍎'),
+    )
+  })
+
+  it('tells the route once the write lands, as the rename does', async () => {
+    // Explicit, because the test above leaves updateList on a promise that
+    // never settles: beforeEach calls vi.clearAllMocks(), which clears
+    // recorded calls but keeps implementations.
+    vi.mocked(api.updateList).mockResolvedValue({} as never)
+    const onEmojiChanged = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listEmoji="🛒"
+        listOwnerId="u1"
+        onEmojiChanged={onEmojiChanged}
+      />,
+    )
+    openEmojiPicker()
+    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+
+    await waitFor(() => expect(onEmojiChanged).toHaveBeenCalledWith('🍎'))
+  })
+
+  it('puts the old emoji back and says so when the write fails', async () => {
+    vi.mocked(api.updateList).mockRejectedValue(new Error('nope'))
+    const onEmojiChanged = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listEmoji="🛒"
+        listOwnerId="u1"
+        onEmojiChanged={onEmojiChanged}
+      />,
+    )
+    openEmojiPicker()
+    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/no se pudo cambiar el emoji/i)).toBeVisible(),
+    )
+    expect(screen.getByRole('heading').textContent).toContain('🛒')
+    // A failed write must not tell the route the emoji changed.
+    expect(onEmojiChanged).not.toHaveBeenCalled()
+  })
+
+  it('a member who does not own the list may still set it — identity is shared', () => {
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listEmoji="🛒"
+        listOwnerId="someone-else"
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    expect(screen.getByRole('button', { name: /^emoji$/i })).toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Marking a default and deleting — the dashboard's ⋯ used to reach these too,
+// and its tests were the only ones covering ListScreen's handlers. The panel
+// lost the second door; these paths did not, so the coverage follows them here
+// rather than going with the door.
+// ---------------------------------------------------------------------------
+
+describe('the list itself', () => {
+  const openMenu = () =>
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+
+  it('marks the list as the default one', async () => {
+    const onSetDefault = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        onSetDefault={onSetDefault}
+      />,
+    )
+    openMenu()
+    fireEvent.click(
+      screen.getByRole('button', { name: /marcar como predeterminada/i }),
+    )
+
+    await waitFor(() =>
+      expect(api.setDefaultList).toHaveBeenCalledWith(expect.anything(), 'l1'),
+    )
+    expect(onSetDefault).toHaveBeenCalledWith(true)
+  })
+
+  it('takes the star back and says so when that write fails', async () => {
+    vi.mocked(api.setDefaultList).mockRejectedValue(new Error('nope'))
+    const onSetDefault = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        onSetDefault={onSetDefault}
+      />,
+    )
+    openMenu()
+    fireEvent.click(
+      screen.getByRole('button', { name: /marcar como predeterminada/i }),
+    )
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/no se pudo marcar como predeterminada/i),
+      ).toBeVisible(),
+    )
+    // The optimistic flag is reverted, so the menu offers the action again.
+    openMenu()
+    expect(
+      screen.getByRole('button', { name: /marcar como predeterminada/i }),
+    ).toBeInTheDocument()
+    expect(onSetDefault).not.toHaveBeenCalled()
+  })
+
+  it('deletes the list and leaves it, once the warning is confirmed', async () => {
+    const onBack = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        onBack={onBack}
+      />,
+    )
+    openMenu()
+    fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar lista/i }))
+
+    await waitFor(() =>
+      expect(api.deleteList).toHaveBeenCalledWith(expect.anything(), 'l1'),
+    )
+    expect(onBack).toHaveBeenCalled()
+    // And the sheet goes with it — leaving it mounted over a list that no
+    // longer exists would pass every other assertion here.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('stays put when the delete fails — leaving would say it worked', async () => {
+    vi.mocked(api.deleteList).mockRejectedValue(new Error('nope'))
+    const onBack = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        onBack={onBack}
+      />,
+    )
+    openMenu()
+    fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar lista/i }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/no se pudo eliminar la lista/i)).toBeVisible(),
+    )
+    expect(onBack).not.toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// With no connection.
+//
+// All four handlers open with the same `if (isOffline)` guard and none of them
+// was exercised: jsdom reports navigator.onLine as true, so every test
+// above takes the online leg. Varying the environment rather than mocking the
+// hook keeps useIsOffline itself in the path — the guard and the thing it
+// reads are tested together, which is the point of the exercise.
+// ---------------------------------------------------------------------------
+
+describe('with no connection', () => {
+  beforeEach(() => {
+    Object.defineProperty(navigator, 'onLine', {
+      configurable: true,
+      get: () => false,
+    })
+  })
+
+  afterEach(() => {
+    // Delete rather than redefine: replacing it with a getter that returns a
+    // hardcoded `true` would leave navigator.onLine shadowed for the rest of
+    // the file. Removing the own property uncovers jsdom's real accessor
+    // again, so nothing here depends on this block running last.
+    delete (navigator as { onLine?: boolean }).onLine
+    // Assert it rather than trust the comment. jsdom installs onLine on
+    // Navigator.prototype, so deleting the own property uncovers it — but if a
+    // future jsdom made it an instance property, this delete would leave it
+    // undefined and every later test in the file would silently run offline.
+    expect(navigator.onLine).toBe(true)
+  })
+
+  const openMenu = () =>
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+
+  it('will not rename the list, and says why', async () => {
+    const onRename = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        onRename={onRename}
+      />,
+    )
+    openMenu()
+    fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Nombre de la lista' }),
+      { target: { value: 'Mercadillo' } },
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/no disponible sin conexión/i)).toBeVisible(),
+    )
+    expect(api.updateList).not.toHaveBeenCalled()
+    expect(onRename).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading').textContent).toContain('Mercado')
+  })
+
+  it('will not change the emoji, and says why', async () => {
+    const onEmojiChanged = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listEmoji="🛒"
+        listOwnerId="u1"
+        onEmojiChanged={onEmojiChanged}
+      />,
+    )
+    openMenu()
+    fireEvent.click(screen.getByRole('button', { name: /^emoji$/i }))
+    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/no disponible sin conexión/i)).toBeVisible(),
+    )
+    expect(api.updateList).not.toHaveBeenCalled()
+    expect(onEmojiChanged).not.toHaveBeenCalled()
+    // The optimistic paint must not happen either — showing the new glyph and
+    // then a "not available" toast would say both things at once.
+    expect(screen.getByRole('heading').textContent).toContain('🛒')
+  })
+
+  it('will not mark a default, and says why', async () => {
+    const onSetDefault = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        onSetDefault={onSetDefault}
+      />,
+    )
+    openMenu()
+    fireEvent.click(
+      screen.getByRole('button', { name: /marcar como predeterminada/i }),
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText(/no disponible sin conexión/i)).toBeVisible(),
+    )
+    expect(api.setDefaultList).not.toHaveBeenCalled()
+    expect(onSetDefault).not.toHaveBeenCalled()
+  })
+
+  it('will not delete the list, and says why', async () => {
+    const onBack = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        onBack={onBack}
+      />,
+    )
+    openMenu()
+    fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar lista/i }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/no disponible sin conexión/i)).toBeVisible(),
+    )
+    expect(api.deleteList).not.toHaveBeenCalled()
+    expect(onBack).not.toHaveBeenCalled()
+  })
+})

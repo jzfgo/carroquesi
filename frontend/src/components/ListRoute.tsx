@@ -107,6 +107,9 @@ export function ListRoute() {
       onRename={(newName) =>
         setList((prev) => (prev ? { ...prev, name: newName } : null))
       }
+      onEmojiChanged={(emoji) =>
+        setList((prev) => (prev ? { ...prev, emoji } : null))
+      }
       onSetDefault={(isDefault) =>
         setList((prev) => (prev ? { ...prev, is_default: isDefault } : null))
       }

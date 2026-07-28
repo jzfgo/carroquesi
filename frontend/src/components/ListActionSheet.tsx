@@ -1,12 +1,22 @@
-import { Palette, Pencil, Receipt, Star, Trash2, Users } from 'lucide-react'
+import {
+  Palette,
+  Pencil,
+  Receipt,
+  Smile,
+  Star,
+  Trash2,
+  Users,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useBoard } from '../hooks/useBoard'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { BoardPicker } from './BoardPicker'
+import { EmojiPickerSheet } from './EmojiPickerSheet'
 import './ListActionSheet.css'
 import { ListMembersSheet } from './ListMembersSheet'
 
-type SubState = 'actions' | 'board' | 'rename' | 'members' | 'confirm-delete'
+type SubState =
+  'actions' | 'board' | 'emoji' | 'rename' | 'members' | 'confirm-delete'
 
 interface Props {
   listId: string
@@ -15,6 +25,8 @@ interface Props {
   isOwner: boolean
   /** Whether this list is the current user's default (Siri target). */
   isDefault: boolean
+  listEmoji?: string | null
+  onEmojiChange?: (emoji: string | null) => void
   onRename: (newName: string) => void
   onDelete: () => void
   onSetDefault: () => void
@@ -28,6 +40,8 @@ export function ListActionSheet({
   currentUserId,
   isOwner,
   isDefault,
+  listEmoji = null,
+  onEmojiChange,
   onRename,
   onDelete,
   onSetDefault,
@@ -44,8 +58,9 @@ export function ListActionSheet({
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return
       if (subState === 'actions') onClose()
-      // 'members' manages its own Escape; 'rename'/'confirm-delete' navigate back
-      else if (subState !== 'members') setSubState('actions')
+      // 'members' and 'emoji' manage their own Escape; the rest navigate back
+      else if (subState !== 'members' && subState !== 'emoji')
+        setSubState('actions')
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
@@ -92,6 +107,17 @@ export function ListActionSheet({
           >
             <Pencil size={18} /> Renombrar
           </button>
+          {/* The emoji is the list's shared identity — what the whole household
+              sees and points at — so it is edited here, next to the name, and
+              not from the panel, which is only a way in. */}
+          {onEmojiChange && (
+            <button
+              className="list-action-sheet__action"
+              onClick={() => setSubState('emoji')}
+            >
+              <Smile size={18} /> Emoji
+            </button>
+          )}
           {/* Not gated on isOwner: the board is the one thing here that is
               yours rather than the household's, so every member sets their
               own and nobody else ever sees it (rule 20). */}
@@ -209,6 +235,19 @@ export function ListActionSheet({
           </button>
         </div>
       </>
+    )
+  }
+
+  if (subState === 'emoji') {
+    return (
+      <EmojiPickerSheet
+        current={listEmoji}
+        onSelect={(emoji) => {
+          onEmojiChange?.(emoji)
+          setSubState('actions')
+        }}
+        onClose={() => setSubState('actions')}
+      />
     )
   }
 
