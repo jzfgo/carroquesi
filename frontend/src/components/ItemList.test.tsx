@@ -532,3 +532,62 @@ test('an item in the cart reads as neither done nor untouched', () => {
     screen.getByRole('checkbox', { name: 'Sacar del carro' }),
   ).toBeInTheDocument()
 })
+
+// ---------------------------------------------------------------------------
+// Shop headings inside "Por comprar" — the order you walk in
+// ---------------------------------------------------------------------------
+
+const atStore = (id: string, ...stores: string[]): ListItem => ({
+  ...makeItem(id),
+  stores,
+})
+
+test('heads each shop in the household hand, underlined', () => {
+  const { container } = renderList([atStore('a', 'Mercadona')])
+  const heading = container.querySelector('.item-list__store-name')
+  expect(heading).toHaveTextContent('Mercadona')
+})
+
+test('items naming no shop come first and go unheaded — they can be bought anywhere', () => {
+  const { container } = renderList([
+    atStore('a', 'Mercadona'),
+    makeItem('b'),
+  ])
+  const rendered = [...container.querySelectorAll('.item-card__name, .item-list__store-name')]
+    .map((n) => n.textContent)
+  expect(rendered).toEqual(['Item b', 'Mercadona', 'Item a'])
+})
+
+test('a list where nobody named a shop is just a list, with no headings at all', () => {
+  const { container } = renderList([makeItem('a'), makeItem('b')])
+  expect(container.querySelector('.item-list__store-name')).toBeNull()
+})
+
+test('an item naming several shops sits under the first one', () => {
+  const { container } = renderList([atStore('a', 'Dia', 'Mercadona')])
+  const headings = [...container.querySelectorAll('.item-list__store-name')].map(
+    (n) => n.textContent,
+  )
+  expect(headings).toEqual(['Dia'])
+})
+
+test('groups keep the order they first appear in, so the list stays the list', () => {
+  const { container } = renderList([
+    atStore('a', 'Mercadona'),
+    atStore('b', 'Dia'),
+    atStore('c', 'Mercadona'),
+  ])
+  const headings = [...container.querySelectorAll('.item-list__store-name')].map(
+    (n) => n.textContent,
+  )
+  expect(headings).toEqual(['Mercadona', 'Dia'])
+})
+
+test('only what is still to buy is grouped — the cart is not re-sorted under you', () => {
+  const { container } = renderList([atStore('a', 'Mercadona'), inCart('b')])
+  const sheet = container.querySelector('.item-list__sheet')!
+  const headings = [...sheet.querySelectorAll('.item-list__store-name')].map(
+    (n) => n.textContent,
+  )
+  expect(headings).toEqual(['Mercadona'])
+})

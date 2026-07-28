@@ -111,6 +111,26 @@
   color: var(--ink-2);
 }
 
+/* A shop heading, in the household's own hand and underlined the way anyone
+   underlines a heading on paper. The rule is on the words, not across the
+   sheet: a full-width line would be a divider, and there are no dividers
+   inside a sheet. */
+.item-list__store {
+  margin: 0;
+  padding: 14px var(--side-margin) 4px;
+}
+
+.item-list__store-name {
+  padding-bottom: 2px;
+  border-bottom: 1.5px solid var(--ink-0);
+  font-family: var(--font-written);
+  font-size: 17px;
+  line-height: 1.2;
+  letter-spacing: 0.05em;
+  color: var(--ink-0);
+  text-transform: uppercase;
+}
+
 /* No cut, no stamp, no printed rubric: the stub only exists when there is
    something to tear off, so the handwritten hand comes back here. */
 .item-list__cart-empty {
