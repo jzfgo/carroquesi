@@ -202,8 +202,8 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 
 - `CHANGELOG.md` is the canonical record of what shipped.
 - `cliff.toml` drives automated generation via `git-cliff`. Commit types map as: `feat` → Added, `fix` → Fixed, `refactor/perf` → Changed; `chore/docs/test/ci` are excluded.
-- **Generate on `main` only — never on a feature branch.** PRs are squash-merged, so a branch's individual `feat`/`fix` commits stop existing at merge. Generating pre-squash writes entries for commits that are about to collapse, and the next branch to regenerate then *deletes* the extra entries already committed on `main`. Between releases there is simply no `[Unreleased]` section; to see what has landed since the last tag, run `git cliff --unreleased`, which prints to stdout and leaves `CHANGELOG.md` alone (`just changelog` rewrites the file).
-- Before a release, on a release branch based on `main` that adds no `feat`/`fix` commits of its own (requires `git-cliff`: `brew install git-cliff`):
+- **Never generate on a feature branch.** PRs are squash-merged, so a branch's individual `feat`/`fix` commits stop existing at merge. Generating pre-squash writes entries for commits that are about to collapse, and the next branch to regenerate then *deletes* the extra entries already committed on `main`. Between releases there is simply no `[Unreleased]` section; to see what has landed since the last tag, run `git cliff --unreleased`, which prints to stdout and leaves `CHANGELOG.md` alone (`just changelog` rewrites the file). The release branch is the one exception: it is based on `main` and adds no `feat`/`fix` commits of its own, so `git cliff` sees the same history `main` will.
+- Before a release, on that release branch (requires `git-cliff`: `brew install git-cliff`):
   1. Run `just changelog` — prepends commits since the last tag under `## [Unreleased]`
   2. Rename `## [Unreleased]` to the new version + date (e.g. `## [0.11.0] — 2026-05-01`)
   3. Commit, open the release PR, and squash-merge it

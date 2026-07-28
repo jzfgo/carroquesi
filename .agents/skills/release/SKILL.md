@@ -5,9 +5,9 @@ description: >
   "prepare a release", "cut a release", "do a release", "make a new release",
   or mentions a specific version like "release 0.19.1". Handles the full workflow:
   determine the next version, create a worktree, regenerate the changelog, bump
-  versions in package.json and pyproject.toml, refresh uv.lock, commit, tag
-  locally, push, and open a PR with post-merge tagging instructions. Always use
-  this skill — do not try to do the release workflow manually without it.
+  versions in package.json and pyproject.toml, refresh uv.lock, commit, push,
+  and open a PR with post-merge tagging instructions. Always use this skill —
+  do not try to do the release workflow manually without it.
 ---
 
 # Release Workflow
@@ -177,6 +177,8 @@ committed lock is stale and the `deps` post-start hook (`uv sync`) rewrites it o
 every new worktree. Fix it at the root: run `uv lock --project backend` and commit
 the one-line result, rather than discarding the change each time.
 
-**Tag already exists locally**
-A previous aborted release may have left a stale tag. Delete it with
-`git tag -d vX.Y.Z` before re-tagging.
+**Post-merge `git tag vX.Y.Z origin/main` fails with "tag already exists"**
+An aborted release may have left a stale local tag at that version. Confirm it is
+not the real one (`git log -1 vX.Y.Z`), then delete it with `git tag -d vX.Y.Z`
+and re-run the post-merge block. The workflow itself never creates a local tag,
+so a tag present before the merge is always a leftover.
