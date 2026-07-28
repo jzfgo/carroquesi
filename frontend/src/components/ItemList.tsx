@@ -128,6 +128,23 @@ export function ItemList({
     )
   }
 
+  // Group what is still to buy by shop, which is the order you walk in. An item
+  // can name several shops or none; the first named one decides where it sits,
+  // and the ones that name none come first because they can be bought anywhere.
+  // Groups keep the order they first appear in, so the list stays the list.
+  const pendingByStore: { store: string | null; items: ListItem[] }[] = []
+  for (const item of active) {
+    const store = item.stores[0] ?? null
+    const group = pendingByStore.find((g) => g.store === store)
+    if (group) group.items.push(item)
+    else pendingByStore.push({ store, items: [item] })
+  }
+  pendingByStore.sort((a, b) =>
+    a.store === null ? -1 : b.store === null ? 1 : 0,
+  )
+  // One unnamed group is just the list — do not head it with anything.
+  const showStoreHeadings = pendingByStore.some((g) => g.store !== null)
+
   // Group purchased items by local date label, preserving backend order (newest first)
   const purchasedByDate: { label: string; items: ListItem[] }[] = []
   for (const item of purchased) {
@@ -162,17 +179,29 @@ export function ItemList({
             </span>
           </span>
         </div>
-        {active.map((item) => (
-          <ItemCard
-            key={item.id}
-            item={item}
-            members={members}
-            onTogglePurchased={onTogglePurchased}
-            onTagClick={onTagClick}
-            onMenuOpen={onMenuOpen}
-            onPriceClick={onPriceClick}
-            onClone={onClone}
-          />
+        {pendingByStore.map(({ store, items: group }) => (
+          <div key={store ?? '\u0000none'}>
+            {/* Written, not printed: a shop is something the household put on
+                the list, so it is in their hand and underlined the way you
+                underline a heading on paper (rule 15). */}
+            {showStoreHeadings && store !== null && (
+              <p className="item-list__store">
+                <span className="item-list__store-name">{store}</span>
+              </p>
+            )}
+            {group.map((item) => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                members={members}
+                onTogglePurchased={onTogglePurchased}
+                onTagClick={onTagClick}
+                onMenuOpen={onMenuOpen}
+                onPriceClick={onPriceClick}
+                onClone={onClone}
+              />
+            ))}
+          </div>
         ))}
         {footer}
 

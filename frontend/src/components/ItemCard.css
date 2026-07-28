@@ -1,10 +1,14 @@
+/* No rules inside a sheet. A line between two things you wrote is a thing the
+   pad would have printed, and the pad printed nothing between these — what
+   separates one line from the next is the space around it. The only rule the
+   sheet carries is under its own pre-printed title, and the only line across
+   it is the die-cut, which is not a divider but a tear. */
 .item-card {
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: flex-start;
-  padding: 12px 16px 12px 20px;
   gap: 12px;
+  padding: 8px 16px 8px var(--side-margin);
+  background: none;
 }
 
 /* Three states in one 24px circle, and no words anywhere to explain them:
