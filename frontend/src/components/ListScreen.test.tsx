@@ -971,3 +971,66 @@ describe('receipt date correction', () => {
     expect(screen.getByTestId('mock-date-confirmed')).toHaveTextContent('false')
   })
 })
+
+// ---------------------------------------------------------------------------
+// The emoji — moved off the dashboard panel, which is now only a way in.
+// ---------------------------------------------------------------------------
+
+describe('the list emoji', () => {
+  const openEmojiPicker = () => {
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^emoji$/i }))
+  }
+
+  it('shows the new emoji before the API answers', async () => {
+    vi.mocked(api.updateList).mockImplementation(
+      () => new Promise(() => {}) as never,
+    )
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listEmoji="🛒"
+        listOwnerId="u1"
+      />,
+    )
+    openEmojiPicker()
+    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading').textContent).toContain('🍎'),
+    )
+  })
+
+  it('puts the old emoji back and says so when the write fails', async () => {
+    vi.mocked(api.updateList).mockRejectedValue(new Error('nope'))
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listEmoji="🛒"
+        listOwnerId="u1"
+      />,
+    )
+    openEmojiPicker()
+    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/no se pudo cambiar el emoji/i)).toBeVisible(),
+    )
+    expect(screen.getByRole('heading').textContent).toContain('🛒')
+  })
+
+  it('a member who does not own the list may still set it — identity is shared', () => {
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listEmoji="🛒"
+        listOwnerId="someone-else"
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    expect(screen.getByRole('button', { name: /^emoji$/i })).toBeInTheDocument()
+  })
+})

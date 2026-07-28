@@ -154,3 +154,84 @@ test('ESC from confirm-delete sub-state returns to actions, not closing the shee
   expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
   expect(baseProps.onClose).not.toHaveBeenCalled()
 })
+
+// ---------------------------------------------------------------------------
+// The emoji — moved here from the dashboard panel. It is the list's shared
+// identity, so it is edited next to the name, and any member may set it.
+// ---------------------------------------------------------------------------
+
+describe('ListActionSheet — emoji', () => {
+  const openEmoji = (
+    props: Partial<Parameters<typeof ListActionSheet>[0]> = {},
+  ) => {
+    const onEmojiChange = vi.fn()
+    render(
+      <ListActionSheet
+        listId="l1"
+        listName="Mercado"
+        currentUserId="u1"
+        isOwner={false}
+        isDefault={false}
+        listEmoji="🛒"
+        onEmojiChange={onEmojiChange}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+        onSetDefault={vi.fn()}
+        onClose={vi.fn()}
+        {...props}
+      />,
+    )
+    return onEmojiChange
+  }
+
+  it('offers the emoji next to the name, without owning the list', () => {
+    openEmoji()
+    // Not gated on isOwner: identity is the household's, not the creator's.
+    expect(screen.getByRole('button', { name: /emoji/i })).toBeInTheDocument()
+  })
+
+  it('opens the picker showing the current emoji as chosen', () => {
+    openEmoji()
+    fireEvent.click(screen.getByRole('button', { name: /emoji/i }))
+    expect(
+      screen.getByRole('dialog', { name: /elegir emoji/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('choosing one reports it and returns to the actions', () => {
+    const onEmojiChange = openEmoji()
+    fireEvent.click(screen.getByRole('button', { name: /emoji/i }))
+    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+
+    expect(onEmojiChange).toHaveBeenCalledWith('🍎')
+    expect(
+      screen.queryByRole('dialog', { name: /elegir emoji/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('a list can have no emoji at all', () => {
+    const onEmojiChange = openEmoji({ listEmoji: null })
+    fireEvent.click(screen.getByRole('button', { name: /emoji/i }))
+    fireEvent.click(screen.getByRole('button', { name: /ninguno/i }))
+    expect(onEmojiChange).toHaveBeenCalledWith(null)
+  })
+
+  it('without a way to change it, the row is not offered', () => {
+    render(
+      <ListActionSheet
+        listId="l1"
+        listName="Mercado"
+        currentUserId="u1"
+        isOwner={false}
+        isDefault={false}
+        onRename={vi.fn()}
+        onDelete={vi.fn()}
+        onSetDefault={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(
+      screen.queryByRole('button', { name: /emoji/i }),
+    ).not.toBeInTheDocument()
+  })
+})
