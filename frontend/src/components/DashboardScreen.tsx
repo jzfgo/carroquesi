@@ -24,14 +24,11 @@ import { usePWAInstall } from '../hooks/usePWAInstall'
 import type { FeedbackPayload } from '../lib/api'
 import {
   createList,
-  deleteList,
   getLists,
   issueApiKey,
   openShortcutImport,
   regenerateApiKey,
-  setDefaultList,
   submitFeedback,
-  updateList,
 } from '../lib/api'
 import { copyToClipboard } from '../lib/clipboard'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
@@ -48,10 +45,8 @@ import { ApiKeySheet } from './ApiKeySheet'
 import { AppearanceSegment } from './AppearanceSegment'
 import { CreateListCard } from './CreateListCard'
 import './DashboardScreen.css'
-import { EmojiPickerSheet } from './EmojiPickerSheet'
 import { FeedbackSheet } from './FeedbackSheet'
 import { InstallBanner } from './InstallBanner'
-import { ListActionSheet } from './ListActionSheet'
 import { SortableListCard } from './SortableListCard'
 import { Toast } from './Toast'
 import { Wordmark } from './Wordmark'
@@ -105,8 +100,6 @@ export function DashboardScreen() {
   const [fetchError, setFetchError] = useState(false)
   const { isOffline } = useIsOffline()
   usePageTitle(undefined)
-  const [activeList, setActiveList] = useState<ApiList | null>(null)
-  const [emojiList, setEmojiList] = useState<ApiList | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -269,92 +262,6 @@ export function DashboardScreen() {
       await fetchLists()
     },
     [getToken, fetchLists, isOffline],
-  )
-
-  const handleRename = useCallback(
-    async (list: ApiList, newName: string) => {
-      if (isOffline) {
-        setToast('No disponible sin conexión')
-        return
-      }
-      let snapshot: ApiList[] | null = null
-      setLists((prev) => {
-        snapshot = prev
-        return prev
-          ? prev.map((l) => (l.id === list.id ? { ...l, name: newName } : l))
-          : prev
-      })
-      setActiveList(null)
-      try {
-        await updateList(getToken, list.id, { name: newName })
-      } catch {
-        setLists(snapshot)
-        setToast('No se pudo renombrar la lista')
-      }
-    },
-    [getToken, isOffline],
-  )
-
-  const handleEmojiChange = useCallback(
-    async (list: ApiList, emoji: string | null) => {
-      let snapshot: ApiList[] | null = null
-      setLists((prev) => {
-        snapshot = prev
-        return prev
-          ? prev.map((l) => (l.id === list.id ? { ...l, emoji } : l))
-          : prev
-      })
-      setEmojiList(null)
-      try {
-        await updateList(getToken, list.id, { emoji })
-      } catch {
-        setLists(snapshot)
-        setToast('No se pudo cambiar el emoji')
-      }
-    },
-    [getToken],
-  )
-
-  const handleSetDefault = useCallback(
-    async (list: ApiList) => {
-      if (isOffline) {
-        setToast('No disponible sin conexión')
-        return
-      }
-      let snapshot: ApiList[] | null = null
-      setLists((prev) => {
-        snapshot = prev
-        // Per-user, single default: flag the target, clear every other list.
-        return prev
-          ? prev.map((l) => ({ ...l, is_default: l.id === list.id }))
-          : prev
-      })
-      setActiveList(null)
-      try {
-        await setDefaultList(getToken, list.id)
-      } catch {
-        setLists(snapshot)
-        setToast('No se pudo marcar como predeterminada')
-      }
-    },
-    [getToken, isOffline],
-  )
-
-  const handleDelete = useCallback(
-    async (list: ApiList) => {
-      if (isOffline) {
-        setToast('No disponible sin conexión')
-        return
-      }
-      setActiveList(null)
-      try {
-        await deleteList(getToken, list.id)
-        setLists((prev) => (prev ? prev.filter((l) => l.id !== list.id) : prev))
-      } catch {
-        setToast('No se pudo eliminar la lista')
-      }
-    },
-    [getToken, isOffline],
   )
 
   if (fetchError) {
@@ -534,17 +441,7 @@ export function DashboardScreen() {
               <SortableListCard
                 key={list.id}
                 list={list}
-                isOwner={list.owner_id === (user?.id ?? '')}
-                onClick={() => {
-                  navigate(`/lists/${list.id}`)
-                  setActiveList(null)
-                }}
-                onMenuOpen={() => {
-                  setActiveList(list)
-                }}
-                onEmojiTap={() => {
-                  setEmojiList(list)
-                }}
+                onClick={() => navigate(`/lists/${list.id}`)}
               />
             ))}
           </SortableContext>
@@ -556,26 +453,6 @@ export function DashboardScreen() {
           />
         </div>
       </main>
-      {activeList && (
-        <ListActionSheet
-          listId={activeList.id}
-          listName={activeList.name}
-          currentUserId={user?.id ?? ''}
-          isOwner={activeList.owner_id === (user?.id ?? '')}
-          isDefault={activeList.is_default}
-          onRename={(newName) => void handleRename(activeList, newName)}
-          onDelete={() => void handleDelete(activeList)}
-          onSetDefault={() => void handleSetDefault(activeList)}
-          onClose={() => setActiveList(null)}
-        />
-      )}
-      {emojiList && (
-        <EmojiPickerSheet
-          current={emojiList.emoji}
-          onSelect={(emoji) => void handleEmojiChange(emojiList, emoji)}
-          onClose={() => setEmojiList(null)}
-        />
-      )}
       {feedbackOpen && (
         <FeedbackSheet
           defaultEmail={user?.email}

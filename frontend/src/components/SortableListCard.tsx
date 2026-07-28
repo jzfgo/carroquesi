@@ -5,19 +5,10 @@ import { ListCard } from './ListCard'
 
 interface Props {
   list: ApiList
-  isOwner: boolean
   onClick: () => void
-  onMenuOpen: () => void
-  onEmojiTap?: () => void
 }
 
-export function SortableListCard({
-  list,
-  isOwner,
-  onClick,
-  onMenuOpen,
-  onEmojiTap,
-}: Props) {
+export function SortableListCard({ list, onClick }: Props) {
   const {
     attributes,
     listeners,
@@ -38,10 +29,7 @@ export function SortableListCard({
     <div ref={setNodeRef}>
       <ListCard
         list={list}
-        isOwner={isOwner}
         onClick={onClick}
-        onMenuOpen={onMenuOpen}
-        onEmojiTap={onEmojiTap}
         dragHandleProps={{ ...attributes, ...listeners }}
         style={style}
         isDragging={isDragging}
