@@ -12,6 +12,7 @@ import {
   updatePrice,
 } from '../lib/api'
 import { AVATAR_COLORS } from '../lib/avatarColors'
+import { itemState } from '../lib/itemState'
 import { isNetworkError } from '../lib/networkError'
 import { enqueue } from '../lib/offlineQueue'
 import type { ListItem, Member, ParsedInput, TagField } from '../types'
@@ -148,23 +149,22 @@ export function useListItems(
       const targetItem = snapshot.find((i) => i.id === itemId)
       const prevPurchased = targetItem?.purchased ?? false
 
-      // Prevent unpurchasing items purchased on a previous calendar day
-      if (prevPurchased && targetItem?.purchased_at) {
-        const purchasedDate = new Date(targetItem.purchased_at + 'Z')
-        const today = new Date()
-        const sameDay =
-          purchasedDate.getFullYear() === today.getFullYear() &&
-          purchasedDate.getMonth() === today.getMonth() &&
-          purchasedDate.getDate() === today.getDate()
-        if (!sameDay) {
-          showToast('No se puede desmarcar un producto comprado en otro día')
-          return
-        }
+      // A filed purchase is a record, and records are not edited by tapping.
+      // Same rule the backend's 409 enforces, and it lives in one place now.
+      if (prevPurchased && targetItem && itemState(targetItem) !== 'cart') {
+        showToast('No se puede desmarcar una compra ya archivada')
+        return
       }
 
+      // The tap instant, which only this device knows. Sent so that an offline
+      // tap drained tomorrow morning still files into tonight's trip.
       const nowStr = !prevPurchased
         ? new Date().toISOString().slice(0, -1)
         : null
+      const patch = prevPurchased
+        ? { purchased: false }
+        : { purchased: true, purchased_at: nowStr as string }
+
       setItems(
         snapshot.map((i) =>
           i.id === itemId
@@ -172,20 +172,22 @@ export function useListItems(
                 ...i,
                 purchased: !prevPurchased,
                 purchased_at: nowStr,
+                // Unknown until the server says which trip it joined. Until
+                // then itemState keeps it in the cart, which is the truth.
+                purchase_id: null,
+                purchase_ends_at: null,
               }
             : i,
         ),
       )
       try {
-        await updateItem(getToken, listId, itemId, {
-          purchased: !prevPurchased,
-        })
+        await updateItem(getToken, listId, itemId, patch)
       } catch (err) {
         if (isNetworkError(err)) {
           await enqueue({
             listId,
             type: 'updateItem',
-            payload: { itemId, patch: { purchased: !prevPurchased } },
+            payload: { itemId, patch },
           })
         } else {
           setItems(snapshot)

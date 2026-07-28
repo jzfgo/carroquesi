@@ -126,6 +126,93 @@ describe('useListItems — togglePurchased', () => {
   })
 })
 
+describe('useListItems — togglePurchased sends the tap time', () => {
+  // Fake timers so the tap instant is a known value we can assert against.
+  // `shouldAdvanceTime` is required — `waitFor` never settles under frozen
+  // fake timers.
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date('2026-07-28T12:00:00Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('sends purchased_at equal to the tap instant', async () => {
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    // The instant the optimistic update stamped locally is the same instant
+    // that must travel to the server — not a server-side "now" on drain.
+    const tapInstant = result.current.items[0].purchased_at
+    expect(tapInstant).toEqual(expect.any(String))
+    expect(api.updateItem).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { purchased: true, purchased_at: tapInstant },
+    )
+  })
+
+  it('queues the tap instant too, so a late drain still files into the right trip', async () => {
+    vi.mocked(api.updateItem).mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    )
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    const tapInstant = result.current.items[0].purchased_at
+    expect(offlineQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'updateItem',
+        listId: 'list-1',
+        payload: {
+          itemId: 'item-1',
+          patch: { purchased: true, purchased_at: tapInstant },
+        },
+      }),
+    )
+  })
+
+  it('refuses client-side to unpurchase an item whose trip has already ended', async () => {
+    const settledItem: ListItem = {
+      ...item1,
+      purchased: true,
+      purchased_at: '2026-07-27T09:00:00',
+      purchase_id: 'p1',
+      purchase_ends_at: '2026-07-27T23:00:00',
+    }
+    vi.mocked(api.getListItems).mockResolvedValue([settledItem] as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(api.updateItem).not.toHaveBeenCalled()
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se puede desmarcar una compra ya archivada',
+    )
+  })
+})
+
 describe('useListItems — addItem', () => {
   it('replaces temp item with real item on success', async () => {
     const realItem: ListItem = {
