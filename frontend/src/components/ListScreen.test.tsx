@@ -1185,14 +1185,41 @@ describe('with no connection', () => {
   })
 
   afterEach(() => {
-    Object.defineProperty(navigator, 'onLine', {
-      configurable: true,
-      get: () => true,
-    })
+    // Delete rather than redefine: replacing it with a getter that returns a
+    // hardcoded `true` would leave navigator.onLine shadowed for the rest of
+    // the file. Removing the own property uncovers jsdom's real accessor
+    // again, so nothing here depends on this block running last.
+    delete (navigator as { onLine?: boolean }).onLine
   })
 
   const openMenu = () =>
     fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+
+  it('will not rename the list, and says why', async () => {
+    const onRename = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        onRename={onRename}
+      />,
+    )
+    openMenu()
+    fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Nombre de la lista' }),
+      { target: { value: 'Mercadillo' } },
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/no disponible sin conexión/i)).toBeVisible(),
+    )
+    expect(api.updateList).not.toHaveBeenCalled()
+    expect(onRename).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading').textContent).toContain('Mercado')
+  })
 
   it('will not change the emoji, and says why', async () => {
     const onEmojiChanged = vi.fn()

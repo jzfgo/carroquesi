@@ -13,7 +13,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { Bell, BellOff, SunMoon } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
@@ -240,6 +240,55 @@ export function DashboardScreen() {
     [user],
   )
 
+  // What the live region says while a list is being moved.
+  //
+  // dnd-kit's defaults are English and interpolate the draggable's id
+  // (@dnd-kit/core dist :55 — "Picked up draggable item " + active.id), and
+  // here an id is a UUID. So the default announces a UUID aloud on every
+  // successful long press. Unlike the instructions, this was never gated on
+  // where {...attributes} landed — DndContext renders its own live region —
+  // so it has been saying that all along.
+  //
+  // A name and a position are what someone who cannot see the row move
+  // actually needs; the id is of no use to anyone.
+  const announcements = useMemo(() => {
+    const describe = (id: string | number) => {
+      const index = lists?.findIndex((l) => l.id === id) ?? -1
+      const list = index >= 0 ? lists![index] : null
+      return {
+        name: list?.name ?? 'la lista',
+        position: index >= 0 ? `${index + 1} de ${lists!.length}` : null,
+      }
+    }
+    return {
+      onDragStart({ active }: { active: { id: string | number } }) {
+        return `Has cogido ${describe(active.id).name}.`
+      },
+      onDragOver({ over }: { over: { id: string | number } | null }) {
+        if (!over) return undefined
+        const { name, position } = describe(over.id)
+        return position ? `Sobre ${name}, posición ${position}.` : undefined
+      },
+      onDragEnd({
+        active,
+        over,
+      }: {
+        active: { id: string | number }
+        over: { id: string | number } | null
+      }) {
+        const { name } = describe(active.id)
+        if (!over) return `Has soltado ${name} donde estaba.`
+        const { position } = describe(over.id)
+        return position
+          ? `Has soltado ${name} en la posición ${position}.`
+          : `Has soltado ${name}.`
+      },
+      onDragCancel({ active }: { active: { id: string | number } }) {
+        return `Movimiento cancelado. ${describe(active.id).name} vuelve a su sitio.`
+      },
+    }
+  }, [lists])
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, {
@@ -450,6 +499,7 @@ export function DashboardScreen() {
               draggable:
                 'Mantén pulsada una lista para moverla. Suéltala en su nuevo sitio para guardar el orden.',
             },
+            announcements,
           }}
         >
           <SortableContext
