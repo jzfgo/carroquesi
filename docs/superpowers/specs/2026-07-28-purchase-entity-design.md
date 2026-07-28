@@ -306,8 +306,11 @@ value computed at read time can be polled for, a stored one can be waited on.
 
 ### Why this is worth doing at all
 
-"Is this today" is currently implemented five times, and three of them are
-wrong:
+"Is this today" is currently implemented **six** times, and four of them are
+wrong. (The count was five until implementation turned up the sixth — a SQL
+one that a grep for Python date arithmetic could never have found. That the
+inventory was itself incomplete is the argument for the entity, not a footnote
+to it.)
 
 | where | basis | |
 |---|---|---|
@@ -316,6 +319,7 @@ wrong:
 | `lib/isSameCalendarDay.ts:3` | **UTC** | the price-delete bug |
 | `routers/items.py:99` | **UTC** | un-purchase guard |
 | `routers/prices.py:78` | **UTC** | price-delete `422` |
+| `routers/lists.py:54` | **UTC**, in SQL | dashboard progress counts — found during implementation, not by the original grep, because it is `func.date(...) == func.current_date()` rather than Python |
 
 Both frontend copies are local and both backend copies are UTC, which is not
 coincidence: the browser has a timezone to read and the backend has none, so
