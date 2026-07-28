@@ -163,6 +163,19 @@ SEED_ITEMS = [
         stores=["Carrefour"],
         added_by=ALICE_ID,
     ),
+    # Three shops, and named out of alphabetical order on purpose: the list
+    # groups by the *set* of shops and writes the heading sorted, so this is
+    # the item that shows both -- it heads its own "Carrefour, Dia o
+    # Mercadona" group rather than appearing three times.
+    ListItem(
+        id="seed-item-papel",
+        list_id="seed-list-compra",
+        name="Papel de cocina",
+        quantity="2",
+        brand=None,
+        stores=["Mercadona", "Carrefour", "Dia"],
+        added_by=BOB_ID,
+    ),
     ListItem(
         id="seed-item-agua",
         list_id="seed-list-compra",
