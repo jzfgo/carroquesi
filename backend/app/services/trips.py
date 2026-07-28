@@ -1,9 +1,16 @@
 """Everything that knows what a shopping trip is.
 
-Before this module, "is this purchase from today" was implemented five times —
-twice in the frontend against the browser's local day, three times in the
-backend against the UTC day. Three of the five were wrong, and they were wrong
-in different directions, because the predicate had no home. It has one now.
+Before this module, "is this purchase from today" was implemented six times —
+three in the frontend, three in the backend. Four compared the UTC day when the
+boundary that matters is Madrid local midnight, and they were wrong in
+different directions, because the predicate had no home. It has one now.
+
+The inventory was itself incomplete when this module was written: it found
+five. The sixth was the dashboard's progress counts in routers/lists.py, spelled
+`func.date(purchased_at) == func.current_date()` — the same rule in SQL, which a
+grep for Python date arithmetic could not see. That an audit of the duplication
+missed a sixth of it is the argument for keeping the rule here, not a footnote
+to it.
 """
 
 from datetime import UTC, datetime, timedelta

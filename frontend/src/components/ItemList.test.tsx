@@ -395,7 +395,9 @@ test('shows cost next to date label in purchased section', () => {
     purchase_id: 'p1',
     purchase_ends_at: purchaseEndsAt,
   }
-  const costByTrip = new Map([['p1', { total: 5, partial: false } as CostSummary]])
+  const costByTrip = new Map([
+    ['p1', { total: 5, partial: false } as CostSummary],
+  ])
   render(
     <ItemList
       status="success"
@@ -427,7 +429,9 @@ test('shows ≥ prefix in date label when purchased cost is partial', () => {
     purchase_id: 'p1',
     purchase_ends_at: purchaseEndsAt,
   }
-  const costByTrip = new Map([['p1', { total: 2, partial: true } as CostSummary]])
+  const costByTrip = new Map([
+    ['p1', { total: 2, partial: true } as CostSummary],
+  ])
   render(
     <ItemList
       status="success"
@@ -755,9 +759,9 @@ test('two shops on one day render as two receipt sheets, not one', () => {
   const shopA = tripItem('shopA', 'tripA', daysAgoAt(2, 10))
   const shopB = tripItem('shopB', 'tripB', daysAgoAt(2, 16))
   const { container } = renderList([shopA, shopB])
-  expect(
-    container.querySelectorAll('.item-list__sheet--receipt'),
-  ).toHaveLength(2)
+  expect(container.querySelectorAll('.item-list__sheet--receipt')).toHaveLength(
+    2,
+  )
 })
 
 test("items from one trip stay in one sheet even when another trip's items interleave by timestamp", () => {
@@ -803,13 +807,13 @@ test("each sheet's label comes from its own earliest item, even spanning midnigh
     new Date(localMidnight.getTime() + 10 * 60 * 1000),
   )
   const { container } = renderList([afterMidnight, beforeMidnight])
-  expect(
-    container.querySelectorAll('.item-list__sheet--receipt'),
-  ).toHaveLength(1)
+  expect(container.querySelectorAll('.item-list__sheet--receipt')).toHaveLength(
+    1,
+  )
   const expectedLabel = purchasedDateLabel(beforeMidnight.purchased_at)
   const wrongLabel = purchasedDateLabel(afterMidnight.purchased_at)
   expect(expectedLabel).not.toEqual(wrongLabel)
-  expect(
-    container.querySelector('.item-list__label-text')?.textContent,
-  ).toBe(expectedLabel)
+  expect(container.querySelector('.item-list__label-text')?.textContent).toBe(
+    expectedLabel,
+  )
 })

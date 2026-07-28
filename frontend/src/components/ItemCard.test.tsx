@@ -109,13 +109,21 @@ describe('the three states', () => {
   })
 
   it('settled: no circle at all, because a record has no state to toggle', () => {
-    const { container } = renderCard({ purchased: true, purchased_at: EARLIER, ...settledOverrides })
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: EARLIER,
+      ...settledOverrides,
+    })
     expect(container.querySelector('.item-card__checkbox')).toBeNull()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
   })
 
   it('settled: the leading column offers the one thing left — buy it again', () => {
-    const { onClone } = renderCard({ purchased: true, purchased_at: EARLIER, ...settledOverrides })
+    const { onClone } = renderCard({
+      purchased: true,
+      purchased_at: EARLIER,
+      ...settledOverrides,
+    })
     fireEvent.click(
       screen.getByRole('button', { name: /volver a comprar leche entera/i }),
     )
@@ -125,7 +133,11 @@ describe('the three states', () => {
   it('settled with no way to re-add it, the disc is inert rather than absent', () => {
     render(
       <ItemCard
-        item={makeItem({ purchased: true, purchased_at: EARLIER, ...settledOverrides })}
+        item={makeItem({
+          purchased: true,
+          purchased_at: EARLIER,
+          ...settledOverrides,
+        })}
         onTogglePurchased={vi.fn()}
         onOpen={vi.fn()}
       />,
@@ -147,7 +159,8 @@ describe('the figure column', () => {
   it('holds the amount once the line is a record', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: EARLIER, ...settledOverrides,
+      purchased_at: EARLIER,
+      ...settledOverrides,
       price: 1.35,
     })
     expect(container.querySelector('.item-card__figure')?.textContent).toMatch(
@@ -161,7 +174,8 @@ describe('the figure column', () => {
     // line, which already says the quantity.
     const { container } = renderCard({
       purchased: true,
-      purchased_at: EARLIER, ...settledOverrides,
+      purchased_at: EARLIER,
+      ...settledOverrides,
       quantity: '200g',
       purchased_quantity: '200g',
       price: null,
@@ -173,7 +187,8 @@ describe('the figure column', () => {
   it('keeps the quantity in the cart, where the column is not money yet', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: TODAY, ...inCartOverrides,
+      purchased_at: TODAY,
+      ...inCartOverrides,
       quantity: '1 kg',
     })
     expect(container.querySelector('.item-card__figure')).toHaveTextContent(
@@ -184,7 +199,8 @@ describe('the figure column', () => {
   it('is left empty when there is neither — a dash would make it a form', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: EARLIER, ...settledOverrides,
+      purchased_at: EARLIER,
+      ...settledOverrides,
       price: null,
     })
     expect(container.querySelector('.item-card__figure')).toHaveTextContent('')
@@ -193,7 +209,8 @@ describe('the figure column', () => {
   it('a settled line prints what was actually bought, under what it was', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: EARLIER, ...settledOverrides,
+      purchased_at: EARLIER,
+      ...settledOverrides,
       quantity: '2 ud',
       purchased_quantity: '3 ud',
     })
@@ -224,7 +241,8 @@ describe('the second line', () => {
   it('is quantity then brand once the line is settled', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: EARLIER, ...settledOverrides,
+      purchased_at: EARLIER,
+      ...settledOverrides,
       purchased_quantity: '12 ud',
       brand: 'Puleva',
     })
@@ -236,7 +254,8 @@ describe('the second line', () => {
   it('drops the separator when a settled line has only one of them', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: EARLIER, ...settledOverrides,
+      purchased_at: EARLIER,
+      ...settledOverrides,
       purchased_quantity: '1 ud',
     })
     expect(container.querySelector('.item-card__sub')?.textContent).toBe('1 ud')
@@ -250,7 +269,8 @@ describe('the second line', () => {
     // item, log the price.
     const { container } = renderCard({
       purchased: true,
-      purchased_at: TODAY, ...inCartOverrides,
+      purchased_at: TODAY,
+      ...inCartOverrides,
       quantity: '2 ud',
       brand: 'Hacendado',
       price: 1.35,
@@ -266,7 +286,8 @@ describe('the second line', () => {
   it('and keeps it there for a priced cart line with no brand', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: TODAY, ...inCartOverrides,
+      purchased_at: TODAY,
+      ...inCartOverrides,
       quantity: '1 kg',
       price: 2.4,
     })
@@ -281,7 +302,8 @@ describe('the second line', () => {
   it('carries the brand in the cart too — the line has not come off the list', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: TODAY, ...inCartOverrides,
+      purchased_at: TODAY,
+      ...inCartOverrides,
       brand: 'Hacendado',
     })
     expect(container.querySelector('.item-card__sub')).toHaveTextContent(

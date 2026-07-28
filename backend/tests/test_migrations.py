@@ -30,7 +30,6 @@ from app.core.config import settings
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 ALEMBIC_INI = BACKEND_DIR / "alembic.ini"
 
-HEAD_REVISION = "b9f26e9bb379"
 PRE_PURCHASES_REVISION = "7005338bb031"  # the revision just before ours
 
 
