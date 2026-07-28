@@ -310,11 +310,15 @@ checks reported at all**, which is neither passing nor failing and blocks the me
 
 **"None" is a valid answer, and it is the usual one here.** `BLOCKED` is not authoritative
 under rulesets: GraphQL tends to report it whenever a ruleset with a `pull_request` rule
-applies, satisfied or not. Observed on #121 with every requirement met — `mergeable:
-MERGEABLE`, every required check green from the right integration, zero approvals required,
-not a draft, `strict_required_status_checks_policy: false` — and still `BLOCKED`. Do not
-keep querying for the missing rule; there isn't one, and the `bypass_mode: always` actor
-means the owner can merge regardless. Confirm the requirements individually, then say so.
+applies, satisfied or not. Observed on #121, and again on #164 with every requirement
+verified one by one — `mergeable: MERGEABLE`, `CI gate` green, branch up to date with `main`,
+zero approvals required, thread resolution not required, linear history, not a draft — and
+still `BLOCKED`. Do not keep querying for the missing rule; there isn't one, and the
+`bypass_mode: always` actor means the owner can merge regardless. Confirm the requirements
+individually, then say so.
+
+The one status worth taking literally is **`BEHIND`** — see the `strict` note below. Unlike
+`BLOCKED`, it names a real requirement and it has a real fix.
 
 Note that only `CI gate` gates. `Playwright Tests` is deliberately **not** in its `needs:`,
 so a pending or failing Playwright run does not block merging — though exit condition #3 is
@@ -325,8 +329,22 @@ not touch their area, and a skipped job reports **success**. So "green" on those
 mean "ran" — read the `Detect changed areas` job's log if you need to know which actually
 executed.
 
-`strict_required_status_checks_policy: false`, so the branch does not need to be up to date
-with `main` before merging.
+**`strict_required_status_checks_policy: true`, so the branch DOES need to be up to date with
+`main` before merging.** When `main` moves under an open PR — a dependabot merge is enough —
+`mergeStateStatus` flips to `BEHIND`, and that one is a genuinely unsatisfied requirement
+rather than the noise `BLOCKED` usually is. Rebase onto `origin/main` and force-push with
+`--force-with-lease`; `required_linear_history` rules out a merge commit.
+
+Two consequences that bite in this loop:
+
+- **The rebase is a push, so it invalidates any clean review you were holding** (exit
+  condition #2). Order it accordingly: get the branch up to date *first*, then take the
+  re-review, or you will do the review twice.
+- **The rebase re-runs CI**, so budget for another full cycle before exiting.
+
+Verify with `gh api repos/:owner/:repo/rules/branches/main` rather than trusting this line —
+it said `false` until 2026-07-28, which is exactly how long it took for a `BEHIND` PR to
+prove otherwise.
 
 Treat `APPROVED` as a bonus, never a gate. At exit, report the requirements you actually
 checked and their state — not a bare `BLOCKED`, and never "awaiting approval". If all of
