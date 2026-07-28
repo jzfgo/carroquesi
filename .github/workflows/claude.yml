@@ -133,6 +133,12 @@ jobs:
           # comment happily under the read-only scopes above.
           track_progress: ${{ github.event_name == 'pull_request' }}
 
+          # `--model` picks the reviewer. Left unset the action runs on Sonnet (run
+          # 30373275450 logged `"model": "claude-sonnet-5"`), and review is the one job
+          # here worth the stronger model. v1 has no `model` input — `claude_args` is
+          # the only vehicle, and it is a single string, so this shares the line with
+          # the tool list below.
+          #
           # Let the reviewer check claims against primary sources instead of recalling
           # them. Without this, WebSearch/WebFetch fail closed: `--allowedTools` is an
           # AUTO-APPROVAL list, not an availability restriction (use `--tools` for
@@ -158,4 +164,4 @@ jobs:
           # of the five triggers run in the base repo context with full secrets whoever
           # wrote the comment. Removing the author gate re-opens arbitrary API writes to
           # any commenter.
-          claude_args: '--allowedTools "WebSearch,WebFetch,Bash(gh api:*)"'
+          claude_args: '--model claude-opus-5 --allowedTools "WebSearch,WebFetch,Bash(gh api:*)"'
