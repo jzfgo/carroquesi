@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from app.db.models import ListItem, Purchase  # noqa: F401 -- ListItem consumed by Task 4 (detach)
+from app.db.models import ListItem, Purchase
 
 # The trip boundary. There is no per-user timezone anywhere, and on a shared
 # list "the local day the person lived through" has no single answer — which
@@ -125,3 +125,40 @@ def open_trip(session: Session, list_id: str, now: datetime | None = None) -> Pu
             Purchase.tears_off_at > now,
         )
     ).first()
+
+
+def attach(session: Session, item: ListItem, instant: datetime) -> Purchase:
+    """Put a just-purchased item into the trip its timestamp belongs to.
+
+    If the item is already attached to a different trip -- a correction, or a
+    backdated offline tap draining in after today's tap already attached it --
+    it is moved, and the old trip is cleaned up exactly the way `detach` would
+    clean it up. Otherwise a re-tap could leave an orphan open trip behind.
+    """
+    trip = trip_for(session, item.list_id, instant)
+    if item.purchase_id is not None and item.purchase_id != trip.id:
+        detach(session, item)
+    item.purchase_id = trip.id
+    session.add(item)
+    return trip
+
+
+def detach(session: Session, item: ListItem) -> None:
+    """Take an item back out of its trip.
+
+    An open trip with nothing left in it is not a fact about anything, so it
+    goes. A closed one stays: it holds a store and a total someone confirmed,
+    and those outlive the lines.
+    """
+    trip_id = item.purchase_id
+    item.purchase_id = None
+    session.add(item)
+    if trip_id is None:
+        return
+    session.flush()
+    trip = session.get(Purchase, trip_id)
+    if trip is None or trip.closed_at is not None:
+        return
+    remaining = session.exec(select(ListItem).where(ListItem.purchase_id == trip_id)).first()
+    if remaining is None:
+        session.delete(trip)

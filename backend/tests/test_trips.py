@@ -1,3 +1,4 @@
+import warnings
 from datetime import datetime
 
 import pytest
@@ -258,3 +259,146 @@ def test_a_missed_lookup_still_yields_one_trip_via_the_unique_index(
 
     loser = trips.trip_for(session, lst.id, instant)
     assert loser.id == winner.id
+
+
+def test_attaching_files_the_item_into_its_days_trip(session: Session, lst: List, user: User):
+    item = ListItem(list_id=lst.id, name="Leche", added_by=user.id)
+    session.add(item)
+    session.commit()
+
+    trip = trips.attach(session, item, datetime(2026, 7, 28, 16, 0))
+    session.commit()
+
+    assert item.purchase_id == trip.id
+
+
+def test_detaching_the_last_item_deletes_an_open_trip(session: Session, lst: List, user: User):
+    item = ListItem(list_id=lst.id, name="Leche", added_by=user.id)
+    session.add(item)
+    session.commit()
+    trip = trips.attach(session, item, datetime(2026, 7, 28, 16, 0))
+    trip_id = trip.id
+    session.commit()
+
+    trips.detach(session, item)
+    session.commit()
+
+    assert item.purchase_id is None
+    assert session.get(Purchase, trip_id) is None
+
+
+def test_detaching_one_of_two_keeps_the_trip(session: Session, lst: List, user: User):
+    a = ListItem(list_id=lst.id, name="Leche", added_by=user.id)
+    b = ListItem(list_id=lst.id, name="Pan", added_by=user.id)
+    session.add(a)
+    session.add(b)
+    session.commit()
+    trip = trips.attach(session, a, datetime(2026, 7, 28, 16, 0))
+    trips.attach(session, b, datetime(2026, 7, 28, 16, 5))
+    trip_id = trip.id
+    session.commit()
+
+    trips.detach(session, a)
+    session.commit()
+
+    assert session.get(Purchase, trip_id) is not None
+
+
+def test_emptying_a_closed_trip_keeps_it(session: Session, lst: List, user: User):
+    # It holds a store and a total someone confirmed, and those outlive the lines.
+    item = ListItem(list_id=lst.id, name="Leche", added_by=user.id)
+    session.add(item)
+    session.commit()
+    trip = trips.attach(session, item, datetime(2026, 7, 28, 16, 0))
+    trip.closed_at = datetime(2026, 7, 28, 17, 0)
+    trip.store = "Lidl"
+    trip.total = 14.60
+    trip_id = trip.id
+    session.commit()
+
+    trips.detach(session, item)
+    session.commit()
+
+    assert session.get(Purchase, trip_id) is not None
+
+
+def test_detaching_an_unattached_item_is_a_harmless_no_op(session: Session, lst: List, user: User):
+    # Un-purchasing an item whose purchase never synced (or that was never
+    # attached to begin with) must not raise — purchase_id is already the
+    # NULL detach is trying to establish.
+    item = ListItem(list_id=lst.id, name="Leche", added_by=user.id)
+    session.add(item)
+    session.commit()
+
+    trips.detach(session, item)
+    session.commit()
+
+    assert item.purchase_id is None
+
+
+def test_detaching_an_unattached_item_never_looks_up_a_trip(
+    session: Session, lst: List, user: User
+):
+    # With purchase_id already NULL, there is no trip row to look up. Calling
+    # session.get(Purchase, None) anyway is not just wasted work: SQLAlchemy
+    # warns "fully NULL primary key identity cannot load any object" and says
+    # outright that this "may raise an error in a future release" -- so
+    # skipping the lookup for a NULL id is load-bearing, not cosmetic, even
+    # though today it still happens to return None either way.
+    item = ListItem(list_id=lst.id, name="Leche", added_by=user.id)
+    session.add(item)
+    session.commit()
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        trips.detach(session, item)
+
+
+def test_attaching_an_already_attached_item_moves_it_and_cleans_up_the_old_trip(
+    session: Session, lst: List, user: User
+):
+    # An item can be re-tapped into a different day's trip (e.g. a correction,
+    # or a backdated offline tap arriving after today's tap already attached
+    # it). attach must move the item rather than refuse or double-attach, and
+    # if the old trip is left with nothing in it, it must not linger as an
+    # orphan open trip -- the same rule detach enforces everywhere else.
+    item = ListItem(list_id=lst.id, name="Leche", added_by=user.id)
+    session.add(item)
+    session.commit()
+
+    old_trip = trips.attach(session, item, datetime(2026, 7, 28, 16, 0))
+    old_trip_id = old_trip.id
+    session.commit()
+
+    new_trip = trips.attach(session, item, datetime(2026, 7, 27, 16, 0))
+    session.commit()
+
+    assert item.purchase_id == new_trip.id
+    assert new_trip.id != old_trip_id
+    assert session.get(Purchase, old_trip_id) is None
+
+
+def test_detaching_the_last_item_then_reattaching_the_same_day_does_not_collide(
+    session: Session, lst: List, user: User
+):
+    # detach's delete of the emptied open trip must be visible to the very
+    # next trip_for lookup (attach's, here) -- otherwise the delete and the
+    # new INSERT would both target uq_purchases_open_per_list's (list_id,
+    # tears_off_at) slot and the insert would fail as if the old trip were
+    # still there.
+    item = ListItem(list_id=lst.id, name="Leche", added_by=user.id)
+    session.add(item)
+    session.commit()
+
+    old_trip = trips.attach(session, item, datetime(2026, 7, 28, 16, 0))
+    old_trip_id = old_trip.id
+    session.commit()
+
+    trips.detach(session, item)
+    session.commit()
+    assert session.get(Purchase, old_trip_id) is None
+
+    new_trip = trips.attach(session, item, datetime(2026, 7, 28, 18, 0))
+    session.commit()
+
+    assert item.purchase_id == new_trip.id
