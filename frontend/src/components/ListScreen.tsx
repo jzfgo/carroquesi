@@ -769,12 +769,9 @@ export function ListScreen({
         status={status}
         items={filteredItems}
         totalItems={allUnpurchasedCount}
-        members={members}
         onTogglePurchased={handleTogglePurchased}
-        onTagClick={handleTagClick}
-        onMenuOpen={handleItemMenuOpen}
+        onOpen={handleItemMenuOpen}
         onRetry={retry}
-        onPriceClick={(itemId) => setPriceItemId(itemId)}
         onClone={handleCloneItem}
         pendingCost={pendingCost}
         purchasedCostByDate={purchasedCostByDate}
@@ -846,7 +843,17 @@ export function ListScreen({
           return (
             <ItemActionSheet
               item={activeItem}
+              members={members}
               purchased={activeItem.purchased}
+              // The row stopped carrying these, so the sheet took them on.
+              onTagClick={(field) => {
+                setActiveItemId(null)
+                handleTagClick(activeItemId, field)
+              }}
+              onPriceClick={() => {
+                setActiveItemId(null)
+                setPriceItemId(activeItemId)
+              }}
               onRename={(name) => {
                 void renameItem(activeItemId, name)
                 setActiveItemId(null)

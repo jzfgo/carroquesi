@@ -299,8 +299,9 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const brandTag = screen.getByText('Hacendado')
-    fireEvent.click(brandTag)
+    // The row carries no chips now — brand lives one tap in, on the item.
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
+    fireEvent.click(screen.getByRole('button', { name: /marca/i }))
 
     expect(document.querySelector('.tag-edit-sheet')).toBeInTheDocument()
 
@@ -321,10 +322,9 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const storeTag = document.querySelector(
-      '.item-card__tag:not(.item-card__tag--cta)',
-    )!
-    fireEvent.click(storeTag)
+    // The row carries no chips now — the shop lives one tap in, on the item.
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
+    fireEvent.click(screen.getByRole('button', { name: /tienda/i }))
 
     expect(document.querySelector('.store-edit-sheet')).toBeInTheDocument()
 
@@ -348,10 +348,7 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const optionsButton = screen.getByRole('button', {
-      name: 'Opciones del producto',
-    })
-    fireEvent.click(optionsButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
 
     expect(
       screen.getByRole('dialog', { name: /Opciones del producto/i }),
@@ -375,10 +372,7 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const optionsButton = screen.getByRole('button', {
-      name: 'Opciones del producto',
-    })
-    fireEvent.click(optionsButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
 
     expect(
       screen.getByRole('dialog', { name: /Opciones del producto/i }),
@@ -494,10 +488,7 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const optionsButton = screen.getByRole('button', {
-      name: 'Opciones del producto',
-    })
-    fireEvent.click(optionsButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
 
     fireEvent.click(screen.getByRole('button', { name: /comprar de nuevo/i }))
 
