@@ -17,6 +17,20 @@ name: Claude Code
 # "Claude —", losing the number this exists to carry.
 run-name: "Claude — #${{ github.event.issue.number || github.event.pull_request.number }}"
 
+# A PR that edits THIS FILE gets no Claude review, and the check still goes green.
+#
+# claude-code-action refuses to run when the workflow file differs from the copy on
+# the default branch — "The workflow file must exist and have identical content to
+# the version on the repository's default branch". That is a security property: it
+# stops a PR author rewriting this workflow and running it with repository secrets.
+# The action exits before reaching Claude, the step succeeds, and the `claude` check
+# reports SUCCESS having reviewed nothing.
+#
+# So changes to this file cannot be verified by the PR that makes them. They take
+# effect on merge, and the first PR afterwards that does NOT touch this file is what
+# actually proves them. Plan the verification accordingly rather than reading a green
+# check as a passing review.
+
 on:
   # Automatic first-pass review. Deliberately NOT `synchronize` — that would fire a
   # full review on every push, which is both noisy and costly. Ask for follow-up
