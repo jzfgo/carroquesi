@@ -181,6 +181,11 @@ const TODAY = new Date().toISOString().slice(0, 19)
 /** A settled purchase. Marked TODAY an item is still in the cart, on the list's
  *  own sheet, and has no date label — only a torn-off trip gets one. */
 const YESTERDAY = new Date(Date.now() - 86_400_000).toISOString().slice(0, 19)
+/** The trip YESTERDAY belonged to tore off shortly after — still yesterday,
+ *  so settled (bought) as of now. */
+const YESTERDAY_ENDS_AT = new Date(Date.now() - 86_400_000 + 60 * 60 * 1000)
+  .toISOString()
+  .slice(0, 19)
 
 function makeItem(overrides: Partial<ListItem>): ListItem {
   return {
@@ -541,7 +546,13 @@ describe('ProgressBar scoping', () => {
     renderWithItems([
       makeItem({ id: '1' }), // unpurchased → in scope
       makeItem({ id: '2', purchased: true, purchased_at: TODAY }), // purchased today → in scope
-      makeItem({ id: '3', purchased: true, purchased_at: YESTERDAY }), // old → excluded
+      makeItem({
+        id: '3',
+        purchased: true,
+        purchased_at: YESTERDAY,
+        purchase_id: 'p1',
+        purchase_ends_at: YESTERDAY_ENDS_AT,
+      }), // old → excluded
     ])
     // total = 2 (items 1 + 2), purchased = 1 (item 2) → 50%
     expect(screen.getByRole('progressbar')).toHaveAttribute(
@@ -552,7 +563,13 @@ describe('ProgressBar scoping', () => {
 
   it('hides the bar when all purchased items are from prior days and none are unpurchased', () => {
     renderWithItems([
-      makeItem({ id: '1', purchased: true, purchased_at: YESTERDAY }),
+      makeItem({
+        id: '1',
+        purchased: true,
+        purchased_at: YESTERDAY,
+        purchase_id: 'p1',
+        purchase_ends_at: YESTERDAY_ENDS_AT,
+      }),
     ])
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   })
@@ -626,6 +643,8 @@ describe('cost totals', () => {
         id: '1',
         purchased: true,
         purchased_at: YESTERDAY,
+        purchase_id: 'p1',
+        purchase_ends_at: YESTERDAY_ENDS_AT,
         price: 3.0,
       }),
     ])

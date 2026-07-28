@@ -24,11 +24,33 @@ const makeItem = (overrides: Partial<ListItem> = {}): ListItem => ({
 })
 
 const TODAY = new Date().toISOString().slice(0, 19)
+// The trip this item joined is still open — ends tomorrow.
+const TODAY_ENDS_AT = (() => {
+  const d = new Date()
+  d.setDate(d.getDate() + 1)
+  return d.toISOString().slice(0, 19)
+})()
 const EARLIER = (() => {
   const d = new Date()
   d.setDate(d.getDate() - 3)
   return d.toISOString().slice(0, 19)
 })()
+// The trip EARLIER belonged to has already ended (filed) as of "now".
+const EARLIER_ENDS_AT = (() => {
+  const d = new Date()
+  d.setDate(d.getDate() - 2)
+  return d.toISOString().slice(0, 19)
+})()
+/** A settled purchase: filed under a trip whose `purchase_ends_at` is past. */
+const settledOverrides = {
+  purchase_id: 'p1',
+  purchase_ends_at: EARLIER_ENDS_AT,
+}
+/** An in-cart purchase: filed under a trip that has not ended yet. */
+const inCartOverrides = {
+  purchase_id: 'p1',
+  purchase_ends_at: TODAY_ENDS_AT,
+}
 
 const renderCard = (overrides: Partial<ListItem> = {}) => {
   const onTogglePurchased = vi.fn()
@@ -80,20 +102,20 @@ describe('the three states', () => {
   })
 
   it('in the cart: neither done nor untouched', () => {
-    renderCard({ purchased: true, purchased_at: TODAY })
+    renderCard({ purchased: true, purchased_at: TODAY, ...inCartOverrides })
     expect(
       screen.getByRole('checkbox', { name: 'Sacar del carro' }),
     ).toHaveAttribute('aria-checked', 'mixed')
   })
 
   it('settled: no circle at all, because a record has no state to toggle', () => {
-    const { container } = renderCard({ purchased: true, purchased_at: EARLIER })
+    const { container } = renderCard({ purchased: true, purchased_at: EARLIER, ...settledOverrides })
     expect(container.querySelector('.item-card__checkbox')).toBeNull()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
   })
 
   it('settled: the leading column offers the one thing left — buy it again', () => {
-    const { onClone } = renderCard({ purchased: true, purchased_at: EARLIER })
+    const { onClone } = renderCard({ purchased: true, purchased_at: EARLIER, ...settledOverrides })
     fireEvent.click(
       screen.getByRole('button', { name: /volver a comprar leche entera/i }),
     )
@@ -103,7 +125,7 @@ describe('the three states', () => {
   it('settled with no way to re-add it, the disc is inert rather than absent', () => {
     render(
       <ItemCard
-        item={makeItem({ purchased: true, purchased_at: EARLIER })}
+        item={makeItem({ purchased: true, purchased_at: EARLIER, ...settledOverrides })}
         onTogglePurchased={vi.fn()}
         onOpen={vi.fn()}
       />,
@@ -125,7 +147,7 @@ describe('the figure column', () => {
   it('holds the amount once the line is a record', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: EARLIER,
+      purchased_at: EARLIER, ...settledOverrides,
       price: 1.35,
     })
     expect(container.querySelector('.item-card__figure')?.textContent).toMatch(
@@ -139,7 +161,7 @@ describe('the figure column', () => {
     // line, which already says the quantity.
     const { container } = renderCard({
       purchased: true,
-      purchased_at: EARLIER,
+      purchased_at: EARLIER, ...settledOverrides,
       quantity: '200g',
       purchased_quantity: '200g',
       price: null,
@@ -151,7 +173,7 @@ describe('the figure column', () => {
   it('keeps the quantity in the cart, where the column is not money yet', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: TODAY,
+      purchased_at: TODAY, ...inCartOverrides,
       quantity: '1 kg',
     })
     expect(container.querySelector('.item-card__figure')).toHaveTextContent(
@@ -162,7 +184,7 @@ describe('the figure column', () => {
   it('is left empty when there is neither — a dash would make it a form', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: EARLIER,
+      purchased_at: EARLIER, ...settledOverrides,
       price: null,
     })
     expect(container.querySelector('.item-card__figure')).toHaveTextContent('')
@@ -171,7 +193,7 @@ describe('the figure column', () => {
   it('a settled line prints what was actually bought, under what it was', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: EARLIER,
+      purchased_at: EARLIER, ...settledOverrides,
       quantity: '2 ud',
       purchased_quantity: '3 ud',
     })
@@ -202,7 +224,7 @@ describe('the second line', () => {
   it('is quantity then brand once the line is settled', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: EARLIER,
+      purchased_at: EARLIER, ...settledOverrides,
       purchased_quantity: '12 ud',
       brand: 'Puleva',
     })
@@ -214,7 +236,7 @@ describe('the second line', () => {
   it('drops the separator when a settled line has only one of them', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: EARLIER,
+      purchased_at: EARLIER, ...settledOverrides,
       purchased_quantity: '1 ud',
     })
     expect(container.querySelector('.item-card__sub')?.textContent).toBe('1 ud')
@@ -228,7 +250,7 @@ describe('the second line', () => {
     // item, log the price.
     const { container } = renderCard({
       purchased: true,
-      purchased_at: TODAY,
+      purchased_at: TODAY, ...inCartOverrides,
       quantity: '2 ud',
       brand: 'Hacendado',
       price: 1.35,
@@ -244,7 +266,7 @@ describe('the second line', () => {
   it('and keeps it there for a priced cart line with no brand', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: TODAY,
+      purchased_at: TODAY, ...inCartOverrides,
       quantity: '1 kg',
       price: 2.4,
     })
@@ -259,7 +281,7 @@ describe('the second line', () => {
   it('carries the brand in the cart too — the line has not come off the list', () => {
     const { container } = renderCard({
       purchased: true,
-      purchased_at: TODAY,
+      purchased_at: TODAY, ...inCartOverrides,
       brand: 'Hacendado',
     })
     expect(container.querySelector('.item-card__sub')).toHaveTextContent(
@@ -272,17 +294,40 @@ describe('the day boundary', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it('a line marked before midnight has become a record by morning', () => {
+  it('a line marked before midnight has become a record once its trip tears off', () => {
     const now = new Date()
     now.setHours(9, 0, 0, 0)
     vi.setSystemTime(now)
     const lastNight = new Date(now)
     lastNight.setHours(-2, 0, 0, 0)
+    const midnight = new Date(now)
+    midnight.setHours(0, 0, 0, 0)
 
     const { container } = renderCard({
       purchased: true,
       purchased_at: lastNight.toISOString().slice(0, 19),
+      purchase_id: 'p1',
+      // The trip tore off at local midnight, which has already passed.
+      purchase_ends_at: midnight.toISOString().slice(0, 19),
     })
     expect(container.querySelector('.item-card__again')).not.toBeNull()
+  })
+
+  it('a line marked before midnight stays in the cart while its trip has not torn off yet', () => {
+    const now = new Date()
+    now.setHours(23, 0, 0, 0)
+    vi.setSystemTime(now)
+    const earlier = new Date(now)
+    earlier.setHours(9, 0, 0, 0)
+    const nextMidnight = new Date(now)
+    nextMidnight.setHours(24, 0, 0, 0)
+
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: earlier.toISOString().slice(0, 19),
+      purchase_id: 'p1',
+      purchase_ends_at: nextMidnight.toISOString().slice(0, 19),
+    })
+    expect(container.querySelector('.item-card__again')).toBeNull()
   })
 })

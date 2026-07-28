@@ -130,15 +130,21 @@ test('purchased section hidden when no items purchased', () => {
   expect(screen.queryByText('Compras anteriores')).not.toBeInTheDocument()
 })
 
-/** One purchased item per day, so each lands in its own trip. */
+/** One purchased item per day, so each lands in its own trip. Each trip's
+ *  `purchase_ends_at` is stamped an hour after it was picked up — same day,
+ *  and always in the past relative to "now" since every trip here is at
+ *  least a day old. */
 const tripsAgo = (n: number): ListItem[] =>
   Array.from({ length: n }, (_, i) => {
     const at = new Date()
     at.setDate(at.getDate() - (i + 1))
+    const endsAt = new Date(at.getTime() + 60 * 60 * 1000)
     return {
       ...makeItem(`t${i}`, true),
       name: `Compra ${i}`,
       purchased_at: at.toISOString().slice(0, 19),
+      purchase_id: `p${i}`,
+      purchase_ends_at: endsAt.toISOString().slice(0, 19),
     }
   })
 
@@ -304,7 +310,14 @@ test('and unruled with nothing under it at all', () => {
   const { container } = render(
     <ItemList
       status="success"
-      items={[{ ...makeItem('a', true), purchased_at: '2020-01-01T10:00:00' }]}
+      items={[
+        {
+          ...makeItem('a', true),
+          purchased_at: '2020-01-01T10:00:00',
+          purchase_id: 'p1',
+          purchase_ends_at: '2020-01-01T11:00:00',
+        },
+      ]}
       onTogglePurchased={() => {}}
       onOpen={() => {}}
       onRetry={() => {}}
@@ -372,9 +385,15 @@ test('shows cost next to date label in purchased section', () => {
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
   const purchasedAt = yesterday.toISOString().slice(0, 19) // no trailing Z; purchasedDateLabel appends it
+  // The trip ended shortly after — still yesterday, so settled by now.
+  const purchaseEndsAt = new Date(yesterday.getTime() + 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 19)
   const item: ListItem = {
     ...makeItem('b', true),
     purchased_at: purchasedAt,
+    purchase_id: 'p1',
+    purchase_ends_at: purchaseEndsAt,
   }
   const label = purchasedDateLabel(purchasedAt)
   const costByDate = new Map([
@@ -402,7 +421,15 @@ test('shows ≥ prefix in date label when purchased cost is partial', () => {
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
   const purchasedAt = yesterday.toISOString().slice(0, 19)
-  const item: ListItem = { ...makeItem('b', true), purchased_at: purchasedAt }
+  const purchaseEndsAt = new Date(yesterday.getTime() + 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 19)
+  const item: ListItem = {
+    ...makeItem('b', true),
+    purchased_at: purchasedAt,
+    purchase_id: 'p1',
+    purchase_ends_at: purchaseEndsAt,
+  }
   const label = purchasedDateLabel(purchasedAt)
   const costByDate = new Map([
     [label, { total: 2, partial: true } as CostSummary],
@@ -537,9 +564,12 @@ const inCart = (id: string): ListItem => ({
 const settled = (id: string): ListItem => {
   const earlier = new Date()
   earlier.setDate(earlier.getDate() - 3)
+  const endsAt = new Date(earlier.getTime() + 60 * 60 * 1000)
   return {
     ...makeItem(id, true),
     purchased_at: earlier.toISOString().slice(0, 19),
+    purchase_id: 'p1',
+    purchase_ends_at: endsAt.toISOString().slice(0, 19),
   }
 }
 
