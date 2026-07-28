@@ -28,6 +28,10 @@ class ItemUpdate(BaseModel):
     stores: list[str] | None = None  # None = don't touch; [] = remove all
     purchased: bool | None = None
     purchased_quantity: str | None = None  # None = don't touch
+    # The instant the tap happened, which only the client knows. Without it an
+    # offline tap drained the next morning is stamped at drain time and files
+    # into the wrong trip. Honoured only on the false -> true transition.
+    purchased_at: datetime | None = None
 
 
 class ItemRead(BaseModel):
@@ -43,6 +47,11 @@ class ItemRead(BaseModel):
     price_per: Literal["KILOGRAM"] | None
     price_store: str | None
     purchased_at: datetime | None
+    purchase_id: str | None = None
+    # closed_at ?? tears_off_at, denormalised so itemState() on the client stays
+    # a function of one item and one instant comparison. Set as a transient
+    # attribute by the router, the same way User.is_admin is.
+    purchase_ends_at: datetime | None = None
     added_by: str
     created_at: datetime
     updated_at: datetime
