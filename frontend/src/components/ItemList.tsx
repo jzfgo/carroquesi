@@ -55,7 +55,11 @@ export function ItemList({
   totalItems,
   footer,
 }: Props) {
-  const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
+  // How many past trips are on the board before the rest are folded away.
+  // Three is what fits under the list without the board becoming an archive:
+  // the shop you just did, and the two you might still be reconciling.
+  const TRIPS_SHOWN = 3
+  const [tripsShown, setTripsShown] = useState(TRIPS_SHOWN)
 
   if (status === 'loading') {
     return (
@@ -153,6 +157,9 @@ export function ItemList({
     }
   }
 
+  // Trips still folded away below the board's edge.
+  const folded = purchasedByDate.length - tripsShown
+
   return (
     <div className="item-list">
       {/* The list is the sheet on top of the table: one continuous piece of
@@ -230,28 +237,9 @@ export function ItemList({
 
       {purchased.length > 0 && (
         <>
-          {/* Lettered straight onto the board, not given a sheet of its own:
-              what is not paper is not drawn as paper (rule 14). It counts
-              trips rather than things, because that is what a purchase is —
-              one shop, one day. */}
-          <button
-            className="item-list__label item-list__label--toggle"
-            onClick={() => setPurchasedCollapsed((c) => !c)}
-            aria-expanded={!purchasedCollapsed}
-          >
-            <span className="item-list__label-text">Compras anteriores</span>
-            <span className="item-list__label-meta">
-              <span className="item-list__label-count">
-                {purchasedByDate.length}
-              </span>
-              <span
-                className={`item-list__chevron${purchasedCollapsed ? ' item-list__chevron--collapsed' : ''}`}
-                aria-hidden
-              />
-            </span>
-          </button>
-          {!purchasedCollapsed &&
-            purchasedByDate.map(({ label, items: group }) => (
+          {purchasedByDate
+            .slice(0, tripsShown)
+            .map(({ label, items: group }) => (
               <div
                 key={label}
                 className="item-list__sheet item-list__sheet--receipt"
@@ -278,6 +266,33 @@ export function ItemList({
                 />
               </div>
             ))}
+
+          {/* Lettered straight onto the board with no sheet of its own: what
+              is not paper is not drawn as paper (rule 14). It counts trips
+              rather than things, because that is what a purchase is — one
+              shop, one day — and it counts the ones you cannot see, so the
+              number is what tapping will get you.
+
+              It brings the next few onto the board and then goes away, the
+              way a "load more" does — it never folds anything back, because
+              nothing here was folded: those trips were simply not fetched
+              onto the board yet. Sending it to a screen of its own would make
+              the archive somewhere you go, when it is really just further
+              down. */}
+          {folded > 0 && (
+            <button
+              className="item-list__more-trips"
+              onClick={() => setTripsShown((n) => n + TRIPS_SHOWN)}
+            >
+              <span className="item-list__more-trips-text">
+                Compras anteriores
+              </span>
+              <span className="item-list__more-trips-meta">
+                <span className="item-list__more-trips-count">{folded}</span>
+                <span className="item-list__more-trips-chevron" aria-hidden />
+              </span>
+            </button>
+          )}
         </>
       )}
     </div>

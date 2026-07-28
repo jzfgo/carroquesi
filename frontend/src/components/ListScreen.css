@@ -39,9 +39,12 @@
   z-index: 101;
 }
 
-/* A way into a shop that never went on the list. It is paper like everything
-   else on the board (rule 14) — a sheet, cut not rounded, with the same relief
-   the receipt sheets carry, because that is what it makes. */
+/* A way into a shop that never went on the list.
+
+   It sits on the board, so it is lettered onto the board — no sheet, no fill,
+   no shadow (rule 14). Making it paper would have been a lie about what it is:
+   paper is what it *produces*, and drawing it as the thing it makes would put
+   an empty receipt on the board before there was one. */
 .save-ticket {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -50,21 +53,18 @@
   box-sizing: border-box;
   width: 100%;
   min-height: var(--hit-min);
-  margin-top: 4px;
-  padding: 14px var(--side-margin);
-  border-top: 1px solid var(--edge-lit-2);
-  border-bottom: 1px solid var(--edge-cast-2);
-  border-radius: var(--r-sheet);
-  background: var(--paper-0);
-  box-shadow: var(--sheet-cast-receipt);
+  padding: 14px 16px 16px var(--side-margin);
+  border: none;
+  background: none;
+  color: var(--board-ink);
   cursor: pointer;
   font-family: inherit;
   text-align: left;
 }
 
-/* The empty stub a ticket would be pasted onto: drawn as an outline because
-   there is nothing in it yet. It is the same mark the receipt sheets wear
-   once they have one, which is what makes the promise legible. */
+/* The empty stub a ticket would be pasted onto — an outline, because there is
+   nothing in it yet. It is the same mark a purchase wears once it has one,
+   which is what makes the offer legible without a word of explanation. */
 .save-ticket__stub {
   display: flex;
   align-items: center;
@@ -72,9 +72,8 @@
   box-sizing: border-box;
   width: 34px;
   height: 34px;
-  border: 1.5px dashed var(--border-strong);
+  border: 1.5px dashed color-mix(in srgb, var(--board-ink) 45%, var(--board));
   border-radius: var(--r-sheet);
-  color: var(--ink-2);
 }
 
 .save-ticket__words {
@@ -89,22 +88,21 @@
   font-family: var(--font-display);
   font-size: 15px;
   line-height: 1.2;
-  color: var(--ink-0);
 }
 
+/* A rung down, mixed into the board rather than veiled over it (rule 5). */
 .save-ticket__note {
   font-size: var(--fs-12);
   line-height: 1.25;
-  color: var(--ink-2);
+  color: color-mix(in srgb, var(--board-ink) 72%, var(--board));
 }
 
 .save-ticket__chevron {
-  color: var(--ink-3);
+  color: color-mix(in srgb, var(--board-ink) 60%, var(--board));
 }
 
 .save-ticket:disabled {
   cursor: default;
-  opacity: 0.6;
 }
 
 .save-ticket:focus-visible {

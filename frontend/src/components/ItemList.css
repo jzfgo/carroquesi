@@ -202,57 +202,68 @@
   margin-left: 8px;
 }
 
-/* Rule 14: what is not paper is not drawn as paper. This control lives between
-   sheets, so it is lettered straight onto the board in --board-ink — no
+/* Rule 14: what is not paper is not drawn as paper. This control lives on the
+   board between sheets, so it is lettered straight onto it in --board-ink — no
    surface of its own, no fill, no shadow, no edge. The board is already a
-   surface and takes ink; what the rule protects is the sheet. */
-.item-list__label--toggle {
+   surface and takes ink; what the rule protects is the sheet.
+
+   The dashed rule above it is where the board's paper ran out, so it is mixed
+   *into* the board rather than laid over it with transparency (rule 5). */
+.item-list__more-trips {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  box-sizing: border-box;
   width: 100%;
   min-height: var(--hit-min);
-  padding-right: 16px;
-  background: none;
+  margin-top: 4px;
+  padding: 14px 16px 12px var(--side-margin);
   border: none;
+  border-top: 1px dashed color-mix(in srgb, var(--board-ink) 32%, var(--board));
+  background: none;
   color: var(--board-ink);
   cursor: pointer;
   font-family: inherit;
 }
 
-/* The count and the chevron travel together at the far end. */
-.item-list__label-meta {
+.item-list__more-trips-text {
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.item-list__more-trips-meta {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-/* Mono and tabular, because it is a figure — the same hand every count in the
-   product is set in (rule 15). */
-.item-list__label-count {
+/* Mono and tabular, because it is a figure — and it counts what you cannot
+   see, so the number is what tapping will bring. */
+.item-list__more-trips-count {
   font-family: var(--font-mono);
   font-size: var(--fs-12);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  letter-spacing: 0;
 }
 
-/* Only ever appears inside the toggle above, which is lettered on the board, so
-   the chevron takes the board's ink for the same reason the label does. */
-.item-list__chevron {
+/* Pointing down, not right: nothing here navigates. The next few trips arrive
+   underneath. */
+.item-list__more-trips-chevron {
   display: inline-block;
+  flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-right: 2px solid var(--board-ink);
   border-bottom: 2px solid var(--board-ink);
-  transform: rotate(45deg);
-  transition: transform 0.2s;
-  flex-shrink: 0;
+  transform: translateY(-2px) rotate(45deg);
 }
 
-.item-list__chevron--collapsed {
-  transform: rotate(-45deg);
+.item-list__more-trips:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .item-list__date-label {

@@ -130,72 +130,70 @@ test('purchased section hidden when no items purchased', () => {
   expect(screen.queryByText('Compras anteriores')).not.toBeInTheDocument()
 })
 
-test('purchased section shown when items purchased', () => {
-  const items = [makeItem('a', false), makeItem('b', true)]
+/** One purchased item per day, so each lands in its own trip. */
+const tripsAgo = (n: number): ListItem[] =>
+  Array.from({ length: n }, (_, i) => {
+    const at = new Date()
+    at.setDate(at.getDate() - (i + 1))
+    return {
+      ...makeItem(`t${i}`, true),
+      name: `Compra ${i}`,
+      purchased_at: at.toISOString().slice(0, 19),
+    }
+  })
+
+const renderTrips = (n: number) =>
   render(
     <ItemList
       status="success"
-      items={items}
+      items={tripsAgo(n)}
       onTogglePurchased={() => {}}
       onOpen={() => {}}
       onRetry={() => {}}
     />,
   )
-  expect(
-    screen.getByRole('button', { name: /compras anteriores/i }),
-  ).toBeInTheDocument()
+
+test('every trip is on the board while there are few enough of them', () => {
+  renderTrips(3)
+  expect(screen.getByText('Compra 0')).toBeInTheDocument()
+  expect(screen.getByText('Compra 2')).toBeInTheDocument()
+  // Nothing left to fetch, so nothing offers to.
+  expect(screen.queryByText('Compras anteriores')).not.toBeInTheDocument()
 })
 
-test('purchased section is expanded by default', () => {
-  const items = [makeItem('a', false), makeItem('b', true)]
-  render(
-    <ItemList
-      status="success"
-      items={items}
-      onTogglePurchased={() => {}}
-      onOpen={() => {}}
-      onRetry={() => {}}
-    />,
-  )
+test('past three, the rest wait below the board and are counted', () => {
+  renderTrips(7)
+  expect(screen.getByText('Compra 2')).toBeInTheDocument()
+  expect(screen.queryByText('Compra 3')).not.toBeInTheDocument()
   expect(
     screen.getByRole('button', { name: /compras anteriores/i }),
-  ).toHaveAttribute('aria-expanded', 'true')
-  expect(screen.getByText('Item b')).toBeInTheDocument()
+  ).toHaveTextContent('4')
 })
 
-test('tapping the purchased header collapses the section', () => {
-  const items = [makeItem('a', false), makeItem('b', true)]
-  render(
-    <ItemList
-      status="success"
-      items={items}
-      onTogglePurchased={() => {}}
-      onOpen={() => {}}
-      onRetry={() => {}}
-    />,
-  )
+test('tapping brings the next few onto the board, in place', () => {
+  renderTrips(7)
   fireEvent.click(screen.getByRole('button', { name: /compras anteriores/i }))
+  expect(screen.getByText('Compra 5')).toBeInTheDocument()
+  // Six of seven shown, so one is still waiting.
   expect(
     screen.getByRole('button', { name: /compras anteriores/i }),
-  ).toHaveAttribute('aria-expanded', 'false')
-  expect(screen.queryByText('Item b')).not.toBeInTheDocument()
+  ).toHaveTextContent('1')
 })
 
-test('tapping the purchased header again re-expands the section', () => {
-  const items = [makeItem('a', false), makeItem('b', true)]
-  render(
-    <ItemList
-      status="success"
-      items={items}
-      onTogglePurchased={() => {}}
-      onOpen={() => {}}
-      onRetry={() => {}}
-    />,
-  )
-  const toggle = screen.getByRole('button', { name: /compras anteriores/i })
-  fireEvent.click(toggle)
-  fireEvent.click(toggle)
-  expect(screen.getByText('Item b')).toBeInTheDocument()
+test('and goes away once there is nothing left to bring', () => {
+  renderTrips(5)
+  fireEvent.click(screen.getByRole('button', { name: /compras anteriores/i }))
+  expect(screen.getByText('Compra 4')).toBeInTheDocument()
+  expect(screen.queryByText('Compras anteriores')).not.toBeInTheDocument()
+})
+
+test('it never folds anything back — nothing here was folded', () => {
+  // Not a collapse: those trips were simply not on the board yet.
+  renderTrips(7)
+  const more = screen.getByRole('button', { name: /compras anteriores/i })
+  fireEvent.click(more)
+  expect(screen.getByText('Compra 0')).toBeInTheDocument()
+  expect(screen.getByText('Compra 5')).toBeInTheDocument()
 })
 
 // ---------------------------------------------------------------------------
