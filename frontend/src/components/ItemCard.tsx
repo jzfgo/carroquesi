@@ -1,20 +1,8 @@
-import {
-  Check,
-  Coins,
-  Hash,
-  RotateCcw,
-  ShoppingCart,
-  Store,
-  Tag,
-} from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
+import { ChevronRight, RotateCcw, ShoppingCart } from 'lucide-react'
 import { formatPrice } from '../lib/formatPrice'
 import { itemState } from '../lib/itemState'
-import type { ListItem, Member, TagField } from '../types'
+import type { ListItem } from '../types'
 import './ItemCard.css'
-
-const TAG_CONFIG: { field: TagField; icon: React.ReactNode; label: string }[] =
-  [{ field: 'brand', icon: <Tag size={13} />, label: 'marca' }]
 
 /** Nothing on screen labels the three states — the circle is the whole
  *  sentence — so the label has to carry the distinction on its own. */
@@ -26,229 +14,87 @@ const CIRCLE_LABEL = {
 
 interface Props {
   item: ListItem
-  members: Map<string, Member>
   onTogglePurchased: (itemId: string) => void
-  onTagClick: (itemId: string, field: TagField | 'stores') => void
-  onMenuOpen: (itemId: string) => void
-  onPriceClick?: (itemId: string) => void
+  /** Opens the item — where its brand, its shop, its price, who added it and
+   *  everything that can be done to it live. The row says only what it is. */
+  onOpen: (itemId: string) => void
   onClone?: (itemId: string) => void
 }
 
-export function ItemCard({
-  item,
-  members,
-  onTogglePurchased,
-  onTagClick,
-  onMenuOpen,
-  onPriceClick,
-  onClone,
-}: Props) {
+/**
+ * One line of the list. Two hit targets and no more (rule 7): the circle on the
+ * left, and the rest of the row, which opens the item.
+ *
+ * What the row does *not* carry is the point of it. No chips to fill in, no
+ * avatar, no ⋯ — inside a sheet there is only ink (rule 2), and a row offering
+ * four small controls is a form pretending to be a list. Brand, shop, price,
+ * who added it and what can be done to it all live one tap away, in the item's
+ * own sheet, where there is room to say them properly.
+ */
+export function ItemCard({ item, onTogglePurchased, onOpen, onClone }: Props) {
   // Three states, not two. The middle one is what the old boolean could not
   // say: picked up, but the trip is not over. See lib/itemState.
   const state = itemState(item)
-  const member = members.get(item.added_by)
-  const initial = member?.initial ?? '?'
-  const { user } = useAuth()
-  const isSelf = member?.id === user?.id
-  const avatarStyle = isSelf
-    ? { background: 'var(--tinta-0)', color: 'var(--accent-fg)' }
-    : { background: 'var(--paper-2)', color: 'var(--ink-1)' }
+  const settled = state === 'bought'
 
-  // For purchased items, show actual purchased qty; fall back to planned qty.
+  // For a settled line, what was actually bought; otherwise what was asked for.
   const displayQty =
-    item.purchased && item.purchased_quantity != null
+    settled && item.purchased_quantity != null
       ? item.purchased_quantity
       : item.quantity
 
   return (
-    <div
-      className={`item-card item-card--${state}${item.purchased ? ' item-card--purchased' : ''}`}
-    >
+    <div className={`item-card item-card--${state}`}>
+      {settled ? (
+        // A record has no state to toggle. The one thing left to do with it is
+        // buy it again, so that is what the leading column becomes. Un-marking
+        // a purchase is still possible, from inside the item.
+        <button
+          className="item-card__again"
+          onClick={() => onClone?.(item.id)}
+          disabled={!onClone}
+          aria-label={`Volver a comprar ${item.name}`}
+        >
+          <RotateCcw size={20} strokeWidth={2} aria-hidden />
+        </button>
+      ) : (
+        <button
+          role="checkbox"
+          // `mixed` is the honest value for the cart: picked up, not settled.
+          // A screen reader that only knows two states still hears "not
+          // unchecked", and the label says which of the two it is.
+          aria-checked={state === 'cart' ? 'mixed' : false}
+          className={`item-card__checkbox item-card__checkbox--${state}`}
+          onClick={() => onTogglePurchased(item.id)}
+          aria-label={CIRCLE_LABEL[state]}
+        >
+          {state === 'cart' && (
+            <ShoppingCart size={12} strokeWidth={2.4} aria-hidden />
+          )}
+        </button>
+      )}
+
       <button
-        role="checkbox"
-        // `mixed` is the honest value for the cart: picked up, not settled.
-        // A screen reader that only knows two states still hears "not
-        // unchecked", and the label says which of the two it is.
-        aria-checked={state === 'cart' ? 'mixed' : item.purchased}
-        className={`item-card__checkbox item-card__checkbox--${state}`}
-        onClick={() => onTogglePurchased(item.id)}
-        aria-label={CIRCLE_LABEL[state]}
+        className="item-card__open"
+        onClick={() => onOpen(item.id)}
+        aria-label={item.name}
       >
-        {state === 'cart' && <ShoppingCart size={12} strokeWidth={2.4} />}
-        {state === 'bought' && <Check size={13} strokeWidth={3} />}
+        <span className="item-card__name">{item.name}</span>
+        {settled && displayQty && (
+          <span className="item-card__sub">{displayQty}</span>
+        )}
       </button>
 
-      <div className="item-card__body">
-        <div className="item-card__name-row">
-          <span className="item-card__name">{item.name}</span>
-          {displayQty ? (
-            item.purchased ? (
-              <span className="item-card__qty">{displayQty}</span>
-            ) : (
-              <button
-                className="item-card__qty"
-                onClick={() => onTagClick(item.id, 'quantity')}
-                aria-label={displayQty}
-              >
-                {displayQty}
-              </button>
-            )
-          ) : (
-            !item.purchased && (
-              <button
-                className="item-card__tag item-card__tag--cta"
-                onClick={() => onTagClick(item.id, 'quantity')}
-                aria-label="Añadir cantidad"
-              >
-                <span aria-hidden>
-                  <Hash size={13} />
-                </span>
-              </button>
-            )
-          )}
-        </div>
+      {/* One column for the figure, whichever figure this line has. Left empty
+          when there is none — no dash and no rule, because a dash would turn
+          the column into a form asking to be filled (rule 6). */}
+      <span className="item-card__figure">
+        {settled
+          ? item.price != null && formatPrice(item.price, item.price_per)
+          : displayQty}
+      </span>
 
-        <div className="item-card__tags">
-          {TAG_CONFIG.map(({ field, icon, label }) =>
-            item[field] ? (
-              item.purchased ? (
-                <span key={field} className="item-card__tag">
-                  <span aria-hidden>{icon}</span> {item[field]}
-                </span>
-              ) : (
-                <button
-                  key={field}
-                  className="item-card__tag"
-                  onClick={() => onTagClick(item.id, field)}
-                >
-                  <span aria-hidden>{icon}</span> {item[field]}
-                </button>
-              )
-            ) : (
-              !item.purchased && (
-                <button
-                  key={field}
-                  className="item-card__tag item-card__tag--cta"
-                  onClick={() => onTagClick(item.id, field)}
-                  aria-label={`Añadir ${label}`}
-                >
-                  <span aria-hidden>
-                    <Tag size={13} />
-                  </span>
-                </button>
-              )
-            ),
-          )}
-
-          {item.stores.length > 0
-            ? item.stores.map((store) =>
-                item.purchased ? (
-                  <span key={store} className="item-card__tag">
-                    <span aria-hidden>
-                      <Store size={13} />
-                    </span>{' '}
-                    {store}
-                  </span>
-                ) : (
-                  <button
-                    key={store}
-                    className="item-card__tag"
-                    onClick={() => onTagClick(item.id, 'stores')}
-                  >
-                    <span aria-hidden>
-                      <Store size={13} />
-                    </span>{' '}
-                    {store}
-                  </button>
-                ),
-              )
-            : !item.purchased && (
-                <button
-                  className="item-card__tag item-card__tag--cta"
-                  onClick={() => onTagClick(item.id, 'stores')}
-                  aria-label="Añadir tienda"
-                >
-                  <span aria-hidden>
-                    <Store size={13} />
-                  </span>
-                </button>
-              )}
-
-          {/* Price tag — always visible; purchased items can log, unpurchased can view history */}
-          {item.price != null ? (
-            <button
-              className="item-card__tag item-card__tag--price"
-              onClick={(e) => {
-                e.stopPropagation()
-                onPriceClick?.(item.id)
-              }}
-            >
-              <span aria-hidden>
-                <Coins size={13} />
-              </span>{' '}
-              {formatPrice(item.price, item.price_per)}
-            </button>
-          ) : (
-            <button
-              className="item-card__tag item-card__tag--cta"
-              onClick={(e) => {
-                e.stopPropagation()
-                onPriceClick?.(item.id)
-              }}
-              aria-label={
-                item.purchased ? 'Registrar precio' : 'Historial de precios'
-              }
-            >
-              <span aria-hidden>
-                <Coins size={13} />
-              </span>
-            </button>
-          )}
-
-          {item.purchased && onClone && (
-            <button
-              className="item-card__tag item-card__tag--buy-again"
-              onClick={(e) => {
-                e.stopPropagation()
-                onClone(item.id)
-              }}
-            >
-              <span aria-hidden>
-                <RotateCcw size={13} />
-              </span>{' '}
-              Volver a comprar
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="item-card__right">
-        <div
-          className="item-card__avatar"
-          style={member?.photoUrl ? {} : avatarStyle}
-          aria-hidden
-        >
-          {member?.photoUrl ? (
-            <img
-              src={member.photoUrl}
-              alt={member.displayName}
-              className="item-card__avatar-img"
-            />
-          ) : (
-            initial
-          )}
-        </div>
-        <button
-          className="item-card__menu"
-          onClick={(e) => {
-            e.stopPropagation()
-            onMenuOpen(item.id)
-          }}
-          aria-label="Opciones del producto"
-        >
-          ⋯
-        </button>
-      </div>
+      <ChevronRight className="item-card__chevron" size={14} aria-hidden />
     </div>
   )
 }

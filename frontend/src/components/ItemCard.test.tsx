@@ -1,415 +1,173 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { vi } from 'vitest'
-import type { ListItem, Member } from '../types'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ListItem } from '../types'
 import { ItemCard } from './ItemCard'
 
-vi.mock('../contexts/AuthContext', () => ({
-  useAuth: vi.fn().mockReturnValue({
-    user: {
-      id: 'user-1',
-      displayName: 'Ana',
-      photoUrl: null,
-      email: 'ana@example.com',
-      features: [],
-    },
-    getToken: vi.fn(),
-    signIn: vi.fn(),
-    signOut: vi.fn(),
-    loading: false,
-  }),
-}))
-
-const MEMBERS: Map<string, Member> = new Map([
-  [
-    'user-1',
-    {
-      id: 'user-1',
-      displayName: 'Ana',
-      initial: 'A',
-      color: '#7c3aed',
-      photoUrl: null,
-    },
-  ],
-])
-
-const BASE_ITEM: ListItem = {
+const makeItem = (overrides: Partial<ListItem> = {}): ListItem => ({
   id: 'i1',
   list_id: 'l1',
-  name: 'Leche Entera',
-  quantity: '2 unidades',
-  brand: 'Hacendado',
-  stores: ['Mercadona'],
+  name: 'Leche entera',
+  quantity: null,
+  purchased_quantity: null,
+  brand: null,
+  stores: [],
   purchased: false,
   purchased_at: null,
   ean: null,
   price: null,
   price_per: null,
   price_store: null,
-  added_by: 'user-1',
+  added_by: 'u1',
   created_at: '',
   updated_at: '',
+  ...overrides,
+})
+
+const TODAY = new Date().toISOString().slice(0, 19)
+const EARLIER = (() => {
+  const d = new Date()
+  d.setDate(d.getDate() - 3)
+  return d.toISOString().slice(0, 19)
+})()
+
+const renderCard = (overrides: Partial<ListItem> = {}) => {
+  const onTogglePurchased = vi.fn()
+  const onOpen = vi.fn()
+  const onClone = vi.fn()
+  const result = render(
+    <ItemCard
+      item={makeItem(overrides)}
+      onTogglePurchased={onTogglePurchased}
+      onOpen={onOpen}
+      onClone={onClone}
+    />,
+  )
+  return { ...result, onTogglePurchased, onOpen, onClone }
 }
 
-test('renders item name', () => {
-  render(
-    <ItemCard
-      item={BASE_ITEM}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  expect(screen.getByText('Leche Entera')).toBeInTheDocument()
+describe('the row says what the line is, and nothing else', () => {
+  it('shows the name', () => {
+    renderCard()
+    expect(screen.getByText('Leche entera')).toBeInTheDocument()
+  })
+
+  it('has exactly two targets: the mark, and the rest of the row (rule 7)', () => {
+    const { container } = renderCard({ quantity: '2', brand: 'Hacendado' })
+    expect(container.querySelectorAll('button')).toHaveLength(2)
+  })
+
+  it('carries no chips to fill in — inside a sheet there is only ink (rule 2)', () => {
+    const { container } = renderCard({ brand: 'Hacendado', stores: ['Dia'] })
+    expect(container.querySelector('.item-card__tag')).toBeNull()
+    expect(container.querySelector('.item-card__avatar')).toBeNull()
+    expect(container.querySelector('.item-card__menu')).toBeNull()
+  })
+
+  it('opens the item when the line is tapped', () => {
+    const { onOpen } = renderCard()
+    fireEvent.click(screen.getByRole('button', { name: 'Leche entera' }))
+    expect(onOpen).toHaveBeenCalledWith('i1')
+  })
 })
 
-test('renders quantity badge', () => {
-  render(
-    <ItemCard
-      item={BASE_ITEM}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  expect(screen.getByText('2 unidades')).toBeInTheDocument()
+describe('the three states', () => {
+  it('still on the list: an empty ring that puts it in the cart', () => {
+    const { onTogglePurchased } = renderCard()
+    const circle = screen.getByRole('checkbox', { name: 'Poner en el carro' })
+    expect(circle).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(circle)
+    expect(onTogglePurchased).toHaveBeenCalledWith('i1')
+  })
+
+  it('in the cart: neither done nor untouched', () => {
+    renderCard({ purchased: true, purchased_at: TODAY })
+    expect(
+      screen.getByRole('checkbox', { name: 'Sacar del carro' }),
+    ).toHaveAttribute('aria-checked', 'mixed')
+  })
+
+  it('settled: no circle at all, because a record has no state to toggle', () => {
+    const { container } = renderCard({ purchased: true, purchased_at: EARLIER })
+    expect(container.querySelector('.item-card__checkbox')).toBeNull()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  it('settled: the leading column offers the one thing left — buy it again', () => {
+    const { onClone } = renderCard({ purchased: true, purchased_at: EARLIER })
+    fireEvent.click(
+      screen.getByRole('button', { name: /volver a comprar leche entera/i }),
+    )
+    expect(onClone).toHaveBeenCalledWith('i1')
+  })
+
+  it('settled with no way to re-add it, the disc is inert rather than absent', () => {
+    render(
+      <ItemCard
+        item={makeItem({ purchased: true, purchased_at: EARLIER })}
+        onTogglePurchased={vi.fn()}
+        onOpen={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByRole('button', { name: /volver a comprar/i }),
+    ).toBeDisabled()
+  })
 })
 
-test('renders brand and store tags', () => {
-  render(
-    <ItemCard
-      item={BASE_ITEM}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  expect(screen.getByText(/Hacendado/)).toBeInTheDocument()
-  expect(screen.getByText(/Mercadona/)).toBeInTheDocument()
+describe('the figure column', () => {
+  it('holds the quantity while the line is still an instruction', () => {
+    const { container } = renderCard({ quantity: '2 ud' })
+    expect(container.querySelector('.item-card__figure')).toHaveTextContent(
+      '2 ud',
+    )
+  })
+
+  it('holds the amount once the line is a record', () => {
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: EARLIER,
+      price: 1.35,
+    })
+    expect(container.querySelector('.item-card__figure')?.textContent).toMatch(
+      /1[,.]35/,
+    )
+  })
+
+  it('is left empty when there is neither — a dash would make it a form', () => {
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: EARLIER,
+      price: null,
+    })
+    expect(container.querySelector('.item-card__figure')).toHaveTextContent('')
+  })
+
+  it('a settled line prints what was actually bought, under what it was', () => {
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: EARLIER,
+      quantity: '2 ud',
+      purchased_quantity: '3 ud',
+    })
+    expect(container.querySelector('.item-card__sub')).toHaveTextContent('3 ud')
+  })
 })
 
-test('shows CTA tags for null fields', () => {
-  const item = { ...BASE_ITEM, brand: null, stores: [] }
-  render(
-    <ItemCard
-      item={item}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  expect(
-    screen.getByRole('button', { name: /añadir marca/i }),
-  ).toBeInTheDocument()
-  expect(
-    screen.getByRole('button', { name: /añadir tienda/i }),
-  ).toBeInTheDocument()
-})
+describe('the day boundary', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
 
-test('tag row is always present because CTAs are shown for null fields', () => {
-  const item = { ...BASE_ITEM, brand: null, stores: [] }
-  const { container } = render(
-    <ItemCard
-      item={item}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  // CTA tags ARE shown for null fields — tag row is only hidden if we choose not to show CTAs
-  // Per spec: CTA tags shown for missing fields, row omitted only when all null AND no CTAs desired
-  // In our design: CTAs always shown for missing fields, so row is always present
-  expect(container.querySelector('.item-card__tags')).toBeInTheDocument()
-})
+  it('a line marked before midnight has become a record by morning', () => {
+    const now = new Date()
+    now.setHours(9, 0, 0, 0)
+    vi.setSystemTime(now)
+    const lastNight = new Date(now)
+    lastNight.setHours(-2, 0, 0, 0)
 
-test('purchased state applies strikethrough class', () => {
-  const item = { ...BASE_ITEM, purchased: true }
-  const { container } = render(
-    <ItemCard
-      item={item}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  expect(container.querySelector('.item-card--purchased')).toBeInTheDocument()
-})
-
-test('tapping checkbox calls onTogglePurchased', () => {
-  const handler = vi.fn()
-  render(
-    <ItemCard
-      item={BASE_ITEM}
-      members={MEMBERS}
-      onTogglePurchased={handler}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  fireEvent.click(screen.getByRole('checkbox'))
-  expect(handler).toHaveBeenCalledWith('i1')
-})
-
-test('tapping a CTA tag calls onTagClick with item id and field', () => {
-  const handler = vi.fn()
-  const item = { ...BASE_ITEM, brand: null }
-  render(
-    <ItemCard
-      item={item}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={handler}
-      onMenuOpen={() => {}}
-    />,
-  )
-  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }))
-  expect(handler).toHaveBeenCalledWith('i1', 'brand')
-})
-
-test('tapping a filled tag button calls onTagClick with item id and field', () => {
-  const handler = vi.fn()
-  render(
-    <ItemCard
-      item={BASE_ITEM}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={handler}
-      onMenuOpen={() => {}}
-    />,
-  )
-  // BASE_ITEM has brand: 'Hacendado'
-  fireEvent.click(screen.getByText(/Hacendado/))
-  expect(handler).toHaveBeenCalledWith('i1', 'brand')
-})
-
-test('quantity is a button that calls onTagClick with quantity field', () => {
-  const handler = vi.fn()
-  render(
-    <ItemCard
-      item={BASE_ITEM}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={handler}
-      onMenuOpen={() => {}}
-    />,
-  )
-  fireEvent.click(screen.getByRole('button', { name: /2 unidades/i }))
-  expect(handler).toHaveBeenCalledWith('i1', 'quantity')
-})
-
-test('shows Add quantity CTA button when quantity is null', () => {
-  const handler = vi.fn()
-  const item = { ...BASE_ITEM, quantity: null }
-  render(
-    <ItemCard
-      item={item}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={handler}
-      onMenuOpen={() => {}}
-    />,
-  )
-  const btn = screen.getByRole('button', { name: /añadir cantidad/i })
-  expect(btn).toBeInTheDocument()
-  fireEvent.click(btn)
-  expect(handler).toHaveBeenCalledWith('i1', 'quantity')
-})
-
-test('shows member initial in avatar when no photo', () => {
-  render(
-    <ItemCard
-      item={BASE_ITEM}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  expect(screen.getByText('A')).toBeInTheDocument()
-})
-
-test('shows member photo in avatar when photoUrl is set', () => {
-  const membersWithPhoto = new Map([
-    [
-      'user-1',
-      {
-        id: 'user-1',
-        displayName: 'Ana',
-        initial: 'A',
-        color: '#7c3aed',
-        photoUrl: 'https://example.com/ana.jpg',
-      },
-    ],
-  ])
-  render(
-    <ItemCard
-      item={BASE_ITEM}
-      members={membersWithPhoto}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  const img = screen.getByAltText('Ana')
-  expect(img).toHaveAttribute('src', 'https://example.com/ana.jpg')
-})
-
-test('⋯ button calls onMenuOpen with item id', () => {
-  const handler = vi.fn()
-  render(
-    <ItemCard
-      item={BASE_ITEM}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={handler}
-    />,
-  )
-  fireEvent.click(
-    screen.getByRole('button', { name: /opciones del producto/i }),
-  )
-  expect(handler).toHaveBeenCalledWith('i1')
-})
-
-test('shows ? avatar for unknown member', () => {
-  const item = { ...BASE_ITEM, added_by: 'unknown-uuid' }
-  render(
-    <ItemCard
-      item={item}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  expect(screen.getByText('?')).toBeInTheDocument()
-})
-
-test('renders multiple store chips when item has multiple stores', () => {
-  const item = { ...BASE_ITEM, stores: ['Mercadona', 'Carrefour'] }
-  render(
-    <ItemCard
-      item={item}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  expect(screen.getByText(/Mercadona/)).toBeInTheDocument()
-  expect(screen.getByText(/Carrefour/)).toBeInTheDocument()
-})
-
-test('tapping a store chip calls onTagClick with stores field', () => {
-  const handler = vi.fn()
-  const item = { ...BASE_ITEM, stores: ['Mercadona'] }
-  render(
-    <ItemCard
-      item={item}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={handler}
-      onMenuOpen={() => {}}
-    />,
-  )
-  fireEvent.click(screen.getByText(/Mercadona/))
-  expect(handler).toHaveBeenCalledWith('i1', 'stores')
-})
-
-test('renders "Volver a comprar" tag button when item is purchased and onClone is provided', () => {
-  const onClone = vi.fn()
-  const item = { ...BASE_ITEM, purchased: true }
-  render(
-    <ItemCard
-      item={item}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onClone={onClone}
-    />,
-  )
-  expect(
-    screen.getByRole('button', { name: /volver a comprar/i }),
-  ).toBeInTheDocument()
-})
-
-test('clicking "Volver a comprar" calls onClone with item id', () => {
-  const onClone = vi.fn()
-  const item = { ...BASE_ITEM, purchased: true }
-  render(
-    <ItemCard
-      item={item}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onClone={onClone}
-    />,
-  )
-  fireEvent.click(screen.getByRole('button', { name: /volver a comprar/i }))
-  expect(onClone).toHaveBeenCalledWith('i1')
-})
-
-test('does not render "Volver a comprar" when item is not purchased', () => {
-  const onClone = vi.fn()
-  render(
-    <ItemCard
-      item={BASE_ITEM}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onClone={onClone}
-    />,
-  )
-  expect(
-    screen.queryByRole('button', { name: /volver a comprar/i }),
-  ).not.toBeInTheDocument()
-})
-
-test('shows purchased_quantity chip instead of quantity when purchased', () => {
-  const item = {
-    ...BASE_ITEM,
-    purchased: true,
-    purchased_at: '2026-05-31T10:00:00',
-    quantity: '2',
-    purchased_quantity: '487g',
-  }
-  render(
-    <ItemCard
-      item={item}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  expect(screen.getByText('487g')).toBeInTheDocument()
-  expect(screen.queryByText('2')).not.toBeInTheDocument()
-})
-
-test('shows planned quantity as fallback when purchased but no purchased_quantity', () => {
-  const item = {
-    ...BASE_ITEM,
-    purchased: true,
-    purchased_at: '2026-05-31T10:00:00',
-    quantity: '3',
-    purchased_quantity: null,
-  }
-  render(
-    <ItemCard
-      item={item}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-    />,
-  )
-  expect(screen.getByText('3')).toBeInTheDocument()
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: lastNight.toISOString().slice(0, 19),
+    })
+    expect(container.querySelector('.item-card__again')).not.toBeNull()
+  })
 })

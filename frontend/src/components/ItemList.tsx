@@ -3,7 +3,7 @@ import { formatPrice } from '../lib/formatPrice'
 import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
 import { itemState } from '../lib/itemState'
-import type { ListItem, Member, TagField } from '../types'
+import type { ListItem } from '../types'
 import { CartRubric } from './CartRubric'
 import { ItemCard } from './ItemCard'
 import './ItemList.css'
@@ -15,12 +15,10 @@ type Status = 'loading' | 'error' | 'success'
 interface Props {
   status: Status
   items: ListItem[]
-  members: Map<string, Member>
   onTogglePurchased: (itemId: string) => void
-  onTagClick: (itemId: string, field: TagField | 'stores') => void
-  onMenuOpen: (itemId: string) => void
+  /** A row opens the item; the item sheet carries everything the row does not. */
+  onOpen: (itemId: string) => void
   onRetry: () => void
-  onPriceClick: (itemId: string) => void
   onClone?: (itemId: string) => void
   pendingCost?: CostSummary | null
   purchasedCostByDate?: Map<string, CostSummary | null>
@@ -46,12 +44,9 @@ function CostBadge({
 export function ItemList({
   status,
   items,
-  members,
   onTogglePurchased,
-  onTagClick,
-  onMenuOpen,
+  onOpen,
   onRetry,
-  onPriceClick,
   onClone,
   pendingCost,
   purchasedCostByDate,
@@ -193,11 +188,8 @@ export function ItemList({
               <ItemCard
                 key={item.id}
                 item={item}
-                members={members}
                 onTogglePurchased={onTogglePurchased}
-                onTagClick={onTagClick}
-                onMenuOpen={onMenuOpen}
-                onPriceClick={onPriceClick}
+                onOpen={onOpen}
                 onClone={onClone}
               />
             ))}
@@ -216,11 +208,8 @@ export function ItemList({
               <ItemCard
                 key={item.id}
                 item={item}
-                members={members}
                 onTogglePurchased={onTogglePurchased}
-                onTagClick={onTagClick}
-                onMenuOpen={onMenuOpen}
-                onPriceClick={onPriceClick}
+                onOpen={onOpen}
                 onClone={onClone}
               />
             ))}
@@ -270,11 +259,8 @@ export function ItemList({
                   <ItemCard
                     key={item.id}
                     item={item}
-                    members={members}
                     onTogglePurchased={onTogglePurchased}
-                    onTagClick={onTagClick}
-                    onMenuOpen={onMenuOpen}
-                    onPriceClick={onPriceClick}
+                    onOpen={onOpen}
                     onClone={onClone}
                   />
                 ))}

@@ -127,3 +127,61 @@
   color: var(--ink-2);
   cursor: pointer;
 }
+
+/* Who put this line on the list. It was an avatar in every row; one sentence
+   here says it better and costs the list nothing. */
+.item-action-sheet__added-by {
+  margin: -4px 0 12px;
+  font-size: var(--fs-13);
+  color: var(--ink-2);
+}
+
+/* What the row used to offer as dashed chips: brand, shop, price. Given room,
+   each one can say what it currently is instead of only inviting a tap. */
+.item-action-sheet__details {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+
+.item-action-sheet__detail {
+  display: grid;
+  grid-template-columns: 16px auto 1fr;
+  gap: 12px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--hit-tap);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-1);
+  font-family: inherit;
+  font-size: var(--fs-15);
+  text-align: left;
+  cursor: pointer;
+}
+
+.item-action-sheet__detail-label {
+  color: var(--ink-2);
+}
+
+.item-action-sheet__detail-value {
+  overflow: hidden;
+  color: var(--ink-0);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Rule 6: an empty slot is not a control. It is said in words — "sin marca" —
+   rather than drawn as a hole, because the row it sits in is already the
+   affordance and a second one would be a hole inside a button. */
+.item-action-sheet__detail-value--empty {
+  color: var(--ink-3);
+}
+
+.item-action-sheet__detail-value--mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
