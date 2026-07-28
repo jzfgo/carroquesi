@@ -196,6 +196,25 @@ test('it never folds anything back — nothing here was folded', () => {
   expect(screen.getByText('Compra 5')).toBeInTheDocument()
 })
 
+test('the footer is the last thing on the board, not inside the list sheet', () => {
+  // The bug: it rendered between the shop groups and the die-cut, which put a
+  // way of recording a finished shop in the middle of the one you are doing.
+  const { container } = render(
+    <ItemList
+      status="success"
+      items={[makeItem('a'), ...tripsAgo(1)]}
+      onTogglePurchased={() => {}}
+      onOpen={() => {}}
+      onRetry={() => {}}
+      footer={<button>Guardar un ticket</button>}
+    />,
+  )
+  const board = container.querySelector('.item-list')!
+  const footer = screen.getByRole('button', { name: 'Guardar un ticket' })
+  expect(board.lastElementChild).toBe(footer)
+  expect(footer.closest('.item-list__sheet')).toBeNull()
+})
+
 // ---------------------------------------------------------------------------
 // Cost badge — pending section
 // ---------------------------------------------------------------------------

@@ -208,7 +208,6 @@ export function ItemList({
             ))}
           </div>
         ))}
-        {footer}
 
         {/* The stub only exists when there is something to tear off (28c.5):
             with an empty cart there is no cut, no stamp and no printed
@@ -295,6 +294,12 @@ export function ItemList({
           )}
         </>
       )}
+
+      {/* Last thing on the board, under everything it could ever produce. It
+          used to sit inside the list sheet, between the shops and the cart —
+          which put a way of *recording* a shop in the middle of the shop you
+          are still doing. */}
+      {footer}
     </div>
   )
 }
