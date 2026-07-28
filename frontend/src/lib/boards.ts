@@ -48,44 +48,93 @@ function storageKey(userId: string, listId: string): string {
   return `${KEY}_${userId}_${listId}`
 }
 
-/** Assigned on first entry rather than left to a default, and assigned by
- *  *rotating* the six rather than picking at random: two of your lists must not
- *  open the same colour, or the board is not doing the one job it has. The
- *  rotation is keyed on how many boards you have already been given, so it is
- *  deterministic and stable — the same list keeps the same board. */
-function assignBoard(userId: string, listId: string): Board {
-  let taken = 0
+/** The stored board for one list, or null when this list has never been given
+ *  one. A corrupt or unknown value reads as null, so it is reassigned rather
+ *  than honoured. */
+function readBoard(userId: string, listId: string): Board | null {
+  try {
+    const raw = localStorage.getItem(storageKey(userId, listId))
+    return isBoard(raw) ? raw : null
+  } catch {
+    return null
+  }
+}
+
+/** Which boards this person's *other* lists are already sitting on, and how
+ *  many assignments they have been given in all. The list being asked about is
+ *  excluded so that a corrupt value does not count itself. */
+function survey(
+  userId: string,
+  exceptListId: string,
+): { used: Set<Board>; count: number } {
+  const used = new Set<Board>()
+  let count = 0
   try {
     const prefix = `${KEY}_${userId}_`
+    const except = storageKey(userId, exceptListId)
     for (let i = 0; i < localStorage.length; i += 1) {
       const key = localStorage.key(i)
-      if (key?.startsWith(prefix)) taken += 1
+      if (!key?.startsWith(prefix) || key === except) continue
+      count += 1
+      const value = localStorage.getItem(key)
+      if (isBoard(value)) used.add(value)
     }
   } catch {
     // Unreadable storage means everyone gets kraft, which is the board this
     // product had before there were six. Nothing breaks; it is just duller.
   }
-  const board = BOARDS[taken % BOARDS.length]
-  setBoard(userId, listId, board)
-  return board
+  return { used, count }
 }
 
+/** Assigned on first entry rather than left to a default: two of your lists
+ *  must not open the same colour, or the board is not doing the one job it has.
+ *  So the choice is the first colour none of your other lists is using, which
+ *  past six has to start repeating — there are only six.
+ *
+ *  Picking the first *free* colour rather than rotating on a count matters for
+ *  more than deletions. localStorage has no compare-and-set, so two tabs opening
+ *  two never-seen lists at the same instant can both read the same survey and
+ *  both write the same board. That window cannot be closed here. What it can be
+ *  stopped from doing is *propagating*: a count-based rotation would leave the
+ *  skipped colour orphaned for good, while a free-colour search simply hands the
+ *  next list the colour the collision missed. */
+function pickBoard(userId: string, listId: string): Board {
+  const { used, count } = survey(userId, listId)
+  return (
+    BOARDS.find((board) => !used.has(board)) ?? BOARDS[count % BOARDS.length]
+  )
+}
+
+/** Pure, and deliberately so: this is `useBoard`'s `getSnapshot`, and
+ *  `useSyncExternalStore` may call it speculatively, twice per commit, or from
+ *  a render that is later thrown away. It must not write and must not notify.
+ *  The board an unassigned list is *going* to get is computed the same way
+ *  `ensureBoard` will compute it, so the first paint already shows the colour
+ *  the effect is about to persist and nothing flickers. */
 export function getBoard(userId: string, listId: string): Board {
-  try {
-    const raw = localStorage.getItem(storageKey(userId, listId))
-    if (isBoard(raw)) return raw
-  } catch {
-    return BOARDS[0]
-  }
-  return assignBoard(userId, listId)
+  return readBoard(userId, listId) ?? pickBoard(userId, listId)
 }
 
-export function setBoard(userId: string, listId: string, board: Board): void {
+/** Writes the assignment down. Call this on entering a list — from an effect,
+ *  never from render. Idempotent, so StrictMode's double-invoke is harmless. */
+export function ensureBoard(userId: string, listId: string): void {
+  if (readBoard(userId, listId) !== null) return
+  writeBoard(userId, listId, pickBoard(userId, listId))
+  // Another list with no board of its own may have been computing the very
+  // colour just claimed, so let the screens recompute.
+  emit()
+}
+
+function writeBoard(userId: string, listId: string, board: Board): void {
   try {
     localStorage.setItem(storageKey(userId, listId), board)
   } catch {
     // ignore quota/security errors — the session still honours the choice.
   }
+}
+
+export function setBoard(userId: string, listId: string, board: Board): void {
+  writeBoard(userId, listId, board)
   emit()
 }
 

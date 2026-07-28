@@ -144,8 +144,16 @@ export function setThemePreference(preference: ThemePreference): void {
 }
 
 /** Test seam: drops the cached snapshots so a suite can start from a clean
- *  localStorage without leaking the previous test's choice. */
+ *  localStorage without leaking the previous test's choice.
+ *
+ *  `watchingSystem` has to be cleared too, and it is the one that bites: it
+ *  guards a listener attached for the lifetime of the page, so once any test
+ *  has subscribed, `watchSystem` early-returns for the rest of the file. A
+ *  later test that installs a fresh `matchMedia` mock would then never be
+ *  registered against it — and a test asserting the OS flip is picked up would
+ *  pass while listening to nothing. */
 export function resetThemeForTests(): void {
   preferenceCache = null
   resolvedCache = null
+  watchingSystem = false
 }
