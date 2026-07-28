@@ -1,5 +1,5 @@
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy.exc import IntegrityError, SAWarning
@@ -438,3 +438,160 @@ def test_reattaching_after_emptying_a_trip_does_not_reuse_the_deleted_one(
     assert new_trip.id != old_trip_id
     assert item.purchase_id == new_trip.id
     assert session.get(Purchase, old_trip_id) is None
+
+
+def _cart(
+    session: Session, lst: List, user: User, names: list[str], at: datetime
+) -> list[ListItem]:
+    made = []
+    for offset, name in enumerate(names):
+        item = ListItem(
+            list_id=lst.id,
+            name=name,
+            added_by=user.id,
+            purchased_at=at + timedelta(minutes=offset),
+        )
+        session.add(item)
+        session.commit()
+        trips.attach(session, item, item.purchased_at)
+        made.append(item)
+    session.commit()
+    return made
+
+
+def test_closing_the_whole_cart_closes_the_trip_in_place(session: Session, lst: List, user: User):
+    at = datetime(2026, 7, 28, 18, 0)
+    items = _cart(session, lst, user, ["Leche", "Pan"], at)
+    before = items[0].purchase_id
+
+    closed = trips.close(session, lst.id, None, "Lidl", 14.60, datetime(2026, 7, 28, 20, 0))
+    session.commit()
+
+    assert closed.id == before
+    assert closed.closed_at == datetime(2026, 7, 28, 20, 0)
+    assert closed.store == "Lidl"
+    assert closed.total == 14.60
+
+
+def test_closing_a_subset_splits_the_cart(session: Session, lst: List, user: User):
+    # The evening this entity exists for: two people, two shops, one open trip
+    # until somebody says what the shop was.
+    at = datetime(2026, 7, 28, 18, 0)
+    items = _cart(session, lst, user, ["Leche", "Pan", "Aceite", "Arroz"], at)
+    original = items[0].purchase_id
+
+    lidl = trips.close(
+        session, lst.id, [items[0].id, items[1].id], "Lidl", 14.60, datetime(2026, 7, 28, 20, 0)
+    )
+    session.commit()
+
+    assert lidl.id != original
+    assert lidl.store == "Lidl"
+    assert items[0].purchase_id == lidl.id
+    assert items[1].purchase_id == lidl.id
+    # The rest are still in the cart, still open.
+    assert items[2].purchase_id == original
+    assert items[3].purchase_id == original
+    assert trips.open_trip(session, lst.id, datetime(2026, 7, 28, 20, 1)).id == original
+
+
+def test_a_split_trip_starts_when_its_own_shopping_did(session: Session, lst: List, user: User):
+    at = datetime(2026, 7, 28, 18, 0)
+    items = _cart(session, lst, user, ["Leche", "Pan", "Aceite"], at)
+
+    lidl = trips.close(
+        session, lst.id, [items[1].id, items[2].id], "Lidl", 9.0, datetime(2026, 7, 28, 20, 0)
+    )
+    session.commit()
+
+    assert lidl.opened_at == items[1].purchased_at
+
+
+def test_closing_then_tapping_opens_a_new_trip(session: Session, lst: List, user: User):
+    at = datetime(2026, 7, 28, 18, 0)
+    items = _cart(session, lst, user, ["Leche"], at)
+    closed = trips.close(session, lst.id, None, "Lidl", 5.0, datetime(2026, 7, 28, 20, 0))
+    session.commit()
+
+    later = trips.trip_for(session, lst.id, datetime(2026, 7, 28, 20, 30))
+    assert later.id != closed.id
+    assert items[0].purchase_id == closed.id
+
+
+def test_closing_with_nothing_in_the_cart_is_refused(session: Session, lst: List):
+    with pytest.raises(trips.NothingToClose):
+        trips.close(session, lst.id, None, "Lidl", 5.0, datetime(2026, 7, 28, 20, 0))
+
+
+def test_closing_with_an_item_from_another_trip_is_refused(session: Session, lst: List, user: User):
+    at = datetime(2026, 7, 28, 18, 0)
+    items = _cart(session, lst, user, ["Leche"], at)
+    stranger = ListItem(list_id=lst.id, name="Ajeno", added_by=user.id)
+    session.add(stranger)
+    session.commit()
+
+    with pytest.raises(trips.NotInTheCart):
+        trips.close(
+            session, lst.id, [items[0].id, stranger.id], "Lidl", 5.0, datetime(2026, 7, 28, 20, 0)
+        )
+
+
+def test_the_full_two_shop_evening_end_to_end(session: Session, lst: List, user: User):
+    # Both halves of the evening this entity exists for: Lidl reconciled first,
+    # then the remainder of the cart reconciled as Mercadona. Two closed
+    # trips, right stores, right items, nothing left open.
+    at = datetime(2026, 7, 28, 18, 0)
+    items = _cart(session, lst, user, ["Leche", "Pan", "Aceite", "Arroz"], at)
+
+    lidl = trips.close(
+        session, lst.id, [items[0].id, items[1].id], "Lidl", 14.60, datetime(2026, 7, 28, 20, 0)
+    )
+    session.commit()
+
+    mercadona = trips.close(session, lst.id, None, "Mercadona", 8.30, datetime(2026, 7, 28, 20, 5))
+    session.commit()
+
+    assert lidl.id != mercadona.id
+    assert lidl.store == "Lidl"
+    assert mercadona.store == "Mercadona"
+    assert lidl.closed_at == datetime(2026, 7, 28, 20, 0)
+    assert mercadona.closed_at == datetime(2026, 7, 28, 20, 5)
+    assert items[0].purchase_id == lidl.id
+    assert items[1].purchase_id == lidl.id
+    assert items[2].purchase_id == mercadona.id
+    assert items[3].purchase_id == mercadona.id
+    assert trips.open_trip(session, lst.id, datetime(2026, 7, 28, 20, 10)) is None
+
+
+def test_closing_with_an_unknown_item_id_is_refused(session: Session, lst: List, user: User):
+    # An id that doesn't exist in the cart at all -- not even on another trip
+    # -- must be refused just as loudly as one that belongs elsewhere.
+    at = datetime(2026, 7, 28, 18, 0)
+    items = _cart(session, lst, user, ["Leche"], at)
+
+    with pytest.raises(trips.NotInTheCart):
+        trips.close(
+            session,
+            lst.id,
+            [items[0].id, "does-not-exist"],
+            "Lidl",
+            5.0,
+            datetime(2026, 7, 28, 20, 0),
+        )
+
+
+def test_split_trip_coexists_with_the_still_open_one(session: Session, lst: List, user: User):
+    # The split shares tears_off_at with the still-open trip; only closed_at
+    # being set keeps both rows outside uq_purchases_open_per_list at once.
+    at = datetime(2026, 7, 28, 18, 0)
+    items = _cart(session, lst, user, ["Leche", "Pan"], at)
+    original_id = items[0].purchase_id
+
+    lidl = trips.close(session, lst.id, [items[0].id], "Lidl", 5.0, datetime(2026, 7, 28, 20, 0))
+    session.commit()
+
+    original = session.get(Purchase, original_id)
+    assert original is not None
+    assert original.closed_at is None
+    assert lidl.closed_at is not None
+    assert original.tears_off_at == lidl.tears_off_at

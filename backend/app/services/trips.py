@@ -184,3 +184,71 @@ def detach(session: Session, item: ListItem) -> None:
     remaining = session.exec(select(ListItem).where(ListItem.purchase_id == trip_id)).first()
     if remaining is None:
         session.delete(trip)
+
+
+class NothingToClose(Exception):
+    """No open trip, or an empty cart. Closing nothing is not a thing that happened."""
+
+
+class NotInTheCart(Exception):
+    """A named item is not in the trip being closed."""
+
+
+def close(
+    session: Session,
+    list_id: str,
+    item_ids: list[str] | None,
+    store: str | None,
+    total: float | None,
+    now: datetime | None = None,
+) -> Purchase:
+    """Declare what a shop was.
+
+    This is the act that creates a ticket. Tapping only puts things in the
+    cart; reconciling — here, or by scanning a receipt — is what says "these
+    lines, that shop, this total". Because it takes a *subset*, two people who
+    shopped at two shops on one evening each get their own ticket.
+    """
+    now = now or _now()
+    trip = open_trip(session, list_id, now)
+    if trip is None:
+        raise NothingToClose()
+
+    cart = list(session.exec(select(ListItem).where(ListItem.purchase_id == trip.id)).all())
+    if not cart:
+        raise NothingToClose()
+
+    if item_ids is None:
+        selection = cart
+    else:
+        wanted = set(item_ids)
+        selection = [item for item in cart if item.id in wanted]
+        if len(selection) != len(wanted):
+            raise NotInTheCart()
+    if not selection:
+        raise NothingToClose()
+
+    if len(selection) == len(cart):
+        trip.closed_at = now
+        trip.store = store
+        trip.total = total
+        session.add(trip)
+        return trip
+
+    opened_at = min(
+        (item.purchased_at for item in selection if item.purchased_at), default=trip.opened_at
+    )
+    split = Purchase(
+        list_id=list_id,
+        opened_at=opened_at,
+        tears_off_at=trip.tears_off_at,
+        closed_at=now,
+        store=store,
+        total=total,
+    )
+    session.add(split)
+    session.flush()
+    for item in selection:
+        item.purchase_id = split.id
+        session.add(item)
+    return split
