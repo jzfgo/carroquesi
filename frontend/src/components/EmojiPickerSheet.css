@@ -1,7 +1,7 @@
 .emoji-picker-sheet__overlay {
   position: fixed;
   inset: 0;
-  background: rgb(0 0 0 / 40%);
+  background: var(--scrim);
   z-index: 100;
 }
 
@@ -10,7 +10,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--paper-0);
+  background: var(--paper-lift);
   border-radius: 1rem 1rem 0 0;
   padding: 0.5rem 1.25rem 2rem;
   z-index: 101;

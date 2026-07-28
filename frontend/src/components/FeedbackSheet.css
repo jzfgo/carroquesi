@@ -15,7 +15,7 @@
   flex-direction: column;
   gap: 14px;
   padding: 0 16px 28px;
-  background: var(--paper-0);
+  background: var(--paper-lift);
   border-top: 1px solid var(--border);
 }
 

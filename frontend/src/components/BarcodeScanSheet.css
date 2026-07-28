@@ -1,7 +1,7 @@
 .bss__overlay {
   position: fixed;
   inset: 0;
-  background: rgb(0 0 0 / 40%);
+  background: var(--scrim);
   z-index: 200;
 }
 
