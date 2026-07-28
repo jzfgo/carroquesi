@@ -71,6 +71,8 @@ chore: bump vite to 6.x
 
 Types `feat` and `fix` appear in the changelog. Types `chore`, `docs`, `test`, and `ci` are excluded.
 
+`CHANGELOG.md` is generated on `main` at release time, not on your branch — leave it alone in a PR. Because PRs are squash-merged, entries generated before the squash describe commits that will not exist afterwards, and regenerating from the collapsed history deletes entries already shipped. The release PR is the one exception: it is based on `main` and adds no `feat`/`fix` commits of its own, so it sees the same history `main` will.
+
 ### Before opening a PR
 
 Run the full check:
@@ -82,8 +84,8 @@ just ci   # frontend typecheck + lint + backend tests
 Make sure:
 
 - [ ] Lint and tests pass
-- [ ] `CHANGELOG.md` updated — run `just changelog` and commit the result
 - [ ] Only intentional files are changed (no `pnpm-lock.yaml` platform churn)
+- [ ] `CHANGELOG.md` untouched (release PRs excepted)
 
 ### Architecture Decision Records
 

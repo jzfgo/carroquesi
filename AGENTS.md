@@ -167,7 +167,7 @@ The following constraints are enforced by Claude Code hooks (`.claude/hooks/`), 
 - **Worktree lifecycle belongs to worktrunk** — creating or removing a worktree any other way skips this project's `wt` hooks (direnv, deps, migrate, seed) and produces a worktree with no `.env`, no `node_modules`, and an unmigrated DB. So `EnterWorktree` without a `path`, `ExitWorktree` with `action: "remove"`, and `git worktree add|remove|prune|move` are all denied. **Navigation is not** — `EnterWorktree({path})` into an existing worktree and `ExitWorktree({action: "keep"})` are allowed, since they touch no git state. The flow is `wt switch --create <branch> --no-cd --format=json`, then `EnterWorktree` with the `path` it reports.
 - **Auto-lint on stop** — after each turn, changed Python files are checked with `ruff` and changed TypeScript files with `eslint`. If either fails, Claude Code continues the turn to fix the issue before stopping.
 
-Lefthook pre-commit hooks run on staged files: `ruff check --fix` + `ruff format` (Python), `eslint --fix` (TypeScript/TSX), `stylelint --fix` (CSS), a platform-narrowing guard on `pnpm-lock.yaml`, and `gitleaks` secret scanning (skipped gracefully if not installed). The `pre-push` hook checks that `CHANGELOG.md` is current.
+Lefthook pre-commit hooks run on staged files: `ruff check --fix` + `ruff format` (Python), `eslint --fix` (TypeScript/TSX), `stylelint --fix` (CSS), a platform-narrowing guard on `pnpm-lock.yaml`, and `gitleaks` secret scanning (skipped gracefully if not installed). There is no `pre-push` hook.
 
 ### CI
 
@@ -202,11 +202,12 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 
 - `CHANGELOG.md` is the canonical record of what shipped.
 - `cliff.toml` drives automated generation via `git-cliff`. Commit types map as: `feat` → Added, `fix` → Fixed, `refactor/perf` → Changed; `chore/docs/test/ci` are excluded.
-- A lefthook `pre-push` hook (`scripts/check-changelog.sh`) aborts if `CHANGELOG.md` is out of date and prompts you to run `just changelog`, commit, and push again. Activate with `just setup` after cloning (requires `lefthook`: `brew install lefthook` and `git-cliff`: `brew install git-cliff`).
-- Before a release:
-  1. Run `just changelog` — prepends new commits to `CHANGELOG.md` under `## [Unreleased]`
+- **Never generate on a feature branch.** PRs are squash-merged, so a branch's individual `feat`/`fix` commits stop existing at merge. Generating pre-squash writes entries for commits that are about to collapse, and the next branch to regenerate then *deletes* the extra entries already committed on `main`. Between releases there is simply no `[Unreleased]` section; to see what has landed since the last tag, run `git cliff --unreleased`, which prints to stdout and leaves `CHANGELOG.md` alone (`just changelog` rewrites the file). The release branch is the one exception: it is based on `main` and adds no `feat`/`fix` commits of its own, so `git cliff` sees the same history `main` will.
+- Before a release, on that release branch (requires `git-cliff`: `brew install git-cliff`):
+  1. Run `just changelog` — prepends commits since the last tag under `## [Unreleased]`
   2. Rename `## [Unreleased]` to the new version + date (e.g. `## [0.11.0] — 2026-05-01`)
-  3. Commit and tag: `git tag vX.Y.Z`
+  3. Commit, open the release PR, and squash-merge it
+  4. Tag the merge commit on `main`: `git tag vX.Y.Z origin/main && git push origin vX.Y.Z`. Tagging before the merge would point the tag at a commit the squash discards
 
 ### Local Dev Environment
 
@@ -229,7 +230,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 - Backend changes: run relevant `just backend test-file {file}` tests (full suite when feasible `just backend test`)
 - Before push: verify only intentional files are changed, and that `pnpm-lock.yaml` was not platform-narrowed (a full per-platform matrix from a dependency upgrade is fine; only *your* platform appearing is not)
 - Shortcut: `just ci` runs format-check + typecheck + lint + tests (frontend and backend) in one shot
-- **CHANGELOG.md** — run `just changelog` and commit the result before pushing. This is blocking, not optional cleanup.
+- **Do not run `just changelog` on a feature branch** — it belongs to the release flow on `main`
 
 ## Definition of Done
 
@@ -237,8 +238,8 @@ A task is complete only when **all** of the following are true:
 
 - [ ] Worktree confirmed active (not on `main`) before any file was touched
 - [ ] Lint and relevant tests pass (`just ci` for full check)
-- [ ] `CHANGELOG.md` updated — `just changelog` run and result committed
 - [ ] Only intentional files changed (no platform-narrowed `pnpm-lock.yaml`)
+- [ ] `CHANGELOG.md` untouched — it is generated on `main` at release time. The release PR is the only exception
 
 ## Out of Scope
 

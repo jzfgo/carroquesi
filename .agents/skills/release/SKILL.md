@@ -5,15 +5,15 @@ description: >
   "prepare a release", "cut a release", "do a release", "make a new release",
   or mentions a specific version like "release 0.19.1". Handles the full workflow:
   determine the next version, create a worktree, regenerate the changelog, bump
-  versions in package.json and pyproject.toml, refresh uv.lock, commit, tag
-  locally, push, and open a PR with post-merge tagging instructions. Always use
-  this skill — do not try to do the release workflow manually without it.
+  versions in package.json and pyproject.toml, refresh uv.lock, commit, push,
+  and open a PR with post-merge tagging instructions. Always use this skill —
+  do not try to do the release workflow manually without it.
 ---
 
 # Release Workflow
 
 This skill prepares a CarroQueSí release PR. Run every step in order — skipping
-any step is likely to cause the pre-push hook to fail or the PR to be incomplete.
+any step is likely to leave the release PR incomplete.
 
 ## 0. Determine the next version
 
@@ -50,6 +50,12 @@ This runs `scripts/strip-unreleased.py` (strips the old `[Unreleased]` block) th
 `git cliff --unreleased --prepend CHANGELOG.md`. The result is a fresh `[Unreleased]`
 section containing only commits that `cliff.toml` includes (feat, fix, refactor/perf —
 chore/docs/test/ci are excluded).
+
+This is the **only** place `just changelog` is run. It is safe here, and not on a
+feature branch, because the release branch is based on `main` and adds nothing but
+a `chore:` commit — so `git cliff` sees exactly the squashed history it will see on
+`main`. A feature branch does not: its `feat`/`fix` commits are collapsed by the
+squash merge, so anything generated there describes commits that will not exist.
 
 ## 3. Rename [Unreleased] → versioned header
 
@@ -111,26 +117,17 @@ Use the `Co-Authored-By:` trailer for the model you are actually running as — 
 not copy a model name from this file. Hardcoding one here just goes stale on the
 next model release.
 
-## 7. Create a local tag
-
-The `pre-push` changelog hook runs `git cliff --unreleased` and aborts if it finds
-fix/feat commits not yet captured in a tag. Tagging locally before pushing satisfies
-the hook without pushing the tag yet (the branch push doesn't carry tags by default).
-
-```bash
-git tag vX.Y.Z
-```
-
-## 8. Push the branch
+## 7. Push the branch
 
 ```bash
 git push -u origin chore/release-X.Y.Z
 ```
 
-The pre-push hook should pass. If it still fails with a changelog error, run
-`just changelog` once more, re-stage `CHANGELOG.md`, amend the commit, and re-push.
+Do not tag locally. The tag is created on `main` after the merge (see the
+post-merge block in the PR body below) — a local tag here would point at a commit
+that squash-merging discards.
 
-## 9. Open the PR
+## 8. Open the PR
 
 ```bash
 gh pr create \
@@ -157,10 +154,9 @@ PR body template:
 
 ## Post-merge
 
-After squash merging, move the `vX.Y.Z` tag to the merge commit on `main`:
+After squash merging, tag the merge commit on `main`:
 
 \`\`\`bash
-git tag -d vX.Y.Z
 git fetch origin main
 git tag vX.Y.Z origin/main
 git push origin vX.Y.Z
@@ -172,11 +168,6 @@ them directly from the `CHANGELOG.md` diff so the PR body matches exactly.
 
 ## Troubleshooting
 
-**pre-push hook fails with "Unreleased commits not in CHANGELOG"**
-The hook saw fix/feat commits since the last tag. This usually means `just changelog`
-picked up a commit that appeared after the tag was created. Run `just changelog` again,
-check the diff, amend the commit with the updated file, then re-push.
-
 **`wt switch` prompts for approval in non-interactive mode**
 Add `--yes` to auto-approve post-start hooks (already included in step 1 above).
 
@@ -186,6 +177,10 @@ committed lock is stale and the `deps` post-start hook (`uv sync`) rewrites it o
 every new worktree. Fix it at the root: run `uv lock --project backend` and commit
 the one-line result, rather than discarding the change each time.
 
-**Tag already exists locally**
-A previous aborted release may have left a stale tag. Delete it with
-`git tag -d vX.Y.Z` before re-tagging.
+**Post-merge `git tag vX.Y.Z origin/main` fails with "tag already exists"**
+`git tag` creates the tag locally; `git push origin vX.Y.Z` is a separate command.
+So a post-merge block that tagged and then failed to push leaves the local tag
+behind, and re-running the block stops here. Confirm the existing tag is not the
+real one (`git log -1 vX.Y.Z`), delete it with `git tag -d vX.Y.Z`, then re-run
+the block. Steps 0–8 never create a local tag, so a tag present before the merge
+is always a leftover.

@@ -13,8 +13,8 @@
 
 - [ ] Worktree / branch used — no commits to `main`
 - [ ] `just ci` passes (typecheck + lint + backend tests)
-- [ ] `CHANGELOG.md` updated — `just changelog` run and committed
 - [ ] Only intentional files changed (no `pnpm-lock.yaml` platform churn)
+- [ ] `CHANGELOG.md` untouched — generated on `main` at release time (release PRs excepted)
 - [ ] Alembic migration created last, after rebase (if applicable)
 
 ## Notes for reviewer
