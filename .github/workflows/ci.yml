@@ -2,15 +2,27 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
 
-# NOTE: deliberately NO top-level `paths:` filter here.
+# NOTE: deliberately NO filter of any kind on this trigger — no `paths:`, and no
+# `branches:` either.
 #
-# A workflow skipped by a path filter never posts its checks at all, so any
-# required context it owns sits at "Expected — waiting for status" forever and
-# the PR can never merge. A JOB skipped by an `if:` condition posts SUCCESS.
-# That asymmetry is why the gating below lives on the jobs, not on the trigger.
+# A workflow skipped by a filter never posts its checks at all, so any required
+# context it owns sits at "Expected — waiting for status" forever and the PR can
+# never merge. A JOB skipped by an `if:` condition posts SUCCESS. That asymmetry
+# is why the gating lives on the jobs, not on the trigger.
 # https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks
+#
+# `branches:` is the same trap wearing a different hat, and it bites in a way
+# that is quieter than the `paths:` one. For `pull_request` it filters on the
+# BASE branch, so `branches: [main]` silently switched CI off for every PR based
+# on anything else — which is exactly what a stack of phase PRs into a long-lived
+# integration branch is. The PR page showed zero checks: not red, not pending,
+# and `mergeStateStatus: CLEAN` because no ruleset applies to that base. Green,
+# and nothing had run. Found on #163 after it was retargeted off `main`.
+#
+# Removing the filter costs a little CI time on stacked PRs and buys back the
+# thing the stack most needs: each phase verified as it lands, rather than five
+# of them fused together on the release PR with nothing to bisect.
 
 # Supersede in-flight runs for the same PR. Before this, a single branch could
 # rack up ten runs where only the last one mattered.
