@@ -72,6 +72,21 @@ describe('hovering itself', () => {
   })
 })
 
+describe('hovering nothing at all', () => {
+  it('says so rather than leaving the last target standing', () => {
+    const a = make()
+    a.onDragStart({ active: ref('a') } as never)
+    a.onDragOver({ active: ref('a'), over: ref('b') } as never)
+
+    // The live region still holds "Sobre Costco, posición 2 de 3" at this
+    // point, so returning undefined would keep asserting a target that is no
+    // longer under the row.
+    expect(a.onDragOver({ active: ref('a'), over: null } as never)).toBe(
+      'Sin destino. Suelta para dejar Mercado donde está.',
+    )
+  })
+})
+
 describe('dropping', () => {
   it('says where it landed', () => {
     const a = make()

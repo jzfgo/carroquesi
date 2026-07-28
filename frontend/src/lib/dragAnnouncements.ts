@@ -44,7 +44,15 @@ export function createDragAnnouncements(
     },
 
     onDragOver({ active, over }) {
-      if (!over) return undefined
+      // Not silence, for the same reason the return-to-origin below is not
+      // silence: announce() ignores undefined rather than clearing, so saying
+      // nothing here would leave "Sobre Costco, posición 2" standing while
+      // there is nothing under the row at all. onDragEnd already treats this
+      // as reachable — a list refetching to empty under a held finger — and a
+      // case worth a branch there is not a case worth a lie here.
+      if (!over) {
+        return `Sin destino. Suelta para dejar ${describe(active.id).name} donde está.`
+      }
 
       // Hovering itself means one of two opposite things, and one condition
       // cannot answer both.
