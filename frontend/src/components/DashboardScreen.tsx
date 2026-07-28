@@ -575,7 +575,16 @@ export function DashboardScreen() {
             its own, and a second one makes "the status region" ambiguous — for
             a test picking it out, and for anyone navigating by role. The
             announcement behaviour is identical; only the implicit role is not
-            claimed twice. */}
+            claimed twice.
+
+            Where it sits is load-bearing in both of its states, and nothing
+            will tell you if that changes: between the panel head and the rows,
+            it is read after the toggle and before the first Subir when it has
+            text, and skipped over — leaving the next swipe to land on a row —
+            when it does not. Both claims are argued in the toggle's onClick,
+            which is not where someone tidying this markup would look. No test
+            covers it either: jsdom does no layout, and the tests find this
+            element by class, so DOM order is invisible to the whole suite. */}
         <p className="sr-only dashboard-screen__move-status" aria-live="polite">
           {moveMessage}
         </p>
