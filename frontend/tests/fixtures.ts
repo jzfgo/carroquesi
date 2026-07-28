@@ -34,7 +34,7 @@ export const SEED_LISTS: ApiList[] = [
     owner_id: ALICE.id,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-06-23T10:00:00Z',
-    item_count: 2,
+    item_count: 3,
     purchased_count: 0,
     is_default: true,
   },
@@ -86,6 +86,33 @@ export const SEED_ITEMS: Record<string, ListItem[]> = {
       price_per: null,
       price_store: null,
       added_by: ALICE.id,
+      created_at: '2026-06-01T00:00:00Z',
+      updated_at: '2026-06-23T10:00:00Z',
+    },
+    // Three shops, and the widest heading the list can draw: it groups on the
+    // *set* of shops, so this is one line under "Carrefour, Dia o Mercadona"
+    // rather than three lines under three headings. Named out of alphabetical
+    // order on purpose -- the heading sorts, whatever order they were typed.
+    //
+    // It is here to hold that heading under visual regression: an underline
+    // that wraps across two lines reads as two headings, and only a
+    // screenshot can catch that. Appended, never inserted -- the specs index
+    // this array ([0] is leche, [1] is cafe).
+    {
+      id: 'item-papel',
+      list_id: 'seed-list-compra',
+      name: 'Papel de cocina',
+      quantity: '2',
+      purchased_quantity: null,
+      brand: null,
+      stores: ['Mercadona', 'Carrefour', 'Dia'],
+      purchased: false,
+      purchased_at: null,
+      ean: null,
+      price: null,
+      price_per: null,
+      price_store: null,
+      added_by: 'seed-user-bob',
       created_at: '2026-06-01T00:00:00Z',
       updated_at: '2026-06-23T10:00:00Z',
     },
