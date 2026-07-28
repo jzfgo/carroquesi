@@ -186,12 +186,37 @@ export function DashboardScreen() {
   const [reorderRequested, setReorderRequested] = useState(false)
   const [moveMessage, setMoveMessage] = useState('')
 
+  // Arranging does not survive the row *set* changing. Everywhere `lists` is
+  // replaced from outside goes through here, so the rule is enforced in one
+  // place rather than at each call site.
+  //
+  // The set, deliberately, and not the array: handleMove and handleDragEnd
+  // change the order constantly and must not clear the mode they are being
+  // used from, so the key is sorted and a reorder leaves it identical.
+  //
+  // A ref rather than reading `lists` from the closure, which would have to
+  // join fetchLists's dependency list — and fetchLists is the mount effect's
+  // only dependency, so every fetch would rebuild it, refire the effect and
+  // fetch again, forever.
+  const listIdsRef = useRef('')
+  const applyLists = useCallback((next: ApiList[]) => {
+    setLists(next)
+    const key = next
+      .map((l) => l.id)
+      .sort()
+      .join(',')
+    if (key === listIdsRef.current) return
+    listIdsRef.current = key
+    setReorderRequested(false)
+    setMoveMessage('')
+  }, [])
+
   const fetchLists = useCallback(
     async (silent = false) => {
       const cached = loadDashboardCache(user!.id)
       if (cached) {
         const ordered = applyOrder(cached, loadOrder(user!.id))
-        setLists(ordered)
+        applyLists(ordered)
       } else if (!silent) {
         setLists(null)
         setFetchError(false)
@@ -199,30 +224,15 @@ export function DashboardScreen() {
       try {
         const data = (await getLists(getToken)) as ApiList[]
         const ordered = applyOrder(data, loadOrder(user!.id))
-        setLists(ordered)
+        applyLists(ordered)
         saveDashboardCache(user!.id, data)
-        // Arranging does not survive the rows being replaced from the server.
-        //
-        // Deriving `reordering` stops the mode *displaying* once there is
-        // nothing to arrange, but the request behind it would outlive the
-        // condition that emptied it: arrange with two lists, have one deleted
-        // on another device, then create one here, and the refetch takes the
-        // count back to two and returns you to a mode you left — after an
-        // action that had nothing to do with it. Clearing here rather than in
-        // an effect watching `reordering` because this is where the change
-        // actually originates, and an effect would only be noticing it a
-        // render later.
-        //
-        // The announcement goes with it. The region belongs to the arranging,
-        // so a message left standing gets read out to the next screen reader
-        // that reaches it, describing a move made minutes ago.
-        setReorderRequested(false)
-        setMoveMessage('')
       } catch {
         if (!cached && !silent) setFetchError(true)
       }
     },
-    [getToken, user],
+    // applyLists is a useCallback over [], so it is stable and does not
+    // reintroduce the rebuild-and-refetch loop the ref exists to avoid.
+    [getToken, user, applyLists],
   )
 
   const handleFeedbackSubmit = useCallback(
@@ -509,11 +519,28 @@ export function DashboardScreen() {
               <button
                 className={`dashboard-screen__reorder-toggle${reordering ? ' dashboard-screen__reorder-toggle--on' : ''}`}
                 onClick={() => {
-                  setReorderRequested((on) => !on)
-                  // The other way the mode ends. fetchLists clears both when
-                  // the rows are replaced from the server; this is the ordinary
-                  // exit, and the region has to go quiet on it too.
-                  setMoveMessage('')
+                  const next = !reordering
+                  setReorderRequested(next)
+                  // Entering is announced through the live region rather than
+                  // left to the label swap. Pressing this changes the
+                  // accessible name of the focused element, which NVDA and JAWS
+                  // generally re-announce and VoiceOver on iOS generally does
+                  // not — and iOS is the platform this app is least willing to
+                  // be silent on. aria-pressed would not have rescued it
+                  // either; VO's handling of a pressed-state change is no more
+                  // dependable. A live region is the mechanism that does not
+                  // depend on the screen reader noticing something about the
+                  // element you are already on.
+                  //
+                  // Leaving stays silent, which keeps the rule that nothing
+                  // survives the exit: the region belongs to the arranging, and
+                  // a farewell left standing is the stale text this is supposed
+                  // to prevent.
+                  setMoveMessage(
+                    next
+                      ? 'Modo reordenar. Usa los botones subir y bajar de cada lista.'
+                      : '',
+                  )
                 }}
               >
                 {reordering ? 'Listo' : 'Reordenar'}

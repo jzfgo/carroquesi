@@ -958,6 +958,40 @@ describe('DashboardScreen — arranging', () => {
     expect(moveStatus()).toHaveTextContent('')
   })
 
+  // Pressing the toggle changes the accessible name of the element you are
+  // already focused on, which VoiceOver on iOS generally does not re-announce.
+  // The live region is the part that does not depend on the screen reader
+  // noticing.
+  it('announces entering the mode, and goes quiet on leaving', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+    expect(moveStatus()).toHaveTextContent(/modo reordenar/i)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Listo' }))
+    expect(moveStatus()).toHaveTextContent('')
+  })
+
+  // The invariant is that arranging does not survive the row *set* changing —
+  // not that it does not survive a fetch. The two are close enough today, and
+  // come apart the moment this screen grows the short poll the rest of the app
+  // has, at which point clearing per fetch would drop you out every tick.
+  it('survives a refetch that brings back the same lists', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+    fireEvent.click(screen.getByRole('button', { name: 'Subir Costco' }))
+    await waitFor(() => expect(moveStatus()).toHaveTextContent('posición'))
+
+    // getLists is still stubbed with the same two, so the refetch this create
+    // triggers returns an identical set.
+    await openCreateAndSubmit('Farmacia')
+    await waitFor(() => expect(api.createList).toHaveBeenCalled())
+
+    expect(
+      screen.getByRole('button', { name: 'Subir Costco' }),
+    ).toBeInTheDocument()
+    expect(moveStatus()).toHaveTextContent('posición')
+  })
+
   // The request has to die with the mode, or it comes back on its own. Deriving
   // `reordering` only stops it displaying; the flag underneath outlives the
   // condition that emptied it.
