@@ -1169,8 +1169,8 @@ describe('the list itself', () => {
 // ---------------------------------------------------------------------------
 // With no connection.
 //
-// All three handlers open with the same `if (isOffline)` guard and none of the
-// three was exercised: jsdom reports navigator.onLine as true, so every test
+// All four handlers open with the same `if (isOffline)` guard and none of them
+// was exercised: jsdom reports navigator.onLine as true, so every test
 // above takes the online leg. Varying the environment rather than mocking the
 // hook keeps useIsOffline itself in the path — the guard and the thing it
 // reads are tested together, which is the point of the exercise.

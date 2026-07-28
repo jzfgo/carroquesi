@@ -1,8 +1,4 @@
-import type {
-  Announcements,
-  DragEndEvent,
-  UniqueIdentifier,
-} from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
 import {
   DndContext,
   PointerSensor,
@@ -36,6 +32,8 @@ import {
 } from '../lib/api'
 import { copyToClipboard } from '../lib/clipboard'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
+import type { DragState } from '../lib/dragAnnouncements'
+import { createDragAnnouncements } from '../lib/dragAnnouncements'
 import { FLAGS } from '../lib/featureFlags'
 import {
   canReceivePush,
@@ -244,57 +242,17 @@ export function DashboardScreen() {
     [user],
   )
 
-  // What the live region says while a list is being moved.
-  //
-  // dnd-kit's defaults are English and interpolate the draggable's id
-  // (@dnd-kit/core dist :55 — "Picked up draggable item " + active.id), and
-  // here an id is a UUID. So the default announces a UUID aloud on every
-  // successful long press. Unlike the instructions, this was never gated on
-  // where {...attributes} landed — DndContext renders its own live region —
-  // so it has been saying that all along.
-  //
-  // A name and a position are what someone who cannot see the row move
-  // actually needs; the id is of no use to anyone.
-  const announcements = useMemo<Announcements>(() => {
-    const describe = (id: UniqueIdentifier) => {
-      const index = lists?.findIndex((l) => l.id === id) ?? -1
-      const list = index >= 0 ? lists![index] : null
-      return {
-        name: list?.name ?? 'la lista',
-        position: index >= 0 ? `${index + 1} de ${lists!.length}` : null,
-      }
-    }
-    return {
-      onDragStart({ active }) {
-        return `Has cogido ${describe(active.id).name}.`
-      },
-      onDragOver({ active, over }) {
-        // dnd-kit dispatches its first DragOver as the drag starts, and with
-        // closestCenter — which has no distance cutoff — that first `over` is
-        // the dragged row itself, matching its own droppable at distance zero.
-        // Announcing it would say "sobre" of the thing already in your hand,
-        // to the one person who cannot see that. Same no-op handleDragEnd
-        // already makes of active.id === over.id.
-        if (!over || over.id === active.id) return undefined
-        const { name, position } = describe(over.id)
-        return position ? `Sobre ${name}, posición ${position}.` : undefined
-      },
-      onDragEnd({ active, over }) {
-        const { name } = describe(active.id)
-        // Barely reachable with closestCenter, which always returns a nearest
-        // droppable — but the type allows null and so does a list that
-        // refetches to empty under a held finger.
-        if (!over) return `Has soltado ${name} donde estaba.`
-        const { position } = describe(over.id)
-        return position
-          ? `Has soltado ${name} en la posición ${position}.`
-          : `Has soltado ${name}.`
-      },
-      onDragCancel({ active }) {
-        return `Movimiento cancelado. ${describe(active.id).name} vuelve a su sitio.`
-      },
-    }
-  }, [lists])
+  // The one bit a drag carries — has it left the row it started on — kept in a
+  // mutable box so the announcements can be rebuilt whenever the order changes
+  // without forgetting it mid-drag. Held via useState's lazy initialiser purely
+  // to get one stable object per mount; nothing renders from it, and it is
+  // never reassigned. See lib/dragAnnouncements, where the strings live and are
+  // tested.
+  const [dragState] = useState<DragState>(() => ({ hasLeftOrigin: false }))
+  const announcements = useMemo(
+    () => createDragAnnouncements(lists, dragState),
+    [lists, dragState],
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
