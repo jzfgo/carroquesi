@@ -43,6 +43,11 @@ export function ItemCard({ item, onTogglePurchased, onOpen, onClone }: Props) {
       ? item.purchased_quantity
       : item.quantity
 
+  // A price only becomes a figure once someone picked the thing up. Before
+  // that it is a proposal inherited from history, and an unconfirmed price is
+  // not a figure at all (rule 10).
+  const showsAmount = state !== 'pending' && item.price != null
+
   return (
     <div className={`item-card item-card--${state}`}>
       {settled ? (
@@ -85,13 +90,16 @@ export function ItemCard({ item, onTogglePurchased, onOpen, onClone }: Props) {
         )}
       </button>
 
-      {/* One column for the figure, whichever figure this line has. Left empty
-          when there is none — no dash and no rule, because a dash would turn
-          the column into a form asking to be filled (rule 6). */}
-      <span className="item-card__figure">
-        {settled
-          ? item.price != null && formatPrice(item.price, item.price_per)
-          : displayQty}
+      {/* One column for the figure, whichever figure this line has. Once a
+          line is picked up, what it cost is the figure that matters and the
+          quantity steps aside; while it is still an instruction the price is
+          only a proposal from history, and an unconfirmed price is not a
+          figure at all (rule 10). Left empty when there is neither — no dash
+          and no rule, because a dash turns a column into a form (rule 6). */}
+      <span
+        className={`item-card__figure${showsAmount ? ' item-card__figure--amount' : ''}`}
+      >
+        {showsAmount ? formatPrice(item.price!, item.price_per) : displayQty}
       </span>
 
       <ChevronRight className="item-card__chevron" size={14} aria-hidden />

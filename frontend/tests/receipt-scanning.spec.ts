@@ -71,11 +71,11 @@ async function gotoList(page: Page) {
 
 async function markPurchased(page: Page, name: string) {
   await itemCard(page, name)
-    .getByRole('checkbox', { name: 'Marcar como comprado' })
+    .getByRole('checkbox', { name: 'Poner en el carro' })
     .click()
   await expect(
     itemCard(page, name).getByRole('checkbox', {
-      name: 'Marcar como no comprado',
+      name: 'Sacar del carro',
     }),
   ).toBeVisible()
 }
@@ -255,14 +255,21 @@ test.describe('functional', () => {
     // purchased, carrying the sigil brand and the receipt's price.
     const created = itemCard(page, 'Pan integral')
     await expect(created).toBeVisible()
+    // The receipt is dated two days before the clock, so this is a record, not
+    // something in today's cart — it has no circle to toggle, only the offer to
+    // buy it again. The old two-state model could not tell those apart and
+    // showed a two-day-old receipt line as if it were still in the cart.
+    await expect(created).toHaveClass(/item-card--bought/)
+    await expect(created.getByRole('checkbox')).toHaveCount(0)
     await expect(
-      created.getByRole('checkbox', { name: 'Marcar como no comprado' }),
+      created.getByRole('button', { name: /volver a comprar/i }),
     ).toBeVisible()
-    await expect(created.getByText('Bimbo', { exact: true })).toBeVisible()
+    // The brand is no longer on the row; it is one tap in, on the item.
+    await expect(created.getByText('Bimbo', { exact: true })).toHaveCount(0)
     // formatPrice() uses Intl with the *browser's* locale and the config pins
     // none, so the decimal separator differs between a local run and CI's
     // container. Match either rather than baking in one environment's output.
-    await expect(created.locator('.item-card__tag--price')).toContainText(
+    await expect(created.locator('.item-card__figure--amount')).toContainText(
       /1[.,]00/,
     )
   })
