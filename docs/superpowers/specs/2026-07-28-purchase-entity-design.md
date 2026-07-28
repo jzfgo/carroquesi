@@ -243,10 +243,18 @@ resemble the precedent.
 ## API surface
 
 - `PATCH /lists/{id}/items/{item_id}` gains optional `purchased_at`, honoured
-  only on the `false → true` transition and clamped to `[now − 30d, now + 5min]`
-  against a wrong device clock. Without it, an offline tap drained the next
-  morning is stamped at drain time — a bug that exists today and becomes
-  visible as "the item joined the wrong ticket" once trips are rows.
+  only on the `false → true` transition and clamped to `[now − 30d, now]`.
+  Without it, an offline tap drained the next morning is stamped at drain time —
+  a bug that exists today and becomes visible as "the item joined the wrong
+  ticket" once trips are rows.
+
+  **The upper bound is `now`, with no skew tolerance**, and that is load-bearing
+  rather than fussy. Allowing even five minutes of fast-clock slack makes a tap
+  at 23:57 Madrid from a phone reporting 00:02 compute *tomorrow's* tear-off
+  while tonight's trip is still open — so the list holds two trips satisfying
+  "unreconciled and not yet torn off", and `open_trip()` picks one arbitrarily.
+  There is no such thing as a purchase in the future, so the server's clock
+  simply wins.
 - `ItemRead` gains **two** fields: `purchase_id`, and `purchase_ends_at`
   (the derived `closed_at ?? tears_off_at`). Two rather than four, because
   `itemState` needs exactly one comparison; store and total belong to 3b's
@@ -331,7 +339,8 @@ After this phase there is one predicate, and the trip owns it.
 | DST | Madrid days of 23 and 25 hours. `tears_off_at` is computed with `ZoneInfo`, and both are tested |
 | traveling member | the boundary is Madrid, not the phone. Deliberate: a trip is a household fact |
 | scan spanning several trips | `receipt_scans.purchase_id` stays `NULL`; each item keeps its own trip |
-| clock skew | `purchased_at` clamped to `[now − 30d, now + 5min]`; anything older files into that day's trip, not this evening's |
+| clock skew | `purchased_at` clamped to `[now − 30d, now]`; anything older files into that day's trip, not this evening's. No future tolerance — see the API section for why five minutes of slack breaks the one-open-trip invariant at midnight |
+| two members tapping at the same instant | both transactions can miss the `SELECT` and insert. A partial unique index on `(list_id, tears_off_at) WHERE closed_at IS NULL` makes the invariant a constraint rather than a hope; `trip_for` retries the select once on the resulting `IntegrityError` and returns the row the other transaction won with |
 | midnight with the app open and idle | a `setTimeout` to the earliest future `purchase_ends_at` re-renders the tear-off. Without it nothing wakes the screen — the poll re-renders only when `updated_at` moves |
 | large backfill | grouping loads all purchased rows into memory. Fine at this scale; noted so it is checked, not assumed |
 
