@@ -99,8 +99,10 @@
   background: var(--accent-bg);
 }
 
+/* A bought item is said with ink, never with a line through it: there is no
+   strikethrough anywhere in this product. Crossing something out is the
+   household's gesture, and the app does not get to imitate it. */
 .item-card--purchased .item-card__name {
-  text-decoration: line-through;
   color: var(--purchased);
 }
 
@@ -109,8 +111,11 @@
   color: var(--purchased);
 }
 
+/* Rule 5: dimming is a change of ink, not a drop in opacity. An opacity here
+   would eat the contrast of the tag's own border and label along with it. */
 .item-card--purchased .item-card__tag {
-  opacity: 0.45;
+  color: var(--ink-2);
+  border-color: var(--ink-3);
 }
 
 .item-card__right {

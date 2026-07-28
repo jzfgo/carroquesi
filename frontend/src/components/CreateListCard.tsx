@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import './CreateListCard.css'
 import { Mascot } from './Mascot'
@@ -14,29 +14,31 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
   const [creating, setCreating] = useState(false)
 
   if (!expanded) {
+    // First run has nothing behind it, so the mascot is allowed and the action
+    // is centred under it. With lists already on screen this is instead the
+    // last row of the panel, drawn like every other row.
+    if (isFirst) {
+      return (
+        <div className="create-list-card--first">
+          <Mascot size={120} />
+          <p className="create-list-card__empty">Aún no tienes listas</p>
+          <button
+            className="create-list-card create-list-card--cta"
+            onClick={() => setExpanded(true)}
+          >
+            Crea tu primera lista
+          </button>
+        </div>
+      )
+    }
     return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '0.75rem',
-        }}
+      <button
+        className="create-list-card create-list-card--row"
+        onClick={() => setExpanded(true)}
       >
-        {isFirst && (
-          <>
-            <Mascot size={120} />
-            <p
-              style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}
-            >
-              Aún no tienes listas
-            </p>
-          </>
-        )}
-        <button className="create-list-card" onClick={() => setExpanded(true)}>
-          {isFirst ? 'Crea tu primera lista' : '+ Nueva lista'}
-        </button>
-      </div>
+        <Plus size={19} strokeWidth={2.2} aria-hidden />
+        Nueva lista
+      </button>
     )
   }
 

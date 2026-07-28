@@ -12,7 +12,7 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Bell, BellOff } from 'lucide-react'
+import { Bell, BellOff, SunMoon } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -45,6 +45,7 @@ import {
 } from '../lib/push'
 import type { ApiList } from '../types'
 import { ApiKeySheet } from './ApiKeySheet'
+import { AppearanceSegment } from './AppearanceSegment'
 import { CreateListCard } from './CreateListCard'
 import './DashboardScreen.css'
 import { EmojiPickerSheet } from './EmojiPickerSheet'
@@ -408,6 +409,13 @@ export function DashboardScreen() {
           </button>
           {menuOpen && (
             <div className="dashboard-screen__avatar-menu" role="menu">
+              <div className="dashboard-screen__appearance">
+                <span className="dashboard-screen__appearance-label">
+                  <SunMoon size={18} aria-hidden />
+                  Aspecto
+                </span>
+                <AppearanceSegment itemRole="menuitemradio" />
+              </div>
               {showInstallEntry && (
                 <button
                   className="dashboard-screen__avatar-menu-item"
@@ -462,47 +470,57 @@ export function DashboardScreen() {
         </div>
       )}
       <main className="dashboard-screen__lists">
-        <InstallBanner
-          isInstallable={isInstallable}
-          isInstalled={isInstalled}
-          isIOS={isIOS}
-          promptInstall={promptInstall}
-        />
-        {isEnabled(FLAGS.PUSH_NOTIFICATIONS) &&
-          canReceivePush({ isIOS, isInstalled }) &&
-          // Once permission is denied the browser will not re-prompt, so a
-          // button here would call requestPermission(), return immediately and
-          // change nothing — a control that looks broken. Explain the way out
-          // instead of offering a dead action.
-          (permission === 'denied' ? (
-            <p className="notifications-toggle notifications-toggle--blocked">
-              <span className="notifications-toggle__icon" aria-hidden="true">
-                <BellOff size={18} />
-              </span>
-              Has bloqueado los avisos. Actívalos en los ajustes de tu navegador
-              para volver a recibirlos.
-            </p>
-          ) : (
-            <button
-              className="notifications-toggle"
-              onClick={async () => {
-                // Reads back the real state rather than assuming success: the
-                // OS prompt can be denied, and on iOS that denial is permanent.
-                if (pushOn) await disablePush(getToken).catch(() => undefined)
-                else await enablePush(getToken).catch(() => undefined)
-                setPushOn(isPushEnabled())
+        <div className="dashboard-screen__notices">
+          <InstallBanner
+            isInstallable={isInstallable}
+            isInstalled={isInstalled}
+            isIOS={isIOS}
+            promptInstall={promptInstall}
+          />
+          {isEnabled(FLAGS.PUSH_NOTIFICATIONS) &&
+            canReceivePush({ isIOS, isInstalled }) &&
+            // Once permission is denied the browser will not re-prompt, so a
+            // button here would call requestPermission(), return immediately and
+            // change nothing — a control that looks broken. Explain the way out
+            // instead of offering a dead action.
+            (permission === 'denied' ? (
+              <p className="notifications-toggle notifications-toggle--blocked">
+                <span className="notifications-toggle__icon" aria-hidden="true">
+                  <BellOff size={18} />
+                </span>
+                Has bloqueado los avisos. Actívalos en los ajustes de tu
+                navegador para volver a recibirlos.
+              </p>
+            ) : (
+              <button
+                className="notifications-toggle"
+                onClick={async () => {
+                  // Reads back the real state rather than assuming success: the
+                  // OS prompt can be denied, and on iOS that denial is permanent.
+                  if (pushOn) await disablePush(getToken).catch(() => undefined)
+                  else await enablePush(getToken).catch(() => undefined)
+                  setPushOn(isPushEnabled())
 
-                setPermission(permissionState())
-              }}
-            >
-              <span className="notifications-toggle__icon" aria-hidden="true">
-                {pushOn ? <BellOff size={18} /> : <Bell size={18} />}
-              </span>
-              {pushOn
-                ? 'Desactivar avisos'
-                : 'Avisarme de cambios en mis listas'}
-            </button>
-          ))}
+                  setPermission(permissionState())
+                }}
+              >
+                <span className="notifications-toggle__icon" aria-hidden="true">
+                  {pushOn ? <BellOff size={18} /> : <Bell size={18} />}
+                </span>
+                {pushOn
+                  ? 'Desactivar avisos'
+                  : 'Avisarme de cambios en mis listas'}
+              </button>
+            ))}
+        </div>
+        {lists.length > 0 && (
+          <div className="dashboard-screen__panel-head">
+            <span className="dashboard-screen__panel-label">Tus listas</span>
+            <span className="dashboard-screen__panel-count">
+              {lists.length}
+            </span>
+          </div>
+        )}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -531,7 +549,12 @@ export function DashboardScreen() {
             ))}
           </SortableContext>
         </DndContext>
-        <CreateListCard isFirst={lists.length === 0} onCreate={handleCreate} />
+        <div className="dashboard-screen__create">
+          <CreateListCard
+            isFirst={lists.length === 0}
+            onCreate={handleCreate}
+          />
+        </div>
       </main>
       {activeList && (
         <ListActionSheet

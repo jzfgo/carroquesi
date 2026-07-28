@@ -130,29 +130,35 @@ export function ItemList({
 
   return (
     <div className="item-list">
-      <p className="item-list__label">
-        <span className="item-list__label-text">
-          {totalItems !== undefined && totalItems !== active.length
-            ? `${active.length} de ${totalItems} productos por comprar`
-            : `${active.length} ${active.length === 1 ? 'producto' : 'productos'} por comprar`}
-        </span>
-        {pendingCost && (
-          <CostBadge cost={pendingCost} className="item-list__label-cost" />
-        )}
-      </p>
-      {active.map((item) => (
-        <ItemCard
-          key={item.id}
-          item={item}
-          members={members}
-          onTogglePurchased={onTogglePurchased}
-          onTagClick={onTagClick}
-          onMenuOpen={onMenuOpen}
-          onPriceClick={onPriceClick}
-          onClone={onClone}
-        />
-      ))}
-      {footer}
+      {/* The list is the sheet on top of the table: one continuous piece of
+          paper, cast tall and soft, with no veil. Everything below it is a
+          purchase — thinner stock, a shorter cast, and the 4% veiling that
+          says it has already happened. The board shows between them. */}
+      <div className="item-list__sheet">
+        <p className="item-list__label">
+          <span className="item-list__label-text">
+            {totalItems !== undefined && totalItems !== active.length
+              ? `${active.length} de ${totalItems} productos por comprar`
+              : `${active.length} ${active.length === 1 ? 'producto' : 'productos'} por comprar`}
+          </span>
+          {pendingCost && (
+            <CostBadge cost={pendingCost} className="item-list__label-cost" />
+          )}
+        </p>
+        {active.map((item) => (
+          <ItemCard
+            key={item.id}
+            item={item}
+            members={members}
+            onTogglePurchased={onTogglePurchased}
+            onTagClick={onTagClick}
+            onMenuOpen={onMenuOpen}
+            onPriceClick={onPriceClick}
+            onClone={onClone}
+          />
+        ))}
+        {footer}
+      </div>
 
       {purchased.length > 0 && (
         <>
@@ -169,7 +175,10 @@ export function ItemList({
           </button>
           {!purchasedCollapsed &&
             purchasedByDate.map(({ label, items: group }) => (
-              <div key={label}>
+              <div
+                key={label}
+                className="item-list__sheet item-list__sheet--receipt"
+              >
                 <p className="item-list__date-label">
                   <span className="item-list__label-text">{label}</span>
                   {(() => {

@@ -1,0 +1,86 @@
+.board-picker {
+  display: block;
+  padding: 4px 0 2px;
+}
+
+.board-picker__label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  color: var(--ink-2);
+  text-transform: uppercase;
+}
+
+.board-picker__swatches {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 7px;
+}
+
+/* 52px tall, which also carries the hit target on its own — rule 7's floor is
+   44 and a swatch is one of the two things you can touch in this block. */
+.board-picker__swatch {
+  height: var(--swatch);
+  padding: 0;
+  border: none;
+  border-radius: var(--r-swatch);
+  background: var(--board);
+  cursor: pointer;
+}
+
+/* A double ring, because a single one gets lost against the warmer boards: the
+   inner stroke is the accent, the outer is the surface the block sits on, so
+   the ring reads as a gap rather than as a second border on the swatch. */
+.board-picker__swatch--on {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 3.5px var(--paper-0);
+}
+
+.board-picker__swatch:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 3.5px var(--paper-0),
+    var(--focus-ring);
+}
+
+/* The preview: a scrap of board with a sheet on it. Separated from the swatches
+   by a rule, because it is a different kind of thing — a consequence, not a
+   control. */
+.board-picker__preview {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--paper-2);
+}
+
+.board-picker__preview-sheet {
+  padding: 10px 10px 12px;
+  border-radius: 6px;
+  background: var(--board);
+}
+
+/* Rule 17, in the smallest space it appears anywhere: the sheet always sits on
+   the board, and both the light-mode cast and the dark-mode edge are declared
+   here at once. Each mode has already switched the other off in the token
+   layer, so this block is identical in both and never branches. */
+.board-picker__preview-name {
+  display: block;
+  padding: 10px 12px;
+  border-top: 1px solid var(--edge-lit-1);
+  border-bottom: 1px solid var(--edge-cast-1);
+  border-radius: var(--r-sheet);
+  background: var(--paper-0);
+  box-shadow: var(--sheet-cast-list);
+  font-family: var(--font-written);
+  font-size: 16px;
+  letter-spacing: 0.05em;
+  color: var(--ink-0);
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

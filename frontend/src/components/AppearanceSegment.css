@@ -1,0 +1,55 @@
+/* The track is a recess cut into the sheet, so it goes down in both modes —
+   see --paper-sunken, which is the one declared exception to rule 19. */
+.appearance-segment {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  padding: 3px;
+  box-sizing: border-box;
+  background: var(--paper-sunken);
+  border-radius: 11px;
+}
+
+/* 44px is the floor, not a target: three words side by side on a phone leave
+   no room to be generous horizontally, so the height carries the whole hit. */
+.appearance-segment__option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--segment);
+  box-sizing: border-box;
+  padding: 0 4px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
+/* Rule 17 in miniature: the selected chip lifts, and how that lift is drawn is
+   the mode's business. In light it is the shadow; in dark the shadow is
+   invisible and the lit rim does the work. Both are declared, always. */
+.appearance-segment__option--on {
+  background: var(--paper-lift);
+  border-top: 1px solid var(--edge-lit-2);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+.appearance-segment__option:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Press is scale only — a finger covers the colour, so changing it is wasted. */
+@media (hover: none) {
+  .appearance-segment__option:active {
+    transform: scale(0.97);
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+}
