@@ -238,7 +238,8 @@ A task is complete only when **all** of the following are true:
 
 - [ ] Worktree confirmed active (not on `main`) before any file was touched
 - [ ] Lint and relevant tests pass (`just ci` for full check)
-- [ ] Only intentional files changed (no platform-narrowed `pnpm-lock.yaml`, no `CHANGELOG.md`)
+- [ ] Only intentional files changed (no platform-narrowed `pnpm-lock.yaml`)
+- [ ] `CHANGELOG.md` untouched — it is generated on `main` at release time. The release PR is the only exception
 
 ## Out of Scope
 
