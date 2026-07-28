@@ -62,17 +62,18 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await expect(card).toHaveClass(/item-card--cart/)
       await expectScreenshot(page, `item-purchased-${themeName}.png`)
 
-      // The row carries no chips at all now — brand and shop live in the item.
+      // No chips — the shop, the price and everything you can do to the line
+      // live in the item. The brand is not a chip: it is the second line,
+      // under the name, because it is what you are looking for on the shelf.
       await expect(card.locator('.item-card__tag')).toHaveCount(0)
-      await expect(
-        card.getByText(ITEM_CAFE.brand ?? '', { exact: true }),
-      ).toHaveCount(0)
+      await expect(card.locator('.item-card__sub')).toHaveText(
+        ITEM_CAFE.brand ?? '',
+      )
 
-      // Opening the item: it offers "buy again" instead of rename, and says
-      // the brand the row stopped carrying.
+      // Opening the item: it offers "buy again" instead of rename.
       await card.locator('.item-card__open').click()
       await expect(
-        page.getByText(ITEM_CAFE.brand ?? '', { exact: true }),
+        page.getByText(ITEM_CAFE.brand ?? '', { exact: true }).first(),
       ).toBeVisible()
       await expect(page.getByRole('button', { name: 'Renombrar' })).toHaveCount(
         0,

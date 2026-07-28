@@ -298,9 +298,9 @@ test('and unruled when the cut follows it immediately', () => {
   expect(container.querySelector('.item-list__rubric--unruled')).not.toBeNull()
 })
 
-test('but keeps its ruling when there is no cut to collide with', () => {
-  // Nothing to buy and nothing in the cart: the handwritten "En el carro"
-  // follows instead, and the ruling still separates the two.
+test('and unruled with nothing under it at all', () => {
+  // Nothing to buy and nothing in the cart either, so there is not even a cut
+  // below: a rule over empty paper rules nothing.
   const { container } = render(
     <ItemList
       status="success"
@@ -311,7 +311,7 @@ test('but keeps its ruling when there is no cut to collide with', () => {
     />,
   )
   expect(container.querySelector('.perf')).toBeNull()
-  expect(container.querySelector('.item-list__rubric--unruled')).toBeNull()
+  expect(container.querySelector('.item-list__rubric--unruled')).not.toBeNull()
 })
 
 // ---------------------------------------------------------------------------
@@ -553,15 +553,15 @@ test('the cart stays on the list sheet, below the cut — it has not come away y
   expect(container.querySelector('.item-list__sheet--receipt')).toBeNull()
 })
 
-test('with an empty cart there is no cut, no stamp and no printed rubric', () => {
+test('with an empty cart there is no cut, no stamp and no rubric at all', () => {
   const { container } = renderList([makeItem('a')])
 
   expect(container.querySelector('.perf')).toBeNull()
   expect(container.querySelector('.stamp')).toBeNull()
-  // The handwritten rubric comes back instead — the stub only exists when
-  // there is something to tear off.
-  expect(screen.getByText('En el carro')).toBeInTheDocument()
-  expect(screen.getByText('Nada todavía')).toBeInTheDocument()
+  // Not even a heading: "En el carro — nada todavía" labels a thing that is
+  // not there, and a hole with no action in it is not drawn (rule 6).
+  expect(screen.queryByText('En el carro')).not.toBeInTheDocument()
+  expect(screen.queryByText('Nada todavía')).not.toBeInTheDocument()
 })
 
 test('a settled trip is a receipt sheet, off the list', () => {

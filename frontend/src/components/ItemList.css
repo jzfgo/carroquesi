@@ -152,33 +152,6 @@
   white-space: nowrap;
 }
 
-/* No cut, no stamp, no printed rubric: the stub only exists when there is
-   something to tear off, so the handwritten hand comes back here. */
-.item-list__cart-empty {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: center;
-  box-sizing: border-box;
-  min-height: 46px;
-  padding: 6px 16px 16px var(--side-margin);
-}
-
-.item-list__cart-empty-rubric {
-  font-family: var(--font-written);
-  font-size: 17px;
-  line-height: 1.2;
-  letter-spacing: 0.05em;
-  color: var(--ink-2);
-  text-transform: uppercase;
-}
-
-.item-list__cart-empty-note {
-  font-size: var(--fs-12);
-  line-height: 1.1;
-  color: var(--ink-2);
-}
-
 .item-list__label {
   display: flex;
   align-items: center;

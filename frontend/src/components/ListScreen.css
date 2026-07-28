@@ -1,4 +1,13 @@
+/* #root carries `text-align: center` — a leftover from the Vite scaffold that
+   every screen inherits and sixteen components already quietly reset. Left
+   alone here, shop headings and the cart rubric centre themselves, and the
+   item names only look right because .item-card__open sets its own alignment.
+   Reset once for the screen rather than per element.
+
+   The scaffold rule itself is still there; removing it changes all 28 screens
+   at once and belongs with the rest of the sweep, not in a list-screen pass. */
 .list-screen {
+  text-align: left;
   width: 100%;
   max-width: 430px; /* comfortable on large phones / tablet emulation */
   margin: 0 auto;

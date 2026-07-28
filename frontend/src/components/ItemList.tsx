@@ -171,17 +171,15 @@ export function ItemList({
         {/* Pre-printed, in the serif: the pad brought this line, nobody wrote
             it. The count sits on the right in mono, where figures go.
 
-            Its ruling is dropped when the die-cut follows immediately: with
-            everything already in the cart there is nothing written between
-            the two, and a dashed rule a few pixels above a dashed cut reads
-            as a mistake rather than as ruling. The cut is the stronger line
-            and it is the one that means something, so it is the one that
-            stays. */}
+            Its ruling is dropped when nothing is written under it, which is
+            to say whenever there is nothing left to buy. Either the die-cut
+            follows — and a dashed rule a few pixels above a dashed cut reads
+            as a mistake, with the cut being the line that means something —
+            or nothing follows at all, and a rule over empty paper rules
+            nothing. */}
         <div
           className={`item-list__rubric${
-            active.length === 0 && cart.length > 0
-              ? ' item-list__rubric--unruled'
-              : ''
+            active.length === 0 ? ' item-list__rubric--unruled' : ''
           }`}
         >
           <span className="item-list__rubric-title">Por comprar</span>
@@ -223,10 +221,13 @@ export function ItemList({
           </div>
         ))}
 
-        {/* The stub only exists when there is something to tear off (28c.5):
-            with an empty cart there is no cut, no stamp and no printed
-            rubric — the handwritten one comes back instead. */}
-        {cart.length > 0 ? (
+        {/* The stub only exists when there is something to tear off (28c.5).
+            With an empty cart there is no cut, no stamp and no rubric either:
+            an "En el carro — nada todavía" heading is a label for a thing that
+            is not there, and a hole with no action in it is not drawn
+            (rule 6). The cut appears the moment the first line is picked up,
+            which is the whole point of it. */}
+        {cart.length > 0 && (
           <>
             <Perforation />
             <CartRubric count={cart.length} />
@@ -240,11 +241,6 @@ export function ItemList({
               />
             ))}
           </>
-        ) : (
-          <div className="item-list__cart-empty">
-            <span className="item-list__cart-empty-rubric">En el carro</span>
-            <span className="item-list__cart-empty-note">Nada todavía</span>
-          </div>
         )}
       </div>
 
