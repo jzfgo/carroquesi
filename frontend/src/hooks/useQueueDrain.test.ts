@@ -7,7 +7,7 @@ import { useQueueDrain } from './useQueueDrain'
 
 vi.mock('../lib/api')
 
-const mockGetToken = vi.fn().mockResolvedValue('token')
+const mockGetToken = vi.fn(async () => 'token')
 const mockOnDrained = vi.fn()
 const mockShowToast = vi.fn()
 

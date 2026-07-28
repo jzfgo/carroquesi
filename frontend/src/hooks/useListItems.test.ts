@@ -17,7 +17,7 @@ vi.mock('../lib/offlineQueue', () => ({
   }),
 }))
 
-const mockGetToken = vi.fn().mockResolvedValue('token')
+const mockGetToken = vi.fn(async () => 'token')
 const mockShowToast = vi.fn()
 
 const item1: ListItem = {

@@ -39,7 +39,7 @@ vi.mock('react-router-dom', () => ({
   ),
 }))
 
-const mockGetToken = vi.fn().mockResolvedValue('token')
+const mockGetToken = vi.fn(async () => 'token')
 const authedUser = {
   id: 'u1',
   displayName: 'Alice',
