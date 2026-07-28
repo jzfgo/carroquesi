@@ -2,6 +2,7 @@ import { Camera, Image, Receipt } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
+import { useBoard } from '../hooks/useBoard'
 import { useIsOffline } from '../hooks/useIsOffline'
 import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
@@ -203,6 +204,7 @@ export function ListScreen({
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [receiptSourcePickerOpen, setReceiptSourcePickerOpen] = useState(false)
   const currentUserId = user!.id
+  const [board] = useBoard(currentUserId, listId)
   const isOwner = listOwnerId === currentUserId
 
   const parsed = useMemo(() => parseInput(inputValue), [inputValue])
@@ -709,7 +711,9 @@ export function ListScreen({
   }, [filteredItems])
 
   return (
-    <div className="list-screen">
+    // The board is resolved once here and inherited by everything below, so no
+    // component has to know which of the six it is — they ask for --board.
+    <div className="list-screen" data-board={board}>
       <ListHeader
         title={localListName}
         emoji={listEmoji}

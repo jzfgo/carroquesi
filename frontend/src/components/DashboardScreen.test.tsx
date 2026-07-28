@@ -145,8 +145,17 @@ describe('DashboardScreen', () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
     await waitFor(() =>
-      expect(screen.getByText('3 de 8 comprados')).toBeInTheDocument(),
+      expect(screen.getByText('3 comprados')).toBeInTheDocument(),
     )
+  })
+
+  it('names the panel and counts it, which no single row can do', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    const { container } = render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Tus listas')).toBeVisible())
+    expect(
+      container.querySelector('.dashboard-screen__panel-count'),
+    ).toHaveTextContent(String(twoLists.length))
   })
 
   it('shows error state when fetch fails', async () => {

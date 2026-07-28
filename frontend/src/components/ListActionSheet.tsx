@@ -1,10 +1,12 @@
-import { Pencil, Receipt, Star, Trash2, Users } from 'lucide-react'
+import { Palette, Pencil, Receipt, Star, Trash2, Users } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useBoard } from '../hooks/useBoard'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { BoardPicker } from './BoardPicker'
 import './ListActionSheet.css'
 import { ListMembersSheet } from './ListMembersSheet'
 
-type SubState = 'actions' | 'rename' | 'members' | 'confirm-delete'
+type SubState = 'actions' | 'board' | 'rename' | 'members' | 'confirm-delete'
 
 interface Props {
   listId: string
@@ -33,6 +35,7 @@ export function ListActionSheet({
   onClose,
 }: Props) {
   const [subState, setSubState] = useState<SubState>('actions')
+  const [board, chooseBoard] = useBoard(currentUserId, listId)
   const [renameValue, setRenameValue] = useState(listName)
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
@@ -88,6 +91,15 @@ export function ListActionSheet({
             onClick={() => setSubState('rename')}
           >
             <Pencil size={18} /> Renombrar
+          </button>
+          {/* Not gated on isOwner: the board is the one thing here that is
+              yours rather than the household's, so every member sets their
+              own and nobody else ever sees it (rule 20). */}
+          <button
+            className="list-action-sheet__action"
+            onClick={() => setSubState('board')}
+          >
+            <Palette size={18} /> Tablero
           </button>
           <button
             className="list-action-sheet__action"
@@ -162,6 +174,38 @@ export function ListActionSheet({
             aria-label="Cancelar"
           >
             Cancelar
+          </button>
+        </div>
+      </>
+    )
+  }
+
+  if (subState === 'board') {
+    return (
+      <>
+        {overlay}
+        <div
+          className="list-action-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Tablero de la lista"
+          ref={sheetRef}
+        >
+          <div className="list-action-sheet__handle" {...swipe} />
+          <p className="list-action-sheet__list-name">{listName}</p>
+          <BoardPicker
+            value={board}
+            listName={listName}
+            // Written straight through. There is nothing to confirm: it is a
+            // preference, it travels nowhere, and the preview under the
+            // swatches has already shown the result.
+            onChange={chooseBoard}
+          />
+          <button
+            className="list-action-sheet__cancel-link"
+            onClick={() => setSubState('actions')}
+          >
+            Hecho
           </button>
         </div>
       </>

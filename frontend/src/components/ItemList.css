@@ -1,19 +1,81 @@
+/* The board — the surface the sheets lie on. Which of the six you see here is
+   your own choice and nobody else's (rule 20); it is set from the list menu and
+   resolved by the data-board attribute on .list-screen. The board never leaves
+   an open list: rule 8 keeps the paper in here, which is what makes entering
+   one mean something. */
 .item-list {
   flex: 1;
   overflow-y: auto;
-  background: var(--paper-1);
-  padding: 8px 0 200px;
+  background: var(--board);
+  padding: 14px 12px 200px;
 }
 
+/* Text directly on the board is the hardest reading surface in the product, so
+   the empty and error states stay on paper. */
 .item-list--centered {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
+  background: var(--paper-0);
   color: var(--text);
   font-size: 15px;
   padding: 40px 20px;
+}
+
+/* ── SHEETS ─────────────────────────────────────────────────────
+   Cut, not rounded: --r-sheet is 2px and no interface radius belongs on paper.
+   Rule 17 — the sheet is always above the board, and both modes' relief is
+   declared here at once. In light the shadow does the work and the two borders
+   are transparent; in dark it is the other way round. Identical CSS, no
+   branch. */
+.item-list__sheet {
+  position: relative;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-top: 1px solid var(--edge-lit-1);
+  border-bottom: 1px solid var(--edge-cast-1);
+  border-radius: var(--r-sheet);
+  background: var(--paper-0);
+  box-shadow: var(--sheet-cast-list);
+}
+
+/* A purchase is thinner stock: shorter cast, one rung down on the edge, and the
+   veiling that every purchase sheet carries — including one still open. The
+   list is the only sheet with no veil, because it is the one on top. */
+.item-list__sheet--receipt {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-top-color: var(--edge-lit-2);
+  border-bottom-color: var(--edge-cast-2);
+  box-shadow: var(--sheet-cast-receipt);
+}
+
+.item-list__sheet--receipt::before {
+  position: absolute;
+  inset: 0;
+  background: var(--veil);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  content: '';
+}
+
+/* The rim light on a cut edge has to be painted above the veil: an inset
+   box-shadow renders beneath an element's children and would be covered. */
+.item-list__sheet--receipt::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1.5px;
+  background: linear-gradient(
+    to bottom,
+    var(--sheet-rim) 0 1px,
+    var(--lip-soft) 1px 1.5px
+  );
+  pointer-events: none;
+  content: '';
 }
 
 .item-list__label {
@@ -46,24 +108,32 @@
   margin-left: 8px;
 }
 
+/* Rule 14: what is not paper is not drawn as paper. This control lives between
+   sheets, so it is lettered straight onto the board in --board-ink — no
+   surface of its own, no fill, no shadow, no edge. The board is already a
+   surface and takes ink; what the rule protects is the sheet. */
 .item-list__label--toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  min-height: var(--hit-min);
+  padding-right: 16px;
   background: none;
   border: none;
+  color: var(--board-ink);
   cursor: pointer;
   font-family: inherit;
-  padding-right: 16px;
 }
 
+/* Only ever appears inside the toggle above, which is lettered on the board, so
+   the chevron takes the board's ink for the same reason the label does. */
 .item-list__chevron {
   display: inline-block;
   width: 8px;
   height: 8px;
-  border-right: 2px solid var(--text);
-  border-bottom: 2px solid var(--text);
+  border-right: 2px solid var(--board-ink);
+  border-bottom: 2px solid var(--board-ink);
   transform: rotate(45deg);
   transition: transform 0.2s;
   flex-shrink: 0;

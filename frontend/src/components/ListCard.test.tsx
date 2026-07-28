@@ -29,7 +29,19 @@ describe('ListCard', () => {
     expect(screen.getByText('Mercado semanal')).toBeInTheDocument()
   })
 
-  it('shows "X de Y comprados" subtitle when items exist', () => {
+  it('puts the size of the list in the figure on the right', () => {
+    const { container } = render(
+      <ListCard
+        list={makeList({ item_count: 8, purchased_count: 3 })}
+        isOwner={false}
+        onClick={vi.fn()}
+        onMenuOpen={vi.fn()}
+      />,
+    )
+    expect(container.querySelector('.list-card__count')).toHaveTextContent('8')
+  })
+
+  it('says how far along without repeating the total (rule 3)', () => {
     render(
       <ListCard
         list={makeList({ item_count: 8, purchased_count: 3 })}
@@ -38,11 +50,27 @@ describe('ListCard', () => {
         onMenuOpen={vi.fn()}
       />,
     )
-    expect(screen.getByText('3 de 8 comprados')).toBeInTheDocument()
+    expect(screen.getByText('3 comprados')).toBeInTheDocument()
+    expect(screen.queryByText(/de 8/)).not.toBeInTheDocument()
   })
 
-  it('hides subtitle when item_count is 0', () => {
-    render(
+  it('drops the meta line — and 6px of height — when nothing is bought yet', () => {
+    const { container } = render(
+      <ListCard
+        list={makeList({ item_count: 8, purchased_count: 0 })}
+        isOwner={false}
+        onClick={vi.fn()}
+        onMenuOpen={vi.fn()}
+      />,
+    )
+    expect(container.querySelector('.list-card__subtitle')).toBeNull()
+    expect(container.querySelector('.list-card')).not.toHaveClass(
+      'list-card--meta',
+    )
+  })
+
+  it('leaves the figure blank on an empty list rather than printing a zero', () => {
+    const { container } = render(
       <ListCard
         list={makeList({ item_count: 0, purchased_count: 0 })}
         isOwner={false}
@@ -50,7 +78,35 @@ describe('ListCard', () => {
         onMenuOpen={vi.fn()}
       />,
     )
-    expect(screen.queryByText(/comprados/)).not.toBeInTheDocument()
+    expect(container.querySelector('.list-card__count')).toHaveTextContent('')
+  })
+
+  it('an empty list offers the action that fills it', () => {
+    const { container } = render(
+      <ListCard
+        list={makeList({ item_count: 0, purchased_count: 0 })}
+        isOwner={false}
+        onClick={vi.fn()}
+        onMenuOpen={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('vacía · añade lo primero')).toBeInTheDocument()
+    expect(container.querySelector('.list-card')).toHaveClass('list-card--meta')
+  })
+
+  it('is a flat panel row, never a card, and never carries a board colour', () => {
+    const { container } = render(
+      <ListCard
+        list={makeList()}
+        isOwner={false}
+        onClick={vi.fn()}
+        onMenuOpen={vi.fn()}
+      />,
+    )
+    // Rule 8: the paper stays inside an open list. 38b and 38c both drew the
+    // board out here and both were refused.
+    expect(container.querySelector('[data-board]')).toBeNull()
+    expect(container.querySelector('.progress-bar')).toBeNull()
   })
 
   it('calls onClick when tap-target is clicked', () => {
