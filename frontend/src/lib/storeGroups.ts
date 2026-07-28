@@ -46,14 +46,48 @@ function conjunction(next: string): string {
 }
 
 /**
+ * Past this many shops the heading stops naming them and counts them instead.
+ * Three fit on one line in the written hand; four wrap, and a wrapped heading
+ * breaks its own underline in two, which reads as two headings.
+ */
+const NAMED_LIMIT = 3
+
+/** How many are still named once the heading gives up on naming them all. */
+const NAMED_BEFORE_COUNT = 2
+
+/**
  * The shops of a group, written the way you would say them.
  *
- * One shop is its own name; two are joined by the conjunction; three or more
- * take commas until the last. No Oxford comma — Spanish does not use one.
+ * One shop is its own name; two are joined by the conjunction; three take a
+ * comma and then the conjunction. No Oxford comma — Spanish does not use one.
+ *
+ * Beyond three the heading names the first two and counts the rest: "Mercadona,
+ * Dia u otras 3 tiendas". Naming five shops is not information anyone reads —
+ * it is a wall of proper nouns wide enough to wrap — and what the line actually
+ * says is "this is easy to find". The count says that in a breath. Which shops
+ * they are is still one tap away, in the item.
+ *
+ * The remainder is a numeral rather than a word: it is the shortest thing that
+ * can be read at a glance, and length is the whole reason this branch exists.
+ *
+ * The conjunction is computed rather than hard-coded even though `otra(s)`
+ * always begins with /o/ and therefore always takes `u`: the rule lives in one
+ * place, so it cannot drift out of step here.
  */
 export function formatShops(shops: string[]): string {
   if (shops.length === 0) return ''
   if (shops.length === 1) return shops[0]
+
+  if (shops.length > NAMED_LIMIT) {
+    const named = shops.slice(0, NAMED_BEFORE_COUNT)
+    const left = shops.length - NAMED_BEFORE_COUNT
+    // Guarded rather than assumed: with the constants above `left` is never 1,
+    // but the singular is one word away and a "1 tiendas" would be a bug in
+    // Spanish, not a rounding detail.
+    const tail = left === 1 ? 'otra tienda' : `otras ${left} tiendas`
+    return `${named.join(', ')} ${conjunction(tail)} ${tail}`
+  }
+
   const last = shops[shops.length - 1]
   const rest = shops.slice(0, -1)
   return `${rest.join(', ')} ${conjunction(last)} ${last}`

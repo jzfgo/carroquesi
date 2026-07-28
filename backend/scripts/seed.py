@@ -163,17 +163,18 @@ SEED_ITEMS = [
         stores=["Carrefour"],
         added_by=ALICE_ID,
     ),
-    # Three shops, and named out of alphabetical order on purpose: the list
-    # groups by the *set* of shops and writes the heading sorted, so this is
-    # the item that shows both -- it heads its own "Carrefour, Dia o
-    # Mercadona" group rather than appearing three times.
+    # Five shops, named out of alphabetical order on purpose. Past three the
+    # heading stops naming them and counts instead, so this is the widest one
+    # the list can draw -- "Alcampo, Carrefour u otras 3 tiendas" -- and it
+    # shows every part of the rule at once: the set groups (one line, not
+    # five), the names sort, and the tail counts.
     ListItem(
         id="seed-item-papel",
         list_id="seed-list-compra",
         name="Papel de cocina",
         quantity="2",
         brand=None,
-        stores=["Mercadona", "Carrefour", "Dia"],
+        stores=["Mercadona", "Carrefour", "Dia", "Lidl", "Alcampo"],
         added_by=BOB_ID,
     ),
     ListItem(

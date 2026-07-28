@@ -89,10 +89,12 @@ export const SEED_ITEMS: Record<string, ListItem[]> = {
       created_at: '2026-06-01T00:00:00Z',
       updated_at: '2026-06-23T10:00:00Z',
     },
-    // Three shops, and the widest heading the list can draw: it groups on the
-    // *set* of shops, so this is one line under "Carrefour, Dia o Mercadona"
-    // rather than three lines under three headings. Named out of alphabetical
-    // order on purpose -- the heading sorts, whatever order they were typed.
+    // Five shops, which is the widest heading the list can draw: past three it
+    // stops naming them and counts instead, so this renders as one line under
+    // "Alcampo, Carrefour u otras 3 tiendas" -- longer than any spelled-out
+    // set, and therefore the case worth pinning. Named out of alphabetical
+    // order on purpose: the heading sorts whatever order they were typed, and
+    // it is the *set* that groups, so this is one line and not five.
     //
     // It is here to hold that heading under visual regression: an underline
     // that wraps across two lines reads as two headings, and only a
@@ -105,7 +107,7 @@ export const SEED_ITEMS: Record<string, ListItem[]> = {
       quantity: '2',
       purchased_quantity: null,
       brand: null,
-      stores: ['Mercadona', 'Carrefour', 'Dia'],
+      stores: ['Mercadona', 'Carrefour', 'Dia', 'Lidl', 'Alcampo'],
       purchased: false,
       purchased_at: null,
       ean: null,

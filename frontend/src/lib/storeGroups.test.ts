@@ -32,10 +32,47 @@ describe('formatShops', () => {
     expect(formatShops(['Dia', 'Mercadona'])).toBe('Dia o Mercadona')
   })
 
-  test('three or more take commas until the last', () => {
+  test('three take a comma and then the conjunction', () => {
     expect(formatShops(['Carrefour', 'Dia', 'Mercadona'])).toBe(
       'Carrefour, Dia o Mercadona',
     )
+  })
+
+  describe('past three, the heading counts instead of naming', () => {
+    // Four shops wrap the heading, and a wrapped heading breaks its own
+    // underline in two -- which reads as two headings.
+    test('four: two named, the rest counted', () => {
+      expect(formatShops(['Alcampo', 'Carrefour', 'Dia', 'Mercadona'])).toBe(
+        'Alcampo, Carrefour u otras 2 tiendas',
+      )
+    })
+
+    test('five', () => {
+      expect(
+        formatShops(['Alcampo', 'Carrefour', 'Dia', 'Lidl', 'Mercadona']),
+      ).toBe('Alcampo, Carrefour u otras 3 tiendas')
+    })
+
+    test('the conjunction is always u, because otras starts with the /o/ sound', () => {
+      const many = ['Alcampo', 'Bonarea', 'Carrefour', 'Dia', 'Eroski']
+      expect(formatShops(many)).toContain(' u otras ')
+    })
+
+    test('the count is a numeral, the shortest thing readable at a glance', () => {
+      const eight = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+      expect(formatShops(eight)).toBe('A, B u otras 6 tiendas')
+    })
+
+    test('and stays a numeral however many there are', () => {
+      const fourteen = Array.from({ length: 14 }, (_, n) => `T${n}`)
+      expect(formatShops(fourteen)).toBe('T0, T1 u otras 12 tiendas')
+    })
+
+    test('three is still named in full -- the rule starts above it', () => {
+      expect(formatShops(['Alcampo', 'Carrefour', 'Dia'])).not.toContain(
+        'otras',
+      )
+    })
   })
 
   test('no shops is nothing to write', () => {

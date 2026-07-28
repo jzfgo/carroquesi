@@ -120,7 +120,19 @@
   padding: 14px var(--side-margin) 4px;
 }
 
+/* The underline is on the name, not the line, so it draws exactly as wide as
+   the words — the way you underline a heading on paper.
+
+   That is also why this must never wrap: a wrapped heading breaks its own
+   underline into two, and two underlined fragments read as two headings.
+   lib/storeGroups stops naming shops past three for that reason; the clipping
+   here is the last resort for names long enough to overrun even the short
+   form. Truncating in CSS rather than in the string keeps the full text in the
+   accessibility tree, so a screen reader still hears every shop. */
 .item-list__store-name {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 100%;
   padding-bottom: 2px;
   border-bottom: 1.5px solid var(--ink-0);
   font-family: var(--font-written);
@@ -128,7 +140,9 @@
   line-height: 1.2;
   letter-spacing: 0.05em;
   color: var(--ink-0);
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 /* No cut, no stamp, no printed rubric: the stub only exists when there is
