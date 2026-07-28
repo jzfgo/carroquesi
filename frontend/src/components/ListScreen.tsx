@@ -10,6 +10,7 @@ import { useListSeen } from '../hooks/useListSeen'
 import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useQueueDrain } from '../hooks/useQueueDrain'
+import { useTearOff } from '../hooks/useTearOff'
 import {
   ApiError,
   deleteList,
@@ -258,6 +259,14 @@ export function ListScreen({
     clearItemPrice,
     retry,
   } = useListItems(listId, getToken, setToast)
+
+  // Wakes the screen at each trip's tear-off instant. Without this, the cart
+  // does not visibly empty at midnight until something else causes a
+  // re-render — itemState's Date.now() comparison never fires on its own.
+  // Passed the unfiltered `items` rather than `filteredItems` because
+  // ProgressBar also reads unfiltered items and would otherwise go stale for
+  // a trip hidden by the current filter.
+  useTearOff(items)
 
   const { pendingCount } = useQueueDrain({
     listId,
