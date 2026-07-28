@@ -127,7 +127,7 @@ test('purchased section hidden when no items purchased', () => {
       onRetry={() => {}}
     />,
   )
-  expect(screen.queryByText('Comprados')).not.toBeInTheDocument()
+  expect(screen.queryByText('Compras anteriores')).not.toBeInTheDocument()
 })
 
 test('purchased section shown when items purchased', () => {
@@ -141,7 +141,9 @@ test('purchased section shown when items purchased', () => {
       onRetry={() => {}}
     />,
   )
-  expect(screen.getByRole('button', { name: /comprados/i })).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: /compras anteriores/i }),
+  ).toBeInTheDocument()
 })
 
 test('purchased section is expanded by default', () => {
@@ -155,10 +157,9 @@ test('purchased section is expanded by default', () => {
       onRetry={() => {}}
     />,
   )
-  expect(screen.getByRole('button', { name: /comprados/i })).toHaveAttribute(
-    'aria-expanded',
-    'true',
-  )
+  expect(
+    screen.getByRole('button', { name: /compras anteriores/i }),
+  ).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByText('Item b')).toBeInTheDocument()
 })
 
@@ -173,11 +174,10 @@ test('tapping the purchased header collapses the section', () => {
       onRetry={() => {}}
     />,
   )
-  fireEvent.click(screen.getByRole('button', { name: /comprados/i }))
-  expect(screen.getByRole('button', { name: /comprados/i })).toHaveAttribute(
-    'aria-expanded',
-    'false',
-  )
+  fireEvent.click(screen.getByRole('button', { name: /compras anteriores/i }))
+  expect(
+    screen.getByRole('button', { name: /compras anteriores/i }),
+  ).toHaveAttribute('aria-expanded', 'false')
   expect(screen.queryByText('Item b')).not.toBeInTheDocument()
 })
 
@@ -192,7 +192,7 @@ test('tapping the purchased header again re-expands the section', () => {
       onRetry={() => {}}
     />,
   )
-  const toggle = screen.getByRole('button', { name: /comprados/i })
+  const toggle = screen.getByRole('button', { name: /compras anteriores/i })
   fireEvent.click(toggle)
   fireEvent.click(toggle)
   expect(screen.getByText('Item b')).toBeInTheDocument()

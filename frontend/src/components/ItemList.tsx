@@ -10,6 +10,7 @@ import { ItemCard } from './ItemCard'
 import './ItemList.css'
 import { Mascot } from './Mascot'
 import { Perforation } from './Perforation'
+import { ReceiptLines } from './ReceiptLines'
 
 type Status = 'loading' | 'error' | 'success'
 
@@ -229,16 +230,25 @@ export function ItemList({
 
       {purchased.length > 0 && (
         <>
+          {/* Lettered straight onto the board, not given a sheet of its own:
+              what is not paper is not drawn as paper (rule 14). It counts
+              trips rather than things, because that is what a purchase is —
+              one shop, one day. */}
           <button
             className="item-list__label item-list__label--toggle"
             onClick={() => setPurchasedCollapsed((c) => !c)}
             aria-expanded={!purchasedCollapsed}
           >
-            Comprados ({purchased.length})
-            <span
-              className={`item-list__chevron${purchasedCollapsed ? ' item-list__chevron--collapsed' : ''}`}
-              aria-hidden
-            />
+            <span className="item-list__label-text">Compras anteriores</span>
+            <span className="item-list__label-meta">
+              <span className="item-list__label-count">
+                {purchasedByDate.length}
+              </span>
+              <span
+                className={`item-list__chevron${purchasedCollapsed ? ' item-list__chevron--collapsed' : ''}`}
+                aria-hidden
+              />
+            </span>
           </button>
           {!purchasedCollapsed &&
             purchasedByDate.map(({ label, items: group }) => (
@@ -260,15 +270,12 @@ export function ItemList({
                     )
                   })()}
                 </p>
-                {group.map((item) => (
-                  <ItemCard
-                    key={item.id}
-                    item={item}
-                    onTogglePurchased={onTogglePurchased}
-                    onOpen={onOpen}
-                    onClone={onClone}
-                  />
-                ))}
+                <ReceiptLines
+                  items={group}
+                  onTogglePurchased={onTogglePurchased}
+                  onOpen={onOpen}
+                  onClone={onClone}
+                />
               </div>
             ))}
         </>

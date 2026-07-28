@@ -48,6 +48,20 @@ export function ItemCard({ item, onTogglePurchased, onOpen, onClone }: Props) {
   // not a figure at all (rule 10).
   const showsAmount = state !== 'pending' && item.price != null
 
+  // What the figure column holds, and it is allowed to hold nothing.
+  //
+  // On a settled line the column is the money column: what this cost. If
+  // nobody ever recorded a price, the honest answer is a gap — and a gap is
+  // exactly what should be visible, because it is the thing still missing.
+  // Filling it with the quantity instead both hides that and says the same
+  // thing twice, since a settled line already prints its quantity on the
+  // second line underneath.
+  const figure = showsAmount
+    ? formatPrice(item.price!, item.price_per)
+    : settled
+      ? null
+      : displayQty
+
   // The second line, and what it says depends on which way the row is facing.
   //
   // Still to buy, the quantity is a figure and sits in the figure column, so
@@ -102,16 +116,14 @@ export function ItemCard({ item, onTogglePurchased, onOpen, onClone }: Props) {
         {subline && <span className="item-card__sub">{subline}</span>}
       </button>
 
-      {/* One column for the figure, whichever figure this line has. Once a
-          line is picked up, what it cost is the figure that matters and the
-          quantity steps aside; while it is still an instruction the price is
-          only a proposal from history, and an unconfirmed price is not a
-          figure at all (rule 10). Left empty when there is neither — no dash
-          and no rule, because a dash turns a column into a form (rule 6). */}
+      {/* One column for the figure, whichever figure this line has: a quantity
+          while it is still an instruction, an amount once it is a record.
+          Empty when there is neither — no dash and no rule, because a dash
+          turns a column into a form (rule 6). */}
       <span
         className={`item-card__figure${showsAmount ? ' item-card__figure--amount' : ''}`}
       >
-        {showsAmount ? formatPrice(item.price!, item.price_per) : displayQty}
+        {figure}
       </span>
 
       <ChevronRight className="item-card__chevron" size={14} aria-hidden />

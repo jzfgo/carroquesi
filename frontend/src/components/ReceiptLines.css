@@ -1,0 +1,43 @@
+/* The fold in a receipt that was too long to print whole.
+
+   The two hairlines are not a divider between items — there are none of those
+   inside a sheet — they are the fold itself, the way a till roll creases where
+   it was turned back. That is why they run *into* the words rather than across
+   the sheet, and why the words sit in the middle of them. */
+.receipt-lines__more {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 6px var(--side-margin) 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.receipt-lines__more::before,
+.receipt-lines__more::after {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+  content: '';
+}
+
+/* Mono, because it is counting — and a rung down in ink, because what it
+   counts is the part you chose not to read. */
+.receipt-lines__more-text {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.receipt-lines__more:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

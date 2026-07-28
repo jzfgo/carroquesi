@@ -133,6 +133,32 @@ describe('the figure column', () => {
     )
   })
 
+  it('stays empty on a settled line with no price, so the gap is the point', () => {
+    // Jamón cocido: bought, quantity recorded, price never captured. Printing
+    // "200g" here would both hide the missing price and repeat the second
+    // line, which already says the quantity.
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: EARLIER,
+      quantity: '200g',
+      purchased_quantity: '200g',
+      price: null,
+    })
+    expect(container.querySelector('.item-card__figure')?.textContent).toBe('')
+    expect(container.querySelector('.item-card__sub')).toHaveTextContent('200g')
+  })
+
+  it('keeps the quantity in the cart, where the column is not money yet', () => {
+    const { container } = renderCard({
+      purchased: true,
+      purchased_at: TODAY,
+      quantity: '1 kg',
+    })
+    expect(container.querySelector('.item-card__figure')).toHaveTextContent(
+      '1 kg',
+    )
+  })
+
   it('is left empty when there is neither — a dash would make it a form', () => {
     const { container } = renderCard({
       purchased: true,

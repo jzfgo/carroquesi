@@ -1,4 +1,4 @@
-import { Camera, Image, Receipt } from 'lucide-react'
+import { Camera, ChevronRight, Image, Receipt } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
@@ -776,25 +776,36 @@ export function ListScreen({
         pendingCost={pendingCost}
         purchasedCostByDate={purchasedCostByDate}
         footer={
-          allUnpurchasedCount === 0 &&
-          items.length > 0 &&
-          !receiptScanResult &&
-          isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
-            <div className="receipt-scan-cta">
-              <button
-                className="receipt-scan-cta__btn"
-                onClick={handleReceiptScan}
-                disabled={receiptUploading || isOffline}
-              >
-                {receiptUploading ? (
-                  'Procesando ticket…'
-                ) : (
-                  <>
-                    <Receipt size={16} /> Escanear ticket para registrar precios
-                  </>
-                )}
-              </button>
-            </div>
+          !receiptScanResult && isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
+            /* A way in, not a prompt. It used to appear only once the list
+               was empty, which made it a reward for finishing — but the shop
+               it is for is precisely the one that never went on the list, so
+               waiting for the list to be done was waiting for the wrong
+               thing. It says what it does and stays out of the way. */
+            <button
+              className="save-ticket"
+              onClick={handleReceiptScan}
+              disabled={receiptUploading || isOffline}
+            >
+              <span className="save-ticket__stub" aria-hidden>
+                <Receipt size={17} strokeWidth={1.75} />
+              </span>
+              <span className="save-ticket__words">
+                <span className="save-ticket__title">
+                  {receiptUploading
+                    ? 'Procesando ticket…'
+                    : 'Guardar un ticket'}
+                </span>
+                <span className="save-ticket__note">
+                  De una compra que no apuntaste aquí
+                </span>
+              </span>
+              <ChevronRight
+                className="save-ticket__chevron"
+                size={16}
+                aria-hidden
+              />
+            </button>
           ) : undefined
         }
       />

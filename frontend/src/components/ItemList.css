@@ -220,6 +220,24 @@
   font-family: inherit;
 }
 
+/* The count and the chevron travel together at the far end. */
+.item-list__label-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Mono and tabular, because it is a figure — the same hand every count in the
+   product is set in (rule 15). */
+.item-list__label-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
 /* Only ever appears inside the toggle above, which is lettered on the board, so
    the chevron takes the board's ink for the same reason the label does. */
 .item-list__chevron {
