@@ -24,11 +24,12 @@ This file provides guidance to coding agents (such as Antigravity CLI, Claude Co
 - `users`: user profile and Firebase identity (`firebase_uid`)
 - `lists`: list metadata and ownership (`owner_id`)
 - `list_members`: list membership links; `is_default` flags the member's default list (the Siri `list_id="default"` target)
-- `list_items`: item data, purchase state (`purchased_at`), actual purchased quantity (`purchased_quantity`), and pricing (`price`, `price_per`, `price_store`)
+- `list_items`: item data, purchase state (`purchased_at`, `purchase_id`), actual purchased quantity (`purchased_quantity`), and pricing (`price`, `price_per`, `price_store`)
 - `list_invites`: opt-in invitations; `id` is the share token
 - `barcode_cache`: cached barcode lookup data
 - `price_cache`: cached community price data by EAN (amount, price_per, fetched_at); negative-caches misses too
-- `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results)
+- `purchases`: a shopping trip — the confirmed record of a shop (`store`, `total`, `opened_at`, `tears_off_at`, `closed_at`), as against `receipt_scans`' parsed evidence; declared at reconciliation, not inferred from tap timestamps. See [ADR-011](docs/decisions/011-purchase-entity-and-trip-boundary.md)
+- `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results); optional `purchase_id` when a scan reconciled a trip
 - `receipt_name_mappings`: learned receipt→item name mappings per store; improves auto-matching on future scans
 - `feedback_submissions`: in-app user feedback (message, email, source, user_agent)
 - `waitlist_signups`: early-access waitlist (email, allowed_at, invite_token)
@@ -41,6 +42,7 @@ Important invariants:
 - bump `lists.updated_at` on item writes, member changes, and list rename
 - `list_items.purchased_at = NULL` means unpurchased; first purchase sets timestamp
 - keep derived `purchased: bool` in API responses for backward compatibility
+- whether a purchased item is still "in the cart" or has "torn off" into a filed ticket is not a calendar-day check — it's whether the item's `purchases` row is still open (`closed_at` unset and `tears_off_at` in the future, in `Europe/Madrid`). `purchase_id` stays nullable permanently; *purchased ⇒ `purchase_id` set* is enforced in-app, not by a DB constraint. See [ADR-011](docs/decisions/011-purchase-entity-and-trip-boundary.md)
 - invite acceptance is explicit before access is granted
 - at most one `list_members.is_default=true` per user; the Siri `"default"` resolver is explicit-only (no most-recently-updated fallback) and 404s when unset. Auto-assigned on a user's first list; never auto-promoted when a default list is deleted. Managed via `backend/app/services/default_list.py`. See [ADR-007](docs/decisions/007-per-user-default-list.md)
 - `list_members.last_seen_at` is the push unseen-count watermark. Reset it **only while the list is actually visible** (`POST /lists/{id}/seen`, called from `useListSeen`) — marking a backgrounded tab as seen silently defeats the feature. The count is *derived* from `list_items` at send time, never accumulated, so dropped or duplicate pushes cannot cause drift. See [ADR-010](docs/decisions/010-web-push-via-fcm.md)
@@ -109,7 +111,7 @@ Four-step flow: client parse (`receiptAi.ts` via Gemini) → backend fuzzy match
 
 ### Purchased item rules
 
-Purchased items are mostly read-only (rename/qty/brand/store edits disabled). Price deletion has a **same-day guard**: enforced in both `LogPurchaseSheet` (frontend) and `DELETE /lists/{id}/items/{item_id}/prices` (returns 422 for prior-day purchases).
+Purchased items are mostly read-only (rename/qty/brand/store edits disabled). Price deletion has a **trip-open guard**, not a calendar-day one: enforced in both `LogPurchaseSheet` (frontend) and `DELETE /lists/{id}/items/{item_id}/prices` (backend), which returns 422 once the item's trip has closed or torn off. See [ADR-011](docs/decisions/011-purchase-entity-and-trip-boundary.md).
 
 ## Backend
 
