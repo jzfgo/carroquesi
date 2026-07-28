@@ -21,8 +21,13 @@
 # COOLDOWN IS LOAD-BEARING — DO NOT LOWER IT, AND DO NOT DELETE IT
 #
 # Both ecosystems quarantine new releases for 7 days as supply-chain defence:
-#   - frontend/pnpm-workspace.yaml  minimumReleaseAge: 10080  (minutes = 7d)
-#   - backend/uv.lock               exclude-newer-span = "P7D"
+#   - frontend/pnpm-workspace.yaml  minimumReleaseAge: 10080         (minutes = 7d)
+#   - backend/pyproject.toml        [tool.uv] exclude-newer = "7d"
+#
+# Set the uv value in pyproject.toml, never in the lockfile. uv *records* it in
+# backend/uv.lock as `exclude-newer-span = "P7D"`, so the lock is where you
+# confirm it is in effect — but the lock is derived, and one regenerated without
+# the pyproject entry drops the window silently and without error.
 #
 # Dependabot updates the lockfile by running the package manager itself, so a
 # proposal younger than that window is one the resolver will refuse — the PR

@@ -19,6 +19,14 @@ dependencies = [
 [tool.fastapi]
 entrypoint = "app.main:app"
 
+# Supply-chain quarantine: refuse to resolve any release younger than 7 days.
+# Mirrors frontend/pnpm-workspace.yaml's `minimumReleaseAge: 10080`. Relative,
+# so uv records it in uv.lock as `exclude-newer-span = "P7D"` and re-evaluates
+# it against the clock at each resolution. See the cooldown block in
+# .github/dependabot.yml — if you change this value, change that to match.
+[tool.uv]
+exclude-newer = "7d"
+
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
