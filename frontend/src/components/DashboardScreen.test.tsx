@@ -76,9 +76,6 @@ beforeEach(() => {
     purchased_count: 0,
     is_default: false,
   } as never)
-  vi.mocked(api.updateList).mockResolvedValue({} as never)
-  vi.mocked(api.deleteList).mockResolvedValue(null as never)
-  vi.mocked(api.setDefaultList).mockResolvedValue(null as never)
   vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
     isEnabled: () => false,
   })

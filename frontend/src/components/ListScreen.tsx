@@ -67,6 +67,7 @@ interface Props {
   listOwnerId: string
   isDefault?: boolean
   onRename?: (newName: string) => void
+  onEmojiChanged?: (emoji: string | null) => void
   onSetDefault?: (isDefault: boolean) => void
   onBack?: () => void
 }
@@ -84,6 +85,7 @@ export function ListScreen({
   listOwnerId,
   isDefault = false,
   onRename,
+  onEmojiChanged,
   onSetDefault,
   onBack,
 }: Props) {
@@ -170,12 +172,17 @@ export function ListScreen({
       setLocalEmoji(emoji)
       try {
         await updateList(getToken, listId, { emoji })
+        // Same upward notification the rename and the default flag make: the
+        // route holds the list it handed us, and leaving its copy stale here
+        // and nowhere else is the kind of asymmetry that reads as deliberate
+        // and is not.
+        onEmojiChanged?.(emoji)
       } catch {
         setLocalEmoji(previous)
         setToast('No se pudo cambiar el emoji')
       }
     },
-    [getToken, isOffline, listId, localEmoji],
+    [getToken, isOffline, listId, localEmoji, onEmojiChanged],
   )
 
   const handleSetDefault = useCallback(async () => {
