@@ -9,7 +9,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--paper-0);
+  background: var(--paper-lift);
   border-top: 1px solid var(--border);
   border-radius: 16px 16px 0 0;
   padding: 8px 0 24px;
@@ -130,8 +130,12 @@
 
 /* Who put this line on the list. It was an avatar in every row; one sentence
    here says it better and costs the list nothing. */
+
+/* The sheet itself carries no horizontal padding — every child supplies its
+   own — so these have to as well, or they run to the screen edge. */
 .item-action-sheet__added-by {
   margin: -4px 0 12px;
+  padding: 0 var(--side-margin);
   font-size: var(--fs-13);
   color: var(--ink-2);
 }
@@ -152,7 +156,7 @@
   box-sizing: border-box;
   width: 100%;
   min-height: var(--hit-tap);
-  padding: 0;
+  padding: 0 var(--side-margin);
   border: none;
   background: none;
   color: var(--ink-1);
