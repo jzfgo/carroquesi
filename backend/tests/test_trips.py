@@ -561,6 +561,9 @@ def test_the_full_two_shop_evening_end_to_end(session: Session, lst: List, user:
     assert items[2].purchase_id == mercadona.id
     assert items[3].purchase_id == mercadona.id
     assert trips.open_trip(session, lst.id, datetime(2026, 7, 28, 20, 10)) is None
+    # Mercadona's opened_at must come from its own remaining items, not from
+    # item 0's tap time -- item 0 is on the Lidl ticket now.
+    assert mercadona.opened_at == items[2].purchased_at
 
 
 def test_closing_with_an_unknown_item_id_is_refused(session: Session, lst: List, user: User):
@@ -595,3 +598,46 @@ def test_split_trip_coexists_with_the_still_open_one(session: Session, lst: List
     assert original.closed_at is None
     assert lidl.closed_at is not None
     assert original.tears_off_at == lidl.tears_off_at
+
+
+def test_closing_an_open_but_empty_trip_is_refused(session: Session, lst: List):
+    # Distinct from "no open trip at all": trip_for can create an open trip
+    # before anything is ever attached to it, so the "if not cart" branch --
+    # as opposed to the "trip is None" branch above it -- needs its own path
+    # to actually execute.
+    trips.trip_for(session, lst.id, datetime(2026, 7, 28, 18, 0))
+    session.commit()
+
+    with pytest.raises(trips.NothingToClose):
+        trips.close(session, lst.id, None, "Lidl", 5.0, datetime(2026, 7, 28, 20, 0))
+
+
+def test_closing_an_empty_selection_closes_nothing(session: Session, lst: List, user: User):
+    # item_ids=[] means "the user selected nothing" and item_ids=None means
+    # "close everything" -- opposite things. A UI that lets someone deselect
+    # every item must not fall through to closing the whole cart.
+    at = datetime(2026, 7, 28, 18, 0)
+    _cart(session, lst, user, ["Leche"], at)
+
+    with pytest.raises(trips.NothingToClose):
+        trips.close(session, lst.id, [], "Lidl", 5.0, datetime(2026, 7, 28, 20, 0))
+
+
+def test_closing_an_explicit_full_selection_takes_the_in_place_path(
+    session: Session, lst: List, user: User
+):
+    # Every whole-cart test above passes item_ids=None. An explicit id list
+    # that happens to name the whole cart must reach the same in-place path,
+    # not just the None shortcut.
+    at = datetime(2026, 7, 28, 18, 0)
+    items = _cart(session, lst, user, ["Leche", "Pan"], at)
+    before = items[0].purchase_id
+
+    closed = trips.close(
+        session, lst.id, [items[0].id, items[1].id], "Lidl", 14.60, datetime(2026, 7, 28, 20, 0)
+    )
+    session.commit()
+
+    assert closed.id == before
+    assert closed.closed_at == datetime(2026, 7, 28, 20, 0)
+    assert closed.store == "Lidl"

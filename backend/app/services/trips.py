@@ -228,16 +228,29 @@ def close(
     if not selection:
         raise NothingToClose()
 
+    # A trip's opened_at is when *its own* shopping started, not when the
+    # cart it was carved out of first got a tap. Recomputing it here from the
+    # selection -- rather than only in the split branch -- matters for the
+    # in-place branch too: close the remainder of a cart after an earlier
+    # split closed off its first few items, and without this the remainder's
+    # opened_at would still be the original tap time, which now belongs to a
+    # different ticket. The fallback to trip.opened_at is unreachable in
+    # practice -- every item is stamped with purchased_at before attach() ever
+    # puts it in a trip -- but if it ever fired, it would mean an item without
+    # a purchase timestamp made it into the cart, and falling back to the
+    # trip's own opened_at is the least-wrong thing to do rather than crashing.
+    opened_at = min(
+        (item.purchased_at for item in selection if item.purchased_at), default=trip.opened_at
+    )
+
     if len(selection) == len(cart):
+        trip.opened_at = opened_at
         trip.closed_at = now
         trip.store = store
         trip.total = total
         session.add(trip)
         return trip
 
-    opened_at = min(
-        (item.purchased_at for item in selection if item.purchased_at), default=trip.opened_at
-    )
     split = Purchase(
         list_id=list_id,
         opened_at=opened_at,
