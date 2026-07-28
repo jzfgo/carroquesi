@@ -17,6 +17,20 @@ name: Claude Code
 # "Claude —", losing the number this exists to carry.
 run-name: "Claude — #${{ github.event.issue.number || github.event.pull_request.number }}"
 
+# A PR that edits THIS FILE gets no Claude review, and the check still goes green.
+#
+# claude-code-action refuses to run when the workflow file differs from the copy on
+# the default branch — "The workflow file must exist and have identical content to
+# the version on the repository's default branch". That is a security property: it
+# stops a PR author rewriting this workflow and running it with repository secrets.
+# The action exits before reaching Claude, the step succeeds, and the `claude` check
+# reports SUCCESS having reviewed nothing.
+#
+# So changes to this file cannot be verified by the PR that makes them. They take
+# effect on merge, and the first PR afterwards that does NOT touch this file is what
+# actually proves them. Plan the verification accordingly rather than reading a green
+# check as a passing review.
+
 on:
   # Automatic first-pass review. Deliberately NOT `synchronize` — that would fire a
   # full review on every push, which is both noisy and costly. Ask for follow-up
@@ -83,7 +97,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@v1.0.178
+        uses: anthropics/claude-code-action@v1.0.179
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
@@ -95,6 +109,29 @@ jobs:
           # brief. Every other trigger passes an empty string, which leaves the action
           # following the instruction in the comment that mentioned @claude.
           prompt: ${{ github.event_name == 'pull_request' && 'Review this pull request. Focus on correctness, security, and whether the change actually does what its description claims. Verify factual assertions in the diff against the real files rather than assuming they hold. Post your findings as a comment even when you find nothing, so that a clean pass is distinguishable from a silent one.' || '' }}
+
+          # Without this, the automatic review reads the diff and then throws the
+          # result away.
+          #
+          # Supplying `prompt` makes v1 auto-detect **agent mode** (the explicit
+          # `mode:` input is deprecated), and agent mode creates no tracking comment
+          # and hands the agent no comment-posting tool. So the run does the work,
+          # exits `is_error: false`, and posts nothing — a green check on a review
+          # that nobody can read. Asking for it in the prompt above cannot help:
+          # there is no tool to honour the request with. Confirmed on #163 and #164,
+          # whose logs show `Mode: agent` and, unlike an @claude run, not one
+          # `mcp__github_comment__update_claude_comment` call.
+          #
+          # `track_progress` forces tag mode while keeping the brief above: the
+          # action pre-creates the tracking comment and gives the agent the tool to
+          # fill it in. Scoped to `pull_request` because every other trigger here is
+          # already in tag mode and needs no forcing.
+          #
+          # NOTE: this is NOT a permissions problem, and granting `issues: write` /
+          # `pull-requests: write` would not have fixed it. The action posts with its
+          # own OIDC-minted token (hence `id-token: write`), which is why @claude runs
+          # comment happily under the read-only scopes above.
+          track_progress: ${{ github.event_name == 'pull_request' }}
 
           # Let the reviewer check claims against primary sources instead of recalling
           # them. Without this, WebSearch/WebFetch fail closed: `--allowedTools` is an
