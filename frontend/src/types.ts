@@ -8,6 +8,10 @@ export interface ListItem {
   stores: string[]
   purchased: boolean
   purchased_at: string | null
+  purchase_id?: string | null
+  /** `closed_at ?? tears_off_at` — when this item's trip stopped accepting
+   *  items. One stamped instant, so nothing on this side does date arithmetic. */
+  purchase_ends_at?: string | null
   ean: string | null
   price: number | null
   price_per: string | null
