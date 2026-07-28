@@ -641,8 +641,24 @@ describe('barcode scan into a create row', () => {
 // lib/receiptDate.ts is relative to today, so a literal would silently change
 // verdict as real-world time passes.
 
-const daysAway = (delta: number) =>
-  new Date(Date.now() + delta * 86_400_000).toISOString().slice(0, 10)
+/** A bare calendar day `delta` days from today, in the **viewer's** calendar.
+ *
+ *  Built from local components on purpose. `toISOString().slice(0, 10)` reduces
+ *  the instant to a UTC day, which is the precise mistake `lib/receiptDate.ts`
+ *  documents avoiding — and it made these window-boundary cases fail for the
+ *  couple of hours each night when Madrid's local day is already ahead of the
+ *  UTC one. `daysAway(-3)` would yield a date four local days back, landing
+ *  outside the ±3 window it was written to sit exactly on.
+ *
+ *  A test that only passes for twenty-two hours a day is worse than no test:
+ *  it fails in CI at an hour nobody is looking, and gets rerun rather than read.
+ */
+const daysAway = (delta: number) => {
+  const day = new Date()
+  day.setDate(day.getDate() + delta)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`
+}
 
 const openEditor = () =>
   fireEvent.click(screen.getByRole('button', { name: 'Corregir fecha' }))
