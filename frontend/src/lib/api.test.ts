@@ -20,7 +20,7 @@ import {
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-const mockGetToken = vi.fn().mockResolvedValue('test-token')
+const mockGetToken = vi.fn(async () => 'test-token')
 
 function mockResponse(body: unknown, status = 200) {
   return Promise.resolve({

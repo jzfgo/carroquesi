@@ -46,6 +46,19 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/vitest.setup.ts'],
     globals: true,
+    // Reset every mock's implementation between tests, not just its recorded
+    // calls. `vi.clearAllMocks()` — which most files call in `beforeEach` — only
+    // does the latter, so a test that parks a mock on a promise that never
+    // settles poisons every later test in the file that expects it to resolve.
+    // That cost an afternoon during #171 and left a workaround comment behind.
+    //
+    // Note this changes what a mock returns when nothing stubs it: `vi.fn()`
+    // reverts to returning `undefined`. An implementation passed as a
+    // constructor argument — `vi.fn(async () => 'token')` — is part of the
+    // baseline and survives; one attached afterwards — `vi.fn().mockResolvedValue(…)`
+    // — is state and is cleared. The module-scope helpers in the test suite were
+    // converted to the first form in this commit for exactly that reason.
+    mockReset: true,
     include: ['src/**/*.test.{ts,tsx}'],
     fakeTimers: {
       shouldAdvanceTime: true,

@@ -129,7 +129,7 @@ vi.mock('./ReceiptScanSheet', () => ({
   ),
 }))
 
-const mockGetToken = vi.fn().mockResolvedValue('token')
+const mockGetToken = vi.fn(async () => 'token')
 
 const emptyHookResult = {
   status: 'success' as const,
@@ -1003,10 +1003,6 @@ describe('the list emoji', () => {
   })
 
   it('tells the route once the write lands, as the rename does', async () => {
-    // Explicit, because the test above leaves updateList on a promise that
-    // never settles: beforeEach calls vi.clearAllMocks(), which clears
-    // recorded calls but keeps implementations.
-    vi.mocked(api.updateList).mockResolvedValue({} as never)
     const onEmojiChanged = vi.fn()
     render(
       <ListScreen

@@ -46,7 +46,11 @@ describe('LogPurchaseSheet delete button', () => {
     initialPurchasedQuantity: null,
     onSave: vi.fn(),
     onClose: vi.fn(),
-    onDelete: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    // Same conversion, and this one is worth a word: a describe body is not
+    // obviously module-load code, but it runs once at collection — before
+    // any test — so the first mockReset wipes it exactly as it would a
+    // top-level const.
+    onDelete: vi.fn<() => Promise<void>>(async () => {}),
   }
 
   beforeEach(() => {
