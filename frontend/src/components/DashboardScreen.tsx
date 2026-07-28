@@ -183,6 +183,9 @@ export function DashboardScreen() {
     }
   }, [menuOpen])
 
+  const [reorderRequested, setReorderRequested] = useState(false)
+  const [moveMessage, setMoveMessage] = useState('')
+
   const fetchLists = useCallback(
     async (silent = false) => {
       const cached = loadDashboardCache(user!.id)
@@ -198,6 +201,23 @@ export function DashboardScreen() {
         const ordered = applyOrder(data, loadOrder(user!.id))
         setLists(ordered)
         saveDashboardCache(user!.id, data)
+        // Arranging does not survive the rows being replaced from the server.
+        //
+        // Deriving `reordering` stops the mode *displaying* once there is
+        // nothing to arrange, but the request behind it would outlive the
+        // condition that emptied it: arrange with two lists, have one deleted
+        // on another device, then create one here, and the refetch takes the
+        // count back to two and returns you to a mode you left — after an
+        // action that had nothing to do with it. Clearing here rather than in
+        // an effect watching `reordering` because this is where the change
+        // actually originates, and an effect would only be noticing it a
+        // render later.
+        //
+        // The announcement goes with it. The region belongs to the arranging,
+        // so a message left standing gets read out to the next screen reader
+        // that reaches it, describing a move made minutes ago.
+        setReorderRequested(false)
+        setMoveMessage('')
       } catch {
         if (!cached && !silent) setFetchError(true)
       }
@@ -235,10 +255,7 @@ export function DashboardScreen() {
   // not drawn — and if a refetch or another tab takes the panel down to one
   // while the mode is on, a stored flag would leave someone inside a mode whose
   // only exit had just been removed.
-  const [reorderRequested, setReorderRequested] = useState(false)
   const reordering = reorderRequested && (lists?.length ?? 0) > 1
-
-  const [moveMessage, setMoveMessage] = useState('')
 
   // Reads `lists` from the closure rather than using the updater form, because
   // it has to do three things and only one of them is computing the next state.
@@ -480,16 +497,24 @@ export function DashboardScreen() {
               {lists.length}
             </span>
             {lists.length > 1 && (
+              // Edit/Done, and deliberately no aria-pressed. The label already
+              // says what pressing it will do, and a toggle carrying both
+              // announces "Listo, botón de alternancia, pulsado" — which reads
+              // as though pressing it would *perform* Listo, and states the
+              // mode twice in two vocabularies. One or the other: a fixed label
+              // with aria-pressed, or a label that changes without it. The
+              // changing label is the better affordance for leaving, and the
+              // mode is not silent to a screen reader either way — the rows
+              // themselves have grown buttons.
               <button
-                className="dashboard-screen__reorder-toggle"
+                className={`dashboard-screen__reorder-toggle${reordering ? ' dashboard-screen__reorder-toggle--on' : ''}`}
                 onClick={() => {
                   setReorderRequested((on) => !on)
-                  // The region belongs to the arranging, so it goes quiet when
-                  // the arranging does. Left standing, the next screen reader
-                  // to reach it would read out a move made minutes ago.
+                  // The other way the mode ends. fetchLists clears both when
+                  // the rows are replaced from the server; this is the ordinary
+                  // exit, and the region has to go quiet on it too.
                   setMoveMessage('')
                 }}
-                aria-pressed={reordering}
               >
                 {reordering ? 'Listo' : 'Reordenar'}
               </button>

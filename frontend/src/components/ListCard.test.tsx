@@ -234,6 +234,20 @@ describe('ListCard — arranging', () => {
     )
   })
 
+  it('still says which list is the default while arranging', () => {
+    render(
+      <ListCard
+        list={makeList({ is_default: true })}
+        onClick={vi.fn()}
+        reordering
+      />,
+    )
+    // The star is aria-hidden and the label carrying this belongs to the button
+    // branch, so the mode built for people who cannot see the row would
+    // otherwise be the one state that stops telling them.
+    expect(screen.getByText(/lista predeterminada/i)).toBeInTheDocument()
+  })
+
   // Withholding these is the point of the mode, not an oversight: dnd-kit's
   // attributes carry role="button", tabIndex and aria-describedby, and the
   // reordering row is a span. Landing them there would announce a control that

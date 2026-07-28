@@ -87,7 +87,19 @@ export function ListCard({
         // Nothing here carries dragHandleProps either — see the comment on the
         // DndContext in DashboardScreen for why that is a rule and not a
         // shortcut.
-        <span className="list-card__tap-target">{body}</span>
+        <span className="list-card__tap-target">
+          {body}
+          {/* The star is aria-hidden and the label that carries "(lista
+              predeterminada)" belongs to the button branch, so without this the
+              one state built for people who cannot see the row is also the one
+              state that stops telling them which list is the default. Said as
+              text inside the span rather than as an aria-label on it: a span is
+              not a control, and aria-label on a generic element is exposed
+              inconsistently. */}
+          {is_default && (
+            <span className="sr-only"> (lista predeterminada)</span>
+          )}
+        </span>
       ) : (
         // Also the drag handle. There is no grip to see: reordering is a
         // long press, which is what a touch device already means by "pick this

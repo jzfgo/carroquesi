@@ -108,7 +108,13 @@
    It is a mode switch that is usually off, and it should not out-shout the
    lists it arranges. */
 .dashboard-screen__reorder-toggle {
-  padding: 0;
+  /* 11px of text is an 11px target, and this is the one control that has to be
+     hit before any of the rest of this is reachable — it cannot be held to a
+     lower standard than the arrows it reveals, which are given 40px. The
+     negative margin gives the padding back to the layout, so the head keeps its
+     height and the label keeps its baseline. */
+  padding: 8px 0;
+  margin: -8px 0;
   border: 0;
   background: none;
   font-family: inherit;
@@ -121,7 +127,7 @@
   cursor: pointer;
 }
 
-.dashboard-screen__reorder-toggle[aria-pressed='true'] {
+.dashboard-screen__reorder-toggle--on {
   color: var(--tinta-0);
 }
 

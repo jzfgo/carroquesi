@@ -850,6 +850,14 @@ describe('notifications toggle', () => {
 })
 
 describe('DashboardScreen — arranging', () => {
+  const openCreateAndSubmit = async (name: string) => {
+    fireEvent.click(screen.getByRole('button', { name: /nueva lista/i }))
+    fireEvent.change(await screen.findByPlaceholderText(/nombre/i), {
+      target: { value: name },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /crear/i }))
+  }
+
   const enterReorderMode = async () => {
     await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Reordenar' }))
@@ -948,6 +956,38 @@ describe('DashboardScreen — arranging', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Listo' }))
     expect(moveStatus()).toHaveTextContent('')
+  })
+
+  // The request has to die with the mode, or it comes back on its own. Deriving
+  // `reordering` only stops it displaying; the flag underneath outlives the
+  // condition that emptied it.
+  it('does not return to arranging when the panel refills', async () => {
+    render(<DashboardScreen />)
+    await enterReorderMode()
+    expect(
+      screen.getByRole('button', { name: 'Subir Costco' }),
+    ).toBeInTheDocument()
+
+    // A list goes away elsewhere, and something here causes a refetch.
+    vi.mocked(api.getLists).mockResolvedValue([twoLists[0]] as never)
+    await openCreateAndSubmit('Costco')
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Reordenar' }),
+      ).not.toBeInTheDocument(),
+    )
+
+    // It comes back. Arranging must not.
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    await openCreateAndSubmit('Farmacia')
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Reordenar' }),
+      ).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByRole('button', { name: 'Subir Costco' }),
+    ).not.toBeInTheDocument()
   })
 
   // Without this the mode is unusable by the people it exists for: press Subir,
