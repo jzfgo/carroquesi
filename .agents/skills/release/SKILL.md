@@ -178,7 +178,9 @@ every new worktree. Fix it at the root: run `uv lock --project backend` and comm
 the one-line result, rather than discarding the change each time.
 
 **Post-merge `git tag vX.Y.Z origin/main` fails with "tag already exists"**
-An aborted release may have left a stale local tag at that version. Confirm it is
-not the real one (`git log -1 vX.Y.Z`), then delete it with `git tag -d vX.Y.Z`
-and re-run the post-merge block. The workflow itself never creates a local tag,
-so a tag present before the merge is always a leftover.
+`git tag` creates the tag locally; `git push origin vX.Y.Z` is a separate command.
+So a post-merge block that tagged and then failed to push leaves the local tag
+behind, and re-running the block stops here. Confirm the existing tag is not the
+real one (`git log -1 vX.Y.Z`), delete it with `git tag -d vX.Y.Z`, then re-run
+the block. Steps 0–8 never create a local tag, so a tag present before the merge
+is always a leftover.
