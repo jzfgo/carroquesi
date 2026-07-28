@@ -47,8 +47,20 @@ describe('toReceiptInstant', () => {
     expect(parsed.getHours()).toBe(23)
   })
 
-  it('emits a UTC instant, not a naive local string', () => {
-    expect(toReceiptInstant('2026-07-12', '17:42')).toMatch(/Z$/)
+  it('states its offset, so the receipt keeps the day it was printed on', () => {
+    // Not a naive local string — the instant still has to be recoverable —
+    // but not `toISOString()` either: flattening to UTC discards which
+    // calendar day the shopper was on, and that is what the backend centres
+    // its match window on. See lib/receiptDate.ts.
+    expect(toReceiptInstant('2026-07-12', '17:42')).toMatch(/[+-]\d{2}:\d{2}$/)
+  })
+
+  it('names the printed day, not the UTC one it might fall on', () => {
+    // A receipt with no printed time degrades to local midnight, which is
+    // exactly the hour where a UTC instant stops naming the printed day.
+    expect(toReceiptInstant('2026-07-12', null)?.slice(0, 10)).toBe(
+      '2026-07-12',
+    )
   })
 
   it('ignores a malformed time rather than throwing', () => {

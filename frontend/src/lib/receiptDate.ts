@@ -25,9 +25,9 @@
  *
  * `receipt_date` is not a bare date by the time it reaches us. `receiptAi.ts`
  * merges the scanned date and time via `toReceiptInstant()`, which builds a
- * `Date` from **local** components and returns `toISOString()` -- a UTC
- * instant. A receipt printed at 00:30 in Madrid is therefore stored as
- * `...T22:30:00.000Z` on the *previous* UTC day.
+ * `Date` from **local** components. A receipt printed at 00:30 in Madrid is
+ * one instant, but two different calendar days depending on who you ask:
+ * the 25th to the person holding it, the 24th in UTC.
  *
  * So reducing that instant to a UTC day answers the wrong question. The sheet
  * renders the date with `toLocaleDateString` and `<input type="date">` shows
@@ -38,6 +38,18 @@
  * A bare `YYYY-MM-DD` is the exception and passes through untouched: it is
  * already a zone-less calendar day, and parsing it would pin it to UTC
  * midnight and shift it a day backwards for every viewer west of Greenwich.
+ *
+ * ## The wire value carries its offset, and that is the point
+ *
+ * What leaves this module is written `2026-07-25T00:30:00+02:00`, not
+ * `2026-07-24T22:30:00.000Z`. Both name the same instant, so as an instant the
+ * choice is free -- but only one of them still says *which day the user
+ * meant*, and that is the fact the backend needs. It has no timezone to
+ * consult, so it centres its +-3 day match window on whatever day it can read
+ * off this string. Handed the `Z` form it reads the 24th, and the window that
+ * exists to catch a purchase marked up to three days *after* the receipt
+ * silently becomes [-4, +2] for everyone east of Greenwich. The offset costs
+ * six characters and closes that.
  */
 
 /**
@@ -56,6 +68,26 @@ function pad(n: number): string {
 /** The calendar day an instant falls on *for the viewer*, as `YYYY-MM-DD`. */
 function localDayIso(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/**
+ * A moment written in the viewer's own calendar, with the offset that places
+ * it: `2026-07-25T00:30:00+02:00`.
+ *
+ * This is the one format the receipt endpoints are sent, and the reason is in
+ * the module docblock above: it is the only ISO 8601 form that carries the
+ * user's calendar day and the instant at once. `Date.parse` and Python's
+ * `datetime.fromisoformat` both read it, so nothing downstream needs to know
+ * it changed.
+ */
+export function toLocalInstant(d: Date): string {
+  // getTimezoneOffset counts minutes *behind* UTC, so Madrid reports -120.
+  // The suffix states the opposite: minutes ahead. Hence the negation.
+  const offset = -d.getTimezoneOffset()
+  const magnitude = Math.abs(offset)
+  const suffix = `${offset < 0 ? '-' : '+'}${pad(Math.floor(magnitude / 60))}:${pad(magnitude % 60)}`
+  const clock = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return `${localDayIso(d)}T${clock}${suffix}`
 }
 
 function parse(raw: string | null): Date | null {
@@ -129,24 +161,31 @@ export function todayInputValue(now: Date = new Date()): string {
  * `purchased_at` meaningful instead of collapsing every correction to
  * midnight.
  *
- * The time preserved is the *local* one, and the result is re-encoded as an
- * instant the same way `toReceiptInstant` does. Splicing the UTC time onto the
- * new day instead would re-introduce the offset: a 00:30 Madrid receipt is
- * `T22:30Z`, so pasting that onto the day the user picked lands them a day
- * late — the correction would silently miss by one.
+ * The time preserved is the *local* one, and the result is re-encoded the same
+ * way `toReceiptInstant` does. Splicing the UTC time onto the new day instead
+ * would re-introduce the offset: a 00:30 Madrid receipt is `T22:30Z`, so
+ * pasting that onto the day the user picked lands them a day late — the
+ * correction would silently miss by one.
+ *
+ * The day the user picked survives into the string that is sent, rather than
+ * being dissolved into a UTC instant that no longer names it. See the module
+ * docblock: this is the correction the backend's match window is centred on,
+ * so it is the one value that must not drift.
  */
 export function withDatePart(raw: string | null, isoDay: string): string {
   const original = parse(raw)
   // A bare date carries no time of day to preserve, so the answer stays bare.
   if (!original || !raw?.includes('T')) return isoDay
   const [y, m, d] = isoDay.split('-').map(Number)
-  return new Date(
-    y,
-    m - 1,
-    d,
-    original.getHours(),
-    original.getMinutes(),
-    original.getSeconds(),
-    0,
-  ).toISOString()
+  return toLocalInstant(
+    new Date(
+      y,
+      m - 1,
+      d,
+      original.getHours(),
+      original.getMinutes(),
+      original.getSeconds(),
+      0,
+    ),
+  )
 }

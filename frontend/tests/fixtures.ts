@@ -190,7 +190,16 @@ export async function installApiMocks(page: Page): Promise<void> {
 
   // The backend stores naive UTC and the client re-attaches the 'Z' when
   // parsing (itemCost.ts), so timestamps here must carry no zone suffix.
-  const naiveUtc = (iso: string) => iso.replace(/Z$/, '')
+  //
+  // Converting rather than stripping, because the receipt endpoints are sent
+  // an offset-bearing instant ('2026-07-25T00:30:00+02:00' — see
+  // lib/receiptDate.ts) and the router normalises it with `astimezone(UTC)`.
+  // A regex that only knew about 'Z' would leave the offset in place, and the
+  // client would then re-append its own 'Z' to a string that already had a
+  // zone and get an Invalid Date — a mock failure wearing a product bug's
+  // clothes.
+  const naiveUtc = (iso: string) =>
+    new Date(iso).toISOString().replace(/Z$/, '')
 
   await page.route(`${BACKEND}/**`, async (route) => {
     const req = route.request()

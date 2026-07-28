@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select
@@ -24,22 +24,54 @@ router = APIRouter(tags=["receipt"])
 RECEIPT_MATCH_WINDOW_DAYS = 3
 
 
-def _parse_receipt_at(raw: str | None) -> datetime | None:
-    """Parse a receipt date or instant into a naive UTC datetime.
+def _parse_iso(raw: str | None) -> datetime | None:
+    """Parse a receipt date or instant, keeping whatever zone it was written in.
 
-    Accepts a bare date ("2026-04-11" -> midnight) or a full ISO 8601 instant
-    ("2026-04-11T17:42:00Z"). `date.fromisoformat` rejects the latter, so this
-    must use `datetime.fromisoformat`.
+    Accepts a bare date ("2026-04-11" -> midnight), an offset-bearing instant
+    ("2026-04-11T17:42:00+02:00") or a UTC one ("2026-04-11T17:42:00Z").
+    `date.fromisoformat` rejects the last two, so this must use
+    `datetime.fromisoformat`.
     """
     if not raw:
         return None
     try:
-        dt = datetime.fromisoformat(raw)
+        return datetime.fromisoformat(raw)
     except ValueError:
+        return None
+
+
+def _parse_receipt_at(raw: str | None) -> datetime | None:
+    """The instant the receipt names, as a naive UTC datetime.
+
+    This is what gets stored, so it is normalised: `purchased_at` is a naive
+    UTC column and the client renders it back by appending 'Z'.
+    """
+    dt = _parse_iso(raw)
+    if dt is None:
         return None
     if dt.tzinfo is not None:
         dt = dt.astimezone(UTC)
     return dt.replace(tzinfo=None)
+
+
+def _receipt_day(raw: str | None) -> date | None:
+    """The calendar day the receipt was printed on, in the shopper's own zone.
+
+    Deliberately read *before* any UTC conversion. A receipt printed at 00:30
+    in Madrid is `2026-04-11T00:30:00+02:00` — the 11th to the person holding
+    it, the 10th once flattened to UTC. Centring the match window on the 10th
+    costs a day of tolerance on the side that matters: the window exists
+    because items get marked purchased a few days *after* the receipt date, so
+    a UTC reduction quietly turns +-3 days into [-4, +2] for every shopper
+    east of Greenwich.
+
+    We only get to do this because the client sends the offset (see
+    frontend/src/lib/receiptDate.ts). Values without one — bare dates, older
+    clients sending 'Z', instants already stored — keep their previous meaning:
+    the day as written is the only day on offer.
+    """
+    dt = _parse_iso(raw)
+    return dt.date() if dt else None
 
 
 @router.post("/lists/{list_id}/receipt", response_model=ReceiptScanResult)
@@ -57,13 +89,17 @@ def scan_receipt(
             detail="ai_receipt_scanning feature not enabled",
         )
 
-    # _parse_receipt_at normalises to naive UTC, so a receipt printed just
-    # after local midnight can yield a UTC date one day earlier than the
-    # wall-clock date. That skew is at most a few hours and is absorbed by
-    # the +-3 day window below; don't narrow the window without accounting
-    # for it.
+    # Two different facts, read from the same string on purpose: the instant
+    # is what gets stored, the day is what the window is centred on, and for a
+    # receipt printed near local midnight they fall on opposite sides of it.
+    # See _receipt_day.
+    #
+    # The window is built from naive-UTC bounds around a *local* day, so it
+    # still sits up to an offset out of true against `purchased_at`. That skew
+    # is at most a few hours where the old one was a whole day; don't narrow
+    # the window without accounting for it.
     receipt_at = _parse_receipt_at(body.receipt_date)
-    receipt_date = receipt_at.date() if receipt_at else None
+    receipt_date = _receipt_day(body.receipt_date)
 
     stmt = (
         select(ListItem)

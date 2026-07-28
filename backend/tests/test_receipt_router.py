@@ -1,11 +1,11 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlmodel import select
 
 from app.db.models import List, ListItem, ListMember, ReceiptScan
 from app.db.models import UserFeature as _UserFeature
-from app.routers.receipt import _parse_receipt_at
+from app.routers.receipt import _parse_receipt_at, _receipt_day
 from app.schemas.receipt import ReceiptPriceBatch
 
 LIST_ID = "list-receipt-test"
@@ -456,6 +456,63 @@ def test_post_receipt_includes_items_purchased_within_window_after_receipt_date(
     body = response.json()
     assert len(body["matched"]) == 1
     assert body["matched"][0]["item_id"] == "item-almendras"
+
+
+def test_post_receipt_centres_the_window_on_the_shoppers_day_not_the_utc_one(client, session):
+    """A receipt printed just after local midnight east of Greenwich falls on
+    the previous UTC day, and centring the window there spends a day of the
+    tolerance the window exists for.
+
+    The item below is marked purchased 3 days after the printed date -- inside
+    +-3, and the exact case
+    test_post_receipt_includes_items_purchased_within_window_after_receipt_date
+    covers for a bare date. Read as UTC the receipt lands on the 10th, the
+    window ends at the 14th 00:00, and this item falls out of it: the shopper
+    silently gets [-4, +2] instead of [-3, +3].
+    """
+    item = session.get(ListItem, "item-almendras")
+    item.purchased_at = datetime(2026, 4, 14, 9, 0, 0)
+    session.add(item)
+    session.commit()
+
+    body = _unit_body()
+    # 00:30 on the 11th in Madrid == 22:30 on the 10th in UTC.
+    body["receipt_date"] = "2026-04-11T00:30:00+02:00"
+
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=body)
+    assert response.status_code == 200
+    assert len(response.json()["matched"]) == 1
+
+
+def test_post_receipt_stores_the_instant_even_when_the_day_is_local(client, session):
+    """The day moved; the stored timestamp did not. `receipt_at` is a naive UTC
+    column, so an offset-bearing date must still be normalised into it."""
+    body = _unit_body()
+    body["receipt_date"] = "2026-04-11T00:30:00+02:00"
+
+    client.post(f"/lists/{LIST_ID}/receipt", json=body)
+
+    scan = session.exec(select(ReceiptScan)).one()
+    assert scan.receipt_at == datetime(2026, 4, 10, 22, 30)
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        # Written with an offset: the day is the shopper's, not UTC's.
+        ("2026-04-11T00:30:00+02:00", date(2026, 4, 11)),
+        ("2026-04-10T23:30:00-02:00", date(2026, 4, 10)),
+        # Without one there is only one day on offer, so nothing changes for
+        # bare dates, older clients sending 'Z', or scans already stored.
+        ("2026-04-11", date(2026, 4, 11)),
+        ("2026-04-11T17:42:00Z", date(2026, 4, 11)),
+        (None, None),
+        ("", None),
+        ("not-a-date", None),
+    ],
+)
+def test_receipt_day(raw, expected):
+    assert _receipt_day(raw) == expected
 
 
 def test_post_receipt_returns_403_when_flag_disabled(session, other_user, other_client):
