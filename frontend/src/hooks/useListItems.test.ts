@@ -7,14 +7,20 @@ import type { ListItem } from '../types'
 import { useListItems } from './useListItems'
 
 vi.mock('../lib/api')
+// Same conversion as the module-scope helpers below, and for the same reason —
+// a vi.mock factory runs once at module load, so an implementation attached
+// after construction is cleared before the first test and never comes back.
+// Nothing re-stubs enqueue in beforeEach, so the QueuedOp shape below would
+// simply have stopped being returned while still sitting here describing what
+// enqueue gives you.
 vi.mock('../lib/offlineQueue', () => ({
-  enqueue: vi.fn().mockResolvedValue({
+  enqueue: vi.fn(async () => ({
     id: 'q1',
     listId: 'list-1',
     type: 'addItem',
     payload: {},
     enqueuedAt: 0,
-  }),
+  })),
 }))
 
 const mockGetToken = vi.fn(async () => 'token')
