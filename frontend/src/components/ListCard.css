@@ -38,8 +38,11 @@
      16px column and could afford to refuse scrolling; this button's ::after
      spans the whole row, so refusing there means the panel cannot be scrolled
      by touch at all — and it would disable pinch-zoom over every list.
-     `manipulation` keeps panning and zooming and only drops the double-tap
-     delay.
+     `manipulation` keeps panning and pinch-zoom; what it costs is
+     double-tap-to-zoom over the rows. (Not the 300ms click delay — the
+     width=device-width viewport in index.html already removed that, so this
+     declaration never bought it.) Pinch surviving is what keeps WCAG 1.4.4
+     satisfied, which `none` would not have.
 
      Nothing is lost: TouchSensor activates on `delay: 200, tolerance: 5`, so
      the browser scrolls during the delay and movement past the tolerance

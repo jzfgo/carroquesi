@@ -428,10 +428,29 @@ export function DashboardScreen() {
             </span>
           </div>
         )}
+        {/* Say the gesture that exists, not the one dnd-kit assumes.
+
+            Its default instructions tell a screen reader to press the space
+            bar to pick an item up. That was inaudible while these attributes
+            sat on the grip, which was aria-hidden; on the real button they are
+            announced, and only PointerSensor and TouchSensor are registered
+            here, so space does nothing. Describing a gesture that isn't there
+            is worse than describing none.
+
+            Reordering by keyboard stays unavailable, which is honest rather
+            than ideal: KeyboardSensor activates on Space/Enter, the same keys
+            that open the list from this button, so it needs an activator of
+            its own — and the row no longer has a spare element to be one. */}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
+          accessibility={{
+            screenReaderInstructions: {
+              draggable:
+                'Mantén pulsada una lista para moverla. Suéltala en su nuevo sitio para guardar el orden.',
+            },
+          }}
         >
           <SortableContext
             items={lists.map((l) => l.id)}

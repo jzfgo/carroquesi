@@ -1139,6 +1139,9 @@ describe('the list itself', () => {
       expect(api.deleteList).toHaveBeenCalledWith(expect.anything(), 'l1'),
     )
     expect(onBack).toHaveBeenCalled()
+    // And the sheet goes with it — leaving it mounted over a list that no
+    // longer exists would pass every other assertion here.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('stays put when the delete fails — leaving would say it worked', async () => {
@@ -1159,6 +1162,103 @@ describe('the list itself', () => {
     await waitFor(() =>
       expect(screen.getByText(/no se pudo eliminar la lista/i)).toBeVisible(),
     )
+    expect(onBack).not.toHaveBeenCalled()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// With no connection.
+//
+// All three handlers open with the same `if (isOffline)` guard and none of the
+// three was exercised: jsdom reports navigator.onLine as true, so every test
+// above takes the online leg. Varying the environment rather than mocking the
+// hook keeps useIsOffline itself in the path — the guard and the thing it
+// reads are tested together, which is the point of the exercise.
+// ---------------------------------------------------------------------------
+
+describe('with no connection', () => {
+  beforeEach(() => {
+    Object.defineProperty(navigator, 'onLine', {
+      configurable: true,
+      get: () => false,
+    })
+  })
+
+  afterEach(() => {
+    Object.defineProperty(navigator, 'onLine', {
+      configurable: true,
+      get: () => true,
+    })
+  })
+
+  const openMenu = () =>
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+
+  it('will not change the emoji, and says why', async () => {
+    const onEmojiChanged = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listEmoji="🛒"
+        listOwnerId="u1"
+        onEmojiChanged={onEmojiChanged}
+      />,
+    )
+    openMenu()
+    fireEvent.click(screen.getByRole('button', { name: /^emoji$/i }))
+    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/no disponible sin conexión/i)).toBeVisible(),
+    )
+    expect(api.updateList).not.toHaveBeenCalled()
+    expect(onEmojiChanged).not.toHaveBeenCalled()
+    // The optimistic paint must not happen either — showing the new glyph and
+    // then a "not available" toast would say both things at once.
+    expect(screen.getByRole('heading').textContent).toContain('🛒')
+  })
+
+  it('will not mark a default, and says why', async () => {
+    const onSetDefault = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        onSetDefault={onSetDefault}
+      />,
+    )
+    openMenu()
+    fireEvent.click(
+      screen.getByRole('button', { name: /marcar como predeterminada/i }),
+    )
+
+    await waitFor(() =>
+      expect(screen.getByText(/no disponible sin conexión/i)).toBeVisible(),
+    )
+    expect(api.setDefaultList).not.toHaveBeenCalled()
+    expect(onSetDefault).not.toHaveBeenCalled()
+  })
+
+  it('will not delete the list, and says why', async () => {
+    const onBack = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        onBack={onBack}
+      />,
+    )
+    openMenu()
+    fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar lista/i }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/no disponible sin conexión/i)).toBeVisible(),
+    )
+    expect(api.deleteList).not.toHaveBeenCalled()
     expect(onBack).not.toHaveBeenCalled()
   })
 })
