@@ -24,7 +24,7 @@ interface Props {
   onRetry: () => void
   onClone?: (itemId: string) => void
   pendingCost?: CostSummary | null
-  purchasedCostByDate?: Map<string, CostSummary | null>
+  purchasedCostByTrip?: Map<string, CostSummary | null>
   totalItems?: number
   footer?: ReactNode
 }
@@ -52,7 +52,7 @@ export function ItemList({
   onRetry,
   onClone,
   pendingCost,
-  purchasedCostByDate,
+  purchasedCostByTrip,
   totalItems,
   footer,
 }: Props) {
@@ -146,20 +146,31 @@ export function ItemList({
   // One unnamed group is just the list — do not head it with anything.
   const showStoreHeadings = pendingByStore.some((g) => g.shops.length > 0)
 
-  // Group purchased items by local date label, preserving backend order (newest first)
-  const purchasedByDate: { label: string; items: ListItem[] }[] = []
+  // One sheet per trip. This used to group on the rendered date label, which
+  // made two shops on one day into one receipt — the exact case the Purchase
+  // entity exists for. Items arrive sorted newest-first and two trips on one
+  // day interleave, so this indexes by key rather than comparing neighbours.
+  const purchasedByTrip: { key: string; label: string; items: ListItem[] }[] =
+    []
+  const tripIndex = new Map<string, number>()
   for (const item of purchased) {
-    const label = purchasedDateLabel(item.purchased_at)
-    const last = purchasedByDate.at(-1)
-    if (last && last.label === label) {
-      last.items.push(item)
-    } else {
-      purchasedByDate.push({ label, items: [item] })
+    const key = item.purchase_id ?? item.id
+    let at = tripIndex.get(key)
+    if (at === undefined) {
+      at = purchasedByTrip.length
+      tripIndex.set(key, at)
+      purchasedByTrip.push({ key, label: '', items: [] })
     }
+    purchasedByTrip[at].items.push(item)
+  }
+  // The trip's own start, which is what the backfill writes into `opened_at`.
+  // Items within a group are newest-first, so the earliest is the last.
+  for (const group of purchasedByTrip) {
+    group.label = purchasedDateLabel(group.items.at(-1)!.purchased_at)
   }
 
   // Trips still folded away below the board's edge.
-  const folded = purchasedByDate.length - tripsShown
+  const folded = purchasedByTrip.length - tripsShown
 
   return (
     <div className="item-list">
@@ -246,17 +257,17 @@ export function ItemList({
 
       {purchased.length > 0 && (
         <>
-          {purchasedByDate
+          {purchasedByTrip
             .slice(0, tripsShown)
-            .map(({ label, items: group }) => (
+            .map(({ key, label, items: group }) => (
               <div
-                key={label}
+                key={key}
                 className="item-list__sheet item-list__sheet--receipt"
               >
                 <p className="item-list__date-label">
                   <span className="item-list__label-text">{label}</span>
                   {(() => {
-                    const c = purchasedCostByDate?.get(label)
+                    const c = purchasedCostByTrip?.get(key)
                     return (
                       c && (
                         <CostBadge

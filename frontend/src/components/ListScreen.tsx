@@ -24,7 +24,7 @@ import {
 } from '../lib/api'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
-import { computeCostSummary, purchasedDateLabel } from '../lib/itemCost'
+import { computeCostSummary } from '../lib/itemCost'
 import { itemState } from '../lib/itemState'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
@@ -729,26 +729,29 @@ export function ListScreen({
     [dueSuggestions],
   )
 
-  const { pendingCost, purchasedCostByDate } = useMemo(() => {
+  const { pendingCost, purchasedCostByTrip } = useMemo(() => {
     const pendingItems: typeof filteredItems = []
-    const byDate = new Map<string, typeof filteredItems>()
+    // Keyed by trip, not the rendered date label — two trips on one day used
+    // to collide onto the same label and the second trip's total silently
+    // overwrote the first's.
+    const byTrip = new Map<string, typeof filteredItems>()
     for (const item of filteredItems) {
       if (!item.purchased) {
         pendingItems.push(item)
       } else {
-        const label = purchasedDateLabel(item.purchased_at)
-        const group = byDate.get(label) ?? []
+        const key = item.purchase_id ?? item.id
+        const group = byTrip.get(key) ?? []
         group.push(item)
-        byDate.set(label, group)
+        byTrip.set(key, group)
       }
     }
-    const costByDate = new Map<string, ReturnType<typeof computeCostSummary>>()
-    for (const [label, group] of byDate) {
-      costByDate.set(label, computeCostSummary(group))
+    const costByTrip = new Map<string, ReturnType<typeof computeCostSummary>>()
+    for (const [key, group] of byTrip) {
+      costByTrip.set(key, computeCostSummary(group))
     }
     return {
       pendingCost: computeCostSummary(pendingItems),
-      purchasedCostByDate: costByDate,
+      purchasedCostByTrip: costByTrip,
     }
   }, [filteredItems])
 
@@ -813,7 +816,7 @@ export function ListScreen({
         onRetry={retry}
         onClone={handleCloneItem}
         pendingCost={pendingCost}
-        purchasedCostByDate={purchasedCostByDate}
+        purchasedCostByTrip={purchasedCostByTrip}
         footer={
           !receiptScanResult && isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
             /* A way in, not a prompt. It used to appear only once the list

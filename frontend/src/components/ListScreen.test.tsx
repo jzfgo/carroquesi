@@ -662,6 +662,36 @@ describe('cost totals', () => {
       document.querySelector('.item-list__label-cost'),
     ).not.toBeInTheDocument()
   })
+
+  it('keeps two same-day trips as separate totals instead of one overwriting the other', () => {
+    // The bug this phase introduces and fixes in the same breath: keying the
+    // cost map by the rendered date label instead of the trip made a second
+    // shop on the same day silently overwrite the first trip's total.
+    renderWithItems([
+      makeItem({
+        id: '1',
+        purchased: true,
+        purchased_at: YESTERDAY,
+        purchase_id: 'tripA',
+        purchase_ends_at: YESTERDAY_ENDS_AT,
+        price: 3.0,
+      }),
+      makeItem({
+        id: '2',
+        purchased: true,
+        purchased_at: YESTERDAY,
+        purchase_id: 'tripB',
+        purchase_ends_at: YESTERDAY_ENDS_AT,
+        price: 7.0,
+      }),
+    ])
+    const badges = [
+      ...document.querySelectorAll('.item-list__date-label-cost'),
+    ].map((b) => b.textContent)
+    expect(badges).toHaveLength(2)
+    expect(badges.some((t) => t?.match(/3[,.]00/))).toBe(true)
+    expect(badges.some((t) => t?.match(/7[,.]00/))).toBe(true)
+  })
 })
 
 describe('receipt scan CTA', () => {
