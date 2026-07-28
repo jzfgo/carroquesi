@@ -584,9 +584,13 @@ export function DashboardScreen() {
             when it does not. Both claims are argued in the toggle's onClick,
             which is not where someone tidying this markup would look.
 
-            The ordering half is pinned by `is read before the first row` — DOM
-            order is not layout, so jsdom models it exactly and a hoist fails
-            that test. What stays uncovered is the empty half: nothing asserts
+            The ordering half is pinned by `is read after the toggle and
+            before the first row`, which asserts *both* bounds — DOM order is
+            not layout, so jsdom models it exactly, and a hoist above this head
+            fails it just as a drop below the rows does. Either assertion alone
+            passes one of those two moves, so neither is spare.
+
+            What stays uncovered is the empty half: nothing asserts
             that a blank region is skipped rather than read, because that is a
             fact about screen readers and not about the tree. */}
         <p className="sr-only dashboard-screen__move-status" aria-live="polite">
