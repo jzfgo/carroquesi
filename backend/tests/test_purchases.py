@@ -181,3 +181,19 @@ def test_closing_with_a_nan_total_is_rejected(client: TestClient):
     )
 
     assert response.status_code == 422
+
+
+def test_closing_with_an_absurdly_long_store_name_is_rejected(client: TestClient):
+    """`store` is free text that ends up rendering in a ticket header --
+    unlike `total`, unbounded here is a rendering hazard, not a NaN-shaped
+    footgun, so a plain schema-level max_length is the right tool.
+    """
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "x" * 101},
+    )
+
+    assert response.status_code == 422

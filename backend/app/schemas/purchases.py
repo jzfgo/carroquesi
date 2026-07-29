@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PurchaseClose(BaseModel):
@@ -8,7 +8,14 @@ class PurchaseClose(BaseModel):
     # A list means "this shop was these lines", which is what turns two
     # simultaneous shops into two tickets.
     item_ids: list[str] | None = None
-    store: str | None = None
+    # 100 is a guess, not a convention carried over from elsewhere -- no
+    # other user-supplied string field in this codebase is length-bounded at
+    # the schema level (checked app/schemas/, app/db/models.py, and every
+    # alembic migration). It exists only to keep an unbounded paste from
+    # landing in the ticket header this renders in. The `purchases.store`
+    # column itself stays an unbounded String() -- this is an input guard,
+    # not a schema change, and needs no migration.
+    store: str | None = Field(default=None, max_length=100)
     # Deliberately unconstrained here -- no `ge=0`, no `allow_inf_nan=False`.
     # Both range and finiteness are checked in close_purchase
     # (routers/purchases.py) instead: a NaN input fails `ge=0` too (NaN
