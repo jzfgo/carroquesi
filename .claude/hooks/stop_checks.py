@@ -119,8 +119,13 @@ def main_checkout_dirty() -> str | None:
     `.git/info/exclude` and `core.excludesFile`, which both layers honour.
 
     What it does not catch is a write that leaves the checkout clean:
-    `git commit` on main, or `git stash`. Those are unguarded anywhere —
-    tracked separately, and named in AGENTS.md rather than implied.
+    `git commit` on main, or `git stash`. Those are unguarded anywhere, and
+    deliberately so. Both take an explicit act that the worktree rule already
+    forbids, and catching a commit means asking a different question — whether
+    main holds commits nobody pushed — which also fires on the release flow,
+    the one place committing on main is correct. Not worth that trade for a
+    route nobody reaches by accident. AGENTS.md names both so the guards are
+    not read as covering them.
 
     Detection, not prevention — the write has already landed by the time
     this runs. That is why the PreToolUse layer stays.
