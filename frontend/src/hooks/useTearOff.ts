@@ -66,10 +66,9 @@ export function useTearOff(items: ListItem[]): number {
       .map(Number)
       .find((at) => at > now)
     if (next === undefined) return
-    // A second past the boundary, so itemState's comparison lands safely on
-    // the far side of it rather than racing the timer's own resolution. One
-    // already behind the live clock has nothing left to wait for, which is
-    // where the negative comes from.
+    // Exactly as long as the boundary is away, no margin. One already behind
+    // the live clock has nothing left to wait for, which is where the negative
+    // comes from.
     //
     // The `max` states that intent rather than producing it. Every runtime
     // this ships to clamps a non-positive delay to "as soon as possible"
@@ -78,8 +77,19 @@ export function useTearOff(items: ListItem[]): number {
     // a negative input and pass either way. `never asks for a negative delay`
     // in the tests pins it at the only place the difference exists, which is
     // the argument handed to setTimeout rather than anything that comes back.
-    const delay = Math.min(Math.max(next - clock + 1000, 0), MAX_DELAY_MS)
-    const id = setTimeout(() => setNow(Date.now()), delay)
+    const delay = Math.min(Math.max(next - clock, 0), MAX_DELAY_MS)
+    // The margin that used to sit in the delay lives here instead. Firing a
+    // second late did give itemState's `>=` a safe landing, but it also left a
+    // second in which this hook's `now` still said 'cart' while every caller
+    // reading the live clock — ItemList, ItemCard — already said 'bought'.
+    // That is the same two-clock split fixed in e7f0e71, just bounded at a
+    // second instead of lasting until midnight.
+    //
+    // Taking the max against `next` gets the safe landing without the wait:
+    // `now` sits exactly on the boundary even if the timer resolves a shade
+    // early, and the only instant it can ever be ahead of the live clock for
+    // is the boundary it was waiting on.
+    const id = setTimeout(() => setNow(Math.max(Date.now(), next)), delay)
     return () => clearTimeout(id)
   }, [key, now])
 

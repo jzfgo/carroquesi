@@ -332,14 +332,19 @@ export function DashboardScreen() {
     void fetchLists()
   }, [fetchLists])
 
+  // Returns whether the list was created, because CreateListCard clears the
+  // name it holds on the way back and must be able to tell a refusal from a
+  // success. The guard sits here with its four siblings rather than in the
+  // card, so `isOffline` stays a single authority.
   const handleCreate = useCallback(
     async (name: string) => {
       if (isOffline) {
         setToast('No disponible sin conexión')
-        return
+        return false
       }
       await createList(getToken, { name, emoji: randomEmoji() })
       await fetchLists()
+      return true
     },
     [getToken, fetchLists, isOffline],
   )

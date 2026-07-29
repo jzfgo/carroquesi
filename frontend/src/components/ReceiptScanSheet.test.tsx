@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { todayInputValue } from '../lib/receiptDate'
 import type { ReceiptScanResult } from '../types'
 import ReceiptScanSheet from './ReceiptScanSheet'
 
@@ -637,33 +638,84 @@ describe('barcode scan into a create row', () => {
 
 // --- Receipt date confirmation (JAV-54) --------------------------------------
 //
-// Dates are expressed relative to now on purpose: the threshold in
-// lib/receiptDate.ts is relative to today, so a literal would silently change
-// verdict as real-world time passes.
+// Dates are expressed relative to a pinned `NOW` rather than to a literal,
+// because the threshold in lib/receiptDate.ts is relative to today: a literal
+// would silently change verdict as real-world time passes.
 
-/** A bare calendar day `delta` days from today, in the **viewer's** calendar.
+/** A fixed **local** instant, so nothing here reads the wall clock.
  *
- *  Built from local components on purpose. `toISOString().slice(0, 10)` reduces
- *  the instant to a UTC day, which is the precise mistake `lib/receiptDate.ts`
- *  documents avoiding — and it made these window-boundary cases fail for the
- *  couple of hours each night when Madrid's local day is already ahead of the
- *  UTC one. `daysAway(-3)` would yield a date four local days back, landing
- *  outside the ±3 window it was written to sit exactly on.
+ *  Reading it was the whole defect. `lib/receiptDate.ts` reduces `now` to the
+ *  viewer's local day, so a fixture reduced to a UTC day drifted by one
+ *  wherever the two calendars disagreed — and `-3` and `-4` sit either side of
+ *  RECEIPT_DATE_TOLERANCE_DAYS on purpose, so a one-day drift pushed whichever
+ *  one the offset's sign pointed at across the threshold. Two hours nightly at
+ *  UTC+2, four hours every evening at UTC−4, in opposite directions.
  *
- *  A test that only passes for twenty-two hours a day is worse than no test:
- *  it fails in CI at an hour nobody is looking, and gets rerun rather than read.
+ *  Building from local components fixes today's verdict; pinning the clock is
+ *  what removes the class. A helper that read `Date.now()` would still be
+ *  correct and still be one refactor from being wrong again.
+ *
+ *  Same shape as `lib/receiptDate.test.ts`, deliberately — that file had it
+ *  right first, two directories away, with the trap written on it.
+ *
+ *  **00:30 rather than midday, and that is not arbitrary.** Correctness no
+ *  longer depends on the hour — `daysAway` is zone-independent by
+ *  construction — but *detecting a regression* to a UTC reduction does, and
+ *  no single instant catches both signs: zones ahead of UTC diverge just
+ *  after local midnight, zones behind it during local evening. Midday catches
+ *  neither at ordinary offsets, which is exactly how the original sweep
+ *  stopped one sign short. 00:30 makes the eastern sign — the one that
+ *  actually bit, in Madrid — fail on every local run rather than for two
+ *  hours a night.
+ *
+ *  Worth knowing before trusting a green CI run here: **UTC never diverges at
+ *  any hour**, so the runner cannot catch this class at all. The guard below
+ *  is what states the invariant; the zone spread is a developer-machine
+ *  check.
+ */
+const NOW = new Date(2026, 6, 25, 0, 30, 0)
+
+/** A bare calendar day `delta` days from `NOW`, on a zone-less calendar.
+ *
+ *  The arithmetic runs in UTC and is read back in UTC, so no offset enters and
+ *  DST cannot bite. It agrees with `NOW`'s local day in every timezone because
+ *  both name the same calendar date, 2026-07-25 — not because they happen to
+ *  land in the same zone.
  */
 const daysAway = (delta: number) => {
-  const day = new Date()
-  day.setDate(day.getDate() + delta)
+  const day = new Date(Date.UTC(2026, 6, 25) + delta * 86_400_000)
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`
+  return `${day.getUTCFullYear()}-${pad(day.getUTCMonth() + 1)}-${pad(day.getUTCDate())}`
 }
 
 const openEditor = () =>
   fireEvent.click(screen.getByRole('button', { name: 'Corregir fecha' }))
 
 describe('ReceiptScanSheet receipt date', () => {
+  // Only `Date` is faked. The sheet reaches `isReceiptDateWorthConfirming` on
+  // its default `now = new Date()` argument, so the clock has to be pinned
+  // from out here — but faking timers wholesale would take `setTimeout` with
+  // it, and RTL schedules through it.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(NOW)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // The invariant every case below rests on, asserted once and by name. When
+  // it breaks, the failures land on window-boundary tests whose messages say
+  // nothing about calendars — the -3 and -4 fixtures sit either side of the
+  // tolerance precisely so a one-day drift flips them, which makes them
+  // sensitive detectors and terrible explanations. `todayInputValue` is the
+  // module's own local-day reduction, so this compares the fixture's calendar
+  // against the one the code under test actually uses.
+  test('builds fixtures on the same calendar the module reads', () => {
+    expect(daysAway(0)).toBe(todayInputValue())
+  })
+
   test('asks about a date outside the match window', () => {
     renderSheet({
       result: { ...mockResult, receipt_date: daysAway(-10) },

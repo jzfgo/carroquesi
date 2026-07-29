@@ -56,7 +56,9 @@ describe('useTearOff', () => {
     renderHarness(items)
     expect(renderCount).toBe(1)
 
-    // Boundary + the 1s safety margin baked into the hook.
+    // Comfortably past the boundary. The hook now schedules exactly on it,
+    // so 5000 would do — the extra second only keeps this from doubling as a
+    // test of the schedule, which `never asks for a negative delay` owns.
     act(() => {
       vi.advanceTimersByTime(6000)
     })
@@ -119,6 +121,43 @@ describe('useTearOff', () => {
     )
   })
 
+  it('lands on the boundary even when the timer resolves early', () => {
+    // The other half of moving the margin out of the delay. While the hook
+    // fired a second late, `Date.now()` was always past `next` and the
+    // assignment could not be wrong; now the schedule is exact and the `max`
+    // carries that guarantee by itself.
+    //
+    // Nothing else here can see it. `advanceTimersByTime` lands the clock on
+    // exactly `next`, which makes `Math.max(Date.now(), next)` a no-op — so
+    // every other test passes with the max removed, the same blind spot the
+    // `delay` floor has. An early resolution has to be built rather than
+    // waited for: take the hook's own callback, put the clock a millisecond
+    // short of the boundary, and fire it by hand.
+    //
+    // A millisecond short is not hypothetical. The margin existed because
+    // `itemState` compares with `>=`, so a `now` even fractionally short of
+    // `next` reads as 'cart' — and then this hook's callers disagree with
+    // every caller reading the live clock, which is the bug the margin was
+    // there to prevent and this line now prevents instead.
+    const endsAt = '2026-07-28T12:00:05'
+    const next = Date.parse('2026-07-28T12:00:05Z')
+    const spy = vi.spyOn(globalThis, 'setTimeout')
+    renderHarness([makeItem({ purchase_ends_at: endsAt })])
+
+    // Picked by its delay rather than by position: RTL schedules through
+    // setTimeout too, so `.at(-1)` would be a guess about whose call came last.
+    const scheduled = spy.mock.calls.find((call) => call[1] === 5000)?.[0]
+    expect(typeof scheduled).toBe('function')
+
+    vi.setSystemTime(next - 1)
+    act(() => {
+      ;(scheduled as () => void)()
+    })
+
+    expect(currentNow()).toBe(next)
+    spy.mockRestore()
+  })
+
   it('never asks for a negative delay', () => {
     // The floor on `delay` is invisible through the DOM: a negative delay and
     // a zero one both fire on the next tick, so the catch-up case above passes
@@ -145,8 +184,19 @@ describe('useTearOff', () => {
     const delays = spy.mock.calls
       .map((call) => call[1])
       .filter((d): d is number => typeof d === 'number')
-    expect(delays).not.toHaveLength(0)
-    expect(delays.filter((d) => d < 0)).toEqual([])
+    // One assertion rather than a non-vacuity guard plus a filter, because
+    // that pair could both go vacuous together: any stray captured call
+    // satisfied `not.toHaveLength(0)`, and the filter is empty when the
+    // hook's own call is missing just as it is when the call was floored. A
+    // React or jsdom bump that introduced one stray setTimeout inside this
+    // `act()` would leave the test green while it pinned nothing.
+    //
+    // `Math.min` is strictly stronger on all three: the floored call is
+    // exactly 0, an unfloored one is negative, and `Math.min()` of an empty
+    // array is Infinity. It also pins the *selection* — reverting `find` to
+    // compare against `clock` skips this already-past boundary, and the only
+    // delay left is the positive wait for the next one.
+    expect(Math.min(...delays)).toBe(0)
     spy.mockRestore()
   })
 

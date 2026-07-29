@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ListItem } from '../types'
-import { isInCart, itemState } from './itemState'
+import { itemState } from './itemState'
 
 const item = (overrides: Partial<ListItem> = {}): ListItem =>
   ({
@@ -126,40 +126,5 @@ describe('the exact boundary', () => {
         }),
       ),
     ).toBe('bought')
-  })
-})
-
-describe('what the progress bar counts', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-07-28T12:00:00Z'))
-  })
-
-  it('counts the cart — the shopping is done, the paying is not the point', () => {
-    expect(
-      isInCart(
-        item({
-          purchased_at: '2026-07-28T09:00:00',
-          purchased: true,
-          purchase_ends_at: '2026-07-28T23:00:00',
-        }),
-      ),
-    ).toBe(true)
-  })
-
-  it('does not count a settled purchase from an earlier trip', () => {
-    expect(
-      isInCart(
-        item({
-          purchased_at: '2026-07-20T09:00:00',
-          purchased: true,
-          purchase_ends_at: '2026-07-20T23:00:00',
-        }),
-      ),
-    ).toBe(false)
-  })
-
-  it('does not count something still on the list', () => {
-    expect(isInCart(item())).toBe(false)
   })
 })

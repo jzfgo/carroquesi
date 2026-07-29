@@ -747,6 +747,10 @@ describe('DashboardScreen — offline', () => {
       ).toBeInTheDocument(),
     )
     expect(api.createList).not.toHaveBeenCalled()
+    // The toast says to come back with a connection, so there has to be
+    // something to come back to. This is the half the guard used to get
+    // wrong: it refused the write and discarded the name in the same breath.
+    expect(screen.getByPlaceholderText(/nombre/i)).toHaveValue('Costco')
   })
 
   it('will not submit feedback without a connection, and says why', async () => {

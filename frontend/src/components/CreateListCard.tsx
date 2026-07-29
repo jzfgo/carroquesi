@@ -5,7 +5,16 @@ import { Mascot } from './Mascot'
 
 interface Props {
   isFirst?: boolean
-  onCreate: (name: string) => Promise<void>
+  /** Resolves `true` once the list exists, `false` if the create was refused.
+   *
+   *  A refusal is not a failure — the offline guard is the only one today, and
+   *  it has already said so with a toast. It has to come back as a value
+   *  because this card owns `name` and `expanded`: the parent cannot decline
+   *  to clear state it does not hold. Compare `handleFeedbackSubmit`, whose
+   *  bare `return` is refusal enough only because the sheet's open flag lives
+   *  in the parent.
+   */
+  onCreate: (name: string) => Promise<boolean>
 }
 
 export function CreateListCard({ isFirst, onCreate }: Props) {
@@ -46,7 +55,10 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
     if (!name.trim()) return
     setCreating(true)
     try {
-      await onCreate(name.trim())
+      // Only a confirmed create clears the field. What the user typed is work,
+      // and a refusal leaves nothing on the server to come back to — so the
+      // name stays on screen with the card open, ready to send again.
+      if (!(await onCreate(name.trim()))) return
       setName('')
       setExpanded(false)
     } finally {

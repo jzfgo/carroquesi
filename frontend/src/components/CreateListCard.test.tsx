@@ -26,7 +26,7 @@ describe('CreateListCard', () => {
   })
 
   it('calls onCreate with the typed name and collapses', async () => {
-    const onCreate = vi.fn().mockResolvedValue(undefined)
+    const onCreate = vi.fn().mockResolvedValue(true)
     render(<CreateListCard onCreate={onCreate} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.change(screen.getByPlaceholderText(/nombre/i), {
@@ -37,6 +37,26 @@ describe('CreateListCard', () => {
     await waitFor(() =>
       expect(screen.queryByPlaceholderText(/nombre/i)).not.toBeInTheDocument(),
     )
+  })
+
+  // The counterpart to the collapse test above: same click, opposite answer
+  // from onCreate. Asserting the input's *value* rather than its presence is
+  // the point — a card that stayed expanded but empty would still have thrown
+  // the name away, and only the value assertion can tell those apart.
+  it('keeps the name and stays open when the create is refused', async () => {
+    const onCreate = vi.fn().mockResolvedValue(false)
+    render(<CreateListCard onCreate={onCreate} />)
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.change(screen.getByPlaceholderText(/nombre/i), {
+      target: { value: 'Costco' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /crear/i }))
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalledWith('Costco'))
+    expect(screen.getByPlaceholderText(/nombre/i)).toHaveValue('Costco')
+    // And still submittable — a refusal must not leave the button disabled
+    // from the `creating` flag.
+    expect(screen.getByRole('button', { name: /crear/i })).toBeEnabled()
   })
 
   it('ESC key collapses the input and clears the name', () => {
@@ -55,7 +75,7 @@ describe('CreateListCard', () => {
   })
 
   it('ENTER key submits the form', async () => {
-    const onCreate = vi.fn().mockResolvedValue(undefined)
+    const onCreate = vi.fn().mockResolvedValue(true)
     render(<CreateListCard onCreate={onCreate} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.change(screen.getByPlaceholderText(/nombre/i), {
