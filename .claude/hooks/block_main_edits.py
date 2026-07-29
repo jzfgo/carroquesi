@@ -108,7 +108,11 @@ def main() -> None:
         try:
             ignored = (
                 subprocess.run(
-                    ["git", "-C", git_dir, "check-ignore", "-q", file_path],
+                    # `--` because a path starting with a dash is otherwise
+                    # parsed as an option: `git check-ignore -q -weird.txt`
+                    # answers `unknown switch 'w'`, and a non-zero exit here
+                    # reads as "not ignored".
+                    ["git", "-C", git_dir, "check-ignore", "-q", "--", file_path],
                     capture_output=True,
                 ).returncode
                 == 0

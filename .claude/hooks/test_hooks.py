@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -227,11 +228,12 @@ def test_block_main_edits() -> None:
         run("git", "worktree", "remove", "--force", str(tree), cwd=repo)
 
 
-def stop_verdict(cwd: pathlib.Path, payload: dict | None = None) -> str:
-    """Run stop_checks.py and report whether it ended the turn.
+def stop_run(cwd: pathlib.Path, payload: dict | None = None) -> tuple[str, str]:
+    """Run stop_checks.py; return (verdict, stderr).
 
     Exit 2 means "keep going" — the hook refused to let the turn end. Any
-    other code means it was content.
+    other code means it was content. stderr matters separately: on the
+    floored pass the hook lets the turn end but must still say why.
     """
     proc = subprocess.run(
         [sys.executable, str(HOOKS / "stop_checks.py")],
@@ -240,7 +242,11 @@ def stop_verdict(cwd: pathlib.Path, payload: dict | None = None) -> str:
         text=True,
         cwd=cwd,
     )
-    return "continue" if proc.returncode == 2 else "stop"
+    return ("continue" if proc.returncode == 2 else "stop"), proc.stderr
+
+
+def stop_verdict(cwd: pathlib.Path, payload: dict | None = None) -> str:
+    return stop_run(cwd, payload)[0]
 
 
 def test_stop_checks_main_dirty() -> None:
@@ -286,9 +292,18 @@ def test_stop_checks_main_dirty() -> None:
         # Route independence. The guard names none of these; the point is
         # that the effect check cannot tell them apart, so each must be
         # performed for real rather than described.
+        q = shlex.quote
         routes = [
-            ("shell redirect", ["sh", "-c", f"echo mutated > {target}"]),
-            ("sed -i", ["sed", "-i", "s/x/y/", str(target)]),
+            ("shell redirect", ["sh", "-c", f"echo mutated > {q(str(target))}"]),
+            # `-i.bak`, not a bare `-i`. GNU sed treats the suffix as
+            # optional; BSD sed (macOS, the primary platform here) requires
+            # it as a separate word, so a bare `-i` eats the script as the
+            # backup extension and then runs the filename as the script.
+            # That exits non-zero, `check=True` raises, and the whole test
+            # function dies — so the suite would not merely be weaker on
+            # macOS, it would crash there. Attached-suffix form works on
+            # both.
+            ("sed -i", ["sed", "-i.bak", "s/x/y/", str(target)]),
             (
                 "python one-liner",
                 [
@@ -297,8 +312,11 @@ def test_stop_checks_main_dirty() -> None:
                     f"open({str(target)!r}, 'w').write('z')",
                 ],
             ),
-            ("tee", ["sh", "-c", f"echo t | tee {target}"]),
-            ("cp over it", ["sh", "-c", f"cp {repo / '.gitignore'} {target}"]),
+            ("tee", ["sh", "-c", f"echo t | tee {q(str(target))}"]),
+            (
+                "cp over it",
+                ["sh", "-c", f"cp {q(str(repo / '.gitignore'))} {q(str(target))}"],
+            ),
         ]
         for label, cmd in routes:
             restore()
@@ -323,15 +341,33 @@ def test_stop_checks_main_dirty() -> None:
         check("dirty worktree, clean main", stop_verdict(tree), "stop")
         run("git", "-C", str(tree), "checkout", "--", ".", cwd=tree)
 
-        # The loop guard must not swallow this. Lint can wait for lefthook;
-        # a write to main has nothing else looking for it.
+        # The continuation has a floor of exactly one. Without it, dirt this
+        # session never created traps the turn forever, and the only
+        # pressure available points at discarding someone else's work.
         restore()
         target.write_text("mutated again")
         check(
-            "fires with stop_hook_active set",
-            stop_verdict(tree, {"stop_hook_active": True}),
+            "first stop forces a continuation",
+            stop_verdict(tree),
             "continue",
         )
+        floored, floored_err = stop_run(tree, {"stop_hook_active": True})
+        check("second stop lets the turn end", floored, "stop")
+        # Floored is not silent: lint prints nothing on this path, this does.
+        check(
+            "floored pass still reports it",
+            "has uncommitted changes" in floored_err and "stash push -u" in floored_err,
+            True,
+        )
+        # And the remedy it names must not be the destructive one.
+        check(
+            "remedy is recoverable, not `git clean`",
+            "git clean" not in floored_err and "restore`" not in floored_err,
+            True,
+        )
+        # Still dirty next turn means it fires again — the nag survives the
+        # floor, only the trap is gone.
+        check("re-fires on the next turn", stop_verdict(tree), "continue")
 
         # Runs from somewhere other than a repo root — cf. #116, a suite that
         # only passed where it was written.

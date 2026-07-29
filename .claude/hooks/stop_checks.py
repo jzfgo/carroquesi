@@ -16,11 +16,11 @@ another — let the agent stop, and rely on the pre-commit hook as the
 backstop at actual commit time.
 
 It also carries one check that is not about lint at all: `main_checkout_dirty`
-asks whether anything reached the `main` checkout this turn. That lives here
-because a Stop hook runs once per turn and sees effects rather than
+asks whether the `main` checkout is carrying uncommitted work. That lives
+here because a Stop hook runs once per turn and sees effects rather than
 commands, which is the only way to catch a write that never passed through
-Edit or Write. It is exempt from the loop guard; the reason is at the call
-site.
+Edit or Write. It shares the one-continuation floor with the lint checks but
+is reported more loudly; the reasoning is at the call site.
 """
 
 import json
@@ -76,8 +76,11 @@ def _main_checkout() -> str | None:
     list on purpose — other checkouts on main (dotfiles, another project)
     are not this hook's business.
 
-    Returns None when this repo simply has no checkout on main, which is the
-    normal case in a worktree-only setup. Raises when git itself failed.
+    Returns None when this repo simply has no checkout on main — normal in a
+    worktree-only setup, and it disables the whole check, which is correct:
+    nothing is on main, so there is nothing there to protect. Raises when
+    git itself failed, which is a different answer and must not be confused
+    with this one.
     """
     try:
         out = subprocess.run(
@@ -109,10 +112,15 @@ def main_checkout_dirty() -> str | None:
     phrased and loses by construction.
 
     The invariant that actually matters has no spelling: **main carries no
-    uncommitted work.** That holds however the file got there, so nothing
-    evades it. Ignored files are excluded by `git status` itself, which is
-    why the Edit|Write guard can exempt them without this side agreeing
-    explicitly.
+    uncommitted work.** That holds however the file got there, so no way of
+    phrasing a write evades it. Ignored files are excluded by `git status`
+    itself, which is why the Edit|Write guard can exempt them without this
+    side agreeing explicitly — including the machine-local sources,
+    `.git/info/exclude` and `core.excludesFile`, which both layers honour.
+
+    What it does not catch is a write that leaves the checkout clean:
+    `git commit` on main, or `git stash`. Those are unguarded anywhere —
+    tracked separately, and named in AGENTS.md rather than implied.
 
     Detection, not prevention — the write has already landed by the time
     this runs. That is why the PreToolUse layer stays.
@@ -144,15 +152,27 @@ def main_checkout_dirty() -> str | None:
     if not dirty:
         return None
 
+    # Says what it knows. This reads the checkout's current state, not a
+    # delta, so it cannot tell dirt this turn caused from dirt that was
+    # already there — and claiming the former sends the reader hunting for a
+    # write nobody made.
+    #
+    # The remedy is deliberately non-destructive. `git clean` cannot be
+    # undone, and suggesting it for files this session may not have written,
+    # in a message whose whole purpose is to apply pressure, is the one way
+    # this guard could cost more than the thing it guards against. `stash
+    # push -u` satisfies the same invariant and keeps the work.
     return (
         f"The main checkout at {path} has uncommitted changes:\n\n"
         f"{dirty}\n\n"
-        "Per AGENTS.md nothing may be written to main. Something this turn "
-        "wrote there by a route the Edit|Write guard does not see. Move the "
-        "work into a worktree (`wt switch --create <branch> --no-cd "
-        "--format=json`) and restore main with `git -C "
-        f"{path} restore` / `git -C {path} clean`, checking what the files "
-        "are before discarding anything."
+        "Per AGENTS.md nothing may be written to main. This is the "
+        "checkout's current state, not a record of what this turn did — the "
+        "changes may predate this session, and the Edit|Write guard never "
+        "saw whatever route produced them.\n\n"
+        "Read the files before touching them. If the work is wanted, "
+        f"`git -C {path} stash push -u` preserves it and leaves main clean; "
+        "then continue in a worktree (`wt switch --create <branch> --no-cd "
+        "--format=json`)."
     )
 
 
@@ -198,20 +218,33 @@ def main() -> None:
         except OSError:
             pass
 
-    # Deliberately ahead of the loop guard, and deliberately not subject to
-    # it. A second lint failure can wait for lefthook at commit time; an
-    # unguarded write to main cannot, because nothing downstream is looking
-    # for it. Letting the loop guard swallow this would reproduce the exact
-    # silence the check exists to break.
+    # Reported first because it outranks a lint error, but still subject to
+    # the same one-continuation floor.
+    #
+    # JAV-66 offered two ways to stop the loop guard swallowing this:
+    # exempt the check, or escalate its wording. Exempting it turns out to
+    # be the dangerous choice. `stop_hook_active` is the only cap Claude
+    # Code offers against a Stop-hook continuation loop, and this check
+    # cannot tell dirt this turn caused from dirt that was already there —
+    # so a maintainer with unrelated work in the main checkout would start
+    # every session in a turn that cannot end, with the only available
+    # pressure being toward discarding files the session never wrote. That
+    # is worse than the dirt.
+    #
+    # So: escalate the wording instead. One forced continuation makes the
+    # violation impossible to miss, the message is printed even on the
+    # floored pass (where lint stays quiet), and a main that is still dirty
+    # re-fires on the very next turn. The nag survives; the trap does not.
     dirty = main_checkout_dirty()
     if dirty is not None:
-        print("\n\n".join([dirty, *failures]), file=sys.stderr)
-        sys.exit(2)
+        failures.insert(0, dirty)
 
     if not failures:
         sys.exit(0)
 
     if already_looping:
+        if dirty is not None:
+            print("\n\n".join(failures), file=sys.stderr)
         sys.exit(0)
 
     # Exit code 2 on a Stop hook tells Claude Code to keep going instead of
