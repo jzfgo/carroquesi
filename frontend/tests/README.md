@@ -24,7 +24,7 @@ One thing to know before you pin a spec that also adds items: `useListItems` bui
 
 ### Regenerating baselines
 
-Baselines must be generated on the same OS Playwright's CI step runs on (Ubuntu), never natively. Font rendering differs enough between machines to produce false-positive diffs.
+Baselines must be generated in the container, never on your own machine — including when your own machine already runs Ubuntu. Font rendering differs enough between two installs of the same distribution to produce false-positive diffs.
 
 On macOS the mistake announces itself: Playwright suffixes the filename by platform, so a `-darwin.png` is simply never picked up by CI. On Linux nothing announces it. The host writes the same `-linux.png` CI expects, so a natively generated baseline is picked up and quietly disagrees. On one desktop distribution the desktop screens landed within 68 pixels of the container's while the mobile ones were out by up to 1046 — same engine, same suite, different font packages. 68 would pass the gate, which is the silent-wrong-baseline failure this page is otherwise about. Use the container even when the platform suffix says you need not.
 
@@ -34,9 +34,9 @@ Run:
 just frontend update-snapshots
 ```
 
-This runs the official Playwright Docker image (version read straight from `package.json`, so it can't drift out of sync) with `frontend/` bind-mounted in, then `pnpm install`s and re-runs the suite with `--update-snapshots` inside the container. The container is pinned to `--platform linux/amd64` — CI's `ubuntu-latest` runners are amd64, and on an Apple Silicon Mac, Docker otherwise defaults to pulling the native `arm64` image, which can render fonts subtly differently and reintroduce the exact false-positive diffs this whole workflow exists to avoid.
+This runs the official Playwright Docker image (version read straight from `package.json`, so it can't drift out of sync) with `frontend/` bind-mounted in, then `pnpm install`s and re-runs the suite with `--update-snapshots` inside the container. The container is pinned to `--platform linux/amd64` — CI's `ubuntu-latest` runners are amd64, and on any arm64 host the runtime otherwise defaults to pulling the native `arm64` image, which can render fonts subtly differently and reintroduce the exact false-positive diffs this whole workflow exists to avoid. An Apple Silicon Mac is the common case, not the only one.
 
-Rootless podman works too, via the `docker` shim in `podman-docker`. The recipe ends by giving the generated files back to whoever owns the checkout, and asks the mounted directory who that is rather than passing an id in from outside. The runtimes disagree on the answer: a rootless one maps container root to your account, so a chown to `$(id -u)` lands on an id far above it that resolves to nobody on the host. Reading the owner off the mount is right for both, without testing which is in use. One thing not exercised here: on a host with SELinux enforcing, a bind mount may need relabelling (`:z`) before the container can read it.
+Rootless podman works too, via the `docker` shim in `podman-docker`. The recipe ends by giving the generated files back to whoever owns the checkout, and asks the mounted directory who that is rather than passing an id in from outside. The runtimes disagree on the answer: a rootless one maps container root to your account, so a chown to `$(id -u)` lands on an id far above it that resolves to nobody on the host. Reading the owner off the mount is right for both, without testing which is in use. One thing not exercised here: on a host with SELinux enforcing, the container may be denied the mount until it is relabelled, which is `-v "$(pwd):/work:z"` on the mount itself rather than anything you can add afterwards. Know what you are agreeing to before reaching for it — `:z` writes a shared label onto the checkout on your host, not just inside the container.
 
 Two things are deliberately kept **out** of the `frontend/` bind mount, each via its own named volume, so the container's `pnpm install` can never bleed onto your host:
 
