@@ -670,6 +670,11 @@ describe('useListItems — write queue on network error', () => {
       409,
       'Cannot delete an item from a trip that has already been filed',
     )
+    // Not redundant with the constructor, which does assign `status`
+    // (api.ts:18). `vi.mock('../lib/api')` above is an automock: it keeps the
+    // class — so `instanceof ApiError` still passes and the branch is entered
+    // — but stubs the constructor body, leaving `status` undefined. Drop this
+    // line and the guard falls through to the generic toast.
     apiErr.status = 409
     vi.mocked(api.deleteItem).mockRejectedValue(apiErr)
 
