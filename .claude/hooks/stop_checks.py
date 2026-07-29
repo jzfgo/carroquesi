@@ -294,16 +294,15 @@ def main() -> None:
                         # one — hence the lead-in. The body below is written
                         # for whoever is going to act on it either way.
                         #
-                        # "unresolved", not "dirty": `dirty` is also non-None
-                        # when git could not answer, and a lead-in asserting
-                        # dirtiness above a body saying nothing was
-                        # established would undo the honesty that reporting
-                        # the git failure bought. Untested for the same
-                        # reason as the joined-list property above — reaching
-                        # it needs two consecutive Stops with git broken.
+                        # Careful with this wording: `dirty` is also non-None
+                        # when git could not answer, so a lead-in asserting
+                        # dirtiness would sit above a body saying nothing was
+                        # established — undoing the honesty that reporting
+                        # the git failure bought. It has to be true of both.
+                        # Both cases are covered in test_hooks.py.
                         "systemMessage": (
-                            "Heads up: this turn is ending with the main "
-                            "checkout unresolved.\n\n" + dirty
+                            "Heads up: this turn is ending and the main "
+                            "checkout still needs attention.\n\n" + dirty
                         ),
                         "suppressOutput": True,
                     }

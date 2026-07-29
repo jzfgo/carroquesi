@@ -44,14 +44,14 @@ def verdict(hook: str, payload: dict, cwd: pathlib.Path | None = None) -> str:
 
 
 def check(label: str, got: object, want: object) -> None:
-    # `object`, not `str`: exit codes and booleans are compared here too, and
-    # `==` plus the f-string handle any type.
+    # `object`, not `str`: exit codes and booleans are compared here too.
+    # Both values print through `!r` so an empty expectation is legible
+    # rather than trailing whitespace, and so `0` is distinguishable from
+    # `'0'` now that the suite compares more than strings.
     mark = "ok  " if got == want else "FAIL"
     if got != want:
-        failures.append(f"{label}: expected {want}, got {got}")
-    # An empty value would otherwise print as trailing whitespace and read as
-    # if the assertion had produced nothing at all.
-    print(f"  {mark} {label:52s} {got if got != '' else repr(got)}")
+        failures.append(f"{label}: expected {want!r}, got {got!r}")
+    print(f"  {mark} {label:52s} {got!r}")
 
 
 def bash(command: str) -> dict:
@@ -434,6 +434,22 @@ def test_stop_checks_main_dirty() -> None:
         outside = root / "not-a-repo"
         outside.mkdir()
         check("git cannot answer at all", stop_verdict(outside), "continue")
+
+        # The floor and the git-failure report intersect here: a check that
+        # could not run must survive the floored pass *and* not be dressed up
+        # as something it established. The lead-in is shared with the dirty
+        # case, so it has to be true of both.
+        _, unresolved = stop_run(outside, {"stop_hook_active": True})
+        check(
+            "floored git failure is still delivered",
+            "Could not check" in unresolved,
+            True,
+        )
+        check(
+            "floored git failure claims no dirtiness",
+            "still dirty" not in unresolved,
+            True,
+        )
 
         # Another repository on main is not ours to police.
         other = root / "other"
