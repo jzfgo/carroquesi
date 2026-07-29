@@ -177,7 +177,8 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 
 ### Git Workflow
 
-- Use squash merge for PRs by default
+- Use squash merge for PRs by default; into `main` the ruleset requires it
+- **A PR that merges `main` into a long-lived branch is the exception — merge it, don't squash.** The ancestry link is its whole product, and a squash keeps the files while dropping exactly that. The merge base then stays put, so the next merge replays commits already applied and re-conflicts every file resolved by hand. Repair a squashed one with `git merge -s ours origin/main` — tree unchanged, parent added
 - When asked to 'update X', assume this includes committing and pushing unless stated otherwise
 - Always check git status for untracked changes before assuming worktree is clean
 - For CI: use `pnpm install --frozen-lockfile` for clean installs
