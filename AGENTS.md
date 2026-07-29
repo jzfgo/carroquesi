@@ -8,6 +8,8 @@ This file provides guidance to coding agents (such as Antigravity CLI, Claude Co
 
 **CarroQueSí** is a collaborative grocery list app where multiple users share lists, mark items as purchased, receive product suggestions from purchase history, and log prices by scanning receipts with Gemini AI.
 
+Two documents hold the durable truth this file does not repeat. Read the relevant one before designing anything: [PRODUCT.md](PRODUCT.md) for who the product serves, what it promises, and the principles that settle a trade-off; [DESIGN.md](DESIGN.md) for the visual system.
+
 ## Architecture
 
 - `frontend/`: React + TypeScript (Vite), deployed to Firebase Hosting
@@ -138,6 +140,7 @@ All known flags and defaults live in the registry in `backend/app/services/featu
 
 - Check `git status --short` before and after changes
 - Implement the smallest complete fix first, then iterate
+- **Write comments and docs in plain, short English.** One idea per sentence. Use common words, not rare or figurative ones: the reader is not always a native speaker. A comment says *why*, not *where*. Never cite line numbers, file paths, or issue IDs in one. Nothing checks those links, so they go stale on the next move, and the commit message tells the reader more. Keep the length in proportion to the decision. Commit and PR titles are exempt; their style is deliberate.
 - Start both servers: `just dev` (uses overmind + `Procfile.local`); use `just dev network` to expose on LAN
 
 ### Agent Guardrails
@@ -220,19 +223,12 @@ A task is complete only when **all** of the following are true:
 
 - Submitting prices to Open Prices (requires proof image + OSM location)
 
-## Open Action Items (1:1 — 2026-07-22)
+## Open Action Items (1:1 — 2026-07-29)
 
-**AI:**
-
-- [ ] **Vary the environment before calling anything verified.** Running a check once proves it works *there*. Re-run it somewhere the ambient state differs — the other checkout, a different working directory, CI vs. local, the other side of a dev/prod or feature-flag branch — before saying it passes. _(Was "verify both branches of environment-conditional logic", carried unproven from #94 since 2026-07-08. It finally has real test cases, three in one afternoon on 2026-07-22: a guard that blocked its own PR (#115), one bypassable by quoting (#115), and a test suite that only passed in the directory it was written in while CI never ran it at all (#116). Every one was "verified" before it shipped.)_
-- [ ] In every `/brainstorming` session, add an explicit **failure-space section** before converging — how the proposal breaks with multiple users, with state changing between calls, with zero items, with many. Its own named section, not woven into prose. _(from #111's non-deterministic default-list resolver, which #113 had to replace)_
-- [ ] Take positions in design discussions, not neutral considerations — "this is wrong because X", not "one consideration might be". The user has explicitly asked for more pushback.
-- [ ] Flag mobile-path issues (input type, viewport, safe area) during implementation, not just at handoff
+An item here names one specific action that a later session can check and delete. Rules and behaviours do not belong in this list; they belong in the file that governs them. The AI items from this review were of that kind, so they landed with it: Product Principle 6 in `PRODUCT.md`, the writing rule under General Workflow, and the pointer to `PRODUCT.md` and `DESIGN.md` above.
 
 **You:**
 
-- [ ] Drop MCP from tracked goals unless the target-audience assumption changes — MCP clients are a developer audience, which fails the "regular users, transparent and seamless" bar _(agent loops research is separate and stays: a professional-capability goal, not a product bet)_
-- [ ] Push Siri Shortcuts further toward the writeup — the remaining setup friction is the material
-- [ ] Bring a Document AI vs. Gemini comparison into the next receipt scanning `/brainstorming` session
+- [ ] File the Gemini fallback as its own Linear issue — retry with backoff, plus a second provider behind the same interface — separate from the bring-your-own-model question, which is parked until the redesign lands.
 
 > When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
