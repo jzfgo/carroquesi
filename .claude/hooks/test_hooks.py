@@ -428,6 +428,12 @@ def test_stop_checks_main_dirty() -> None:
 
         # Runs from somewhere other than a repo root — cf. #116, a suite that
         # only passed where it was written.
+        #
+        # Scope note: this covers the main-checkout half only. The lint half
+        # is cwd-dependent and goes inert from a subdirectory — its pathspecs
+        # are relative, so they match nothing, and the ruff/eslint calls then
+        # fail to find their directories. Pre-existing and tracked
+        # separately; do not read these two cases as covering it.
         nested = tree / "frontend" / "src"
         nested.mkdir(parents=True)
         check("run from a nested subdirectory", stop_verdict(nested), "continue")
@@ -461,6 +467,15 @@ def test_stop_checks_main_dirty() -> None:
         check(
             "floored git failure claims no dirtiness",
             "still dirty" not in unresolved,
+            True,
+        )
+        # The lead-in is shared, so it has to be asserted on both paths. The
+        # check above only pins an *absence*, which a missing lead-in also
+        # satisfies — so without this one, prepending it to the dirty case
+        # alone would pass.
+        check(
+            "floored git failure carries the same lead-in",
+            "still needs attention" in unresolved,
             True,
         )
 

@@ -128,9 +128,9 @@ def main_checkout_dirty() -> str | None:
       — `git init` plus a remote added by hand — answers `fatal: no upstream
       configured`, and by this hook's own standard a failure has to be
       reported rather than swallowed. So the check would emit "could not
-      verify" on a working configuration, permanently. (Not a fork: `clone`
-      sets up tracking for the default branch, so a fork's main has an
-      upstream like any other. Verified both.)
+      verify" on a working configuration, permanently. Not a fork, though:
+      `clone` sets up tracking for the default branch, so a fork's main has
+      an upstream like any other.
     * There is no recoverable one-command remedy. The dirty case works
       because `stash push -u` keeps the work and satisfies the invariant.
       Undoing a commit is a reset plus a stash, and getting that wrong on a

@@ -140,8 +140,8 @@ def main() -> None:
                     "permissionDecision": "deny",
                     "permissionDecisionReason": (
                         "That path is on main. Per AGENTS.md, work in a worktree "
-                        "before touching any file — not for quick fixes, docs, or "
-                        "config either. Create one with `wt switch --create "
+                        "before touching any file. That includes quick fixes, "
+                        "docs, and config. Create one with `wt switch --create "
                         "<branch> --no-cd --format=json`, then write to the path it "
                         "reports."
                     ),
