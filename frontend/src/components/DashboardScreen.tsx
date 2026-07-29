@@ -349,16 +349,29 @@ export function DashboardScreen() {
   // and presses Crear again gets two lists with the same name and nothing to
   // explain it. The message states what is actually known.
   //
-  // The refetch is the other half. If the write did land, awaiting it before
-  // the toast puts the list on screen underneath the message, so the ambiguity
-  // resolves itself in the one direction the copy cannot.
+  // The refetch is the other half. If the write did land, it puts the list on
+  // screen underneath the message, so the ambiguity resolves itself in the one
+  // direction the copy cannot.
   //
-  // `silent` is for the case this path does not reach: it only changes
-  // behaviour when no cached copy exists, and by here the mount fetch has
-  // written one, so the flag is unobservable and no test pins it. Kept because
-  // it is the right argument if the cache is ever missing — storage disabled,
-  // or evicted — where the default would blank the panel and drop the user on
-  // the retry screen after a failure they were already being told about.
+  // The toast goes first, and the order is the point rather than an accident.
+  // `apiFetch` has no timeout, so on the case this whole branch exists for —
+  // a response lost in transport — the follow-up `getLists` hangs too, for as
+  // long as the browser takes to give up. Refetching first would hold the
+  // card's `creating` flag through all of it with nothing said, which is a
+  // dead button and silence on the one path that most needs an explanation.
+  // Both updates paint separately either way, so nothing is lost by saying it
+  // first. The `await` stays *after* the toast rather than being dropped:
+  // holding `creating` for the refetch is what stops a fast second tap
+  // creating the duplicate while the check is still in flight.
+  //
+  // `silent` is load-bearing here, not defensive. `saveDashboardCache`
+  // swallows its own failure, so when storage is unavailable — blocked for the
+  // origin, quota exceeded — the mount fetch still renders the screen and
+  // `loadDashboardCache` returns null forever after. In that session this
+  // refetch takes the uncached path, and without the flag a refetch that also
+  // fails sets `fetchError`, whose early return replaces the screen with the
+  // retry state and unmounts the `<Toast>` before it can be read. The message
+  // this commit exists to show would be the thing it destroyed.
   //
   // Only `createList` is inside the `try`. `fetchLists` settles on its own —
   // its network path catches into `fetchError` — and widening the guard around
@@ -373,8 +386,8 @@ export function DashboardScreen() {
       try {
         await createList(getToken, { name, emoji: randomEmoji() })
       } catch {
-        await fetchLists(true)
         setToast('No se pudo confirmar si se creó la lista')
+        await fetchLists(true)
         return false
       }
       await fetchLists()
