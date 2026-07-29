@@ -21,8 +21,14 @@ export type ItemState = 'pending' | 'cart' | 'bought'
  *  This used to compare local calendar days, and five other places in the
  *  codebase compared them too, four of them in UTC. The trip owns the
  *  boundary now.
+ *
+ *  `now` is a parameter rather than a hidden `Date.now()` read because this
+ *  answer changes on its own, with no input to the caller having changed. A
+ *  caller that memoises the result needs the clock in its dependency list, and
+ *  it can only put it there if the clock is something it holds — see
+ *  `useTearOff`, which owns the instant the answer flips.
  */
-export function itemState(item: ListItem): ItemState {
+export function itemState(item: ListItem, now: number = Date.now()): ItemState {
   if (!item.purchased_at) {
     // The backend derives `purchased` from `purchased_at`, so the two cannot
     // disagree — but if they ever did, calling a bought item "still to buy" is
@@ -36,10 +42,10 @@ export function itemState(item: ListItem): ItemState {
   }
   const ends = parseNaiveUtc(item.purchase_ends_at)
   if (ends === null) return 'cart'
-  return Date.now() >= ends ? 'bought' : 'cart'
+  return now >= ends ? 'bought' : 'cart'
 }
 
 /** What the progress bar counts. An item in the cart is shopping done. */
-export function isInCart(item: ListItem): boolean {
-  return itemState(item) === 'cart'
+export function isInCart(item: ListItem, now: number = Date.now()): boolean {
+  return itemState(item, now) === 'cart'
 }

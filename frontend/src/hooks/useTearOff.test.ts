@@ -26,12 +26,18 @@ const makeItem = (overrides: Partial<ListItem> = {}): ListItem => ({
 let renderCount: number
 function Harness({ items }: { items: ListItem[] }) {
   renderCount++
-  useTearOff(items)
-  return null
+  const now = useTearOff(items)
+  // Rendered rather than stashed in a module variable: assigning to an outer
+  // binding during render is the side effect `react-hooks/globals` rejects.
+  return createElement('span', { 'data-testid': 'now' }, String(now))
 }
 
 const renderHarness = (items: ListItem[]) =>
   render(createElement(Harness, { items }))
+
+/** The instant the hook is currently handing its caller. */
+const currentNow = () =>
+  Number(document.querySelector('[data-testid="now"]')?.textContent)
 
 describe('useTearOff', () => {
   beforeEach(() => {
@@ -55,6 +61,22 @@ describe('useTearOff', () => {
       vi.advanceTimersByTime(6000)
     })
     expect(renderCount).toBe(2)
+  })
+
+  it('advances the clock it returns past the boundary, not just the render', () => {
+    // The re-render alone is not the useful part. A caller memoising anything
+    // derived from itemState keys that memo on `items`, and no item changes at
+    // a tear-off — only the time does. The returned instant is the dependency
+    // that moves, so it has to land on the far side of the boundary.
+    const endsAt = '2026-07-28T12:00:05'
+    const boundary = Date.parse(`${endsAt}Z`)
+    renderHarness([makeItem({ purchase_ends_at: endsAt })])
+    expect(currentNow()).toBeLessThan(boundary)
+
+    act(() => {
+      vi.advanceTimersByTime(6000)
+    })
+    expect(currentNow()).toBeGreaterThanOrEqual(boundary)
   })
 
   it('schedules nothing when every trip has already ended', () => {

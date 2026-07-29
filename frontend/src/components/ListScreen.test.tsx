@@ -694,6 +694,77 @@ describe('cost totals', () => {
   })
 })
 
+describe('the tear-off boundary under an open tab', () => {
+  // The one case no other test covers: nothing about the *items* changes, only
+  // the time. Everything ListScreen derives from itemState is memoised, and a
+  // memo keyed on `items` alone cache-hits straight through midnight — the
+  // screen re-renders on schedule and still shows the pre-boundary answer.
+  // Nothing else would correct it either: the 5s poll re-fetches only when
+  // `updated_at` moves, and a tear-off is not a write.
+  const PURCHASED_AT = '2026-07-28T09:00:00'
+  const ENDS_AT = '2026-07-28T12:00:05' // naive-UTC, 5s after the system time
+
+  function renderAtNoon(items: ListItem[]) {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-28T12:00:00Z'))
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items,
+    })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+  }
+
+  const items = () => [
+    makeItem({
+      id: '1',
+      purchased: true,
+      purchased_at: PURCHASED_AT,
+      purchase_id: 'p1',
+      purchase_ends_at: ENDS_AT,
+      price: 4.0,
+    }),
+    makeItem({ id: '2' }), // still to buy, so the bar keeps a denominator
+  ]
+
+  it('drops the torn-off trip out of the progress bar', () => {
+    renderAtNoon(items())
+    // In the cart: counted as done, and still in scope.
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '50',
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(6000) // boundary + the hook's 1s margin
+    })
+
+    // Settled: out of both numerator and denominator, leaving one item to buy.
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '0',
+    )
+  })
+
+  it('gives the newly torn-off trip its cost badge', () => {
+    renderAtNoon(items())
+    // A cart item sits on the list's own sheet — no ticket, so no badge.
+    expect(
+      document.querySelector('.item-list__date-label-cost'),
+    ).not.toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(6000)
+    })
+
+    // The ticket sheet appears, and it appears *with its total*. ItemList
+    // recomputes inline and would show the sheet either way; the badge is
+    // looked up in ListScreen's memo, which is the half that used to go stale.
+    expect(
+      document.querySelector('.item-list__date-label-cost')?.textContent,
+    ).toMatch(/4[,.]00/)
+  })
+})
+
 describe('receipt scan CTA', () => {
   const PURCHASED_ITEM = makeItem({
     id: 'i1',

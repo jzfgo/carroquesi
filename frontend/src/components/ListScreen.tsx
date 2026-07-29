@@ -262,11 +262,16 @@ export function ListScreen({
 
   // Wakes the screen at each trip's tear-off instant. Without this, the cart
   // does not visibly empty at midnight until something else causes a
-  // re-render — itemState's Date.now() comparison never fires on its own.
+  // re-render — itemState's clock comparison never fires on its own.
   // Passed the unfiltered `items` rather than `filteredItems` because
   // ProgressBar also reads unfiltered items and would otherwise go stale for
   // a trip hidden by the current filter.
-  useTearOff(items)
+  //
+  // `now` is the clock every itemState call below is read against, and it is
+  // in those memos' dependency lists. Waking the screen is only half of it:
+  // a memo keyed on `items` alone cache-hits straight through the boundary,
+  // because at a tear-off no item changes — only the time does.
+  const now = useTearOff(items)
 
   const { pendingCount } = useQueueDrain({
     listId,
@@ -691,7 +696,7 @@ export function ListScreen({
     let purchased = 0
     let total = 0
     for (const i of items) {
-      const state = itemState(i)
+      const state = itemState(i, now)
       if (state === 'pending') {
         total++
       } else if (state === 'cart') {
@@ -700,7 +705,7 @@ export function ListScreen({
       }
     }
     return { purchasedCount: purchased, totalCount: total }
-  }, [items])
+  }, [items, now])
 
   const stores = useMemo(() => {
     const seen = new Set<string>()
@@ -738,9 +743,14 @@ export function ListScreen({
     // overwrote the first's.
     const byTrip = new Map<string, typeof filteredItems>()
     for (const item of filteredItems) {
-      if (!item.purchased) {
+      // Both arms ask itemState, so the three-way split is visible and the
+      // omission of 'cart' is a decision rather than a gap. Mixing the two
+      // authorities — `!item.purchased` here, itemState there — left anything
+      // with `purchased` set and `purchased_at` null in neither bucket.
+      const state = itemState(item, now)
+      if (state === 'pending') {
         pendingItems.push(item)
-      } else if (itemState(item) === 'bought') {
+      } else if (state === 'bought') {
         // Cart items are excluded here on purpose: ItemList only looks up
         // this map for 'bought' trips, and a cart item's own trip is still
         // open, so it has no filed total to bucket toward.
@@ -758,7 +768,7 @@ export function ListScreen({
       pendingCost: computeCostSummary(pendingItems),
       purchasedCostByTrip: costByTrip,
     }
-  }, [filteredItems])
+  }, [filteredItems, now])
 
   return (
     // The board is resolved once here and inherited by everything below, so no
