@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Commit, push, and open a squash-merge PR
+description: Commit, push, and open a PR — squash-merge by default, a real merge commit when it brings main into a long-lived branch
 ---
 1. Run `just ci` (typecheck + lint + backend tests); fix any failures before continuing
 2. Stage and commit with a clear message

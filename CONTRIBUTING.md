@@ -87,6 +87,23 @@ Make sure:
 - [ ] Only intentional files are changed (no `pnpm-lock.yaml` platform churn)
 - [ ] `CHANGELOG.md` untouched (release PRs excepted)
 
+### Merging a PR that brings `main` into a long-lived branch
+
+Squash-merge is the default here, and into `main` a merge commit is not allowed at all — the ruleset requires linear history, so squash or rebase are the only ways in.
+
+A PR that merges `main` into a long-lived branch is the exception, and must be merged with a real merge commit (`gh pr merge --merge`). Its only product is the ancestry link. A squash keeps the files and drops the link, which leaves the merge base where it was — so the next merge replays commits already applied and re-conflicts every file that was resolved by hand. This is measured, not hypothetical: the first four `main` → `feat/redesign-spec-v6` merges were squashed, and the fourth resolved seven files by hand that the next merge would have presented again.
+
+To repair one that was already squashed, record the ancestry with `git merge -s ours`, which keeps your tree exactly and only adds a parent:
+
+```bash
+# The sha must be the main commit that PR actually brought in — NOT origin/main.
+# Confirm the branch already contains its content:
+git merge-base --is-ancestor <sha> <the squashed PR's head commit>   # exit 0 = safe
+git merge -s ours <sha>
+```
+
+Both halves matter. Against a `main` that has moved on, `-s ours` marks the newer commits as merged while keeping your tree, so their content is dropped and a later `git merge main` answers `Already up to date` — silent, and shaped like success. The check is what separates recording a merge that happened from erasing one that did not.
+
 ### Architecture Decision Records
 
 Significant architectural decisions are documented in `docs/decisions/`. Before making a choice that overlaps with an existing ADR, read it — it explains what was considered and why the current approach was chosen.

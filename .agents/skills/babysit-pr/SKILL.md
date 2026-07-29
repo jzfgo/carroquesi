@@ -335,6 +335,11 @@ executed.
 rather than the noise `BLOCKED` usually is. Rebase onto `origin/main` and force-push with
 `--force-with-lease`; `required_linear_history` rules out a merge commit.
 
+**That holds only for a PR based on `main`.** A PR whose base is a long-lived branch is
+covered by no ruleset here, and rebasing one destroys the ancestry it exists to create.
+Bring that kind up to date by merging `main` into it, and merge the PR itself with
+`gh pr merge --merge` — see `AGENTS.md` → Git Workflow.
+
 Two consequences that bite in this loop:
 
 - **The rebase is a push, so it invalidates any clean review you were holding** (exit
