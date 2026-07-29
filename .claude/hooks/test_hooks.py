@@ -174,6 +174,9 @@ def test_block_main_edits() -> None:
         repo.mkdir()
         run("git", "init", "-q", "-b", "main", ".", cwd=repo)
         (repo / "seed.txt").write_text("x")
+        (repo / ".gitignore").write_text(
+            ".claude/settings.local.json\n*.env\nbuild/\n"
+        )
         run("git", "add", "-A", cwd=repo)
         run(
             "git",
@@ -200,6 +203,18 @@ def test_block_main_edits() -> None:
         check("nonexistent nested dir under worktree", at(tree / "x/y/z.txt"), "allow")
         check("path outside any repo", at(root / "loose.txt"), "allow")
 
+        # Gitignored paths on main were denied for nothing: they cannot reach
+        # a commit, and blocking them is what stopped a real settings edit.
+        # None of these files exist — check-ignore answers on the path, and
+        # Write creates the file afterwards.
+        local_settings = repo / ".claude/settings.local.json"
+        check("gitignored file on main", at(local_settings), "allow")
+        check("gitignored by extension on main", at(repo / "backend/.env"), "allow")
+        check("inside a gitignored dir on main", at(repo / "build/out.js"), "allow")
+        # The exemption must not swallow the rule it lives in.
+        check("tracked file beside an ignored one", at(repo / "seed.txt"), "deny")
+        check("unignored path under main", at(repo / "backend/app/main.py"), "deny")
+
         # With no usable file_path the check falls back to cwd rather than
         # allowing outright, so both directions are pinned explicitly. Without
         # an explicit cwd these pass in a worktree and fail on main.
@@ -212,9 +227,147 @@ def test_block_main_edits() -> None:
         run("git", "worktree", "remove", "--force", str(tree), cwd=repo)
 
 
+def stop_verdict(cwd: pathlib.Path, payload: dict | None = None) -> str:
+    """Run stop_checks.py and report whether it ended the turn.
+
+    Exit 2 means "keep going" — the hook refused to let the turn end. Any
+    other code means it was content.
+    """
+    proc = subprocess.run(
+        [sys.executable, str(HOOKS / "stop_checks.py")],
+        input=json.dumps(payload if payload is not None else {}),
+        capture_output=True,
+        text=True,
+        cwd=cwd,
+    )
+    return "continue" if proc.returncode == 2 else "stop"
+
+
+def test_stop_checks_main_dirty() -> None:
+    print("\nstop_checks.py — main checkout effect check")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp)
+
+        def run(*args: str, cwd: pathlib.Path) -> None:
+            subprocess.run(args, cwd=cwd, capture_output=True, check=True)
+
+        repo = root / "repo"
+        repo.mkdir()
+        run("git", "init", "-q", "-b", "main", ".", cwd=repo)
+        (repo / "seed.txt").write_text("x")
+        (repo / ".gitignore").write_text("ignored.local\n")
+        run("git", "add", "-A", cwd=repo)
+        run(
+            "git",
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-qm",
+            "init",
+            cwd=repo,
+        )
+
+        tree = root / "wt"
+        run("git", "worktree", "add", "-q", "-b", "feat/x", str(tree), cwd=repo)
+
+        target = repo / "seed.txt"
+
+        def restore() -> None:
+            run("git", "-C", str(repo), "checkout", "--", ".", cwd=repo)
+            run("git", "-C", str(repo), "clean", "-qfd", cwd=repo)
+
+        # Baseline: a clean main lets the turn end, from either checkout.
+        check("clean main, run from the worktree", stop_verdict(tree), "stop")
+        check("clean main, run from main itself", stop_verdict(repo), "stop")
+
+        # Route independence. The guard names none of these; the point is
+        # that the effect check cannot tell them apart, so each must be
+        # performed for real rather than described.
+        routes = [
+            ("shell redirect", ["sh", "-c", f"echo mutated > {target}"]),
+            ("sed -i", ["sed", "-i", "s/x/y/", str(target)]),
+            (
+                "python one-liner",
+                [
+                    sys.executable,
+                    "-c",
+                    f"open({str(target)!r}, 'w').write('z')",
+                ],
+            ),
+            ("tee", ["sh", "-c", f"echo t | tee {target}"]),
+            ("cp over it", ["sh", "-c", f"cp {repo / '.gitignore'} {target}"]),
+        ]
+        for label, cmd in routes:
+            restore()
+            subprocess.run(cmd, capture_output=True, check=True)
+            check(f"{label} to main, from the worktree", stop_verdict(tree), "continue")
+        restore()
+
+        # An untracked file counts too — `git status --porcelain` lists it.
+        (repo / "stray.txt").write_text("new")
+        check("untracked file on main", stop_verdict(tree), "continue")
+        (repo / "stray.txt").unlink()
+
+        # Gitignored writes can never reach a commit, so they are not dirt.
+        # This is the same exemption block_main_edits.py makes, and the two
+        # agree because `git status --porcelain` excludes ignored files.
+        (repo / "ignored.local").write_text("local settings")
+        check("gitignored write on main", stop_verdict(tree), "stop")
+        (repo / "ignored.local").unlink()
+
+        # A dirty worktree is the normal working state, not a violation.
+        (tree / "seed.txt").write_text("editing on a branch")
+        check("dirty worktree, clean main", stop_verdict(tree), "stop")
+        run("git", "-C", str(tree), "checkout", "--", ".", cwd=tree)
+
+        # The loop guard must not swallow this. Lint can wait for lefthook;
+        # a write to main has nothing else looking for it.
+        restore()
+        target.write_text("mutated again")
+        check(
+            "fires with stop_hook_active set",
+            stop_verdict(tree, {"stop_hook_active": True}),
+            "continue",
+        )
+
+        # Runs from somewhere other than a repo root — cf. #116, a suite that
+        # only passed where it was written.
+        nested = tree / "frontend" / "src"
+        nested.mkdir(parents=True)
+        check("run from a nested subdirectory", stop_verdict(nested), "continue")
+        restore()
+        check("nested subdirectory, main clean again", stop_verdict(nested), "stop")
+
+        # Another repository on main is not ours to police.
+        other = root / "other"
+        other.mkdir()
+        run("git", "init", "-q", "-b", "main", ".", cwd=other)
+        (other / "f.txt").write_text("a")
+        run("git", "add", "-A", cwd=other)
+        run(
+            "git",
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-qm",
+            "init",
+            cwd=other,
+        )
+        (other / "f.txt").write_text("dirty elsewhere")
+        check("a different repo dirty on main", stop_verdict(tree), "stop")
+
+        run("git", "worktree", "remove", "--force", str(tree), cwd=repo)
+
+
 if __name__ == "__main__":
     test_enforce_worktrunk()
     test_block_main_edits()
+    test_stop_checks_main_dirty()
     print()
     if failures:
         print(f"{len(failures)} FAILURE(S):")

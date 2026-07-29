@@ -19,6 +19,17 @@ The silent direction is the dangerous one. Getting blocked is loud and gets
 reported; getting permitted is not, so only the harmless failure ever
 generated a complaint. See `enforce_worktrunk.py` for the sibling case of a
 guard that gated the wrong thing.
+
+This is the first of two layers, and it only covers the honest path. It
+matches Edit|Write, so every other route to the same file — a shell
+redirect, `sed -i`, an interpreter one-liner, a subagent, an MCP tool —
+arrives unseen. Adding `Bash` here and hunting for those spellings would be
+a denylist over how a write is phrased, which `enforce_worktrunk.py` shows
+is unwinnable: roughly 50 lines of heredoc and substitution stripping
+protecting one regex, still matching only the literal command. So the
+second layer checks the *effect* instead — see `main_checkout_dirty` in
+`stop_checks.py`. Prevention here, detection there; this layer stays
+because detection cannot undo `rm -rf`.
 """
 
 from __future__ import annotations
@@ -84,6 +95,28 @@ def main() -> None:
 
     if branch != "main":
         sys.exit(0)
+
+    # A gitignored path can never reach a commit, so denying it on main
+    # protects nothing — and it does cost something: this is what blocked a
+    # legitimate `.claude/settings.local.json` edit. `backend/.env` and
+    # `frontend/.env` are the same shape.
+    #
+    # It also keeps this guard and the Stop-time effect check agreeing by
+    # construction, because `git status --porcelain` already excludes ignored
+    # files. Neither side needs to special-case the other.
+    if git_dir is not None and isinstance(file_path, str) and file_path:
+        try:
+            ignored = (
+                subprocess.run(
+                    ["git", "-C", git_dir, "check-ignore", "-q", file_path],
+                    capture_output=True,
+                ).returncode
+                == 0
+            )
+        except OSError:
+            ignored = False
+        if ignored:
+            sys.exit(0)
 
     print(
         json.dumps(

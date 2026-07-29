@@ -14,6 +14,13 @@ Includes the same `stop_hook_active` loop guard the Evil Martians post
 recommends: if we already forced one continuation this turn, don't force
 another — let the agent stop, and rely on the pre-commit hook as the
 backstop at actual commit time.
+
+It also carries one check that is not about lint at all: `main_checkout_dirty`
+asks whether anything reached the `main` checkout this turn. That lives here
+because a Stop hook runs once per turn and sees effects rather than
+commands, which is the only way to catch a write that never passed through
+Edit or Write. It is exempt from the loop guard; the reason is at the call
+site.
 """
 
 import json
@@ -48,6 +55,82 @@ def changed_files(prefix: str, exts: tuple[str, ...]) -> list[str]:
         pass
 
     return sorted(f for f in files if f.endswith(exts) and os.path.exists(f))
+
+
+def _main_checkout() -> str | None:
+    """Path of this repository's checkout that sits on `main`, if any.
+
+    Found rather than assumed: the main checkout is usually the repo root,
+    but a session can be rooted anywhere, and `main` can be checked out in a
+    worktree like any other branch. Scoped to this repository's worktree
+    list on purpose — other checkouts on main (dotfiles, another project)
+    are not this hook's business.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+    except (subprocess.CalledProcessError, OSError):
+        return None
+
+    # Porcelain emits one blank-line-separated block per checkout, each
+    # starting with `worktree <path>`. A detached HEAD has no `branch` line.
+    path: str | None = None
+    for line in out.splitlines():
+        if line.startswith("worktree "):
+            path = line[len("worktree ") :]
+        elif line == "branch refs/heads/main" and path is not None:
+            return path
+    return None
+
+
+def main_checkout_dirty() -> str | None:
+    """Uncommitted changes sitting in the checkout on `main`, as a report.
+
+    The PreToolUse guard matches Edit|Write, so a shell redirect, `sed -i`,
+    an interpreter one-liner, a subagent or an MCP tool all reach main
+    unguarded. Enumerating those routes is a denylist over how the write is
+    phrased and loses by construction.
+
+    The invariant that actually matters has no spelling: **main carries no
+    uncommitted work.** That holds however the file got there, so nothing
+    evades it. Ignored files are excluded by `git status` itself, which is
+    why the Edit|Write guard can exempt them without this side agreeing
+    explicitly.
+
+    Detection, not prevention — the write has already landed by the time
+    this runs. That is why the PreToolUse layer stays.
+    """
+    path = _main_checkout()
+    if path is None:
+        return None
+
+    try:
+        dirty = subprocess.run(
+            ["git", "-C", path, "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (subprocess.CalledProcessError, OSError):
+        return None
+
+    if not dirty:
+        return None
+
+    return (
+        f"The main checkout at {path} has uncommitted changes:\n\n"
+        f"{dirty}\n\n"
+        "Per AGENTS.md nothing may be written to main. Something this turn "
+        "wrote there by a route the Edit|Write guard does not see. Move the "
+        "work into a worktree (`wt switch --create <branch> --no-cd "
+        "--format=json`) and restore main with `git -C "
+        f"{path} restore` / `git -C {path} clean`, checking what the files "
+        "are before discarding anything."
+    )
 
 
 def main() -> None:
@@ -91,6 +174,16 @@ def main() -> None:
                 failures.append("eslint failed:\n" + result.stdout + result.stderr)
         except OSError:
             pass
+
+    # Deliberately ahead of the loop guard, and deliberately not subject to
+    # it. A second lint failure can wait for lefthook at commit time; an
+    # unguarded write to main cannot, because nothing downstream is looking
+    # for it. Letting the loop guard swallow this would reproduce the exact
+    # silence the check exists to break.
+    dirty = main_checkout_dirty()
+    if dirty is not None:
+        print("\n\n".join([dirty, *failures]), file=sys.stderr)
+        sys.exit(2)
 
     if not failures:
         sys.exit(0)
