@@ -806,11 +806,13 @@ describe('the tear-off boundary under an open tab', () => {
     // Confirmed at 15:00; delivered at 15:00:05, already behind the clock.
     //
     // The `+ 5000` in the advance above is load-bearing, not scene-setting —
-    // it, and not this timestamp, is what puts the boundary behind the live
-    // clock far enough for the hook's delay to floor at zero. Drop it and the
-    // boundary lands *on* the clock, where the 1s margin applies, the single
-    // tick below is no longer enough to settle the catch-up, and the case
-    // fails for a reason that has nothing to do with what it is pinning.
+    // it, and not this timestamp, is what leaves the boundary behind the live
+    // clock. What is left to wait is the hook's 1s margin minus the overshoot,
+    // and the tick below only advances 1ms, so the overshoot has to cover
+    // essentially the whole margin: measured, 999ms settles and 500ms does
+    // not. 5000 is slack around a limit of ~1000, so shaving this number is
+    // as breaking as deleting it — loudly, on a progress-bar assertion that
+    // says nothing about why.
     withItems([
       { ...inCart, purchase_ends_at: '2026-07-28T15:00:00' },
       stillToBuy,

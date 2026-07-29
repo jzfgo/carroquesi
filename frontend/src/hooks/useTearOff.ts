@@ -68,8 +68,14 @@ export function useTearOff(items: ListItem[]): number {
     if (next === undefined) return
     // A second past the boundary, so itemState's comparison lands safely on
     // the far side of it rather than racing the timer's own resolution. One
-    // already behind the live clock has nothing left to wait for, and the
-    // floor is what lets the same line serve both.
+    // already behind the live clock has nothing left to wait for, which is
+    // where the negative comes from.
+    //
+    // The `max` is a statement of that intent, not the mechanism behind it:
+    // `setTimeout` clamps a negative delay to zero itself, so removing the
+    // floor changes no behaviour and breaks no test. Kept because a delay
+    // that can legitimately go negative should say so at the point it is
+    // computed — but do not read a green suite as cover for this line.
     const delay = Math.min(Math.max(next - clock + 1000, 0), MAX_DELAY_MS)
     const id = setTimeout(() => setNow(Date.now()), delay)
     return () => clearTimeout(id)
