@@ -59,6 +59,38 @@ describe('CreateListCard', () => {
     expect(screen.getByRole('button', { name: /crear/i })).toBeEnabled()
   })
 
+  // `creating` reaches the button's `disabled` and nothing else, so the Enter
+  // path was never covered by it — and Enter leaves focus in the input, which
+  // is exactly where a user sits while waiting.
+  //
+  // JAV-61 made this reachable on the failure path rather than creating it: a
+  // refused create now deliberately keeps the card open with the name in it,
+  // which is the state someone retries from. With no idempotency key on the
+  // endpoint (JAV-69), a second in-flight submit is a second list.
+  it('will not submit twice while the first create is in flight', async () => {
+    let release!: (v: boolean) => void
+    const onCreate = vi.fn().mockReturnValue(
+      new Promise<boolean>((resolve) => {
+        release = resolve
+      }),
+    )
+    render(<CreateListCard onCreate={onCreate} />)
+    fireEvent.click(screen.getByRole('button'))
+    const input = screen.getByPlaceholderText(/nombre/i)
+    fireEvent.change(input, { target: { value: 'Costco' } })
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
+    // Still in flight, focus still in the field, user presses Enter again.
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onCreate).toHaveBeenCalledTimes(1)
+
+    release(true)
+    await waitFor(() =>
+      expect(screen.queryByPlaceholderText(/nombre/i)).not.toBeInTheDocument(),
+    )
+  })
+
   it('ESC key collapses the input and clears the name', () => {
     render(<CreateListCard onCreate={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))

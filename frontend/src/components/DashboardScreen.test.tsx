@@ -834,7 +834,15 @@ describe('DashboardScreen — offline', () => {
     )
     expect(api.getLists).toHaveBeenCalledTimes(2)
 
+    // Awaited, not fired and forgotten. Releasing without waiting lets the
+    // resolution continuation — applyLists → setLists → saveDashboardCache —
+    // run in a microtask after the test body returns, outside `act()`. And the
+    // wait pays for itself: a settled refetch releasing `creating` is the other
+    // half of the trade that holds it open, and nothing else asserts it.
     releaseRefetch(twoLists)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /crear/i })).toBeEnabled(),
+    )
   })
 
   // `silent` is not defensive — it is load-bearing on a reachable path, and
@@ -849,12 +857,16 @@ describe('DashboardScreen — offline', () => {
   // early return swaps the screen for the retry state — unmounting the toast
   // this path exists to show.
   it('keeps the message on screen when storage is unavailable', async () => {
-    // The instance, not `Storage.prototype`. jsdom's `localStorage` does not
-    // dispatch through the prototype, so a prototype spy installs cleanly,
-    // reports itself as called-never, and lets every write through — a test
-    // built on it sits in the *cached* state while claiming to be uncached,
-    // and passes for a reason unrelated to its name. Checked directly before
-    // relying on it.
+    // The instance, not `Storage.prototype` — and the reason is `vitest.setup`,
+    // not jsdom. That file replaces `globalThis.localStorage` with a plain
+    // object literal (a Node 25 workaround), so what the app touches is not a
+    // `Storage` at all and the prototype is unrelated to it. A prototype spy
+    // therefore installs cleanly, never fires, and lets every write through.
+    //
+    // Worth stating as the shim rather than as a fact about jsdom: jsdom does
+    // expose `setItem` on `Storage.prototype`, so the prototype form is
+    // correct in a plain jsdom project — and the shim calls itself temporary,
+    // so when it goes, this reason goes with it.
     vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
       throw new Error('quota')
     })
@@ -865,6 +877,14 @@ describe('DashboardScreen — offline', () => {
 
     render(<DashboardScreen />)
     await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+
+    // The fixture only means anything if the write actually failed, and this
+    // is what says so. Both `silent` branches in `fetchLists` sit behind
+    // `!cached`, so a spy that quietly stops intercepting leaves a cache
+    // populated, puts the flag back out of reach, and hands back a green run
+    // from a test no longer testing its own name. State rather than mechanism,
+    // so it outlives any change in how the state gets built.
+    expect(localStorage.getItem('cqs_dashboard_cache_u1')).toBeNull()
 
     await openCreateAndSubmit('Costco')
 

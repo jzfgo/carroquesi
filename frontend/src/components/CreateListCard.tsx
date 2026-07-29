@@ -60,7 +60,12 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
   }
 
   const handleSubmit = async () => {
-    if (!name.trim()) return
+    // `creating` is checked here, not only on the button's `disabled`. Enter
+    // reaches this directly from the input and leaves focus there, which is
+    // where someone sits while a slow create is in flight — so the button
+    // being greyed out stops nothing. Two submits is two lists: the endpoint
+    // has no idempotency key (JAV-69).
+    if (creating || !name.trim()) return
     setCreating(true)
     try {
       // Only a confirmed create clears the field. What the user typed is work,
