@@ -284,9 +284,28 @@ def apply_receipt_prices(
         scan = session.get(ReceiptScan, body.scan_id)
         if scan:
             scan.items_updated = updated + created
-            reconciled = trips.reconcile_scan(
-                session, list_id, affected, scan.store, scan.receipt_total, now
-            )
+            # reconcile_scan -> close can raise NotInTheCart and
+            # NothingToClose the same way a manual "Cerrar compra" can --
+            # purchases.py maps both to 400/409 there. Both are defensive
+            # only here (no_future rules out two open trips, and the
+            # affected items are always a subset of whichever trip they
+            # belong to by construction), but a defensive exception with no
+            # handler is still a 500 waiting to happen -- the same argument
+            # that put a handler on AlreadyFiled just above.
+            try:
+                reconciled = trips.reconcile_scan(
+                    session, list_id, affected, scan.store, scan.receipt_total, now
+                )
+            except trips.NotInTheCart:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Some items are not in the open trip",
+                ) from None
+            except trips.NothingToClose:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="There is nothing in the cart to close",
+                ) from None
             if reconciled is not None:
                 scan.purchase_id = reconciled.id
             session.add(scan)

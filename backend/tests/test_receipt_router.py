@@ -1343,3 +1343,68 @@ def test_scan_confirming_a_torn_off_trip_closes_it_so_a_later_tap_cannot_join(
     ).json()
 
     assert second["purchase_id"] != trip_id
+
+
+def test_apply_receipt_prices_maps_not_in_the_cart_to_400(client, session, user, monkeypatch):
+    """reconcile_scan -> close can raise NotInTheCart the same way a manual
+    "Cerrar compra" can; purchases.py maps it to 400 there and this endpoint
+    must too, rather than letting it surface as an unhandled 500. Forced via
+    monkeypatch because every real path into `close` keeps `wanted` a subset
+    of the cart by construction -- this exercises the handler, not a
+    reachable state."""
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Mercadona", receipt_total=1.15)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    def _raise_not_in_the_cart(*args, **kwargs):
+        raise trips.NotInTheCart()
+
+    monkeypatch.setattr(trips, "reconcile_scan", _raise_not_in_the_cart)
+
+    resp = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {
+                    "item_id": "item-almendras",
+                    "price": 1.15,
+                    "price_per": None,
+                    "store": "Mercadona",
+                }
+            ],
+            "mappings": [],
+        },
+    )
+    assert resp.status_code == 400
+
+
+def test_apply_receipt_prices_maps_nothing_to_close_to_409(client, session, user, monkeypatch):
+    """Same as above for NothingToClose, which purchases.py maps to 409."""
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Mercadona", receipt_total=1.15)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    def _raise_nothing_to_close(*args, **kwargs):
+        raise trips.NothingToClose()
+
+    monkeypatch.setattr(trips, "reconcile_scan", _raise_nothing_to_close)
+
+    resp = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {
+                    "item_id": "item-almendras",
+                    "price": 1.15,
+                    "price_per": None,
+                    "store": "Mercadona",
+                }
+            ],
+            "mappings": [],
+        },
+    )
+    assert resp.status_code == 409
