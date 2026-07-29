@@ -130,15 +130,21 @@ test('purchased section hidden when no items purchased', () => {
   expect(screen.queryByText('Compras anteriores')).not.toBeInTheDocument()
 })
 
-/** One purchased item per day, so each lands in its own trip. */
+/** One purchased item per day, so each lands in its own trip. Each trip's
+ *  `purchase_ends_at` is stamped an hour after it was picked up — same day,
+ *  and always in the past relative to "now" since every trip here is at
+ *  least a day old. */
 const tripsAgo = (n: number): ListItem[] =>
   Array.from({ length: n }, (_, i) => {
     const at = new Date()
     at.setDate(at.getDate() - (i + 1))
+    const endsAt = new Date(at.getTime() + 60 * 60 * 1000)
     return {
       ...makeItem(`t${i}`, true),
       name: `Compra ${i}`,
       purchased_at: at.toISOString().slice(0, 19),
+      purchase_id: `p${i}`,
+      purchase_ends_at: endsAt.toISOString().slice(0, 19),
     }
   })
 
@@ -304,7 +310,14 @@ test('and unruled with nothing under it at all', () => {
   const { container } = render(
     <ItemList
       status="success"
-      items={[{ ...makeItem('a', true), purchased_at: '2020-01-01T10:00:00' }]}
+      items={[
+        {
+          ...makeItem('a', true),
+          purchased_at: '2020-01-01T10:00:00',
+          purchase_id: 'p1',
+          purchase_ends_at: '2020-01-01T11:00:00',
+        },
+      ]}
       onTogglePurchased={() => {}}
       onOpen={() => {}}
       onRetry={() => {}}
@@ -320,7 +333,7 @@ test('and unruled with nothing under it at all', () => {
 
 function renderWithCost(
   pendingCost?: CostSummary | null,
-  purchasedCostByDate?: Map<string, CostSummary | null>,
+  purchasedCostByTrip?: Map<string, CostSummary | null>,
 ) {
   const items = [makeItem('a')]
   render(
@@ -331,7 +344,7 @@ function renderWithCost(
       onOpen={() => {}}
       onRetry={() => {}}
       pendingCost={pendingCost}
-      purchasedCostByDate={purchasedCostByDate}
+      purchasedCostByTrip={purchasedCostByTrip}
     />,
   )
 }
@@ -372,13 +385,18 @@ test('shows cost next to date label in purchased section', () => {
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
   const purchasedAt = yesterday.toISOString().slice(0, 19) // no trailing Z; purchasedDateLabel appends it
+  // The trip ended shortly after — still yesterday, so settled by now.
+  const purchaseEndsAt = new Date(yesterday.getTime() + 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 19)
   const item: ListItem = {
     ...makeItem('b', true),
     purchased_at: purchasedAt,
+    purchase_id: 'p1',
+    purchase_ends_at: purchaseEndsAt,
   }
-  const label = purchasedDateLabel(purchasedAt)
-  const costByDate = new Map([
-    [label, { total: 5, partial: false } as CostSummary],
+  const costByTrip = new Map([
+    ['p1', { total: 5, partial: false } as CostSummary],
   ])
   render(
     <ItemList
@@ -387,7 +405,7 @@ test('shows cost next to date label in purchased section', () => {
       onTogglePurchased={() => {}}
       onOpen={() => {}}
       onRetry={() => {}}
-      purchasedCostByDate={costByDate}
+      purchasedCostByTrip={costByTrip}
     />,
   )
   expect(
@@ -402,10 +420,17 @@ test('shows ≥ prefix in date label when purchased cost is partial', () => {
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
   const purchasedAt = yesterday.toISOString().slice(0, 19)
-  const item: ListItem = { ...makeItem('b', true), purchased_at: purchasedAt }
-  const label = purchasedDateLabel(purchasedAt)
-  const costByDate = new Map([
-    [label, { total: 2, partial: true } as CostSummary],
+  const purchaseEndsAt = new Date(yesterday.getTime() + 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 19)
+  const item: ListItem = {
+    ...makeItem('b', true),
+    purchased_at: purchasedAt,
+    purchase_id: 'p1',
+    purchase_ends_at: purchaseEndsAt,
+  }
+  const costByTrip = new Map([
+    ['p1', { total: 2, partial: true } as CostSummary],
   ])
   render(
     <ItemList
@@ -414,7 +439,7 @@ test('shows ≥ prefix in date label when purchased cost is partial', () => {
       onTogglePurchased={() => {}}
       onOpen={() => {}}
       onRetry={() => {}}
-      purchasedCostByDate={costByDate}
+      purchasedCostByTrip={costByTrip}
     />,
   )
   expect(
@@ -422,7 +447,7 @@ test('shows ≥ prefix in date label when purchased cost is partial', () => {
   ).toMatch(/≥/)
 })
 
-test('no date-label cost badge when purchasedCostByDate is omitted', () => {
+test('no date-label cost badge when purchasedCostByTrip is omitted', () => {
   const item: ListItem = {
     ...makeItem('b', true),
     purchased_at: new Date().toISOString().slice(0, 19),
@@ -537,9 +562,12 @@ const inCart = (id: string): ListItem => ({
 const settled = (id: string): ListItem => {
   const earlier = new Date()
   earlier.setDate(earlier.getDate() - 3)
+  const endsAt = new Date(earlier.getTime() + 60 * 60 * 1000)
   return {
     ...makeItem(id, true),
     purchased_at: earlier.toISOString().slice(0, 19),
+    purchase_id: 'p1',
+    purchase_ends_at: endsAt.toISOString().slice(0, 19),
   }
 }
 
@@ -697,4 +725,95 @@ test('only what is still to buy is grouped — the cart is not re-sorted under y
     (n) => n.textContent,
   )
   expect(headings).toEqual(['Mercadona'])
+})
+
+// ---------------------------------------------------------------------------
+// One receipt sheet per trip (Purchase entity), not per rendered date label
+// ---------------------------------------------------------------------------
+
+// UTC-midnight of (today - n days), plus `hour` hours — deterministic
+// regardless of the real time the suite runs at, and always safely in the
+// past (bought, not cart) for n >= 2.
+const daysAgoAt = (n: number, hour: number): Date =>
+  new Date(
+    Math.floor(Date.now() / 86_400_000) * 86_400_000 -
+      n * 86_400_000 +
+      hour * 3_600_000,
+  )
+
+const tripItem = (
+  id: string,
+  purchaseId: string,
+  at: Date,
+  endsAt: Date = new Date(at.getTime() + 60 * 60 * 1000),
+): ListItem => ({
+  ...makeItem(id, true),
+  purchased_at: at.toISOString().slice(0, 19),
+  purchase_id: purchaseId,
+  purchase_ends_at: endsAt.toISOString().slice(0, 19),
+})
+
+test('two shops on one day render as two receipt sheets, not one', () => {
+  // Grouping by the rendered date label used to fold two shops on one day
+  // into a single receipt — the exact case the Purchase entity exists for.
+  const shopA = tripItem('shopA', 'tripA', daysAgoAt(2, 10))
+  const shopB = tripItem('shopB', 'tripB', daysAgoAt(2, 16))
+  const { container } = renderList([shopA, shopB])
+  expect(container.querySelectorAll('.item-list__sheet--receipt')).toHaveLength(
+    2,
+  )
+})
+
+test("items from one trip stay in one sheet even when another trip's items interleave by timestamp", () => {
+  // Sorted newest-first, these interleave: A-new, B-new, A-old, B-old.
+  const items = [
+    tripItem('aNew', 'tripA', daysAgoAt(2, 18)),
+    tripItem('bNew', 'tripB', daysAgoAt(2, 17)),
+    tripItem('aOld', 'tripA', daysAgoAt(2, 10)),
+    tripItem('bOld', 'tripB', daysAgoAt(2, 9)),
+  ]
+  const { container } = renderList(items)
+  const sheets = container.querySelectorAll('.item-list__sheet--receipt')
+  expect(sheets).toHaveLength(2)
+  const namesPerSheet = [...sheets].map((sheet) =>
+    [...sheet.querySelectorAll('.item-card__name')]
+      .map((n) => n.textContent)
+      .sort(),
+  )
+  expect(namesPerSheet).toContainEqual(['Item aNew', 'Item aOld'])
+  expect(namesPerSheet).toContainEqual(['Item bNew', 'Item bOld'])
+})
+
+test("each sheet's label comes from its own earliest item, even spanning midnight", () => {
+  // One trip, two items either side of local midnight (the label is rendered
+  // with the runtime's local timezone via toLocaleDateString, so the split is
+  // built from local Date methods rather than a hardcoded UTC instant — a
+  // fixed instant collides onto one calendar day depending on where the
+  // suite runs, e.g. Europe/Madrid's +1h in January).
+  // Newest-first, the just-after-midnight item sorts before the
+  // just-before-midnight one from the day before — so the label must come
+  // from `.at(-1)`, the earliest, not `.at(0)`, the newest.
+  const localMidnight = new Date()
+  localMidnight.setDate(localMidnight.getDate() - 3) // safely in the past
+  localMidnight.setHours(0, 0, 0, 0)
+  const beforeMidnight = tripItem(
+    'before',
+    'tripAcrossMidnight',
+    new Date(localMidnight.getTime() - 10 * 60 * 1000),
+  )
+  const afterMidnight = tripItem(
+    'after',
+    'tripAcrossMidnight',
+    new Date(localMidnight.getTime() + 10 * 60 * 1000),
+  )
+  const { container } = renderList([afterMidnight, beforeMidnight])
+  expect(container.querySelectorAll('.item-list__sheet--receipt')).toHaveLength(
+    1,
+  )
+  const expectedLabel = purchasedDateLabel(beforeMidnight.purchased_at)
+  const wrongLabel = purchasedDateLabel(afterMidnight.purchased_at)
+  expect(expectedLabel).not.toEqual(wrongLabel)
+  expect(container.querySelector('.item-list__label-text')?.textContent).toBe(
+    expectedLabel,
+  )
 })

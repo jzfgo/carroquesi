@@ -10,6 +10,7 @@ import { useListSeen } from '../hooks/useListSeen'
 import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useQueueDrain } from '../hooks/useQueueDrain'
+import { useTearOff } from '../hooks/useTearOff'
 import {
   ApiError,
   deleteList,
@@ -23,7 +24,7 @@ import {
 } from '../lib/api'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
-import { computeCostSummary, purchasedDateLabel } from '../lib/itemCost'
+import { computeCostSummary } from '../lib/itemCost'
 import { itemState } from '../lib/itemState'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
@@ -258,6 +259,19 @@ export function ListScreen({
     clearItemPrice,
     retry,
   } = useListItems(listId, getToken, setToast)
+
+  // Wakes the screen at each trip's tear-off instant. Without this, the cart
+  // does not visibly empty at midnight until something else causes a
+  // re-render — itemState's clock comparison never fires on its own.
+  // Passed the unfiltered `items` rather than `filteredItems` because
+  // ProgressBar also reads unfiltered items and would otherwise go stale for
+  // a trip hidden by the current filter.
+  //
+  // `now` is the clock every itemState call below is read against, and it is
+  // in those memos' dependency lists. Waking the screen is only half of it:
+  // a memo keyed on `items` alone cache-hits straight through the boundary,
+  // because at a tear-off no item changes — only the time does.
+  const now = useTearOff(items)
 
   const { pendingCount } = useQueueDrain({
     listId,
@@ -591,9 +605,11 @@ export function ListScreen({
         setLogPriceFor(null)
         setPriceItemId(null)
       } else if (err instanceof ApiError && err.status === 422) {
-        setToast(
-          'No se puede eliminar el precio de un artículo comprado en otro día',
-        )
+        // Not "otro día" any more: the backend's 422 fires when the item's
+        // trip has been filed, which is midnight by default but is 18:40 the
+        // moment someone taps "Cerrar compra". Same wording as the
+        // un-purchase toast, because it is the same rule.
+        setToast('No se puede eliminar el precio de una compra ya archivada')
         throw err
       } else {
         setToast('No se pudo eliminar el precio')
@@ -680,7 +696,7 @@ export function ListScreen({
     let purchased = 0
     let total = 0
     for (const i of items) {
-      const state = itemState(i)
+      const state = itemState(i, now)
       if (state === 'pending') {
         total++
       } else if (state === 'cart') {
@@ -689,7 +705,7 @@ export function ListScreen({
       }
     }
     return { purchasedCount: purchased, totalCount: total }
-  }, [items])
+  }, [items, now])
 
   const stores = useMemo(() => {
     const seen = new Set<string>()
@@ -720,28 +736,39 @@ export function ListScreen({
     [dueSuggestions],
   )
 
-  const { pendingCost, purchasedCostByDate } = useMemo(() => {
+  const { pendingCost, purchasedCostByTrip } = useMemo(() => {
     const pendingItems: typeof filteredItems = []
-    const byDate = new Map<string, typeof filteredItems>()
+    // Keyed by trip, not the rendered date label — two trips on one day used
+    // to collide onto the same label and the second trip's total silently
+    // overwrote the first's.
+    const byTrip = new Map<string, typeof filteredItems>()
     for (const item of filteredItems) {
-      if (!item.purchased) {
+      // Both arms ask itemState, so the three-way split is visible and the
+      // omission of 'cart' is a decision rather than a gap. Mixing the two
+      // authorities — `!item.purchased` here, itemState there — left anything
+      // with `purchased` set and `purchased_at` null in neither bucket.
+      const state = itemState(item, now)
+      if (state === 'pending') {
         pendingItems.push(item)
-      } else {
-        const label = purchasedDateLabel(item.purchased_at)
-        const group = byDate.get(label) ?? []
+      } else if (state === 'bought') {
+        // Cart items are excluded here on purpose: ItemList only looks up
+        // this map for 'bought' trips, and a cart item's own trip is still
+        // open, so it has no filed total to bucket toward.
+        const key = item.purchase_id ?? item.id
+        const group = byTrip.get(key) ?? []
         group.push(item)
-        byDate.set(label, group)
+        byTrip.set(key, group)
       }
     }
-    const costByDate = new Map<string, ReturnType<typeof computeCostSummary>>()
-    for (const [label, group] of byDate) {
-      costByDate.set(label, computeCostSummary(group))
+    const costByTrip = new Map<string, ReturnType<typeof computeCostSummary>>()
+    for (const [key, group] of byTrip) {
+      costByTrip.set(key, computeCostSummary(group))
     }
     return {
       pendingCost: computeCostSummary(pendingItems),
-      purchasedCostByDate: costByDate,
+      purchasedCostByTrip: costByTrip,
     }
-  }, [filteredItems])
+  }, [filteredItems, now])
 
   return (
     // The board is resolved once here and inherited by everything below, so no
@@ -804,7 +831,7 @@ export function ListScreen({
         onRetry={retry}
         onClone={handleCloneItem}
         pendingCost={pendingCost}
-        purchasedCostByDate={purchasedCostByDate}
+        purchasedCostByTrip={purchasedCostByTrip}
         footer={
           !receiptScanResult && isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
             /* A way in, not a prompt. It used to appear only once the list

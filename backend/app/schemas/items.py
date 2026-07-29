@@ -28,6 +28,10 @@ class ItemUpdate(BaseModel):
     stores: list[str] | None = None  # None = don't touch; [] = remove all
     purchased: bool | None = None
     purchased_quantity: str | None = None  # None = don't touch
+    # The instant the tap happened, which only the client knows. Without it an
+    # offline tap drained the next morning is stamped at drain time and files
+    # into the wrong trip. Honoured only on the false -> true transition.
+    purchased_at: datetime | None = None
 
 
 class ItemRead(BaseModel):
@@ -43,6 +47,19 @@ class ItemRead(BaseModel):
     price_per: Literal["KILOGRAM"] | None
     price_store: str | None
     purchased_at: datetime | None
+    purchase_id: str | None = None
+    # closed_at ?? tears_off_at, denormalised so itemState() on the client stays
+    # a function of one item and one instant comparison. Set as a transient
+    # attribute by the router, the same way User.is_admin is.
+    purchase_ends_at: datetime | None = None
+    # `trip.closed_at is not None` -- whether this item's trip has been filed
+    # ("Cerrar compra", or a receipt scan). delete_item's 409 keys on exactly
+    # this, and the client cannot derive it from purchase_ends_at alone: a
+    # torn-off-but-unfiled trip and a closed one both read as 'bought' via
+    # itemState(), yet behave oppositely on DELETE. Cheaper and clearer to
+    # expose this bool than to hand the client closed_at raw. Defaults False
+    # so add_item's response (which skips _annotate_trips) still validates.
+    purchase_filed: bool = False
     added_by: str
     created_at: datetime
     updated_at: datetime

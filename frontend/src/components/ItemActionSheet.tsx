@@ -135,12 +135,14 @@ export function ItemActionSheet({
               <RotateCcw size={18} /> Comprar de nuevo
             </button>
           )}
-          <button
-            className="item-action-sheet__action item-action-sheet__action--danger"
-            onClick={() => setSubState('confirm-delete')}
-          >
-            <Trash2 size={18} /> Eliminar producto
-          </button>
+          {!item.purchase_filed && (
+            <button
+              className="item-action-sheet__action item-action-sheet__action--danger"
+              onClick={() => setSubState('confirm-delete')}
+            >
+              <Trash2 size={18} /> Eliminar producto
+            </button>
+          )}
         </div>
       </>
     )

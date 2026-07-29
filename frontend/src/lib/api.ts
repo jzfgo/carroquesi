@@ -177,6 +177,7 @@ export function updateItem(
   itemId: string,
   patch: Partial<{
     purchased: boolean
+    purchased_at: string
     name: string
     quantity: string | null
     purchased_quantity: string | null

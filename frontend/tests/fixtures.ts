@@ -230,6 +230,88 @@ export async function installApiMocks(page: Page): Promise<void> {
   const naiveUtc = (iso: string) =>
     new Date(iso).toISOString().replace(/Z$/, '')
 
+  // A naive-UTC string (no 'Z', no offset) coming *from the client* — e.g.
+  // useListItems' `purchased_at` tap time, or a receipt's `receipt_date` —
+  // must be re-hydrated as UTC before doing any arithmetic on it. Parsing it
+  // bare would have Node read it as local time, which is exactly the class of
+  // bug `itemState.ts` exists to prevent on the other side of the wire.
+  const parseNaiveUtc = (s: string): Date =>
+    new Date(s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s) ? s : `${s}Z`)
+
+  // Mirrors backend/app/services/trips.py: TRIP_TIMEZONE, tears_off_at_for.
+  // A shopping trip files into the Madrid local day of its instant, and tears
+  // off at the Madrid midnight after that day. This is the mock's only source
+  // of truth for that rule — inventing a UTC-day approximation here would be
+  // exactly the bug class this phase exists to delete.
+  const TRIP_TIMEZONE = 'Europe/Madrid'
+
+  const madridDateParts = (d: Date) => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: TRIP_TIMEZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(d)
+    const get = (t: string) => Number(parts.find((p) => p.type === t)?.value)
+    return { year: get('year'), month: get('month'), day: get('day') }
+  }
+
+  // The IANA offset (in minutes, east-positive) Madrid observes at `d`. Used
+  // to convert a Madrid wall-clock instant back to UTC without a timezone
+  // library — DST-correct because it asks the platform, not a fixed offset.
+  const madridOffsetMinutes = (d: Date): number => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: TRIP_TIMEZONE,
+      timeZoneName: 'longOffset',
+    }).formatToParts(d)
+    const raw =
+      parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+00:00'
+    const match = raw.match(/GMT([+-])(\d{2}):(\d{2})/)
+    if (!match) return 0
+    const sign = match[1] === '-' ? -1 : 1
+    return sign * (Number(match[2]) * 60 + Number(match[3]))
+  }
+
+  /** Naive-UTC instant of the Madrid local midnight that ends `instant`'s
+   *  trip day — the mock's equivalent of `tears_off_at_for`. */
+  const tearsOffAtFor = (instant: Date): Date => {
+    const { year, month, day } = madridDateParts(instant)
+    // UTC-midnight of the *next* calendar day is only a first guess at which
+    // instant to read Madrid's offset off of — on the one day a year Madrid
+    // falls back (currently CET at that UTC instant, one hour later than
+    // Madrid midnight actually was), that guess picks the wrong offset. A
+    // second probe, now at the candidate the first guess produced, corrects
+    // it: candidate and offset agree once refined, everywhere except inside
+    // the one-hour repeated span itself, which no test here touches.
+    const guess = new Date(Date.UTC(year, month - 1, day + 1))
+    const candidate = new Date(
+      guess.getTime() - madridOffsetMinutes(guess) * 60_000,
+    )
+    return new Date(guess.getTime() - madridOffsetMinutes(candidate) * 60_000)
+  }
+
+  /** Same trip for the same (list, Madrid day) — mirrors `trip_for`'s lookup
+   *  key. Two items purchased on one Madrid day get the same id; a different
+   *  day gets a different one. */
+  const purchaseIdFor = (listId: string, instant: Date): string => {
+    const { year, month, day } = madridDateParts(instant)
+    return `trip-${listId}-${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  }
+
+  /** The quartet a just-filed purchase carries: the tap instant, the trip it
+   *  joined, that trip's effective end, and whether the trip has been closed
+   *  by hand -- all naive-UTC strings, no 'Z', except the last. A fresh tap
+   *  always joins an open trip (nothing in this mock ever calls
+   *  /purchases/close), so purchase_filed is always false here -- but the
+   *  field must still be present, the same as the real response always
+   *  carries it. */
+  const purchaseFieldsFor = (listId: string, instant: Date) => ({
+    purchased_at: naiveUtc(instant.toISOString()),
+    purchase_id: purchaseIdFor(listId, instant),
+    purchase_ends_at: naiveUtc(tearsOffAtFor(instant).toISOString()),
+    purchase_filed: false,
+  })
+
   await page.route(`${BACKEND}/**`, async (route) => {
     const req = route.request()
     const url = new URL(req.url())
@@ -297,10 +379,17 @@ export async function installApiMocks(page: Page): Promise<void> {
       // /lists/:id/items
       if (sub === '/items') {
         if (method === 'GET')
-          return json([
-            ...(SEED_ITEMS[listId] ?? []),
-            ...(createdItems[listId] ?? []),
-          ])
+          return json(
+            [
+              ...(SEED_ITEMS[listId] ?? []),
+              ...(createdItems[listId] ?? []),
+            ].map((i) => ({
+              purchase_id: null,
+              purchase_ends_at: null,
+              purchase_filed: false,
+              ...i,
+            })),
+          )
         if (method === 'POST') {
           const body = (req.postDataJSON() ?? {}) as Partial<ListItem>
           return json({
@@ -309,6 +398,9 @@ export async function installApiMocks(page: Page): Promise<void> {
             name: '',
             purchased: false,
             purchased_at: null,
+            purchase_id: null,
+            purchase_ends_at: null,
+            purchase_filed: false,
             ean: null,
             purchased_quantity: null,
             price: null,
@@ -362,8 +454,10 @@ export async function installApiMocks(page: Page): Promise<void> {
         }
         const now = new Date().toISOString()
         // Mirrors the router: an impulse buy is born purchased, stamped with
-        // the receipt's own instant when there is one.
-        const purchasedAt = naiveUtc(body.receipt_date || now)
+        // the receipt's own instant when there is one, and filed into that
+        // instant's Madrid-day trip exactly like a tap would be.
+        const instant = new Date(body.receipt_date || now)
+        const purchaseFields = purchaseFieldsFor(listId, instant)
         const created = (body.new_items ?? []).map((n, idx) => ({
           id: `created-item-${idx}-${now}`,
           list_id: listId,
@@ -373,7 +467,7 @@ export async function installApiMocks(page: Page): Promise<void> {
           brand: n.brand,
           stores: n.store ? [n.store] : [],
           purchased: true,
-          purchased_at: purchasedAt,
+          ...purchaseFields,
           ean: n.ean,
           price: n.price,
           price_per: n.price_per,
@@ -396,10 +490,33 @@ export async function installApiMocks(page: Page): Promise<void> {
         const items = SEED_ITEMS[listId] ?? []
         const item = items.find((i) => i.id === itemId)
         if (method === 'PATCH') {
-          const patch = (req.postDataJSON() ?? {}) as Partial<ListItem>
-          return item
-            ? json({ ...item, ...patch, updated_at: new Date().toISOString() })
-            : json({ detail: 'Not found' }, 404)
+          const patch = (req.postDataJSON() ?? {}) as Partial<ListItem> & {
+            purchased_at?: string | null
+          }
+          if (!item) return json({ detail: 'Not found' }, 404)
+          // Mirrors update_item: honour the client-supplied tap instant, fall
+          // back to "now" when absent, and file into that instant's trip —
+          // the same rule an offline tap draining in late relies on.
+          let purchaseFields: Partial<ListItem> = {}
+          if (patch.purchased === true) {
+            const instant = patch.purchased_at
+              ? parseNaiveUtc(patch.purchased_at)
+              : new Date()
+            purchaseFields = purchaseFieldsFor(listId, instant)
+          } else if (patch.purchased === false) {
+            purchaseFields = {
+              purchased_at: null,
+              purchase_id: null,
+              purchase_ends_at: null,
+              purchase_filed: false,
+            }
+          }
+          return json({
+            ...item,
+            ...patch,
+            ...purchaseFields,
+            updated_at: new Date().toISOString(),
+          })
         }
         if (method === 'DELETE') return route.fulfill({ status: 204 })
       }

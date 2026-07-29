@@ -1,0 +1,215 @@
+from datetime import datetime
+
+from fastapi.testclient import TestClient
+from sqlmodel import Session
+
+from app.db.models import List
+
+
+def _create_list(client):
+    return client.post("/lists", json={"name": "Casa"}).json()
+
+
+def _tap(client, list_id: str, name: str) -> dict:
+    item = client.post(f"/lists/{list_id}/items", json={"name": name}).json()
+    return client.patch(f"/lists/{list_id}/items/{item['id']}", json={"purchased": True}).json()
+
+
+def test_closing_the_whole_cart_returns_a_closed_trip(client: TestClient):
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+    _tap(client, lst["id"], "Pan")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "total": 14.60},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["store"] == "Lidl"
+    assert body["total"] == 14.60
+    assert body["closed_at"] is not None
+
+
+def test_closing_a_subset_leaves_the_rest_in_a_different_open_trip(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    bread = _tap(client, lst["id"], "Pan")
+    assert milk["purchase_id"] == bread["purchase_id"]
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"item_ids": [milk["id"]], "store": "Lidl", "total": 5.0},
+    )
+    assert response.status_code == 200
+    closed = response.json()
+    assert closed["id"] != milk["purchase_id"]
+
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    assert fetched["Leche"]["purchase_id"] == closed["id"]
+    assert fetched["Pan"]["purchase_id"] == milk["purchase_id"]
+    assert fetched["Pan"]["purchase_ends_at"] is not None
+
+
+def test_closing_an_empty_cart_returns_409(client: TestClient):
+    lst = _create_list(client)
+
+    response = client.post(f"/lists/{lst['id']}/purchases/close", json={})
+
+    assert response.status_code == 409
+
+
+def test_naming_an_item_not_in_the_cart_returns_400(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"item_ids": [milk["id"], "does-not-exist"], "store": "Lidl"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_a_non_member_cannot_close(client: TestClient, other_client: TestClient):
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = other_client.post(f"/lists/{lst['id']}/purchases/close", json={})
+
+    assert response.status_code == 403
+
+
+def test_the_full_two_shop_evening_through_http(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    bread = _tap(client, lst["id"], "Pan")
+    oil = _tap(client, lst["id"], "Aceite")
+    rice = _tap(client, lst["id"], "Arroz")
+    assert milk["purchase_id"] == bread["purchase_id"] == oil["purchase_id"] == rice["purchase_id"]
+
+    lidl = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"item_ids": [milk["id"], bread["id"]], "store": "Lidl", "total": 14.60},
+    ).json()
+    mercadona = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Mercadona", "total": 8.30},
+    ).json()
+
+    assert lidl["id"] != mercadona["id"]
+    assert lidl["store"] == "Lidl"
+    assert mercadona["store"] == "Mercadona"
+
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    assert fetched["Leche"]["purchase_id"] == lidl["id"]
+    assert fetched["Pan"]["purchase_id"] == lidl["id"]
+    assert fetched["Aceite"]["purchase_id"] == mercadona["id"]
+    assert fetched["Arroz"]["purchase_id"] == mercadona["id"]
+
+
+def test_closing_bumps_the_lists_updated_at(client: TestClient, session: Session):
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    row = session.get(List, lst["id"])
+    row.updated_at = datetime(2026, 1, 1)
+    session.add(row)
+    session.commit()
+
+    response = client.post(f"/lists/{lst['id']}/purchases/close", json={"store": "Lidl"})
+    assert response.status_code == 200
+
+    session.expire_all()
+    assert session.get(List, lst["id"]).updated_at > datetime(2026, 1, 1)
+
+
+def test_closing_makes_purchase_ends_at_the_close_time_not_the_tear_off(client: TestClient):
+    """Pins the Task 7 _annotate_trips mutation: a trip closed early by this
+    endpoint must report its items' purchase_ends_at as closed_at, not the
+    tears_off_at that governed it while it was still open."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    closed = client.post(f"/lists/{lst['id']}/purchases/close", json={"store": "Lidl"}).json()
+
+    fetched = client.get(f"/lists/{lst['id']}/items").json()[0]
+    assert fetched["id"] == milk["id"]
+    assert fetched["purchase_ends_at"] == closed["closed_at"]
+    assert fetched["purchase_ends_at"] != closed["tears_off_at"]
+
+
+def _post_raw_json(client: TestClient, url: str, body: str):
+    # httpx's `json=` kwarg serialises with allow_nan=False and refuses to
+    # build a request containing inf/nan at all -- which is exactly why the
+    # *server* needs its own rejection: a client not built on httpx (or
+    # Python's stdlib json, which allows Infinity/NaN by default) can still
+    # send one. Posting raw bytes is what lets this test reach the server
+    # instead of failing client-side before the request is even built.
+    return client.post(url, content=body.encode(), headers={"content-type": "application/json"})
+
+
+def test_closing_with_an_infinite_total_is_rejected(client: TestClient):
+    """`float('inf') >= 0` is true, so a bare `ge=0` constraint would let a
+    non-finite total round-trip through trips.close() and back out in
+    PurchaseRead. Checked in the router rather than the schema -- see
+    PurchaseClose.total's docstring for why a schema-level constraint that
+    can reject a non-finite value crashes FastAPI's own validation-error
+    handler instead of cleanly returning 422.
+    """
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = _post_raw_json(
+        client,
+        f"/lists/{lst['id']}/purchases/close",
+        '{"store": "Lidl", "total": Infinity}',
+    )
+
+    assert response.status_code == 422
+
+
+def test_closing_with_a_nan_total_is_rejected(client: TestClient):
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = _post_raw_json(
+        client,
+        f"/lists/{lst['id']}/purchases/close",
+        '{"store": "Lidl", "total": NaN}',
+    )
+
+    assert response.status_code == 422
+
+
+def test_closing_with_an_absurdly_long_store_name_is_rejected(client: TestClient):
+    """`store` is free text that ends up rendering in a ticket header --
+    unlike `total`, unbounded here is a rendering hazard, not a NaN-shaped
+    footgun, so a plain schema-level max_length is the right tool.
+    """
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "x" * 101},
+    )
+
+    assert response.status_code == 422
+
+
+def test_closing_with_an_absurdly_long_item_ids_list_is_rejected(client: TestClient):
+    """`item_ids` is the one field here that can carry an unbounded payload
+    -- `store` and `total` are both already bounded -- so it needs the same
+    schema-level max_length guard.
+    """
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"item_ids": [f"item-{i}" for i in range(201)]},
+    )
+
+    assert response.status_code == 422

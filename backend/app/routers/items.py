@@ -5,9 +5,10 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import case, func, nulls_last, or_
 from sqlmodel import Session, select
 
-from app.db.models import List, ListItem, User
+from app.db.models import List, ListItem, Purchase, User
 from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
+from app.services import trips
 from app.services.push import notify_list_change
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,24 @@ def _notify_safely(session: Session, lst: List, actor: User, event: str, name: s
         logger.exception("push notification failed for list %s", lst.id)
 
 
+def _annotate_trips(session: Session, items: list[ListItem]) -> None:
+    """Denormalise each trip's effective end onto its items.
+
+    A transient attribute read by ItemRead — the same pattern User.is_admin
+    uses. It is what keeps itemState() on the client a function of one item.
+    """
+    ids = {item.purchase_id for item in items if item.purchase_id}
+    found = (
+        {p.id: p for p in session.exec(select(Purchase).where(Purchase.id.in_(ids))).all()}
+        if ids
+        else {}
+    )
+    for item in items:
+        trip = found.get(item.purchase_id) if item.purchase_id else None
+        object.__setattr__(item, "purchase_ends_at", trips.ends_at(trip) if trip else None)
+        object.__setattr__(item, "purchase_filed", trip.closed_at is not None if trip else False)
+
+
 @router.get("", response_model=list[ItemRead])
 def get_items(
     list_id: str,
@@ -45,7 +64,9 @@ def get_items(
             ListItem.created_at.asc(),
         )
     )
-    return session.exec(query).all()
+    items = list(session.exec(query).all())
+    _annotate_trips(session, items)
+    return items
 
 
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
@@ -89,19 +110,29 @@ def update_item(
     was_purchased = item.purchased_at is not None
     data = body.model_dump(exclude_unset=True)
     purchased = data.pop("purchased", None)
+    supplied_at = data.pop("purchased_at", None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     for field, value in data.items():
         setattr(item, field, value)
     if purchased is True and item.purchased_at is None:
-        item.purchased_at = datetime.now(UTC).replace(tzinfo=None)
+        item.purchased_at = trips.tap_time(supplied_at, now)
         item.purchased_by = current_user.id
+        try:
+            trips.attach(session, item, item.purchased_at)
+        except trips.AlreadyFiled:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot purchase an item into a trip that has already been filed",
+            ) from None
     elif purchased is False:
-        if item.purchased_at is not None:
-            today = datetime.now(UTC).date()
-            if item.purchased_at.date() != today:
+        if item.purchase_id is not None:
+            trip = session.get(Purchase, item.purchase_id)
+            if trip is not None and not trips.is_open(trip, now):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Cannot unpurchase an item purchased on a previous day",
+                    detail="Cannot unpurchase an item from a trip that has ended",
                 )
+        trips.detach(session, item)
         item.purchased_at = None
     item.updated_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(item)
@@ -112,6 +143,7 @@ def update_item(
     # should not buzz every member's phone.
     if not was_purchased and item.purchased_at is not None:
         _notify_safely(session, lst, current_user, "purchased", item.name)
+    _annotate_trips(session, [item])
     return item
 
 
@@ -125,6 +157,20 @@ def delete_item(
     item = session.get(ListItem, item_id)
     if item is None or item.list_id != lst.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+    if item.purchase_id is not None:
+        trip = session.get(Purchase, item.purchase_id)
+        if trip is not None and trip.closed_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot delete an item from a trip that has already been filed",
+            )
+        # Detach first: deleting the last item of an open trip must clean up
+        # that trip the same way an explicit un-purchase would (trips.detach's
+        # own docstring: an emptied open trip "is not a fact about anything").
+        # Skipping this leaves an orphan open trip behind that POST
+        # /purchases/close then reports as "nothing in the cart to close",
+        # and that a later tap silently reattaches to.
+        trips.detach(session, item)
     session.delete(item)
     _bump(lst, session)
     session.commit()

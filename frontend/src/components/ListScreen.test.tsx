@@ -181,6 +181,11 @@ const TODAY = new Date().toISOString().slice(0, 19)
 /** A settled purchase. Marked TODAY an item is still in the cart, on the list's
  *  own sheet, and has no date label — only a torn-off trip gets one. */
 const YESTERDAY = new Date(Date.now() - 86_400_000).toISOString().slice(0, 19)
+/** The trip YESTERDAY belonged to tore off shortly after — still yesterday,
+ *  so settled (bought) as of now. */
+const YESTERDAY_ENDS_AT = new Date(Date.now() - 86_400_000 + 60 * 60 * 1000)
+  .toISOString()
+  .slice(0, 19)
 
 function makeItem(overrides: Partial<ListItem>): ListItem {
   return {
@@ -541,7 +546,13 @@ describe('ProgressBar scoping', () => {
     renderWithItems([
       makeItem({ id: '1' }), // unpurchased → in scope
       makeItem({ id: '2', purchased: true, purchased_at: TODAY }), // purchased today → in scope
-      makeItem({ id: '3', purchased: true, purchased_at: YESTERDAY }), // old → excluded
+      makeItem({
+        id: '3',
+        purchased: true,
+        purchased_at: YESTERDAY,
+        purchase_id: 'p1',
+        purchase_ends_at: YESTERDAY_ENDS_AT,
+      }), // old → excluded
     ])
     // total = 2 (items 1 + 2), purchased = 1 (item 2) → 50%
     expect(screen.getByRole('progressbar')).toHaveAttribute(
@@ -552,7 +563,13 @@ describe('ProgressBar scoping', () => {
 
   it('hides the bar when all purchased items are from prior days and none are unpurchased', () => {
     renderWithItems([
-      makeItem({ id: '1', purchased: true, purchased_at: YESTERDAY }),
+      makeItem({
+        id: '1',
+        purchased: true,
+        purchased_at: YESTERDAY,
+        purchase_id: 'p1',
+        purchase_ends_at: YESTERDAY_ENDS_AT,
+      }),
     ])
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   })
@@ -626,6 +643,8 @@ describe('cost totals', () => {
         id: '1',
         purchased: true,
         purchased_at: YESTERDAY,
+        purchase_id: 'p1',
+        purchase_ends_at: YESTERDAY_ENDS_AT,
         price: 3.0,
       }),
     ])
@@ -642,6 +661,179 @@ describe('cost totals', () => {
     expect(
       document.querySelector('.item-list__label-cost'),
     ).not.toBeInTheDocument()
+  })
+
+  it('keeps two same-day trips as separate totals instead of one overwriting the other', () => {
+    // The bug this phase introduces and fixes in the same breath: keying the
+    // cost map by the rendered date label instead of the trip made a second
+    // shop on the same day silently overwrite the first trip's total.
+    renderWithItems([
+      makeItem({
+        id: '1',
+        purchased: true,
+        purchased_at: YESTERDAY,
+        purchase_id: 'tripA',
+        purchase_ends_at: YESTERDAY_ENDS_AT,
+        price: 3.0,
+      }),
+      makeItem({
+        id: '2',
+        purchased: true,
+        purchased_at: YESTERDAY,
+        purchase_id: 'tripB',
+        purchase_ends_at: YESTERDAY_ENDS_AT,
+        price: 7.0,
+      }),
+    ])
+    const badges = [
+      ...document.querySelectorAll('.item-list__date-label-cost'),
+    ].map((b) => b.textContent)
+    expect(badges).toHaveLength(2)
+    expect(badges.some((t) => t?.match(/3[,.]00/))).toBe(true)
+    expect(badges.some((t) => t?.match(/7[,.]00/))).toBe(true)
+  })
+})
+
+describe('the tear-off boundary under an open tab', () => {
+  // The one case no other test covers: nothing about the *items* changes, only
+  // the time. Everything ListScreen derives from itemState is memoised, and a
+  // memo keyed on `items` alone cache-hits straight through midnight — the
+  // screen re-renders on schedule and still shows the pre-boundary answer.
+  // Nothing else would correct it either: the 5s poll re-fetches only when
+  // `updated_at` moves, and a tear-off is not a write.
+  const PURCHASED_AT = '2026-07-28T09:00:00'
+  const ENDS_AT = '2026-07-28T12:00:05' // naive-UTC, 5s after the system time
+
+  function renderAtNoon(items: ListItem[]) {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-28T12:00:00Z'))
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items,
+    })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+  }
+
+  const items = () => [
+    makeItem({
+      id: '1',
+      purchased: true,
+      purchased_at: PURCHASED_AT,
+      purchase_id: 'p1',
+      purchase_ends_at: ENDS_AT,
+      price: 4.0,
+    }),
+    makeItem({ id: '2' }), // still to buy, so the bar keeps a denominator
+  ]
+
+  it('drops the torn-off trip out of the progress bar', () => {
+    renderAtNoon(items())
+    // In the cart: counted as done, and still in scope.
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '50',
+    )
+
+    act(() => {
+      vi.advanceTimersByTime(6000) // boundary + the hook's 1s margin
+    })
+
+    // Settled: out of both numerator and denominator, leaving one item to buy.
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '0',
+    )
+  })
+
+  it('gives the newly torn-off trip its cost badge', () => {
+    renderAtNoon(items())
+    // A cart item sits on the list's own sheet — no ticket, so no badge.
+    expect(
+      document.querySelector('.item-list__date-label-cost'),
+    ).not.toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(6000)
+    })
+
+    // The ticket sheet appears, and it appears *with its total*. ItemList
+    // recomputes inline and would show the sheet either way; the badge is
+    // looked up in ListScreen's memo, which is the half that used to go stale.
+    expect(
+      document.querySelector('.item-list__date-label-cost')?.textContent,
+    ).toMatch(/4[,.]00/)
+  })
+
+  it('empties the cart when the trip is closed rather than torn off', () => {
+    // The boundary does not arrive by waiting here — it arrives already past.
+    // `closed_at` replaces `tears_off_at` the moment a receipt is applied, and
+    // the 5s poll can only deliver it after the fact, so there is no timer to
+    // fire. Reachable in this phase: `reconcile_scan` closes a trip on receipt
+    // apply, with a list that has been open on screen since the morning.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-28T09:00:00Z'))
+    const inCart = makeItem({
+      id: '1',
+      purchased: true,
+      purchased_at: '2026-07-28T08:00:00',
+      purchase_id: 'p1',
+      purchase_ends_at: '2026-07-29T00:00:00', // tears off tonight
+      price: 4.0,
+    })
+    const stillToBuy = makeItem({ id: '2' })
+    const withItems = (items: ListItem[]) =>
+      vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+        ...emptyHookResult,
+        items,
+      })
+
+    withItems([inCart, stillToBuy])
+    const view = render(
+      <ListScreen listId="l1" listName="Test" listOwnerId="u1" />,
+    )
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '50',
+    )
+
+    // Six hours of shopping, then the five seconds the poll takes to notice.
+    // Tonight's tear-off timer has not fired and will not: the trip ends by
+    // being confirmed, not by lasting until midnight.
+    act(() => {
+      vi.advanceTimersByTime(6 * 60 * 60 * 1000 + 5000)
+    })
+
+    // Confirmed at 15:00; delivered at 15:00:05, already behind the clock.
+    //
+    // The `+ 5000` in the advance above is load-bearing, not scene-setting —
+    // it, and not this timestamp, is what leaves the boundary behind the live
+    // clock. What is left to wait is the hook's 1s margin minus the overshoot,
+    // and the tick below only advances 1ms, so the overshoot has to cover
+    // essentially the whole margin: measured, 999ms settles and 500ms does
+    // not. 5000 is slack around a limit of ~1000 — anywhere above it is fine,
+    // and only shaving below roughly a second breaks this, which it does
+    // loudly, on a progress-bar assertion that says nothing about why.
+    withItems([
+      { ...inCart, purchase_ends_at: '2026-07-28T15:00:00' },
+      stillToBuy,
+    ])
+    act(() => {
+      view.rerender(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+    })
+    // The catch-up is scheduled, not synchronous — a setState straight from an
+    // effect is a cascading render. Its wait is zero, so a tick settles it.
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+
+    // One thing left to buy, and the confirmed shop is a ticket with a total.
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '0',
+    )
+    expect(
+      document.querySelector('.item-list__date-label-cost')?.textContent,
+    ).toMatch(/4[,.]00/)
   })
 })
 

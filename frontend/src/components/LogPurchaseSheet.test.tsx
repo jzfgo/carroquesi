@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { isSameCalendarDay } from '../lib/isSameCalendarDay'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ListItem } from '../types'
 import LogPurchaseSheet from './LogPurchaseSheet'
 
@@ -23,21 +22,6 @@ const BASE_ITEM: ListItem = {
   updated_at: '',
 }
 
-describe('isSameCalendarDay', () => {
-  it('returns true for null', () => {
-    expect(isSameCalendarDay(null)).toBe(true)
-  })
-
-  it('returns true for a timestamp from today', () => {
-    expect(isSameCalendarDay(new Date().toISOString())).toBe(true)
-  })
-
-  it('returns false for a timestamp from yesterday', () => {
-    const yesterday = '2020-01-01T00:00:00.000Z'
-    expect(isSameCalendarDay(yesterday)).toBe(false)
-  })
-})
-
 describe('LogPurchaseSheet delete button', () => {
   const baseProps = {
     initialAmount: null,
@@ -54,7 +38,13 @@ describe('LogPurchaseSheet delete button', () => {
   }
 
   beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-28T12:00:00Z'))
+  })
+
+  afterEach(() => {
     vi.clearAllMocks()
+    vi.useRealTimers()
   })
 
   it('is hidden when item has no price', () => {
@@ -64,7 +54,7 @@ describe('LogPurchaseSheet delete button', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('is shown when item has a price and is unpurchased', () => {
+  it('is shown when item has a price and is unpurchased (pending, not a filed record)', () => {
     const item = { ...BASE_ITEM, price: 1.99 }
     render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
     expect(
@@ -72,12 +62,14 @@ describe('LogPurchaseSheet delete button', () => {
     ).toBeInTheDocument()
   })
 
-  it('is shown when item has a price and was purchased today', () => {
+  it('is shown when the item is in the cart on a trip that has not ended', () => {
     const item = {
       ...BASE_ITEM,
       price: 1.99,
       purchased: true,
-      purchased_at: new Date().toISOString(),
+      purchased_at: '2026-07-28T09:00:00',
+      purchase_id: 'p1',
+      purchase_ends_at: '2026-07-28T23:00:00',
     }
     render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
     expect(
@@ -85,13 +77,29 @@ describe('LogPurchaseSheet delete button', () => {
     ).toBeInTheDocument()
   })
 
-  it('is hidden when item has a price but was purchased on a previous day', () => {
-    const yesterday = '2020-01-01T00:00:00.000Z'
+  it('is shown when purchased offline and not yet filed under a trip', () => {
+    // No purchase_ends_at: the server has not said which trip this joined,
+    // so it reads as cart, not a settled record.
     const item = {
       ...BASE_ITEM,
       price: 1.99,
       purchased: true,
-      purchased_at: yesterday,
+      purchased_at: '2026-07-28T09:00:00',
+    }
+    render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
+    expect(
+      screen.getByRole('button', { name: /eliminar precio/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('is hidden when the item has a price but its trip has already ended (filed)', () => {
+    const item = {
+      ...BASE_ITEM,
+      price: 1.99,
+      purchased: true,
+      purchased_at: '2026-07-27T21:00:00',
+      purchase_id: 'p1',
+      purchase_ends_at: '2026-07-28T00:00:00',
     }
     render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
     expect(

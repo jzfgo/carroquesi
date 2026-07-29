@@ -116,6 +116,34 @@ test('Cancelar in confirmation sub-state returns to actions sub-state', () => {
   expect(baseProps.onClose).not.toHaveBeenCalled()
 })
 
+test('hides Eliminar producto for a filed item', () => {
+  const onClone = vi.fn()
+  render(
+    <ItemActionSheet
+      {...baseProps}
+      item={{ ...item, purchase_filed: true }}
+      purchased={true}
+      onClone={onClone}
+    />,
+  )
+  expect(
+    screen.queryByRole('button', { name: /eliminar producto/i }),
+  ).not.toBeInTheDocument()
+})
+
+test('shows Eliminar producto for a torn-off-but-unfiled item', () => {
+  render(
+    <ItemActionSheet
+      {...baseProps}
+      item={{ ...item, purchase_filed: false }}
+      purchased={true}
+    />,
+  )
+  expect(
+    screen.getByRole('button', { name: /eliminar producto/i }),
+  ).toBeInTheDocument()
+})
+
 test('shows "Comprar de nuevo" when purchased is true and onClone is provided', () => {
   const onClone = vi.fn()
   render(<ItemActionSheet {...baseProps} purchased={true} onClone={onClone} />)

@@ -10,7 +10,7 @@ from app.schemas.receipt import (
     ReceiptScanRequest,
     ReceiptScanResult,
 )
-from app.services import feature_flags
+from app.services import feature_flags, trips
 from app.services.receipt_matcher import match_lines
 
 router = APIRouter(tags=["receipt"])
@@ -183,8 +183,22 @@ def apply_receipt_prices(
         )
 
     now = datetime.now(UTC).replace(tzinfo=None)
-    purchase_ts = _parse_receipt_at(body.receipt_date) or now
+    # Clamped only in the future direction (trips.no_future), not floored the
+    # way a manual tap also is (trips.tap_time's MAX_BACKDATE) — a receipt is
+    # by construction a record of something that already happened, however
+    # long ago, so it carries none of a live tap's "broken clock" risk and
+    # must not have its `purchased_at` silently rewritten for being older
+    # than a tap's backdate limit. The future direction still matters:
+    # `body.receipt_date` is client-supplied and may have been misread by
+    # OCR — a year digit, or DD/MM vs MM/DD. Unclamped, a future date creates
+    # a second open trip alongside the live cart; open_trip()'s unordered
+    # `.first()` then picks between them arbitrarily. Using one clamped
+    # instant for both `purchased_at` and `trips.attach` matters too —
+    # diverging them would file an item into a trip its own stored timestamp
+    # doesn't belong to.
+    purchase_ts = trips.no_future(_parse_receipt_at(body.receipt_date) or now, now)
     updated = 0
+    affected: list[ListItem] = []
 
     for patch in body.patches:
         item = session.get(ListItem, patch.item_id)
@@ -201,27 +215,46 @@ def apply_receipt_prices(
         # client-sent flag could rewrite a timestamp set by another member.
         if item.purchased_at is None:
             item.purchased_at = purchase_ts
+            try:
+                trips.attach(session, item, purchase_ts)
+            except trips.AlreadyFiled:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot apply a price to an item on a trip that has already been filed",
+                ) from None
         session.add(item)
         updated += 1
+        affected.append(item)
 
     created = 0
     for new in body.new_items:
-        session.add(
-            ListItem(
-                list_id=list_id,
-                added_by=current_user.id,
-                name=new.name,
-                brand=new.brand,
-                ean=new.ean,
-                stores=[new.store] if new.store else [],
-                quantity=None,  # planned qty — an impulse buy was never planned
-                purchased_quantity=new.quantity,
-                price=new.price,
-                price_per=new.price_per,
-                price_store=new.store,
-                purchased_at=purchase_ts,
-            )
+        created_item = ListItem(
+            list_id=list_id,
+            added_by=current_user.id,
+            name=new.name,
+            brand=new.brand,
+            ean=new.ean,
+            stores=[new.store] if new.store else [],
+            quantity=None,  # planned qty — an impulse buy was never planned
+            purchased_quantity=new.quantity,
+            price=new.price,
+            price_per=new.price_per,
+            price_store=new.store,
+            purchased_at=purchase_ts,
         )
+        session.add(created_item)
+        session.flush()
+        try:
+            trips.attach(session, created_item, purchase_ts)
+        except trips.AlreadyFiled:
+            # Unreachable in practice -- created_item is always fresh with no
+            # purchase_id -- but attach() is a shared entry point and every
+            # caller of it must handle the exception it can raise.
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot apply a price to an item on a trip that has already been filed",
+            ) from None
+        affected.append(created_item)
         created += 1
 
     for m in body.mappings:
@@ -252,6 +285,30 @@ def apply_receipt_prices(
         scan = session.get(ReceiptScan, body.scan_id)
         if scan:
             scan.items_updated = updated + created
+            # reconcile_scan -> close can raise NotInTheCart and
+            # NothingToClose the same way a manual "Cerrar compra" can --
+            # purchases.py maps both to 400/409 there. Both are defensive
+            # only here (no_future rules out two open trips, and the
+            # affected items are always a subset of whichever trip they
+            # belong to by construction), but a defensive exception with no
+            # handler is still a 500 waiting to happen -- the same argument
+            # that put a handler on AlreadyFiled just above.
+            try:
+                reconciled = trips.reconcile_scan(
+                    session, list_id, affected, scan.store, scan.receipt_total, now
+                )
+            except trips.NotInTheCart:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Some items are not in the open trip",
+                ) from None
+            except trips.NothingToClose:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="There is nothing in the cart to close",
+                ) from None
+            if reconciled is not None:
+                scan.purchase_id = reconciled.id
             session.add(scan)
 
     lst = session.get(List, list_id)

@@ -2,8 +2,8 @@ import { ShoppingCart, Store } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { formatPrice } from '../lib/formatPrice'
-import { isSameCalendarDay } from '../lib/isSameCalendarDay'
 import { parseQuantityFactor } from '../lib/itemCost'
+import { itemState } from '../lib/itemState'
 import type { ListItem } from '../types'
 import './LogPurchaseSheet.css'
 
@@ -61,8 +61,12 @@ export default function LogPurchaseSheet({
 
   const amount = parseFloat(amountStr)
   const canSave = !isNaN(amount) && amount > 0
+  // Same rule as the backend's 422: a price can be corrected while the trip
+  // is open (or before the item has even joined one), and becomes part of
+  // the record once the trip is filed. Matches DELETE .../prices, which only
+  // rejects when the item's trip has a `purchase_id` and has ended.
   const canDelete =
-    item.price != null && !!onDelete && isSameCalendarDay(item.purchased_at)
+    item.price != null && !!onDelete && itemState(item) !== 'bought'
 
   const liveCost: number | null = (() => {
     const price = parseFloat(amountStr)

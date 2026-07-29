@@ -1,9 +1,7 @@
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from pytest_httpx import HTTPXMock
-
-from app.db.models import ListItem as DBListItem
 
 _OPEN_PRICES_URL = "https://prices.openfoodfacts.org/api/v1/prices"
 _OPEN_PRICES_ES = {
@@ -371,21 +369,6 @@ def test_delete_price_404_if_no_price(client: TestClient):
     assert resp.status_code == 404
 
 
-def test_delete_price_422_if_purchased_previous_day(client: TestClient, session):
-    lst = _make_list(client)
-    item = _make_item(client, lst["id"])
-    _set_price(client, lst["id"], item["id"], 1.99)
-    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
-
-    db_item = session.get(DBListItem, item["id"])
-    db_item.purchased_at = db_item.purchased_at - timedelta(days=1)
-    session.add(db_item)
-    session.commit()
-
-    resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
-    assert resp.status_code == 422
-
-
 def test_delete_price_204_if_purchased_today(client: TestClient):
     lst = _make_list(client)
     item = _make_item(client, lst["id"])
@@ -394,6 +377,32 @@ def test_delete_price_204_if_purchased_today(client: TestClient):
 
     resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
     assert resp.status_code == 204
+
+
+def test_the_price_of_something_still_in_the_cart_can_be_deleted(client: TestClient):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    _set_price(client, lst["id"], item["id"], 1.2)
+
+    resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
+
+    assert resp.status_code == 204
+
+
+def test_the_price_of_a_filed_purchase_cannot_be_deleted(client: TestClient):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    three_days_ago = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=3)).isoformat()
+    client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"purchased": True, "purchased_at": three_days_ago},
+    )
+    _set_price(client, lst["id"], item["id"], 1.2)
+
+    resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
+
+    assert resp.status_code == 422
 
 
 def test_price_history_entry_includes_quantity(client: TestClient):

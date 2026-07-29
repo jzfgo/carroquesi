@@ -4,7 +4,7 @@ from fastapi import APIRouter, status
 from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
-from app.db.models import List, ListInvite, ListItem, ListMember, ReceiptScan
+from app.db.models import List, ListInvite, ListItem, ListMember, Purchase, ReceiptScan
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
 from app.schemas.lists import ListCreate, ListRead, ListUpdate
 from app.services.default_list import ensure_default, set_default
@@ -48,18 +48,34 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
     # Uses session.execute (SQLAlchemy) rather than session.exec (SQLModel)
     # because it returns named-column Row objects from aggregation queries.
     # Only count items that are in-scope for the current shopping session:
-    # unpurchased items, plus items purchased today. Items purchased on prior
-    # days are excluded from both the denominator and the numerator so the
-    # progress bar reflects only the current trip.
-    today = func.current_date()
-    purchased_today = func.date(ListItem.purchased_at) == today
-    in_scope = or_(ListItem.purchased_at.is_(None), purchased_today)
+    # unpurchased items, plus items belonging to the list's still-open trip.
+    # This used to be a UTC-day comparison (func.current_date()), which was
+    # wrong twice over: the database's day is not Madrid's day, so an evening
+    # shop dropped out of the progress bar hours before local midnight; and
+    # once a trip can be closed early (Task 9), "counts toward this shop" is
+    # a trip question, not a date one — an item filed into a ticket at 18:40
+    # must stop counting immediately even though its calendar day hasn't
+    # turned over. Membership in the list's open trip answers both.
+    #
+    # Correlated on Purchase.list_id == ListItem.list_id: correct either way
+    # today, since an item's purchase_id always points at a trip belonging to
+    # its own list (purchase ids are globally unique), but leaving the
+    # subquery unscoped meant it materialised every open trip in the whole
+    # database on each load rather than just this list's.
+    now = datetime.now(UTC).replace(tzinfo=None)
+    open_trip_ids = select(Purchase.id).where(
+        Purchase.list_id == ListItem.list_id,
+        Purchase.closed_at.is_(None),
+        Purchase.tears_off_at > now,
+    )
+    in_this_shop = ListItem.purchase_id.in_(open_trip_ids)
+    in_scope = or_(ListItem.purchased_at.is_(None), in_this_shop)
 
     count_stmt = (
         select(
             ListItem.list_id,
             func.count(ListItem.id).filter(in_scope).label("item_count"),
-            func.count(ListItem.id).filter(purchased_today).label("purchased_count"),
+            func.count(ListItem.id).filter(in_this_shop).label("purchased_count"),
         )
         .where(ListItem.list_id.in_(list_ids))
         .group_by(ListItem.list_id)
@@ -150,5 +166,30 @@ def delete_list(
         session.delete(invite)
     for scan in session.exec(select(ReceiptScan).where(ReceiptScan.list_id == lst.id)).all():
         session.delete(scan)
+    # Flush before deleting Purchase: ListItem.purchase_id and
+    # ReceiptScan.purchase_id both FK to purchases.id, and none of these
+    # models declare a relationship() to each other -- they're plain FK
+    # columns, joined by hand via select() everywhere else in this codebase.
+    # Without a relationship(), the unit of work has no cross-mapper
+    # dependency to sort deletes by, so statement order within a single
+    # flush is *not* guaranteed to respect FK direction: it's easy to prove
+    # empirically that `session.delete(child); session.delete(parent);
+    # session.commit()` can still emit DELETE FROM parent first, race or no
+    # race. Splitting into two flushes makes the order explicit instead of
+    # emergent -- deleting either flush here silently reintroduces the hazard.
+    session.flush()
+    for purchase in session.exec(select(Purchase).where(Purchase.list_id == lst.id)).all():
+        session.delete(purchase)
+    # Second flush for the same reason, one level up: Purchase.list_id FKs to
+    # lists.id, and List/Purchase have no relationship() either. Purchase has
+    # a NOT NULL FK with no ondelete, so deleting the list before this flush
+    # raises a ForeignKeyViolation on Postgres for any list that has ever had
+    # a purchased item -- which, after the backfill, is essentially every
+    # real list. This predates Purchase: the same unordered-mapper hazard
+    # already applied to ListItem/ListMember/ListInvite/ReceiptScan vs List,
+    # it was just unobserved -- nothing here enforces SQLite foreign keys
+    # (PRAGMA foreign_keys=ON is never set), so it never surfaced locally or
+    # in the test suite, only against a real FK-enforcing database.
+    session.flush()
     session.delete(lst)
     session.commit()

@@ -1,12 +1,12 @@
-from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlmodel import Session, select
 
-from app.db.models import ListItem, ListMember
+from app.db.models import ListItem, ListMember, Purchase
 from app.dependencies import CurrentSession, CurrentUser, MemberDep
 from app.schemas.prices import PriceCreate, PriceEntry, PriceHistoryResponse
+from app.services import trips
 from app.services.community_price import get_community_price
 
 router = APIRouter(prefix="/lists/{list_id}/items/{item_id}/prices", tags=["prices"])
@@ -74,12 +74,12 @@ def delete_price(
     item = _get_item_or_404(session, item_id, list_id)
     if item.price is None:
         raise HTTPException(status_code=404, detail="Item has no price to delete")
-    if item.purchased_at is not None:
-        today = datetime.now(UTC).date()
-        if item.purchased_at.date() != today:
+    if item.purchase_id is not None:
+        trip = session.get(Purchase, item.purchase_id)
+        if trip is not None and not trips.is_open(trip):
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="Cannot delete the price of an item purchased on a previous day",
+                detail="Cannot delete the price of a purchase that has already been filed",
             )
     item.price = None
     item.price_per = None

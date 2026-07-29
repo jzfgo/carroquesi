@@ -1,12 +1,13 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from sqlmodel import select
 
-from app.db.models import List, ListItem, ListMember, ReceiptScan
+from app.db.models import List, ListItem, ListMember, Purchase, ReceiptScan
 from app.db.models import UserFeature as _UserFeature
 from app.routers.receipt import _parse_receipt_at, _receipt_day
 from app.schemas.receipt import ReceiptPriceBatch
+from app.services import trips
 
 LIST_ID = "list-receipt-test"
 
@@ -787,6 +788,58 @@ def test_created_item_has_empty_stores_without_a_store(client, session):
     assert created.price_store is None
 
 
+def test_receipt_prices_clamps_a_future_receipt_date(client, session, user):
+    """A receipt date misread by OCR (a stray year digit, DD/MM vs MM/DD) must
+    not open a second trip in the future alongside the live cart -- the same
+    reason items.py's own tap clamps a future instant to `now`. Unclamped, the
+    unrelated future-dated trip and the still-open live cart both satisfy
+    "unreconciled and not yet torn off", and open_trip()'s unordered `.first()`
+    then picks between them arbitrarily.
+    """
+    now = datetime.now(UTC).replace(tzinfo=None)
+    live_cart_item = ListItem(id="item-hoy", list_id=LIST_ID, name="Pan", added_by=user.id)
+    session.add(live_cart_item)
+    session.commit()
+    trips.attach(session, live_cart_item, now)
+    session.commit()
+
+    session.add(ListItem(id="item-leche-future", list_id=LIST_ID, name="Leche", added_by=user.id))
+    session.commit()
+
+    far_future = (datetime.now(UTC) + timedelta(days=400)).isoformat()
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": far_future,
+            "patches": [
+                {
+                    "item_id": "item-leche-future",
+                    "price": 0.99,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": None,
+                }
+            ],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    now = datetime.now(UTC).replace(tzinfo=None)
+    open_trips = [
+        t
+        for t in session.exec(select(Purchase).where(Purchase.list_id == LIST_ID)).all()
+        if trips.is_open(t, now)
+    ]
+    assert len(open_trips) == 1
+
+    future_item = session.get(ListItem, "item-leche-future")
+    assert future_item.purchase_id == open_trips[0].id
+    assert future_item.purchased_at <= now
+
+
 def test_receipt_prices_reports_updated_and_created_counts(client, session, user):
     session.add(ListItem(id="item-pan2", list_id=LIST_ID, name="Pan", added_by=user.id))
     session.commit()
@@ -899,3 +952,459 @@ def test_scan_record_stores_midnight_for_a_bare_date(client, session):
     scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body()).json()["scan_id"]
     scan = session.get(ReceiptScan, scan_id)
     assert scan.receipt_at == datetime(2026, 4, 11, 0, 0)
+
+
+# --- Task 10: a receipt scan reconciles a trip ------------------------------
+
+
+def test_reconciling_cart_items_splits_a_closed_trip_leaving_unmatched_open(client, session, user):
+    """The Lidl/Mercadona evening, but arriving via a receipt scan instead of
+    the manual close endpoint: two of three cart items are named on the
+    receipt, so they must be carved into a closed trip while the third stays
+    in the still-open cart."""
+    now = datetime.now(UTC).replace(tzinfo=None)
+    item_a = ListItem(
+        id="item-a", list_id=LIST_ID, name="Item A", added_by=user.id, purchased_at=None
+    )
+    item_b = ListItem(
+        id="item-b", list_id=LIST_ID, name="Item B", added_by=user.id, purchased_at=None
+    )
+    item_c = ListItem(
+        id="item-c", list_id=LIST_ID, name="Item C", added_by=user.id, purchased_at=now
+    )
+    session.add_all([item_a, item_b, item_c])
+    session.commit()
+    trips.attach(session, item_c, now)
+    session.commit()
+
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Lidl", receipt_total=14.60)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {"item_id": "item-a", "price": 1.0, "price_per": None, "store": "Lidl"},
+                {"item_id": "item-b", "price": 2.0, "price_per": None, "store": "Lidl"},
+            ],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    a = session.get(ListItem, "item-a")
+    b = session.get(ListItem, "item-b")
+    c = session.get(ListItem, "item-c")
+    assert a.purchase_id == b.purchase_id
+    assert a.purchase_id != c.purchase_id
+
+    closed_trip = session.get(Purchase, a.purchase_id)
+    assert closed_trip.store == "Lidl"
+    assert closed_trip.total == pytest.approx(14.60)
+    assert closed_trip.closed_at is not None
+
+    remaining_trip = session.get(Purchase, c.purchase_id)
+    assert remaining_trip.closed_at is None
+
+
+def test_patched_previously_unpurchased_item_gets_attached_to_a_trip(client, session, user):
+    """A previous task found that receipt.py sets purchased_at directly and
+    never attaches, which would leave purchased items with purchase_id NULL
+    and break the invariant. Guards the patch-loop attach call specifically."""
+    session.add(
+        ListItem(
+            id="item-pan-new",
+            list_id=LIST_ID,
+            name="Pan de molde",
+            added_by=user.id,
+            purchased_at=None,
+        )
+    )
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": "2026-04-11T17:42:00Z",
+            "patches": [
+                {
+                    "item_id": "item-pan-new",
+                    "price": 1.25,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": "1",
+                }
+            ],
+            "new_items": [],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    item = session.get(ListItem, "item-pan-new")
+    assert item.purchase_id is not None
+
+
+def test_impulse_new_item_gets_attached_to_a_trip(client, session):
+    """An impulse buy from new_items must not land with purchase_id NULL."""
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=_new_item_body())
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.purchase_id is not None
+
+
+def test_scan_purchase_id_is_set_when_one_trip_is_reconciled(client, session, user):
+    session.add_all(
+        [
+            ListItem(
+                id="item-x", list_id=LIST_ID, name="Item X", added_by=user.id, purchased_at=None
+            ),
+            ListItem(
+                id="item-y", list_id=LIST_ID, name="Item Y", added_by=user.id, purchased_at=None
+            ),
+        ]
+    )
+    session.commit()
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Lidl", receipt_total=9.99)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {"item_id": "item-x", "price": 1.0, "price_per": None, "store": "Lidl"},
+                {"item_id": "item-y", "price": 2.0, "price_per": None, "store": "Lidl"},
+            ],
+            "mappings": [],
+        },
+    )
+
+    session.expire_all()
+    x = session.get(ListItem, "item-x")
+    scan_row = session.get(ReceiptScan, scan_id)
+    assert scan_row.purchase_id is not None
+    assert scan_row.purchase_id == x.purchase_id
+
+
+def test_scan_spanning_two_trips_leaves_scan_purchase_id_null(client, session, user):
+    """Matches across two different, already-reconciled trips must not be
+    merged and must not pick one arbitrarily -- guessing which trip a receipt
+    "meant" would be inventing a fact."""
+    trip1 = Purchase(
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 1, 10, 0),
+        tears_off_at=datetime(2026, 4, 1, 22, 0),
+        closed_at=datetime(2026, 4, 1, 20, 0),
+        store="Lidl",
+        total=5.0,
+    )
+    trip2 = Purchase(
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 2, 10, 0),
+        tears_off_at=datetime(2026, 4, 2, 22, 0),
+        closed_at=datetime(2026, 4, 2, 20, 0),
+        store="Mercadona",
+        total=8.0,
+    )
+    session.add_all([trip1, trip2])
+    session.commit()
+
+    item_p = ListItem(
+        id="item-p",
+        list_id=LIST_ID,
+        name="Item P",
+        added_by=user.id,
+        purchased_at=datetime(2026, 4, 1, 11, 0),
+        purchase_id=trip1.id,
+    )
+    item_q = ListItem(
+        id="item-q",
+        list_id=LIST_ID,
+        name="Item Q",
+        added_by=user.id,
+        purchased_at=datetime(2026, 4, 2, 11, 0),
+        purchase_id=trip2.id,
+    )
+    session.add_all([item_p, item_q])
+    session.commit()
+
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Aldi", receipt_total=3.0)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {"item_id": "item-p", "price": 1.0, "price_per": None, "store": "Lidl"},
+                {"item_id": "item-q", "price": 2.0, "price_per": None, "store": "Mercadona"},
+            ],
+            "mappings": [],
+        },
+    )
+
+    session.expire_all()
+    assert session.get(ReceiptScan, scan_id).purchase_id is None
+    assert session.get(Purchase, trip1.id).store == "Lidl"
+    assert session.get(Purchase, trip2.id).store == "Mercadona"
+
+
+def test_scan_confirming_a_torn_off_trip_fills_in_missing_store_and_total(client, session, user):
+    trip = Purchase(
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 1, 10, 0),
+        tears_off_at=datetime(2026, 4, 1, 22, 0),  # long torn off; never reconciled
+    )
+    session.add(trip)
+    session.commit()
+
+    item = ListItem(
+        id="item-r",
+        list_id=LIST_ID,
+        name="Item R",
+        added_by=user.id,
+        purchased_at=datetime(2026, 4, 1, 11, 0),
+        purchase_id=trip.id,
+    )
+    session.add(item)
+    session.commit()
+
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Lidl", receipt_total=6.5)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [{"item_id": "item-r", "price": 1.0, "price_per": None, "store": "Lidl"}],
+            "mappings": [],
+        },
+    )
+
+    session.expire_all()
+    confirmed = session.get(Purchase, trip.id)
+    assert confirmed.store == "Lidl"
+    assert confirmed.total == pytest.approx(6.5)
+    assert session.get(ReceiptScan, scan_id).purchase_id == trip.id
+
+
+def test_scan_confirming_a_trip_with_existing_store_and_total_does_not_overwrite(
+    client, session, user
+):
+    trip = Purchase(
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 1, 10, 0),
+        tears_off_at=datetime(2026, 4, 1, 22, 0),
+        store="Original Store",
+        total=1.23,
+    )
+    session.add(trip)
+    session.commit()
+
+    item = ListItem(
+        id="item-s",
+        list_id=LIST_ID,
+        name="Item S",
+        added_by=user.id,
+        purchased_at=datetime(2026, 4, 1, 11, 0),
+        purchase_id=trip.id,
+    )
+    session.add(item)
+    session.commit()
+
+    scan = ReceiptScan(
+        list_id=LIST_ID, scanned_by=user.id, store="Different Store", receipt_total=99.0
+    )
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {"item_id": "item-s", "price": 1.0, "price_per": None, "store": "Different Store"}
+            ],
+            "mappings": [],
+        },
+    )
+
+    session.expire_all()
+    confirmed = session.get(Purchase, trip.id)
+    assert confirmed.store == "Original Store"
+    assert confirmed.total == pytest.approx(1.23)
+    # Confirming still closes it -- it just doesn't touch fields someone
+    # already filled in.
+    assert confirmed.closed_at is not None
+
+
+def test_scan_spanning_a_closed_ticket_and_the_still_open_cart_reconciles_nothing(
+    client, session, user
+):
+    """Critical repro: three items tap into one open trip; two are manually
+    closed as a Lidl ticket; the third stays in the still-open cart. A scan
+    matching all three must not attach its total to whichever trip happens to
+    still be open -- that would confess the whole receipt's total to a single
+    line while the other two silently keep a different, already-confirmed
+    total."""
+    a = client.post(f"/lists/{LIST_ID}/items", json={"name": "Item A"}).json()
+    b = client.post(f"/lists/{LIST_ID}/items", json={"name": "Item B"}).json()
+    c = client.post(f"/lists/{LIST_ID}/items", json={"name": "Item C"}).json()
+    for item in (a, b, c):
+        client.patch(f"/lists/{LIST_ID}/items/{item['id']}", json={"purchased": True})
+
+    lidl = client.post(
+        f"/lists/{LIST_ID}/purchases/close",
+        json={"item_ids": [a["id"], b["id"]], "store": "Lidl", "total": 5.0},
+    ).json()
+
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Aldi", receipt_total=99.0)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {"item_id": a["id"], "price": 1.0, "price_per": None, "store": "Aldi"},
+                {"item_id": b["id"], "price": 2.0, "price_per": None, "store": "Aldi"},
+                {"item_id": c["id"], "price": 3.0, "price_per": None, "store": "Aldi"},
+            ],
+            "mappings": [],
+        },
+    )
+
+    session.expire_all()
+    assert session.get(ReceiptScan, scan_id).purchase_id is None
+    lidl_trip = session.get(Purchase, lidl["id"])
+    assert lidl_trip.store == "Lidl"
+    assert lidl_trip.total == pytest.approx(5.0)
+    c_row = session.get(ListItem, c["id"])
+    assert c_row.purchase_id != lidl["id"]
+    c_trip = session.get(Purchase, c_row.purchase_id)
+    assert c_trip.closed_at is None
+
+
+def test_scan_confirming_a_torn_off_trip_closes_it_so_a_later_tap_cannot_join(
+    client, session, user
+):
+    """Critical repro: an item backdated into an already-torn-off,
+    unreconciled trip; a scan confirms only it. Confirming must close the
+    trip -- otherwise trip_for's `closed_at IS NULL` lookup lets a later
+    backdated tap for the same day join it, and the trip would go on
+    reporting the scan's total as if it still covered both items."""
+    three_days_ago = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=3)).isoformat()
+
+    first = client.post(f"/lists/{LIST_ID}/items", json={"name": "Item F"}).json()
+    first = client.patch(
+        f"/lists/{LIST_ID}/items/{first['id']}",
+        json={"purchased": True, "purchased_at": three_days_ago},
+    ).json()
+    trip_id = first["purchase_id"]
+
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Lidl", receipt_total=3.5)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [{"item_id": first["id"], "price": 3.5, "price_per": None, "store": "Lidl"}],
+            "mappings": [],
+        },
+    )
+
+    session.expire_all()
+    trip = session.get(Purchase, trip_id)
+    assert trip.store == "Lidl"
+    assert trip.closed_at is not None
+
+    second = client.post(f"/lists/{LIST_ID}/items", json={"name": "Item G"}).json()
+    second = client.patch(
+        f"/lists/{LIST_ID}/items/{second['id']}",
+        json={"purchased": True, "purchased_at": three_days_ago},
+    ).json()
+
+    assert second["purchase_id"] != trip_id
+
+
+def test_apply_receipt_prices_maps_not_in_the_cart_to_400(client, session, user, monkeypatch):
+    """reconcile_scan -> close can raise NotInTheCart the same way a manual
+    "Cerrar compra" can; purchases.py maps it to 400 there and this endpoint
+    must too, rather than letting it surface as an unhandled 500. Forced via
+    monkeypatch because every real path into `close` keeps `wanted` a subset
+    of the cart by construction -- this exercises the handler, not a
+    reachable state."""
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Mercadona", receipt_total=1.15)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    def _raise_not_in_the_cart(*args, **kwargs):
+        raise trips.NotInTheCart()
+
+    monkeypatch.setattr(trips, "reconcile_scan", _raise_not_in_the_cart)
+
+    resp = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {
+                    "item_id": "item-almendras",
+                    "price": 1.15,
+                    "price_per": None,
+                    "store": "Mercadona",
+                }
+            ],
+            "mappings": [],
+        },
+    )
+    assert resp.status_code == 400
+
+
+def test_apply_receipt_prices_maps_nothing_to_close_to_409(client, session, user, monkeypatch):
+    """Same as above for NothingToClose, which purchases.py maps to 409."""
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Mercadona", receipt_total=1.15)
+    session.add(scan)
+    session.commit()
+    scan_id = scan.id
+
+    def _raise_nothing_to_close(*args, **kwargs):
+        raise trips.NothingToClose()
+
+    monkeypatch.setattr(trips, "reconcile_scan", _raise_nothing_to_close)
+
+    resp = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "patches": [
+                {
+                    "item_id": "item-almendras",
+                    "price": 1.15,
+                    "price_per": None,
+                    "store": "Mercadona",
+                }
+            ],
+            "mappings": [],
+        },
+    )
+    assert resp.status_code == 409

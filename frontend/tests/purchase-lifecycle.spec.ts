@@ -110,14 +110,16 @@ for (const { name: themeName, colorScheme } of THEMES) {
       ).toBeVisible()
     })
 
-    test('same-day price-deletion guard surfaces a 422 from the backend', async ({
+    test('price-deletion guard surfaces a 422 when the trip has already been filed', async ({
       page,
     }) => {
       await gotoList(page)
       await markPurchased(page, ITEM_LECHE.name)
 
-      // Simulate the backend race: canDelete is true client-side (purchased
-      // just now), but the server still rejects the deletion.
+      // Simulate the backend race: canDelete is true client-side (the trip is
+      // still open as far as this page knows), but the server rejects the
+      // deletion because the trip was closed — by hand, or by tearing off —
+      // between render and this request.
       await page.route(
         `**/lists/${LIST_ID}/items/${ITEM_LECHE.id}/prices`,
         async (route) => {
@@ -127,7 +129,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
               contentType: 'application/json',
               body: JSON.stringify({
                 detail:
-                  'Cannot delete the price of an item purchased on a previous day',
+                  'Cannot delete the price of a purchase that has already been filed',
               }),
             })
           }
@@ -144,7 +146,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await sheet.getByRole('button', { name: 'Eliminar precio' }).click()
 
       await expect(page.getByRole('alert')).toContainText(
-        'No se puede eliminar el precio de un artículo comprado en otro día',
+        'No se puede eliminar el precio de una compra ya archivada',
       )
       await expectScreenshot(page, `price-delete-guard-${themeName}.png`)
 
