@@ -225,7 +225,7 @@ A task is complete only when **all** of the following are true:
 
 ## Open Action Items (1:1 — 2026-07-29)
 
-An item here names one specific action that a later session can check and delete. Rules and behaviours do not belong in this list; they belong in the file that governs them. The AI items from this review were of that kind, so they landed with it: Product Principle 6 in `PRODUCT.md`, the writing rule under General Workflow, and the pointer to `PRODUCT.md` and `DESIGN.md` above.
+An item here names one specific action that a later session can check and delete. A rule belongs in the file that governs it, and the item is the edit that puts it there.
 
 **You:**
 
