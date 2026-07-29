@@ -53,11 +53,11 @@ export default defineConfig({
   // while showing the wrong UI never heals, because --update-snapshots only
   // rewrites what already failed.
   //
-  // 250 sits between two measurements. Re-running the suite in the container
-  // that writes the baselines differs by zero pixels on every screen, and CI
-  // passes every screen on a runner that builds its fonts separately, so the
-  // budget clears the real gap between those two machines. The smallest change
-  // worth catching costs about 600, so it stays well clear of that too.
+  // 250 is known to be enough, not known to be tight. CI passes every screen
+  // on a runner that installs its own fonts, while the baselines come out of a
+  // container, so the gap between those two machines is at most 250 — a run
+  // that passes cannot say how much less. What bounds the number from above is
+  // the signal: the smallest change worth catching costs about 600.
   expect: {
     toHaveScreenshot: { maxDiffPixels: 250 },
   },
