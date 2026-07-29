@@ -44,9 +44,11 @@ const THEMES = [
  * and the date becomes part of the fixture like any other seeded value.
  *
  * The day is the one the committed baselines already depict, so pinning cost
- * no regeneration. Midday keeps the rendered day the same whether the run sits
- * in UTC or in a European summer offset. Purchases are still stamped "now", so
- * the same-day price-deletion guard sees exactly what it did before.
+ * no regeneration. The zone is no longer a variable either — the config pins it
+ * — so only the clock needs pinning per spec. Midday is still the value to
+ * choose: it leaves the rendered day the same distance from either boundary, so
+ * the fixture survives a change of pinned zone. Purchases are still stamped
+ * "now", so the same-day price-deletion guard sees exactly what it did before.
  */
 const FIXED_NOW = new Date('2026-07-15T10:00:00Z')
 
