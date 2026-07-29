@@ -26,6 +26,8 @@ One thing to know before you pin a spec that also adds items: `useListItems` bui
 
 Baselines must be generated on the same OS Playwright's CI step runs on (Ubuntu), not natively on macOS — font rendering differs enough between platforms to produce false-positive diffs, and Playwright suffixes the generated filename by platform (`-linux.png` vs `-darwin.png`), so a macOS-generated baseline is simply never picked up by CI.
 
+The container matters on Linux too, for a reason the filename does not warn you about. A Linux host writes `-linux.png` whatever its fonts look like, so a baseline generated natively is picked up by CI and simply disagrees with it. On one desktop distribution the desktop screens landed within 68 pixels of the container's, while the mobile ones were out by up to 1046 — same engine, same suite, different font packages. Use the container even when the platform suffix says you need not.
+
 Run:
 
 ```bash
@@ -33,6 +35,8 @@ just frontend update-snapshots
 ```
 
 This runs the official Playwright Docker image (version read straight from `package.json`, so it can't drift out of sync) with `frontend/` bind-mounted in, then `pnpm install`s and re-runs the suite with `--update-snapshots` inside the container. The container is pinned to `--platform linux/amd64` — CI's `ubuntu-latest` runners are amd64, and on an Apple Silicon Mac, Docker otherwise defaults to pulling the native `arm64` image, which can render fonts subtly differently and reintroduce the exact false-positive diffs this whole workflow exists to avoid.
+
+Rootless podman works as well as Docker, via the `docker` shim in `podman-docker`. The recipe ends by giving the generated files back to you, and asks the mounted directory who that is rather than passing your id in from outside. The two runtimes disagree on the answer — a rootless one maps container root to your account, so `$(id -u)` names a user the container cannot usefully write as — and reading it off the mount is right for both without testing which is in use.
 
 Two things are deliberately kept **out** of the `frontend/` bind mount, each via its own named Docker volume, so the container's Linux-side `pnpm install` can never bleed onto your macOS host:
 
