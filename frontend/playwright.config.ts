@@ -45,12 +45,23 @@ export default defineConfig({
     // fine for Chromium/Firefox and for requests fired outside a click handler.
     serviceWorkers: 'block',
   },
-  // Baselines are generated locally via Docker (see tests/README.md); a handful of pixels
-  // on emoji/symbol glyphs (🛒, €, ⋯) still render slightly differently than on the actual
-  // CI runner's font stack. 0.1% is well above that noise floor but far below what any real
-  // visual regression (misplaced element, wrong theme, stray overlay) would produce.
+  // How many pixels may differ before a screenshot is a failure. An absolute
+  // count, never a ratio: a ratio scales with the image, so the 1280x720
+  // desktop capture was allowed 921 differing pixels while the 360-wide mobile
+  // one got 263 — for the same UI. A small text button costs about 600, so
+  // desktop could gain or lose one and still pass, and a baseline that passes
+  // while showing the wrong UI never heals, because --update-snapshots only
+  // rewrites what already failed.
+  //
+  // 250 is known to be enough, not known to be tight. CI passes every screen
+  // on a runner that installs its own fonts, while the baselines come out of a
+  // container, so the gap between those two machines is at most 250 — a run
+  // that passes cannot say how much less. What bounds it from above is the
+  // signal it has to preserve, and 250 does not preserve all of it: deleting
+  // the strikethrough from a purchased item moves about 75 pixels and passes
+  // today. So treat this as a number to lower, never to raise.
   expect: {
-    toHaveScreenshot: { maxDiffPixelRatio: 0.001 },
+    toHaveScreenshot: { maxDiffPixels: 250 },
   },
   projects: [
     {
