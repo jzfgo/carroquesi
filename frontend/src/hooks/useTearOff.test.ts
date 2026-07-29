@@ -159,7 +159,7 @@ describe('useTearOff', () => {
 
   it('reschedules for a second, later trip after the first tears off', () => {
     // Two trips, five and fifteen seconds out. Firing the first must not be
-    // the last thing that happens — `tick` in the effect's deps is what makes
+    // the last thing that happens — `now` in the effect's deps is what makes
     // it look again and schedule the second, rather than going quiet after
     // one boundary because the sorted boundary list itself never changed.
     const items = [

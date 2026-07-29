@@ -804,6 +804,10 @@ describe('the tear-off boundary under an open tab', () => {
     })
 
     // Confirmed at 15:00; delivered at 15:00:05, already behind the clock.
+    // The five seconds are load-bearing, not scene-setting: they put the
+    // boundary far enough back for the delay to floor at zero. Round it to
+    // 15:00:00 and the hook's 1s margin absorbs it, the test still passes,
+    // and it stops exercising the catch-up this case exists to pin.
     withItems([
       { ...inCart, purchase_ends_at: '2026-07-28T15:00:00' },
       stillToBuy,
