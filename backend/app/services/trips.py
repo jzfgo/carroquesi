@@ -119,13 +119,32 @@ def trip_for(session: Session, list_id: str, instant: datetime) -> Purchase:
             # session (observed empirically: an explicit session.expunge(trip)
             # here raises InvalidRequestError), so we don't repeat that call.
             # Read the row the winner created instead of failing this tap.
-            return session.exec(
+            #
+            # This re-select assumes READ COMMITTED: it must be able to see a
+            # row the winner's own transaction has not committed yet from our
+            # point of view being possible, i.e. that our transaction isn't
+            # isolated from writes that landed after it started. That's
+            # Postgres's default and is what's deployed, but it is not true
+            # under REPEATABLE READ, where this SELECT would see a
+            # pre-savepoint snapshot and find nothing despite the winner's row
+            # existing. Written down here because nothing else pins it.
+            #
+            # `.first()` rather than `.one()`, deliberately: `IntegrityError`
+            # is raised by *any* constraint violation in this savepoint, not
+            # only the unique-race this comment describes -- a `list_id` FK
+            # violation, say. Re-raising when the re-select comes up empty
+            # means an unrelated integrity failure surfaces as itself instead
+            # of a confusing NoResultFound.
+            winner = session.exec(
                 select(Purchase).where(
                     Purchase.list_id == list_id,
                     Purchase.closed_at.is_(None),
                     Purchase.tears_off_at == tears_off,
                 )
-            ).one()
+            ).first()
+            if winner is None:
+                raise
+            return winner
         return trip
     if instant < trip.opened_at:
         trip.opened_at = instant

@@ -261,6 +261,21 @@ def test_a_missed_lookup_still_yields_one_trip_via_the_unique_index(
     assert loser.id == winner.id
 
 
+def test_an_unrelated_integrity_error_surfaces_as_itself(session: Session):
+    """trip_for's `except IntegrityError` exists for one specific race: the
+    unique-index collision under uq_purchases_open_per_list. It must not
+    swallow any *other* integrity failure that happens to occur inside the
+    same savepoint -- a `list_id` FK/NOT NULL violation, say -- into a
+    confusing `NoResultFound` from the re-select. `list_id=None` violates
+    Purchase.list_id's NOT NULL constraint, which is a real integrity error
+    that has nothing to do with the race, and the re-select for
+    `list_id IS NULL` necessarily finds nothing. The caller should see the
+    original IntegrityError, not a fabricated NoResultFound.
+    """
+    with pytest.raises(IntegrityError):
+        trips.trip_for(session, None, datetime(2026, 7, 28, 16, 0))  # type: ignore[arg-type]
+
+
 def test_losing_the_race_does_not_revert_the_callers_pending_item(
     session: Session, lst: List, user: User
 ):
