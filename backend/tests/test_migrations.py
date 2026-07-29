@@ -163,6 +163,97 @@ def test_schema_matches_models_after_upgrade(alembic_config: Config, db_url: str
     assert "uq_purchases_open_per_list" in index_names
 
 
+def test_backfilled_tears_off_at_matches_the_live_trip_boundary_rule(
+    alembic_config: Config, db_url: str
+) -> None:
+    """The migration duplicates app.services.trips.tears_off_at_for rather
+    than importing it (see the migration's module docstring for why: a
+    migration must keep meaning what it meant the day it ran). Duplicating
+    the arithmetic is only safe if the duplicate actually agreed with the
+    live rule at the moment it ran -- nothing else in this suite compares the
+    two, so a backfill that computed the *same* day's midnight instead of the
+    *next* one would still group items identically and pass every other test
+    here, while leaving `tears_off_at` values the live `trip_for` equality
+    lookup could never match.
+    """
+    from app.services.trips import tears_off_at_for
+
+    command.upgrade(alembic_config, PRE_PURCHASES_REVISION)
+    list_id = str(uuid.uuid4())
+    engine = _engine(db_url)
+    purchased_at = "2026-07-28T21:30:00"
+    with engine.begin() as conn:
+        _insert_household(conn, list_id)
+        _insert_purchased_item(conn, list_id, purchased_at)
+
+    command.upgrade(alembic_config, "head")
+
+    with engine.begin() as conn:
+        trip = (
+            conn.execute(
+                sa.text("SELECT tears_off_at FROM purchases WHERE list_id = :list_id"),
+                {"list_id": list_id},
+            )
+            .mappings()
+            .one()
+        )
+    expected = tears_off_at_for(datetime.fromisoformat(purchased_at))
+    assert datetime.fromisoformat(str(trip["tears_off_at"])) == expected
+
+
+def test_open_per_list_index_is_unique_and_partial(alembic_config: Config, db_url: str) -> None:
+    """The partial unique index is the entire basis of the one-open-trip
+    guarantee (see Purchase.__table_args__ / app.services.trips.trip_for).
+    `test_schema_matches_models_after_upgrade` only checks that an index
+    named `uq_purchases_open_per_list` exists -- a migration creating a plain
+    non-unique index, or a *full* unique index, would pass that check too.
+    Assert the actual behaviour against the migrated schema instead.
+    """
+    command.upgrade(alembic_config, "head")
+    list_id = str(uuid.uuid4())
+    engine = _engine(db_url)
+    with engine.begin() as conn:
+        _insert_household(conn, list_id)
+
+    tears_off_at = datetime(2026, 7, 29, 22, 0, 0)
+
+    def _insert_trip(closed_at: datetime | None) -> str:
+        trip_id = str(uuid.uuid4())
+        with engine.begin() as conn:
+            conn.execute(
+                sa.text(
+                    "INSERT INTO purchases "
+                    "(id, list_id, opened_at, tears_off_at, closed_at, store, total) "
+                    "VALUES (:id, :list_id, :opened_at, :tears_off_at, :closed_at, NULL, NULL)"
+                ),
+                {
+                    "id": trip_id,
+                    "list_id": list_id,
+                    "opened_at": tears_off_at,
+                    "tears_off_at": tears_off_at,
+                    "closed_at": closed_at,
+                },
+            )
+        return trip_id
+
+    _insert_trip(closed_at=None)
+
+    with pytest.raises(sa.exc.IntegrityError):
+        _insert_trip(closed_at=None)
+
+    # A *closed* trip sharing the same (list_id, tears_off_at) must be
+    # accepted -- that's what proves the index is partial rather than full,
+    # and it's the legitimate closed-trip-plus-fresh-trip-same-day case the
+    # split in trips.close() relies on.
+    closed_id = _insert_trip(closed_at=tears_off_at)
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            sa.text("SELECT id FROM purchases WHERE id = :id"), {"id": closed_id}
+        ).fetchone()
+    assert row is not None
+
+
 def test_downgrade_reverses_cleanly(alembic_config: Config, db_url: str) -> None:
     command.upgrade(alembic_config, "head")
     command.downgrade(alembic_config, "-1")
