@@ -250,12 +250,17 @@ def stop_run(cwd: pathlib.Path, payload: dict | None = None) -> tuple[str, str]:
     if proc.returncode == 2:
         return "continue", proc.stderr
     if proc.returncode == 0:
+        # Malformed stdout on exit 0 is silence as far as the harness is
+        # concerned, so report it as such rather than leaking the text. A
+        # bare scalar (`null`, `3`) is malformed in the same way an unparsable
+        # string is — hence the isinstance check and not just the decode.
         try:
-            return "stop", json.loads(proc.stdout or "{}").get("systemMessage", "")
+            parsed = json.loads(proc.stdout or "{}")
         except json.JSONDecodeError:
-            # Malformed stdout on exit 0 is silence as far as the harness is
-            # concerned, so report it as such rather than leaking the text.
             return "stop", ""
+        if not isinstance(parsed, dict):
+            return "stop", ""
+        return "stop", parsed.get("systemMessage", "")
     # Any other code: the transcript shows only the first line of stderr.
     return "stop", proc.stderr.splitlines()[0] if proc.stderr else ""
 
@@ -303,6 +308,21 @@ def test_stop_checks_main_dirty() -> None:
         # Baseline: a clean main lets the turn end, from either checkout.
         check("clean main, run from the worktree", stop_verdict(tree), "stop")
         check("clean main, run from main itself", stop_verdict(repo), "stop")
+
+        # `stop` on its own cannot tell "asked, found clean" from "crashed on
+        # this path" — exit 1 also lets the turn end, faithfully to
+        # production. Pin the clean path to exit 0 specifically, so a crash
+        # that only happens when main is clean cannot hide behind the six
+        # cases that merely expect the turn to end.
+        clean = subprocess.run(
+            [sys.executable, str(HOOKS / "stop_checks.py")],
+            input="{}",
+            capture_output=True,
+            text=True,
+            cwd=tree,
+        )
+        check("clean main exits 0, not merely non-2", clean.returncode, 0)
+        check("clean main says nothing at all", clean.stdout.strip(), "")
 
         # Route independence. The guard names none of these; the point is
         # that the effect check cannot tell them apart, so each must be

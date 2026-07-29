@@ -237,10 +237,15 @@ def main() -> None:
     # still dirty re-fires on the very next turn. The nag survives; the trap
     # does not.
     #
-    # No snapshot of the previous dirty set, deliberately. Keying one to
-    # `session_id` would answer the concurrency objection, but it would put a
-    # fail-open surface inside the one check whose premise is that failing
-    # quiet is unacceptable: a missing or half-written state file has to mean
+    # No snapshot of the previous dirty set, deliberately — and not for the
+    # reason it first looks like. Two sessions sharing a state file is a real
+    # hazard, but it is a solved one: hooks receive `session_id`, so keying to
+    # that settles concurrency completely. Do not re-propose the snapshot on
+    # the strength of noticing that.
+    #
+    # It is rejected for a different reason. It puts a fail-open surface
+    # inside the one check whose premise is that failing quiet is
+    # unacceptable: a missing or half-written state file has to mean
     # either "fire" (re-arming the loop) or "stay quiet" (`return None` means
     # clean, rebuilt elsewhere). Holding no state is what lets silence here
     # provably mean "asked, and found clean". The cost is that a new write
@@ -264,13 +269,38 @@ def main() -> None:
         # them at commit time; this does not, and a warning that arrives on
         # the way out should say the one thing that has no other route.
         #
+        # That last property is the one thing here with no test behind it:
+        # the temp repos in test_hooks.py contain no `backend/` or
+        # `frontend/`, so `failures` is always just `[dirty]` there and
+        # swapping this for the joined list changes nothing. Covering it
+        # would mean running ruff from the test suite, which costs the file
+        # its dependency-free premise — a worse trade. Verified by hand.
+        #
+        # `suppressOutput` keeps the raw JSON out of the transcript, so the
+        # user sees the rendered warning rather than the blob as well. A
+        # no-op if Stop-event stdout is not displayed anyway.
+        #
         # Note this shares lint's single continuation. A chronically dirty
         # main therefore spends the budget lint would have used: the dirty
         # report takes Stop #1, and a ruff error introduced during that
         # continuation is not reported at Stop #2. Lefthook still blocks the
         # commit, so the cost is a later notice rather than a missed one.
         if dirty is not None:
-            print(json.dumps({"systemMessage": dirty}))
+            print(
+                json.dumps(
+                    {
+                        # `systemMessage` reaches the user, not Claude, so
+                        # this path has a different reader from the exit-2
+                        # one — hence the lead-in. The body below is written
+                        # for whoever is going to act on it either way.
+                        "systemMessage": (
+                            "Heads up: this turn is ending and main is "
+                            "still dirty.\n\n" + dirty
+                        ),
+                        "suppressOutput": True,
+                    }
+                )
+            )
         sys.exit(0)
 
     # Exit code 2 on a Stop hook tells Claude Code to keep going instead of
