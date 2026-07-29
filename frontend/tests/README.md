@@ -10,13 +10,17 @@ Baseline PNGs live alongside each spec file (e.g. `smoke.spec.ts-snapshots/`) an
 
 ### Tolerance
 
-`playwright.config.ts` allows a fixed number of differing pixels per screenshot (`maxDiffPixels`), not a share of the image (`maxDiffPixelRatio`). The distinction matters more than it looks. A ratio scales with the capture, so the 1280×720 desktop shot was allowed 921 differing pixels while the 360-wide mobile shot got 263 — for the same screen. Since a small text button costs around 600 pixels, desktop could gain or lose one and still pass. `fullPage` compounded it: a taller page bought a bigger allowance for free.
+`playwright.config.ts` allows a fixed number of differing pixels per screenshot (`maxDiffPixels`), not a share of the image (`maxDiffPixelRatio`). The distinction matters more than it looks. A ratio scales with the capture, so the 1280×720 desktop shot was allowed 921 differing pixels while the 360-wide mobile shot got 263 — for the same screen. Since a small text button costs around 600 pixels, desktop could gain or lose one and still pass. `fullPage` is a second reason to keep the budget absolute, though it has not bitten yet: every capture today is exactly viewport-sized, but the first screen that grows past its viewport would buy itself a bigger allowance under a ratio, for page height alone.
+
+The number is 250. Two measurements bracket it: re-running the suite in the container that writes the baselines differs by zero pixels on every screen, and CI passes every screen on a runner that builds its fonts separately — so the budget covers the gap between those two machines and nothing else.
 
 A baseline that passes while depicting the wrong UI does not heal. It becomes the reference for every later run, so the missing element stays invisible and the next change near it is measured against a picture that was already wrong.
 
 ### Anything the screenshot shows must be pinned
 
 A screenshot captures whatever was on screen, including today's date. `purchase-lifecycle.spec.ts` and `receipt-scanning.spec.ts` both pin the browser clock with `page.clock.setFixedTime` for exactly this reason: purchase dates are stamped client-side, so on a real clock every baseline would describe the day it was written and drift a little further from the truth every day after. Any new spec that screenshots a date, a relative time, or a random value needs the same treatment.
+
+One thing to know before you pin a spec that also adds items: `useListItems` builds the optimistic temporary id from the clock, so under a frozen one two adds in the same test produce the same id. No spec hits this today — the one that adds items is not pinned — but the combination is easy to reach from here.
 
 ### Regenerating baselines
 

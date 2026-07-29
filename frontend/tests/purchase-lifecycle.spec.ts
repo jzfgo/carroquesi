@@ -43,9 +43,10 @@ const THEMES = [
  * they were written and drift a little further apart every day after. Pin it,
  * and the date becomes part of the fixture like any other seeded value.
  *
- * Midday keeps the rendered day the same whether the run sits in UTC or in a
- * European summer offset. Purchases are still stamped "now", so the same-day
- * price-deletion guard sees exactly what it did before.
+ * The day is the one the committed baselines already depict, so pinning cost
+ * no regeneration. Midday keeps the rendered day the same whether the run sits
+ * in UTC or in a European summer offset. Purchases are still stamped "now", so
+ * the same-day price-deletion guard sees exactly what it did before.
  */
 const FIXED_NOW = new Date('2026-07-15T10:00:00Z')
 

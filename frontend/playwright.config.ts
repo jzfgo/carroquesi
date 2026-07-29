@@ -45,28 +45,19 @@ export default defineConfig({
     // fine for Chromium/Firefox and for requests fired outside a click handler.
     serviceWorkers: 'block',
   },
-  // How many pixels may differ before a screenshot is a failure. Baselines are
-  // generated on Linux via Docker, and a handful of pixels on emoji and
-  // currency glyphs still land differently on the CI runner's font stack, so
-  // the budget cannot be zero.
+  // How many pixels may differ before a screenshot is a failure. An absolute
+  // count, never a ratio: a ratio scales with the image, so the 1280x720
+  // desktop capture was allowed 921 differing pixels while the 360-wide mobile
+  // one got 263 — for the same UI. A small text button costs about 600, so
+  // desktop could gain or lose one and still pass, and a baseline that passes
+  // while showing the wrong UI never heals, because --update-snapshots only
+  // rewrites what already failed.
   //
-  // An absolute count, never a ratio. A ratio scales with the image, so the
-  // 1280x720 desktop capture used to be allowed 921 differing pixels while the
-  // 360-wide mobile one got 263 — for the same UI. A small text button costs
-  // about 600 pixels, which means desktop could gain or lose a whole button and
-  // still pass, and the baseline would then stay wrong forever, since
-  // --update-snapshots only rewrites what already failed. fullPage captures
-  // made it worse: a taller page bought a bigger allowance for free.
-  //
-  // 250 is chosen, not measured, and the two bounds around it are worth
-  // knowing before anyone moves it. Re-running the suite in the same container
-  // that wrote the baselines gives a diff of exactly zero on every screen, so
-  // none of this budget covers noise we can see; it covers the gap between
-  // that container and the CI runner's own font stack, which we cannot measure
-  // from here. Above, 263 is the most the mobile project has ever been allowed
-  // and it has passed CI for months, so the real gap is smaller than that.
-  // Below, the smallest change worth catching costs about 600 pixels, so 250
-  // leaves more than twice the room it needs.
+  // 250 sits between two measurements. Re-running the suite in the container
+  // that writes the baselines differs by zero pixels on every screen, and CI
+  // passes every screen on a runner that builds its fonts separately, so the
+  // budget clears the real gap between those two machines. The smallest change
+  // worth catching costs about 600, so it stays well clear of that too.
   expect: {
     toHaveScreenshot: { maxDiffPixels: 250 },
   },
