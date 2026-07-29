@@ -423,8 +423,15 @@ def test_stop_checks_main_dirty() -> None:
             True,
         )
         # `stop_run` keeps only `systemMessage`, so every other key in that
-        # object is invisible to it — flipping this one went unnoticed. Read
-        # the raw stdout for it instead.
+        # object is invisible to it. Read the raw stdout for this one.
+        #
+        # Guarded the same way `stop_run` guards its read, and for a reason
+        # that bites here specifically: any mutation that stops the hook
+        # printing leaves stdout empty, and an unguarded `json.loads` would
+        # raise instead of failing — aborting this function and skipping every
+        # case below it. The mutations this suite is judged by are exactly the
+        # ones that empty stdout, so a crash there would silently shrink the
+        # thing doing the judging.
         floored_raw = subprocess.run(
             [sys.executable, str(HOOKS / "stop_checks.py")],
             input=json.dumps({"stop_hook_active": True}),
@@ -432,9 +439,14 @@ def test_stop_checks_main_dirty() -> None:
             text=True,
             cwd=tree,
         )
+        parsed_raw = None
+        try:
+            parsed_raw = json.loads(floored_raw.stdout or "{}")
+        except json.JSONDecodeError:
+            pass
         check(
             "floored pass suppresses its raw stdout",
-            json.loads(floored_raw.stdout).get("suppressOutput"),
+            isinstance(parsed_raw, dict) and parsed_raw.get("suppressOutput"),
             True,
         )
 
@@ -446,14 +458,13 @@ def test_stop_checks_main_dirty() -> None:
         # only passed where it was written.
         #
         # Scope note: this covers the main-checkout half only. The lint half
-        # goes inert from a subdirectory, because its pathspecs are relative
-        # and so match nothing there. Two further cwd assumptions sit behind
-        # that one, unreachable while it holds: git's output is root-relative
-        # so the existence filter would drop it, and the ruff and eslint calls
-        # name directories that do not exist from here. They are stacked, not
-        # chained — fixing only the pathspecs would make the other two live
-        # for the first time and leave the half still silent. Pre-existing,
-        # and out of scope here; do not read these two cases as covering it.
+        # goes inert from a subdirectory — its pathspecs are relative, so they
+        # match nothing there and both lint branches are skipped. Several more
+        # cwd assumptions sit behind that one and are unreachable while it
+        # holds, so they are stacked rather than chained: anchoring the
+        # pathspecs alone would make them live for the first time and leave
+        # the half just as silent. Pre-existing, and out of scope here; do not
+        # read these two cases as covering it.
         nested = tree / "frontend" / "src"
         nested.mkdir(parents=True)
         check("run from a nested subdirectory", stop_verdict(nested), "continue")
