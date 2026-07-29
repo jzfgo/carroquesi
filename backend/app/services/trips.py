@@ -296,11 +296,16 @@ def close(
     # in-place branch too: close the remainder of a cart after an earlier
     # split closed off its first few items, and without this the remainder's
     # opened_at would still be the original tap time, which now belongs to a
-    # different ticket. The fallback to trip.opened_at is unreachable in
-    # practice -- every item is stamped with purchased_at before attach() ever
-    # puts it in a trip -- but if it ever fired, it would mean an item without
-    # a purchase timestamp made it into the cart, and falling back to the
-    # trip's own opened_at is the least-wrong thing to do rather than crashing.
+    # different ticket. (The split branch below also recomputes `trip`'s own
+    # opened_at directly, for the moment the split happens rather than only
+    # the next time this trip is closed -- the two recomputations cover the
+    # eager and the lazy case, and either one alone leaves a window where the
+    # remainder's opened_at is stale.) The fallback to trip.opened_at is
+    # unreachable in practice -- every item is stamped with purchased_at
+    # before attach() ever puts it in a trip -- but if it ever fired, it
+    # would mean an item without a purchase timestamp made it into the cart,
+    # and falling back to the trip's own opened_at is the least-wrong thing
+    # to do rather than crashing.
     opened_at = min(
         (item.purchased_at for item in selection if item.purchased_at), default=trip.opened_at
     )
@@ -312,6 +317,20 @@ def close(
         trip.total = total
         session.add(trip)
         return trip
+
+    # The remainder -- what stays behind in `trip`, still open -- needs its
+    # own opened_at recomputed too, for the same reason `opened_at` above is
+    # computed from `selection` rather than trusted as `trip.opened_at`:
+    # whichever item happened to be earliest may just have left for `split`.
+    # Left alone, `trip.opened_at` would keep claiming a start time that now
+    # belongs to a different ticket -- self-correcting the next time this
+    # trip is closed (since `opened_at` above is always recomputed from
+    # whatever's still selected then), but wrong in the meantime.
+    remaining = [item for item in cart if item not in selection]
+    trip.opened_at = min(
+        (item.purchased_at for item in remaining if item.purchased_at), default=trip.opened_at
+    )
+    session.add(trip)
 
     split = Purchase(
         list_id=list_id,

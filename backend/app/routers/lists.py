@@ -56,8 +56,15 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
     # a trip question, not a date one — an item filed into a ticket at 18:40
     # must stop counting immediately even though its calendar day hasn't
     # turned over. Membership in the list's open trip answers both.
+    #
+    # Correlated on Purchase.list_id == ListItem.list_id: correct either way
+    # today, since an item's purchase_id always points at a trip belonging to
+    # its own list (purchase ids are globally unique), but leaving the
+    # subquery unscoped meant it materialised every open trip in the whole
+    # database on each load rather than just this list's.
     now = datetime.now(UTC).replace(tzinfo=None)
     open_trip_ids = select(Purchase.id).where(
+        Purchase.list_id == ListItem.list_id,
         Purchase.closed_at.is_(None),
         Purchase.tears_off_at > now,
     )

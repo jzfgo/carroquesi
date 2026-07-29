@@ -138,3 +138,46 @@ def test_closing_makes_purchase_ends_at_the_close_time_not_the_tear_off(client: 
     assert fetched["id"] == milk["id"]
     assert fetched["purchase_ends_at"] == closed["closed_at"]
     assert fetched["purchase_ends_at"] != closed["tears_off_at"]
+
+
+def _post_raw_json(client: TestClient, url: str, body: str):
+    # httpx's `json=` kwarg serialises with allow_nan=False and refuses to
+    # build a request containing inf/nan at all -- which is exactly why the
+    # *server* needs its own rejection: a client not built on httpx (or
+    # Python's stdlib json, which allows Infinity/NaN by default) can still
+    # send one. Posting raw bytes is what lets this test reach the server
+    # instead of failing client-side before the request is even built.
+    return client.post(url, content=body.encode(), headers={"content-type": "application/json"})
+
+
+def test_closing_with_an_infinite_total_is_rejected(client: TestClient):
+    """`float('inf') >= 0` is true, so a bare `ge=0` constraint would let a
+    non-finite total round-trip through trips.close() and back out in
+    PurchaseRead. Checked in the router rather than the schema -- see
+    PurchaseClose.total's docstring for why a schema-level constraint that
+    can reject a non-finite value crashes FastAPI's own validation-error
+    handler instead of cleanly returning 422.
+    """
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = _post_raw_json(
+        client,
+        f"/lists/{lst['id']}/purchases/close",
+        '{"store": "Lidl", "total": Infinity}',
+    )
+
+    assert response.status_code == 422
+
+
+def test_closing_with_a_nan_total_is_rejected(client: TestClient):
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = _post_raw_json(
+        client,
+        f"/lists/{lst['id']}/purchases/close",
+        '{"store": "Lidl", "total": NaN}',
+    )
+
+    assert response.status_code == 422

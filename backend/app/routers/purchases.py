@@ -1,3 +1,4 @@
+import math
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
@@ -22,6 +23,23 @@ def close_purchase(
     tickets rather than one confused one.
     """
     lst, _ = list_and_user
+    # PurchaseClose.total is deliberately unconstrained at the schema level --
+    # see its docstring for why a Pydantic constraint (ge=0, allow_inf_nan,
+    # anything) that can reject NaN specifically crashes FastAPI's own
+    # validation-error handler. Both checks that constraint would have made
+    # live here instead, in plain Python, so a rejection never round-trips
+    # the bad value through Pydantic's error path.
+    if body.total is not None:
+        if not math.isfinite(body.total):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="total must be a finite number",
+            )
+        if body.total < 0:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="total must not be negative",
+            )
     try:
         purchase = trips.close(session, lst.id, body.item_ids, body.store, body.total)
     except trips.NotInTheCart:

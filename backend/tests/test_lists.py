@@ -305,11 +305,14 @@ def test_items_purchased_on_a_torn_off_trip_excluded_from_counts(client: TestCli
 
 
 def test_open_trips_on_two_lists_do_not_contaminate_each_other(client: TestClient):
-    """The open-trip subquery is uncorrelated -- it returns every open trip ID
-    across the whole database, not just this list's. Correctness rests on
-    `ListItem.purchase_id` linking each item to exactly one trip, which itself
-    belongs to exactly one list. This pins that: two lists, each with its own
-    open trip, must not see each other's counts.
+    """The open-trip subquery is now correlated on Purchase.list_id ==
+    ListItem.list_id (see test_get_lists_open_trip_subquery_is_scoped_to_the_list
+    below), but this test predates that and still holds regardless: an
+    item's purchase_id always points at a trip belonging to its own list
+    (purchase ids are globally unique), so correctness never actually
+    depended on the subquery being scoped. This pins the observable
+    behaviour either way: two lists, each with its own open trip, must not
+    see each other's counts.
     """
     l1 = client.post("/lists", json={"name": "Lista 1"}).json()
     l2 = client.post("/lists", json={"name": "Lista 2"}).json()
@@ -327,6 +330,36 @@ def test_open_trips_on_two_lists_do_not_contaminate_each_other(client: TestClien
     by_id = {row["id"]: row for row in client.get("/lists").json()}
     assert (by_id[l1["id"]]["item_count"], by_id[l1["id"]]["purchased_count"]) == (1, 1)
     assert (by_id[l2["id"]]["item_count"], by_id[l2["id"]]["purchased_count"]) == (1, 1)
+
+
+def test_get_lists_open_trip_subquery_is_scoped_to_the_list(client: TestClient, engine):
+    """The open-trip subquery used to have no list_id predicate at all, so it
+    materialised every open trip in the whole database on each dashboard
+    load. Correctness never depended on this -- purchase ids are globally
+    unique and an item's trip always belongs to its own list -- but the
+    unscoped version was needlessly expensive and made the comment above it
+    (which already claimed "the list's still-open trip") false. There is no
+    behavioural difference to assert against, so this pins the SQL shape
+    directly: the aggregation query's subquery must correlate on
+    `purchases.list_id = list_items.list_id`.
+    """
+    from sqlalchemy import event
+
+    captured: list[str] = []
+
+    def _capture(conn, cursor, statement, parameters, context, executemany):
+        if "purchases" in statement and "list_items" in statement:
+            captured.append(statement)
+
+    event.listen(engine, "before_cursor_execute", _capture)
+    try:
+        client.post("/lists", json={"name": "Casa"})
+        client.get("/lists")
+    finally:
+        event.remove(engine, "before_cursor_execute", _capture)
+
+    assert captured, "expected the aggregation query (joining purchases and list_items) to run"
+    assert any("purchases.list_id = list_items.list_id" in stmt for stmt in captured)
 
 
 def test_closing_a_trip_removes_its_items_from_the_progress_bar_immediately(client: TestClient):

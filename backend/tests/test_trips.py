@@ -507,6 +507,26 @@ def test_a_split_trip_starts_when_its_own_shopping_did(session: Session, lst: Li
     assert lidl.opened_at == items[1].purchased_at
 
 
+def test_splitting_off_the_earliest_item_recomputes_the_remainders_opened_at(
+    session: Session, lst: List, user: User
+):
+    """The remainder of a split -- what stays behind, still open -- needs its
+    own opened_at recomputed at split time, not just the next time it's
+    closed. Splitting off the item that happened to be earliest must not
+    leave the remainder claiming a start time that now belongs to the split
+    ticket.
+    """
+    at = datetime(2026, 7, 28, 18, 0)
+    items = _cart(session, lst, user, ["Leche", "Pan", "Aceite"], at)
+    remainder_id = items[0].purchase_id
+
+    trips.close(session, lst.id, [items[0].id], "Lidl", 5.0, datetime(2026, 7, 28, 20, 0))
+    session.commit()
+
+    remainder = session.get(Purchase, remainder_id)
+    assert remainder.opened_at == items[1].purchased_at
+
+
 def test_closing_then_tapping_opens_a_new_trip(session: Session, lst: List, user: User):
     at = datetime(2026, 7, 28, 18, 0)
     items = _cart(session, lst, user, ["Leche"], at)
