@@ -647,11 +647,14 @@ Two consequences worth stating plainly:
   and that is the problem.** Measured: it changes only the four
   `item-purchased-*` files, by about 75 pixels each, which is inside the budget
   the suite allows. Every test stays green while those four quietly stop
-  describing the screen. Regenerate them on purpose rather than waiting to be
-  told, with `just frontend update-snapshots`, which runs the container every
-  committed baseline came out of. Never regenerate on your own machine, whatever it runs.
-  Linux is the trap rather than macOS: it writes the same `-linux.png` CI
-  expects, so a native baseline is accepted and quietly disagrees.
+  describing the screen. Delete those four PNGs and then run
+  `just frontend update-snapshots`, which runs the container every committed
+  baseline came out of. Deleting first is the whole trick: the command rewrites
+  only what failed, and nothing here fails, so on its own it reports success
+  and changes nothing. A missing baseline is always written. Never regenerate
+  on your own machine, whatever it runs. Linux is the trap rather than macOS:
+  it writes the same `-linux.png` CI expects, so a native baseline is accepted
+  and quietly disagrees.
 - **The reference implementation of the sheet model is not in this repository.**
   It was built and tuned as an interactive prototype; the parameters it produced
   are recorded in `.impeccable/design.json` under `extensions.paper`, which is
