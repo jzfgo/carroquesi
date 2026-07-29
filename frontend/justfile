@@ -43,20 +43,21 @@ update-snapshots:
     #!/usr/bin/env bash
     set -euo pipefail
     version=$({{ nvm-exec }} node -p "require('./package.json').devDependencies['@playwright/test'].match(/\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?/)[0]")
-    # The generated files must end up owned by whoever ran this. Who that is
-    # inside the container depends on whether the runtime remaps ids: as root
-    # the answer is the host user, and under a rootless runtime it is root,
-    # because the host user is already what root maps back to. Rather than
-    # guess, read it off the mounted directory, which the host owns by
+    # The generated files must end up owned by whoever owns the checkout. Who
+    # that is inside the container depends on whether the runtime remaps ids:
+    # as root the answer is the host user, and under a rootless runtime it is
+    # root, because the host user is already what root maps back to. Rather
+    # than guess, read it off the mounted directory, which that person owns by
     # definition. Passing $(id -u) from out here is what gets this wrong — the
-    # host shell expands it before the container can disagree.
+    # host shell expands it before the container can disagree, so the id can
+    # name someone the mount never reports.
     docker run --rm --platform linux/amd64 \
       -v "$(pwd):/work" \
       -v carroquesi-playwright-node-modules:/work/node_modules \
       -v carroquesi-playwright-pnpm-store:/pnpm-store \
       -w /work \
       "mcr.microsoft.com/playwright:v${version}-noble" \
-      bash -c "corepack enable && pnpm --config.store-dir=/pnpm-store install --frozen-lockfile && (pnpm exec playwright test --update-snapshots; status=\$?; chown -R \$(stat -c '%u:%g' /work) tests playwright-report test-results 2>/dev/null || true; exit \$status)"
+      bash -c "corepack enable && pnpm --config.store-dir=/pnpm-store install --frozen-lockfile && (pnpm exec playwright test --update-snapshots; status=\$?; chown -R \"\$(stat -c '%u:%g' /work)\" tests playwright-report test-results 2>/dev/null || true; exit \$status)"
 
 # Format (prettier --write ., code + styles)
 format:
