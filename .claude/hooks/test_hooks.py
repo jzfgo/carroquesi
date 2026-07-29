@@ -23,6 +23,7 @@ WT = "git wor" + "ktree "
 SUB_OPEN, SUB_CLOSE, BT = "$(", ")", chr(96)
 
 failures: list[str] = []
+evaluated = 0
 
 
 def verdict(hook: str, payload: dict, cwd: pathlib.Path | None = None) -> str:
@@ -44,6 +45,8 @@ def verdict(hook: str, payload: dict, cwd: pathlib.Path | None = None) -> str:
 
 
 def check(label: str, got: object, want: object) -> None:
+    global evaluated
+    evaluated += 1
     # `object`, not `str`: exit codes and booleans are compared here too.
     # Both values print through `!r` so an empty expectation is legible
     # rather than trailing whitespace, and so `0` is distinguishable from
@@ -534,10 +537,26 @@ def test_stop_checks_main_dirty() -> None:
 
 
 if __name__ == "__main__":
-    test_enforce_worktrunk()
-    test_block_main_edits()
-    test_stop_checks_main_dirty()
-    print()
+    # A raise is a failed case, not an exit. With no framework here, an
+    # uncaught exception truncates the run instead of reporting it: every
+    # later function is skipped, and so is the summary below — which is the
+    # thing a mutation run is read off. That has now happened twice, from
+    # `check=True` on a fixture command and from an unguarded `json.loads`,
+    # so catch it once here rather than guarding each new call site.
+    for suite in (
+        test_enforce_worktrunk,
+        test_block_main_edits,
+        test_stop_checks_main_dirty,
+    ):
+        try:
+            suite()
+        except Exception as exc:
+            failures.append(f"{suite.__name__} aborted after {evaluated}: {exc!r}")
+
+    # Printed because these tests are read under mutation, where a shrinking
+    # suite is the failure mode that hides others. A count that moves without
+    # the diff moving is the signal.
+    print(f"\n{evaluated} assertions evaluated")
     if failures:
         print(f"{len(failures)} FAILURE(S):")
         for f in failures:
