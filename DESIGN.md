@@ -647,7 +647,7 @@ Two consequences worth stating plainly:
   and that is the problem.** Measured: it changes only the four
   `item-purchased-*` files, by about 75 pixels each, which is inside the budget
   the suite allows. Every test stays green while those four quietly stop
-  describing the screen. Delete those four PNGs and then run
+  describing the screen. Once the rule is gone, delete those four PNGs and run
   `just frontend update-snapshots`, which runs the container every committed
   baseline came out of. Deleting first is the whole trick: the command rewrites
   only what failed, and nothing here fails, so on its own it reports success
