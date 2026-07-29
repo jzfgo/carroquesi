@@ -140,7 +140,7 @@ All known flags and defaults live in the registry in `backend/app/services/featu
 
 - Check `git status --short` before and after changes
 - Implement the smallest complete fix first, then iterate
-- **Write comments and docs in plain, short English.** One idea per sentence. Use common words, not rare or figurative ones: the reader is not always a native speaker. A comment says *why*, not *where*: never cite line numbers, file paths, or issue IDs in a code comment. Docs are the index, so they cite freely. Nothing checks those links, so they go stale on the next move, and the commit message tells the reader more. Keep the length in proportion to the decision. Commit and PR titles are exempt; their style is deliberate.
+- **Write comments and docs in plain, short English.** One idea per sentence. Use common words, not rare or figurative ones: the reader is not always a native speaker. A comment says *why*, not *where*: never cite line numbers, file paths, or issue IDs in a code comment. Nothing checks those links, so they go stale on the next move, and the commit message tells the reader more. Docs are the index, so they cite freely. Keep the length in proportion to the decision. Commit and PR titles are exempt; their style is deliberate.
 - Start both servers: `just dev` (uses overmind + `Procfile.local`); use `just dev network` to expose on LAN
 
 ### Agent Guardrails
