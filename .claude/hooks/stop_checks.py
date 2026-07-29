@@ -293,9 +293,17 @@ def main() -> None:
                         # this path has a different reader from the exit-2
                         # one — hence the lead-in. The body below is written
                         # for whoever is going to act on it either way.
+                        #
+                        # "unresolved", not "dirty": `dirty` is also non-None
+                        # when git could not answer, and a lead-in asserting
+                        # dirtiness above a body saying nothing was
+                        # established would undo the honesty that reporting
+                        # the git failure bought. Untested for the same
+                        # reason as the joined-list property above — reaching
+                        # it needs two consecutive Stops with git broken.
                         "systemMessage": (
-                            "Heads up: this turn is ending and main is "
-                            "still dirty.\n\n" + dirty
+                            "Heads up: this turn is ending with the main "
+                            "checkout unresolved.\n\n" + dirty
                         ),
                         "suppressOutput": True,
                     }

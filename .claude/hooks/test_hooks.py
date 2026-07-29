@@ -43,11 +43,15 @@ def verdict(hook: str, payload: dict, cwd: pathlib.Path | None = None) -> str:
     return "deny" if proc.stdout.strip() else "allow"
 
 
-def check(label: str, got: str, want: str) -> None:
+def check(label: str, got: object, want: object) -> None:
+    # `object`, not `str`: exit codes and booleans are compared here too, and
+    # `==` plus the f-string handle any type.
     mark = "ok  " if got == want else "FAIL"
     if got != want:
         failures.append(f"{label}: expected {want}, got {got}")
-    print(f"  {mark} {label:52s} {got}")
+    # An empty value would otherwise print as trailing whitespace and read as
+    # if the assertion had produced nothing at all.
+    print(f"  {mark} {label:52s} {got if got != '' else repr(got)}")
 
 
 def bash(command: str) -> dict:
