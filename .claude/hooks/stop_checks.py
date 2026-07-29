@@ -120,12 +120,22 @@ def main_checkout_dirty() -> str | None:
 
     What it does not catch is a write that leaves the checkout clean:
     `git commit` on main, or `git stash`. Those are unguarded anywhere, and
-    deliberately so. Both take an explicit act that the worktree rule already
-    forbids, and catching a commit means asking a different question — whether
-    main holds commits nobody pushed — which also fires on the release flow,
-    the one place committing on main is correct. Not worth that trade for a
-    route nobody reaches by accident. AGENTS.md names both so the guards are
-    not read as covering them.
+    deliberately so. Both take an explicit act the worktree rule already
+    forbids, and catching a commit means asking a different question —
+    whether main holds commits nobody pushed. Two reasons not to:
+
+    * `@{u}` is not guaranteed to resolve. A worktree-only setup, a fork, or
+      a clone whose main never tracked anything makes that query fail, and by
+      the rule above a failure has to be reported rather than swallowed — so
+      the check would emit "could not verify" on working configurations,
+      permanently.
+    * There is no recoverable one-command remedy. The dirty case works
+      because `stash push -u` keeps the work and satisfies the invariant.
+      Undoing a commit is a reset plus a stash, and getting that wrong on a
+      commit this session did not make is the destructive-remedy hazard the
+      floor exists to avoid.
+
+    AGENTS.md names both routes so the guards are not read as covering them.
 
     Detection, not prevention — the write has already landed by the time
     this runs. That is why the PreToolUse layer stays.
@@ -303,8 +313,8 @@ def main() -> None:
                         # when git could not answer, so a lead-in asserting
                         # dirtiness would sit above a body saying nothing was
                         # established — undoing the honesty that reporting
-                        # the git failure bought. It has to be true of both.
-                        # Both cases are covered in test_hooks.py.
+                        # the git failure bought. It has to be true of both,
+                        # and both are covered by tests.
                         "systemMessage": (
                             "Heads up: this turn is ending and the main "
                             "checkout still needs attention.\n\n" + dirty

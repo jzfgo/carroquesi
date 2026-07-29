@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """PreToolUse hook (matcher: Edit|Write).
 
-Promotes the AGENTS.md "HARD STOP — confirm a worktree is active (not main)"
-rule from advisory text to an enforced boundary. The rule already said "no
-exceptions"; a rule the agent can skim and reinterpret isn't actually that,
-per the Skills/Rules/Hooks taxonomy — 100%-compliance requirements belong
-in a hook, not a markdown bullet the agent re-reads each session.
+Turns the AGENTS.md worktree rule from advisory text into an enforced
+boundary. A rule the agent can skim and reinterpret is not really a
+100%-compliance requirement, and those belong in a hook rather than in a
+markdown bullet re-read each session.
+
+Paraphrased rather than quoted on purpose. An earlier version of this
+docstring reproduced AGENTS.md's wording verbatim, and that wording has since
+been rewritten twice — leaving quotation marks around a sentence that no
+longer existed anywhere. Nothing checks such a quote, so it rots silently.
 
 The branch is resolved from the *target file's* directory, not the hook's
 cwd. Both are the repo root in the common case, but they diverge whenever a
@@ -135,10 +139,11 @@ def main() -> None:
                     "hookEventName": "PreToolUse",
                     "permissionDecision": "deny",
                     "permissionDecisionReason": (
-                        "That path is on main. Per AGENTS.md: run /worktrunk before "
-                        "touching any file — no exceptions for quick fixes, docs, or "
-                        "config. Create one with `wt switch --create <branch> --no-cd "
-                        "--format=json`, then write to the path it reports."
+                        "That path is on main. Per AGENTS.md, work in a worktree "
+                        "before touching any file — no exceptions for quick fixes, "
+                        "docs, or config. Create one with `wt switch --create "
+                        "<branch> --no-cd --format=json`, then write to the path it "
+                        "reports."
                     ),
                 }
             }

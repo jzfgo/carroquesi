@@ -439,7 +439,12 @@ def test_stop_checks_main_dirty() -> None:
         # could not run must survive the floored pass *and* not be dressed up
         # as something it established. The lead-in is shared with the dirty
         # case, so it has to be true of both.
-        _, unresolved = stop_run(outside, {"stop_hook_active": True})
+        floored_git, unresolved = stop_run(outside, {"stop_hook_active": True})
+        # Assert the flooring first. Without this the two message checks below
+        # pass on exit 2 as well, because stderr on that path carries the same
+        # report — so exempting a git failure from the floor, the likeliest
+        # future edit here, would go unnoticed.
+        check("floored git failure lets the turn end", floored_git, "stop")
         check(
             "floored git failure is still delivered",
             "Could not check" in unresolved,

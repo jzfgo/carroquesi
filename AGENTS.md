@@ -150,7 +150,7 @@ All known flags and defaults live in the registry in `backend/app/services/featu
 Hooks in `.claude/hooks/` and lefthook enforce these regardless of what a session is told. Every denial names its own reason and remedy, so what follows is only what you need *before* the first attempt:
 
 - **Create a worktree before touching any file** — `wt switch --create <branch> --no-cd --format=json`, then `EnterWorktree` with the path it reports. Edits are denied by *target path*, so this holds even when the session is rooted somewhere else, and worktree lifecycle goes through `wt` rather than raw `git worktree`. Gitignored paths are exempt: they cannot reach a commit, so blocking them protected nothing.
-- **The rule about `main` is wider than the deny that enforces it** — writing there by any other route (a redirect, `sed -i`, an interpreter one-liner, a subagent) is caught at turn end instead. Committing on `main` and `git stash` are caught by nothing at all, and are still forbidden.
+- **The rule about `main` is wider than the deny that enforces it** — writing there by any other route (a redirect, `sed -i`, an interpreter one-liner, a subagent) is caught by the Stop hook at turn end instead. Committing on `main` and `git stash` are caught by nothing at all, and are still forbidden.
 - **`--no-verify` and `LEFTHOOK=0` are denied** — fix the failing hook instead of skipping it.
 - **A turn does not end on a lint failure** — changed Python and TypeScript are re-checked when Claude Code tries to stop, and the turn is continued to fix them. One continuation, not a loop; lefthook is the backstop at commit time. A dirty `main` shares that one continuation and warns the user on the way out, so leaving it dirty costs lint its retry.
 
