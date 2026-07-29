@@ -57,6 +57,16 @@ def changed_files(prefix: str, exts: tuple[str, ...]) -> list[str]:
     return sorted(f for f in files if f.endswith(exts) and os.path.exists(f))
 
 
+class _GitUnavailable(Exception):
+    """git could not answer the question.
+
+    Distinct from "nothing to report", and kept distinct on purpose: a check
+    that stays quiet when it failed to run reports success while verifying
+    nothing, which is the defect this whole hook exists to remove. Silence
+    here has to mean "asked and found clean", never "could not ask".
+    """
+
+
 def _main_checkout() -> str | None:
     """Path of this repository's checkout that sits on `main`, if any.
 
@@ -65,6 +75,9 @@ def _main_checkout() -> str | None:
     worktree like any other branch. Scoped to this repository's worktree
     list on purpose — other checkouts on main (dotfiles, another project)
     are not this hook's business.
+
+    Returns None when this repo simply has no checkout on main, which is the
+    normal case in a worktree-only setup. Raises when git itself failed.
     """
     try:
         out = subprocess.run(
@@ -73,8 +86,8 @@ def _main_checkout() -> str | None:
             text=True,
             check=True,
         ).stdout
-    except (subprocess.CalledProcessError, OSError):
-        return None
+    except (subprocess.CalledProcessError, OSError) as exc:
+        raise _GitUnavailable(f"git worktree list failed: {exc}") from exc
 
     # Porcelain emits one blank-line-separated block per checkout, each
     # starting with `worktree <path>`. A detached HEAD has no `branch` line.
@@ -103,8 +116,15 @@ def main_checkout_dirty() -> str | None:
 
     Detection, not prevention — the write has already landed by the time
     this runs. That is why the PreToolUse layer stays.
+
+    A git failure is reported rather than swallowed, so "no message" always
+    means main was checked and found clean.
     """
-    path = _main_checkout()
+    try:
+        path = _main_checkout()
+    except _GitUnavailable as exc:
+        return f"Could not check whether main is clean — {exc}"
+
     if path is None:
         return None
 
@@ -115,8 +135,11 @@ def main_checkout_dirty() -> str | None:
             text=True,
             check=True,
         ).stdout.strip()
-    except (subprocess.CalledProcessError, OSError):
-        return None
+    except (subprocess.CalledProcessError, OSError) as exc:
+        return (
+            f"Could not check whether the main checkout at {path} is clean — "
+            f"git status failed: {exc}"
+        )
 
     if not dirty:
         return None

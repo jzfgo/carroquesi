@@ -341,6 +341,15 @@ def test_stop_checks_main_dirty() -> None:
         restore()
         check("nested subdirectory, main clean again", stop_verdict(nested), "stop")
 
+        # A check that cannot run must say so, not report clean. Silence has
+        # to mean "asked and found nothing" — anything else is the
+        # verifies-nothing-reports-success shape this hook exists to remove.
+        # Somewhere that is not a git repository at all is the cheap way to
+        # make git fail for real rather than by monkeypatching.
+        outside = root / "not-a-repo"
+        outside.mkdir()
+        check("git cannot answer at all", stop_verdict(outside), "continue")
+
         # Another repository on main is not ours to police.
         other = root / "other"
         other.mkdir()
