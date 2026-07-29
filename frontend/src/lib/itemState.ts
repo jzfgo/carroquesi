@@ -1,4 +1,5 @@
 import type { ListItem } from '../types'
+import { parseNaiveUtc } from './naiveUtc'
 
 /** Three states, not two.
  *
@@ -33,8 +34,8 @@ export function itemState(item: ListItem): ItemState {
     // this joined. It stays in the cart, because the paper has not been filed.
     return 'cart'
   }
-  const ends = Date.parse(`${item.purchase_ends_at}Z`)
-  if (Number.isNaN(ends)) return 'cart'
+  const ends = parseNaiveUtc(item.purchase_ends_at)
+  if (ends === null) return 'cart'
   return Date.now() >= ends ? 'bought' : 'cart'
 }
 

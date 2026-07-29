@@ -1,4 +1,5 @@
 import { useEffect, useReducer } from 'react'
+import { parseNaiveUtc } from '../lib/naiveUtc'
 import type { ListItem } from '../types'
 
 // Caps the scheduled delay so a garbage `purchase_ends_at` (some bad row far
@@ -30,8 +31,8 @@ export function useTearOff(items: ListItem[]): void {
   const key = items
     .map((item) => item.purchase_ends_at)
     .filter((ends): ends is string => Boolean(ends))
-    .map((ends) => Date.parse(`${ends}Z`))
-    .filter((at) => !Number.isNaN(at))
+    .map((ends) => parseNaiveUtc(ends))
+    .filter((at): at is number => at !== null)
     .sort((a, b) => a - b)
     .join(',')
 
