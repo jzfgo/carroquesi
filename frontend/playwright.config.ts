@@ -57,8 +57,9 @@ export default defineConfig({
   // on a runner that installs its own fonts, while the baselines come out of a
   // container, so the gap between those two machines is at most 250 — a run
   // that passes cannot say how much less. What bounds the number from above is
-  // the signal it has to preserve: that button costs about 600. Smaller
-  // changes exist, so treat 250 as a number to lower, never to raise.
+  // the signal it has to preserve, and that button is the only part of it
+  // anyone has measured. Smaller changes exist, so treat 250 as a number to
+  // lower, never to raise.
   expect: {
     toHaveScreenshot: { maxDiffPixels: 250 },
   },
