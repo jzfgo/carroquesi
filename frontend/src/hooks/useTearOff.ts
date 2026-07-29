@@ -77,7 +77,8 @@ export function useTearOff(items: ListItem[]): number {
     // a negative input and pass either way. `never asks for a negative delay`
     // in the tests pins it at the only place the difference exists, which is
     // the argument handed to setTimeout rather than anything that comes back.
-    const delay = Math.min(Math.max(next - clock, 0), MAX_DELAY_MS)
+    const remaining = Math.max(next - clock, 0)
+    const delay = Math.min(remaining, MAX_DELAY_MS)
     // The margin that used to sit in the delay lives here instead. Firing a
     // second late did give itemState's `>=` a safe landing, but it also left a
     // second in which this hook's `now` still said 'cart' while every caller
@@ -87,9 +88,20 @@ export function useTearOff(items: ListItem[]): number {
     //
     // Taking the max against `next` gets the safe landing without the wait:
     // `now` sits exactly on the boundary even if the timer resolves a shade
-    // early, and the only instant it can ever be ahead of the live clock for
-    // is the boundary it was waiting on.
-    const id = setTimeout(() => setNow(Math.max(Date.now(), next)), delay)
+    // early, rather than a shade short of it.
+    //
+    // Only when the schedule was *not* capped, though. A capped timer fires
+    // short of `next` on purpose — it is a re-check, and it must not claim to
+    // have arrived. Assigning `next` there would put `now` ahead of the live
+    // clock by the whole overshoot, and since the next selection is
+    // `find(at > now)` it would then find nothing, schedule nothing, and leave
+    // the item reading 'bought' up to 24h early for good. That turns the cap
+    // from a safety net into the bug it was guarding against.
+    const arrives = remaining <= MAX_DELAY_MS
+    const id = setTimeout(
+      () => setNow(arrives ? Math.max(Date.now(), next) : Date.now()),
+      delay,
+    )
     return () => clearTimeout(id)
   }, [key, now])
 

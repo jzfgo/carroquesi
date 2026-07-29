@@ -146,7 +146,16 @@ describe('useTearOff', () => {
 
     // Picked by its delay rather than by position: RTL schedules through
     // setTimeout too, so `.at(-1)` would be a guess about whose call came last.
-    const scheduled = spy.mock.calls.find((call) => call[1] === 5000)?.[0]
+    //
+    // A range rather than `=== 5000`, because `fakeTimers.shouldAdvanceTime`
+    // is on globally (vite.config.ts) — the faked clock keeps moving with real
+    // time, so a few milliseconds can elapse between `setSystemTime` and the
+    // effect reading `Date.now()`, and the delay comes out just under. Nothing
+    // else in this render schedules anywhere near 5s.
+    const scheduled = spy.mock.calls.find(
+      (call) =>
+        typeof call[1] === 'number' && call[1] > 4000 && call[1] <= 5000,
+    )?.[0]
     expect(typeof scheduled).toBe('function')
 
     vi.setSystemTime(next - 1)
@@ -156,6 +165,37 @@ describe('useTearOff', () => {
 
     expect(currentNow()).toBe(next)
     spy.mockRestore()
+  })
+
+  it('re-checks rather than arriving when the boundary is past the cap', () => {
+    // MAX_DELAY_MS exists so a boundary further out than 24h yields a harmless
+    // re-check instead of racing a 32-bit setTimeout overflow. "Harmless"
+    // depends entirely on the callback declining to claim it arrived: a capped
+    // timer fires short of `next`, so assigning `next` would put `now` in the
+    // future — and then `find(at > now)` returns undefined, nothing
+    // reschedules, and the item reads 'bought' up to 24h early and stays that
+    // way. The cap would have turned a far boundary from harmless into
+    // permanent.
+    //
+    // Reachable with valid data, not just a corrupt row: `tears_off_at_for`
+    // stamps the next Madrid midnight, so a trip opened just after midnight is
+    // already ~24h out, and `next - clock` is measured against the *client's*
+    // clock — a device running slow by a minute tips it over.
+    const endsAt = '2026-07-29T18:00:00' // 30h past the 12:00 mount
+    const next = Date.parse('2026-07-29T18:00:00Z')
+    renderHarness([makeItem({ purchase_ends_at: endsAt })])
+
+    act(() => {
+      vi.advanceTimersByTime(24 * 60 * 60 * 1000)
+    })
+    // The re-check fired, and it did not pretend to have arrived.
+    expect(currentNow()).toBeLessThan(next)
+
+    // And it is still ticking: the effect re-ran and scheduled the remainder.
+    act(() => {
+      vi.advanceTimersByTime(6 * 60 * 60 * 1000)
+    })
+    expect(currentNow()).toBeGreaterThanOrEqual(next)
   })
 
   it('never asks for a negative delay', () => {
