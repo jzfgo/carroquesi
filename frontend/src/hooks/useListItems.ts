@@ -363,7 +363,9 @@ export function useListItems(
           // is the backstop for the race where the trip files (a receipt
           // scan, or "Cerrar compra") between render and tap.
           setItems(snapshot)
-          showToast('No se puede eliminar un producto de una compra ya archivada')
+          showToast(
+            'No se puede eliminar un producto de una compra ya archivada',
+          )
         } else {
           setItems(snapshot)
           showToast('No se pudo eliminar el producto')

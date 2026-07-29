@@ -692,7 +692,9 @@ describe('useListItems — write queue on network error', () => {
 
   it('removeItem: rolls back with the generic toast on a non-409 server error', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    vi.mocked(api.deleteItem).mockRejectedValue(new ApiError(500, 'Server Error'))
+    vi.mocked(api.deleteItem).mockRejectedValue(
+      new ApiError(500, 'Server Error'),
+    )
 
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -704,6 +706,8 @@ describe('useListItems — write queue on network error', () => {
     })
 
     expect(result.current.items).toHaveLength(1)
-    expect(mockShowToast).toHaveBeenCalledWith('No se pudo eliminar el producto')
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se pudo eliminar el producto',
+    )
   })
 })
