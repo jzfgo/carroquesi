@@ -347,9 +347,10 @@ branch is covered by no ruleset here, and rebasing one destroys the ancestry it 
 create. Bring that kind up to date by merging `main` into it, and merge the PR itself with
 `gh pr merge --merge` — see `AGENTS.md` → Git Workflow.
 
-Verify with `gh api repos/:owner/:repo/rules/branches/main` rather than trusting this line —
-it said `false` until 2026-07-28, which is exactly how long it took for a `BEHIND` PR to
-prove otherwise.
+Verify the `strict_required_status_checks_policy` claim above with
+`gh api repos/:owner/:repo/rules/branches/main` rather than trusting it — this file said
+`false` until 2026-07-28, which is exactly how long it took for a `BEHIND` PR to prove
+otherwise.
 
 Treat `APPROVED` as a bonus, never a gate. At exit, report the requirements you actually
 checked and their state — not a bare `BLOCKED`, and never "awaiting approval". If all of

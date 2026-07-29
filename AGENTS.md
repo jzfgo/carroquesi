@@ -178,7 +178,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 ### Git Workflow
 
 - Use squash merge for PRs by default; `main`'s ruleset rules out a merge commit there, so squash or rebase are the only options into it
-- **A PR that merges `main` into a long-lived branch is the exception — merge it, don't squash.** The ancestry link is its whole product, and a squash drops it. Repair a squashed one with `git merge -s ours` against **the exact `main` commit that PR brought in, never `origin/main`** — the wrong sha discards content silently. Why, and the check to run first: [CONTRIBUTING.md](CONTRIBUTING.md#merging-a-pr-that-brings-main-into-a-long-lived-branch)
+- **A PR that merges `main` into a long-lived branch is the exception — merge it, don't squash.** The ancestry link is its whole product, and a squash drops it. Repair a squashed one with `git merge -s ours` against **the exact `main` commit that PR brought in, never `origin/main`** — the wrong sha discards content silently. Why, and how to derive that commit: [CONTRIBUTING.md](CONTRIBUTING.md#merging-a-pr-that-brings-main-into-a-long-lived-branch)
 - When asked to 'update X', assume this includes committing and pushing unless stated otherwise
 - Always check git status for untracked changes before assuming worktree is clean
 - For CI: use `pnpm install --frozen-lockfile` for clean installs

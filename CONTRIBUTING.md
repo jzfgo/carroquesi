@@ -93,17 +93,28 @@ Squash-merge is the default here, and into `main` a merge commit is not allowed 
 
 A PR that merges `main` into a long-lived branch is the exception, and must be merged with a real merge commit (`gh pr merge --merge`). Its only product is the ancestry link. A squash keeps the files and drops the link, which leaves the merge base where it was — so the next merge replays commits already applied and re-conflicts every file that was resolved by hand. This is measured, not hypothetical: the first four `main` → `feat/redesign-spec-v6` merges were squashed, and the fourth resolved seven files by hand that the next merge would have presented again.
 
-To repair one that was already squashed, record the ancestry with `git merge -s ours`, which keeps your tree exactly and only adds a parent. Derive the commit rather than typing one — from the merged PR's number:
+To repair one that was already squashed, record the ancestry with `git merge -s ours`, which keeps your tree exactly and only adds a parent. Derive the commit rather than typing one — all you need is the merged PR's number:
 
 ```bash
-git fetch origin refs/pull/<n>/head                                  # the source branch is deleted on merge
-head=$(gh pr view <n> --json headRefOid -q .headRefOid)
-git merge -s ours "$(git merge-base origin/main "$head")"
+git switch <the long-lived branch>         # -s ours acts on HEAD; it must be this branch
+git fetch origin refs/pull/<n>/head        # the source branch is deleted on merge
+git merge -s ours "$(git merge-base origin/main FETCH_HEAD)"
+git push                                   # the merge base that matters is the one GitHub computes
 ```
 
-Never pass `origin/main` here. If `main` has moved on since the squash, `-s ours` against its tip marks the newer commits as merged while keeping your tree, so their content is dropped and a later `git merge main` answers `Already up to date` — silent, and shaped like success.
+Confirm it took: `git merge-base origin/main <the long-lived branch>` should now answer the commit you just merged rather than the old base, and the PR page's behind-count should drop to zero.
 
-`git merge-base` is what makes that unreachable rather than merely guarded: it can only return a commit the PR head actually contained, so it names the newest `main` the branch really absorbed and never the tip. Anything past that point stays unmerged and is offered again by the next real merge, which is what you want. The fetch is needed because GitHub deletes the source branch on merge, leaving that head reachable only through `refs/pull/<n>/head`.
+Never pass `origin/main` to `-s ours`. If `main` has moved on since the squash, `-s ours` against its tip marks the newer commits as merged while keeping your tree, so their content is dropped and a later `git merge main` answers `Already up to date` — silent, and shaped like success.
+
+`git merge-base` is what makes that unreachable rather than merely guarded: it can only return a commit the PR head actually contained, so it names the newest `main` the branch really absorbed and never the tip. Anything past that point stays unmerged and is offered again by the next real merge, which is what you want.
+
+Three things about the commands:
+
+- **The fetch** is needed because GitHub deletes the source branch on merge, leaving that head reachable only through `refs/pull/<n>/head`. It sets `FETCH_HEAD` to exactly that commit, so nothing else has to name it.
+- **The push** is the step that does the work. The merge base deciding whether the next merge replays those files is computed on GitHub's copy, so an unpushed repair changes nothing at all.
+- **In a shallow clone** — CI checkouts, and anything an agent runs in — the true base can sit below the boundary, `merge-base` then exits 1, and the empty result makes `git merge -s ours` fail. Run `git fetch --unshallow` first. This fails closed, so nothing is at risk; it just will not work.
+
+One collision to know about: `git merge -s ours <sha>` also prints `Already up to date` when `<sha>` is an ancestor already — re-running the repair, say. That is the benign case, and it is a different command from the `git merge main` above.
 
 ### Architecture Decision Records
 
