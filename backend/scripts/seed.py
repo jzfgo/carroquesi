@@ -54,8 +54,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.db.models import BarcodeCache, List, ListInvite, ListItem, ListMember, User, UserFeature
+from app.db.models import (
+    BarcodeCache,
+    List,
+    ListInvite,
+    ListItem,
+    ListMember,
+    Purchase,
+    User,
+    UserFeature,
+)
 from app.db.session import engine
+from app.services import trips
 
 
 def now() -> datetime:
@@ -1708,6 +1718,59 @@ SEED_ITEMS = [
     ),
 ]
 
+
+def group_into_purchases(items: list[ListItem]) -> list[Purchase]:
+    """Give every already-purchased seed item a Purchase, and point it there.
+
+    Mirrors the migration's backfill grouping -- one trip per (list_id,
+    Madrid local day of purchased_at) -- but deliberately calls the *live*
+    app.services.trips.tears_off_at_for rather than copying it. The
+    migration is a historical record and must keep meaning what it meant the
+    day it ran; this script re-seeds a throwaway dev database on every run
+    and should track whatever the current trip rule computes instead.
+
+    Without this, seeded purchased items carry purchased_at with no
+    purchase_id: itemState() on the client reads that as 'cart' (permanently,
+    since no tears_off_at ever arrives to end it), and prices.py's delete
+    guard -- `if item.purchase_id is not None` -- skips entirely, so a
+    year-old seeded purchase's price can be deleted with no same-day check.
+
+    closed_at is left NULL, same as the migration: nobody closed these by
+    hand, and marking them closed would fabricate a fact that never
+    happened. Old seed data reads as a torn-off (but never filed) trip,
+    which is exactly what "purchased on a past day, read-only" means.
+    """
+    groups: dict[tuple[str, datetime], list[ListItem]] = {}
+    for item in items:
+        if item.purchased_at is None:
+            continue
+        tears_off_at = trips.tears_off_at_for(item.purchased_at)
+        groups.setdefault((item.list_id, tears_off_at), []).append(item)
+
+    purchases = []
+    for i, ((list_id, tears_off_at), group) in enumerate(
+        sorted(groups.items(), key=lambda kv: (kv[0][0], kv[0][1]))
+    ):
+        opened_at = min(item.purchased_at for item in group)
+        distinct_stores = {item.price_store for item in group if item.price_store}
+        store = distinct_stores.pop() if len(distinct_stores) == 1 else None
+        purchase = Purchase(
+            id=f"seed-purchase-{i:04d}",
+            list_id=list_id,
+            opened_at=opened_at,
+            tears_off_at=tears_off_at,
+            closed_at=None,
+            store=store,
+            total=None,
+        )
+        for item in group:
+            item.purchase_id = purchase.id
+        purchases.append(purchase)
+    return purchases
+
+
+SEED_PURCHASES = group_into_purchases(SEED_ITEMS)
+
 SEED_INVITES = [
     ListInvite(
         id="seed-invite-compra", list_id="seed-list-compra", invited_email=None, invited_by=ALICE_ID
@@ -1765,18 +1828,38 @@ SEED_FEATURES = [
 
 
 def _delete_seed_rows(session: Session) -> None:
-    for model, id_col in [
-        (UserFeature, UserFeature.id),
-        (ListInvite, ListInvite.id),
-        (ListItem, ListItem.id),
-        (ListMember, ListMember.id),
-        (List, List.id),
-        (BarcodeCache, BarcodeCache.id),
-        (User, User.id),
-    ]:
+    """Delete every row whose PK starts with "seed-", in dependency order.
+
+    None of these models declare a relationship() to each other -- only FK
+    columns, joined by hand via select() -- so (see app/routers/lists.py's
+    delete_list fix and its commit message for the empirical proof) a single
+    flush cannot be trusted to order DELETEs by FK direction across
+    different mapped classes. Explicit flushes between batches make the
+    order real instead of emergent: ListItem (which FKs to Purchase) before
+    Purchase, and everything that FKs to List or User before those.
+    """
+
+    def _delete_all(model, id_col) -> None:
         rows = session.exec(select(model).where(id_col.startswith("seed-"))).all()
         for row in rows:
             session.delete(row)
+
+    _delete_all(UserFeature, UserFeature.id)
+    _delete_all(ListInvite, ListInvite.id)
+    _delete_all(ListItem, ListItem.id)
+    _delete_all(BarcodeCache, BarcodeCache.id)
+    session.flush()
+
+    _delete_all(Purchase, Purchase.id)
+    session.flush()
+
+    _delete_all(ListMember, ListMember.id)
+    session.flush()
+
+    _delete_all(List, List.id)
+    session.flush()
+
+    _delete_all(User, User.id)
     session.commit()
     print("  cleared existing seed rows")
 
@@ -1801,6 +1884,9 @@ def main() -> None:
         print(f"  +{len(SEED_LISTS)} lists")
         _insert(session, SEED_MEMBERS)
         print(f"  +{len(SEED_MEMBERS)} memberships")
+        # Before items: list_items.purchase_id FKs to purchases.id.
+        _insert(session, SEED_PURCHASES)
+        print(f"  +{len(SEED_PURCHASES)} purchases")
         _insert(session, SEED_ITEMS)
         print(f"  +{len(SEED_ITEMS)} items")
         _insert(session, SEED_INVITES)
