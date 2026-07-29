@@ -770,13 +770,45 @@ describe('DashboardScreen — offline', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText(/no se pudo crear la lista/i),
+        screen.getByText(/no se pudo confirmar si se creó la lista/i),
       ).toBeInTheDocument(),
     )
     // Same promise the offline guard makes: the message is only worth reading
     // if the work it refers to is still on screen.
     expect(screen.getByPlaceholderText(/nombre/i)).toHaveValue('Costco')
     expect(screen.getByRole('button', { name: /crear/i })).toBeEnabled()
+  })
+
+  // The half the wording cannot do on its own. A rejection does not mean the
+  // write was refused — the response can be lost after the commit — and with
+  // no idempotency key on `create_list` and no unique constraint on the name,
+  // a user who retries on a false "no" ends up with two identical lists. So
+  // the failure path refetches: if the list did land it appears underneath the
+  // toast, which is the only way the screen can contradict a message the code
+  // has no way to make definite.
+  it('refetches after a failed create, in case the write landed anyway', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    vi.mocked(api.createList).mockRejectedValue(new Error('boom'))
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+    expect(api.getLists).toHaveBeenCalledTimes(1)
+
+    await openCreateAndSubmit('Costco')
+
+    // Exactly 2: the fetch on mount, then the one the catch asks for. Pinning
+    // the count rather than "was called" keeps this from passing on the mount
+    // fetch alone.
+    await waitFor(() => expect(api.getLists).toHaveBeenCalledTimes(2))
+
+    // Nothing here pins the `silent` argument, and that is deliberate rather
+    // than an omission. `silent` only changes what happens when there is *no*
+    // cached copy, and the mount fetch writes one — so on this path
+    // `fetchLists(true)` and `fetchLists()` are indistinguishable, and an
+    // assertion about the panel surviving would pass either way. Checked by
+    // mutation: dropping the flag leaves every test in this file green. The
+    // flag stays because it is correct for the case where the cache is missing
+    // (storage disabled, or evicted), not because anything here can see it.
   })
 
   it('will not submit feedback without a connection, and says why', async () => {

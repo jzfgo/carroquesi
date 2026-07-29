@@ -337,16 +337,33 @@ export function DashboardScreen() {
   // from "it worked". The offline check sits here beside `handleFeedbackSubmit`
   // rather than in the card, so `isOffline` stays a single authority.
   //
-  // Refusal and failure both answer `false`, and that is not a shortcut. From
-  // the card's side they are the same fact — no list exists, so what was typed
-  // is still the only copy — and the toast is what tells them apart. The
-  // difference that would matter, whether retrying is worth it, is already in
-  // the message.
+  // Refusal and failure both answer `false`, and both keep what was typed.
+  // That is the safe side of each: offline *knows* no list exists, and a
+  // rejection cannot rule it out.
   //
-  // Only `createList` is guarded: `fetchLists` handles its own failure by
-  // setting `fetchError` and never rejects. Widening the `try` around it would
-  // report a create that succeeded as a failure, and then the card would keep
-  // a name whose list already exists.
+  // Cannot rule it out is the operative part, and it is why the failure toast
+  // does not say the list was not created. `apiFetch` rejects the same way
+  // whether the server refused before writing or committed and lost the
+  // response on the way back — and `create_list` has no idempotency key and
+  // `lists.name` no unique constraint, so a user who believes a definite "no"
+  // and presses Crear again gets two lists with the same name and nothing to
+  // explain it. The message states what is actually known.
+  //
+  // The refetch is the other half. If the write did land, awaiting it before
+  // the toast puts the list on screen underneath the message, so the ambiguity
+  // resolves itself in the one direction the copy cannot.
+  //
+  // `silent` is for the case this path does not reach: it only changes
+  // behaviour when no cached copy exists, and by here the mount fetch has
+  // written one, so the flag is unobservable and no test pins it. Kept because
+  // it is the right argument if the cache is ever missing — storage disabled,
+  // or evicted — where the default would blank the panel and drop the user on
+  // the retry screen after a failure they were already being told about.
+  //
+  // Only `createList` is inside the `try`. `fetchLists` settles on its own —
+  // its network path catches into `fetchError` — and widening the guard around
+  // it would report a create that *succeeded* as a failure, leaving the card
+  // holding a name whose list already exists.
   const handleCreate = useCallback(
     async (name: string) => {
       if (isOffline) {
@@ -356,7 +373,8 @@ export function DashboardScreen() {
       try {
         await createList(getToken, { name, emoji: randomEmoji() })
       } catch {
-        setToast('No se pudo crear la lista')
+        await fetchLists(true)
+        setToast('No se pudo confirmar si se creó la lista')
         return false
       }
       await fetchLists()
