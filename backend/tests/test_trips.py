@@ -84,6 +84,22 @@ def test_the_autumn_back_day_is_twenty_five_hours_long():
     assert (end - start).total_seconds() == 25 * 3600
 
 
+def test_no_future_clamps_rather_than_rejects():
+    # no_future's job is to clamp an instant later than `now` down to `now`,
+    # silently -- it never raises. That's the documented contract (a receipt's
+    # OCR-misread date is rewritten to `now`, not refused), so pin the clamp
+    # directly rather than only exercising it through a router.
+    now = datetime(2026, 7, 28, 18, 0)
+    future = datetime(2026, 7, 29, 8, 0)
+    assert trips.no_future(future, now) == now
+
+
+def test_no_future_leaves_a_past_instant_untouched():
+    now = datetime(2026, 7, 28, 18, 0)
+    past = datetime(2020, 1, 1, 0, 0)
+    assert trips.no_future(past, now) == past
+
+
 def test_closed_trip_is_not_open_even_with_a_future_tear_off():
     # "Cerrar compra" closes a trip early, before it would have torn off on
     # its own. Closing must win over the tear-off, not the other way round.

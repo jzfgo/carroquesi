@@ -7,7 +7,11 @@ class PurchaseClose(BaseModel):
     # None means "everything in the cart" — the ordinary one-shop evening.
     # A list means "this shop was these lines", which is what turns two
     # simultaneous shops into two tickets.
-    item_ids: list[str] | None = None
+    # 200 is a guess, not a convention carried over from elsewhere — same
+    # spirit as `store`'s max_length below. No real cart approaches this;
+    # it exists only to bound the one field here that can carry an
+    # unbounded payload (`store` and `total` are both already bounded).
+    item_ids: list[str] | None = Field(default=None, max_length=200)
     # 100 is a guess, not a convention carried over from elsewhere -- no
     # other user-supplied string field in this codebase is length-bounded at
     # the schema level (checked app/schemas/, app/db/models.py, and every

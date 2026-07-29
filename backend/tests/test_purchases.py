@@ -197,3 +197,19 @@ def test_closing_with_an_absurdly_long_store_name_is_rejected(client: TestClient
     )
 
     assert response.status_code == 422
+
+
+def test_closing_with_an_absurdly_long_item_ids_list_is_rejected(client: TestClient):
+    """`item_ids` is the one field here that can carry an unbounded payload
+    -- `store` and `total` are both already bounded -- so it needs the same
+    schema-level max_length guard.
+    """
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"item_ids": [f"item-{i}" for i in range(201)]},
+    )
+
+    assert response.status_code == 422

@@ -740,7 +740,10 @@ export function ListScreen({
     for (const item of filteredItems) {
       if (!item.purchased) {
         pendingItems.push(item)
-      } else {
+      } else if (itemState(item) === 'bought') {
+        // Cart items are excluded here on purpose: ItemList only looks up
+        // this map for 'bought' trips, and a cart item's own trip is still
+        // open, so it has no filed total to bucket toward.
         const key = item.purchase_id ?? item.id
         const group = byTrip.get(key) ?? []
         group.push(item)

@@ -171,8 +171,14 @@ MAX_BACKDATE = timedelta(days=30)
 
 
 def no_future(supplied: datetime, now: datetime) -> datetime:
-    """Refuse an instant later than `now` — the one rule every purchase
-    timestamp must obey, no matter which router is asking.
+    """Clamp an instant later than `now` down to `now` — the one rule every
+    purchase timestamp must obey, no matter which router is asking.
+
+    Silently, on purpose for a live tap. For a receipt it means an
+    OCR-misread future date is rewritten to `now` without telling anyone --
+    `receiptDate.ts`'s +-3-day confirmation catches the realistic cases
+    upstream of this, so the silent clamp is deliberate, not an oversight.
+    This is a clamp, not a refusal: it never raises on a future instant.
 
     Deliberately just the upper bound. There is no tolerance for a fast
     client clock: five minutes of slack lets a tap at 23:57 Madrid arrive
