@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy.exc import IntegrityError, SAWarning
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.db.models import List, ListItem, Purchase, User
 from app.services import trips
@@ -259,6 +259,64 @@ def test_a_missed_lookup_still_yields_one_trip_via_the_unique_index(
 
     loser = trips.trip_for(session, lst.id, instant)
     assert loser.id == winner.id
+
+
+def test_losing_the_race_does_not_revert_the_callers_pending_item(
+    session: Session, lst: List, user: User
+):
+    """The savepoint must not roll back work the caller did before calling in.
+
+    trip_for's lookup SELECT autoflushes the caller's pending UPDATE into the
+    outer transaction before begin_nested() opens, so the savepoint's rollback
+    has nothing of theirs to discard. That ordering is load-bearing and easy to
+    break by moving the SELECT or turning autoflush off.
+    """
+    item = ListItem(list_id=lst.id, name="Leche", added_by=user.id)
+    session.add(item)
+    session.commit()
+
+    at = datetime(2026, 7, 28, 18, 0)
+    winner = Purchase(list_id=lst.id, opened_at=at, tears_off_at=trips.tears_off_at_for(at))
+    session.add(winner)
+    session.commit()
+
+    # Mimic update_item: mutate the item first, then attach.
+    item.purchased_at = at
+    item.purchased_by = user.id
+    session.add(item)
+
+    # Force the lookup to miss the committed winner exactly once, so the
+    # INSERT collides and the savepoint rolls back.
+    real_exec = session.exec
+    calls = {"n": 0}
+
+    def missing_once(stmt, *a, **kw):
+        calls["n"] += 1
+        if calls["n"] == 1:
+
+            class Empty:
+                def first(self_inner):
+                    return None
+
+                def one(self_inner):
+                    return real_exec(stmt, *a, **kw).one()
+
+                def all(self_inner):
+                    return real_exec(stmt, *a, **kw).all()
+
+            return Empty()
+        return real_exec(stmt, *a, **kw)
+
+    session.exec = missing_once
+    try:
+        trips.attach(session, item, at)
+    finally:
+        session.exec = real_exec
+
+    # Proves the race actually fired rather than the test being vacuous.
+    assert item.purchase_id == winner.id
+    assert len(session.exec(select(Purchase)).all()) == 1
+    assert item.purchased_at == at
 
 
 def test_attaching_files_the_item_into_its_days_trip(session: Session, lst: List, user: User):

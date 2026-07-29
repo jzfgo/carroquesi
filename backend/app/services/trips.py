@@ -93,6 +93,17 @@ def trip_for(session: Session, list_id: str, instant: datetime) -> Purchase:
     if trip is None:
         trip = Purchase(list_id=list_id, opened_at=instant, tears_off_at=tears_off)
         try:
+            # The SELECT above runs *before* this savepoint opens, and with
+            # autoflush that SELECT flushes whatever the caller changed on
+            # `item` (e.g. update_item setting purchased_at/purchase_id
+            # before calling attach()) into the outer transaction first. That
+            # ordering is load-bearing: if the savepoint below rolls back on
+            # a lost race, it only ever discards the INSERT it made, never
+            # the caller's already-flushed UPDATE. Moving the SELECT after
+            # `begin_nested()` opens, or disabling autoflush, would let a
+            # lost race roll back the caller's pending write too -- see
+            # test_losing_the_race_does_not_revert_the_callers_pending_item
+            # in test_trips.py, which pins this ordering directly.
             with session.begin_nested():
                 session.add(trip)
                 # Forces the INSERT now, inside the savepoint, so a unique
