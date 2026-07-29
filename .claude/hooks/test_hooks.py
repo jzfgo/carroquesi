@@ -25,6 +25,10 @@ SUB_OPEN, SUB_CLOSE, BT = "$(", ")", chr(96)
 failures: list[str] = []
 evaluated = 0
 
+# Asserted at the end, so a suite that quietly shrinks fails instead of
+# passing at the wrong size. Bump it when you add a case.
+EXPECTED_ASSERTIONS = 68
+
 
 def verdict(hook: str, payload: dict, cwd: pathlib.Path | None = None) -> str:
     """Run a hook against a payload.
@@ -341,10 +345,11 @@ def test_stop_checks_main_dirty() -> None:
             # optional; BSD sed (macOS, the primary platform here) requires
             # it as a separate word, so a bare `-i` eats the script as the
             # backup extension and then runs the filename as the script.
-            # That exits non-zero, `check=True` raises, and the whole test
-            # function dies — so the suite would not merely be weaker on
-            # macOS, it would crash there. Attached-suffix form works on
-            # both.
+            # That exits non-zero and `check=True` raises, so the suite would
+            # not merely be weaker on macOS — it would lose this whole
+            # function. (It is reported rather than a crash, because
+            # `__main__` catches an aborting suite. Still much worse than
+            # passing.) Attached-suffix form works on both.
             ("sed -i", ["sed", "-i.bak", "s/x/y/", str(target)]),
             (
                 "python one-liner",
@@ -548,15 +553,35 @@ if __name__ == "__main__":
         test_block_main_edits,
         test_stop_checks_main_dirty,
     ):
+        before = evaluated
         try:
             suite()
         except Exception as exc:
-            failures.append(f"{suite.__name__} aborted after {evaluated}: {exc!r}")
+            # The delta, not the global total. `evaluated` is cumulative, so
+            # reporting it names a count from an earlier function — a raise on
+            # the first line of the second suite said "after 27", which is the
+            # first suite's total and more than the second one contains. The
+            # delta is what points at the line; the total says how much of the
+            # run was lost.
+            failures.append(
+                f"{suite.__name__} aborted after {evaluated - before} of its "
+                f"own assertions ({evaluated} overall): {exc!r}"
+            )
 
-    # Printed because these tests are read under mutation, where a shrinking
-    # suite is the failure mode that hides others. A count that moves without
-    # the diff moving is the signal.
+    # Compared, not just printed. An aborting suite is now a reported failure,
+    # so what this catches is the silent shrink with no raise behind it: a
+    # deleted case, an early return, a shortened loop list. Those leave a
+    # green run of the wrong size, and this branch's evidence is read from
+    # mutation runs where that is the failure mode that hides every other one.
+    #
+    # Cost is one line whenever a case is added, which is the point — bumping
+    # it is how you notice the count moved.
     print(f"\n{evaluated} assertions evaluated")
+    if evaluated != EXPECTED_ASSERTIONS:
+        failures.append(
+            f"suite size changed: {evaluated} assertions ran, expected "
+            f"{EXPECTED_ASSERTIONS}. If that is intended, update the constant."
+        )
     if failures:
         print(f"{len(failures)} FAILURE(S):")
         for f in failures:
