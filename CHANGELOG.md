@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [0.21.1] — 2026-07-29
 
 ### Fixed
 - Let users confirm and correct a misread receipt date (JAV-54) (#137)
@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **deps:** Patch postcss path-traversal advisory (#139)
 
 - Repair pnpm-lock.yaml broken by concurrent lockfile merges (#151)
+
+- **ci:** The automatic PR review posts its findings again (#165)
+
+- **skills:** Babysit-pr had the strict-checks policy backwards (#166)
 
 
 ---
