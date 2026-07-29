@@ -37,6 +37,23 @@ export default defineConfig({
   use: {
     baseURL: FRONTEND_URL,
     trace: 'on-first-retry',
+    // The suite's timezone is a fixture, not a property of the machine running
+    // it. Dates in this app are local calendar days end to end: receipt dates
+    // are built from local components and reduced back to the viewer's calendar,
+    // and the purchase clock is read the same way. Unpinned, the offset becomes
+    // a silent input — a date assertion or a rendered day can differ between a
+    // developer's machine and the runner, which is how an assertion that no
+    // correct value could satisfy sat green in CI for as long as it did.
+    //
+    // Madrid rather than UTC on purpose. The app is Spanish, so almost every
+    // real user sits at +1 or +2 — the Canaries are the exception, on +0 in
+    // winter. What rules UTC out is not that nobody is there but that it is the
+    // one offset where local midnight and UTC midnight coincide, so it is the
+    // one place an offset bug cannot show itself. Any nonzero offset exposes the
+    // bug class; Madrid is the one most users are on. Pinning here also
+    // decouples the browser from the runner's own TZ, which Playwright does not
+    // touch.
+    timezoneId: 'Europe/Madrid',
     // These specs test app/API contract behavior, not PWA/offline behavior — the
     // active service worker (devOptions.enabled: true) otherwise proxies fetches
     // in a way that makes route mocking unreliable on WebKit-based projects
@@ -45,12 +62,29 @@ export default defineConfig({
     // fine for Chromium/Firefox and for requests fired outside a click handler.
     serviceWorkers: 'block',
   },
-  // Baselines are generated locally via Docker (see tests/README.md); a handful of pixels
-  // on emoji/symbol glyphs (🛒, €, ⋯) still render slightly differently than on the actual
-  // CI runner's font stack. 0.1% is well above that noise floor but far below what any real
-  // visual regression (misplaced element, wrong theme, stray overlay) would produce.
+  // How many pixels may differ before a screenshot is a failure. An absolute
+  // count, never a ratio: a ratio scales with the image, so the 1280x720
+  // desktop capture was allowed 921 differing pixels while the 360-wide mobile
+  // one got 263 — for the same UI. A small text button costs about 600, so
+  // desktop could gain or lose one and still pass, and a baseline that passes
+  // while showing the wrong UI never heals, because --update-snapshots only
+  // rewrites what already failed.
+  //
+  // 250 is known to be enough, not known to be tight. CI passes every screen
+  // on a runner that installs its own fonts, while the baselines come out of a
+  // container, so the gap between those two machines is at most 250 — a run
+  // that passes cannot say how much less.
+  //
+  // What bounds it from above is the signal it has to preserve. The only
+  // measurement of that is the strikethrough on a purchased item: deleting it
+  // moves about 75 pixels, which passes here. That particular loss no longer
+  // depends on this number — purchase-lifecycle.spec.ts now asserts the
+  // computed style, so the rule cannot vanish silently. The class of problem
+  // stands, though: 75 is the going rate for a visible affordance, and one
+  // without its own assertion would still slip through. So treat this as a
+  // number to lower, never to raise.
   expect: {
-    toHaveScreenshot: { maxDiffPixelRatio: 0.001 },
+    toHaveScreenshot: { maxDiffPixels: 250 },
   },
   projects: [
     {

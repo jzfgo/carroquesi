@@ -109,6 +109,7 @@ Absences future work must **not** fabricate:
 3. **Never lose a write.** Offline queueing is the contract, not an optimization. A path that bypasses it silently drops the user's work.
 4. **The craft bar is a non-technical household succeeding unaided.** Nothing ships whose value requires the maintainer to explain it. If only a developer would use it, it is feature creep.
 5. **Earned data, honestly shown.** Prices, history, and suggestions come from what the household actually bought. Never present inferred or fabricated numbers as recorded ones, and keep imperfect AI output behind human review.
+6. **Complexity is earned.** This is a household tool for its maintainer and the people close to them, and a showcase of how that maintainer builds products. Enterprise hardening is not the goal. Some jank is fine when removing it would cost more than the harm it does. Prefer a design that makes a failure impossible over one that handles it. Do not add a branch for a state the data model cannot produce.
 
 ## Accessibility & Inclusion
 

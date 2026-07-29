@@ -7,6 +7,16 @@ import {
   test,
 } from './fixtures'
 
+// These specs typecheck without the DOM lib on purpose: they run in Node, and
+// browser globals exist only inside an `evaluate` callback, which is shipped to
+// the page as source. Declaring the one global we call there keeps that split —
+// widening the lib would let a spec reach for `document` at the Node layer and
+// only find out at run time.
+declare function getComputedStyle(el: unknown): {
+  color: string
+  backgroundColor: string
+}
+
 const LIST_ID = SEED_LISTS[0].id
 const ITEM_CAFE = SEED_ITEMS[LIST_ID][1] // no price, one store, unpurchased
 const ITEM_LECHE = SEED_ITEMS[LIST_ID][0] // has a price already, unpurchased
@@ -46,6 +56,26 @@ const THEMES = [
   { name: 'dark', colorScheme: 'dark' as const },
 ]
 
+/**
+ * Marking an item purchased stamps it with the browser's clock, and the card
+ * then prints that date. Left on the real clock, every screenshot here says
+ * whatever today happens to be, so the committed baselines describe the day
+ * they were written and drift a little further apart every day after. Pin it,
+ * and the date becomes part of the fixture like any other seeded value.
+ *
+ * The day is the one the committed baselines already depict, so pinning cost
+ * no regeneration. The zone is no longer a variable either — the config pins it
+ * — so only the clock needs pinning per spec. Midday is still the value to
+ * choose: it leaves the rendered day the same distance from either boundary, so
+ * the fixture survives a change of pinned zone. Purchases are still stamped
+ * "now", so the same-day price-deletion guard sees exactly what it did before.
+ */
+const FIXED_NOW = new Date('2026-07-15T10:00:00Z')
+
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW)
+})
+
 for (const { name: themeName, colorScheme } of THEMES) {
   test.describe(`${themeName} mode`, () => {
     test.use({ colorScheme })
@@ -60,6 +90,43 @@ for (const { name: themeName, colorScheme } of THEMES) {
       // Marked today, so it is in the cart: picked up, but the trip is not over
       // and it has not torn off into a purchase yet.
       await expect(card).toHaveClass(/item-card--cart/)
+
+      // The modifier above does not prove the cart reads as one: it can be
+      // present with the rules that style it gone. The screenshot below is the
+      // only other witness and it cannot carry this alone — an affordance this
+      // size costs about 75 pixels, inside the tolerance the suite allows, so
+      // it can leave the screen with every baseline still green. Assert the
+      // computed values, which are what produce the pixels. Both are read as
+      // relations rather than fixed colours, because the two themes resolve the
+      // tokens differently and this test runs under both.
+      //
+      const todo = itemCard(page, ITEM_LECHE.name)
+
+      // The filled disc is what says "picked up" from across the room. Two
+      // things have to hold and neither follows from the other: it is filled at
+      // all, which a lost rule breaks, and what fills it is not the paper it
+      // sits on, which a bad token leaves "filled" and invisible.
+      const cartDisc = await card
+        .locator('.item-card__checkbox')
+        .evaluate((el) => getComputedStyle(el).backgroundColor)
+      const paper = await page
+        .locator('.item-list__sheet')
+        .first()
+        .evaluate((el) => getComputedStyle(el).backgroundColor)
+      expect(cartDisc).not.toBe('rgba(0, 0, 0, 0)')
+      expect(cartDisc).not.toBe(paper)
+
+      // And the ink drops a rung, so a line in the cart reads quieter than one
+      // still to buy. Here the comparison is what bites — on its own a name
+      // always has some colour, whatever rule did or did not apply — and a
+      // relation also spares this a fixed value per theme.
+      const cartInk = await card
+        .locator('.item-card__name')
+        .evaluate((el) => getComputedStyle(el).color)
+      const todoInk = await todo
+        .locator('.item-card__name')
+        .evaluate((el) => getComputedStyle(el).color)
+      expect(cartInk).not.toBe(todoInk)
       await expectScreenshot(page, `item-purchased-${themeName}.png`)
 
       // No chips — the shop, the price and everything you can do to the line
