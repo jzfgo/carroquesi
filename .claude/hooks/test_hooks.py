@@ -422,6 +422,22 @@ def test_stop_checks_main_dirty() -> None:
             "git clean" not in floored_msg and "restore`" not in floored_msg,
             True,
         )
+        # `stop_run` keeps only `systemMessage`, so every other key in that
+        # object is invisible to it — flipping this one went unnoticed. Read
+        # the raw stdout for it instead.
+        floored_raw = subprocess.run(
+            [sys.executable, str(HOOKS / "stop_checks.py")],
+            input=json.dumps({"stop_hook_active": True}),
+            capture_output=True,
+            text=True,
+            cwd=tree,
+        )
+        check(
+            "floored pass suppresses its raw stdout",
+            json.loads(floored_raw.stdout).get("suppressOutput"),
+            True,
+        )
+
         # Still dirty next turn means it fires again — the nag survives the
         # floor, only the trap is gone.
         check("re-fires on the next turn", stop_verdict(tree), "continue")
@@ -430,10 +446,14 @@ def test_stop_checks_main_dirty() -> None:
         # only passed where it was written.
         #
         # Scope note: this covers the main-checkout half only. The lint half
-        # is cwd-dependent and goes inert from a subdirectory — its pathspecs
-        # are relative, so they match nothing, and the ruff/eslint calls then
-        # fail to find their directories. Pre-existing and tracked
-        # separately; do not read these two cases as covering it.
+        # goes inert from a subdirectory, because its pathspecs are relative
+        # and so match nothing there. Two further cwd assumptions sit behind
+        # that one, unreachable while it holds: git's output is root-relative
+        # so the existence filter would drop it, and the ruff and eslint calls
+        # name directories that do not exist from here. They are stacked, not
+        # chained — fixing only the pathspecs would make the other two live
+        # for the first time and leave the half still silent. Pre-existing,
+        # and out of scope here; do not read these two cases as covering it.
         nested = tree / "frontend" / "src"
         nested.mkdir(parents=True)
         check("run from a nested subdirectory", stop_verdict(nested), "continue")

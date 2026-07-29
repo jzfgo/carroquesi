@@ -286,12 +286,12 @@ def main() -> None:
         # them at commit time; this does not, and a warning that arrives on
         # the way out should say the one thing that has no other route.
         #
-        # That last property is the one thing here with no test behind it:
-        # the temp repos in test_hooks.py contain no `backend/` or
-        # `frontend/`, so `failures` is always just `[dirty]` there and
-        # swapping this for the joined list changes nothing. Covering it
-        # would mean running ruff from the test suite, which costs the file
-        # its dependency-free premise — a worse trade. Verified by hand.
+        # That last property has no test behind it: the temp repos in
+        # test_hooks.py contain no `backend/` or `frontend/`, so `failures` is
+        # always just `[dirty]` there and swapping this for the joined list
+        # changes nothing. Covering it would mean running ruff from the test
+        # suite, which costs the file its dependency-free premise — a worse
+        # trade. Verified by hand.
         #
         # `suppressOutput` keeps the raw JSON out of the transcript, so the
         # user sees the rendered warning rather than the blob as well. A
