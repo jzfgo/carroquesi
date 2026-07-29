@@ -600,9 +600,11 @@ export function ListScreen({
         setLogPriceFor(null)
         setPriceItemId(null)
       } else if (err instanceof ApiError && err.status === 422) {
-        setToast(
-          'No se puede eliminar el precio de un artículo comprado en otro día',
-        )
+        // Not "otro día" any more: the backend's 422 fires when the item's
+        // trip has been filed, which is midnight by default but is 18:40 the
+        // moment someone taps "Cerrar compra". Same wording as the
+        // un-purchase toast, because it is the same rule.
+        setToast('No se puede eliminar el precio de una compra ya archivada')
         throw err
       } else {
         setToast('No se pudo eliminar el precio')
