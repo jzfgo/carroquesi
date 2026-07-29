@@ -333,16 +333,32 @@ export function DashboardScreen() {
   }, [fetchLists])
 
   // Returns whether the list was created, because CreateListCard clears the
-  // name it holds on the way back and must be able to tell a refusal from a
-  // success. The guard sits here with its four siblings rather than in the
-  // card, so `isOffline` stays a single authority.
+  // name it holds on the way back and must be able to tell "it didn't happen"
+  // from "it worked". The offline check sits here beside `handleFeedbackSubmit`
+  // rather than in the card, so `isOffline` stays a single authority.
+  //
+  // Refusal and failure both answer `false`, and that is not a shortcut. From
+  // the card's side they are the same fact — no list exists, so what was typed
+  // is still the only copy — and the toast is what tells them apart. The
+  // difference that would matter, whether retrying is worth it, is already in
+  // the message.
+  //
+  // Only `createList` is guarded: `fetchLists` handles its own failure by
+  // setting `fetchError` and never rejects. Widening the `try` around it would
+  // report a create that succeeded as a failure, and then the card would keep
+  // a name whose list already exists.
   const handleCreate = useCallback(
     async (name: string) => {
       if (isOffline) {
         setToast('No disponible sin conexión')
         return false
       }
-      await createList(getToken, { name, emoji: randomEmoji() })
+      try {
+        await createList(getToken, { name, emoji: randomEmoji() })
+      } catch {
+        setToast('No se pudo crear la lista')
+        return false
+      }
       await fetchLists()
       return true
     },

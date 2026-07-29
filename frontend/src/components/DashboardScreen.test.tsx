@@ -753,6 +753,32 @@ describe('DashboardScreen — offline', () => {
     expect(screen.getByPlaceholderText(/nombre/i)).toHaveValue('Costco')
   })
 
+  // The other way a create fails to happen. Offline is refused before the
+  // request; this one is refused by the server, and until the `catch` existed
+  // it was the only path that said nothing at all — the rejection escaped
+  // through `void handleSubmit()` as an unhandled one, the name survived by
+  // accident of the early return, and the user was left with a filled-in card
+  // and no reason for it.
+  it('says so when the server refuses to create the list', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    vi.mocked(api.createList).mockRejectedValue(new Error('boom'))
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+
+    await openCreateAndSubmit('Costco')
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/no se pudo crear la lista/i),
+      ).toBeInTheDocument(),
+    )
+    // Same promise the offline guard makes: the message is only worth reading
+    // if the work it refers to is still on screen.
+    expect(screen.getByPlaceholderText(/nombre/i)).toHaveValue('Costco')
+    expect(screen.getByRole('button', { name: /crear/i })).toBeEnabled()
+  })
+
   it('will not submit feedback without a connection, and says why', async () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
 
