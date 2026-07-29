@@ -1,7 +1,11 @@
 # Backend Guidelines
 
 > `CLAUDE.md` is a symlink to this file. Edit `AGENTS.md` directly.
-> Repo-wide guidance lives in the root `AGENTS.md`; this file loads when working under `backend/`.
+> Repo-wide guidance lives in the root `AGENTS.md`, which every harness loads.
+> This file is loaded automatically only by harnesses that discover nested
+> guidance (Claude Code). The root file points here by path, so harnesses that
+> read a single instructions file — OpenCode and Codex pin `AGENTS.md` — should
+> open it directly when working on the backend.
 
 ## Feature Flag Management
 

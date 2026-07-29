@@ -108,6 +108,12 @@ print("\nci-changed-areas.sh\n")
 check("docs only", ["docs/decisions/011-foo.md", "README.md"], (False, False, False))
 check("changelog only", ["CHANGELOG.md"], (False, False, False))
 check("agents doc only", ["AGENTS.md"], (False, False, False))
+# Nested AGENTS.md files match their area prefix, so a docs-only edit runs that
+# area's whole suite. That is the fail-open direction and therefore safe, but it
+# is asymmetric with the root file above — pinned here so the asymmetry is a
+# decision on record rather than something rediscovered later. See JAV-67.
+check("nested agents doc", ["frontend/AGENTS.md"], (True, False, False))
+check("nested agents doc (backend)", ["backend/AGENTS.md"], (False, True, False))
 check("frontend source", ["frontend/src/App.tsx"], (True, False, False))
 check("frontend lockfile", ["frontend/pnpm-lock.yaml"], (True, False, False))
 check("backend source", ["backend/app/main.py"], (False, True, False))
