@@ -56,7 +56,9 @@ describe('useTearOff', () => {
     renderHarness(items)
     expect(renderCount).toBe(1)
 
-    // Boundary + the 1s safety margin baked into the hook.
+    // Comfortably past the boundary. The hook now schedules exactly on it,
+    // so 5000 would do — the extra second only keeps this from doubling as a
+    // test of the schedule, which `never asks for a negative delay` owns.
     act(() => {
       vi.advanceTimersByTime(6000)
     })
@@ -119,6 +121,142 @@ describe('useTearOff', () => {
     )
   })
 
+  it('lands on the boundary even when the timer resolves early', () => {
+    // The other half of moving the margin out of the delay. While the hook
+    // fired a second late, `Date.now()` was always past `next` and the
+    // assignment could not be wrong; now the schedule is exact and the `max`
+    // carries that guarantee by itself.
+    //
+    // Nothing else here can see it. `advanceTimersByTime` lands the clock on
+    // exactly `next`, which makes `Math.max(Date.now(), next)` a no-op — so
+    // every other test passes with the max removed, the same blind spot the
+    // `delay` floor has. An early resolution has to be built rather than
+    // waited for: take the hook's own callback, put the clock a millisecond
+    // short of the boundary, and fire it by hand.
+    //
+    // A millisecond short is not hypothetical. The margin existed because
+    // `itemState` compares with `>=`, so a `now` even fractionally short of
+    // `next` reads as 'cart' — and then this hook's callers disagree with
+    // every caller reading the live clock, which is the bug the margin was
+    // there to prevent and this line now prevents instead.
+    const endsAt = '2026-07-28T12:00:05'
+    const next = Date.parse('2026-07-28T12:00:05Z')
+    const spy = vi.spyOn(globalThis, 'setTimeout')
+    renderHarness([makeItem({ purchase_ends_at: endsAt })])
+
+    // Picked by its delay rather than by position: RTL schedules through
+    // setTimeout too, so `.at(-1)` would be a guess about whose call came last.
+    //
+    // A range rather than `=== 5000`, because `fakeTimers.shouldAdvanceTime`
+    // is on globally (vite.config.ts) — the faked clock keeps moving with real
+    // time, so a few milliseconds can elapse between `setSystemTime` and the
+    // effect reading `Date.now()`, and the delay comes out just under. Nothing
+    // else in this render schedules anywhere near 5s.
+    const scheduled = spy.mock.calls.find(
+      (call) =>
+        typeof call[1] === 'number' && call[1] > 4000 && call[1] <= 5000,
+    )?.[0]
+    expect(typeof scheduled).toBe('function')
+
+    vi.setSystemTime(next - 1)
+    act(() => {
+      ;(scheduled as () => void)()
+    })
+
+    expect(currentNow()).toBe(next)
+    spy.mockRestore()
+  })
+
+  it('re-checks rather than arriving when the boundary is past the cap', () => {
+    // MAX_DELAY_MS turns a boundary past the daily scale into a re-check —
+    // why that value, and why not a claim about timer reliability, is on the
+    // constant itself; there is no second copy of the rationale here to drift
+    // out of step with it.
+    //
+    // What this test owns is that "re-check" stays *harmless*, which depends
+    // entirely on the callback declining to claim it arrived: a capped timer
+    // fires short of `next`, so assigning `next` would put `now` in the future
+    // — and then `find(at > now)` returns undefined, nothing reschedules, and
+    // the item reads 'bought' up to 24h early and stays that way. The cap
+    // would have turned a far boundary from harmless into permanent.
+    //
+    // Reachable with valid data, not just a corrupt row: `tears_off_at_for`
+    // stamps the next Madrid midnight, so a trip opened just after midnight is
+    // already ~24h out, and `next - clock` is measured against the *client's*
+    // clock — a device running slow by a minute tips it over.
+    const endsAt = '2026-07-29T18:00:00' // 30h past the 12:00 mount
+    const next = Date.parse('2026-07-29T18:00:00Z')
+    const mounted = Date.parse('2026-07-28T12:00:00Z')
+    const DAY = 24 * 60 * 60 * 1000
+    renderHarness([makeItem({ purchase_ends_at: endsAt })])
+
+    act(() => {
+      vi.advanceTimersByTime(DAY)
+    })
+    // Two assertions because one of them cannot tell the two failures apart.
+    // `toBeLessThan(next)` alone is satisfied just as well by *no timer having
+    // fired* — which is what deleting the `Math.min` produces — so on its own
+    // it pins "did not arrive" while leaving the cap itself unpinned. Verified:
+    // with the cap removed and `arrives` untouched, this test stayed green.
+    //
+    // The lower bound is what says the capped schedule actually fired early.
+    // It is safe against `shouldAdvanceTime` drift because the drift only ever
+    // pushes the schedule later: the effect reads `clock >= mounted`, so the
+    // timer fires at `>= mounted + DAY`.
+    expect(currentNow()).toBeGreaterThanOrEqual(mounted + DAY)
+    // ...and it did not pretend to have arrived.
+    expect(currentNow()).toBeLessThan(next)
+
+    // And it is still ticking: the effect re-ran and scheduled the remainder.
+    act(() => {
+      vi.advanceTimersByTime(6 * 60 * 60 * 1000)
+    })
+    expect(currentNow()).toBeGreaterThanOrEqual(next)
+  })
+
+  it('keeps re-checking a boundary more than two caps away', () => {
+    // The capped branch is a loop, not a single retry, and nothing above walks
+    // it twice. It only makes progress because `now` can never run ahead of
+    // the live clock in this branch — the overshoot the `arrives` max can
+    // introduce is bounded by a timer's early-resolution slack — so each pass
+    // advances a full cap and `setNow` never hands React the value it already
+    // holds. If it did, React would bail out, no effect would re-run, and the
+    // clock would stop silently two days short.
+    //
+    // 60h, not 48h. `arrives` is `remaining <= MAX_DELAY_MS`, so a boundary
+    // exactly two caps out takes the *arriving* branch on its second pass —
+    // making the walk capped → arriving, which is what the 30h test above
+    // already covers. A remainder is what forces a second capped pass.
+    // Confirmed by throwing on the second capped entry: at 48h it never
+    // fires, at 60h it does.
+    const endsAt = '2026-07-31T00:00:00' // 60h out: two full caps, then 12h
+    const next = Date.parse('2026-07-31T00:00:00Z')
+    const mounted = Date.parse('2026-07-28T12:00:00Z')
+    const DAY = 24 * 60 * 60 * 1000
+    renderHarness([makeItem({ purchase_ends_at: endsAt })])
+
+    act(() => {
+      vi.advanceTimersByTime(DAY)
+    })
+    expect(currentNow()).toBeGreaterThanOrEqual(mounted + DAY)
+    expect(currentNow()).toBeLessThan(next)
+
+    // The second capped pass — the one this test exists for. A stall here
+    // (`setNow` handed the value React already holds, so React bails out and
+    // no effect re-runs) leaves `now` parked on the first cap, and only this
+    // lower bound can see it.
+    act(() => {
+      vi.advanceTimersByTime(DAY)
+    })
+    expect(currentNow()).toBeGreaterThanOrEqual(mounted + 2 * DAY)
+    expect(currentNow()).toBeLessThan(next)
+
+    act(() => {
+      vi.advanceTimersByTime(12 * 60 * 60 * 1000)
+    })
+    expect(currentNow()).toBeGreaterThanOrEqual(next)
+  })
+
   it('never asks for a negative delay', () => {
     // The floor on `delay` is invisible through the DOM: a negative delay and
     // a zero one both fire on the next tick, so the catch-up case above passes
@@ -145,8 +283,19 @@ describe('useTearOff', () => {
     const delays = spy.mock.calls
       .map((call) => call[1])
       .filter((d): d is number => typeof d === 'number')
-    expect(delays).not.toHaveLength(0)
-    expect(delays.filter((d) => d < 0)).toEqual([])
+    // One assertion rather than a non-vacuity guard plus a filter, because
+    // that pair could both go vacuous together: any stray captured call
+    // satisfied `not.toHaveLength(0)`, and the filter is empty when the
+    // hook's own call is missing just as it is when the call was floored. A
+    // React or jsdom bump that introduced one stray setTimeout inside this
+    // `act()` would leave the test green while it pinned nothing.
+    //
+    // `Math.min` is strictly stronger on all three: the floored call is
+    // exactly 0, an unfloored one is negative, and `Math.min()` of an empty
+    // array is Infinity. It also pins the *selection* — reverting `find` to
+    // compare against `clock` skips this already-past boundary, and the only
+    // delay left is the positive wait for the next one.
+    expect(Math.min(...delays)).toBe(0)
     spy.mockRestore()
   })
 

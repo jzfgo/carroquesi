@@ -44,8 +44,3 @@ export function itemState(item: ListItem, now: number = Date.now()): ItemState {
   if (ends === null) return 'cart'
   return now >= ends ? 'bought' : 'cart'
 }
-
-/** What the progress bar counts. An item in the cart is shopping done. */
-export function isInCart(item: ListItem, now: number = Date.now()): boolean {
-  return itemState(item, now) === 'cart'
-}

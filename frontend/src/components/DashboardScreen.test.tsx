@@ -747,6 +747,172 @@ describe('DashboardScreen — offline', () => {
       ).toBeInTheDocument(),
     )
     expect(api.createList).not.toHaveBeenCalled()
+    // The toast says to come back with a connection, so there has to be
+    // something to come back to. This is the half the guard used to get
+    // wrong: it refused the write and discarded the name in the same breath.
+    expect(screen.getByPlaceholderText(/nombre/i)).toHaveValue('Costco')
+  })
+
+  // The other way a create fails to happen. Offline is refused before the
+  // request; this one is refused by the server, and until the `catch` existed
+  // it was the only path that said nothing at all — the rejection escaped
+  // through `void handleSubmit()` as an unhandled one, the name survived by
+  // accident of the early return, and the user was left with a filled-in card
+  // and no reason for it.
+  it('says so when the server refuses to create the list', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    vi.mocked(api.createList).mockRejectedValue(new Error('boom'))
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+
+    await openCreateAndSubmit('Costco')
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/no se pudo confirmar si se creó la lista/i),
+      ).toBeInTheDocument(),
+    )
+    // Same promise the offline guard makes: the message is only worth reading
+    // if the work it refers to is still on screen.
+    expect(screen.getByPlaceholderText(/nombre/i)).toHaveValue('Costco')
+    expect(screen.getByRole('button', { name: /crear/i })).toBeEnabled()
+  })
+
+  // The half the wording cannot do on its own. A rejection does not mean the
+  // write was refused — the response can be lost after the commit — and with
+  // no idempotency key on `create_list` and no unique constraint on the name,
+  // a user who retries on a false "no" ends up with two identical lists. So
+  // the failure path refetches: if the list did land it appears underneath the
+  // toast, which is the only way the screen can contradict a message the code
+  // has no way to make definite.
+  it('refetches after a failed create, in case the write landed anyway', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    vi.mocked(api.createList).mockRejectedValue(new Error('boom'))
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+    expect(api.getLists).toHaveBeenCalledTimes(1)
+
+    await openCreateAndSubmit('Costco')
+
+    // Exactly 2: the fetch on mount, then the one the catch asks for. Pinning
+    // the count rather than "was called" keeps this from passing on the mount
+    // fetch alone.
+    await waitFor(() => expect(api.getLists).toHaveBeenCalledTimes(2))
+  })
+
+  // The toast must not wait on the refetch. `apiFetch` has no timeout, so on
+  // the lost-response case this whole branch is for, the follow-up `getLists`
+  // hangs as well — and refetching first would leave the card disabled and
+  // silent for as long as the browser takes to give up.
+  //
+  // Asserting the *order* needs the refetch held open, because once everything
+  // settles both orderings look identical: swapping the two lines left all 56
+  // tests green before this one existed.
+  it('says something before the refetch it cannot time comes back', async () => {
+    let releaseRefetch!: (v: unknown) => void
+    vi.mocked(api.getLists)
+      .mockResolvedValueOnce(twoLists as never)
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          releaseRefetch = resolve
+        }) as never,
+      )
+    vi.mocked(api.createList).mockRejectedValue(new Error('boom'))
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+
+    await openCreateAndSubmit('Costco')
+
+    // The refetch is still in flight and the message is already on screen.
+    await waitFor(() =>
+      expect(
+        screen.getByText(/no se pudo confirmar si se creó la lista/i),
+      ).toBeInTheDocument(),
+    )
+    expect(api.getLists).toHaveBeenCalledTimes(2)
+
+    // Awaited, not fired and forgotten. Releasing without waiting lets the
+    // resolution continuation — applyLists → setLists → saveDashboardCache —
+    // run in a microtask after the test body returns, outside `act()`. And the
+    // wait pays for itself: a settled refetch releasing `creating` is the other
+    // half of the trade that holds it open, and nothing else asserts it.
+    releaseRefetch(twoLists)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /crear/i })).toBeEnabled(),
+    )
+  })
+
+  // `silent` is not defensive — it is load-bearing on a reachable path, and
+  // the suite could not see it because jsdom's localStorage always accepts a
+  // write. That made the earlier green mutation a fact about the fixture
+  // rather than about the code.
+  //
+  // `saveDashboardCache` swallows its own failure, so with storage blocked the
+  // mount fetch still renders the screen and `loadDashboardCache` returns null
+  // from then on. A failed create then refetches uncached; if that refetch
+  // also fails, the default (non-silent) argument sets `fetchError`, whose
+  // early return swaps the screen for the retry state — unmounting the toast
+  // this path exists to show.
+  it('keeps the message on screen when storage is unavailable', async () => {
+    // The instance, not `Storage.prototype` — and the reason is `vitest.setup`,
+    // not jsdom. That file replaces `globalThis.localStorage` with a plain
+    // object literal (a Node 25 workaround), so what the app touches is not a
+    // `Storage` at all and the prototype is unrelated to it. A prototype spy
+    // therefore installs cleanly, never fires, and lets every write through.
+    //
+    // Worth stating as the shim rather than as a fact about jsdom: jsdom does
+    // expose `setItem` on `Storage.prototype`, so the prototype form is
+    // correct in a plain jsdom project — and the shim calls itself temporary,
+    // so when it goes, this reason goes with it.
+    const setItem = vi
+      .spyOn(window.localStorage, 'setItem')
+      .mockImplementation(() => {
+        throw new Error('quota')
+      })
+    vi.mocked(api.getLists)
+      .mockResolvedValueOnce(twoLists as never)
+      .mockRejectedValueOnce(new Error('offline too'))
+    vi.mocked(api.createList).mockRejectedValue(new Error('boom'))
+
+    render(<DashboardScreen />)
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+
+    // The fixture only means anything if the write actually failed. Both
+    // `silent` branches in `fetchLists` sit behind `!cached`, so a spy that
+    // quietly stops intercepting leaves a cache populated, puts the flag back
+    // out of reach, and hands back a green run from a test no longer testing
+    // its own name.
+    //
+    // Mechanism *and* state, because neither alone discriminates. The spy
+    // assertion is independent of the cache key and the user id — both
+    // literals here, both derived in the source, so renaming either would make
+    // a lone `toBeNull` vacuously true while the app is happily cached. The
+    // `toBeNull` catches the reverse: a spy that fired but something else
+    // repopulating the cache.
+    //
+    // Position matters and cannot be seen from the line: after the mount
+    // `waitFor`, a null means the write threw, because `saveDashboardCache`
+    // runs in the same synchronous block as the `applyLists` that paints
+    // "Mercado". Hoisted above `render` it would only restate `beforeEach`.
+    expect(setItem).toHaveBeenCalled()
+    expect(localStorage.getItem('cqs_dashboard_cache_u1')).toBeNull()
+
+    await openCreateAndSubmit('Costco')
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(/no se pudo confirmar si se creó la lista/i),
+      ).toBeInTheDocument(),
+    )
+    // Not the retry screen: its early return renders no Toast at all, so the
+    // message above would never have been readable.
+    expect(
+      screen.queryByRole('button', { name: /reintentar/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText('Mercado')).toBeInTheDocument()
   })
 
   it('will not submit feedback without a connection, and says why', async () => {

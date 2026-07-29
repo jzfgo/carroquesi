@@ -332,14 +332,66 @@ export function DashboardScreen() {
     void fetchLists()
   }, [fetchLists])
 
+  // Returns whether the list was created, because CreateListCard clears the
+  // name it holds on the way back and must be able to tell "it didn't happen"
+  // from "it worked". The offline check sits here beside `handleFeedbackSubmit`
+  // rather than in the card, so `isOffline` stays a single authority.
+  //
+  // Refusal and failure both answer `false`, and both keep what was typed.
+  // That is the safe side of each: offline *knows* no list exists, and a
+  // rejection cannot rule it out.
+  //
+  // Cannot rule it out is the operative part, and it is why the failure toast
+  // does not say the list was not created. `apiFetch` rejects the same way
+  // whether the server refused before writing or committed and lost the
+  // response on the way back — and `create_list` has no idempotency key and
+  // `lists.name` no unique constraint, so a user who believes a definite "no"
+  // and presses Crear again gets two lists with the same name and nothing to
+  // explain it. The message states what is actually known.
+  //
+  // The refetch is the other half. If the write did land, it puts the list on
+  // screen underneath the message, so the ambiguity resolves itself in the one
+  // direction the copy cannot.
+  //
+  // The toast goes first, and the order is the point rather than an accident.
+  // `apiFetch` has no timeout, so on the case this whole branch exists for —
+  // a response lost in transport — the follow-up `getLists` hangs too, for as
+  // long as the browser takes to give up. Refetching first would hold the
+  // card's `creating` flag through all of it with nothing said, which is a
+  // dead button and silence on the one path that most needs an explanation.
+  // Both updates paint separately either way, so nothing is lost by saying it
+  // first. The `await` stays *after* the toast rather than being dropped:
+  // holding `creating` for the refetch is what stops a fast second tap
+  // creating the duplicate while the check is still in flight.
+  //
+  // `silent` is load-bearing here, not defensive. `saveDashboardCache`
+  // swallows its own failure, so when storage is unavailable — blocked for the
+  // origin, quota exceeded — the mount fetch still renders the screen and
+  // `loadDashboardCache` returns null forever after. In that session this
+  // refetch takes the uncached path, and without the flag a refetch that also
+  // fails sets `fetchError`, whose early return replaces the screen with the
+  // retry state and unmounts the `<Toast>` before it can be read. The message
+  // this commit exists to show would be the thing it destroyed.
+  //
+  // Only `createList` is inside the `try`. `fetchLists` settles on its own —
+  // its network path catches into `fetchError` — and widening the guard around
+  // it would report a create that *succeeded* as a failure, leaving the card
+  // holding a name whose list already exists.
   const handleCreate = useCallback(
     async (name: string) => {
       if (isOffline) {
         setToast('No disponible sin conexión')
-        return
+        return false
       }
-      await createList(getToken, { name, emoji: randomEmoji() })
+      try {
+        await createList(getToken, { name, emoji: randomEmoji() })
+      } catch {
+        setToast('No se pudo confirmar si se creó la lista')
+        await fetchLists(true)
+        return false
+      }
       await fetchLists()
+      return true
     },
     [getToken, fetchLists, isOffline],
   )

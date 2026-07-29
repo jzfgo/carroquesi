@@ -2,10 +2,35 @@ import { useEffect, useState } from 'react'
 import { parseNaiveUtc } from '../lib/naiveUtc'
 import type { ListItem } from '../types'
 
-// Caps the scheduled delay so a garbage `purchase_ends_at` (some bad row far
-// in the future) yields a harmless re-check instead of racing a 32-bit
-// `setTimeout` overflow. Real boundaries are always under 24h away, so this
-// never engages for legitimate trips.
+// Caps the scheduled delay, so a boundary further out than this yields a
+// re-check rather than one long wait.
+//
+// The value comes from the domain rather than the platform. Tear-off
+// boundaries are daily — `tears_off_at_for` stamps the next Madrid midnight —
+// so a day is the natural scale of `next - clock`, and the coarsest cap that
+// still bounds anything past it to a re-check or two.
+//
+// Deliberately *not* a claim about how long a `setTimeout` can be trusted.
+// The ordinary path waits out a whole boundary uncapped: a trip opened at
+// 00:01 schedules 23h59m and never re-checks. Any distrust of a day-long
+// timer would condemn that too, and this cap would be the wrong instrument
+// for it — it only ever engages past the daily scale, so it cannot be what
+// makes the common case safe.
+//
+// 32-bit overflow is a distant backstop, not the reason: it bites at 2^31−1
+// ms, about 24.9 days, some 25× beyond this.
+//
+// This used to say the cap "never engages for legitimate trips", and that
+// sentence was wrong in a way that cost a bug: it is exactly why assigning
+// `next` in the callback looked safe regardless of whether the timer had
+// reached it. `tears_off_at_for` stamps the *next* Madrid midnight, so a trip
+// opened at 00:01 local is already ~24h out on a correct clock — and
+// `next - clock` is measured against the *client's* clock, which the server
+// does not control. A phone lagging by a minute engages the cap on entirely
+// valid data.
+//
+// So the cap is ordinary, not exceptional, and what keeps it harmless is that
+// a capped timer declines to claim it arrived. See the `arrives` split below.
 const MAX_DELAY_MS = 24 * 60 * 60 * 1000
 
 /** The clock the cart rule is read against, advanced at each tear-off.
@@ -66,10 +91,9 @@ export function useTearOff(items: ListItem[]): number {
       .map(Number)
       .find((at) => at > now)
     if (next === undefined) return
-    // A second past the boundary, so itemState's comparison lands safely on
-    // the far side of it rather than racing the timer's own resolution. One
-    // already behind the live clock has nothing left to wait for, which is
-    // where the negative comes from.
+    // Exactly as long as the boundary is away, no margin. One already behind
+    // the live clock has nothing left to wait for, which is where the negative
+    // comes from.
     //
     // The `max` states that intent rather than producing it. Every runtime
     // this ships to clamps a non-positive delay to "as soon as possible"
@@ -78,8 +102,31 @@ export function useTearOff(items: ListItem[]): number {
     // a negative input and pass either way. `never asks for a negative delay`
     // in the tests pins it at the only place the difference exists, which is
     // the argument handed to setTimeout rather than anything that comes back.
-    const delay = Math.min(Math.max(next - clock + 1000, 0), MAX_DELAY_MS)
-    const id = setTimeout(() => setNow(Date.now()), delay)
+    const remaining = Math.max(next - clock, 0)
+    const delay = Math.min(remaining, MAX_DELAY_MS)
+    // The margin that used to sit in the delay lives here instead. Firing a
+    // second late did give itemState's `>=` a safe landing, but it also left a
+    // second in which this hook's `now` still said 'cart' while every caller
+    // reading the live clock — ItemList, ItemCard — already said 'bought'.
+    // That is the same two-clock split fixed in e7f0e71, just bounded at a
+    // second instead of lasting until midnight.
+    //
+    // Taking the max against `next` gets the safe landing without the wait:
+    // `now` sits exactly on the boundary even if the timer resolves a shade
+    // early, rather than a shade short of it.
+    //
+    // Only when the schedule was *not* capped, though. A capped timer fires
+    // short of `next` on purpose — it is a re-check, and it must not claim to
+    // have arrived. Assigning `next` there would put `now` ahead of the live
+    // clock by the whole overshoot, and since the next selection is
+    // `find(at > now)` it would then find nothing, schedule nothing, and leave
+    // the item reading 'bought' up to 24h early for good. That turns the cap
+    // from a safety net into the bug it was guarding against.
+    const arrives = remaining <= MAX_DELAY_MS
+    const id = setTimeout(
+      () => setNow(arrives ? Math.max(Date.now(), next) : Date.now()),
+      delay,
+    )
     return () => clearTimeout(id)
   }, [key, now])
 
