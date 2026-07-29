@@ -763,6 +763,69 @@ describe('the tear-off boundary under an open tab', () => {
       document.querySelector('.item-list__date-label-cost')?.textContent,
     ).toMatch(/4[,.]00/)
   })
+
+  it('empties the cart when the trip is closed rather than torn off', () => {
+    // The boundary does not arrive by waiting here — it arrives already past.
+    // `closed_at` replaces `tears_off_at` the moment a receipt is applied, and
+    // the 5s poll can only deliver it after the fact, so there is no timer to
+    // fire. Reachable in this phase: `reconcile_scan` closes a trip on receipt
+    // apply, with a list that has been open on screen since the morning.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-28T09:00:00Z'))
+    const inCart = makeItem({
+      id: '1',
+      purchased: true,
+      purchased_at: '2026-07-28T08:00:00',
+      purchase_id: 'p1',
+      purchase_ends_at: '2026-07-29T00:00:00', // tears off tonight
+      price: 4.0,
+    })
+    const stillToBuy = makeItem({ id: '2' })
+    const withItems = (items: ListItem[]) =>
+      vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+        ...emptyHookResult,
+        items,
+      })
+
+    withItems([inCart, stillToBuy])
+    const view = render(
+      <ListScreen listId="l1" listName="Test" listOwnerId="u1" />,
+    )
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '50',
+    )
+
+    // Six hours of shopping, then the five seconds the poll takes to notice.
+    // Tonight's tear-off timer has not fired and will not: the trip ends by
+    // being confirmed, not by lasting until midnight.
+    act(() => {
+      vi.advanceTimersByTime(6 * 60 * 60 * 1000 + 5000)
+    })
+
+    // Confirmed at 15:00; delivered at 15:00:05, already behind the clock.
+    withItems([
+      { ...inCart, purchase_ends_at: '2026-07-28T15:00:00' },
+      stillToBuy,
+    ])
+    act(() => {
+      view.rerender(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+    })
+    // The catch-up is scheduled, not synchronous — a setState straight from an
+    // effect is a cascading render. Its wait is zero, so a tick settles it.
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+
+    // One thing left to buy, and the confirmed shop is a ticket with a total.
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-valuenow',
+      '0',
+    )
+    expect(
+      document.querySelector('.item-list__date-label-cost')?.textContent,
+    ).toMatch(/4[,.]00/)
+  })
 })
 
 describe('receipt scan CTA', () => {

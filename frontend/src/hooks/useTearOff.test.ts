@@ -79,6 +79,46 @@ describe('useTearOff', () => {
     expect(currentNow()).toBeGreaterThanOrEqual(boundary)
   })
 
+  it('catches up when a boundary is replaced by one already in the past', () => {
+    // The transition none of the other tests make: no timer fires, and the
+    // boundary set changes to one that is *behind* the live clock. That is
+    // what closing a trip looks like from here — the server swaps
+    // `tears_off_at` for a `closed_at` it stamped a poll interval ago — and
+    // selecting "the next boundary after now" skips it, stranding the clock
+    // this hook hands out on the far side of an event that already happened.
+    const view = renderHarness([
+      makeItem({ purchase_ends_at: '2026-07-29T00:00:00' }), // tomorrow
+    ])
+    const mounted = Date.parse('2026-07-28T12:00:00Z')
+    expect(currentNow()).toBe(mounted)
+
+    // Three hours with the tab open. Tomorrow's timer has not fired, so the
+    // returned instant is still the mount instant — correct, so far.
+    act(() => {
+      vi.advanceTimersByTime(3 * 60 * 60 * 1000)
+    })
+    expect(currentNow()).toBe(mounted)
+
+    // "Cerrar compra", or a receipt applied. The poll delivers a boundary an
+    // hour behind us. Nothing is left to wait for; the clock must move anyway.
+    act(() => {
+      view.rerender(
+        createElement(Harness, {
+          items: [makeItem({ purchase_ends_at: '2026-07-28T14:00:00' })],
+        }),
+      )
+    })
+    // Scheduled rather than applied on the spot: setting state straight from
+    // an effect is a cascading render. The wait is zero, so one tick is all
+    // it takes — a frame, not a poll interval.
+    act(() => {
+      vi.advanceTimersByTime(1)
+    })
+    expect(currentNow()).toBeGreaterThanOrEqual(
+      Date.parse('2026-07-28T14:00:00Z'),
+    )
+  })
+
   it('schedules nothing when every trip has already ended', () => {
     const items = [
       makeItem({ purchase_ends_at: '2026-07-28T11:00:00' }), // an hour ago

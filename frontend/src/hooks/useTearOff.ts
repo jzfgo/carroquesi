@@ -50,14 +50,27 @@ export function useTearOff(items: ListItem[]): number {
     // is still the mount instant — and sizing the delay against it would fire
     // the timer as many hours late as the tab has been open.
     const clock = Date.now()
+    // Selected against `now` — the instant callers are reading against — and
+    // not against the live clock. A boundary can already be behind the live
+    // clock without any timer of ours having fired, because a boundary can be
+    // *replaced* by one in the past: closing a trip swaps its `tears_off_at`
+    // for a `closed_at` stamped at server time, which the 5s poll can only
+    // ever deliver after the fact. Selecting against `clock` would skip that
+    // boundary and strand `now` short of it until the next one comes round —
+    // and meanwhile the callers holding `now` say "in the cart" while every
+    // caller reading the live clock says "bought", which is worse than either
+    // answer on its own. Selecting against `now` makes it a wait of zero
+    // instead of a special case, and the assignment then moves `now` past it.
     const next = key
       .split(',')
       .map(Number)
-      .find((at) => at > clock)
+      .find((at) => at > now)
     if (next === undefined) return
     // A second past the boundary, so itemState's comparison lands safely on
-    // the far side of it rather than racing the timer's own resolution.
-    const delay = Math.min(next - clock + 1000, MAX_DELAY_MS)
+    // the far side of it rather than racing the timer's own resolution. One
+    // already behind the live clock has nothing left to wait for, and the
+    // floor is what lets the same line serve both.
+    const delay = Math.min(Math.max(next - clock + 1000, 0), MAX_DELAY_MS)
     const id = setTimeout(() => setNow(Date.now()), delay)
     return () => clearTimeout(id)
   }, [key, now])
