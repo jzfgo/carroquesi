@@ -1,6 +1,6 @@
 # Developer & Agent Guidelines (AGENTS.md)
 
-> `CLAUDE.md`, `GEMINI.md`, `PI.md`, and `PILENS.md` are symlinks to this file. Edit `AGENTS.md` directly.
+> `CLAUDE.md`, `GEMINI.md`, `PI.md`, `PILENS.md`, `.cursorrules`, and `.copilotrules` are symlinks to this file. Edit `AGENTS.md` directly.
 
 This file provides guidance to coding agents (such as Antigravity CLI, Claude Code, Codex CLI, OpenCode, Pi Coding Agent, etc.) and developers when working with code in this repository.
 
