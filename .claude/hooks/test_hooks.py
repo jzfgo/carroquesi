@@ -25,9 +25,9 @@ SUB_OPEN, SUB_CLOSE, BT = "$(", ")", chr(96)
 failures: list[str] = []
 evaluated = 0
 
-# The size of a run where nothing aborted. Compared at the end of every run,
-# so a suite that quietly shrinks fails instead of passing at the wrong size.
-# The reasoning, and what to do when it fails, are at the comparison.
+# The size of a run where every case ran. Compared at the end of every run, so
+# a suite that quietly shrinks fails instead of passing at the wrong size. The
+# reasoning, and what to do when it fails, are at the comparison.
 EXPECTED_ASSERTIONS = 68
 
 
@@ -549,6 +549,15 @@ if __name__ == "__main__":
     # thing a mutation run is read off. That has now happened twice, from
     # `check=True` on a fixture command and from an unguarded `json.loads`,
     # so catch it once here rather than guarding each new call site.
+    #
+    # Nothing in this file covers this block: no case reaches the abort
+    # catching, the delta, the size comparison or the hint below, so reverting
+    # any of them leaves the suite green. It is checked by running the file
+    # with a fault injected, which is how every claim in it was established
+    # and how the mutation evidence for the rest of the suite is produced —
+    # so the layer is exercised whenever anyone reads the suite's own results.
+    # Covering it from inside would mean re-invoking this file as a subprocess
+    # per case, doubling the runtime for its least load-bearing layer.
     aborted = False
     for suite in (
         test_enforce_worktrunk,
@@ -586,26 +595,29 @@ if __name__ == "__main__":
     # would re-baseline the suite to a truncated run and bless the truncation
     # for good. So the count stays and the instruction flips.
     #
-    # "At least part of it" because an abort in one suite and a deleted case in
-    # another can land in the same run, and these counts are cumulative, so
-    # nothing here can separate the two. The shrink shows up on its own once
-    # the abort is fixed.
+    # The abort branch claims no share of the delta, because `aborted` is a
+    # boolean and cannot support one. A suite that raises in teardown, after
+    # its last assertion, costs nothing — so an abort can sit above a delta it
+    # did not cause. The delta can also be a surplus rather than a shortfall,
+    # when cases were added and the constant was not bumped. "Not comparable"
+    # holds in every one of those; any share of the blame holds in none of
+    # them reliably.
     #
-    # An abort does not always shrink the run: a suite that raises in teardown,
-    # after its last assertion, leaves the count intact. Then this stays quiet,
-    # because there is nothing to report.
+    # An abort does not always shrink the run, for the teardown reason above.
+    # When it doesn't, the counts match and this stays quiet.
     #
     # Cost is one line whenever a case is added, which is the point — bumping
     # it is how you notice the count moved.
     print(f"\n{evaluated} assertions evaluated")
     if evaluated != EXPECTED_ASSERTIONS:
         hint = (
-            "an abort above accounts for at least part of it — do not re-baseline"
+            "A suite aborted above, so this count is not comparable — do not "
+            "re-baseline."
             if aborted
-            else "if that is intended, update the constant"
+            else "If that is intended, update the constant."
         )
         failures.append(
-            f"suite size: {evaluated} of {EXPECTED_ASSERTIONS} assertions ran; {hint}."
+            f"suite size: {evaluated} of {EXPECTED_ASSERTIONS} assertions ran. {hint}"
         )
     if failures:
         print(f"{len(failures)} FAILURE(S):")
