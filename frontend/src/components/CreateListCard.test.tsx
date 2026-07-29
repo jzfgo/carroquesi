@@ -91,6 +91,62 @@ describe('CreateListCard', () => {
     )
   })
 
+  // Collapsing abandons the submission — but the component is not unmounted by
+  // it. `!expanded` is a render branch, and DashboardScreen renders this card
+  // in a fixed position with no changing `key`, so the instance survives and
+  // its `creating` state survives with it.
+  //
+  // Which makes Escape the trap rather than the escape: on a create that never
+  // settles, it discards the typed name *and* leaves the card permanently
+  // unusable — button disabled, Enter guarded, nothing to explain either.
+  it('is usable again after escaping a create that never settles', async () => {
+    const onCreate = vi.fn().mockReturnValue(new Promise<boolean>(() => {}))
+    render(<CreateListCard onCreate={onCreate} />)
+    fireEvent.click(screen.getByRole('button'))
+    const input = screen.getByPlaceholderText(/nombre/i)
+    fireEvent.change(input, { target: { value: 'Costco' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
+
+    fireEvent.keyDown(input, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: /nueva lista/i }))
+    fireEvent.change(screen.getByPlaceholderText(/nombre/i), {
+      target: { value: 'Mercado' },
+    })
+
+    expect(screen.getByRole('button', { name: /crear/i })).toBeEnabled()
+  })
+
+  // The same root, at ordinary latency and with no hang at all. A create that
+  // resolves after the user has collapsed, reopened and retyped must not reach
+  // back into the card and clear it — that is JAV-61's own failure (typed work
+  // discarded) arriving through the door the fix did not cover.
+  it('does not let an abandoned create clear a name typed after it', async () => {
+    let resolveFirst!: (v: boolean) => void
+    const onCreate = vi.fn().mockReturnValue(
+      new Promise<boolean>((resolve) => {
+        resolveFirst = resolve
+      }),
+    )
+    render(<CreateListCard onCreate={onCreate} />)
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.change(screen.getByPlaceholderText(/nombre/i), {
+      target: { value: 'Costco' },
+    })
+    fireEvent.keyDown(screen.getByPlaceholderText(/nombre/i), { key: 'Enter' })
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
+
+    fireEvent.keyDown(screen.getByPlaceholderText(/nombre/i), { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: /nueva lista/i }))
+    fireEvent.change(screen.getByPlaceholderText(/nombre/i), {
+      target: { value: 'Mercado' },
+    })
+
+    resolveFirst(true)
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
+    expect(screen.getByPlaceholderText(/nombre/i)).toHaveValue('Mercado')
+  })
+
   it('ESC key collapses the input and clears the name', () => {
     render(<CreateListCard onCreate={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))

@@ -867,9 +867,11 @@ describe('DashboardScreen — offline', () => {
     // expose `setItem` on `Storage.prototype`, so the prototype form is
     // correct in a plain jsdom project — and the shim calls itself temporary,
     // so when it goes, this reason goes with it.
-    vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
-      throw new Error('quota')
-    })
+    const setItem = vi
+      .spyOn(window.localStorage, 'setItem')
+      .mockImplementation(() => {
+        throw new Error('quota')
+      })
     vi.mocked(api.getLists)
       .mockResolvedValueOnce(twoLists as never)
       .mockRejectedValueOnce(new Error('offline too'))
@@ -878,12 +880,24 @@ describe('DashboardScreen — offline', () => {
     render(<DashboardScreen />)
     await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
 
-    // The fixture only means anything if the write actually failed, and this
-    // is what says so. Both `silent` branches in `fetchLists` sit behind
-    // `!cached`, so a spy that quietly stops intercepting leaves a cache
-    // populated, puts the flag back out of reach, and hands back a green run
-    // from a test no longer testing its own name. State rather than mechanism,
-    // so it outlives any change in how the state gets built.
+    // The fixture only means anything if the write actually failed. Both
+    // `silent` branches in `fetchLists` sit behind `!cached`, so a spy that
+    // quietly stops intercepting leaves a cache populated, puts the flag back
+    // out of reach, and hands back a green run from a test no longer testing
+    // its own name.
+    //
+    // Mechanism *and* state, because neither alone discriminates. The spy
+    // assertion is independent of the cache key and the user id — both
+    // literals here, both derived in the source, so renaming either would make
+    // a lone `toBeNull` vacuously true while the app is happily cached. The
+    // `toBeNull` catches the reverse: a spy that fired but something else
+    // repopulating the cache.
+    //
+    // Position matters and cannot be seen from the line: after the mount
+    // `waitFor`, a null means the write threw, because `saveDashboardCache`
+    // runs in the same synchronous block as the `applyLists` that paints
+    // "Mercado". Hoisted above `render` it would only restate `beforeEach`.
+    expect(setItem).toHaveBeenCalled()
     expect(localStorage.getItem('cqs_dashboard_cache_u1')).toBeNull()
 
     await openCreateAndSubmit('Costco')
