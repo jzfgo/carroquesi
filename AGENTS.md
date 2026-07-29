@@ -86,7 +86,7 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 
 Run with `just frontend test-e2e` (alias: `pnpm test:e2e`). It runs against the **preview build**, not the dev server — changes must be built first.
 
-Visual regression: key screens are checked via `toHaveScreenshot()` (wrapped in the `expectScreenshot` helper in `fixtures.ts`), baselines committed under `frontend/tests/*-snapshots/`. Only `chromium`/`Mobile Chrome` carry baselines. Regenerate with `just frontend update-snapshots` (runs Docker, matching CI's Linux font rendering) — see `frontend/tests/README.md`.
+Visual regression: key screens are checked via `toHaveScreenshot()` (wrapped in the `expectScreenshot` helper in `fixtures.ts`), baselines committed under `frontend/tests/*-snapshots/`. Only `chromium`/`Mobile Chrome` carry baselines. Regenerate with `just frontend update-snapshots` (runs Docker, matching CI's Linux font rendering) — see `frontend/tests/README.md`. Two rules there are easy to breach by accident: the tolerance is an absolute pixel count, never a ratio, and anything a screenshot shows must be deterministic — pin the clock before capturing a screen that prints a date.
 
 The remaining gotchas — ports, dev-auth setup, the `loadEnvFile()` `${VAR}` non-expansion, and the browser matrix — are in `frontend/AGENTS.md`. Read that file directly if your harness does not load nested guidance automatically.
 

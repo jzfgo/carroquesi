@@ -36,6 +36,23 @@ const THEMES = [
   { name: 'dark', colorScheme: 'dark' as const },
 ]
 
+/**
+ * Marking an item purchased stamps it with the browser's clock, and the card
+ * then prints that date. Left on the real clock, every screenshot here says
+ * whatever today happens to be, so the committed baselines describe the day
+ * they were written and drift a little further apart every day after. Pin it,
+ * and the date becomes part of the fixture like any other seeded value.
+ *
+ * Midday keeps the rendered day the same whether the run sits in UTC or in a
+ * European summer offset. Purchases are still stamped "now", so the same-day
+ * price-deletion guard sees exactly what it did before.
+ */
+const FIXED_NOW = new Date('2026-07-15T10:00:00Z')
+
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW)
+})
+
 for (const { name: themeName, colorScheme } of THEMES) {
   test.describe(`${themeName} mode`, () => {
     test.use({ colorScheme })

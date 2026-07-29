@@ -8,6 +8,16 @@ Key screens are also checked for pixel-level visual regressions via Playwright's
 
 Baseline PNGs live alongside each spec file (e.g. `smoke.spec.ts-snapshots/`) and are committed to git.
 
+### Tolerance
+
+`playwright.config.ts` allows a fixed number of differing pixels per screenshot (`maxDiffPixels`), not a share of the image (`maxDiffPixelRatio`). The distinction matters more than it looks. A ratio scales with the capture, so the 1280×720 desktop shot was allowed 921 differing pixels while the 360-wide mobile shot got 263 — for the same screen. Since a small text button costs around 600 pixels, desktop could gain or lose one and still pass. `fullPage` compounded it: a taller page bought a bigger allowance for free.
+
+A baseline that passes while depicting the wrong UI does not heal. It becomes the reference for every later run, so the missing element stays invisible and the next change near it is measured against a picture that was already wrong.
+
+### Anything the screenshot shows must be pinned
+
+A screenshot captures whatever was on screen, including today's date. `purchase-lifecycle.spec.ts` and `receipt-scanning.spec.ts` both pin the browser clock with `page.clock.setFixedTime` for exactly this reason: purchase dates are stamped client-side, so on a real clock every baseline would describe the day it was written and drift a little further from the truth every day after. Any new spec that screenshots a date, a relative time, or a random value needs the same treatment.
+
 ### Regenerating baselines
 
 Baselines must be generated on the same OS Playwright's CI step runs on (Ubuntu), not natively on macOS — font rendering differs enough between platforms to produce false-positive diffs, and Playwright suffixes the generated filename by platform (`-linux.png` vs `-darwin.png`), so a macOS-generated baseline is simply never picked up by CI.
@@ -26,6 +36,8 @@ Two things are deliberately kept **out** of the `frontend/` bind mount, each via
 - pnpm's content-addressable store → `carroquesi-playwright-pnpm-store`, mounted at `/pnpm-store` with `store-dir` pointed there via `pnpm --config.store-dir=/pnpm-store install` (pnpm v11 defaults the store to a project-relative `.pnpm-store/` rather than a `$HOME`-based path — the `npm_config_store_dir` env var is _not_ honored for this key, the explicit `--config.store-dir` flag is required). Without it, the container dumps a multi-hundred-MB untracked `.pnpm-store/` into the bind-mounted `frontend/` on the host.
 
 Only source files and the generated PNGs cross the bind mount; both volumes are cached across runs, so only the first invocation pays the full `pnpm install` cost. If either ever gets into a bad state, drop it: `docker volume rm carroquesi-playwright-node-modules carroquesi-playwright-pnpm-store`.
+
+`--update-snapshots` only rewrites a baseline whose comparison **failed**, so it cannot repair one that is passing but wrong. If you have reason to think a baseline is stale, delete it and re-run: a _missing_ snapshot is always written. Prefer that to `--update-snapshots=all`, which also rewrites every unrelated screen with whatever noise that one run happened to produce.
 
 Commit the updated PNGs **in the same PR** as the UI change that caused them to change — a visual diff failing on an unrelated PR is a real regression signal, not noise to dismiss.
 
