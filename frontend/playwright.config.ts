@@ -45,11 +45,14 @@ export default defineConfig({
     // developer's machine and the runner, which is how an assertion that no
     // correct value could satisfy sat green in CI for as long as it did.
     //
-    // Madrid rather than UTC on purpose. The app is Spanish, so every real user
-    // sits at +1 or +2. UTC is the single arrangement where local midnight and
-    // UTC midnight coincide: no user has it, and it is the one place an offset
-    // bug cannot show itself. Pinning here also decouples the browser from the
-    // runner's own TZ, which Playwright does not touch.
+    // Madrid rather than UTC on purpose. The app is Spanish, so almost every
+    // real user sits at +1 or +2 — the Canaries are the exception, on +0 in
+    // winter. What rules UTC out is not that nobody is there but that it is the
+    // one offset where local midnight and UTC midnight coincide, so it is the
+    // one place an offset bug cannot show itself. Any nonzero offset exposes the
+    // bug class; Madrid is the one most users are on. Pinning here also
+    // decouples the browser from the runner's own TZ, which Playwright does not
+    // touch.
     timezoneId: 'Europe/Madrid',
     // These specs test app/API contract behavior, not PWA/offline behavior — the
     // active service worker (devOptions.enabled: true) otherwise proxies fetches

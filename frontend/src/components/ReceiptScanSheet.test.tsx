@@ -641,8 +641,23 @@ describe('barcode scan into a create row', () => {
 // lib/receiptDate.ts is relative to today, so a literal would silently change
 // verdict as real-world time passes.
 
-const daysAway = (delta: number) =>
-  new Date(Date.now() + delta * 86_400_000).toISOString().slice(0, 10)
+// The day has to be the *local* one. `isReceiptDateWorthConfirming` counts whole
+// local calendar days, so a UTC-derived day disagrees with it for the hours
+// either side of local midnight: at 00:30 in Madrid, `toISOString().slice(0, 10)`
+// still reads yesterday, which makes `daysAway(-3)` four local days back and
+// tips a test written for the inside of the window to the outside of it. That
+// window is about two hours a day in summer, and never in UTC — so it passes in
+// CI and fails on a developer's machine, which is the wrong way round.
+//
+// Arithmetic on the date field rather than on the timestamp for the same reason:
+// adding 86_400_000 ms is 24 hours, and a DST boundary makes that a different
+// thing from "a day earlier on the calendar".
+const daysAway = (delta: number) => {
+  const d = new Date()
+  d.setDate(d.getDate() + delta)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
 
 const openEditor = () =>
   fireEvent.click(screen.getByRole('button', { name: 'Corregir fecha' }))

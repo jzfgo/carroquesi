@@ -75,6 +75,10 @@ for (const { name: themeName, colorScheme } of THEMES) {
       // the rule moves about 75 pixels, well inside the tolerance, so the
       // affordance can leave the screen with all twelve baselines still green.
       // Assert the computed style, which is what actually produces the pixels.
+      // This does pin which element carries the rule: text-decoration paints
+      // onto descendants without computing on them, so moving the rule to an
+      // ancestor would keep the line visible and fail here anyway. That is a
+      // loud failure rather than a silent one, which is the right way round.
       await expect(card.locator('.item-card__name')).toHaveCSS(
         'text-decoration-line',
         'line-through',
