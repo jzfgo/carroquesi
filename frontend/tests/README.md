@@ -24,9 +24,9 @@ One thing to know before you pin a spec that also adds items: `useListItems` bui
 
 ### Regenerating baselines
 
-Baselines must be generated in the container, never on your own machine — including when your own machine already runs Linux. Font packages differ enough between distributions to produce false-positive diffs.
+Baselines must be generated in the container, never on your own machine. Every committed PNG came out of that one image, so it is the only machine whose output the rest of them still agree with. That holds whatever you run, Ubuntu included — the image carries a fixed set of font packages, which is not the set a desktop install of the same distribution ends up with.
 
-On macOS the mistake announces itself: Playwright suffixes the filename by platform, so a `-darwin.png` is simply never picked up by CI. On Linux nothing announces it. The host writes the same `-linux.png` CI expects, so a natively generated baseline is picked up and quietly disagrees. Measured once, on an Arch-based host against the Ubuntu-based container: the `chromium` screens landed within 68 pixels of the container's, while the `Mobile Chrome` ones were out by up to 1046 — same engine, same suite, different font packages. 68 would pass the gate. That is the silent-wrong-baseline failure this page is otherwise about, arriving by a second route.
+On macOS the mistake announces itself: Playwright suffixes the filename by platform, so a `-darwin.png` is simply never picked up by CI. On Linux nothing announces it. The host writes the same `-linux.png` CI expects, so a natively generated baseline is picked up and quietly disagrees. Measured once, on an Arch-based host against the Ubuntu-based container: the `chromium` screens landed within 68 pixels of the container's, while the `Mobile Chrome` ones were out by up to 1046. 68 would pass the gate. That is the silent-wrong-baseline failure this page is otherwise about, arriving by a second route.
 
 Run:
 

@@ -38,7 +38,7 @@ test-watch:
 test-e2e:
     {{ nvm-exec }} pnpm test:e2e
 
-# Regenerate Playwright visual-regression baselines in a container (matches CI's Linux font rendering)
+# Regenerate Playwright visual-regression baselines in the container they all come from
 update-snapshots:
     #!/usr/bin/env bash
     set -euo pipefail
