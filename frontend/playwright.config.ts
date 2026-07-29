@@ -56,10 +56,10 @@ export default defineConfig({
   // 250 is known to be enough, not known to be tight. CI passes every screen
   // on a runner that installs its own fonts, while the baselines come out of a
   // container, so the gap between those two machines is at most 250 — a run
-  // that passes cannot say how much less. What bounds the number from above is
-  // the signal it has to preserve, and that button is the only part of it
-  // anyone has measured. Smaller changes exist, so treat 250 as a number to
-  // lower, never to raise.
+  // that passes cannot say how much less. What bounds it from above is the
+  // signal it has to preserve, and 250 does not preserve all of it: deleting
+  // the strikethrough from a purchased item moves about 75 pixels and passes
+  // today. So treat this as a number to lower, never to raise.
   expect: {
     toHaveScreenshot: { maxDiffPixels: 250 },
   },

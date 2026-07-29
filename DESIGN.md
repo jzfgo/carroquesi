@@ -643,11 +643,13 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 
 Two consequences worth stating plainly:
 
-- **Removing the strikethrough will break every committed Playwright visual
-  baseline in `purchase-lifecycle.spec.ts-snapshots/`** — all three screens
-  there show a purchased row. Regenerate with
-  `just frontend update-snapshots`, which runs the container every committed
-  baseline came out of. Never regenerate on your own machine, whatever it runs.
+- **Removing the strikethrough will not break the Playwright visual baselines,
+  and that is the problem.** Measured: it changes only the four
+  `item-purchased-*` files, by about 75 pixels each, which is inside the budget
+  the suite allows. Every test stays green while those four quietly stop
+  describing the screen. Regenerate them on purpose rather than waiting to be
+  told, with `just frontend update-snapshots`, which runs the container every
+  committed baseline came out of. Never regenerate on your own machine, whatever it runs.
   Linux is the trap rather than macOS: it writes the same `-linux.png` CI
   expects, so a native baseline is accepted and quietly disagrees.
 - **The reference implementation of the sheet model is not in this repository.**
