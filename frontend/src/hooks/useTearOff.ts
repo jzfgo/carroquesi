@@ -3,7 +3,14 @@ import { parseNaiveUtc } from '../lib/naiveUtc'
 import type { ListItem } from '../types'
 
 // Caps the scheduled delay, so a boundary further out than this yields a
-// re-check instead of racing a 32-bit `setTimeout` overflow.
+// re-check rather than one long wait.
+//
+// A day is chosen because a `setTimeout` is not a trustworthy instrument over
+// that span: background throttling, suspend and resume, and system clock
+// adjustments all land comfortably inside a 24h wait. Re-reading the clock
+// once a day costs one timer and removes the assumption. 32-bit overflow is a
+// backstop rather than the reason — that bites at 2^31−1 ms, about 24.9 days,
+// some 25× further out than this, so it cannot account for the number.
 //
 // This used to say the cap "never engages for legitimate trips", and that
 // sentence was wrong in a way that cost a bug: it is exactly why assigning

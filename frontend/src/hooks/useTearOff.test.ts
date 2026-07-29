@@ -219,8 +219,15 @@ describe('useTearOff', () => {
     // advances a full cap and `setNow` never hands React the value it already
     // holds. If it did, React would bail out, no effect would re-run, and the
     // clock would stop silently two days short.
-    const endsAt = '2026-07-30T12:00:00' // 48h out: two full caps, exactly
-    const next = Date.parse('2026-07-30T12:00:00Z')
+    //
+    // 60h, not 48h. `arrives` is `remaining <= MAX_DELAY_MS`, so a boundary
+    // exactly two caps out takes the *arriving* branch on its second pass —
+    // making the walk capped → arriving, which is what the 30h test above
+    // already covers. A remainder is what forces a second capped pass.
+    // Confirmed by throwing on the second capped entry: at 48h it never
+    // fires, at 60h it does.
+    const endsAt = '2026-07-31T00:00:00' // 60h out: two full caps, then 12h
+    const next = Date.parse('2026-07-31T00:00:00Z')
     const mounted = Date.parse('2026-07-28T12:00:00Z')
     const DAY = 24 * 60 * 60 * 1000
     renderHarness([makeItem({ purchase_ends_at: endsAt })])
@@ -231,8 +238,18 @@ describe('useTearOff', () => {
     expect(currentNow()).toBeGreaterThanOrEqual(mounted + DAY)
     expect(currentNow()).toBeLessThan(next)
 
+    // The second capped pass — the one this test exists for. A stall here
+    // (`setNow` handed the value React already holds, so React bails out and
+    // no effect re-runs) leaves `now` parked on the first cap, and only this
+    // lower bound can see it.
     act(() => {
       vi.advanceTimersByTime(DAY)
+    })
+    expect(currentNow()).toBeGreaterThanOrEqual(mounted + 2 * DAY)
+    expect(currentNow()).toBeLessThan(next)
+
+    act(() => {
+      vi.advanceTimersByTime(12 * 60 * 60 * 1000)
     })
     expect(currentNow()).toBeGreaterThanOrEqual(next)
   })
