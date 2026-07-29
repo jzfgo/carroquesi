@@ -134,6 +134,61 @@ def open_trip(session: Session, list_id: str, now: datetime | None = None) -> Pu
     ).first()
 
 
+# How far back a client-supplied tap time may reach. Long enough for a phone
+# that was offline over a holiday, short enough that a broken clock cannot
+# invent a trip in another year.
+MAX_BACKDATE = timedelta(days=30)
+
+
+def no_future(supplied: datetime, now: datetime) -> datetime:
+    """Refuse an instant later than `now` — the one rule every purchase
+    timestamp must obey, no matter which router is asking.
+
+    Deliberately just the upper bound. There is no tolerance for a fast
+    client clock: five minutes of slack lets a tap at 23:57 Madrid arrive
+    claiming 00:02, which computes *tomorrow's* tear-off while tonight's trip
+    is still open — two trips would then satisfy "unreconciled and not yet
+    torn off" and open_trip() would pick one arbitrarily. There is no such
+    thing as a purchase in the future, so the server's clock wins.
+
+    No lower bound here on purpose — that is what distinguishes this from
+    `tap_time`. A live tap's clock can be wrong in a way a receipt's date
+    cannot: a receipt is a record of something that already happened, however
+    long ago, and a shopper scanning a receipt found in a drawer is not a
+    broken clock. Bounding this the same way `tap_time` bounds a tap would
+    silently move `purchased_at` for any receipt older than `MAX_BACKDATE`,
+    which is exactly the reconciliation this endpoint exists to do correctly.
+    """
+    if supplied.tzinfo is not None:
+        supplied = supplied.astimezone(UTC).replace(tzinfo=None)
+    return min(supplied, now)
+
+
+def tap_time(supplied: datetime | None, now: datetime) -> datetime:
+    """The instant to file a *live* purchase tap under, clamped against a
+    wrong clock in both directions.
+
+    The upper bound is `no_future` — see its docstring for why that direction
+    is load-bearing rather than fussy. The lower bound, `MAX_BACKDATE`, is
+    specific to a tap: a phone can be offline over a holiday and drain a
+    backdated tap late, but there's a limit to how late before it's more
+    likely a broken clock than a real gap, and past that a bad timestamp
+    could invent a trip in another year.
+
+    Lives here, not in a router, because both routers that accept a
+    client-supplied purchase instant — items.py's manual purchase-toggle and
+    receipt.py's apply-receipt-prices — must apply the future bound the same
+    way. A copy living in one router is a copy the other one can silently
+    skip, which is exactly how a receipt date misread by OCR used to create a
+    future-dated trip alongside the live cart. The receipt path calls
+    `no_future` directly instead of this function precisely because it must
+    *not* inherit the backdate floor below — see `no_future`'s docstring.
+    """
+    if supplied is None:
+        return now
+    return max(no_future(supplied, now), now - MAX_BACKDATE)
+
+
 class AlreadyFiled(Exception):
     """Raised by `attach` when the item's current trip is already closed.
 

@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import case, func, nulls_last, or_
@@ -27,30 +27,6 @@ def _notify_safely(session: Session, lst: List, actor: User, event: str, name: s
         notify_list_change(session, lst, actor, event, name)
     except Exception:  # pragma: no cover - notify_list_change already swallows
         logger.exception("push notification failed for list %s", lst.id)
-
-
-# How far back a client-supplied tap time may reach. Long enough for a phone
-# that was offline over a holiday, short enough that a broken clock cannot
-# invent a trip in another year.
-MAX_BACKDATE = timedelta(days=30)
-
-
-def _tap_time(supplied: datetime | None, now: datetime) -> datetime:
-    """The instant to file a purchase under, clamped against a wrong clock.
-
-    The upper bound is `now`, with no tolerance for a fast client clock, and
-    that is load-bearing rather than fussy. Five minutes of slack lets a tap at
-    23:57 Madrid arrive claiming 00:02, which computes *tomorrow's* tear-off
-    while tonight's trip is still open — two trips would then satisfy
-    "unreconciled and not yet torn off" and open_trip() would pick one
-    arbitrarily. There is no such thing as a purchase in the future, so the
-    server's clock wins.
-    """
-    if supplied is None:
-        return now
-    if supplied.tzinfo is not None:
-        supplied = supplied.astimezone(UTC).replace(tzinfo=None)
-    return min(max(supplied, now - MAX_BACKDATE), now)
 
 
 def _annotate_trips(session: Session, items: list[ListItem]) -> None:
@@ -138,7 +114,7 @@ def update_item(
     for field, value in data.items():
         setattr(item, field, value)
     if purchased is True and item.purchased_at is None:
-        item.purchased_at = _tap_time(supplied_at, now)
+        item.purchased_at = trips.tap_time(supplied_at, now)
         item.purchased_by = current_user.id
         trips.attach(session, item, item.purchased_at)
     elif purchased is False:

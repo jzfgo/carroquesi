@@ -788,6 +788,58 @@ def test_created_item_has_empty_stores_without_a_store(client, session):
     assert created.price_store is None
 
 
+def test_receipt_prices_clamps_a_future_receipt_date(client, session, user):
+    """A receipt date misread by OCR (a stray year digit, DD/MM vs MM/DD) must
+    not open a second trip in the future alongside the live cart -- the same
+    reason items.py's own tap clamps a future instant to `now`. Unclamped, the
+    unrelated future-dated trip and the still-open live cart both satisfy
+    "unreconciled and not yet torn off", and open_trip()'s unordered `.first()`
+    then picks between them arbitrarily.
+    """
+    now = datetime.now(UTC).replace(tzinfo=None)
+    live_cart_item = ListItem(id="item-hoy", list_id=LIST_ID, name="Pan", added_by=user.id)
+    session.add(live_cart_item)
+    session.commit()
+    trips.attach(session, live_cart_item, now)
+    session.commit()
+
+    session.add(ListItem(id="item-leche-future", list_id=LIST_ID, name="Leche", added_by=user.id))
+    session.commit()
+
+    far_future = (datetime.now(UTC) + timedelta(days=400)).isoformat()
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": far_future,
+            "patches": [
+                {
+                    "item_id": "item-leche-future",
+                    "price": 0.99,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": None,
+                }
+            ],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    now = datetime.now(UTC).replace(tzinfo=None)
+    open_trips = [
+        t
+        for t in session.exec(select(Purchase).where(Purchase.list_id == LIST_ID)).all()
+        if trips.is_open(t, now)
+    ]
+    assert len(open_trips) == 1
+
+    future_item = session.get(ListItem, "item-leche-future")
+    assert future_item.purchase_id == open_trips[0].id
+    assert future_item.purchased_at <= now
+
+
 def test_receipt_prices_reports_updated_and_created_counts(client, session, user):
     session.add(ListItem(id="item-pan2", list_id=LIST_ID, name="Pan", added_by=user.id))
     session.commit()

@@ -183,7 +183,19 @@ def apply_receipt_prices(
         )
 
     now = datetime.now(UTC).replace(tzinfo=None)
-    purchase_ts = _parse_receipt_at(body.receipt_date) or now
+    # Refused only in the future direction (trips.no_future), not clamped the
+    # way a manual tap is (trips.tap_time) — a receipt is by construction a
+    # record of something that already happened, however long ago, so it
+    # carries none of a live tap's "broken clock" risk and must not have its
+    # `purchased_at` silently rewritten for being older than a tap's backdate
+    # limit. The future direction still matters: `body.receipt_date` is
+    # client-supplied and may have been misread by OCR — a year digit, or
+    # DD/MM vs MM/DD. Unclamped, a future date creates a second open trip
+    # alongside the live cart; open_trip()'s unordered `.first()` then picks
+    # between them arbitrarily. Using one clamped instant for both
+    # `purchased_at` and `trips.attach` matters too — diverging them would
+    # file an item into a trip its own stored timestamp doesn't belong to.
+    purchase_ts = trips.no_future(_parse_receipt_at(body.receipt_date) or now, now)
     updated = 0
     affected: list[ListItem] = []
 
