@@ -126,7 +126,13 @@ test('tag row is always present because CTAs are shown for null fields', () => {
   expect(container.querySelector('.item-card__tags')).toBeInTheDocument()
 })
 
-test('purchased state applies strikethrough class', () => {
+// Named for the structure, not the decoration. jsdom does not apply the
+// stylesheet, so nothing at this layer can see the strikethrough — the E2E
+// purchase-lifecycle spec asserts the computed style instead. What this layer
+// can check is the shape the CSS selector needs: the name has to sit *inside*
+// the purchased modifier. Moving it out kills the strikethrough with the CSS
+// untouched, and only asserting the descendant relation catches that.
+test('purchased state puts the item name inside the purchased modifier', () => {
   const item = { ...BASE_ITEM, purchased: true }
   const { container } = render(
     <ItemCard
@@ -137,7 +143,9 @@ test('purchased state applies strikethrough class', () => {
       onMenuOpen={() => {}}
     />,
   )
-  expect(container.querySelector('.item-card--purchased')).toBeInTheDocument()
+  expect(
+    container.querySelector('.item-card--purchased .item-card__name'),
+  ).toHaveTextContent(BASE_ITEM.name)
 })
 
 test('tapping checkbox calls onTogglePurchased', () => {

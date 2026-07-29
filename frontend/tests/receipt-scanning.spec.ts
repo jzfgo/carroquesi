@@ -350,7 +350,17 @@ test.describe('functional', () => {
     await expect(async () => {
       expect(receiptDatesSent).toHaveLength(2)
     }).toPass()
-    expect(receiptDatesSent[1]).toContain(TODAY)
+    // The literal, not `toContain(TODAY)`: what leaves the browser is an
+    // instant, not a calendar day. `withDatePart` rebuilds the corrected day
+    // from local components, so TODAY at Madrid midnight is 22:00 on the day
+    // before in UTC. A substring check on TODAY can therefore only pass where
+    // local midnight *is* UTC midnight, which is CI and nowhere else — it
+    // asserts something a correct value cannot satisfy for any real user.
+    // The config pins the zone and this test pins the day, which together make
+    // this exactly one value — so spell it out rather than recompute it. Do not
+    // derive it here either: the expectation would be built in Node, whose
+    // timezone Playwright does not pin, so it would drift from the browser's.
+    expect(receiptDatesSent[1]).toBe('2026-07-24T22:00:00.000Z')
 
     // The re-match replaces what is on screen, prompt included.
     await expect(sheet.locator('.rss-toolbar-count')).toHaveText(

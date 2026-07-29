@@ -44,9 +44,11 @@ const THEMES = [
  * and the date becomes part of the fixture like any other seeded value.
  *
  * The day is the one the committed baselines already depict, so pinning cost
- * no regeneration. Midday keeps the rendered day the same whether the run sits
- * in UTC or in a European summer offset. Purchases are still stamped "now", so
- * the same-day price-deletion guard sees exactly what it did before.
+ * no regeneration. The zone is no longer a variable either — the config pins it
+ * — so only the clock needs pinning per spec. Midday is still the value to
+ * choose: it leaves the rendered day the same distance from either boundary, so
+ * the fixture survives a change of pinned zone. Purchases are still stamped
+ * "now", so the same-day price-deletion guard sees exactly what it did before.
  */
 const FIXED_NOW = new Date('2026-07-15T10:00:00Z')
 
@@ -66,6 +68,21 @@ for (const { name: themeName, colorScheme } of THEMES) {
 
       const card = itemCard(page, ITEM_CAFE.name)
       await expect(card).toHaveClass(/item-card--purchased/)
+      // The strikethrough is the affordance that says "bought" at a glance, and
+      // the class above does not prove it renders — the modifier can be present
+      // with the rule that styles it gone. The screenshot below is the only
+      // other witness, and it cannot be trusted with this on its own: deleting
+      // the rule moves about 75 pixels, well inside the tolerance, so the
+      // affordance can leave the screen with all twelve baselines still green.
+      // Assert the computed style, which is what actually produces the pixels.
+      // This does pin which element carries the rule: text-decoration paints
+      // onto descendants without computing on them, so moving the rule to an
+      // ancestor would keep the line visible and fail here anyway. That is a
+      // loud failure rather than a silent one, which is the right way round.
+      await expect(card.locator('.item-card__name')).toHaveCSS(
+        'text-decoration-line',
+        'line-through',
+      )
       await expectScreenshot(page, `item-purchased-${themeName}.png`)
 
       // Read-only: brand/store are no longer editable buttons, just text
