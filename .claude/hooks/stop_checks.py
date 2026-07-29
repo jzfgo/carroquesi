@@ -288,11 +288,11 @@ def main() -> None:
         #
         # That last property has no test behind it: the temp repos in
         # test_hooks.py contain no `backend/` or `frontend/`, so `failures` is
-        # always just `[dirty]` there and swapping this for the joined list
-        # changes nothing — swap it and see the suite stay green, rather than
-        # taking this note's word for it. Covering it would mean running ruff
-        # from the test suite, which costs the file its dependency-free
-        # premise: a worse trade.
+        # always just `[dirty]` there and swapping `dirty` below for the
+        # joined list changes nothing — swap it and see the suite stay green,
+        # rather than taking this note's word for it. Covering it would mean
+        # running ruff from the test suite, which costs the file its
+        # dependency-free premise: a worse trade.
         #
         # `suppressOutput` keeps the raw JSON out of the transcript, so the
         # user sees the rendered warning rather than the blob as well. A

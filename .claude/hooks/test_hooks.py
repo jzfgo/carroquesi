@@ -25,8 +25,9 @@ SUB_OPEN, SUB_CLOSE, BT = "$(", ")", chr(96)
 failures: list[str] = []
 evaluated = 0
 
-# Asserted at the end, so a suite that quietly shrinks fails instead of
-# passing at the wrong size. Bump it when you add a case.
+# The size of a run that finished. Checked at the end of one, so a suite that
+# quietly shrinks fails instead of passing at the wrong size. The reasoning,
+# and what to do when this fails, are at the comparison.
 EXPECTED_ASSERTIONS = 68
 
 
@@ -548,6 +549,7 @@ if __name__ == "__main__":
     # thing a mutation run is read off. That has now happened twice, from
     # `check=True` on a fixture command and from an unguarded `json.loads`,
     # so catch it once here rather than guarding each new call site.
+    aborted = False
     for suite in (
         test_enforce_worktrunk,
         test_block_main_edits,
@@ -557,27 +559,38 @@ if __name__ == "__main__":
         try:
             suite()
         except Exception as exc:
-            # The delta, not the global total. `evaluated` is cumulative, so
-            # reporting it names a count from an earlier function — a raise on
+            aborted = True
+            # The delta, and only the delta. `evaluated` is cumulative, so
+            # reporting it named a count from an earlier function: a raise on
             # the first line of the second suite said "after 27", which is the
             # first suite's total and more than the second one contains. The
-            # delta is what points at the line; the total says how much of the
-            # run was lost.
+            # delta is this suite's own completed count, which narrows where
+            # the raise is. It does not name a line, and no total belongs here
+            # either — the run total is in the footer below, and a count taken
+            # mid-run disagrees with it whenever a later suite still has work
+            # to do.
             failures.append(
                 f"{suite.__name__} aborted after {evaluated - before} of its "
-                f"own assertions ({evaluated} overall): {exc!r}"
+                f"own assertions: {exc!r}"
             )
 
-    # Compared, not just printed. An aborting suite is now a reported failure,
-    # so what this catches is the silent shrink with no raise behind it: a
-    # deleted case, an early return, a shortened loop list. Those leave a
+    # Compared, not just printed. An aborting suite is already a reported
+    # failure, so what this catches is the silent shrink with no raise behind
+    # it: a deleted case, an early return, a shortened loop list. Those leave a
     # green run of the wrong size, and this branch's evidence is read from
     # mutation runs where that is the failure mode that hides every other one.
+    #
+    # Skipped after an abort, because an abort always shrinks the count and the
+    # remedy this message names is the one thing a reader must not do there:
+    # re-baselining the constant to a truncated run permanently blesses the
+    # truncation. The abort entry above reports the shrink and says which suite
+    # lost it, so there is nothing left to add. That also keeps the constant
+    # meaning the size of a run that finished.
     #
     # Cost is one line whenever a case is added, which is the point — bumping
     # it is how you notice the count moved.
     print(f"\n{evaluated} assertions evaluated")
-    if evaluated != EXPECTED_ASSERTIONS:
+    if not aborted and evaluated != EXPECTED_ASSERTIONS:
         failures.append(
             f"suite size changed: {evaluated} assertions ran, expected "
             f"{EXPECTED_ASSERTIONS}. If that is intended, update the constant."
