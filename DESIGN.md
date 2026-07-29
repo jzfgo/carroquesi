@@ -645,8 +645,10 @@ Two consequences worth stating plainly:
 
 - **Removing the strikethrough will break the committed Playwright visual
   baselines** (`item-purchased-*`, `purchase-lifecycle-*`). Regenerate with
-  `just frontend update-snapshots`, which runs Docker to match CI's Linux font
-  rendering — do not regenerate them locally on macOS.
+  `just frontend update-snapshots`, which runs the container every committed
+  baseline came out of. Never regenerate on your own machine, whatever it runs.
+  Linux is the trap rather than macOS: it writes the same `-linux.png` CI
+  expects, so a native baseline is accepted and quietly disagrees.
 - **The reference implementation of the sheet model is not in this repository.**
   It was built and tuned as an interactive prototype; the parameters it produced
   are recorded in `.impeccable/design.json` under `extensions.paper`, which is
