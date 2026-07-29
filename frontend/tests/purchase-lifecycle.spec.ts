@@ -12,7 +12,10 @@ import {
 // the page as source. Declaring the one global we call there keeps that split —
 // widening the lib would let a spec reach for `document` at the Node layer and
 // only find out at run time.
-declare function getComputedStyle(el: unknown): { color: string }
+declare function getComputedStyle(el: unknown): {
+  color: string
+  backgroundColor: string
+}
 
 const LIST_ID = SEED_LISTS[0].id
 const ITEM_CAFE = SEED_ITEMS[LIST_ID][1] // no price, one store, unpurchased
@@ -97,18 +100,30 @@ for (const { name: themeName, colorScheme } of THEMES) {
       // relations rather than fixed colours, because the two themes resolve the
       // tokens differently and this test runs under both.
       //
-      // The filled disc is what says "picked up" from across the room.
-      await expect(card.locator('.item-card__checkbox')).not.toHaveCSS(
-        'background-color',
-        'rgba(0, 0, 0, 0)',
-      )
+      const todo = itemCard(page, ITEM_LECHE.name)
+
+      // The filled disc is what says "picked up" from across the room. Two
+      // things have to hold and neither follows from the other: it is filled at
+      // all, which a lost rule breaks, and what fills it is not the paper it
+      // sits on, which a bad token leaves "filled" and invisible.
+      const cartDisc = await card
+        .locator('.item-card__checkbox')
+        .evaluate((el) => getComputedStyle(el).backgroundColor)
+      const paper = await page
+        .locator('.item-list__sheet')
+        .first()
+        .evaluate((el) => getComputedStyle(el).backgroundColor)
+      expect(cartDisc).not.toBe('rgba(0, 0, 0, 0)')
+      expect(cartDisc).not.toBe(paper)
+
       // And the ink drops a rung, so a line in the cart reads quieter than one
-      // still to buy. Comparing against an untouched line is the part that
-      // fails when the rule goes — on its own a name always has some colour.
+      // still to buy. Here the comparison is what bites — on its own a name
+      // always has some colour, whatever rule did or did not apply — and a
+      // relation also spares this a fixed value per theme.
       const cartInk = await card
         .locator('.item-card__name')
         .evaluate((el) => getComputedStyle(el).color)
-      const todoInk = await itemCard(page, ITEM_LECHE.name)
+      const todoInk = await todo
         .locator('.item-card__name')
         .evaluate((el) => getComputedStyle(el).color)
       expect(cartInk).not.toBe(todoInk)

@@ -111,9 +111,16 @@ describe('the three states', () => {
   // Named for the structure, not the treatment. jsdom applies no stylesheet, so
   // nothing at this layer can see the cart's ink drop or the settled line's mono
   // face — the E2E purchase-lifecycle spec asserts the computed style instead.
-  // What this layer can check is the shape both selectors need: the name has to
-  // sit inside the state modifier. Move it out and both treatments die with the
-  // CSS untouched, which only the descendant relation catches.
+  // What this layer can pin is the shape both selectors need: the name inside
+  // the state modifier.
+  //
+  // Narrow on purpose, and worth knowing how narrow. Renaming the name element
+  // already fails four tests in ItemList, and renaming a state already fails
+  // most of this file, because the class is built from what itemState returns.
+  // Both were measured. What is left over is only the descendant relation, so
+  // the mutation this catches alone is a restructure that lifts the name out
+  // from under the modifier. Cheap to keep, and this component is about to be
+  // rebuilt — but do not read it as the guard on the treatments themselves.
   it('keeps the name inside the state modifier, which is what the CSS selects', () => {
     const { container: cart } = renderCard({
       purchased: true,
