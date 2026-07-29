@@ -142,14 +142,13 @@ All known flags and defaults live in the registry in `backend/app/services/featu
 
 ### Agent Guardrails
 
-The following constraints are enforced by Claude Code hooks (`.claude/hooks/`), Claude Code permission rules (`.claude/settings.json`), and by lefthook git hooks. They apply regardless of instructions given in a session:
+Hooks in `.claude/hooks/` and lefthook enforce these regardless of what a session is told. Every denial names its own reason and remedy, so what follows is only what you need *before* the first attempt:
 
-- **No `--no-verify` / `LEFTHOOK=0`** — bypassing the lefthook gates is denied at the `PreToolUse` level. Fix the failing hook instead.
-- **No edits on `main`** — any `Edit` or `Write` whose **target path** resolves to a checkout on `main` is denied. Run `/worktrunk` first; no exceptions. The check is per-path, not per-session: writing into a worktree by absolute path works even when the session is still rooted on `main`, and conversely, reaching back into the main checkout from a worktree is denied. Note the second half is the one that matters — keying this off the session's cwd instead silently permits exactly the write the rule exists to stop.
-- **Worktree lifecycle belongs to worktrunk** — creating or removing a worktree any other way skips this project's `wt` hooks (direnv, deps, migrate, seed) and produces a worktree with no `.env`, no `node_modules`, and an unmigrated DB. So `EnterWorktree` without a `path`, `ExitWorktree` with `action: "remove"`, and `git worktree add|remove|prune|move` are all denied. **Navigation is not** — `EnterWorktree({path})` into an existing worktree and `ExitWorktree({action: "keep"})` are allowed, since they touch no git state. The flow is `wt switch --create <branch> --no-cd --format=json`, then `EnterWorktree` with the `path` it reports.
-- **Auto-lint on stop** — after each turn, changed Python files are checked with `ruff` and changed TypeScript files with `eslint`. If either fails, Claude Code continues the turn to fix the issue before stopping.
+- **Create a worktree before touching any file** — `wt switch --create <branch> --no-cd --format=json`, then `EnterWorktree` with the path it reports. Edits are denied by *target path*, so this holds even when the session is rooted somewhere else, and worktree lifecycle goes through `wt` rather than raw `git worktree`.
+- **`--no-verify` and `LEFTHOOK=0` are denied** — fix the failing hook instead of skipping it.
+- **A turn does not end on a lint failure** — changed Python and TypeScript are re-checked when Claude Code tries to stop, and the turn continues until they pass.
 
-Lefthook pre-commit hooks run on staged files: `ruff check --fix` + `ruff format` (Python), `eslint --fix` (TypeScript/TSX), `stylelint --fix` (CSS), a platform-narrowing guard on `pnpm-lock.yaml`, and `gitleaks` secret scanning (skipped gracefully if not installed). There is no `pre-push` hook.
+Each guard's rationale is in its hook's docstring; the staged-file checks are in `lefthook.yml`.
 
 ### CI
 
@@ -198,7 +197,6 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 ## Bug Investigation
 
 - When user reports a bug, investigate and attempt a concrete fix before declaring scope issues
-- Limit exploration to ~3-5 file reads before either fixing or asking a targeted question
 - Don't silently change URLs, endpoints, or external identifiers (e.g., es.openfoodfacts.org → world.openfoodfacts.org)
 
 ## Validation Checklist
