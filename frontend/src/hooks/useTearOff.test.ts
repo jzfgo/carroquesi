@@ -183,17 +183,56 @@ describe('useTearOff', () => {
     // clock — a device running slow by a minute tips it over.
     const endsAt = '2026-07-29T18:00:00' // 30h past the 12:00 mount
     const next = Date.parse('2026-07-29T18:00:00Z')
+    const mounted = Date.parse('2026-07-28T12:00:00Z')
+    const DAY = 24 * 60 * 60 * 1000
     renderHarness([makeItem({ purchase_ends_at: endsAt })])
 
     act(() => {
-      vi.advanceTimersByTime(24 * 60 * 60 * 1000)
+      vi.advanceTimersByTime(DAY)
     })
-    // The re-check fired, and it did not pretend to have arrived.
+    // Two assertions because one of them cannot tell the two failures apart.
+    // `toBeLessThan(next)` alone is satisfied just as well by *no timer having
+    // fired* — which is what deleting the `Math.min` produces — so on its own
+    // it pins "did not arrive" while leaving the cap itself unpinned. Verified:
+    // with the cap removed and `arrives` untouched, this test stayed green.
+    //
+    // The lower bound is what says the capped schedule actually fired early.
+    // It is safe against `shouldAdvanceTime` drift because the drift only ever
+    // pushes the schedule later: the effect reads `clock >= mounted`, so the
+    // timer fires at `>= mounted + DAY`.
+    expect(currentNow()).toBeGreaterThanOrEqual(mounted + DAY)
+    // ...and it did not pretend to have arrived.
     expect(currentNow()).toBeLessThan(next)
 
     // And it is still ticking: the effect re-ran and scheduled the remainder.
     act(() => {
       vi.advanceTimersByTime(6 * 60 * 60 * 1000)
+    })
+    expect(currentNow()).toBeGreaterThanOrEqual(next)
+  })
+
+  it('keeps re-checking a boundary more than two caps away', () => {
+    // The capped branch is a loop, not a single retry, and nothing above walks
+    // it twice. It only makes progress because `now` can never run ahead of
+    // the live clock in this branch — the overshoot the `arrives` max can
+    // introduce is bounded by a timer's early-resolution slack — so each pass
+    // advances a full cap and `setNow` never hands React the value it already
+    // holds. If it did, React would bail out, no effect would re-run, and the
+    // clock would stop silently two days short.
+    const endsAt = '2026-07-30T12:00:00' // 48h out: two full caps, exactly
+    const next = Date.parse('2026-07-30T12:00:00Z')
+    const mounted = Date.parse('2026-07-28T12:00:00Z')
+    const DAY = 24 * 60 * 60 * 1000
+    renderHarness([makeItem({ purchase_ends_at: endsAt })])
+
+    act(() => {
+      vi.advanceTimersByTime(DAY)
+    })
+    expect(currentNow()).toBeGreaterThanOrEqual(mounted + DAY)
+    expect(currentNow()).toBeLessThan(next)
+
+    act(() => {
+      vi.advanceTimersByTime(DAY)
     })
     expect(currentNow()).toBeGreaterThanOrEqual(next)
   })

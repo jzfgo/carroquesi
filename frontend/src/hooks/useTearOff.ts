@@ -2,10 +2,20 @@ import { useEffect, useState } from 'react'
 import { parseNaiveUtc } from '../lib/naiveUtc'
 import type { ListItem } from '../types'
 
-// Caps the scheduled delay so a garbage `purchase_ends_at` (some bad row far
-// in the future) yields a harmless re-check instead of racing a 32-bit
-// `setTimeout` overflow. Real boundaries are always under 24h away, so this
-// never engages for legitimate trips.
+// Caps the scheduled delay, so a boundary further out than this yields a
+// re-check instead of racing a 32-bit `setTimeout` overflow.
+//
+// This used to say the cap "never engages for legitimate trips", and that
+// sentence was wrong in a way that cost a bug: it is exactly why assigning
+// `next` in the callback looked safe regardless of whether the timer had
+// reached it. `tears_off_at_for` stamps the *next* Madrid midnight, so a trip
+// opened at 00:01 local is already ~24h out on a correct clock — and
+// `next - clock` is measured against the *client's* clock, which the server
+// does not control. A phone lagging by a minute engages the cap on entirely
+// valid data.
+//
+// So the cap is ordinary, not exceptional, and what keeps it harmless is that
+// a capped timer declines to claim it arrived. See the `arrives` split below.
 const MAX_DELAY_MS = 24 * 60 * 60 * 1000
 
 /** The clock the cart rule is read against, advanced at each tear-off.
