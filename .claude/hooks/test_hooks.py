@@ -25,9 +25,9 @@ SUB_OPEN, SUB_CLOSE, BT = "$(", ")", chr(96)
 failures: list[str] = []
 evaluated = 0
 
-# The size of a run that finished. Checked at the end of one, so a suite that
-# quietly shrinks fails instead of passing at the wrong size. The reasoning,
-# and what to do when this fails, are at the comparison.
+# The size of a run where nothing aborted. Compared at the end of every run,
+# so a suite that quietly shrinks fails instead of passing at the wrong size.
+# The reasoning, and what to do when it fails, are at the comparison.
 EXPECTED_ASSERTIONS = 68
 
 
@@ -343,9 +343,9 @@ def test_stop_checks_main_dirty() -> None:
         routes = [
             ("shell redirect", ["sh", "-c", f"echo mutated > {q(str(target))}"]),
             # `-i.bak`, not a bare `-i`. GNU sed treats the suffix as
-            # optional; BSD sed (macOS, the primary platform here) requires
-            # it as a separate word, so a bare `-i` eats the script as the
-            # backup extension and then runs the filename as the script.
+            # optional; BSD sed (macOS) requires it as a separate word, so a
+            # bare `-i` eats the script as the backup extension and then runs
+            # the filename as the script.
             # That exits non-zero and `check=True` raises, so the suite would
             # not merely be weaker on macOS — it would lose this whole
             # function. (It is reported rather than a crash, because
@@ -574,26 +574,38 @@ if __name__ == "__main__":
                 f"own assertions: {exc!r}"
             )
 
-    # Compared, not just printed. An aborting suite is already a reported
-    # failure, so what this catches is the silent shrink with no raise behind
-    # it: a deleted case, an early return, a shortened loop list. Those leave a
-    # green run of the wrong size, and this branch's evidence is read from
-    # mutation runs where that is the failure mode that hides every other one.
+    # Compared, not just printed. What it catches on its own is the silent
+    # shrink with no raise behind it: a deleted case, an early return, a
+    # shortened loop list. Those leave a green run of the wrong size, and this
+    # branch's evidence is read from mutation runs where that is the failure
+    # mode that hides every other one.
     #
-    # Skipped after an abort, because an abort always shrinks the count and the
-    # remedy this message names is the one thing a reader must not do there:
-    # re-baselining the constant to a truncated run permanently blesses the
-    # truncation. The abort entry above reports the shrink and says which suite
-    # lost it, so there is nothing left to add. That also keeps the constant
-    # meaning the size of a run that finished.
+    # The remedy is what varies, not the number. An aborted run is where a
+    # reader most needs the shortfall, because the abort entry says only how
+    # many of one suite's own assertions ran. But "update the constant" there
+    # would re-baseline the suite to a truncated run and bless the truncation
+    # for good. So the count stays and the instruction flips.
+    #
+    # "At least part of it" because an abort in one suite and a deleted case in
+    # another can land in the same run, and these counts are cumulative, so
+    # nothing here can separate the two. The shrink shows up on its own once
+    # the abort is fixed.
+    #
+    # An abort does not always shrink the run: a suite that raises in teardown,
+    # after its last assertion, leaves the count intact. Then this stays quiet,
+    # because there is nothing to report.
     #
     # Cost is one line whenever a case is added, which is the point — bumping
     # it is how you notice the count moved.
     print(f"\n{evaluated} assertions evaluated")
-    if not aborted and evaluated != EXPECTED_ASSERTIONS:
+    if evaluated != EXPECTED_ASSERTIONS:
+        hint = (
+            "an abort above accounts for at least part of it — do not re-baseline"
+            if aborted
+            else "if that is intended, update the constant"
+        )
         failures.append(
-            f"suite size changed: {evaluated} assertions ran, expected "
-            f"{EXPECTED_ASSERTIONS}. If that is intended, update the constant."
+            f"suite size: {evaluated} of {EXPECTED_ASSERTIONS} assertions ran; {hint}."
         )
     if failures:
         print(f"{len(failures)} FAILURE(S):")
