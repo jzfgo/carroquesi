@@ -264,7 +264,8 @@ export async function installApiMocks(page: Page): Promise<void> {
       timeZone: TRIP_TIMEZONE,
       timeZoneName: 'longOffset',
     }).formatToParts(d)
-    const raw = parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+00:00'
+    const raw =
+      parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+00:00'
     const match = raw.match(/GMT([+-])(\d{2}):(\d{2})/)
     if (!match) return 0
     const sign = match[1] === '-' ? -1 : 1
@@ -283,7 +284,9 @@ export async function installApiMocks(page: Page): Promise<void> {
     // it: candidate and offset agree once refined, everywhere except inside
     // the one-hour repeated span itself, which no test here touches.
     const guess = new Date(Date.UTC(year, month - 1, day + 1))
-    const candidate = new Date(guess.getTime() - madridOffsetMinutes(guess) * 60_000)
+    const candidate = new Date(
+      guess.getTime() - madridOffsetMinutes(guess) * 60_000,
+    )
     return new Date(guess.getTime() - madridOffsetMinutes(candidate) * 60_000)
   }
 
