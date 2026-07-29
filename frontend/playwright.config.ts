@@ -58,9 +58,15 @@ export default defineConfig({
   // --update-snapshots only rewrites what already failed. fullPage captures
   // made it worse: a taller page bought a bigger allowance for free.
   //
-  // 250 is below the ~263 the mobile project has been passing CI on for
-  // months, so it is known to clear real font noise, and it leaves the smallest
-  // change worth catching more than twice the room it needs.
+  // 250 is chosen, not measured, and the two bounds around it are worth
+  // knowing before anyone moves it. Re-running the suite in the same container
+  // that wrote the baselines gives a diff of exactly zero on every screen, so
+  // none of this budget covers noise we can see; it covers the gap between
+  // that container and the CI runner's own font stack, which we cannot measure
+  // from here. Above, 263 is the most the mobile project has ever been allowed
+  // and it has passed CI for months, so the real gap is smaller than that.
+  // Below, the smallest change worth catching costs about 600 pixels, so 250
+  // leaves more than twice the room it needs.
   expect: {
     toHaveScreenshot: { maxDiffPixels: 250 },
   },
