@@ -8,8 +8,8 @@ markdown bullet re-read each session.
 
 Paraphrased rather than quoted on purpose. An earlier version of this
 docstring reproduced AGENTS.md's wording verbatim, and that wording has since
-been rewritten twice — leaving quotation marks around a sentence that no
-longer existed anywhere. Nothing checks such a quote, so it rots silently.
+been rewritten — leaving quotation marks around a sentence that no longer
+existed anywhere. Nothing checks such a quote, so it rots silently.
 
 The branch is resolved from the *target file's* directory, not the hook's
 cwd. Both are the repo root in the common case, but they diverge whenever a
@@ -140,8 +140,8 @@ def main() -> None:
                     "permissionDecision": "deny",
                     "permissionDecisionReason": (
                         "That path is on main. Per AGENTS.md, work in a worktree "
-                        "before touching any file — no exceptions for quick fixes, "
-                        "docs, or config. Create one with `wt switch --create "
+                        "before touching any file — not for quick fixes, docs, or "
+                        "config either. Create one with `wt switch --create "
                         "<branch> --no-cd --format=json`, then write to the path it "
                         "reports."
                     ),

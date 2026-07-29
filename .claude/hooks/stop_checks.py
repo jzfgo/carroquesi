@@ -124,11 +124,13 @@ def main_checkout_dirty() -> str | None:
     forbids, and catching a commit means asking a different question —
     whether main holds commits nobody pushed. Two reasons not to:
 
-    * `@{u}` is not guaranteed to resolve. A worktree-only setup, a fork, or
-      a clone whose main never tracked anything makes that query fail, and by
-      the rule above a failure has to be reported rather than swallowed — so
-      the check would emit "could not verify" on working configurations,
-      permanently.
+    * `@{u}` is not guaranteed to resolve. A main that never tracked anything
+      — `git init` plus a remote added by hand — answers `fatal: no upstream
+      configured`, and by this hook's own standard a failure has to be
+      reported rather than swallowed. So the check would emit "could not
+      verify" on a working configuration, permanently. (Not a fork: `clone`
+      sets up tracking for the default branch, so a fork's main has an
+      upstream like any other. Verified both.)
     * There is no recoverable one-command remedy. The dirty case works
       because `stash push -u` keeps the work and satisfies the invariant.
       Undoing a commit is a reset plus a stash, and getting that wrong on a
@@ -180,7 +182,7 @@ def main_checkout_dirty() -> str | None:
     return (
         f"The main checkout at {path} has uncommitted changes:\n\n"
         f"{dirty}\n\n"
-        "Per AGENTS.md nothing may be written to main. This is the "
+        "Per AGENTS.md, main is not where work happens. This is the "
         "checkout's current state, not a record of what this turn did — the "
         "changes may predate this session, and the Edit|Write guard never "
         "saw whatever route produced them.\n\n"

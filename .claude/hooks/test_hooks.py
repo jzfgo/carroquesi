@@ -408,6 +408,14 @@ def test_stop_checks_main_dirty() -> None:
             and "stash push -u" in floored_msg,
             True,
         )
+        # Both strings above come from the report, so they hold with the
+        # lead-in deleted. The lead-in is shared with the git-failure path and
+        # has to survive on this one too, which needs its own assertion.
+        check(
+            "floored dirty message carries the lead-in",
+            "still needs attention" in floored_msg,
+            True,
+        )
         # And the remedy it names must not be the destructive one.
         check(
             "remedy is recoverable, not `git clean`",
