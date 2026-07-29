@@ -156,6 +156,20 @@ def delete_item(
     item = session.get(ListItem, item_id)
     if item is None or item.list_id != lst.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+    if item.purchase_id is not None:
+        trip = session.get(Purchase, item.purchase_id)
+        if trip is not None and trip.closed_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot delete an item from a trip that has already been filed",
+            )
+        # Detach first: deleting the last item of an open trip must clean up
+        # that trip the same way an explicit un-purchase would (trips.detach's
+        # own docstring: an emptied open trip "is not a fact about anything").
+        # Skipping this leaves an orphan open trip behind that POST
+        # /purchases/close then reports as "nothing in the cart to close",
+        # and that a later tap silently reattaches to.
+        trips.detach(session, item)
     session.delete(item)
     _bump(lst, session)
     session.commit()

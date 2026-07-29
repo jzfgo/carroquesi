@@ -372,6 +372,54 @@ def test_get_items_annotates_purchased_and_unpurchased_items_correctly(client):
     assert fetched["Pan"]["purchase_id"] is None
 
 
+def test_deleting_the_last_item_of_an_open_trip_does_not_orphan_it(client, session: Session):
+    """delete_item must detach before deleting, the way un-purchasing does.
+
+    Otherwise the trip trip_for/attach created survives with nothing in it:
+    open_trip() still returns it, so a later "Cerrar compra" call answers 409
+    "nothing in the cart to close" on a cart the user just emptied, and a
+    later tap silently reattaches to the ghost instead of opening a fresh trip.
+    """
+    from app.db.models import Purchase
+
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    fetched = client.get(f"/lists/{lst['id']}/items").json()[0]
+    trip_id = fetched["purchase_id"]
+    assert trip_id is not None
+
+    response = client.delete(f"/lists/{lst['id']}/items/{item['id']}")
+    assert response.status_code == 204
+    assert session.get(Purchase, trip_id) is None
+
+
+def test_deleting_an_item_from_a_filed_trip_is_refused(client, session: Session):
+    """A closed trip's total is a fact someone read off a receipt. Deleting a
+    line out from under it would leave the ticket claiming a total its
+    contents no longer add up to, the same reason update_item refuses to
+    un-purchase an item from a trip that has ended.
+    """
+    from app.db.models import ListItem, Purchase
+
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    db_item = session.get(ListItem, item["id"])
+    trip = session.get(Purchase, db_item.purchase_id)
+    trip.closed_at = datetime.now(UTC).replace(tzinfo=None)
+    trip.store = "Lidl"
+    trip.total = 5.0
+    session.add(trip)
+    session.commit()
+
+    response = client.delete(f"/lists/{lst['id']}/items/{item['id']}")
+    assert response.status_code == 409
+    assert session.get(ListItem, item["id"]) is not None
+
+
 def test_purchasing_an_item_already_filed_returns_409_not_500(client, session: Session):
     """Defensive: trips.attach raises AlreadyFiled only when purchase_id points
     at a closed trip while purchased_at is None -- an invariant violation that
