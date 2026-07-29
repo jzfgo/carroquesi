@@ -168,14 +168,17 @@ describe('useTearOff', () => {
   })
 
   it('re-checks rather than arriving when the boundary is past the cap', () => {
-    // MAX_DELAY_MS exists so a boundary further out than 24h yields a harmless
-    // re-check instead of racing a 32-bit setTimeout overflow. "Harmless"
-    // depends entirely on the callback declining to claim it arrived: a capped
-    // timer fires short of `next`, so assigning `next` would put `now` in the
-    // future — and then `find(at > now)` returns undefined, nothing
-    // reschedules, and the item reads 'bought' up to 24h early and stays that
-    // way. The cap would have turned a far boundary from harmless into
-    // permanent.
+    // MAX_DELAY_MS turns a boundary past the daily scale into a re-check —
+    // why that value, and why not a claim about timer reliability, is on the
+    // constant itself; there is no second copy of the rationale here to drift
+    // out of step with it.
+    //
+    // What this test owns is that "re-check" stays *harmless*, which depends
+    // entirely on the callback declining to claim it arrived: a capped timer
+    // fires short of `next`, so assigning `next` would put `now` in the future
+    // — and then `find(at > now)` returns undefined, nothing reschedules, and
+    // the item reads 'bought' up to 24h early and stays that way. The cap
+    // would have turned a far boundary from harmless into permanent.
     //
     // Reachable with valid data, not just a corrupt row: `tears_off_at_for`
     // stamps the next Madrid midnight, so a trip opened just after midnight is

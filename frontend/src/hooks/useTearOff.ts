@@ -5,12 +5,20 @@ import type { ListItem } from '../types'
 // Caps the scheduled delay, so a boundary further out than this yields a
 // re-check rather than one long wait.
 //
-// A day is chosen because a `setTimeout` is not a trustworthy instrument over
-// that span: background throttling, suspend and resume, and system clock
-// adjustments all land comfortably inside a 24h wait. Re-reading the clock
-// once a day costs one timer and removes the assumption. 32-bit overflow is a
-// backstop rather than the reason — that bites at 2^31−1 ms, about 24.9 days,
-// some 25× further out than this, so it cannot account for the number.
+// The value comes from the domain rather than the platform. Tear-off
+// boundaries are daily — `tears_off_at_for` stamps the next Madrid midnight —
+// so a day is the natural scale of `next - clock`, and the coarsest cap that
+// still bounds anything past it to a re-check or two.
+//
+// Deliberately *not* a claim about how long a `setTimeout` can be trusted.
+// The ordinary path waits out a whole boundary uncapped: a trip opened at
+// 00:01 schedules 23h59m and never re-checks. Any distrust of a day-long
+// timer would condemn that too, and this cap would be the wrong instrument
+// for it — it only ever engages past the daily scale, so it cannot be what
+// makes the common case safe.
+//
+// 32-bit overflow is a distant backstop, not the reason: it bites at 2^31−1
+// ms, about 24.9 days, some 25× beyond this.
 //
 // This used to say the cap "never engages for legitimate trips", and that
 // sentence was wrong in a way that cost a bug: it is exactly why assigning
