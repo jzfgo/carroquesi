@@ -222,13 +222,3 @@ A task is complete only when **all** of the following are true:
 ## Out of Scope
 
 - Submitting prices to Open Prices (requires proof image + OSM location)
-
-## Open Action Items (1:1 — 2026-07-29)
-
-An item here names one specific action that a later session can check and delete. A rule belongs in the file that governs it, and the item is the edit that puts it there.
-
-**You:**
-
-- [ ] File the Gemini fallback as its own Linear issue — retry with backoff, plus a second provider behind the same interface — separate from the bring-your-own-model question, which is parked until the redesign lands.
-
-> When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
