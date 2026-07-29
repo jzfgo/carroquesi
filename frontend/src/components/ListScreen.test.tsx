@@ -804,10 +804,13 @@ describe('the tear-off boundary under an open tab', () => {
     })
 
     // Confirmed at 15:00; delivered at 15:00:05, already behind the clock.
-    // The five seconds are load-bearing, not scene-setting: they put the
-    // boundary far enough back for the delay to floor at zero. Round it to
-    // 15:00:00 and the hook's 1s margin absorbs it, the test still passes,
-    // and it stops exercising the catch-up this case exists to pin.
+    //
+    // The `+ 5000` in the advance above is load-bearing, not scene-setting —
+    // it, and not this timestamp, is what puts the boundary behind the live
+    // clock far enough for the hook's delay to floor at zero. Drop it and the
+    // boundary lands *on* the clock, where the 1s margin applies, the single
+    // tick below is no longer enough to settle the catch-up, and the case
+    // fails for a reason that has nothing to do with what it is pinning.
     withItems([
       { ...inCart, purchase_ends_at: '2026-07-28T15:00:00' },
       stillToBuy,
