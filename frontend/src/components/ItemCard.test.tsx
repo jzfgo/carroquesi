@@ -108,6 +108,32 @@ describe('the three states', () => {
     ).toHaveAttribute('aria-checked', 'mixed')
   })
 
+  // Named for the structure, not the treatment. jsdom applies no stylesheet, so
+  // nothing at this layer can see the cart's ink drop or the settled line's mono
+  // face — the E2E purchase-lifecycle spec asserts the computed style instead.
+  // What this layer can check is the shape both selectors need: the name has to
+  // sit inside the state modifier. Move it out and both treatments die with the
+  // CSS untouched, which only the descendant relation catches.
+  it('keeps the name inside the state modifier, which is what the CSS selects', () => {
+    const { container: cart } = renderCard({
+      purchased: true,
+      purchased_at: TODAY,
+      ...inCartOverrides,
+    })
+    expect(
+      cart.querySelector('.item-card--cart .item-card__name'),
+    ).toHaveTextContent('Leche entera')
+
+    const { container: settled } = renderCard({
+      purchased: true,
+      purchased_at: EARLIER,
+      ...settledOverrides,
+    })
+    expect(
+      settled.querySelector('.item-card--bought .item-card__name'),
+    ).toHaveTextContent('Leche entera')
+  })
+
   it('settled: no circle at all, because a record has no state to toggle', () => {
     const { container } = renderCard({
       purchased: true,

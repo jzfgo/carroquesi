@@ -1,12 +1,14 @@
 # Developer & Agent Guidelines (AGENTS.md)
 
-> `CLAUDE.md`, `GEMINI.md`, `PI.md`, and `PILENS.md` are symlinks to this file. Edit `AGENTS.md` directly.
+> `CLAUDE.md`, `GEMINI.md`, `PI.md`, `PILENS.md`, `.cursorrules`, and `.copilotrules` are symlinks to this file. Edit `AGENTS.md` directly.
 
 This file provides guidance to coding agents (such as Antigravity CLI, Claude Code, Codex CLI, OpenCode, Pi Coding Agent, etc.) and developers when working with code in this repository.
 
 ## Project Overview
 
 **CarroQueSí** is a collaborative grocery list app where multiple users share lists, mark items as purchased, receive product suggestions from purchase history, and log prices by scanning receipts with Gemini AI.
+
+Two documents hold the durable truth this file does not repeat. Read the relevant one before designing anything: [PRODUCT.md](PRODUCT.md) for who the product serves, what it promises, and the principles that settle a trade-off; [DESIGN.md](DESIGN.md) for the visual system.
 
 ## Architecture
 
@@ -82,24 +84,15 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 - When mocking modules with partial overrides (e.g. `react-router-dom`), use `importOriginal` to preserve unspecified exports. Plain `vi.mock('module', () => ({...}))` drops everything not listed and throws at runtime.
 - Environment constants are centralized in `frontend/src/lib/environment.ts`; import from there instead of accessing `import.meta.env` directly
 
-### Project layout
-
-`frontend/src/`: `App.tsx`, `main.tsx`, `types.ts`
-- `components/` — one file per component (`*.tsx`, `*.css`, `*.test.tsx`)
-- `lib/` — pure logic, hooks, API client (`api.ts`), feature flags, receipt AI, parseInput
-- `contexts/` — React contexts (`AuthContext`, `FeatureFlagsContext`)
-
 ### E2E Testing (Playwright)
 
-Run with `just frontend test-e2e` (alias: `pnpm test:e2e`). Config: `frontend/playwright.config.ts`. Tests live in `frontend/tests/`.
+Run with `just frontend test-e2e` (alias: `pnpm test:e2e`). It runs against the **preview build**, not the dev server — changes must be built first.
 
-Key gotchas:
-- Runs against the **preview build** (`pnpm build && pnpm preview`), not the dev server — changes must be built first
-- Default port is `4173`; override with `FRONTEND_PORT_E2E` / `FRONTEND_URL_E2E`
-- `DEV_AUTH_BYPASS` is hardcoded to `true` in the config; defaults to `seed-alice`; set `VITE_DEV_USER_ID` to switch users
-- Uses `loadEnvFile()` which does **not** expand `${VAR}` syntax — config explicitly overrides `VITE_BACKEND_URL` to work around this
-- Browsers: Chromium, Firefox, WebKit, Mobile Chrome (Pixel 10), Mobile Safari (iPhone 17)
-- Visual regression: key screens are also checked via `toHaveScreenshot()` (wrapped in the `expectScreenshot` helper in `fixtures.ts`), baselines committed under `frontend/tests/*-snapshots/`. Only `chromium`/`Mobile Chrome` carry baselines. Regenerate with `just frontend update-snapshots` (runs Docker, matching CI's Linux font rendering) — see `frontend/tests/README.md` for why and how.
+Visual regression: key screens are checked via `toHaveScreenshot()` (wrapped in the `expectScreenshot` helper in `fixtures.ts`), baselines committed under `frontend/tests/*-snapshots/`. Only `chromium`/`Mobile Chrome` carry baselines. Regenerate with `just frontend update-snapshots`, which runs the container every committed baseline came out of — not a stand-in for CI, which renders on its own runner and is why there is a pixel budget at all. See `frontend/tests/README.md`. Three rules there are easy to breach by accident: the tolerance is an absolute pixel count, never a ratio; anything a screenshot shows must be deterministic — pin the clock before capturing a screen that prints a date; and the suite's timezone is pinned in `playwright.config.ts`, so every committed baseline is Madrid-rendered. Unpinning it or changing the zone hands the render environment back to the machine, which is how a baseline comes to pass while depicting the wrong day. The pin covers the **browser** only — Playwright does not touch the Node runner's `TZ`, and the vitest suite still runs at the machine's zone, so unit tests that touch dates have to be made zone-less themselves.
+
+A screenshot is also a weak guard for a small visual affordance: a real one can cost far less than the tolerance, so the budget lets it vanish silently. When the thing under test *is* a style rule, assert the computed style as well.
+
+The remaining gotchas — ports, dev-auth setup, the `loadEnvFile()` `${VAR}` non-expansion, and the browser matrix — are in `frontend/AGENTS.md`. Read that file directly if your harness does not load nested guidance automatically.
 
 ### SmartInputBar sigil system
 
@@ -135,14 +128,7 @@ Prefer `just` from repo root (`just backend` lists recipes).
 
 ### Feature Flag Management
 
-- **Registry** — all known flags and defaults live in `backend/app/services/feature_flags.py`. Adding a flag = one `FlagDef` entry in `REGISTRY`.
-- **Adding a new flag**: add `FlagDef` to `REGISTRY` + add constant to `frontend/src/lib/featureFlags.ts` + seed test data in `backend/scripts/seed.py` + add tests + gate the endpoint/UI
-- **Granting/revoking**: `just backend feature <firebase_uid> <flag> on|off|reset`
-- **Setting admin**: `just backend set-admin <firebase_uid>` — sets Firebase custom claim; user must refresh their token (up to 1 hour wait, or force-refresh in the app)
-
-### Project layout
-
-`backend/app/`: `main.py`, `core/` (config, firebase, http), `db/` (session, models), `routers/` (one per resource), `schemas/`, `services/` (community_price, receipt_matcher, feature_flags), `dependencies.py`. Migrations in `alembic/`.
+All known flags and defaults live in the registry in `backend/app/services/feature_flags.py`; a `user_features.feature` value that isn't a registry key is invalid. Adding, granting, and revoking flags is covered in `backend/AGENTS.md` — read that file directly if your harness does not load nested guidance automatically.
 
 ## Infrastructure
 
@@ -158,18 +144,18 @@ Prefer `just` from repo root (`just backend` lists recipes).
 
 - Check `git status --short` before and after changes
 - Implement the smallest complete fix first, then iterate
+- **Write comments and docs in plain, short English.** One idea per sentence. Use common words, not rare or figurative ones: the reader is not always a native speaker. A comment says *why*, not *where*: never cite line numbers, file paths, or issue IDs in a code comment. Nothing checks those links, so they go stale on the next move, and the commit message tells the reader more. Docs are the index, so they cite freely. Keep the length in proportion to the decision. Commit and PR titles are exempt; their style is deliberate.
 - Start both servers: `just dev` (uses overmind + `Procfile.local`); use `just dev network` to expose on LAN
 
 ### Agent Guardrails
 
-The following constraints are enforced by Claude Code hooks (`.claude/hooks/`), Claude Code permission rules (`.claude/settings.json`), and by lefthook git hooks. They apply regardless of instructions given in a session:
+Hooks in `.claude/hooks/` and lefthook enforce these regardless of what a session is told. Every denial names its own reason and remedy, so what follows is only what you need *before* the first attempt:
 
-- **No `--no-verify` / `LEFTHOOK=0`** — bypassing the lefthook gates is denied at the `PreToolUse` level. Fix the failing hook instead.
-- **No edits on `main`** — any `Edit` or `Write` whose **target path** resolves to a checkout on `main` is denied. Run `/worktrunk` first; no exceptions. The check is per-path, not per-session: writing into a worktree by absolute path works even when the session is still rooted on `main`, and conversely, reaching back into the main checkout from a worktree is denied. Note the second half is the one that matters — keying this off the session's cwd instead silently permits exactly the write the rule exists to stop.
-- **Worktree lifecycle belongs to worktrunk** — creating or removing a worktree any other way skips this project's `wt` hooks (direnv, deps, migrate, seed) and produces a worktree with no `.env`, no `node_modules`, and an unmigrated DB. So `EnterWorktree` without a `path`, `ExitWorktree` with `action: "remove"`, and `git worktree add|remove|prune|move` are all denied. **Navigation is not** — `EnterWorktree({path})` into an existing worktree and `ExitWorktree({action: "keep"})` are allowed, since they touch no git state. The flow is `wt switch --create <branch> --no-cd --format=json`, then `EnterWorktree` with the `path` it reports.
-- **Auto-lint on stop** — after each turn, changed Python files are checked with `ruff` and changed TypeScript files with `eslint`. If either fails, Claude Code continues the turn to fix the issue before stopping.
+- **Create a worktree before touching any file** — `wt switch --create <branch> --no-cd --format=json`, then `EnterWorktree` with the path it reports. Edits are denied by *target path*, so this holds even when the session is rooted somewhere else, and worktree lifecycle goes through `wt` rather than raw `git worktree`.
+- **`--no-verify` and `LEFTHOOK=0` are denied** — fix the failing hook instead of skipping it.
+- **A turn does not end on a lint failure** — changed Python and TypeScript are re-checked when Claude Code tries to stop, and the turn is continued to fix them. It forces one continuation, not a loop; lefthook is the backstop at commit time.
 
-Lefthook pre-commit hooks run on staged files: `ruff check --fix` + `ruff format` (Python), `eslint --fix` (TypeScript/TSX), `stylelint --fix` (CSS), a platform-narrowing guard on `pnpm-lock.yaml`, and `gitleaks` secret scanning (skipped gracefully if not installed). There is no `pre-push` hook.
+Each guard's rationale is in its hook's docstring; the staged-file checks are in `lefthook.yml`.
 
 ### CI
 
@@ -202,14 +188,9 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 
 ### Changelog & Release Workflow
 
-- `CHANGELOG.md` is the canonical record of what shipped.
-- `cliff.toml` drives automated generation via `git-cliff`. Commit types map as: `feat` → Added, `fix` → Fixed, `refactor/perf` → Changed; `chore/docs/test/ci` are excluded.
+- `CHANGELOG.md` is the canonical record of what shipped, generated by `git-cliff` (`cliff.toml`).
 - **Never generate on a feature branch.** PRs are squash-merged, so a branch's individual `feat`/`fix` commits stop existing at merge. Generating pre-squash writes entries for commits that are about to collapse, and the next branch to regenerate then *deletes* the extra entries already committed on `main`. Between releases there is simply no `[Unreleased]` section; to see what has landed since the last tag, run `git cliff --unreleased`, which prints to stdout and leaves `CHANGELOG.md` alone (`just changelog` rewrites the file). The release branch is the one exception: it is based on `main` and adds no `feat`/`fix` commits of its own, so `git cliff` sees the same history `main` will.
-- Before a release, on that release branch (requires `git-cliff`: `brew install git-cliff`):
-  1. Run `just changelog` — prepends commits since the last tag under `## [Unreleased]`
-  2. Rename `## [Unreleased]` to the new version + date (e.g. `## [0.11.0] — 2026-05-01`)
-  3. Commit, open the release PR, and squash-merge it
-  4. Tag the merge commit on `main`: `git tag vX.Y.Z origin/main && git push origin vX.Y.Z`. Tagging before the merge would point the tag at a commit the squash discards
+- The release procedure itself — version bump, changelog regeneration, PR, and post-merge tagging — lives in `.agents/skills/release/SKILL.md`. Invoke `/release` if your harness supports skills, otherwise read that file; either way don't reconstruct the steps by hand.
 
 ### Local Dev Environment
 
@@ -223,7 +204,6 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 ## Bug Investigation
 
 - When user reports a bug, investigate and attempt a concrete fix before declaring scope issues
-- Limit exploration to ~3-5 file reads before either fixing or asking a targeted question
 - Don't silently change URLs, endpoints, or external identifiers (e.g., es.openfoodfacts.org → world.openfoodfacts.org)
 
 ## Validation Checklist
@@ -246,20 +226,3 @@ A task is complete only when **all** of the following are true:
 ## Out of Scope
 
 - Submitting prices to Open Prices (requires proof image + OSM location)
-
-## Open Action Items (1:1 — 2026-07-22)
-
-**AI:**
-
-- [ ] **Vary the environment before calling anything verified.** Running a check once proves it works *there*. Re-run it somewhere the ambient state differs — the other checkout, a different working directory, CI vs. local, the other side of a dev/prod or feature-flag branch — before saying it passes. _(Was "verify both branches of environment-conditional logic", carried unproven from #94 since 2026-07-08. It finally has real test cases, three in one afternoon on 2026-07-22: a guard that blocked its own PR (#115), one bypassable by quoting (#115), and a test suite that only passed in the directory it was written in while CI never ran it at all (#116). Every one was "verified" before it shipped.)_
-- [ ] In every `/brainstorming` session, add an explicit **failure-space section** before converging — how the proposal breaks with multiple users, with state changing between calls, with zero items, with many. Its own named section, not woven into prose. _(from #111's non-deterministic default-list resolver, which #113 had to replace)_
-- [ ] Take positions in design discussions, not neutral considerations — "this is wrong because X", not "one consideration might be". The user has explicitly asked for more pushback.
-- [ ] Flag mobile-path issues (input type, viewport, safe area) during implementation, not just at handoff
-
-**You:**
-
-- [ ] Drop MCP from tracked goals unless the target-audience assumption changes — MCP clients are a developer audience, which fails the "regular users, transparent and seamless" bar _(agent loops research is separate and stays: a professional-capability goal, not a product bet)_
-- [ ] Push Siri Shortcuts further toward the writeup — the remaining setup friction is the material
-- [ ] Bring a Document AI vs. Gemini comparison into the next receipt scanning `/brainstorming` session
-
-> When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.

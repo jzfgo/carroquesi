@@ -15,6 +15,8 @@ description: >
 This skill prepares a CarroQueSí release PR. Run every step in order — skipping
 any step is likely to leave the release PR incomplete.
 
+Requires `git-cliff` on `PATH` (`brew install git-cliff`); step 2 fails without it.
+
 ## 0. Determine the next version
 
 Read the `## [Unreleased]` section at the top of `CHANGELOG.md`.
