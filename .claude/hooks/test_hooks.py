@@ -229,11 +229,16 @@ def test_block_main_edits() -> None:
 
 
 def stop_run(cwd: pathlib.Path, payload: dict | None = None) -> tuple[str, str]:
-    """Run stop_checks.py; return (verdict, stderr).
+    """Run stop_checks.py; return (verdict, what the user actually sees).
 
     Exit 2 means "keep going" — the hook refused to let the turn end. Any
-    other code means it was content. stderr matters separately: on the
-    floored pass the hook lets the turn end but must still say why.
+    other code means it was content.
+
+    The second element is deliberately *not* raw stderr. Claude Code feeds
+    stderr back on exit 2, but on exit 0 it reads stdout for JSON and
+    discards stderr — so asserting on stderr would pass green for a message
+    that reaches nobody. This resolves each exit code to the channel the
+    harness really reads, so the tests pin delivery rather than intent.
     """
     proc = subprocess.run(
         [sys.executable, str(HOOKS / "stop_checks.py")],
@@ -242,7 +247,17 @@ def stop_run(cwd: pathlib.Path, payload: dict | None = None) -> tuple[str, str]:
         text=True,
         cwd=cwd,
     )
-    return ("continue" if proc.returncode == 2 else "stop"), proc.stderr
+    if proc.returncode == 2:
+        return "continue", proc.stderr
+    if proc.returncode == 0:
+        try:
+            return "stop", json.loads(proc.stdout or "{}").get("systemMessage", "")
+        except json.JSONDecodeError:
+            # Malformed stdout on exit 0 is silence as far as the harness is
+            # concerned, so report it as such rather than leaking the text.
+            return "stop", ""
+    # Any other code: the transcript shows only the first line of stderr.
+    return "stop", proc.stderr.splitlines()[0] if proc.stderr else ""
 
 
 def stop_verdict(cwd: pathlib.Path, payload: dict | None = None) -> str:
@@ -318,9 +333,16 @@ def test_stop_checks_main_dirty() -> None:
                 ["sh", "-c", f"cp {q(str(repo / '.gitignore'))} {q(str(target))}"],
             ),
         ]
+        backup = target.parent / (target.name + ".bak")
         for label, cmd in routes:
             restore()
             subprocess.run(cmd, capture_output=True, check=True)
+            # `sed -i.bak` leaves an untracked backup, which would make the
+            # checkout dirty on its own — so the case would pass even if the
+            # in-place edit silently wrote nothing, which is exactly the
+            # GNU/BSD divergence the comment above guards against. Remove it
+            # so only the real edit can satisfy the assertion.
+            backup.unlink(missing_ok=True)
             check(f"{label} to main, from the worktree", stop_verdict(tree), "continue")
         restore()
 
@@ -351,18 +373,21 @@ def test_stop_checks_main_dirty() -> None:
             stop_verdict(tree),
             "continue",
         )
-        floored, floored_err = stop_run(tree, {"stop_hook_active": True})
+        floored, floored_msg = stop_run(tree, {"stop_hook_active": True})
         check("second stop lets the turn end", floored, "stop")
-        # Floored is not silent: lint prints nothing on this path, this does.
+        # Floored is not silent — and this asserts the channel the harness
+        # actually reads on exit 0, not the stderr the hook happens to write.
+        # Asserting stderr here passed green while the message reached nobody.
         check(
-            "floored pass still reports it",
-            "has uncommitted changes" in floored_err and "stash push -u" in floored_err,
+            "floored pass reaches the user",
+            "has uncommitted changes" in floored_msg
+            and "stash push -u" in floored_msg,
             True,
         )
         # And the remedy it names must not be the destructive one.
         check(
             "remedy is recoverable, not `git clean`",
-            "git clean" not in floored_err and "restore`" not in floored_err,
+            "git clean" not in floored_msg and "restore`" not in floored_msg,
             True,
         )
         # Still dirty next turn means it fires again — the nag survives the

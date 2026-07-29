@@ -104,6 +104,12 @@ def main() -> None:
     # It also keeps this guard and the Stop-time effect check agreeing by
     # construction, because `git status --porcelain` already excludes ignored
     # files. Neither side needs to special-case the other.
+    #
+    # Do not add `--no-index` to make this "more correct". `check-ignore`
+    # consults the index by default, so a file that is tracked despite
+    # matching an ignore rule (a `git add -f`) answers *not ignored* and
+    # stays denied — which is right, because that file can reach a commit,
+    # and it is what keeps this side aligned with `git status`.
     if git_dir is not None and isinstance(file_path, str) and file_path:
         try:
             ignored = (

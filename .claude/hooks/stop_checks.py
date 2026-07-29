@@ -232,9 +232,20 @@ def main() -> None:
     # is worse than the dirt.
     #
     # So: escalate the wording instead. One forced continuation makes the
-    # violation impossible to miss, the message is printed even on the
-    # floored pass (where lint stays quiet), and a main that is still dirty
-    # re-fires on the very next turn. The nag survives; the trap does not.
+    # violation impossible to miss, the floored pass still reaches the user
+    # through `systemMessage` (where lint stays quiet), and a main that is
+    # still dirty re-fires on the very next turn. The nag survives; the trap
+    # does not.
+    #
+    # No snapshot of the previous dirty set, deliberately. Keying one to
+    # `session_id` would answer the concurrency objection, but it would put a
+    # fail-open surface inside the one check whose premise is that failing
+    # quiet is unacceptable: a missing or half-written state file has to mean
+    # either "fire" (re-arming the loop) or "stay quiet" (`return None` means
+    # clean, rebuilt elsewhere). Holding no state is what lets silence here
+    # provably mean "asked, and found clean". The cost is that a new write
+    # during the continuation is reported one turn later instead of at once —
+    # latency, not coverage, because main stays dirty until it is dealt with.
     dirty = main_checkout_dirty()
     if dirty is not None:
         failures.insert(0, dirty)
@@ -243,8 +254,23 @@ def main() -> None:
         sys.exit(0)
 
     if already_looping:
+        # `systemMessage` is the only channel that reaches anyone on the way
+        # out. stderr is fed back on exit 2 and shown (first line only) on
+        # other non-zero codes, but on exit 0 Claude Code reads stdout for
+        # JSON and discards stderr — so printing there would satisfy a test
+        # and tell nobody.
+        #
+        # Only `dirty` goes in it. The lint entries have lefthook waiting for
+        # them at commit time; this does not, and a warning that arrives on
+        # the way out should say the one thing that has no other route.
+        #
+        # Note this shares lint's single continuation. A chronically dirty
+        # main therefore spends the budget lint would have used: the dirty
+        # report takes Stop #1, and a ruff error introduced during that
+        # continuation is not reported at Stop #2. Lefthook still blocks the
+        # commit, so the cost is a later notice rather than a missed one.
         if dirty is not None:
-            print("\n\n".join(failures), file=sys.stderr)
+            print(json.dumps({"systemMessage": dirty}))
         sys.exit(0)
 
     # Exit code 2 on a Stop hook tells Claude Code to keep going instead of
