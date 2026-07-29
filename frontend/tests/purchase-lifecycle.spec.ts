@@ -66,6 +66,17 @@ for (const { name: themeName, colorScheme } of THEMES) {
 
       const card = itemCard(page, ITEM_CAFE.name)
       await expect(card).toHaveClass(/item-card--purchased/)
+      // The strikethrough is the affordance that says "bought" at a glance, and
+      // the class above does not prove it renders — the modifier can be present
+      // with the rule that styles it gone. The screenshot below is the only
+      // other witness, and it cannot be trusted with this on its own: deleting
+      // the rule moves about 75 pixels, well inside the tolerance, so the
+      // affordance can leave the screen with all twelve baselines still green.
+      // Assert the computed style, which is what actually produces the pixels.
+      await expect(card.locator('.item-card__name')).toHaveCSS(
+        'text-decoration-line',
+        'line-through',
+      )
       await expectScreenshot(page, `item-purchased-${themeName}.png`)
 
       // Read-only: brand/store are no longer editable buttons, just text
