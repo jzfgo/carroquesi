@@ -1,9 +1,13 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
-from sqlmodel import Session, select
+from sqlalchemy import event
+from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel.pool import StaticPool
 
-from app.db.models import List, ListMember, ReceiptScan
+from app.db.models import List, ListItem, ListMember, Purchase, ReceiptScan, User
+from tests.conftest import _make_client
 
 
 def test_create_list(client: TestClient, session: Session):
@@ -82,6 +86,92 @@ def test_delete_list_with_receipt_scans(client: TestClient, session: Session, us
     response = client.delete(f"/lists/{created['id']}")
     assert response.status_code == 204
     assert session.get(List, created["id"]) is None
+
+
+def test_delete_list_with_a_purchase_does_not_orphan_it():
+    """Purchase has a NOT NULL FK to lists.id with no ondelete. delete_list
+    used to delete ListItem, ListMember, ListInvite and ReceiptScan and then
+    the List itself, but never touched Purchase -- so on Postgres, deleting
+    any list that has ever had a purchased item raised a
+    ForeignKeyViolation, which after the migration's backfill is essentially
+    every real list.
+
+    Also pins a second, pre-existing hazard the same fix had to close: none
+    of these models declare a relationship() to List, only FK columns, so
+    SQLAlchemy's flush has no cross-mapper dependency to sort deletes by --
+    deleting a child before the parent in Python does not guarantee the
+    DELETE statements execute in that order. That already applied to
+    ReceiptScan (this test gives the list one too), it just never had a
+    chance to fire: nothing enforces SQLite foreign keys locally, so it was
+    only ever a live risk against a real FK-enforcing database.
+
+    The shared test engine (tests/conftest.py) never enforces SQLite foreign
+    keys -- nothing sets PRAGMA foreign_keys=ON -- so this test builds its
+    own engine with FK enforcement turned on at connect time. Without that,
+    this test would pass identically with or without the fix and prove
+    nothing.
+    """
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+
+    @event.listens_for(engine, "connect")
+    def _enable_foreign_keys(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    SQLModel.metadata.create_all(engine)
+    try:
+        with Session(engine) as session:
+            user = User(firebase_uid="uid-fk-test", display_name="FK Alice", email="fk@example.com")
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+
+            # Positive control: prove the pragma actually took, right here in
+            # this session, before relying on it below. If SQLite ever stops
+            # enforcing FKs on this connection (StaticPool reuse, a fixture
+            # refactor), this assert catches it directly instead of the real
+            # assertions further down silently passing for the wrong reason.
+            bogus = ListItem(
+                list_id="does-not-exist",
+                name="Orphan",
+                added_by=user.id,
+                purchase_id="also-does-not-exist",
+            )
+            session.add(bogus)
+            try:
+                session.commit()
+                raise AssertionError("FK enforcement did not fire; test would be vacuous")
+            except IntegrityError:
+                session.rollback()
+
+            client = _make_client(session, user)
+            with client:
+                created = client.post("/lists", json={"name": "Con Compra"}).json()
+                list_id = created["id"]
+                item = client.post(f"/lists/{list_id}/items", json={"name": "Leche"}).json()
+                client.patch(
+                    f"/lists/{list_id}/items/{item['id']}",
+                    json={"purchased": True},
+                )
+                session.add(ReceiptScan(list_id=list_id, scanned_by=user.id, items_updated=0))
+                session.commit()
+
+                purchases_before = session.exec(
+                    select(Purchase).where(Purchase.list_id == list_id)
+                ).all()
+                assert len(purchases_before) == 1
+
+                response = client.delete(f"/lists/{list_id}")
+                assert response.status_code == 204
+                assert session.get(List, list_id) is None
+                assert session.exec(select(Purchase).where(Purchase.list_id == list_id)).all() == []
+    finally:
+        SQLModel.metadata.drop_all(engine)
 
 
 def test_get_lists_includes_zero_counts_when_no_items(client: TestClient):

@@ -159,5 +159,30 @@ def delete_list(
         session.delete(invite)
     for scan in session.exec(select(ReceiptScan).where(ReceiptScan.list_id == lst.id)).all():
         session.delete(scan)
+    # Flush before deleting Purchase: ListItem.purchase_id and
+    # ReceiptScan.purchase_id both FK to purchases.id, and none of these
+    # models declare a relationship() to each other -- they're plain FK
+    # columns, joined by hand via select() everywhere else in this codebase.
+    # Without a relationship(), the unit of work has no cross-mapper
+    # dependency to sort deletes by, so statement order within a single
+    # flush is *not* guaranteed to respect FK direction: it's easy to prove
+    # empirically that `session.delete(child); session.delete(parent);
+    # session.commit()` can still emit DELETE FROM parent first, race or no
+    # race. Splitting into two flushes makes the order explicit instead of
+    # emergent -- deleting either flush here silently reintroduces the hazard.
+    session.flush()
+    for purchase in session.exec(select(Purchase).where(Purchase.list_id == lst.id)).all():
+        session.delete(purchase)
+    # Second flush for the same reason, one level up: Purchase.list_id FKs to
+    # lists.id, and List/Purchase have no relationship() either. Purchase has
+    # a NOT NULL FK with no ondelete, so deleting the list before this flush
+    # raises a ForeignKeyViolation on Postgres for any list that has ever had
+    # a purchased item -- which, after the backfill, is essentially every
+    # real list. This predates Purchase: the same unordered-mapper hazard
+    # already applied to ListItem/ListMember/ListInvite/ReceiptScan vs List,
+    # it was just unobserved -- nothing here enforces SQLite foreign keys
+    # (PRAGMA foreign_keys=ON is never set), so it never surfaced locally or
+    # in the test suite, only against a real FK-enforcing database.
+    session.flush()
     session.delete(lst)
     session.commit()
