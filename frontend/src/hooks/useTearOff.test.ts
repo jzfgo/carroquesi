@@ -119,6 +119,37 @@ describe('useTearOff', () => {
     )
   })
 
+  it('never asks for a negative delay', () => {
+    // The floor on `delay` is invisible through the DOM: a negative delay and
+    // a zero one both fire on the next tick, so the catch-up case above passes
+    // with the floor removed. It covers the line without being able to tell
+    // the two apart. This asserts what the hook *asked for* rather than what
+    // came back, which is the only place the difference exists.
+    const spy = vi.spyOn(globalThis, 'setTimeout')
+    const view = renderHarness([
+      makeItem({ purchase_ends_at: '2026-07-29T00:00:00' }),
+    ])
+    act(() => {
+      vi.advanceTimersByTime(3 * 60 * 60 * 1000)
+    })
+    spy.mockClear()
+
+    act(() => {
+      view.rerender(
+        createElement(Harness, {
+          items: [makeItem({ purchase_ends_at: '2026-07-28T14:00:00' })],
+        }),
+      )
+    })
+
+    const delays = spy.mock.calls
+      .map((call) => call[1])
+      .filter((d): d is number => typeof d === 'number')
+    expect(delays).not.toHaveLength(0)
+    expect(delays.filter((d) => d < 0)).toEqual([])
+    spy.mockRestore()
+  })
+
   it('schedules nothing when every trip has already ended', () => {
     const items = [
       makeItem({ purchase_ends_at: '2026-07-28T11:00:00' }), // an hour ago

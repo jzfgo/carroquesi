@@ -810,9 +810,9 @@ describe('the tear-off boundary under an open tab', () => {
     // clock. What is left to wait is the hook's 1s margin minus the overshoot,
     // and the tick below only advances 1ms, so the overshoot has to cover
     // essentially the whole margin: measured, 999ms settles and 500ms does
-    // not. 5000 is slack around a limit of ~1000, so shaving this number is
-    // as breaking as deleting it — loudly, on a progress-bar assertion that
-    // says nothing about why.
+    // not. 5000 is slack around a limit of ~1000 — anywhere above it is fine,
+    // and only shaving below roughly a second breaks this, which it does
+    // loudly, on a progress-bar assertion that says nothing about why.
     withItems([
       { ...inCart, purchase_ends_at: '2026-07-28T15:00:00' },
       stillToBuy,

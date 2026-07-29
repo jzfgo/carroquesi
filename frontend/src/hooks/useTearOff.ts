@@ -71,11 +71,13 @@ export function useTearOff(items: ListItem[]): number {
     // already behind the live clock has nothing left to wait for, which is
     // where the negative comes from.
     //
-    // The `max` is a statement of that intent, not the mechanism behind it:
-    // `setTimeout` clamps a negative delay to zero itself, so removing the
-    // floor changes no behaviour and breaks no test. Kept because a delay
-    // that can legitimately go negative should say so at the point it is
-    // computed — but do not read a green suite as cover for this line.
+    // The `max` states that intent rather than producing it. Every runtime
+    // this ships to clamps a non-positive delay to "as soon as possible"
+    // anyway (the web platform to 0, Node to 1ms), so removing the floor
+    // changes nothing observable — the catch-up tests execute this line with
+    // a negative input and pass either way. `never asks for a negative delay`
+    // in the tests pins it at the only place the difference exists, which is
+    // the argument handed to setTimeout rather than anything that comes back.
     const delay = Math.min(Math.max(next - clock + 1000, 0), MAX_DELAY_MS)
     const id = setTimeout(() => setNow(Date.now()), delay)
     return () => clearTimeout(id)
