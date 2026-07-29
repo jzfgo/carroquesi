@@ -643,8 +643,9 @@ yet assembled in components** — the gap is a backlog, not a licence to deviate
 
 Two consequences worth stating plainly:
 
-- **Removing the strikethrough will break the committed Playwright visual
-  baselines** (`item-purchased-*`, `purchase-lifecycle-*`). Regenerate with
+- **Removing the strikethrough will break every committed Playwright visual
+  baseline in `purchase-lifecycle.spec.ts-snapshots/`** — all three screens
+  there show a purchased row. Regenerate with
   `just frontend update-snapshots`, which runs the container every committed
   baseline came out of. Never regenerate on your own machine, whatever it runs.
   Linux is the trap rather than macOS: it writes the same `-linux.png` CI
