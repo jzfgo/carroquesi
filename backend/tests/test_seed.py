@@ -1,18 +1,21 @@
-"""Pure-data tests for scripts/seed.py's Purchase backfill.
+"""Tests for scripts/seed.py's Purchase backfill and teardown.
 
-No DB session here on purpose: group_into_purchases is a pure function over
+Most of this file is pure-data: group_into_purchases is a pure function over
 ListItem objects, and importing scripts.seed already builds the whole
-SEED_ITEMS/SEED_PURCHASES module-level data as a side effect of import. These
-tests exercise that data directly rather than re-running it against a
+SEED_ITEMS/SEED_PURCHASES module-level data as a side effect of import, so
+most tests exercise that data directly rather than re-running it against a
 database, the way test_migrations.py exercises the Alembic backfill it
-mirrors.
+mirrors. The teardown tests below are the exception -- _delete_seed_rows is a
+DB operation, not a pure function, so they use the `session` fixture.
 """
 
 from datetime import datetime
 
-from app.db.models import ListItem, Purchase
+from sqlmodel import Session
+
+from app.db.models import List, ListItem, Purchase, User
 from app.services import trips
-from scripts.seed import SEED_ITEMS, SEED_PURCHASES, group_into_purchases
+from scripts.seed import SEED_ITEMS, SEED_PURCHASES, _delete_seed_rows, group_into_purchases
 
 
 def test_every_purchased_seed_item_gets_a_purchase_id():
@@ -154,3 +157,32 @@ def test_group_into_purchases_returns_purchase_instances():
     purchases = group_into_purchases([a])
     assert len(purchases) == 1
     assert isinstance(purchases[0], Purchase)
+
+
+def test_delete_seed_rows_removes_a_uuid_id_purchase_on_a_seed_list(session: Session, user: User):
+    """A trip the *app* creates while someone clicks around a seeded DB --
+    tap an unpurchased item in a seed list -- gets a real UUID id, not a
+    deterministic `seed-purchase-NNNN` one, but its `list_id` still starts
+    with "seed-". Teardown must key on `list_id`, not `id`, to reach it: see
+    _delete_seed_rows's docstring for the crash that missing this caused
+    (the orphan trip re-adopting `seed-list-compra` on the next seed run and
+    colliding with the seed's own open trip on `uq_purchases_open_per_list`).
+    """
+    lst = List(id="seed-list-test", name="Seed list", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+
+    trip = Purchase(
+        list_id=lst.id,
+        opened_at=datetime(2026, 7, 28, 16, 0),
+        tears_off_at=datetime(2026, 7, 28, 22, 0),
+    )
+    session.add(trip)
+    session.commit()
+    session.refresh(trip)
+    trip_id = trip.id
+    assert not trip_id.startswith("seed-"), "fixture drifted: id should be a UUID default"
+
+    _delete_seed_rows(session)
+
+    assert session.get(Purchase, trip_id) is None

@@ -1837,10 +1837,25 @@ def _delete_seed_rows(session: Session) -> None:
     different mapped classes. Explicit flushes between batches make the
     order real instead of emergent: ListItem (which FKs to Purchase) before
     Purchase, and everything that FKs to List or User before those.
+
+    `Purchase` is keyed on `list_id` here, not `id` like everything else in
+    this function. Its `id`s are deterministic (`seed-purchase-NNNN`) for
+    every trip *this script* creates, but a trip the app creates while
+    someone clicks around a seeded DB -- tap an unpurchased item in
+    `seed-list-compra`, say -- gets a real UUID id and a `seed-list-*`
+    `list_id`. Keying on `id.startswith("seed-")` leaves that trip behind.
+    On SQLite (no FK enforcement, the `just dev` default) the orphan just
+    survives, and the next seed run recreates `seed-list-compra` with the
+    same literal id, so the orphan re-adopts it -- if it's still open, it
+    then collides with the seed's own open trip for that list under
+    `uq_purchases_open_per_list` and the seed crashes on insert. On Postgres
+    the survivor FK-violates `_delete_all(List, ...)` instead -- consistent
+    with what already happens for a user-added `ListItem`, so not a new
+    failure mode there, just the same one arriving one statement earlier.
     """
 
-    def _delete_all(model, id_col) -> None:
-        rows = session.exec(select(model).where(id_col.startswith("seed-"))).all()
+    def _delete_all(model, col) -> None:
+        rows = session.exec(select(model).where(col.startswith("seed-"))).all()
         for row in rows:
             session.delete(row)
 
@@ -1850,7 +1865,7 @@ def _delete_seed_rows(session: Session) -> None:
     _delete_all(BarcodeCache, BarcodeCache.id)
     session.flush()
 
-    _delete_all(Purchase, Purchase.id)
+    _delete_all(Purchase, Purchase.list_id)
     session.flush()
 
     _delete_all(ListMember, ListMember.id)
