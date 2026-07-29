@@ -298,12 +298,18 @@ export async function installApiMocks(page: Page): Promise<void> {
     return `trip-${listId}-${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
   }
 
-  /** The trio a just-filed purchase carries: the tap instant, the trip it
-   *  joined, and that trip's effective end — all naive-UTC strings, no 'Z'. */
+  /** The quartet a just-filed purchase carries: the tap instant, the trip it
+   *  joined, that trip's effective end, and whether the trip has been closed
+   *  by hand -- all naive-UTC strings, no 'Z', except the last. A fresh tap
+   *  always joins an open trip (nothing in this mock ever calls
+   *  /purchases/close), so purchase_filed is always false here -- but the
+   *  field must still be present, the same as the real response always
+   *  carries it. */
   const purchaseFieldsFor = (listId: string, instant: Date) => ({
     purchased_at: naiveUtc(instant.toISOString()),
     purchase_id: purchaseIdFor(listId, instant),
     purchase_ends_at: naiveUtc(tearsOffAtFor(instant).toISOString()),
+    purchase_filed: false,
   })
 
   await page.route(`${BACKEND}/**`, async (route) => {
@@ -380,6 +386,7 @@ export async function installApiMocks(page: Page): Promise<void> {
             ].map((i) => ({
               purchase_id: null,
               purchase_ends_at: null,
+              purchase_filed: false,
               ...i,
             })),
           )
@@ -393,6 +400,7 @@ export async function installApiMocks(page: Page): Promise<void> {
             purchased_at: null,
             purchase_id: null,
             purchase_ends_at: null,
+            purchase_filed: false,
             ean: null,
             purchased_quantity: null,
             price: null,
@@ -500,6 +508,7 @@ export async function installApiMocks(page: Page): Promise<void> {
               purchased_at: null,
               purchase_id: null,
               purchase_ends_at: null,
+              purchase_filed: false,
             }
           }
           return json({

@@ -663,4 +663,47 @@ describe('useListItems — write queue on network error', () => {
     expect(result.current.items[0].purchased).toBe(false)
     expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
+
+  it('removeItem: rolls back and shows a specific toast on 409 (trip filed)', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    const apiErr = new ApiError(
+      409,
+      'Cannot delete an item from a trip that has already been filed',
+    )
+    apiErr.status = 409
+    vi.mocked(api.deleteItem).mockRejectedValue(apiErr)
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.removeItem('item-1')
+    })
+
+    // Optimistic removal must be rolled back — the 409 means it is still there.
+    expect(result.current.items).toHaveLength(1)
+    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se puede eliminar un producto de una compra ya archivada',
+    )
+  })
+
+  it('removeItem: rolls back with the generic toast on a non-409 server error', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    vi.mocked(api.deleteItem).mockRejectedValue(new ApiError(500, 'Server Error'))
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.removeItem('item-1')
+    })
+
+    expect(result.current.items).toHaveLength(1)
+    expect(mockShowToast).toHaveBeenCalledWith('No se pudo eliminar el producto')
+  })
 })

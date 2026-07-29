@@ -176,6 +176,7 @@ export function useListItems(
                 // then itemState keeps it in the cart, which is the truth.
                 purchase_id: null,
                 purchase_ends_at: null,
+                purchase_filed: false,
               }
             : i,
         ),
@@ -357,6 +358,12 @@ export function useListItems(
       } catch (err) {
         if (isNetworkError(err)) {
           await enqueue({ listId, type: 'deleteItem', payload: { itemId } })
+        } else if (err instanceof ApiError && err.status === 409) {
+          // ItemActionSheet already hides Eliminar for a filed item, so this
+          // is the backstop for the race where the trip files (a receipt
+          // scan, or "Cerrar compra") between render and tap.
+          setItems(snapshot)
+          showToast('No se puede eliminar un producto de una compra ya archivada')
         } else {
           setItems(snapshot)
           showToast('No se pudo eliminar el producto')

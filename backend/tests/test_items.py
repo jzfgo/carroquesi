@@ -372,6 +372,58 @@ def test_get_items_annotates_purchased_and_unpurchased_items_correctly(client):
     assert fetched["Pan"]["purchase_id"] is None
 
 
+def test_purchase_filed_distinguishes_open_torn_off_and_closed_trips(client, session: Session):
+    """purchase_filed is `trip.closed_at is not None`, and the three-way
+    distinction is the whole point: a torn-off-but-unfiled trip and a closed
+    one both read as 'bought' via the client's itemState() (both compare
+    purchase_ends_at against now), yet delete_item's 409 keys on closed_at
+    and behaves oppositely for the two. The client cannot mirror that 409
+    without this field.
+    """
+    from app.db.models import ListItem, Purchase
+
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+
+    open_item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{open_item['id']}", json={"purchased": True})
+
+    torn_off_item = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"}).json()
+    three_days_ago = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=3)).isoformat()
+    client.patch(
+        f"/lists/{lst['id']}/items/{torn_off_item['id']}",
+        json={"purchased": True, "purchased_at": three_days_ago},
+    )
+
+    filed_item = client.post(f"/lists/{lst['id']}/items", json={"name": "Huevos"}).json()
+    two_days_ago = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=2)).isoformat()
+    client.patch(
+        f"/lists/{lst['id']}/items/{filed_item['id']}",
+        json={"purchased": True, "purchased_at": two_days_ago},
+    )
+    db_item = session.get(ListItem, filed_item["id"])
+    trip = session.get(Purchase, db_item.purchase_id)
+    trip.closed_at = datetime.now(UTC).replace(tzinfo=None)
+    trip.store = "Lidl"
+    trip.total = 5.0
+    session.add(trip)
+    session.commit()
+
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+
+    assert fetched["Leche"]["purchase_filed"] is False
+    assert fetched["Pan"]["purchase_filed"] is False
+    assert fetched["Huevos"]["purchase_filed"] is True
+
+
+def test_add_item_response_defaults_purchase_filed_to_false(client):
+    """add_item returns the freshly-created item without calling
+    _annotate_trips (there's no trip yet), so ItemRead's default must cover
+    it or the response fails validation."""
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+    assert item["purchase_filed"] is False
+
+
 def test_deleting_the_last_item_of_an_open_trip_does_not_orphan_it(client, session: Session):
     """delete_item must detach before deleting, the way un-purchasing does.
 

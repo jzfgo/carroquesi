@@ -12,6 +12,13 @@ export interface ListItem {
   /** `closed_at ?? tears_off_at` — when this item's trip stopped accepting
    *  items. One stamped instant, so nothing on this side does date arithmetic. */
   purchase_ends_at?: string | null
+  /** `trip.closed_at is not None` — whether this item's trip has been filed
+   *  ("Cerrar compra", or a receipt scan). Not derivable from
+   *  `purchase_ends_at`/`itemState()`: a torn-off-but-unfiled trip and a
+   *  closed one both read as 'bought' there, yet DELETE behaves oppositely
+   *  for the two. Optional/undefined reads as "not filed" — same convention
+   *  as `purchase_ends_at`. */
+  purchase_filed?: boolean
   ean: string | null
   price: number | null
   price_per: string | null

@@ -44,6 +44,7 @@ def _annotate_trips(session: Session, items: list[ListItem]) -> None:
     for item in items:
         trip = found.get(item.purchase_id) if item.purchase_id else None
         object.__setattr__(item, "purchase_ends_at", trips.ends_at(trip) if trip else None)
+        object.__setattr__(item, "purchase_filed", trip.closed_at is not None if trip else False)
 
 
 @router.get("", response_model=list[ItemRead])
