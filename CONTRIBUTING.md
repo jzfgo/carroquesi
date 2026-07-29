@@ -93,16 +93,17 @@ Squash-merge is the default here, and into `main` a merge commit is not allowed 
 
 A PR that merges `main` into a long-lived branch is the exception, and must be merged with a real merge commit (`gh pr merge --merge`). Its only product is the ancestry link. A squash keeps the files and drops the link, which leaves the merge base where it was — so the next merge replays commits already applied and re-conflicts every file that was resolved by hand. This is measured, not hypothetical: the first four `main` → `feat/redesign-spec-v6` merges were squashed, and the fourth resolved seven files by hand that the next merge would have presented again.
 
-To repair one that was already squashed, record the ancestry with `git merge -s ours`, which keeps your tree exactly and only adds a parent:
+To repair one that was already squashed, record the ancestry with `git merge -s ours`, which keeps your tree exactly and only adds a parent. Derive the commit rather than typing one — from the merged PR's number:
 
 ```bash
-# The sha must be the main commit that PR actually brought in — NOT origin/main.
-# Confirm the branch already contains its content:
-git merge-base --is-ancestor <sha> <the squashed PR's head commit>   # exit 0 = safe
-git merge -s ours <sha>
+git fetch origin refs/pull/<n>/head                                  # the source branch is deleted on merge
+head=$(gh pr view <n> --json headRefOid -q .headRefOid)
+git merge -s ours "$(git merge-base origin/main "$head")"
 ```
 
-Both halves matter. Against a `main` that has moved on, `-s ours` marks the newer commits as merged while keeping your tree, so their content is dropped and a later `git merge main` answers `Already up to date` — silent, and shaped like success. The check is what separates recording a merge that happened from erasing one that did not.
+Never pass `origin/main` here. If `main` has moved on since the squash, `-s ours` against its tip marks the newer commits as merged while keeping your tree, so their content is dropped and a later `git merge main` answers `Already up to date` — silent, and shaped like success.
+
+`git merge-base` is what makes that unreachable rather than merely guarded: it can only return a commit the PR head actually contained, so it names the newest `main` the branch really absorbed and never the tip. Anything past that point stays unmerged and is offered again by the next real merge, which is what you want. The fetch is needed because GitHub deletes the source branch on merge, leaving that head reachable only through `refs/pull/<n>/head`.
 
 ### Architecture Decision Records
 
