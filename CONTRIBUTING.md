@@ -96,23 +96,36 @@ A PR that merges `main` into a long-lived branch is the exception, and must be m
 To repair one that was already squashed, record the ancestry with `git merge -s ours`, which keeps your tree exactly and only adds a parent. Derive the commit rather than typing one — all you need is the merged PR's number:
 
 ```bash
-git switch <the long-lived branch>         # -s ours acts on HEAD; it must be this branch
+git switch <branch>                        # or `wt switch`, if it already has a worktree
+git fetch --unshallow 2>/dev/null || true  # no-op unless the clone is shallow; see below
 git fetch origin refs/pull/<n>/head        # the source branch is deleted on merge
-git merge -s ours "$(git merge-base origin/main FETCH_HEAD)"
+git merge -s ours -m "record ancestry from #<n>" "$(git merge-base origin/main FETCH_HEAD)"
 git push                                   # the merge base that matters is the one GitHub computes
 ```
 
-Confirm it took: `git merge-base origin/main <the long-lived branch>` should now answer the commit you just merged rather than the old base, and the PR page's behind-count should drop to zero.
+Confirm it took, **against the remote**:
+
+```bash
+git fetch origin
+git merge-base origin/main origin/<branch>   # must answer the sha you just merged
+```
+
+Both arguments have to be remote-tracking refs. `git push` updates neither `origin/main` nor your local branch, so a confirmation phrased against local refs returns the same answer whether or not you pushed — it passes in exactly the state this step exists to catch.
 
 Never pass `origin/main` to `-s ours`. If `main` has moved on since the squash, `-s ours` against its tip marks the newer commits as merged while keeping your tree, so their content is dropped and a later `git merge main` answers `Already up to date` — silent, and shaped like success.
 
 `git merge-base` is what makes that unreachable rather than merely guarded: it can only return a commit the PR head actually contained, so it names the newest `main` the branch really absorbed and never the tip. Anything past that point stays unmerged and is offered again by the next real merge, which is what you want.
 
-Three things about the commands:
+Do not expect the branch to end up level with `main`. The derived commit is the newest `main` the squashed PR contained — `main`'s tip when that PR was opened — so if `main` moved since, a correct repair leaves the branch behind by exactly those newer commits. That is the intended outcome, not a failure, and the next real merge brings them. Reading "still behind" as a failed repair leads straight to `-s ours origin/main`, which is the one thing never to do here.
+
+Notes on the commands:
 
 - **The fetch** is needed because GitHub deletes the source branch on merge, leaving that head reachable only through `refs/pull/<n>/head`. It sets `FETCH_HEAD` to exactly that commit, so nothing else has to name it.
 - **The push** is the step that does the work. The merge base deciding whether the next merge replays those files is computed on GitHub's copy, so an unpushed repair changes nothing at all.
-- **In a shallow clone** — CI checkouts, and anything an agent runs in — the true base can sit below the boundary, `merge-base` then exits 1, and the empty result makes `git merge -s ours` fail. Run `git fetch --unshallow` first. This fails closed, so nothing is at risk; it just will not work.
+- **The unshallow** covers CI checkouts and anything an agent runs in. Where the true base sits below a shallow boundary, `merge-base` exits 1 and the empty result makes `git merge -s ours` fail. It goes before the `refs/pull` fetch so the fetched head arrives into full history. Harmless on a normal clone, and the shallow case fails closed — nothing is at risk, it just will not work.
+- **The `-m`** keeps this non-interactive, and gives the commit somewhere to say why it exists. That message is usually the only place this reasoning survives.
+
+The whole operation exists to change a number computed on GitHub, so it is not finished until you have read that number back from where it lives. Every step before the last one is local and proves nothing on its own.
 
 One collision to know about: `git merge -s ours <sha>` also prints `Already up to date` when `<sha>` is an ancestor already — re-running the repair, say. That is the benign case, and it is a different command from the `git merge main` above.
 
