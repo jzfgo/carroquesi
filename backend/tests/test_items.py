@@ -370,3 +370,33 @@ def test_get_items_annotates_purchased_and_unpurchased_items_correctly(client):
     assert fetched["Leche"]["purchase_ends_at"] is not None
     assert fetched["Pan"]["purchase_ends_at"] is None
     assert fetched["Pan"]["purchase_id"] is None
+
+
+def test_purchasing_an_item_already_filed_returns_409_not_500(client, session: Session):
+    """Defensive: trips.attach raises AlreadyFiled only when purchase_id points
+    at a closed trip while purchased_at is None -- an invariant violation that
+    should never happen through the API, but if it ever did, the router must
+    not let it escape as an uncaught 500.
+    """
+    from app.db.models import ListItem, Purchase
+
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Leche"}).json()
+
+    trip = Purchase(
+        list_id=lst["id"],
+        opened_at=datetime(2026, 1, 1, 10, 0),
+        tears_off_at=datetime(2026, 1, 1, 22, 0),
+        closed_at=datetime(2026, 1, 1, 20, 0),
+    )
+    session.add(trip)
+    session.commit()
+    session.refresh(trip)
+
+    db_item = session.get(ListItem, item["id"])
+    db_item.purchase_id = trip.id
+    session.add(db_item)
+    session.commit()
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    assert response.status_code == 409

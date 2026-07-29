@@ -214,7 +214,13 @@ def apply_receipt_prices(
         # client-sent flag could rewrite a timestamp set by another member.
         if item.purchased_at is None:
             item.purchased_at = purchase_ts
-            trips.attach(session, item, purchase_ts)
+            try:
+                trips.attach(session, item, purchase_ts)
+            except trips.AlreadyFiled:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot apply a price to an item on a trip that has already been filed",
+                ) from None
         session.add(item)
         updated += 1
         affected.append(item)
@@ -237,7 +243,16 @@ def apply_receipt_prices(
         )
         session.add(created_item)
         session.flush()
-        trips.attach(session, created_item, purchase_ts)
+        try:
+            trips.attach(session, created_item, purchase_ts)
+        except trips.AlreadyFiled:
+            # Unreachable in practice -- created_item is always fresh with no
+            # purchase_id -- but attach() is a shared entry point and every
+            # caller of it must handle the exception it can raise.
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot apply a price to an item on a trip that has already been filed",
+            ) from None
         affected.append(created_item)
         created += 1
 

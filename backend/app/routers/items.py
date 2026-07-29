@@ -116,7 +116,13 @@ def update_item(
     if purchased is True and item.purchased_at is None:
         item.purchased_at = trips.tap_time(supplied_at, now)
         item.purchased_by = current_user.id
-        trips.attach(session, item, item.purchased_at)
+        try:
+            trips.attach(session, item, item.purchased_at)
+        except trips.AlreadyFiled:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot purchase an item into a trip that has already been filed",
+            ) from None
     elif purchased is False:
         if item.purchase_id is not None:
             trip = session.get(Purchase, item.purchase_id)
