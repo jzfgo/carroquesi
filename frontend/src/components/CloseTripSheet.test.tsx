@@ -766,6 +766,26 @@ describe('CloseTripSheet when the paper is discarded', () => {
     expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-30T19:12:00')
   })
 
+  // A sheet rebuilt from the rows it opened with would keep the names and the
+  // ticks too. What lives only in this sheet is an edit made since it opened,
+  // so that is what tells editing the rows apart from starting again.
+  it('keeps an edit made before the paper was dropped', async () => {
+    const onEditLine = vi.fn((line: CloseLine, apply: (l: CloseLine) => void) =>
+      apply({ ...line, name: 'Pan de payés', price: 2.5 }),
+    )
+    renderTicket({ onEditLine })
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Ajustar Pan de pueblo' }),
+    )
+    await userEvent.click(screen.getByLabelText('Leche'))
+    await discard()
+
+    expect(screen.getByLabelText('Pan de payés')).toBeInTheDocument()
+    expect(screen.getByLabelText('Leche')).not.toBeChecked()
+    expect(totalText()).toMatch(/2[,.]50/)
+  })
+
   it('offers to read a paper again', async () => {
     renderTicket()
 
