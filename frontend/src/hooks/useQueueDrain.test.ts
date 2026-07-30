@@ -248,6 +248,79 @@ describe('useQueueDrain — drain on reconnect', () => {
     )
   })
 
+  // Two shops in one evening is a case this app is built for, so the plural
+  // is the branch the counter exists to serve — and it was the one nothing
+  // rendered.
+  it('agrees in number when two shops were lost', async () => {
+    for (const store of ['Lidl', 'Mercadona']) {
+      await enqueue({
+        listId: 'l1',
+        type: 'closePurchase',
+        payload: {
+          store,
+          purchased_at: '2026-07-30T18:00:00',
+          purchase_id: null,
+          total: null,
+          lines: [
+            { item_id: 'a', price: 1.19, price_per: null, quantity: null },
+          ],
+          new_items: [],
+        },
+      })
+    }
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new api.ApiError(409, 'nothing to close'),
+    )
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'No se pudieron guardar 2 compras. Vuelve a cerrarlas',
+      ),
+    )
+  })
+
+  // The two counts move independently, so the plural verb must not be keyed
+  // off the wrong one.
+  it('counts one stray change beside two lost shops', async () => {
+    for (const store of ['Lidl', 'Mercadona']) {
+      await enqueue({
+        listId: 'l1',
+        type: 'closePurchase',
+        payload: {
+          store,
+          purchased_at: '2026-07-30T18:00:00',
+          purchase_id: null,
+          total: null,
+          lines: [
+            { item_id: 'a', price: 1.19, price_per: null, quantity: null },
+          ],
+          new_items: [],
+        },
+      })
+    }
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: { name: 'Pan' },
+    })
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new api.ApiError(409, 'nothing to close'),
+    )
+    vi.mocked(api.createItem).mockRejectedValue(
+      new api.ApiError(422, 'unprocessable'),
+    )
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'No se pudieron guardar 2 compras, ni 1 cambio más',
+      ),
+    )
+  })
+
   it('does not drain ops for a different listId', async () => {
     vi.mocked(api.createItem).mockResolvedValue({} as never)
     await enqueue({

@@ -374,6 +374,25 @@ def close(
         # invisible. Their confirmed total would then be overwritten with a
         # 200. Asking again, with the filter, is what makes their commit
         # visible and turns that into the refusal it should be.
+        #
+        # It closes that race only in one direction, and the filter is not a
+        # lock. A close that committed *before* this SELECT is now refused. A
+        # close that commits *after* it is not: both callers pass the filter,
+        # and the UPDATE this function goes on to emit carries no `closed_at`
+        # predicate, so the later writer still wins and the earlier confirmed
+        # total is still lost. The window shrank from the whole request to
+        # this SELECT and the commit; it did not close. Making it whole wants
+        # a conditional write -- `UPDATE ... WHERE id = :id AND closed_at IS
+        # NULL`, with `rowcount == 0` raising NothingToClose -- which is one
+        # statement's semantics rather than a locking policy for the trip
+        # lifecycle, and unlike this SELECT it can be tested.
+        #
+        # Both branches here need a filtered SELECT to see a row another
+        # transaction committed after ours began, which is the same READ
+        # COMMITTED assumption `trip_for`'s re-select is written against.
+        # Under REPEATABLE READ that SELECT reads a pre-transaction snapshot
+        # and this whole guard silently does nothing. See the longer note
+        # there; three places now rest on it.
         trip = unfiled_trip_for(session, list_id, at or now) or open_trip(session, list_id, now)
     else:
         # Asked with the filter, for the same reason the branch above is: a
@@ -383,6 +402,10 @@ def close(
         # are all bought already, so nothing else in the request emits a query
         # either -- and a second member filing the same ticket would be
         # invisible right up to the point of overwriting their total.
+        #
+        # The limits of that are set out in the branch above, and they apply
+        # here unchanged: it refuses a close that already committed, not one
+        # that commits next, and it assumes READ COMMITTED.
         trip = session.exec(
             select(Purchase).where(
                 Purchase.id == purchase_id,

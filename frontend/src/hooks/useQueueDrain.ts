@@ -100,13 +100,21 @@ export function useQueueDrain({
       // one evening is a case this app is built for, so two lost ones must not
       // read as one.
       const others = failures - lostShops
-      const shops = lostShops === 1 ? 'una compra' : `${lostShops} compras`
+      const many = lostShops > 1
+      const shops = many ? `${lostShops} compras` : 'una compra'
+      // The verb agrees with what was lost, and the pronoun on "cerrarla"
+      // with the shops alone. The branch below already agrees in number, so a
+      // fixed singular here would break the file's own standard on exactly
+      // the case this counter was added for. When something else was lost
+      // too, at least two things were, so the verb is plural either way.
+      const lead =
+        many || others > 0 ? 'No se pudieron guardar' : 'No se pudo guardar'
       showToastRef.current(
         others > 0
-          ? `No se pudo guardar ${shops}, ni ${others} ${
+          ? `${lead} ${shops}, ni ${others} ${
               others === 1 ? 'cambio más' : 'cambios más'
             }`
-          : `No se pudo guardar ${shops}. Vuelve a cerrarla`,
+          : `${lead} ${shops}. ${many ? 'Vuelve a cerrarlas' : 'Vuelve a cerrarla'}`,
       )
     } else if (failures > 0) {
       showToastRef.current(
