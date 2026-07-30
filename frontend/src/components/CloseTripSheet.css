@@ -25,13 +25,122 @@
    a screenshot's budget and could vanish unnoticed — and the parser that test
    runs on drops a shorthand carrying a custom property. */
 .cts__thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 44px;
   height: 56px;
+  padding: 0;
   border-radius: 4px;
   flex-shrink: 0;
   border-width: 1.5px;
   border-style: dashed;
   border-color: var(--dash);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.cts__thumb:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cts__paper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.cts__paper-preview {
+  display: block;
+  width: 44px;
+  height: 56px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--paper-sunken);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.cts__paper-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cts__paper-badge {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  cursor: pointer;
+}
+
+.cts__paper-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 168px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper-lift);
+  box-shadow: var(--shadow-md);
+}
+
+.cts__paper-action {
+  min-height: 44px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-0);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cts__paper-action:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.cts__paper-action--drop {
+  color: var(--danger);
+}
+
+.cts__paper-full {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border: none;
+  background: var(--scrim);
+  cursor: zoom-out;
+}
+
+.cts__paper-full-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .cts__head-body {
@@ -92,6 +201,14 @@
   color: var(--ink-1);
   font-size: 12.5px;
   font-family: inherit;
+}
+
+/* Dashed and accented while the control holds no answer, which is what a scan
+   that could not read the day leaves behind. */
+.cts__date--ask {
+  background: transparent;
+  border: 1px dashed var(--accent-border);
+  color: var(--accent);
 }
 
 .cts__pill-count {
@@ -176,6 +293,41 @@
   color: var(--ink-2);
 }
 
+/* The string the till printed, in the receipt's own face. */
+.cts__raw {
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-0);
+}
+
+/* What the app believes the line was, when somebody already resolved that
+   string or the name matched exactly. Solid ink, and no underline. */
+.cts__guess {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--ink-1);
+}
+
+/* The matcher interpreted, and the row is waiting to be confirmed. Accent and
+   a dashed stroke — the grammar the whole app uses for "not real yet".
+
+   A border rather than an underline, and written as longhands rather than one
+   `border-bottom` shorthand. A test reads this back from the computed style,
+   because a stroke this thin costs fewer pixels than a screenshot's budget
+   and could vanish unnoticed — and the parser that test runs on drops a
+   shorthand carrying a custom property. The dashed slot above is written the
+   same way and needs no exception only because stylelint already skips
+   `border`. */
+.cts__guess--ask {
+  color: var(--accent);
+
+  /* stylelint-disable-next-line declaration-block-no-redundant-longhand-properties */
+  border-bottom-width: 1.5px;
+  border-bottom-style: dashed;
+  border-bottom-color: var(--accent-border);
+}
+
 .cts__qty {
   font-family: var(--mono);
   font-size: 12px;
@@ -244,6 +396,51 @@
   color: var(--ink-0);
 }
 
+.cts__recon {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 14px 20px 6px;
+}
+
+.cts__recon-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.cts__recon--ok .cts__recon-dot {
+  background: var(--success);
+}
+
+.cts__recon--off .cts__recon-dot {
+  background: var(--warn);
+}
+
+.cts__recon-label {
+  flex: 1;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.cts__recon-amount {
+  font-family: var(--mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+/* The amber is on the disc, which is a surface. This is text, and the amber
+   is documented as never being a text colour. */
+.cts__recon-diff {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-1);
+}
+
 .cts__save {
   display: block;
   width: calc(100% - 40px);
@@ -261,6 +458,10 @@
 
 .cts__save:disabled {
   opacity: 0.4;
+}
+
+.cts__save-figure {
+  font-family: var(--mono);
 }
 
 .cts__offline {
