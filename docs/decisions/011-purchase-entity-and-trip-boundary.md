@@ -37,13 +37,17 @@ Collapsing them would let a bad OCR read on a re-scan overwrite a total someone
 confirmed, and there would be no error to signal it happened. That silence is
 the whole reason for the split.
 
-**A trip is declared at reconciliation, not inferred from tap timestamps.**
+**A trip is declared when someone closes it, not inferred from tap timestamps.**
 Tapping an item only puts it in the list's open trip. Nothing about the shop is
-decided until someone reconciles — closing by hand, or applying a receipt scan
-— and reconciling takes a *subset* of the open cart. That subset is what lets
-two people who shopped at two shops on one evening end up with a ticket each;
-until they reconcile they share one open trip, and nothing has been claimed
-about who bought what where.
+decided until someone closes it, and closing takes a *subset* of the open cart.
+That subset is what lets two people who shopped at two shops on one evening end
+up with a ticket each; until they close, they share one open trip, and nothing
+has been claimed about who bought what where.
+
+There is one way to close, whether the lines were typed by hand or read off a
+receipt. A scan fills the same sheet rather than having a screen and an endpoint
+of its own — see the spec for phase 3c of the v6 redesign. This was two paths
+originally, and they were merged because they were one act described twice.
 
 **The boundary is the household's, not the phone's.** `tears_off_at` is stamped
 onto the row at creation — local midnight after `opened_at`, in `Europe/Madrid`
@@ -58,9 +62,8 @@ off.
 **Supporting choices**, each explained at its call site rather than here:
 `list_items.purchase_id` stays nullable permanently, with *purchased ⇒
 `purchase_id` set* enforced in-app the way `list_members.is_default` is
-([ADR-007](007-per-user-default-list.md)); "at most one open trip per list" is a
-partial unique index rather than application discipline; and a scan whose
-matches span more than one trip reconciles none of them.
+([ADR-007](007-per-user-default-list.md)); and "at most one open trip per list"
+is a partial unique index rather than application discipline.
 
 ## Alternatives considered
 
@@ -87,9 +90,12 @@ matches span more than one trip reconciles none of them.
   and share one open trip, honestly, until then.
 - The client does no date arithmetic at all. `isSameCalendarDay.ts` and its UTC
   comparisons are deleted outright.
-- A scan spanning several trips reconciles none of them — ergonomics traded for
-  truth. Closing that cart by hand is recoverable; a total attached to lines it
-  does not describe is not.
+- A scan cannot attach a total to lines it does not describe. This began as a
+  rule about a scan that matched across several trips: it reconciled none of
+  them, because guessing which one it meant would have invented a fact.
+  Phase 3c removed the guess instead. The person closing names the trip, and a
+  matched line the sheet has no row for arrives as a line to assign rather than
+  as a silent write to somebody else's ticket.
 - A travelling member's phone never decides the boundary.
 - Per-member trips stay reachable later without a schema change, since
   `list_items.purchased_by` is already populated and trips could be re-derived.

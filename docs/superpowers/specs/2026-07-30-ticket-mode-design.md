@@ -1,0 +1,534 @@
+# Phase 3c — ticket mode, and the retirement of the scan screen
+
+Design for the second half of spec v6 phase 3. Base branch is
+`feat/redesign-spec-v6`, never `main`.
+
+Phase 3b built `CloseTripSheet` in its hand-written mode and left the thumbnail
+in the header dashed and inert. Scanning is still a separate screen with its own
+review table, its own apply endpoint and its own reconciliation. This phase makes
+the thumbnail work and retires all three.
+
+## Design authority
+
+The screens are already designed. The UI redesign handoff
+(`design_handoff_carroquesi_ui`) is the reference, and this spec records
+structure and behaviour rather than look. The option ids used below:
+
+| id | what it is |
+|---|---|
+| `10b` | the close sheet in hand mode — the table 3b shipped |
+| `10d` | "Ajustar producto" — the line editor 3b shipped |
+| `13a` | receipt review — the same sheet with the paper's data in it |
+| `13b` | resolving one receipt line |
+| `18b` | the sheet at scale: forty lines, a total that does not agree |
+| `25b` | the thumbnail's two states, with paper and without |
+| `26b` | the review when there is nothing to match against |
+| `30a` | the four sheet types, and what the ticket header prints |
+| `6c` | inherited prices, opt-in with confirmation |
+
+Where this spec and the handoff disagree, the handoff wins and the disagreement
+is a bug in this spec.
+
+## What this is for
+
+The app has two doors to one act. Closing a shop and scanning its receipt are
+the same declaration — these lines, that shop, this total — and today they are
+two screens, two endpoints and two ways of deciding which trip was meant. Rule 1
+of the handoff is *una acción, un camino*, and this is the largest breach of it
+left in the app.
+
+3b said the destination was right and the timing was wrong: migrating a
+755-line component while trips were being introduced would put two moving things
+in one review. Trips are in now. This is the review.
+
+## Scope
+
+**In:** ticket mode in `CloseTripSheet`, the raw line and match state on every
+row, `13b`'s resolve flow, the paper's total and the reconciliation check,
+`scan_id` and `mappings` on the close endpoint, the receipt date clamp, and the
+deletion of `ReceiptScanSheet`, `POST /lists/{id}/receipt-prices` and
+`trips.reconcile_scan`.
+
+**Out, deferred:** `6c`'s inherited prices, for the reason 3b gave — they need a
+last-confirmed-price-per-item-per-store read that does not exist.
+
+**Out, still:** receipt image storage, pending its own ADR. Two consequences
+follow and both are load-bearing:
+
+- The ticket header in the list keeps shipping without the miniature `30a`
+  draws. The thumbnail inside the sheet is unaffected, because that image is in
+  memory for the length of the flow and never stored.
+- `25b`'s second door — scanning a purchase that is already filed, to attach
+  the paper and fill in the amounts it is missing — stays out. It cannot be
+  built without somewhere to keep the paper, and its whole value is the paper.
+  See "A filed trip is not scannable" below, which is where that shows up as a
+  rule rather than an omission.
+
+## Settled decisions
+
+### One act, one endpoint — and the deferred bug dissolves
+
+3b handed 3c a bug and a choice. `reconcile_scan` reads its trip with
+`session.get`, which SQLAlchemy answers from the identity map, so a member who
+filed that trip in the meantime is invisible and the scan overwrites figures
+they confirmed. 3b fixed the same read in `close()` with a filtered `SELECT ...
+WHERE closed_at IS NULL` and named two ways to answer it here: the same patch,
+or routing reconciliation through `close()`.
+
+This spec takes the second. `apply_receipt_prices` and `reconcile_scan` are
+deleted, and a scan-driven close is a close.
+
+The argument is not that the patch would not work. It is that `reconcile_scan`
+exists to *guess which trip a scan meant*, and it only has to guess because the
+scan flow never asks. Its own docstring is four sentences of reasoning about
+what to do when the guess is ambiguous. The close sheet asks. A guess with no
+question behind it does not deserve a filtered `SELECT`; it deserves deleting.
+
+What the two paths actually did, side by side, is nearly the same work: stamp
+`purchased_at` from server state, `trips.attach`, write price and quantity,
+create the impulse buys, bump `lists.updated_at`. The real differences are four,
+and each is handled below rather than kept as a second endpoint: the store is
+per-patch instead of per-close, the receipt path learns name mappings, it
+records what a scan updated, and it clamps the date differently.
+
+### A scan narrows the sheet's rows; it does not replace them
+
+The two modes are one component and one row model, which is the hedge 3b built:
+`CloseLine` already carries `receiptLine` and `matchState`, populated by nobody.
+3c populates them.
+
+A scan does three things to a sheet that is already open:
+
+1. Rows the matcher recognised get their `receiptLine`, `matchState`, price and
+   quantity from the paper.
+2. Lines the matcher could not place become rows with `itemId: null` and no
+   name — the `Asignar producto` state of `13a`.
+3. Rows the paper never mentioned stay, unticked. `12c` grouped these under "En
+   el carro, pero no en el ticket"; `13a` withdrew the grouping because a group
+   asserts, and the matcher is what is being checked. They are simply rows the
+   scan did not tick.
+
+The order is the paper's, because the raw line is the only thing a person can
+check against what they are holding. Rows the paper never mentioned come after,
+in the order they already had.
+
+**And the scan response has to be able to say what that order was.** It returns
+`matched` and `unmatched` as two arrays, and the screen being retired simply
+concatenated them — which is grouping, the thing `13a` withdrew. Order cannot be
+recovered from the names either: receipts repeat them, and two tubs of the same
+yoghurt are two lines.
+
+So `MatchedLine` and `UnmatchedLine` each gain an `index`, the line's position in
+the array that was submitted. The matcher already walks that array in order, so
+it costs nothing. The two arrays stay: whether a line was placed is real
+information, and it is the same question as whether the row has an `itemId`.
+
+**A match this sheet cannot hold is a match the app drops.** The matcher's
+candidate set is every item with a `purchased_at` inside a ±3 day window. There
+is no trip filter, so it routinely names items filed under an older ticket —
+items this sheet has no row for, because a close sheet only holds the trip it is
+closing plus what is still on the list.
+
+Such a line becomes an ordinary `Asignar producto` row: the raw string, the
+amounts, and no suggestion. The matcher's answer is dropped rather than shown,
+because acting on it is the one thing that cannot work — the item is not in this
+trip's cart, so naming it would have the server refuse the whole sheet.
+
+The alternative of letting it through and returning `NotInTheCart` was
+considered and is wrong. It turns an ordinary Wednesday scan that happens to
+brush a Monday item into a 400 on the primary action, with nothing the household
+can do about it and nothing on screen saying what went wrong. Dropping the line
+silently is worse still: a line vanishes from a paper the person is holding, and
+the reconciliation disc goes amber for a reason nobody can see. Only the third
+answer keeps the sheet saveable and leaves the decision with the person who has
+the receipt in their hand.
+
+The matcher also never considers items that are still *pending*, so a receipt
+line for something on the list but never ticked off comes back unmatched. That
+is not a defect to work around here: `13b`'s "pendientes de asignar" is exactly
+the list that answers it, and it is one tap.
+
+### Two totals in ticket mode, and only one of them is the paper's
+
+Hand mode has one figure: the sum of what was ticked, shown with `≥` because a
+till adds things no line ever held. Ticket mode has three, and conflating any
+two of them is how a receipt screen starts lying.
+
+- **`Purchase.total`** is the figure printed on the paper. Confirmed truth,
+  never computed, and the reason the ticket header prints an amount plain
+  instead of with `≥`.
+- **The reconciliation check** compares the paper's total against the sum of
+  **every** receipt line, ticked or not. An unticked line is still on the paper.
+  Green when they agree, amber with the difference when they do not, and no
+  amount is ever adjusted to make them agree — a till discount is ordinary, and
+  moving a line so the arithmetic closes would be inventing data.
+- **The primary's figure** — "Guardar compra · € 11,16" — is the sum of what is
+  ticked, which is what is about to enter price history.
+
+`13a` shows all three at once and they disagree by design: the disc is green at
+11,31 while the button saves 11,16. That is not a defect to reconcile. It is the
+screen saying *the paper says this, and you are recording that much of it*.
+
+**Both sums add up the paper's own printed amounts. Neither recomputes them.**
+Every receipt line arrives with a `line_total` — the figure actually printed
+beside it — and that is what a ticket-mode row shows and what both sums add.
+Working the amount out instead, as unit price times quantity, is arithmetic the
+paper already did, and doing it again introduces error the paper never had: a
+weighed line's quantity is rounded to the gram to be displayed, so the product
+drifts by a few cents. That drift lands straight on the reconciliation disc,
+which goes amber and tells the household their receipt does not add up. It does
+add up. The app's arithmetic does not.
+
+Check it against `13a`'s own figures: `2,79 + 1,90 + 3,29 + 3,18 + 0,15` is
+exactly the `11,31` the disc calls green, and the primary's `11,16` is that less
+the unticked bag. Those are printed line totals being added, not products being
+recomputed.
+
+So `CloseLine` carries the paper's amount for a row that came from a paper, and
+the rule is the one rule 9 already states: where the paper printed a figure, the
+app repeats it and does not check its arithmetic. A hand-written row has no
+printed amount, so it keeps the existing per-unit arithmetic — that is the only
+place the multiplication belongs.
+
+This is why `linesTotal` is not inverted for ticket mode. Ticket mode needs a
+second, different sum — every receipt line — and a function that changed meaning
+by mode would make the two impossible to tell apart at the call site.
+
+### The paper wins, and the app's guess is an annotation
+
+Rule 9, and the whole shape of `13a`. Every row leads with the raw string in
+mono, because that is the only thing that can be checked against what is in the
+household's hand. Underneath sits what the app believes, in two forms and with
+no words explaining which:
+
+- **Solid ink, no underline** — the match was literal. A string somebody already
+  resolved for this shop, or the exact name of something on the list.
+- **Accent with a dashed underline** — the matcher interpreted, and it is
+  waiting to be confirmed. The same dashed grammar the whole app uses for "this
+  is not real yet".
+
+Confirming makes it solid, and stores the mapping so the same string arrives
+resolved next time. Saving without confirming is allowed: the shop is recorded,
+the amount counts toward the paper's total, and the line enters no product's
+history. That is `13a`'s rule and it is what keeps a bad guess from becoming a
+bad price.
+
+**And the scan response has to be able to say which of the two a match is.**
+`match_lines` already decides: it looks for a confirmed mapping first and falls
+back to a fuzzy score. But both branches build the same `MatchedLine`, so the
+answer is thrown away at the boundary.
+
+Left alone, `matchState` can only ever be `guess`. Every row would carry the
+dashed underline forever, the solid form would be unreachable, and the two forms
+that `13a` is built on would collapse into one. Worse, it would quietly break the
+promise the whole mapping machinery exists to keep: the household confirms a
+string, and the next ticket shows it looking exactly as unconfirmed as it did
+before. All the work of learning the name would be invisible.
+
+So `MatchedLine` carries whether the match came from a name somebody had already
+confirmed for this shop. That is what `literal` means, and it is one flag on a
+branch that already exists.
+
+### Resolving a line has two causes, in that order
+
+`13b` is one sheet and it puts the two causes one under the other, because a
+line the matcher could not place is either something already on the list that no
+line has claimed, or something that was never on the list at all.
+
+- **Pendientes de asignar** — the rows of this sheet no receipt line has taken
+  yet, including what is in the cart. Radio buttons; the answer is usually one
+  tap.
+- **Si no estaba en la lista** — the smart input bar, which is already both
+  search and create. It arrives filled from the receipt line, with the parse
+  shown above it in the same form the input bar already uses.
+
+One action, `Asignar`. Creating is only the step before assigning, so it is not
+a second button. There is no *Cancelar* — the chevron is the way out — and no
+"do not save this line", because that is the row's checkbox and lives in `13a`.
+Repeating it here would be two paths to one decision.
+
+`13b` is a sibling of `10d`, not a mode of it. `10d` edits four fields of a row
+that already has a name; `13b` answers *which product is this*. They are reached
+from the same chevron and are told apart by whether the row's product is
+settled. A line with no product and a line the matcher only guessed at both
+reach `13b`: confirming a guess is the same answer as filling a blank, and it
+is the only way a guess ever becomes solid.
+
+### A filed trip is not scannable
+
+`close()` refuses a trip that already has `closed_at`, and that rule does not
+bend for a scan. Its total is a figure someone confirmed for the lines it held;
+re-closing it would restate that figure for a different set.
+
+One capability is genuinely lost here: filing over an already-closed trip.
+Today's scan can reach across a ±3 day window into an already-filed ticket
+and rewrite the prices there. After this phase it cannot: those lines arrive
+as rows to assign, and assigning them to their original items is not offered.
+That is the right loss — rewriting a confirmed ticket was never something
+anybody asked for, and it is the same overwrite the deferred `reconcile_scan`
+bug caused by accident. A second capability is also lost, unrelated to closed
+trips; see "Follow-ups this creates".
+
+`NotInTheCart` stays as the server's guard, and after this phase the sheet
+cannot provoke it: every row it can send is either in the trip being closed, on
+the list, or new. It remains reachable by a direct API call, which is what a
+guard is for.
+
+The case this shuts out — completing an already-filed purchase from its
+receipt — is `25b`'s second door, and it is out of scope anyway for want of
+image storage. When it comes back it needs its own verb, not a second meaning
+for closing.
+
+### The scan gate covers the scan, not the close
+
+`POST /lists/{id}/purchases/close` is **not** gated on `ai_receipt_scanning` and
+must not become gated. That is its reason for existing: a household without the
+flag has no other way to declare a shop.
+
+`scan_id` and `mappings` are the scan's own fields and follow the scan's gate. A
+request that names either without the flag is refused; a request that names
+neither is the manual close and is always allowed.
+
+This is exactly the gate that gets copied across by accident when two payloads
+start looking alike, which is why 3b demanded a test that the endpoint works
+with the flag off. That test stays, and gains a sibling for the refusal.
+
+### A receipt's date is clamped forward only
+
+Two clamps, chosen by whether the close carries a scan.
+
+- **Hand close** — `trips.tap_time`: no future, and no older than
+  `MAX_BACKDATE`. A hand-typed date carries a live clock's risks.
+- **Scan close** — `trips.no_future` only. A receipt records something that
+  already happened, however long ago, and flooring it would silently rewrite the
+  day an old shop happened.
+
+The future direction still matters in both: an OCR misread of a year digit, or
+`DD/MM` read as `MM/DD`, would otherwise create a second open trip beside the
+live cart, and `open_trip`'s unordered `.first()` would then pick between them
+arbitrarily. This is the rule `apply_receipt_prices` already implements, moved
+rather than invented.
+
+**And a receipt keeps its printed hour.** `toReceiptInstant` goes to some
+trouble to combine the paper's printed date and time into one instant, offset
+and all. The sheet's date control works in whole days and sends Madrid noon.
+Both are right for their own case, so the rule is the one 3b already wrote for
+`defaultDate`: send the instant unchanged while the day has not been touched,
+and Madrid noon of the new day once it has. Untouched, an evening receipt keeps
+being an evening receipt and the trip's lines keep their order within the day;
+touched, the person has said the day and the hour they did not say is not worth
+inventing.
+
+## API surface
+
+### `POST /lists/{list_id}/purchases/close` — two new fields
+
+```
+scan_id:  str | None                # ties this close to a ReceiptScan
+mappings: [{receipt_name, item_name, item_brand}]
+```
+
+Everything else keeps the shape 3b gave it. Behaviour additions, in order:
+
+1. If `scan_id` or `mappings` is present and `ai_receipt_scanning` is off, 403.
+2. The date clamp is chosen by `scan_id` as above.
+3. `mappings` are upserted the way `apply_receipt_prices` did — bump
+   `use_count`, overwrite the item name and brand, record who confirmed it.
+4. After `trips.close` succeeds, the named `ReceiptScan` records
+   `items_updated` and `purchase_id`.
+
+**A mapping does not carry its own store.** `NameMappingCreate` has one today
+because the receipt batch had no other place to say where it was learned. This
+payload does: a ticket belongs to one shop, so the shop is stated once and every
+mapping in the call is learned for `body.store`. This is the same argument that
+kept `store` off `PurchaseLine` in 3b, and leaving it on the mapping would allow
+a payload whose mapping contradicts its own close with no rule for which wins.
+
+The bounded shape moves to `schemas/purchases.py` as `PurchaseNameMapping`, next
+to the payload that carries it. `schemas/receipt.py` keeps only the scan half.
+
+**And the receipt name is normalised where it is written, not where it is sent.**
+This fixes a bug that predates the phase. The matcher looks a mapping up by
+`normalise(receipt_name)` — lowercased, accents stripped, a leading number
+removed, whitespace collapsed — while the screen that *stored* it only
+lowercased. The two keys agree for a plain ASCII line and disagree for a great
+many real ones:
+
+| receipt line | stored | looked up | |
+|---|---|---|---|
+| `CAFÉ MOLIDO` | `café molido` | `cafe molido` | never matches |
+| `2 YOGUR NATURAL` | `2 yogur natural` | `yogur natural` | never matches |
+| `TOMATE  PERA` | `tomate  pera` | `tomate pera` | never matches |
+
+So a household confirms a name, and the next ticket asks again. `13a` promises
+the opposite — "al confirmar, esa cadena entra resuelta en el próximo ticket" —
+and for accented Spanish product names, which is most of them, it has never been
+true.
+
+The close endpoint therefore calls the matcher's own `normalise` on
+`receipt_name` before writing. That is the DRY reading of the rule: how a receipt
+name is keyed is one rule, and it belongs on the server, once, where the lookup
+also lives. The client stops lowercasing, because it stops being the client's
+business.
+
+Mappings already stored in the wrong key are left alone. They are a cache of
+confirmations, not a record of anything, and the cost of a stale row is one
+question asked once more.
+
+A `scan_id` naming a scan that does not exist, or belongs to another list, is
+ignored rather than refused. The shop is the thing being recorded; losing the
+audit link is not worth losing the close. This matches how the current apply
+endpoint treats a missing scan.
+
+### Deleted
+
+- `POST /lists/{list_id}/receipt-prices` and `apply_receipt_prices`
+- `trips.reconcile_scan`
+- `PricePatch`, `NewPurchasedItem`, `NameMappingCreate` and `ReceiptPriceBatch`
+  in `schemas/receipt.py`
+
+`POST /lists/{list_id}/receipt` — the scan and match step — stays exactly as it
+is. It reads a paper and proposes; it writes nothing but its own audit row. Only
+the *applying* half converges.
+
+## Frontend
+
+- **`CloseTripSheet`** gains ticket mode. The thumbnail becomes live: dashed with
+  a camera when there is no paper, the receipt with a badge when there is.
+  Behind the preview sit the two other things you can do to a paper — read it
+  again, and discard it.
+- **Discarding keeps everything the scan parsed.** Names, quantities and amounts
+  stay as ordinary typed values. What is dropped is the paper's authority: the
+  confirmed total goes, the raw lines stop standing behind the names, and the
+  header prints `≥` again. Adding the paper is additive so it costs one tap;
+  discarding removes an authority so it sits one level down, which is also how
+  a destructive action stays separated without a confirm dialog.
+- **Re-reading and discarding are not the same mechanic**, and the sheet's
+  existing comment is easy to misread on this. `CloseTripSheet` seeds its rows
+  once, on purpose, so a poll cannot rewrite a row under a household in the
+  middle of pricing it — the note says a caller wanting fresh rows must mount a
+  fresh sheet. Re-reading the paper *is* that caller: it replaces the rows
+  wholesale, so it remounts, keyed on the new `scan_id`, exactly as `ListScreen`
+  already remounts on a re-match today. Discarding is the opposite — its whole
+  promise is that what was typed survives — so it must edit the rows in place
+  and must not remount.
+- **`ResolveLineSheet`** is new — `13b`.
+- **`receiptToLines`** is a pure function in `lib/closeLines.ts`: a
+  `ReceiptScanResult` and the sheet's current rows in, a new row set out. Every
+  rule above that can be stated without a DOM is stated there.
+- **`ReceiptScanSheet`, its CSS and its tests are deleted**, along with the
+  `applyReceiptPrices` call and the scan-session state in `ListScreen` that only
+  existed to feed it. The source picker, the upload indicator and
+  `parseReceiptWithAi` all survive — they belong to reading a paper, which is
+  unchanged.
+- **The camera is disabled offline**, the way `LogPurchaseSheet` already
+  disables saving. Reading a receipt needs Gemini and the matcher; neither is
+  reachable from a basement.
+
+## Offline
+
+The close is already a queued write, and ticket mode adds nothing to the queue's
+shape — `scan_id` and `mappings` ride inside the same `closePurchase` payload.
+
+The ordering that matters: a scan happens **online**, and its `receipt_scans`
+row is committed by the scan endpoint before the sheet ever shows a line. So a
+household that scans, walks out of range, and closes offline queues a `scan_id`
+that already exists server-side. It cannot dangle.
+
+## Failure space
+
+| case | behaviour |
+|---|---|
+| the scan reads nothing the matcher can place | every line is an `Asignar producto` row. This is `26b`, and it costs nothing extra — the state already exists per row |
+| the paper's total does not agree with its lines | amber disc, the difference beside it, and no amount is touched |
+| a line is left unconfirmed at save | saved; it counts toward the paper's total and enters no product's history |
+| a receipt line matches an item on an older filed trip | `NotInTheCart`, the whole sheet refused. A receipt spanning two shops is not one close |
+| the scan cannot read the store | the control arrives empty and dashed and the save waits for it, exactly as in hand mode. The person is equally present either way |
+| the scan cannot read the date | dashed and accented, and it must be answered. `13a` is explicit that there is no saving without a date |
+| forty lines | `18b`: a sticky header and a count, not a fold |
+| the paper is discarded mid-flow | back to hand mode, values kept, authority dropped |
+| `scan_id` names a scan that has been deleted | ignored; the close succeeds and the audit link is lost |
+| `scan_id` sent without the feature flag | 403. The close without it is still allowed |
+| scan online, close offline | queued whole; the scan row already exists |
+| another member files the trip first | 409, op dropped, toast, refetch corrects — unchanged from 3b |
+| the same receipt is read twice | two `receipt_scans` rows, one close. The second scan replaces the sheet's rows; only the scan named at save is linked |
+
+## Testing and verification
+
+Baselines measured on this worktree before anything changed: **backend 447
+tests**, **frontend 72 files / 1035 tests**. A *fall* is the tell for a local
+`.env` key masking a failure CI will hit.
+
+This phase deletes tests on purpose, so the floor is stated in advance rather
+than explained afterwards. `ReceiptScanSheet.test.tsx` holds **49** of those
+1035 tests, counted before deleting it, so the frontend must not drop below
+**71 files / 986 tests** at any point. The backend loses the apply half of
+`test_receipt_router.py`; count it before deleting it too, and hold the same
+line. A number that falls further than the count says has taken something else
+with it.
+
+1. **Backend** — the two new fields: mappings upserted, scan linked, the date
+   clamped forward only with a scan and floored without one, and the 403 when
+   the flag is off. The existing "works with the flag off" test stays green.
+   `test_receipt_router.py` loses its apply-half tests and keeps its scan half.
+2. **Frontend** — `receiptToLines` against every case in the table above that
+   can be stated without a DOM. The sheet's two sums, the reconciliation disc in
+   both colours, and that an unconfirmed row still saves. `13b`'s two causes,
+   and that assigning is the only action.
+3. **E2E** — `fixtures.ts` already lists `ai_receipt_scanning` among its
+   `features` and already fulfils the scan endpoint, so this phase only takes
+   the apply handler away. The flag still has to stay listed: the camera is
+   gated and the fixture layer answers every backend call from frozen literals,
+   so a flag quietly dropped means a thumbnail that never offers to scan and a
+   suite that passes while testing hand mode twice. Baselines for ticket mode
+   and for a resolve sheet. The `ReceiptScanSheet` baselines are deleted in the
+   same commit that deletes the component.
+4. **A computed-style assertion** for the dashed thumbnail border and for the
+   dashed underline on an unconfirmed annotation. Both are thin dashed strokes
+   worth fewer pixels than the screenshot tolerance, so a screenshot cannot
+   guard either — the same trap 3b called out.
+5. Playwright in Docker, and `just ci` green.
+
+## Known gap: an unconfirmed guess still writes its price
+
+This section states, above, that a line saved without being confirmed records the
+shop, counts toward the paper's total, and **enters no product's history**. Rule 10
+of the handoff says the same thing more strongly — *ningún precio sin confirmar* —
+and calls it the precondition for ever detecting a price rise.
+
+The code does not do this. `toPayload` sends a row's price whatever its match
+state, so a fuzzy guess nobody confirmed writes an amount into that item's history
+exactly as a confirmed line does.
+
+It is a small change to make the code obey the spec, and it was deliberately not
+made, because the trade is a product decision rather than a bug fix. A household
+scanning its first receipts has no learned names yet, so nearly every line is a
+guess; gating on confirmation would mean those first shops record no prices at all
+unless each line is confirmed by hand. That may be right — an unconfirmed price is
+exactly the kind of quiet wrong number rule 10 exists to keep out of history — but
+it makes a scan much less valuable until the app has learned the shop's vocabulary.
+
+Whoever settles this should change the spec or the code, not leave them disagreeing.
+
+## Follow-ups this creates
+
+- **Re-matching after a misread receipt date.** The deleted scan screen could
+  tell when a scanned date fell outside the ±3 day match window, ask the
+  household about it, and re-match the same parsed lines against a corrected
+  date without a second call to Gemini. The close sheet has neither the
+  prompt nor the re-match: a misread date now empties the candidate set, so
+  every line arrives as `Asignar producto`, and the only way back is
+  resolving each one by hand or scanning again — another Gemini call, and
+  another chance at the transient failure this project has already hit once.
+  A misread year was the case that motivated the old prompt. Restoring this
+  needs a way to re-match the parsed lines against a corrected date without
+  reading the image again. The same date control also lost its `max`: the
+  deleted screen capped the picker at today, and the close sheet's plain date
+  input does not, so a future day is now accepted and silently clamped
+  forward by the server.
+- **`6c`** — inherited prices, and the last-confirmed-price read that feeds them.
+- **Receipt image storage**, as its own ADR. It unlocks the ticket header's
+  miniature and `25b`'s second door together, because both are the same missing
+  thing.
+- **Completing a filed purchase from its paper**, once there is a paper to keep.
+  It needs its own verb; closing is taken.

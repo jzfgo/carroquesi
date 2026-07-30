@@ -3,12 +3,14 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import func
 from sqlmodel import select
 
-from app.db.models import ListItem, Purchase
+from app.db.models import ListItem, Purchase, ReceiptNameMapping, ReceiptScan
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.purchases import PurchaseClose, PurchaseRead
-from app.services import trips
+from app.services import feature_flags, trips
+from app.services.receipt_matcher import normalise
 
 router = APIRouter(prefix="/lists/{list_id}/purchases", tags=["purchases"])
 
@@ -66,8 +68,34 @@ def close_purchase(
     bought that were never on the list, the shop and the date. Doing it in one
     write is what lets the whole act sit in the offline queue as a single
     entry.
+
+    The same call also serves a scan-linked close, named by `scan_id`: it
+    reads a receipt's date rather than a tap's, learns the receipt's line
+    names via `mappings`, and links the scan to the trip it closes. That half
+    is gated on the `ai_receipt_scanning` flag; the plain close above is not.
     """
     lst, current_user = list_and_user
+
+    # The plain manual close ("Cerrar compra") stays ungated — a household
+    # without the flag has no other way to declare a shop. Only the two
+    # fields that carry a receipt's evidence are behind it.
+    #
+    # This asks a different question than the date rule and the scan link
+    # below do, so it reads `scan_id` differently on purpose. Here the
+    # question is "did this request reach for the scan feature at all" —
+    # naming the field, even with junk in it, is reaching for it, so an empty
+    # string still counts (`is not None`), the same way this file already
+    # treats `purchase_id: ""`. Below, the question is "is there a scan to
+    # use" — an empty string names none, so truthiness is what those places
+    # need. Fail closed at this boundary, fail safe past it.
+    if (body.scan_id is not None or body.mappings) and not feature_flags.is_enabled(
+        current_user.id, "ai_receipt_scanning", session
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ai_receipt_scanning feature not enabled",
+        )
+
     # Every amount the request carries, checked before anything is written, so
     # a bad one cannot leave half a sheet applied.
     _reject_bad_amount(body.total, "total")
@@ -77,9 +105,15 @@ def close_purchase(
         _reject_bad_price(new.price, new.price_per, f"new_items[{index}]")
 
     now = datetime.now(UTC).replace(tzinfo=None)
-    # Same clamp a tap gets: no future, and no older than the backdate limit.
-    # A hand-set date carries a live clock's risks, unlike a receipt's.
-    purchase_ts = trips.tap_time(body.purchased_at, now)
+    # A scan-linked close carries a receipt's date, not a live tap's: it
+    # records something that already happened, however long ago, so only the
+    # future direction is clamped (an OCR-misread year would otherwise open a
+    # second trip beside the live cart). A hand-typed date keeps the tap's
+    # both-ends clamp, since it carries a live clock's risks.
+    if body.scan_id:
+        purchase_ts = trips.no_future(body.purchased_at or now, now)
+    else:
+        purchase_ts = trips.tap_time(body.purchased_at, now)
 
     # The date on the sheet says *when* the shop happened. The trip says
     # *which* shop it was. They disagree whenever someone writes down an old
@@ -248,6 +282,51 @@ def close_purchase(
             status_code=status.HTTP_409_CONFLICT,
             detail="There is nothing to close",
         ) from None
+
+    for m in body.mappings:
+        # Keyed the same way the matcher looks a name up, not however the
+        # client happened to send it — otherwise an accent or a leading
+        # quantity makes a confirmed mapping unfindable next time, and the
+        # household is asked the same question again.
+        norm_name = normalise(m.receipt_name)
+        stmt = select(ReceiptNameMapping).where(
+            ReceiptNameMapping.store == body.store,
+            ReceiptNameMapping.receipt_name == norm_name,
+        )
+        existing = session.exec(stmt).first()
+        if existing:
+            existing.use_count += 1
+            existing.item_name = m.item_name
+            existing.item_brand = m.item_brand
+            existing.confirmed_by = current_user.id
+            existing.updated_at = now
+            session.add(existing)
+        else:
+            session.add(
+                ReceiptNameMapping(
+                    store=body.store,
+                    receipt_name=norm_name,
+                    item_name=m.item_name,
+                    item_brand=m.item_brand,
+                    confirmed_by=current_user.id,
+                )
+            )
+
+    if body.scan_id:
+        scan = session.get(ReceiptScan, body.scan_id)
+        # A scan naming another list, or no scan at all, is ignored rather
+        # than refused: the shop is what this call is recording, and losing
+        # the audit link is not worth losing the close.
+        if scan is not None and scan.list_id == list_id:
+            # Not `len(touched)`: naming nothing files the whole open cart,
+            # and touched stays empty even though every one of those items
+            # just got filed. Counting what now carries this purchase's id
+            # is right either way.
+            scan.items_updated = session.exec(
+                select(func.count(ListItem.id)).where(ListItem.purchase_id == purchase.id)
+            ).one()
+            scan.purchase_id = purchase.id
+            session.add(scan)
 
     lst.updated_at = now
     session.add(lst)

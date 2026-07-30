@@ -61,6 +61,28 @@ def test_match_via_fuzzy(session):
     assert len(unmatched) == 0
 
 
+def test_fuzzy_match_is_not_confirmed(session):
+    items = [_item("item-1", "Bebida de almendra 0% azúcares")]
+    matched, _ = match_lines([_unit("BEBIDA ALMENDRAS 0%", 1.15)], "Mercadona", items, session)
+    assert matched[0].confirmed is False
+
+
+def test_mapping_match_is_confirmed(session):
+    mapping = ReceiptNameMapping(
+        id="map-1",
+        store="Mercadona",
+        receipt_name="mani dulce",
+        item_name="Maní dulce",
+        confirmed_by="user-1",
+    )
+    session.add(mapping)
+    session.commit()
+
+    items = [_item("item-1", "Maní dulce")]
+    matched, _ = match_lines([_unit("MANI DULCE", 3.15)], "Mercadona", items, session)
+    assert matched[0].confirmed is True
+
+
 def test_unmatched_when_score_too_low(session):
     items = [_item("item-1", "Bebida de almendra")]
     matched, unmatched = match_lines([_unit("XXXXXX ZZZZ", 9.99)], "Mercadona", items, session)
@@ -151,6 +173,24 @@ def test_mapping_lookup_dedupes_case_and_accent_duplicates(session):
     assert len(matched) == 1
     assert matched[0].item_id == "item-first"
     assert len(unmatched) == 0
+
+
+def test_index_follows_submitted_order_when_matched_and_unmatched_interleave(session):
+    # Every other fixture in this file happens to list matched lines before
+    # unmatched ones, so it can't tell a correct index from an off-by-one or
+    # a per-list counter.
+    items = [_item("item-1", "Bebida de almendra"), _item("item-2", "Leche")]
+    lines = [
+        _unit("BEBIDA ALMENDRA", 1.15),
+        _unit("XXXXXX ZZZZ", 9.99),
+        _unit("LECHE", 1.10),
+    ]
+    matched, unmatched = match_lines(lines, "Mercadona", items, session)
+    assert len(matched) == 2
+    assert len(unmatched) == 1
+    assert matched[0].index == 0
+    assert unmatched[0].index == 1
+    assert matched[1].index == 2
 
 
 def test_multi_line_carries_quantity(session):

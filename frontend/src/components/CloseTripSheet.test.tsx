@@ -1,9 +1,13 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { CloseLine } from '../lib/closeLines'
 import type { PurchaseClosePayload } from '../types'
-import { CloseTripSheet, type CloseTripSheetProps } from './CloseTripSheet'
+import {
+  CloseTripSheet,
+  type CloseReceipt,
+  type CloseTripSheetProps,
+} from './CloseTripSheet'
 
 function makeLine(over: Partial<CloseLine> = {}): CloseLine {
   return {
@@ -287,6 +291,21 @@ describe('CloseTripSheet', () => {
     expect(totalText()).toMatch(/24[,.]00/)
   })
 
+  // One product cannot sit on two rows of one ticket: the payload would send
+  // it twice and the sheet would show it twice.
+  it('drops the row an answer took over', async () => {
+    const onEditLine = vi.fn(
+      (line: CloseLine, apply: (l: CloseLine, claimed?: string) => void) =>
+        apply({ ...line, itemId: 'i2', name: 'Pan' }, 'k2'),
+    )
+    renderSheet({ initialLines: [milk, bread], onEditLine })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ajustar Leche' }))
+
+    expect(screen.getAllByLabelText('Pan')).toHaveLength(1)
+    expect(screen.getByText('1 de 1')).toBeInTheDocument()
+  })
+
   it('adds something that was never on the list, once', async () => {
     const onEditLine = vi.fn((line: CloseLine, apply: (l: CloseLine) => void) =>
       apply({ ...line, name: 'Hielo', price: 1, quantity: '1' }),
@@ -391,6 +410,559 @@ describe('CloseTripSheet', () => {
 
     const thumb = document.querySelector('.cts__thumb') as HTMLElement
     expect(getComputedStyle(thumb).borderStyle).toBe('dashed')
+  })
+
+  // The other stroke a screenshot cannot guard, and the one that carries the
+  // whole meaning of a row: this guess has not been confirmed.
+  it('draws an unconfirmed guess with a dashed stroke under it', () => {
+    renderSheet({ initialLines: ticketLines, receipt: paper })
+
+    const guess = rowOf('Pan de pueblo').querySelector(
+      '.cts__guess',
+    ) as HTMLElement
+    expect(getComputedStyle(guess).borderBottomStyle).toBe('dashed')
+
+    const literal = rowOf('Leche').querySelector('.cts__guess') as HTMLElement
+    expect(getComputedStyle(literal).borderBottomStyle).not.toBe('dashed')
+  })
+})
+
+// Three lines the paper printed, and the total it printed for them. The three
+// amounts add up to 4.1499999999999995 as floats, so they agree with 4.15 at
+// the cent and nowhere else — which is true of most real receipts.
+const ticketLines: CloseLine[] = [
+  makeLine({
+    key: 'r0',
+    itemId: 'i1',
+    name: 'Leche',
+    quantity: '1',
+    price: 1.15,
+    receiptLine: 'LECHE SEMI 1L',
+    receiptAmount: 1.15,
+    matchState: 'literal',
+  }),
+  makeLine({
+    key: 'r1',
+    itemId: 'i2',
+    name: 'Pan de pueblo',
+    quantity: '1',
+    price: 2.3,
+    receiptLine: 'PAN PUEBLO',
+    receiptAmount: 2.3,
+    matchState: 'guess',
+  }),
+  makeLine({
+    key: 'r2',
+    itemId: null,
+    name: '',
+    quantity: '1',
+    price: 0.7,
+    included: false,
+    fromCart: false,
+    receiptLine: '2 YOGUR NATURAL',
+    receiptAmount: 0.7,
+  }),
+]
+
+/** The line the matcher placed nowhere: an amount, a printed string, and no
+ *  product. */
+const unassigned = ticketLines[2]
+
+/** A row that names a product, left unticked so the bar reads `Marcar todas`.
+ *  The button's own wording depends on what is tickable, so a test that
+ *  presses it has to start from a state both readings of the rule agree on. */
+const spare = makeLine({
+  key: 'r0',
+  itemId: 'i1',
+  name: 'Leche',
+  quantity: '1',
+  price: 1.15,
+  included: false,
+  receiptLine: 'LECHE SEMI 1L',
+  receiptAmount: 1.15,
+  matchState: 'guess',
+})
+
+const paper: CloseReceipt = {
+  scanId: 'scan-7',
+  imageUrl: 'blob:ticket',
+  total: 4.15,
+  store: 'Mercadona',
+  date: '2026-07-30T19:12:00',
+}
+
+function renderTicket(over: Partial<CloseTripSheetProps> = {}) {
+  return renderSheet({
+    initialLines: ticketLines,
+    receipt: paper,
+    canScan: true,
+    ...over,
+  })
+}
+
+const camera = () => screen.getByRole('button', { name: 'Escanear ticket' })
+const recon = () => document.querySelector('.cts__recon') as HTMLElement
+const reconText = () => recon()?.textContent ?? ''
+const saveFigure = () =>
+  document.querySelector('.cts__save-figure')?.textContent ?? ''
+const rowOf = (name: string) =>
+  screen.getByLabelText(name).closest('.cts__row') as HTMLElement
+
+describe('CloseTripSheet in ticket mode', () => {
+  it('offers to read a paper when there is none', () => {
+    renderSheet({ canScan: true })
+
+    expect(camera()).toBeEnabled()
+    expect(document.querySelector('.cts__paper-img')).toBeNull()
+  })
+
+  it('shows the paper once one has been read', () => {
+    renderTicket()
+
+    const img = document.querySelector('.cts__paper-img') as HTMLImageElement
+    expect(img.src).toContain('blob:ticket')
+    expect(
+      screen.getByRole('button', { name: 'Ver el ticket' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Escanear ticket' })).toBeNull()
+  })
+
+  it('opens the paper full screen', async () => {
+    renderTicket()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ver el ticket' }))
+
+    expect(screen.getByAltText('Ticket')).toBeInTheDocument()
+  })
+
+  // Reading a paper needs Gemini and the matcher, and this sheet is written in
+  // a supermarket basement more often than anywhere else.
+  it('cannot read a paper with no connection', () => {
+    renderSheet({ canScan: true, isOffline: true })
+
+    expect(camera()).toBeDisabled()
+  })
+
+  it('cannot read a paper without the scanning capability', () => {
+    renderSheet({ canScan: false })
+
+    expect(camera()).toBeDisabled()
+  })
+
+  // The two live one level down, behind the preview. Discarding takes nothing
+  // over the network, so a lost connection must not stop it.
+  it('offers to read the paper again, but not while offline', async () => {
+    renderTicket({ isOffline: true })
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Qué hacer con el ticket' }),
+    )
+
+    expect(
+      screen.getByRole('button', { name: 'Volver a leerlo' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'Descartar el ticket' }),
+    ).toBeEnabled()
+  })
+
+  it('asks the caller for a fresh reading of the paper', async () => {
+    const onScan = vi.fn()
+    renderTicket({ onScan })
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Qué hacer con el ticket' }),
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Volver a leerlo' }),
+    )
+
+    expect(onScan).toHaveBeenCalledTimes(1)
+  })
+
+  it('leads with the string the paper printed and puts the guess under it', () => {
+    renderTicket()
+
+    const row = rowOf('Leche')
+    const raw = row.querySelector('.cts__raw') as HTMLElement
+    const guess = row.querySelector('.cts__guess') as HTMLElement
+
+    expect(raw).toHaveTextContent('LECHE SEMI 1L')
+    expect(guess).toHaveTextContent('Leche')
+    expect(
+      raw.compareDocumentPosition(guess) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  // No word says which is which. A literal match is solid ink; an interpreted
+  // one is accented and dashed, and the dash is what says it is not real yet.
+  it('marks an interpreted guess and leaves a literal match alone', () => {
+    renderTicket()
+
+    expect(
+      rowOf('Leche').querySelector('.cts__guess')?.className,
+    ).not.toContain('cts__guess--ask')
+    expect(
+      rowOf('Pan de pueblo').querySelector('.cts__guess')?.className,
+    ).toContain('cts__guess--ask')
+  })
+
+  it('asks for a product when the matcher placed the line nowhere', async () => {
+    const onEditLine = vi.fn()
+    renderTicket({ onEditLine })
+
+    expect(screen.getByText('Asignar producto')).toBeInTheDocument()
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Asignar 2 YOGUR NATURAL' }),
+    )
+
+    expect(onEditLine.mock.calls[0][0]).toMatchObject({ key: 'r2' })
+  })
+
+  // The chevron asks whether the row's product is settled, not whether it has
+  // one. An unconfirmed guess has a product and is still waiting to be told
+  // whether it is the right one.
+  it('sends an unconfirmed guess to be settled, and a confirmed match to be adjusted', () => {
+    renderTicket()
+
+    expect(
+      screen.getByRole('button', { name: 'Asignar Pan de pueblo' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Ajustar Leche' }),
+    ).toBeInTheDocument()
+  })
+
+  // A different question from the one the chevron asks. A guess names a
+  // product, so there is something to save and the box stays live.
+  it('leaves a guessed row tickable', () => {
+    renderTicket()
+
+    expect(screen.getByLabelText('Pan de pueblo')).toBeEnabled()
+    expect(screen.getByLabelText('Pan de pueblo')).toBeChecked()
+  })
+
+  it('shows the amount the paper printed for a line', () => {
+    renderTicket()
+
+    expect(within(rowOf('Leche')).getByText(/1[,.]15/)).toBeInTheDocument()
+  })
+
+  // An unticked line is still on the paper, so it counts toward what the paper
+  // says the shop cost — and not toward what is about to be saved.
+  it('counts an unticked printed line in the paper’s sum, not in what is saved', () => {
+    renderTicket()
+
+    expect(screen.getByLabelText('2 YOGUR NATURAL')).not.toBeChecked()
+    expect(reconText()).toMatch(/4[,.]15/)
+    expect(saveFigure()).toMatch(/3[,.]45/)
+  })
+
+  it('says the paper adds up when it does', () => {
+    renderTicket()
+
+    expect(recon().className).toContain('cts__recon--ok')
+    expect(reconText()).toContain('Cuadra con el ticket')
+  })
+
+  // The two sums are float additions of two-decimal money, so they miss each
+  // other by a fraction of a cent. Compared exactly, this receipt — which
+  // reconciles perfectly — would be reported as not adding up.
+  it('says it adds up when the two sums agree only at the cent', () => {
+    expect(1.15 + 2.3 + 0.7).not.toBe(4.15)
+
+    renderTicket()
+
+    expect(recon().className).toContain('cts__recon--ok')
+  })
+
+  it('says how far off the paper is, and moves no amount to close it', () => {
+    renderTicket({ receipt: { ...paper, total: 5 } })
+
+    expect(recon().className).toContain('cts__recon--off')
+    expect(reconText()).toContain('No cuadra con el ticket')
+    expect(reconText()).toMatch(/[-−][^\d]*0[,.]85/)
+    // The rows still show what the paper printed for them.
+    expect(
+      within(rowOf('Pan de pueblo')).getByText(/2[,.]30/),
+    ).toBeInTheDocument()
+  })
+
+  it('shows no check at all when the paper’s total could not be read', () => {
+    renderTicket({ receipt: { ...paper, total: null } })
+
+    expect(recon()).toBeNull()
+    expect(screen.getByText('Total de lo que has puesto')).toBeInTheDocument()
+  })
+
+  it('sends the paper’s total, the scan it came from, and no mappings', async () => {
+    const { onSave } = renderTicket()
+
+    await userEvent.click(save())
+
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.total).toBe(4.15)
+    expect(payload.scan_id).toBe('scan-7')
+    // Confirming a guess is what teaches a name, and nothing here confirms one.
+    expect(payload.mappings).toEqual([])
+  })
+
+  // What the caller collected while the household answered the lines the
+  // matcher could not place. This is what teaches the app a name.
+  it('carries the answers it was given about the printed lines', async () => {
+    const mappings = [
+      { receipt_name: '2 YOGUR NATURAL', item_name: 'Yogur', item_brand: null },
+    ]
+    const { onSave } = renderTicket({ mappings })
+
+    await userEvent.click(save())
+
+    expect(onSave.mock.calls[0][0].mappings).toEqual(mappings)
+  })
+
+  it('names no scan when the close was written by hand', async () => {
+    const { onSave } = renderSheet()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Mercadona' }))
+    await userEvent.click(save())
+
+    expect(onSave.mock.calls[0][0].scan_id).toBeUndefined()
+    expect(onSave.mock.calls[0][0].total).toBeNull()
+  })
+
+  // A receipt prints an hour, and keeping it holds the order of a day's trips.
+  it('keeps the hour the paper printed while the day is untouched', async () => {
+    const { onSave } = renderTicket()
+
+    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-07-30')
+
+    await userEvent.click(save())
+
+    expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-30T19:12:00')
+  })
+
+  // Once somebody has said the day, the hour they did not say is not worth
+  // inventing.
+  it('stamps a corrected day at midday in Madrid', async () => {
+    const { onSave } = renderTicket()
+
+    fireEvent.change(screen.getByLabelText('Fecha'), {
+      target: { value: '2026-07-28' },
+    })
+    await userEvent.click(save())
+
+    expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-28T10:00:00')
+  })
+
+  // A paper that printed no day printed no hour either, so the trip's own
+  // instant is the best there is — the very one a close written by hand
+  // would have used.
+  it('keeps the trip’s own hour when the paper printed no day', async () => {
+    const { onSave } = renderTicket({ receipt: { ...paper, date: null } })
+
+    fireEvent.change(screen.getByLabelText('Fecha'), {
+      target: { value: '2026-07-30' },
+    })
+    await userEvent.click(save())
+
+    expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-30T18:00:00')
+  })
+
+  it('waits for a day the scan could not read', async () => {
+    const { onSave } = renderTicket({ receipt: { ...paper, date: null } })
+
+    const date = screen.getByLabelText('Fecha')
+    expect(date).toHaveValue('')
+    expect(date.className).toContain('cts__date--ask')
+    expect(save()).toBeDisabled()
+
+    fireEvent.change(date, { target: { value: '2026-07-28' } })
+    await userEvent.click(save())
+
+    expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-28T10:00:00')
+  })
+
+  it('picks the shop the scan read, even one this list never bought from', async () => {
+    const { onSave } = renderTicket({
+      receipt: { ...paper, store: 'Frutería Ana' },
+    })
+
+    expect(
+      screen.getByRole('button', { name: 'Frutería Ana' }).className,
+    ).toContain('cts__pill--on')
+
+    await userEvent.click(save())
+
+    expect(onSave.mock.calls[0][0].store).toBe('Frutería Ana')
+  })
+
+  it('waits for a shop the scan could not read', () => {
+    renderTicket({ receipt: { ...paper, store: null } })
+
+    expect(save()).toBeDisabled()
+  })
+
+  // The server refuses a new item with no name, and it refuses the whole sheet
+  // rather than the one row. So a row nobody has told what it was must not be
+  // markable — not one at a time, and not by the button that marks the lot.
+  it('never sends a row that has not been told what it was', async () => {
+    const { onSave } = renderTicket({ initialLines: [spare, unassigned] })
+
+    // The box itself, because marking one row at a time is the other way in.
+    expect(screen.getByLabelText('2 YOGUR NATURAL')).toBeDisabled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Marcar todas' }))
+    await userEvent.click(save())
+
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.new_items).toEqual([])
+    expect(payload.lines).toEqual([
+      expect.objectContaining({ item_id: 'i1', price: 1.15 }),
+    ])
+  })
+})
+
+describe('CloseTripSheet when the paper is discarded', () => {
+  async function discard() {
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Qué hacer con el ticket' }),
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Descartar el ticket' }),
+    )
+  }
+
+  // Everything the scan read stays, as ordinary typed values. What goes is the
+  // paper's authority over them.
+  it('keeps what the paper read and drops what it claimed', async () => {
+    const { onSave } = renderTicket()
+
+    await discard()
+
+    expect(document.querySelector('.cts__raw')).toBeNull()
+    expect(recon()).toBeNull()
+    expect(screen.getByLabelText('Leche')).toBeChecked()
+    expect(screen.getByLabelText('Pan de pueblo')).toBeChecked()
+    // Worked out from the prices again, and marked as a floor, because the
+    // paper no longer stands behind the figure.
+    expect(totalText()).toMatch(/3[,.]45/)
+
+    await userEvent.click(save())
+
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.total).toBeNull()
+    expect(payload.scan_id).toBeUndefined()
+    expect(payload.lines).toEqual([
+      expect.objectContaining({ item_id: 'i1', price: 1.15 }),
+      expect.objectContaining({ item_id: 'i2', price: 2.3 }),
+    ])
+  })
+
+  // The printed hour was the paper's. With the paper gone this is a hand
+  // close, so it is stamped from the trip — the very instant it would have
+  // used had no paper ever been read.
+  it('stamps the trip’s own instant', async () => {
+    const { onSave } = renderTicket()
+
+    await discard()
+    await userEvent.click(save())
+
+    expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-30T18:00:00')
+  })
+
+  // A shop from months ago. The server floors a close that names no scan at
+  // thirty days back, so a sheet that went on showing the paper's day would
+  // show a day nothing was saved under — and say nothing about it.
+  //
+  // The dates are written out rather than counted back from a clock. Nothing
+  // on this path reads one: the day and the instant are both worked out from
+  // the values the sheet was handed.
+  it('puts the day back on the trip when the paper is dropped', async () => {
+    const { onSave } = renderTicket({
+      receipt: { ...paper, date: '2026-04-02T19:12:00' },
+    })
+
+    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-04-02')
+
+    await discard()
+
+    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-07-30')
+
+    await userEvent.click(save())
+
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.scan_id).toBeUndefined()
+    expect(payload.purchased_at).toBe('2026-07-30T18:00:00')
+  })
+
+  // Dropping the paper takes the printed line off the row, and the row is
+  // still nameless underneath it. What it may not become is a product with no
+  // name.
+  it('never sends a row the paper left unanswered', async () => {
+    const { onSave } = renderTicket({ initialLines: [spare, unassigned] })
+
+    await discard()
+    await userEvent.click(screen.getByRole('button', { name: 'Marcar todas' }))
+    await userEvent.click(save())
+
+    expect(onSave.mock.calls[0][0].new_items).toEqual([])
+  })
+
+  // A sheet rebuilt from the rows it opened with would keep the names and the
+  // ticks too. What lives only in this sheet is an edit made since it opened,
+  // so that is what tells editing the rows apart from starting again.
+  it('keeps an edit made before the paper was dropped', async () => {
+    const onEditLine = vi.fn((line: CloseLine, apply: (l: CloseLine) => void) =>
+      apply({ ...line, name: 'Pan de payés', price: 2.5 }),
+    )
+    renderTicket({ onEditLine })
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Asignar Pan de pueblo' }),
+    )
+    await userEvent.click(screen.getByLabelText('Leche'))
+    await discard()
+
+    expect(screen.getByLabelText('Pan de payés')).toBeInTheDocument()
+    expect(screen.getByLabelText('Leche')).not.toBeChecked()
+    expect(totalText()).toMatch(/2[,.]50/)
+  })
+
+  it('offers to read a paper again', async () => {
+    renderTicket()
+
+    await discard()
+
+    expect(camera()).toBeEnabled()
+  })
+
+  // The printed string was the only name the unassigned row had, and dropping
+  // the paper takes it. The row stays on screen and can still be opened and
+  // answered — its tick is what is disabled, not the row — so leaving it
+  // nameless would hand a screen reader a blank checkbox and an "Ajustar "
+  // with nothing after it.
+  it('still names the row the paper named', async () => {
+    renderTicket()
+
+    await discard()
+
+    expect(screen.getByLabelText('Producto sin asignar')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Ajustar Producto sin asignar' }),
+    ).toBeInTheDocument()
+  })
+
+  // Naming it out loud is half the job. Left as it was, the row read as a
+  // blank name over a caption saying it was still on the list — which was
+  // never true of a line that only ever existed on the paper.
+  it('names the row on screen too, and claims nothing about the list', async () => {
+    renderTicket()
+
+    await discard()
+
+    const row = rowOf('Producto sin asignar')
+    expect(row).toHaveTextContent('Producto sin asignar')
+    expect(row.querySelector('.cts__meta')).toBeNull()
   })
 })
 

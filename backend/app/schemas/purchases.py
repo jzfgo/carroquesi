@@ -7,10 +7,9 @@ from pydantic import BaseModel, Field
 class PurchaseLine(BaseModel):
     """One ticked row of the close sheet.
 
-    Unlike a receipt's PricePatch, `price` is optional: leaving a line without
-    an amount is a legitimate outcome, and no amount is invented for it. The
-    store is not here either — a ticket belongs to one shop, so it is stated
-    once on the close.
+    `price` is optional: leaving a line without an amount is a legitimate
+    outcome, and no amount is invented for it. The store is not here either —
+    a ticket belongs to one shop, so it is stated once on the close.
     """
 
     item_id: str
@@ -33,6 +32,20 @@ class PurchaseNewItem(BaseModel):
     price: float | None = None
     price_per: Literal["KILOGRAM"] | None = None
     quantity: str | None = None
+
+
+class PurchaseNameMapping(BaseModel):
+    """A receipt->item name learned while closing a purchase.
+
+    No `store` field, for the same reason `PurchaseLine` has none: a ticket
+    belongs to one shop, stated once on `PurchaseClose.store`. Every mapping
+    in the call is learned for that shop. A `store` here could disagree with
+    the close's own `store`, and nothing would say which one wins.
+    """
+
+    receipt_name: str
+    item_name: str
+    item_brand: str | None = None
 
 
 class PurchaseClose(BaseModel):
@@ -65,6 +78,10 @@ class PurchaseClose(BaseModel):
     # can carry an unbounded payload.
     lines: list[PurchaseLine] = Field(default_factory=list, max_length=200)
     new_items: list[PurchaseNewItem] = Field(default_factory=list, max_length=200)
+    # Ties this close to the ReceiptScan it came from, when it came from one.
+    scan_id: str | None = None
+    # Same bound and same reason as `lines` and `new_items` above.
+    mappings: list[PurchaseNameMapping] = Field(default_factory=list, max_length=200)
 
 
 class PurchaseRead(BaseModel):

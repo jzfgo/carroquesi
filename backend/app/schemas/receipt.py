@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class ParsedLine(BaseModel):
@@ -19,6 +19,7 @@ class ReceiptScanRequest(BaseModel):
 
 
 class MatchedLine(BaseModel):
+    index: int
     receipt_name: str
     item_id: str
     item_name: str
@@ -26,9 +27,14 @@ class MatchedLine(BaseModel):
     unit_price: float
     quantity: float | None = None
     line_total: float
+    # True when a person already confirmed this receipt name for this shop.
+    # False when the matcher only guessed, from a fuzzy score, and the
+    # household has not confirmed it yet.
+    confirmed: bool
 
 
 class UnmatchedLine(BaseModel):
+    index: int
     receipt_name: str
     price_type: Literal["UNIT", "KILOGRAM", "MULTI"]
     unit_price: float
@@ -43,36 +49,3 @@ class ReceiptScanResult(BaseModel):
     receipt_total: float | None = None
     matched: list[MatchedLine]
     unmatched: list[UnmatchedLine]
-
-
-class PricePatch(BaseModel):
-    item_id: str
-    price: float
-    price_per: str | None = None
-    store: str | None = None
-    quantity: str | None = None
-
-
-class NameMappingCreate(BaseModel):
-    store: str
-    receipt_name: str
-    item_name: str
-    item_brand: str | None = None
-
-
-class NewPurchasedItem(BaseModel):
-    name: str = Field(min_length=1)
-    brand: str | None = None
-    ean: str | None = None
-    price: float
-    price_per: Literal["KILOGRAM"] | None = None
-    store: str | None = None
-    quantity: str | None = None
-
-
-class ReceiptPriceBatch(BaseModel):
-    scan_id: str | None = None
-    receipt_date: str | None = None
-    patches: list[PricePatch] = []
-    new_items: list[NewPurchasedItem] = []
-    mappings: list[NameMappingCreate] = []

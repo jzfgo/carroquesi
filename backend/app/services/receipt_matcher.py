@@ -51,7 +51,7 @@ def match_lines(
             item_by_name[i.name] = i
     purchased_items = list(item_by_name.values())
 
-    for line in lines:
+    for index, line in enumerate(lines):
         norm = normalise(line.name)
 
         mapping = _lookup_mapping(store, norm, session)
@@ -60,6 +60,7 @@ def match_lines(
             if item:
                 matched.append(
                     MatchedLine(
+                        index=index,
                         receipt_name=line.name,
                         item_id=item.id,
                         item_name=item.name,
@@ -67,6 +68,7 @@ def match_lines(
                         unit_price=line.unit_price,
                         quantity=line.quantity,
                         line_total=line.line_total,
+                        confirmed=True,
                     )
                 )
                 continue
@@ -82,6 +84,7 @@ def match_lines(
         if best_score >= MATCH_THRESHOLD and best_item:
             matched.append(
                 MatchedLine(
+                    index=index,
                     receipt_name=line.name,
                     item_id=best_item.id,
                     item_name=best_item.name,
@@ -89,11 +92,13 @@ def match_lines(
                     unit_price=line.unit_price,
                     quantity=line.quantity,
                     line_total=line.line_total,
+                    confirmed=False,
                 )
             )
         else:
             unmatched.append(
                 UnmatchedLine(
+                    index=index,
                     receipt_name=line.name,
                     price_type=line.price_type,
                     unit_price=line.unit_price,

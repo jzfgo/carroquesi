@@ -1,0 +1,194 @@
+.rls {
+  background: var(--paper-0);
+  border-radius: 20px 20px 0 0;
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}
+
+.rls__handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 10px auto 12px;
+  touch-action: none;
+}
+
+.rls__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rls__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--fs-16);
+  font-weight: 700;
+  color: var(--ink-0);
+}
+
+/* 24px painted, 44px touched. The only way out of the sheet. */
+.rls__out {
+  width: 24px;
+  height: 24px;
+  padding: 10px;
+  margin: -10px;
+  box-sizing: content-box;
+  border: none;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+/* What the till printed, on its own recessed slab. It is the one thing here
+   that can be checked against the paper in the household's hand. */
+.rls__paper {
+  padding: 12px 16px;
+  background: var(--paper-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.rls__raw {
+  display: block;
+  font-family: var(--mono);
+  font-size: var(--fs-13);
+  color: var(--ink-0);
+  overflow-wrap: anywhere;
+}
+
+.rls__figures {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: var(--fs-12);
+  color: var(--ink-2);
+}
+
+.rls__group {
+  margin: 0;
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.rls__legend {
+  display: block;
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-2);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* The label is the target, not the 20px dot inside it. */
+.rls__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--hit-min);
+  cursor: pointer;
+}
+
+.rls__radio {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.rls__option-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-14);
+  color: var(--ink-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rls__option-state {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.rls__new {
+  padding: 12px 16px;
+}
+
+.rls__new--idle {
+  opacity: 0.5;
+}
+
+.rls__preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: var(--paper-1);
+  border: 1px solid var(--tinta-border);
+  border-radius: 12px;
+}
+
+.rls__preview-name {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+.rls__preview-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  font-size: var(--fs-12);
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 5px;
+}
+
+.rls__field {
+  width: 100%;
+  min-height: var(--hit-min);
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: var(--fs-16);
+  color: var(--ink-0);
+  background: var(--paper-1);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  outline: none;
+}
+
+.rls__field:focus {
+  border-color: var(--accent);
+}
+
+.rls__assign {
+  display: block;
+  width: calc(100% - 32px);
+  min-height: var(--hit-tap);
+  margin: 6px 16px 8px;
+  padding: 14px;
+  font-family: inherit;
+  font-size: var(--fs-15);
+  font-weight: 700;
+  color: var(--accent-fg);
+  background: var(--accent);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.rls__assign:disabled {
+  opacity: 0.4;
+}

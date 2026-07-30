@@ -50,6 +50,15 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
   const seededPrice = line.price == null ? '' : String(line.price)
   const [priceStr, setPriceStr] = useState(seededPrice)
 
+  // A row the paper printed carries its own amount, and that amount is what
+  // the sheet shows and what both totals add up. A price typed over it would
+  // reach the server and price history while the row on screen, the figure on
+  // the button and the reconciliation check all went on quoting the paper — a
+  // correction that looks ignored and is not. The paper keeps the last word
+  // here; the way to take it away is to discard the ticket, which drops the
+  // printed amounts off every row at once and says so.
+  const printed = line.receiptAmount != null
+
   const price = parseAmount(priceStr)
   // Deriving the unit from the quantity is the rule for a row being *priced* —
   // type a weight and the price is per kilo. It is not a rule about a row
@@ -134,7 +143,7 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
             placeholder="6 · 1,12 kg"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            aria-describedby={`${id}-hint`}
+            aria-describedby={`${id}-qty-hint`}
           />
           <span className="ais__x" aria-hidden="true">
             ×
@@ -152,8 +161,9 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
             placeholder="0,00"
             value={priceStr}
             onChange={(e) => setPriceStr(e.target.value)}
-            aria-describedby={`${id}-per ${id}-hint`}
-            autoFocus={!!line.itemId}
+            aria-describedby={`${id}-per ${id}-price-hint`}
+            readOnly={printed}
+            autoFocus={!!line.itemId && !printed}
           />
           {/* Described by the price field, so the unit is announced on focus
               rather than being left to a reader sweeping the row. */}
@@ -161,9 +171,19 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
             {perKg ? '€/kg' : '€/ud'}
           </span>
         </div>
-        <span className="ais__hint" id={`${id}-hint`}>
-          Escribe unidades (6) o peso (500 ml, 1,12 kg). El precio se ajusta
-          solo.
+        {/* One line to read, two things described. The quantity is typed on a
+            printed row as much as on any other, so it keeps its own sentence
+            and its own id — pointing it at a sentence about the price would
+            describe it by a rule it does not follow. */}
+        <span className="ais__hint">
+          <span id={`${id}-qty-hint`}>
+            Escribe unidades (6) o peso (500 ml, 1,12 kg).
+          </span>{' '}
+          <span id={`${id}-price-hint`}>
+            {printed
+              ? 'El precio lo pone el ticket. Para cambiarlo, descarta el ticket.'
+              : 'El precio se ajusta solo.'}
+          </span>
         </span>
       </div>
 

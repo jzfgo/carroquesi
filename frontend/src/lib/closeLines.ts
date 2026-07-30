@@ -1,8 +1,11 @@
 import type {
   ListItem,
+  MatchedLine,
   PurchaseClosePayload,
   PurchaseLine,
   PurchaseNewItem,
+  ReceiptScanResult,
+  UnmatchedLine,
 } from '../types'
 import { parseQuantityFactor, type CostSummary } from './itemCost'
 import { itemState } from './itemState'
@@ -10,9 +13,10 @@ import { itemState } from './itemState'
 /**
  * One row of the close sheet.
  *
- * The receipt-only fields are declared now and populated by nobody. Phase 3c
- * lays a scan's data over this same row rather than replacing the model, so
- * the two modes cannot drift into different shapes before they meet.
+ * A scan lays its data over this same row rather than replacing the model, so
+ * the two modes cannot drift into different shapes. The receipt-only fields
+ * are the paper's authority over the row, and they are set and cleared
+ * together.
  */
 export interface CloseLine {
   /** React's key. Separate from `itemId` because a row the household adds by
@@ -27,10 +31,48 @@ export interface CloseLine {
   pricePer: 'KILOGRAM' | null
   included: boolean
   fromCart: boolean
-  /** 3c: the line as the paper printed it. */
+  /** The line as the paper printed it. */
   receiptLine?: string
-  /** 3c: whether the match was literal or interpreted. */
+  /** The amount the paper printed beside that line. This is what the row shows
+   *  and what both sums add. It is never worked out from the price. */
+  receiptAmount?: number
+  /** Whether the match was literal or interpreted. */
   matchState?: 'literal' | 'guess'
+}
+
+/**
+ * Whether the row names no product at all.
+ *
+ * Such a row has nothing to save, whatever else it carries. The server refuses
+ * a new item with no name, and it refuses the whole sheet rather than the one
+ * row — so the rule has to be known on this side too, or the household is left
+ * with a refusal that names no row.
+ *
+ * This asks about the row itself and not about a paper, so the answer does not
+ * change when the paper is discarded.
+ */
+export function hasNoProduct(line: CloseLine): boolean {
+  return line.itemId == null && line.name === ''
+}
+
+/**
+ * Whether the row's product is still unsettled — the question the chevron
+ * asks.
+ *
+ * A printed line is unsettled in two ways, and they cost the same to answer:
+ * the matcher placed it nowhere, or it placed it by score and nobody has said
+ * yet whether that is right. Both lead to the sheet that asks which product
+ * the line was, so correcting a wrong guess costs what filling a blank costs
+ * — and a guess can become solid, which is the whole point of learning the
+ * name.
+ *
+ * Once a person has answered, what is left to change is the amount, whatever
+ * gave the answer: a product already on the list and one created on the spot
+ * are both settled.
+ */
+export function productUnsettled(line: CloseLine): boolean {
+  if (line.receiptLine == null) return false
+  return hasNoProduct(line) || line.matchState === 'guess'
 }
 
 /**
@@ -82,11 +124,155 @@ export function buildLines(
 }
 
 /**
- * What the ticked lines add up to.
+ * The amount the paper printed for one line, written the way the sheet's
+ * quantity field reads it.
  *
- * Each price is multiplied by how much was bought, because a price here is per
- * unit or per kilo — never the amount the line came to. The sheet shows the
- * two fields with a `×` between them, so the sum has to agree with that.
+ * A weight is shown in grams below a kilo and in kilos above it, because that
+ * is how the scale prints it. A line sold several at a time gives a count, and
+ * anything else is one.
+ */
+function paperQuantity(line: MatchedLine | UnmatchedLine): string {
+  if (line.price_type === 'KILOGRAM' && line.quantity != null) {
+    return line.quantity < 1
+      ? `${Math.round(line.quantity * 1000)}g`
+      : `${line.quantity}kg`
+  }
+  if (line.price_type === 'MULTI' && line.quantity != null) {
+    return String(Math.round(line.quantity))
+  }
+  return '1'
+}
+
+/** One line of the paper, already in the sheet's own vocabulary. */
+interface PaperLine {
+  index: number
+  receiptLine: string
+  amount: number
+  /** The item the matcher named, or null when it named none. */
+  itemId: string | null
+  price: number
+  pricePer: 'KILOGRAM' | null
+  quantity: string
+  /** Whether a person already confirmed this name for this shop. Meaningless
+   *  when `itemId` is null, since there is then no match to have confirmed. */
+  confirmed: boolean
+}
+
+function toPaperLine(line: MatchedLine | UnmatchedLine): PaperLine {
+  const matched = 'item_id' in line ? line : null
+  return {
+    index: line.index,
+    receiptLine: line.receipt_name,
+    amount: line.line_total,
+    itemId: matched?.item_id ?? null,
+    // A price on a row is per unit or per kilo, never what the line came to.
+    price: line.unit_price,
+    pricePer: line.price_type === 'KILOGRAM' ? 'KILOGRAM' : null,
+    quantity: paperQuantity(line),
+    confirmed: matched?.confirmed ?? false,
+  }
+}
+
+/** A row with no product yet — the household has to say what the line was. */
+function unassignedRow(line: PaperLine): CloseLine {
+  return {
+    key: `receipt-${line.index}`,
+    itemId: null,
+    name: '',
+    brand: null,
+    quantity: line.quantity,
+    price: line.price,
+    pricePer: line.pricePer,
+    included: false,
+    fromCart: false,
+    receiptLine: line.receiptLine,
+    receiptAmount: line.amount,
+  }
+}
+
+/**
+ * Lays a scan over the sheet's rows and returns the rows that result.
+ *
+ * The order is the paper's, because the raw line is the only thing a person
+ * can check against what they are holding. The response splits the lines into
+ * two arrays and each carries the position it was submitted at, so the order
+ * is put back from those rather than from the arrays.
+ *
+ * Rows the paper never named come after, in the order they already had, and
+ * unticked. The scan did not tick them, and a row the paper never printed must
+ * not count toward what the paper says the shop cost.
+ *
+ * A match this sheet has no row for is dropped rather than shown. The matcher
+ * looks at every item bought within a few days and has no idea which trip is
+ * being closed, so it routinely names an item filed under an older ticket.
+ * Naming it would let somebody pick an item the server refuses, and the server
+ * refuses the whole sheet rather than the one row. The line still arrives, with
+ * its raw string and its amounts, and the household says what it was.
+ *
+ * A match is `'literal'` when a person already confirmed that printed string
+ * for this shop, and `'guess'` when the matcher only scored it and is waiting
+ * to be confirmed.
+ */
+export function receiptToLines(
+  result: ReceiptScanResult,
+  rows: CloseLine[],
+): CloseLine[] {
+  const byItem = new Map<string, CloseLine>()
+  for (const r of rows) {
+    if (r.itemId != null) byItem.set(r.itemId, r)
+  }
+
+  const paper: PaperLine[] = [
+    ...result.matched.map(toPaperLine),
+    ...result.unmatched.map(toPaperLine),
+  ].sort((a, b) => a.index - b.index)
+
+  const claimed = new Set<string>()
+  const fromPaper: CloseLine[] = []
+  for (const line of paper) {
+    const existing = line.itemId != null ? byItem.get(line.itemId) : undefined
+    // One row cannot hold two lines, and a receipt repeats a product freely.
+    // The first line to claim the row keeps it; the next one asks.
+    if (!existing || claimed.has(existing.key)) {
+      fromPaper.push(unassignedRow(line))
+      continue
+    }
+    claimed.add(existing.key)
+    fromPaper.push({
+      ...existing,
+      quantity: line.quantity,
+      price: line.price,
+      pricePer: line.pricePer,
+      included: true,
+      receiptLine: line.receiptLine,
+      receiptAmount: line.amount,
+      matchState: line.confirmed ? 'literal' : 'guess',
+    })
+  }
+
+  const rest = rows
+    .filter((r) => !claimed.has(r.key))
+    .map((r) => ({ ...r, included: false }))
+
+  return [...fromPaper, ...rest]
+}
+
+/**
+ * What the ticked lines add up to — the question the primary button asks,
+ * because what is ticked is what is about to enter price history. It is not
+ * what the paper says the shop cost; that is a different sum.
+ *
+ * A row the paper printed contributes the figure the paper printed. Working it
+ * out again from the price is arithmetic the paper already did, and the second
+ * attempt is the one that rounds — the weight a weighed row shows is rounded
+ * to the gram, so the product misses by cents. Where the paper printed a
+ * figure, the app repeats it.
+ *
+ * A hand-written row has no printed figure, so its price is multiplied by how
+ * much was bought — a price here is per unit or per kilo, never the amount the
+ * line came to. The sheet shows the two fields with a `×` between them, so the
+ * sum has to agree with that. This is the only place the multiplication
+ * belongs.
  *
  * This is an estimate even when nothing is missing, and the screen must say
  * so. A till adds things no line ever held: a bag, a deposit, a discount. Only
@@ -107,6 +293,11 @@ export function linesTotal(lines: CloseLine[]): CostSummary | null {
   let any = false
   for (const line of lines) {
     if (!line.included) continue
+    if (line.receiptAmount != null) {
+      total += line.receiptAmount
+      any = true
+      continue
+    }
     if (line.price == null) {
       partial = true
       continue
@@ -120,6 +311,53 @@ export function linesTotal(lines: CloseLine[]): CostSummary | null {
     any = true
   }
   return any ? { total, partial } : null
+}
+
+/**
+ * What every line the paper printed adds up to — the question the
+ * reconciliation check asks, because it is this figure that is compared with
+ * the total printed on the paper.
+ *
+ * A line the household did not tick still counts. It is on the paper either
+ * way, and leaving it out would make the two figures disagree for a reason
+ * nobody can see.
+ *
+ * This adds printed figures and nothing else, so unlike `linesTotal` it has no
+ * partial sum to report: a printed line always came with an amount. Null when
+ * no row came from a paper, which is every close written by hand.
+ *
+ * Whoever compares this with the paper's total must compare the two at cents.
+ * These are money figures added as floats, so a sum that agrees to the cent
+ * can still miss by a fraction of one, and an exact comparison would send the
+ * check amber over a receipt that reconciles.
+ */
+export function receiptTotal(lines: CloseLine[]): number | null {
+  let total = 0
+  let any = false
+  for (const line of lines) {
+    if (line.receiptAmount == null) continue
+    total += line.receiptAmount
+    any = true
+  }
+  return any ? total : null
+}
+
+/**
+ * Takes the paper's authority off the rows and keeps what it read.
+ *
+ * Names, prices, quantities and ticks are ordinary typed values from here on,
+ * so they stay. What goes is the raw line standing behind each name, the claim
+ * that the app's guess came from anywhere, and the printed amount — so the
+ * sheet works its own figure out again and says `≥` while it does.
+ */
+export function discardPaper(lines: CloseLine[]): CloseLine[] {
+  return lines.map((line) => {
+    const kept = { ...line }
+    delete kept.receiptLine
+    delete kept.receiptAmount
+    delete kept.matchState
+    return kept
+  })
 }
 
 interface CloseMeta {

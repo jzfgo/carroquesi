@@ -321,3 +321,122 @@ describe('AdjustItemSheet and a quantity corrected on its own', () => {
     )
   })
 })
+
+// A row the paper printed shows the paper's amount, and both the button's
+// figure and the reconciliation check add that up rather than the price. A
+// price typed over it would travel to price history while every figure on
+// screen went on quoting the paper, so the field does not take one.
+describe('AdjustItemSheet and a row the paper printed', () => {
+  const printed = {
+    ...base,
+    price: 2.5,
+    receiptAmount: 2.8,
+  }
+
+  it('does not take a price over the paper', async () => {
+    render(
+      <AdjustItemSheet line={printed} onDone={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    const price = screen.getByLabelText('Precio')
+    expect(price).toHaveAttribute('readonly')
+
+    await userEvent.type(price, '9')
+
+    expect(price).toHaveValue('2.5')
+  })
+
+  // A readonly input still takes focus, and no phone raises a keyboard for
+  // one. Left styled like the editable field it used to be, it would answer a
+  // tap with an accent ring and then nothing — the same positive affordance
+  // over an inert control that the invisible price edit was.
+  //
+  // Read back from the stylesheet, which `test.css.include` opts in. The rule
+  // is worth a pixel or two on a screenshot and would vanish under the
+  // tolerance, so a baseline cannot guard it.
+  it('reads as inert rather than as an empty field', () => {
+    render(
+      <AdjustItemSheet line={printed} onDone={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    const price = screen.getByLabelText('Precio')
+
+    // Ink and cursor, because those are the two that actually move: an
+    // editable field here is `--ink-0` and `auto`. The background is not
+    // asserted on purpose — jsdom drops the editable rule's `background`
+    // shorthand for holding a var(), so it reads as transparent either way
+    // and pinning it would prove nothing.
+    const style = getComputedStyle(price)
+    expect(style.color).toBe('var(--ink-2)')
+    expect(style.cursor).toBe('default')
+  })
+
+  // The field stays in the tab order, because that is how a keyboard reaches
+  // the value at all, and `.ais__price` sets `outline: none` — so with the tap
+  // ring suppressed and nothing put back, focus would land somewhere invisible.
+  //
+  // This pins the keyboard half only. jsdom answers a programmatic focus() as
+  // `:focus-visible`, so it cannot see the plain-`:focus` case a tap takes;
+  // that one rests on the two rules' specificity and on a real browser.
+  it('still shows a keyboard user where it is', () => {
+    render(
+      <AdjustItemSheet line={printed} onDone={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    const price = screen.getByLabelText('Precio')
+    price.focus()
+
+    // The sheet's own ring, so the inert field is ringed exactly like the
+    // fields either side of it. Still a witness: without the rule this reads
+    // `none`, from the suppression above it.
+    expect(getComputedStyle(price).boxShadow).toBe('var(--ais-ring)')
+  })
+
+  // The quantity is typed on a printed row like on any other, so it keeps the
+  // sentence that governs it rather than borrowing the price's.
+  it('keeps describing the quantity by its own rule', () => {
+    render(
+      <AdjustItemSheet line={printed} onDone={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    const qty = screen.getByLabelText('Cantidad')
+    const hint = document.getElementById(
+      qty.getAttribute('aria-describedby') ?? '',
+    )
+
+    expect(hint?.textContent).toMatch(/Escribe unidades/)
+    expect(hint?.textContent).not.toMatch(/ticket/)
+  })
+
+  it('says where the amount comes from and how to take it back', () => {
+    render(
+      <AdjustItemSheet line={printed} onDone={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    expect(screen.getByText(/El precio lo pone el ticket/)).toBeInTheDocument()
+  })
+
+  it('hands the printed row back with the paper untouched', async () => {
+    const onDone = vi.fn()
+    render(<AdjustItemSheet line={printed} onDone={onDone} onClose={vi.fn()} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hecho' }))
+
+    expect(onDone).toHaveBeenCalledWith(
+      expect.objectContaining({ price: 2.5, receiptAmount: 2.8 }),
+    )
+  })
+
+  // The guard is the printed amount, not the row being settled — a hand-written
+  // close has neither, and its price has to stay typeable.
+  it('still takes a price on a row with no paper behind it', async () => {
+    render(<AdjustItemSheet line={base} onDone={vi.fn()} onClose={vi.fn()} />)
+
+    const price = screen.getByLabelText('Precio')
+    expect(price).not.toHaveAttribute('readonly')
+
+    await userEvent.type(price, '2.49')
+
+    expect(price).toHaveValue('2.49')
+  })
+})

@@ -21,10 +21,14 @@ import {
   getSuggestions,
   setDefaultList,
   submitParsedReceipt,
-  submitReceiptPrices,
   updateList,
 } from '../lib/api'
-import { buildLines, type CloseLine } from '../lib/closeLines'
+import {
+  buildLines,
+  productUnsettled,
+  receiptToLines,
+  type CloseLine,
+} from '../lib/closeLines'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
 import { computeCostSummary } from '../lib/itemCost'
@@ -39,19 +43,15 @@ import type {
   BarcodeRead,
   DueSuggestion,
   EditingTag,
-  NameMapping,
-  NewPurchasedItem,
-  PricePatch,
   PurchaseClosePayload,
-  ReceiptScanRequest,
-  ReceiptScanResult,
+  PurchaseNameMapping,
   Suggestion,
   TagField,
 } from '../types'
 import { AdjustItemSheet } from './AdjustItemSheet'
 import { BarcodeScanner } from './BarcodeScanner'
 import { BarcodeScanSheet } from './BarcodeScanSheet'
-import { CloseTripSheet } from './CloseTripSheet'
+import { CloseTripSheet, type CloseReceipt } from './CloseTripSheet'
 import { DueSuggestionsSheet } from './DueSuggestionsSheet'
 import { FilterBar } from './FilterBar'
 import { ItemActionSheet } from './ItemActionSheet'
@@ -63,7 +63,7 @@ import LogPurchaseSheet from './LogPurchaseSheet'
 import { NotificationPrimingCard } from './NotificationPrimingCard'
 import PriceHistorySheet from './PriceHistorySheet'
 import { ProgressBar } from './ProgressBar'
-import ReceiptScanSheet from './ReceiptScanSheet'
+import { ResolveLineSheet } from './ResolveLineSheet'
 import { SmartInputBar } from './SmartInputBar'
 import { StoreEditSheet } from './StoreEditSheet'
 import { TagEditSheet } from './TagEditSheet'
@@ -79,6 +79,33 @@ interface Props {
   onEmojiChanged?: (emoji: string | null) => void
   onSetDefault?: (isDefault: boolean) => void
   onBack?: () => void
+}
+
+/**
+ * The instant the paper printed, written the way every stored instant is:
+ * naive UTC.
+ *
+ * A scan answers with the printed moment and the offset that places it, which
+ * is what the match window needs on the wire. Below the API nothing carries an
+ * offset, so it is converted once, here, where the two meet. Null when the
+ * scan read no date — the sheet then asks for one.
+ */
+function printedInstant(receiptDate: string | null): string | null {
+  if (!receiptDate) return null
+  const at = new Date(receiptDate)
+  return Number.isNaN(at.getTime()) ? null : at.toISOString().slice(0, 19)
+}
+
+/**
+ * The rows of a close sheet no printed line has taken yet.
+ *
+ * These are what a line the matcher could not place may be answered with, and
+ * the row that answer takes over is one of them. One rule, because the two
+ * have to agree: an answer picked from a row that is not here would leave the
+ * product on the ticket twice.
+ */
+function freeRows(lines: CloseLine[]): CloseLine[] {
+  return lines.filter((l) => l.itemId != null && l.receiptLine == null)
 }
 
 type EanLookupState =
@@ -128,12 +155,7 @@ export function ListScreen({
   const [filterQuery, setFilterQuery] = useState('')
   const [filterMode, setFilterMode] = useState<'chips' | 'search'>('chips')
   const [activeItemId, setActiveItemId] = useState<string | null>(null)
-  type ScanTarget = { kind: 'add' } | { kind: 'receipt-line'; index: number }
-  const [scanTarget, setScanTarget] = useState<ScanTarget | null>(null)
-  const [pendingScan, setPendingScan] = useState<{
-    index: number
-    product: BarcodeRead
-  } | null>(null)
+  const [scanning, setScanning] = useState(false)
   const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(null)
   const [dueSuggestions, setDueSuggestions] = useState<DueSuggestion[]>([])
   const [dueSuggestionsOpen, setDueSuggestionsOpen] = useState(false)
@@ -233,14 +255,6 @@ export function ListScreen({
   const eanRequestIdRef = useRef(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
-  const [receiptScanResult, setReceiptScanResult] =
-    useState<ReceiptScanResult | null>(null)
-  const [receiptParsed, setReceiptParsed] = useState<ReceiptScanRequest | null>(
-    null,
-  )
-  const [receiptRematching, setReceiptRematching] = useState(false)
-  // Survives the remount a date correction causes; reset with the scan session.
-  const [receiptDateConfirmed, setReceiptDateConfirmed] = useState(false)
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [receiptSourcePickerOpen, setReceiptSourcePickerOpen] = useState(false)
   const currentUserId = user!.id
@@ -291,9 +305,22 @@ export function ListScreen({
   const [closingTrip, setClosingTrip] = useState<{
     purchaseId: string | null
   } | null>(null)
+  // The paper the close sheet was filled in from, and the rows it produced.
+  // The two arrive together from one scan and go together, so they are one
+  // piece of state.
+  const [ticket, setTicket] = useState<{
+    receipt: CloseReceipt
+    lines: CloseLine[]
+  } | null>(null)
+  // The printed lines somebody has named a product for, so far. This is what
+  // teaches the app a name: the same string arrives resolved on the next
+  // ticket from that shop.
+  const [mappings, setMappings] = useState<PurchaseNameMapping[]>([])
   const [editingLine, setEditingLine] = useState<{
     line: CloseLine
-    apply: (next: CloseLine) => void
+    // Every row of the sheet, so the resolve sheet can offer the free ones.
+    lines: CloseLine[]
+    apply: (next: CloseLine, claimed?: string) => void
   } | null>(null)
 
   // A trip only changes as part of an item write, so the items' own refresh is
@@ -359,6 +386,16 @@ export function ListScreen({
     )
   }, [closingTrip, purchasesById, openTrip, items, now])
 
+  // Puts the close sheet away with everything it was holding. The photograph
+  // is an object URL over the file that was picked, and the browser keeps the
+  // whole image in memory until it is let go.
+  const dismissCloseSheet = useCallback(() => {
+    if (ticket) URL.revokeObjectURL(ticket.receipt.imageUrl)
+    setTicket(null)
+    setMappings([])
+    setClosingTrip(null)
+  }, [ticket])
+
   const handleCloseTrip = useCallback(
     async (unnamed: PurchaseClosePayload) => {
       // Name the trip even when closing the one that is open.
@@ -405,15 +442,15 @@ export function ListScreen({
           setToast('No se pudo guardar la compra')
           return
         }
-        setClosingTrip(null)
+        dismissCloseSheet()
         setToast('Se guardará cuando vuelva la conexión')
         return
       }
-      setClosingTrip(null)
+      dismissCloseSheet()
       retry()
       refreshPurchases()
     },
-    [getToken, listId, openTrip, retry, refreshPurchases],
+    [getToken, listId, openTrip, retry, refreshPurchases, dismissCloseSheet],
   )
 
   const { pendingCount } = useQueueDrain({
@@ -469,16 +506,26 @@ export function ListScreen({
       try {
         const parsed = await parseReceiptWithAi(file)
         const result = await submitParsedReceipt(getToken, listId, parsed)
-        // Kept so a corrected date can be re-matched against the same lines
-        // without re-reading the image (another Gemini call, another chance
-        // for the transient 500 in JAV-51).
-        setReceiptParsed(parsed)
-        setReceiptScanResult(result)
-        // Belt-and-suspenders alongside the exit-path clears below: guarantees
-        // a fresh session never starts primed with a scan from a stale one,
-        // without depending on every exit path having been enumerated.
-        setPendingScan(null)
-        setReceiptDateConfirmed(false)
+        // Reading a paper again replaces every row, so the old photograph and
+        // the answers given about its lines go with them.
+        if (ticket) URL.revokeObjectURL(ticket.receipt.imageUrl)
+        setTicket({
+          receipt: {
+            scanId: result.scan_id,
+            imageUrl: URL.createObjectURL(file),
+            total: result.receipt_total,
+            store: result.store,
+            date: printedInstant(result.receipt_date),
+          },
+          lines: receiptToLines(
+            result,
+            buildLines(items, now, closingTrip?.purchaseId ?? null),
+          ),
+        })
+        setMappings([])
+        // A scan from the list, rather than from a sheet already open, closes
+        // the trip that is still open.
+        setClosingTrip((trip) => trip ?? { purchaseId: null })
       } catch (e) {
         console.error('Receipt scan failed:', e)
         setToast('No se pudo leer el ticket')
@@ -486,96 +533,37 @@ export function ListScreen({
         setReceiptUploading(false)
       }
     },
-    [getToken, listId],
+    [getToken, listId, items, now, closingTrip, ticket],
   )
 
-  // Re-runs the backend match against the same parsed lines with a date the
-  // user corrected. A wrong year puts the +-3 day match window years off the
-  // real purchases, so the first pass legitimately matched nothing; this is
-  // what lets them recover without re-scanning the receipt.
-  const handleReceiptDateCorrected = useCallback(
-    async (receiptDate: string) => {
-      if (!receiptParsed) return
-      setReceiptRematching(true)
-      try {
-        const result = await submitParsedReceipt(getToken, listId, {
-          ...receiptParsed,
-          receipt_date: receiptDate,
-        })
-        setReceiptParsed((prev) =>
-          prev ? { ...prev, receipt_date: receiptDate } : prev,
-        )
-        // Both of these belong on the success path, and for the same reason:
-        // nothing on screen changes when the re-match fails, so anything reset
-        // up front is lost for no gain. `dateConfirmed` set early would drop
-        // the prompt and the date button's flagged styling, stranding the
-        // misread date with nothing pointing at it; `pendingScan` cleared
-        // early would discard a barcode the user had already scanned in, and
-        // make them scan it again after a transient failure.
-        //
-        // On the success path pendingScan must still go, for the reason
-        // handleReceiptSheetClose clears it: the corrected match replaces
-        // matched/unmatched wholesale and remounts the sheet, where
-        // `appliedScan` starts at null again, so a surviving scan would
-        // reapply its product to whatever line now sits at that index. These
-        // batch with setReceiptScanResult, so the remount already sees null.
-        setReceiptDateConfirmed(true)
-        setPendingScan(null)
-        setReceiptScanResult(result)
-      } catch (e) {
-        console.error('Receipt re-match failed:', e)
-        setToast('No se pudo volver a buscar')
-      } finally {
-        setReceiptRematching(false)
+  // Which product a printed line was. Answering it also teaches the app the
+  // name, so the same string arrives resolved on the next ticket.
+  const handleResolveLine = useCallback(
+    (next: CloseLine) => {
+      if (!editingLine) return
+      // The answer may be a row that was still waiting, and that row goes.
+      // Only a row that names an item can be claimed, so an answer with no
+      // item is a product being created rather than one taken over.
+      const claimed = next.itemId
+        ? freeRows(editingLine.lines).find((l) => l.itemId === next.itemId)
+        : undefined
+      editingLine.apply(next, claimed?.key)
+      const printed = next.receiptLine
+      if (printed && next.name) {
+        // As printed. The server keys these its own way, and doing it here as
+        // well is how the two spellings drift apart.
+        setMappings((prev) => [
+          ...prev.filter((m) => m.receipt_name !== printed),
+          {
+            receipt_name: printed,
+            item_name: next.name,
+            item_brand: next.brand,
+          },
+        ])
       }
+      setEditingLine(null)
     },
-    [getToken, listId, receiptParsed],
-  )
-
-  const handleReceiptConfirm = useCallback(
-    async (
-      patches: PricePatch[],
-      mappings: NameMapping[],
-      newItems: NewPurchasedItem[],
-    ): Promise<boolean> => {
-      if (!receiptScanResult) return false
-      try {
-        const data = await submitReceiptPrices(getToken, listId, {
-          scan_id: receiptScanResult.scan_id,
-          receipt_date: receiptScanResult.receipt_date,
-          patches,
-          new_items: newItems,
-          mappings,
-        })
-        setReceiptScanResult(null)
-        setReceiptParsed(null)
-        setPendingScan(null)
-        setReceiptDateConfirmed(false)
-        const n = data.items_updated
-        const c = data.items_created
-        const parts: string[] = []
-        if (n > 0) {
-          parts.push(
-            `${n} precio${n !== 1 ? 's' : ''} actualizado${n !== 1 ? 's' : ''}`,
-          )
-        }
-        if (c > 0) {
-          parts.push(
-            `${c} artículo${c !== 1 ? 's' : ''} añadido${c !== 1 ? 's' : ''}`,
-          )
-        }
-        setToast(parts.length > 0 ? parts.join(' · ') : 'No se guardó nada')
-        retry()
-        return true
-      } catch {
-        // The sheet stays mounted and awaits our return value — signalling
-        // failure re-enables its confirm button instead of stranding the
-        // user with edits they'd otherwise lose by closing and rescanning.
-        setToast('No se pudieron guardar los precios')
-        return false
-      }
-    },
-    [getToken, listId, receiptScanResult, retry],
+    [editingLine],
   )
 
   const handleTogglePurchased = useCallback(
@@ -645,40 +633,17 @@ export function ListScreen({
   )
 
   const handleScanRequest = useCallback(() => {
-    setScanTarget({ kind: 'add' })
+    setScanning(true)
   }, [])
 
-  const handleScanResult = useCallback(
-    (product: BarcodeRead) => {
-      const target = scanTarget
-      setScanTarget(null)
-      if (target?.kind === 'receipt-line') {
-        setPendingScan({ index: target.index, product })
-        return
-      }
-      setScannedProduct(product)
-    },
-    [scanTarget],
-  )
+  const handleScanResult = useCallback((product: BarcodeRead) => {
+    setScanning(false)
+    setScannedProduct(product)
+  }, [])
 
   const handleScanError = useCallback((message: string) => {
-    setScanTarget(null)
+    setScanning(false)
     setToast(message)
-  }, [])
-
-  const handleReceiptScanRequest = useCallback((index: number) => {
-    setScanTarget({ kind: 'receipt-line', index })
-  }, [])
-
-  // Closing (or completing) a receipt session must drop any pendingScan —
-  // otherwise a stale scanned product from a finished session would get
-  // applied to whichever row shares its index the next time a fresh
-  // ReceiptScanSheet mounts, since the sheet only compares by identity.
-  const handleReceiptSheetClose = useCallback(() => {
-    setReceiptScanResult(null)
-    setReceiptParsed(null)
-    setPendingScan(null)
-    setReceiptDateConfirmed(false)
   }, [])
 
   const handleScanAdd = useCallback(
@@ -979,7 +944,7 @@ export function ListScreen({
         onCloseTrip={() => setClosingTrip({ purchaseId: null })}
         onCloseFiledTrip={(purchaseId) => setClosingTrip({ purchaseId })}
         footer={
-          !receiptScanResult && isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
+          isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
             /* A way in, not a prompt. It used to appear only once the list
                was empty, which made it a reward for finishing — but the shop
                it is for is precisely the one that never went on the list, so
@@ -1137,12 +1102,12 @@ export function ListScreen({
         />
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
-      {scanTarget && (
+      {scanning && (
         <BarcodeScanner
           getToken={getToken}
           onResult={handleScanResult}
           onError={handleScanError}
-          onClose={() => setScanTarget(null)}
+          onClose={() => setScanning(false)}
         />
       )}
       {scannedProduct && (
@@ -1219,17 +1184,31 @@ export function ListScreen({
 
       {closingTrip && (
         <>
-          <div className="sheet-overlay" onClick={() => setClosingTrip(null)} />
+          <div className="sheet-overlay" onClick={dismissCloseSheet} />
           <div className="sheet-container">
             <CloseTripSheet
-              initialLines={buildLines(items, now, closingTrip.purchaseId)}
+              // The sheet seeds its rows once, so that a poll cannot rewrite a
+              // row under somebody pricing it. Reading a paper replaces every
+              // row, which is exactly the caller that note asks for a fresh
+              // sheet. Discarding one keeps what was typed and happens inside
+              // the sheet, so nothing here changes and nothing remounts.
+              key={ticket?.receipt.scanId ?? 'hand'}
+              initialLines={
+                ticket?.lines ?? buildLines(items, now, closingTrip.purchaseId)
+              }
               storeSuggestions={storeSuggestions}
               defaultDate={closingDefaultDate}
               purchaseId={closingTrip.purchaseId}
               isOffline={isOffline}
+              receipt={ticket?.receipt ?? null}
+              mappings={mappings}
+              canScan={isEnabled(FLAGS.AI_RECEIPT_SCANNING)}
+              onScan={handleReceiptScan}
               onSave={handleCloseTrip}
-              onClose={() => setClosingTrip(null)}
-              onEditLine={(line, apply) => setEditingLine({ line, apply })}
+              onClose={dismissCloseSheet}
+              onEditLine={(line, apply, lines) =>
+                setEditingLine({ line, lines, apply })
+              }
             />
           </div>
         </>
@@ -1239,14 +1218,27 @@ export function ListScreen({
         <>
           <div className="sheet-overlay" onClick={() => setEditingLine(null)} />
           <div className="sheet-container">
-            <AdjustItemSheet
-              line={editingLine.line}
-              onDone={(next) => {
-                editingLine.apply(next)
-                setEditingLine(null)
-              }}
-              onClose={() => setEditingLine(null)}
-            />
+            {/* Two questions, told apart by whether the row's product is
+                settled. A printed line with no product, and one the matcher
+                only guessed at, both ask which product it is; anything else
+                adjusts the product it already names. */}
+            {productUnsettled(editingLine.line) ? (
+              <ResolveLineSheet
+                line={editingLine.line}
+                candidates={freeRows(editingLine.lines)}
+                onResolve={handleResolveLine}
+                onClose={() => setEditingLine(null)}
+              />
+            ) : (
+              <AdjustItemSheet
+                line={editingLine.line}
+                onDone={(next) => {
+                  editingLine.apply(next)
+                  setEditingLine(null)
+                }}
+                onClose={() => setEditingLine(null)}
+              />
+            )}
           </div>
         </>
       )}
@@ -1314,38 +1306,6 @@ export function ListScreen({
               aria-label="Procesando ticket"
             />
             <span>Procesando ticket…</span>
-          </div>
-        </>
-      )}
-
-      {receiptScanResult && (
-        <>
-          <div className="sheet-overlay" onClick={handleReceiptSheetClose} />
-          <div className="sheet-container">
-            <ReceiptScanSheet
-              // A re-match replaces matched/unmatched wholesale, so line edits
-              // made against the old result are no longer meaningful. Remount
-              // rather than trying to reconcile them.
-              key={receiptScanResult.scan_id}
-              result={receiptScanResult}
-              candidateItems={items.map((i) => ({
-                id: i.id,
-                name: i.name,
-                purchased: i.purchased,
-                purchased_at: i.purchased_at,
-                brand: i.brand,
-                stores: i.stores,
-                quantity: i.quantity,
-              }))}
-              store={receiptScanResult.store}
-              onConfirm={handleReceiptConfirm}
-              onClose={handleReceiptSheetClose}
-              pendingScan={pendingScan}
-              onRequestScan={handleReceiptScanRequest}
-              onDateCorrected={handleReceiptDateCorrected}
-              rematching={receiptRematching}
-              dateConfirmed={receiptDateConfirmed}
-            />
           </div>
         </>
       )}

@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import type { ListItem } from '../types'
-import { buildLines, linesTotal, toPayload, type CloseLine } from './closeLines'
+import type {
+  ListItem,
+  MatchedLine,
+  ReceiptScanResult,
+  UnmatchedLine,
+} from '../types'
+import {
+  buildLines,
+  discardPaper,
+  hasNoProduct,
+  linesTotal,
+  productUnsettled,
+  receiptToLines,
+  receiptTotal,
+  toPayload,
+  type CloseLine,
+} from './closeLines'
 
 function item(over: Partial<ListItem>): ListItem {
   return {
@@ -561,5 +576,469 @@ describe('buildLines for a trip that already tore off', () => {
     const lines = buildLines([filed(), inTodaysCart()], LATER, null)
 
     expect(lines.map((l) => [l.itemId, l.included])).toEqual([['today', true]])
+  })
+})
+
+function matched(over: Partial<MatchedLine>): MatchedLine {
+  return {
+    index: 0,
+    receipt_name: 'LECHE ENT 1L',
+    item_id: 'a',
+    item_name: 'Leche',
+    price_type: 'UNIT',
+    unit_price: 1.19,
+    quantity: null,
+    line_total: 1.19,
+    confirmed: false,
+    ...over,
+  }
+}
+
+function unmatched(over: Partial<UnmatchedLine>): UnmatchedLine {
+  return {
+    index: 0,
+    receipt_name: 'BOLSA PLASTICO',
+    price_type: 'UNIT',
+    unit_price: 0.15,
+    quantity: null,
+    line_total: 0.15,
+    ...over,
+  }
+}
+
+function scan(
+  matchedLines: MatchedLine[],
+  unmatchedLines: UnmatchedLine[] = [],
+): ReceiptScanResult {
+  return {
+    scan_id: 's1',
+    store: 'Lidl',
+    receipt_date: '2026-07-30',
+    receipt_total: null,
+    matched: matchedLines,
+    unmatched: unmatchedLines,
+  }
+}
+
+function row(over: Partial<CloseLine>): CloseLine {
+  return {
+    key: 'a',
+    itemId: 'a',
+    name: 'Leche',
+    brand: null,
+    quantity: null,
+    price: null,
+    pricePer: null,
+    included: true,
+    fromCart: true,
+    ...over,
+  }
+}
+
+describe('receiptToLines', () => {
+  it('returns the lines in the order the paper printed them', () => {
+    // The bug this replaces concatenated the two arrays, which would give
+    // A, C, B. Only a line the matcher could not place, sitting between two it
+    // could, tells the two apart.
+    const result = scan(
+      [
+        matched({ index: 0, receipt_name: 'A', item_id: 'a' }),
+        matched({ index: 2, receipt_name: 'C', item_id: 'c' }),
+      ],
+      [unmatched({ index: 1, receipt_name: 'B' })],
+    )
+
+    const lines = receiptToLines(result, [
+      row({ key: 'a', itemId: 'a' }),
+      row({ key: 'c', itemId: 'c', name: 'Café' }),
+    ])
+
+    expect(lines.map((l) => l.receiptLine)).toEqual(['A', 'B', 'C'])
+  })
+
+  it('fills a row the matcher recognised and ticks it', () => {
+    const result = scan([
+      matched({
+        receipt_name: 'LECHE ENT 1L',
+        item_id: 'a',
+        unit_price: 1.19,
+        line_total: 1.19,
+      }),
+    ])
+
+    const lines = receiptToLines(result, [
+      row({ key: 'a', itemId: 'a', name: 'Leche', brand: 'Pascual' }),
+    ])
+
+    expect(lines).toEqual([
+      {
+        key: 'a',
+        itemId: 'a',
+        name: 'Leche',
+        brand: 'Pascual',
+        quantity: '1',
+        price: 1.19,
+        pricePer: null,
+        included: true,
+        fromCart: true,
+        receiptLine: 'LECHE ENT 1L',
+        receiptAmount: 1.19,
+        matchState: 'guess',
+      },
+    ])
+  })
+
+  it('marks a row literal when the name was already confirmed for this shop', () => {
+    const result = scan([
+      matched({
+        receipt_name: 'LECHE ENT 1L',
+        item_id: 'a',
+        confirmed: true,
+      }),
+    ])
+
+    const lines = receiptToLines(result, [row({ key: 'a', itemId: 'a' })])
+
+    expect(lines[0].matchState).toBe('literal')
+  })
+
+  it('drops the suggestion when the matched item has no row on this sheet', () => {
+    // The matcher has no trip filter, so it names items filed under an older
+    // ticket. Offering that name would let somebody pick an item the server
+    // refuses, and it refuses the whole sheet.
+    const result = scan([
+      matched({
+        receipt_name: 'YOGUR GRIEGO',
+        item_id: 'old',
+        item_name: 'Yogur griego',
+        unit_price: 2.35,
+      }),
+    ])
+
+    const lines = receiptToLines(result, [row({ key: 'a', itemId: 'a' })])
+
+    expect(lines[0]).toMatchObject({
+      itemId: null,
+      name: '',
+      receiptLine: 'YOGUR GRIEGO',
+      price: 2.35,
+      included: false,
+    })
+    expect(JSON.stringify(lines[0])).not.toContain('Yogur griego')
+    expect(lines[0].matchState).toBeUndefined()
+  })
+
+  it('turns a line the matcher could not place into a row with no product', () => {
+    const result = scan(
+      [],
+      [unmatched({ receipt_name: 'BOLSA PLASTICO', unit_price: 0.15 })],
+    )
+
+    const lines = receiptToLines(result, [])
+
+    expect(lines[0]).toMatchObject({
+      itemId: null,
+      name: '',
+      brand: null,
+      receiptLine: 'BOLSA PLASTICO',
+      price: 0.15,
+      pricePer: null,
+      quantity: '1',
+      included: false,
+      fromCart: false,
+    })
+    expect(lines[0].matchState).toBeUndefined()
+  })
+
+  it('keeps a row the paper never named, after the receipt and unticked', () => {
+    const result = scan([matched({ receipt_name: 'LECHE', item_id: 'a' })])
+
+    const lines = receiptToLines(result, [
+      row({ key: 'a', itemId: 'a' }),
+      row({
+        key: 'b',
+        itemId: 'b',
+        name: 'Huevos',
+        brand: 'Pascual',
+        quantity: '12',
+        price: 2.5,
+        included: true,
+      }),
+    ])
+
+    expect(lines[1]).toEqual({
+      key: 'b',
+      itemId: 'b',
+      name: 'Huevos',
+      brand: 'Pascual',
+      quantity: '12',
+      price: 2.5,
+      pricePer: null,
+      included: false,
+      fromCart: true,
+    })
+  })
+
+  it('keeps rows the paper never named in the order they already had', () => {
+    const result = scan([matched({ receipt_name: 'LECHE', item_id: 'a' })])
+
+    const lines = receiptToLines(result, [
+      row({ key: 'z', itemId: 'z', name: 'Zumo' }),
+      row({ key: 'a', itemId: 'a' }),
+      row({ key: 'b', itemId: 'b', name: 'Huevos' }),
+    ])
+
+    expect(lines.map((l) => l.key)).toEqual(['a', 'z', 'b'])
+  })
+
+  it('gives a second line naming the same item a row of its own', () => {
+    // Two tubs of the same yoghurt are two lines, and the matcher can name the
+    // same item twice. One row cannot hold both, so the second asks.
+    const result = scan([
+      matched({ index: 0, receipt_name: 'YOGUR 1', item_id: 'a' }),
+      matched({ index: 1, receipt_name: 'YOGUR 2', item_id: 'a' }),
+    ])
+
+    const lines = receiptToLines(result, [row({ key: 'a', itemId: 'a' })])
+
+    expect(lines.map((l) => [l.key, l.itemId])).toEqual([
+      ['a', 'a'],
+      ['receipt-1', null],
+    ])
+  })
+})
+
+describe('receiptToLines quantities', () => {
+  function quantityOf(over: Partial<UnmatchedLine>): string | null {
+    return receiptToLines(scan([], [unmatched(over)]), [])[0].quantity
+  }
+
+  it('reads a line sold by the unit as one', () => {
+    expect(quantityOf({ price_type: 'UNIT', quantity: 3 })).toBe('1')
+  })
+
+  it('reads a weight under a kilo in grams', () => {
+    expect(quantityOf({ price_type: 'KILOGRAM', quantity: 0.524 })).toBe('524g')
+  })
+
+  it('reads a weight of a kilo or more in kilos', () => {
+    expect(quantityOf({ price_type: 'KILOGRAM', quantity: 1.12 })).toBe(
+      '1.12kg',
+    )
+  })
+
+  it('rounds a count sold several at a time', () => {
+    expect(quantityOf({ price_type: 'MULTI', quantity: 2.999 })).toBe('3')
+  })
+
+  it('falls back to one when the paper gave no amount', () => {
+    expect(quantityOf({ price_type: 'KILOGRAM', quantity: null })).toBe('1')
+  })
+
+  it('carries the unit of a line priced by the kilo', () => {
+    const lines = receiptToLines(
+      scan([], [unmatched({ price_type: 'KILOGRAM', quantity: 1.12 })]),
+      [],
+    )
+
+    expect(lines[0].pricePer).toBe('KILOGRAM')
+  })
+})
+
+describe('receiptTotal', () => {
+  it('counts a receipt line the household did not tick', () => {
+    const lines = receiptToLines(
+      scan(
+        [matched({ index: 0, item_id: 'a', unit_price: 2, line_total: 2 })],
+        [unmatched({ index: 1, unit_price: 3, line_total: 3 })],
+      ),
+      [row({ key: 'a', itemId: 'a' })],
+    )
+
+    // The unticked line is still printed on the paper, so the reconciliation
+    // check has to see it. The button's figure must not.
+    expect(receiptTotal(lines)).toBe(5)
+    expect(linesTotal(lines)).toEqual({ total: 2, partial: false })
+  })
+
+  it('leaves out a row that never came from the paper', () => {
+    const lines = receiptToLines(
+      scan([matched({ item_id: 'a', unit_price: 2, line_total: 2 })]),
+      [
+        row({ key: 'a', itemId: 'a' }),
+        row({ key: 'b', itemId: 'b', name: 'Huevos', price: 9 }),
+      ],
+    )
+
+    expect(receiptTotal(lines)).toBe(2)
+  })
+
+  it('is null when no row came from the paper', () => {
+    expect(receiptTotal([row({ price: 3 })])).toBeNull()
+  })
+
+  it('counts a weighed line the app could not have priced itself', () => {
+    // A price per kilo and no weight: there is nothing to multiply. The paper
+    // printed the amount anyway, so there is nothing to work out either.
+    const lines = receiptToLines(
+      scan(
+        [],
+        [
+          unmatched({
+            price_type: 'KILOGRAM',
+            quantity: null,
+            unit_price: 8,
+            line_total: 4.12,
+          }),
+        ],
+      ),
+      [],
+    )
+
+    expect(receiptTotal(lines)).toBe(4.12)
+  })
+})
+
+describe('the paper’s own arithmetic is never redone', () => {
+  // 456,7 g at 3,99 €/kg. The weight is rounded to the gram to be shown, so
+  // working the amount out again gives 1,82343 — close to the 1,82 the paper
+  // printed, and not it. Cents of drift like this land on the reconciliation
+  // check and turn it amber over a receipt that adds up perfectly.
+  const weighed = () =>
+    matched({
+      item_id: 'a',
+      price_type: 'KILOGRAM',
+      unit_price: 3.99,
+      quantity: 0.4567,
+      line_total: 1.82,
+    })
+
+  const scanned = () =>
+    receiptToLines(scan([weighed()]), [row({ key: 'a', itemId: 'a' })])
+
+  it('carries the printed amount onto the row', () => {
+    expect(scanned()[0].receiptAmount).toBe(1.82)
+  })
+
+  it('still shows the rounded weight, which is what gets recorded', () => {
+    expect(scanned()[0].quantity).toBe('457g')
+  })
+
+  it('reconciles against the printed amount', () => {
+    expect(receiptTotal(scanned())).toBe(1.82)
+  })
+
+  it('saves the printed amount', () => {
+    expect(linesTotal(scanned())).toEqual({ total: 1.82, partial: false })
+  })
+
+  it('goes back to the app’s own arithmetic once the paper is gone', () => {
+    // Discarding drops the printed amount with the rest of the paper's
+    // authority, so the app has to work the figure out again — and the header
+    // says so by printing `≥` once more.
+    const kept = discardPaper(scanned())
+
+    expect(receiptTotal(kept)).toBeNull()
+    // 1,82343 against the 1,82 the paper printed: the drift, written out.
+    expect(linesTotal(kept)).toEqual({ total: 1.82343, partial: false })
+  })
+})
+
+describe('linesTotal on a sheet with both kinds of row', () => {
+  const paperRow = () =>
+    row({
+      key: 'a',
+      quantity: '457g',
+      price: 3.99,
+      pricePer: 'KILOGRAM',
+      receiptLine: 'MANZANA GOLDEN',
+      receiptAmount: 1.82,
+    })
+
+  it('adds a printed amount to a hand row’s worked-out one', () => {
+    const lines = [
+      paperRow(),
+      row({ key: 'b', itemId: 'b', quantity: '3', price: 2 }),
+    ]
+
+    expect(linesTotal(lines)).toEqual({ total: 7.82, partial: false })
+  })
+
+  it('is still partial when a hand row carries no price', () => {
+    const lines = [paperRow(), row({ key: 'b', itemId: 'b', price: null })]
+
+    expect(linesTotal(lines)).toEqual({ total: 1.82, partial: true })
+  })
+})
+
+describe('discardPaper', () => {
+  it('drops the paper’s authority and keeps everything it parsed', () => {
+    const lines = receiptToLines(
+      scan(
+        [matched({ index: 0, item_id: 'a', unit_price: 1.19 })],
+        [unmatched({ index: 1, receipt_name: 'BOLSA', unit_price: 0.15 })],
+      ),
+      [row({ key: 'a', itemId: 'a' })],
+    )
+
+    const kept = discardPaper(lines)
+
+    expect(kept.map((l) => l.receiptLine)).toEqual([undefined, undefined])
+    expect(kept.map((l) => l.matchState)).toEqual([undefined, undefined])
+    expect(kept.map((l) => l.receiptAmount)).toEqual([undefined, undefined])
+    expect(
+      kept.map((l) => [l.itemId, l.price, l.quantity, l.included]),
+    ).toEqual([
+      ['a', 1.19, '1', true],
+      [null, 0.15, '1', false],
+    ])
+  })
+
+  it('leaves no line for the reconciliation check to sum', () => {
+    const lines = receiptToLines(scan([matched({ item_id: 'a' })]), [
+      row({ key: 'a', itemId: 'a' }),
+    ])
+
+    expect(receiptTotal(discardPaper(lines))).toBeNull()
+  })
+})
+
+describe('which question a row still has to answer', () => {
+  // A guess is the app's reading of the paper, and it is only settled once a
+  // person says so. Until then the chevron has to lead to the sheet that asks
+  // which product it was, or the guess could never become solid.
+  it('asks about a guess and adjusts a match somebody confirmed', () => {
+    const printed = { receiptLine: 'LECHE ENT 1L', receiptAmount: 1.19 }
+
+    expect(productUnsettled(row({ ...printed, matchState: 'guess' }))).toBe(
+      true,
+    )
+    expect(productUnsettled(row({ ...printed, matchState: 'literal' }))).toBe(
+      false,
+    )
+  })
+
+  it('asks about a printed line the matcher placed nowhere', () => {
+    const line = row({
+      key: 'receipt-1',
+      itemId: null,
+      name: '',
+      receiptLine: 'BOLSA PLASTICO',
+    })
+
+    expect(productUnsettled(line)).toBe(true)
+  })
+
+  it('leaves a row no paper printed alone', () => {
+    expect(productUnsettled(row({}))).toBe(false)
+  })
+
+  // Two different questions. What a row may be ticked for is whether it names
+  // a product, and a guess names one — conflating the two would make a guessed
+  // row unsavable.
+  it('keeps a guessed row tickable', () => {
+    const guess = row({ receiptLine: 'LECHE ENT 1L', matchState: 'guess' })
+
+    expect(hasNoProduct(guess)).toBe(false)
   })
 })

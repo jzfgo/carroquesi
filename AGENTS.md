@@ -30,8 +30,8 @@ Two documents hold the durable truth this file does not repeat. Read the relevan
 - `list_invites`: opt-in invitations; `id` is the share token
 - `barcode_cache`: cached barcode lookup data
 - `price_cache`: cached community price data by EAN (amount, price_per, fetched_at); negative-caches misses too
-- `purchases`: a shopping trip — the confirmed record of a shop (`store`, `total`, `opened_at`, `tears_off_at`, `closed_at`), as against `receipt_scans`' parsed evidence; declared at reconciliation, not inferred from tap timestamps. See [ADR-011](docs/decisions/011-purchase-entity-and-trip-boundary.md)
-- `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results); optional `purchase_id` when a scan reconciled a trip
+- `purchases`: a shopping trip — the confirmed record of a shop (`store`, `total`, `opened_at`, `tears_off_at`, `closed_at`), as against `receipt_scans`' parsed evidence; declared when someone closes the trip, not inferred from tap timestamps. See [ADR-011](docs/decisions/011-purchase-entity-and-trip-boundary.md)
+- `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results); `purchase_id` and `items_updated` are set by the close endpoint when the close names a scan
 - `receipt_name_mappings`: learned receipt→item name mappings per store; improves auto-matching on future scans
 - `feedback_submissions`: in-app user feedback (message, email, source, user_agent)
 - `waitlist_signups`: early-access waitlist (email, allowed_at, invite_token)
@@ -45,8 +45,9 @@ Important invariants:
 - `list_items.purchased_at = NULL` means unpurchased; first purchase sets timestamp
 - keep derived `purchased: bool` in API responses for backward compatibility
 - whether a purchased item is still "in the cart" or has "torn off" into a filed ticket is not a calendar-day check — it's whether the item's `purchases` row is still open (`closed_at` unset and `tears_off_at` in the future, in `Europe/Madrid`). `purchase_id` stays nullable permanently; *purchased ⇒ `purchase_id` set* is enforced in-app, not by a DB constraint. See [ADR-011](docs/decisions/011-purchase-entity-and-trip-boundary.md)
-- a trip is filed by a person or by midnight. A person must name the shop — `POST /lists/{id}/purchases/close` requires a non-empty `store`, deliberately stricter than the receipt-review screen. Midnight cannot name one, so `purchases.store` stays nullable and the requirement lives at the endpoint, not on the column
+- a trip is filed by a person or by midnight. A person must name the shop — `POST /lists/{id}/purchases/close` requires a non-empty `store`. Midnight cannot name one, so `purchases.store` stays nullable and the requirement lives at the endpoint, not on the column
 - the close endpoint separates two instants, and they are not interchangeable: `purchased_at` records **when the shop happened** and is written to the item, while the trip being closed decides **which trip the item joins**. They disagree whenever someone writes down an old shop, and then the trip wins — attaching by the item's own date files it into a trip the call is not closing, and the close then rejects it as not in the cart
+- `POST /lists/{id}/purchases/close` is **not** gated on `ai_receipt_scanning` and must not become gated. A household without the flag has no other way to declare a shop. Only the two fields that carry a receipt's evidence — `scan_id` and `mappings` — are behind the flag
 - invite acceptance is explicit before access is granted
 - at most one `list_members.is_default=true` per user; the Siri `"default"` resolver is explicit-only (no most-recently-updated fallback) and 404s when unset. Auto-assigned on a user's first list; never auto-promoted when a default list is deleted. Managed via `backend/app/services/default_list.py`. See [ADR-007](docs/decisions/007-per-user-default-list.md)
 - `list_members.last_seen_at` is the push unseen-count watermark. Reset it **only while the list is actually visible** (`POST /lists/{id}/seen`, called from `useListSeen`) — marking a backgrounded tab as seen silently defeats the feature. The count is *derived* from `list_items` at send time, never accumulated, so dropped or duplicate pushes cannot cause drift. See [ADR-010](docs/decisions/010-web-push-via-fcm.md)
@@ -102,7 +103,9 @@ The remaining gotchas — ports, dev-auth setup, the `loadEnvFile()` `${VAR}` no
 
 ### Receipt scanning
 
-Four-step flow: client parse (`receiptAi.ts` via Gemini) → backend fuzzy match (`receipt_matcher.py`) → user review (`ReceiptScanSheet`) → apply prices. `VITE_RECAPTCHA_SITE_KEY` required in production for Firebase App Check (reCAPTCHA v3).
+Scanning a receipt and closing a shopping trip are one act, so a scan has no screen and no endpoint of its own. The flow: client parse (`receiptAi.ts` via Gemini) → backend fuzzy match (`POST /lists/{id}/receipt`, `receipt_matcher.py`) → the matched and unmatched lines fill the close sheet (`CloseTripSheet` in ticket mode) → one save through `POST /lists/{id}/purchases/close`.
+
+That one save records the shop, prices the items, links the scan to the trip, and stores the receipt→item names the user confirmed. `VITE_RECAPTCHA_SITE_KEY` required in production for Firebase App Check (reCAPTCHA v3).
 
 ### Purchased item rules
 
