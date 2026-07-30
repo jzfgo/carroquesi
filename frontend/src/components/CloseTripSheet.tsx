@@ -4,6 +4,7 @@ import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import {
   discardPaper,
   linesTotal,
+  needsProduct,
   receiptTotal,
   toPayload,
   type CloseLine,
@@ -104,14 +105,17 @@ export function CloseTripSheet({
   const [addingStore, setAddingStore] = useState(false)
   const [newStore, setNewStore] = useState('')
   // The instant the sheet keeps while nobody touches the day: the paper's
-  // printed hour in ticket mode, the trip's own instant in hand mode. Read
-  // from the prop and not from the paper's state, so discarding an untouched
-  // receipt does not quietly move the stamp to midday.
-  const anchorDate = receipt ? receipt.date : defaultDate
+  // printed hour in ticket mode, and the trip's own instant both in hand mode
+  // and for a paper that printed no hour to keep. Read from the prop and not
+  // from the paper's state, so discarding an untouched receipt does not
+  // quietly move the stamp to midday.
+  const anchorDate = receipt?.date ?? defaultDate
   // The day it was in Madrid rather than in UTC. Stamping an old shop with
-  // today's date would file its prices under a day nobody shopped.
+  // today's date would file its prices under a day nobody shopped. A scan
+  // that could not read the day starts empty on purpose: it has to be
+  // answered, and filling it in from the trip would answer it for them.
   const [day, setDay] = useState(() =>
-    anchorDate ? madridDay(anchorDate) : '',
+    receipt && !receipt.date ? '' : madridDay(anchorDate),
   )
   // The sheet used to be unmounted the instant this was pressed, which hid
   // the fact that nothing stops a second press. It stays up through a failure
@@ -449,11 +453,7 @@ export function CloseTripSheet({
           <button
             type="button"
             className="cts__door"
-            aria-label={`${
-              line.itemId == null && line.receiptLine != null
-                ? 'Asignar'
-                : 'Ajustar'
-            } ${rowLabel(line)}`}
+            aria-label={`${needsProduct(line) ? 'Asignar' : 'Ajustar'} ${rowLabel(line)}`}
             onClick={() => onEditLine?.(line, apply, lines)}
           >
             <ChevronRight size={18} />

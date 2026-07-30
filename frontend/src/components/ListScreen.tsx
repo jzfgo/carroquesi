@@ -23,7 +23,12 @@ import {
   submitParsedReceipt,
   updateList,
 } from '../lib/api'
-import { buildLines, receiptToLines, type CloseLine } from '../lib/closeLines'
+import {
+  buildLines,
+  needsProduct,
+  receiptToLines,
+  type CloseLine,
+} from '../lib/closeLines'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
 import { computeCostSummary } from '../lib/itemCost'
@@ -1213,11 +1218,10 @@ export function ListScreen({
         <>
           <div className="sheet-overlay" onClick={() => setEditingLine(null)} />
           <div className="sheet-container">
-            {/* Two questions, told apart by whether the row has a product. A
-                printed line with none asks which product it was; anything else
-                adjusts a product it already names. */}
-            {editingLine.line.itemId === null &&
-            editingLine.line.receiptLine != null ? (
+            {/* Two questions, told apart by whether the row has been told what
+                it was. A printed line still waiting asks which product it is;
+                anything else adjusts the product it already names. */}
+            {needsProduct(editingLine.line) ? (
               <ResolveLineSheet
                 line={editingLine.line}
                 candidates={freeRows(editingLine.lines)}

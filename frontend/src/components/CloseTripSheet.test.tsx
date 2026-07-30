@@ -712,6 +712,20 @@ describe('CloseTripSheet in ticket mode', () => {
     expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-28T10:00:00')
   })
 
+  // A paper that printed no day printed no hour either, so the trip's own
+  // instant is the best there is — the very one a close written by hand
+  // would have used.
+  it('keeps the trip’s own hour when the paper printed no day', async () => {
+    const { onSave } = renderTicket({ receipt: { ...paper, date: null } })
+
+    fireEvent.change(screen.getByLabelText('Fecha'), {
+      target: { value: '2026-07-30' },
+    })
+    await userEvent.click(save())
+
+    expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-30T18:00:00')
+  })
+
   it('waits for a day the scan could not read', async () => {
     const { onSave } = renderTicket({ receipt: { ...paper, date: null } })
 

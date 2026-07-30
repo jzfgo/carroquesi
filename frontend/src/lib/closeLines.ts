@@ -41,6 +41,18 @@ export interface CloseLine {
 }
 
 /**
+ * Whether the row is still waiting to be told what it was.
+ *
+ * A printed line with no name is the one state that asks the question, and it
+ * is the state the row reads `Asignar producto` in. What answered it does not
+ * matter: a product already on the list and a product created on the spot are
+ * both answers, and what is left to change about either is its amount.
+ */
+export function needsProduct(line: CloseLine): boolean {
+  return line.receiptLine != null && line.name === ''
+}
+
+/**
  * The rows of a close sheet: the trip's own lines first, ticked, then whatever
  * is still on the list, offered unticked.
  *

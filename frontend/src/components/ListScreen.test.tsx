@@ -1101,6 +1101,28 @@ describe('reading a paper into the close sheet', () => {
     expect(screen.getByText('Ajustar producto')).toBeInTheDocument()
   })
 
+  // Answered is answered, however it was answered. A line named with a
+  // product nobody had on the list still has an amount that may need
+  // correcting, and the chevron is the only way to it.
+  it('adjusts a line that was answered with a product of its own', async () => {
+    await readPaper()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Asignar 2 PAN DE PUEBLO' }),
+    )
+    const field = screen.getByLabelText('Si no estaba en la lista')
+    await userEvent.clear(field)
+    await userEvent.type(field, 'Chicles')
+    await userEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+
+    await userEvent.click(sheet().getByRole('button', { name: /Chicles/ }))
+
+    expect(screen.getByLabelText('Producto')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Asignar producto' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('takes the claimed row off the ticket', async () => {
     // One product cannot sit on two rows of one ticket: the payload would
     // send it twice and the sheet would show it twice.
