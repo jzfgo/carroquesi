@@ -204,10 +204,6 @@ describe('parseReceiptWithAi wiring', () => {
   })
 
   describe('image resizing', () => {
-    afterEach(() => {
-      vi.restoreAllMocks()
-    })
-
     beforeEach(() => {
       const mockGetContext = vi.fn(() => ({
         drawImage: vi.fn(),
