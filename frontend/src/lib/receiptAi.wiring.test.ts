@@ -54,8 +54,8 @@ describe('parseReceiptWithAi wiring', () => {
     )
 
     if (typeof URL !== 'undefined') {
-      URL.createObjectURL = vi.fn(() => 'blob:test')
-      URL.revokeObjectURL = vi.fn()
+      vi.spyOn(URL, 'createObjectURL').mockImplementation(() => 'blob:test')
+      vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
     }
   })
 
@@ -136,9 +136,10 @@ describe('parseReceiptWithAi wiring', () => {
         drawImage: vi.fn(),
       }))
 
-      HTMLCanvasElement.prototype.getContext =
-        mockGetContext as unknown as typeof HTMLCanvasElement.prototype.getContext
-      HTMLCanvasElement.prototype.toDataURL = vi.fn(
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
+        mockGetContext as unknown as typeof HTMLCanvasElement.prototype.getContext,
+      )
+      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(
         () => 'data:image/jpeg;base64,mock',
       )
     })
@@ -161,6 +162,8 @@ describe('parseReceiptWithAi wiring', () => {
         },
       )
 
+      const createElementSpy = vi.spyOn(document, 'createElement')
+
       const { parseReceiptWithAi } = await import('./receiptAi')
       const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
 
@@ -169,6 +172,13 @@ describe('parseReceiptWithAi wiring', () => {
         'image/jpeg',
         0.85,
       )
+
+      const canvases = createElementSpy.mock.results
+        .map((r) => r.value)
+        .filter((v) => v instanceof HTMLCanvasElement)
+      expect(canvases.length).toBeGreaterThan(0)
+      expect(canvases[0].width).toBe(1600)
+      expect(canvases[0].height).toBe(800)
     })
   })
 })

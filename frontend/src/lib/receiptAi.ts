@@ -114,7 +114,9 @@ function resizeImageFile(
           if (
             !width ||
             !height ||
-            (width <= maxDimension && height <= maxDimension)
+            (file.size < 1024 * 1024 &&
+              width <= maxDimension &&
+              height <= maxDimension)
           ) {
             done(null)
             return
@@ -232,7 +234,6 @@ async function generateContentWithRetry(
   const maxRetries = options?.maxRetries ?? 2
   const initialDelay = options?.delayMs ?? 500
 
-  let lastError: unknown
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const result = await model.generateContent([filePart, PROMPT])
@@ -245,21 +246,30 @@ async function generateContentWithRetry(
         lines: ParsedLine[]
       }
     } catch (error: unknown) {
-      lastError = error
-      const err = error as { message?: string; status?: number; code?: number }
+      const err = error as {
+        message?: string
+        status?: number
+        code?: number | string
+        customData?: { status?: number }
+      }
+
+      const status =
+        err?.status ??
+        err?.customData?.status ??
+        (typeof err?.code === 'number' ? err.code : undefined)
+      const is4xx = typeof status === 'number' && status >= 400 && status < 500
 
       let isTransient = false
       if (error instanceof SyntaxError) {
         isTransient = true
-      } else if (err?.message && err.message.includes('blocked')) {
+      } else if (err?.message && err.message.includes('blocked') && !is4xx) {
         isTransient = true
       } else if (
         error instanceof TypeError &&
-        err.message?.match(/fetch|network/i)
+        err.message?.match(/fetch|network|load failed|connection was lost/i)
       ) {
         isTransient = true
       } else {
-        const status = err?.status || err?.code
         if (
           status === 429 ||
           status === 500 ||
@@ -286,7 +296,9 @@ async function generateContentWithRetry(
       }
     }
   }
-  throw lastError
+
+  // Fallback (should be unreachable given the throw inside the loop)
+  throw new Error('Retries exhausted')
 }
 
 export async function parseReceiptWithAi(
