@@ -170,7 +170,7 @@ describe('parseReceiptWithAi wiring', () => {
     expect(mockGenerateContent).toHaveBeenCalledTimes(1)
   })
 
-  it('does not retry on 403 errors with blocked message', async () => {
+  it('does not retry on 403 errors with blocked message (with customErrorData.status)', async () => {
     const { parseReceiptWithAi } = await import('./receiptAi')
     const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
 
@@ -242,9 +242,20 @@ describe('parseReceiptWithAi wiring', () => {
       const createElementSpy = vi.spyOn(document, 'createElement')
 
       const { parseReceiptWithAi } = await import('./receiptAi')
-      const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+      const file = new File(
+        [new Uint8Array(10 * 1024).fill(65)],
+        'receipt.jpg',
+        { type: 'image/jpeg' },
+      )
 
       await parseReceiptWithAi(file)
+      expect(mockGenerateContent).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            inlineData: { mimeType: 'image/jpeg', data: 'mock' },
+          }),
+        ]),
+      )
       expect(HTMLCanvasElement.prototype.toDataURL).toHaveBeenCalledWith(
         'image/jpeg',
         0.85,

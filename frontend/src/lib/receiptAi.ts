@@ -153,7 +153,7 @@ async function fileToInlinePart(file: File) {
       const resizedDataUrl = await resizeImageFile(file, 1600)
       if (resizedDataUrl) {
         const [header, base64] = resizedDataUrl.split(',')
-        if (base64.length <= (file.size * 4) / 3) {
+        if (base64 && base64.length <= (file.size * 4) / 3) {
           const mimeType = header.match(/:(.*?);/)?.[1] || file.type
           return { inlineData: { data: base64, mimeType } }
         }
@@ -269,7 +269,8 @@ async function generateContentWithRetry(
         isTransient = true
       } else if (
         err?.message &&
-        err.message.match(/\b(429|500|502|503|504)\b/)
+        err.message.match(/\b(429|500|502|503|504)\b/) &&
+        !is4xx
       ) {
         isTransient = true
       } else if (err?.message && err.message.includes('blocked') && !is4xx) {
