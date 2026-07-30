@@ -112,17 +112,35 @@ def close_purchase(
     # item leaves it behind with a date from another day, and attach then
     # resolves the wrong trip in silence.
     #
-    # A purchase_id nobody can resolve leaves the anchor at now, and one that
-    # names another list's trip anchors on that trip's day. Neither is checked
-    # here. The refusal for both belongs to close(), which already makes it,
-    # and one place should decide it. Whatever those paths wrote never lands:
-    # the request raises before session.commit(), and the session dependency
-    # closes without committing.
-    anchor = now
-    if body.purchase_id is not None:
-        named = session.get(Purchase, body.purchase_id)
-        if named is not None:
-            anchor = named.opened_at
+    # A purchase_id nobody can resolve leaves the anchor on the sheet's own
+    # date, and one that names another list's trip anchors on that trip's day.
+    # Neither is checked here. The refusal for both belongs to close(), which
+    # already makes it, and one place should decide it. Whatever those paths
+    # wrote never lands: the request raises before session.commit(), and the
+    # session dependency closes without committing.
+    #
+    # Nothing named, and two questions have to agree: which trip the impulse
+    # buys join, and which trip gets closed. Resolving it once here is what
+    # makes them agree.
+    #
+    # The sheet's own date is asked first. A close written in an aisle with no
+    # signal arrives the next morning, and by then the trip its lines are in
+    # has torn off — invisible to "the trip that is open now", which loses the
+    # whole shop. The date is the only thing in the request that still knows
+    # which day it was. The client cannot name that trip itself: when the
+    # button was pressed the taps had not reached the server either, so it did
+    # not exist yet.
+    #
+    # Today's open trip is the fallback, for the sheet whose date was moved
+    # back but whose lines were picked up today. The date then dates the
+    # ticket without deciding which ticket it is.
+    target = (
+        session.get(Purchase, body.purchase_id)
+        if body.purchase_id is not None
+        else trips.unfiled_trip_for(session, list_id, purchase_ts)
+        or trips.open_trip(session, list_id, now)
+    )
+    anchor = target.opened_at if target is not None else purchase_ts
 
     # Every id this call wrote to. Not "filed": a line that was already bought
     # and only got a new price is in here too, and nothing about its trip
@@ -213,7 +231,8 @@ def close_purchase(
             body.store,
             body.total,
             now,
-            purchase_id=body.purchase_id,
+            purchase_id=body.purchase_id or (target.id if target is not None else None),
+            at=purchase_ts,
         )
     except trips.NotInTheCart:
         raise HTTPException(

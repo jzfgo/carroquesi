@@ -242,6 +242,28 @@ describe('AdjustItemSheet and a unit nobody changed', () => {
     expect(screen.getByText('€/ud')).toBeInTheDocument()
   })
 
+  it('does not re-unit when the same amount is typed a different way', async () => {
+    const onDone = vi.fn()
+    render(
+      <AdjustItemSheet
+        line={perUnitWithAWeight}
+        onDone={onDone}
+        onClose={vi.fn()}
+      />,
+    )
+
+    // 2,50 and 2.5 are the same price. Comparing the strings would read this
+    // as a repricing and flip the row to per kilo.
+    const price = screen.getByLabelText('Precio')
+    await userEvent.clear(price)
+    await userEvent.type(price, '2,50')
+    await userEvent.click(screen.getByRole('button', { name: 'Hecho' }))
+
+    expect(onDone).toHaveBeenCalledWith(
+      expect.objectContaining({ price: 2.5, pricePer: null }),
+    )
+  })
+
   it('takes the weight rule as soon as the price is retyped', async () => {
     const onDone = vi.fn()
     render(

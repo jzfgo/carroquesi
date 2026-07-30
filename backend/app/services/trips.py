@@ -164,6 +164,30 @@ def open_trip(session: Session, list_id: str, now: datetime | None = None) -> Pu
     ).first()
 
 
+def unfiled_trip_for(session: Session, list_id: str, instant: datetime) -> Purchase | None:
+    """The list's unreconciled trip for `instant`'s local day, if it has one.
+
+    `trip_for` without the insert. Same lookup, same (list, local day) key —
+    but a trip that does not exist is an answer here rather than something to
+    create, because the callers that ask this are closing a shop, and a shop
+    with no trip behind it never happened.
+
+    Unlike `open_trip`, this does not require the trip to still be running.
+    For `instant = now` the two agree: today's trip tears off at the next
+    local midnight, which is by definition still ahead. They part company on a
+    past instant, which is the case that matters — a trip that tore off with
+    nobody reconciling it is invisible to `open_trip` and is exactly what a
+    close queued last night and drained this morning is looking for.
+    """
+    return session.exec(
+        select(Purchase).where(
+            Purchase.list_id == list_id,
+            Purchase.closed_at.is_(None),
+            Purchase.tears_off_at == tears_off_at_for(instant),
+        )
+    ).first()
+
+
 # How far back a client-supplied tap time may reach. Long enough for a phone
 # that was offline over a holiday, short enough that a broken clock cannot
 # invent a trip in another year.
@@ -306,6 +330,7 @@ def close(
     total: float | None,
     now: datetime | None = None,
     purchase_id: str | None = None,
+    at: datetime | None = None,
 ) -> Purchase:
     """Declare what a shop was.
 
@@ -328,10 +353,20 @@ def close(
     trip id the caller simply supplied. The third is a trip already filed. Its
     total is a figure someone confirmed for the lines it held then. Closing it
     again would attach that total to a different set of lines.
+
+    `at` is the instant the shop happened, and it decides which trip gets
+    closed when no `purchase_id` names one. It defaults to `now`, which is the
+    same trip `open_trip` would have found. It matters when the two differ: a
+    close written in an aisle with no signal reaches the server the next
+    morning, by which time the trip its lines are in has torn off. Asking for
+    the trip that is *open now* finds nothing and the shop is lost; asking for
+    the trip of the day it happened finds it. The client cannot name that trip
+    itself — when the household pressed the button, the taps had not reached
+    the server either, so the trip did not exist yet.
     """
     now = now or _now()
     if purchase_id is None:
-        trip = open_trip(session, list_id, now)
+        trip = unfiled_trip_for(session, list_id, at or now)
     else:
         trip = session.get(Purchase, purchase_id)
         if trip is not None and (trip.list_id != list_id or trip.closed_at is not None):

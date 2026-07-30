@@ -381,7 +381,14 @@ export function ListScreen({
         // Principle 3: never lose a write. The sheet is the whole shop, and
         // the phone is most likely offline in the aisle where it was filled
         // in, so it waits in the queue instead of being refused.
-        await enqueue({ listId, type: 'closePurchase', payload })
+        try {
+          await enqueue({ listId, type: 'closePurchase', payload })
+        } catch {
+          // No queue either — private browsing, or no quota left. Say so and
+          // leave the sheet up, because it is now the only copy of the shop.
+          setToast('No se pudo guardar la compra')
+          return
+        }
         setClosingTrip(null)
         setToast('Se guardará cuando vuelva la conexión')
         return

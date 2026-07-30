@@ -67,7 +67,10 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
   // `partial` and the total prints `≥` — where the silent halving was not.
   // Preferring the loud failure is the same choice the rest of this sheet
   // makes.
-  const repriced = priceStr !== seededPrice
+  //
+  // Compared as an amount, not as the string it was typed as: 2,50 and 2.50
+  // and 2.5 are the same price, and re-typing one of them is not a repricing.
+  const repriced = price !== line.price
   const pricePer: 'KILOGRAM' | null = repriced
     ? parseKgFactor(quantity) !== null && price !== null
       ? 'KILOGRAM'

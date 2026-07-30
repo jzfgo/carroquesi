@@ -48,6 +48,7 @@ export function useQueueDrain({
 
     const tempIdMap = new Map<string, string>()
     let failures = 0
+    let lostAShop = false
 
     for (const op of myOps) {
       try {
@@ -83,11 +84,19 @@ export function useQueueDrain({
         if (isNetworkError(err)) break
         await remove(op.id)
         failures++
+        // A dropped row is one row, and it is still on screen. A dropped
+        // close is the whole shop — the store, the date, every price typed
+        // and everything added by hand — and after this it exists nowhere.
+        // Counting it as "1 change" tells the household almost nothing about
+        // what they just lost.
+        if (op.type === 'closePurchase') lostAShop = true
       }
     }
 
     onDrainedRef.current()
-    if (failures > 0) {
+    if (lostAShop) {
+      showToastRef.current('No se pudo guardar una compra. Vuelve a cerrarla')
+    } else if (failures > 0) {
       showToastRef.current(
         `${failures} ${failures === 1 ? 'cambio no se pudo' : 'cambios no se pudieron'} sincronizar`,
       )

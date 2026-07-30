@@ -845,3 +845,91 @@ def test_listing_purchases_requires_membership(client: TestClient, other_client:
     response = other_client.get(f"/lists/{lst['id']}/purchases")
 
     assert response.status_code == 403
+
+
+def test_a_close_queued_last_night_still_files_it_the_next_morning(client: TestClient):
+    """The whole shop happened offline, and the queue drains after midnight.
+
+    Nothing reached the server while the household was in the aisle, so the
+    taps replay first and land in *last night's* trip -- born already torn
+    off. The close follows, naming no trip, because at the moment the button
+    was pressed there was no trip id to name: the taps had not reached the
+    server either. Resolving it from `now` looks for a trip that is still
+    open and finds nothing, which drops the sheet and everything typed into
+    it. The date the sheet carries is what says which shop this was.
+    """
+    lst = _create_list(client)
+    last_night = _days_ago(1)
+    milk = _tap_at(client, lst["id"], "Leche", last_night)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Lidl",
+            "purchased_at": last_night.isoformat(),
+            "lines": [{"item_id": milk["id"], "price": 1.19}],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == milk["purchase_id"]
+    fetched = _items_by_name(client, lst["id"])
+    assert fetched["Leche"]["purchase_filed"] is True
+    assert fetched["Leche"]["price"] == 1.19
+
+
+def test_an_impulse_buy_on_a_close_queued_last_night_joins_the_same_trip(
+    client: TestClient,
+):
+    """The same replay, with something bought that was never on the list.
+
+    Anchoring the new row on `now` would file it into today's trip while the
+    ticked rows sit in last night's, and the close would then refuse the
+    whole sheet for naming items from two trips.
+    """
+    lst = _create_list(client)
+    last_night = _days_ago(1)
+    milk = _tap_at(client, lst["id"], "Leche", last_night)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Lidl",
+            "purchased_at": last_night.isoformat(),
+            "lines": [{"item_id": milk["id"]}],
+            "new_items": [{"name": "Chocolate negro", "price": 3.18}],
+        },
+    )
+
+    assert response.status_code == 200
+    trip_id = response.json()["id"]
+    assert trip_id == milk["purchase_id"]
+    fetched = _items_by_name(client, lst["id"])
+    assert fetched["Chocolate negro"]["purchase_id"] == trip_id
+
+
+def test_a_backdated_sheet_of_only_new_things_still_files(client: TestClient):
+    """Nothing was on the list and nothing had been tapped.
+
+    There is no trip to resolve when the request arrives, so the target is
+    whatever the impulse buys create — and they create it on the sheet's own
+    day, which for a backdated sheet has already torn off. Looking for the
+    trip that is open *now* would not find it.
+    """
+    lst = _create_list(client)
+    last_night = _days_ago(1)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Lidl",
+            "purchased_at": last_night.isoformat(),
+            "new_items": [{"name": "Chocolate negro", "price": 3.18}],
+        },
+    )
+
+    assert response.status_code == 200
+    trip_id = response.json()["id"]
+    fetched = _items_by_name(client, lst["id"])
+    assert fetched["Chocolate negro"]["purchase_id"] == trip_id
+    assert fetched["Chocolate negro"]["purchase_filed"] is True

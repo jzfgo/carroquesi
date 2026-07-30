@@ -219,6 +219,35 @@ describe('useQueueDrain — drain on reconnect', () => {
     )
   })
 
+  it('says a whole shop was lost, not that one change failed', async () => {
+    await enqueue({
+      listId: 'l1',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        purchased_at: '2026-07-30T18:00:00',
+        purchase_id: null,
+        total: null,
+        lines: [{ item_id: 'a', price: 1.19, price_per: null, quantity: null }],
+        new_items: [],
+      },
+    })
+    // Someone else filed the trip first. Not a network error, so the op is
+    // dropped — and what goes with it is the store, the date, every price
+    // typed and everything added by hand. "1 change" does not describe that.
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new api.ApiError(409, 'nothing to close'),
+    )
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'No se pudo guardar una compra. Vuelve a cerrarla',
+      ),
+    )
+  })
+
   it('does not drain ops for a different listId', async () => {
     vi.mocked(api.createItem).mockResolvedValue({} as never)
     await enqueue({
