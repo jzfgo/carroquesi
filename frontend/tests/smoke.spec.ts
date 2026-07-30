@@ -31,12 +31,17 @@ async function addItemManzanas(page: Page) {
   // its avatar reads "?" until the created item comes back and replaces it.
   // Both states are on screen for real, and the screenshot below settles for
   // whichever one it finds first — so wait for the one the baseline depicts.
+  //
+  // Assert the initial rather than the absence of "?". A negated matcher is
+  // satisfied by an element that is not there at all, so renaming the class
+  // would delete this wait without failing anything, and the race would come
+  // back unannounced. The author is seeded, so "A" is a fixture, not a guess.
   await expect(
     page
       .locator('.item-card')
       .filter({ hasText: 'Manzanas' })
       .locator('.item-card__avatar'),
-  ).not.toHaveText('?')
+  ).toHaveText('A')
   await awaitPrimingCard(page)
 }
 

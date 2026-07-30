@@ -77,18 +77,22 @@ export function useQueueDrain({
       }
     }
 
-    // A drain that flushed nothing changed nothing, so there is nothing to
-    // re-read. Re-reading anyway raced a write the user had just made: the
-    // response carried the state from before that write, and the change
-    // flickered back on screen.
-    const flushed = myOps.length > 0
-    if (flushed) onDrainedRef.current()
+    // A drain with nothing of ours to send changed nothing, so there is
+    // nothing to re-read. Re-reading anyway raced a write the user had just
+    // made: the response carried the state from before that write, and the
+    // change flickered back on screen.
+    //
+    // This asks whether there were ops, not whether they all succeeded. One
+    // that failed on the network breaks the loop above and leaves the rest
+    // queued, and the re-read is still right — some may already have landed.
+    const hadOps = myOps.length > 0
+    if (hadOps) onDrainedRef.current()
     if (failures > 0) {
       showToastRef.current(
         `${failures} ${failures === 1 ? 'cambio no se pudo' : 'cambios no se pudieron'} sincronizar`,
       )
     }
-    return flushed
+    return hadOps
   }, [listId, getToken])
 
   useEffect(() => {
@@ -97,8 +101,8 @@ export function useQueueDrain({
     // on while this device was offline, so read it again even when there was
     // nothing of ours to send.
     const handleOnline = () =>
-      void drain().then((flushed) => {
-        if (!flushed) onDrainedRef.current()
+      void drain().then((hadOps) => {
+        if (!hadOps) onDrainedRef.current()
       })
     window.addEventListener('online', handleOnline)
     return () => window.removeEventListener('online', handleOnline)

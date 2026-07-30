@@ -170,12 +170,15 @@ describe('useQueueDrain — drain on reconnect', () => {
 describe('useQueueDrain — re-read after an empty drain', () => {
   it('does not re-read on mount when nothing was queued', async () => {
     const onDrained = vi.fn()
-    const { result } = renderHook(() =>
-      useQueueDrain({ ...defaultParams, onDrained }),
-    )
-    await waitFor(() => expect(result.current.pendingCount).toBe(0))
-    // The mount drain flushed nothing, so the list is already current — asking
-    // for it again would race a write the user makes right after opening it.
+    renderHook(() => useQueueDrain({ ...defaultParams, onDrained }))
+    // Give the mount drain time to land before asserting it did not call back.
+    // pendingCount is 0 from the first render, so waiting on that would be no
+    // barrier at all — it is satisfied by the state the hook starts in. Same
+    // wait as the offline test above, for the same reason.
+    await new Promise((r) => setTimeout(r, 50))
+    // The mount drain had nothing of ours to send, so the list is already
+    // current — asking for it again would race a write the user makes right
+    // after opening it.
     expect(onDrained).not.toHaveBeenCalled()
   })
 
