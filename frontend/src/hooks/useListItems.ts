@@ -14,6 +14,7 @@ import {
 import { AVATAR_COLORS } from '../lib/avatarColors'
 import { isNetworkError } from '../lib/networkError'
 import { enqueue } from '../lib/offlineQueue'
+import { reconcileItems } from '../lib/reconcileItems'
 import type {
   BackendMember,
   ListItem,
@@ -74,6 +75,46 @@ export function useListItems(
     itemsRef.current = items
   }, [items])
 
+  // A read that is in flight while the user writes carries the list from
+  // before that write, so painting the response whole would undo the write on
+  // screen. Every write stamps its item with a counter and every read
+  // remembers the counter it started at; an item stamped later than that keeps
+  // its local value when the read lands.
+  //
+  // A write that paints first stamps twice: once when the item changes on
+  // screen and once when the server answers. Between the two the server may or
+  // may not have applied it, so a read that started in that window cannot be
+  // trusted for that item either.
+  //
+  // Stamps name the list as well as the item. Opening a list from a push tap
+  // only changes the route parameter, so this hook stays mounted and the items
+  // of the list left behind are still in state when the new list is read. A
+  // stamp that named the item alone would keep one of them, putting a row from
+  // another list on screen and into the new list's cache.
+  const writeClock = useRef(0)
+  const writtenAt = useRef(new Map<string, number>())
+  const cachedMembers = useRef<{
+    listId: string
+    members: BackendMember[]
+  } | null>(null)
+  const rereadOnNextPoll = useRef(false)
+
+  const markWritten = useCallback(
+    (...itemIds: string[]) => {
+      writeClock.current += 1
+      for (const id of itemIds) {
+        writtenAt.current.set(`${listId}:${id}`, writeClock.current)
+      }
+    },
+    [listId],
+  )
+
+  const beginRead = useCallback(() => {
+    const startedAt = writeClock.current
+    return (itemId: string) =>
+      (writtenAt.current.get(`${listId}:${itemId}`) ?? 0) > startedAt
+  }, [listId])
+
   const fetchAll = useCallback(async () => {
     const cached = loadListCache(listId)
     if (cached) {
@@ -85,28 +126,51 @@ export function useListItems(
     } else {
       setStatus('loading')
     }
+    const clockAtStart = writeClock.current
+    const isLocallyNewer = beginRead()
     try {
       const [rawItems, rawMembers, updatedAtData] = await Promise.all([
         getListItems(getToken, listId) as Promise<ListItem[]>,
         getListMembers(getToken, listId) as Promise<BackendMember[]>,
         getListUpdatedAt(getToken, listId) as Promise<{ updated_at: string }>,
       ])
-      setItems(rawItems)
+      setItems((prev) => reconcileItems(rawItems, prev, isLocallyNewer))
       const map = new Map<string, Member>()
       rawMembers.forEach((m, i) => map.set(m.user_id, toMember(m, i)))
       setMembers(map)
       lastUpdatedAt.current = updatedAtData.updated_at
-      saveListCache(listId, { items: rawItems, members: rawMembers })
+      // The merge keeps the whole item, so a change another shopper made to one
+      // the user also wrote goes with it. The timestamp cannot be trusted to
+      // bring it back — it may already cover the write — so ask the next poll
+      // to read again. By then the write has settled and the server wins.
+      if (writeClock.current !== clockAtStart) rereadOnNextPoll.current = true
+      cachedMembers.current = { listId, members: rawMembers }
       setStatus('success')
     } catch {
       if (!cached) setStatus('error')
     }
-  }, [listId, getToken])
+  }, [listId, getToken, beginRead])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchAll()
   }, [fetchAll])
+
+  // The next open paints this cache before the network answers, so it has to
+  // hold what is on screen, writes included. Saving the read instead would put
+  // a write the read raced back on screen for a moment.
+  //
+  // Save only once both halves are known to belong to the list in the URL.
+  // Switching lists changes listId a render before the new items arrive, and a
+  // read that fails leaves the previous list's members behind, so each half
+  // has to say which list it came from or the other list lands under this key.
+  useEffect(() => {
+    const cached = cachedMembers.current
+    const itemsAreThisList = items.every((i) => i.list_id === listId)
+    if (cached?.listId === listId && itemsAreThisList) {
+      saveListCache(listId, { items, members: cached.members })
+    }
+  }, [items, listId])
 
   // 5-second polling: re-fetch items only when updated_at changes.
   // Skips requests while the tab is hidden to avoid unnecessary load;
@@ -114,16 +178,27 @@ export function useListItems(
   useEffect(() => {
     const poll = async () => {
       if (document.visibilityState === 'hidden') return
+      const clockAtStart = writeClock.current
+      const isLocallyNewer = beginRead()
       try {
         const data = (await getListUpdatedAt(getToken, listId)) as {
           updated_at: string
         }
-        if (
+        const changed =
           lastUpdatedAt.current !== null &&
           data.updated_at !== lastUpdatedAt.current
-        ) {
+        if (changed || rereadOnNextPoll.current) {
           const raw = (await getListItems(getToken, listId)) as ListItem[]
-          setItems(raw)
+          setItems((prev) => reconcileItems(raw, prev, isLocallyNewer))
+          // Settled only once a read has landed and nothing raced it. A read
+          // that failed leaves the request standing, and one a write raced
+          // renews it — the poll drops the same changes fetchAll does, because
+          // a write already in flight can settle inside its own read.
+          //
+          // This asks the clock, while the merge above runs at the next render.
+          // A write settling in between is not counted, so treat the request as
+          // a close guess at what the merge kept rather than a report from it.
+          rereadOnNextPoll.current = writeClock.current !== clockAtStart
         }
         lastUpdatedAt.current = data.updated_at
       } catch {
@@ -137,7 +212,7 @@ export function useListItems(
       clearInterval(id)
       document.removeEventListener('visibilitychange', poll)
     }
-  }, [listId, getToken])
+  }, [listId, getToken, beginRead])
 
   const togglePurchased = useCallback(
     async (itemId: string) => {
@@ -173,6 +248,7 @@ export function useListItems(
             : i,
         ),
       )
+      markWritten(itemId)
       try {
         await updateItem(getToken, listId, itemId, {
           purchased: !prevPurchased,
@@ -188,9 +264,11 @@ export function useListItems(
           setItems(snapshot)
           showToast('No se pudo actualizar el producto')
         }
+      } finally {
+        markWritten(itemId)
       }
     },
-    [getToken, listId, showToast],
+    [getToken, listId, showToast, markWritten],
   )
 
   const addItem = useCallback(
@@ -233,6 +311,7 @@ export function useListItems(
           ...prev.slice(firstPurchasedIdx),
         ]
       })
+      markWritten(tempId)
       try {
         const created = (await createItem(getToken, listId, {
           name: parsed.name,
@@ -244,7 +323,16 @@ export function useListItems(
           price_per: null,
           price_store: null,
         })) as ListItem
-        setItems((prev) => prev.map((i) => (i.id === tempId ? created : i)))
+        // A read that landed while this was in flight may already carry the
+        // created item, so drop that copy before the temporary row becomes it.
+        setItems((prev) =>
+          prev
+            .filter((i) => i.id !== created.id)
+            .map((i) => (i.id === tempId ? created : i)),
+        )
+        // The item carries a new id from here on, so stamp both: a read that
+        // predates the swap knows it only by the temporary one.
+        markWritten(tempId, created.id)
       } catch (err) {
         if (isNetworkError(err)) {
           await enqueue({
@@ -270,9 +358,10 @@ export function useListItems(
             showToast('No se pudo añadir el producto')
           }
         }
+        markWritten(tempId)
       }
     },
-    [getToken, listId, showToast],
+    [getToken, listId, showToast, markWritten],
   )
 
   const updateTag = useCallback(
@@ -281,6 +370,7 @@ export function useListItems(
       setItems(
         snapshot.map((i) => (i.id === itemId ? { ...i, [field]: value } : i)),
       )
+      markWritten(itemId)
       try {
         await updateItem(getToken, listId, itemId, { [field]: value })
       } catch (err) {
@@ -294,15 +384,18 @@ export function useListItems(
           setItems(snapshot)
           showToast('No se pudo actualizar el producto')
         }
+      } finally {
+        markWritten(itemId)
       }
     },
-    [getToken, listId, showToast],
+    [getToken, listId, showToast, markWritten],
   )
 
   const updateStores = useCallback(
     async (itemId: string, stores: string[]) => {
       const snapshot = itemsRef.current
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, stores } : i)))
+      markWritten(itemId)
       try {
         await updateItem(getToken, listId, itemId, { stores })
       } catch (err) {
@@ -316,15 +409,18 @@ export function useListItems(
           setItems(snapshot)
           showToast('No se pudo actualizar el producto')
         }
+      } finally {
+        markWritten(itemId)
       }
     },
-    [getToken, listId, showToast],
+    [getToken, listId, showToast, markWritten],
   )
 
   const renameItem = useCallback(
     async (itemId: string, name: string) => {
       const snapshot = itemsRef.current
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, name } : i)))
+      markWritten(itemId)
       try {
         await updateItem(getToken, listId, itemId, { name })
       } catch (err) {
@@ -338,15 +434,18 @@ export function useListItems(
           setItems(snapshot)
           showToast('No se pudo renombrar el producto')
         }
+      } finally {
+        markWritten(itemId)
       }
     },
-    [getToken, listId, showToast],
+    [getToken, listId, showToast, markWritten],
   )
 
   const removeItem = useCallback(
     async (itemId: string) => {
       const snapshot = itemsRef.current
       setItems((prev) => prev.filter((i) => i.id !== itemId))
+      markWritten(itemId)
       try {
         await deleteItem(getToken, listId, itemId)
       } catch (err) {
@@ -356,9 +455,11 @@ export function useListItems(
           setItems(snapshot)
           showToast('No se pudo eliminar el producto')
         }
+      } finally {
+        markWritten(itemId)
       }
     },
-    [getToken, listId, showToast],
+    [getToken, listId, showToast, markWritten],
   )
 
   const savePrice = useCallback(
@@ -395,8 +496,11 @@ export function useListItems(
             : i,
         ),
       )
+      // These two send to the server before they paint, so one stamp is
+      // enough: by the time a later read starts, the server already answered.
+      markWritten(itemId)
     },
-    [getToken, listId],
+    [getToken, listId, markWritten],
   )
 
   const clearItemPrice = useCallback(
@@ -409,8 +513,9 @@ export function useListItems(
             : i,
         ),
       )
+      markWritten(itemId)
     },
-    [getToken, listId],
+    [getToken, listId, markWritten],
   )
 
   return {
