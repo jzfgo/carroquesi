@@ -188,6 +188,7 @@ export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
       unit_price: 0.75,
       quantity: null,
       line_total: 0.75,
+      confirmed: false,
     },
     {
       index: 1,
@@ -198,6 +199,7 @@ export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
       unit_price: 2.6,
       quantity: null,
       line_total: 2.6,
+      confirmed: false,
     },
   ],
   unmatched: [

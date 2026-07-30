@@ -61,6 +61,28 @@ def test_match_via_fuzzy(session):
     assert len(unmatched) == 0
 
 
+def test_fuzzy_match_is_not_confirmed(session):
+    items = [_item("item-1", "Bebida de almendra 0% azúcares")]
+    matched, _ = match_lines([_unit("BEBIDA ALMENDRAS 0%", 1.15)], "Mercadona", items, session)
+    assert matched[0].confirmed is False
+
+
+def test_mapping_match_is_confirmed(session):
+    mapping = ReceiptNameMapping(
+        id="map-1",
+        store="Mercadona",
+        receipt_name="mani dulce",
+        item_name="Maní dulce",
+        confirmed_by="user-1",
+    )
+    session.add(mapping)
+    session.commit()
+
+    items = [_item("item-1", "Maní dulce")]
+    matched, _ = match_lines([_unit("MANI DULCE", 3.15)], "Mercadona", items, session)
+    assert matched[0].confirmed is True
+
+
 def test_unmatched_when_score_too_low(session):
     items = [_item("item-1", "Bebida de almendra")]
     matched, unmatched = match_lines([_unit("XXXXXX ZZZZ", 9.99)], "Mercadona", items, session)

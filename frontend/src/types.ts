@@ -135,6 +135,8 @@ export interface MatchedLine {
   unit_price: number
   quantity: number | null
   line_total: number
+  /** True when a person already confirmed this receipt name for this shop. */
+  confirmed: boolean
 }
 
 export interface UnmatchedLine {

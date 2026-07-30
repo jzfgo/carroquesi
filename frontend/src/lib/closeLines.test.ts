@@ -587,6 +587,7 @@ function matched(over: Partial<MatchedLine>): MatchedLine {
     unit_price: 1.19,
     quantity: null,
     line_total: 1.19,
+    confirmed: false,
     ...over,
   }
 }
@@ -683,6 +684,20 @@ describe('receiptToLines', () => {
         matchState: 'guess',
       },
     ])
+  })
+
+  it('marks a row literal when the name was already confirmed for this shop', () => {
+    const result = scan([
+      matched({
+        receipt_name: 'LECHE ENT 1L',
+        item_id: 'a',
+        confirmed: true,
+      }),
+    ])
+
+    const lines = receiptToLines(result, [row({ key: 'a', itemId: 'a' })])
+
+    expect(lines[0].matchState).toBe('literal')
   })
 
   it('drops the suggestion when the matched item has no row on this sheet', () => {

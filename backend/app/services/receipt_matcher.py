@@ -68,6 +68,7 @@ def match_lines(
                         unit_price=line.unit_price,
                         quantity=line.quantity,
                         line_total=line.line_total,
+                        confirmed=True,
                     )
                 )
                 continue
@@ -91,6 +92,7 @@ def match_lines(
                     unit_price=line.unit_price,
                     quantity=line.quantity,
                     line_total=line.line_total,
+                    confirmed=False,
                 )
             )
         else:

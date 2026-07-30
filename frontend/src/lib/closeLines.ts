@@ -118,18 +118,23 @@ interface PaperLine {
   price: number
   pricePer: 'KILOGRAM' | null
   quantity: string
+  /** Whether a person already confirmed this name for this shop. Meaningless
+   *  when `itemId` is null, since there is then no match to have confirmed. */
+  confirmed: boolean
 }
 
 function toPaperLine(line: MatchedLine | UnmatchedLine): PaperLine {
+  const matched = 'item_id' in line ? line : null
   return {
     index: line.index,
     receiptLine: line.receipt_name,
     amount: line.line_total,
-    itemId: 'item_id' in line ? line.item_id : null,
+    itemId: matched?.item_id ?? null,
     // A price on a row is per unit or per kilo, never what the line came to.
     price: line.unit_price,
     pricePer: line.price_type === 'KILOGRAM' ? 'KILOGRAM' : null,
     quantity: paperQuantity(line),
+    confirmed: matched?.confirmed ?? false,
   }
 }
 
@@ -169,9 +174,9 @@ function unassignedRow(line: PaperLine): CloseLine {
  * refuses the whole sheet rather than the one row. The line still arrives, with
  * its raw string and its amounts, and the household says what it was.
  *
- * Every match is a guess. The response carries nothing that tells a fresh guess
- * apart from a string the household already resolved for this shop; that
- * distinction arrives with confirmed name mappings.
+ * A match is `'literal'` when a person already confirmed that printed string
+ * for this shop, and `'guess'` when the matcher only scored it and is waiting
+ * to be confirmed.
  */
 export function receiptToLines(
   result: ReceiptScanResult,
@@ -206,7 +211,7 @@ export function receiptToLines(
       included: true,
       receiptLine: line.receiptLine,
       receiptAmount: line.amount,
-      matchState: 'guess',
+      matchState: line.confirmed ? 'literal' : 'guess',
     })
   }
 

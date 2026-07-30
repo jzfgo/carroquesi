@@ -19,6 +19,7 @@ const mockResult: ReceiptScanResult = {
       unit_price: 1.15,
       quantity: null,
       line_total: 1.15,
+      confirmed: false,
     },
     {
       index: 1,
@@ -29,6 +30,7 @@ const mockResult: ReceiptScanResult = {
       unit_price: 11.4,
       quantity: 0.202,
       line_total: 2.3,
+      confirmed: false,
     },
     {
       index: 2,
@@ -39,6 +41,7 @@ const mockResult: ReceiptScanResult = {
       unit_price: 0.95,
       quantity: 3,
       line_total: 2.85,
+      confirmed: false,
     },
   ],
   unmatched: [
