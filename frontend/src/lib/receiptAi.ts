@@ -253,13 +253,25 @@ async function generateContentWithRetry(
         isTransient = true
       } else if (err?.message && err.message.includes('blocked')) {
         isTransient = true
-      } else if (error instanceof TypeError && err.message?.match(/fetch|network/i)) {
+      } else if (
+        error instanceof TypeError &&
+        err.message?.match(/fetch|network/i)
+      ) {
         isTransient = true
       } else {
         const status = err?.status || err?.code
-        if (status === 429 || status === 500 || status === 502 || status === 503 || status === 504) {
+        if (
+          status === 429 ||
+          status === 500 ||
+          status === 502 ||
+          status === 503 ||
+          status === 504
+        ) {
           isTransient = true
-        } else if (err?.message && err.message.match(/\b(429|500|502|503|504)\b/)) {
+        } else if (
+          err?.message &&
+          err.message.match(/\b(429|500|502|503|504)\b/)
+        ) {
           isTransient = true
         }
       }

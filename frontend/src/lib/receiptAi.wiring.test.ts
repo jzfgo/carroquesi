@@ -38,18 +38,21 @@ describe('parseReceiptWithAi wiring', () => {
 
     // Ensure tests don't timeout waiting for 10s resize timeout
     // jsdom doesn't load blob URLs, so mock Image to fire onerror instantly
-    vi.stubGlobal('Image', class {
-      width = 0
-      height = 0
-      onload: ((ev: Event) => void) | null = null
-      onerror: ((ev: Event) => void) | null = null
-      set src(_val: string) {
-        setTimeout(() => {
-          if (this.onerror) this.onerror(new Event('error'))
-        }, 0)
-      }
-    })
-    
+    vi.stubGlobal(
+      'Image',
+      class {
+        width = 0
+        height = 0
+        onload: ((ev: Event) => void) | null = null
+        onerror: ((ev: Event) => void) | null = null
+        set src(_val: string) {
+          setTimeout(() => {
+            if (this.onerror) this.onerror(new Event('error'))
+          }, 0)
+        }
+      },
+    )
+
     if (typeof URL !== 'undefined') {
       URL.createObjectURL = vi.fn(() => 'blob:test')
       URL.revokeObjectURL = vi.fn()
@@ -132,31 +135,40 @@ describe('parseReceiptWithAi wiring', () => {
       const mockGetContext = vi.fn(() => ({
         drawImage: vi.fn(),
       }))
-      
-      HTMLCanvasElement.prototype.getContext = mockGetContext as unknown as typeof HTMLCanvasElement.prototype.getContext
-      HTMLCanvasElement.prototype.toDataURL = vi.fn(() => 'data:image/jpeg;base64,mock')
+
+      HTMLCanvasElement.prototype.getContext =
+        mockGetContext as unknown as typeof HTMLCanvasElement.prototype.getContext
+      HTMLCanvasElement.prototype.toDataURL = vi.fn(
+        () => 'data:image/jpeg;base64,mock',
+      )
     })
 
     it('resizes an image exceeding maxDimension', async () => {
-      vi.stubGlobal('Image', class {
-        width = 2000
-        height = 1000
-        onload: ((ev: Event) => void) | null = null
-        onerror: ((ev: Event) => void) | null = null
-        set src(_val: string) {
-          setTimeout(() => {
-            if (this.onload) {
-              this.onload(new Event('load'))
-            }
-          }, 10)
-        }
-      })
-      
+      vi.stubGlobal(
+        'Image',
+        class {
+          width = 2000
+          height = 1000
+          onload: ((ev: Event) => void) | null = null
+          onerror: ((ev: Event) => void) | null = null
+          set src(_val: string) {
+            setTimeout(() => {
+              if (this.onload) {
+                this.onload(new Event('load'))
+              }
+            }, 10)
+          }
+        },
+      )
+
       const { parseReceiptWithAi } = await import('./receiptAi')
       const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
-      
+
       await parseReceiptWithAi(file)
-      expect(HTMLCanvasElement.prototype.toDataURL).toHaveBeenCalledWith('image/jpeg', 0.85)
+      expect(HTMLCanvasElement.prototype.toDataURL).toHaveBeenCalledWith(
+        'image/jpeg',
+        0.85,
+      )
     })
   })
 })
