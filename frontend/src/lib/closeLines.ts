@@ -4,7 +4,7 @@ import type {
   PurchaseLine,
   PurchaseNewItem,
 } from '../types'
-import { parseQuantityFactor } from './itemCost'
+import { parseQuantityFactor, type CostSummary } from './itemCost'
 import { itemState } from './itemState'
 
 /**
@@ -64,27 +64,44 @@ export function buildLines(items: ListItem[], now?: number): CloseLine[] {
 }
 
 /**
- * The sum of the ticked lines, weighed by how much of each was bought — a
- * price is per unit or per kilo, never the amount the line came to.
+ * What the ticked lines add up to.
  *
- * This is an estimate and the screen must say so. A till adds things no line
- * ever held: a bag, a deposit, a discount. Only a scanned receipt confirms
- * what a shop actually cost.
+ * Each price is multiplied by how much was bought, because a price here is per
+ * unit or per kilo — never the amount the line came to. The sheet shows the
+ * two fields with a `×` between them, so the sum has to agree with that.
  *
- * A line whose amount cannot be worked out — no price, or a price per kilo
- * with no weight to apply it to — is left out rather than guessed at.
+ * This is an estimate even when nothing is missing, and the screen must say
+ * so. A till adds things no line ever held: a bag, a deposit, a discount. Only
+ * a scanned receipt confirms what a shop actually cost.
+ *
+ * A line whose amount cannot be worked out is left out rather than guessed at,
+ * and `partial` says so. Two ways that happens: no price at all, or a price
+ * per kilo with no readable weight to apply it to. The second one is why this
+ * flag exists — a count of priceless lines would not mention it, so the sheet
+ * would print a confident figure with a row silently missing from it.
+ *
+ * Null when nothing ticked contributes, which keeps "no total" apart from
+ * "a total of zero".
  */
-export function linesTotal(lines: CloseLine[]): number | null {
+export function linesTotal(lines: CloseLine[]): CostSummary | null {
   let total = 0
+  let partial = false
   let any = false
   for (const line of lines) {
-    if (!line.included || line.price == null) continue
+    if (!line.included) continue
+    if (line.price == null) {
+      partial = true
+      continue
+    }
     const factor = parseQuantityFactor(line.quantity, line.pricePer)
-    if (factor === null) continue
+    if (factor === null) {
+      partial = true
+      continue
+    }
     total += line.price * factor
     any = true
   }
-  return any ? total : null
+  return any ? { total, partial } : null
 }
 
 interface CloseMeta {

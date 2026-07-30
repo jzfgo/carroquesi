@@ -175,7 +175,7 @@ describe('linesTotal', () => {
       },
     ]
 
-    expect(linesTotal(lines)).toBe(6)
+    expect(linesTotal(lines)).toEqual({ total: 6, partial: false })
   })
 
   it('multiplies a price by how many were bought', () => {
@@ -193,7 +193,7 @@ describe('linesTotal', () => {
       },
     ]
 
-    expect(linesTotal(lines)).toBe(6)
+    expect(linesTotal(lines)).toEqual({ total: 6, partial: false })
   })
 
   it('weighs a price per kilo by the weight bought', () => {
@@ -211,7 +211,7 @@ describe('linesTotal', () => {
       },
     ]
 
-    expect(linesTotal(lines)).toBe(4)
+    expect(linesTotal(lines)).toEqual({ total: 4, partial: false })
   })
 
   it('skips a price per kilo with no weight rather than guessing one', () => {
@@ -230,6 +230,93 @@ describe('linesTotal', () => {
     ]
 
     expect(linesTotal(lines)).toBeNull()
+  })
+
+  it('is partial when a ticked line has no price', () => {
+    const lines: CloseLine[] = [
+      {
+        key: '1',
+        itemId: 'a',
+        name: 'A',
+        brand: null,
+        quantity: null,
+        price: 3,
+        pricePer: null,
+        included: true,
+        fromCart: true,
+      },
+      {
+        key: '2',
+        itemId: 'b',
+        name: 'B',
+        brand: null,
+        quantity: null,
+        price: null,
+        pricePer: null,
+        included: true,
+        fromCart: true,
+      },
+    ]
+
+    expect(linesTotal(lines)).toEqual({ total: 3, partial: true })
+  })
+
+  it('is partial when a price per kilo has no weight to apply it to', () => {
+    const lines: CloseLine[] = [
+      {
+        key: '1',
+        itemId: 'a',
+        name: 'A',
+        brand: null,
+        quantity: null,
+        price: 3,
+        pricePer: null,
+        included: true,
+        fromCart: true,
+      },
+      {
+        key: '2',
+        itemId: 'b',
+        name: 'B',
+        brand: null,
+        quantity: 'un puñado',
+        price: 8,
+        pricePer: 'KILOGRAM',
+        included: true,
+        fromCart: true,
+      },
+    ]
+
+    expect(linesTotal(lines)).toEqual({ total: 3, partial: true })
+  })
+
+  it('is not partial when an unticked line is the one without a price', () => {
+    const lines: CloseLine[] = [
+      {
+        key: '1',
+        itemId: 'a',
+        name: 'A',
+        brand: null,
+        quantity: null,
+        price: 3,
+        pricePer: null,
+        included: true,
+        fromCart: true,
+      },
+      {
+        key: '2',
+        itemId: 'b',
+        name: 'B',
+        brand: null,
+        quantity: null,
+        price: null,
+        pricePer: null,
+        included: false,
+        fromCart: true,
+      },
+    ]
+
+    expect(linesTotal(lines)).toEqual({ total: 3, partial: false })
   })
 
   it('is null when nothing ticked carries a price', () => {
