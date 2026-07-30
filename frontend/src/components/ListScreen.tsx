@@ -341,7 +341,13 @@ export function ListScreen({
     // earliest of them is when this shop started. Reading the clock instead
     // would date the sheet by when it was *opened* — shop at 23:40, sit down
     // at 00:05, and the close asks the server for a day the lines are not in.
+    // Only the rows this sheet holds. The items endpoint returns the list's
+    // whole history — every filed ticket's lines are still in here, which is
+    // what the receipt sheets below are drawn from — so scanning all of them
+    // would date tonight's shop from one months ago, and the server would then
+    // clamp that to a third day again.
     const earliestTap = items
+      .filter((i) => itemState(i, now) === 'cart')
       .map((i) => i.purchased_at)
       .filter((at): at is string => at !== null)
       .sort()[0]

@@ -48,7 +48,7 @@ export function useQueueDrain({
 
     const tempIdMap = new Map<string, string>()
     let failures = 0
-    let lostAShop = false
+    let lostShops = 0
 
     for (const op of myOps) {
       try {
@@ -89,21 +89,24 @@ export function useQueueDrain({
         // and everything added by hand — and after this it exists nowhere.
         // Counting it as "1 change" tells the household almost nothing about
         // what they just lost.
-        if (op.type === 'closePurchase') lostAShop = true
+        if (op.type === 'closePurchase') lostShops++
       }
     }
 
     onDrainedRef.current()
-    if (lostAShop) {
-      // The shop is the bigger loss and gets the sentence, but it must not
-      // swallow the count of everything else that went with it.
-      const others = failures - 1
+    if (lostShops > 0) {
+      // The shops are the bigger loss and get the sentence, but they must not
+      // swallow the count of everything else that went with them. Two shops in
+      // one evening is a case this app is built for, so two lost ones must not
+      // read as one.
+      const others = failures - lostShops
+      const shops = lostShops === 1 ? 'una compra' : `${lostShops} compras`
       showToastRef.current(
         others > 0
-          ? `No se pudo guardar una compra, ni ${others} ${
+          ? `No se pudo guardar ${shops}, ni ${others} ${
               others === 1 ? 'cambio más' : 'cambios más'
             }`
-          : 'No se pudo guardar una compra. Vuelve a cerrarla',
+          : `No se pudo guardar ${shops}. Vuelve a cerrarla`,
       )
     } else if (failures > 0) {
       showToastRef.current(

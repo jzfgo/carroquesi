@@ -1661,6 +1661,49 @@ describe('closing a trip', () => {
     )
   })
 
+  it('ignores the shops this list did months ago', async () => {
+    // The items endpoint returns the whole history — every filed ticket's
+    // lines are still in it. Scanning all of them dates tonight's shop from
+    // the oldest one on record, which the server then clamps to a third day
+    // again and refuses.
+    const lastNight = new Date(Date.now() - 26 * 3_600_000)
+      .toISOString()
+      .slice(0, 19)
+    const monthsAgo = new Date(Date.now() - 90 * 86_400_000)
+      .toISOString()
+      .slice(0, 19)
+    vi.mocked(api.getPurchases).mockResolvedValue([])
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        // Settled long ago: still returned, still carries its purchased_at.
+        makeItem({
+          id: 'old',
+          name: 'Arroz',
+          purchased: true,
+          purchased_at: monthsAgo,
+          purchase_id: 'p-old',
+          purchase_ends_at: monthsAgo,
+        }),
+        // Tonight, tapped with no signal, so no trip exists for it yet.
+        makeItem({
+          id: 'i1',
+          name: 'Leche',
+          purchased: true,
+          purchased_at: lastNight,
+          purchase_id: null,
+          purchase_ends_at: null,
+        }),
+      ],
+    })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    await openSheet()
+
+    expect(screen.getByLabelText('Fecha')).toHaveValue(madridDay(lastNight))
+    expect(screen.getByLabelText('Fecha')).not.toHaveValue(madridDay(monthsAgo))
+  })
+
   it('names the open trip, so a close replayed after midnight still lands', async () => {
     // A null purchase_id means "whichever trip is open when the server reads
     // this", and the queue exists so the server reads it later. Reconnect

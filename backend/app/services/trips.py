@@ -376,9 +376,20 @@ def close(
         # visible and turns that into the refusal it should be.
         trip = unfiled_trip_for(session, list_id, at or now) or open_trip(session, list_id, now)
     else:
-        trip = session.get(Purchase, purchase_id)
-        if trip is not None and (trip.list_id != list_id or trip.closed_at is not None):
-            trip = None
+        # Asked with the filter, for the same reason the branch above is: a
+        # caller that has already read this row by id leaves it in the identity
+        # map, and a second `get` would answer from there without going back to
+        # the database. The typical named close is a torn-off ticket whose lines
+        # are all bought already, so nothing else in the request emits a query
+        # either -- and a second member filing the same ticket would be
+        # invisible right up to the point of overwriting their total.
+        trip = session.exec(
+            select(Purchase).where(
+                Purchase.id == purchase_id,
+                Purchase.list_id == list_id,
+                Purchase.closed_at.is_(None),
+            )
+        ).first()
     if trip is None:
         raise NothingToClose()
 
