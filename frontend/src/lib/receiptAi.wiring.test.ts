@@ -379,7 +379,7 @@ describe('parseReceiptWithAi wiring', () => {
       // Override toDataURL to return a huge string that is larger than the file * 4/3
       vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(
         () => {
-          return 'data:image/jpeg;base64,' + 'A'.repeat(2 * 1024 * 1024)
+          return 'data:image/jpeg;base64,' + 'B'.repeat(2 * 1024 * 1024)
         },
       )
 
@@ -397,7 +397,10 @@ describe('parseReceiptWithAi wiring', () => {
       expect(mockGenerateContent).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({
-            inlineData: expect.objectContaining({ mimeType: 'image/jpeg' }),
+            inlineData: expect.objectContaining({
+              mimeType: 'image/jpeg',
+              data: expect.not.stringMatching(/^B/),
+            }),
           }),
         ]),
       )
