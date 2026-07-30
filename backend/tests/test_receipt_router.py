@@ -1268,7 +1268,11 @@ def test_scan_spanning_a_closed_ticket_and_the_still_open_cart_reconciles_nothin
 
     lidl = client.post(
         f"/lists/{LIST_ID}/purchases/close",
-        json={"item_ids": [a["id"], b["id"]], "store": "Lidl", "total": 5.0},
+        json={
+            "store": "Lidl",
+            "total": 5.0,
+            "lines": [{"item_id": a["id"]}, {"item_id": b["id"]}],
+        },
     ).json()
 
     scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, store="Aldi", receipt_total=99.0)

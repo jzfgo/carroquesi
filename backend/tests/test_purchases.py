@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from app.db.models import List
+from app.db.models import List, Purchase
 
 
 def _create_list(client):
@@ -40,7 +40,7 @@ def test_closing_a_subset_leaves_the_rest_in_a_different_open_trip(client: TestC
 
     response = client.post(
         f"/lists/{lst['id']}/purchases/close",
-        json={"item_ids": [milk["id"]], "store": "Lidl", "total": 5.0},
+        json={"store": "Lidl", "total": 5.0, "lines": [{"item_id": milk["id"]}]},
     )
     assert response.status_code == 200
     closed = response.json()
@@ -55,28 +55,81 @@ def test_closing_a_subset_leaves_the_rest_in_a_different_open_trip(client: TestC
 def test_closing_an_empty_cart_returns_409(client: TestClient):
     lst = _create_list(client)
 
-    response = client.post(f"/lists/{lst['id']}/purchases/close", json={})
+    response = client.post(f"/lists/{lst['id']}/purchases/close", json={"store": "Lidl"})
 
     assert response.status_code == 409
 
 
-def test_naming_an_item_not_in_the_cart_returns_400(client: TestClient):
+def test_naming_an_item_already_filed_on_another_ticket_returns_400(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    bread = _tap(client, lst["id"], "Pan")
+    client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "lines": [{"item_id": milk["id"]}]},
+    )
+
+    # The milk is on Lidl's ticket now. It cannot also be on Mercadona's.
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "lines": [{"item_id": milk["id"]}, {"item_id": bread["id"]}],
+        },
+    )
+
+    assert response.status_code == 400
+
+
+def test_a_line_naming_an_item_that_no_longer_exists_is_ignored(client: TestClient):
+    """Someone else deleted it while the sheet was open.
+
+    The household is standing at the door with a full trolley. Losing the
+    whole close over one row that went away is worse than filing the rest.
+    """
     lst = _create_list(client)
     milk = _tap(client, lst["id"], "Leche")
 
     response = client.post(
         f"/lists/{lst['id']}/purchases/close",
-        json={"item_ids": [milk["id"], "does-not-exist"], "store": "Lidl"},
+        json={
+            "store": "Lidl",
+            "lines": [{"item_id": milk["id"]}, {"item_id": "does-not-exist"}],
+        },
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 200
+
+
+def test_a_line_naming_an_item_on_another_list_is_ignored(
+    client: TestClient, other_client: TestClient
+):
+    """An item id is not proof of access to the item it names.
+
+    Membership was checked against the list in the path. A line is skipped
+    the same way a missing one is, so the close still files what it may.
+    """
+    mine = _create_list(client)
+    _tap(client, mine["id"], "Leche")
+    theirs = other_client.post("/lists", json={"name": "Vecinos"}).json()
+    their_bread = other_client.post(f"/lists/{theirs['id']}/items", json={"name": "Pan"}).json()
+
+    response = client.post(
+        f"/lists/{mine['id']}/purchases/close",
+        json={"store": "Lidl", "lines": [{"item_id": their_bread["id"], "price": 9.99}]},
+    )
+
+    assert response.status_code == 200
+    fetched = other_client.get(f"/lists/{theirs['id']}/items").json()[0]
+    assert fetched["purchased"] is False
+    assert fetched["price"] is None
 
 
 def test_a_non_member_cannot_close(client: TestClient, other_client: TestClient):
     lst = _create_list(client)
     _tap(client, lst["id"], "Leche")
 
-    response = other_client.post(f"/lists/{lst['id']}/purchases/close", json={})
+    response = other_client.post(f"/lists/{lst['id']}/purchases/close", json={"store": "Lidl"})
 
     assert response.status_code == 403
 
@@ -91,7 +144,11 @@ def test_the_full_two_shop_evening_through_http(client: TestClient):
 
     lidl = client.post(
         f"/lists/{lst['id']}/purchases/close",
-        json={"item_ids": [milk["id"], bread["id"]], "store": "Lidl", "total": 14.60},
+        json={
+            "store": "Lidl",
+            "total": 14.60,
+            "lines": [{"item_id": milk["id"]}, {"item_id": bread["id"]}],
+        },
     ).json()
     mercadona = client.post(
         f"/lists/{lst['id']}/purchases/close",
@@ -199,17 +256,193 @@ def test_closing_with_an_absurdly_long_store_name_is_rejected(client: TestClient
     assert response.status_code == 422
 
 
-def test_closing_with_an_absurdly_long_item_ids_list_is_rejected(client: TestClient):
-    """`item_ids` is the one field here that can carry an unbounded payload
-    -- `store` and `total` are both already bounded -- so it needs the same
-    schema-level max_length guard.
+def test_a_close_with_too_many_lines_is_rejected(client: TestClient):
+    """`lines` and `new_items` are the two fields here that can carry an
+    unbounded payload -- `store` and `total` are both already bounded -- so
+    they need the same schema-level max_length guard.
     """
     lst = _create_list(client)
     _tap(client, lst["id"], "Leche")
 
     response = client.post(
         f"/lists/{lst['id']}/purchases/close",
-        json={"item_ids": [f"item-{i}" for i in range(201)]},
+        json={"store": "Lidl", "lines": [{"item_id": f"item-{i}"} for i in range(201)]},
     )
 
     assert response.status_code == 422
+
+
+def test_closing_without_a_store_is_rejected(client: TestClient):
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = client.post(f"/lists/{lst['id']}/purchases/close", json={"total": 5.0})
+
+    assert response.status_code == 422
+
+
+def test_closing_with_an_empty_store_is_rejected(client: TestClient):
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = client.post(f"/lists/{lst['id']}/purchases/close", json={"store": ""})
+
+    assert response.status_code == 422
+
+
+def test_a_line_prices_the_item_it_names(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Lidl",
+            "lines": [{"item_id": milk["id"], "price": 1.19, "quantity": "6 ud"}],
+        },
+    )
+
+    assert response.status_code == 200
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    assert fetched["Leche"]["price"] == 1.19
+    assert fetched["Leche"]["price_store"] == "Lidl"
+    assert fetched["Leche"]["purchased_quantity"] == "6 ud"
+
+
+def test_a_line_with_no_price_is_saved_bought_without_one(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "lines": [{"item_id": milk["id"]}]},
+    )
+
+    assert response.status_code == 200
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    assert fetched["Leche"]["price"] is None
+    assert fetched["Leche"]["purchased"] is True
+
+
+def test_a_new_item_is_created_already_bought_and_on_the_ticket(client: TestClient):
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Lidl",
+            "lines": [],
+            "new_items": [{"name": "Chocolate negro", "price": 3.18, "quantity": "2"}],
+        },
+    )
+
+    assert response.status_code == 200
+    trip_id = response.json()["id"]
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    choc = fetched["Chocolate negro"]
+    assert choc["purchased"] is True
+    assert choc["price"] == 3.18
+    assert choc["purchase_id"] == trip_id
+    # Never tapped, so it was never in the cart -- and the milk that was is
+    # not on this ticket, because no line named it.
+    assert fetched["Leche"]["purchase_id"] != trip_id
+
+
+def test_ticking_an_item_that_was_never_tapped_marks_it_bought(client: TestClient):
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+    eggs = client.post(f"/lists/{lst['id']}/items", json={"name": "Huevos"}).json()
+    assert eggs["purchased"] is False
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "lines": [{"item_id": eggs["id"], "price": 2.40}]},
+    )
+
+    assert response.status_code == 200
+    trip_id = response.json()["id"]
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    assert fetched["Huevos"]["purchased"] is True
+    assert fetched["Huevos"]["purchase_id"] == trip_id
+
+
+def test_an_unticked_cart_item_stays_in_the_cart(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    bread = _tap(client, lst["id"], "Pan")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "lines": [{"item_id": milk["id"], "price": 1.19}]},
+    )
+
+    assert response.status_code == 200
+    closed_id = response.json()["id"]
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    assert fetched["Pan"]["purchase_id"] == bread["purchase_id"]
+    assert fetched["Pan"]["purchase_id"] != closed_id
+    assert fetched["Pan"]["purchase_filed"] is False
+
+
+def test_closing_a_torn_off_trip_by_id(client: TestClient, session: Session):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    # Force the trip to have torn off: the endpoint must still reach it.
+    trip = session.get(Purchase, milk["purchase_id"])
+    trip.tears_off_at = datetime(2026, 1, 1, 0, 0)
+    session.add(trip)
+    session.commit()
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "purchase_id": milk["purchase_id"],
+            "store": "Mercadona",
+            "lines": [{"item_id": milk["id"], "price": 1.19}],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == milk["purchase_id"]
+    assert response.json()["store"] == "Mercadona"
+
+
+def test_naming_a_trip_that_belongs_to_another_list_returns_409(
+    client: TestClient, other_client: TestClient, session: Session
+):
+    """Membership was checked against the list in the path, never against the
+    trip id the caller supplied. Without the guard this call would close a
+    stranger's ticket.
+    """
+    mine = _create_list(client)
+    _tap(client, mine["id"], "Leche")
+    theirs = other_client.post("/lists", json={"name": "Vecinos"}).json()
+    their_milk = _tap(other_client, theirs["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{mine['id']}/purchases/close",
+        json={"purchase_id": their_milk["purchase_id"], "store": "Lidl"},
+    )
+
+    assert response.status_code == 409
+    session.expire_all()
+    assert session.get(Purchase, their_milk["purchase_id"]).closed_at is None
+
+
+def test_closing_works_without_the_receipt_scanning_flag(client: TestClient):
+    """The manual path is the one a household without the AI flag has.
+
+    Worth its own test because `lines` and `new_items` look like the receipt
+    endpoint's payload, and a later refactor that shares code between them is
+    exactly how that endpoint's feature gate gets copied in by accident.
+    """
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "lines": [{"item_id": milk["id"], "price": 1.19}]},
+    )
+
+    assert response.status_code == 200

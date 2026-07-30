@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 
+from app.db.models import ListItem
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.purchases import PurchaseClose, PurchaseRead
 from app.services import trips
@@ -19,16 +20,13 @@ def close_purchase(
 ):
     """Declare what a shop was — "Cerrar compra".
 
-    Takes a subset of the cart, so an evening with two shops in it becomes two
-    tickets rather than one confused one.
+    One press of the sheet's primary is one call: the lines it ticked, the
+    products it invented, the shop and the date. Doing it in one write is what
+    lets the whole act sit in the offline queue as a single entry.
     """
-    lst, _ = list_and_user
-    # PurchaseClose.total is deliberately unconstrained at the schema level --
-    # see its docstring for why a Pydantic constraint (ge=0, allow_inf_nan,
-    # anything) that can reject NaN specifically crashes FastAPI's own
-    # validation-error handler. Both checks that constraint would have made
-    # live here instead, in plain Python, so a rejection never round-trips
-    # the bad value through Pydantic's error path.
+    lst, current_user = list_and_user
+    # See PurchaseClose.total's docstring for why this is checked here in
+    # plain Python rather than as a Pydantic constraint.
     if body.total is not None:
         if not math.isfinite(body.total):
             raise HTTPException(
@@ -40,19 +38,95 @@ def close_purchase(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="total must not be negative",
             )
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    # Same clamp a tap gets: no future, and no older than the backdate limit.
+    # A hand-set date carries a live clock's risks, unlike a receipt's.
+    purchase_ts = trips.tap_time(body.purchased_at, now)
+
+    filed: list[str] = []
+
+    for new in body.new_items:
+        created = ListItem(
+            list_id=list_id,
+            added_by=current_user.id,
+            name=new.name,
+            brand=new.brand,
+            ean=new.ean,
+            stores=[],
+            quantity=None,  # planned qty — nobody planned an impulse buy
+            purchased_quantity=new.quantity,
+            price=new.price,
+            price_per=new.price_per,
+            price_store=body.store if new.price is not None else None,
+            purchased_at=purchase_ts,
+        )
+        session.add(created)
+        session.flush()
+        try:
+            trips.attach(session, created, purchase_ts)
+        except trips.AlreadyFiled:
+            # Unreachable — a fresh row has no purchase_id — but attach() is a
+            # shared entry point and every caller must answer for what it can
+            # raise, or the defensive branch becomes a 500 in waiting.
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot add to a trip that has already been filed",
+            ) from None
+        filed.append(created.id)
+
+    for line in body.lines:
+        item = session.get(ListItem, line.item_id)
+        if item is None or item.list_id != list_id:
+            continue
+        # The transition is read from server state, never from a client flag,
+        # so one member's stale sheet cannot rewrite a timestamp another
+        # member already set. Same rule the receipt endpoint follows.
+        if item.purchased_at is None:
+            item.purchased_at = purchase_ts
+            try:
+                trips.attach(session, item, purchase_ts)
+            except trips.AlreadyFiled:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot add to a trip that has already been filed",
+                ) from None
+        if line.price is not None:
+            item.price = line.price
+            item.price_per = line.price_per
+            item.price_store = body.store
+        if line.quantity is not None:
+            item.purchased_quantity = line.quantity
+        session.add(item)
+        filed.append(item.id)
+
+    session.flush()
+
     try:
-        purchase = trips.close(session, lst.id, body.item_ids, body.store, body.total)
+        purchase = trips.close(
+            session,
+            lst.id,
+            # Naming no line means "close the whole cart" — the ordinary
+            # one-shop evening, and what every caller sent before the sheet
+            # existed. The 409 below then means the cart was empty.
+            filed or None,
+            body.store,
+            body.total,
+            now,
+            purchase_id=body.purchase_id,
+        )
     except trips.NotInTheCart:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Some items are not in the open trip",
+            detail="Some items are not in the trip being closed",
         ) from None
     except trips.NothingToClose:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="There is nothing in the cart to close",
+            detail="There is nothing to close",
         ) from None
-    lst.updated_at = datetime.now(UTC).replace(tzinfo=None)
+
+    lst.updated_at = now
     session.add(lst)
     session.commit()
     session.refresh(purchase)
