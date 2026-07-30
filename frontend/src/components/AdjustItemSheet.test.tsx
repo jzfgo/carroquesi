@@ -264,3 +264,38 @@ describe('AdjustItemSheet and a unit nobody changed', () => {
     )
   })
 })
+
+describe('AdjustItemSheet and a quantity corrected on its own', () => {
+  const perUnitWithAWeight = {
+    ...base,
+    quantity: '500 g',
+    price: 2.5,
+    pricePer: null,
+  }
+
+  it('does not re-unit a row whose quantity was corrected but not its price', async () => {
+    const onDone = vi.fn()
+    render(
+      <AdjustItemSheet
+        line={perUnitWithAWeight}
+        onDone={onDone}
+        onClose={vi.fn()}
+      />,
+    )
+
+    const qty = screen.getByLabelText('Cantidad')
+    await userEvent.clear(qty)
+    await userEvent.type(qty, '600 g')
+    await userEvent.click(screen.getByRole('button', { name: 'Hecho' }))
+
+    // The pack was bigger than it said. That restates how much came home,
+    // not what a unit cost — so the price stays per item and keeps its value.
+    expect(onDone).toHaveBeenCalledWith(
+      expect.objectContaining({
+        quantity: '600 g',
+        price: 2.5,
+        pricePer: null,
+      }),
+    )
+  })
+})

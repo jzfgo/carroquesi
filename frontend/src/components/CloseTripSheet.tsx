@@ -16,7 +16,7 @@ export interface CloseTripSheetProps {
   /** Null closes the trip that is still open. */
   purchaseId: string | null
   isOffline: boolean
-  onSave: (payload: PurchaseClosePayload) => void
+  onSave: (payload: PurchaseClosePayload) => void | Promise<void>
   onClose: () => void
   onEditLine?: (line: CloseLine, apply: (next: CloseLine) => void) => void
 }
@@ -53,6 +53,13 @@ export function CloseTripSheet({
   // in UTC. Stamping an old shop with today's date would file its prices under
   // a day nobody shopped.
   const [day, setDay] = useState(() => madridDay(defaultDate))
+  // The sheet used to be unmounted the instant this was pressed, which hid
+  // the fact that nothing stops a second press. It stays up through a failure
+  // now — deliberately, so a refused close does not take the shop with it —
+  // so the guard has to be real. Two presses on a slow connection would file
+  // the cart twice, and the second would come back refused and toast a
+  // failure over a shop that saved.
+  const [saving, setSaving] = useState(false)
 
   // Counts the rows added by hand. A key built from how many rows there are
   // would come round again after one is added and dropped, and React would
@@ -110,24 +117,32 @@ export function CloseTripSheet({
     )
   }
 
-  function handleSave() {
-    if (!canSave) return
+  async function handleSave() {
+    if (!canSave || saving) return
     // Left where it was when the day was not touched, so the trip keeps its
     // own instant. Moved to a different day, it goes to noon there — far
     // enough from either midnight that no offset can drag it into a
     // neighbouring day.
     const purchasedAt =
       day === madridDay(defaultDate) ? defaultDate : naiveUtcForMadridNoon(day)
-    onSave(
-      toPayload(lines, {
-        store: effectiveStore,
-        purchasedAt,
-        purchaseId,
-        // A close written by hand never confirms a figure. Only a receipt
-        // does.
-        total: null,
-      }),
-    )
+    setSaving(true)
+    try {
+      await onSave(
+        toPayload(lines, {
+          store: effectiveStore,
+          purchasedAt,
+          purchaseId,
+          // A close written by hand never confirms a figure. Only a receipt
+          // does.
+          total: null,
+        }),
+      )
+    } finally {
+      // Released even on success. The sheet is usually gone by then, and on
+      // the paths where it is not, a stuck button would be the second thing
+      // to go wrong after whatever kept it open.
+      setSaving(false)
+    }
   }
 
   return (
@@ -258,7 +273,7 @@ export function CloseTripSheet({
         type="button"
         className="cts__save"
         onClick={handleSave}
-        disabled={!canSave}
+        disabled={!canSave || saving}
       >
         Guardar compra
       </button>

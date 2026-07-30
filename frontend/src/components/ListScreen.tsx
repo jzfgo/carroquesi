@@ -318,6 +318,15 @@ export function ListScreen({
     return seen.slice(0, 4)
   }, [items])
 
+  // The list's live trip, if the read has landed.
+  const openTrip = useMemo(
+    () =>
+      [...purchasesById.values()].find(
+        (p) => p.closed_at === null && Date.parse(`${p.tears_off_at}Z`) > now,
+      ),
+    [purchasesById, now],
+  )
+
   // The trip being closed knows its own day, so the date comes from the trip
   // rather than from the clock. Only a trip nobody has recorded falls back to
   // now.
@@ -327,18 +336,36 @@ export function ListScreen({
       closingTrip.purchaseId === null
         ? undefined
         : purchasesById.get(closingTrip.purchaseId)
-    const open = [...purchasesById.values()].find(
-      (p) => p.closed_at === null && Date.parse(`${p.tears_off_at}Z`) > now,
-    )
     return (
       named?.opened_at ??
-      open?.opened_at ??
+      openTrip?.opened_at ??
       new Date(now).toISOString().slice(0, 19)
     )
-  }, [closingTrip, purchasesById, now])
+  }, [closingTrip, purchasesById, openTrip, now])
 
   const handleCloseTrip = useCallback(
-    async (payload: PurchaseClosePayload) => {
+    async (unnamed: PurchaseClosePayload) => {
+      // Name the trip even when closing the one that is open.
+      //
+      // A null purchase_id means "whichever trip is open when the server
+      // reads this", and the queue exists precisely so the server reads it
+      // later. Shop at 23:40 with no signal, reconnect after midnight, and
+      // that cart has torn off: the server finds no open trip, or finds
+      // today's and refuses lines belonging to last night's. Either way the
+      // op is dropped and the whole shop goes with it.
+      //
+      // Naming it here pins the answer to the moment the household pressed
+      // the button, and a torn-off trip that nobody filed is exactly what
+      // close() was taught to accept in this phase. Online this resolves to
+      // the same row it would have found anyway.
+      //
+      // The sheet's *rows* still come from cart state, not from this id: an
+      // item tapped offline has no purchase_id yet, and matching on one would
+      // drop it from the very sheet meant to rescue it.
+      const payload: PurchaseClosePayload =
+        unnamed.purchase_id == null && openTrip
+          ? { ...unnamed, purchase_id: openTrip.id }
+          : unnamed
       try {
         await closePurchase(getToken, listId, payload)
       } catch (err) {
@@ -363,7 +390,7 @@ export function ListScreen({
       retry()
       refreshPurchases()
     },
-    [getToken, listId, retry, refreshPurchases],
+    [getToken, listId, openTrip, retry, refreshPurchases],
   )
 
   const { pendingCount } = useQueueDrain({

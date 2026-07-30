@@ -51,15 +51,23 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
   const [priceStr, setPriceStr] = useState(seededPrice)
 
   const price = parseAmount(priceStr)
-  // Deriving the unit from the quantity is the rule for a row being priced —
+  // Deriving the unit from the quantity is the rule for a row being *priced* —
   // type a weight and the price is per kilo. It is not a rule about a row
-  // nobody touched: an item already priced per unit that happens to say
+  // nobody repriced. An item already priced per unit that happens to say
   // "500 g" would be re-declared per kilo just by opening this sheet and
   // pressing Hecho, halving what it contributes and rewriting the item's
-  // stored unit. So the derivation only applies once one of the two fields it
-  // reads has actually been edited.
-  const repriced =
-    priceStr !== seededPrice || quantity !== (line.quantity ?? '')
+  // stored unit. So the derivation waits for the price itself to move.
+  //
+  // The quantity deliberately does not trigger it. Correcting "500 g" to
+  // "600 g" restates how much came home, not what a unit of it cost.
+  //
+  // What that costs: an item priced per kilo whose quantity is corrected to a
+  // count keeps its per-kilo unit, so the weight can no longer be read and the
+  // row drops out of the sheet's total. That case is *visible* — it lands in
+  // `partial` and the total prints `≥` — where the silent halving was not.
+  // Preferring the loud failure is the same choice the rest of this sheet
+  // makes.
+  const repriced = priceStr !== seededPrice
   const pricePer: 'KILOGRAM' | null = repriced
     ? parseKgFactor(quantity) !== null && price !== null
       ? 'KILOGRAM'

@@ -393,3 +393,30 @@ describe('CloseTripSheet', () => {
     expect(getComputedStyle(thumb).borderStyle).toBe('dashed')
   })
 })
+
+describe('CloseTripSheet and a save already in flight', () => {
+  it('files the shop once however many times the button is pressed', async () => {
+    // The sheet stays mounted through a failure now, so nothing unmounts it
+    // out from under a second press. Two closes would file the cart twice and
+    // the second would come back refused — a failure toast over a shop that
+    // saved.
+    let settle: () => void = () => {}
+    const onSave = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          settle = resolve
+        }),
+    )
+    renderSheet({ onSave })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Mercadona' }))
+    await userEvent.click(save())
+    await userEvent.click(save())
+    await userEvent.click(save())
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(save()).toBeDisabled()
+
+    settle()
+  })
+})

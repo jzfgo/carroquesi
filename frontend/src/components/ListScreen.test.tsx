@@ -1626,6 +1626,45 @@ describe('closing a trip', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('names the open trip, so a close replayed after midnight still lands', async () => {
+    // A null purchase_id means "whichever trip is open when the server reads
+    // this", and the queue exists so the server reads it later. Reconnect
+    // after the cart has torn off and that resolves to nothing, or to the
+    // wrong trip, and the drain throws the whole shop away.
+    vi.mocked(api.getPurchases).mockResolvedValue([
+      {
+        id: 'open-trip',
+        list_id: 'l1',
+        opened_at: TODAY,
+        tears_off_at: new Date(Date.now() + 3_600_000)
+          .toISOString()
+          .slice(0, 19),
+        closed_at: null,
+        store: null,
+        total: null,
+      },
+    ])
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    )
+    renderWithCart()
+
+    await openSheet()
+    await userEvent.click(screen.getByRole('button', { name: 'Elegir tienda' }))
+    await userEvent.type(screen.getByLabelText('Tienda'), 'Lidl')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    )
+
+    await waitFor(() =>
+      expect(offlineQueue.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({ purchase_id: 'open-trip' }),
+        }),
+      ),
+    )
+  })
+
   it('keeps a close the network refused, rather than losing the shop', async () => {
     vi.mocked(api.closePurchase).mockRejectedValue(
       new TypeError('Failed to fetch'),
