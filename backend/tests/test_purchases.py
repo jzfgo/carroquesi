@@ -725,7 +725,8 @@ def test_listing_purchases_returns_newest_first(client: TestClient):
     body = response.json()
     assert [p["store"] for p in body] == ["Mercadona", "Lidl"]
     assert body[1]["total"] == 14.60
-    # A hand-written close never confirms a total.
+    # The Mercadona close named no total, so its header prints an
+    # approximation rather than a figure.
     assert body[0]["total"] is None
 
 
@@ -772,16 +773,50 @@ def test_listing_purchases_includes_the_trip_still_in_the_cart(client: TestClien
 
     body = client.get(f"/lists/{lst['id']}/purchases").json()
 
-    still_in_the_cart = _items_by_name(client, lst["id"])["Pan"]["purchase_id"]
+    fetched = _items_by_name(client, lst["id"])
+    still_in_the_cart = fetched["Pan"]["purchase_id"]
     by_id = {p["id"]: p for p in body}
-    assert set(by_id) == {
-        still_in_the_cart,
-        _items_by_name(client, lst["id"])["Leche"]["purchase_id"],
-    }
+    assert set(by_id) == {still_in_the_cart, fetched["Leche"]["purchase_id"]}
     open_trip = by_id[still_in_the_cart]
     assert open_trip["closed_at"] is None
     assert open_trip["store"] is None
     assert open_trip["total"] is None
+
+
+def test_listing_purchases_breaks_a_tie_the_same_way_every_time(
+    client: TestClient, session: Session
+):
+    """Two trips can share an opened_at, and the order must not wander.
+
+    A household writing down yesterday's two shops dates both closes the same
+    day, which gives both trips the same opened_at. Which of the two comes
+    first does not matter; that it is the same on every poll does, or the
+    headers reshuffle while someone is reading them.
+
+    The ids are chosen rather than generated. A real close would produce two
+    random ones, and the row order would then agree with the tiebreaker about
+    half the time -- a test that passes or fails by coin toss. Both rows are
+    still shapes the app can produce: closed, so the one-open-trip-per-list
+    index is not violated.
+    """
+    lst = _create_list(client)
+    same_moment = _days_ago(1)
+    for purchase_id, store in (("aaa", "Lidl"), ("bbb", "Mercadona")):
+        session.add(
+            Purchase(
+                id=purchase_id,
+                list_id=lst["id"],
+                opened_at=same_moment,
+                tears_off_at=same_moment + timedelta(days=1),
+                closed_at=same_moment,
+                store=store,
+            )
+        )
+    session.commit()
+
+    body = client.get(f"/lists/{lst['id']}/purchases").json()
+
+    assert [p["id"] for p in body] == ["bbb", "aaa"]
 
 
 def test_listing_purchases_shows_only_the_list_asked_for(client: TestClient, second_list):
@@ -804,7 +839,7 @@ def test_listing_purchases_shows_only_the_list_asked_for(client: TestClient, sec
     assert [p["store"] for p in response.json()] == ["Lidl"]
 
 
-def test_listing_purchases_requires_membership(other_client: TestClient, client: TestClient):
+def test_listing_purchases_requires_membership(client: TestClient, other_client: TestClient):
     lst = _create_list(client)
 
     response = other_client.get(f"/lists/{lst['id']}/purchases")
