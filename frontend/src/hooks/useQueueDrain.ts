@@ -95,7 +95,16 @@ export function useQueueDrain({
 
     onDrainedRef.current()
     if (lostAShop) {
-      showToastRef.current('No se pudo guardar una compra. Vuelve a cerrarla')
+      // The shop is the bigger loss and gets the sentence, but it must not
+      // swallow the count of everything else that went with it.
+      const others = failures - 1
+      showToastRef.current(
+        others > 0
+          ? `No se pudo guardar una compra, ni ${others} ${
+              others === 1 ? 'cambio más' : 'cambios más'
+            }`
+          : 'No se pudo guardar una compra. Vuelve a cerrarla',
+      )
     } else if (failures > 0) {
       showToastRef.current(
         `${failures} ${failures === 1 ? 'cambio no se pudo' : 'cambios no se pudieron'} sincronizar`,

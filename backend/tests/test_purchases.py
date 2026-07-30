@@ -933,3 +933,24 @@ def test_a_backdated_sheet_of_only_new_things_still_files(client: TestClient):
     fetched = _items_by_name(client, lst["id"])
     assert fetched["Chocolate negro"]["purchase_id"] == trip_id
     assert fetched["Chocolate negro"]["purchase_filed"] is True
+
+
+def test_naming_an_empty_purchase_id_is_refused_like_any_other_unresolvable_one(
+    client: TestClient,
+):
+    """The one spelling of "a trip I cannot resolve" that used to slip through.
+
+    An empty string is falsy, so a truthiness test read it as "named nothing"
+    and quietly closed whatever the date resolved to. Every other unresolvable
+    id is refused, and this one is not different.
+    """
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"purchase_id": "", "store": "Lidl"},
+    )
+
+    assert response.status_code == 409
+    assert _items_by_name(client, lst["id"])["Leche"]["purchase_filed"] is False

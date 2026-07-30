@@ -134,6 +134,10 @@ def close_purchase(
     # Today's open trip is the fallback, for the sheet whose date was moved
     # back but whose lines were picked up today. The date then dates the
     # ticket without deciding which ticket it is.
+    # Read for the anchor only. The id is deliberately *not* handed to
+    # close(), which resolves the trip again for itself: a primary-key read
+    # there would come back from the identity map and could not see a second
+    # member's close landing in between.
     target = (
         session.get(Purchase, body.purchase_id)
         if body.purchase_id is not None
@@ -231,7 +235,7 @@ def close_purchase(
             body.store,
             body.total,
             now,
-            purchase_id=body.purchase_id or (target.id if target is not None else None),
+            purchase_id=body.purchase_id,
             at=purchase_ts,
         )
     except trips.NotInTheCart:

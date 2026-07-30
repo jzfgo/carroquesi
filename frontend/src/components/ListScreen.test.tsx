@@ -7,6 +7,7 @@ import * as useListItemsModule from '../hooks/useListItems'
 import * as api from '../lib/api'
 import * as offlineQueue from '../lib/offlineQueue'
 import * as receiptAi from '../lib/receiptAi'
+import { madridDay } from '../lib/tripDay'
 import type {
   BarcodeRead,
   ListItem,
@@ -1624,6 +1625,40 @@ describe('closing a trip', () => {
     expect(
       screen.queryByText('Total de lo que has puesto'),
     ).not.toBeInTheDocument()
+  })
+
+  it('dates the sheet from the shop, not from when it was opened', async () => {
+    // The whole shop happened offline, so no trip exists to read: the taps are
+    // queued too. Reading the clock would date a 23:40 shop as the next day if
+    // the sheet is opened after midnight, and the close would then ask the
+    // server for a day the lines are not in.
+    // A full day back, so the answer cannot coincide with today's date and
+    // pass while the fallback does nothing.
+    const lastNight = new Date(Date.now() - 26 * 3_600_000)
+      .toISOString()
+      .slice(0, 19)
+    vi.mocked(api.getPurchases).mockResolvedValue([])
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({
+          id: 'i1',
+          name: 'Leche',
+          purchased: true,
+          purchased_at: lastNight,
+          purchase_id: null,
+          purchase_ends_at: null,
+        }),
+      ],
+    })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    await openSheet()
+
+    expect(screen.getByLabelText('Fecha')).toHaveValue(madridDay(lastNight))
+    expect(screen.getByLabelText('Fecha')).not.toHaveValue(
+      madridDay(new Date().toISOString().slice(0, 19)),
+    )
   })
 
   it('names the open trip, so a close replayed after midnight still lands', async () => {

@@ -336,12 +336,22 @@ export function ListScreen({
       closingTrip.purchaseId === null
         ? undefined
         : purchasesById.get(closingTrip.purchaseId)
+    // Nothing known about a trip: the whole shop happened offline, so no trip
+    // exists server-side yet. The taps still carry their own instants, and the
+    // earliest of them is when this shop started. Reading the clock instead
+    // would date the sheet by when it was *opened* — shop at 23:40, sit down
+    // at 00:05, and the close asks the server for a day the lines are not in.
+    const earliestTap = items
+      .map((i) => i.purchased_at)
+      .filter((at): at is string => at !== null)
+      .sort()[0]
     return (
       named?.opened_at ??
       openTrip?.opened_at ??
+      earliestTap ??
       new Date(now).toISOString().slice(0, 19)
     )
-  }, [closingTrip, purchasesById, openTrip, now])
+  }, [closingTrip, purchasesById, openTrip, items, now])
 
   const handleCloseTrip = useCallback(
     async (unnamed: PurchaseClosePayload) => {

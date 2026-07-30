@@ -366,7 +366,15 @@ def close(
     """
     now = now or _now()
     if purchase_id is None:
-        trip = unfiled_trip_for(session, list_id, at or now)
+        # Resolved here, not handed in. A caller that looks the trip up first
+        # and passes the id turns this into a primary-key read, which
+        # SQLAlchemy answers from the identity map without going back to the
+        # database -- so `closed_at` below would be the caller's snapshot, and
+        # a second member who filed this trip in the meantime would be
+        # invisible. Their confirmed total would then be overwritten with a
+        # 200. Asking again, with the filter, is what makes their commit
+        # visible and turns that into the refusal it should be.
+        trip = unfiled_trip_for(session, list_id, at or now) or open_trip(session, list_id, now)
     else:
         trip = session.get(Purchase, purchase_id)
         if trip is not None and (trip.list_id != list_id or trip.closed_at is not None):
