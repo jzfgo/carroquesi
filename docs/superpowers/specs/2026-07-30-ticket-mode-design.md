@@ -489,6 +489,27 @@ with it.
    guard either — the same trap 3b called out.
 5. Playwright in Docker, and `just ci` green.
 
+## Known gap: an unconfirmed guess still writes its price
+
+This section states, above, that a line saved without being confirmed records the
+shop, counts toward the paper's total, and **enters no product's history**. Rule 10
+of the handoff says the same thing more strongly — *ningún precio sin confirmar* —
+and calls it the precondition for ever detecting a price rise.
+
+The code does not do this. `toPayload` sends a row's price whatever its match
+state, so a fuzzy guess nobody confirmed writes an amount into that item's history
+exactly as a confirmed line does.
+
+It is a small change to make the code obey the spec, and it was deliberately not
+made, because the trade is a product decision rather than a bug fix. A household
+scanning its first receipts has no learned names yet, so nearly every line is a
+guess; gating on confirmation would mean those first shops record no prices at all
+unless each line is confirmed by hand. That may be right — an unconfirmed price is
+exactly the kind of quiet wrong number rule 10 exists to keep out of history — but
+it makes a scan much less valuable until the app has learned the shop's vocabulary.
+
+Whoever settles this should change the spec or the code, not leave them disagreeing.
+
 ## Follow-ups this creates
 
 - **Re-matching after a misread receipt date.** The deleted scan screen could
