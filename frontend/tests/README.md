@@ -29,6 +29,14 @@ That particular loss no longer rides on the number: `purchase-lifecycle.spec.ts`
 
 A baseline that passes while depicting the wrong UI does not heal. It becomes the reference for every later run, so the missing element stays invisible and the next change near it is measured against a picture that was already wrong.
 
+### Parallelism
+
+CI runs two workers, which is about 15% faster than one — measured as a paired comparison inside single jobs, because the runner drifts enough between runs to hide an effect that size. The runner has four cores, and a worker is not worth one of them: each drives a browser that renders and composites on threads of its own, so two already use the machine. Three and four were measured too and came out no faster, so this is a number to leave alone. Sharding across jobs is the next lever if the suite grows, but not yet — every extra job re-pays the browser install and the build, which together cost more than the test phase they would be splitting.
+
+Raising it surfaced one bug rather than causing it. An offline-queue drain that flushed nothing still asked the list to be read again, and that read carried the state from before whatever the test had just done — so a purchase or a newly added item vanished from the screen. It failed only sometimes because it was a race, and `retries: 2` turned the failures into passes. Two workers made the window wider and the race easier to see.
+
+Take the general lesson rather than the specific fix: a suite that is green only because it retries can hide a real defect indefinitely. When judging a change to parallelism, run with `--retries=0` and read the _first-attempt_ result, or the measurement answers a different question than the one asked.
+
 ### Anything the screenshot shows must be pinned
 
 A screenshot captures whatever was on screen, including today's date. `purchase-lifecycle.spec.ts` and `receipt-scanning.spec.ts` both pin the browser clock with `page.clock.setFixedTime` for exactly this reason: purchase dates are stamped client-side, so on a real clock every baseline would describe the day it was written and drift a little further from the truth every day after. Any new spec that screenshots a date, a relative time, or a random value needs the same treatment.
@@ -38,6 +46,8 @@ The clock is not the only fixture of this kind. `playwright.config.ts` also pins
 One consequence is easy to get wrong. `timezoneId` pins the **browser**, and Playwright does not touch the Node process the test file runs in. So an expectation about an instant leaving the browser has to be written as a literal: computing it in the spec builds it at the runner's zone, which is not the one under test. `receipt-scanning.spec.ts` asserts a receipt date this way, and the comment there explains the value. The same asymmetry means the vitest suite is still on the machine's zone, so a unit test touching dates has to be made zone-less on its own.
 
 One thing to know before you pin a spec that also adds items: `useListItems` builds the optimistic temporary id from the clock, so under a frozen one two adds in the same test produce the same id. No spec hits this today — the one that adds items is not pinned — but the combination is easy to reach from here.
+
+An optimistic write puts a second state on the screen that needs the same treatment as a date. The item a user adds is drawn before the server answers, and it carries no author yet, so its avatar reads `?` until the created item arrives and replaces it. Both pictures are real, and `toHaveScreenshot` settles for whichever it finds first — so the baseline records one of them and the other one fails on a slow run. Waiting for the name to appear is not enough, because the optimistic item is what makes it appear. Wait for something only the server's answer can produce. `smoke.spec.ts` waits for that avatar.
 
 ### Regenerating baselines
 

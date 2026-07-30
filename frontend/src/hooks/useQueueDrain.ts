@@ -77,17 +77,29 @@ export function useQueueDrain({
       }
     }
 
-    onDrainedRef.current()
+    // A drain that flushed nothing changed nothing, so there is nothing to
+    // re-read. Re-reading anyway raced a write the user had just made: the
+    // response carried the state from before that write, and the change
+    // flickered back on screen.
+    const flushed = myOps.length > 0
+    if (flushed) onDrainedRef.current()
     if (failures > 0) {
       showToastRef.current(
         `${failures} ${failures === 1 ? 'cambio no se pudo' : 'cambios no se pudieron'} sincronizar`,
       )
     }
+    return flushed
   }, [listId, getToken])
 
   useEffect(() => {
     if (navigator.onLine) void drain()
-    const handleOnline = () => void drain()
+    // Reconnecting is the exception to the rule above: the list may have moved
+    // on while this device was offline, so read it again even when there was
+    // nothing of ours to send.
+    const handleOnline = () =>
+      void drain().then((flushed) => {
+        if (!flushed) onDrainedRef.current()
+      })
     window.addEventListener('online', handleOnline)
     return () => window.removeEventListener('online', handleOnline)
   }, [drain])

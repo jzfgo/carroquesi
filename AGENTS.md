@@ -172,6 +172,8 @@ When changing what a job covers, edit the classifier and add a case to `scripts/
 
 Playwright is currently **advisory** — it is not in `CI gate`'s `needs`, so a PR can merge with E2E red. Promote it deliberately, not as a side effect of another change.
 
+CI runs the suite on two workers, and `retries: 2` means a first-attempt failure still reports as a pass. So judge any change to parallelism on a `--retries=0` run: the retries exist to absorb noise, and they absorb real defects just as well. `frontend/tests/README.md` records what the numbers were and which bug this hid.
+
 ### Architecture Decision Records
 
 Significant architectural decisions are documented in `docs/decisions/`. Before making a choice that overlaps with an existing ADR (auth strategy, ORM, sync mechanism, AI provider, feature flags), read the relevant record — it explains what was considered and why the current approach was chosen.

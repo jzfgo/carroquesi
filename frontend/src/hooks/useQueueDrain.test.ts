@@ -163,3 +163,30 @@ describe('useQueueDrain — drain on reconnect', () => {
     expect(api.createItem).not.toHaveBeenCalled()
   })
 })
+
+// These assert on call counts, so they use their own onDrained rather than the
+// shared one: hooks mounted by earlier tests stay subscribed to 'online' and
+// their drains can land here, which would show up on a shared mock.
+describe('useQueueDrain — re-read after an empty drain', () => {
+  it('does not re-read on mount when nothing was queued', async () => {
+    const onDrained = vi.fn()
+    const { result } = renderHook(() =>
+      useQueueDrain({ ...defaultParams, onDrained }),
+    )
+    await waitFor(() => expect(result.current.pendingCount).toBe(0))
+    // The mount drain flushed nothing, so the list is already current — asking
+    // for it again would race a write the user makes right after opening it.
+    expect(onDrained).not.toHaveBeenCalled()
+  })
+
+  it('re-reads on reconnect even when nothing was queued', async () => {
+    const onDrained = vi.fn()
+    renderHook(() => useQueueDrain({ ...defaultParams, onDrained }))
+    await act(async () => {
+      window.dispatchEvent(new Event('online'))
+    })
+    // Nothing to flush, but the list may have moved on while this device was
+    // offline, so it still has to be read again.
+    await waitFor(() => expect(onDrained).toHaveBeenCalled())
+  })
+})

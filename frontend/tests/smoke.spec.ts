@@ -27,6 +27,16 @@ async function addItemManzanas(page: Page) {
   await page.getByLabel('Añadir producto').fill('Manzanas')
   await page.getByRole('button', { name: 'Añadir', exact: true }).click()
   await expect(page.getByText('Manzanas')).toBeVisible()
+  // The name arrives with the optimistic item, which carries no author yet, so
+  // its avatar reads "?" until the created item comes back and replaces it.
+  // Both states are on screen for real, and the screenshot below settles for
+  // whichever one it finds first — so wait for the one the baseline depicts.
+  await expect(
+    page
+      .locator('.item-card')
+      .filter({ hasText: 'Manzanas' })
+      .locator('.item-card__avatar'),
+  ).not.toHaveText('?')
   await awaitPrimingCard(page)
 }
 
