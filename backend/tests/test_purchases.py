@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 
 from app.db.models import List, Purchase, ReceiptNameMapping, ReceiptScan
 from app.db.models import UserFeature as _UserFeature
-from app.services import trips
+from app.services import receipt_matcher, trips
 
 
 def _create_list(client):
@@ -999,43 +999,126 @@ def test_close_upserts_a_mapping_under_the_body_store(client: TestClient, sessio
     assert response.status_code == 200
     session.expire_all()
     mapping = session.exec(
-        select(ReceiptNameMapping).where(ReceiptNameMapping.receipt_name == "LECHE ENT 1L")
+        select(ReceiptNameMapping).where(
+            ReceiptNameMapping.receipt_name == receipt_matcher.normalise("LECHE ENT 1L")
+        )
     ).one()
     assert mapping.store == "Mercadona"
     assert mapping.item_name == "Leche entera"
     assert mapping.use_count == 1
 
 
-def test_a_repeated_mapping_bumps_use_count_instead_of_duplicating(
+def test_a_repeated_mapping_bumps_use_count_and_overwrites_the_name(
     client: TestClient, session: Session, user
 ):
+    """The second confirmation also wins the name, not just the count.
+
+    A household correcting an earlier guess -- adding a brand, fixing a typo
+    -- expects that correction to stick, not to be outvoted by the first one.
+    """
     _enable_receipt_flag(session, user)
     lst = _create_list(client)
     milk = _tap(client, lst["id"], "Leche")
     bread = _tap(client, lst["id"], "Pan")
 
-    body = {
-        "store": "Mercadona",
-        "mappings": [
-            {"receipt_name": "LECHE ENT 1L", "item_name": "Leche entera", "item_brand": None}
-        ],
-    }
     client.post(
         f"/lists/{lst['id']}/purchases/close",
-        json={**body, "lines": [{"item_id": milk["id"]}]},
+        json={
+            "store": "Mercadona",
+            "lines": [{"item_id": milk["id"]}],
+            "mappings": [
+                {"receipt_name": "LECHE ENT 1L", "item_name": "Leche entera", "item_brand": None}
+            ],
+        },
     )
     response = client.post(
         f"/lists/{lst['id']}/purchases/close",
-        json={**body, "lines": [{"item_id": bread["id"]}]},
+        json={
+            "store": "Mercadona",
+            "lines": [{"item_id": bread["id"]}],
+            "mappings": [
+                {
+                    "receipt_name": "LECHE ENT 1L",
+                    "item_name": "Leche entera Hacendado",
+                    "item_brand": "Hacendado",
+                }
+            ],
+        },
     )
 
     assert response.status_code == 200
     session.expire_all()
     mappings = session.exec(
-        select(ReceiptNameMapping).where(ReceiptNameMapping.receipt_name == "LECHE ENT 1L")
+        select(ReceiptNameMapping).where(
+            ReceiptNameMapping.receipt_name == receipt_matcher.normalise("LECHE ENT 1L")
+        )
     ).all()
     assert len(mappings) == 1
     assert mappings[0].use_count == 2
+    assert mappings[0].item_name == "Leche entera Hacendado"
+    assert mappings[0].item_brand == "Hacendado"
+
+
+def test_a_mapping_with_an_accent_resolves_through_the_matcher(
+    client: TestClient, session: Session, user
+):
+    """The matcher looks a mapping up by its normalised name -- lowercased,
+    accents stripped. Storing it under whatever the client sent made a
+    confirmed accented name permanently unfindable, and the household got
+    asked the same question again on the next ticket."""
+    _enable_receipt_flag(session, user)
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "lines": [{"item_id": milk["id"]}],
+            "mappings": [
+                {"receipt_name": "CAFÉ MOLIDO", "item_name": "Café molido", "item_brand": None}
+            ],
+        },
+    )
+
+    session.expire_all()
+    found = receipt_matcher._lookup_mapping(
+        "Mercadona", receipt_matcher.normalise("CAFÉ MOLIDO"), session
+    )
+    assert found is not None
+    assert found.item_name == "Café molido"
+
+
+def test_a_mapping_with_a_leading_quantity_resolves_through_the_matcher(
+    client: TestClient, session: Session, user
+):
+    """Same hazard as the accent case, for a receipt line that opens with a
+    quantity -- the leading digit `normalise` strips before matching."""
+    _enable_receipt_flag(session, user)
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "lines": [{"item_id": milk["id"]}],
+            "mappings": [
+                {
+                    "receipt_name": "2 YOGUR NATURAL",
+                    "item_name": "Yogur natural",
+                    "item_brand": None,
+                }
+            ],
+        },
+    )
+
+    session.expire_all()
+    found = receipt_matcher._lookup_mapping(
+        "Mercadona", receipt_matcher.normalise("2 YOGUR NATURAL"), session
+    )
+    assert found is not None
+    assert found.item_name == "Yogur natural"
 
 
 def test_201_mappings_is_a_422(client: TestClient, session: Session, user):
@@ -1222,6 +1305,31 @@ def test_scan_linked_close_sets_purchase_id_and_items_updated_on_the_scan(
     session.expire_all()
     refetched = session.get(ReceiptScan, scan.id)
     assert refetched.purchase_id == purchase_id
+    assert refetched.items_updated == 2
+
+
+def test_scan_linked_close_naming_nothing_reports_the_whole_cart(
+    client: TestClient, session: Session, user
+):
+    """Naming nothing closes the whole open cart, not zero items.
+
+    The scan's audit row must say what actually got filed, not what the
+    request happened to list by name.
+    """
+    _enable_receipt_flag(session, user)
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+    _tap(client, lst["id"], "Pan")
+    scan = _make_scan(session, lst["id"], user.id)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Mercadona", "scan_id": scan.id},
+    )
+
+    assert response.status_code == 200
+    session.expire_all()
+    refetched = session.get(ReceiptScan, scan.id)
     assert refetched.items_updated == 2
 
 

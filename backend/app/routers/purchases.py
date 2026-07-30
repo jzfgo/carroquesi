@@ -3,12 +3,14 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import func
 from sqlmodel import select
 
 from app.db.models import ListItem, Purchase, ReceiptNameMapping, ReceiptScan
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.purchases import PurchaseClose, PurchaseRead
 from app.services import feature_flags, trips
+from app.services.receipt_matcher import normalise
 
 router = APIRouter(prefix="/lists/{list_id}/purchases", tags=["purchases"])
 
@@ -268,9 +270,14 @@ def close_purchase(
         ) from None
 
     for m in body.mappings:
+        # Keyed the same way the matcher looks a name up, not however the
+        # client happened to send it — otherwise an accent or a leading
+        # quantity makes a confirmed mapping unfindable next time, and the
+        # household is asked the same question again.
+        norm_name = normalise(m.receipt_name)
         stmt = select(ReceiptNameMapping).where(
             ReceiptNameMapping.store == body.store,
-            ReceiptNameMapping.receipt_name == m.receipt_name,
+            ReceiptNameMapping.receipt_name == norm_name,
         )
         existing = session.exec(stmt).first()
         if existing:
@@ -284,7 +291,7 @@ def close_purchase(
             session.add(
                 ReceiptNameMapping(
                     store=body.store,
-                    receipt_name=m.receipt_name,
+                    receipt_name=norm_name,
                     item_name=m.item_name,
                     item_brand=m.item_brand,
                     confirmed_by=current_user.id,
@@ -297,7 +304,13 @@ def close_purchase(
         # than refused: the shop is what this call is recording, and losing
         # the audit link is not worth losing the close.
         if scan is not None and scan.list_id == list_id:
-            scan.items_updated = len(touched)
+            # Not `len(touched)`: naming nothing files the whole open cart,
+            # and touched stays empty even though every one of those items
+            # just got filed. Counting what now carries this purchase's id
+            # is right either way.
+            scan.items_updated = session.exec(
+                select(func.count(ListItem.id)).where(ListItem.purchase_id == purchase.id)
+            ).one()
             scan.purchase_id = purchase.id
             session.add(scan)
 
