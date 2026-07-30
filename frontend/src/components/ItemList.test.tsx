@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { vi } from 'vitest'
 import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
-import type { ListItem } from '../types'
+import type { ListItem, Purchase } from '../types'
 import { ItemList } from './ItemList'
 
 vi.mock('../contexts/AuthContext', () => ({
@@ -816,4 +816,112 @@ test("each sheet's label comes from its own earliest item, even spanning midnigh
   expect(container.querySelector('.item-list__label-text')?.textContent).toBe(
     expectedLabel,
   )
+})
+
+// ---------------------------------------------------------------------------
+// The ticket header: the shop it was, and what it came to
+// ---------------------------------------------------------------------------
+
+const trip = (over: Partial<Purchase> & { id: string }): Purchase => ({
+  list_id: 'l1',
+  opened_at: '',
+  tears_off_at: '',
+  closed_at: null,
+  store: null,
+  total: null,
+  ...over,
+})
+
+/** Settled two days ago, so it is a filed ticket and has a header to read. */
+const boughtOn = (id: string, purchaseId: string) =>
+  tripItem(id, purchaseId, daysAgoAt(2, 10))
+
+function renderTicket(
+  items: ListItem[],
+  purchases?: Map<string, Purchase>,
+  purchasedCostByTrip?: Map<string, CostSummary | null>,
+) {
+  return render(
+    <ItemList
+      status="success"
+      items={items}
+      onTogglePurchased={() => {}}
+      onOpen={() => {}}
+      onRetry={() => {}}
+      purchases={purchases}
+      purchasedCostByTrip={purchasedCostByTrip}
+    />,
+  )
+}
+
+const headerText = () =>
+  document.querySelector('.item-list__label-text')?.textContent
+
+const headerCost = () =>
+  document.querySelector('.item-list__date-label-cost')?.textContent
+
+test('prints the shop beside the day when the trip names one', () => {
+  renderTicket(
+    [boughtOn('a', 'p1')],
+    new Map([['p1', trip({ id: 'p1', store: 'Lidl', total: 14.6 })]]),
+  )
+  expect(headerText()).toMatch(/^Lidl · /)
+})
+
+test('prints a confirmed total as itself, with no approximation mark', () => {
+  renderTicket(
+    [boughtOn('a', 'p1')],
+    new Map([['p1', trip({ id: 'p1', store: 'Lidl', total: 14.6 })]]),
+    new Map([['p1', { total: 3, partial: false } as CostSummary]]),
+  )
+  expect(headerCost()).toMatch(/14[,.]60/)
+  expect(headerCost()).not.toMatch(/≥/)
+})
+
+test('marks a derived sum as approximate even when every line is priced', () => {
+  // A till adds things no line ever held — a bag, a deposit, a discount — so
+  // a sum of the lines can only ever be a floor.
+  renderTicket(
+    [boughtOn('a', 'p1')],
+    new Map([['p1', trip({ id: 'p1', store: 'Lidl', total: null })]]),
+    new Map([['p1', { total: 3, partial: false } as CostSummary]]),
+  )
+  expect(headerCost()).toMatch(/≥/)
+  expect(headerCost()).toMatch(/3[,.]00/)
+})
+
+test('a receipt that came to nothing still reads as a confirmed total', () => {
+  // Every line couponed away. Zero is a figure someone read off a paper, so
+  // it prints as itself — a falsy check here would fall back to the sum.
+  renderTicket(
+    [boughtOn('a', 'p1')],
+    new Map([['p1', trip({ id: 'p1', store: 'Lidl', total: 0 })]]),
+    new Map([['p1', { total: 3, partial: false } as CostSummary]]),
+  )
+  expect(headerCost()).toMatch(/0[,.]00/)
+  expect(headerCost()).not.toMatch(/≥/)
+})
+
+test('a trip the header read never reached still gets its sheet', () => {
+  // The trips endpoint is capped and the items endpoint is not, so a long
+  // list can serve items whose trip is missing from the map. That degrades
+  // to the day and the sum, which is a poorer ticket, not a broken one.
+  const { container } = renderTicket(
+    [boughtOn('a', 'p1')],
+    new Map(),
+    new Map([['p1', { total: 3, partial: false } as CostSummary]]),
+  )
+  expect(container.querySelectorAll('.item-list__sheet--receipt')).toHaveLength(
+    1,
+  )
+  expect(headerText()).not.toMatch(/·/)
+  expect(headerCost()).toMatch(/3[,.]00/)
+})
+
+test('and so does a trip on a screen that never asked for the headers', () => {
+  const { container } = renderTicket([boughtOn('a', 'p1')])
+  expect(container.querySelectorAll('.item-list__sheet--receipt')).toHaveLength(
+    1,
+  )
+  expect(screen.getByText('Item a')).toBeInTheDocument()
 })

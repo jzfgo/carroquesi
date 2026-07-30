@@ -8,6 +8,7 @@ import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
 import { useListSeen } from '../hooks/useListSeen'
 import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
+import { usePurchases } from '../hooks/usePurchases'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useQueueDrain } from '../hooks/useQueueDrain'
 import { useTearOff } from '../hooks/useTearOff'
@@ -272,6 +273,18 @@ export function ListScreen({
   // a memo keyed on `items` alone cache-hits straight through the boundary,
   // because at a tear-off no item changes — only the time does.
   const now = useTearOff(items)
+
+  const { byId: purchasesById, refresh: refreshPurchases } = usePurchases(
+    listId,
+    getToken,
+  )
+
+  // A trip only changes as part of an item write, so the items' own refresh is
+  // the signal. No second poll. The item hook keeps the array's identity when
+  // a poll finds nothing new, so this does not fire every five seconds.
+  useEffect(() => {
+    refreshPurchases()
+  }, [items, refreshPurchases])
 
   const { pendingCount } = useQueueDrain({
     listId,
@@ -832,6 +845,7 @@ export function ListScreen({
         onClone={handleCloneItem}
         pendingCost={pendingCost}
         purchasedCostByTrip={purchasedCostByTrip}
+        purchases={purchasesById}
         footer={
           !receiptScanResult && isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
             /* A way in, not a prompt. It used to appear only once the list

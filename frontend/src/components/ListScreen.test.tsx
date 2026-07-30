@@ -151,6 +151,9 @@ beforeEach(() => {
   // useListSeen fires on mount and chains .catch on the result; the api
   // automock would otherwise return undefined.
   vi.mocked(api.markListSeen).mockResolvedValue(null)
+  // usePurchases fires on mount and chains .then on the result; the api
+  // automock would otherwise return undefined.
+  vi.mocked(api.getPurchases).mockResolvedValue([])
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: {
       id: 'u1',
@@ -691,6 +694,74 @@ describe('cost totals', () => {
     expect(badges).toHaveLength(2)
     expect(badges.some((t) => t?.match(/3[,.]00/))).toBe(true)
     expect(badges.some((t) => t?.match(/7[,.]00/))).toBe(true)
+  })
+
+  it('hands the trips it read to the ticket headers', async () => {
+    // The wiring, not the rendering: without the prop the header still draws,
+    // it just falls back to the day and the sum, so nothing else notices.
+    vi.mocked(api.getPurchases).mockResolvedValue([
+      {
+        id: 'p1',
+        list_id: 'l1',
+        opened_at: YESTERDAY,
+        tears_off_at: YESTERDAY_ENDS_AT,
+        closed_at: YESTERDAY_ENDS_AT,
+        store: 'Lidl',
+        total: 14.6,
+      },
+    ])
+    renderWithItems([
+      makeItem({
+        id: '1',
+        purchased: true,
+        purchased_at: YESTERDAY,
+        purchase_id: 'p1',
+        purchase_ends_at: YESTERDAY_ENDS_AT,
+        price: 3.0,
+      }),
+    ])
+    await waitFor(() =>
+      expect(
+        document.querySelector('.item-list__date-label-cost')?.textContent,
+      ).toMatch(/14[,.]60/),
+    )
+    expect(
+      document.querySelector('.item-list__label-text')?.textContent,
+    ).toMatch(/^Lidl · /)
+  })
+
+  it('re-reads the trips when the items change, and not on every render', async () => {
+    // A trip only ever changes as part of an item write, so the items are the
+    // signal and there is no second poll. The item hook keeps the array's
+    // identity when a poll finds nothing new, which is what stops this from
+    // firing every five seconds.
+    const items = [makeItem({ id: '1' })]
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items,
+    })
+    // A fresh element each time: React bails out of re-rendering one it is
+    // handed back by identity, which would prove nothing.
+    const screenEl = () => (
+      <ListScreen listId="l1" listName="Test" listOwnerId="u1" />
+    )
+    // Counted against what mount left behind rather than against zero: the
+    // hook reads once for itself on mount, so the absolute figure says
+    // nothing about the rule under test.
+    const reads = () => vi.mocked(api.getPurchases).mock.calls.length
+    const view = render(screenEl())
+    await waitFor(() => expect(reads()).toBeGreaterThan(0))
+    const afterMount = reads()
+
+    view.rerender(screenEl())
+    expect(reads()).toBe(afterMount)
+
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [...items, makeItem({ id: '2' })],
+    })
+    view.rerender(screenEl())
+    await waitFor(() => expect(reads()).toBe(afterMount + 1))
   })
 })
 

@@ -5,7 +5,7 @@ import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
 import { itemState } from '../lib/itemState'
 import { formatShops, groupByShops } from '../lib/storeGroups'
-import type { ListItem } from '../types'
+import type { ListItem, Purchase } from '../types'
 import { CartRubric } from './CartRubric'
 import { ItemCard } from './ItemCard'
 import './ItemList.css'
@@ -25,6 +25,8 @@ interface Props {
   onClone?: (itemId: string) => void
   pendingCost?: CostSummary | null
   purchasedCostByTrip?: Map<string, CostSummary | null>
+  /** Trips by id, for the receipt headers. Absent while the read is in flight. */
+  purchases?: Map<string, Purchase>
   totalItems?: number
   footer?: ReactNode
 }
@@ -53,6 +55,7 @@ export function ItemList({
   onClone,
   pendingCost,
   purchasedCostByTrip,
+  purchases,
   totalItems,
   footer,
 }: Props) {
@@ -259,33 +262,49 @@ export function ItemList({
         <>
           {purchasedByTrip
             .slice(0, tripsShown)
-            .map(({ key, label, items: group }) => (
-              <div
-                key={key}
-                className="item-list__sheet item-list__sheet--receipt"
-              >
-                <p className="item-list__date-label">
-                  <span className="item-list__label-text">{label}</span>
-                  {(() => {
-                    const c = purchasedCostByTrip?.get(key)
-                    return (
-                      c && (
+            .map(({ key, label, items: group }) => {
+              // The trips read is capped and the items read is not, so a long
+              // list can serve items whose trip is missing here. The header
+              // then falls back to the day and the sum: a poorer ticket, not
+              // a broken one.
+              const shopped = purchases?.get(key)
+              const summed = purchasedCostByTrip?.get(key)
+              return (
+                <div
+                  key={key}
+                  className="item-list__sheet item-list__sheet--receipt"
+                >
+                  <p className="item-list__date-label">
+                    <span className="item-list__label-text">
+                      {shopped?.store ? `${shopped.store} · ${label}` : label}
+                    </span>
+                    {/* A confirmed total is a figure someone read off a paper,
+                        so it prints as itself. Anything else is a sum of the
+                        lines, and a till adds things no line ever held — a
+                        bag, a deposit, a discount — so it can only ever be a
+                        floor, even with every line priced. */}
+                    {shopped?.total != null ? (
+                      <span className="item-list__date-label-cost">
+                        {formatPrice(shopped.total)}
+                      </span>
+                    ) : (
+                      summed && (
                         <CostBadge
-                          cost={c}
+                          cost={{ ...summed, partial: true }}
                           className="item-list__date-label-cost"
                         />
                       )
-                    )
-                  })()}
-                </p>
-                <ReceiptLines
-                  items={group}
-                  onTogglePurchased={onTogglePurchased}
-                  onOpen={onOpen}
-                  onClone={onClone}
-                />
-              </div>
-            ))}
+                    )}
+                  </p>
+                  <ReceiptLines
+                    items={group}
+                    onTogglePurchased={onTogglePurchased}
+                    onOpen={onOpen}
+                    onClone={onClone}
+                  />
+                </div>
+              )
+            })}
         </>
       )}
 
