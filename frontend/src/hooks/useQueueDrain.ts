@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createItem, deleteItem, updateItem } from '../lib/api'
+import {
+  closePurchase,
+  createItem,
+  deleteItem,
+  updateItem,
+} from '../lib/api'
 import { isNetworkError } from '../lib/networkError'
 import { getAll, remove } from '../lib/offlineQueue'
-import type { ListItem } from '../types'
+import type { ListItem, PurchaseClosePayload } from '../types'
 
 interface Params {
   listId: string
@@ -68,6 +73,15 @@ export function useQueueDrain({
           const realId = tempIdMap.get(p.itemId)
           if (realId) p = { ...p, itemId: realId }
           await deleteItem(getToken, op.listId, p.itemId)
+        } else if (op.type === 'closePurchase') {
+          const p = op.payload as PurchaseClosePayload
+          // An item added offline is named by its temp id here, because the
+          // sheet was closed before the add had ever reached the server.
+          const lines = p.lines.map((line) => {
+            const realId = tempIdMap.get(line.item_id)
+            return realId ? { ...line, item_id: realId } : line
+          })
+          await closePurchase(getToken, op.listId, { ...p, lines })
         }
         await remove(op.id)
       } catch (err) {

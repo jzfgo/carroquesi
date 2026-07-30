@@ -148,6 +148,77 @@ describe('useQueueDrain — drain on reconnect', () => {
     )
   })
 
+  it('drains a queued close through closePurchase', async () => {
+    await enqueue({
+      listId: 'l1',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        purchased_at: '2026-07-30T18:00:00',
+        purchase_id: null,
+        total: null,
+        lines: [{ item_id: 'a', price: 1.19, price_per: null, quantity: null }],
+        new_items: [],
+      },
+    })
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(api.closePurchase).toHaveBeenCalledWith(
+        mockGetToken,
+        'l1',
+        expect.objectContaining({ store: 'Lidl' }),
+      ),
+    )
+  })
+
+  it('rewrites a queued close that names an item created offline', async () => {
+    vi.mocked(api.createItem).mockResolvedValue({ id: 'real-1' } as never)
+
+    // Both ops land in the same millisecond otherwise, and the drain sorts by
+    // the enqueue time. A tie leaves the order to the random ids the queue is
+    // stored under, and the close only maps the temp id if the add ran first.
+    const clock = vi.spyOn(Date, 'now')
+    clock.mockReturnValue(1000)
+    await enqueue({
+      listId: 'l1',
+      tempId: 'tmp-1',
+      type: 'addItem',
+      payload: { name: 'Leche' },
+    })
+    clock.mockReturnValue(2000)
+    await enqueue({
+      listId: 'l1',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        purchased_at: '2026-07-30T18:00:00',
+        purchase_id: null,
+        total: null,
+        lines: [
+          { item_id: 'tmp-1', price: 1.19, price_per: null, quantity: null },
+        ],
+        new_items: [],
+      },
+    })
+    clock.mockRestore()
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(api.closePurchase).toHaveBeenCalledWith(
+        mockGetToken,
+        'l1',
+        expect.objectContaining({
+          lines: [
+            { item_id: 'real-1', price: 1.19, price_per: null, quantity: null },
+          ],
+        }),
+      ),
+    )
+  })
+
   it('does not drain ops for a different listId', async () => {
     vi.mocked(api.createItem).mockResolvedValue({} as never)
     await enqueue({

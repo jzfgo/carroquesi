@@ -2,7 +2,7 @@ export interface QueuedOp {
   id: string
   listId: string
   tempId?: string
-  type: 'addItem' | 'updateItem' | 'deleteItem'
+  type: 'addItem' | 'updateItem' | 'deleteItem' | 'closePurchase'
   payload: unknown
   enqueuedAt: number
 }
