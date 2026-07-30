@@ -161,10 +161,13 @@ def close_purchase(
             try:
                 trips.attach(session, item, anchor)
             except trips.AlreadyFiled:
-                # Reachable, unlike the one above: the sheet can tick an item
-                # that a receipt scan filed onto a closed ticket in the
-                # meantime. Its trip holds a total someone confirmed, so the
-                # line does not move and the whole close is refused.
+                # Also unreachable today, for a different reason than the one
+                # above: getting here needs an item whose purchased_at is NULL
+                # while its trip is closed, and those two are always cleared
+                # together — un-purchasing detaches first, and is refused
+                # outright once the trip has ended. Answered anyway, because
+                # that invariant is kept in another router and nothing binds
+                # the two.
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Cannot add to a trip that has already been filed",
