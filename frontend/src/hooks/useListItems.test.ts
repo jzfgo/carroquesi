@@ -591,7 +591,7 @@ describe('useListItems — a read that lands after a write', () => {
         resolve = r
       }) as never,
     )
-    return () => resolve([item1, item2])
+    return (first: ListItem = item1) => resolve([first, item2])
   }
 
   function seedCache() {
@@ -671,6 +671,99 @@ describe('useListItems — a read that lands after a write', () => {
     await waitFor(() => expect(result.current.items).toHaveLength(1))
 
     expect(result.current.items[0].id).toBe('item-2')
+  })
+
+  // savePrice and clearItemPrice reach the server before they paint, so they
+  // stamp once where the others stamp twice. These pin that difference.
+  it('keeps a price logged while the initial read was in flight', async () => {
+    seedCache()
+    const landRead = pendingItemsRead()
+    vi.mocked(api.logPrice).mockResolvedValue(undefined as never)
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+    await act(async () => {
+      await result.current.savePrice('item-1', 1.5, null, 'Mercadona')
+    })
+    expect(result.current.items[0].price).toBe(1.5)
+
+    act(() => landRead())
+    await waitFor(() => expect(result.current.items).toHaveLength(2))
+
+    expect(result.current.items.find((i) => i.id === 'item-1')?.price).toBe(1.5)
+  })
+
+  it('keeps a price cleared while the initial read was in flight', async () => {
+    localStorage.setItem(
+      'cqs_list_cache_list-1',
+      JSON.stringify({
+        items: [{ ...item1, price: 1.5 }],
+        members: mockRawMembers,
+      }),
+    )
+    const landRead = pendingItemsRead()
+    vi.mocked(api.deletePrice).mockResolvedValue(undefined as never)
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+    await act(async () => {
+      await result.current.clearItemPrice('item-1')
+    })
+    expect(result.current.items[0].price).toBeNull()
+
+    // The read still carries the price it was logged with.
+    act(() => landRead({ ...item1, price: 1.5 }))
+    await waitFor(() => expect(result.current.items).toHaveLength(2))
+
+    expect(
+      result.current.items.find((i) => i.id === 'item-1')?.price,
+    ).toBeNull()
+  })
+
+  it('caches what is on screen, not the read the write raced', async () => {
+    seedCache()
+    const landRead = pendingItemsRead()
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    act(() => landRead())
+    await waitFor(() => expect(result.current.items).toHaveLength(2))
+
+    const cached = JSON.parse(
+      localStorage.getItem('cqs_list_cache_list-1') as string,
+    ) as { items: ListItem[]; members: unknown[] }
+    expect(cached.items.find((i) => i.id === 'item-1')?.purchased).toBe(true)
+    expect(cached.members).toHaveLength(1)
+  })
+
+  it('does not cache one list under the key of the next one', async () => {
+    localStorage.removeItem('cqs_list_cache_list-2')
+
+    const { result, rerender } = renderHook(
+      ({ id }) => useListItems(id, mockGetToken, mockShowToast),
+      { initialProps: { id: 'list-1' } },
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    // The second list is still reading, so its items are the first list's.
+    pendingItemsRead()
+    rerender({ id: 'list-2' })
+    await waitFor(() => expect(api.getListItems).toHaveBeenCalledTimes(2))
+
+    expect(localStorage.getItem('cqs_list_cache_list-2')).toBeNull()
   })
 
   it('applies the read when no write raced it', async () => {

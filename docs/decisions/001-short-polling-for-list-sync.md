@@ -36,6 +36,7 @@ Use short-polling: the frontend calls `GET /lists/{list_id}/updated-at` every 5 
 
 - **Accepted:** Up to 5s lag before a co-shopper sees a change.
 - **Accepted:** Slightly higher request volume vs. push-based approaches.
+- **Accepted:** A read can be in flight while the user writes, and it carries the list from before that write. Responses are therefore reconciled into the items on screen rather than replacing them (`frontend/src/lib/reconcileItems.ts`); any new read path has to do the same. The rule and the marking it depends on are in `AGENTS.md` under Frontend → Key conventions.
 - **Gained:** No persistent connection management, no WebSocket infra, no Firestore dependency.
 - **Watch:** If the app moves toward higher-frequency collaboration (e.g. live cursor positions, typing indicators), revisit WebSockets or SSE.
 - **Related:** [ADR-010](010-web-push-via-fcm.md) adds web push for out-of-app notifications. It complements this decision rather than replacing it — polling keeps an *open* app fresh, push reaches a *closed* one. Push is best-effort and unavailable to iOS users without an installed PWA, so it can never be relied on as a sync mechanism.

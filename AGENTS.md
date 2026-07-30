@@ -79,6 +79,8 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 - All data fetched from the FastAPI backend via REST
 - Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
 - Item writes go through an **offline queue**, not straight to the API: `useListItems` calls `enqueue()` (`lib/offlineQueue.ts`, IndexedDB store `cqs_offline`) and `useQueueDrain` replays ops on reconnect. Adding a new item mutation means adding a `QueuedOp` type and a drain branch — an API call that bypasses the queue silently loses the write offline
+- A list read **reconciles** into the items on screen (`lib/reconcileItems.ts`), it never replaces them. A read already in flight when the user writes carries the list from before that write, so painting it whole undoes the write. Every write in `useListItems` marks its item with `markWritten`, and a write that paints before it sends marks twice — at the paint and at the server's answer — because in between nobody knows whether the server applied it. A new mutation that skips `markWritten` reintroduces the revert, and nothing will fail
+- The list cache in `localStorage` is written from the items on screen, not from the read. It is what the next open paints before the network answers, so a read-shaped cache would put a raced write back on screen
 - When mocking modules with partial overrides (e.g. `react-router-dom`), use `importOriginal` to preserve unspecified exports. Plain `vi.mock('module', () => ({...}))` drops everything not listed and throws at runtime.
 - Environment constants are centralized in `frontend/src/lib/environment.ts`; import from there instead of accessing `import.meta.env` directly
 

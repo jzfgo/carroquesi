@@ -87,6 +87,10 @@ export function useListItems(
   // trusted for that item either.
   const writeClock = useRef(0)
   const writtenAt = useRef(new Map<string, number>())
+  const cachedMembers = useRef<{
+    listId: string
+    members: BackendMember[]
+  } | null>(null)
 
   const markWritten = useCallback((...itemIds: string[]) => {
     writeClock.current += 1
@@ -121,7 +125,7 @@ export function useListItems(
       rawMembers.forEach((m, i) => map.set(m.user_id, toMember(m, i)))
       setMembers(map)
       lastUpdatedAt.current = updatedAtData.updated_at
-      saveListCache(listId, { items: rawItems, members: rawMembers })
+      cachedMembers.current = { listId, members: rawMembers }
       setStatus('success')
     } catch {
       if (!cached) setStatus('error')
@@ -132,6 +136,20 @@ export function useListItems(
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchAll()
   }, [fetchAll])
+
+  // The next open paints this cache before the network answers, so it has to
+  // hold what is on screen, writes included. Saving the read instead would put
+  // a write the read raced back on screen for a moment.
+  //
+  // The stored list id says whose members these are: switching lists changes
+  // listId a render before the new items arrive, and without the check the
+  // previous list would be saved under the new key.
+  useEffect(() => {
+    const cached = cachedMembers.current
+    if (cached?.listId === listId) {
+      saveListCache(listId, { items, members: cached.members })
+    }
+  }, [items, listId])
 
   // 5-second polling: re-fetch items only when updated_at changes.
   // Skips requests while the tab is hidden to avoid unnecessary load;
