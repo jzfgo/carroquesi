@@ -441,3 +441,66 @@ describe('toPayload', () => {
     ])
   })
 })
+
+describe('toPayload and the unit with no price', () => {
+  const meta = {
+    store: 'Lidl',
+    purchasedAt: '2026-07-30T18:00:00',
+    purchaseId: null,
+    total: null,
+  }
+
+  it('drops the unit from an existing line that carries no price', () => {
+    const lines: CloseLine[] = [
+      {
+        key: '1',
+        itemId: 'a',
+        name: 'Tomates',
+        brand: null,
+        quantity: '1,12 kg',
+        price: null,
+        pricePer: 'KILOGRAM',
+        included: true,
+        fromCart: true,
+      },
+    ]
+
+    expect(toPayload(lines, meta).lines[0].price_per).toBeNull()
+  })
+
+  it('drops the unit from a new item that carries no price', () => {
+    const lines: CloseLine[] = [
+      {
+        key: 'n1',
+        itemId: null,
+        name: 'Tomates',
+        brand: null,
+        quantity: '1,12 kg',
+        price: null,
+        pricePer: 'KILOGRAM',
+        included: true,
+        fromCart: false,
+      },
+    ]
+
+    expect(toPayload(lines, meta).new_items[0].price_per).toBeNull()
+  })
+
+  it('keeps the unit when there is a price to apply it to', () => {
+    const lines: CloseLine[] = [
+      {
+        key: '1',
+        itemId: 'a',
+        name: 'Tomates',
+        brand: null,
+        quantity: '1,12 kg',
+        price: 2.49,
+        pricePer: 'KILOGRAM',
+        included: true,
+        fromCart: true,
+      },
+    ]
+
+    expect(toPayload(lines, meta).lines[0].price_per).toBe('KILOGRAM')
+  })
+})

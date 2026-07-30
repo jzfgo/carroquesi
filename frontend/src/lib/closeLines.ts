@@ -120,11 +120,16 @@ export function toPayload(
   const created: PurchaseNewItem[] = []
   for (const line of lines) {
     if (!line.included) continue
+    // A unit with no amount to apply it to is refused by the server, and it
+    // refuses the whole sheet, not the one row. No path builds that pair
+    // today, but the rule lives on the other side of the network where this
+    // code cannot see it, so the sheet does not rely on staying lucky.
+    const pricePer = line.price == null ? null : line.pricePer
     if (line.itemId) {
       existing.push({
         item_id: line.itemId,
         price: line.price,
-        price_per: line.pricePer,
+        price_per: pricePer,
         quantity: line.quantity,
       })
     } else {
@@ -133,7 +138,7 @@ export function toPayload(
         brand: line.brand,
         ean: null,
         price: line.price,
-        price_per: line.pricePer,
+        price_per: pricePer,
         quantity: line.quantity,
       })
     }
