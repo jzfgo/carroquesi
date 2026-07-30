@@ -18,6 +18,9 @@ export default defineConfig({
         name: 'CarroQueSí',
         short_name: 'Carroquesí',
         description: 'Lista de compra colaborativa',
+        // The manifest is its own document and does not inherit the page's
+        // lang. Left unset, the plugin fills in "en" over Spanish strings.
+        lang: 'es',
         theme_color: '#1a3fa0',
         background_color: '#eef1f5',
         display: 'standalone',

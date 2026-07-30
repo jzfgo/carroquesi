@@ -55,3 +55,16 @@ for (const { name: themeName, colorScheme } of THEMES) {
     })
   })
 }
+
+// A screen reader picks its pronunciation engine from `lang`. Nothing on
+// screen changes when it is wrong, so no screenshot can catch this. The
+// manifest is a second document with its own copy of the declaration, and
+// it is the one the OS reads for the installed app's name.
+test('declares Spanish on both documents it serves', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es')
+
+  const manifest = await page.request.get('/manifest.webmanifest')
+  expect(manifest.ok()).toBe(true)
+  expect((await manifest.json()).lang).toBe('es')
+})
