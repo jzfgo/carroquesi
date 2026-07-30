@@ -386,7 +386,10 @@ describe('AdjustItemSheet and a row the paper printed', () => {
     const price = screen.getByLabelText('Precio')
     price.focus()
 
-    expect(getComputedStyle(price).boxShadow).toBe('var(--focus-ring)')
+    // The sheet's own ring, so the inert field is ringed exactly like the
+    // fields either side of it. Still a witness: without the rule this reads
+    // `none`, from the suppression above it.
+    expect(getComputedStyle(price).boxShadow).toBe('var(--ais-ring)')
   })
 
   // The quantity is typed on a printed row like on any other, so it keeps the

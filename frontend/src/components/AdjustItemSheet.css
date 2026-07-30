@@ -1,4 +1,10 @@
 .ais {
+  /* This sheet rings its own fields rather than using the shared token, and
+     the read-only price has to match the fields it sits between — a wider or
+     differently coloured ring one tab stop along reads as a different kind of
+     control. Named once so the two rules cannot drift apart. */
+  --ais-ring: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+
   background: var(--paper-0);
   border-radius: 20px 20px 0 0;
   padding-bottom: max(env(safe-area-inset-bottom), 16px);
@@ -109,7 +115,7 @@
 .ais__input:focus,
 .ais__qty:focus,
 .ais__price:focus {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: var(--ais-ring);
 }
 
 /* An amount the paper printed is shown, not asked for, and the field has to
@@ -136,8 +142,11 @@
   box-shadow: none;
 }
 
+/* Must stay below the rule above: both weigh the same, so it is source order
+   that decides which wins, and moving this one up for tidiness would put the
+   ring back on the tap and take it off nothing. */
 .ais__price:read-only:focus-visible {
-  box-shadow: var(--focus-ring);
+  box-shadow: var(--ais-ring);
 }
 
 .ais__per {
