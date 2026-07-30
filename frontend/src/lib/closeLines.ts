@@ -172,7 +172,7 @@ export function receiptToLines(
 ): CloseLine[] {
   const byItem = new Map<string, CloseLine>()
   for (const r of rows) {
-    if (r.itemId != null && !byItem.has(r.itemId)) byItem.set(r.itemId, r)
+    if (r.itemId != null) byItem.set(r.itemId, r)
   }
 
   const paper: PaperLine[] = [
