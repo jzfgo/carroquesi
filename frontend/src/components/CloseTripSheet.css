@@ -1,0 +1,284 @@
+.cts {
+  background: var(--paper-lift);
+  border-radius: 20px 20px 0 0;
+  padding: 10px 0 18px;
+}
+
+.cts__handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 14px;
+  touch-action: none;
+}
+
+.cts__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px 14px;
+}
+
+/* Written as longhands, not as one `border` shorthand. A test reads this back
+   from the computed style, because a stroke this thin costs fewer pixels than
+   a screenshot's budget and could vanish unnoticed — and the parser that test
+   runs on drops a shorthand carrying a custom property. */
+.cts__thumb {
+  width: 44px;
+  height: 56px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border-width: 1.5px;
+  border-style: dashed;
+  border-color: var(--dash);
+}
+
+.cts__head-body {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.cts__title {
+  font-family: var(--heading);
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 400;
+  color: var(--ink-0);
+  margin: 0 0 8px;
+}
+
+.cts__pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cts__pill {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  background: var(--paper-sunken);
+  color: var(--ink-2);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.cts__pill--on {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.cts__pill--ask {
+  background: transparent;
+  border: 1px dashed var(--accent-border);
+  color: var(--accent);
+}
+
+.cts__date {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: none;
+  background: var(--paper-sunken);
+  color: var(--ink-1);
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
+.cts__pill-count {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.cts__new-store {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--paper-sunken);
+  color: var(--ink-0);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+}
+
+.cts__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 20px;
+  border-top: 1px solid var(--rule-line);
+  border-bottom: 1px solid var(--rule-line);
+}
+
+.cts__bar-count {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.cts__bar-all {
+  min-height: 44px;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.cts__row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto 72px 24px;
+  gap: 10px;
+  align-items: center;
+  min-height: 50px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--rule-line);
+}
+
+/* The row's first target. Painted at 24px and touched at 44px, the same way
+   the chevron on the other end of the row is. */
+.cts__check {
+  width: 24px;
+  height: 24px;
+  padding: 10px;
+  margin: -10px;
+  box-sizing: content-box;
+  accent-color: var(--accent);
+}
+
+.cts__name {
+  min-width: 0;
+  text-align: left;
+  font-size: 14px;
+  color: var(--ink-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cts__meta {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.cts__qty {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.cts__amount {
+  font-family: var(--mono);
+  font-size: 13px;
+  text-align: right;
+  color: var(--ink-0);
+}
+
+.cts__amount--none {
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+/* 24px painted, 44px touched — the row's second target, per the design rule
+   that every row has two targets and none is under 44px. */
+.cts__door {
+  width: 24px;
+  height: 24px;
+  padding: 10px;
+  margin: -10px;
+  box-sizing: content-box;
+  border: none;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.cts__add {
+  display: block;
+  width: calc(100% - 40px);
+  min-height: 44px;
+  margin: 12px 20px 0;
+  border: 1px dashed var(--accent-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.cts__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 20px 6px;
+}
+
+.cts__total-label {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.cts__total-amount {
+  font-family: var(--mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+.cts__save {
+  display: block;
+  width: calc(100% - 40px);
+  min-height: 48px;
+  margin: 8px 20px 0;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.cts__save:disabled {
+  opacity: 0.4;
+}
+
+.cts__offline {
+  font-size: 12px;
+  color: var(--ink-2);
+  text-align: center;
+  margin: 8px 20px 0;
+}
+
+.cts__cancel {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 4px;
+  border: none;
+  background: none;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
