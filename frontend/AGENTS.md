@@ -7,9 +7,26 @@
 > read a single instructions file — OpenCode and Codex pin `AGENTS.md` — should
 > open it directly when working on the frontend.
 
+## Unit tests (vitest)
+
+**Stylesheets are inert by default.** `getComputedStyle` in jsdom returns nothing for a rule that lives in a CSS file, so a test asserting a computed style passes whatever the stylesheet says — it is vacuous, not green. Opt a file in through `test.css.include` in `frontend/vite.config.ts`, one pattern at a time. Turning it on everywhere lets jsdom compute visibility from stylesheets across the whole suite, which can flip any existing visibility assertion.
+
+Two things to know before writing such a test:
+
+- **Prove it fails.** Delete the rule, watch the test go red, put it back. That is the only way to tell an applied stylesheet from an unapplied one.
+- **jsdom drops a shorthand containing `var()`.** `border: 1.5px dashed var(--ink-3)` parses to nothing; `border-width` / `border-style` / `border-color` as longhands works. Write the longhands and say why in a comment, or the next reader will tidy them back.
+
+This is worth reaching for when the thing under test is a small visual affordance. A screenshot cannot guard one: a 1.5 px dashed border costs fewer pixels than the tolerance, so it can vanish silently.
+
+**The clock is the machine's.** Playwright pins the browser's timezone; vitest does not, and nothing pins the date. A fixture holding a timestamp near "now" starts failing on its own overnight — `itemState` takes `now` as a parameter for exactly this reason, so pass it.
+
 ## E2E Testing (Playwright)
 
-Run with `just frontend test-e2e` (alias: `pnpm test:e2e`). Config: `frontend/playwright.config.ts`. Tests live in `frontend/tests/`.
+Run with `just frontend test-e2e` (alias: `pnpm test:e2e`; extra arguments reach playwright, so `--grep` and `--project` work). Config: `frontend/playwright.config.ts`. Tests live in `frontend/tests/`.
+
+**`fixtures.ts` runs in Node, the page runs on a pinned clock.** A route handler that stamps a response with its own `new Date()` writes the machine's date into a page that thinks it is some other day — and a purchase stamped in the page's future never reads as settled. Derive every instant in a handler from the request, never locally.
+
+**Scope queries to the thing under test.** The list screen carries a filter chip per shop and a store control on the input bar, so an unscoped `getByRole('button', { name: 'Mercadona' })` matches the filter rather than the sheet. Anchor on the component's own root.
 
 Key gotchas:
 
