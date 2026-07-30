@@ -6,32 +6,22 @@ import type {
   NewPurchasedItem,
   ReceiptScanResult,
 } from '../src/types'
-import rawData from './fixtures.json' with { type: 'json' }
-
-interface Fixtures {
-  ALICE: { id: string; [key: string]: unknown }
-  SEED_LISTS: ApiList[]
-  SEED_ITEMS: Record<string, ListItem[]>
-  SEED_MEMBERS: Record<string, BackendMember[]>
-  SEED_RECEIPT_RESULT: ReceiptScanResult
-}
-
-const data = rawData as Fixtures
+import data from './fixtures.json' with { type: 'json' }
 
 const BACKEND = 'http://localhost:8000'
 export const GEMINI_ENDPOINT_PATTERN =
   'https://firebasevertexai.googleapis.com/**'
 
-export const ALICE = data.ALICE
-export const SEED_LISTS = data.SEED_LISTS
-export const SEED_ITEMS = data.SEED_ITEMS
+export const ALICE: { id: string; [key: string]: unknown } = data.ALICE
+export const SEED_LISTS: ApiList[] = data.SEED_LISTS
+export const SEED_ITEMS: Record<string, ListItem[]> = data.SEED_ITEMS
 
-const SEED_MEMBERS = data.SEED_MEMBERS
+const SEED_MEMBERS: Record<string, BackendMember[]> = data.SEED_MEMBERS
 
 // A ReceiptScanSheet review, matching item-leche (existing price, gets updated)
 // and item-cafe (no price yet), plus one unmatched line — mirrors the shape
 // used in ReceiptScanSheet.test.tsx.
-export const SEED_RECEIPT_RESULT = data.SEED_RECEIPT_RESULT
+export const SEED_RECEIPT_RESULT = data.SEED_RECEIPT_RESULT as ReceiptScanResult
 
 // ── Route installer ───────────────────────────────────────────────────────────
 
@@ -73,6 +63,7 @@ export async function installApiMocks(page: Page): Promise<void> {
           ...body,
           id: `new-list-${Date.now()}`,
           owner_id: ALICE.id,
+          is_default: false,
           created_at: now,
           updated_at: now,
           item_count: 0,
@@ -187,7 +178,12 @@ export async function installApiMocks(page: Page): Promise<void> {
         const now = new Date().toISOString()
         // Mirrors the router: an impulse buy is born purchased, stamped with
         // the receipt's own instant when there is one.
-        const purchasedAt = naiveUtc(body.receipt_date || now)
+        const receiptDate = body.receipt_date
+          ? body.receipt_date.includes('T')
+            ? body.receipt_date
+            : body.receipt_date + 'T00:00:00'
+          : now
+        const purchasedAt = naiveUtc(receiptDate)
         const created = (body.new_items ?? []).map((n, idx) => ({
           id: `created-item-${idx}-${now}`,
           list_id: listId,

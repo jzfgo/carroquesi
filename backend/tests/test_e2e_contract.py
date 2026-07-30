@@ -39,7 +39,7 @@ def test_e2e_fixtures_match_backend_schemas():
         data = json.loads(content)
 
     for dt in re.findall(r'"\d{4}-\d{2}-\d{2}T[\d:.]+[^"]*"', content):
-        assert not dt.rstrip('"').endswith(("Z", "+00:00")), f"naive UTC only: {dt}"
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T[\d:.]+", dt.strip('"')), f"naive UTC only: {dt}"
 
     # 1. /users/me -> UserRead
     assert_exact(UserRead, data["ALICE"])
