@@ -291,6 +291,21 @@ describe('CloseTripSheet', () => {
     expect(totalText()).toMatch(/24[,.]00/)
   })
 
+  // One product cannot sit on two rows of one ticket: the payload would send
+  // it twice and the sheet would show it twice.
+  it('drops the row an answer took over', async () => {
+    const onEditLine = vi.fn(
+      (line: CloseLine, apply: (l: CloseLine, claimed?: string) => void) =>
+        apply({ ...line, itemId: 'i2', name: 'Pan' }, 'k2'),
+    )
+    renderSheet({ initialLines: [milk, bread], onEditLine })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ajustar Leche' }))
+
+    expect(screen.getAllByLabelText('Pan')).toHaveLength(1)
+    expect(screen.getByText('1 de 1')).toBeInTheDocument()
+  })
+
   it('adds something that was never on the list, once', async () => {
     const onEditLine = vi.fn((line: CloseLine, apply: (l: CloseLine) => void) =>
       apply({ ...line, name: 'Hielo', price: 1, quantity: '1' }),
@@ -648,6 +663,19 @@ describe('CloseTripSheet in ticket mode', () => {
     expect(payload.scan_id).toBe('scan-7')
     // Confirming a guess is what teaches a name, and nothing here confirms one.
     expect(payload.mappings).toEqual([])
+  })
+
+  // What the caller collected while the household answered the lines the
+  // matcher could not place. This is what teaches the app a name.
+  it('carries the answers it was given about the printed lines', async () => {
+    const mappings = [
+      { receipt_name: '2 YOGUR NATURAL', item_name: 'Yogur', item_brand: null },
+    ]
+    const { onSave } = renderTicket({ mappings })
+
+    await userEvent.click(save())
+
+    expect(onSave.mock.calls[0][0].mappings).toEqual(mappings)
   })
 
   it('names no scan when the close was written by hand', async () => {

@@ -10,7 +10,7 @@ import {
 } from '../lib/closeLines'
 import { formatPrice } from '../lib/formatPrice'
 import { madridDay, naiveUtcForMadridNoon } from '../lib/tripDay'
-import type { PurchaseClosePayload } from '../types'
+import type { PurchaseClosePayload, PurchaseNameMapping } from '../types'
 import './CloseTripSheet.css'
 import { CostBadge } from './CostBadge'
 
@@ -38,9 +38,19 @@ export interface CloseTripSheetProps {
   isOffline: boolean
   onSave: (payload: PurchaseClosePayload) => void | Promise<void>
   onClose: () => void
-  onEditLine?: (line: CloseLine, apply: (next: CloseLine) => void) => void
+  /** Open whatever answers a row. The caller is handed the rows as they stand,
+   *  because which sheet it opens and what that sheet may offer are both read
+   *  off them. */
+  onEditLine?: (
+    line: CloseLine,
+    apply: (next: CloseLine, claimed?: string) => void,
+    lines: CloseLine[],
+  ) => void
   /** The paper behind these rows, when one has been read. */
   receipt?: CloseReceipt | null
+  /** The printed lines somebody named a product for. The caller collects these
+   *  as the answers are given, because it is the caller that asks. */
+  mappings?: PurchaseNameMapping[]
   /** Whether this household can have a paper read at all. */
   canScan?: boolean
   /** Read a paper: the first one, or this one again. The caller picks the
@@ -72,6 +82,7 @@ export function CloseTripSheet({
   onClose,
   onEditLine,
   receipt,
+  mappings = [],
   canScan = false,
   onScan,
 }: CloseTripSheetProps) {
@@ -163,11 +174,15 @@ export function CloseTripSheet({
     setLines((prev) => prev.map((l) => ({ ...l, included: !allIncluded })))
   }
 
-  function apply(next: CloseLine) {
+  // `claimed` is a row the answer took over. One product cannot sit on two
+  // rows of one ticket: the payload would send it twice and the sheet would
+  // show it twice.
+  function apply(next: CloseLine, claimed?: string) {
     setLines((prev) => {
-      const at = prev.findIndex((l) => l.key === next.key)
-      if (at === -1) return [...prev, next]
-      const copy = [...prev]
+      const rest = claimed ? prev.filter((l) => l.key !== claimed) : prev
+      const at = rest.findIndex((l) => l.key === next.key)
+      if (at === -1) return [...rest, next]
+      const copy = [...rest]
       copy[at] = next
       return copy
     })
@@ -209,6 +224,7 @@ export function CloseTripSheet({
         fromCart: false,
       },
       apply,
+      lines,
     )
   }
 
@@ -237,9 +253,9 @@ export function CloseTripSheet({
           ? {
               ...payload,
               scan_id: paper.scanId,
-              // Confirming a guess is what teaches the app a name, and
-              // nothing here confirms one yet.
-              mappings: [],
+              // Only with the paper. Both fields are the scan's own, and a
+              // close that no longer names a scan may not carry either.
+              mappings,
             }
           : payload,
       )
@@ -438,7 +454,7 @@ export function CloseTripSheet({
                 ? 'Asignar'
                 : 'Ajustar'
             } ${rowLabel(line)}`}
-            onClick={() => onEditLine?.(line, apply)}
+            onClick={() => onEditLine?.(line, apply, lines)}
           >
             <ChevronRight size={18} />
           </button>

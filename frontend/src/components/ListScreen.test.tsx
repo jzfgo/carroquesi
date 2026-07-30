@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
@@ -8,14 +15,7 @@ import * as api from '../lib/api'
 import * as offlineQueue from '../lib/offlineQueue'
 import * as receiptAi from '../lib/receiptAi'
 import { madridDay } from '../lib/tripDay'
-import type {
-  BarcodeRead,
-  ListItem,
-  NameMapping,
-  NewPurchasedItem,
-  PricePatch,
-  ReceiptScanResult,
-} from '../types'
+import type { BarcodeRead, ListItem, ReceiptScanResult } from '../types'
 import { ListScreen } from './ListScreen'
 
 vi.mock('@undecaf/barcode-detector-polyfill', () => ({
@@ -29,16 +29,7 @@ vi.mock('@undecaf/barcode-detector-polyfill', () => ({
 // Shared fixtures referenced from vi.mock factories below — vi.mock calls are
 // hoisted above regular top-level const declarations, so anything a factory
 // closes over must come from vi.hoisted() to avoid a TDZ error at import time.
-const { mockNewItem, mockScannedProduct } = vi.hoisted(() => ({
-  mockNewItem: {
-    name: 'Cacahuetes dulces',
-    brand: 'Hacendado',
-    ean: null,
-    price: 3.15,
-    price_per: null,
-    store: 'Mercadona',
-    quantity: '1',
-  },
+const { mockScannedProduct } = vi.hoisted(() => ({
   mockScannedProduct: {
     ean: '8412345678901',
     name: 'Cacahuetes dulces',
@@ -80,8 +71,8 @@ vi.mock('./ListMembersSheet', () => ({
     </div>
   ),
 }))
-// Simulates the real scanner resolving a single fixed product, so tests can
-// drive the receipt-line-scan flow without a camera or barcode API.
+// Stands in for the camera, resolving a single fixed product, so a test can
+// drive the scan flow without a camera or a barcode API.
 vi.mock('./BarcodeScanner', () => ({
   BarcodeScanner: ({
     onResult,
@@ -93,51 +84,6 @@ vi.mock('./BarcodeScanner', () => ({
     </button>
   ),
 }))
-vi.mock('./ReceiptScanSheet', () => ({
-  default: ({
-    onConfirm,
-    onRequestScan,
-    pendingScan,
-    onDateCorrected,
-    dateConfirmed,
-  }: {
-    onConfirm: (
-      patches: PricePatch[],
-      mappings: NameMapping[],
-      newItems: NewPurchasedItem[],
-    ) => Promise<boolean>
-    onRequestScan?: (index: number) => void
-    pendingScan?: { index: number; product: BarcodeRead } | null
-    onDateCorrected?: (receiptDate: string) => void
-    dateConfirmed?: boolean
-  }) => (
-    <div>
-      {/* Surfaces the pendingScan this instance was mounted with, so tests
-          can prove a stale scan from a prior session doesn't leak in. */}
-      <div data-testid="mock-pending-scan">
-        {pendingScan ? pendingScan.product.ean : 'null'}
-      </div>
-      {/* Same idea for the date prompt's suppression flag: it has to survive
-          the remount a correction causes, but only when one actually took. */}
-      <div data-testid="mock-date-confirmed">{String(dateConfirmed)}</div>
-      {onDateCorrected && (
-        <button onClick={() => onDateCorrected('2026-07-21')}>
-          Corregir fecha (mock)
-        </button>
-      )}
-      <button onClick={() => void onConfirm([], [], [])}>
-        Confirmar (mock)
-      </button>
-      <button onClick={() => void onConfirm([], [], [mockNewItem])}>
-        Confirmar con artículo nuevo (mock)
-      </button>
-      {onRequestScan && (
-        <button onClick={() => onRequestScan(0)}>Escanear línea (mock)</button>
-      )}
-    </div>
-  ),
-}))
-
 const mockGetToken = vi.fn(async () => 'token')
 
 const emptyHookResult = {
@@ -963,284 +909,278 @@ describe('receipt scan CTA', () => {
   })
 })
 
-describe('receipt price confirmation toast', () => {
-  const mockScanResult: ReceiptScanResult = {
+// ---------------------------------------------------------------------------
+// Reading a paper. The scan no longer has a screen of its own: it fills the
+// close sheet, which is the one place a shop is written down.
+// ---------------------------------------------------------------------------
+
+describe('reading a paper into the close sheet', () => {
+  const SCAN: ReceiptScanResult = {
     scan_id: 'scan-1',
     store: 'Mercadona',
-    receipt_date: '2026-07-20',
-    receipt_total: 10,
-    matched: [],
-    unmatched: [],
-  }
-
-  beforeEach(() => {
-    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
-      store: 'Mercadona',
-      receipt_date: '2026-07-20',
-      receipt_total: 10,
-      lines: [],
-    })
-    vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
-  })
-
-  async function openReceiptSheetAndConfirm() {
-    const { container } = render(
-      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
-    )
-    const fileInput = container.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement
-    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
-    fireEvent.change(fileInput, { target: { files: [file] } })
-    fireEvent.click(await screen.findByText('Confirmar (mock)'))
-  }
-
-  it('reports only the price clause when nothing was created', async () => {
-    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
-      items_updated: 2,
-      items_created: 0,
-    })
-    await openReceiptSheetAndConfirm()
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('2 precios actualizados')
-    expect(alert).not.toHaveTextContent('artículo')
-  })
-
-  it('reports only the created-items clause when no prices changed', async () => {
-    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
-      items_updated: 0,
-      items_created: 3,
-    })
-    await openReceiptSheetAndConfirm()
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('3 artículos añadidos')
-    expect(alert).not.toHaveTextContent('precio')
-  })
-
-  it('reports both clauses when prices and new items are both present', async () => {
-    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
-      items_updated: 1,
-      items_created: 1,
-    })
-    await openReceiptSheetAndConfirm()
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('1 precio actualizado · 1 artículo añadido')
-  })
-
-  it('falls back to a neutral toast when nothing changed', async () => {
-    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
-      items_updated: 0,
-      items_created: 0,
-    })
-    await openReceiptSheetAndConfirm()
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('No se guardó nada')
-  })
-
-  it('calls submitReceiptPrices with the payload the sheet produced, not just a truthy shape', async () => {
-    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
-      items_updated: 0,
-      items_created: 1,
-    })
-    const { container } = render(
-      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
-    )
-    const fileInput = container.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement
-    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
-    fireEvent.change(fileInput, { target: { files: [file] } })
-    fireEvent.click(
-      await screen.findByText('Confirmar con artículo nuevo (mock)'),
-    )
-    await waitFor(() =>
-      expect(api.submitReceiptPrices).toHaveBeenCalledTimes(1),
-    )
-    // scan_id and receipt_date are asserted as distinct values on purpose —
-    // this is what would catch one being sent in the other's place.
-    expect(api.submitReceiptPrices).toHaveBeenCalledWith(
-      mockGetToken,
-      'list1',
+    // A scan answers with the hour the paper printed and the offset that
+    // places it. This is 19:12 UTC, which is the 20th in Madrid either way.
+    receipt_date: '2026-07-20T21:12:00+02:00',
+    receipt_total: 3.5,
+    matched: [
       {
-        scan_id: 'scan-1',
-        receipt_date: '2026-07-20',
-        patches: [],
-        new_items: [mockNewItem],
-        mappings: [],
+        index: 0,
+        receipt_name: 'LECHE HACENDADO',
+        item_id: 'i-leche',
+        item_name: 'Leche',
+        price_type: 'UNIT',
+        unit_price: 1.5,
+        quantity: null,
+        line_total: 1.5,
+        confirmed: false,
       },
-    )
-  })
-})
-
-describe('pendingScan session isolation', () => {
-  const mockScanResult: ReceiptScanResult = {
-    scan_id: 'scan-1',
-    store: 'Mercadona',
-    receipt_date: '2026-07-20',
-    receipt_total: 10,
-    matched: [],
-    unmatched: [],
+    ],
+    unmatched: [
+      {
+        index: 1,
+        receipt_name: '2 PAN DE PUEBLO',
+        price_type: 'UNIT',
+        unit_price: 2,
+        quantity: null,
+        line_total: 2,
+      },
+    ],
   }
 
   beforeEach(() => {
+    // jsdom has no object URLs, and the photograph is one: the screen mints it
+    // over the file that was picked, since nothing stores the image.
+    URL.createObjectURL = vi.fn(() => 'blob:paper')
+    URL.revokeObjectURL = vi.fn()
     vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
       store: 'Mercadona',
-      receipt_date: '2026-07-20',
-      receipt_total: 10,
+      receipt_date: '2026-07-20T21:12:00+02:00',
+      receipt_total: 3.5,
       lines: [],
     })
-    vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
-    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
-      items_updated: 1,
-      items_created: 0,
+    vi.mocked(api.submitParsedReceipt).mockResolvedValue(SCAN)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({ id: 'i-leche', name: 'Leche' }),
+        makeItem({ id: 'i-pan', name: 'Pan' }),
+      ],
     })
   })
 
-  it('does not leak a scanned product from one receipt session into the next', async () => {
-    const { container } = render(
-      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
-    )
-    const fileInput = container.querySelector(
+  function pickPaper(container: HTMLElement, name: string) {
+    const input = container.querySelector(
       'input[type="file"]',
     ) as HTMLInputElement
-
-    // Session 1: open the sheet, request a scan for a row, and let the
-    // (mocked) scanner resolve a product into it.
-    fireEvent.change(fileInput, {
-      target: { files: [new File(['x'], 'r1.jpg', { type: 'image/jpeg' })] },
+    fireEvent.change(input, {
+      target: { files: [new File(['x'], name, { type: 'image/jpeg' })] },
     })
-    fireEvent.click(await screen.findByText('Escanear línea (mock)'))
-    fireEvent.click(await screen.findByText('Escanear producto (mock)'))
-    expect(await screen.findByTestId('mock-pending-scan')).toHaveTextContent(
-      mockScannedProduct.ean,
-    )
+  }
 
-    // Confirm session 1 — the sheet unmounts.
-    fireEvent.click(screen.getByText('Confirmar (mock)'))
-    await waitFor(() =>
-      expect(api.submitReceiptPrices).toHaveBeenCalledTimes(1),
+  /** Reads a paper and waits for the sheet it fills. */
+  async function readPaper() {
+    const { container } = render(
+      <ListScreen listId="l1" listName="Test" listOwnerId="u1" />,
     )
+    pickPaper(container, 'r.jpg')
+    await screen.findByText('LECHE HACENDADO')
+    return container
+  }
 
-    // Session 2: a fresh scan session must start with no pendingScan.
-    fireEvent.change(fileInput, {
-      target: { files: [new File(['x'], 'r2.jpg', { type: 'image/jpeg' })] },
+  /** Answers the printed line the matcher could not place with the one row
+   *  still free. */
+  /** The close sheet. The list behind it names the same products, so a row
+   *  has to be asked for inside the sheet. */
+  function sheet() {
+    return within(document.querySelector('.cts') as HTMLElement)
+  }
+
+  async function resolvePan() {
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Asignar 2 PAN DE PUEBLO' }),
+    )
+    await userEvent.click(screen.getByRole('radio'))
+    await userEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+  }
+
+  async function save() {
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    )
+    await waitFor(() => expect(api.closePurchase).toHaveBeenCalled())
+    return vi.mocked(api.closePurchase).mock.calls[0][2]
+  }
+
+  it('lays what the paper printed over the sheet', async () => {
+    await readPaper()
+
+    // The paper leads on every row, and what the app believes sits under it.
+    expect(screen.getByText('LECHE HACENDADO')).toBeInTheDocument()
+    expect(screen.getByText('2 PAN DE PUEBLO')).toBeInTheDocument()
+    expect(screen.getByText('Asignar producto')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Mercadona' }),
+    ).toBeInTheDocument()
+  })
+
+  it('keeps the day the paper printed, not the day it was read', async () => {
+    await readPaper()
+
+    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-07-20')
+  })
+
+  it('mounts a fresh sheet when the paper is read again', async () => {
+    // Reading again replaces every row, and the sheet seeds its rows once, so
+    // the second scan can only land as a new sheet.
+    const container = await readPaper()
+    await userEvent.click(sheet().getByLabelText('Leche'))
+    expect(sheet().getByLabelText('Leche')).not.toBeChecked()
+
+    vi.mocked(api.submitParsedReceipt).mockResolvedValue({
+      ...SCAN,
+      scan_id: 'scan-2',
     })
-    expect(await screen.findByTestId('mock-pending-scan')).toHaveTextContent(
-      'null',
+    pickPaper(container, 'r2.jpg')
+
+    await waitFor(() => expect(sheet().getByLabelText('Leche')).toBeChecked())
+  })
+
+  it('discards the paper without starting the sheet again', async () => {
+    // The opposite promise: what was typed survives, so this one happens in
+    // place. A remount here would throw away the ticks and the prices.
+    await readPaper()
+    await userEvent.click(sheet().getByLabelText('Leche'))
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Qué hacer con el ticket' }),
     )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Descartar el ticket' }),
+    )
+
+    expect(screen.queryByText('LECHE HACENDADO')).not.toBeInTheDocument()
+    expect(sheet().getByLabelText('Leche')).not.toBeChecked()
+  })
+
+  it('offers both ways to read the paper again', async () => {
+    await readPaper()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Qué hacer con el ticket' }),
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Volver a leerlo' }),
+    )
+
+    expect(
+      screen.getByRole('button', { name: /Tomar foto/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('asks which product a printed line was, offering the rows still free', async () => {
+    await readPaper()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Asignar 2 PAN DE PUEBLO' }),
+    )
+
+    expect(
+      screen.getByRole('heading', { name: 'Asignar producto' }),
+    ).toBeInTheDocument()
+    // The milk row is spoken for by the line above it, so only the bread is
+    // offered.
+    expect(screen.getByText('Pendientes de asignar · 1')).toBeInTheDocument()
+    expect(screen.getByRole('radio')).toBeInTheDocument()
+  })
+
+  it('adjusts a row that already names a product', async () => {
+    await readPaper()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ajustar Leche' }))
+
+    expect(screen.getByText('Ajustar producto')).toBeInTheDocument()
+  })
+
+  it('takes the claimed row off the ticket', async () => {
+    // One product cannot sit on two rows of one ticket: the payload would
+    // send it twice and the sheet would show it twice.
+    await readPaper()
+
+    await resolvePan()
+
+    expect(sheet().getAllByLabelText('Pan')).toHaveLength(1)
+    expect(sheet().getByLabelText('Pan')).toBeChecked()
+  })
+
+  it('teaches the shop what the printed line was', async () => {
+    await readPaper()
+
+    await resolvePan()
+    const payload = await save()
+
+    expect(payload.scan_id).toBe('scan-1')
+    // As printed, leading number and all. The server keys these its own way,
+    // and spelling it twice is how the two spellings drift apart.
+    expect(payload.mappings).toEqual([
+      { receipt_name: '2 PAN DE PUEBLO', item_name: 'Pan', item_brand: null },
+    ])
+  })
+
+  it('names no scan and teaches nothing once the paper is discarded', async () => {
+    await readPaper()
+    await resolvePan()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Qué hacer con el ticket' }),
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Descartar el ticket' }),
+    )
+    const payload = await save()
+
+    expect(payload.scan_id).toBeUndefined()
+    expect(payload.mappings).toBeUndefined()
   })
 })
 
-describe('receipt date correction', () => {
-  const mockScanResult: ReceiptScanResult = {
-    scan_id: 'scan-1',
-    store: 'Mercadona',
-    receipt_date: '2026-07-20',
-    receipt_total: 10,
-    matched: [],
-    unmatched: [],
+describe('the camera on the close sheet', () => {
+  const inCart = makeItem({
+    id: 'i1',
+    name: 'Leche',
+    purchased: true,
+    purchased_at: TODAY,
+    purchase_id: 'open-trip',
+    purchase_ends_at: new Date(Date.now() + 3_600_000)
+      .toISOString()
+      .slice(0, 19),
+  })
+
+  async function openSheet(scanning: boolean) {
+    vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({
+      isEnabled: () => scanning,
+    })
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [inCart],
+    })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+    await userEvent.click(screen.getByRole('button', { name: /Cerrar compra/ }))
   }
 
-  beforeEach(() => {
-    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
-      store: 'Mercadona',
-      receipt_date: '2026-07-20',
-      receipt_total: 10,
-      lines: [],
-    })
-    vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
+  it('offers to read a paper when the household has scanning', async () => {
+    await openSheet(true)
+
+    expect(
+      screen.getByRole('button', { name: 'Escanear ticket' }),
+    ).toBeEnabled()
   })
 
-  async function openSheet() {
-    const { container } = render(
-      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
-    )
-    const fileInput = container.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement
-    fireEvent.change(fileInput, {
-      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
-    })
-    return screen.findByText('Corregir fecha (mock)')
-  }
+  it('does not offer it when the household has not', async () => {
+    await openSheet(false)
 
-  it('drops a pending scan when a correction re-matches', async () => {
-    // The corrected match replaces matched/unmatched wholesale and remounts
-    // the sheet, where appliedScan starts at null again — so a surviving
-    // pendingScan would reapply its product to whatever line now sits at
-    // that index. Same hazard the close path already guards against.
-    await openSheet()
-    fireEvent.click(await screen.findByText('Escanear línea (mock)'))
-    fireEvent.click(await screen.findByText('Escanear producto (mock)'))
-    expect(await screen.findByTestId('mock-pending-scan')).toHaveTextContent(
-      mockScannedProduct.ean,
-    )
-
-    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
-
-    await waitFor(() =>
-      expect(screen.getByTestId('mock-pending-scan')).toHaveTextContent('null'),
-    )
-  })
-
-  it('stops asking about a date the user corrected', async () => {
-    // The remount resets the sheet's own dismissal state, so without a flag
-    // held up here the user gets asked about the date they just typed.
-    const corrected = { ...mockScanResult, scan_id: 'scan-2' }
-    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(mockScanResult)
-    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(corrected)
-
-    await openSheet()
-    expect(screen.getByTestId('mock-date-confirmed')).toHaveTextContent('false')
-
-    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
-
-    await waitFor(() =>
-      expect(screen.getByTestId('mock-date-confirmed')).toHaveTextContent(
-        'true',
-      ),
-    )
-  })
-
-  it('keeps a pending scan when the re-match failed', async () => {
-    // The sheet never remounts on this path — no new scan_id — so the reapply
-    // hazard that motivates clearing it never arises. Dropping it anyway would
-    // make a transient failure cost the user a barcode they already scanned.
-    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(mockScanResult)
-    vi.mocked(api.submitParsedReceipt).mockRejectedValueOnce(
-      new Error('network'),
-    )
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    await openSheet()
-    fireEvent.click(await screen.findByText('Escanear línea (mock)'))
-    fireEvent.click(await screen.findByText('Escanear producto (mock)'))
-    expect(await screen.findByTestId('mock-pending-scan')).toHaveTextContent(
-      mockScannedProduct.ean,
-    )
-
-    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
-
-    await screen.findByRole('alert')
-    expect(screen.getByTestId('mock-pending-scan')).toHaveTextContent(
-      mockScannedProduct.ean,
-    )
-  })
-
-  it('keeps asking when the re-match failed', async () => {
-    // Nothing changed on screen, so suppressing the prompt would strand the
-    // misread date with nothing left pointing at it.
-    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(mockScanResult)
-    vi.mocked(api.submitParsedReceipt).mockRejectedValueOnce(
-      new Error('network'),
-    )
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    await openSheet()
-    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
-
-    await screen.findByRole('alert')
-    expect(screen.getByTestId('mock-date-confirmed')).toHaveTextContent('false')
+    expect(
+      screen.getByRole('button', { name: 'Escanear ticket' }),
+    ).toBeDisabled()
   })
 })
 
