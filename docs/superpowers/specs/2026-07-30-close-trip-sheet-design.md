@@ -236,9 +236,12 @@ Items absent from `lines` are untouched and stay in the cart.
 is only clamped forward, since a receipt records something that already
 happened however long ago.
 
-`PricePatch` and `NewPurchasedItem` move out of `backend/app/schemas/receipt.py`
-into a shared schema module. Both endpoints use them now, and leaving them in
-the receipt module would make the manual path look like a receipt feature.
+The close gets its own `PurchaseLine` and `PurchaseNewItem` rather than sharing
+the receipt module's `PricePatch` and `NewPurchasedItem`. The shapes look alike
+and are not: a receipt line always has a price and carries its own store, while
+a hand-written line may have **no** price and takes its store from the close.
+Sharing one schema would mean making the receipt path's price optional, which
+would let a priceless line through the endpoint whose whole job is prices.
 
 **This endpoint is not gated on `ai_receipt_scanning`.** That is the reason it
 exists: a household without the flag has no other way to declare a shop. The
