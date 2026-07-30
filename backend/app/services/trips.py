@@ -285,7 +285,13 @@ def detach(session: Session, item: ListItem) -> None:
 
 
 class NothingToClose(Exception):
-    """No open trip, or an empty cart. Closing nothing is not a thing that happened."""
+    """No open trip, or an empty cart. Closing nothing is not a thing that happened.
+
+    Also raised when a named `purchase_id` names no trip, names one on another
+    list, or names one already filed. That last case is not "nothing": the trip
+    exists and holds a total someone confirmed. It is simply not a trip this
+    call may close again.
+    """
 
 
 class NotInTheCart(Exception):
@@ -307,14 +313,25 @@ def close(
     cart; reconciling — here, or by scanning a receipt — is what says "these
     lines, that shop, this total". Because it takes a *subset*, two people who
     shopped at two shops on one evening each get their own ticket.
+
+    `purchase_id` names which trip to close. The parameter says "purchase"
+    because that is the row's name; a `Purchase` row is what this docstring
+    calls a trip. Without it, the list's open trip is the one that gets
+    closed. With it, any trip on the list can be — which is how a cart that
+    tore off at midnight, with nobody having said what it was, gets written
+    down the next morning.
+
+    Three cases raise `NothingToClose`. An id that matches no row, and an id
+    whose trip belongs to another list: both are refused the same way an
+    absent trip is. Membership was checked against `list_id`, not against a
+    trip id the caller simply supplied. The third is a trip already filed. Its
+    total is a figure someone confirmed for the lines it held then. Closing it
+    again would attach that total to a different set of lines.
     """
     now = now or _now()
     if purchase_id is None:
         trip = open_trip(session, list_id, now)
     else:
-        # Closing a trip that already tore off. A filed one is refused rather
-        # than re-filed: its total is a figure someone confirmed for the lines
-        # it held, and closing it again would restate that for a different set.
         trip = session.get(Purchase, purchase_id)
         if trip is not None and (trip.list_id != list_id or trip.closed_at is not None):
             trip = None
