@@ -83,22 +83,33 @@ function resizeImageFile(
       return
     }
 
+    let url: string
+    try {
+      url = URL.createObjectURL(file)
+    } catch {
+      resolve(null)
+      return
+    }
+
     let resolved = false
     const done = (val: string | null) => {
       if (resolved) return
       resolved = true
       clearTimeout(timer)
+      try {
+        URL.revokeObjectURL(url)
+      } catch {
+        /* ignore */
+      }
       resolve(val)
     }
 
-    const timer = setTimeout(() => done(null), 100)
+    const timer = setTimeout(() => done(null), 10000)
 
     try {
       const img = new Image()
-      const url = URL.createObjectURL(file)
       img.onload = () => {
         try {
-          URL.revokeObjectURL(url)
           let { width, height } = img
           if (
             !width ||
@@ -124,19 +135,12 @@ function resizeImageFile(
             return
           }
           ctx.drawImage(img, 0, 0, width, height)
-          done(canvas.toDataURL(file.type, 0.85))
+          done(canvas.toDataURL('image/jpeg', 0.85))
         } catch {
           done(null)
         }
       }
-      img.onerror = () => {
-        try {
-          URL.revokeObjectURL(url)
-        } catch {
-          /* ignore */
-        }
-        done(null)
-      }
+      img.onerror = () => done(null)
       img.src = url
     } catch {
       done(null)
@@ -231,14 +235,42 @@ async function generateContentWithRetry(
   let lastError: unknown
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      return await model.generateContent([filePart, PROMPT])
-    } catch (err) {
-      lastError = err
-      if (attempt < maxRetries) {
-        const delay = initialDelay * Math.pow(2, attempt)
-        if (delay > 0) {
-          await new Promise((resolve) => setTimeout(resolve, delay))
+      const result = await model.generateContent([filePart, PROMPT])
+      const text = result.response.text()
+      return JSON.parse(text) as {
+        store?: string | null
+        receipt_date?: string | null
+        receipt_time?: string | null
+        receipt_total?: number | null
+        lines: ParsedLine[]
+      }
+    } catch (error: unknown) {
+      lastError = error
+      const err = error as { message?: string; status?: number; code?: number }
+
+      let isTransient = false
+      if (error instanceof SyntaxError) {
+        isTransient = true
+      } else if (err?.message && err.message.includes('blocked')) {
+        isTransient = true
+      } else if (error instanceof TypeError && err.message?.match(/fetch|network/i)) {
+        isTransient = true
+      } else {
+        const status = err?.status || err?.code
+        if (status === 429 || status === 500 || status === 502 || status === 503 || status === 504) {
+          isTransient = true
+        } else if (err?.message && err.message.match(/\b(429|500|502|503|504)\b/)) {
+          isTransient = true
         }
+      }
+
+      if (!isTransient || attempt >= maxRetries) {
+        throw error
+      }
+
+      const delay = initialDelay * Math.pow(2, attempt)
+      if (delay > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delay))
       }
     }
   }
@@ -250,15 +282,7 @@ export async function parseReceiptWithAi(
   options?: ParseReceiptOptions,
 ): Promise<ReceiptScanRequest> {
   const filePart = await fileToInlinePart(file)
-  const result = await generateContentWithRetry(filePart, options)
-  const text = result.response.text()
-  const raw = JSON.parse(text) as {
-    store?: string | null
-    receipt_date?: string | null
-    receipt_time?: string | null
-    receipt_total?: number | null
-    lines: ParsedLine[]
-  }
+  const raw = await generateContentWithRetry(filePart, options)
   return {
     store: raw.store ?? null,
     receipt_date: toReceiptInstant(

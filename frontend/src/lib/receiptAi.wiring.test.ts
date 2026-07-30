@@ -35,6 +35,25 @@ describe('parseReceiptWithAi wiring', () => {
     vi.resetModules()
     mockGenerateContent.mockReset()
     mockGenerateContent.mockResolvedValue(successResponse)
+
+    // Ensure tests don't timeout waiting for 10s resize timeout
+    // jsdom doesn't load blob URLs, so mock Image to fire onerror instantly
+    vi.stubGlobal('Image', class {
+      width = 0
+      height = 0
+      onload: ((ev: Event) => void) | null = null
+      onerror: ((ev: Event) => void) | null = null
+      set src(_val: string) {
+        setTimeout(() => {
+          if (this.onerror) this.onerror(new Event('error'))
+        }, 0)
+      }
+    })
+    
+    if (typeof URL !== 'undefined') {
+      URL.createObjectURL = vi.fn(() => 'blob:test')
+      URL.revokeObjectURL = vi.fn()
+    }
   })
 
   it('converts receipt_date/receipt_time to a UTC instant, not the raw date', async () => {
@@ -92,5 +111,52 @@ describe('parseReceiptWithAi wiring', () => {
       parseReceiptWithAi(file, { maxRetries: 2, delayMs: 0 }),
     ).rejects.toThrow('500 Internal Server Error')
     expect(mockGenerateContent).toHaveBeenCalledTimes(3) // 1 initial + 2 retries
+  })
+
+  it('does not retry on 400 errors', async () => {
+    const { parseReceiptWithAi } = await import('./receiptAi')
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+
+    const err = new Error('400 Bad Request')
+    Object.assign(err, { status: 400 })
+    mockGenerateContent.mockRejectedValueOnce(err)
+
+    await expect(
+      parseReceiptWithAi(file, { maxRetries: 2, delayMs: 0 }),
+    ).rejects.toThrow('400 Bad Request')
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1)
+  })
+
+  describe('image resizing', () => {
+    beforeEach(() => {
+      const mockGetContext = vi.fn(() => ({
+        drawImage: vi.fn(),
+      }))
+      
+      HTMLCanvasElement.prototype.getContext = mockGetContext as unknown as typeof HTMLCanvasElement.prototype.getContext
+      HTMLCanvasElement.prototype.toDataURL = vi.fn(() => 'data:image/jpeg;base64,mock')
+    })
+
+    it('resizes an image exceeding maxDimension', async () => {
+      vi.stubGlobal('Image', class {
+        width = 2000
+        height = 1000
+        onload: ((ev: Event) => void) | null = null
+        onerror: ((ev: Event) => void) | null = null
+        set src(_val: string) {
+          setTimeout(() => {
+            if (this.onload) {
+              this.onload(new Event('load'))
+            }
+          }, 10)
+        }
+      })
+      
+      const { parseReceiptWithAi } = await import('./receiptAi')
+      const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+      
+      await parseReceiptWithAi(file)
+      expect(HTMLCanvasElement.prototype.toDataURL).toHaveBeenCalledWith('image/jpeg', 0.85)
+    })
   })
 })

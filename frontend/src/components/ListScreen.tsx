@@ -288,8 +288,14 @@ export function ListScreen({
 
       try {
         const result = await submitParsedReceipt(getToken, listId, parsed)
+        // Kept so a corrected date can be re-matched against the same lines
+        // without re-reading the image (another Gemini call, another chance
+        // for a transient error).
         setReceiptParsed(parsed)
         setReceiptScanResult(result)
+        // Belt-and-suspenders alongside the exit-path clears below: guarantees
+        // a fresh session never starts primed with a scan from a stale one,
+        // without depending on every exit path having been enumerated.
         setPendingScan(null)
         setReceiptDateConfirmed(false)
       } catch (e) {
