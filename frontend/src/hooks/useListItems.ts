@@ -194,6 +194,10 @@ export function useListItems(
           // that failed leaves the request standing, and one a write raced
           // renews it — the poll drops the same changes fetchAll does, because
           // a write already in flight can settle inside its own read.
+          //
+          // This asks the clock, while the merge above runs at the next render.
+          // A write settling in between is not counted, so treat the request as
+          // a close guess at what the merge kept rather than a report from it.
           rereadOnNextPoll.current = writeClock.current !== clockAtStart
         }
         lastUpdatedAt.current = data.updated_at
