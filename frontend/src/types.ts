@@ -124,6 +124,10 @@ export interface ReceiptScanRequest {
 }
 
 export interface MatchedLine {
+  /** Position in the `lines` array sent to the scan endpoint. The response
+   *  splits lines into `matched` and `unmatched`, which loses the order they
+   *  were printed in. This is what puts them back in order. */
+  index: number
   receipt_name: string
   item_id: string
   item_name: string
@@ -134,6 +138,8 @@ export interface MatchedLine {
 }
 
 export interface UnmatchedLine {
+  /** Position in the `lines` array sent to the scan endpoint. */
+  index: number
   receipt_name: string
   price_type: PriceType
   unit_price: number
@@ -212,6 +218,14 @@ export interface PurchaseNewItem {
   quantity?: string | null
 }
 
+/** Learned receipt→item name mapping for a purchase close. No `store`: a
+ *  ticket belongs to one shop, stated once as the close's own `store`. */
+export interface PurchaseNameMapping {
+  receipt_name: string
+  item_name: string
+  item_brand: string | null
+}
+
 export interface PurchaseClosePayload {
   purchase_id?: string | null
   store: string
@@ -219,4 +233,6 @@ export interface PurchaseClosePayload {
   total?: number | null
   lines: PurchaseLine[]
   new_items: PurchaseNewItem[]
+  scan_id?: string | null
+  mappings?: PurchaseNameMapping[]
 }

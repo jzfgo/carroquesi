@@ -180,6 +180,7 @@ export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
   receipt_total: 4.35,
   matched: [
     {
+      index: 0,
       receipt_name: 'LECHE HACENDADO',
       item_id: 'item-leche',
       item_name: 'Leche Hacendado',
@@ -189,6 +190,7 @@ export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
       line_total: 0.75,
     },
     {
+      index: 1,
       receipt_name: 'CAFE MOLIDO NESCAFE',
       item_id: 'item-cafe',
       item_name: 'Cafe molido Nescafe',
@@ -200,6 +202,7 @@ export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
   ],
   unmatched: [
     {
+      index: 2,
       receipt_name: 'PAN INTEGRAL',
       price_type: 'UNIT',
       unit_price: 1.0,

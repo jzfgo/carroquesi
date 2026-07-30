@@ -11,6 +11,7 @@ const mockResult: ReceiptScanResult = {
   receipt_total: 6.45,
   matched: [
     {
+      index: 0,
       receipt_name: 'BEBIDA ALMENDRAS 0%',
       item_id: 'item-1',
       item_name: 'Bebida de almendra 0% azúcares',
@@ -20,6 +21,7 @@ const mockResult: ReceiptScanResult = {
       line_total: 1.15,
     },
     {
+      index: 1,
       receipt_name: 'BACON LONCHAS',
       item_id: 'item-2',
       item_name: 'Bacon lonchas',
@@ -29,6 +31,7 @@ const mockResult: ReceiptScanResult = {
       line_total: 2.3,
     },
     {
+      index: 2,
       receipt_name: 'YOGUR NATURAL',
       item_id: 'item-3',
       item_name: 'Yogur natural',
@@ -40,6 +43,7 @@ const mockResult: ReceiptScanResult = {
   ],
   unmatched: [
     {
+      index: 3,
       receipt_name: 'MANI DULCE',
       price_type: 'UNIT',
       unit_price: 3.15,
