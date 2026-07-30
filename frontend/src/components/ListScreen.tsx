@@ -276,22 +276,25 @@ export function ListScreen({
         return
       }
       setReceiptUploading(true)
+      let parsed: ReceiptScanRequest
       try {
-        const parsed = await parseReceiptWithAi(file)
+        parsed = await parseReceiptWithAi(file)
+      } catch (e) {
+        console.error('Receipt scan AI read failed:', e)
+        setToast('No se pudo leer el ticket')
+        setReceiptUploading(false)
+        return
+      }
+
+      try {
         const result = await submitParsedReceipt(getToken, listId, parsed)
-        // Kept so a corrected date can be re-matched against the same lines
-        // without re-reading the image (another Gemini call, another chance
-        // for the transient 500 in JAV-51).
         setReceiptParsed(parsed)
         setReceiptScanResult(result)
-        // Belt-and-suspenders alongside the exit-path clears below: guarantees
-        // a fresh session never starts primed with a scan from a stale one,
-        // without depending on every exit path having been enumerated.
         setPendingScan(null)
         setReceiptDateConfirmed(false)
       } catch (e) {
-        console.error('Receipt scan failed:', e)
-        setToast('No se pudo leer el ticket')
+        console.error('Receipt scan submit failed:', e)
+        setToast('No se pudo procesar el ticket')
       } finally {
         setReceiptUploading(false)
       }

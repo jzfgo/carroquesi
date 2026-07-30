@@ -8,27 +8,33 @@ vi.mock('./firebase', () => ({
   ai: {},
 }))
 
+const mockGenerateContent = vi.fn()
+
 vi.mock('firebase/ai', () => ({
   InferenceMode: { PREFER_IN_CLOUD: 'prefer_in_cloud' },
   getGenerativeModel: () => ({
-    generateContent: async () => ({
-      response: {
-        text: () =>
-          JSON.stringify({
-            store: 'Mercadona',
-            receipt_date: '2026-07-12',
-            receipt_time: '17:42',
-            receipt_total: 1.15,
-            lines: [],
-          }),
-      },
-    }),
+    generateContent: (...args: unknown[]) => mockGenerateContent(...args),
   }),
 }))
 
 describe('parseReceiptWithAi wiring', () => {
+  const successResponse = {
+    response: {
+      text: () =>
+        JSON.stringify({
+          store: 'Mercadona',
+          receipt_date: '2026-07-12',
+          receipt_time: '17:42',
+          receipt_total: 1.15,
+          lines: [],
+        }),
+    },
+  }
+
   beforeEach(() => {
     vi.resetModules()
+    mockGenerateContent.mockReset()
+    mockGenerateContent.mockResolvedValue(successResponse)
   })
 
   it('converts receipt_date/receipt_time to a UTC instant, not the raw date', async () => {
@@ -57,5 +63,34 @@ describe('parseReceiptWithAi wiring', () => {
     expect(result.store).toBe('Mercadona')
     expect(result.receipt_total).toBe(1.15)
     expect(result.lines).toEqual([])
+  })
+
+  it('retries on transient errors and succeeds when a subsequent attempt succeeds', async () => {
+    const { parseReceiptWithAi } = await import('./receiptAi')
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+
+    // Simulate transient 500 error on first attempt, then success on second
+    mockGenerateContent
+      .mockRejectedValueOnce(new Error('500 Internal Server Error'))
+      .mockResolvedValueOnce(successResponse)
+
+    const result = await parseReceiptWithAi(file, { delayMs: 0 })
+
+    expect(mockGenerateContent).toHaveBeenCalledTimes(2)
+    expect(result.store).toBe('Mercadona')
+  })
+
+  it('fails after exhausting maxRetries on persistent errors', async () => {
+    const { parseReceiptWithAi } = await import('./receiptAi')
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+
+    mockGenerateContent.mockRejectedValue(
+      new Error('500 Internal Server Error'),
+    )
+
+    await expect(
+      parseReceiptWithAi(file, { maxRetries: 2, delayMs: 0 }),
+    ).rejects.toThrow('500 Internal Server Error')
+    expect(mockGenerateContent).toHaveBeenCalledTimes(3) // 1 initial + 2 retries
   })
 })

@@ -63,7 +63,101 @@ const model = getGenerativeModel(ai, {
   },
 })
 
+export interface ParseReceiptOptions {
+  maxRetries?: number
+  delayMs?: number
+}
+
+function resizeImageFile(
+  file: File,
+  maxDimension: number,
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (
+      typeof window === 'undefined' ||
+      typeof HTMLCanvasElement === 'undefined' ||
+      typeof URL === 'undefined' ||
+      typeof URL.createObjectURL !== 'function'
+    ) {
+      resolve(null)
+      return
+    }
+
+    let resolved = false
+    const done = (val: string | null) => {
+      if (resolved) return
+      resolved = true
+      clearTimeout(timer)
+      resolve(val)
+    }
+
+    const timer = setTimeout(() => done(null), 100)
+
+    try {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        try {
+          URL.revokeObjectURL(url)
+          let { width, height } = img
+          if (
+            !width ||
+            !height ||
+            (width <= maxDimension && height <= maxDimension)
+          ) {
+            done(null)
+            return
+          }
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width)
+            width = maxDimension
+          } else {
+            width = Math.round((width * maxDimension) / height)
+            height = maxDimension
+          }
+          const canvas = document.createElement('canvas')
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            done(null)
+            return
+          }
+          ctx.drawImage(img, 0, 0, width, height)
+          done(canvas.toDataURL(file.type, 0.85))
+        } catch {
+          done(null)
+        }
+      }
+      img.onerror = () => {
+        try {
+          URL.revokeObjectURL(url)
+        } catch {
+          /* ignore */
+        }
+        done(null)
+      }
+      img.src = url
+    } catch {
+      done(null)
+    }
+  })
+}
+
 async function fileToInlinePart(file: File) {
+  if (file.type.startsWith('image/')) {
+    try {
+      const resizedDataUrl = await resizeImageFile(file, 1600)
+      if (resizedDataUrl) {
+        const [header, base64] = resizedDataUrl.split(',')
+        const mimeType = header.match(/:(.*?);/)?.[1] || file.type
+        return { inlineData: { data: base64, mimeType } }
+      }
+    } catch {
+      // Ignore resizing errors and fall back to original file
+    }
+  }
+
   return new Promise<{ inlineData: { data: string; mimeType: string } }>(
     (resolve, reject) => {
       const reader = new FileReader()
@@ -127,11 +221,36 @@ export function toReceiptInstant(
   return dt.toISOString()
 }
 
+async function generateContentWithRetry(
+  filePart: { inlineData: { data: string; mimeType: string } },
+  options?: ParseReceiptOptions,
+) {
+  const maxRetries = options?.maxRetries ?? 2
+  const initialDelay = options?.delayMs ?? 500
+
+  let lastError: unknown
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await model.generateContent([filePart, PROMPT])
+    } catch (err) {
+      lastError = err
+      if (attempt < maxRetries) {
+        const delay = initialDelay * Math.pow(2, attempt)
+        if (delay > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delay))
+        }
+      }
+    }
+  }
+  throw lastError
+}
+
 export async function parseReceiptWithAi(
   file: File,
+  options?: ParseReceiptOptions,
 ): Promise<ReceiptScanRequest> {
   const filePart = await fileToInlinePart(file)
-  const result = await model.generateContent([filePart, PROMPT])
+  const result = await generateContentWithRetry(filePart, options)
   const text = result.response.text()
   const raw = JSON.parse(text) as {
     store?: string | null
