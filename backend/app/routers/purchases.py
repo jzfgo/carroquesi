@@ -50,9 +50,10 @@ def close_purchase(
     # attached by its own date would land in a trip this call is not closing,
     # and close() would reject it as not in the cart.
     #
-    # A purchase_id that resolves to nothing leaves the anchor at now. The
-    # refusal for that belongs to close(), which already makes it, and one
-    # place should decide it.
+    # A purchase_id nobody can resolve leaves the anchor at now, and one that
+    # names another list's trip anchors on that trip's day. Neither is checked
+    # here. The refusal for both belongs to close(), which already makes it,
+    # and one place should decide it. Nothing is committed on that path.
     anchor = now
     if body.purchase_id is not None:
         named = session.get(Purchase, body.purchase_id)

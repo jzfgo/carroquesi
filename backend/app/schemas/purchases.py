@@ -33,8 +33,9 @@ class PurchaseNewItem(BaseModel):
 
 
 class PurchaseClose(BaseModel):
-    # Absent means the trip that is still open. Named, it is a trip that
-    # already tore off and is only now being written down.
+    # Absent means the trip that is still open. Any unreconciled trip on the
+    # list can be named, including that same open one. The case it exists for
+    # is the other kind: a trip that already tore off, written down later.
     purchase_id: str | None = None
     # Required, and deliberately stricter than the receipt-review screen,
     # which allows an empty one. Whoever closes a purchase was there and
