@@ -169,6 +169,27 @@ two of them is how a receipt screen starts lying.
 11,31 while the button saves 11,16. That is not a defect to reconcile. It is the
 screen saying *the paper says this, and you are recording that much of it*.
 
+**Both sums add up the paper's own printed amounts. Neither recomputes them.**
+Every receipt line arrives with a `line_total` — the figure actually printed
+beside it — and that is what a ticket-mode row shows and what both sums add.
+Working the amount out instead, as unit price times quantity, is arithmetic the
+paper already did, and doing it again introduces error the paper never had: a
+weighed line's quantity is rounded to the gram to be displayed, so the product
+drifts by a few cents. That drift lands straight on the reconciliation disc,
+which goes amber and tells the household their receipt does not add up. It does
+add up. The app's arithmetic does not.
+
+Check it against `13a`'s own figures: `2,79 + 1,90 + 3,29 + 3,18 + 0,15` is
+exactly the `11,31` the disc calls green, and the primary's `11,16` is that less
+the unticked bag. Those are printed line totals being added, not products being
+recomputed.
+
+So `CloseLine` carries the paper's amount for a row that came from a paper, and
+the rule is the one rule 9 already states: where the paper printed a figure, the
+app repeats it and does not check its arithmetic. A hand-written row has no
+printed amount, so it keeps the existing per-unit arithmetic — that is the only
+place the multiplication belongs.
+
 This is why `linesTotal` is not inverted for ticket mode. Ticket mode needs a
 second, different sum — every receipt line — and a function that changed meaning
 by mode would make the two impossible to tell apart at the call site.
