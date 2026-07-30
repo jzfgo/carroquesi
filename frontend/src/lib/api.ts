@@ -3,6 +3,8 @@ import type {
   DueSuggestion,
   PriceEntry,
   PriceHistoryResponse,
+  Purchase,
+  PurchaseClosePayload,
   ReceiptPriceBatch,
   ReceiptScanRequest,
   ReceiptScanResult,
@@ -343,6 +345,30 @@ export function submitReceiptPrices(
     method: 'POST',
     body: JSON.stringify(batch),
   }) as Promise<{ items_updated: number; items_created: number }>
+}
+
+/** The list's trips, for the ticket headers. */
+export function getPurchases(
+  getToken: () => Promise<string>,
+  listId: string,
+): Promise<Purchase[]> {
+  return apiFetch(getToken, `/lists/${listId}/purchases`) as Promise<Purchase[]>
+}
+
+/**
+ * Say what a shop was: the store, the date, the lines, and whatever was bought
+ * without ever being on the list. One call carries the whole sheet so the whole
+ * act is a single entry in the offline queue.
+ */
+export function closePurchase(
+  getToken: () => Promise<string>,
+  listId: string,
+  payload: PurchaseClosePayload,
+): Promise<Purchase> {
+  return apiFetch(getToken, `/lists/${listId}/purchases/close`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }) as Promise<Purchase>
 }
 
 /**

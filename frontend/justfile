@@ -26,6 +26,10 @@ preview:
 test:
     {{ nvm-exec }} pnpm test
 
+# Run a single test file (usage: just frontend test-file src/path/to/file.test.ts)
+test-file file:
+    {{ nvm-exec }} pnpm exec vitest run {{ file }}
+
 # Run tests with coverage (vitest run --coverage)
 test-coverage:
     {{ nvm-exec }} pnpm test:coverage
@@ -34,9 +38,9 @@ test-coverage:
 test-watch:
     {{ nvm-exec }} pnpm test:watch
 
-# Run end-to-end tests (playwright test)
-test-e2e:
-    {{ nvm-exec }} pnpm test:e2e
+# Run end-to-end tests (playwright test); extra args reach playwright, e.g. --grep
+test-e2e *args:
+    {{ nvm-exec }} pnpm test:e2e {{ args }}
 
 # Regenerate Playwright visual-regression baselines in the container they all come from
 update-snapshots:

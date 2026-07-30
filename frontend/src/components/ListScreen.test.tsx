@@ -1,10 +1,13 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import * as api from '../lib/api'
+import * as offlineQueue from '../lib/offlineQueue'
 import * as receiptAi from '../lib/receiptAi'
+import { madridDay } from '../lib/tripDay'
 import type {
   BarcodeRead,
   ListItem,
@@ -63,6 +66,12 @@ vi.mock('../lib/firebase', () => ({
   messagingPromise: Promise.resolve(null),
 }))
 vi.mock('../lib/api')
+// Partial, not whole: useQueueDrain still needs the real getAll and remove,
+// and a bare factory would drop every export it does not name.
+vi.mock('../lib/offlineQueue', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/offlineQueue')>()),
+  enqueue: vi.fn(),
+}))
 vi.mock('../lib/receiptAi', () => ({ parseReceiptWithAi: vi.fn() }))
 vi.mock('./ListMembersSheet', () => ({
   ListMembersSheet: () => (
@@ -151,6 +160,9 @@ beforeEach(() => {
   // useListSeen fires on mount and chains .catch on the result; the api
   // automock would otherwise return undefined.
   vi.mocked(api.markListSeen).mockResolvedValue(null)
+  // usePurchases fires on mount and chains .then on the result; the api
+  // automock would otherwise return undefined.
+  vi.mocked(api.getPurchases).mockResolvedValue([])
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: {
       id: 'u1',
@@ -691,6 +703,74 @@ describe('cost totals', () => {
     expect(badges).toHaveLength(2)
     expect(badges.some((t) => t?.match(/3[,.]00/))).toBe(true)
     expect(badges.some((t) => t?.match(/7[,.]00/))).toBe(true)
+  })
+
+  it('hands the trips it read to the ticket headers', async () => {
+    // The wiring, not the rendering: without the prop the header still draws,
+    // it just falls back to the day and the sum, so nothing else notices.
+    vi.mocked(api.getPurchases).mockResolvedValue([
+      {
+        id: 'p1',
+        list_id: 'l1',
+        opened_at: YESTERDAY,
+        tears_off_at: YESTERDAY_ENDS_AT,
+        closed_at: YESTERDAY_ENDS_AT,
+        store: 'Lidl',
+        total: 14.6,
+      },
+    ])
+    renderWithItems([
+      makeItem({
+        id: '1',
+        purchased: true,
+        purchased_at: YESTERDAY,
+        purchase_id: 'p1',
+        purchase_ends_at: YESTERDAY_ENDS_AT,
+        price: 3.0,
+      }),
+    ])
+    await waitFor(() =>
+      expect(
+        document.querySelector('.item-list__date-label-cost')?.textContent,
+      ).toMatch(/14[,.]60/),
+    )
+    expect(
+      document.querySelector('.item-list__label-text')?.textContent,
+    ).toMatch(/^Lidl · /)
+  })
+
+  it('re-reads the trips when the items change, and not on every render', async () => {
+    // A trip only ever changes as part of an item write, so the items are the
+    // signal and there is no second poll. The item hook keeps the array's
+    // identity when a poll finds nothing new, which is what stops this from
+    // firing every five seconds.
+    const items = [makeItem({ id: '1' })]
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items,
+    })
+    // A fresh element each time: React bails out of re-rendering one it is
+    // handed back by identity, which would prove nothing.
+    const screenEl = () => (
+      <ListScreen listId="l1" listName="Test" listOwnerId="u1" />
+    )
+    // Counted against what mount left behind rather than against zero: the
+    // hook reads once for itself on mount, so the absolute figure says
+    // nothing about the rule under test.
+    const reads = () => vi.mocked(api.getPurchases).mock.calls.length
+    const view = render(screenEl())
+    await waitFor(() => expect(reads()).toBeGreaterThan(0))
+    const afterMount = reads()
+
+    view.rerender(screenEl())
+    expect(reads()).toBe(afterMount)
+
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [...items, makeItem({ id: '2' })],
+    })
+    view.rerender(screenEl())
+    await waitFor(() => expect(reads()).toBe(afterMount + 1))
   })
 })
 
@@ -1480,5 +1560,322 @@ describe('with no connection', () => {
     )
     expect(api.deleteList).not.toHaveBeenCalled()
     expect(onBack).not.toHaveBeenCalled()
+  })
+})
+
+describe('closing a trip', () => {
+  // In the cart: bought, on a trip that has not torn off yet.
+  const inCart = () =>
+    makeItem({
+      id: 'i1',
+      name: 'Leche',
+      purchased: true,
+      purchased_at: TODAY,
+      purchase_id: 'open-trip',
+      purchase_ends_at: new Date(Date.now() + 3_600_000)
+        .toISOString()
+        .slice(0, 19),
+    })
+
+  function renderWithCart() {
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [inCart()],
+    })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+  }
+
+  const openSheet = async () =>
+    userEvent.click(screen.getByRole('button', { name: /Cerrar compra/ }))
+
+  it('opens the close sheet from the cart stamp', async () => {
+    renderWithCart()
+
+    await openSheet()
+
+    expect(screen.getByText('Total de lo que has puesto')).toBeInTheDocument()
+  })
+
+  it('sends the close and puts the sheet away', async () => {
+    vi.mocked(api.closePurchase).mockResolvedValue({
+      id: 'p1',
+      list_id: 'l1',
+      opened_at: TODAY,
+      tears_off_at: TODAY,
+      closed_at: TODAY,
+      store: 'Lidl',
+      total: null,
+    })
+    renderWithCart()
+
+    await openSheet()
+    await userEvent.click(screen.getByRole('button', { name: 'Elegir tienda' }))
+    await userEvent.type(screen.getByLabelText('Tienda'), 'Lidl')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    )
+
+    await waitFor(() =>
+      expect(api.closePurchase).toHaveBeenCalledWith(
+        expect.anything(),
+        'l1',
+        expect.objectContaining({ store: 'Lidl' }),
+      ),
+    )
+    expect(
+      screen.queryByText('Total de lo que has puesto'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('dates the sheet from the shop, not from when it was opened', async () => {
+    // The whole shop happened offline, so no trip exists to read: the taps are
+    // queued too. Reading the clock would date a 23:40 shop as the next day if
+    // the sheet is opened after midnight, and the close would then ask the
+    // server for a day the lines are not in.
+    // A full day back, so the answer cannot coincide with today's date and
+    // pass while the fallback does nothing.
+    const lastNight = new Date(Date.now() - 26 * 3_600_000)
+      .toISOString()
+      .slice(0, 19)
+    vi.mocked(api.getPurchases).mockResolvedValue([])
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({
+          id: 'i1',
+          name: 'Leche',
+          purchased: true,
+          purchased_at: lastNight,
+          purchase_id: null,
+          purchase_ends_at: null,
+        }),
+      ],
+    })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    await openSheet()
+
+    expect(screen.getByLabelText('Fecha')).toHaveValue(madridDay(lastNight))
+    expect(screen.getByLabelText('Fecha')).not.toHaveValue(
+      madridDay(new Date().toISOString().slice(0, 19)),
+    )
+  })
+
+  it('ignores the shops this list did months ago', async () => {
+    // The items endpoint returns the whole history — every filed ticket's
+    // lines are still in it. Scanning all of them dates tonight's shop from
+    // the oldest one on record, which the server then clamps to a third day
+    // again and refuses.
+    const lastNight = new Date(Date.now() - 26 * 3_600_000)
+      .toISOString()
+      .slice(0, 19)
+    const monthsAgo = new Date(Date.now() - 90 * 86_400_000)
+      .toISOString()
+      .slice(0, 19)
+    vi.mocked(api.getPurchases).mockResolvedValue([])
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        // Settled long ago: still returned, still carries its purchased_at.
+        makeItem({
+          id: 'old',
+          name: 'Arroz',
+          purchased: true,
+          purchased_at: monthsAgo,
+          purchase_id: 'p-old',
+          purchase_ends_at: monthsAgo,
+        }),
+        // Tonight, tapped with no signal, so no trip exists for it yet.
+        makeItem({
+          id: 'i1',
+          name: 'Leche',
+          purchased: true,
+          purchased_at: lastNight,
+          purchase_id: null,
+          purchase_ends_at: null,
+        }),
+      ],
+    })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    await openSheet()
+
+    expect(screen.getByLabelText('Fecha')).toHaveValue(madridDay(lastNight))
+    expect(screen.getByLabelText('Fecha')).not.toHaveValue(madridDay(monthsAgo))
+  })
+
+  it('names the open trip, so a close replayed after midnight still lands', async () => {
+    // A null purchase_id means "whichever trip is open when the server reads
+    // this", and the queue exists so the server reads it later. Reconnect
+    // after the cart has torn off and that resolves to nothing, or to the
+    // wrong trip, and the drain throws the whole shop away.
+    vi.mocked(api.getPurchases).mockResolvedValue([
+      {
+        id: 'open-trip',
+        list_id: 'l1',
+        opened_at: TODAY,
+        tears_off_at: new Date(Date.now() + 3_600_000)
+          .toISOString()
+          .slice(0, 19),
+        closed_at: null,
+        store: null,
+        total: null,
+      },
+    ])
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    )
+    renderWithCart()
+
+    await openSheet()
+    await userEvent.click(screen.getByRole('button', { name: 'Elegir tienda' }))
+    await userEvent.type(screen.getByLabelText('Tienda'), 'Lidl')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    )
+
+    await waitFor(() =>
+      expect(offlineQueue.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({ purchase_id: 'open-trip' }),
+        }),
+      ),
+    )
+  })
+
+  it('keeps a close the network refused, rather than losing the shop', async () => {
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    )
+    renderWithCart()
+
+    await openSheet()
+    await userEvent.click(screen.getByRole('button', { name: 'Elegir tienda' }))
+    await userEvent.type(screen.getByLabelText('Tienda'), 'Lidl')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    )
+
+    await waitFor(() =>
+      expect(offlineQueue.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ listId: 'l1', type: 'closePurchase' }),
+      ),
+    )
+  })
+})
+
+describe('writing down a trip that already tore off', () => {
+  const TORN_OFF_ENDS = new Date(Date.now() - 3_600_000)
+    .toISOString()
+    .slice(0, 19)
+
+  /** Yesterday's shop: settled, but nobody ever said what it was. */
+  const unfiled = () =>
+    makeItem({
+      id: 'old',
+      name: 'Leche',
+      purchased: true,
+      purchased_at: YESTERDAY,
+      purchase_id: 'p1',
+      purchase_ends_at: TORN_OFF_ENDS,
+      price: 1.19,
+    })
+
+  const openTrip = () =>
+    makeItem({
+      id: 'today',
+      name: 'Pan',
+      purchased: true,
+      purchased_at: TODAY,
+      purchase_id: 'p2',
+      purchase_ends_at: new Date(Date.now() + 3_600_000)
+        .toISOString()
+        .slice(0, 19),
+    })
+
+  function renderWithUnfiledTicket(items = [unfiled()]) {
+    vi.mocked(api.getPurchases).mockResolvedValue([
+      {
+        id: 'p1',
+        list_id: 'l1',
+        opened_at: YESTERDAY,
+        tears_off_at: TORN_OFF_ENDS,
+        closed_at: null,
+        store: null,
+        total: null,
+      },
+    ])
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items,
+    })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+  }
+
+  it('opens the sheet on the trip’s own lines, not on today’s cart', async () => {
+    vi.mocked(api.closePurchase).mockResolvedValue({
+      id: 'p1',
+      list_id: 'l1',
+      opened_at: YESTERDAY,
+      tears_off_at: TORN_OFF_ENDS,
+      closed_at: TODAY,
+      store: 'Lidl',
+      total: null,
+    })
+    renderWithUnfiledTicket([unfiled(), openTrip()])
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /Cerrar compra/ }),
+      ).toBeInTheDocument(),
+    )
+    // Two stamps would be ambiguous; the cart's rubric is the other one.
+    await userEvent.click(
+      screen.getAllByRole('button', { name: /Cerrar compra/ })[1],
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Elegir tienda' }))
+    await userEvent.type(screen.getByLabelText('Tienda'), 'Lidl')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    )
+
+    // The whole point: the sheet carried p1's line and named p1, so the
+    // server can find it in that trip's cart. Sending today's Pan instead
+    // would come back 400 and file nothing.
+    await waitFor(() =>
+      expect(api.closePurchase).toHaveBeenCalledWith(
+        expect.anything(),
+        'l1',
+        expect.objectContaining({
+          purchase_id: 'p1',
+          lines: [expect.objectContaining({ item_id: 'old' })],
+        }),
+      ),
+    )
+  })
+
+  it('keeps the sheet open when the close is refused', async () => {
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new api.ApiError(400, 'Some items are not in the trip being closed'),
+    )
+    renderWithUnfiledTicket()
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /Cerrar compra/ }),
+      ).toBeInTheDocument(),
+    )
+    await userEvent.click(screen.getByRole('button', { name: /Cerrar compra/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Elegir tienda' }))
+    await userEvent.type(screen.getByLabelText('Tienda'), 'Lidl')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    )
+
+    // Everything typed into it is seeded once and lives in its own state, so
+    // unmounting here would throw the shop away over a failure the household
+    // cannot act on.
+    await waitFor(() => expect(api.closePurchase).toHaveBeenCalled())
+    expect(screen.getByText('Total de lo que has puesto')).toBeInTheDocument()
   })
 })

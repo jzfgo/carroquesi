@@ -183,3 +183,40 @@ export interface ReceiptPriceBatch {
   new_items: NewPurchasedItem[]
   mappings: NameMapping[]
 }
+
+/** Purchase ("trip") Types */
+
+export interface Purchase {
+  id: string
+  list_id: string
+  opened_at: string
+  tears_off_at: string
+  closed_at: string | null
+  store: string | null
+  total: number | null
+}
+
+export interface PurchaseLine {
+  item_id: string
+  price?: number | null
+  price_per?: 'KILOGRAM' | null
+  quantity?: string | null
+}
+
+export interface PurchaseNewItem {
+  name: string
+  brand?: string | null
+  ean?: string | null
+  price?: number | null
+  price_per?: 'KILOGRAM' | null
+  quantity?: string | null
+}
+
+export interface PurchaseClosePayload {
+  purchase_id?: string | null
+  store: string
+  purchased_at?: string | null
+  total?: number | null
+  lines: PurchaseLine[]
+  new_items: PurchaseNewItem[]
+}

@@ -8,11 +8,13 @@ import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
 import { useListSeen } from '../hooks/useListSeen'
 import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
+import { usePurchases } from '../hooks/usePurchases'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useQueueDrain } from '../hooks/useQueueDrain'
 import { useTearOff } from '../hooks/useTearOff'
 import {
   ApiError,
+  closePurchase,
   deleteList,
   getBarcode,
   getDueSuggestions,
@@ -22,11 +24,14 @@ import {
   submitReceiptPrices,
   updateList,
 } from '../lib/api'
+import { buildLines, type CloseLine } from '../lib/closeLines'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
 import { computeCostSummary } from '../lib/itemCost'
 import { itemState } from '../lib/itemState'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
+import { isNetworkError } from '../lib/networkError'
+import { enqueue } from '../lib/offlineQueue'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
 import { parseReceiptWithAi } from '../lib/receiptAi'
@@ -37,13 +42,16 @@ import type {
   NameMapping,
   NewPurchasedItem,
   PricePatch,
+  PurchaseClosePayload,
   ReceiptScanRequest,
   ReceiptScanResult,
   Suggestion,
   TagField,
 } from '../types'
+import { AdjustItemSheet } from './AdjustItemSheet'
 import { BarcodeScanner } from './BarcodeScanner'
 import { BarcodeScanSheet } from './BarcodeScanSheet'
+import { CloseTripSheet } from './CloseTripSheet'
 import { DueSuggestionsSheet } from './DueSuggestionsSheet'
 import { FilterBar } from './FilterBar'
 import { ItemActionSheet } from './ItemActionSheet'
@@ -272,6 +280,141 @@ export function ListScreen({
   // a memo keyed on `items` alone cache-hits straight through the boundary,
   // because at a tear-off no item changes — only the time does.
   const now = useTearOff(items)
+
+  const { byId: purchasesById, refresh: refreshPurchases } = usePurchases(
+    listId,
+    getToken,
+  )
+
+  // Which trip the close sheet is writing down. A null purchaseId means the
+  // one still open, which is what the cart's own stamp opens.
+  const [closingTrip, setClosingTrip] = useState<{
+    purchaseId: string | null
+  } | null>(null)
+  const [editingLine, setEditingLine] = useState<{
+    line: CloseLine
+    apply: (next: CloseLine) => void
+  } | null>(null)
+
+  // A trip only changes as part of an item write, so the items' own refresh is
+  // the signal. No second poll. The item hook keeps the array's identity when
+  // a poll finds nothing new, so this does not fire every five seconds.
+  useEffect(() => {
+    refreshPurchases()
+  }, [items, refreshPurchases])
+
+  // Where this household has shopped before, newest first. Suggestions only —
+  // nothing is preselected, because the app does not know where you went.
+  const storeSuggestions = useMemo(() => {
+    const byNewest = [...items].sort((a, b) =>
+      (b.purchased_at ?? '').localeCompare(a.purchased_at ?? ''),
+    )
+    const seen: string[] = []
+    for (const item of byNewest) {
+      if (item.price_store && !seen.includes(item.price_store)) {
+        seen.push(item.price_store)
+      }
+    }
+    return seen.slice(0, 4)
+  }, [items])
+
+  // The list's live trip, if the read has landed.
+  const openTrip = useMemo(
+    () =>
+      [...purchasesById.values()].find(
+        (p) => p.closed_at === null && Date.parse(`${p.tears_off_at}Z`) > now,
+      ),
+    [purchasesById, now],
+  )
+
+  // The trip being closed knows its own day, so the date comes from the trip
+  // rather than from the clock. Only a trip nobody has recorded falls back to
+  // now.
+  const closingDefaultDate = useMemo(() => {
+    if (!closingTrip) return ''
+    const named =
+      closingTrip.purchaseId === null
+        ? undefined
+        : purchasesById.get(closingTrip.purchaseId)
+    // Nothing known about a trip: the whole shop happened offline, so no trip
+    // exists server-side yet. The taps still carry their own instants, and the
+    // earliest of them is when this shop started. Reading the clock instead
+    // would date the sheet by when it was *opened* — shop at 23:40, sit down
+    // at 00:05, and the close asks the server for a day the lines are not in.
+    // Only the rows this sheet holds. The items endpoint returns the list's
+    // whole history — every filed ticket's lines are still in here, which is
+    // what the receipt sheets below are drawn from — so scanning all of them
+    // would date tonight's shop from one months ago, and the server would then
+    // clamp that to a third day again.
+    const earliestTap = items
+      .filter((i) => itemState(i, now) === 'cart')
+      .map((i) => i.purchased_at)
+      .filter((at): at is string => at !== null)
+      .sort()[0]
+    return (
+      named?.opened_at ??
+      openTrip?.opened_at ??
+      earliestTap ??
+      new Date(now).toISOString().slice(0, 19)
+    )
+  }, [closingTrip, purchasesById, openTrip, items, now])
+
+  const handleCloseTrip = useCallback(
+    async (unnamed: PurchaseClosePayload) => {
+      // Name the trip even when closing the one that is open.
+      //
+      // A null purchase_id means "whichever trip is open when the server
+      // reads this", and the queue exists precisely so the server reads it
+      // later. Shop at 23:40 with no signal, reconnect after midnight, and
+      // that cart has torn off: the server finds no open trip, or finds
+      // today's and refuses lines belonging to last night's. Either way the
+      // op is dropped and the whole shop goes with it.
+      //
+      // Naming it here pins the answer to the moment the household pressed
+      // the button, and a torn-off trip that nobody filed is exactly what
+      // close() was taught to accept in this phase. Online this resolves to
+      // the same row it would have found anyway.
+      //
+      // The sheet's *rows* still come from cart state, not from this id: an
+      // item tapped offline has no purchase_id yet, and matching on one would
+      // drop it from the very sheet meant to rescue it.
+      const payload: PurchaseClosePayload =
+        unnamed.purchase_id == null && openTrip
+          ? { ...unnamed, purchase_id: openTrip.id }
+          : unnamed
+      try {
+        await closePurchase(getToken, listId, payload)
+      } catch (err) {
+        if (!isNetworkError(err)) {
+          // The sheet stays up. Its rows are seeded once and live in its own
+          // state, so closing it here would throw away every price typed,
+          // every quantity corrected and every product added by hand — for a
+          // reason the household can do nothing about. Leaving it open costs
+          // one more tap and keeps the shop.
+          setToast('No se pudo guardar la compra')
+          return
+        }
+        // Principle 3: never lose a write. The sheet is the whole shop, and
+        // the phone is most likely offline in the aisle where it was filled
+        // in, so it waits in the queue instead of being refused.
+        try {
+          await enqueue({ listId, type: 'closePurchase', payload })
+        } catch {
+          // No queue either — private browsing, or no quota left. Say so and
+          // leave the sheet up, because it is now the only copy of the shop.
+          setToast('No se pudo guardar la compra')
+          return
+        }
+        setClosingTrip(null)
+        setToast('Se guardará cuando vuelva la conexión')
+        return
+      }
+      setClosingTrip(null)
+      retry()
+      refreshPurchases()
+    },
+    [getToken, listId, openTrip, retry, refreshPurchases],
+  )
 
   const { pendingCount } = useQueueDrain({
     listId,
@@ -832,6 +975,9 @@ export function ListScreen({
         onClone={handleCloneItem}
         pendingCost={pendingCost}
         purchasedCostByTrip={purchasedCostByTrip}
+        purchases={purchasesById}
+        onCloseTrip={() => setClosingTrip({ purchaseId: null })}
+        onCloseFiledTrip={(purchaseId) => setClosingTrip({ purchaseId })}
         footer={
           !receiptScanResult && isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
             /* A way in, not a prompt. It used to appear only once the list
@@ -1070,6 +1216,40 @@ export function ListScreen({
             </>
           )
         })()}
+
+      {closingTrip && (
+        <>
+          <div className="sheet-overlay" onClick={() => setClosingTrip(null)} />
+          <div className="sheet-container">
+            <CloseTripSheet
+              initialLines={buildLines(items, now, closingTrip.purchaseId)}
+              storeSuggestions={storeSuggestions}
+              defaultDate={closingDefaultDate}
+              purchaseId={closingTrip.purchaseId}
+              isOffline={isOffline}
+              onSave={handleCloseTrip}
+              onClose={() => setClosingTrip(null)}
+              onEditLine={(line, apply) => setEditingLine({ line, apply })}
+            />
+          </div>
+        </>
+      )}
+
+      {editingLine && (
+        <>
+          <div className="sheet-overlay" onClick={() => setEditingLine(null)} />
+          <div className="sheet-container">
+            <AdjustItemSheet
+              line={editingLine.line}
+              onDone={(next) => {
+                editingLine.apply(next)
+                setEditingLine(null)
+              }}
+              onClose={() => setEditingLine(null)}
+            />
+          </div>
+        </>
+      )}
 
       <input
         ref={fileInputRef}

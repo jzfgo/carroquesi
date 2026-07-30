@@ -1,36 +1,70 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 
+class PurchaseLine(BaseModel):
+    """One ticked row of the close sheet.
+
+    Unlike a receipt's PricePatch, `price` is optional: leaving a line without
+    an amount is a legitimate outcome, and no amount is invented for it. The
+    store is not here either — a ticket belongs to one shop, so it is stated
+    once on the close.
+    """
+
+    item_id: str
+    price: float | None = None
+    price_per: Literal["KILOGRAM"] | None = None
+    # The quantity actually bought. Writes purchased_quantity; the planned
+    # quantity the household typed is left alone.
+    quantity: str | None = None
+
+
+class PurchaseNewItem(BaseModel):
+    """Something bought that was never on the list. Born already purchased."""
+
+    # 200 is a guess. ItemCreate.name is unbounded, so this is stricter than
+    # the ordinary way to add an item, for no reason beyond bounding a field
+    # that arrives in a list of up to 200 of them.
+    name: str = Field(min_length=1, max_length=200)
+    brand: str | None = None
+    ean: str | None = None
+    price: float | None = None
+    price_per: Literal["KILOGRAM"] | None = None
+    quantity: str | None = None
+
+
 class PurchaseClose(BaseModel):
-    # None means "everything in the cart" — the ordinary one-shop evening.
-    # A list means "this shop was these lines", which is what turns two
-    # simultaneous shops into two tickets.
-    # 200 is a guess, not a convention carried over from elsewhere — same
-    # spirit as `store`'s max_length below. No real cart approaches this;
-    # it exists only to bound the one field here that can carry an
-    # unbounded payload (`store` and `total` are both already bounded).
-    item_ids: list[str] | None = Field(default=None, max_length=200)
-    # 100 is a guess, not a convention carried over from elsewhere -- no
-    # other user-supplied string field in this codebase is length-bounded at
-    # the schema level (checked app/schemas/, app/db/models.py, and every
-    # alembic migration). It exists only to keep an unbounded paste from
-    # landing in the ticket header this renders in. The `purchases.store`
-    # column itself stays an unbounded String() -- this is an input guard,
-    # not a schema change, and needs no migration.
-    store: str | None = Field(default=None, max_length=100)
+    # Absent means the trip that is still open. Any unreconciled trip on the
+    # list can be named, including that same open one. The case it exists for
+    # is the other kind: a trip that already tore off, written down later.
+    purchase_id: str | None = None
+    # Required, and deliberately stricter than the receipt-review screen,
+    # which allows an empty one. Whoever closes a purchase was there and knows
+    # the shop. The only trip that can end up without a store is one nobody
+    # ever closed, which tears off on its own at midnight.
+    store: str = Field(min_length=1, max_length=100)
+    # The date control. Absent means now.
+    purchased_at: datetime | None = None
+    # The figure printed on the paper, never the sum of the lines. A close
+    # done by hand has no paper and leaves this NULL, which is what makes the
+    # ticket header print an approximation instead of a figure.
+    #
     # Deliberately unconstrained here -- no `ge=0`, no `allow_inf_nan=False`.
-    # Both range and finiteness are checked in close_purchase
-    # (routers/purchases.py) instead: a NaN input fails `ge=0` too (NaN
-    # comparisons are always False in IEEE 754), so *any* Pydantic constraint
-    # that can reject total for being NaN crashes FastAPI's own
-    # validation-error handler when it tries to echo the rejected value back
-    # in the 422 body -- Starlette's JSONResponse serializes with
-    # allow_nan=False. Confirmed empirically. The only way to avoid that for
-    # every non-finite input is to never let Pydantic raise on this field at
-    # all, and check it in plain Python once it's already a value we hold.
+    # Both range and finiteness are checked in close_purchase instead: a NaN
+    # input fails `ge=0` too (NaN comparisons are always False in IEEE 754),
+    # so *any* Pydantic constraint that can reject total for being NaN
+    # crashes FastAPI's own validation-error handler when it tries to echo
+    # the rejected value back in the 422 body -- Starlette's JSONResponse
+    # serializes with allow_nan=False. Confirmed empirically. `store` above
+    # is safe to constrain because a bounded string has no such value.
     total: float | None = None
+    # 200 is a guess, not a convention carried over from elsewhere. No real
+    # cart approaches it; it exists only to bound the two fields here that
+    # can carry an unbounded payload.
+    lines: list[PurchaseLine] = Field(default_factory=list, max_length=200)
+    new_items: list[PurchaseNewItem] = Field(default_factory=list, max_length=200)
 
 
 class PurchaseRead(BaseModel):

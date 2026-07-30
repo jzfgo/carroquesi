@@ -4,6 +4,7 @@ import type {
   ListItem,
   Member,
   NewPurchasedItem,
+  Purchase,
   ReceiptScanResult,
 } from '../src/types'
 
@@ -217,6 +218,13 @@ export async function installApiMocks(page: Page): Promise<void> {
   // straight after applying prices, and would otherwise never see it at all.
   const createdItems: Record<string, ListItem[]> = {}
 
+  // Trips this list has filed, newest first, and what closing them did to the
+  // items they named. Both live here rather than in SEED_ITEMS because that
+  // array is module-level: writing to it would carry one test's closed ticket
+  // into the next one. Keyed by item id, merged on the way out.
+  const purchases: Record<string, Purchase[]> = {}
+  const filedItems: Record<string, Partial<ListItem>> = {}
+
   // The backend stores naive UTC and the client re-attaches the 'Z' when
   // parsing (itemCost.ts), so timestamps here must carry no zone suffix.
   //
@@ -301,10 +309,9 @@ export async function installApiMocks(page: Page): Promise<void> {
   /** The quartet a just-filed purchase carries: the tap instant, the trip it
    *  joined, that trip's effective end, and whether the trip has been closed
    *  by hand -- all naive-UTC strings, no 'Z', except the last. A fresh tap
-   *  always joins an open trip (nothing in this mock ever calls
-   *  /purchases/close), so purchase_filed is always false here -- but the
-   *  field must still be present, the same as the real response always
-   *  carries it. */
+   *  always joins an *open* trip, so purchase_filed is false here. Closing a
+   *  purchase is what turns it true, and that route writes its own override
+   *  rather than going through this. */
   const purchaseFieldsFor = (listId: string, instant: Date) => ({
     purchased_at: naiveUtc(instant.toISOString()),
     purchase_id: purchaseIdFor(listId, instant),
@@ -388,6 +395,7 @@ export async function installApiMocks(page: Page): Promise<void> {
               purchase_ends_at: null,
               purchase_filed: false,
               ...i,
+              ...filedItems[i.id],
             })),
           )
         if (method === 'POST') {
@@ -443,6 +451,56 @@ export async function installApiMocks(page: Page): Promise<void> {
           ...SEED_RECEIPT_RESULT,
           receipt_date: body.receipt_date ?? SEED_RECEIPT_RESULT.receipt_date,
         })
+      }
+
+      // /lists/:id/purchases (the trips behind the ticket headers)
+      if (sub === '/purchases' && method === 'GET') {
+        return json(purchases[listId] ?? [])
+      }
+
+      // /lists/:id/purchases/close
+      if (sub === '/purchases/close' && method === 'POST') {
+        const body = (req.postDataJSON() ?? {}) as {
+          store: string
+          total?: number | null
+          purchased_at?: string | null
+          lines?: { item_id: string; price?: number | null }[]
+        }
+        // Every instant here comes from the request, never from `new Date()`.
+        // This handler runs in Node, where the clock is the machine's, while
+        // the page's is pinned by the spec — so a locally-made timestamp lands
+        // in the page's future and the lines never read as filed.
+        const instant = body.purchased_at
+          ? parseNaiveUtc(body.purchased_at)
+          : new Date()
+        const closedAt = naiveUtc(instant.toISOString())
+        const trip: Purchase = {
+          id: `trip-closed-${(purchases[listId] ?? []).length + 1}`,
+          list_id: listId,
+          opened_at: naiveUtc(instant.toISOString()),
+          // Closed by hand, so it stopped taking items now rather than at
+          // midnight — which is what makes its lines read as filed.
+          tears_off_at: naiveUtc(tearsOffAtFor(instant).toISOString()),
+          closed_at: closedAt,
+          store: body.store,
+          total: body.total ?? null,
+        }
+        purchases[listId] = [trip, ...(purchases[listId] ?? [])]
+        for (const line of body.lines ?? []) {
+          filedItems[line.item_id] = {
+            purchased: true,
+            purchased_at: naiveUtc(instant.toISOString()),
+            purchase_id: trip.id,
+            // Closed by hand, so the trip stopped taking items when it was
+            // written down rather than at midnight.
+            purchase_ends_at: closedAt,
+            purchase_filed: true,
+            ...(line.price != null
+              ? { price: line.price, price_store: body.store }
+              : {}),
+          }
+        }
+        return json(trip)
       }
 
       // /lists/:id/receipt-prices (apply reviewed prices)

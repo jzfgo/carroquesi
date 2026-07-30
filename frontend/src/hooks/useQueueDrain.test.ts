@@ -148,6 +148,250 @@ describe('useQueueDrain — drain on reconnect', () => {
     )
   })
 
+  it('drains a queued close through closePurchase', async () => {
+    await enqueue({
+      listId: 'l1',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        purchased_at: '2026-07-30T18:00:00',
+        purchase_id: null,
+        total: null,
+        lines: [{ item_id: 'a', price: 1.19, price_per: null, quantity: null }],
+        new_items: [],
+      },
+    })
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(api.closePurchase).toHaveBeenCalledWith(
+        mockGetToken,
+        'l1',
+        expect.objectContaining({ store: 'Lidl' }),
+      ),
+    )
+  })
+
+  it('rewrites a queued close that names an item created offline', async () => {
+    vi.mocked(api.createItem).mockResolvedValue({ id: 'real-1' } as never)
+
+    // Both ops land in the same millisecond otherwise, and the drain sorts by
+    // the enqueue time. A tie leaves the order to the random ids the queue is
+    // stored under, and the close only maps the temp id if the add ran first.
+    const clock = vi.spyOn(Date, 'now')
+    clock.mockReturnValue(1000)
+    await enqueue({
+      listId: 'l1',
+      tempId: 'tmp-1',
+      type: 'addItem',
+      payload: { name: 'Leche' },
+    })
+    clock.mockReturnValue(2000)
+    await enqueue({
+      listId: 'l1',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        purchased_at: '2026-07-30T18:00:00',
+        purchase_id: null,
+        total: null,
+        lines: [
+          { item_id: 'tmp-1', price: 1.19, price_per: null, quantity: null },
+        ],
+        new_items: [],
+      },
+    })
+    clock.mockRestore()
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(api.closePurchase).toHaveBeenCalledWith(
+        mockGetToken,
+        'l1',
+        expect.objectContaining({
+          lines: [
+            { item_id: 'real-1', price: 1.19, price_per: null, quantity: null },
+          ],
+        }),
+      ),
+    )
+  })
+
+  it('says a whole shop was lost, not that one change failed', async () => {
+    await enqueue({
+      listId: 'l1',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        purchased_at: '2026-07-30T18:00:00',
+        purchase_id: null,
+        total: null,
+        lines: [{ item_id: 'a', price: 1.19, price_per: null, quantity: null }],
+        new_items: [],
+      },
+    })
+    // Someone else filed the trip first. Not a network error, so the op is
+    // dropped — and what goes with it is the store, the date, every price
+    // typed and everything added by hand. "1 change" does not describe that.
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new api.ApiError(409, 'nothing to close'),
+    )
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'No se pudo guardar una compra. Vuelve a cerrarla',
+      ),
+    )
+  })
+
+  // Two shops in one evening is a case this app is built for, so the plural
+  // is the branch the counter exists to serve — and it was the one nothing
+  // rendered.
+  it('agrees in number when two shops were lost', async () => {
+    for (const store of ['Lidl', 'Mercadona']) {
+      await enqueue({
+        listId: 'l1',
+        type: 'closePurchase',
+        payload: {
+          store,
+          purchased_at: '2026-07-30T18:00:00',
+          purchase_id: null,
+          total: null,
+          lines: [
+            { item_id: 'a', price: 1.19, price_per: null, quantity: null },
+          ],
+          new_items: [],
+        },
+      })
+    }
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new api.ApiError(409, 'nothing to close'),
+    )
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'No se pudieron guardar 2 compras. Vuelve a cerrarlas',
+      ),
+    )
+  })
+
+  // The two counts move independently, so the plural verb must not be keyed
+  // off the wrong one.
+  it('counts one stray change beside two lost shops', async () => {
+    for (const store of ['Lidl', 'Mercadona']) {
+      await enqueue({
+        listId: 'l1',
+        type: 'closePurchase',
+        payload: {
+          store,
+          purchased_at: '2026-07-30T18:00:00',
+          purchase_id: null,
+          total: null,
+          lines: [
+            { item_id: 'a', price: 1.19, price_per: null, quantity: null },
+          ],
+          new_items: [],
+        },
+      })
+    }
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: { name: 'Pan' },
+    })
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new api.ApiError(409, 'nothing to close'),
+    )
+    vi.mocked(api.createItem).mockRejectedValue(
+      new api.ApiError(422, 'unprocessable'),
+    )
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'No se pudieron guardar 2 compras, ni 1 cambio más. Vuelve a cerrarlas',
+      ),
+    )
+  })
+
+  // One shop and something else. The verb stays singular: the subject comes
+  // after it, and a postposed subject joined by "ni" takes the singular. This
+  // is the row that decides the rule, so it needs rendering somewhere.
+  it('keeps the verb singular for one shop lost beside a change', async () => {
+    await enqueue({
+      listId: 'l1',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        purchased_at: '2026-07-30T18:00:00',
+        purchase_id: null,
+        total: null,
+        lines: [{ item_id: 'a', price: 1.19, price_per: null, quantity: null }],
+        new_items: [],
+      },
+    })
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: { name: 'Pan' },
+    })
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new api.ApiError(409, 'nothing to close'),
+    )
+    vi.mocked(api.createItem).mockRejectedValue(
+      new api.ApiError(422, 'unprocessable'),
+    )
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'No se pudo guardar una compra, ni 1 cambio más. Vuelve a cerrarla',
+      ),
+    )
+  })
+
+  // The other count has a plural of its own, and every case above happens to
+  // leave it at one.
+  it('counts more than one stray change', async () => {
+    await enqueue({
+      listId: 'l1',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        purchased_at: '2026-07-30T18:00:00',
+        purchase_id: null,
+        total: null,
+        lines: [{ item_id: 'a', price: 1.19, price_per: null, quantity: null }],
+        new_items: [],
+      },
+    })
+    for (const name of ['Pan', 'Leche']) {
+      await enqueue({ listId: 'l1', type: 'addItem', payload: { name } })
+    }
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new api.ApiError(409, 'nothing to close'),
+    )
+    vi.mocked(api.createItem).mockRejectedValue(
+      new api.ApiError(422, 'unprocessable'),
+    )
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'No se pudo guardar una compra, ni 2 cambios más. Vuelve a cerrarla',
+      ),
+    )
+  })
+
   it('does not drain ops for a different listId', async () => {
     vi.mocked(api.createItem).mockResolvedValue({} as never)
     await enqueue({

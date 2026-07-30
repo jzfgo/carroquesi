@@ -46,6 +46,18 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/vitest.setup.ts'],
     globals: true,
+    // Stylesheets are inert in tests by default, so a rule can be deleted and
+    // every test still passes. One rule cannot afford that: the close sheet's
+    // dashed paper slot is a small affordance, and a border thinner than the
+    // visual-regression budget can vanish without costing enough pixels to
+    // fail a screenshot. Its test reads the computed style instead, which
+    // needs the real file applied to the document.
+    //
+    // Named one file at a time on purpose. Turning this on everywhere would
+    // let jsdom compute visibility from stylesheets across the whole suite,
+    // which can flip any existing visibility assertion — a suite-wide change
+    // bought for a single border.
+    css: { include: [/CloseTripSheet\.css$/] },
     // Reset every mock's implementation between tests, not just its recorded
     // calls. `vi.clearAllMocks()` — which most files call in `beforeEach` — only
     // does the latter, so a test that parks a mock on a promise that never

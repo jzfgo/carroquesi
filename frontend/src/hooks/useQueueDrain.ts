@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { createItem, deleteItem, updateItem } from '../lib/api'
+import { closePurchase, createItem, deleteItem, updateItem } from '../lib/api'
 import { isNetworkError } from '../lib/networkError'
 import { getAll, remove } from '../lib/offlineQueue'
-import type { ListItem } from '../types'
+import type { ListItem, PurchaseClosePayload } from '../types'
 
 interface Params {
   listId: string
@@ -48,6 +48,7 @@ export function useQueueDrain({
 
     const tempIdMap = new Map<string, string>()
     let failures = 0
+    let lostShops = 0
 
     for (const op of myOps) {
       try {
@@ -68,17 +69,58 @@ export function useQueueDrain({
           const realId = tempIdMap.get(p.itemId)
           if (realId) p = { ...p, itemId: realId }
           await deleteItem(getToken, op.listId, p.itemId)
+        } else if (op.type === 'closePurchase') {
+          const p = op.payload as PurchaseClosePayload
+          // An item added offline is named by its temp id here, because the
+          // sheet was closed before the add had ever reached the server.
+          const lines = p.lines.map((line) => {
+            const realId = tempIdMap.get(line.item_id)
+            return realId ? { ...line, item_id: realId } : line
+          })
+          await closePurchase(getToken, op.listId, { ...p, lines })
         }
         await remove(op.id)
       } catch (err) {
         if (isNetworkError(err)) break
         await remove(op.id)
         failures++
+        // A dropped row is one row, and it is still on screen. A dropped
+        // close is the whole shop — the store, the date, every price typed
+        // and everything added by hand — and after this it exists nowhere.
+        // Counting it as "1 change" tells the household almost nothing about
+        // what they just lost.
+        if (op.type === 'closePurchase') lostShops++
       }
     }
 
     onDrainedRef.current()
-    if (failures > 0) {
+    if (lostShops > 0) {
+      // The shops are the bigger loss and get the sentence, but they must not
+      // swallow the count of everything else that went with them. Two shops in
+      // one evening is a case this app is built for, so two lost ones must not
+      // read as one.
+      const others = failures - lostShops
+      const many = lostShops > 1
+      const shops = many ? `${lostShops} compras` : 'una compra'
+      // The verb and the pronoun on "cerrarla" both agree with the shops, and
+      // with nothing else. Counting the other lost changes into the verb as
+      // well is tempting — more than one thing was lost — but the subject
+      // sits after the verb here, and a postposed subject joined by "ni"
+      // takes the singular in Spanish. It would put a plural verb straight
+      // against "una compra". One rule, the same one the branch below uses.
+      const lead = many ? 'No se pudieron guardar' : 'No se pudo guardar'
+      // The instruction is the only part of this the household can act on,
+      // so it belongs on both branches. Being told a shop was lost without
+      // being told to close it again is a report of something unrecoverable.
+      const again = many ? 'Vuelve a cerrarlas' : 'Vuelve a cerrarla'
+      showToastRef.current(
+        others > 0
+          ? `${lead} ${shops}, ni ${others} ${
+              others === 1 ? 'cambio más' : 'cambios más'
+            }. ${again}`
+          : `${lead} ${shops}. ${again}`,
+      )
+    } else if (failures > 0) {
       showToastRef.current(
         `${failures} ${failures === 1 ? 'cambio no se pudo' : 'cambios no se pudieron'} sincronizar`,
       )

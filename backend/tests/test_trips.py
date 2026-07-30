@@ -750,3 +750,79 @@ def test_closing_an_explicit_full_selection_takes_the_in_place_path(
     assert closed.id == before
     assert closed.closed_at == datetime(2026, 7, 28, 20, 0)
     assert closed.store == "Lidl"
+
+
+def test_closing_a_named_trip_files_one_that_already_tore_off(
+    session: Session, lst: List, user: User
+):
+    # Yesterday's cart, torn off at Madrid midnight with nobody reconciling
+    # it, written down the next morning.
+    yesterday = datetime(2026, 7, 29, 18, 0)
+    items = _cart(session, lst, user, ["Leche"], yesterday)
+    trip_id = items[0].purchase_id
+
+    closed = trips.close(
+        session,
+        lst.id,
+        [items[0].id],
+        "Lidl",
+        None,
+        now=datetime(2026, 7, 30, 10, 0),
+        purchase_id=trip_id,
+    )
+    session.commit()
+
+    assert closed.id == trip_id
+    assert closed.store == "Lidl"
+    # Closed after its own tear-off, which is the whole point: no new trip is
+    # invented for this morning, the old one is finally said out loud.
+    assert closed.closed_at == datetime(2026, 7, 30, 10, 0)
+    assert closed.closed_at > closed.tears_off_at
+    assert len(session.exec(select(Purchase)).all()) == 1
+
+
+def test_closing_a_trip_that_is_already_filed_is_refused(session: Session, lst: List, user: User):
+    when = datetime(2026, 7, 29, 18, 0)
+    # The filed trip keeps its line. With an empty cart, the emptiness alone
+    # would raise NothingToClose and the refusal below would prove nothing.
+    items = _cart(session, lst, user, ["Leche"], when)
+    trip = session.get(Purchase, items[0].purchase_id)
+    trip.closed_at = datetime(2026, 7, 29, 21, 0)
+    trip.store = "Lidl"
+    session.add(trip)
+    session.commit()
+
+    with pytest.raises(trips.NothingToClose):
+        trips.close(
+            session,
+            lst.id,
+            None,
+            "Mercadona",
+            None,
+            now=datetime(2026, 7, 30, 10, 0),
+            purchase_id=trip.id,
+        )
+
+
+def test_closing_a_trip_belonging_to_another_list_is_refused(
+    session: Session, lst: List, user: User
+):
+    # The id is the only thing a caller supplies, and membership was checked
+    # against the list in the path, not against this trip. Without the
+    # list_id check, guessing an id would file another household's ticket.
+    other = List(name="Otra", owner_id=user.id)
+    session.add(other)
+    session.commit()
+    session.refresh(other)
+    theirs = _cart(session, other, user, ["Leche"], datetime(2026, 7, 29, 18, 0))
+
+    with pytest.raises(trips.NothingToClose):
+        trips.close(
+            session,
+            lst.id,
+            None,
+            "Lidl",
+            None,
+            now=datetime(2026, 7, 30, 10, 0),
+            purchase_id=theirs[0].purchase_id,
+        )

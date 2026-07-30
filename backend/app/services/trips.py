@@ -164,6 +164,30 @@ def open_trip(session: Session, list_id: str, now: datetime | None = None) -> Pu
     ).first()
 
 
+def unfiled_trip_for(session: Session, list_id: str, instant: datetime) -> Purchase | None:
+    """The list's unreconciled trip for `instant`'s local day, if it has one.
+
+    `trip_for` without the insert. Same lookup, same (list, local day) key —
+    but a trip that does not exist is an answer here rather than something to
+    create, because the callers that ask this are closing a shop, and a shop
+    with no trip behind it never happened.
+
+    Unlike `open_trip`, this does not require the trip to still be running.
+    For `instant = now` the two agree: today's trip tears off at the next
+    local midnight, which is by definition still ahead. They part company on a
+    past instant, which is the case that matters — a trip that tore off with
+    nobody reconciling it is invisible to `open_trip` and is exactly what a
+    close queued last night and drained this morning is looking for.
+    """
+    return session.exec(
+        select(Purchase).where(
+            Purchase.list_id == list_id,
+            Purchase.closed_at.is_(None),
+            Purchase.tears_off_at == tears_off_at_for(instant),
+        )
+    ).first()
+
+
 # How far back a client-supplied tap time may reach. Long enough for a phone
 # that was offline over a holiday, short enough that a broken clock cannot
 # invent a trip in another year.
@@ -285,7 +309,13 @@ def detach(session: Session, item: ListItem) -> None:
 
 
 class NothingToClose(Exception):
-    """No open trip, or an empty cart. Closing nothing is not a thing that happened."""
+    """No open trip, or an empty cart. Closing nothing is not a thing that happened.
+
+    Also raised when a named `purchase_id` names no trip, names one on another
+    list, or names one already filed. That last case is not "nothing": the trip
+    exists and holds a total someone confirmed. It is simply not a trip this
+    call may close again.
+    """
 
 
 class NotInTheCart(Exception):
@@ -299,6 +329,8 @@ def close(
     store: str | None,
     total: float | None,
     now: datetime | None = None,
+    purchase_id: str | None = None,
+    at: datetime | None = None,
 ) -> Purchase:
     """Declare what a shop was.
 
@@ -306,9 +338,93 @@ def close(
     cart; reconciling — here, or by scanning a receipt — is what says "these
     lines, that shop, this total". Because it takes a *subset*, two people who
     shopped at two shops on one evening each get their own ticket.
+
+    `purchase_id` names which trip to close. The parameter says "purchase"
+    because that is the row's name; a `Purchase` row is what this docstring
+    calls a trip. Without it, the list's open trip is the one that gets
+    closed. With it, any trip on the list can be — which is how a cart that
+    tore off at midnight, with nobody having said what it was, gets written
+    down the next morning.
+
+    With `purchase_id`, three cases raise `NothingToClose`. An id that
+    matches no row, and an id
+    whose trip belongs to another list: both are refused the same way an
+    absent trip is. Membership was checked against `list_id`, not against a
+    trip id the caller simply supplied. The third is a trip already filed. Its
+    total is a figure someone confirmed for the lines it held then. Closing it
+    again would attach that total to a different set of lines.
+
+    `at` is the instant the shop happened, and it decides which trip gets
+    closed when no `purchase_id` names one. It defaults to `now`, which is the
+    same trip `open_trip` would have found. It matters when the two differ: a
+    close written in an aisle with no signal reaches the server the next
+    morning, by which time the trip its lines are in has torn off. Asking for
+    the trip that is *open now* finds nothing and the shop is lost; asking for
+    the trip of the day it happened finds it. The client cannot name that trip
+    itself — when the household pressed the button, the taps had not reached
+    the server either, so the trip did not exist yet.
     """
     now = now or _now()
-    trip = open_trip(session, list_id, now)
+    if purchase_id is None:
+        # Resolved here, not handed in. A caller that looks the trip up first
+        # and passes the id turns this into a primary-key read, which
+        # SQLAlchemy answers from the identity map without going back to the
+        # database -- so `closed_at` below would be the caller's snapshot, and
+        # a second member who filed this trip in the meantime would be
+        # invisible. Their confirmed total would then be overwritten with a
+        # 200. Asking again, with the filter, is what makes their commit
+        # visible and turns that into the refusal it should be.
+        #
+        # It closes that race only in one direction, and the filter is not a
+        # lock. A close that committed *before* this SELECT is now refused. A
+        # close that commits *after* it is not: both callers pass the filter,
+        # and the writes below carry no `closed_at` predicate. The window
+        # shrank from the whole request to this SELECT and the commit; it did
+        # not close.
+        #
+        # What the loser loses depends on which branch the winner took, and
+        # the two need different guards. Closing the whole cart overwrites
+        # the other's `store` and `total` outright, and a conditional write
+        # would stop it -- `UPDATE ... WHERE id = :id AND closed_at IS NULL`,
+        # with `rowcount == 0` raising NothingToClose. That is one
+        # statement's semantics rather than a locking policy for the trip
+        # lifecycle, and unlike this SELECT it can be tested.
+        #
+        # Closing a subset does something the conditional write would not
+        # catch, because the split branch never files this trip -- it only
+        # mutates it and moves items off it. Against a trip someone else just
+        # filed, it recomputes their `opened_at` and reassigns lines they
+        # already confirmed a total for. Their figure survives and stops
+        # covering its own lines, which is the damage the docstring says
+        # refusing a filed trip prevents. Guarding that needs the same check
+        # on the split branch's read-modify-write, or the lock.
+        #
+        # Both branches here need a filtered SELECT to see a row another
+        # transaction committed after ours began, which is the same READ
+        # COMMITTED assumption `trip_for`'s re-select is written against.
+        # Under REPEATABLE READ that SELECT reads a pre-transaction snapshot
+        # and this whole guard silently does nothing. See the longer note
+        # there; three places now rest on it.
+        trip = unfiled_trip_for(session, list_id, at or now) or open_trip(session, list_id, now)
+    else:
+        # Asked with the filter, for the same reason the branch above is: a
+        # caller that has already read this row by id leaves it in the identity
+        # map, and a second `get` would answer from there without going back to
+        # the database. The typical named close is a torn-off ticket whose lines
+        # are all bought already, so nothing else in the request emits a query
+        # either -- and a second member filing the same ticket would be
+        # invisible right up to the point of overwriting their total.
+        #
+        # The limits of that are set out in the branch above, and they apply
+        # here unchanged: it refuses a close that already committed, not one
+        # that commits next, and it assumes READ COMMITTED.
+        trip = session.exec(
+            select(Purchase).where(
+                Purchase.id == purchase_id,
+                Purchase.list_id == list_id,
+                Purchase.closed_at.is_(None),
+            )
+        ).first()
     if trip is None:
         raise NothingToClose()
 
