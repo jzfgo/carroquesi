@@ -14,20 +14,17 @@ import {
 import { AVATAR_COLORS } from '../lib/avatarColors'
 import { isNetworkError } from '../lib/networkError'
 import { enqueue } from '../lib/offlineQueue'
-import type { ListItem, Member, ParsedInput, TagField } from '../types'
+import type {
+  BackendMember,
+  ListItem,
+  Member,
+  ParsedInput,
+  TagField,
+} from '../types'
 
 const DUPLICATE_TOAST = 'Ya está en la lista'
 
 type Status = 'loading' | 'error' | 'success'
-
-interface BackendMember {
-  id: string
-  user_id: string
-  list_id: string
-  display_name: string
-  photo_url: string | null
-  created_at: string
-}
 
 function toMember(m: BackendMember, index: number): Member {
   return {

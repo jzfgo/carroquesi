@@ -8,17 +8,9 @@ import {
   getListMembers,
   removeMember,
 } from '../lib/api'
+import type { BackendMember } from '../types'
 import './ListMembersSheet.css'
 import { Toast } from './Toast'
-
-export interface BackendMember {
-  id: string
-  user_id: string
-  list_id: string
-  display_name: string
-  photo_url: string | null
-  created_at: string
-}
 
 interface Props {
   listId: string

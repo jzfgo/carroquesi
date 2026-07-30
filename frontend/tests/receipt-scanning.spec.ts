@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import path from 'node:path'
 import {
+  awaitPrimingCard,
   expect,
   expectScreenshot,
   GEMINI_ENDPOINT_PATTERN,
@@ -67,6 +68,7 @@ function receiptRow(page: Page, receiptName: string) {
 async function gotoList(page: Page) {
   await page.goto(`/lists/${LIST_ID}`)
   await expect(page.getByText(ITEM_CAFE.name)).toBeVisible()
+  await awaitPrimingCard(page)
 }
 
 async function markPurchased(page: Page, name: string) {

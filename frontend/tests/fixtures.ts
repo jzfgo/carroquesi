@@ -1,182 +1,44 @@
 import { test as base, expect, type Page } from '@playwright/test'
 import type {
   ApiList,
+  BackendMember,
   ListItem,
-  Member,
   NewPurchasedItem,
+  PriceType,
   ReceiptScanResult,
+  UserMe,
 } from '../src/types'
+import data from './fixtures.json' with { type: 'json' }
 
 const BACKEND = 'http://localhost:8000'
 export const GEMINI_ENDPOINT_PATTERN =
   'https://firebasevertexai.googleapis.com/**'
 
-// ── Seed data (mirrors scripts/seed.py) ──────────────────────────────────────
+// The payloads live in fixtures.json so a backend test can validate them
+// against the Pydantic response models. Annotating them here keeps the other
+// half of the contract: a change to src/types has to break this file too.
+export const ALICE: UserMe = data.ALICE
+export const SEED_LISTS: ApiList[] = data.SEED_LISTS
+export const SEED_ITEMS: Record<string, ListItem[]> = data.SEED_ITEMS
 
-export const ALICE = {
-  id: 'seed-user-alice',
-  firebase_uid: 'seed-alice',
-  display_name: 'Alice (seed)',
-  email: 'alice@seed.local',
-  photo_url: null,
-  // push_notifications defaults to true in the backend registry, so a real
-  // user's /me response carries it. Keep this list in step with the registry:
-  // omitting a default-on flag hides its UI from E2E and from the visual
-  // baselines, which then stop reflecting what production actually renders.
-  features: ['ai_receipt_scanning', 'push_notifications'] as string[],
-}
-
-export const SEED_LISTS: ApiList[] = [
-  {
-    id: 'seed-list-compra',
-    name: 'Compra semanal',
-    emoji: '🛒',
-    owner_id: ALICE.id,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-06-23T10:00:00Z',
-    item_count: 2,
-    purchased_count: 0,
-    is_default: true,
-  },
-  {
-    id: 'seed-list-fiesta',
-    name: 'Fiesta de cumple',
-    emoji: '🎉',
-    owner_id: ALICE.id,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-06-23T10:00:00Z',
-    item_count: 1,
-    purchased_count: 0,
-    is_default: false,
-  },
-]
-
-export const SEED_ITEMS: Record<string, ListItem[]> = {
-  'seed-list-compra': [
-    {
-      id: 'item-leche',
-      list_id: 'seed-list-compra',
-      name: 'Leche Hacendado',
-      quantity: '6',
-      purchased_quantity: null,
-      brand: 'Hacendado',
-      stores: ['Mercadona'],
-      purchased: false,
-      purchased_at: null,
-      ean: null,
-      price: 0.65,
-      price_per: null,
-      price_store: 'Mercadona',
-      added_by: ALICE.id,
-      created_at: '2026-06-01T00:00:00Z',
-      updated_at: '2026-06-23T10:00:00Z',
-    },
-    {
-      id: 'item-cafe',
-      list_id: 'seed-list-compra',
-      name: 'Cafe molido Nescafe',
-      quantity: null,
-      purchased_quantity: null,
-      brand: 'Nescafe',
-      stores: ['Mercadona'],
-      purchased: false,
-      purchased_at: null,
-      ean: null,
-      price: null,
-      price_per: null,
-      price_store: null,
-      added_by: ALICE.id,
-      created_at: '2026-06-01T00:00:00Z',
-      updated_at: '2026-06-23T10:00:00Z',
-    },
-  ],
-  'seed-list-fiesta': [
-    {
-      id: 'item-pasta',
-      list_id: 'seed-list-fiesta',
-      name: 'Pasta Gallo',
-      quantity: null,
-      purchased_quantity: null,
-      brand: 'Gallo',
-      stores: ['Mercadona'],
-      purchased: false,
-      purchased_at: null,
-      ean: null,
-      price: null,
-      price_per: null,
-      price_store: null,
-      added_by: ALICE.id,
-      created_at: '2026-06-01T00:00:00Z',
-      updated_at: '2026-06-23T10:00:00Z',
-    },
-  ],
-}
-
-const SEED_MEMBERS: Record<string, Member[]> = {
-  'seed-list-compra': [
-    {
-      id: ALICE.id,
-      displayName: 'Alice (seed)',
-      initial: 'A',
-      color: '#4f46e5',
-      photoUrl: null,
-    },
-    {
-      id: 'seed-user-bob',
-      displayName: 'Bob (seed)',
-      initial: 'B',
-      color: '#0891b2',
-      photoUrl: null,
-    },
-  ],
-  'seed-list-fiesta': [
-    {
-      id: ALICE.id,
-      displayName: 'Alice (seed)',
-      initial: 'A',
-      color: '#4f46e5',
-      photoUrl: null,
-    },
-  ],
-}
+const SEED_MEMBERS: Record<string, BackendMember[]> = data.SEED_MEMBERS
 
 // A ReceiptScanSheet review, matching item-leche (existing price, gets updated)
 // and item-cafe (no price yet), plus one unmatched line — mirrors the shape
 // used in ReceiptScanSheet.test.tsx.
+//
+// price_type is narrowed one field at a time rather than casting the whole
+// object: a JSON import widens "UNIT" to string, and a cast over the top would
+// stop checking every other field along with it.
+const narrowPriceType = <T extends { price_type: string }>(line: T) => ({
+  ...line,
+  price_type: line.price_type as PriceType,
+})
+
 export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
-  scan_id: 'scan-e2e-1',
-  store: 'Mercadona',
-  receipt_date: '2026-07-10',
-  receipt_total: 4.35,
-  matched: [
-    {
-      receipt_name: 'LECHE HACENDADO',
-      item_id: 'item-leche',
-      item_name: 'Leche Hacendado',
-      price_type: 'UNIT',
-      unit_price: 0.75,
-      quantity: null,
-      line_total: 0.75,
-    },
-    {
-      receipt_name: 'CAFE MOLIDO NESCAFE',
-      item_id: 'item-cafe',
-      item_name: 'Cafe molido Nescafe',
-      price_type: 'UNIT',
-      unit_price: 2.6,
-      quantity: null,
-      line_total: 2.6,
-    },
-  ],
-  unmatched: [
-    {
-      receipt_name: 'PAN INTEGRAL',
-      price_type: 'UNIT',
-      unit_price: 1.0,
-      quantity: null,
-      line_total: 1.0,
-    },
-  ],
+  ...data.SEED_RECEIPT_RESULT,
+  matched: data.SEED_RECEIPT_RESULT.matched.map(narrowPriceType),
+  unmatched: data.SEED_RECEIPT_RESULT.unmatched.map(narrowPriceType),
 }
 
 // ── Route installer ───────────────────────────────────────────────────────────
@@ -214,12 +76,14 @@ export async function installApiMocks(page: Page): Promise<void> {
       if (method === 'GET') return json(SEED_LISTS)
       if (method === 'POST') {
         const body = (req.postDataJSON() ?? {}) as Record<string, unknown>
+        const now = naiveUtc(new Date().toISOString())
         return json({
           ...body,
           id: `new-list-${Date.now()}`,
           owner_id: ALICE.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          is_default: false,
+          created_at: now,
+          updated_at: now,
           item_count: 0,
           purchased_count: 0,
         })
@@ -243,7 +107,11 @@ export async function installApiMocks(page: Page): Promise<void> {
         if (method === 'PATCH') {
           const patch = (req.postDataJSON() ?? {}) as Partial<ApiList>
           return list
-            ? json({ ...list, ...patch, updated_at: new Date().toISOString() })
+            ? json({
+                ...list,
+                ...patch,
+                updated_at: naiveUtc(new Date().toISOString()),
+              })
             : json({ detail: 'Not found' }, 404)
         }
         if (method === 'DELETE') return route.fulfill({ status: 204 })
@@ -252,7 +120,7 @@ export async function installApiMocks(page: Page): Promise<void> {
       // /lists/:id/updated-at (polled every 5s)
       if (sub === '/updated-at') {
         return json({
-          updated_at: list?.updated_at ?? new Date().toISOString(),
+          updated_at: list?.updated_at ?? naiveUtc(new Date().toISOString()),
         })
       }
 
@@ -265,10 +133,13 @@ export async function installApiMocks(page: Page): Promise<void> {
           ])
         if (method === 'POST') {
           const body = (req.postDataJSON() ?? {}) as Partial<ListItem>
+          const now = naiveUtc(new Date().toISOString())
           return json({
             id: `new-item-${Date.now()}`,
             list_id: listId,
             name: '',
+            quantity: null,
+            brand: null,
             purchased: false,
             purchased_at: null,
             ean: null,
@@ -277,8 +148,8 @@ export async function installApiMocks(page: Page): Promise<void> {
             price_per: null,
             price_store: null,
             added_by: ALICE.id,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+            created_at: now,
+            updated_at: now,
             ...body,
             stores: body.stores ?? [],
           })
@@ -325,7 +196,12 @@ export async function installApiMocks(page: Page): Promise<void> {
         const now = new Date().toISOString()
         // Mirrors the router: an impulse buy is born purchased, stamped with
         // the receipt's own instant when there is one.
-        const purchasedAt = naiveUtc(body.receipt_date || now)
+        const receiptDate = body.receipt_date
+          ? body.receipt_date.includes('T')
+            ? body.receipt_date
+            : body.receipt_date + 'T00:00:00'
+          : now
+        const purchasedAt = naiveUtc(receiptDate)
         const created = (body.new_items ?? []).map((n, idx) => ({
           id: `created-item-${idx}-${now}`,
           list_id: listId,
@@ -360,7 +236,11 @@ export async function installApiMocks(page: Page): Promise<void> {
         if (method === 'PATCH') {
           const patch = (req.postDataJSON() ?? {}) as Partial<ListItem>
           return item
-            ? json({ ...item, ...patch, updated_at: new Date().toISOString() })
+            ? json({
+                ...item,
+                ...patch,
+                updated_at: naiveUtc(new Date().toISOString()),
+              })
             : json({ detail: 'Not found' }, 404)
         }
         if (method === 'DELETE') return route.fulfill({ status: 204 })
@@ -484,6 +364,27 @@ export async function expectScreenshot(
   const projectName = test.info().project.name
   if (!VISUAL_PROJECTS.has(projectName)) return
   await expect(page).toHaveScreenshot(name, { fullPage: true })
+}
+
+/**
+ * Wait for the notification priming card, which every list-screen baseline
+ * shows.
+ *
+ * It renders only after the member list arrives, and it pushes the whole screen
+ * down when it does. Without this wait a capture can land on either side of
+ * that, and the mismatch is invisible: toHaveScreenshot stops at the first frame
+ * matching its baseline, so a baseline of the pre-card screen goes on passing
+ * while the card is what the user actually ends up with. Call this before
+ * screenshotting any screen whose baseline includes the card.
+ *
+ * Gated on the same projects as the screenshot, because the card is what those
+ * baselines happen to contain rather than something every browser must show —
+ * it does not render at all under the iOS projects, where push is unavailable
+ * without a home-screen install.
+ */
+export async function awaitPrimingCard(page: Page): Promise<void> {
+  if (!VISUAL_PROJECTS.has(test.info().project.name)) return
+  await expect(page.locator('.push-priming')).toBeVisible()
 }
 
 // ── Gemini network-boundary mock ─────────────────────────────────────────────

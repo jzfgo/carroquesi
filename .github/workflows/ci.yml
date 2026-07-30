@@ -157,9 +157,11 @@ jobs:
   #
   # Gated on `frontend` because these specs never touch a real backend: no
   # FastAPI process or Postgres runs here, and tests/fixtures.ts mocks every
-  # backend route with frozen TypeScript literals. A Python change cannot fail
-  # them. The gap that leaves is tracked in JAV-48, and needs a contract test
-  # rather than a wider trigger.
+  # backend route from tests/fixtures.json. A Python change cannot fail them.
+  # What covers that gap is a backend contract test, which validates those
+  # fixtures against the response model each route really declares — so a
+  # response-shape change fails the backend job. That is also why the backend
+  # area matches fixtures.json as well as backend/.
   playwright:
     name: Playwright Tests
     needs: changes

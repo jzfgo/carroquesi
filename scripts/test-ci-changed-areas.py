@@ -114,6 +114,7 @@ check("agents doc only", ["AGENTS.md"], (False, False, False))
 # decision on record rather than something rediscovered later. See JAV-67.
 check("nested agents doc", ["frontend/AGENTS.md"], (True, False, False))
 check("nested agents doc (backend)", ["backend/AGENTS.md"], (False, True, False))
+check("fixtures JSON", ["frontend/tests/fixtures.json"], (True, True, False))
 check("frontend source", ["frontend/src/App.tsx"], (True, False, False))
 check("frontend lockfile", ["frontend/pnpm-lock.yaml"], (True, False, False))
 check("backend source", ["backend/app/main.py"], (False, True, False))
