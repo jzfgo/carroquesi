@@ -33,7 +33,9 @@ describe('usePurchases', () => {
 
     const { result } = renderHook(() => usePurchases('l1', getToken))
 
-    await waitFor(() => expect(result.current.byId.get('p1')?.store).toBe('Lidl'))
+    await waitFor(() =>
+      expect(result.current.byId.get('p1')?.store).toBe('Lidl'),
+    )
     expect(getPurchases).toHaveBeenCalledWith(getToken, 'l1')
   })
 
@@ -57,7 +59,9 @@ describe('usePurchases', () => {
       result.current.refresh()
     })
 
-    await waitFor(() => expect(result.current.byId.get('p1')?.store).toBe('Lidl'))
+    await waitFor(() =>
+      expect(result.current.byId.get('p1')?.store).toBe('Lidl'),
+    )
   })
 
   it('refetches when the caller asks, and not on every render', async () => {

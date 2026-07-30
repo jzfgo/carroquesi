@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  closePurchase,
-  createItem,
-  deleteItem,
-  updateItem,
-} from '../lib/api'
+import { closePurchase, createItem, deleteItem, updateItem } from '../lib/api'
 import { isNetworkError } from '../lib/networkError'
 import { getAll, remove } from '../lib/offlineQueue'
 import type { ListItem, PurchaseClosePayload } from '../types'
