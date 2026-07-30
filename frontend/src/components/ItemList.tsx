@@ -7,6 +7,7 @@ import { itemState } from '../lib/itemState'
 import { formatShops, groupByShops } from '../lib/storeGroups'
 import type { ListItem, Purchase } from '../types'
 import { CartRubric } from './CartRubric'
+import { CostBadge } from './CostBadge'
 import { ItemCard } from './ItemCard'
 import './ItemList.css'
 import { Mascot } from './Mascot'
@@ -29,21 +30,6 @@ interface Props {
   purchases?: Map<string, Purchase>
   totalItems?: number
   footer?: ReactNode
-}
-
-function CostBadge({
-  cost,
-  className,
-}: {
-  cost: CostSummary
-  className: string
-}) {
-  return (
-    <span className={className}>
-      {cost.partial ? '≥\u202f' : ''}
-      {formatPrice(cost.total)}
-    </span>
-  )
 }
 
 export function ItemList({
