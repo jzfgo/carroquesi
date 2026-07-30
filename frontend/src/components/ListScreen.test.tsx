@@ -1110,6 +1110,15 @@ describe('reading a paper into the close sheet', () => {
 
     expect(sheet().getAllByLabelText('Pan')).toHaveLength(1)
     expect(sheet().getByLabelText('Pan')).toBeChecked()
+    // The row that was waiting is gone, not merely unticked. Left behind it
+    // would read as a second bread nobody bought, and one tick would file it.
+    expect(sheet().getByText('2 de 2')).toBeInTheDocument()
+
+    // And the answer joins the item that was waiting rather than creating a
+    // second product with the same name.
+    const payload = await save()
+    expect(payload.lines.map((l) => l.item_id)).toEqual(['i-leche', 'i-pan'])
+    expect(payload.new_items).toEqual([])
   })
 
   it('teaches the shop what the printed line was', async () => {
@@ -1119,6 +1128,9 @@ describe('reading a paper into the close sheet', () => {
     const payload = await save()
 
     expect(payload.scan_id).toBe('scan-1')
+    // The hour the paper printed, kept through the offset the scan answers
+    // with. Collapsed to noon, a shop would lose its place in the day.
+    expect(payload.purchased_at).toBe('2026-07-20T19:12:00')
     // As printed, leading number and all. The server keys these its own way,
     // and spelling it twice is how the two spellings drift apart.
     expect(payload.mappings).toEqual([
