@@ -33,6 +33,8 @@ describe('parseReceiptWithAi wiring', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
   })
 
   beforeEach(() => {
@@ -131,6 +133,40 @@ describe('parseReceiptWithAi wiring', () => {
     await expect(
       parseReceiptWithAi(file, { maxRetries: 2, delayMs: 0 }),
     ).rejects.toThrow('400 Bad Request')
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries on 429 errors', async () => {
+    const { parseReceiptWithAi } = await import('./receiptAi')
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+
+    const err = new Error('429 Too Many Requests')
+    Object.assign(err, {
+      code: 'AI/fetch-error',
+      customErrorData: { status: 429 },
+    })
+    mockGenerateContent
+      .mockRejectedValueOnce(err)
+      .mockResolvedValueOnce(successResponse)
+
+    const result = await parseReceiptWithAi(file, { delayMs: 0 })
+    expect(mockGenerateContent).toHaveBeenCalledTimes(2)
+    expect(result.store).toBe('Mercadona')
+  })
+
+  it('does not retry on 403 errors with blocked message (no status field fallback)', async () => {
+    const { parseReceiptWithAi } = await import('./receiptAi')
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+
+    // No customErrorData.status, just the message
+    const err = new Error(
+      'AI: Error fetching from ...: [403 Forbidden] ... blocked ...',
+    )
+    mockGenerateContent.mockRejectedValueOnce(err)
+
+    await expect(
+      parseReceiptWithAi(file, { maxRetries: 2, delayMs: 0 }),
+    ).rejects.toThrow('blocked')
     expect(mockGenerateContent).toHaveBeenCalledTimes(1)
   })
 
@@ -284,6 +320,82 @@ describe('parseReceiptWithAi wiring', () => {
       )
     })
 
+    it('falls back to original file if image has 0x0 dimensions (SVG)', async () => {
+      vi.stubGlobal(
+        'Image',
+        class {
+          width = 0
+          height = 0
+          onload: ((ev: Event) => void) | null = null
+          onerror: ((ev: Event) => void) | null = null
+          set src(_val: string) {
+            setTimeout(() => {
+              if (this.onload) this.onload(new Event('load'))
+            }, 10)
+          }
+        },
+      )
+
+      const { parseReceiptWithAi } = await import('./receiptAi')
+      // File over 1MB
+      const file = new File([new ArrayBuffer(2 * 1024 * 1024)], 'receipt.svg', {
+        type: 'image/svg+xml',
+      })
+
+      await parseReceiptWithAi(file)
+      // Since it bailed, it falls back to the original file
+      expect(mockGenerateContent).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            inlineData: expect.objectContaining({ mimeType: 'image/svg+xml' }),
+          }),
+        ]),
+      )
+    })
+
+    it('falls back to original file if resized base64 is larger than original file (inflation)', async () => {
+      vi.stubGlobal(
+        'Image',
+        class {
+          width = 1200
+          height = 900
+          onload: ((ev: Event) => void) | null = null
+          onerror: ((ev: Event) => void) | null = null
+          set src(_val: string) {
+            setTimeout(() => {
+              if (this.onload) this.onload(new Event('load'))
+            }, 10)
+          }
+        },
+      )
+
+      // Override toDataURL to return a huge string that is larger than the file * 4/3
+      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(
+        () => {
+          return 'data:image/jpeg;base64,' + 'A'.repeat(2 * 1024 * 1024)
+        },
+      )
+
+      const { parseReceiptWithAi } = await import('./receiptAi')
+      // File is 1.1MB
+      const file = new File(
+        [new ArrayBuffer(1.1 * 1024 * 1024)],
+        'receipt.jpg',
+        { type: 'image/jpeg' },
+      )
+
+      await parseReceiptWithAi(file)
+
+      // Since the resized string is 2MB which is > 1.1MB * 4/3 (~1.46MB), it should fall back
+      expect(mockGenerateContent).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            inlineData: expect.objectContaining({ mimeType: 'image/jpeg' }),
+          }),
+        ]),
+      )
+    })
+
     it('times out image resizing after 10s and falls back', async () => {
       vi.useFakeTimers()
       vi.stubGlobal(
@@ -311,7 +423,6 @@ describe('parseReceiptWithAi wiring', () => {
           }),
         ]),
       )
-      vi.useRealTimers()
     })
   })
 })

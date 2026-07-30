@@ -111,6 +111,11 @@ function resizeImageFile(
       img.onload = () => {
         try {
           let { width, height } = img
+          if (!width || !height) {
+            done(null)
+            return
+          }
+
           const scale = Math.min(1, maxDimension / Math.max(width, height))
           width = Math.round(width * scale)
           height = Math.round(height * scale)
@@ -148,8 +153,10 @@ async function fileToInlinePart(file: File) {
       const resizedDataUrl = await resizeImageFile(file, 1600)
       if (resizedDataUrl) {
         const [header, base64] = resizedDataUrl.split(',')
-        const mimeType = header.match(/:(.*?);/)?.[1] || file.type
-        return { inlineData: { data: base64, mimeType } }
+        if (base64.length <= (file.size * 4) / 3) {
+          const mimeType = header.match(/:(.*?);/)?.[1] || file.type
+          return { inlineData: { data: base64, mimeType } }
+        }
       }
     } catch {
       // Ignore resizing errors and fall back to original file
@@ -252,6 +259,19 @@ async function generateContentWithRetry(
       let isTransient = false
       if (error instanceof SyntaxError) {
         isTransient = true
+      } else if (
+        status === 429 ||
+        status === 500 ||
+        status === 502 ||
+        status === 503 ||
+        status === 504
+      ) {
+        isTransient = true
+      } else if (
+        err?.message &&
+        err.message.match(/\b(429|500|502|503|504)\b/)
+      ) {
+        isTransient = true
       } else if (err?.message && err.message.includes('blocked') && !is4xx) {
         isTransient = true
       } else if (
@@ -259,21 +279,6 @@ async function generateContentWithRetry(
         !is4xx
       ) {
         isTransient = true
-      } else {
-        if (
-          status === 429 ||
-          status === 500 ||
-          status === 502 ||
-          status === 503 ||
-          status === 504
-        ) {
-          isTransient = true
-        } else if (
-          err?.message &&
-          err.message.match(/\b(429|500|502|503|504)\b/)
-        ) {
-          isTransient = true
-        }
       }
 
       if (!isTransient || attempt >= maxRetries) {
