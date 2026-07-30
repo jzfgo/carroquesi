@@ -464,6 +464,25 @@ const ticketLines: CloseLine[] = [
   }),
 ]
 
+/** The line the matcher placed nowhere: an amount, a printed string, and no
+ *  product. */
+const unassigned = ticketLines[2]
+
+/** A row that names a product, left unticked so the bar reads `Marcar todas`.
+ *  The button's own wording depends on what is tickable, so a test that
+ *  presses it has to start from a state both readings of the rule agree on. */
+const spare = makeLine({
+  key: 'r0',
+  itemId: 'i1',
+  name: 'Leche',
+  quantity: '1',
+  price: 1.15,
+  included: false,
+  receiptLine: 'LECHE SEMI 1L',
+  receiptAmount: 1.15,
+  matchState: 'guess',
+})
+
 const paper: CloseReceipt = {
   scanId: 'scan-7',
   imageUrl: 'blob:ticket',
@@ -759,6 +778,25 @@ describe('CloseTripSheet in ticket mode', () => {
 
     expect(save()).toBeDisabled()
   })
+
+  // The server refuses a new item with no name, and it refuses the whole sheet
+  // rather than the one row. So a row nobody has told what it was must not be
+  // markable — not one at a time, and not by the button that marks the lot.
+  it('never sends a row that has not been told what it was', async () => {
+    const { onSave } = renderTicket({ initialLines: [spare, unassigned] })
+
+    // The box itself, because marking one row at a time is the other way in.
+    expect(screen.getByLabelText('2 YOGUR NATURAL')).toBeDisabled()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Marcar todas' }))
+    await userEvent.click(save())
+
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.new_items).toEqual([])
+    expect(payload.lines).toEqual([
+      expect.objectContaining({ item_id: 'i1', price: 1.15 }),
+    ])
+  })
 })
 
 describe('CloseTripSheet when the paper is discarded', () => {
@@ -797,15 +835,54 @@ describe('CloseTripSheet when the paper is discarded', () => {
     ])
   })
 
-  // Discarding must move nothing that was already decided, and the instant is
-  // one of those things.
-  it('keeps the hour the paper printed', async () => {
+  // The printed hour was the paper's. With the paper gone this is a hand
+  // close, so it is stamped from the trip — the very instant it would have
+  // used had no paper ever been read.
+  it('stamps the trip’s own instant', async () => {
     const { onSave } = renderTicket()
 
     await discard()
     await userEvent.click(save())
 
-    expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-30T19:12:00')
+    expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-30T18:00:00')
+  })
+
+  // A shop from months ago. The server floors a close that names no scan at
+  // thirty days back, so a sheet that went on showing the paper's day would
+  // show a day nothing was saved under — and say nothing about it.
+  //
+  // The dates are written out rather than counted back from a clock. Nothing
+  // on this path reads one: the day and the instant are both worked out from
+  // the values the sheet was handed.
+  it('puts the day back on the trip when the paper is dropped', async () => {
+    const { onSave } = renderTicket({
+      receipt: { ...paper, date: '2026-04-02T19:12:00' },
+    })
+
+    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-04-02')
+
+    await discard()
+
+    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-07-30')
+
+    await userEvent.click(save())
+
+    const payload = onSave.mock.calls[0][0]
+    expect(payload.scan_id).toBeUndefined()
+    expect(payload.purchased_at).toBe('2026-07-30T18:00:00')
+  })
+
+  // Dropping the paper takes the printed line off the row, and the row is
+  // still nameless underneath it. What it may not become is a product with no
+  // name.
+  it('never sends a row the paper left unanswered', async () => {
+    const { onSave } = renderTicket({ initialLines: [spare, unassigned] })
+
+    await discard()
+    await userEvent.click(screen.getByRole('button', { name: 'Marcar todas' }))
+    await userEvent.click(save())
+
+    expect(onSave.mock.calls[0][0].new_items).toEqual([])
   })
 
   // A sheet rebuilt from the rows it opened with would keep the names and the

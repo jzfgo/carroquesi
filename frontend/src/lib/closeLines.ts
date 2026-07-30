@@ -41,6 +41,21 @@ export interface CloseLine {
 }
 
 /**
+ * Whether the row names no product at all.
+ *
+ * Such a row has nothing to save, whatever else it carries. The server refuses
+ * a new item with no name, and it refuses the whole sheet rather than the one
+ * row — so the rule has to be known on this side too, or the household is left
+ * with a refusal that names no row.
+ *
+ * This asks about the row itself and not about a paper, so the answer does not
+ * change when the paper is discarded.
+ */
+export function hasNoProduct(line: CloseLine): boolean {
+  return line.itemId == null && line.name === ''
+}
+
+/**
  * Whether the row is still waiting to be told what it was.
  *
  * A printed line with no name is the one state that asks the question, and it
@@ -49,7 +64,7 @@ export interface CloseLine {
  * both answers, and what is left to change about either is its amount.
  */
 export function needsProduct(line: CloseLine): boolean {
-  return line.receiptLine != null && line.name === ''
+  return hasNoProduct(line) && line.receiptLine != null
 }
 
 /**

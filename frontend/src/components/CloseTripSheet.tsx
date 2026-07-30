@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import {
   discardPaper,
+  hasNoProduct,
   linesTotal,
   needsProduct,
   receiptTotal,
@@ -106,10 +107,10 @@ export function CloseTripSheet({
   const [newStore, setNewStore] = useState('')
   // The instant the sheet keeps while nobody touches the day: the paper's
   // printed hour in ticket mode, and the trip's own instant both in hand mode
-  // and for a paper that printed no hour to keep. Read from the prop and not
-  // from the paper's state, so discarding an untouched receipt does not
-  // quietly move the stamp to midday.
-  const anchorDate = receipt?.date ?? defaultDate
+  // and for a paper that printed no hour to keep. Read from the paper's state
+  // rather than from the prop, because a close that no longer names a scan is
+  // stamped by the other rule — see `discard`.
+  const anchorDate = paper?.date ?? defaultDate
   // The day it was in Madrid rather than in UTC. Stamping an old shop with
   // today's date would file its prices under a day nobody shopped. A scan
   // that could not read the day starts empty on purpose: it has to be
@@ -135,7 +136,12 @@ export function CloseTripSheet({
   const unpriced = lines.filter(
     (l) => l.included && l.price == null && l.receiptAmount == null,
   ).length
-  const allIncluded = lines.length > 0 && includedCount === lines.length
+  // A row with no product has nothing to mark, so it is not what the button
+  // marks either. Counting it would leave the button reading `Marcar todas`
+  // after it had marked everything it can, and a second press would do
+  // nothing.
+  const tickable = lines.filter((l) => !hasNoProduct(l))
+  const allIncluded = tickable.length > 0 && tickable.every((l) => l.included)
   const total = useMemo(() => linesTotal(lines), [lines])
   const canSave = effectiveStore !== '' && day !== '' && includedCount > 0
   // A shop the scan read may be one this list has never bought from, and it
@@ -175,7 +181,9 @@ export function CloseTripSheet({
   }
 
   function toggleAll() {
-    setLines((prev) => prev.map((l) => ({ ...l, included: !allIncluded })))
+    setLines((prev) =>
+      prev.map((l) => (hasNoProduct(l) ? l : { ...l, included: !allIncluded })),
+    )
   }
 
   // `claimed` is a row the answer took over. One product cannot sit on two
@@ -202,10 +210,18 @@ export function CloseTripSheet({
   // Takes the paper's authority off the sheet and keeps everything it read.
   // The names, amounts and ticks stay as ordinary typed values, so the sheet
   // must not be rebuilt around them.
+  //
+  // The day is the one thing that cannot stay. A close with no paper is a
+  // hand close, and the server floors a hand-typed date thirty days back
+  // because a live clock can be wrong — so a receipt from further back would
+  // be stamped a day the screen never showed and nobody was told about. The
+  // trip's own day is the day a hand close would have used, and moving the
+  // control to it says out loud what is about to be saved.
   function discard() {
     setPaperActions(false)
     setViewingPaper(false)
     setPaper(null)
+    setDay(madridDay(defaultDate))
     setLines(discardPaper)
   }
 
@@ -397,11 +413,16 @@ export function CloseTripSheet({
 
       {lines.map((line) => (
         <div className="cts__row" key={line.key}>
+          {/* Nothing to mark until the row has been told what it was. The
+              chevron beside it is where the answer is given, and it is one
+              tap, so an inert box points at what to do rather than blocking
+              it. */}
           <input
             type="checkbox"
             className="cts__check"
             aria-label={rowLabel(line)}
             checked={line.included}
+            disabled={hasNoProduct(line)}
             onChange={() => toggle(line.key)}
           />
           <span className="cts__name">
