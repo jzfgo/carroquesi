@@ -5,10 +5,10 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlmodel import select
 
-from app.db.models import ListItem, Purchase
+from app.db.models import ListItem, Purchase, ReceiptNameMapping, ReceiptScan
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.purchases import PurchaseClose, PurchaseRead
-from app.services import trips
+from app.services import feature_flags, trips
 
 router = APIRouter(prefix="/lists/{list_id}/purchases", tags=["purchases"])
 
@@ -68,6 +68,18 @@ def close_purchase(
     entry.
     """
     lst, current_user = list_and_user
+
+    # The plain manual close ("Cerrar compra") stays ungated — a household
+    # without the flag has no other way to declare a shop. Only the two
+    # fields that carry a receipt's evidence are behind it.
+    if (body.scan_id is not None or body.mappings) and not feature_flags.is_enabled(
+        current_user.id, "ai_receipt_scanning", session
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ai_receipt_scanning feature not enabled",
+        )
+
     # Every amount the request carries, checked before anything is written, so
     # a bad one cannot leave half a sheet applied.
     _reject_bad_amount(body.total, "total")
@@ -77,9 +89,15 @@ def close_purchase(
         _reject_bad_price(new.price, new.price_per, f"new_items[{index}]")
 
     now = datetime.now(UTC).replace(tzinfo=None)
-    # Same clamp a tap gets: no future, and no older than the backdate limit.
-    # A hand-set date carries a live clock's risks, unlike a receipt's.
-    purchase_ts = trips.tap_time(body.purchased_at, now)
+    # A scan-linked close carries a receipt's date, not a live tap's: it
+    # records something that already happened, however long ago, so only the
+    # future direction is clamped (an OCR-misread year would otherwise open a
+    # second trip beside the live cart). A hand-typed date keeps the tap's
+    # both-ends clamp, since it carries a live clock's risks.
+    if body.scan_id:
+        purchase_ts = trips.no_future(body.purchased_at or now, now)
+    else:
+        purchase_ts = trips.tap_time(body.purchased_at, now)
 
     # The date on the sheet says *when* the shop happened. The trip says
     # *which* shop it was. They disagree whenever someone writes down an old
@@ -248,6 +266,40 @@ def close_purchase(
             status_code=status.HTTP_409_CONFLICT,
             detail="There is nothing to close",
         ) from None
+
+    for m in body.mappings:
+        stmt = select(ReceiptNameMapping).where(
+            ReceiptNameMapping.store == body.store,
+            ReceiptNameMapping.receipt_name == m.receipt_name,
+        )
+        existing = session.exec(stmt).first()
+        if existing:
+            existing.use_count += 1
+            existing.item_name = m.item_name
+            existing.item_brand = m.item_brand
+            existing.confirmed_by = current_user.id
+            existing.updated_at = now
+            session.add(existing)
+        else:
+            session.add(
+                ReceiptNameMapping(
+                    store=body.store,
+                    receipt_name=m.receipt_name,
+                    item_name=m.item_name,
+                    item_brand=m.item_brand,
+                    confirmed_by=current_user.id,
+                )
+            )
+
+    if body.scan_id:
+        scan = session.get(ReceiptScan, body.scan_id)
+        # A scan naming another list, or no scan at all, is ignored rather
+        # than refused: the shop is what this call is recording, and losing
+        # the audit link is not worth losing the close.
+        if scan is not None and scan.list_id == list_id:
+            scan.items_updated = len(touched)
+            scan.purchase_id = purchase.id
+            session.add(scan)
 
     lst.updated_at = now
     session.add(lst)

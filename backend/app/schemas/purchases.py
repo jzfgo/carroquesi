@@ -35,6 +35,20 @@ class PurchaseNewItem(BaseModel):
     quantity: str | None = None
 
 
+class PurchaseNameMapping(BaseModel):
+    """A receipt->item name learned while closing a purchase.
+
+    No `store` field, for the same reason `PurchaseLine` has none: a ticket
+    belongs to one shop, stated once on `PurchaseClose.store`. Every mapping
+    in the call is learned for that shop. A `store` here could disagree with
+    the close's own `store`, and nothing would say which one wins.
+    """
+
+    receipt_name: str
+    item_name: str
+    item_brand: str | None = None
+
+
 class PurchaseClose(BaseModel):
     # Absent means the trip that is still open. Any unreconciled trip on the
     # list can be named, including that same open one. The case it exists for
@@ -65,6 +79,10 @@ class PurchaseClose(BaseModel):
     # can carry an unbounded payload.
     lines: list[PurchaseLine] = Field(default_factory=list, max_length=200)
     new_items: list[PurchaseNewItem] = Field(default_factory=list, max_length=200)
+    # Ties this close to the ReceiptScan it came from, when it came from one.
+    scan_id: str | None = None
+    # Same bound and same reason as `lines` and `new_items` above.
+    mappings: list[PurchaseNameMapping] = Field(default_factory=list, max_length=200)
 
 
 class PurchaseRead(BaseModel):

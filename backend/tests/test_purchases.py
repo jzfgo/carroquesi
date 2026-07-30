@@ -2,9 +2,11 @@ import json
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from app.db.models import List, Purchase
+from app.db.models import List, Purchase, ReceiptNameMapping, ReceiptScan
+from app.db.models import UserFeature as _UserFeature
+from app.services import trips
 
 
 def _create_list(client):
@@ -39,6 +41,26 @@ def _tap_at(client, list_id: str, name: str, when: datetime) -> dict:
         f"/lists/{list_id}/items/{item['id']}",
         json={"purchased": True, "purchased_at": when.isoformat()},
     ).json()
+
+
+def _enable_receipt_flag(session: Session, user) -> None:
+    session.add(
+        _UserFeature(
+            user_id=user.id,
+            feature="ai_receipt_scanning",
+            enabled=True,
+            granted_by="admin",
+        )
+    )
+    session.commit()
+
+
+def _make_scan(session: Session, list_id: str, user_id: str) -> ReceiptScan:
+    scan = ReceiptScan(list_id=list_id, scanned_by=user_id)
+    session.add(scan)
+    session.commit()
+    session.refresh(scan)
+    return scan
 
 
 def test_closing_the_whole_cart_returns_a_closed_trip(client: TestClient):
@@ -954,3 +976,276 @@ def test_naming_an_empty_purchase_id_is_refused_like_any_other_unresolvable_one(
 
     assert response.status_code == 409
     assert _items_by_name(client, lst["id"])["Leche"]["purchase_filed"] is False
+
+
+def test_close_upserts_a_mapping_under_the_body_store(client: TestClient, session: Session, user):
+    """A close mapping has no `store` of its own — it is learned for `body.store`,
+    the one shop the whole ticket belongs to."""
+    _enable_receipt_flag(session, user)
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "lines": [{"item_id": milk["id"]}],
+            "mappings": [
+                {"receipt_name": "LECHE ENT 1L", "item_name": "Leche entera", "item_brand": None}
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    session.expire_all()
+    mapping = session.exec(
+        select(ReceiptNameMapping).where(ReceiptNameMapping.receipt_name == "LECHE ENT 1L")
+    ).one()
+    assert mapping.store == "Mercadona"
+    assert mapping.item_name == "Leche entera"
+    assert mapping.use_count == 1
+
+
+def test_a_repeated_mapping_bumps_use_count_instead_of_duplicating(
+    client: TestClient, session: Session, user
+):
+    _enable_receipt_flag(session, user)
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    bread = _tap(client, lst["id"], "Pan")
+
+    body = {
+        "store": "Mercadona",
+        "mappings": [
+            {"receipt_name": "LECHE ENT 1L", "item_name": "Leche entera", "item_brand": None}
+        ],
+    }
+    client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={**body, "lines": [{"item_id": milk["id"]}]},
+    )
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={**body, "lines": [{"item_id": bread["id"]}]},
+    )
+
+    assert response.status_code == 200
+    session.expire_all()
+    mappings = session.exec(
+        select(ReceiptNameMapping).where(ReceiptNameMapping.receipt_name == "LECHE ENT 1L")
+    ).all()
+    assert len(mappings) == 1
+    assert mappings[0].use_count == 2
+
+
+def test_201_mappings_is_a_422(client: TestClient, session: Session, user):
+    _enable_receipt_flag(session, user)
+    lst = _create_list(client)
+    mapping = {"receipt_name": "X", "item_name": "Y", "item_brand": None}
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Mercadona", "mappings": [mapping] * 201},
+    )
+
+    assert response.status_code == 422
+
+
+def test_close_returns_403_when_scan_id_sent_and_flag_is_off(client: TestClient):
+    lst = _create_list(client)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Mercadona", "scan_id": "some-scan-id"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_close_returns_403_when_mappings_sent_and_flag_is_off(client: TestClient):
+    lst = _create_list(client)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "mappings": [
+                {"receipt_name": "LECHE ENT 1L", "item_name": "Leche entera", "item_brand": None}
+            ],
+        },
+    )
+
+    assert response.status_code == 403
+
+
+def test_scan_linked_close_survives_a_backdate_past_the_manual_floor(
+    client: TestClient, session: Session, user
+):
+    """A receipt is a record of something that already happened, however long
+    ago. It must not be floored the way a hand-typed date is."""
+    _enable_receipt_flag(session, user)
+    lst = _create_list(client)
+    scan = _make_scan(session, lst["id"], user.id)
+    old_date = _days_ago(60)
+    assert old_date < datetime.now(UTC).replace(tzinfo=None) - trips.MAX_BACKDATE
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "purchased_at": old_date.isoformat(),
+            "scan_id": scan.id,
+            "new_items": [{"name": "Leche", "price": 1.10}],
+        },
+    )
+
+    assert response.status_code == 200
+    item = _items_by_name(client, lst["id"])["Leche"]
+    purchased_at = datetime.fromisoformat(item["purchased_at"])
+    assert abs((purchased_at - old_date).total_seconds()) < 5
+
+
+def test_an_empty_scan_id_is_treated_as_naming_no_scan(client: TestClient, session: Session, user):
+    """An empty string is falsy, the same trap `purchase_id` has.
+
+    `scan_id: ""` must not be read as "this is a scan-linked close" -- that
+    would smuggle the unfloored date rule past a value that links to no scan
+    and leaves no audit row behind. It gets the hand-typed date's floor, same
+    as sending no scan_id at all.
+    """
+    _enable_receipt_flag(session, user)
+    lst = _create_list(client)
+    old_date = _days_ago(60)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "purchased_at": old_date.isoformat(),
+            "scan_id": "",
+            "new_items": [{"name": "Leche", "price": 1.10}],
+        },
+    )
+
+    assert response.status_code == 200
+    item = _items_by_name(client, lst["id"])["Leche"]
+    purchased_at = datetime.fromisoformat(item["purchased_at"])
+    floor = datetime.now(UTC).replace(tzinfo=None) - trips.MAX_BACKDATE
+    assert purchased_at > old_date
+    assert abs((purchased_at - floor).total_seconds()) < 5
+
+
+def test_a_plain_close_still_floors_the_same_old_date(client: TestClient, session: Session, user):
+    """Without a scan_id this is a hand-typed date, which carries a live
+    clock's risks and stays floored at the backdate limit."""
+    lst = _create_list(client)
+    old_date = _days_ago(60)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "purchased_at": old_date.isoformat(),
+            "new_items": [{"name": "Leche", "price": 1.10}],
+        },
+    )
+
+    assert response.status_code == 200
+    item = _items_by_name(client, lst["id"])["Leche"]
+    purchased_at = datetime.fromisoformat(item["purchased_at"])
+    floor = datetime.now(UTC).replace(tzinfo=None) - trips.MAX_BACKDATE
+    assert purchased_at > old_date
+    assert abs((purchased_at - floor).total_seconds()) < 5
+
+
+def test_a_future_purchased_at_is_clamped_with_a_scan(client: TestClient, session: Session, user):
+    _enable_receipt_flag(session, user)
+    lst = _create_list(client)
+    scan = _make_scan(session, lst["id"], user.id)
+    future = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=400)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "purchased_at": future.isoformat(),
+            "scan_id": scan.id,
+            "new_items": [{"name": "Leche", "price": 1.10}],
+        },
+    )
+
+    assert response.status_code == 200
+    item = _items_by_name(client, lst["id"])["Leche"]
+    purchased_at = datetime.fromisoformat(item["purchased_at"])
+    assert purchased_at <= datetime.now(UTC).replace(tzinfo=None)
+
+
+def test_a_future_purchased_at_is_clamped_without_a_scan(client: TestClient):
+    lst = _create_list(client)
+    future = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=400)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "purchased_at": future.isoformat(),
+            "new_items": [{"name": "Leche", "price": 1.10}],
+        },
+    )
+
+    assert response.status_code == 200
+    item = _items_by_name(client, lst["id"])["Leche"]
+    purchased_at = datetime.fromisoformat(item["purchased_at"])
+    assert purchased_at <= datetime.now(UTC).replace(tzinfo=None)
+
+
+def test_scan_linked_close_sets_purchase_id_and_items_updated_on_the_scan(
+    client: TestClient, session: Session, user
+):
+    _enable_receipt_flag(session, user)
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    scan = _make_scan(session, lst["id"], user.id)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "scan_id": scan.id,
+            "lines": [{"item_id": milk["id"]}],
+            "new_items": [{"name": "Chocolate negro", "price": 1.80}],
+        },
+    )
+
+    assert response.status_code == 200
+    purchase_id = response.json()["id"]
+    session.expire_all()
+    refetched = session.get(ReceiptScan, scan.id)
+    assert refetched.purchase_id == purchase_id
+    assert refetched.items_updated == 2
+
+
+def test_a_scan_id_naming_a_scan_on_another_list_is_ignored(
+    client: TestClient, session: Session, user
+):
+    """The shop is the thing being recorded. Losing the audit link is not
+    worth losing the close."""
+    _enable_receipt_flag(session, user)
+    lst = _create_list(client)
+    other_lst = _create_list(client)
+    other_scan = _make_scan(session, other_lst["id"], user.id)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "scan_id": other_scan.id,
+            "new_items": [{"name": "Leche", "price": 1.10}],
+        },
+    )
+
+    assert response.status_code == 200
+    session.expire_all()
+    refetched = session.get(ReceiptScan, other_scan.id)
+    assert refetched.purchase_id is None
+    assert refetched.items_updated == 0
