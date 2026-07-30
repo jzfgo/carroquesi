@@ -866,6 +866,113 @@ describe('useListItems — a read that lands after a write', () => {
     }
   })
 
+  it('keeps asking for the re-read when the poll that owed it failed', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      seedCache()
+      let landRead!: (items: ListItem[]) => void
+      vi.mocked(api.getListItems).mockReturnValue(
+        new Promise<ListItem[]>((r) => {
+          landRead = r
+        }) as never,
+      )
+
+      const { result } = renderHook(() =>
+        useListItems('list-1', mockGetToken, mockShowToast),
+      )
+      await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+      await act(async () => {
+        await result.current.togglePurchased('item-1')
+      })
+      await act(async () => landRead([{ ...item1, name: 'Leche entera' }]))
+      await waitFor(() => expect(result.current.items[0].purchased).toBe(true))
+
+      // The tick that owed the re-read cannot reach the server.
+      vi.mocked(api.getListItems).mockRejectedValue(new Error('Network'))
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000)
+      })
+      expect(result.current.items[0].name).toBe('Leche')
+
+      vi.mocked(api.getListItems).mockResolvedValue([
+        { ...item1, name: 'Leche entera', purchased: true },
+      ] as never)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000)
+      })
+
+      await waitFor(() =>
+        expect(result.current.items[0].name).toBe('Leche entera'),
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // A write already in flight when the tick begins can settle inside the poll's
+  // own items read, so reading updated_at first does not protect it.
+  it('reads again when a write settled inside the poll read', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const { result } = renderHook(() =>
+        useListItems('list-1', mockGetToken, mockShowToast),
+      )
+      await waitFor(() => expect(result.current.status).toBe('success'))
+
+      let ackUpdate!: () => void
+      vi.mocked(api.updateItem).mockReturnValue(
+        new Promise<void>((r) => {
+          ackUpdate = () => r()
+        }) as never,
+      )
+      let toggle!: Promise<void>
+      await act(async () => {
+        toggle = result.current.togglePurchased('item-1')
+        await Promise.resolve()
+      })
+
+      let landPoll!: (items: ListItem[]) => void
+      vi.mocked(api.getListItems).mockReturnValue(
+        new Promise<ListItem[]>((r) => {
+          landPoll = r
+        }) as never,
+      )
+      vi.mocked(api.getListUpdatedAt).mockResolvedValue({
+        updated_at: '2026-01-02T00:00:00',
+      } as never)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000)
+      })
+      await waitFor(() => expect(api.getListItems).toHaveBeenCalledTimes(2))
+
+      await act(async () => {
+        ackUpdate()
+        await toggle
+      })
+      await act(async () =>
+        landPoll([{ ...item1, name: 'Leche entera', purchased: true }]),
+      )
+      await waitFor(() => expect(result.current.items[0].purchased).toBe(true))
+      expect(result.current.items[0].name).toBe('Leche')
+
+      // updated_at no longer moves, so only a renewed request can recover it.
+      vi.mocked(api.getListItems).mockResolvedValue([
+        { ...item1, name: 'Leche entera', purchased: true },
+      ] as never)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000)
+      })
+
+      await waitFor(() =>
+        expect(result.current.items[0].name).toBe('Leche entera'),
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('does not cache a list whose items belong to another one', async () => {
     // The second list paints from its cache and then fails to read, so the
     // members of the first list are the last ones this hook saw.

@@ -139,14 +139,10 @@ export function useListItems(
       rawMembers.forEach((m, i) => map.set(m.user_id, toMember(m, i)))
       setMembers(map)
       lastUpdatedAt.current = updatedAtData.updated_at
-      // These three run together, so this timestamp can already cover a write
-      // whose item the merge just kept. The poll would then see nothing new and
-      // never read again, hiding whatever another shopper changed on that same
-      // item. Ask for one more read instead: by the next tick the write has
-      // settled and the server wins.
-      //
-      // The poll needs none of this. It reads the timestamp before the items,
-      // so the timestamp it keeps always predates them.
+      // The merge keeps the whole item, so a change another shopper made to one
+      // the user also wrote goes with it. The timestamp cannot be trusted to
+      // bring it back — it may already cover the write — so ask the next poll
+      // to read again. By then the write has settled and the server wins.
       if (writeClock.current !== clockAtStart) rereadOnNextPoll.current = true
       cachedMembers.current = { listId, members: rawMembers }
       setStatus('success')
@@ -182,6 +178,7 @@ export function useListItems(
   useEffect(() => {
     const poll = async () => {
       if (document.visibilityState === 'hidden') return
+      const clockAtStart = writeClock.current
       const isLocallyNewer = beginRead()
       try {
         const data = (await getListUpdatedAt(getToken, listId)) as {
@@ -191,9 +188,13 @@ export function useListItems(
           lastUpdatedAt.current !== null &&
           data.updated_at !== lastUpdatedAt.current
         if (changed || rereadOnNextPoll.current) {
-          rereadOnNextPoll.current = false
           const raw = (await getListItems(getToken, listId)) as ListItem[]
           setItems((prev) => reconcileItems(raw, prev, isLocallyNewer))
+          // Settled only once a read has landed and nothing raced it. A read
+          // that failed leaves the request standing, and one a write raced
+          // renews it — the poll drops the same changes fetchAll does, because
+          // a write already in flight can settle inside its own read.
+          rereadOnNextPoll.current = writeClock.current !== clockAtStart
         }
         lastUpdatedAt.current = data.updated_at
       } catch {
