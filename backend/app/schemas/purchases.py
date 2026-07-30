@@ -24,6 +24,9 @@ class PurchaseLine(BaseModel):
 class PurchaseNewItem(BaseModel):
     """Something bought that was never on the list. Born already purchased."""
 
+    # 200 is a guess. ItemCreate.name is unbounded, so this is stricter than
+    # the ordinary way to add an item, for no reason beyond bounding a field
+    # that arrives in a list of up to 200 of them.
     name: str = Field(min_length=1, max_length=200)
     brand: str | None = None
     ean: str | None = None
@@ -38,9 +41,9 @@ class PurchaseClose(BaseModel):
     # is the other kind: a trip that already tore off, written down later.
     purchase_id: str | None = None
     # Required, and deliberately stricter than the receipt-review screen,
-    # which allows an empty one. Whoever closes a purchase was there and
-    # knows the shop. The only trip that can lack a store is the cart nobody
-    # reconciled, and nobody closes that one -- midnight does.
+    # which allows an empty one. Whoever closes a purchase was there and knows
+    # the shop. The only trip that can end up without a store is one nobody
+    # ever closed, which tears off on its own at midnight.
     store: str = Field(min_length=1, max_length=100)
     # The date control. Absent means now.
     purchased_at: datetime | None = None

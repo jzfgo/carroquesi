@@ -118,10 +118,15 @@ class Purchase(SQLModel, table=True):
     id: str = Field(default_factory=_uuid, primary_key=True)
     list_id: str = Field(foreign_key="lists.id", index=True)
     opened_at: datetime = Field(default_factory=_now)
-    # Local midnight after opened_at, in app.services.trips.TRIP_TIMEZONE.
-    # Stamped at creation so the tear-off is an instant comparison everywhere
-    # else — and so revisiting the policy later cannot re-file trips that have
-    # already torn off.
+    # The local midnight, in app.services.trips.TRIP_TIMEZONE, that ended the
+    # trip day this was opened on. Stamped once at creation so the tear-off is
+    # an instant comparison everywhere else — and so revisiting the policy
+    # later cannot re-file trips that have already torn off.
+    #
+    # Not derivable from opened_at afterwards. Closing a trip recomputes
+    # opened_at from the lines being filed, and a close can be backdated, so a
+    # filed trip's opened_at may sit on an earlier local day than this. The
+    # stamp is the trip's day; opened_at is only the earliest thing in it.
     tears_off_at: datetime
     # Set only by an explicit reconciliation. NULL with tears_off_at in the
     # past means nobody wrote this shop down; the paper simply got torn.

@@ -11,6 +11,46 @@ from app.services import trips
 router = APIRouter(prefix="/lists/{list_id}/purchases", tags=["purchases"])
 
 
+def _reject_bad_amount(value: float | None, what: str) -> None:
+    """Range and finiteness for one money field, in plain Python.
+
+    Not a Pydantic constraint. Any constraint able to reject NaN crashes
+    FastAPI's own 422 handler when it echoes the rejected value back — see
+    PurchaseClose.total's comment for the detail. Finiteness is worth more
+    than a tidy error: Postgres stores NaN happily, and the items feed then
+    fails to serialize for everyone on the list.
+    """
+    if value is None:
+        return
+    if not math.isfinite(value):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"{what} must be a finite number",
+        )
+    if value < 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"{what} must not be negative",
+        )
+
+
+def _reject_bad_price(price: float | None, price_per: str | None, where: str) -> None:
+    """The two rules ItemCreate states about a price, restated in plain Python.
+
+    A close sheet prices items, so it can break them the same way creating an
+    item can: an amount that is negative or not finite, or a unit with no
+    amount to apply it to. One endpoint should not store what its neighbour
+    refuses. Plain Python rather than the model validator ItemCreate uses,
+    for the reason in _reject_bad_amount.
+    """
+    _reject_bad_amount(price, f"{where}.price")
+    if price_per is not None and price is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"{where}.price_per requires {where}.price",
+        )
+
+
 @router.post("/close", response_model=PurchaseRead)
 def close_purchase(
     list_id: str,
@@ -20,24 +60,19 @@ def close_purchase(
 ):
     """Declare what a shop was — "Cerrar compra".
 
-    One press of the sheet's primary is one call: the lines it ticked, the
-    products it invented, the shop and the date. Doing it in one write is what
-    lets the whole act sit in the offline queue as a single entry.
+    One press of the button is one call: the lines it ticked, the things
+    bought that were never on the list, the shop and the date. Doing it in one
+    write is what lets the whole act sit in the offline queue as a single
+    entry.
     """
     lst, current_user = list_and_user
-    # See PurchaseClose.total's docstring for why this is checked here in
-    # plain Python rather than as a Pydantic constraint.
-    if body.total is not None:
-        if not math.isfinite(body.total):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="total must be a finite number",
-            )
-        if body.total < 0:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="total must not be negative",
-            )
+    # Every amount the request carries, checked before anything is written, so
+    # a bad one cannot leave half a sheet applied.
+    _reject_bad_amount(body.total, "total")
+    for index, line in enumerate(body.lines):
+        _reject_bad_price(line.price, line.price_per, f"lines[{index}]")
+    for index, new in enumerate(body.new_items):
+        _reject_bad_price(new.price, new.price_per, f"new_items[{index}]")
 
     now = datetime.now(UTC).replace(tzinfo=None)
     # Same clamp a tap gets: no future, and no older than the backdate limit.
@@ -50,17 +85,38 @@ def close_purchase(
     # attached by its own date would land in a trip this call is not closing,
     # and close() would reject it as not in the cart.
     #
+    # This is the deliberate exception to the receipt path's rule that one
+    # instant must serve both purchased_at and attach. That rule is about the
+    # case where nothing names a trip: the timestamp is then the only thing
+    # that can pick one, so the two must agree. Here the caller names the trip
+    # outright, which is better evidence than a date.
+    #
+    # Anchoring on opened_at works because trip_for resolves a trip by the
+    # local day of the instant it is handed, and tears_off_at_for(opened_at)
+    # still equals a trip's own tears_off_at. The only thing that breaks that
+    # equality is close(), which recomputes opened_at from the lines it files
+    # — and close() refuses a trip that is already closed, so no trip this can
+    # resolve has ever had it broken. Written down because the argument is
+    # circular and nothing tests it: a future caller that moves opened_at
+    # without closing the trip would make attach resolve the wrong one, in
+    # silence.
+    #
     # A purchase_id nobody can resolve leaves the anchor at now, and one that
     # names another list's trip anchors on that trip's day. Neither is checked
     # here. The refusal for both belongs to close(), which already makes it,
-    # and one place should decide it. Nothing is committed on that path.
+    # and one place should decide it. Whatever those paths wrote never lands:
+    # the request raises before session.commit(), and the session dependency
+    # closes without committing.
     anchor = now
     if body.purchase_id is not None:
         named = session.get(Purchase, body.purchase_id)
         if named is not None:
             anchor = named.opened_at
 
-    filed: list[str] = []
+    # Every id this call wrote to. Not "filed": a line that was already bought
+    # and only got a new price is in here too, and nothing about its trip
+    # moved. "Filed" means a closed trip everywhere else in this call graph.
+    touched: list[str] = []
 
     for new in body.new_items:
         created = ListItem(
@@ -69,6 +125,8 @@ def close_purchase(
             name=new.name,
             brand=new.brand,
             ean=new.ean,
+            # No stores, unlike the receipt path. `stores` is a hint about
+            # where to buy something, and this was already bought.
             stores=[],
             quantity=None,  # planned qty — nobody planned an impulse buy
             purchased_quantity=new.quantity,
@@ -89,7 +147,7 @@ def close_purchase(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Cannot add to a trip that has already been filed",
             ) from None
-        filed.append(created.id)
+        touched.append(created.id)
 
     for line in body.lines:
         item = session.get(ListItem, line.item_id)
@@ -103,6 +161,10 @@ def close_purchase(
             try:
                 trips.attach(session, item, anchor)
             except trips.AlreadyFiled:
+                # Reachable, unlike the one above: the sheet can tick an item
+                # that a receipt scan filed onto a closed ticket in the
+                # meantime. Its trip holds a total someone confirmed, so the
+                # line does not move and the whole close is refused.
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Cannot add to a trip that has already been filed",
@@ -114,18 +176,26 @@ def close_purchase(
         if line.quantity is not None:
             item.purchased_quantity = line.quantity
         session.add(item)
-        filed.append(item.id)
+        touched.append(item.id)
 
     session.flush()
+
+    # Whether the sheet named anything, which is not whether anything of it
+    # survived. A sheet naming only rows that have since been deleted must not
+    # fall through to "close the whole cart": the household ticked one thing
+    # and the server would file everything, under a total that covers none of
+    # it. An empty selection reaches close() and comes back as a refusal,
+    # which is an error the offline queue can retry or drop.
+    named_anything = bool(body.lines or body.new_items)
 
     try:
         purchase = trips.close(
             session,
-            lst.id,
-            # Naming no line means "close the whole cart" — the ordinary
-            # one-shop evening, and what every caller sent before the sheet
-            # existed. The 409 below then means the cart was empty.
-            filed or None,
+            list_id,
+            # Naming nothing at all means "close the whole cart" — the
+            # ordinary one-shop evening, and what every caller sent before the
+            # sheet existed.
+            touched if named_anything else None,
             body.store,
             body.total,
             now,

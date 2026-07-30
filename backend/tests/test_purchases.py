@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
@@ -13,6 +14,10 @@ def _create_list(client):
 def _tap(client, list_id: str, name: str) -> dict:
     item = client.post(f"/lists/{list_id}/items", json={"name": name}).json()
     return client.patch(f"/lists/{list_id}/items/{item['id']}", json={"purchased": True}).json()
+
+
+def _items_by_name(client, list_id: str) -> dict:
+    return {i["name"]: i for i in client.get(f"/lists/{list_id}/items").json()}
 
 
 def _days_ago(days: int) -> datetime:
@@ -67,7 +72,7 @@ def test_closing_a_subset_leaves_the_rest_in_a_different_open_trip(client: TestC
     closed = response.json()
     assert closed["id"] != milk["purchase_id"]
 
-    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    fetched = _items_by_name(client, lst["id"])
     assert fetched["Leche"]["purchase_id"] == closed["id"]
     assert fetched["Pan"]["purchase_id"] == milk["purchase_id"]
     assert fetched["Pan"]["purchase_ends_at"] is not None
@@ -102,7 +107,7 @@ def test_naming_an_item_already_filed_on_another_ticket_returns_400(client: Test
     assert response.status_code == 400
 
 
-def test_a_line_naming_an_item_that_no_longer_exists_is_ignored(client: TestClient):
+def test_a_vanished_line_is_skipped_and_the_rest_of_the_sheet_still_files(client: TestClient):
     """Someone else deleted it while the sheet was open.
 
     The household is standing at the door with a full trolley. Losing the
@@ -127,28 +132,62 @@ def test_a_line_naming_an_item_that_no_longer_exists_is_ignored(client: TestClie
     assert fetched["purchase_id"] == response.json()["id"]
 
 
-def test_a_line_naming_an_item_on_another_list_is_ignored(
+def test_a_sheet_whose_every_line_vanished_closes_nothing(client: TestClient):
+    """The dangerous half of the same story.
+
+    Naming nothing at all means "close the whole cart". A sheet whose lines
+    have all been deleted must not be read that way: the household ticked one
+    row, and it would get every row filed under a total that covers none of
+    them, with no error to notice. The offline queue replaying a close after
+    the items went away is the ordinary way to arrive here.
+    """
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    bread = _tap(client, lst["id"], "Pan")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "total": 3.0, "lines": [{"item_id": "does-not-exist"}]},
+    )
+
+    assert response.status_code == 409
+    fetched = _items_by_name(client, lst["id"])
+    assert fetched["Leche"]["purchase_id"] == milk["purchase_id"]
+    assert fetched["Pan"]["purchase_id"] == bread["purchase_id"]
+    assert fetched["Leche"]["purchase_filed"] is False
+    assert fetched["Pan"]["purchase_filed"] is False
+
+
+def test_a_line_naming_an_item_on_another_list_does_not_touch_it(
     client: TestClient, other_client: TestClient
 ):
     """An item id is not proof of access to the item it names.
 
-    Membership was checked against the list in the path. A line is skipped
-    the same way a missing one is, so the close still files what it may.
+    Membership was checked against the list in the path, so a line reaching
+    outside it is skipped the same way a deleted one is — and the close goes
+    on to file the lines that were the caller's to name.
     """
     mine = _create_list(client)
-    _tap(client, mine["id"], "Leche")
+    milk = _tap(client, mine["id"], "Leche")
     theirs = other_client.post("/lists", json={"name": "Vecinos"}).json()
     their_bread = other_client.post(f"/lists/{theirs['id']}/items", json={"name": "Pan"}).json()
 
     response = client.post(
         f"/lists/{mine['id']}/purchases/close",
-        json={"store": "Lidl", "lines": [{"item_id": their_bread["id"], "price": 9.99}]},
+        json={
+            "store": "Lidl",
+            "lines": [
+                {"item_id": milk["id"]},
+                {"item_id": their_bread["id"], "price": 9.99},
+            ],
+        },
     )
 
     assert response.status_code == 200
     fetched = other_client.get(f"/lists/{theirs['id']}/items").json()[0]
     assert fetched["purchased"] is False
     assert fetched["price"] is None
+    assert _items_by_name(client, mine["id"])["Leche"]["purchase_id"] == response.json()["id"]
 
 
 def test_a_non_member_cannot_close(client: TestClient, other_client: TestClient):
@@ -185,7 +224,7 @@ def test_the_full_two_shop_evening_through_http(client: TestClient):
     assert lidl["store"] == "Lidl"
     assert mercadona["store"] == "Mercadona"
 
-    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    fetched = _items_by_name(client, lst["id"])
     assert fetched["Leche"]["purchase_id"] == lidl["id"]
     assert fetched["Pan"]["purchase_id"] == lidl["id"]
     assert fetched["Aceite"]["purchase_id"] == mercadona["id"]
@@ -329,7 +368,7 @@ def test_a_line_prices_the_item_it_names(client: TestClient):
     )
 
     assert response.status_code == 200
-    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    fetched = _items_by_name(client, lst["id"])
     assert fetched["Leche"]["price"] == 1.19
     assert fetched["Leche"]["price_store"] == "Lidl"
     assert fetched["Leche"]["purchased_quantity"] == "6 ud"
@@ -345,7 +384,7 @@ def test_a_line_with_no_price_is_saved_bought_without_one(client: TestClient):
     )
 
     assert response.status_code == 200
-    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    fetched = _items_by_name(client, lst["id"])
     assert fetched["Leche"]["price"] is None
     assert fetched["Leche"]["purchased"] is True
 
@@ -365,7 +404,7 @@ def test_a_new_item_is_created_already_bought_and_on_the_ticket(client: TestClie
 
     assert response.status_code == 200
     trip_id = response.json()["id"]
-    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    fetched = _items_by_name(client, lst["id"])
     choc = fetched["Chocolate negro"]
     assert choc["purchased"] is True
     assert choc["price"] == 3.18
@@ -388,7 +427,7 @@ def test_ticking_an_item_that_was_never_tapped_marks_it_bought(client: TestClien
 
     assert response.status_code == 200
     trip_id = response.json()["id"]
-    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    fetched = _items_by_name(client, lst["id"])
     assert fetched["Huevos"]["purchased"] is True
     assert fetched["Huevos"]["purchase_id"] == trip_id
 
@@ -405,7 +444,7 @@ def test_an_unticked_cart_item_stays_in_the_cart(client: TestClient):
 
     assert response.status_code == 200
     closed_id = response.json()["id"]
-    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    fetched = _items_by_name(client, lst["id"])
     assert fetched["Pan"]["purchase_id"] == bread["purchase_id"]
     assert fetched["Pan"]["purchase_id"] != closed_id
     assert fetched["Pan"]["purchase_filed"] is False
@@ -498,7 +537,7 @@ def test_an_impulse_buy_on_a_backdated_sheet_joins_the_trip_being_closed(client:
     assert response.status_code == 200
     trip = response.json()
     assert trip["id"] == milk["purchase_id"]
-    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    fetched = _items_by_name(client, lst["id"])
     assert fetched["Chocolate negro"]["purchase_id"] == trip["id"]
     assert fetched["Leche"]["purchase_id"] == trip["id"]
     # The date still did its own job: it dated the buy, and through it the
@@ -531,7 +570,7 @@ def test_writing_down_a_torn_off_trip_takes_its_impulse_buys_with_it(client: Tes
 
     assert response.status_code == 200
     assert response.json()["id"] == milk["purchase_id"]
-    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    fetched = _items_by_name(client, lst["id"])
     assert fetched["Chocolate negro"]["purchase_id"] == milk["purchase_id"]
     # Today's cart is a different shop and must be left open.
     assert fetched["Pan"]["purchase_id"] == today["purchase_id"]
@@ -559,7 +598,7 @@ def test_a_named_trip_wins_over_the_sheets_date(client: TestClient):
 
     assert response.status_code == 200
     assert response.json()["id"] == milk["purchase_id"]
-    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    fetched = _items_by_name(client, lst["id"])
     choc = fetched["Chocolate negro"]
     assert choc["purchase_id"] == milk["purchase_id"]
     assert datetime.fromisoformat(choc["purchased_at"]).date() == ten_days_ago.date()
@@ -584,6 +623,84 @@ def test_ticking_a_never_tapped_item_onto_a_torn_off_trip(client: TestClient):
 
     assert response.status_code == 200
     assert response.json()["id"] == milk["purchase_id"]
-    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    fetched = _items_by_name(client, lst["id"])
     assert fetched["Huevos"]["purchased"] is True
     assert fetched["Huevos"]["purchase_id"] == milk["purchase_id"]
+
+
+def test_a_line_with_a_negative_price_is_rejected(client: TestClient):
+    """The sheet prices items, so it needs the rules ItemCreate already has.
+
+    Same request, same quantity: an amount the item endpoint refuses cannot
+    be accepted here just because it arrived on a line instead.
+    """
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "lines": [{"item_id": milk["id"], "price": -5.0}]},
+    )
+
+    assert response.status_code == 422
+    assert _items_by_name(client, lst["id"])["Leche"]["price"] is None
+
+
+def test_a_new_item_with_a_negative_price_is_rejected(client: TestClient):
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "new_items": [{"name": "Chocolate negro", "price": -3.18}]},
+    )
+
+    assert response.status_code == 422
+    # Refused before anything was written, so no half-applied sheet is left.
+    assert "Chocolate negro" not in _items_by_name(client, lst["id"])
+
+
+def test_a_line_with_a_nan_price_is_rejected(client: TestClient):
+    """Not merely an untidy error. Postgres stores NaN, and the items feed
+    then fails to serialize for everyone on the list -- one crafted request
+    would take the list down for the household.
+    """
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    # json.dumps emits a bare NaN by default, which is exactly the kind of
+    # client _post_raw_json exists to imitate.
+    body = json.dumps({"store": "Lidl", "lines": [{"item_id": milk["id"], "price": float("nan")}]})
+    response = _post_raw_json(client, f"/lists/{lst['id']}/purchases/close", body)
+
+    assert response.status_code == 422
+    assert _items_by_name(client, lst["id"])["Leche"]["price"] is None
+
+
+def test_a_line_priced_by_the_kilo_with_no_price_is_rejected(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "lines": [{"item_id": milk["id"], "price_per": "KILOGRAM"}]},
+    )
+
+    assert response.status_code == 422
+
+
+def test_a_new_item_priced_by_the_kilo_with_no_price_is_rejected(client: TestClient):
+    """A unit with no amount to apply it to. `POST /lists/{id}/items` returns
+    422 for exactly this payload, and a sheet inventing the item is not a
+    reason to store what that endpoint refuses.
+    """
+    lst = _create_list(client)
+    _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "new_items": [{"name": "Queso", "price_per": "KILOGRAM"}]},
+    )
+
+    assert response.status_code == 422
+    assert "Queso" not in _items_by_name(client, lst["id"])
