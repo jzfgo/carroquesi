@@ -116,15 +116,28 @@
    say that on sight. A readonly input still takes focus, and no phone raises
    a keyboard for one — so left looking editable it would accept a tap and
    then answer with nothing at all. Longhands because jsdom drops a shorthand
-   holding a var(), and a test reads these back. */
+   holding a var(), and a test reads the ink and the cursor back. The
+   background is not readable there for that same reason, so it is not what
+   the test checks. */
 .ais__price:read-only {
   background-color: transparent;
   color: var(--ink-2);
   cursor: default;
 }
 
+/* Two ways to arrive, and they want opposite answers. A tap raises no
+   keyboard on a readonly field, so lighting it up would promise something
+   that never comes. Tabbing to it is how a keyboard reads the value at all,
+   and the field is still in the tab order — this one sets `outline: none`, so
+   without a ring there is nothing on screen saying where focus is. Suppress
+   the tap, keep the keyboard, same split ListCard makes for a button left
+   focusable on purpose. */
 .ais__price:read-only:focus {
   box-shadow: none;
+}
+
+.ais__price:read-only:focus-visible {
+  box-shadow: var(--focus-ring);
 }
 
 .ais__per {

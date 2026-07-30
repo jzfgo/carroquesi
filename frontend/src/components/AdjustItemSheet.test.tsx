@@ -360,14 +360,33 @@ describe('AdjustItemSheet and a row the paper printed', () => {
     )
 
     const price = screen.getByLabelText('Precio')
+
+    // Ink and cursor, because those are the two that actually move: an
+    // editable field here is `--ink-0` and `auto`. The background is not
+    // asserted on purpose — jsdom drops the editable rule's `background`
+    // shorthand for holding a var(), so it reads as transparent either way
+    // and pinning it would prove nothing.
+    const style = getComputedStyle(price)
+    expect(style.color).toBe('var(--ink-2)')
+    expect(style.cursor).toBe('default')
+  })
+
+  // The field stays in the tab order, because that is how a keyboard reaches
+  // the value at all, and `.ais__price` sets `outline: none` — so with the tap
+  // ring suppressed and nothing put back, focus would land somewhere invisible.
+  //
+  // This pins the keyboard half only. jsdom answers a programmatic focus() as
+  // `:focus-visible`, so it cannot see the plain-`:focus` case a tap takes;
+  // that one rests on the two rules' specificity and on a real browser.
+  it('still shows a keyboard user where it is', () => {
+    render(
+      <AdjustItemSheet line={printed} onDone={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    const price = screen.getByLabelText('Precio')
     price.focus()
 
-    // jsdom hands `transparent` back in its normalised form. An unapplied
-    // stylesheet would answer with an empty string instead, so this also says
-    // the rule is really being read.
-    const style = getComputedStyle(price)
-    expect(style.backgroundColor).toBe('rgba(0, 0, 0, 0)')
-    expect(style.boxShadow).toBe('none')
+    expect(getComputedStyle(price).boxShadow).toBe('var(--focus-ring)')
   })
 
   // The quantity is typed on a printed row like on any other, so it keeps the
@@ -391,7 +410,7 @@ describe('AdjustItemSheet and a row the paper printed', () => {
       <AdjustItemSheet line={printed} onDone={vi.fn()} onClose={vi.fn()} />,
     )
 
-    expect(screen.getByText(/El importe lo pone el ticket/)).toBeInTheDocument()
+    expect(screen.getByText(/El precio lo pone el ticket/)).toBeInTheDocument()
   })
 
   it('hands the printed row back with the paper untouched', async () => {

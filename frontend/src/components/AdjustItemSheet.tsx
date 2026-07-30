@@ -181,7 +181,7 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
           </span>{' '}
           <span id={`${id}-price-hint`}>
             {printed
-              ? 'El importe lo pone el ticket. Para cambiarlo, descarta el ticket.'
+              ? 'El precio lo pone el ticket. Para cambiarlo, descarta el ticket.'
               : 'El precio se ajusta solo.'}
           </span>
         </span>
