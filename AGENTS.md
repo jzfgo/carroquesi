@@ -102,7 +102,7 @@ Four-step flow: client parse (`receiptAi.ts` via Gemini) → backend fuzzy match
 
 ### Purchased item rules
 
-Purchased items are mostly read-only (rename/qty/brand/store edits disabled). Price deletion has a **same-day guard**: enforced in both `LogPurchaseSheet` (frontend) and `DELETE /lists/{id}/items/{item_id}/prices` (returns 422 for prior-day purchases).
+Purchased items are mostly read-only (rename/qty/brand/store edits disabled). Price deletion has a **same-day guard**: `LogPurchaseSheet` hides the control, and `DELETE /lists/{id}/items/{item_id}/prices` enforces it (returns 422 for prior-day purchases).
 
 ## Backend
 
@@ -142,7 +142,10 @@ All known flags and defaults live in the registry in `backend/app/services/featu
 
 - Check `git status --short` before and after changes
 - Implement the smallest complete fix first, then iterate
+- **YAGNI.** Build what the task needs, not what a later one might: no parameter, abstraction, or config knob without a caller today. This is *Complexity is earned* at coding time — see [PRODUCT.md](PRODUCT.md)
+- **DRY is about rules, not lines.** Duplicated code is often fine — abstract on the third occurrence, not the second. Duplicated *rules* drift apart, so encode one twice only when the copies do different jobs (the same-day price guard is a UI affordance and an API enforcement), never when they do the same one
 - **Write comments and docs in plain, short English.** One idea per sentence. Use common words, not rare or figurative ones: the reader is not always a native speaker. A comment says *why*, not *where*: never cite line numbers, file paths, or issue IDs in a code comment. Nothing checks those links, so they go stale on the next move, and the commit message tells the reader more. Docs are the index, so they cite freely. Keep the length in proportion to the decision. Commit and PR titles are exempt; their style is deliberate.
+- **A paragraph defending a workaround means the code is wrong.** If a paragraph is needed to argue the hack is OK, fix the code instead
 - Start both servers: `just dev` (uses overmind + `Procfile.local`); use `just dev network` to expose on LAN
 
 ### Agent Guardrails

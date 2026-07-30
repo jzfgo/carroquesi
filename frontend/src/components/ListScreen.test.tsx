@@ -720,6 +720,46 @@ describe('receipt price confirmation toast', () => {
     expect(alert).not.toHaveTextContent('artículo')
   })
 
+  it('shows "No se pudo leer el ticket" when AI receipt parsing fails', async () => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockRejectedValue(
+      new Error('AI failed'),
+    )
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    const fileInput = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('No se pudo leer el ticket')
+  })
+
+  it('shows "No se pudo procesar el ticket" when backend submission fails after AI parsing', async () => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
+      store: 'Mercadona',
+      receipt_date: '2026-07-20',
+      receipt_total: 10,
+      lines: [],
+    })
+    vi.mocked(api.submitParsedReceipt).mockRejectedValue(
+      new Error('Backend failed'),
+    )
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    const fileInput = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('No se pudo procesar el ticket')
+  })
+
   it('reports only the created-items clause when no prices changed', async () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 0,
