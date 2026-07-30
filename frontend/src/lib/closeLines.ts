@@ -13,9 +13,10 @@ import { itemState } from './itemState'
 /**
  * One row of the close sheet.
  *
- * The receipt-only fields are declared now and populated by nobody. Phase 3c
- * lays a scan's data over this same row rather than replacing the model, so
- * the two modes cannot drift into different shapes before they meet.
+ * A scan lays its data over this same row rather than replacing the model, so
+ * the two modes cannot drift into different shapes. The receipt-only fields
+ * are the paper's authority over the row, and they are set and cleared
+ * together.
  */
 export interface CloseLine {
   /** React's key. Separate from `itemId` because a row the household adds by
@@ -30,9 +31,12 @@ export interface CloseLine {
   pricePer: 'KILOGRAM' | null
   included: boolean
   fromCart: boolean
-  /** 3c: the line as the paper printed it. */
+  /** The line as the paper printed it. */
   receiptLine?: string
-  /** 3c: whether the match was literal or interpreted. */
+  /** The amount the paper printed beside that line. This is what the row shows
+   *  and what both sums add. It is never worked out from the price. */
+  receiptAmount?: number
+  /** Whether the match was literal or interpreted. */
   matchState?: 'literal' | 'guess'
 }
 
@@ -108,6 +112,7 @@ function paperQuantity(line: MatchedLine | UnmatchedLine): string {
 interface PaperLine {
   index: number
   receiptLine: string
+  amount: number
   /** The item the matcher named, or null when it named none. */
   itemId: string | null
   price: number
@@ -119,6 +124,7 @@ function toPaperLine(line: MatchedLine | UnmatchedLine): PaperLine {
   return {
     index: line.index,
     receiptLine: line.receipt_name,
+    amount: line.line_total,
     itemId: 'item_id' in line ? line.item_id : null,
     // A price on a row is per unit or per kilo, never what the line came to.
     price: line.unit_price,
@@ -140,6 +146,7 @@ function unassignedRow(line: PaperLine): CloseLine {
     included: false,
     fromCart: false,
     receiptLine: line.receiptLine,
+    receiptAmount: line.amount,
   }
 }
 
@@ -198,6 +205,7 @@ export function receiptToLines(
       pricePer: line.pricePer,
       included: true,
       receiptLine: line.receiptLine,
+      receiptAmount: line.amount,
       matchState: 'guess',
     })
   }
@@ -214,9 +222,17 @@ export function receiptToLines(
  * because what is ticked is what is about to enter price history. It is not
  * what the paper says the shop cost; that is a different sum.
  *
- * Each price is multiplied by how much was bought, because a price here is per
- * unit or per kilo — never the amount the line came to. The sheet shows the
- * two fields with a `×` between them, so the sum has to agree with that.
+ * A row the paper printed contributes the figure the paper printed. Working it
+ * out again from the price is arithmetic the paper already did, and the second
+ * attempt is the one that rounds — the weight a weighed row shows is rounded
+ * to the gram, so the product misses by cents. Where the paper printed a
+ * figure, the app repeats it.
+ *
+ * A hand-written row has no printed figure, so its price is multiplied by how
+ * much was bought — a price here is per unit or per kilo, never the amount the
+ * line came to. The sheet shows the two fields with a `×` between them, so the
+ * sum has to agree with that. This is the only place the multiplication
+ * belongs.
  *
  * This is an estimate even when nothing is missing, and the screen must say
  * so. A till adds things no line ever held: a bag, a deposit, a discount. Only
@@ -237,6 +253,11 @@ export function linesTotal(lines: CloseLine[]): CostSummary | null {
   let any = false
   for (const line of lines) {
     if (!line.included) continue
+    if (line.receiptAmount != null) {
+      total += line.receiptAmount
+      any = true
+      continue
+    }
     if (line.price == null) {
       partial = true
       continue
@@ -261,42 +282,39 @@ export function linesTotal(lines: CloseLine[]): CostSummary | null {
  * way, and leaving it out would make the two figures disagree for a reason
  * nobody can see.
  *
- * The arithmetic and the partial flag are `linesTotal`'s, and mean the same
- * thing here. Null when no row came from a paper, which is every close written
- * by hand.
+ * This adds printed figures and nothing else, so unlike `linesTotal` it has no
+ * partial sum to report: a printed line always came with an amount. Null when
+ * no row came from a paper, which is every close written by hand.
+ *
+ * Whoever compares this with the paper's total must compare the two at cents.
+ * These are money figures added as floats, so a sum that agrees to the cent
+ * can still miss by a fraction of one, and an exact comparison would send the
+ * check amber over a receipt that reconciles.
  */
-export function receiptTotal(lines: CloseLine[]): CostSummary | null {
+export function receiptTotal(lines: CloseLine[]): number | null {
   let total = 0
-  let partial = false
   let any = false
   for (const line of lines) {
-    if (line.receiptLine == null) continue
-    if (line.price == null) {
-      partial = true
-      continue
-    }
-    const factor = parseQuantityFactor(line.quantity, line.pricePer)
-    if (factor === null) {
-      partial = true
-      continue
-    }
-    total += line.price * factor
+    if (line.receiptAmount == null) continue
+    total += line.receiptAmount
     any = true
   }
-  return any ? { total, partial } : null
+  return any ? total : null
 }
 
 /**
  * Takes the paper's authority off the rows and keeps what it read.
  *
- * Names, amounts and ticks are ordinary typed values from here on, so they
- * stay. What goes is the raw line standing behind each name and the claim that
- * the app's guess came from anywhere. The sheet is back in hand mode.
+ * Names, prices, quantities and ticks are ordinary typed values from here on,
+ * so they stay. What goes is the raw line standing behind each name, the claim
+ * that the app's guess came from anywhere, and the printed amount — so the
+ * sheet works its own figure out again and says `≥` while it does.
  */
 export function discardPaper(lines: CloseLine[]): CloseLine[] {
   return lines.map((line) => {
     const kept = { ...line }
     delete kept.receiptLine
+    delete kept.receiptAmount
     delete kept.matchState
     return kept
   })

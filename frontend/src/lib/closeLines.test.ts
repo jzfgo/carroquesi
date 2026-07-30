@@ -679,6 +679,7 @@ describe('receiptToLines', () => {
         included: true,
         fromCart: true,
         receiptLine: 'LECHE ENT 1L',
+        receiptAmount: 1.19,
         matchState: 'guess',
       },
     ])
@@ -831,51 +832,124 @@ describe('receiptTotal', () => {
   it('counts a receipt line the household did not tick', () => {
     const lines = receiptToLines(
       scan(
-        [matched({ index: 0, item_id: 'a', unit_price: 2 })],
-        [unmatched({ index: 1, unit_price: 3 })],
+        [matched({ index: 0, item_id: 'a', unit_price: 2, line_total: 2 })],
+        [unmatched({ index: 1, unit_price: 3, line_total: 3 })],
       ),
       [row({ key: 'a', itemId: 'a' })],
     )
 
     // The unticked line is still printed on the paper, so the reconciliation
     // check has to see it. The button's figure must not.
-    expect(receiptTotal(lines)).toEqual({ total: 5, partial: false })
+    expect(receiptTotal(lines)).toBe(5)
     expect(linesTotal(lines)).toEqual({ total: 2, partial: false })
   })
 
   it('leaves out a row that never came from the paper', () => {
     const lines = receiptToLines(
-      scan([matched({ item_id: 'a', unit_price: 2 })]),
+      scan([matched({ item_id: 'a', unit_price: 2, line_total: 2 })]),
       [
         row({ key: 'a', itemId: 'a' }),
         row({ key: 'b', itemId: 'b', name: 'Huevos', price: 9 }),
       ],
     )
 
-    expect(receiptTotal(lines)).toEqual({ total: 2, partial: false })
+    expect(receiptTotal(lines)).toBe(2)
   })
 
   it('is null when no row came from the paper', () => {
     expect(receiptTotal([row({ price: 3 })])).toBeNull()
   })
 
-  it('is partial when a weighed line has no weight to apply its price to', () => {
+  it('counts a weighed line the app could not have priced itself', () => {
+    // A price per kilo and no weight: there is nothing to multiply. The paper
+    // printed the amount anyway, so there is nothing to work out either.
     const lines = receiptToLines(
       scan(
-        [matched({ index: 0, item_id: 'a', unit_price: 2 })],
+        [],
         [
           unmatched({
-            index: 1,
             price_type: 'KILOGRAM',
             quantity: null,
             unit_price: 8,
+            line_total: 4.12,
           }),
         ],
       ),
-      [row({ key: 'a', itemId: 'a' })],
+      [],
     )
 
-    expect(receiptTotal(lines)).toEqual({ total: 2, partial: true })
+    expect(receiptTotal(lines)).toBe(4.12)
+  })
+})
+
+describe('the paper’s own arithmetic is never redone', () => {
+  // 456,7 g at 3,99 €/kg. The weight is rounded to the gram to be shown, so
+  // working the amount out again gives 1,82343 — close to the 1,82 the paper
+  // printed, and not it. Cents of drift like this land on the reconciliation
+  // check and turn it amber over a receipt that adds up perfectly.
+  const weighed = () =>
+    matched({
+      item_id: 'a',
+      price_type: 'KILOGRAM',
+      unit_price: 3.99,
+      quantity: 0.4567,
+      line_total: 1.82,
+    })
+
+  const scanned = () =>
+    receiptToLines(scan([weighed()]), [row({ key: 'a', itemId: 'a' })])
+
+  it('carries the printed amount onto the row', () => {
+    expect(scanned()[0].receiptAmount).toBe(1.82)
+  })
+
+  it('still shows the rounded weight, which is what gets recorded', () => {
+    expect(scanned()[0].quantity).toBe('457g')
+  })
+
+  it('reconciles against the printed amount', () => {
+    expect(receiptTotal(scanned())).toBe(1.82)
+  })
+
+  it('saves the printed amount', () => {
+    expect(linesTotal(scanned())).toEqual({ total: 1.82, partial: false })
+  })
+
+  it('goes back to the app’s own arithmetic once the paper is gone', () => {
+    // Discarding drops the printed amount with the rest of the paper's
+    // authority, so the app has to work the figure out again — and the header
+    // says so by printing `≥` once more.
+    const kept = discardPaper(scanned())
+
+    expect(receiptTotal(kept)).toBeNull()
+    expect(linesTotal(kept)).toEqual({ total: 3.99 * 0.457, partial: false })
+  })
+})
+
+describe('linesTotal on a sheet with both kinds of row', () => {
+  const paperRow = () =>
+    row({
+      key: 'a',
+      quantity: '457g',
+      price: 3.99,
+      pricePer: 'KILOGRAM',
+      receiptLine: 'MANZANA GOLDEN',
+      receiptAmount: 1.82,
+    })
+
+  it('adds a printed amount to a hand row’s worked-out one', () => {
+    const lines = [
+      paperRow(),
+      row({ key: 'b', itemId: 'b', quantity: '3', price: 2 }),
+    ]
+
+    expect(linesTotal(lines)).toEqual({ total: 7.82, partial: false })
+  })
+
+  it('is still partial when a hand row carries no price', () => {
+    const lines = [paperRow(), row({ key: 'b', itemId: 'b', price: null })]
+
+    expect(linesTotal(lines)).toEqual({ total: 1.82, partial: true })
   })
 })
 
@@ -893,6 +967,7 @@ describe('discardPaper', () => {
 
     expect(kept.map((l) => l.receiptLine)).toEqual([undefined, undefined])
     expect(kept.map((l) => l.matchState)).toEqual([undefined, undefined])
+    expect(kept.map((l) => l.receiptAmount)).toEqual([undefined, undefined])
     expect(
       kept.map((l) => [l.itemId, l.price, l.quantity, l.included]),
     ).toEqual([
@@ -907,6 +982,5 @@ describe('discardPaper', () => {
     ])
 
     expect(receiptTotal(discardPaper(lines))).toBeNull()
-    expect(linesTotal(discardPaper(lines))).toEqual(linesTotal(lines))
   })
 })
