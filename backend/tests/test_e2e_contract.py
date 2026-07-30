@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +35,11 @@ def test_e2e_fixtures_match_backend_schemas():
     assert fixtures_path.exists(), f"Fixtures file not found at {fixtures_path}"
 
     with open(fixtures_path) as f:
-        data = json.loads(f.read())
+        content = f.read()
+        data = json.loads(content)
+
+    for dt in re.findall(r'"\d{4}-\d{2}-\d{2}T[\d:.]+[^"]*"', content):
+        assert not dt.rstrip('"').endswith(("Z", "+00:00")), f"naive UTC only: {dt}"
 
     # 1. /users/me -> UserRead
     assert_exact(UserRead, data["ALICE"])
@@ -45,6 +50,9 @@ def test_e2e_fixtures_match_backend_schemas():
     assert default_on_features.issubset(alice_features), (
         f"ALICE features ({alice_features}) must include all default-on features ({default_on_features}) "
         "to ensure E2E tests and visual baselines reflect what production renders."
+    )
+    assert alice_features <= set(REGISTRY.keys()), (
+        f"ALICE features ({alice_features}) contains unknown flags not in REGISTRY"
     )
 
     # 2. /lists -> list[ListRead]

@@ -45,6 +45,7 @@ set -u
 SHARED='^(\.github/workflows/|justfile|lefthook\.yml|scripts/|\.config/|\.envrc)'
 
 FRONTEND='^frontend/'
+# The backend e2e contract test reads the frontend fixtures.json, so changes to it must trigger a backend test run.
 BACKEND='^(backend/|frontend/tests/fixtures\.json)'
 TOOLING='^(\.claude/hooks/|scripts/)'
 
