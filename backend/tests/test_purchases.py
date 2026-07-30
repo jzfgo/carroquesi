@@ -704,3 +704,109 @@ def test_a_new_item_priced_by_the_kilo_with_no_price_is_rejected(client: TestCli
 
     assert response.status_code == 422
     assert "Queso" not in _items_by_name(client, lst["id"])
+
+
+def test_listing_purchases_returns_newest_first(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "total": 14.60, "lines": [{"item_id": milk["id"]}]},
+    )
+    bread = _tap(client, lst["id"], "Pan")
+    client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Mercadona", "lines": [{"item_id": bread["id"]}]},
+    )
+
+    response = client.get(f"/lists/{lst['id']}/purchases")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [p["store"] for p in body] == ["Mercadona", "Lidl"]
+    assert body[1]["total"] == 14.60
+    # A hand-written close never confirms a total.
+    assert body[0]["total"] is None
+
+
+def test_listing_purchases_honours_the_limit(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "lines": [{"item_id": milk["id"]}]},
+    )
+    bread = _tap(client, lst["id"], "Pan")
+    client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Mercadona", "lines": [{"item_id": bread["id"]}]},
+    )
+
+    response = client.get(f"/lists/{lst['id']}/purchases", params={"limit": 1})
+
+    assert response.status_code == 200
+    assert [p["store"] for p in response.json()] == ["Mercadona"]
+
+
+def test_listing_purchases_rejects_a_limit_outside_the_bounds(client: TestClient):
+    lst = _create_list(client)
+
+    for limit in (0, -1, 101):
+        response = client.get(f"/lists/{lst['id']}/purchases", params={"limit": limit})
+        assert response.status_code == 422, limit
+
+
+def test_listing_purchases_includes_the_trip_still_in_the_cart(client: TestClient):
+    """The cart is a trip too, and its group needs a header like any other.
+
+    It has no store and no total because nobody has said what the shop was
+    yet, which is what makes the header print an approximation.
+    """
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    _tap(client, lst["id"], "Pan")
+    client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"store": "Lidl", "total": 5.0, "lines": [{"item_id": milk["id"]}]},
+    )
+
+    body = client.get(f"/lists/{lst['id']}/purchases").json()
+
+    still_in_the_cart = _items_by_name(client, lst["id"])["Pan"]["purchase_id"]
+    by_id = {p["id"]: p for p in body}
+    assert set(by_id) == {
+        still_in_the_cart,
+        _items_by_name(client, lst["id"])["Leche"]["purchase_id"],
+    }
+    open_trip = by_id[still_in_the_cart]
+    assert open_trip["closed_at"] is None
+    assert open_trip["store"] is None
+    assert open_trip["total"] is None
+
+
+def test_listing_purchases_shows_only_the_list_asked_for(client: TestClient, second_list):
+    """One household can belong to several lists, and each has its own tickets."""
+    mine = _create_list(client)
+    milk = _tap(client, mine["id"], "Leche")
+    client.post(
+        f"/lists/{mine['id']}/purchases/close",
+        json={"store": "Lidl", "lines": [{"item_id": milk["id"]}]},
+    )
+    bread = _tap(client, second_list["id"], "Pan")
+    client.post(
+        f"/lists/{second_list['id']}/purchases/close",
+        json={"store": "Mercadona", "lines": [{"item_id": bread["id"]}]},
+    )
+
+    response = client.get(f"/lists/{mine['id']}/purchases")
+
+    assert response.status_code == 200
+    assert [p["store"] for p in response.json()] == ["Lidl"]
+
+
+def test_listing_purchases_requires_membership(other_client: TestClient, client: TestClient):
+    lst = _create_list(client)
+
+    response = other_client.get(f"/lists/{lst['id']}/purchases")
+
+    assert response.status_code == 403

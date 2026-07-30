@@ -1,7 +1,9 @@
 import math
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
+from sqlmodel import select
 
 from app.db.models import ListItem, Purchase
 from app.dependencies import CurrentSession, MemberDep
@@ -220,3 +222,30 @@ def close_purchase(
     session.commit()
     session.refresh(purchase)
     return purchase
+
+
+@router.get("", response_model=list[PurchaseRead])
+def list_purchases(
+    session: CurrentSession,
+    list_and_user: MemberDep,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+):
+    """The trips a list's receipt headers need.
+
+    Separate from the items payload on purpose: a trip's store and total
+    belong to one ticket, and riding them along on every item would repeat
+    one shop's figures across all of its lines.
+    """
+    lst, _ = list_and_user
+    stmt = (
+        select(Purchase)
+        .where(Purchase.list_id == lst.id)
+        # The id breaks ties. Two trips written down for the same past date
+        # get the same opened_at, and without a second key the database may
+        # return them in either order. The order the id gives is arbitrary,
+        # but it is the same on every poll, so the headers do not reshuffle
+        # under the reader.
+        .order_by(Purchase.opened_at.desc(), Purchase.id.desc())
+        .limit(limit)
+    )
+    return list(session.exec(stmt).all())
