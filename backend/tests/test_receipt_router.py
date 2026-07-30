@@ -67,6 +67,7 @@ def test_post_receipt_returns_scan_result(client):
     assert body["matched"][0]["item_id"] == "item-almendras"
     assert body["matched"][0]["unit_price"] == pytest.approx(1.15)
     assert body["matched"][0]["price_type"] == "UNIT"
+    assert body["matched"][0]["index"] == 0
 
 
 def test_post_receipt_infers_store_when_null(client, session):

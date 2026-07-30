@@ -153,6 +153,24 @@ def test_mapping_lookup_dedupes_case_and_accent_duplicates(session):
     assert len(unmatched) == 0
 
 
+def test_index_follows_submitted_order_when_matched_and_unmatched_interleave(session):
+    # Every other fixture in this file happens to list matched lines before
+    # unmatched ones, so it can't tell a correct index from an off-by-one or
+    # a per-list counter.
+    items = [_item("item-1", "Bebida de almendra"), _item("item-2", "Leche")]
+    lines = [
+        _unit("BEBIDA ALMENDRA", 1.15),
+        _unit("XXXXXX ZZZZ", 9.99),
+        _unit("LECHE", 1.10),
+    ]
+    matched, unmatched = match_lines(lines, "Mercadona", items, session)
+    assert len(matched) == 2
+    assert len(unmatched) == 1
+    assert matched[0].index == 0
+    assert unmatched[0].index == 1
+    assert matched[1].index == 2
+
+
 def test_multi_line_carries_quantity(session):
     items = [_item("item-1", "Yogur natural")]
     line = ParsedLine(

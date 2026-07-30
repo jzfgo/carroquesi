@@ -19,6 +19,7 @@ class ReceiptScanRequest(BaseModel):
 
 
 class MatchedLine(BaseModel):
+    index: int
     receipt_name: str
     item_id: str
     item_name: str
@@ -29,6 +30,7 @@ class MatchedLine(BaseModel):
 
 
 class UnmatchedLine(BaseModel):
+    index: int
     receipt_name: str
     price_type: Literal["UNIT", "KILOGRAM", "MULTI"]
     unit_price: float
