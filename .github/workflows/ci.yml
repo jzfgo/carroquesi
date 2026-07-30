@@ -212,8 +212,11 @@ jobs:
   # `playwright` is deliberately ABSENT from `needs`. E2E is advisory today —
   # a PR can merge with it red. Adding it here makes it blocking, which is a
   # real policy change and should be made on purpose, not inherited from the
-  # refactor that moved it into this file. Flakiness is being assessed in
-  # JAV-49; promote it after that settles, not before.
+  # refactor that moved it into this file. The flakiness that was being
+  # assessed had one cause, an empty offline-queue drain that re-read the list
+  # and overwrote a write the test had just made; it is fixed, and the suite
+  # then ran clean on first attempt across sixteen runs with retries off. That
+  # is a reason to consider promoting this, not a promotion.
   ci-gate:
     name: CI gate
     needs: [changes, frontend, backend, tooling]

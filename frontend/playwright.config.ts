@@ -32,7 +32,12 @@ export default defineConfig({
   // fullyParallel: true,
   forbidOnly: !!IS_CI,
   retries: IS_CI ? 2 : 0,
-  workers: IS_CI ? 1 : undefined,
+  // Two, because the runner has four cores and a worker is not worth one core:
+  // each drives a browser that renders and composites on threads of its own, so
+  // two of them already use the machine. Three and four were measured too and
+  // came out no faster than two, which is the reason to leave this alone
+  // rather than raise it again later.
+  workers: IS_CI ? 2 : undefined,
   reporter: 'html',
   use: {
     baseURL: FRONTEND_URL,
