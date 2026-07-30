@@ -47,12 +47,26 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
   const [name, setName] = useState(line.name)
   const [brand, setBrand] = useState(line.brand ?? '')
   const [quantity, setQuantity] = useState(line.quantity ?? '')
-  const [priceStr, setPriceStr] = useState(
-    line.price == null ? '' : String(line.price),
-  )
+  const seededPrice = line.price == null ? '' : String(line.price)
+  const [priceStr, setPriceStr] = useState(seededPrice)
 
-  const perKg = parseKgFactor(quantity) !== null
   const price = parseAmount(priceStr)
+  // Deriving the unit from the quantity is the rule for a row being priced —
+  // type a weight and the price is per kilo. It is not a rule about a row
+  // nobody touched: an item already priced per unit that happens to say
+  // "500 g" would be re-declared per kilo just by opening this sheet and
+  // pressing Hecho, halving what it contributes and rewriting the item's
+  // stored unit. So the derivation only applies once one of the two fields it
+  // reads has actually been edited.
+  const repriced =
+    priceStr !== seededPrice || quantity !== (line.quantity ?? '')
+  const pricePer: 'KILOGRAM' | null = repriced
+    ? parseKgFactor(quantity) !== null && price !== null
+      ? 'KILOGRAM'
+      : null
+    : line.pricePer
+  // What the suffix says is what Hecho will save, so the two cannot disagree.
+  const perKg = pricePer === 'KILOGRAM'
   // A price is optional here, so an empty field is fine. Zero is allowed: a
   // shop does give things away. A negative amount is not — the backend
   // refuses the whole close over one, and the household would lose the entire
@@ -71,7 +85,7 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
       // The unit only travels with an amount to apply it to. A weight left
       // unpriced is an ordinary row, and the backend rejects the sheet if one
       // arrives carrying a unit on its own.
-      pricePer: perKg && price !== null ? 'KILOGRAM' : null,
+      pricePer: price === null ? null : pricePer,
     })
   }
 

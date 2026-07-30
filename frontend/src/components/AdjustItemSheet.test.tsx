@@ -157,7 +157,7 @@ describe('AdjustItemSheet', () => {
     )
   })
 
-  it('keeps a price it was given and nobody touched', async () => {
+  it('keeps a price and a unit it was given and nobody touched', async () => {
     const onDone = vi.fn()
     render(
       <AdjustItemSheet
@@ -169,8 +169,11 @@ describe('AdjustItemSheet', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Hecho' }))
 
+    // The fixture's quantity reads as a weight, but its stored unit is per
+    // item. Opening the row and pressing Hecho is not an edit, so neither
+    // figure moves.
     expect(onDone).toHaveBeenCalledWith(
-      expect.objectContaining({ price: 1.19, pricePer: 'KILOGRAM' }),
+      expect.objectContaining({ price: 1.19, pricePer: null }),
     )
   })
 
@@ -195,5 +198,69 @@ describe('AdjustItemSheet', () => {
     )
 
     expect(screen.getByText('Añadir producto')).toBeInTheDocument()
+  })
+})
+
+describe('AdjustItemSheet and a unit nobody changed', () => {
+  // Priced per unit, but the quantity happens to read as a weight. Deriving
+  // the unit from that text alone would re-declare the row per kilo just for
+  // being opened.
+  const perUnitWithAWeight = {
+    ...base,
+    quantity: '500 g',
+    price: 2.5,
+    pricePer: null,
+  }
+
+  it('keeps the stored unit when nothing was edited', async () => {
+    const onDone = vi.fn()
+    render(
+      <AdjustItemSheet
+        line={perUnitWithAWeight}
+        onDone={onDone}
+        onClose={vi.fn()}
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hecho' }))
+
+    expect(onDone).toHaveBeenCalledWith(
+      expect.objectContaining({ pricePer: null, price: 2.5 }),
+    )
+  })
+
+  it('says per unit while the row is untouched', () => {
+    render(
+      <AdjustItemSheet
+        line={perUnitWithAWeight}
+        onDone={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+
+    // The suffix has to promise what Hecho will do, or it lies about the row.
+    expect(screen.getByText('€/ud')).toBeInTheDocument()
+  })
+
+  it('takes the weight rule as soon as the price is retyped', async () => {
+    const onDone = vi.fn()
+    render(
+      <AdjustItemSheet
+        line={perUnitWithAWeight}
+        onDone={onDone}
+        onClose={vi.fn()}
+      />,
+    )
+
+    const price = screen.getByLabelText('Precio')
+    await userEvent.clear(price)
+    await userEvent.type(price, '3')
+    expect(screen.getByText('€/kg')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hecho' }))
+
+    expect(onDone).toHaveBeenCalledWith(
+      expect.objectContaining({ pricePer: 'KILOGRAM', price: 3 }),
+    )
   })
 })

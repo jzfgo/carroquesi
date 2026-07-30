@@ -504,3 +504,62 @@ describe('toPayload and the unit with no price', () => {
     expect(toPayload(lines, meta).lines[0].price_per).toBe('KILOGRAM')
   })
 })
+
+describe('buildLines for a trip that already tore off', () => {
+  // Yesterday's shop: nobody said what it was, so it tore off unfiled and its
+  // items read as bought. Writing it down the next morning is the 29b case.
+  const filed = () =>
+    item({
+      id: 'old',
+      name: 'Leche',
+      purchased: true,
+      purchased_at: '2026-07-30T18:00:00',
+      purchase_id: 'p1',
+      purchase_ends_at: CART_ENDS,
+      price: 1.19,
+    })
+
+  // Tapped this morning, so it belongs to a different, still-open trip.
+  const inTodaysCart = () =>
+    item({
+      id: 'today',
+      name: 'Pan',
+      purchased: true,
+      purchased_at: '2026-07-31T08:00:00',
+      purchase_id: 'p2',
+      purchase_ends_at: '2026-08-01T00:00:00',
+    })
+
+  const stillOnTheList = () => item({ id: 'todo', name: 'Huevos' })
+
+  it('carries the named trip’s own lines, ticked', () => {
+    const lines = buildLines([filed()], LATER, 'p1')
+
+    expect(lines.map((l) => [l.itemId, l.included])).toEqual([['old', true]])
+  })
+
+  it('leaves another trip’s cart out of it entirely', () => {
+    // The server builds its cart from purchase_id, so a line naming today's
+    // trip is refused and the whole close dies with it.
+    const lines = buildLines([filed(), inTodaysCart()], LATER, 'p1')
+
+    expect(lines.map((l) => l.itemId)).toEqual(['old'])
+  })
+
+  it('still offers what was never bought, unticked', () => {
+    const lines = buildLines([filed(), stillOnTheList()], LATER, 'p1')
+
+    expect(lines.map((l) => [l.itemId, l.included])).toEqual([
+      ['old', true],
+      ['todo', false],
+    ])
+  })
+
+  it('is unchanged when no trip is named', () => {
+    // Closing the trip that is still open: the cart is ticked and yesterday's
+    // filed lines stay out, exactly as before.
+    const lines = buildLines([filed(), inTodaysCart()], LATER, null)
+
+    expect(lines.map((l) => [l.itemId, l.included])).toEqual([['today', true]])
+  })
+})

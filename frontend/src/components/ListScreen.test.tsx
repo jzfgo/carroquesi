@@ -1646,3 +1646,119 @@ describe('closing a trip', () => {
     )
   })
 })
+
+describe('writing down a trip that already tore off', () => {
+  const TORN_OFF_ENDS = new Date(Date.now() - 3_600_000)
+    .toISOString()
+    .slice(0, 19)
+
+  /** Yesterday's shop: settled, but nobody ever said what it was. */
+  const unfiled = () =>
+    makeItem({
+      id: 'old',
+      name: 'Leche',
+      purchased: true,
+      purchased_at: YESTERDAY,
+      purchase_id: 'p1',
+      purchase_ends_at: TORN_OFF_ENDS,
+      price: 1.19,
+    })
+
+  const openTrip = () =>
+    makeItem({
+      id: 'today',
+      name: 'Pan',
+      purchased: true,
+      purchased_at: TODAY,
+      purchase_id: 'p2',
+      purchase_ends_at: new Date(Date.now() + 3_600_000)
+        .toISOString()
+        .slice(0, 19),
+    })
+
+  function renderWithUnfiledTicket(items = [unfiled()]) {
+    vi.mocked(api.getPurchases).mockResolvedValue([
+      {
+        id: 'p1',
+        list_id: 'l1',
+        opened_at: YESTERDAY,
+        tears_off_at: TORN_OFF_ENDS,
+        closed_at: null,
+        store: null,
+        total: null,
+      },
+    ])
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items,
+    })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+  }
+
+  it('opens the sheet on the trip’s own lines, not on today’s cart', async () => {
+    vi.mocked(api.closePurchase).mockResolvedValue({
+      id: 'p1',
+      list_id: 'l1',
+      opened_at: YESTERDAY,
+      tears_off_at: TORN_OFF_ENDS,
+      closed_at: TODAY,
+      store: 'Lidl',
+      total: null,
+    })
+    renderWithUnfiledTicket([unfiled(), openTrip()])
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /Cerrar compra/ }),
+      ).toBeInTheDocument(),
+    )
+    // Two stamps would be ambiguous; the cart's rubric is the other one.
+    await userEvent.click(
+      screen.getAllByRole('button', { name: /Cerrar compra/ })[1],
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Elegir tienda' }))
+    await userEvent.type(screen.getByLabelText('Tienda'), 'Lidl')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    )
+
+    // The whole point: the sheet carried p1's line and named p1, so the
+    // server can find it in that trip's cart. Sending today's Pan instead
+    // would come back 400 and file nothing.
+    await waitFor(() =>
+      expect(api.closePurchase).toHaveBeenCalledWith(
+        expect.anything(),
+        'l1',
+        expect.objectContaining({
+          purchase_id: 'p1',
+          lines: [expect.objectContaining({ item_id: 'old' })],
+        }),
+      ),
+    )
+  })
+
+  it('keeps the sheet open when the close is refused', async () => {
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new api.ApiError(400, 'Some items are not in the trip being closed'),
+    )
+    renderWithUnfiledTicket()
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: /Cerrar compra/ }),
+      ).toBeInTheDocument(),
+    )
+    await userEvent.click(screen.getByRole('button', { name: /Cerrar compra/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Elegir tienda' }))
+    await userEvent.type(screen.getByLabelText('Tienda'), 'Lidl')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    )
+
+    // Everything typed into it is seeded once and lives in its own state, so
+    // unmounting here would throw the shop away over a failure the household
+    // cannot act on.
+    await waitFor(() => expect(api.closePurchase).toHaveBeenCalled())
+    expect(screen.getByText('Total de lo que has puesto')).toBeInTheDocument()
+  })
+})

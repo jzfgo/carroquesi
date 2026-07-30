@@ -339,11 +339,15 @@ export function ListScreen({
 
   const handleCloseTrip = useCallback(
     async (payload: PurchaseClosePayload) => {
-      setClosingTrip(null)
       try {
         await closePurchase(getToken, listId, payload)
       } catch (err) {
         if (!isNetworkError(err)) {
+          // The sheet stays up. Its rows are seeded once and live in its own
+          // state, so closing it here would throw away every price typed,
+          // every quantity corrected and every product added by hand — for a
+          // reason the household can do nothing about. Leaving it open costs
+          // one more tap and keeps the shop.
           setToast('No se pudo guardar la compra')
           return
         }
@@ -351,9 +355,11 @@ export function ListScreen({
         // the phone is most likely offline in the aisle where it was filled
         // in, so it waits in the queue instead of being refused.
         await enqueue({ listId, type: 'closePurchase', payload })
+        setClosingTrip(null)
         setToast('Se guardará cuando vuelva la conexión')
         return
       }
+      setClosingTrip(null)
       retry()
       refreshPurchases()
     },
@@ -1166,7 +1172,7 @@ export function ListScreen({
           <div className="sheet-overlay" onClick={() => setClosingTrip(null)} />
           <div className="sheet-container">
             <CloseTripSheet
-              initialLines={buildLines(items, now)}
+              initialLines={buildLines(items, now, closingTrip.purchaseId)}
               storeSuggestions={storeSuggestions}
               defaultDate={closingDefaultDate}
               purchaseId={closingTrip.purchaseId}

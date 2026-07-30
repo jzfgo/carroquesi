@@ -34,19 +34,37 @@ export interface CloseLine {
 }
 
 /**
- * Everything not yet bought, cart first.
+ * The rows of a close sheet: the trip's own lines first, ticked, then whatever
+ * is still on the list, offered unticked.
  *
- * Two kinds of row, and the difference is only where the tick starts. What is
- * in the cart was picked up, so it is ticked. What is still on the list was
- * not, so it is offered — that is the household that shops without marking
+ * Two kinds of row, and the difference is only where the tick starts. What the
+ * trip already holds was picked up, so it is ticked. What is still on the list
+ * was not, so it is offered — that is the household that shops without marking
  * anything and sorts it out at home.
+ *
+ * `purchaseId` names the trip being written down. Absent, it is the one still
+ * open and its lines are the cart. Named, it is a trip that already tore off,
+ * and its lines read as bought — so they cannot be found by asking which items
+ * are in the cart, because none of them are. They have to be found by asking
+ * which items are *its*.
+ *
+ * Either way, a line belonging to some other trip is left out rather than
+ * offered. The server builds its cart from the trip it was handed and refuses
+ * anything outside it, and it refuses the whole sheet rather than the one row.
  */
-export function buildLines(items: ListItem[], now?: number): CloseLine[] {
-  const cart: CloseLine[] = []
+export function buildLines(
+  items: ListItem[],
+  now?: number,
+  purchaseId?: string | null,
+): CloseLine[] {
+  const mine: CloseLine[] = []
   const pending: CloseLine[] = []
   for (const item of items) {
     const state = itemState(item, now)
-    if (state === 'bought') continue
+    const isPending = state === 'pending'
+    const belongsToThisTrip =
+      purchaseId == null ? state === 'cart' : item.purchase_id === purchaseId
+    if (!isPending && !belongsToThisTrip) continue
     const line: CloseLine = {
       key: item.id,
       itemId: item.id,
@@ -55,12 +73,12 @@ export function buildLines(items: ListItem[], now?: number): CloseLine[] {
       quantity: item.purchased_quantity ?? item.quantity,
       price: item.price,
       pricePer: item.price_per === 'KILOGRAM' ? 'KILOGRAM' : null,
-      included: state === 'cart',
-      fromCart: state === 'cart',
+      included: !isPending,
+      fromCart: !isPending,
     }
-    ;(state === 'cart' ? cart : pending).push(line)
+    ;(isPending ? pending : mine).push(line)
   }
-  return [...cart, ...pending]
+  return [...mine, ...pending]
 }
 
 /**
