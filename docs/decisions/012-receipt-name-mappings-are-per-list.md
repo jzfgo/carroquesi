@@ -76,10 +76,15 @@ table cannot borrow their design.
 
 ## Migration
 
-Existing rows carry `confirmed_by`. Each row moves to that user's default list
-([ADR-007](007-per-user-default-list.md)) — a user may belong to several lists,
-so this is a choice rather than a derivation, and the default list is the one
-list they have already named as theirs.
+Existing rows carry `confirmed_by`, a non-null FK to `users.id`, so every row
+has a user to migrate from. Each row moves to that user's default list
+([ADR-007](007-per-user-default-list.md)).
+
+A user may belong to several lists, so naming one is a choice. It is a better
+choice than it first looks: `confirmed_by`, `item_name` and `item_brand` are all
+assigned on the same last-writer-wins branch, so the stored name and the stored
+user always come from the *same* write. The row moves to the household whose
+answer it currently holds, not to an arbitrary one of its past writers.
 
 The default list is explicit-only and may be unset. A row whose confirming user
 has no default list is **dropped rather than guessed at**, which costs one
@@ -87,8 +92,12 @@ question at that household's next scan and invents nothing. The old constraint
 guarantees at most one row per `(store, receipt_name)`, so adding `list_id`
 cannot produce a duplicate and the backfill needs no dedup pass.
 
-Use `batch_alter_table`, as every migration here does, so the SQLite test suite
-survives the constraint change.
+`batch_alter_table` is the usual tool for a constraint change here, but it is
+not automatic: `b9f26e9bb379` rejects batch mode deliberately, because batch
+recreates a table from reflection and `7005338bb031` recorded that
+`receipt_scans.receipt_at` reflects as a distinct type on SQLite. This table is
+`str`, `int` and `datetime` only, so batch is very likely safe — check that
+before reaching for it rather than after.
 
 ## Alternatives considered
 
@@ -116,9 +125,18 @@ survives the constraint change.
   fills through the resolve flow that already exists rather than through
   anything new.
 - `use_count` becomes per-household and finally counts what its name says.
-- `match_lines` and `_lookup_mapping` take a `list_id`. Both call sites already
-  have one in scope — `receipt.py` from the path parameter, `purchases.py` from
-  the close — so nothing new has to be plumbed to reach them.
+- Two paths need a `list_id`, and they are not the same path. The read side is
+  `match_lines` and `_lookup_mapping`, which `receipt.py` alone calls; the write
+  side is the mapping loop in `close_purchase`. Both files already hold a
+  `list_id` — one from the path parameter, one from the close — so neither has
+  to have it plumbed in from anywhere new.
+- **`delete_list` needs a cleanup loop.** It removes every list-scoped row by
+  hand, in an ordered sequence of flushes, because no model here declares a
+  `relationship()`. A `list_id` FK to `lists.id` with no `ondelete` and no loop
+  raises `ForeignKeyViolation` on Postgres the first time anyone deletes a list
+  that ever learned a name. That function's own comment records why this is
+  worth writing down: nothing sets `PRAGMA foreign_keys=ON`, so the SQLite
+  suite cannot see the bug and it would ship green.
 - The EAN-keyed caches are untouched and stay global, deliberately.
 - Cross-household learning becomes possible again only on an objective key. That
   needs a product identity a receipt line does not carry, so it would be its own
