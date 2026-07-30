@@ -12,8 +12,11 @@ vi.mock('./firebase', () => ({
   ai: {},
 }))
 
-vi.mock('firebase/ai', () => ({
-  InferenceMode: { PREFER_IN_CLOUD: 'prefer_in_cloud' },
+// Only the model factory is replaced. receiptAi also reads the SDK's error and
+// finish-reason constants at module scope, and a listing-them-out mock goes
+// stale the moment it needs one more.
+vi.mock('firebase/ai', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('firebase/ai')>()),
   getGenerativeModel: () => ({}),
 }))
 

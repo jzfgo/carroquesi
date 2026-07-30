@@ -1,4 +1,10 @@
-import { getGenerativeModel, InferenceMode } from 'firebase/ai'
+import {
+  AIError,
+  AIErrorCode,
+  FinishReason,
+  getGenerativeModel,
+  InferenceMode,
+} from 'firebase/ai'
 import type { ParsedLine, ReceiptScanRequest } from '../types'
 import { ai } from './firebase'
 
@@ -64,102 +70,85 @@ const model = getGenerativeModel(ai, {
 })
 
 export interface ParseReceiptOptions {
-  maxRetries?: number
+  /**
+   * Seed for the retry backoff. Only the tests set it, so the suite does not
+   * spend real seconds sleeping between attempts.
+   */
   delayMs?: number
 }
 
-function resizeImageFile(
-  file: File,
-  maxDimension: number,
-): Promise<string | null> {
-  return new Promise((resolve) => {
-    if (
-      typeof window === 'undefined' ||
-      typeof HTMLCanvasElement === 'undefined' ||
-      typeof URL === 'undefined' ||
-      typeof URL.createObjectURL !== 'function'
-    ) {
-      resolve(null)
-      return
-    }
+/**
+ * Width to send a receipt photo at. 1000 px was measured to still parse
+ * correctly while cutting a 0.5 MB photo to roughly 300 KB.
+ *
+ * Width, not the longer side: a receipt is portrait, and legibility of the
+ * printed lines depends on how many pixels each character gets across. Scaling
+ * the long side instead would make a longer receipt — one with more prices on
+ * it — narrower and harder to read, which is backwards.
+ */
+const MAX_RECEIPT_WIDTH = 1000
+const RESIZED_MIME_TYPE = 'image/jpeg'
+const RESIZE_TIMEOUT_MS = 10_000
 
-    let url: string
-    try {
-      url = URL.createObjectURL(file)
-    } catch {
-      resolve(null)
-      return
-    }
+function resizeImageFile(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file)
 
     let resolved = false
     const done = (val: string | null) => {
       if (resolved) return
       resolved = true
       clearTimeout(timer)
-      try {
-        URL.revokeObjectURL(url)
-      } catch {
-        /* ignore */
-      }
+      URL.revokeObjectURL(url)
       resolve(val)
     }
 
-    const timer = setTimeout(() => done(null), 10000)
+    // A decode that neither loads nor errors would otherwise hold the scan open
+    // forever. Falling back to the original file is always available.
+    const timer = setTimeout(() => done(null), RESIZE_TIMEOUT_MS)
 
-    try {
-      const img = new Image()
-      img.onload = () => {
-        try {
-          let { width, height } = img
-          if (!width || !height) {
-            done(null)
-            return
-          }
-
-          const scale = Math.min(1, maxDimension / Math.max(width, height))
-          width = Math.round(width * scale)
-          height = Math.round(height * scale)
-
-          if (scale === 1 && file.size < 1024 * 1024) {
-            done(null)
-            return
-          }
-
-          const canvas = document.createElement('canvas')
-          canvas.width = width
-          canvas.height = height
-          const ctx = canvas.getContext('2d')
-          if (!ctx) {
-            done(null)
-            return
-          }
-          ctx.drawImage(img, 0, 0, width, height)
-          done(canvas.toDataURL('image/jpeg', 0.85))
-        } catch {
-          done(null)
-        }
+    const img = new Image()
+    img.onload = () => {
+      const { width, height } = img
+      // A format the browser reports no intrinsic size for, such as an SVG.
+      if (!width || !height) {
+        done(null)
+        return
       }
-      img.onerror = () => done(null)
-      img.src = url
-    } catch {
-      done(null)
+
+      const scale = MAX_RECEIPT_WIDTH / width
+      // Already narrow enough. Re-encoding here would cost image quality and
+      // buy no reduction in the dimensions the model reads.
+      if (scale >= 1) {
+        done(null)
+        return
+      }
+
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(width * scale)
+      canvas.height = Math.round(height * scale)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        done(null)
+        return
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      done(canvas.toDataURL(RESIZED_MIME_TYPE, 0.85))
     }
+    img.onerror = () => done(null)
+    img.src = url
   })
 }
 
 async function fileToInlinePart(file: File) {
   if (file.type.startsWith('image/')) {
-    try {
-      const resizedDataUrl = await resizeImageFile(file, 1600)
-      if (resizedDataUrl) {
-        const [header, base64] = resizedDataUrl.split(',')
-        if (base64 && base64.length <= (file.size * 4) / 3) {
-          const mimeType = header.match(/:(.*?);/)?.[1] || file.type
-          return { inlineData: { data: base64, mimeType } }
-        }
-      }
-    } catch {
-      // Ignore resizing errors and fall back to original file
+    const resizedDataUrl = await resizeImageFile(file)
+    const base64 = resizedDataUrl?.split(',')[1]
+    // An encode the browser declined yields 'data:,' and so no payload. And a
+    // re-encode can come out larger than the photo it came from, in which case
+    // sending it would defeat the point of resizing at all.
+    if (base64 && base64.length <= (file.size * 4) / 3) {
+      return { inlineData: { data: base64, mimeType: RESIZED_MIME_TYPE } }
     }
   }
 
@@ -226,14 +215,71 @@ export function toReceiptInstant(
   return dt.toISOString()
 }
 
+const MAX_RETRIES = 2
+const INITIAL_RETRY_DELAY_MS = 500
+
+/** Server-side conditions that a later identical request can get past. */
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504])
+
+/**
+ * Finish reasons worth a second generation. A malformed response is the model
+ * garbling its own output, which varies run to run. Every other bad finish
+ * reason — SAFETY, PROHIBITED_CONTENT, RECITATION — is a verdict on the input,
+ * so asking again just spends two more calls to be told the same thing.
+ */
+const RETRYABLE_FINISH_REASONS = new Set<string>([
+  FinishReason.MALFORMED_RESPONSE,
+  FinishReason.MALFORMED_FUNCTION_CALL,
+])
+
+/**
+ * Decide retryability from the SDK's typed fields, never from the wording of a
+ * message. The same rule the push code follows for pruning FCM tokens, and for
+ * the same reason: a phrase in an error string is not a contract, so matching on
+ * one silently changes meaning the moment Google reformats a message.
+ *
+ * Anything unrecognised is *not* retried. The case that makes this the right
+ * default is the SDK's own 180-second fetch timeout, which surfaces as a plain
+ * DOMException rather than an AIError: retrying it would put a user behind a
+ * modal for nine minutes.
+ */
+function isRetryable(error: unknown): boolean {
+  // The model returned text that is not JSON, which is what a response cut off
+  // at the token limit looks like. Output length varies, so a fresh generation
+  // can come back short enough to parse.
+  if (error instanceof SyntaxError) return true
+
+  if (!(error instanceof AIError)) return false
+
+  switch (error.code) {
+    case AIErrorCode.FETCH_ERROR:
+      return RETRYABLE_STATUSES.has(error.customErrorData?.status ?? 0)
+    case AIErrorCode.RESPONSE_ERROR: {
+      const finishReason =
+        error.customErrorData?.response?.candidates?.[0]?.finishReason
+      return (
+        finishReason !== undefined && RETRYABLE_FINISH_REASONS.has(finishReason)
+      )
+    }
+    // The SDK's catch-all for a call that failed before any response was read.
+    // Two things reach it from here, and both are worth another go: the
+    // connection dropping, which is Safari's "Load failed", and an on-device
+    // model download failing. It is broad, so it is the branch to revisit if a
+    // deterministic failure ever starts costing three attempts.
+    case AIErrorCode.ERROR:
+      return true
+    default:
+      return false
+  }
+}
+
 async function generateContentWithRetry(
   filePart: { inlineData: { data: string; mimeType: string } },
   options?: ParseReceiptOptions,
 ) {
-  const maxRetries = options?.maxRetries ?? 2
-  const initialDelay = options?.delayMs ?? 500
+  const initialDelay = options?.delayMs ?? INITIAL_RETRY_DELAY_MS
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  for (let attempt = 0; ; attempt++) {
     try {
       const result = await model.generateContent([filePart, PROMPT])
       const text = result.response.text()
@@ -245,56 +291,12 @@ async function generateContentWithRetry(
         lines: ParsedLine[]
       }
     } catch (error: unknown) {
-      const err = error as {
-        message?: string
-        customErrorData?: { status?: number }
-      }
-
-      const fromMessage = err?.message?.match(/\[(\d{3})\s/)?.[1]
-      const status =
-        err?.customErrorData?.status ??
-        (fromMessage ? Number(fromMessage) : undefined)
-      const is4xx = typeof status === 'number' && status >= 400 && status < 500
-
-      let isTransient = false
-      if (error instanceof SyntaxError) {
-        isTransient = true
-      } else if (
-        status === 429 ||
-        status === 500 ||
-        status === 502 ||
-        status === 503 ||
-        status === 504
-      ) {
-        isTransient = true
-      } else if (
-        err?.message &&
-        err.message.match(/\b(429|500|502|503|504)\b/) &&
-        !is4xx
-      ) {
-        isTransient = true
-      } else if (err?.message && err.message.includes('blocked') && !is4xx) {
-        isTransient = true
-      } else if (
-        err?.message?.match(/fetch|network|load failed|connection was lost/i) &&
-        !is4xx
-      ) {
-        isTransient = true
-      }
-
-      if (!isTransient || attempt >= maxRetries) {
-        throw error
-      }
-
-      const delay = initialDelay * Math.pow(2, attempt)
-      if (delay > 0) {
-        await new Promise((resolve) => setTimeout(resolve, delay))
-      }
+      if (attempt === MAX_RETRIES || !isRetryable(error)) throw error
+      await new Promise((resolve) =>
+        setTimeout(resolve, initialDelay * 2 ** attempt),
+      )
     }
   }
-
-  // Fallback (should be unreachable given the throw inside the loop)
-  throw new Error('Retries exhausted')
 }
 
 export async function parseReceiptWithAi(

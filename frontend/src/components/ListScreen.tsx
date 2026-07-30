@@ -276,17 +276,18 @@ export function ListScreen({
         return
       }
       setReceiptUploading(true)
-      let parsed: ReceiptScanRequest
       try {
-        parsed = await parseReceiptWithAi(file)
-      } catch (e) {
-        console.error('Receipt scan AI read failed:', e)
-        setToast('No se pudo leer el ticket')
-        setReceiptUploading(false)
-        return
-      }
+        // Two phases, two messages: reading the image is a Gemini call and
+        // saving it is ours, so a failure in one must not accuse the other.
+        let parsed: ReceiptScanRequest
+        try {
+          parsed = await parseReceiptWithAi(file)
+        } catch (e) {
+          console.error('Receipt scan AI read failed:', e)
+          setToast('No se pudo leer el ticket')
+          return
+        }
 
-      try {
         const result = await submitParsedReceipt(getToken, listId, parsed)
         // Kept so a corrected date can be re-matched against the same lines
         // without re-reading the image (another Gemini call, another chance
