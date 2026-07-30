@@ -112,6 +112,17 @@ The order is the paper's, because the raw line is the only thing a person can
 check against what they are holding. Rows the paper never mentioned come after,
 in the order they already had.
 
+**And the scan response has to be able to say what that order was.** It returns
+`matched` and `unmatched` as two arrays, and the screen being retired simply
+concatenated them — which is grouping, the thing `13a` withdrew. Order cannot be
+recovered from the names either: receipts repeat them, and two tubs of the same
+yoghurt are two lines.
+
+So `MatchedLine` and `UnmatchedLine` each gain an `index`, the line's position in
+the array that was submitted. The matcher already walks that array in order, so
+it costs nothing. The two arrays stay: whether a line was placed is real
+information, and it is the same question as whether the row has an `itemId`.
+
 **A match this sheet cannot hold is a match the app drops.** The matcher's
 candidate set is every item with a `purchased_at` inside a ±3 day window. There
 is no trip filter, so it routinely names items filed under an older ticket —
@@ -394,13 +405,14 @@ with it.
    can be stated without a DOM. The sheet's two sums, the reconciliation disc in
    both colours, and that an unconfirmed row still saves. `13b`'s two causes,
    and that assigning is the only action.
-3. **E2E** — `fixtures.ts` gains the scan endpoints, and must also answer the
-   flag read with `ai_receipt_scanning` on: the camera is gated, the fixture
-   layer fulfils every backend call from frozen literals, so a flag left
-   unanswered means a thumbnail that never offers to scan and a suite that
-   passes while testing hand mode twice. Baselines for ticket mode and for a
-   resolve sheet. The `ReceiptScanSheet` baselines are deleted in the same
-   commit that deletes the component.
+3. **E2E** — `fixtures.ts` already lists `ai_receipt_scanning` among its
+   `features` and already fulfils the scan endpoint, so this phase only takes
+   the apply handler away. The flag still has to stay listed: the camera is
+   gated and the fixture layer answers every backend call from frozen literals,
+   so a flag quietly dropped means a thumbnail that never offers to scan and a
+   suite that passes while testing hand mode twice. Baselines for ticket mode
+   and for a resolve sheet. The `ReceiptScanSheet` baselines are deleted in the
+   same commit that deletes the component.
 4. **A computed-style assertion** for the dashed thumbnail border and for the
    dashed underline on an unconfirmed annotation. Both are thin dashed strokes
    worth fewer pixels than the screenshot tolerance, so a screenshot cannot
