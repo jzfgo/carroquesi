@@ -95,13 +95,22 @@ def close_purchase(
     #
     # Anchoring on opened_at works because trip_for resolves a trip by the
     # local day of the instant it is handed, and tears_off_at_for(opened_at)
-    # still equals a trip's own tears_off_at. The only thing that breaks that
-    # equality is close(), which recomputes opened_at from the lines it files
-    # — and close() refuses a trip that is already closed, so no trip this can
-    # resolve has ever had it broken. Written down because the argument is
-    # circular and nothing tests it: a future caller that moves opened_at
-    # without closing the trip would make attach resolve the wrong one, in
-    # silence.
+    # still equals a trip's own tears_off_at.
+    #
+    # close() is what could break that equality: it recomputes opened_at from
+    # the items it files, and its split branch recomputes it on the trip that
+    # *stays open* too. So the open trip this can resolve is one whose
+    # opened_at close() has already moved. What keeps it honest is narrower
+    # than "closed trips are refused": every item whose purchased_at this
+    # endpoint moves is also named in the close, so it leaves the trip rather
+    # than remaining in it, and the remaining items were stamped by paths that
+    # use one instant for both purchased_at and attach. The recomputed
+    # opened_at therefore still falls on the trip's own day.
+    #
+    # Written down because nothing tests it, and the fragile step is that
+    # last one: a future caller that stamps purchased_at without filing the
+    # item leaves it behind with a date from another day, and attach then
+    # resolves the wrong trip in silence.
     #
     # A purchase_id nobody can resolve leaves the anchor at now, and one that
     # names another list's trip anchors on that trip's day. Neither is checked
