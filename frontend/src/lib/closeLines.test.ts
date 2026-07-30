@@ -922,7 +922,8 @@ describe('the paper’s own arithmetic is never redone', () => {
     const kept = discardPaper(scanned())
 
     expect(receiptTotal(kept)).toBeNull()
-    expect(linesTotal(kept)).toEqual({ total: 3.99 * 0.457, partial: false })
+    // 1,82343 against the 1,82 the paper printed: the drift, written out.
+    expect(linesTotal(kept)).toEqual({ total: 1.82343, partial: false })
   })
 })
 
