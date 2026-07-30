@@ -7,13 +7,13 @@ import {
   mockGeminiReceiptParse,
   SEED_ITEMS,
   SEED_LISTS,
-  SEED_RECEIPT_RESULT,
   test,
 } from './fixtures'
 
 const LIST_ID = SEED_LISTS[0].id
-const ITEM_CAFE = SEED_ITEMS[LIST_ID][1]
 const ITEM_LECHE = SEED_ITEMS[LIST_ID][0]
+const ITEM_CAFE = SEED_ITEMS[LIST_ID][1]
+const ITEM_PAPEL = SEED_ITEMS[LIST_ID][2]
 
 // receiptAi.ts only ever ships the file to the (mocked) Gemini endpoint, so
 // any small valid image works — the mock never inspects its bytes.
@@ -22,6 +22,9 @@ const RECEIPT_IMAGE = path.join(
   '../public/transparent.png',
 )
 
+// What the AI reads off the paper. The backend mock answers from
+// SEED_RECEIPT_RESULT whatever this says, so the only thing the two must agree
+// about is the order: an `index` over there is a position in this array.
 const PARSED_RECEIPT = {
   store: 'Mercadona',
   receipt_date: '2026-07-10',
@@ -35,33 +38,49 @@ const PARSED_RECEIPT = {
       line_total: 0.75,
     },
     {
-      name: 'Cafe molido Nescafe',
-      price_type: 'UNIT' as const,
-      unit_price: 2.6,
-      quantity: null,
-      line_total: 2.6,
-    },
-    {
       name: 'Pan integral',
       price_type: 'UNIT' as const,
       unit_price: 1.0,
       quantity: null,
       line_total: 1.0,
     },
+    {
+      name: 'Cafe molido Nescafe',
+      price_type: 'UNIT' as const,
+      unit_price: 2.6,
+      quantity: null,
+      line_total: 2.6,
+    },
   ],
 }
 
-// Mirrors the sentinel <option value> in ReceiptScanSheet, which is module-private.
-// Selecting by value rather than by its "✚ Crear artículo nuevo" label keeps the
-// test off a string that carries a decorative glyph.
-const CREATE_OPTION = '__create__'
+/**
+ * Pinned because the sheet prints the paper's day and the ticket it files
+ * prints its own. Left to the machine clock, the committed baselines would
+ * depict whatever day they were generated on and start disagreeing with the
+ * runner the next morning.
+ *
+ * Two days after the paper, so the ticket this flow files has already torn off
+ * and its lines read as a record rather than as a cart.
+ */
+const FIXED_NOW = new Date('2026-07-12T10:00:00Z')
+
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(FIXED_NOW)
+})
+
+/** Every query below is scoped to the sheet. The screen behind it carries a
+ *  filter chip per shop and a "Tienda" control on the input bar, and it also
+ *  carries the other door into scanning, so an unscoped name match finds the
+ *  wrong control rather than failing. */
+const sheet = (page: Page) => page.locator('.cts')
+
+/** One row of the close sheet, found by what the paper printed on it. */
+const row = (page: Page, printed: string) =>
+  sheet(page).locator('.cts__row').filter({ hasText: printed })
 
 function itemCard(page: Page, name: string) {
   return page.locator('.item-card').filter({ hasText: name })
-}
-
-function receiptRow(page: Page, receiptName: string) {
-  return page.locator('.rss-row').filter({ hasText: receiptName })
 }
 
 async function gotoList(page: Page) {
@@ -69,27 +88,59 @@ async function gotoList(page: Page) {
   await expect(page.getByText(ITEM_CAFE.name)).toBeVisible()
 }
 
-async function markPurchased(page: Page, name: string) {
+async function putInCart(page: Page, name: string) {
   await itemCard(page, name)
     .getByRole('checkbox', { name: 'Poner en el carro' })
     .click()
   await expect(
-    itemCard(page, name).getByRole('checkbox', {
-      name: 'Sacar del carro',
-    }),
+    itemCard(page, name).getByRole('checkbox', { name: 'Sacar del carro' }),
   ).toBeVisible()
 }
 
-async function uploadReceipt(page: Page) {
-  await page.getByRole('button', { name: 'Abrir menú' }).click()
+async function openCloseSheet(page: Page) {
+  await page.locator('.stamp-row').click()
+  await expect(sheet(page)).toBeVisible()
+}
+
+/** Answer the source picker with a file. Both doors open the same picker. */
+async function pickReceiptFile(page: Page) {
+  const chooser = page.waitForEvent('filechooser')
   await page
-    .locator('.list-action-sheet')
-    .getByRole('button', { name: 'Escanear ticket' })
+    .locator('.receipt-source-picker')
+    .getByRole('button', { name: 'Elegir de galería' })
     .click()
-  const fileChooserPromise = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Elegir de galería' }).click()
-  const fileChooser = await fileChooserPromise
-  await fileChooser.setFiles(RECEIPT_IMAGE)
+  await (await chooser).setFiles(RECEIPT_IMAGE)
+}
+
+/** Read a paper from the sheet's own thumbnail — the door this phase built. */
+async function scanFromSheet(page: Page) {
+  await sheet(page).getByRole('button', { name: 'Escanear ticket' }).click()
+  await pickReceiptFile(page)
+}
+
+/** The other door: a shop nobody wrote down, read straight from the list. It
+ *  opens the close sheet already filled in. */
+async function scanFromList(page: Page) {
+  await page.locator('.save-ticket').click()
+  await pickReceiptFile(page)
+}
+
+/** The sheet has the paper's three lines on it. */
+async function expectPaperRead(page: Page) {
+  await expect(sheet(page).locator('.cts__raw')).toHaveCount(3)
+}
+
+/** Say which product a printed line was, by creating one. The brand rides in
+ *  on the sigil grammar rather than a separate field. */
+async function resolveAsNewProduct(page: Page, printed: string, typed: string) {
+  await row(page, printed)
+    .getByRole('button', { name: `Asignar ${printed}` })
+    .click()
+  const resolve = page.locator('.rls')
+  await expect(resolve).toBeVisible()
+  await resolve.locator('.rls__field').fill(typed)
+  await resolve.getByRole('button', { name: 'Asignar' }).click()
+  await expect(resolve).toBeHidden()
 }
 
 const THEMES = [
@@ -97,298 +148,222 @@ const THEMES = [
   { name: 'dark', colorScheme: 'dark' as const },
 ]
 
-/**
- * The sheet asks the user to confirm a receipt date that falls outside the
- * match window (see lib/receiptDate.ts). PARSED_RECEIPT carries a fixed date,
- * so without a fixed clock that prompt would appear on its own as real-world
- * time moves on — silently changing the committed screenshots, and quietly
- * putting every other test in this file in front of a banner it was never
- * written for. Pin "now" inside the window so each test starts on the
- * ordinary path; the one test that wants the prompt moves the clock itself.
- */
-const FIXED_NOW = new Date('2026-07-12T10:00:00Z')
-
-// File-level, not per-test: the receipt fixture's date is what makes the
-// prompt appear, and every test in this file uses it.
-test.beforeEach(async ({ page }) => {
-  await page.clock.setFixedTime(FIXED_NOW)
-})
-
 for (const { name: themeName, colorScheme } of THEMES) {
   test.describe(`${themeName} mode`, () => {
     test.use({ colorScheme })
 
-    test('scanning a receipt reviews matched and unmatched lines, then applies prices', async ({
+    test('a scan lays the paper over the close sheet, in the printed order', async ({
       page,
     }) => {
       await gotoList(page)
-      await markPurchased(page, ITEM_LECHE.name)
-      await markPurchased(page, ITEM_CAFE.name)
+      await putInCart(page, ITEM_LECHE.name)
+      await putInCart(page, ITEM_CAFE.name)
       await mockGeminiReceiptParse(page, PARSED_RECEIPT)
 
-      await uploadReceipt(page)
+      await openCloseSheet(page)
+      await scanFromSheet(page)
 
-      const sheet = page
-        .locator('.sheet')
-        .filter({ has: page.locator('.rss-toolbar') })
-      await expect(sheet).toBeVisible()
-      await expect(page.locator('.rss-row')).toHaveCount(3)
+      // The paper's order, which is neither response array's. The line the
+      // matcher could not place was printed between the two it did, so a sheet
+      // that listed every match before every miss would put it last.
+      await expect(sheet(page).locator('.cts__raw')).toHaveText([
+        'LECHE HACENDADO',
+        'PAN INTEGRAL',
+        'CAFE MOLIDO NESCAFE',
+      ])
+      // Under each printed string, what the app believes it was. A line with
+      // no product yet asks for one instead.
+      await expect(sheet(page).locator('.cts__guess')).toHaveText([
+        'Leche Hacendado',
+        'Asignar producto',
+        'Cafe molido Nescafe',
+      ])
+      // One of the two matches came from a name somebody had already confirmed
+      // for this shop and the other did not. Asserted because it is the scan's
+      // `confirmed` flag crossing the wire — how the two forms are drawn is a
+      // computed-style test on the component, where a dashed stroke is worth
+      // fewer pixels than a screenshot's tolerance.
+      await expect(
+        row(page, 'LECHE HACENDADO').locator('.cts__guess'),
+      ).not.toHaveClass(/cts__guess--ask/)
+      await expect(
+        row(page, 'CAFE MOLIDO NESCAFE').locator('.cts__guess'),
+      ).toHaveClass(/cts__guess--ask/)
 
-      // Matched lines are pre-checked, the unmatched line is not
-      await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
-        '2 de 3 seleccionados',
+      // A row the paper never printed stays where it was, and stays unticked.
+      // It is still on the list; the shop simply did not sell it today.
+      await expect(
+        row(page, ITEM_PAPEL.name).locator('.cts__check'),
+      ).not.toBeChecked()
+
+      // The shop and the day are the paper's, not the sheet's. The day is the
+      // one printed on it and survives the round trip through the wire's
+      // offset, which is why the literal is spelled out rather than derived.
+      await expect(
+        sheet(page).getByRole('button', { name: 'Mercadona' }),
+      ).toHaveClass(/cts__pill--on/)
+      await expect(sheet(page).getByLabel('Fecha')).toHaveValue('2026-07-10')
+      // The three printed amounts add up to the total printed on the paper.
+      await expect(sheet(page).locator('.cts__recon')).toContainText(
+        'Cuadra con el ticket',
       )
-      const unmatchedRow = receiptRow(page, 'PAN INTEGRAL')
-      await expect(unmatchedRow.locator('.rss-item')).toHaveClass(/unlinked/)
-      await expect(unmatchedRow.locator('.rss-item')).toHaveText('sin vincular')
-      await expect(unmatchedRow.locator('.rss-check')).not.toBeChecked()
 
-      const lecheRow = receiptRow(page, 'LECHE HACENDADO')
-      await expect(lecheRow.locator('.rss-item')).toHaveText(ITEM_LECHE.name)
-      await expect(lecheRow.locator('.rss-check')).toBeChecked()
+      await expectScreenshot(page, `close-sheet-ticket-${themeName}.png`)
+    })
 
-      await expectScreenshot(page, `receipt-scan-sheet-${themeName}.png`)
+    test('a line the matcher could not place asks which product it was', async ({
+      page,
+    }) => {
+      await gotoList(page)
+      await putInCart(page, ITEM_LECHE.name)
+      await putInCart(page, ITEM_CAFE.name)
+      await mockGeminiReceiptParse(page, PARSED_RECEIPT)
 
-      await sheet.getByRole('button', { name: 'Guardar precios' }).click()
+      await openCloseSheet(page)
+      await scanFromSheet(page)
+      await expectPaperRead(page)
 
-      await expect(sheet).toBeHidden()
-      await expect(page.getByRole('alert')).toContainText(
-        '2 precios actualizados',
+      await row(page, 'PAN INTEGRAL')
+        .getByRole('button', { name: 'Asignar PAN INTEGRAL' })
+        .click()
+
+      // Two causes, one under the other. The paper's own line is quoted above
+      // both, because that is the thing being answered.
+      const resolve = page.locator('.rls')
+      await expect(resolve).toBeVisible()
+      await expect(resolve.locator('.rls__raw')).toHaveText('PAN INTEGRAL')
+      // The only row of the sheet no printed line has claimed. The two matched
+      // rows are taken, so offering them would put one product on two lines of
+      // one ticket.
+      await expect(resolve.getByRole('radio')).toHaveCount(1)
+      await expect(resolve.locator('.rls__option-name')).toHaveText(
+        ITEM_PAPEL.name,
       )
+
+      await expectScreenshot(page, `resolve-line-${themeName}.png`)
+
+      await resolve.locator('.rls__field').fill('Pan integral #Bimbo')
+      await resolve.getByRole('button', { name: 'Asignar' }).click()
+      await expect(resolve).toBeHidden()
+
+      // The row keeps the printed string and now names a product, so it stops
+      // asking — and an answered line is one the household means to record.
+      const answered = row(page, 'PAN INTEGRAL')
+      await expect(answered.locator('.cts__guess')).toHaveText('Pan integral')
+      await expect(answered.locator('.cts__check')).toBeChecked()
     })
   })
 }
 
-// Neither test below asserts anything theme-dependent (no expectScreenshot
-// call), so they run once instead of once per THEMES entry.
+// Neither test below asserts anything theme-dependent, so they run once
+// instead of once per THEMES entry.
 test.describe('functional', () => {
-  test('deselecting a matched line excludes it from the applied price patch', async ({
+  test('closing a scanned ticket sends the paper the sheet was filled from', async ({
     page,
   }) => {
     await gotoList(page)
-    await markPurchased(page, ITEM_LECHE.name)
-    await markPurchased(page, ITEM_CAFE.name)
+    await putInCart(page, ITEM_LECHE.name)
+    await putInCart(page, ITEM_CAFE.name)
     await mockGeminiReceiptParse(page, PARSED_RECEIPT)
 
-    await uploadReceipt(page)
-    const sheet = page
-      .locator('.sheet')
-      .filter({ has: page.locator('.rss-toolbar') })
-    await expect(sheet).toBeVisible()
+    // The other door, with no sheet open yet: it opens the close sheet on the
+    // trip that is still running, already filled in from the paper.
+    await scanFromList(page)
+    await expect(sheet(page)).toBeVisible()
+    await expectPaperRead(page)
 
-    const lecheRow = receiptRow(page, 'LECHE HACENDADO')
-    await lecheRow.locator('.rss-check').click()
+    await resolveAsNewProduct(page, 'PAN INTEGRAL', 'Pan integral #Bimbo')
 
-    await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
-      '1 de 3 seleccionados',
+    const posted = page.waitForRequest(
+      (r) => r.url().includes('/purchases/close') && r.method() === 'POST',
     )
-    await expect(sheet.locator('.confirm-count')).toHaveText('1 elemento')
-
-    const responsePromise = page.waitForResponse(
-      (resp) =>
-        resp.url().includes(`/lists/${LIST_ID}/receipt-prices`) &&
-        resp.status() === 200,
-    )
-    await sheet.getByRole('button', { name: 'Guardar precios' }).click()
-    const response = await responsePromise
-    await expect(sheet).toBeHidden()
-
-    const body = response.request().postDataJSON() as {
-      patches: { item_id: string }[]
-    }
-    expect(body.patches).toHaveLength(1)
-    expect(body.patches[0].item_id).toBe(ITEM_CAFE.id)
-  })
-
-  // The impulse-buy path: a receipt line that matches nothing on the list
-  // becomes a new item that is already purchased. Asserts the persisted card
-  // rather than the toast — a toast-only check would still pass if the
-  // new_items payload never reached the database.
-  test('an unmatched line can be created as an already-purchased item', async ({
-    page,
-  }) => {
-    await gotoList(page)
-    await markPurchased(page, ITEM_LECHE.name)
-    await markPurchased(page, ITEM_CAFE.name)
-    await mockGeminiReceiptParse(page, PARSED_RECEIPT)
-
-    await uploadReceipt(page)
-    const sheet = page
-      .locator('.sheet')
-      .filter({ has: page.locator('.rss-toolbar') })
-    await expect(sheet).toBeVisible()
-
-    // Switching the unmatched line to "create" also selects it, so the row
-    // needs no separate checkbox tick.
-    const panRow = receiptRow(page, 'PAN INTEGRAL')
-    // The per-row form is collapsed until the summary is tapped.
-    await panRow.locator('.rss-summary').click()
-    await expect(panRow).toHaveClass(/expanded/)
-    await panRow.locator('.rss-link-select').selectOption(CREATE_OPTION)
-    await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
-      '3 de 3 seleccionados',
-    )
-
-    // The brand rides in on the sigil grammar rather than a separate field.
-    await panRow.locator('.rss-create-input').fill('Pan integral #Bimbo')
-
-    const responsePromise = page.waitForResponse(
-      (resp) =>
-        resp.url().includes(`/lists/${LIST_ID}/receipt-prices`) &&
-        resp.status() === 200,
-    )
-    await sheet.getByRole('button', { name: 'Guardar precios' }).click()
-    const response = await responsePromise
-    await expect(sheet).toBeHidden()
-
-    const body = response.request().postDataJSON() as {
+    await sheet(page).getByRole('button', { name: 'Guardar compra' }).click()
+    const body = (await posted).postDataJSON() as {
+      store: string
+      total: number | null
+      purchased_at: string | null
+      scan_id: string | null
+      lines: { item_id: string; price: number | null }[]
       new_items: { name: string; brand: string | null; price: number }[]
+      mappings: {
+        receipt_name: string
+        item_name: string
+        item_brand: string | null
+      }[]
     }
+
+    // One act, one endpoint: the scan is named on the close rather than
+    // applied by one of its own.
+    expect(body.scan_id).toBe('scan-e2e-1')
+    expect(body.store).toBe('Mercadona')
+    // The figure printed on the paper, which only a scanned close ever sends.
+    expect(body.total).toBe(4.35)
+    // The literal, not something derived here. The paper printed a day and no
+    // hour, so the sheet keeps Madrid midnight of the 10th — 22:00 the day
+    // before in UTC, which is how every instant below the API is written.
+    // Building this expectation in Node would compute it in the runner's
+    // timezone, which Playwright does not pin, so it would drift from the
+    // browser's.
+    expect(body.purchased_at).toBe('2026-07-09T22:00:00')
+
+    // Each matched line carries the paper's own unit price, replacing the
+    // 0,65 the list already had for the milk.
+    expect(body.lines).toHaveLength(2)
+    expect(body.lines).toEqual([
+      expect.objectContaining({ item_id: ITEM_LECHE.id, price: 0.75 }),
+      expect.objectContaining({ item_id: ITEM_CAFE.id, price: 2.6 }),
+    ])
+
+    // The answered line was never on the list, so it is bought outright.
     expect(body.new_items).toHaveLength(1)
     expect(body.new_items[0]).toMatchObject({
       name: 'Pan integral',
       brand: 'Bimbo',
-      price: 1.0,
+      price: 1,
     })
+    // And answering it teaches the app the printed string, as printed. The
+    // shop is stated once by the close, so a mapping does not carry its own.
+    expect(body.mappings).toEqual([
+      {
+        receipt_name: 'PAN INTEGRAL',
+        item_name: 'Pan integral',
+        item_brand: 'Bimbo',
+      },
+    ])
 
-    // The round trip that matters: it comes back from the API already
-    // purchased, carrying the sigil brand and the receipt's price.
+    // The round trip that matters: the sheet goes away, the group becomes a
+    // ticket headed by the shop, and the product that was never on the list
+    // comes back already bought.
+    await expect(sheet(page)).toBeHidden()
+    await expect(page.locator('.item-list__label-text')).toContainText(
+      'Mercadona',
+    )
     const created = itemCard(page, 'Pan integral')
     await expect(created).toBeVisible()
-    // The receipt is dated two days before the clock, so this is a record, not
-    // something in today's cart — it has no circle to toggle, only the offer to
-    // buy it again. The old two-state model could not tell those apart and
-    // showed a two-day-old receipt line as if it were still in the cart.
     await expect(created).toHaveClass(/item-card--bought/)
-    await expect(created.getByRole('checkbox')).toHaveCount(0)
-    await expect(
-      created.getByRole('button', { name: /volver a comprar/i }),
-    ).toBeVisible()
-    // The brand is no longer on the row; it is one tap in, on the item.
-    await expect(created.getByText('Bimbo', { exact: true })).toHaveCount(0)
-    // formatPrice() uses Intl with the *browser's* locale and the config pins
-    // none, so the decimal separator differs between a local run and CI's
-    // container. Match either rather than baking in one environment's output.
-    await expect(created.locator('.item-card__figure--amount')).toContainText(
-      /1[.,]00/,
-    )
   })
 
-  // The seam JAV-54 exists to close, end to end: a misread date empties the
-  // backend's match window, so the sheet asks about it, and correcting it
-  // re-runs the match. The API is mocked here (see installApiMocks), so this
-  // proves the *wiring* — that the correction reaches a second POST carrying
-  // the new date, and that its result replaces the first one on screen. That
-  // the window itself is +-3 days is the backend's own test.
-  test('correcting a flagged receipt date re-runs the match with the new date', async ({
-    page,
-  }) => {
-    // The production scenario: the user shopped today and the AI misread the
-    // date as 2026-07-10, so the window landed two weeks off. Overrides the
-    // file-level clock, which deliberately sits inside the window.
-    const TODAY = '2026-07-25'
-    await page.clock.setFixedTime(new Date(`${TODAY}T10:00:00Z`))
-
-    const receiptDatesSent: (string | null)[] = []
-    // Registered after installApiMocks, so it wins: Playwright resolves routes
-    // most-recently-registered first.
-    await page.route(
-      (url) => url.pathname.endsWith('/receipt'),
-      async (route) => {
-        const body = route.request().postDataJSON() as {
-          receipt_date: string | null
-        }
-        receiptDatesSent.push(body.receipt_date)
-        // First scan: the window landed on the wrong week, so the matcher had
-        // no candidates to score. Second: the corrected date finds them.
-        const emptyWindow = receiptDatesSent.length === 1
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            ...SEED_RECEIPT_RESULT,
-            // The router echoes the submitted date rather than restating its
-            // own; the sheet re-reads it to decide whether to keep asking.
-            receipt_date: body.receipt_date,
-            scan_id: `scan-e2e-${receiptDatesSent.length}`,
-            matched: emptyWindow ? [] : SEED_RECEIPT_RESULT.matched,
-            unmatched: emptyWindow
-              ? [
-                  // Same lines, minus the item they would have matched: with
-                  // no candidates in the window there is nothing to link to.
-                  ...SEED_RECEIPT_RESULT.matched.map((m) => ({
-                    receipt_name: m.receipt_name,
-                    price_type: m.price_type,
-                    unit_price: m.unit_price,
-                    quantity: m.quantity,
-                    line_total: m.line_total,
-                  })),
-                  ...SEED_RECEIPT_RESULT.unmatched,
-                ]
-              : SEED_RECEIPT_RESULT.unmatched,
-          }),
-        })
-      },
-    )
-
-    await gotoList(page)
-    await mockGeminiReceiptParse(page, PARSED_RECEIPT)
-    await uploadReceipt(page)
-
-    const sheet = page
-      .locator('.sheet')
-      .filter({ has: page.locator('.rss-toolbar') })
-    await expect(sheet).toBeVisible()
-    await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
-      '0 de 3 seleccionados',
-    )
-
-    // The prompt is a question, not an error — it offers the correction rather
-    // than performing one.
-    const prompt = sheet.locator('.rss-date-check')
-    await expect(prompt).toBeVisible()
-    await prompt.getByRole('button', { name: 'Corregir fecha' }).click()
-
-    await sheet.locator('#rss-date-input').fill(TODAY)
-    await sheet.getByRole('button', { name: 'Volver a buscar' }).click()
-
-    // The corrected day reaches the backend, and no second Gemini call is made
-    // to get there — the parsed receipt is reused verbatim apart from the date.
-    await expect(async () => {
-      expect(receiptDatesSent).toHaveLength(2)
-    }).toPass()
-    // The literal, not `toContain(TODAY)`. `withDatePart` rebuilds the
-    // corrected day from local components and serialises it with
-    // `toLocalInstant`, so what leaves the browser carries the user's calendar
-    // day *and* the offset that fixes the moment: TODAY at Madrid midnight,
-    // which is 22:00 the day before in UTC. Spelling the value out pins all
-    // three — day, clock and zone — where a substring check would see only the
-    // day and pass on any time of day in any zone. The config pins the zone and
-    // this test pins the day, which together make this exactly one value. Do
-    // not derive it here: the expectation would be built in Node, whose
-    // timezone Playwright does not pin, so it would drift from the browser's.
-    expect(receiptDatesSent[1]).toBe('2026-07-25T00:00:00+02:00')
-
-    // The re-match replaces what is on screen, prompt included.
-    await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
-      '2 de 3 seleccionados',
-    )
-    await expect(sheet.locator('.rss-date-check')).toHaveCount(0)
-  })
-
-  test('a failed AI parse surfaces an error toast without opening the review sheet', async ({
+  test('a read that fails leaves the sheet in hand mode with what it held', async ({
     page,
   }) => {
     await gotoList(page)
+    await putInCart(page, ITEM_LECHE.name)
     await page.route(GEMINI_ENDPOINT_PATTERN, (route) =>
       route.fulfill({ status: 500, body: 'Internal Server Error' }),
     )
 
-    await uploadReceipt(page)
+    await openCloseSheet(page)
+    await scanFromSheet(page)
 
     await expect(page.getByRole('alert')).toContainText(
       'No se pudo leer el ticket',
     )
-    await expect(page.locator('.rss-toolbar')).toHaveCount(0)
+    // The sheet is still up, still has no paper on it, and still offers to
+    // read one. A read that failed throws away nothing the sheet was holding.
+    await expect(sheet(page).locator('.cts__raw')).toHaveCount(0)
+    await expect(sheet(page).locator('.cts__thumb')).toBeVisible()
+    await expect(
+      row(page, ITEM_LECHE.name).locator('.cts__check'),
+    ).toBeChecked()
   })
 })

@@ -3,8 +3,8 @@ import type {
   ApiList,
   ListItem,
   Member,
-  NewPurchasedItem,
   Purchase,
+  PurchaseNewItem,
   ReceiptScanResult,
 } from '../src/types'
 
@@ -170,9 +170,22 @@ const SEED_MEMBERS: Record<string, Member[]> = {
   ],
 }
 
-// A ReceiptScanSheet review, matching item-leche (existing price, gets updated)
-// and item-cafe (no price yet), plus one unmatched line — mirrors the shape
-// used in ReceiptScanSheet.test.tsx.
+// One Mercadona receipt as the backend matcher answers for it: two of its
+// three lines are on this list and one is not.
+//
+// The line it could not place is the *middle* one of the paper, which is what
+// makes the sheet's order worth asserting. Put it last and a sheet that simply
+// printed every matched line before every unmatched one — the concatenation
+// this phase deletes — would look exactly like one that kept the paper's
+// order. The `index` fields are the paper's order and the arrays are not.
+//
+// One match is confirmed and the other is not, so both forms of the app's
+// guess are on screen: a name somebody already resolved for this shop, and one
+// the matcher only scored.
+//
+// `receipt_total` is what the three printed amounts add up to. Change one
+// without changing the other and the sheet's reconciliation goes amber, which
+// is a different screen from the one these baselines depict.
 export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
   scan_id: 'scan-e2e-1',
   store: 'Mercadona',
@@ -188,10 +201,10 @@ export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
       unit_price: 0.75,
       quantity: null,
       line_total: 0.75,
-      confirmed: false,
+      confirmed: true,
     },
     {
-      index: 1,
+      index: 2,
       receipt_name: 'CAFE MOLIDO NESCAFE',
       item_id: 'item-cafe',
       item_name: 'Cafe molido Nescafe',
@@ -204,7 +217,7 @@ export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
   ],
   unmatched: [
     {
-      index: 2,
+      index: 1,
       receipt_name: 'PAN INTEGRAL',
       price_type: 'UNIT',
       unit_price: 1.0,
@@ -220,7 +233,7 @@ export async function installApiMocks(page: Page): Promise<void> {
   // Impulse buys created mid-test, keyed by list. The rest of this mock is
   // deliberately stateless — echo a response, persist nothing — but a created
   // item is the one thing that has to outlive its request: the client refetches
-  // straight after applying prices, and would otherwise never see it at all.
+  // the list straight after closing a shop, and would otherwise never see it.
   const createdItems: Record<string, ListItem[]> = {}
 
   // Trips this list has filed, newest first, and what closing them did to the
@@ -232,22 +245,14 @@ export async function installApiMocks(page: Page): Promise<void> {
 
   // The backend stores naive UTC and the client re-attaches the 'Z' when
   // parsing (itemCost.ts), so timestamps here must carry no zone suffix.
-  //
-  // Converting rather than stripping, because the receipt endpoints are sent
-  // an offset-bearing instant ('2026-07-25T00:30:00+02:00' — see
-  // lib/receiptDate.ts) and the router normalises it with `astimezone(UTC)`.
-  // A regex that only knew about 'Z' would leave the offset in place, and the
-  // client would then re-append its own 'Z' to a string that already had a
-  // zone and get an Invalid Date — a mock failure wearing a product bug's
-  // clothes.
   const naiveUtc = (iso: string) =>
     new Date(iso).toISOString().replace(/Z$/, '')
 
-  // A naive-UTC string (no 'Z', no offset) coming *from the client* — e.g.
-  // useListItems' `purchased_at` tap time, or a receipt's `receipt_date` —
-  // must be re-hydrated as UTC before doing any arithmetic on it. Parsing it
-  // bare would have Node read it as local time, which is exactly the class of
-  // bug `itemState.ts` exists to prevent on the other side of the wire.
+  // A naive-UTC string (no 'Z', no offset) coming *from the client* — a tap's
+  // `purchased_at`, or the instant a close sheet was stamped with — must be
+  // re-hydrated as UTC before doing any arithmetic on it. Parsing it bare
+  // would have Node read it as local time, which is exactly the class of bug
+  // `itemState.ts` exists to prevent on the other side of the wire.
   const parseNaiveUtc = (s: string): Date =>
     new Date(s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s) ? s : `${s}Z`)
 
@@ -470,6 +475,7 @@ export async function installApiMocks(page: Page): Promise<void> {
           total?: number | null
           purchased_at?: string | null
           lines?: { item_id: string; price?: number | null }[]
+          new_items?: PurchaseNewItem[]
         }
         // Every instant here comes from the request, never from `new Date()`.
         // This handler runs in Node, where the clock is the machine's, while
@@ -483,7 +489,7 @@ export async function installApiMocks(page: Page): Promise<void> {
           id: `trip-closed-${(purchases[listId] ?? []).length + 1}`,
           list_id: listId,
           opened_at: naiveUtc(instant.toISOString()),
-          // Closed by hand, so it stopped taking items now rather than at
+          // Written down, so it stopped taking items then rather than at
           // midnight — which is what makes its lines read as filed.
           tears_off_at: naiveUtc(tearsOffAtFor(instant).toISOString()),
           closed_at: closedAt,
@@ -491,59 +497,47 @@ export async function installApiMocks(page: Page): Promise<void> {
           total: body.total ?? null,
         }
         purchases[listId] = [trip, ...(purchases[listId] ?? [])]
+        // What a filed line looks like afterwards. The trip stopped taking
+        // items when it was written down rather than at midnight, which is
+        // what makes its lines read as filed.
+        const filed = {
+          purchased: true,
+          purchased_at: naiveUtc(instant.toISOString()),
+          purchase_id: trip.id,
+          purchase_ends_at: closedAt,
+          purchase_filed: true,
+        }
         for (const line of body.lines ?? []) {
           filedItems[line.item_id] = {
-            purchased: true,
-            purchased_at: naiveUtc(instant.toISOString()),
-            purchase_id: trip.id,
-            // Closed by hand, so the trip stopped taking items when it was
-            // written down rather than at midnight.
-            purchase_ends_at: closedAt,
-            purchase_filed: true,
+            ...filed,
             ...(line.price != null
               ? { price: line.price, price_store: body.store }
               : {}),
           }
         }
-        return json(trip)
-      }
-
-      // /lists/:id/receipt-prices (apply reviewed prices)
-      if (sub === '/receipt-prices' && method === 'POST') {
-        const body = (req.postDataJSON() ?? {}) as {
-          patches?: unknown[]
-          new_items?: NewPurchasedItem[]
-          receipt_date?: string | null
-        }
-        const now = new Date().toISOString()
-        // Mirrors the router: an impulse buy is born purchased, stamped with
-        // the receipt's own instant when there is one, and filed into that
-        // instant's Madrid-day trip exactly like a tap would be.
-        const instant = new Date(body.receipt_date || now)
-        const purchaseFields = purchaseFieldsFor(listId, instant)
+        // Mirrors close(): a product the shop sold but the list never held is
+        // born already bought, on this same ticket. The close is the only
+        // thing that creates one now, because the receipt review that also
+        // did has been deleted along with its endpoint.
         const created = (body.new_items ?? []).map((n, idx) => ({
-          id: `created-item-${idx}-${now}`,
+          id: `${trip.id}-new-${idx}`,
           list_id: listId,
           name: n.name,
           quantity: null, // never planned — that is what makes it an impulse buy
-          purchased_quantity: n.quantity,
-          brand: n.brand,
-          stores: n.store ? [n.store] : [],
-          purchased: true,
-          ...purchaseFields,
-          ean: n.ean,
-          price: n.price,
-          price_per: n.price_per,
-          price_store: n.store,
+          purchased_quantity: n.quantity ?? null,
+          brand: n.brand ?? null,
+          stores: [body.store],
+          ean: n.ean ?? null,
+          price: n.price ?? null,
+          price_per: n.price_per ?? null,
+          price_store: body.store,
           added_by: ALICE.id,
-          created_at: naiveUtc(now),
-          updated_at: naiveUtc(now),
+          created_at: naiveUtc(instant.toISOString()),
+          updated_at: naiveUtc(instant.toISOString()),
+          ...filed,
         }))
         createdItems[listId] = [...(createdItems[listId] ?? []), ...created]
-        return json({
-          items_updated: body.patches?.length ?? 0,
-          items_created: created.length,
-        })
+        return json(trip)
       }
 
       // /lists/:id/items/:itemId
@@ -708,8 +702,8 @@ export async function expectScreenshot(
 // receiptAi.ts calls the Firebase AI SDK, which — regardless of GoogleAIBackend
 // vs VertexAIBackend — issues a real fetch to this proxy domain. Intercepting
 // it here (rather than mocking receiptAi.ts itself) keeps the test exercising
-// the actual client parse -> backend match -> review -> apply pipeline; only
-// the non-deterministic Gemini call is stubbed.
+// the whole path a paper takes: client parse, backend match, the close sheet,
+// and the close. Only the non-deterministic Gemini call is stubbed.
 export interface GeminiParsedLine {
   name: string
   price_type: 'UNIT' | 'KILOGRAM' | 'MULTI'
