@@ -257,12 +257,14 @@ from the same chevron and are told apart by whether the row has an `itemId`.
 bend for a scan. Its total is a figure someone confirmed for the lines it held;
 re-closing it would restate that figure for a different set.
 
-One capability is genuinely lost. Today's scan can reach across a ±3 day window
-into an already-filed ticket and rewrite the prices there. After this phase it
-cannot: those lines arrive as rows to assign, and assigning them to their
-original items is not offered. That is the right loss — rewriting a confirmed
-ticket was never something anybody asked for, and it is the same overwrite the
-deferred `reconcile_scan` bug caused by accident.
+One capability is genuinely lost here: filing over an already-closed trip.
+Today's scan can reach across a ±3 day window into an already-filed ticket
+and rewrite the prices there. After this phase it cannot: those lines arrive
+as rows to assign, and assigning them to their original items is not offered.
+That is the right loss — rewriting a confirmed ticket was never something
+anybody asked for, and it is the same overwrite the deferred `reconcile_scan`
+bug caused by accident. A second capability is also lost, unrelated to closed
+trips; see "Follow-ups this creates".
 
 `NotInTheCart` stays as the server's guard, and after this phase the sheet
 cannot provoke it: every row it can send is either in the trip being closed, on
@@ -486,6 +488,20 @@ with it.
 
 ## Follow-ups this creates
 
+- **Re-matching after a misread receipt date.** The deleted scan screen could
+  tell when a scanned date fell outside the ±3 day match window, ask the
+  household about it, and re-match the same parsed lines against a corrected
+  date without a second call to Gemini. The close sheet has neither the
+  prompt nor the re-match: a misread date now empties the candidate set, so
+  every line arrives as `Asignar producto`, and the only way back is
+  resolving each one by hand or scanning again — another Gemini call, and
+  another chance at the transient failure this project has already hit once.
+  A misread year was the case that motivated the old prompt. Restoring this
+  needs a way to re-match the parsed lines against a corrected date without
+  reading the image again. The same date control also lost its `max`: the
+  deleted screen capped the picker at today, and the close sheet's plain date
+  input does not, so a future day is now accepted and silently clamped
+  forward by the server.
 - **`6c`** — inherited prices, and the last-confirmed-price read that feeds them.
 - **Receipt image storage**, as its own ADR. It unlocks the ticket header's
   miniature and `25b`'s second door together, because both are the same missing

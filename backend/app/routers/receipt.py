@@ -14,9 +14,8 @@ router = APIRouter(tags=["receipt"])
 # Purchases are matched against a window centered on the receipt date, since
 # items can be marked purchased a few days after the physical receipt date.
 #
-# Mirrored by RECEIPT_DATE_TOLERANCE_DAYS in frontend/src/lib/receiptDate.ts,
-# which asks the user to confirm any scanned date this window would not cover.
-# Widening one without the other lets a misread date through unquestioned.
+# Widening this loosens what counts as a plausible purchase for a given
+# receipt; narrowing it risks missing a purchase made a few days late.
 RECEIPT_MATCH_WINDOW_DAYS = 3
 
 
