@@ -180,7 +180,7 @@
   margin: 6px 16px 8px;
   padding: 14px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: var(--fs-15);
   font-weight: 700;
   color: var(--accent-fg);
   background: var(--accent);

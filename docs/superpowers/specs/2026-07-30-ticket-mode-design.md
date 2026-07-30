@@ -213,6 +213,22 @@ the amount counts toward the paper's total, and the line enters no product's
 history. That is `13a`'s rule and it is what keeps a bad guess from becoming a
 bad price.
 
+**And the scan response has to be able to say which of the two a match is.**
+`match_lines` already decides: it looks for a confirmed mapping first and falls
+back to a fuzzy score. But both branches build the same `MatchedLine`, so the
+answer is thrown away at the boundary.
+
+Left alone, `matchState` can only ever be `guess`. Every row would carry the
+dashed underline forever, the solid form would be unreachable, and the two forms
+that `13a` is built on would collapse into one. Worse, it would quietly break the
+promise the whole mapping machinery exists to keep: the household confirms a
+string, and the next ticket shows it looking exactly as unconfirmed as it did
+before. All the work of learning the name would be invisible.
+
+So `MatchedLine` carries whether the match came from a name somebody had already
+confirmed for this shop. That is what `literal` means, and it is one flag on a
+branch that already exists.
+
 ### Resolving a line has two causes, in that order
 
 `13b` is one sheet and it puts the two causes one under the other, because a
