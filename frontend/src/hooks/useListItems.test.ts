@@ -571,3 +571,178 @@ describe('useListItems — write queue on network error', () => {
     expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
 })
+
+const item2: ListItem = { ...item1, id: 'item-2', name: 'Pan' }
+
+describe('useListItems — a read that lands after a write', () => {
+  // Earlier suites leave rejecting write mocks behind; clearAllMocks drops the
+  // recorded calls but keeps the implementation.
+  beforeEach(() => {
+    vi.mocked(api.updateItem).mockResolvedValue(undefined as never)
+    vi.mocked(api.deleteItem).mockResolvedValue(undefined as never)
+  })
+
+  // The read is made to resolve with an extra item, so waiting for that item
+  // proves the response was applied before the write is checked.
+  function pendingItemsRead() {
+    let resolve!: (items: ListItem[]) => void
+    vi.mocked(api.getListItems).mockReturnValue(
+      new Promise<ListItem[]>((r) => {
+        resolve = r
+      }) as never,
+    )
+    return () => resolve([item1, item2])
+  }
+
+  function seedCache() {
+    localStorage.setItem(
+      'cqs_list_cache_list-1',
+      JSON.stringify({ items: [item1], members: mockRawMembers }),
+    )
+  }
+
+  it('keeps a purchase made while the initial read was in flight', async () => {
+    seedCache()
+    const landRead = pendingItemsRead()
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+    expect(result.current.items[0].purchased).toBe(true)
+
+    act(() => landRead())
+    await waitFor(() => expect(result.current.items).toHaveLength(2))
+
+    expect(result.current.items.find((i) => i.id === 'item-1')?.purchased).toBe(
+      true,
+    )
+  })
+
+  it('keeps an item added while the initial read was in flight', async () => {
+    seedCache()
+    const landRead = pendingItemsRead()
+    vi.mocked(api.createItem).mockResolvedValue({
+      ...item1,
+      id: 'item-3',
+      name: 'Huevos',
+    } as never)
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+    await act(async () => {
+      await result.current.addItem({
+        name: 'Huevos',
+        quantity: null,
+        brand: null,
+        stores: [],
+        ean: null,
+      })
+    })
+
+    act(() => landRead())
+    await waitFor(() => expect(result.current.items).toHaveLength(3))
+
+    expect(result.current.items.map((i) => i.name)).toContain('Huevos')
+  })
+
+  it('keeps a removal made while the initial read was in flight', async () => {
+    seedCache()
+    const landRead = pendingItemsRead()
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+    await act(async () => {
+      await result.current.removeItem('item-1')
+    })
+    expect(result.current.items).toHaveLength(0)
+
+    act(() => landRead())
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+    expect(result.current.items[0].id).toBe('item-2')
+  })
+
+  it('applies the read when no write raced it', async () => {
+    seedCache()
+    const landRead = pendingItemsRead()
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+    act(() => landRead())
+    await waitFor(() => expect(result.current.items).toHaveLength(2))
+
+    expect(result.current.items.find((i) => i.id === 'item-1')?.purchased).toBe(
+      false,
+    )
+  })
+})
+
+describe('useListItems — a poll that lands after a write settles', () => {
+  beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }))
+  afterEach(() => vi.useRealTimers())
+
+  // The write starts before the poll does and is acknowledged while the poll
+  // is in flight. The server may or may not have applied it when the poll ran,
+  // so the poll cannot be trusted for that item either.
+  it('keeps a purchase acknowledged while the poll was in flight', async () => {
+    let ackUpdate!: () => void
+    vi.mocked(api.updateItem).mockReturnValue(
+      new Promise<void>((r) => {
+        ackUpdate = () => r()
+      }) as never,
+    )
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    let toggle!: Promise<void>
+    await act(async () => {
+      toggle = result.current.togglePurchased('item-1')
+      await Promise.resolve()
+    })
+    expect(result.current.items[0].purchased).toBe(true)
+
+    let landPoll!: (items: ListItem[]) => void
+    vi.mocked(api.getListItems).mockReturnValue(
+      new Promise<ListItem[]>((r) => {
+        landPoll = r
+      }) as never,
+    )
+    vi.mocked(api.getListUpdatedAt).mockResolvedValue({
+      updated_at: '2026-01-02T00:00:00',
+    } as never)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
+    await waitFor(() => expect(api.getListItems).toHaveBeenCalledTimes(2))
+
+    await act(async () => {
+      ackUpdate()
+      await toggle
+    })
+
+    await act(async () => landPoll([item1, item2]))
+    await waitFor(() => expect(result.current.items).toHaveLength(2))
+
+    expect(result.current.items.find((i) => i.id === 'item-1')?.purchased).toBe(
+      true,
+    )
+  })
+})
