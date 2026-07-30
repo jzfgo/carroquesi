@@ -358,6 +358,40 @@ describe('useQueueDrain — drain on reconnect', () => {
     )
   })
 
+  // The other count has a plural of its own, and every case above happens to
+  // leave it at one.
+  it('counts more than one stray change', async () => {
+    await enqueue({
+      listId: 'l1',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        purchased_at: '2026-07-30T18:00:00',
+        purchase_id: null,
+        total: null,
+        lines: [{ item_id: 'a', price: 1.19, price_per: null, quantity: null }],
+        new_items: [],
+      },
+    })
+    for (const name of ['Pan', 'Leche']) {
+      await enqueue({ listId: 'l1', type: 'addItem', payload: { name } })
+    }
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new api.ApiError(409, 'nothing to close'),
+    )
+    vi.mocked(api.createItem).mockRejectedValue(
+      new api.ApiError(422, 'unprocessable'),
+    )
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'No se pudo guardar una compra, ni 2 cambios más. Vuelve a cerrarla',
+      ),
+    )
+  })
+
   it('does not drain ops for a different listId', async () => {
     vi.mocked(api.createItem).mockResolvedValue({} as never)
     await enqueue({

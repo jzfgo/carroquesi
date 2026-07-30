@@ -48,6 +48,20 @@ and E2E cover for a filed trip.
 renders only one. See "One sheet, two modes" below for why the split is here
 rather than somewhere else.
 
+**3c also inherits a bug.** `reconcile_scan` in `services/trips.py` reads its
+trip with `session.get`, then decides on `trip.closed_at is None` whether to
+write `store`, `total` and `closed_at`. The receipt endpoint calls
+`trips.attach` for a patched item whose `purchased_at` is NULL, and that loads
+the day's trip into the session; if another member files the same trip and
+commits in between, the `get` answers from the identity map and the scan
+overwrites figures they confirmed. Both requests return 200 and nothing records
+it. Phase 3b fixed the same read in `close()` with a filtered `SELECT ... WHERE
+closed_at IS NULL`, and the fix here is identical — but 3c may remove the
+question instead, because routing reconciliation through `close()` is what
+`scan_id` is for. Either way it has to be answered there. It is written here
+rather than left in a review thread because it is the one deferred item where
+data is lost silently, and 3c is the phase that will be reading this code.
+
 **Out, deferred:** `6c`'s inherited prices. They are canonical in `10b` but need
 a last-confirmed-price-per-item-per-store read that does not exist. Everything
 else in this phase reuses machinery that does.
