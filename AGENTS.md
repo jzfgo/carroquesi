@@ -142,7 +142,7 @@ All known flags and defaults live in the registry in `backend/app/services/featu
 
 - Check `git status --short` before and after changes
 - Implement the smallest complete fix first, then iterate
-- **YAGNI.** Build what the task needs, not what a later one might: no parameter, abstraction, or config knob without a caller today. This is Product Principle 6 (*Complexity is earned*) at coding time — see [PRODUCT.md](PRODUCT.md)
+- **YAGNI.** Build what the task needs, not what a later one might: no parameter, abstraction, or config knob without a caller today. This is *Complexity is earned* at coding time — see [PRODUCT.md](PRODUCT.md)
 - **Write comments and docs in plain, short English.** One idea per sentence. Use common words, not rare or figurative ones: the reader is not always a native speaker. A comment says *why*, not *where*: never cite line numbers, file paths, or issue IDs in a code comment. Nothing checks those links, so they go stale on the next move, and the commit message tells the reader more. Docs are the index, so they cite freely. Keep the length in proportion to the decision. Commit and PR titles are exempt; their style is deliberate.
 - **A paragraph defending a workaround means the code is wrong.** If a paragraph is needed to argue the hack is OK, fix the code instead
 - Start both servers: `just dev` (uses overmind + `Procfile.local`); use `just dev network` to expose on LAN
