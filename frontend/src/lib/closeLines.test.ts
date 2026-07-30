@@ -8,7 +8,9 @@ import type {
 import {
   buildLines,
   discardPaper,
+  hasNoProduct,
   linesTotal,
+  productUnsettled,
   receiptToLines,
   receiptTotal,
   toPayload,
@@ -998,5 +1000,45 @@ describe('discardPaper', () => {
     ])
 
     expect(receiptTotal(discardPaper(lines))).toBeNull()
+  })
+})
+
+describe('which question a row still has to answer', () => {
+  // A guess is the app's reading of the paper, and it is only settled once a
+  // person says so. Until then the chevron has to lead to the sheet that asks
+  // which product it was, or the guess could never become solid.
+  it('asks about a guess and adjusts a match somebody confirmed', () => {
+    const printed = { receiptLine: 'LECHE ENT 1L', receiptAmount: 1.19 }
+
+    expect(productUnsettled(row({ ...printed, matchState: 'guess' }))).toBe(
+      true,
+    )
+    expect(productUnsettled(row({ ...printed, matchState: 'literal' }))).toBe(
+      false,
+    )
+  })
+
+  it('asks about a printed line the matcher placed nowhere', () => {
+    const line = row({
+      key: 'receipt-1',
+      itemId: null,
+      name: '',
+      receiptLine: 'BOLSA PLASTICO',
+    })
+
+    expect(productUnsettled(line)).toBe(true)
+  })
+
+  it('leaves a row no paper printed alone', () => {
+    expect(productUnsettled(row({}))).toBe(false)
+  })
+
+  // Two different questions. What a row may be ticked for is whether it names
+  // a product, and a guess names one — conflating the two would make a guessed
+  // row unsavable.
+  it('keeps a guessed row tickable', () => {
+    const guess = row({ receiptLine: 'LECHE ENT 1L', matchState: 'guess' })
+
+    expect(hasNoProduct(guess)).toBe(false)
   })
 })

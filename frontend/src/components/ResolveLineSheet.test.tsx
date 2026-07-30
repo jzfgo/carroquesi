@@ -242,6 +242,88 @@ describe('ResolveLineSheet', () => {
   })
 })
 
+/** A line the matcher placed by score: it names an item already, and nobody has
+ *  said yet whether that is right. */
+const guess: CloseLine = {
+  key: 'i9',
+  itemId: 'i9',
+  name: 'Chocolate Valor',
+  brand: null,
+  quantity: '2',
+  price: 1.59,
+  pricePer: null,
+  included: true,
+  fromCart: true,
+  receiptLine: 'CHOCO NGR 70% 100G',
+  receiptAmount: 3.18,
+  matchState: 'guess',
+}
+
+describe('ResolveLineSheet on a line the matcher guessed', () => {
+  it('offers the item the row already names, ready to be confirmed', () => {
+    open({ line: guess })
+
+    expect(screen.getByRole('radio', { name: /Chocolate Valor/ })).toBeChecked()
+    // The item is claimed by this very row, so it is not one of the rows still
+    // waiting and the count may not say it is.
+    expect(screen.getByText('Pendientes de asignar · 2')).toBeInTheDocument()
+  })
+
+  it('confirms the guess in one tap and hands the row back solid', async () => {
+    const { onResolve } = open({ line: guess })
+
+    expect(asignar()).toBeEnabled()
+    await userEvent.click(asignar())
+
+    expect(onResolve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: 'i9',
+        itemId: 'i9',
+        name: 'Chocolate Valor',
+        matchState: 'literal',
+        receiptLine: 'CHOCO NGR 70% 100G',
+        receiptAmount: 3.18,
+        price: 1.59,
+        quantity: '2',
+      }),
+    )
+  })
+
+  it('corrects a wrong guess to a row that was still waiting', async () => {
+    const { onResolve } = open({ line: guess })
+
+    await userEvent.click(screen.getByRole('radio', { name: /Leche entera/ }))
+    await userEvent.click(asignar())
+
+    expect(onResolve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        itemId: 'i2',
+        name: 'Leche entera',
+        matchState: 'literal',
+      }),
+    )
+  })
+
+  it('corrects a wrong guess to a product that was never on the list', async () => {
+    const { onResolve } = open({ line: guess })
+
+    await userEvent.clear(field())
+    await userEvent.type(field(), 'Chocolate 70%')
+    await userEvent.click(asignar())
+
+    expect(
+      screen.getByRole('radio', { name: /Chocolate Valor/ }),
+    ).not.toBeChecked()
+    expect(onResolve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        itemId: null,
+        name: 'Chocolate 70%',
+        matchState: 'literal',
+      }),
+    )
+  })
+})
+
 describe('ResolveLineSheet with nothing left to claim', () => {
   it('offers no rows and still creates', async () => {
     const { onResolve } = open({ candidates: [] })

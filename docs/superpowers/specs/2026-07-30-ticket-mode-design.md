@@ -249,7 +249,10 @@ Repeating it here would be two paths to one decision.
 
 `13b` is a sibling of `10d`, not a mode of it. `10d` edits four fields of a row
 that already has a name; `13b` answers *which product is this*. They are reached
-from the same chevron and are told apart by whether the row has an `itemId`.
+from the same chevron and are told apart by whether the row's product is
+settled. A line with no product and a line the matcher only guessed at both
+reach `13b`: confirming a guess is the same answer as filling a blank, and it
+is the only way a guess ever becomes solid.
 
 ### A filed trip is not scannable
 

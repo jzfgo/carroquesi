@@ -5,7 +5,7 @@ import {
   discardPaper,
   hasNoProduct,
   linesTotal,
-  needsProduct,
+  productUnsettled,
   receiptTotal,
   toPayload,
   type CloseLine,
@@ -474,7 +474,7 @@ export function CloseTripSheet({
           <button
             type="button"
             className="cts__door"
-            aria-label={`${needsProduct(line) ? 'Asignar' : 'Ajustar'} ${rowLabel(line)}`}
+            aria-label={`${productUnsettled(line) ? 'Asignar' : 'Ajustar'} ${rowLabel(line)}`}
             onClick={() => onEditLine?.(line, apply, lines)}
           >
             <ChevronRight size={18} />

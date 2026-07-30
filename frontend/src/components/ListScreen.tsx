@@ -25,7 +25,7 @@ import {
 } from '../lib/api'
 import {
   buildLines,
-  needsProduct,
+  productUnsettled,
   receiptToLines,
   type CloseLine,
 } from '../lib/closeLines'
@@ -1218,10 +1218,11 @@ export function ListScreen({
         <>
           <div className="sheet-overlay" onClick={() => setEditingLine(null)} />
           <div className="sheet-container">
-            {/* Two questions, told apart by whether the row has been told what
-                it was. A printed line still waiting asks which product it is;
-                anything else adjusts the product it already names. */}
-            {needsProduct(editingLine.line) ? (
+            {/* Two questions, told apart by whether the row's product is
+                settled. A printed line with no product, and one the matcher
+                only guessed at, both ask which product it is; anything else
+                adjusts the product it already names. */}
+            {productUnsettled(editingLine.line) ? (
               <ResolveLineSheet
                 line={editingLine.line}
                 candidates={freeRows(editingLine.lines)}

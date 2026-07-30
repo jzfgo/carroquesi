@@ -995,6 +995,21 @@ describe('reading a paper into the close sheet', () => {
     return within(document.querySelector('.cts') as HTMLElement)
   }
 
+  /** Says yes to the milk the matcher guessed. Its own item leads the sheet
+   *  and arrives picked, so confirming is one tap. */
+  async function confirmLeche() {
+    await userEvent.click(sheet().getByRole('button', { name: /Leche/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+  }
+
+  /** What the app believes a printed line was, as the row draws it. */
+  function guessOf(name: string) {
+    return sheet()
+      .getByLabelText(name)
+      .closest('.cts__row')
+      ?.querySelector('.cts__guess')
+  }
+
   async function resolvePan() {
     await userEvent.click(
       screen.getByRole('button', { name: 'Asignar 2 PAN DE PUEBLO' }),
@@ -1093,12 +1108,64 @@ describe('reading a paper into the close sheet', () => {
     expect(screen.getByRole('radio')).toBeInTheDocument()
   })
 
-  it('adjusts a row that already names a product', async () => {
+  // The matcher placed this line by score, so the row is the app's guess and
+  // nothing has confirmed it. The sheet that settles a guess is the same one
+  // that fills a blank — adjusting it instead would leave the dashed underline
+  // on forever and teach the shop nothing.
+  it('asks which product a guessed line was, rather than adjusting it', async () => {
     await readPaper()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Ajustar Leche' }))
+    await userEvent.click(sheet().getByRole('button', { name: /Leche/ }))
+
+    expect(
+      screen.getByRole('heading', { name: 'Asignar producto' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Ajustar producto')).not.toBeInTheDocument()
+  })
+
+  it('makes a confirmed guess solid', async () => {
+    await readPaper()
+
+    await confirmLeche()
+
+    expect(guessOf('Leche')?.className).not.toContain('cts__guess--ask')
+  })
+
+  // The whole reason the scan says whether a match was confirmed: the string
+  // the household confirmed has to arrive resolved on the next ticket.
+  it('teaches the shop the printed line a guess was confirmed for', async () => {
+    await readPaper()
+
+    await confirmLeche()
+    const payload = await save()
+
+    expect(payload.mappings).toEqual([
+      { receipt_name: 'LECHE HACENDADO', item_name: 'Leche', item_brand: null },
+    ])
+  })
+
+  it('adjusts a row whose match somebody had already confirmed', async () => {
+    vi.mocked(api.submitParsedReceipt).mockResolvedValue({
+      ...SCAN,
+      matched: [{ ...SCAN.matched[0], confirmed: true }],
+    })
+    await readPaper()
+
+    await userEvent.click(sheet().getByRole('button', { name: /Leche/ }))
 
     expect(screen.getByText('Ajustar producto')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: 'Asignar producto' }),
+    ).not.toBeInTheDocument()
+  })
+
+  // A guess names a product, so there is something to save and the box stays
+  // live. That is a different question from the one the chevron asks.
+  it('leaves a guessed row tickable', async () => {
+    await readPaper()
+
+    expect(sheet().getByLabelText('Leche')).toBeEnabled()
+    expect(sheet().getByLabelText('Leche')).toBeChecked()
   })
 
   // Answered is answered, however it was answered. A line named with a

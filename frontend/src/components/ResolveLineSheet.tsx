@@ -7,7 +7,8 @@ import { parseInput } from '../lib/parseInput'
 import './ResolveLineSheet.css'
 
 interface Props {
-  /** The receipt line the matcher could not place. */
+  /** The receipt line whose product is not settled: one the matcher could not
+   *  place, or one it placed by score and nobody has confirmed. */
   line: CloseLine
   /** The rows of the close sheet no receipt line has claimed yet. */
   candidates: CloseLine[]
@@ -26,9 +27,16 @@ type Answer = { kind: 'row'; key: string } | { kind: 'new' } | null
  * no line has claimed — usually one tap — or it was never on the list and has
  * to be created.
  *
- * One action for both, because creating is only the step before assigning.
- * The chevron is the way out, and whether the line is saved at all is the
- * row's checkbox on the close sheet.
+ * A line the matcher only guessed at arrives here too, and it comes with the
+ * app's guess already picked, so saying yes is one tap. The guess is offered
+ * above the rest because it is the likely answer, and it has to be offered at
+ * all: its item is claimed by this very row, so it is not among the rows still
+ * waiting and the household would otherwise have no way to say the guess was
+ * right.
+ *
+ * One action for all of it, because creating is only the step before
+ * assigning. The chevron is the way out, and whether the line is saved at all
+ * is the row's checkbox on the close sheet.
  */
 export function ResolveLineSheet({
   line,
@@ -40,10 +48,17 @@ export function ResolveLineSheet({
   const swipe = useSwipeToDismiss(sheetRef, onClose)
   const id = useId()
 
+  // The item the row already names, when it names one. Kept apart from the
+  // candidates because it is not waiting to be claimed — this row claimed it.
+  const guessed = line.itemId == null ? null : line
+  const options = guessed ? [guessed, ...candidates] : candidates
+
   // Filled from the paper, because most of the time the product's name is
   // already in the printed string and only needs tidying.
   const [typed, setTyped] = useState(line.receiptLine ?? '')
-  const [answer, setAnswer] = useState<Answer>(null)
+  const [answer, setAnswer] = useState<Answer>(
+    guessed ? { kind: 'row', key: guessed.key } : null,
+  )
 
   const parsed = useMemo(() => parseInput(typed), [typed])
   const typedName = parsed.name.trim()
@@ -68,7 +83,7 @@ export function ResolveLineSheet({
       matchState: 'literal',
     }
     if (answer.kind === 'row') {
-      const picked = candidates.find((c) => c.key === answer.key)
+      const picked = options.find((c) => c.key === answer.key)
       if (!picked) return
       onResolve({
         ...resolved,
@@ -85,6 +100,25 @@ export function ResolveLineSheet({
       name: typedName,
       brand: parsed.brand,
     })
+  }
+
+  /** One row offered as the answer. */
+  function option(row: CloseLine) {
+    return (
+      <label className="rls__option" key={row.key}>
+        <input
+          type="radio"
+          className="rls__radio"
+          name={`${id}-answer`}
+          checked={answer?.kind === 'row' && answer.key === row.key}
+          onChange={() => setAnswer({ kind: 'row', key: row.key })}
+        />
+        <span className="rls__option-name">{row.name}</span>
+        <span className="rls__option-state">
+          {row.fromCart ? 'en el carro' : 'sigue en la lista'}
+        </span>
+      </label>
+    )
   }
 
   // The figure the paper printed beside the line, not one worked out from the
@@ -118,26 +152,21 @@ export function ResolveLineSheet({
         <span className="rls__figures">{figures}</span>
       </div>
 
+      {/* One group of radios across both blocks, so picking here unpicks
+          there. */}
+      {guessed && (
+        <fieldset className="rls__group">
+          <legend className="rls__legend">Lo que creemos que es</legend>
+          {option(guessed)}
+        </fieldset>
+      )}
+
       {candidates.length > 0 && (
         <fieldset className="rls__group">
           <legend className="rls__legend">
             {`Pendientes de asignar · ${candidates.length}`}
           </legend>
-          {candidates.map((candidate) => (
-            <label className="rls__option" key={candidate.key}>
-              <input
-                type="radio"
-                className="rls__radio"
-                name={`${id}-answer`}
-                checked={answer?.kind === 'row' && answer.key === candidate.key}
-                onChange={() => setAnswer({ kind: 'row', key: candidate.key })}
-              />
-              <span className="rls__option-name">{candidate.name}</span>
-              <span className="rls__option-state">
-                {candidate.fromCart ? 'en el carro' : 'sigue en la lista'}
-              </span>
-            </label>
-          ))}
+          {candidates.map(option)}
         </fieldset>
       )}
 

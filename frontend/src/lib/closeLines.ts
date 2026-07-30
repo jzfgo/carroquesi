@@ -56,15 +56,23 @@ export function hasNoProduct(line: CloseLine): boolean {
 }
 
 /**
- * Whether the row is still waiting to be told what it was.
+ * Whether the row's product is still unsettled — the question the chevron
+ * asks.
  *
- * A printed line with no name is the one state that asks the question, and it
- * is the state the row reads `Asignar producto` in. What answered it does not
- * matter: a product already on the list and a product created on the spot are
- * both answers, and what is left to change about either is its amount.
+ * A printed line is unsettled in two ways, and they cost the same to answer:
+ * the matcher placed it nowhere, or it placed it by score and nobody has said
+ * yet whether that is right. Both lead to the sheet that asks which product
+ * the line was, so correcting a wrong guess costs what filling a blank costs
+ * — and a guess can become solid, which is the whole point of learning the
+ * name.
+ *
+ * Once a person has answered, what is left to change is the amount, whatever
+ * gave the answer: a product already on the list and one created on the spot
+ * are both settled.
  */
-export function needsProduct(line: CloseLine): boolean {
-  return hasNoProduct(line) && line.receiptLine != null
+export function productUnsettled(line: CloseLine): boolean {
+  if (line.receiptLine == null) return false
+  return hasNoProduct(line) || line.matchState === 'guess'
 }
 
 /**

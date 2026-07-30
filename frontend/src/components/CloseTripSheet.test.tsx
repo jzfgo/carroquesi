@@ -619,6 +619,29 @@ describe('CloseTripSheet in ticket mode', () => {
     expect(onEditLine.mock.calls[0][0]).toMatchObject({ key: 'r2' })
   })
 
+  // The chevron asks whether the row's product is settled, not whether it has
+  // one. An unconfirmed guess has a product and is still waiting to be told
+  // whether it is the right one.
+  it('sends an unconfirmed guess to be settled, and a confirmed match to be adjusted', () => {
+    renderTicket()
+
+    expect(
+      screen.getByRole('button', { name: 'Asignar Pan de pueblo' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Ajustar Leche' }),
+    ).toBeInTheDocument()
+  })
+
+  // A different question from the one the chevron asks. A guess names a
+  // product, so there is something to save and the box stays live.
+  it('leaves a guessed row tickable', () => {
+    renderTicket()
+
+    expect(screen.getByLabelText('Pan de pueblo')).toBeEnabled()
+    expect(screen.getByLabelText('Pan de pueblo')).toBeChecked()
+  })
+
   it('shows the amount the paper printed for a line', () => {
     renderTicket()
 
@@ -895,7 +918,7 @@ describe('CloseTripSheet when the paper is discarded', () => {
     renderTicket({ onEditLine })
 
     await userEvent.click(
-      screen.getByRole('button', { name: 'Ajustar Pan de pueblo' }),
+      screen.getByRole('button', { name: 'Asignar Pan de pueblo' }),
     )
     await userEvent.click(screen.getByLabelText('Leche'))
     await discard()
