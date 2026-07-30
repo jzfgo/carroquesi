@@ -321,7 +321,8 @@ def close(
     tore off at midnight, with nobody having said what it was, gets written
     down the next morning.
 
-    Three cases raise `NothingToClose`. An id that matches no row, and an id
+    With `purchase_id`, three cases raise `NothingToClose`. An id that
+    matches no row, and an id
     whose trip belongs to another list: both are refused the same way an
     absent trip is. Membership was checked against `list_id`, not against a
     trip id the caller simply supplied. The third is a trip already filed. Its
