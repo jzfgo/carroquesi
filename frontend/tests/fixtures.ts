@@ -4,7 +4,9 @@ import type {
   BackendMember,
   ListItem,
   NewPurchasedItem,
+  PriceType,
   ReceiptScanResult,
+  UserMe,
 } from '../src/types'
 import data from './fixtures.json' with { type: 'json' }
 
@@ -12,7 +14,10 @@ const BACKEND = 'http://localhost:8000'
 export const GEMINI_ENDPOINT_PATTERN =
   'https://firebasevertexai.googleapis.com/**'
 
-export const ALICE: { id: string; [key: string]: unknown } = data.ALICE
+// The payloads live in fixtures.json so a backend test can validate them
+// against the Pydantic response models. Annotating them here keeps the other
+// half of the contract: a change to src/types has to break this file too.
+export const ALICE: UserMe = data.ALICE
 export const SEED_LISTS: ApiList[] = data.SEED_LISTS
 export const SEED_ITEMS: Record<string, ListItem[]> = data.SEED_ITEMS
 
@@ -21,7 +26,20 @@ const SEED_MEMBERS: Record<string, BackendMember[]> = data.SEED_MEMBERS
 // A ReceiptScanSheet review, matching item-leche (existing price, gets updated)
 // and item-cafe (no price yet), plus one unmatched line — mirrors the shape
 // used in ReceiptScanSheet.test.tsx.
-export const SEED_RECEIPT_RESULT = data.SEED_RECEIPT_RESULT as ReceiptScanResult
+//
+// price_type is narrowed one field at a time rather than casting the whole
+// object: a JSON import widens "UNIT" to string, and a cast over the top would
+// stop checking every other field along with it.
+const narrowPriceType = <T extends { price_type: string }>(line: T) => ({
+  ...line,
+  price_type: line.price_type as PriceType,
+})
+
+export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
+  ...data.SEED_RECEIPT_RESULT,
+  matched: data.SEED_RECEIPT_RESULT.matched.map(narrowPriceType),
+  unmatched: data.SEED_RECEIPT_RESULT.unmatched.map(narrowPriceType),
+}
 
 // ── Route installer ───────────────────────────────────────────────────────────
 
@@ -346,6 +364,27 @@ export async function expectScreenshot(
   const projectName = test.info().project.name
   if (!VISUAL_PROJECTS.has(projectName)) return
   await expect(page).toHaveScreenshot(name, { fullPage: true })
+}
+
+/**
+ * Wait for the notification priming card, which every list-screen baseline
+ * shows.
+ *
+ * It renders only after the member list arrives, and it pushes the whole screen
+ * down when it does. Without this wait a capture can land on either side of
+ * that, and the mismatch is invisible: toHaveScreenshot stops at the first frame
+ * matching its baseline, so a baseline of the pre-card screen goes on passing
+ * while the card is what the user actually ends up with. Call this before
+ * screenshotting any screen whose baseline includes the card.
+ *
+ * Gated on the same projects as the screenshot, because the card is what those
+ * baselines happen to contain rather than something every browser must show —
+ * it does not render at all under the iOS projects, where push is unavailable
+ * without a home-screen install.
+ */
+export async function awaitPrimingCard(page: Page): Promise<void> {
+  if (!VISUAL_PROJECTS.has(test.info().project.name)) return
+  await expect(page.locator('.push-priming')).toBeVisible()
 }
 
 // ── Gemini network-boundary mock ─────────────────────────────────────────────

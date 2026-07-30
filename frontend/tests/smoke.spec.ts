@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import {
+  awaitPrimingCard,
   expect,
   expectScreenshot,
   SEED_ITEMS,
@@ -18,6 +19,7 @@ async function assertListScreenLoaded(page: Page) {
   const items = SEED_ITEMS[SEED_LISTS[0].id]
   await expect(page.getByText(items[0].name)).toBeVisible()
   await expect(page.getByText(items[1].name)).toBeVisible()
+  await awaitPrimingCard(page)
 }
 
 async function addItemManzanas(page: Page) {
@@ -25,6 +27,7 @@ async function addItemManzanas(page: Page) {
   await page.getByLabel('Añadir producto').fill('Manzanas')
   await page.getByRole('button', { name: 'Añadir', exact: true }).click()
   await expect(page.getByText('Manzanas')).toBeVisible()
+  await awaitPrimingCard(page)
 }
 
 const THEMES = [

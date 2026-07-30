@@ -15,7 +15,7 @@ Key gotchas:
 
 - Runs against the **preview build** (`pnpm build && pnpm preview`), not the dev server — changes must be built first
 - Default port is `4173`; override with `FRONTEND_PORT_E2E` / `FRONTEND_URL_E2E`
-- The config hardcodes `VITE_DEV_USER_ID` (default `seed-alice`; override it to switch users) and `VITE_BACKEND_URL`. `VITE_DEV_USER_ID` alone drives the auth bypass, entirely client-side: `AuthContext.tsx` skips Firebase when it is set, and `api.ts` sends `X-Dev-User-Id`. **`DEV_AUTH_BYPASS` plays no part in an E2E run** — `webServer` starts the preview build and nothing else, and `fixtures.ts` intercepts every `localhost:8000` call and fulfils it from frozen literals
+- The config hardcodes `VITE_DEV_USER_ID` (default `seed-alice`; override it to switch users) and `VITE_BACKEND_URL`. `VITE_DEV_USER_ID` alone drives the auth bypass, entirely client-side: `AuthContext.tsx` skips Firebase when it is set, and `api.ts` sends `X-Dev-User-Id`. **`DEV_AUTH_BYPASS` plays no part in an E2E run** — `webServer` starts the preview build and nothing else, and `fixtures.ts` intercepts every `localhost:8000` call and fulfils it from `fixtures.json`. That file is typed here and schema-checked from the backend suite; `frontend/tests/README.md` explains what each half catches
 - Uses `loadEnvFile()` which does **not** expand `${VAR}` syntax — config explicitly overrides `VITE_BACKEND_URL` to work around this
 - Browsers: Chromium, Firefox, WebKit, Mobile Chrome (Pixel 10), Mobile Safari (iPhone 17)
 

@@ -2,6 +2,17 @@
 
 Run: `just frontend test-e2e` (alias: `pnpm test:e2e`). Runs against the **preview build**, not the dev server — if you've made frontend changes, build first (`pnpm build`) or just let Playwright's `webServer` config do it for you.
 
+## Fixtures
+
+No backend runs here. `fixtures.ts` intercepts every `localhost:8000` call and answers it from `fixtures.json`.
+
+The payloads sit in JSON rather than in the spec so that both ends can check them. `fixtures.ts` annotates each one with a type from `src/types`, so a frontend type change breaks this file. `backend/tests/test_e2e_contract.py` reads the same JSON and validates it against the response model each route actually declares, so a backend response-shape change fails the backend job. Neither check exists without the other: drop the annotations and a frontend rename passes, drop the pytest and a backend rename passes.
+
+Two consequences worth knowing before you edit `fixtures.json`:
+
+- The backend suite has to stay green. `scripts/ci-changed-areas.sh` counts this file as a backend change for exactly that reason.
+- Only the read paths are covered — `/users/me`, `/lists`, items, members, receipt scan. The write-path and price responses in `fixtures.ts` are still hand-written literals that nothing validates.
+
 ## Visual regression
 
 Key screens are also checked for pixel-level visual regressions via Playwright's `toHaveScreenshot()`, wrapped in the `expectScreenshot(page, name)` helper in `fixtures.ts`. Only the `chromium` and `Mobile Chrome` projects carry visual baselines — `expectScreenshot` no-ops on the other three (`firefox`, `webkit`, `Mobile Safari`), which still run full functional assertions.

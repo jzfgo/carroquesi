@@ -95,7 +95,7 @@ export interface PriceHistoryResponse {
 
 /** Receipt Scan Types */
 
-type PriceType = 'UNIT' | 'KILOGRAM' | 'MULTI'
+export type PriceType = 'UNIT' | 'KILOGRAM' | 'MULTI'
 
 export interface ParsedLine {
   name: string
@@ -180,4 +180,15 @@ export interface BackendMember {
   display_name: string
   photo_url: string | null
   created_at: string
+}
+
+/** The `/users/me` response. */
+export interface UserMe {
+  id: string
+  email: string
+  display_name: string | null
+  photo_url: string | null
+  features: string[]
+  has_api_key: boolean
+  api_key_last_used_at: string | null
 }

@@ -54,6 +54,17 @@ const FIXED_NOW = new Date('2026-07-15T10:00:00Z')
 
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW)
+  // The notification priming card appears on the list screen only once the
+  // member list has loaded, and nothing here waits for that. A screenshot can
+  // therefore catch the screen either before or after the card pushes 117px of
+  // content down, and toHaveScreenshot settles for the first frame that matches
+  // its baseline — so whichever state got committed keeps passing while the
+  // other one is what the user ends up seeing. This spec is about purchase
+  // state, not about that card, so take it out of the picture. smoke.spec.ts
+  // and receipt-scanning.spec.ts still cover it.
+  await page.addInitScript(() =>
+    localStorage.setItem('push-priming-dismissed', '1'),
+  )
 })
 
 for (const { name: themeName, colorScheme } of THEMES) {
