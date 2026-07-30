@@ -111,23 +111,15 @@ function resizeImageFile(
       img.onload = () => {
         try {
           let { width, height } = img
-          if (
-            !width ||
-            !height ||
-            (file.size < 1024 * 1024 &&
-              width <= maxDimension &&
-              height <= maxDimension)
-          ) {
+          const scale = Math.min(1, maxDimension / Math.max(width, height))
+          width = Math.round(width * scale)
+          height = Math.round(height * scale)
+
+          if (scale === 1 && file.size < 1024 * 1024) {
             done(null)
             return
           }
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width)
-            width = maxDimension
-          } else {
-            width = Math.round((width * maxDimension) / height)
-            height = maxDimension
-          }
+
           const canvas = document.createElement('canvas')
           canvas.width = width
           canvas.height = height
@@ -248,15 +240,13 @@ async function generateContentWithRetry(
     } catch (error: unknown) {
       const err = error as {
         message?: string
-        status?: number
-        code?: number | string
-        customData?: { status?: number }
+        customErrorData?: { status?: number }
       }
 
+      const fromMessage = err?.message?.match(/\[(\d{3})\s/)?.[1]
       const status =
-        err?.status ??
-        err?.customData?.status ??
-        (typeof err?.code === 'number' ? err.code : undefined)
+        err?.customErrorData?.status ??
+        (fromMessage ? Number(fromMessage) : undefined)
       const is4xx = typeof status === 'number' && status >= 400 && status < 500
 
       let isTransient = false
@@ -265,8 +255,8 @@ async function generateContentWithRetry(
       } else if (err?.message && err.message.includes('blocked') && !is4xx) {
         isTransient = true
       } else if (
-        error instanceof TypeError &&
-        err.message?.match(/fetch|network|load failed|connection was lost/i)
+        err?.message?.match(/fetch|network|load failed|connection was lost/i) &&
+        !is4xx
       ) {
         isTransient = true
       } else {

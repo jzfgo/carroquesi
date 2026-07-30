@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Kept in its own file so stubbing generateContent — a whole fake model
 // response — never constrains the pure toReceiptInstant tests next door. Both
@@ -30,6 +30,10 @@ describe('parseReceiptWithAi wiring', () => {
         }),
     },
   }
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
 
   beforeEach(() => {
     vi.resetModules()
@@ -121,7 +125,7 @@ describe('parseReceiptWithAi wiring', () => {
     const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
 
     const err = new Error('400 Bad Request')
-    Object.assign(err, { status: 400 })
+    Object.assign(err, { customErrorData: { status: 400 } })
     mockGenerateContent.mockRejectedValueOnce(err)
 
     await expect(
@@ -130,7 +134,44 @@ describe('parseReceiptWithAi wiring', () => {
     expect(mockGenerateContent).toHaveBeenCalledTimes(1)
   })
 
+  it('does not retry on 403 errors with blocked message', async () => {
+    const { parseReceiptWithAi } = await import('./receiptAi')
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+
+    const err = new Error(
+      'AI: Error fetching from ...: [403 Forbidden] ... blocked ...',
+    )
+    Object.assign(err, {
+      code: 'AI/fetch-error',
+      customErrorData: { status: 403 },
+    })
+    mockGenerateContent.mockRejectedValueOnce(err)
+
+    await expect(
+      parseReceiptWithAi(file, { maxRetries: 2, delayMs: 0 }),
+    ).rejects.toThrow('blocked')
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries on Safari Load failed errors', async () => {
+    const { parseReceiptWithAi } = await import('./receiptAi')
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+
+    const err = new Error('Load failed')
+    mockGenerateContent
+      .mockRejectedValueOnce(err)
+      .mockResolvedValueOnce(successResponse)
+
+    const result = await parseReceiptWithAi(file, { delayMs: 0 })
+    expect(mockGenerateContent).toHaveBeenCalledTimes(2)
+    expect(result.store).toBe('Mercadona')
+  })
+
   describe('image resizing', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
     beforeEach(() => {
       const mockGetContext = vi.fn(() => ({
         drawImage: vi.fn(),
@@ -179,6 +220,98 @@ describe('parseReceiptWithAi wiring', () => {
       expect(canvases.length).toBeGreaterThan(0)
       expect(canvases[0].width).toBe(1600)
       expect(canvases[0].height).toBe(800)
+    })
+
+    it('does not upscale an image under maxDimension even if it is > 1MB', async () => {
+      vi.stubGlobal(
+        'Image',
+        class {
+          width = 1200
+          height = 900
+          onload: ((ev: Event) => void) | null = null
+          onerror: ((ev: Event) => void) | null = null
+          set src(_val: string) {
+            setTimeout(() => {
+              if (this.onload) this.onload(new Event('load'))
+            }, 10)
+          }
+        },
+      )
+
+      const createElementSpy = vi.spyOn(document, 'createElement')
+      const { parseReceiptWithAi } = await import('./receiptAi')
+      // Create a 2MB file
+      const file = new File([new ArrayBuffer(2 * 1024 * 1024)], 'receipt.jpg', {
+        type: 'image/jpeg',
+      })
+
+      await parseReceiptWithAi(file)
+
+      const canvases = createElementSpy.mock.results
+        .map((r) => r.value)
+        .filter((v) => v instanceof HTMLCanvasElement)
+      // Since it's > 1MB, it gets compressed (toDataURL is called), but NOT upscaled
+      expect(canvases.length).toBeGreaterThan(0)
+      expect(canvases[0].width).toBe(1200)
+      expect(canvases[0].height).toBe(900)
+    })
+
+    it('falls back to original mime type on onerror', async () => {
+      vi.stubGlobal(
+        'Image',
+        class {
+          onload: ((ev: Event) => void) | null = null
+          onerror: ((ev: Event) => void) | null = null
+          set src(_val: string) {
+            setTimeout(() => {
+              if (this.onerror) this.onerror(new Event('error'))
+            }, 10)
+          }
+        },
+      )
+
+      const { parseReceiptWithAi } = await import('./receiptAi')
+      const file = new File(['x'], 'receipt.png', { type: 'image/png' })
+
+      await parseReceiptWithAi(file)
+      // Since it errored, it reads as base64 but keeps image/png
+      expect(mockGenerateContent).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            inlineData: expect.objectContaining({ mimeType: 'image/png' }),
+          }),
+        ]),
+      )
+    })
+
+    it('times out image resizing after 10s and falls back', async () => {
+      vi.useFakeTimers()
+      vi.stubGlobal(
+        'Image',
+        class {
+          onload: ((ev: Event) => void) | null = null
+          onerror: ((ev: Event) => void) | null = null
+          set src(_val: string) {
+            // never fires
+          }
+        },
+      )
+
+      const { parseReceiptWithAi } = await import('./receiptAi')
+      const file = new File(['x'], 'receipt.png', { type: 'image/png' })
+
+      const promise = parseReceiptWithAi(file)
+      vi.advanceTimersByTime(10000)
+      await promise
+
+      expect(mockGenerateContent).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            inlineData: expect.objectContaining({ mimeType: 'image/png' }),
+          }),
+        ]),
+      )
+      vi.useRealTimers()
     })
   })
 })
