@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session
@@ -13,6 +13,27 @@ def _create_list(client):
 def _tap(client, list_id: str, name: str) -> dict:
     item = client.post(f"/lists/{list_id}/items", json={"name": name}).json()
     return client.patch(f"/lists/{list_id}/items/{item['id']}", json={"purchased": True}).json()
+
+
+def _days_ago(days: int) -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days)
+
+
+def _tap_at(client, list_id: str, name: str, when: datetime) -> dict:
+    """A tap dated `when`, which files into that day's trip.
+
+    Used to build a trip that has torn off but was never reconciled — what a
+    household is looking at when it writes down last night's shop the next
+    morning. Built through the real tap path on purpose: a trip whose
+    `tears_off_at` was edited by hand, without its `opened_at`, is a shape the
+    app cannot produce, and the close endpoint reads `opened_at` to find the
+    trip an impulse buy belongs to.
+    """
+    item = client.post(f"/lists/{list_id}/items", json={"name": name}).json()
+    return client.patch(
+        f"/lists/{list_id}/items/{item['id']}",
+        json={"purchased": True, "purchased_at": when.isoformat()},
+    ).json()
 
 
 def test_closing_the_whole_cart_returns_a_closed_trip(client: TestClient):
@@ -99,6 +120,11 @@ def test_a_line_naming_an_item_that_no_longer_exists_is_ignored(client: TestClie
     )
 
     assert response.status_code == 200
+    # The rest of the sheet went through -- the point is that the close still
+    # files what it can, not merely that nothing raised.
+    fetched = client.get(f"/lists/{lst['id']}/items").json()[0]
+    assert fetched["id"] == milk["id"]
+    assert fetched["purchase_id"] == response.json()["id"]
 
 
 def test_a_line_naming_an_item_on_another_list_is_ignored(
@@ -446,3 +472,117 @@ def test_closing_works_without_the_receipt_scanning_flag(client: TestClient):
     )
 
     assert response.status_code == 200
+
+
+def test_an_impulse_buy_on_a_backdated_sheet_joins_the_trip_being_closed(client: TestClient):
+    """The sheet's date says when the shop was, not which trip it was.
+
+    Nothing names a trip here, so the one being closed is today's open cart,
+    and the impulse buy has to land in it however the date control is set.
+    """
+    two_days_ago = _days_ago(2)
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Lidl",
+            "purchased_at": two_days_ago.isoformat(),
+            "lines": [{"item_id": milk["id"]}],
+            "new_items": [{"name": "Chocolate negro", "price": 3.18}],
+        },
+    )
+
+    assert response.status_code == 200
+    trip = response.json()
+    assert trip["id"] == milk["purchase_id"]
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    assert fetched["Chocolate negro"]["purchase_id"] == trip["id"]
+    assert fetched["Leche"]["purchase_id"] == trip["id"]
+    # The date still did its own job: it dated the buy, and through it the
+    # ticket, without deciding which ticket that was.
+    assert datetime.fromisoformat(fetched["Chocolate negro"]["purchased_at"]).date() == (
+        two_days_ago.date()
+    )
+    assert datetime.fromisoformat(trip["opened_at"]).date() == two_days_ago.date()
+
+
+def test_writing_down_a_torn_off_trip_takes_its_impulse_buys_with_it(client: TestClient):
+    """Last night's shop, written down this morning, with a bar of chocolate
+    nobody had put on the list. The impulse buy belongs to the trip being
+    named, not to today's cart, which is a different shop entirely.
+    """
+    lst = _create_list(client)
+    milk = _tap_at(client, lst["id"], "Leche", _days_ago(3))
+    today = _tap(client, lst["id"], "Pan")
+    assert milk["purchase_id"] != today["purchase_id"]
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "purchase_id": milk["purchase_id"],
+            "store": "Mercadona",
+            "lines": [{"item_id": milk["id"], "price": 1.19}],
+            "new_items": [{"name": "Chocolate negro", "price": 3.18}],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == milk["purchase_id"]
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    assert fetched["Chocolate negro"]["purchase_id"] == milk["purchase_id"]
+    # Today's cart is a different shop and must be left open.
+    assert fetched["Pan"]["purchase_id"] == today["purchase_id"]
+    assert fetched["Pan"]["purchase_filed"] is False
+
+
+def test_a_named_trip_wins_over_the_sheets_date(client: TestClient):
+    """Both controls are set, and they disagree. The trip decides where the
+    impulse buy is filed; the date only decides what it is stamped with.
+    """
+    ten_days_ago = _days_ago(10)
+    lst = _create_list(client)
+    milk = _tap_at(client, lst["id"], "Leche", _days_ago(3))
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "purchase_id": milk["purchase_id"],
+            "purchased_at": ten_days_ago.isoformat(),
+            "store": "Mercadona",
+            "lines": [{"item_id": milk["id"]}],
+            "new_items": [{"name": "Chocolate negro"}],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == milk["purchase_id"]
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    choc = fetched["Chocolate negro"]
+    assert choc["purchase_id"] == milk["purchase_id"]
+    assert datetime.fromisoformat(choc["purchased_at"]).date() == ten_days_ago.date()
+
+
+def test_ticking_a_never_tapped_item_onto_a_torn_off_trip(client: TestClient):
+    """The same rule for a line as for an impulse buy: something remembered
+    only while writing the shop down joins the trip being written down.
+    """
+    lst = _create_list(client)
+    milk = _tap_at(client, lst["id"], "Leche", _days_ago(3))
+    eggs = client.post(f"/lists/{lst['id']}/items", json={"name": "Huevos"}).json()
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "purchase_id": milk["purchase_id"],
+            "store": "Mercadona",
+            "lines": [{"item_id": milk["id"]}, {"item_id": eggs["id"], "price": 2.40}],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == milk["purchase_id"]
+    fetched = {i["name"]: i for i in client.get(f"/lists/{lst['id']}/items").json()}
+    assert fetched["Huevos"]["purchased"] is True
+    assert fetched["Huevos"]["purchase_id"] == milk["purchase_id"]

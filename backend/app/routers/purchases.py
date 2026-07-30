@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.db.models import ListItem
+from app.db.models import ListItem, Purchase
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.purchases import PurchaseClose, PurchaseRead
 from app.services import trips
@@ -44,6 +44,21 @@ def close_purchase(
     # A hand-set date carries a live clock's risks, unlike a receipt's.
     purchase_ts = trips.tap_time(body.purchased_at, now)
 
+    # The date on the sheet says *when* the shop happened. The trip says
+    # *which* shop it was. They disagree whenever someone writes down an old
+    # trip, or backdates today's one, and then the trip has to win: an item
+    # attached by its own date would land in a trip this call is not closing,
+    # and close() would reject it as not in the cart.
+    #
+    # A purchase_id that resolves to nothing leaves the anchor at now. The
+    # refusal for that belongs to close(), which already makes it, and one
+    # place should decide it.
+    anchor = now
+    if body.purchase_id is not None:
+        named = session.get(Purchase, body.purchase_id)
+        if named is not None:
+            anchor = named.opened_at
+
     filed: list[str] = []
 
     for new in body.new_items:
@@ -64,7 +79,7 @@ def close_purchase(
         session.add(created)
         session.flush()
         try:
-            trips.attach(session, created, purchase_ts)
+            trips.attach(session, created, anchor)
         except trips.AlreadyFiled:
             # Unreachable — a fresh row has no purchase_id — but attach() is a
             # shared entry point and every caller must answer for what it can
@@ -85,7 +100,7 @@ def close_purchase(
         if item.purchased_at is None:
             item.purchased_at = purchase_ts
             try:
-                trips.attach(session, item, purchase_ts)
+                trips.attach(session, item, anchor)
             except trips.AlreadyFiled:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
