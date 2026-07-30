@@ -66,13 +66,24 @@ whose value requires explaining. There is no honest copy for *a person you have
 never met named this product*. Scoped, the behaviour explains itself in one
 sentence: the app learns what you call things.
 
-The key also mixes two kinds of thing. `store` and `receipt_name` are objective —
-a chain prints the identical string on every receipt it issues. `item_name` is a
-household's own word for something. Keying globally on that pair treats a
-preference as if it were a fact. Where the key really is objective, a global
-table is right and stays: `barcode_cache` and `price_cache` are keyed by EAN,
-which is nobody's preference. A receipt line carries no EAN, which is why this
-table cannot borrow their design.
+The key also mixes two kinds of thing. `receipt_name` is objective — a chain
+prints the identical string on every receipt it issues, and the write side
+`normalise()`s it so the same line reads the same way every time. `item_name` is
+a household's own word for something. Keying globally on that pair treats a
+preference as if it were a fact.
+
+`store` sits on the household's side of that line too, and more plainly than it
+looks. On the close it is `PurchaseClose.store`, free text the closer typed or
+picked from a pill, prefilled from the scan but freely overwritten — and it is
+stored exactly as typed, with none of the normalising `receipt_name` gets. So
+two of the three columns are the household's, not one. That does not weaken the
+argument; a global table keyed on a free-text shop name collides more easily,
+not less.
+
+Where a key really is objective, a global table is right and stays:
+`barcode_cache` and `price_cache` are keyed by EAN, which is nobody's
+preference. A receipt line carries no EAN, which is why this table cannot borrow
+their design.
 
 ## Migration
 
