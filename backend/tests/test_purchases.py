@@ -4,8 +4,9 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.db.models import List, Purchase, ReceiptNameMapping, ReceiptScan
+from app.db.models import List, ListItem, Purchase, ReceiptNameMapping, ReceiptScan
 from app.db.models import UserFeature as _UserFeature
+from app.schemas.receipt import ParsedLine
 from app.services import receipt_matcher, trips
 
 
@@ -1119,6 +1120,41 @@ def test_a_mapping_with_a_leading_quantity_resolves_through_the_matcher(
     )
     assert found is not None
     assert found.item_name == "Yogur natural"
+
+
+def test_a_learned_mapping_resolves_through_match_lines(client: TestClient, session: Session, user):
+    """The lookup helper alone would stay green under a refactor that moved
+    the normalisation somewhere else. `match_lines` is the entry point a real
+    scan calls, so going through it is what actually proves the round trip.
+    """
+    _enable_receipt_flag(session, user)
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    coffee = _tap(client, lst["id"], "Café molido")
+
+    client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={
+            "store": "Mercadona",
+            "lines": [{"item_id": milk["id"]}, {"item_id": coffee["id"]}],
+            "mappings": [
+                {"receipt_name": "CAFÉ MOLIDO", "item_name": "Café molido", "item_brand": None}
+            ],
+        },
+    )
+
+    session.expire_all()
+    purchased_items = session.exec(
+        select(ListItem).where(ListItem.list_id == lst["id"], ListItem.purchased_at.isnot(None))
+    ).all()
+    line = ParsedLine(
+        name="CAFÉ MOLIDO", price_type="UNIT", unit_price=2.10, quantity=None, line_total=2.10
+    )
+
+    matched, unmatched = receipt_matcher.match_lines([line], "Mercadona", purchased_items, session)
+
+    assert unmatched == []
+    assert matched[0].item_id == coffee["id"]
 
 
 def test_201_mappings_is_a_422(client: TestClient, session: Session, user):

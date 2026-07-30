@@ -68,12 +68,26 @@ def close_purchase(
     bought that were never on the list, the shop and the date. Doing it in one
     write is what lets the whole act sit in the offline queue as a single
     entry.
+
+    The same call also serves a scan-linked close, named by `scan_id`: it
+    reads a receipt's date rather than a tap's, learns the receipt's line
+    names via `mappings`, and links the scan to the trip it closes. That half
+    is gated on the `ai_receipt_scanning` flag; the plain close above is not.
     """
     lst, current_user = list_and_user
 
     # The plain manual close ("Cerrar compra") stays ungated — a household
     # without the flag has no other way to declare a shop. Only the two
     # fields that carry a receipt's evidence are behind it.
+    #
+    # This asks a different question than the date rule and the scan link
+    # below do, so it reads `scan_id` differently on purpose. Here the
+    # question is "did this request reach for the scan feature at all" —
+    # naming the field, even with junk in it, is reaching for it, so an empty
+    # string still counts (`is not None`), the same way this file already
+    # treats `purchase_id: ""`. Below, the question is "is there a scan to
+    # use" — an empty string names none, so truthiness is what those places
+    # need. Fail closed at this boundary, fail safe past it.
     if (body.scan_id is not None or body.mappings) and not feature_flags.is_enabled(
         current_user.id, "ai_receipt_scanning", session
     ):
