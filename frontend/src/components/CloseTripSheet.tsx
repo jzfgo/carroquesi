@@ -61,9 +61,11 @@ export interface CloseTripSheetProps {
 }
 
 /** What to call a row out loud. A line the paper printed may have no product
- *  yet, and the printed string is the only name it has. */
+ *  yet, and the printed string is the only name it has. Discarding the ticket
+ *  takes even that away, and the row stays on screen and stays actionable — so
+ *  it needs a name that does not depend on the paper. */
 function rowLabel(line: CloseLine): string {
-  return line.name || line.receiptLine || ''
+  return line.name || line.receiptLine || 'Producto sin asignar'
 }
 
 /**

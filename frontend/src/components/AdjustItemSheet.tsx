@@ -50,6 +50,15 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
   const seededPrice = line.price == null ? '' : String(line.price)
   const [priceStr, setPriceStr] = useState(seededPrice)
 
+  // A row the paper printed carries its own amount, and that amount is what
+  // the sheet shows and what both totals add up. A price typed over it would
+  // reach the server and price history while the row on screen, the figure on
+  // the button and the reconciliation check all went on quoting the paper — a
+  // correction that looks ignored and is not. The paper keeps the last word
+  // here; the way to take it away is to discard the ticket, which drops the
+  // printed amounts off every row at once and says so.
+  const printed = line.receiptAmount != null
+
   const price = parseAmount(priceStr)
   // Deriving the unit from the quantity is the rule for a row being *priced* —
   // type a weight and the price is per kilo. It is not a rule about a row
@@ -153,7 +162,8 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
             value={priceStr}
             onChange={(e) => setPriceStr(e.target.value)}
             aria-describedby={`${id}-per ${id}-hint`}
-            autoFocus={!!line.itemId}
+            readOnly={printed}
+            autoFocus={!!line.itemId && !printed}
           />
           {/* Described by the price field, so the unit is announced on focus
               rather than being left to a reader sweeping the row. */}
@@ -162,8 +172,9 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
           </span>
         </div>
         <span className="ais__hint" id={`${id}-hint`}>
-          Escribe unidades (6) o peso (500 ml, 1,12 kg). El precio se ajusta
-          solo.
+          {printed
+            ? 'El importe lo pone el ticket. Para cambiarlo, descarta el ticket.'
+            : 'Escribe unidades (6) o peso (500 ml, 1,12 kg). El precio se ajusta solo.'}
         </span>
       </div>
 

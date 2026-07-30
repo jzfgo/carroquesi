@@ -935,6 +935,21 @@ describe('CloseTripSheet when the paper is discarded', () => {
 
     expect(camera()).toBeEnabled()
   })
+
+  // The printed string was the only name the unassigned row had, and dropping
+  // the paper takes it. The row stays on screen and stays tickable, so leaving
+  // it nameless would hand a screen reader a blank checkbox and an "Ajustar "
+  // with nothing after it.
+  it('still names the row the paper named', async () => {
+    renderTicket()
+
+    await discard()
+
+    expect(screen.getByLabelText('Producto sin asignar')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Ajustar Producto sin asignar' }),
+    ).toBeInTheDocument()
+  })
 })
 
 describe('CloseTripSheet and a save already in flight', () => {

@@ -321,3 +321,60 @@ describe('AdjustItemSheet and a quantity corrected on its own', () => {
     )
   })
 })
+
+// A row the paper printed shows the paper's amount, and both the button's
+// figure and the reconciliation check add that up rather than the price. A
+// price typed over it would travel to price history while every figure on
+// screen went on quoting the paper, so the field does not take one.
+describe('AdjustItemSheet and a row the paper printed', () => {
+  const printed = {
+    ...base,
+    price: 2.5,
+    receiptAmount: 2.8,
+  }
+
+  it('does not take a price over the paper', async () => {
+    render(
+      <AdjustItemSheet line={printed} onDone={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    const price = screen.getByLabelText('Precio')
+    expect(price).toHaveAttribute('readonly')
+
+    await userEvent.type(price, '9')
+
+    expect(price).toHaveValue('2.5')
+  })
+
+  it('says where the amount comes from and how to take it back', () => {
+    render(
+      <AdjustItemSheet line={printed} onDone={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    expect(screen.getByText(/El importe lo pone el ticket/)).toBeInTheDocument()
+  })
+
+  it('hands the printed row back with the paper untouched', async () => {
+    const onDone = vi.fn()
+    render(<AdjustItemSheet line={printed} onDone={onDone} onClose={vi.fn()} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hecho' }))
+
+    expect(onDone).toHaveBeenCalledWith(
+      expect.objectContaining({ price: 2.5, receiptAmount: 2.8 }),
+    )
+  })
+
+  // The guard is the printed amount, not the row being settled — a hand-written
+  // close has neither, and its price has to stay typeable.
+  it('still takes a price on a row with no paper behind it', async () => {
+    render(<AdjustItemSheet line={base} onDone={vi.fn()} onClose={vi.fn()} />)
+
+    const price = screen.getByLabelText('Precio')
+    expect(price).not.toHaveAttribute('readonly')
+
+    await userEvent.type(price, '2.49')
+
+    expect(price).toHaveValue('2.49')
+  })
+})

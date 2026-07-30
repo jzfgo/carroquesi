@@ -526,11 +526,14 @@ export async function installApiMocks(page: Page): Promise<void> {
           quantity: null, // never planned — that is what makes it an impulse buy
           purchased_quantity: n.quantity ?? null,
           brand: n.brand ?? null,
-          stores: [body.store],
+          // No stores, and a price store only where there is a price to pin to
+          // it — both as close() has them. `stores` is a hint about where to
+          // buy something, and this was already bought.
+          stores: [],
           ean: n.ean ?? null,
           price: n.price ?? null,
           price_per: n.price_per ?? null,
-          price_store: body.store,
+          price_store: n.price != null ? body.store : null,
           added_by: ALICE.id,
           created_at: naiveUtc(instant.toISOString()),
           updated_at: naiveUtc(instant.toISOString()),
