@@ -411,14 +411,11 @@ def test_an_unticked_cart_item_stays_in_the_cart(client: TestClient):
     assert fetched["Pan"]["purchase_filed"] is False
 
 
-def test_closing_a_torn_off_trip_by_id(client: TestClient, session: Session):
+def test_closing_a_torn_off_trip_by_id(client: TestClient):
     lst = _create_list(client)
-    milk = _tap(client, lst["id"], "Leche")
-    # Force the trip to have torn off: the endpoint must still reach it.
-    trip = session.get(Purchase, milk["purchase_id"])
-    trip.tears_off_at = datetime(2026, 1, 1, 0, 0)
-    session.add(trip)
-    session.commit()
+    # A trip that tore off days ago and nobody said what it was. The endpoint
+    # must still reach it.
+    milk = _tap_at(client, lst["id"], "Leche", _days_ago(3))
 
     response = client.post(
         f"/lists/{lst['id']}/purchases/close",
@@ -432,6 +429,10 @@ def test_closing_a_torn_off_trip_by_id(client: TestClient, session: Session):
     assert response.status_code == 200
     assert response.json()["id"] == milk["purchase_id"]
     assert response.json()["store"] == "Mercadona"
+    # The test only means anything if the trip really had torn off, so say so
+    # rather than trust the fixture to keep being backdated.
+    tears_off_at = datetime.fromisoformat(response.json()["tears_off_at"])
+    assert tears_off_at < datetime.now(UTC).replace(tzinfo=None)
 
 
 def test_naming_a_trip_that_belongs_to_another_list_returns_409(
