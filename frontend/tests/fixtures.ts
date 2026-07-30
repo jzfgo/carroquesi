@@ -2,7 +2,6 @@ import { test as base, expect, type Page } from '@playwright/test'
 import type {
   ApiList,
   ListItem,
-  Member,
   NewPurchasedItem,
   ReceiptScanResult,
 } from '../src/types'
@@ -11,173 +10,28 @@ const BACKEND = 'http://localhost:8000'
 export const GEMINI_ENDPOINT_PATTERN =
   'https://firebasevertexai.googleapis.com/**'
 
-// ── Seed data (mirrors scripts/seed.py) ──────────────────────────────────────
+import data from './fixtures.json'
 
-export const ALICE = {
-  id: 'seed-user-alice',
-  firebase_uid: 'seed-alice',
-  display_name: 'Alice (seed)',
-  email: 'alice@seed.local',
-  photo_url: null,
-  // push_notifications defaults to true in the backend registry, so a real
-  // user's /me response carries it. Keep this list in step with the registry:
-  // omitting a default-on flag hides its UI from E2E and from the visual
-  // baselines, which then stop reflecting what production actually renders.
-  features: ['ai_receipt_scanning', 'push_notifications'] as string[],
+export const ALICE = data.ALICE
+export const SEED_LISTS: ApiList[] = data.SEED_LISTS
+export const SEED_ITEMS: Record<string, ListItem[]> = data.SEED_ITEMS
+
+interface BackendMember {
+  id: string
+  user_id: string
+  list_id: string
+  display_name: string
+  photo_url: string | null
+  created_at: string
 }
-
-export const SEED_LISTS: ApiList[] = [
-  {
-    id: 'seed-list-compra',
-    name: 'Compra semanal',
-    emoji: '🛒',
-    owner_id: ALICE.id,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-06-23T10:00:00Z',
-    item_count: 2,
-    purchased_count: 0,
-    is_default: true,
-  },
-  {
-    id: 'seed-list-fiesta',
-    name: 'Fiesta de cumple',
-    emoji: '🎉',
-    owner_id: ALICE.id,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-06-23T10:00:00Z',
-    item_count: 1,
-    purchased_count: 0,
-    is_default: false,
-  },
-]
-
-export const SEED_ITEMS: Record<string, ListItem[]> = {
-  'seed-list-compra': [
-    {
-      id: 'item-leche',
-      list_id: 'seed-list-compra',
-      name: 'Leche Hacendado',
-      quantity: '6',
-      purchased_quantity: null,
-      brand: 'Hacendado',
-      stores: ['Mercadona'],
-      purchased: false,
-      purchased_at: null,
-      ean: null,
-      price: 0.65,
-      price_per: null,
-      price_store: 'Mercadona',
-      added_by: ALICE.id,
-      created_at: '2026-06-01T00:00:00Z',
-      updated_at: '2026-06-23T10:00:00Z',
-    },
-    {
-      id: 'item-cafe',
-      list_id: 'seed-list-compra',
-      name: 'Cafe molido Nescafe',
-      quantity: null,
-      purchased_quantity: null,
-      brand: 'Nescafe',
-      stores: ['Mercadona'],
-      purchased: false,
-      purchased_at: null,
-      ean: null,
-      price: null,
-      price_per: null,
-      price_store: null,
-      added_by: ALICE.id,
-      created_at: '2026-06-01T00:00:00Z',
-      updated_at: '2026-06-23T10:00:00Z',
-    },
-  ],
-  'seed-list-fiesta': [
-    {
-      id: 'item-pasta',
-      list_id: 'seed-list-fiesta',
-      name: 'Pasta Gallo',
-      quantity: null,
-      purchased_quantity: null,
-      brand: 'Gallo',
-      stores: ['Mercadona'],
-      purchased: false,
-      purchased_at: null,
-      ean: null,
-      price: null,
-      price_per: null,
-      price_store: null,
-      added_by: ALICE.id,
-      created_at: '2026-06-01T00:00:00Z',
-      updated_at: '2026-06-23T10:00:00Z',
-    },
-  ],
-}
-
-const SEED_MEMBERS: Record<string, Member[]> = {
-  'seed-list-compra': [
-    {
-      id: ALICE.id,
-      displayName: 'Alice (seed)',
-      initial: 'A',
-      color: '#4f46e5',
-      photoUrl: null,
-    },
-    {
-      id: 'seed-user-bob',
-      displayName: 'Bob (seed)',
-      initial: 'B',
-      color: '#0891b2',
-      photoUrl: null,
-    },
-  ],
-  'seed-list-fiesta': [
-    {
-      id: ALICE.id,
-      displayName: 'Alice (seed)',
-      initial: 'A',
-      color: '#4f46e5',
-      photoUrl: null,
-    },
-  ],
-}
+const SEED_MEMBERS: Record<string, BackendMember[]> =
+  data.SEED_MEMBERS as Record<string, BackendMember[]>
 
 // A ReceiptScanSheet review, matching item-leche (existing price, gets updated)
 // and item-cafe (no price yet), plus one unmatched line — mirrors the shape
 // used in ReceiptScanSheet.test.tsx.
-export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
-  scan_id: 'scan-e2e-1',
-  store: 'Mercadona',
-  receipt_date: '2026-07-10',
-  receipt_total: 4.35,
-  matched: [
-    {
-      receipt_name: 'LECHE HACENDADO',
-      item_id: 'item-leche',
-      item_name: 'Leche Hacendado',
-      price_type: 'UNIT',
-      unit_price: 0.75,
-      quantity: null,
-      line_total: 0.75,
-    },
-    {
-      receipt_name: 'CAFE MOLIDO NESCAFE',
-      item_id: 'item-cafe',
-      item_name: 'Cafe molido Nescafe',
-      price_type: 'UNIT',
-      unit_price: 2.6,
-      quantity: null,
-      line_total: 2.6,
-    },
-  ],
-  unmatched: [
-    {
-      receipt_name: 'PAN INTEGRAL',
-      price_type: 'UNIT',
-      unit_price: 1.0,
-      quantity: null,
-      line_total: 1.0,
-    },
-  ],
-}
+export const SEED_RECEIPT_RESULT: ReceiptScanResult =
+  data.SEED_RECEIPT_RESULT as ReceiptScanResult
 
 // ── Route installer ───────────────────────────────────────────────────────────
 
