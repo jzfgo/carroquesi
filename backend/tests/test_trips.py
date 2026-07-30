@@ -750,3 +750,65 @@ def test_closing_an_explicit_full_selection_takes_the_in_place_path(
     assert closed.id == before
     assert closed.closed_at == datetime(2026, 7, 28, 20, 0)
     assert closed.store == "Lidl"
+
+
+def test_close_targets_a_named_torn_off_trip(session: Session, lst: List, user: User):
+    # A trip that tore off yesterday, unreconciled.
+    yesterday = datetime(2026, 7, 29, 18, 0)
+    trip = Purchase(
+        list_id=lst.id,
+        opened_at=yesterday,
+        tears_off_at=trips.tears_off_at_for(yesterday),
+    )
+    session.add(trip)
+    session.flush()
+    item = ListItem(
+        list_id=lst.id,
+        name="Leche",
+        added_by=user.id,
+        purchased_at=yesterday,
+        purchase_id=trip.id,
+    )
+    session.add(item)
+    session.flush()
+
+    closed = trips.close(
+        session,
+        lst.id,
+        [item.id],
+        "Lidl",
+        None,
+        now=datetime(2026, 7, 30, 10, 0),
+        purchase_id=trip.id,
+    )
+
+    assert closed.id == trip.id
+    assert closed.store == "Lidl"
+    assert closed.closed_at is not None
+
+
+def test_close_refuses_a_trip_that_is_already_filed(session: Session, lst: List, user: User):
+    when = datetime(2026, 7, 29, 18, 0)
+    trip = Purchase(
+        list_id=lst.id,
+        opened_at=when,
+        tears_off_at=trips.tears_off_at_for(when),
+        closed_at=datetime(2026, 7, 29, 21, 0),
+        store="Lidl",
+    )
+    session.add(trip)
+    session.flush()
+    # The filed trip keeps its line. Without one, an empty cart would raise
+    # NothingToClose on its own and the refusal below would prove nothing.
+    item = ListItem(
+        list_id=lst.id,
+        name="Leche",
+        added_by=user.id,
+        purchased_at=when,
+        purchase_id=trip.id,
+    )
+    session.add(item)
+    session.flush()
+
+    with pytest.raises(trips.NothingToClose):
+        trips.close(session, lst.id, None, "Mercadona", None, purchase_id=trip.id)

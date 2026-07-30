@@ -299,6 +299,7 @@ def close(
     store: str | None,
     total: float | None,
     now: datetime | None = None,
+    purchase_id: str | None = None,
 ) -> Purchase:
     """Declare what a shop was.
 
@@ -308,7 +309,15 @@ def close(
     shopped at two shops on one evening each get their own ticket.
     """
     now = now or _now()
-    trip = open_trip(session, list_id, now)
+    if purchase_id is None:
+        trip = open_trip(session, list_id, now)
+    else:
+        # Closing a trip that already tore off. A filed one is refused rather
+        # than re-filed: its total is a figure someone confirmed for the lines
+        # it held, and closing it again would restate that for a different set.
+        trip = session.get(Purchase, purchase_id)
+        if trip is not None and (trip.list_id != list_id or trip.closed_at is not None):
+            trip = None
     if trip is None:
         raise NothingToClose()
 
