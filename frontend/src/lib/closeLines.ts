@@ -1,8 +1,11 @@
 import type {
   ListItem,
+  MatchedLine,
   PurchaseClosePayload,
   PurchaseLine,
   PurchaseNewItem,
+  ReceiptScanResult,
+  UnmatchedLine,
 } from '../types'
 import { parseQuantityFactor, type CostSummary } from './itemCost'
 import { itemState } from './itemState'
@@ -82,7 +85,134 @@ export function buildLines(
 }
 
 /**
- * What the ticked lines add up to.
+ * The amount the paper printed for one line, written the way the sheet's
+ * quantity field reads it.
+ *
+ * A weight is shown in grams below a kilo and in kilos above it, because that
+ * is how the scale prints it. A line sold several at a time gives a count, and
+ * anything else is one.
+ */
+function paperQuantity(line: MatchedLine | UnmatchedLine): string {
+  if (line.price_type === 'KILOGRAM' && line.quantity != null) {
+    return line.quantity < 1
+      ? `${Math.round(line.quantity * 1000)}g`
+      : `${line.quantity}kg`
+  }
+  if (line.price_type === 'MULTI' && line.quantity != null) {
+    return String(Math.round(line.quantity))
+  }
+  return '1'
+}
+
+/** One line of the paper, already in the sheet's own vocabulary. */
+interface PaperLine {
+  index: number
+  receiptLine: string
+  /** The item the matcher named, or null when it named none. */
+  itemId: string | null
+  price: number
+  pricePer: 'KILOGRAM' | null
+  quantity: string
+}
+
+function toPaperLine(line: MatchedLine | UnmatchedLine): PaperLine {
+  return {
+    index: line.index,
+    receiptLine: line.receipt_name,
+    itemId: 'item_id' in line ? line.item_id : null,
+    // A price on a row is per unit or per kilo, never what the line came to.
+    price: line.unit_price,
+    pricePer: line.price_type === 'KILOGRAM' ? 'KILOGRAM' : null,
+    quantity: paperQuantity(line),
+  }
+}
+
+/** A row with no product yet — the household has to say what the line was. */
+function unassignedRow(line: PaperLine): CloseLine {
+  return {
+    key: `receipt-${line.index}`,
+    itemId: null,
+    name: '',
+    brand: null,
+    quantity: line.quantity,
+    price: line.price,
+    pricePer: line.pricePer,
+    included: false,
+    fromCart: false,
+    receiptLine: line.receiptLine,
+  }
+}
+
+/**
+ * Lays a scan over the sheet's rows and returns the rows that result.
+ *
+ * The order is the paper's, because the raw line is the only thing a person
+ * can check against what they are holding. The response splits the lines into
+ * two arrays and each carries the position it was submitted at, so the order
+ * is put back from those rather than from the arrays.
+ *
+ * Rows the paper never named come after, in the order they already had, and
+ * unticked. The scan did not tick them, and a row the paper never printed must
+ * not count toward what the paper says the shop cost.
+ *
+ * A match this sheet has no row for is dropped rather than shown. The matcher
+ * looks at every item bought within a few days and has no idea which trip is
+ * being closed, so it routinely names an item filed under an older ticket.
+ * Naming it would let somebody pick an item the server refuses, and the server
+ * refuses the whole sheet rather than the one row. The line still arrives, with
+ * its raw string and its amounts, and the household says what it was.
+ *
+ * Every match is a guess. The response carries nothing that tells a fresh guess
+ * apart from a string the household already resolved for this shop; that
+ * distinction arrives with confirmed name mappings.
+ */
+export function receiptToLines(
+  result: ReceiptScanResult,
+  rows: CloseLine[],
+): CloseLine[] {
+  const byItem = new Map<string, CloseLine>()
+  for (const r of rows) {
+    if (r.itemId != null && !byItem.has(r.itemId)) byItem.set(r.itemId, r)
+  }
+
+  const paper: PaperLine[] = [
+    ...result.matched.map(toPaperLine),
+    ...result.unmatched.map(toPaperLine),
+  ].sort((a, b) => a.index - b.index)
+
+  const claimed = new Set<string>()
+  const fromPaper: CloseLine[] = []
+  for (const line of paper) {
+    const existing = line.itemId != null ? byItem.get(line.itemId) : undefined
+    // One row cannot hold two lines, and a receipt repeats a product freely.
+    // The first line to claim the row keeps it; the next one asks.
+    if (!existing || claimed.has(existing.key)) {
+      fromPaper.push(unassignedRow(line))
+      continue
+    }
+    claimed.add(existing.key)
+    fromPaper.push({
+      ...existing,
+      quantity: line.quantity,
+      price: line.price,
+      pricePer: line.pricePer,
+      included: true,
+      receiptLine: line.receiptLine,
+      matchState: 'guess',
+    })
+  }
+
+  const rest = rows
+    .filter((r) => !claimed.has(r.key))
+    .map((r) => ({ ...r, included: false }))
+
+  return [...fromPaper, ...rest]
+}
+
+/**
+ * What the ticked lines add up to — the question the primary button asks,
+ * because what is ticked is what is about to enter price history. It is not
+ * what the paper says the shop cost; that is a different sum.
  *
  * Each price is multiplied by how much was bought, because a price here is per
  * unit or per kilo — never the amount the line came to. The sheet shows the
@@ -120,6 +250,56 @@ export function linesTotal(lines: CloseLine[]): CostSummary | null {
     any = true
   }
   return any ? { total, partial } : null
+}
+
+/**
+ * What every line the paper printed adds up to — the question the
+ * reconciliation check asks, because it is this figure that is compared with
+ * the total printed on the paper.
+ *
+ * A line the household did not tick still counts. It is on the paper either
+ * way, and leaving it out would make the two figures disagree for a reason
+ * nobody can see.
+ *
+ * The arithmetic and the partial flag are `linesTotal`'s, and mean the same
+ * thing here. Null when no row came from a paper, which is every close written
+ * by hand.
+ */
+export function receiptTotal(lines: CloseLine[]): CostSummary | null {
+  let total = 0
+  let partial = false
+  let any = false
+  for (const line of lines) {
+    if (line.receiptLine == null) continue
+    if (line.price == null) {
+      partial = true
+      continue
+    }
+    const factor = parseQuantityFactor(line.quantity, line.pricePer)
+    if (factor === null) {
+      partial = true
+      continue
+    }
+    total += line.price * factor
+    any = true
+  }
+  return any ? { total, partial } : null
+}
+
+/**
+ * Takes the paper's authority off the rows and keeps what it read.
+ *
+ * Names, amounts and ticks are ordinary typed values from here on, so they
+ * stay. What goes is the raw line standing behind each name and the claim that
+ * the app's guess came from anywhere. The sheet is back in hand mode.
+ */
+export function discardPaper(lines: CloseLine[]): CloseLine[] {
+  return lines.map((line) => {
+    const kept = { ...line }
+    delete kept.receiptLine
+    delete kept.matchState
+    return kept
+  })
 }
 
 interface CloseMeta {
