@@ -305,6 +305,34 @@ a payload whose mapping contradicts its own close with no rule for which wins.
 The bounded shape moves to `schemas/purchases.py` as `PurchaseNameMapping`, next
 to the payload that carries it. `schemas/receipt.py` keeps only the scan half.
 
+**And the receipt name is normalised where it is written, not where it is sent.**
+This fixes a bug that predates the phase. The matcher looks a mapping up by
+`normalise(receipt_name)` — lowercased, accents stripped, a leading number
+removed, whitespace collapsed — while the screen that *stored* it only
+lowercased. The two keys agree for a plain ASCII line and disagree for a great
+many real ones:
+
+| receipt line | stored | looked up | |
+|---|---|---|---|
+| `CAFÉ MOLIDO` | `café molido` | `cafe molido` | never matches |
+| `2 YOGUR NATURAL` | `2 yogur natural` | `yogur natural` | never matches |
+| `TOMATE  PERA` | `tomate  pera` | `tomate pera` | never matches |
+
+So a household confirms a name, and the next ticket asks again. `13a` promises
+the opposite — "al confirmar, esa cadena entra resuelta en el próximo ticket" —
+and for accented Spanish product names, which is most of them, it has never been
+true.
+
+The close endpoint therefore calls the matcher's own `normalise` on
+`receipt_name` before writing. That is the DRY reading of the rule: how a receipt
+name is keyed is one rule, and it belongs on the server, once, where the lookup
+also lives. The client stops lowercasing, because it stops being the client's
+business.
+
+Mappings already stored in the wrong key are left alone. They are a cache of
+confirmations, not a record of anything, and the cost of a stale row is one
+question asked once more.
+
 A `scan_id` naming a scan that does not exist, or belongs to another list, is
 ignored rather than refused. The shop is the thing being recorded; losing the
 audit link is not worth losing the close. This matches how the current apply
