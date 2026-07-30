@@ -55,3 +55,10 @@ for (const { name: themeName, colorScheme } of THEMES) {
     })
   })
 }
+
+// A screen reader picks its pronunciation engine from `lang`. Nothing on
+// screen changes when it is wrong, so no screenshot can catch this.
+test('declares Spanish as the document language', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es')
+})
