@@ -102,19 +102,23 @@ export function useQueueDrain({
       const others = failures - lostShops
       const many = lostShops > 1
       const shops = many ? `${lostShops} compras` : 'una compra'
-      // The verb agrees with what was lost, and the pronoun on "cerrarla"
-      // with the shops alone. The branch below already agrees in number, so a
-      // fixed singular here would break the file's own standard on exactly
-      // the case this counter was added for. When something else was lost
-      // too, at least two things were, so the verb is plural either way.
-      const lead =
-        many || others > 0 ? 'No se pudieron guardar' : 'No se pudo guardar'
+      // The verb and the pronoun on "cerrarla" both agree with the shops, and
+      // with nothing else. Counting the other lost changes into the verb as
+      // well is tempting — more than one thing was lost — but the subject
+      // sits after the verb here, and a postposed subject joined by "ni"
+      // takes the singular in Spanish. It would put a plural verb straight
+      // against "una compra". One rule, the same one the branch below uses.
+      const lead = many ? 'No se pudieron guardar' : 'No se pudo guardar'
+      // The instruction is the only part of this the household can act on,
+      // so it belongs on both branches. Being told a shop was lost without
+      // being told to close it again is a report of something unrecoverable.
+      const again = many ? 'Vuelve a cerrarlas' : 'Vuelve a cerrarla'
       showToastRef.current(
         others > 0
           ? `${lead} ${shops}, ni ${others} ${
               others === 1 ? 'cambio más' : 'cambios más'
-            }`
-          : `${lead} ${shops}. ${many ? 'Vuelve a cerrarlas' : 'Vuelve a cerrarla'}`,
+            }. ${again}`
+          : `${lead} ${shops}. ${again}`,
       )
     } else if (failures > 0) {
       showToastRef.current(

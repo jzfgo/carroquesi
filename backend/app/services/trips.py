@@ -378,14 +378,26 @@ def close(
         # It closes that race only in one direction, and the filter is not a
         # lock. A close that committed *before* this SELECT is now refused. A
         # close that commits *after* it is not: both callers pass the filter,
-        # and the UPDATE this function goes on to emit carries no `closed_at`
-        # predicate, so the later writer still wins and the earlier confirmed
-        # total is still lost. The window shrank from the whole request to
-        # this SELECT and the commit; it did not close. Making it whole wants
-        # a conditional write -- `UPDATE ... WHERE id = :id AND closed_at IS
-        # NULL`, with `rowcount == 0` raising NothingToClose -- which is one
+        # and the writes below carry no `closed_at` predicate. The window
+        # shrank from the whole request to this SELECT and the commit; it did
+        # not close.
+        #
+        # What the loser loses depends on which branch the winner took, and
+        # the two need different guards. Closing the whole cart overwrites
+        # the other's `store` and `total` outright, and a conditional write
+        # would stop it -- `UPDATE ... WHERE id = :id AND closed_at IS NULL`,
+        # with `rowcount == 0` raising NothingToClose. That is one
         # statement's semantics rather than a locking policy for the trip
         # lifecycle, and unlike this SELECT it can be tested.
+        #
+        # Closing a subset does something the conditional write would not
+        # catch, because the split branch never files this trip -- it only
+        # mutates it and moves items off it. Against a trip someone else just
+        # filed, it recomputes their `opened_at` and reassigns lines they
+        # already confirmed a total for. Their figure survives and stops
+        # covering its own lines, which is the damage the docstring says
+        # refusing a filed trip prevents. Guarding that needs the same check
+        # on the split branch's read-modify-write, or the lock.
         #
         # Both branches here need a filtered SELECT to see a row another
         # transaction committed after ours began, which is the same READ

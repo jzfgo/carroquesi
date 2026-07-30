@@ -316,7 +316,44 @@ describe('useQueueDrain — drain on reconnect', () => {
 
     await waitFor(() =>
       expect(mockShowToast).toHaveBeenCalledWith(
-        'No se pudieron guardar 2 compras, ni 1 cambio más',
+        'No se pudieron guardar 2 compras, ni 1 cambio más. Vuelve a cerrarlas',
+      ),
+    )
+  })
+
+  // One shop and something else. The verb stays singular: the subject comes
+  // after it, and a postposed subject joined by "ni" takes the singular. This
+  // is the row that decides the rule, so it needs rendering somewhere.
+  it('keeps the verb singular for one shop lost beside a change', async () => {
+    await enqueue({
+      listId: 'l1',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        purchased_at: '2026-07-30T18:00:00',
+        purchase_id: null,
+        total: null,
+        lines: [{ item_id: 'a', price: 1.19, price_per: null, quantity: null }],
+        new_items: [],
+      },
+    })
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: { name: 'Pan' },
+    })
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new api.ApiError(409, 'nothing to close'),
+    )
+    vi.mocked(api.createItem).mockRejectedValue(
+      new api.ApiError(422, 'unprocessable'),
+    )
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'No se pudo guardar una compra, ni 1 cambio más. Vuelve a cerrarla',
       ),
     )
   })
