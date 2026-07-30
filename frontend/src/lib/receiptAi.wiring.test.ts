@@ -221,6 +221,28 @@ describe('parseReceiptWithAi wiring', () => {
       expect(mockGenerateContent).toHaveBeenCalledTimes(1)
     })
 
+    it('does not retry a prompt-level block, which carries no candidate', async () => {
+      const { parseReceiptWithAi } = await import('./receiptAi')
+      // The other shape of RESPONSE_ERROR. The prompt itself was refused, so
+      // there is no candidate to read a finish reason from.
+      mockGenerateContent.mockRejectedValue(
+        new AIError(
+          AIErrorCode.RESPONSE_ERROR,
+          'Text not available. Response was blocked due to SAFETY',
+          {
+            response: {
+              promptFeedback: { blockReason: 'SAFETY', safetyRatings: [] },
+            },
+          },
+        ),
+      )
+
+      await expect(
+        parseReceiptWithAi(receiptFile(), { delayMs: 0 }),
+      ).rejects.toThrow(/SAFETY/)
+      expect(mockGenerateContent).toHaveBeenCalledTimes(1)
+    })
+
     it('retries a malformed response, which is the model garbling its own output', async () => {
       const { parseReceiptWithAi } = await import('./receiptAi')
       mockGenerateContent

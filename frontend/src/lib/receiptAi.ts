@@ -263,9 +263,10 @@ function isRetryable(error: unknown): boolean {
     }
     // The SDK's catch-all for a call that failed before any response was read.
     // Two things reach it from here, and both are worth another go: the
-    // connection dropping, which is Safari's "Load failed", and an on-device
-    // model download failing. It is broad, so it is the branch to revisit if a
-    // deterministic failure ever starts costing three attempts.
+    // connection dropping, which is Safari's "Load failed", and a token
+    // refresh rejecting, because the request headers are built inside the same
+    // try. It is broad, so it is the branch to revisit if a deterministic
+    // failure ever starts costing three attempts.
     case AIErrorCode.ERROR:
       return true
     default:
