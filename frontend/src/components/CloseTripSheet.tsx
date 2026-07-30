@@ -262,7 +262,13 @@ export function CloseTripSheet({
       >
         Guardar compra
       </button>
-      {isOffline && <p className="cts__offline">Disponible con conexión</p>}
+      {/* Not "needs a connection", the way a sheet that writes straight to the
+          API says it. This close goes through the offline queue, so it is kept
+          and sent later — and a supermarket basement is where it will most
+          often be written. */}
+      {isOffline && (
+        <p className="cts__offline">Se guardará cuando vuelva la conexión</p>
+      )}
       <button type="button" className="cts__cancel" onClick={onClose}>
         Cancelar
       </button>

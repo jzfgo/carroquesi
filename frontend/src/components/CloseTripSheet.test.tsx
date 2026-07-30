@@ -351,10 +351,21 @@ describe('CloseTripSheet', () => {
     expect(screen.getByLabelText('Pan')).toBeChecked()
   })
 
-  it('warns that a close made offline waits its turn', () => {
+  it('promises that a close made offline is kept, not refused', () => {
     renderSheet({ isOffline: true })
 
-    expect(screen.getByText('Disponible con conexión')).toBeInTheDocument()
+    expect(
+      screen.getByText('Se guardará cuando vuelva la conexión'),
+    ).toBeInTheDocument()
+  })
+
+  it('still lets the household save while offline', async () => {
+    const { onSave } = renderSheet({ isOffline: true })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Mercadona' }))
+    await userEvent.click(save())
+
+    expect(onSave).toHaveBeenCalled()
   })
 
   // Both of a row's targets are painted smaller than they are touched, so a

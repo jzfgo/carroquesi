@@ -1,9 +1,11 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import * as api from '../lib/api'
+import * as offlineQueue from '../lib/offlineQueue'
 import * as receiptAi from '../lib/receiptAi'
 import type {
   BarcodeRead,
@@ -63,6 +65,12 @@ vi.mock('../lib/firebase', () => ({
   messagingPromise: Promise.resolve(null),
 }))
 vi.mock('../lib/api')
+// Partial, not whole: useQueueDrain still needs the real getAll and remove,
+// and a bare factory would drop every export it does not name.
+vi.mock('../lib/offlineQueue', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/offlineQueue')>()),
+  enqueue: vi.fn(),
+}))
 vi.mock('../lib/receiptAi', () => ({ parseReceiptWithAi: vi.fn() }))
 vi.mock('./ListMembersSheet', () => ({
   ListMembersSheet: () => (
@@ -1551,5 +1559,90 @@ describe('with no connection', () => {
     )
     expect(api.deleteList).not.toHaveBeenCalled()
     expect(onBack).not.toHaveBeenCalled()
+  })
+})
+
+describe('closing a trip', () => {
+  // In the cart: bought, on a trip that has not torn off yet.
+  const inCart = () =>
+    makeItem({
+      id: 'i1',
+      name: 'Leche',
+      purchased: true,
+      purchased_at: TODAY,
+      purchase_id: 'open-trip',
+      purchase_ends_at: new Date(Date.now() + 3_600_000)
+        .toISOString()
+        .slice(0, 19),
+    })
+
+  function renderWithCart() {
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [inCart()],
+    })
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+  }
+
+  const openSheet = async () =>
+    userEvent.click(screen.getByRole('button', { name: /Cerrar compra/ }))
+
+  it('opens the close sheet from the cart stamp', async () => {
+    renderWithCart()
+
+    await openSheet()
+
+    expect(screen.getByText('Total de lo que has puesto')).toBeInTheDocument()
+  })
+
+  it('sends the close and puts the sheet away', async () => {
+    vi.mocked(api.closePurchase).mockResolvedValue({
+      id: 'p1',
+      list_id: 'l1',
+      opened_at: TODAY,
+      tears_off_at: TODAY,
+      closed_at: TODAY,
+      store: 'Lidl',
+      total: null,
+    })
+    renderWithCart()
+
+    await openSheet()
+    await userEvent.click(screen.getByRole('button', { name: 'Elegir tienda' }))
+    await userEvent.type(screen.getByLabelText('Tienda'), 'Lidl')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    )
+
+    await waitFor(() =>
+      expect(api.closePurchase).toHaveBeenCalledWith(
+        expect.anything(),
+        'l1',
+        expect.objectContaining({ store: 'Lidl' }),
+      ),
+    )
+    expect(
+      screen.queryByText('Total de lo que has puesto'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps a close the network refused, rather than losing the shop', async () => {
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    )
+    renderWithCart()
+
+    await openSheet()
+    await userEvent.click(screen.getByRole('button', { name: 'Elegir tienda' }))
+    await userEvent.type(screen.getByLabelText('Tienda'), 'Lidl')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    )
+
+    await waitFor(() =>
+      expect(offlineQueue.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ listId: 'l1', type: 'closePurchase' }),
+      ),
+    )
   })
 })

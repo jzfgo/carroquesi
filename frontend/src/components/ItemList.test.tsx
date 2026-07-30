@@ -925,3 +925,74 @@ test('and so does a trip on a screen that never asked for the headers', () => {
   )
   expect(screen.getByText('Item a')).toBeInTheDocument()
 })
+
+// ---------------------------------------------------------------------------
+// The stamp on a trip nobody wrote down.
+//
+// A cart that tears off at midnight becomes a ticket with no shop and no
+// amounts. The stamp goes where the total would be, because the missing
+// figure is what it is asking for.
+// ---------------------------------------------------------------------------
+
+function renderUnfiled(
+  purchases: Map<string, Purchase>,
+  onCloseFiledTrip = vi.fn(),
+) {
+  render(
+    <ItemList
+      status="success"
+      items={[boughtOn('a', 'p1')]}
+      onTogglePurchased={() => {}}
+      onOpen={() => {}}
+      onRetry={() => {}}
+      purchases={purchases}
+      onCloseFiledTrip={onCloseFiledTrip}
+    />,
+  )
+  return { onCloseFiledTrip }
+}
+
+test('offers the stamp on a trip that tore off unfiled', () => {
+  const { onCloseFiledTrip } = renderUnfiled(
+    new Map([['p1', trip({ id: 'p1', closed_at: null })]]),
+  )
+
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar compra' }))
+
+  expect(onCloseFiledTrip).toHaveBeenCalledWith('p1')
+})
+
+test('shows the total instead of a stamp once the trip is filed', () => {
+  renderUnfiled(
+    new Map([
+      [
+        'p1',
+        trip({
+          id: 'p1',
+          store: 'Lidl',
+          total: 14.6,
+          closed_at: '2026-07-29T21:00:00',
+        }),
+      ],
+    ]),
+  )
+
+  expect(
+    screen.queryByRole('button', { name: 'Cerrar compra' }),
+  ).not.toBeInTheDocument()
+  expect(headerCost()).toMatch(/14[,.]60/)
+})
+
+test('leaves the header alone when nothing can act on the stamp', () => {
+  // No handler means no way to close it, and a dead control is worse than a
+  // plain sum.
+  renderTicket(
+    [boughtOn('a', 'p1')],
+    new Map([['p1', trip({ id: 'p1', closed_at: null })]]),
+    new Map([['p1', { total: 3, partial: false }]]),
+  )
+
+  expect(
+    screen.queryByRole('button', { name: 'Cerrar compra' }),
+  ).not.toBeInTheDocument()
+})

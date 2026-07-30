@@ -13,6 +13,9 @@ import './ItemList.css'
 import { Mascot } from './Mascot'
 import { Perforation } from './Perforation'
 import { ReceiptLines } from './ReceiptLines'
+// The stamp that closes a trip is the same mark here as on the cart rubric,
+// so it wears the same stylesheet rather than a second copy of the rules.
+import './Stamp.css'
 
 type Status = 'loading' | 'error' | 'success'
 
@@ -28,6 +31,11 @@ interface Props {
   purchasedCostByTrip?: Map<string, CostSummary | null>
   /** Trips by id, for the receipt headers. Absent while the read is in flight. */
   purchases?: Map<string, Purchase>
+  /** Opens the close sheet for the cart. Absent leaves the rubric printed
+   *  without a stamp. */
+  onCloseTrip?: () => void
+  /** Opens the close sheet for a trip that tore off before anyone filed it. */
+  onCloseFiledTrip?: (purchaseId: string) => void
   totalItems?: number
   footer?: ReactNode
 }
@@ -42,6 +50,8 @@ export function ItemList({
   pendingCost,
   purchasedCostByTrip,
   purchases,
+  onCloseTrip,
+  onCloseFiledTrip,
   totalItems,
   footer,
 }: Props) {
@@ -230,7 +240,7 @@ export function ItemList({
         {cart.length > 0 && (
           <>
             <Perforation />
-            <CartRubric count={cart.length} />
+            <CartRubric count={cart.length} onClose={onCloseTrip} />
             {cart.map((item) => (
               <ItemCard
                 key={item.id}
@@ -269,7 +279,20 @@ export function ItemList({
                         lines, and a till adds things no line ever held — a
                         bag, a deposit, a discount — so it can only ever be a
                         floor, even with every line priced. */}
-                    {shopped?.total != null ? (
+                    {/* Nobody said what this shop was: it tore off on its own
+                        at midnight. The stamp goes where the total would be,
+                        because the missing figure is exactly what it asks
+                        for. */}
+                    {shopped &&
+                    shopped.closed_at === null &&
+                    onCloseFiledTrip ? (
+                      <button
+                        className="stamp"
+                        onClick={() => onCloseFiledTrip(shopped.id)}
+                      >
+                        Cerrar compra
+                      </button>
+                    ) : shopped?.total != null ? (
                       <span className="item-list__date-label-cost">
                         {formatPrice(shopped.total)}
                       </span>
