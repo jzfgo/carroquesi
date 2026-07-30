@@ -102,7 +102,7 @@ Four-step flow: client parse (`receiptAi.ts` via Gemini) → backend fuzzy match
 
 ### Purchased item rules
 
-Purchased items are mostly read-only (rename/qty/brand/store edits disabled). Price deletion has a **same-day guard**: enforced in both `LogPurchaseSheet` (frontend) and `DELETE /lists/{id}/items/{item_id}/prices` (returns 422 for prior-day purchases).
+Purchased items are mostly read-only (rename/qty/brand/store edits disabled). Price deletion has a **same-day guard**: `LogPurchaseSheet` hides the control, and `DELETE /lists/{id}/items/{item_id}/prices` enforces it (returns 422 for prior-day purchases).
 
 ## Backend
 
