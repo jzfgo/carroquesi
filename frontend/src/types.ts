@@ -158,21 +158,6 @@ export interface ReceiptScanResult {
   unmatched: UnmatchedLine[]
 }
 
-export interface PricePatch {
-  item_id: string
-  price: number
-  price_per: string | null
-  store: string | null
-  quantity: string | null
-}
-
-export interface NameMapping {
-  store: string
-  receipt_name: string
-  item_name: string
-  item_brand: string | null
-}
-
 export interface NewPurchasedItem {
   name: string
   brand: string | null
@@ -181,15 +166,6 @@ export interface NewPurchasedItem {
   price_per: string | null
   store: string | null
   quantity: string | null
-}
-
-export interface ReceiptPriceBatch {
-  scan_id: string | null
-  /** Receipt date, or a full UTC instant when a time was extracted. */
-  receipt_date: string | null
-  patches: PricePatch[]
-  new_items: NewPurchasedItem[]
-  mappings: NameMapping[]
 }
 
 /** Purchase ("trip") Types */
