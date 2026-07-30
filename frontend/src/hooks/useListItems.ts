@@ -97,6 +97,7 @@ export function useListItems(
     listId: string
     members: BackendMember[]
   } | null>(null)
+  const rereadOnNextPoll = useRef(false)
 
   const markWritten = useCallback(
     (...itemIds: string[]) => {
@@ -125,6 +126,7 @@ export function useListItems(
     } else {
       setStatus('loading')
     }
+    const clockAtStart = writeClock.current
     const isLocallyNewer = beginRead()
     try {
       const [rawItems, rawMembers, updatedAtData] = await Promise.all([
@@ -137,6 +139,15 @@ export function useListItems(
       rawMembers.forEach((m, i) => map.set(m.user_id, toMember(m, i)))
       setMembers(map)
       lastUpdatedAt.current = updatedAtData.updated_at
+      // These three run together, so this timestamp can already cover a write
+      // whose item the merge just kept. The poll would then see nothing new and
+      // never read again, hiding whatever another shopper changed on that same
+      // item. Ask for one more read instead: by the next tick the write has
+      // settled and the server wins.
+      //
+      // The poll needs none of this. It reads the timestamp before the items,
+      // so the timestamp it keeps always predates them.
+      if (writeClock.current !== clockAtStart) rereadOnNextPoll.current = true
       cachedMembers.current = { listId, members: rawMembers }
       setStatus('success')
     } catch {
@@ -153,12 +164,14 @@ export function useListItems(
   // hold what is on screen, writes included. Saving the read instead would put
   // a write the read raced back on screen for a moment.
   //
-  // The stored list id says whose members these are: switching lists changes
-  // listId a render before the new items arrive, and without the check the
-  // previous list would be saved under the new key.
+  // Save only once both halves are known to belong to the list in the URL.
+  // Switching lists changes listId a render before the new items arrive, and a
+  // read that fails leaves the previous list's members behind, so each half
+  // has to say which list it came from or the other list lands under this key.
   useEffect(() => {
     const cached = cachedMembers.current
-    if (cached?.listId === listId) {
+    const itemsAreThisList = items.every((i) => i.list_id === listId)
+    if (cached?.listId === listId && itemsAreThisList) {
       saveListCache(listId, { items, members: cached.members })
     }
   }, [items, listId])
@@ -174,10 +187,11 @@ export function useListItems(
         const data = (await getListUpdatedAt(getToken, listId)) as {
           updated_at: string
         }
-        if (
+        const changed =
           lastUpdatedAt.current !== null &&
           data.updated_at !== lastUpdatedAt.current
-        ) {
+        if (changed || rereadOnNextPoll.current) {
+          rereadOnNextPoll.current = false
           const raw = (await getListItems(getToken, listId)) as ListItem[]
           setItems((prev) => reconcileItems(raw, prev, isLocallyNewer))
         }
@@ -304,7 +318,13 @@ export function useListItems(
           price_per: null,
           price_store: null,
         })) as ListItem
-        setItems((prev) => prev.map((i) => (i.id === tempId ? created : i)))
+        // A read that landed while this was in flight may already carry the
+        // created item, so drop that copy before the temporary row becomes it.
+        setItems((prev) =>
+          prev
+            .filter((i) => i.id !== created.id)
+            .map((i) => (i.id === tempId ? created : i)),
+        )
         // The item carries a new id from here on, so stamp both: a read that
         // predates the swap knows it only by the temporary one.
         markWritten(tempId, created.id)

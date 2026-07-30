@@ -821,6 +821,121 @@ describe('useListItems — a read that lands after a write', () => {
     expect(cached.items.map((i) => i.id)).toEqual(['item-9'])
   })
 
+  // The merge keeps the whole local item, so a change another shopper made to
+  // that same item is dropped with the rest of the server row.
+  it('reads again when a write raced the read, to pick up what it dropped', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      seedCache()
+      let landRead!: (items: ListItem[]) => void
+      vi.mocked(api.getListItems).mockReturnValue(
+        new Promise<ListItem[]>((r) => {
+          landRead = r
+        }) as never,
+      )
+
+      const { result } = renderHook(() =>
+        useListItems('list-1', mockGetToken, mockShowToast),
+      )
+      await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+      await act(async () => {
+        await result.current.togglePurchased('item-1')
+      })
+
+      // The read carries a rename by someone else, which the merge discards
+      // along with the rest of the row it kept locally.
+      await act(async () => landRead([{ ...item1, name: 'Leche entera' }]))
+      await waitFor(() => expect(result.current.items[0].purchased).toBe(true))
+      expect(result.current.items[0].name).toBe('Leche')
+
+      // updated_at is unchanged, so only the forced re-read can recover it.
+      vi.mocked(api.getListItems).mockResolvedValue([
+        { ...item1, name: 'Leche entera', purchased: true },
+      ] as never)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000)
+      })
+
+      await waitFor(() =>
+        expect(result.current.items[0].name).toBe('Leche entera'),
+      )
+      expect(result.current.items[0].purchased).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not cache a list whose items belong to another one', async () => {
+    // The second list paints from its cache and then fails to read, so the
+    // members of the first list are the last ones this hook saw.
+    localStorage.setItem(
+      'cqs_list_cache_list-2',
+      JSON.stringify({
+        items: [{ ...item1, id: 'item-8', list_id: 'list-2', name: 'Arroz' }],
+        members: mockRawMembers,
+      }),
+    )
+
+    const { result, rerender } = renderHook(
+      ({ id }) => useListItems(id, mockGetToken, mockShowToast),
+      { initialProps: { id: 'list-1' } },
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    vi.mocked(api.getListItems).mockRejectedValue(new Error('Network'))
+    rerender({ id: 'list-2' })
+    await waitFor(() => expect(result.current.items[0].id).toBe('item-8'))
+
+    // Back on the first list, whose cache is gone and whose read never lands.
+    localStorage.removeItem('cqs_list_cache_list-1')
+    rerender({ id: 'list-1' })
+    await waitFor(() => expect(api.getListItems).toHaveBeenCalledTimes(3))
+
+    expect(localStorage.getItem('cqs_list_cache_list-1')).toBeNull()
+  })
+
+  it('does not duplicate an added item the read already carried', async () => {
+    seedCache()
+    const landRead = pendingItemsRead()
+    let ackCreate!: (created: ListItem) => void
+    vi.mocked(api.createItem).mockReturnValue(
+      new Promise<ListItem>((r) => {
+        ackCreate = r
+      }) as never,
+    )
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+    let add!: Promise<void>
+    await act(async () => {
+      add = result.current.addItem({
+        name: 'Pan',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
+      await Promise.resolve()
+    })
+    expect(result.current.items).toHaveLength(2)
+
+    // The read already carries the created item, under its real id.
+    act(() => landRead())
+    await waitFor(() => expect(result.current.items).toHaveLength(3))
+
+    await act(async () => {
+      ackCreate(item2)
+      await add
+    })
+
+    expect(result.current.items.filter((i) => i.id === 'item-2')).toHaveLength(
+      1,
+    )
+  })
+
   it('applies the read when no write raced it', async () => {
     seedCache()
     const landRead = pendingItemsRead()
