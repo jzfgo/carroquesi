@@ -172,3 +172,12 @@ export interface ReceiptPriceBatch {
   new_items: NewPurchasedItem[]
   mappings: NameMapping[]
 }
+
+export interface BackendMember {
+  id: string
+  user_id: string
+  list_id: string
+  display_name: string
+  photo_url: string | null
+  created_at: string
+}

@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Any
 
 from pydantic import TypeAdapter
 
@@ -8,6 +9,18 @@ from app.schemas.items import ItemRead
 from app.schemas.lists import ListRead
 from app.schemas.members import MemberRead
 from app.schemas.receipt import ReceiptScanResult
+from app.services.feature_flags import REGISTRY
+
+
+def assert_exact(model: Any, payload: Any):
+    """
+    Validates a payload against a model and checks that the serialized output
+    matches the original payload exactly, ensuring no extra keys exist and no
+    default values were silently filled.
+    """
+    obj = TypeAdapter(model).validate_python(payload)
+    expected = TypeAdapter(model).dump_python(obj, mode="json")
+    assert payload == expected, f"{model} mismatch.\nPayload: {payload}\nExpected: {expected}"
 
 
 def test_e2e_fixtures_match_backend_schemas():
@@ -24,21 +37,26 @@ def test_e2e_fixtures_match_backend_schemas():
         data = json.loads(f.read())
 
     # 1. /users/me -> UserRead
-    # extra='ignore' is implicitly default for BaseModel, but validate_python checks it
-    TypeAdapter(UserRead).validate_python(data["ALICE"])
+    assert_exact(UserRead, data["ALICE"])
+
+    # Assert that all features that default to true in the registry are present in ALICE's features.
+    default_on_features = {name for name, f in REGISTRY.items() if f.default}
+    alice_features = set(data["ALICE"]["features"])
+    assert default_on_features.issubset(alice_features), (
+        f"ALICE features ({alice_features}) must include all default-on features ({default_on_features}) "
+        "to ensure E2E tests and visual baselines reflect what production renders."
+    )
 
     # 2. /lists -> list[ListRead]
-    TypeAdapter(list[ListRead]).validate_python(data["SEED_LISTS"])
+    assert_exact(list[ListRead], data["SEED_LISTS"])
 
     # 3. /lists/:id/items -> list[ItemRead]
-    items_adapter = TypeAdapter(list[ItemRead])
     for items in data["SEED_ITEMS"].values():
-        items_adapter.validate_python(items)
+        assert_exact(list[ItemRead], items)
 
     # 4. /lists/:id/members -> list[MemberRead]
-    members_adapter = TypeAdapter(list[MemberRead])
     for members in data["SEED_MEMBERS"].values():
-        members_adapter.validate_python(members)
+        assert_exact(list[MemberRead], members)
 
     # 5. /lists/:id/receipt -> ReceiptScanResult
-    TypeAdapter(ReceiptScanResult).validate_python(data["SEED_RECEIPT_RESULT"])
+    assert_exact(ReceiptScanResult, data["SEED_RECEIPT_RESULT"])

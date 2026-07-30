@@ -2,7 +2,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as api from '../lib/api'
-import { ListMembersSheet, type BackendMember } from './ListMembersSheet'
+import type { BackendMember } from '../types'
+import { ListMembersSheet } from './ListMembersSheet'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../lib/api', async (importOriginal) => {

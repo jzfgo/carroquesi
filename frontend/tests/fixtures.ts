@@ -1,29 +1,21 @@
 import { test as base, expect, type Page } from '@playwright/test'
 import type {
   ApiList,
+  BackendMember,
   ListItem,
   NewPurchasedItem,
   ReceiptScanResult,
 } from '../src/types'
+import data from './fixtures.json' with { type: 'json' }
 
 const BACKEND = 'http://localhost:8000'
 export const GEMINI_ENDPOINT_PATTERN =
   'https://firebasevertexai.googleapis.com/**'
 
-import data from './fixtures.json'
-
 export const ALICE = data.ALICE
 export const SEED_LISTS: ApiList[] = data.SEED_LISTS
 export const SEED_ITEMS: Record<string, ListItem[]> = data.SEED_ITEMS
 
-interface BackendMember {
-  id: string
-  user_id: string
-  list_id: string
-  display_name: string
-  photo_url: string | null
-  created_at: string
-}
 const SEED_MEMBERS: Record<string, BackendMember[]> =
   data.SEED_MEMBERS as Record<string, BackendMember[]>
 

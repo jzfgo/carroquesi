@@ -45,7 +45,7 @@ set -u
 SHARED='^(\.github/workflows/|justfile|lefthook\.yml|scripts/|\.config/|\.envrc)'
 
 FRONTEND='^frontend/'
-BACKEND='^backend/'
+BACKEND='^(backend/|frontend/tests/fixtures\.json)'
 TOOLING='^(\.claude/hooks/|scripts/)'
 
 emit() {

@@ -1,11 +1,12 @@
 {
   "ALICE": {
     "id": "seed-user-alice",
-    "firebase_uid": "seed-alice",
     "display_name": "Alice (seed)",
     "email": "alice@seed.local",
     "photo_url": null,
-    "features": ["ai_receipt_scanning", "push_notifications"]
+    "features": ["ai_receipt_scanning", "push_notifications"],
+    "has_api_key": false,
+    "api_key_last_used_at": null
   },
   "SEED_LISTS": [
     {
@@ -13,8 +14,8 @@
       "name": "Compra semanal",
       "emoji": "🛒",
       "owner_id": "seed-user-alice",
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-06-23T10:00:00Z",
+      "created_at": "2026-01-01T00:00:00",
+      "updated_at": "2026-06-23T10:00:00",
       "item_count": 2,
       "purchased_count": 0,
       "is_default": true
@@ -24,8 +25,8 @@
       "name": "Fiesta de cumple",
       "emoji": "🎉",
       "owner_id": "seed-user-alice",
-      "created_at": "2026-01-01T00:00:00Z",
-      "updated_at": "2026-06-23T10:00:00Z",
+      "created_at": "2026-01-01T00:00:00",
+      "updated_at": "2026-06-23T10:00:00",
       "item_count": 1,
       "purchased_count": 0,
       "is_default": false
@@ -48,8 +49,8 @@
         "price_per": null,
         "price_store": "Mercadona",
         "added_by": "seed-user-alice",
-        "created_at": "2026-06-01T00:00:00Z",
-        "updated_at": "2026-06-23T10:00:00Z"
+        "created_at": "2026-06-01T00:00:00",
+        "updated_at": "2026-06-23T10:00:00"
       },
       {
         "id": "item-cafe",
@@ -66,8 +67,8 @@
         "price_per": null,
         "price_store": null,
         "added_by": "seed-user-alice",
-        "created_at": "2026-06-01T00:00:00Z",
-        "updated_at": "2026-06-23T10:00:00Z"
+        "created_at": "2026-06-01T00:00:00",
+        "updated_at": "2026-06-23T10:00:00"
       }
     ],
     "seed-list-fiesta": [
@@ -86,8 +87,8 @@
         "price_per": null,
         "price_store": null,
         "added_by": "seed-user-alice",
-        "created_at": "2026-06-01T00:00:00Z",
-        "updated_at": "2026-06-23T10:00:00Z"
+        "created_at": "2026-06-01T00:00:00",
+        "updated_at": "2026-06-23T10:00:00"
       }
     ]
   },
@@ -99,7 +100,7 @@
         "list_id": "seed-list-compra",
         "display_name": "Alice (seed)",
         "photo_url": null,
-        "created_at": "2026-06-01T00:00:00Z"
+        "created_at": "2026-06-01T00:00:00"
       },
       {
         "id": "member-2",
@@ -107,7 +108,7 @@
         "list_id": "seed-list-compra",
         "display_name": "Bob (seed)",
         "photo_url": null,
-        "created_at": "2026-06-01T00:00:00Z"
+        "created_at": "2026-06-01T00:00:00"
       }
     ],
     "seed-list-fiesta": [
@@ -117,7 +118,7 @@
         "list_id": "seed-list-fiesta",
         "display_name": "Alice (seed)",
         "photo_url": null,
-        "created_at": "2026-06-01T00:00:00Z"
+        "created_at": "2026-06-01T00:00:00"
       }
     ]
   },
