@@ -85,6 +85,12 @@ export function useListItems(
   // screen and once when the server answers. Between the two the server may or
   // may not have applied it, so a read that started in that window cannot be
   // trusted for that item either.
+  //
+  // Stamps name the list as well as the item. Opening a list from a push tap
+  // only changes the route parameter, so this hook stays mounted and the items
+  // of the list left behind are still in state when the new list is read. A
+  // stamp that named the item alone would keep one of them, putting a row from
+  // another list on screen and into the new list's cache.
   const writeClock = useRef(0)
   const writtenAt = useRef(new Map<string, number>())
   const cachedMembers = useRef<{
@@ -92,15 +98,21 @@ export function useListItems(
     members: BackendMember[]
   } | null>(null)
 
-  const markWritten = useCallback((...itemIds: string[]) => {
-    writeClock.current += 1
-    for (const id of itemIds) writtenAt.current.set(id, writeClock.current)
-  }, [])
+  const markWritten = useCallback(
+    (...itemIds: string[]) => {
+      writeClock.current += 1
+      for (const id of itemIds) {
+        writtenAt.current.set(`${listId}:${id}`, writeClock.current)
+      }
+    },
+    [listId],
+  )
 
   const beginRead = useCallback(() => {
     const startedAt = writeClock.current
-    return (itemId: string) => (writtenAt.current.get(itemId) ?? 0) > startedAt
-  }, [])
+    return (itemId: string) =>
+      (writtenAt.current.get(`${listId}:${itemId}`) ?? 0) > startedAt
+  }, [listId])
 
   const fetchAll = useCallback(async () => {
     const cached = loadListCache(listId)

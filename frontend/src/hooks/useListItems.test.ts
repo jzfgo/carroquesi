@@ -766,6 +766,61 @@ describe('useListItems — a read that lands after a write', () => {
     expect(localStorage.getItem('cqs_list_cache_list-2')).toBeNull()
   })
 
+  // Opening a list from a push tap changes only the route parameter, so the
+  // hook stays mounted and the previous list's items are still in state when
+  // the new list is read.
+  it('does not carry a written item into the list opened next', async () => {
+    localStorage.removeItem('cqs_list_cache_list-2')
+
+    const { result, rerender } = renderHook(
+      ({ id }) => useListItems(id, mockGetToken, mockShowToast),
+      { initialProps: { id: 'list-1' } },
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    let ackUpdate!: () => void
+    vi.mocked(api.updateItem).mockReturnValue(
+      new Promise<void>((r) => {
+        ackUpdate = () => r()
+      }) as never,
+    )
+    let toggle!: Promise<void>
+    await act(async () => {
+      toggle = result.current.togglePurchased('item-1')
+      await Promise.resolve()
+    })
+
+    let landRead!: (items: ListItem[]) => void
+    vi.mocked(api.getListItems).mockReturnValue(
+      new Promise<ListItem[]>((r) => {
+        landRead = r
+      }) as never,
+    )
+    rerender({ id: 'list-2' })
+    await waitFor(() => expect(api.getListItems).toHaveBeenCalledTimes(2))
+
+    // The write on the list left behind settles while the new list is read.
+    await act(async () => {
+      ackUpdate()
+      await toggle
+    })
+
+    const otherList: ListItem = {
+      ...item1,
+      id: 'item-9',
+      list_id: 'list-2',
+      name: 'Arroz',
+    }
+    await act(async () => landRead([otherList]))
+    await waitFor(() => expect(result.current.items).toHaveLength(1))
+
+    expect(result.current.items[0].id).toBe('item-9')
+    const cached = JSON.parse(
+      localStorage.getItem('cqs_list_cache_list-2') as string,
+    ) as { items: ListItem[] }
+    expect(cached.items.map((i) => i.id)).toEqual(['item-9'])
+  })
+
   it('applies the read when no write raced it', async () => {
     seedCache()
     const landRead = pendingItemsRead()
