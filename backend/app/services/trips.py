@@ -237,10 +237,10 @@ def tap_time(supplied: datetime | None, now: datetime) -> datetime:
 
     Lives here, not in a router, because both routers that accept a
     client-supplied purchase instant — items.py's manual purchase-toggle and
-    receipt.py's apply-receipt-prices — must apply the future bound the same
+    purchases.py's scan-linked close — must apply the future bound the same
     way. A copy living in one router is a copy the other one can silently
     skip, which is exactly how a receipt date misread by OCR used to create a
-    future-dated trip alongside the live cart. The receipt path calls
+    future-dated trip alongside the live cart. The scan-linked path calls
     `no_future` directly instead of this function precisely because it must
     *not* inherit the backdate floor below — see `no_future`'s docstring.
     """
@@ -498,59 +498,3 @@ def close(
         item.purchase_id = split.id
         session.add(item)
     return split
-
-
-def reconcile_scan(
-    session: Session,
-    list_id: str,
-    items: list[ListItem],
-    store: str | None,
-    total: float | None,
-    now: datetime | None = None,
-) -> Purchase | None:
-    """Applying a receipt is a reconciliation, exactly like closing by hand.
-
-    Returns the trip the scan reconciled, or None when the matches spanned
-    several — scan_receipt matches across a ±3 day window, with no trip
-    filter, so a scan routinely matches items already filed under different
-    trips (an older closed ticket, a still-open cart, both). A scan reconciles
-    a trip only when *every* affected item belongs to that one trip; checking
-    the spread only among the items not already in the live cart (as an
-    earlier version of this did) let a receipt whose total covers several
-    lines attach in full to whichever one of those lines happened to still be
-    in the open trip -- one paper total, several ticket totals, all of them
-    now claiming it. Guessing which trip a receipt "meant" would be inventing
-    a fact, so a spread scan reconciles nothing: the affected items are left
-    exactly where they were, for a manual close.
-    """
-    now = now or _now()
-    trip_ids = {item.purchase_id for item in items if item.purchase_id}
-    if len(trip_ids) != 1:
-        return None
-    trip = session.get(Purchase, trip_ids.pop())
-    if trip is None:
-        return None
-
-    live = open_trip(session, list_id, now)
-    if live is not None and trip.id == live.id:
-        in_trip = [item.id for item in items if item.purchase_id == trip.id]
-        return close(session, list_id, in_trip, store, total, now)
-
-    # Every affected item sits on one trip that isn't the live cart. Two ways
-    # to get here: the trip is already closed (by hand, or by an earlier
-    # scan) and this is a repeat or corroborating application -- confirmed
-    # values must not be touched -- or the trip tore off with nobody having
-    # said what it was. In that second case confirming *is* closing: leaving
-    # closed_at NULL would let trip_for's `closed_at IS NULL` lookup hand a
-    # later backdated tap for the same day this same trip, silently adding a
-    # line the confirmed total never covered. The `closed_at is None` guard
-    # below is what tells the two cases apart -- fill in what was never said
-    # and close it in the second, touch nothing in the first.
-    if trip.closed_at is None:
-        if trip.store is None:
-            trip.store = store
-        if trip.total is None:
-            trip.total = total
-        trip.closed_at = now
-        session.add(trip)
-    return trip

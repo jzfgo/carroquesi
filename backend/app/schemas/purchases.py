@@ -7,10 +7,9 @@ from pydantic import BaseModel, Field
 class PurchaseLine(BaseModel):
     """One ticked row of the close sheet.
 
-    Unlike a receipt's PricePatch, `price` is optional: leaving a line without
-    an amount is a legitimate outcome, and no amount is invented for it. The
-    store is not here either — a ticket belongs to one shop, so it is stated
-    once on the close.
+    `price` is optional: leaving a line without an amount is a legitimate
+    outcome, and no amount is invented for it. The store is not here either —
+    a ticket belongs to one shop, so it is stated once on the close.
     """
 
     item_id: str
