@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { linesTotal, toPayload, type CloseLine } from '../lib/closeLines'
 import { formatPrice } from '../lib/formatPrice'
+import { madridDay, naiveUtcForMadridNoon } from '../lib/tripDay'
 import type { PurchaseClosePayload } from '../types'
 import './CloseTripSheet.css'
 import { CostBadge } from './CostBadge'
@@ -48,15 +49,10 @@ export function CloseTripSheet({
   const [store, setStore] = useState('')
   const [addingStore, setAddingStore] = useState(false)
   const [newStore, setNewStore] = useState('')
-  // The trip's own day, not today. Stamping an old shop with today's date
-  // would file its prices under a day nobody shopped.
-  const [day, setDay] = useState(defaultDate.slice(0, 10))
-
-  // Only the day is editable, so the trip keeps its own clock and a shop
-  // closed the morning after still sits in last night's trip. A caller with
-  // nothing but a day to hand gets midnight rather than a bare date, which
-  // the server would not read as a moment.
-  const clock = defaultDate.slice(10) || 'T00:00:00'
+  // The trip's own day, not today, and the day it was in Madrid rather than
+  // in UTC. Stamping an old shop with today's date would file its prices under
+  // a day nobody shopped.
+  const [day, setDay] = useState(() => madridDay(defaultDate))
 
   // Counts the rows added by hand. A key built from how many rows there are
   // would come round again after one is added and dropped, and React would
@@ -116,10 +112,16 @@ export function CloseTripSheet({
 
   function handleSave() {
     if (!canSave) return
+    // Left where it was when the day was not touched, so the trip keeps its
+    // own instant. Moved to a different day, it goes to noon there — far
+    // enough from either midnight that no offset can drag it into a
+    // neighbouring day.
+    const purchasedAt =
+      day === madridDay(defaultDate) ? defaultDate : naiveUtcForMadridNoon(day)
     onSave(
       toPayload(lines, {
         store: effectiveStore,
-        purchasedAt: `${day}${clock}`,
+        purchasedAt,
         purchaseId,
         // A close written by hand never confirms a figure. Only a receipt
         // does.

@@ -181,7 +181,9 @@ describe('CloseTripSheet', () => {
     expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-30T18:00:00')
   })
 
-  it('keeps the trip clock when only the day is moved', async () => {
+  // Noon in Madrid, which is 10:00 UTC in July. Far enough from either
+  // midnight that no offset can drag the stamp into a neighbouring day.
+  it('stamps a moved day at midday, so it cannot slip into the next one', async () => {
     const { onSave } = renderSheet()
 
     fireEvent.change(screen.getByLabelText('Fecha'), {
@@ -190,19 +192,22 @@ describe('CloseTripSheet', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mercadona' }))
     await userEvent.click(save())
 
-    expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-29T18:00:00')
+    expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-29T10:00:00')
   })
 
-  // A caller with only a day to hand still gets a timestamp the server reads.
-  it('accepts a default date with no clock on it', async () => {
-    const { onSave } = renderSheet({ defaultDate: '2026-07-30' })
+  // The half-hour after midnight in Madrid is still the previous day in UTC,
+  // and it is exactly when a torn-off trip gets written down.
+  it('shows the day it was in Madrid, not the day the stored instant reads', async () => {
+    const { onSave } = renderSheet({ defaultDate: '2026-07-29T22:30:00' })
 
     expect(screen.getByLabelText('Fecha')).toHaveValue('2026-07-30')
 
     await userEvent.click(screen.getByRole('button', { name: 'Mercadona' }))
     await userEvent.click(save())
 
-    expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-30T00:00:00')
+    // Untouched, so the trip keeps its own instant rather than being moved to
+    // noon on a day it already belonged to.
+    expect(onSave.mock.calls[0][0].purchased_at).toBe('2026-07-29T22:30:00')
   })
 
   it('cannot be saved with no date', async () => {
