@@ -112,6 +112,21 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
+/* An amount the paper printed is shown, not asked for, and the field has to
+   say that on sight. A readonly input still takes focus, and no phone raises
+   a keyboard for one — so left looking editable it would accept a tap and
+   then answer with nothing at all. Longhands because jsdom drops a shorthand
+   holding a var(), and a test reads these back. */
+.ais__price:read-only {
+  background-color: transparent;
+  color: var(--ink-2);
+  cursor: default;
+}
+
+.ais__price:read-only:focus {
+  box-shadow: none;
+}
+
 .ais__per {
   font-size: 12px;
   font-weight: 600;

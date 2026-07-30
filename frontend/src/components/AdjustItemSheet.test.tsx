@@ -346,6 +346,46 @@ describe('AdjustItemSheet and a row the paper printed', () => {
     expect(price).toHaveValue('2.5')
   })
 
+  // A readonly input still takes focus, and no phone raises a keyboard for
+  // one. Left styled like the editable field it used to be, it would answer a
+  // tap with an accent ring and then nothing — the same positive affordance
+  // over an inert control that the invisible price edit was.
+  //
+  // Read back from the stylesheet, which `test.css.include` opts in. The rule
+  // is worth a pixel or two on a screenshot and would vanish under the
+  // tolerance, so a baseline cannot guard it.
+  it('reads as inert rather than as an empty field', () => {
+    render(
+      <AdjustItemSheet line={printed} onDone={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    const price = screen.getByLabelText('Precio')
+    price.focus()
+
+    // jsdom hands `transparent` back in its normalised form. An unapplied
+    // stylesheet would answer with an empty string instead, so this also says
+    // the rule is really being read.
+    const style = getComputedStyle(price)
+    expect(style.backgroundColor).toBe('rgba(0, 0, 0, 0)')
+    expect(style.boxShadow).toBe('none')
+  })
+
+  // The quantity is typed on a printed row like on any other, so it keeps the
+  // sentence that governs it rather than borrowing the price's.
+  it('keeps describing the quantity by its own rule', () => {
+    render(
+      <AdjustItemSheet line={printed} onDone={vi.fn()} onClose={vi.fn()} />,
+    )
+
+    const qty = screen.getByLabelText('Cantidad')
+    const hint = document.getElementById(
+      qty.getAttribute('aria-describedby') ?? '',
+    )
+
+    expect(hint?.textContent).toMatch(/Escribe unidades/)
+    expect(hint?.textContent).not.toMatch(/ticket/)
+  })
+
   it('says where the amount comes from and how to take it back', () => {
     render(
       <AdjustItemSheet line={printed} onDone={vi.fn()} onClose={vi.fn()} />,

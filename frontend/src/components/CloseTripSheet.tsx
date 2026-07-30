@@ -445,10 +445,21 @@ export function CloseTripSheet({
               </>
             ) : (
               <>
-                {line.name}
-                {(line.brand || !line.fromCart) && (
+                {/* Named the same way it is named out loud. A row the paper
+                    printed and nobody assigned keeps standing here after the
+                    ticket is dropped, and the printed string went with it. */}
+                {rowLabel(line)}
+                {/* "Still on the list" is a claim about a row that came from
+                    the list. A line that only ever existed on the paper, and
+                    something added by hand at the till, were never on it. */}
+                {(line.brand || (line.itemId && !line.fromCart)) && (
                   <small className="cts__meta">
-                    {[line.brand, line.fromCart ? null : 'sigue en la lista']
+                    {[
+                      line.brand,
+                      line.itemId && !line.fromCart
+                        ? 'sigue en la lista'
+                        : null,
+                    ]
                       .filter(Boolean)
                       .join(' · ')}
                   </small>

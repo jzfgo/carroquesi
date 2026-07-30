@@ -937,8 +937,9 @@ describe('CloseTripSheet when the paper is discarded', () => {
   })
 
   // The printed string was the only name the unassigned row had, and dropping
-  // the paper takes it. The row stays on screen and stays tickable, so leaving
-  // it nameless would hand a screen reader a blank checkbox and an "Ajustar "
+  // the paper takes it. The row stays on screen and can still be opened and
+  // answered — its tick is what is disabled, not the row — so leaving it
+  // nameless would hand a screen reader a blank checkbox and an "Ajustar "
   // with nothing after it.
   it('still names the row the paper named', async () => {
     renderTicket()
@@ -949,6 +950,19 @@ describe('CloseTripSheet when the paper is discarded', () => {
     expect(
       screen.getByRole('button', { name: 'Ajustar Producto sin asignar' }),
     ).toBeInTheDocument()
+  })
+
+  // Naming it out loud is half the job. Left as it was, the row read as a
+  // blank name over a caption saying it was still on the list — which was
+  // never true of a line that only ever existed on the paper.
+  it('names the row on screen too, and claims nothing about the list', async () => {
+    renderTicket()
+
+    await discard()
+
+    const row = rowOf('Producto sin asignar')
+    expect(row).toHaveTextContent('Producto sin asignar')
+    expect(row.querySelector('.cts__meta')).toBeNull()
   })
 })
 

@@ -143,7 +143,7 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
             placeholder="6 · 1,12 kg"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            aria-describedby={`${id}-hint`}
+            aria-describedby={`${id}-qty-hint`}
           />
           <span className="ais__x" aria-hidden="true">
             ×
@@ -161,7 +161,7 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
             placeholder="0,00"
             value={priceStr}
             onChange={(e) => setPriceStr(e.target.value)}
-            aria-describedby={`${id}-per ${id}-hint`}
+            aria-describedby={`${id}-per ${id}-price-hint`}
             readOnly={printed}
             autoFocus={!!line.itemId && !printed}
           />
@@ -171,10 +171,19 @@ export function AdjustItemSheet({ line, onDone, onClose }: Props) {
             {perKg ? '€/kg' : '€/ud'}
           </span>
         </div>
-        <span className="ais__hint" id={`${id}-hint`}>
-          {printed
-            ? 'El importe lo pone el ticket. Para cambiarlo, descarta el ticket.'
-            : 'Escribe unidades (6) o peso (500 ml, 1,12 kg). El precio se ajusta solo.'}
+        {/* One line to read, two things described. The quantity is typed on a
+            printed row as much as on any other, so it keeps its own sentence
+            and its own id — pointing it at a sentence about the price would
+            describe it by a rule it does not follow. */}
+        <span className="ais__hint">
+          <span id={`${id}-qty-hint`}>
+            Escribe unidades (6) o peso (500 ml, 1,12 kg).
+          </span>{' '}
+          <span id={`${id}-price-hint`}>
+            {printed
+              ? 'El importe lo pone el ticket. Para cambiarlo, descarta el ticket.'
+              : 'El precio se ajusta solo.'}
+          </span>
         </span>
       </div>
 
