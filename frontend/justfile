@@ -26,6 +26,10 @@ preview:
 test:
     {{ nvm-exec }} pnpm test
 
+# Run a single test file (usage: just frontend test-file src/path/to/file.test.ts)
+test-file file:
+    {{ nvm-exec }} pnpm exec vitest run {{ file }}
+
 # Run tests with coverage (vitest run --coverage)
 test-coverage:
     {{ nvm-exec }} pnpm test:coverage
