@@ -158,16 +158,6 @@ export interface ReceiptScanResult {
   unmatched: UnmatchedLine[]
 }
 
-export interface NewPurchasedItem {
-  name: string
-  brand: string | null
-  ean: string | null
-  price: number
-  price_per: string | null
-  store: string | null
-  quantity: string | null
-}
-
 /** Purchase ("trip") Types */
 
 export interface Purchase {

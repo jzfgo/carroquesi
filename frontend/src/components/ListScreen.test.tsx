@@ -792,10 +792,10 @@ describe('the tear-off boundary under an open tab', () => {
 
   it('empties the cart when the trip is closed rather than torn off', () => {
     // The boundary does not arrive by waiting here — it arrives already past.
-    // `closed_at` replaces `tears_off_at` the moment a receipt is applied, and
-    // the 5s poll can only deliver it after the fact, so there is no timer to
-    // fire. Reachable in this phase: `reconcile_scan` closes a trip on receipt
-    // apply, with a list that has been open on screen since the morning.
+    // `closed_at` replaces `tears_off_at` the moment someone saves the close
+    // sheet, and the 5s poll can only deliver it after the fact, so there is
+    // no timer to fire. That is any member closing the trip, on a list that
+    // has been open on this screen since the morning.
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-07-28T09:00:00Z'))
     const inCart = makeItem({
