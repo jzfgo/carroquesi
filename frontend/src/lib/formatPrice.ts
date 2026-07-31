@@ -11,6 +11,14 @@ const AMOUNT = new Intl.NumberFormat('es-ES', {
 })
 
 export function formatPrice(amount: number, pricePer?: string | null): string {
-  const formatted = `€ ${AMOUNT.format(amount)}`
+  return `€ ${formatAmount(amount, pricePer)}`
+}
+
+/**
+ * The same number without the symbol, for a column of figures that has already
+ * said it is money once. Rule 3: one place per screen for any given fact.
+ */
+export function formatAmount(amount: number, pricePer?: string | null): string {
+  const formatted = AMOUNT.format(amount)
   return pricePer === 'KILOGRAM' ? `${formatted}/kg` : formatted
 }
