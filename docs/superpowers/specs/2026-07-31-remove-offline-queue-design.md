@@ -126,6 +126,32 @@ sites, and the fact that no component guards on a `tmp-…` id.
 Worth being explicit, because it is the natural thing to assume this removal
 fixes: **it does not.**
 
+### The band says it; a refused tap says nothing
+
+One fact, one place. The condition is stated by the band and by the disabled
+state of the control that was pressed — a toast on top would be the same fact a
+third time, once per tap, over a bar already on screen saying it.
+
+So a guard that refuses a write is **silent**. What it must never be is silent
+*and* unexplained, which turns on two things the band did not do before:
+
+- **The band is sticky.** It is the first child of `.item-list`, which is the
+  scroll container, so it used to scroll away after a screen of products.
+  Forty rows down, a dead checkbox had its explanation off screen. `position:
+  sticky; top: 0` at `z-index: 40`, under `.list-header`'s 50.
+- **Every surface that covers it carries the same line.** `CloseTripSheet` and
+  `LogPurchaseSheet` already do («Disponible con conexión»); the rest do not
+  yet, and until a sheet has one its guard keeps its toast. That is the rule:
+  *where the band is visible the guard is silent, and a surface that hides the
+  band says it itself.*
+
+The four list-level gates (rename, emoji, set-default, delete) keep their toast
+for exactly this reason — they fire from a menu drawn over the list.
+
+The one case that still speaks is a write that **fails** after being attempted:
+that is a different sentence («no se pudo…»), on a screen where the band is
+correctly absent because `navigator.onLine` is `true`. See limit 1.
+
 ### Controls are disabled, not tappable-then-refused
 
 Gating every mutation behind `if (isOffline) { showToast(…); return }` alone

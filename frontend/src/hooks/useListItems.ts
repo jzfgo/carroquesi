@@ -17,11 +17,7 @@ import { itemState } from '../lib/itemState'
 import { isNetworkError } from '../lib/networkError'
 import { enqueue, newTempId } from '../lib/offlineQueue'
 import { isRetryable } from '../lib/queueCopy'
-import {
-  itemRefusal,
-  OFFLINE_REFUSAL,
-  refusalMessage,
-} from '../lib/refusalCopy'
+import { itemRefusal, refusalMessage } from '../lib/refusalCopy'
 import type { ListItem, Member, ParsedInput, TagField } from '../types'
 import { isOfflineNow } from './useIsOffline'
 import type { ShowToast } from './useToast'
@@ -178,10 +174,16 @@ export function useListItems(
     async function toggle(itemId: string) {
       // Before the optimistic paint, so there is nothing to roll back. Every
       // mutation in this hook opens with this and for the same reason.
-      if (isOfflineNow()) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      //
+      // It says nothing, deliberately. The sticky band above the rows already
+      // states the condition and does not leave after six seconds, and the
+      // control that was pressed is drawn disabled — so a toast on top would
+      // be a third telling of one fact, once per tap, over a bar that is
+      // already on screen saying it. What this must never be is *both* silent
+      // and unexplained: the band is what makes the silence legible, which is
+      // why it is sticky and why every sheet that covers it carries the same
+      // line of its own.
+      if (isOfflineNow()) return
       const snapshot = itemsRef.current
       const targetItem = snapshot.find((i) => i.id === itemId)
       const prevPurchased = targetItem?.purchased ?? false
@@ -254,10 +256,7 @@ export function useListItems(
 
   const addItem = useCallback(
     async function add(parsed: ParsedInput) {
-      if (isOfflineNow()) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      if (isOfflineNow()) return
       const nameLower = parsed.name.trim().toLowerCase()
       const isDuplicate = itemsRef.current.some(
         (i) =>
@@ -345,10 +344,7 @@ export function useListItems(
 
   const updateTag = useCallback(
     async function tag(itemId: string, field: TagField, value: string | null) {
-      if (isOfflineNow()) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      if (isOfflineNow()) return
       const snapshot = itemsRef.current
       const name = snapshot.find((i) => i.id === itemId)?.name ?? ''
       setItems(
@@ -378,10 +374,7 @@ export function useListItems(
 
   const updateStores = useCallback(
     async function setStores(itemId: string, stores: string[]) {
-      if (isOfflineNow()) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      if (isOfflineNow()) return
       const snapshot = itemsRef.current
       const name = snapshot.find((i) => i.id === itemId)?.name ?? ''
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, stores } : i)))
@@ -409,10 +402,7 @@ export function useListItems(
 
   const renameItem = useCallback(
     async function rename(itemId: string, name: string) {
-      if (isOfflineNow()) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      if (isOfflineNow()) return
       const snapshot = itemsRef.current
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, name } : i)))
       try {
@@ -441,10 +431,7 @@ export function useListItems(
 
   const removeItem = useCallback(
     async function remove(itemId: string) {
-      if (isOfflineNow()) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      if (isOfflineNow()) return
       const snapshot = itemsRef.current
       const name = snapshot.find((i) => i.id === itemId)?.name ?? ''
       setItems((prev) => prev.filter((i) => i.id !== itemId))
@@ -495,10 +482,7 @@ export function useListItems(
       store: string | null,
       purchasedQuantity?: string | null,
     ) => {
-      if (isOfflineNow()) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      if (isOfflineNow()) return
       const item = itemsRef.current.find((i) => i.id === itemId)
       const payload = { amount, price_per: pricePer, store }
       const fn = item?.price != null ? updatePrice : logPrice
@@ -578,7 +562,7 @@ export function useListItems(
         ),
       )
     },
-    [getToken, listId, showToast],
+    [getToken, listId],
   )
 
   const clearItemPrice = useCallback(
@@ -588,10 +572,7 @@ export function useListItems(
       // caller that reads the resolution as «deleted» has to refuse *before*
       // it calls this. Both price callers do. Kept here so a future one that
       // forgets still cannot reach the network.
-      if (isOfflineNow()) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      if (isOfflineNow()) return
       await deletePrice(getToken, listId, itemId)
       setItems((prev) =>
         prev.map((i) =>
@@ -601,7 +582,7 @@ export function useListItems(
         ),
       )
     },
-    [getToken, listId, showToast],
+    [getToken, listId],
   )
 
   return {

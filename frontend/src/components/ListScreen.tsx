@@ -443,10 +443,7 @@ export function ListScreen({
       // before anything is attempted, and the sheet is left up for the same
       // reason the refusal branch below leaves it up: it is the only copy of
       // every price typed and every quantity corrected.
-      if (isOfflineNow()) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      if (isOfflineNow()) return
 
       // Name the trip even when closing the one that is open.
       //
@@ -763,10 +760,7 @@ export function ListScreen({
       // sheet on an amount somebody read off a shelf and typed in, and the
       // toast would be the only trace of it. Here the sheet stays open holding
       // it, which is the whole difference.
-      if (isOfflineNow()) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      if (isOfflineNow()) return
       const itemId = logPriceFor.itemId
       setLogPriceFor(null)
       setActiveItemId(null)
@@ -823,10 +817,7 @@ export function ListScreen({
     // *resolves* — and a refusal that returns cleanly resolves. Guarded only
     // inside `clearItemPrice`, the sheet would shut as though the price had
     // been deleted while the row still shows it.
-    if (isOfflineNow()) {
-      showToast(OFFLINE_REFUSAL)
-      return
-    }
+    if (isOfflineNow()) return
     try {
       await clearItemPrice(logPriceFor.itemId)
       setLogPriceFor(null)

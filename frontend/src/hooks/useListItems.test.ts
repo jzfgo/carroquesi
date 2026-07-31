@@ -1090,7 +1090,12 @@ describe('useListItems — no write leaves without a signal', () => {
     expect(api.logPrice).not.toHaveBeenCalled()
     expect(api.updatePrice).not.toHaveBeenCalled()
     expect(api.deletePrice).not.toHaveBeenCalled()
-    expect(mockShowToast).toHaveBeenCalledWith('No disponible sin conexión')
+    // Silent on purpose. The sticky band states the condition once and stays,
+    // and the control that was pressed is drawn disabled — a toast per tap
+    // would be the same fact a third time, over a bar already showing it.
+    // Asserted rather than left implicit, because silence is only the right
+    // answer for as long as the band is what carries the explanation.
+    expect(mockShowToast).not.toHaveBeenCalled()
   })
 
   it.each(MUTATIONS)(
