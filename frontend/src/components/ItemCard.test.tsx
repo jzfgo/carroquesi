@@ -420,3 +420,62 @@ describe('ItemCard — the queued dot', () => {
     expect(container.querySelector('.item-card__queued')).toBeNull()
   })
 })
+
+
+/**
+ * The row keeps working as a row without a signal — it still reads, and it
+ * still opens. What it stops offering is the two things that write. The band
+ * above the router says why; a control that cannot succeed says it here.
+ */
+describe('with no connection', () => {
+  it('does not offer to move the line in or out of the cart', () => {
+    const onTogglePurchased = vi.fn()
+    render(
+      <ItemCard
+        item={makeItem()}
+        isOffline
+        onTogglePurchased={onTogglePurchased}
+        onOpen={vi.fn()}
+        onClone={vi.fn()}
+      />,
+    )
+    const circle = screen.getByRole('checkbox')
+    expect(circle).toBeDisabled()
+    fireEvent.click(circle)
+    expect(onTogglePurchased).not.toHaveBeenCalled()
+  })
+
+  it('does not offer to buy a settled line again', () => {
+    const onClone = vi.fn()
+    render(
+      <ItemCard
+        item={makeItem({ purchased: true })}
+        isOffline
+        onTogglePurchased={vi.fn()}
+        onOpen={vi.fn()}
+        onClone={onClone}
+      />,
+    )
+    const again = screen.getByRole('button', { name: /volver a comprar/i })
+    expect(again).toBeDisabled()
+    fireEvent.click(again)
+    expect(onClone).not.toHaveBeenCalled()
+  })
+
+  // The point of the rule: refusing to *read* would make the list less useful
+  // in the aisle, which is the one place it has to work.
+  it('still opens the item', () => {
+    const onOpen = vi.fn()
+    render(
+      <ItemCard
+        item={makeItem()}
+        isOffline
+        onTogglePurchased={vi.fn()}
+        onOpen={onOpen}
+        onClone={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /leche/i }))
+    expect(onOpen).toHaveBeenCalled()
+  })
+})

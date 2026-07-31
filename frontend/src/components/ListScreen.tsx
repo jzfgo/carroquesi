@@ -1035,6 +1035,7 @@ export function ListScreen({
         /* The dot exists only while there is no signal: with a connection the
            queue empties in less time than it takes to look at it. */
         queuedItemIds={isOffline ? pendingItemIds : undefined}
+        isOffline={isOffline}
         onTogglePurchased={handleTogglePurchased}
         onOpen={handleItemMenuOpen}
         onRetry={retry}
@@ -1086,6 +1087,7 @@ export function ListScreen({
           if (editingTag.field === 'stores') {
             return (
               <StoreEditSheet
+          isOffline={isOffline}
                 key={editingTag.itemId}
                 item={editedItem}
                 items={items}
@@ -1099,6 +1101,7 @@ export function ListScreen({
           }
           return (
             <TagEditSheet
+          isOffline={isOffline}
               key={`${editingTag.itemId}-${editingTag.field}`}
               item={editedItem}
               field={editingTag.field}
@@ -1122,6 +1125,7 @@ export function ListScreen({
           if (!activeItem) return null
           return (
             <ItemDetailSheet
+          isOffline={isOffline}
               item={activeItem}
               listId={listId}
               getToken={getToken}
@@ -1205,6 +1209,7 @@ export function ListScreen({
       )}
       {dueSuggestionsOpen && filteredDueSuggestions.length > 0 && (
         <DueSuggestionsSheet
+          isOffline={isOffline}
           suggestions={filteredDueSuggestions}
           onAdd={handleSuggestionAdd}
           onDismiss={handleSuggestionDismiss}
@@ -1241,6 +1246,7 @@ export function ListScreen({
       )}
       {scannedProduct && (
         <BarcodeScanSheet
+          isOffline={isOffline}
           product={scannedProduct}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onAdd={handleScanAdd as any}
@@ -1250,6 +1256,7 @@ export function ListScreen({
       )}
       {eanLookup.status === 'found' && (
         <BarcodeScanSheet
+          isOffline={isOffline}
           product={eanLookup.product}
           initialBrand={parsed.brand ?? undefined}
           initialStores={parsed.stores}

@@ -223,3 +223,48 @@ test('does not show suggestions for quantity field', () => {
     screen.queryByRole('button', { name: /Danone/i }),
   ).not.toBeInTheDocument()
 })
+
+
+describe('TagEditSheet — with no connection', () => {
+  it('offers neither saving nor clearing the value', () => {
+    const onSave = vi.fn()
+    render(
+      <TagEditSheet
+        item={BASE_ITEM}
+        field="brand"
+        items={[BASE_ITEM]}
+        isOffline
+        onSave={onSave}
+        onClose={() => {}}
+      />,
+    )
+
+    const save = screen.getByRole('button', { name: 'Guardar' })
+    expect(save).toBeDisabled()
+    fireEvent.click(save)
+
+    const clear = screen.getByRole('button', { name: /eliminar/i })
+    expect(clear).toBeDisabled()
+    fireEvent.click(clear)
+
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('does not write on Enter either', () => {
+    const onSave = vi.fn()
+    render(
+      <TagEditSheet
+        item={BASE_ITEM}
+        field="brand"
+        items={[BASE_ITEM]}
+        isOffline
+        onSave={onSave}
+        onClose={() => {}}
+      />,
+    )
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: 'Pascual' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onSave).not.toHaveBeenCalled()
+  })
+})

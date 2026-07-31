@@ -16,6 +16,10 @@ interface Props {
   item: ListItem
   /** Written here, not on the server yet. Only ever true while offline. */
   queued?: boolean
+  /** No signal, so the two controls that write are drawn as unavailable. The
+   *  row itself stays live: opening the item is a read, and refusing that
+   *  would make the list less useful in the aisle for nothing. */
+  isOffline?: boolean
   onTogglePurchased: (itemId: string) => void
   /** Opens the item — where its brand, its shop, its price, who added it and
    *  everything that can be done to it live. The row says only what it is. */
@@ -36,6 +40,7 @@ interface Props {
 export function ItemCard({
   item,
   queued,
+  isOffline = false,
   onTogglePurchased,
   onOpen,
   onClone,
@@ -93,7 +98,7 @@ export function ItemCard({
         <button
           className="item-card__again"
           onClick={() => onClone?.(item.id)}
-          disabled={!onClone}
+          disabled={!onClone || isOffline}
           aria-label={`Volver a comprar ${item.name}`}
         >
           <RotateCcw size={20} strokeWidth={2} aria-hidden />
@@ -107,6 +112,7 @@ export function ItemCard({
           aria-checked={state === 'cart' ? 'mixed' : false}
           className={`item-card__checkbox item-card__checkbox--${state}`}
           onClick={() => onTogglePurchased(item.id)}
+          disabled={isOffline}
           aria-label={CIRCLE_LABEL[state]}
         >
           {state === 'cart' && (

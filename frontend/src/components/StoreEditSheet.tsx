@@ -8,11 +8,16 @@ import './StoreEditSheet.css'
 interface Props {
   item: ListItem
   items: ListItem[]
+  /** No signal. Every control here writes: add and remove both call `onSave`
+   *  straight away, so there is no local draft to keep. */
+  isOffline?: boolean
   onSave: (stores: string[]) => void
   onClose: () => void
 }
 
-export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
+export function StoreEditSheet({ item, items, onSave, onClose,
+  isOffline = false,
+}: Props) {
   const [input, setInput] = useState('')
   const currentStores = item.stores
   const sheetRef = useRef<HTMLDivElement>(null)
@@ -23,12 +28,14 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
   )
 
   function addStore(name: string) {
+    if (isOffline) return
     const trimmed = name.trim()
     if (!trimmed || currentStores.includes(trimmed)) return
     onSave([...currentStores, trimmed])
   }
 
   function removeStore(name: string) {
+    if (isOffline) return
     onSave(currentStores.filter((s) => s !== name))
   }
 
@@ -66,6 +73,7 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
                 {store}
                 <button
                   className="store-edit-sheet__chip-remove"
+                  disabled={isOffline}
                   onClick={() => removeStore(store)}
                   aria-label={`Eliminar ${store}`}
                 >
@@ -90,6 +98,7 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
           <button
             className="store-edit-sheet__add"
             onClick={() => addStore(input)}
+            disabled={isOffline}
             aria-label="Añadir tienda"
           >
             +
@@ -103,6 +112,7 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
                 key={s}
                 className="store-edit-sheet__suggestion"
                 onClick={() => addStore(s)}
+                disabled={isOffline}
               >
                 {s}
               </button>

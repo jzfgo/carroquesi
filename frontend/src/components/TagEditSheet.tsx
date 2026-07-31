@@ -14,11 +14,21 @@ interface Props {
   item: ListItem
   field: TagField
   items: ListItem[]
+  /** No signal. The suggestions still fill the field — that is local — but
+   *  nothing that commits a value is offered. */
+  isOffline?: boolean
   onSave: (value: string | null) => void
   onClose: () => void
 }
 
-export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
+export function TagEditSheet({
+  item,
+  field,
+  items,
+  isOffline = false,
+  onSave,
+  onClose,
+}: Props) {
   const tagValues = {
     brand: item.brand,
     quantity: item.quantity,
@@ -33,6 +43,7 @@ export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
     field !== 'quantity' ? clientSideSuggestions(items, field, input) : []
 
   function handleSave() {
+    if (isOffline) return
     const trimmed = input.trim()
     onSave(trimmed.length > 0 ? trimmed : null)
   }
@@ -77,6 +88,7 @@ export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
           <button
             className="tag-edit-sheet__save"
             onClick={handleSave}
+            disabled={isOffline}
             aria-label="Guardar"
           >
             Guardar
@@ -101,6 +113,7 @@ export function TagEditSheet({ item, field, items, onSave, onClose }: Props) {
           <button
             className="tag-edit-sheet__remove"
             onClick={() => onSave(null)}
+            disabled={isOffline}
             aria-label={`Eliminar ${label}`}
           >
             Eliminar {label}

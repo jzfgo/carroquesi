@@ -9,6 +9,9 @@ interface Props {
   product: BarcodeRead
   initialBrand?: string | null
   initialStores?: string[]
+  /** No signal. «Editar» only carries the read into the input bar, which is
+   *  local, so it stays live; adding is the write. */
+  isOffline?: boolean
   onAdd: (item: {
     name: string
     brand: string | null
@@ -31,6 +34,7 @@ export function BarcodeScanSheet({
   product,
   initialBrand,
   initialStores,
+  isOffline = false,
   onAdd,
   onEdit,
   onClose,
@@ -142,6 +146,7 @@ export function BarcodeScanSheet({
                 stores: allStores.filter((s) => selectedStores.has(s)),
               })
             }
+            disabled={isOffline}
           >
             Añadir a la lista
           </button>

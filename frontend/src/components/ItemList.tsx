@@ -42,6 +42,9 @@ interface Props {
   notice?: ReactNode
   /** Item ids written here and not on the server yet. */
   queuedItemIds?: ReadonlySet<string>
+  /** Passed down so each row can draw its two writing controls as
+   *  unavailable. The rows stay readable and still open. */
+  isOffline?: boolean
   footer?: ReactNode
 }
 
@@ -60,6 +63,7 @@ export function ItemList({
   totalItems,
   notice,
   queuedItemIds,
+  isOffline = false,
   footer,
 }: Props) {
   // How many past trips are on the board before the rest are folded away.
@@ -246,6 +250,7 @@ export function ItemList({
                 key={item.id}
                 item={item}
                 queued={queuedItemIds?.has(item.id)}
+                isOffline={isOffline}
                 onTogglePurchased={onTogglePurchased}
                 onOpen={onOpen}
                 onClone={onClone}
@@ -269,6 +274,7 @@ export function ItemList({
                 key={item.id}
                 item={item}
                 queued={queuedItemIds?.has(item.id)}
+                isOffline={isOffline}
                 onTogglePurchased={onTogglePurchased}
                 onOpen={onOpen}
                 onClone={onClone}

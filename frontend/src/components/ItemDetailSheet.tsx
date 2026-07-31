@@ -17,6 +17,10 @@ interface Props {
   listId: string
   getToken: () => Promise<string>
   members?: Map<string, Member>
+  /** No signal. The rows that only *open* another sheet stay live — looking
+   *  at a brand is a read — and the controls that write are drawn as
+   *  unavailable. */
+  isOffline?: boolean
   onRename: (newName: string) => void
   onDelete: () => void
   onClose: () => void
@@ -39,6 +43,7 @@ export function ItemDetailSheet({
   listId,
   getToken,
   members,
+  isOffline = false,
   onRename,
   onDelete,
   onClose,
@@ -114,14 +119,16 @@ export function ItemDetailSheet({
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && trimmed) onRename(trimmed)
+                if (e.key === 'Enter' && trimmed && !isOffline) {
+                  onRename(trimmed)
+                }
               }}
               autoFocus
             />
             <button
               className="item-detail__primary"
               onClick={() => onRename(trimmed)}
-              disabled={!trimmed}
+              disabled={!trimmed || isOffline}
             >
               Guardar
             </button>
@@ -154,7 +161,11 @@ export function ItemDetailSheet({
             <p className="item-detail__warning">
               Esta acción no se puede deshacer.
             </p>
-            <button className="item-detail__destructive" onClick={onDelete}>
+            <button
+              className="item-detail__destructive"
+              onClick={onDelete}
+              disabled={isOffline}
+            >
               Sí, eliminar
             </button>
             <button

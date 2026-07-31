@@ -173,3 +173,48 @@ describe('StoreEditSheet', () => {
     expect(onClose).toHaveBeenCalled()
   })
 })
+
+
+describe('StoreEditSheet — with no connection', () => {
+  // Every control in this sheet writes: `addStore` and `removeStore` both call
+  // `onSave` straight away, so there is no local draft that could be kept.
+  it('offers neither adding nor removing a shop', () => {
+    const onSave = vi.fn()
+    render(
+      <StoreEditSheet
+        item={BASE_ITEM}
+        items={[]}
+        isOffline
+        onSave={onSave}
+        onClose={vi.fn()}
+      />,
+    )
+
+    const add = screen.getByRole('button', { name: /añadir tienda/i })
+    expect(add).toBeDisabled()
+    fireEvent.click(add)
+
+    const remove = screen.getAllByRole('button', { name: /quitar|eliminar/i })
+    remove.forEach((b) => expect(b).toBeDisabled())
+
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  // The button is disabled, so the key is the only way left in.
+  it('does not write on Enter either', () => {
+    const onSave = vi.fn()
+    render(
+      <StoreEditSheet
+        item={BASE_ITEM}
+        items={[]}
+        isOffline
+        onSave={onSave}
+        onClose={vi.fn()}
+      />,
+    )
+    const input = screen.getByLabelText('Nueva tienda')
+    fireEvent.change(input, { target: { value: 'Lidl' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onSave).not.toHaveBeenCalled()
+  })
+})

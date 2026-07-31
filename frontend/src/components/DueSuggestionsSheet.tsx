@@ -7,6 +7,9 @@ import './DueSuggestionsSheet.css'
 
 interface Props {
   suggestions: DueSuggestion[]
+  /** No signal. Only *adding* writes — dismissing a suggestion is recorded on
+   *  the device, so it keeps working and the list can still be tidied. */
+  isOffline?: boolean
   onAdd: (s: DueSuggestion) => void
   onDismiss: (s: DueSuggestion) => void
   onClose: () => void
@@ -14,6 +17,7 @@ interface Props {
 
 export function DueSuggestionsSheet({
   suggestions,
+  isOffline = false,
   onAdd,
   onDismiss,
   onClose,
@@ -74,6 +78,7 @@ export function DueSuggestionsSheet({
                 <button
                   className="due-suggestions-sheet__add"
                   onClick={() => onAdd(s)}
+                  disabled={isOffline}
                   aria-label={`Añadir ${s.name}`}
                 >
                   + Añadir

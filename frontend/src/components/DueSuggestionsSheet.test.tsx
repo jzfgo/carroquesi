@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, vi } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 import type { DueSuggestion } from '../types'
 import { DueSuggestionsSheet } from './DueSuggestionsSheet'
 
@@ -74,4 +74,27 @@ test('clicking overlay calls onClose', () => {
   const { container } = render(<DueSuggestionsSheet {...baseProps} />)
   fireEvent.click(container.querySelector('.due-suggestions-sheet__overlay')!)
   expect(baseProps.onClose).toHaveBeenCalled()
+})
+
+
+describe('DueSuggestionsSheet — with no connection', () => {
+  test('does not offer to add a suggestion', () => {
+    const onAdd = vi.fn()
+    render(<DueSuggestionsSheet {...baseProps} isOffline onAdd={onAdd} />)
+    const add = screen.getAllByRole('button', { name: /añadir/i })[0]
+    expect(add).toBeDisabled()
+    fireEvent.click(add)
+    expect(onAdd).not.toHaveBeenCalled()
+  })
+
+  // Dismissing is written to this device, not to the server, so it is not a
+  // write and must keep working — the list can still be tidied in the aisle.
+  test('still lets a suggestion be dismissed', () => {
+    const onDismiss = vi.fn()
+    render(
+      <DueSuggestionsSheet {...baseProps} isOffline onDismiss={onDismiss} />,
+    )
+    fireEvent.click(screen.getAllByRole('button', { name: /ignorar/i })[0])
+    expect(onDismiss).toHaveBeenCalled()
+  })
 })

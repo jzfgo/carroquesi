@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { BarcodeRead } from '../types'
@@ -370,5 +370,42 @@ describe('BarcodeScanSheet', () => {
         'true',
       )
     })
+  })
+})
+
+
+describe('BarcodeScanSheet — with no connection', () => {
+  it('does not offer to add the scanned product', () => {
+    const onAdd = vi.fn()
+    render(
+      <BarcodeScanSheet
+        product={product}
+        isOffline
+        onAdd={onAdd}
+        onEdit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    const add = screen.getByRole('button', { name: /añadir a la lista/i })
+    expect(add).toBeDisabled()
+    fireEvent.click(add)
+    expect(onAdd).not.toHaveBeenCalled()
+  })
+
+  // «Editar» only carries what was read into the input bar. Nothing is
+  // written, so nothing is refused.
+  it('still carries the read into the input bar', () => {
+    const onEdit = vi.fn()
+    render(
+      <BarcodeScanSheet
+        product={product}
+        isOffline
+        onAdd={vi.fn()}
+        onEdit={onEdit}
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /editar/i }))
+    expect(onEdit).toHaveBeenCalled()
   })
 })

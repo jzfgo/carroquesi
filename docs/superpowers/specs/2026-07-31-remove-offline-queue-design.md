@@ -172,6 +172,29 @@ The one case that still speaks is a write that **fails** after being attempted:
 a different sentence («no se pudo…»), on a screen where the band is correctly
 absent because `navigator.onLine` is `true`. See limit 1.
 
+### A control that writes is disabled; one that reads is not
+
+The line is **what the control does**, not what it leads to. Disabling a row
+that merely opens an editor would make the app less useful in the aisle for no
+safety gained — reaching a value is a read. So:
+
+| disabled | left live |
+| -- | -- |
+| the circle (in/out of the cart), «volver a comprar» | opening the item, which is a read |
+| rename *Guardar* and its Enter, «Sí, eliminar» | the «Nombre»/«Marca» rows that open the editors |
+| tag *Guardar*, «Eliminar {campo}», and Enter | the suggestion chips, which only fill the field |
+| every store control — add, remove, chips, Enter | — (all of them call `onSave` directly) |
+| «Añadir» on a due suggestion | «Ignorar», which is written to this device |
+| «Añadir a la lista» on a scan | «Editar», which only prefills the input bar |
+
+Where a sheet has no local draft — `StoreEditSheet` is the case — the refusal
+also sits in the mutator itself, because the keyboard reaches it without the
+button.
+
+`ItemActionSheet` is named in JAV-90 but no longer exists: phase 6 (#198)
+replaced it with `ItemDetailSheet`. The sixth surface is `ItemCard`, whose
+circle is the most-used write in the app.
+
 ### Controls are disabled, not tappable-then-refused
 
 Gating every mutation behind `if (isOffline) { showToast(…); return }` alone

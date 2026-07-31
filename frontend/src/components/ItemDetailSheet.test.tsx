@@ -332,3 +332,32 @@ describe('ItemDetailSheet', () => {
     expect(screen.getByText('€ 5,34')).toBeInTheDocument()
   })
 })
+
+
+describe('ItemDetailSheet — with no connection', () => {
+  it('does not offer to rename', () => {
+    const onRename = vi.fn()
+    renderSheet({}, { isOffline: true, onRename })
+
+    // The «Nombre» row is what opens the rename step. It stays live on
+    // purpose: reaching an editor is a read.
+    fireEvent.click(screen.getByRole('button', { name: /nombre/i }))
+    const field = screen.getByRole('textbox')
+    fireEvent.change(field, { target: { value: 'Leche desnatada' } })
+
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+    fireEvent.keyDown(field, { key: 'Enter' })
+    expect(onRename).not.toHaveBeenCalled()
+  })
+
+  it('does not offer to delete', () => {
+    const onDelete = vi.fn()
+    renderSheet({}, { isOffline: true, onDelete })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar producto' }))
+    const confirm = screen.getByRole('button', { name: /sí, eliminar/i })
+    expect(confirm).toBeDisabled()
+    fireEvent.click(confirm)
+    expect(onDelete).not.toHaveBeenCalled()
+  })
+})
