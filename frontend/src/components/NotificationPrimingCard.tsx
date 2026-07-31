@@ -11,6 +11,8 @@ interface Props {
   /** True once the user has created or accepted an invite, or the list has 2+ members. */
   hasSharingIntent: boolean
   isIOS: boolean
+  /** Named rather than called "esta lista": the card sits in one list and pushes are per list. */
+  listName: string
   onEnable: () => void
 }
 
@@ -24,6 +26,7 @@ export function NotificationPrimingCard({
   permission,
   hasSharingIntent,
   isIOS,
+  listName,
   onEnable,
 }: Props) {
   const [dismissed, setDismissed] = useState(() =>
@@ -47,12 +50,13 @@ export function NotificationPrimingCard({
       <div className="push-priming__body">
         {canReceive ? (
           <p className="push-priming__text">
-            Te avisamos cuando alguien añada o compre algo en esta lista.
+            Te avisamos cuando alguien añada o compre algo en{' '}
+            <strong>{listName}</strong>.
           </p>
         ) : (
           <p className="push-priming__text">
             Añade CarroQueSí a tu <strong>pantalla de inicio</strong> para
-            recibir avisos de esta lista.
+            recibir avisos de <strong>{listName}</strong>.
           </p>
         )}
         {canReceive && (

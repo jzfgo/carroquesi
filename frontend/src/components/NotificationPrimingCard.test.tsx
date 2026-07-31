@@ -7,6 +7,7 @@ const props = {
   permission: 'default' as const,
   hasSharingIntent: true,
   isIOS: false,
+  listName: 'Casa',
   onEnable: vi.fn(),
 }
 
@@ -45,6 +46,11 @@ describe('NotificationPrimingCard', () => {
     unmount()
     render(<NotificationPrimingCard {...props} />)
     expect(screen.queryByRole('button', { name: /activar avisos/i })).toBeNull()
+  })
+
+  it('names the list rather than calling it "esta lista"', () => {
+    render(<NotificationPrimingCard {...props} />)
+    expect(screen.getByText('Casa')).toBeInTheDocument()
   })
 
   it('calls onEnable from the user gesture', () => {

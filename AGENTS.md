@@ -107,6 +107,15 @@ Scanning a receipt and closing a shopping trip are one act, so a scan has no scr
 
 That one save records the shop, prices the items, links the scan to the trip, and stores the receipt→item names the user confirmed. `VITE_RECAPTCHA_SITE_KEY` required in production for Firebase App Check (reCAPTCHA v3).
 
+### Settings
+
+`SettingsSheet` is the only home for a setting. It opens from the dashboard avatar and holds notifications, appearance, the Siri shortcut and the app block; there is no settings screen and no avatar menu. A setting offered anywhere else is a second path to one action, which is the duplication this sheet was built to remove — installing used to be a menu item *and* a permanent banner.
+
+Two rules there are easy to breach and nothing will fail if you do:
+
+- **The permission request must be the first statement of the handler.** `enablePush` opens with `Notification.requestPermission()`, so a caller that awaits an auth token, a transition or a confirmation first can lose the gesture in WebKit — and on iOS the denial that follows is permanent for the whole origin. Two callers reach it: the sheet's switch and `NotificationPrimingCard`. A unit test clicks and asserts with no `await` in between; adding one makes it pass while the bug is back.
+- **The switch has five states, not four.** `pushState` in `lib/push.ts` derives them, and it reads `canReceivePush` *before* `permissionState`: an iPhone in Safari reports `default` and can still never deliver a push. Two of the five — granted-and-subscribed and granted-without-a-token — are identical to the system and opposite to the user, because the token is per device.
+
 ### Purchased item rules
 
 Purchased items are mostly read-only (rename/qty/brand/store edits disabled). Price deletion has a **trip-open guard**, not a calendar-day one: enforced in both `LogPurchaseSheet` (frontend) and `DELETE /lists/{id}/items/{item_id}/prices` (backend), which returns 422 once the item's trip has closed or torn off. See [ADR-011](docs/decisions/011-purchase-entity-and-trip-boundary.md).

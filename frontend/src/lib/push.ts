@@ -50,6 +50,35 @@ export function isPushEnabled(): boolean {
 }
 
 /**
+ * The five states a notification control can be in, which is one more than
+ * `PermissionState` has values.
+ */
+export type PushState = 'ask' | 'on' | 'off' | 'denied' | 'unavailable'
+
+/**
+ * Whether this device can receive at all is asked first, and permission only
+ * decides the rest.
+ *
+ * The two answers come from different places and can disagree: an iPhone in
+ * Safari without a home-screen install reports `default` and can still never
+ * deliver a push. Reading permission first would give that device a switch that
+ * looks like it works.
+ *
+ * On and off are the pair worth keeping apart. Both are `granted` to the
+ * system, and they are opposites to the person holding the phone.
+ */
+export function pushState(
+  canReceive: boolean,
+  permission: PermissionState,
+  enabled: boolean,
+): PushState {
+  if (!canReceive) return 'unavailable'
+  if (permission === 'denied') return 'denied'
+  if (permission === 'default') return 'ask'
+  return enabled ? 'on' : 'off'
+}
+
+/**
  * Must be called from a user gesture. On iOS this prompt can only ever be shown
  * once — a denial is origin-wide and permanent — so callers prime first.
  */

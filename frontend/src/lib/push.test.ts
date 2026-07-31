@@ -29,6 +29,7 @@ import {
   disablePush,
   enablePush,
   permissionState,
+  pushState,
   syncPushToken,
 } from './push'
 
@@ -173,5 +174,27 @@ describe('token lifecycle', () => {
 
     expect(localStorage.getItem(SUBSCRIBED_KEY)).toBeNull()
     expect(registerPushToken).not.toHaveBeenCalled()
+  })
+})
+
+describe('pushState', () => {
+  // The order the conditions are read in, not the order the design numbers
+  // them. An iPhone in Safari says 'default' and can still never deliver a
+  // push, so asking permission first would give it a switch that does nothing.
+  it('lets "cannot receive" win over a permission that says otherwise', () => {
+    expect(pushState(false, 'default', false)).toBe('unavailable')
+    expect(pushState(false, 'granted', true)).toBe('unavailable')
+  })
+
+  // The pair that only exists because the token is per device: identical read
+  // from the system, opposite to the person holding the phone.
+  it('separates granted-and-subscribed from granted-and-not', () => {
+    expect(pushState(true, 'granted', true)).toBe('on')
+    expect(pushState(true, 'granted', false)).toBe('off')
+  })
+
+  it('passes through the two answers the system can still give', () => {
+    expect(pushState(true, 'default', false)).toBe('ask')
+    expect(pushState(true, 'denied', false)).toBe('denied')
   })
 })

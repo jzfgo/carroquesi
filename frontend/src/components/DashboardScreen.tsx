@@ -12,7 +12,6 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Bell, BellOff, SunMoon } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -22,35 +21,18 @@ import { useIsOffline } from '../hooks/useIsOffline'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import type { FeedbackPayload } from '../lib/api'
-import {
-  createList,
-  getLists,
-  issueApiKey,
-  openShortcutImport,
-  regenerateApiKey,
-  submitFeedback,
-} from '../lib/api'
-import { copyToClipboard } from '../lib/clipboard'
+import { createList, getLists, submitFeedback } from '../lib/api'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
 import type { DragState } from '../lib/dragAnnouncements'
 import { createDragAnnouncements } from '../lib/dragAnnouncements'
 import { FLAGS } from '../lib/featureFlags'
 import type { Direction } from '../lib/listOrder'
 import { moveAnnouncement, moveList } from '../lib/listOrder'
-import {
-  canReceivePush,
-  disablePush,
-  enablePush,
-  isPushEnabled,
-  permissionState,
-} from '../lib/push'
 import type { ApiList } from '../types'
-import { ApiKeySheet } from './ApiKeySheet'
-import { AppearanceSegment } from './AppearanceSegment'
 import { CreateListCard } from './CreateListCard'
 import './DashboardScreen.css'
 import { FeedbackSheet } from './FeedbackSheet'
-import { InstallBanner } from './InstallBanner'
+import { SettingsSheet } from './SettingsSheet'
 import { SortableListCard } from './SortableListCard'
 import { Toast } from './Toast'
 import { Wordmark } from './Wordmark'
@@ -105,83 +87,20 @@ export function DashboardScreen() {
   const { isOffline } = useIsOffline()
   usePageTitle(undefined)
   const [toast, setToast] = useState<string | null>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
   const { isEnabled } = useFeatureFlags()
-  const [pushOn, setPushOn] = useState(() => isPushEnabled())
-  // Permission is held in state rather than read inline in JSX. A denial does
-  // not change isPushEnabled() -- it is false before and after -- so
-  // setPushOn alone is a same-value update, and React may skip the re-render
-  // that would reveal the blocked message. This value genuinely changes
-  // ('default' -> 'denied'), so it cannot hit that bailout.
-  const [permission, setPermission] = useState(() => permissionState())
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const isApplePlatform = useApplePlatform()
-  const [siriSheetOpen, setSiriSheetOpen] = useState(false)
-  const [shownKey, setShownKey] = useState<string | null>(null)
 
   const defaultList = lists?.find((l) => l.is_default) ?? null
-
-  const handleOpenSiriSheet = async () => {
-    // The shortcut sends list_id="default"; without a default it would only 404.
-    // Gate the setup here so the user marks a default first (mirrors the backend
-    // guard on POST /account/api-key).
-    if (!defaultList) {
-      setToast('Marca una lista como predeterminada para usar el atajo de Siri')
-      return
-    }
-    try {
-      // Idempotent: returns a plaintext key only on first issuance (created=true);
-      // a returning user gets null, since the stored hash can't be re-displayed.
-      // Either way the sheet opens and walks the user through adding the shortcut.
-      const { key } = await issueApiKey(getToken)
-      setShownKey(key)
-      setSiriSheetOpen(true)
-    } catch {
-      setToast('No se pudo preparar el atajo de Siri. Inténtalo de nuevo.')
-    }
-  }
-
-  const handleRegenerateKey = async () => {
-    try {
-      const { key } = await regenerateApiKey(getToken)
-      setShownKey(key)
-    } catch {
-      setToast('No se pudo regenerar la clave. Inténtalo de nuevo.')
-    }
-  }
-
-  async function handleCopyKey() {
-    if (!shownKey) return
-    const ok = await copyToClipboard(shownKey)
-    setToast(ok ? 'Clave copiada' : 'No se pudo copiar la clave')
-  }
 
   useEffect(() => {
     if (!toast) return
     const id = setTimeout(() => setToast(null), 3000)
     return () => clearTimeout(id)
   }, [toast])
-
-  useEffect(() => {
-    if (!menuOpen) return
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    document.addEventListener('keydown', handleKey)
-    return () => {
-      document.removeEventListener('mousedown', handleClick)
-      document.removeEventListener('keydown', handleKey)
-    }
-  }, [menuOpen])
 
   const [reorderRequested, setReorderRequested] = useState(false)
   const [moveMessage, setMoveMessage] = useState('')
@@ -424,84 +343,25 @@ export function DashboardScreen() {
     )
   }
 
-  const showInstallEntry = (isInstallable || isIOS) && !isInstalled
-
   return (
     <div className="dashboard-screen">
       <header className="dashboard-screen__header">
         <h1 className="dashboard-screen__title">
           <Wordmark size={26} />
         </h1>
-        <div className="dashboard-screen__avatar-wrapper" ref={menuRef}>
-          <button
-            className="dashboard-screen__avatar"
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-label="Menú de usuario"
-            aria-expanded={menuOpen}
-            aria-haspopup="menu"
-          >
-            {user?.photoUrl ? (
-              <img src={user.photoUrl} alt={user.displayName} />
-            ) : (
-              <span>{user?.displayName?.[0] ?? '?'}</span>
-            )}
-          </button>
-          {menuOpen && (
-            <div className="dashboard-screen__avatar-menu" role="menu">
-              <div className="dashboard-screen__appearance">
-                <span className="dashboard-screen__appearance-label">
-                  <SunMoon size={18} aria-hidden />
-                  Aspecto
-                </span>
-                <AppearanceSegment itemRole="menuitemradio" />
-              </div>
-              {showInstallEntry && (
-                <button
-                  className="dashboard-screen__avatar-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    void promptInstall()
-                    setMenuOpen(false)
-                  }}
-                >
-                  Instalar app
-                </button>
-              )}
-              <button
-                className="dashboard-screen__avatar-menu-item"
-                role="menuitem"
-                onClick={() => {
-                  setFeedbackOpen(true)
-                  setMenuOpen(false)
-                }}
-              >
-                Enviar feedback
-              </button>
-              {isApplePlatform && (
-                <button
-                  className="dashboard-screen__avatar-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    void handleOpenSiriSheet()
-                    setMenuOpen(false)
-                  }}
-                >
-                  Añadir atajo a Siri
-                </button>
-              )}
-              <button
-                className="dashboard-screen__avatar-menu-item"
-                role="menuitem"
-                onClick={() => {
-                  void signOut()
-                  setMenuOpen(false)
-                }}
-              >
-                Cerrar sesión
-              </button>
-            </div>
+        <button
+          className="dashboard-screen__avatar"
+          onClick={() => setSettingsOpen(true)}
+          aria-label="Ajustes"
+          aria-haspopup="dialog"
+          aria-expanded={settingsOpen}
+        >
+          {user?.photoUrl ? (
+            <img src={user.photoUrl} alt={user.displayName} />
+          ) : (
+            <span>{user?.displayName?.[0] ?? '?'}</span>
           )}
-        </div>
+        </button>
       </header>
       {isOffline && (
         <div className="offline-banner" role="status">
@@ -509,49 +369,6 @@ export function DashboardScreen() {
         </div>
       )}
       <main className="dashboard-screen__lists">
-        <div className="dashboard-screen__notices">
-          <InstallBanner
-            isInstallable={isInstallable}
-            isInstalled={isInstalled}
-            isIOS={isIOS}
-            promptInstall={promptInstall}
-          />
-          {isEnabled(FLAGS.PUSH_NOTIFICATIONS) &&
-            canReceivePush({ isIOS, isInstalled }) &&
-            // Once permission is denied the browser will not re-prompt, so a
-            // button here would call requestPermission(), return immediately and
-            // change nothing — a control that looks broken. Explain the way out
-            // instead of offering a dead action.
-            (permission === 'denied' ? (
-              <p className="notifications-toggle notifications-toggle--blocked">
-                <span className="notifications-toggle__icon" aria-hidden="true">
-                  <BellOff size={18} />
-                </span>
-                Has bloqueado los avisos. Actívalos en los ajustes de tu
-                navegador para volver a recibirlos.
-              </p>
-            ) : (
-              <button
-                className="notifications-toggle"
-                onClick={async () => {
-                  // Reads back the real state rather than assuming success: the
-                  // OS prompt can be denied, and on iOS that denial is permanent.
-                  if (pushOn) await disablePush(getToken).catch(() => undefined)
-                  else await enablePush(getToken).catch(() => undefined)
-                  setPushOn(isPushEnabled())
-
-                  setPermission(permissionState())
-                }}
-              >
-                <span className="notifications-toggle__icon" aria-hidden="true">
-                  {pushOn ? <BellOff size={18} /> : <Bell size={18} />}
-                </span>
-                {pushOn
-                  ? 'Desactivar avisos'
-                  : 'Avisarme de cambios en mis listas'}
-              </button>
-            ))}
-        </div>
         {lists.length > 0 && (
           <div className="dashboard-screen__panel-head">
             <span className="dashboard-screen__panel-label">Tus listas</span>
@@ -701,25 +518,34 @@ export function DashboardScreen() {
           />
         </div>
       </main>
+      {settingsOpen && (
+        <SettingsSheet
+          user={user}
+          getToken={getToken}
+          pushAvailable={isEnabled(FLAGS.PUSH_NOTIFICATIONS)}
+          isIOS={isIOS}
+          isInstalled={isInstalled}
+          isInstallable={isInstallable}
+          promptInstall={promptInstall}
+          isApplePlatform={isApplePlatform}
+          defaultListName={defaultList?.name ?? null}
+          // Settings closes on its way out. Two live sheets would stack two
+          // overlays and leave two elements each claiming to be the only modal.
+          onOpenFeedback={() => {
+            setSettingsOpen(false)
+            setFeedbackOpen(true)
+          }}
+          onSignOut={() => void signOut()}
+          onToast={setToast}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
       {feedbackOpen && (
         <FeedbackSheet
           defaultEmail={user?.email}
           isSubmitting={feedbackSubmitting}
           onSubmit={(payload) => void handleFeedbackSubmit(payload)}
           onClose={() => setFeedbackOpen(false)}
-        />
-      )}
-      {siriSheetOpen && (
-        <ApiKeySheet
-          apiKey={shownKey}
-          defaultListName={defaultList?.name ?? null}
-          onCopy={() => void handleCopyKey()}
-          onImport={() => openShortcutImport()}
-          onRegenerate={handleRegenerateKey}
-          onClose={() => {
-            setSiriSheetOpen(false)
-            setShownKey(null)
-          }}
         />
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}

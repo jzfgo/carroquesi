@@ -90,12 +90,6 @@ test('the theme class lands on <html>, because :root is where the aliases are', 
   expect(document.body).not.toHaveClass('theme-dark')
 })
 
-test('inside a menu the options are menuitemradio, the only correct child role', () => {
-  render(<AppearanceSegment itemRole="menuitemradio" />)
-  expect(screen.getAllByRole('menuitemradio')).toHaveLength(3)
-  expect(screen.queryAllByRole('radio')).toHaveLength(0)
-})
-
 test('"Sistema" on a dark phone paints dark without storing "dark"', () => {
   setSystemDark(true)
   resetThemeForTests()
