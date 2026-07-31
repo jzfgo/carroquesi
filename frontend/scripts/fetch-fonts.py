@@ -42,6 +42,7 @@ cannot leave behind a file that fails `just ci`.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -70,6 +71,19 @@ USER_AGENT = (
 )
 
 SUBSETS = ("latin", "latin-ext")
+
+# Family names that must never lose their quotes. `font-family-name-quotes`
+# strips quotes from any single-word name it judges not to need them, and for
+# these the quotes are the whole meaning: `'Fantasy'` unquoted stops naming a
+# font and starts naming a generic, `'Inherit'` becomes a CSS-wide keyword. All
+# five families here are safe and none of this can happen without someone
+# editing FONTS_URL — which is the moment worth catching, and the reason this
+# is an assertion rather than a comment. Raised by the re-review of #201.
+RESERVED_FAMILY_NAMES = {
+    "serif", "sans-serif", "cursive", "fantasy", "monospace", "system-ui",
+    "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded", "math", "emoji",
+    "fangsong", "inherit", "initial", "unset", "revert", "revert-layer", "default",
+}
 
 FONT_DIR = Path("src/assets/fonts")
 CSS_OUT = Path("src/fonts.css")
@@ -100,22 +114,35 @@ def format_css(path: Path) -> bool:
     """Lay the emitted file out the way `just ci` expects to find it.
 
     Google's CSS is not written to this repo's house style: it quotes family
-    names, which `font-family-name-quotes` rejects, and it runs the `/* subset */
-    */` comments straight onto the previous rule, which `comment-empty-line-before`
-    rejects. Neither changes a value — stylelint's own `--fix` resolves both —
-    but `src/fonts.css` is in neither ignore file, so a run that skipped this
-    would leave the repo one commit from a red CI job with no reason for anyone
-    to suspect the font script of it. Failing here is therefore a real failure.
+    names, which `font-family-name-quotes` rejects, and it runs the
+    `/* subset */` comments straight onto the previous rule, which
+    `comment-empty-line-before` rejects. Neither changes a value — stylelint's
+    own `--fix` resolves both — but `src/fonts.css` is in neither ignore file,
+    so a run that skipped this would leave the repo one commit from a red CI
+    job with no reason for anyone to suspect the font script of it.
 
-    stylelint first, prettier second, so the final say on layout is prettier's,
-    which is the order `just ci` checks them in.
+    stylelint fixes first and prettier writes last, because prettier must have
+    the final say for `format:check` to pass. Note that is *not* the order the
+    checks run in — `just ci` is `format-check` then `lint`, so prettier is
+    checked first and stylelint second — and the two orders being opposite is
+    the point rather than an oversight.
+
+    Which is why the fixers are not trusted to have converged. `prettier
+    --write` exits 0 whether or not its rewrap has re-violated a stylelint
+    rule, so running the two fixers proves only that they ran. The check pass
+    below is what makes the docstring's promise true instead of likely.
     """
-    if shutil.which("pnpm") is None:
-        print("pnpm not on PATH — run `just frontend fetch-fonts` instead", file=sys.stderr)
-        return False
     for tool in (["stylelint", "--fix"], ["prettier", "--write"]):
         if subprocess.run(["pnpm", "exec", *tool, str(path)]).returncode != 0:
             print(f"{tool[0]} could not format {path}", file=sys.stderr)
+            return False
+    for tool in (["prettier", "--check"], ["stylelint"]):
+        if subprocess.run(["pnpm", "exec", *tool, str(path)]).returncode != 0:
+            print(
+                f"{path} still fails {tool[0]} after formatting — the two fixers "
+                "disagree, and this file would fail `just ci`",
+                file=sys.stderr,
+            )
             return False
     return True
 
@@ -125,29 +152,48 @@ def main() -> int:
         print("run me from frontend/", file=sys.stderr)
         return 1
 
+    # Asked before anything is fetched or written, not when the formatter is
+    # wanted. Discovering there is no pnpm *after* the swap would leave the tree
+    # correct but unformatted, and exit 1 on a run that had in fact succeeded.
+    if shutil.which("pnpm") is None:
+        print("pnpm not on PATH — run `just frontend fetch-fonts` instead", file=sys.stderr)
+        return 1
+
     request = urllib.request.Request(FONTS_URL, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request) as response:
         css = response.read().decode()
 
-    # Downloaded beside the real directory and moved over it at the end, rather
-    # than into it. The replacement has to be wholesale — a family or a subset
+    # Written beside the real files and moved over them at the end, rather than
+    # into them. The replacement has to be wholesale — a family or a subset
     # removed from the request above must disappear from the tree too, and an
     # incremental write would leave it behind, still shipped and still precached
-    # — but deleting first means any failure after that point (a dropped
-    # connection mid-loop, the bail below) leaves `src/assets/fonts/` empty or
-    # half-filled while `src/fonts.css` still names all ten files. The build
-    # breaks, and nothing on screen says the remedy is `git checkout`.
+    # — but doing that in place means any failure part-way (a dropped connection
+    # mid-loop, the bail below) leaves `src/assets/fonts/` empty or half-filled
+    # while `src/fonts.css` still names all ten files. The build breaks, and
+    # nothing on screen says the remedy is `git checkout`.
+    #
+    # The fonts and the CSS have to move together, so the old directory is
+    # *renamed aside* rather than deleted: until both moves have landed there is
+    # a complete copy of the previous state on disk, and the `finally` puts it
+    # back. Deleting first and renaming second — which is what this did until the
+    # re-review — has a window where a failed rename destroys the old set and the
+    # cleanup then destroys the new one, leaving neither. Rare, and worse than
+    # the bug being fixed.
     staging = FONT_DIR.with_name(FONT_DIR.name + ".partial")
-    if staging.exists():
-        shutil.rmtree(staging)
+    backup = FONT_DIR.with_name(FONT_DIR.name + ".previous")
+    css_staging = CSS_OUT.with_suffix(CSS_OUT.suffix + ".partial")
+    for leftover in (staging, backup):
+        if leftover.exists():
+            shutil.rmtree(leftover)
     staging.mkdir(parents=True)
 
     out: list[str] = [HEADER]
     downloaded: dict[str, str] = {}
+    swapped = False
 
-    # The staging directory must not outlive a failed run either: left behind
-    # inside `src/`, it is untracked litter that the next run would have to
-    # recognise as stale rather than resumable.
+    # Nothing half-written may outlive a failed run either: left behind inside
+    # `src/`, it is untracked litter the next run would have to recognise as
+    # stale rather than resumable.
     try:
         for match in BLOCK_RE.finditer(css):
             subset = match.group("subset")
@@ -156,6 +202,14 @@ def main() -> int:
             block = match.group("block")
 
             family = FAMILY_RE.search(block).group("family")
+            if family.lower() in RESERVED_FAMILY_NAMES:
+                print(
+                    f"«{family}» is a CSS keyword; unquoted it would stop naming a "
+                    "font. Request a different family, or exempt this file from "
+                    "font-family-name-quotes before adding it.",
+                    file=sys.stderr,
+                )
+                return 1
             url = SRC_RE.search(block).group("url")
 
             # The variable families repeat one URL across every weight. Name the
@@ -175,15 +229,31 @@ def main() -> int:
             print("no @font-face blocks matched — did the CSS format change?", file=sys.stderr)
             return 1
 
-        # Everything is on disk and the CSS names only files that exist. Swap.
+        # Everything is on disk and the CSS names only files that exist, so the
+        # two moves go back to back with nothing between them that can fail.
+        # The CSS is written here, not after the swap: `out` has been complete
+        # since the loop ended, and leaving the write outside meant new fonts
+        # could sit under CSS naming the old ones. Harmless while the filenames
+        # are stable — and the only reason to run this script is to change
+        # `FONTS_URL` or `SUBSETS`, which is exactly the run where they move.
+        css_staging.write_text("\n".join(out) + "\n")
         if FONT_DIR.exists():
-            shutil.rmtree(FONT_DIR)
+            FONT_DIR.rename(backup)
         staging.rename(FONT_DIR)
+        os.replace(css_staging, CSS_OUT)
+        swapped = True
     finally:
-        if staging.exists():
-            shutil.rmtree(staging)
-
-    CSS_OUT.write_text("\n".join(out) + "\n")
+        if swapped:
+            shutil.rmtree(backup, ignore_errors=True)
+        else:
+            # Publication never started, or started and did not finish. Either
+            # way the tree goes back to what it was, rather than to whichever
+            # half happened to land.
+            shutil.rmtree(staging, ignore_errors=True)
+            css_staging.unlink(missing_ok=True)
+            if backup.exists():
+                shutil.rmtree(FONT_DIR, ignore_errors=True)
+                backup.rename(FONT_DIR)
 
     if not format_css(CSS_OUT):
         return 1
