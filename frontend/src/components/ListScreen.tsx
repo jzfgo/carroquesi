@@ -374,6 +374,16 @@ export function ListScreen({
   // that already names its zone is `NaN`, `NaN > now` is `false`, and the
   // trip would quietly not exist. That costs the offline `purchase_id` pin
   // below, which is there to rescue a shop tapped with no signal.
+  //
+  // One asymmetry with `itemState` is worth naming, because it is what decides
+  // the answer here. That one labels an item and can only mislabel the item it
+  // was handed; this one *picks* between trips, and a trip torn off but never
+  // filed keeps `closed_at === null` for good. So the unreadable branch can
+  // admit more than one candidate, and `find` takes whichever comes first.
+  // First is the newest — `GET /lists/{id}/purchases` orders `opened_at desc`
+  // and the Map is built from that array in order. That is the guess you would
+  // make by hand, but it rests on the endpoint's `order_by` rather than on
+  // anything visible from here.
   const openTrip = useMemo(
     () =>
       [...purchasesById.values()].find((p) => {
