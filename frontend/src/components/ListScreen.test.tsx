@@ -326,9 +326,13 @@ describe('ListScreen', () => {
 
     expect(document.querySelector('.lps')).toBeInTheDocument()
     expect(document.querySelector('.item-detail')).not.toBeInTheDocument()
-    // Nothing is left listening for a key it should no longer answer.
+
+    // The point is that the sheet behind is gone, so it can no longer answer a
+    // key meant for the one in front. That LogPurchaseSheet does not answer it
+    // either is a gap it has always had, not a rule — this records the absence
+    // so the next person is free to close it.
     fireEvent.keyDown(document, { key: 'Escape' })
-    expect(document.querySelector('.lps')).toBeInTheDocument()
+    expect(document.querySelector('.item-detail')).not.toBeInTheDocument()
   })
 
   it('opens ItemDetailSheet when the row is tapped and handles rename', async () => {

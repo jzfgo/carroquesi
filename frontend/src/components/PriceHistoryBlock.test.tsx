@@ -42,6 +42,65 @@ describe('PriceHistoryBlock', () => {
     expect(screen.getByText('2 precios · último 22 jul')).toBeInTheDocument()
   })
 
+  // A visit that wrote nothing down is a visit, not a price. Counting it puts
+  // «3 precios» over a list whose third line says «sin precio».
+  it('counts the prices a shop has, not the times it was visited', () => {
+    render(
+      <PriceHistoryBlock
+        entries={[
+          entry({ purchased_at: '2026-07-22T12:00:00' }),
+          entry({ purchased_at: '2026-07-15T12:00:00' }),
+          entry({
+            originalAmount: null,
+            displayAmount: null,
+            purchased_at: '2026-06-21T12:00:00',
+          }),
+        ]}
+      />,
+    )
+    // Three visits, the last of them on 21 jun, and two prices among them.
+    expect(screen.getByText('2 precios · último 22 jul')).toBeInTheDocument()
+  })
+
+  it('says so plainly for a shop that has only ever written nothing down', () => {
+    render(
+      <PriceHistoryBlock
+        entries={[
+          entry({
+            originalAmount: null,
+            displayAmount: null,
+            purchased_at: '2026-06-21T12:00:00',
+          }),
+        ]}
+      />,
+    )
+    expect(screen.getByText('Sin precio · último 21 jun')).toBeInTheDocument()
+  })
+
+  // The headline is the last price. Taking it from the newest record prints a
+  // dash for a shop with plenty of prices whose last visit recorded none.
+  it('leads with the last price even when the last visit had none', () => {
+    render(
+      <PriceHistoryBlock
+        entries={[
+          entry({
+            originalAmount: null,
+            displayAmount: null,
+            purchased_at: '2026-07-22T12:00:00',
+          }),
+          entry({
+            originalAmount: 1.05,
+            displayAmount: 1.05,
+            purchased_at: '2026-07-15T12:00:00',
+          }),
+        ]}
+      />,
+    )
+    const row = screen.getByRole('button', { name: /Mercadona/ })
+    expect(within(row).getByText('1,05')).toBeInTheDocument()
+    expect(within(row).queryByText('—')).toBeNull()
+  })
+
   it('opens a shop where it stands and closes it again', () => {
     render(<PriceHistoryBlock entries={[entry()]} />)
     const row = screen.getByRole('button', { name: /Mercadona/ })

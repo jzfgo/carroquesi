@@ -219,8 +219,16 @@ export function PriceHistoryBlock({ entries, onLogPrice }: Props) {
       )}
       {groups.map((group) => {
         const isOpen = openStore === group.store
-        const latest = group.records[0]
-        const figure = latest.originalAmount ?? latest.displayAmount
+        // A shop's records are its visits, and a visit that wrote nothing down
+        // is one of them. It is not a price, though: counting it would put
+        // «3 precios» over a list whose third line reads «sin precio».
+        const priced = group.records.filter((r) => r.originalAmount !== null)
+        // The headline is the last price, not the last visit. Reading it off
+        // the newest record prints «—» for a shop with plenty of prices whose
+        // most recent visit happened to record none. The date beside it is the
+        // last visit, which is the question the meta line answers.
+        const latest = priced[0]
+        const lastVisit = group.records[0]
         const key = group.store ?? '__none__'
         return (
           <div className="phb__store" key={key}>
@@ -238,22 +246,21 @@ export function PriceHistoryBlock({ entries, onLogPrice }: Props) {
                   {group.store ?? 'Sin tienda'}
                 </span>
                 <span className="phb__store-meta">
-                  {group.records.length}{' '}
-                  {group.records.length === 1 ? 'precio' : 'precios'}
-                  {latest.purchased_at
-                    ? ` · último ${formatShortDate(latest.purchased_at)}`
+                  {priced.length === 0
+                    ? 'Sin precio'
+                    : `${priced.length} ${priced.length === 1 ? 'precio' : 'precios'}`}
+                  {lastVisit.purchased_at
+                    ? ` · último ${formatShortDate(lastVisit.purchased_at)}`
                     : ''}
                 </span>
               </span>
               <Chart records={group.records} />
               <span className="phb__store-price t-mono">
-                {figure === null
+                {latest === undefined
                   ? '—'
                   : formatAmount(
-                      figure,
-                      latest.originalAmount !== null
-                        ? (latest.originalPricePer as 'KILOGRAM' | null)
-                        : latest.displayPricePer,
+                      latest.originalAmount as number,
+                      latest.originalPricePer as 'KILOGRAM' | null,
                     )}
               </span>
               <ChevronDown
