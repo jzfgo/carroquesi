@@ -547,6 +547,7 @@ export function DashboardScreen() {
         <Toast
           key={toast.id}
           message={toast.message}
+          action={toast.action}
           onDismiss={dismissToast}
         />
       )}

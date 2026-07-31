@@ -405,7 +405,7 @@ hop from the row rather than two.
 
 ## Known limits
 
-Eight things this phase leaves standing, each with an issue — so none of them
+Ten things this phase leaves standing, each with an issue — so none of them
 is a surprise to somebody reading «Cambios sin enviar» and taking it as
 complete.
 
@@ -458,6 +458,18 @@ takes a path that skips it.
   files less than it was told.
 - **Every store call opens a connection and none are closed** (JAV-99). Which
   is why the reads needed a generation guard at all.
+- **«Activar avisos» says nothing on any outcome** (JAV-104). The one tap left
+  in the app that can vanish entirely: a granted permission with no
+  confirmation and a card still offering it, a denial that leaves a button
+  which can never prompt again, and a rejection that is an unhandled promise.
+  Found by asking which *resolved* promises change a fact the screen is built
+  on and say nothing — every other one in `src/` came out clean.
+- **«Esta lista ya no es tuya» arrives five ways and one of them leaves**
+  (JAV-105). This phase fixed the two that are *acts somebody took* — deleting
+  the list, and leaving it — because there the navigation completes the tap.
+  The other three arrive unbidden as the answer to something else, and
+  navigating on a single 403 would yank somebody off their list mid-shop. It
+  wants a signal `ListScreen` can act on once, which is a design call.
 - **The `price-delete-guard` screenshots race the toast they capture**
   (JAV-102). That notice carries no action, so its window is three seconds, and
   a retry cannot bring a dismissed toast back — a slow runner is a hard failure

@@ -481,4 +481,52 @@ test('a failed invite link says so instead of vanishing', async () => {
   )
 
   expect(await screen.findByText(/no se pudo crear el enlace/i)).toBeVisible()
+  // The other half. Asserting only the sentence is satisfied by a toast whose
+  // action was built and then dropped on the way to the render — which is
+  // exactly what happened, because this sheet was not passing `action` at all.
+  expect(screen.getByRole('button', { name: 'Reintentar' })).toBeVisible()
+})
+
+// And withheld where sending it again could only answer the same way. 409 is
+// «la lista está llena», which no amount of asking will change.
+test('a refusal that can never change its mind carries no retry', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
+  vi.mocked(api.createOpenInvite).mockRejectedValue(
+    apiError(409, 'List is full'),
+  )
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /copiar enlace de invitación/i }),
+  )
+
+  expect(await screen.findByText(/no se pudo crear el enlace/i)).toBeVisible()
+  expect(
+    screen.queryByRole('button', { name: 'Reintentar' }),
+  ).not.toBeInTheDocument()
+})
+
+// A 403 is not «no se pudo» — it is the same fact every other write now names.
+test('an invite refused for permission says which fact it was', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
+  vi.mocked(api.createOpenInvite).mockRejectedValue(apiError(403, 'Forbidden'))
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /copiar enlace de invitación/i }),
+  )
+
+  expect(await screen.findByText(/sin permiso en esa lista/i)).toBeVisible()
 })

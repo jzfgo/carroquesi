@@ -10,6 +10,7 @@ import {
   removeMember,
 } from '../lib/api'
 import { isRetryable } from '../lib/queueCopy'
+import { refusalMessage } from '../lib/refusalCopy'
 import './ListMembersSheet.css'
 import { Toast } from './Toast'
 
@@ -164,8 +165,10 @@ export function ListMembersSheet({
       // app is not allowed to do, and there is nothing to retry *into* here —
       // the invite was never created — so the notice carries the way to ask
       // again.
+      // The same sentence every other write says for the same fact — a 403
+      // here means you are not in this list, and that is not «no se pudo».
       showToast(
-        'No se pudo crear el enlace',
+        refusalMessage(err, 'No se pudo crear el enlace'),
         isRetryable(err instanceof ApiError ? err.status : 0)
           ? {
               label: 'Reintentar',
@@ -300,6 +303,7 @@ export function ListMembersSheet({
           <Toast
             key={toast.id}
             message={toast.message}
+            action={toast.action}
             onDismiss={dismissToast}
           />
         )}
