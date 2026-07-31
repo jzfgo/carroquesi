@@ -91,7 +91,8 @@ export interface ApiList {
 }
 
 export interface PriceEntry {
-  amount: number
+  /** null when the shop recorded no amount. */
+  amount: number | null
   price_per: string | null
   store: string | null
   purchased_at: string | null

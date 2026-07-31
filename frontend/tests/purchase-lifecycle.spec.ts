@@ -15,6 +15,7 @@ import {
 declare function getComputedStyle(el: unknown): {
   color: string
   backgroundColor: string
+  opacity: string
 }
 
 const LIST_ID = SEED_LISTS[0].id
@@ -31,12 +32,13 @@ async function gotoList(page: Page) {
 }
 
 /** The row carries no price control any more — brand, shop and price all live
- *  one tap in, on the item itself. */
+ *  one tap in, on the item itself. The history is a block of that sheet rather
+ *  than a sheet of its own, so opening the item is the whole journey. */
 async function openPrice(page: Page, name: string) {
   await itemCard(page, name).locator('.item-card__open').click()
   await page
-    .locator('.item-action-sheet')
-    .getByRole('button', { name: /precio/i })
+    .locator('.item-detail')
+    .getByRole('button', { name: 'Registrar un precio' })
     .click()
 }
 
@@ -142,12 +144,86 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await expect(
         page.getByText(ITEM_CAFE.brand ?? '', { exact: true }).first(),
       ).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Renombrar' })).toHaveCount(
-        0,
-      )
+      // Bought, so the fields state themselves and no longer open an editor.
+      await expect(page.getByRole('button', { name: /^Nombre/ })).toHaveCount(0)
       await expect(
-        page.getByRole('button', { name: 'Comprar de nuevo' }),
+        page.getByRole('button', { name: 'Volver a comprar' }),
       ).toBeVisible()
+      await page.keyboard.press('Escape')
+    })
+
+    test('the item sheet states its price, then opens a shop where it stands', async ({
+      page,
+    }) => {
+      await gotoList(page)
+      await itemCard(page, ITEM_LECHE.name).locator('.item-card__open').click()
+
+      const sheet = page.locator('.item-detail')
+      await expect(sheet).toBeVisible()
+
+      // The sheet sits on the bottom edge, so a fractional height gives it a
+      // fractional top and every hairline inside it falls between two device
+      // rows. Two machines then pick different rows, and one full-width rule
+      // moving one row is 2560 pixels — ten times the whole budget, for a
+      // screen that looks identical. This says so in one line instead.
+      //
+      // What the rounded cap makes whole is the cap. A sheet short enough not
+      // to overflow is the sum of its parts again, and its top is whole only
+      // if they are. This one overflows, so the check holds here; it is not a
+      // promise about every sheet.
+      const top = await sheet.evaluate((el) => el.getBoundingClientRect().top)
+      expect(top % 1).toBe(0)
+      // The four blocks of 22a, in the order a sheet is opened for. By role,
+      // because "Eliminar producto" also contains the word "Producto".
+      for (const block of ['Último precio', 'Producto', 'Rastro']) {
+        await expect(sheet.getByRole('heading', { name: block })).toBeVisible()
+      }
+      await expectScreenshot(page, `item-detail-${themeName}.png`)
+
+      // 22b: the shop opens in place. The others neither move nor fade.
+      // Scoped to the price block — the «Tiendas» field row names the shops too.
+      const shops = sheet.locator('.phb')
+      const alcampo = shops.getByRole('button', { name: /Alcampo/ })
+      const mercadona = shops.getByRole('button', { name: /Mercadona/ })
+      await expect(alcampo).toBeVisible()
+      await mercadona.click()
+      await expect(mercadona).toHaveAttribute('aria-expanded', 'true')
+      await expect(alcampo).toBeVisible()
+
+      // Rule 5 says the unopened shop is not dimmed. A screenshot cannot hold
+      // this on its own: an opacity of 0.4 on one row is well inside the
+      // tolerance the suite allows.
+      const faded = await alcampo.evaluate((el) => getComputedStyle(el).opacity)
+      expect(faded).toBe('1')
+
+      // The opened shop is asserted rather than photographed, and the reason is
+      // measured rather than assumed. A screenshot of it differs by ~280 pixels
+      // between the container every baseline comes from and both CI and a
+      // developer's machine — those two agreeing with each other exactly. It is
+      // not geometry and not a missing font: the sheet's rules land on whole
+      // pixels, and JetBrains Mono loads and draws identically in both (a bare
+      // family measures 80px either side). It is the rasterisation of this
+      // panel's dense mono figures, which the two font stacks hint differently.
+      // Nothing in the app can move that, and the budget is a number to lower
+      // rather than raise, so this screen carries no baseline and states its
+      // contents instead. `item-detail-*` above still photographs the sheet.
+      const detail = sheet.locator('.phb__detail')
+      // The three figures, on one scale, over the records they are computed
+      // from — the thing the panel exists to say.
+      await expect(detail.getByText('Mínimo').first()).toContainText('0,65/kg')
+      await expect(detail.getByText('Máximo').first()).toContainText('1,05/kg')
+      await expect(detail.getByText('Último').first()).toContainText('0,65/kg')
+      // A shop that wrote nothing down says so, and a converted amount carries
+      // its ≈ beside the figure somebody confirmed. Both were always too small
+      // for the pixel budget to notice.
+      await expect(detail.getByText('sin precio')).toBeVisible()
+      await expect(detail.locator('.phb__record-converted').first()).toHaveText(
+        '≈ 0,65/kg',
+      )
+      // Three visits at this shop, two of them with a price.
+      await expect(detail.locator('.phb__record')).toHaveCount(3)
+      await expect(mercadona).toContainText('2 precios · último 12 jul')
+
       await page.keyboard.press('Escape')
     })
 
@@ -158,10 +234,6 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await markPurchased(page, ITEM_CAFE.name)
 
       await openPrice(page, ITEM_CAFE.name)
-      await page
-        .locator('.phs')
-        .getByRole('button', { name: '+ Registrar precio' })
-        .click()
 
       const sheet = page.locator('.lps')
       await expect(sheet).toBeVisible()
@@ -205,10 +277,6 @@ for (const { name: themeName, colorScheme } of THEMES) {
       )
 
       await openPrice(page, ITEM_LECHE.name)
-      await page
-        .locator('.phs')
-        .getByRole('button', { name: 'Actualizar precio' })
-        .click()
       const sheet = page.locator('.lps')
       await sheet.getByRole('button', { name: 'Eliminar precio' }).click()
 

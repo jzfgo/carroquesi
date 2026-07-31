@@ -54,14 +54,13 @@ import { BarcodeScanSheet } from './BarcodeScanSheet'
 import { CloseTripSheet, type CloseReceipt } from './CloseTripSheet'
 import { DueSuggestionsSheet } from './DueSuggestionsSheet'
 import { FilterBar } from './FilterBar'
-import { ItemActionSheet } from './ItemActionSheet'
+import { ItemDetailSheet } from './ItemDetailSheet'
 import { ItemList } from './ItemList'
 import { ListActionSheet } from './ListActionSheet'
 import { ListHeader } from './ListHeader'
 import './ListScreen.css'
 import LogPurchaseSheet from './LogPurchaseSheet'
 import { NotificationPrimingCard } from './NotificationPrimingCard'
-import PriceHistorySheet from './PriceHistorySheet'
 import { ProgressBar } from './ProgressBar'
 import { ResolveLineSheet } from './ResolveLineSheet'
 import { SmartInputBar } from './SmartInputBar'
@@ -159,7 +158,6 @@ export function ListScreen({
   const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(null)
   const [dueSuggestions, setDueSuggestions] = useState<DueSuggestion[]>([])
   const [dueSuggestionsOpen, setDueSuggestionsOpen] = useState(false)
-  const [priceItemId, setPriceItemId] = useState<string | null>(null)
   const [logPriceFor, setLogPriceFor] = useState<{
     itemId: string
     initialAmount: number | null
@@ -696,7 +694,7 @@ export function ListScreen({
         // non-critical
       }
       setLogPriceFor(null)
-      setPriceItemId(null)
+      setActiveItemId(null)
     },
     [logPriceFor, savePrice],
   )
@@ -706,12 +704,12 @@ export function ListScreen({
     try {
       await clearItemPrice(logPriceFor.itemId)
       setLogPriceFor(null)
-      setPriceItemId(null)
+      setActiveItemId(null)
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         // price already gone — treat as success, close sheet
         setLogPriceFor(null)
-        setPriceItemId(null)
+        setActiveItemId(null)
       } else if (err instanceof ApiError && err.status === 422) {
         // Not "otro día" any more: the backend's 422 fires when the item's
         // trip has been filed, which is midnight by default but is 18:40 the
@@ -1021,18 +1019,23 @@ export function ListScreen({
           const activeItem = items.find((i) => i.id === activeItemId)
           if (!activeItem) return null
           return (
-            <ItemActionSheet
+            <ItemDetailSheet
               item={activeItem}
+              listId={listId}
+              getToken={getToken}
               members={members}
-              purchased={activeItem.purchased}
               // The row stopped carrying these, so the sheet took them on.
               onTagClick={(field) => {
                 setActiveItemId(null)
                 handleTagClick(activeItemId, field)
               }}
-              onPriceClick={() => {
+              // Closed first, like every other way out of this sheet. Left
+              // open it would sit under the price sheet as a second modal
+              // dialog, still listening for Escape — so Escape would shut the
+              // sheet behind and leave the one in front standing.
+              onLogPrice={() => {
                 setActiveItemId(null)
-                setPriceItemId(activeItemId)
+                handleOpenLogPrice(activeItemId)
               }}
               onRename={(name) => {
                 void renameItem(activeItemId, name)
@@ -1130,30 +1133,6 @@ export function ListScreen({
           onClose={handleClear}
         />
       )}
-
-      {priceItemId &&
-        (() => {
-          const priceItem = items.find((i) => i.id === priceItemId)
-          if (!priceItem) return null
-          return (
-            <>
-              <div
-                className="sheet-overlay"
-                onClick={() => setPriceItemId(null)}
-              />
-              <div className="sheet-container">
-                <PriceHistorySheet
-                  item={priceItem}
-                  listId={listId}
-                  getToken={getToken}
-                  onLogPrice={() => handleOpenLogPrice(priceItemId)}
-                  onClose={() => setPriceItemId(null)}
-                  readOnly={!priceItem.purchased}
-                />
-              </div>
-            </>
-          )
-        })()}
 
       {logPriceFor &&
         (() => {

@@ -6,7 +6,8 @@ export interface ChartEntry {
   displayPricePer: 'KILOGRAM' | null
   store: string | null
   purchased_at: string | null
-  originalAmount: number
+  /** null when the shop recorded no amount at all. */
+  originalAmount: number | null
   originalPricePer: string | null
 }
 
@@ -19,14 +20,22 @@ export interface NormalizationResult {
 /**
  * Converts PriceEntry records to ChartEntry records, normalizing to €/kg when
  * any entry has a parseable SI quantity or is already price_per='KILOGRAM'.
- * Entries that cannot be converted receive displayAmount=null (rendered as isolated dots).
+ * Entries that cannot be converted receive displayAmount=null. Nothing draws
+ * them: a curve can only hold records on its own scale, so they are left to the
+ * record list, which states in words what each one was.
  *
  * The trigger is global: if any entry qualifies, all entries are processed,
  * ensuring cross-store comparison on a consistent scale.
+ *
+ * Two different things arrive as a null displayAmount, and only originalAmount
+ * tells them apart: a price that would not convert keeps its original figure,
+ * a shop that wrote nothing down has none to keep.
  */
 export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
   const shouldNormalize = entries.some(
-    (e) => e.price_per === 'KILOGRAM' || parseKgFactor(e.quantity) !== null,
+    (e) =>
+      e.amount !== null &&
+      (e.price_per === 'KILOGRAM' || parseKgFactor(e.quantity) !== null),
   )
 
   if (!shouldNormalize) {
@@ -50,7 +59,11 @@ export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
   const normalized: ChartEntry[] = entries.map((e) => {
     let displayAmount: number | null
 
-    if (e.price_per === 'KILOGRAM') {
+    if (e.amount === null) {
+      // Nothing to convert and nothing missing from the conversion, so this
+      // does not count as a gap: hasGaps is about amounts that would not convert.
+      displayAmount = null
+    } else if (e.price_per === 'KILOGRAM') {
       displayAmount = e.amount
     } else {
       const kgFactor = parseKgFactor(e.quantity)

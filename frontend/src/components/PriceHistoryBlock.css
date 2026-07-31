@@ -1,0 +1,166 @@
+.phb__empty {
+  padding: 12px 20px 16px;
+  font-size: var(--fs-14);
+  color: var(--fg-subtle);
+}
+
+.phb__store + .phb__store {
+  border-top: 1px solid var(--rule);
+}
+
+/* 54px is the row with meta. The whole row is the target, so the chevron does
+   not need one of its own. */
+.phb__store-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 54px;
+  padding: 8px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.phb__store-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.phb__store-name {
+  display: block;
+  font-size: var(--fs-16);
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.phb__store-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-14);
+  color: var(--fg-subtle);
+}
+
+.phb__store-price {
+  font-size: var(--fs-18);
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.phb__sparkline {
+  width: 60px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+/* The block's margin is its own; the sheet's price block sets its spacing. */
+.phb {
+  margin-top: 12px;
+}
+
+.phb__chevron {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  transition: transform var(--dur-base, 200ms) var(--ease-out, ease-out);
+}
+
+.phb__chevron--open {
+  transform: rotate(180deg);
+}
+
+.phb__chart-line {
+  stroke: var(--ink-1);
+  fill: none;
+}
+
+.phb__chart-area {
+  fill: var(--series);
+}
+
+/* The shop opens where it stands: this is inside the row's own box, so the
+   rows around it neither move nor change. */
+.phb__detail {
+  padding: 0 20px 16px;
+}
+
+.phb__chart {
+  width: 100%;
+  height: 48px;
+  margin-bottom: 12px;
+}
+
+.phb__stats {
+  display: flex;
+  gap: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.phb__stat {
+  font-size: var(--fs-12);
+  color: var(--fg-subtle);
+}
+
+.phb__stat strong {
+  display: block;
+  font-size: var(--fs-16);
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.phb__records {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phb__record {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 28px;
+  padding: 4px 0;
+}
+
+.phb__record-date {
+  font-size: var(--fs-14);
+  color: var(--fg-subtle);
+}
+
+.phb__record-amount {
+  font-size: var(--fs-14);
+  color: var(--fg);
+}
+
+/* The figure the app worked out, beside the one a person confirmed — never in
+   its place. The ≈ is written in the text so it cannot be styled away. */
+.phb__record-converted {
+  margin-left: 8px;
+  color: var(--fg-subtle);
+}
+
+/* Rule 5: this is quieter because it is a different ink, not a lower opacity. */
+.phb__record-none {
+  font-size: var(--fs-14);
+  color: var(--fg-subtle);
+}
+
+.phb__log {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 20px;
+  border: none;
+  border-top: 1px solid var(--rule);
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-16);
+  font-weight: 500;
+  color: var(--accent);
+}

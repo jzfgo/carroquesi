@@ -30,6 +30,22 @@ One consequence is easy to get wrong. `timezoneId` pins the **browser**, and Pla
 
 One thing to know before you pin a spec that also adds items: `useListItems` builds the optimistic temporary id from the clock, so under a frozen one two adds in the same test produce the same id. No spec hits this today — the one that adds items is not pinned — but the combination is easy to reach from here.
 
+### A hairline can cost ten times the budget
+
+A 1px rule across a 1280px screen is 1280 pixels. Move it one row and the diff counts both rows: 2560, against a budget of 250. The screen looks identical, and no amount of staring at the two images finds it.
+
+That move is not a change anyone made. A rule lands on a whole device row only if the box it sits on does. `.item-detail` was capped at `88vh` — 633.6px on a 720px viewport — and sits on the bottom edge, so a fractional height gave it a fractional top; the heading added a second fraction, because 24px of type at 1.3 is a 31.2px line. Every rule in the sheet ended up about a tenth of a pixel from the point where the browser has to choose one row or the other, and the container and the CI runner chose differently.
+
+So when a visual check fails by thousands of pixels on a screen you believe you did not change, measure before you look. Count the differing pixels per row: a row at exactly the image width is a rule that moved, and the fix is upstream of the screenshot. `round(down, …, 1px)` on the offending height makes the geometry whole, with the plain value left above it as the fallback. Do not reach for the tolerance — a budget large enough to hide a moved hairline is large enough to hide four buttons.
+
+The residual after that is ordinary glyph antialiasing, and it does not respond to geometry. `price-history-open-*` is the densest screen in the suite and sits just over the budget on this account alone: the container renders it about 280 pixels away from what both CI and an Arch host render, and those two agree with each other exactly. Nothing is wrong with it, and there is nothing to fix in the app — it is the container being the outlier, on the one screen crowded enough for that to matter.
+
+Narrowing that capture to the sheet was tried, on the reasoning that the app header behind it is not the surface under test. It bought **one pixel**, 281 to 280. The lesson generalises: a per-row diff taken at your own threshold is a good way to find _where_ pixels differ, but it does not tell you which of them this comparator counts. `toHaveScreenshot` scores each pixel by colour distance, so a large area of faint disagreement can read as almost nothing while a small area of stark disagreement is the whole number. Here the header was the faint kind and the item name and the mono figures were the stark kind — all three inside the sheet. Measure the change, not the region, before spending a helper API on it.
+
+So the opened shop of `purchase-lifecycle.spec.ts` carries **no baseline**. Everything else was ruled out first: the geometry lands on whole pixels, and the fonts are not the difference — JetBrains Mono loads and draws identically in the container and outside it, measured as a bare family at 80px on both, with every `woff2` returning 200. What is left is how two font stacks hint the same file, on the one panel dense enough in mono figures for that to clear 250. No change to the app moves it, and raising the budget for one screen buys a number nobody can justify later. The spec states the panel's contents instead — the three figures, the ≈ beside a converted amount, the «sin precio» row, the count — which is a stronger guard than a picture for everything except layout, and layout is still photographed one line earlier by `item-detail-*`.
+
+The general rule that falls out of it: a screen can be too dense in small text to hold a pixel baseline across two machines. When you meet one, say so where the baseline would have gone, and be able to show the measurement that ruled out the causes you _can_ fix.
+
 ### Regenerating baselines
 
 Baselines must be generated in the container, never on your own machine. Every committed PNG came out of that one image, so it is the only machine whose output the rest of them still agree with. That holds whatever you run, Ubuntu included — the image carries a fixed set of font packages, which is not the set a desktop install of the same distribution ends up with.
@@ -54,6 +70,18 @@ Two things are deliberately kept **out** of the `frontend/` bind mount, each via
 Only source files and the generated PNGs cross the bind mount; both volumes are cached across runs, so only the first invocation pays the full `pnpm install` cost. If either ever gets into a bad state, drop it: `docker volume rm carroquesi-playwright-node-modules carroquesi-playwright-pnpm-store`.
 
 `--update-snapshots` only rewrites a baseline whose comparison **failed**, so it cannot repair one that is passing but wrong. If you have reason to think a baseline is stale, delete it and re-run: a _missing_ snapshot is always written. Prefer that to `--update-snapshots=all`, which also rewrites every unrelated screen with whatever noise that one run happened to produce.
+
+### Finding the stale ones without having to guess
+
+Deleting works only once you know **which** baseline is stale, and that is the part you usually do not know. Set `maxDiffPixels: 0` in `playwright.config.ts`, run `just frontend update-snapshots`, then put the number back. That rewrites every baseline whose pixels genuinely differ and leaves byte-identical ones untouched, so it finds the set instead of confirming a hunch — and because the run happens in the container the baselines already come from, machine noise is not in the picture and cannot be laundered into a file.
+
+Reach for it after any change that alters rendering app-wide: a money or date format, a type token, a shared component. Such a change moves screens nobody thought to open, and on each of them it may land under 250 — which means it does not fail, does not get rewritten, and leaves that baseline asserting a screen the app stopped drawing. It happened here: the money format moved every price in the app, and eighteen baselines across four spec files went on depicting `€0.75` while the app drew `€ 0,75`. They were 56–127 differing pixels each, against captures that were correct sitting at 1–23 — so each was also spending a third to a half of its budget on a difference nobody knew about, leaving that much less room for the machine variance the number exists to absorb.
+
+### The glyphs come from someone else's server
+
+`index.html` links Google Fonts and there is no `@font-face` anywhere in `src/`, nothing vendored, and nothing precached by the service worker. So the letterforms in every committed baseline are fetched from a third party at capture time.
+
+That is worth knowing before trusting the paragraph above about the container being the one machine whose output the others agree with — it is, but only while an external CDN keeps serving it the same bytes. If Google re-cuts a family and bumps its version directory, every baseline in the suite goes stale at once, with no commit to blame and no PR to catch it. If the re-cut is a re-hinting rather than a redraw, each capture may well move less than 250, and then the suite simply keeps asserting glyphs the app no longer draws. Self-hosting the fonts would close it, and would take a render-blocking third-party request out of production at the same time.
 
 Commit the updated PNGs **in the same PR** as the UI change that caused them to change — a visual diff failing on an unrelated PR is a real regression signal, not noise to dismiss.
 

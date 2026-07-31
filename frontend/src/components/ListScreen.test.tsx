@@ -109,6 +109,12 @@ beforeEach(() => {
   // usePurchases fires on mount and chains .then on the result; the api
   // automock would otherwise return undefined.
   vi.mocked(api.getPurchases).mockResolvedValue([])
+  // The item sheet reads the price history on mount, same reason.
+  vi.mocked(api.getPriceHistory).mockResolvedValue({
+    entries: [],
+    community_price: null,
+    community_price_per: null,
+  })
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: {
       id: 'u1',
@@ -301,7 +307,34 @@ describe('ListScreen', () => {
     ])
   })
 
-  it('opens ItemActionSheet when menu button is clicked and handles rename', async () => {
+  // Two modal dialogs open at once is one too many. The item sheet listens for
+  // Escape on the document, so left standing behind the price sheet it would
+  // answer a key meant for the sheet in front and shut itself instead.
+  it('closes the item sheet when the price sheet opens over it', async () => {
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Manzanas' })],
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
+    expect(document.querySelector('.item-detail')).toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /registrar un precio/i }),
+    )
+
+    expect(document.querySelector('.lps')).toBeInTheDocument()
+    expect(document.querySelector('.item-detail')).not.toBeInTheDocument()
+
+    // Escape now reaches the sheet in front, and only that one. Before, the
+    // item sheet was still mounted behind and answered first — so the key shut
+    // the wrong sheet and left this one standing.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(document.querySelector('.lps')).not.toBeInTheDocument()
+  })
+
+  it('opens ItemDetailSheet when the row is tapped and handles rename', async () => {
     const renameItemMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -313,12 +346,11 @@ describe('ListScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
 
-    expect(
-      screen.getByRole('dialog', { name: /Opciones del producto/i }),
-    ).toBeInTheDocument()
+    // The sheet is the item, so the item's name is what names it.
+    expect(screen.getByRole('dialog', { name: 'Manzanas' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
-    const input = screen.getByRole('textbox', { name: 'Nombre del producto' })
+    fireEvent.click(screen.getByRole('button', { name: /^Nombre/ }))
+    const input = screen.getByRole('textbox', { name: 'Nombre' })
     fireEvent.change(input, { target: { value: 'Manzanas Rojas' } })
     // Exact, because "Guardar un ticket" also starts with "Guardar" now and a
     // loose match picks up both.
@@ -327,7 +359,7 @@ describe('ListScreen', () => {
     expect(renameItemMock).toHaveBeenCalledWith('i1', 'Manzanas Rojas')
   })
 
-  it('opens ItemActionSheet when menu button is clicked and handles delete', async () => {
+  it('opens ItemDetailSheet when the row is tapped and handles delete', async () => {
     const removeItemMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -339,9 +371,7 @@ describe('ListScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
 
-    expect(
-      screen.getByRole('dialog', { name: /Opciones del producto/i }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Manzanas' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /eliminar producto/i }))
     fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
@@ -455,7 +485,7 @@ describe('ListScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
 
-    fireEvent.click(screen.getByRole('button', { name: /comprar de nuevo/i }))
+    fireEvent.click(screen.getByRole('button', { name: /volver a comprar/i }))
 
     expect(addItemMock).toHaveBeenCalledWith({
       name: 'Manzanas',

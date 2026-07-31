@@ -61,7 +61,13 @@ export default defineConfig({
     // let jsdom compute visibility from stylesheets across the whole suite,
     // which can flip any existing visibility assertion — a suite-wide change
     // bought for a single border.
-    css: { include: [/CloseTripSheet\.css$/, /AdjustItemSheet\.css$/] },
+    css: {
+      include: [
+        /CloseTripSheet\.css$/,
+        /AdjustItemSheet\.css$/,
+        /PriceHistoryBlock\.css$/,
+      ],
+    },
     // Reset every mock's implementation between tests, not just its recorded
     // calls. `vi.clearAllMocks()` — which most files call in `beforeEach` — only
     // does the latter, so a test that parks a mock on a promise that never
