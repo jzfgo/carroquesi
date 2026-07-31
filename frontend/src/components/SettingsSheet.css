@@ -21,6 +21,11 @@
   border-radius: 16px 16px 0 0;
   background: var(--paper-lift);
   box-shadow: var(--shadow-sheet);
+
+  /* #root centres everything it holds, which reads as a mistake in a list of
+     settings. The row repeats this because a button ignores the inherited
+     value and takes the browser's centred default instead. */
+  text-align: left;
 }
 
 .settings-sheet__handle {

@@ -20,6 +20,13 @@ async function assertListScreenLoaded(page: Page) {
   await expect(page.getByText(items[1].name)).toBeVisible()
 }
 
+async function openSettings(page: Page) {
+  await page.goto('/')
+  await expect(page.getByLabel(SEED_LISTS[0].name)).toBeVisible()
+  await page.getByRole('button', { name: 'Ajustes' }).click()
+  await expect(page.getByRole('dialog', { name: 'Ajustes' })).toBeVisible()
+}
+
 async function addItemManzanas(page: Page) {
   await page.goto(`/lists/${SEED_LISTS[0].id}`)
   await page.getByLabel('Añadir producto').fill('Manzanas')
@@ -39,6 +46,13 @@ for (const { name: themeName, colorScheme } of THEMES) {
     test('dashboard shows all lists', async ({ page }) => {
       await assertDashboardLoaded(page)
       await expectScreenshot(page, `dashboard-${themeName}.png`)
+    })
+
+    // The dashboard is flat surface, and so is this: the sheet is the largest
+    // place that could pick up paper language by accident.
+    test('settings opens from the avatar', async ({ page }) => {
+      await openSettings(page)
+      await expectScreenshot(page, `settings-${themeName}.png`)
     })
 
     test('list screen shows items', async ({ page }) => {
