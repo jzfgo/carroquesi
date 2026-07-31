@@ -110,6 +110,25 @@ describe('SettingsSheet — notifications', () => {
     ).toBeInTheDocument()
   })
 
+  // An iPhone already on the home screen but too old for Web Push lands in the
+  // same state with nowhere to be sent.
+  it('drops the chevron when there is no install row behind it', () => {
+    vi.stubGlobal('Notification', undefined)
+    render(<SettingsSheet {...withPush} isIOS isInstalled />)
+    expect(screen.queryByRole('button', { name: /ir a instalar/i })).toBeNull()
+    expect(
+      screen.getByText(/en iphone hay que instalar la app/i),
+    ).toBeInTheDocument()
+  })
+
+  it('points the switch at the line that tells its three states apart', () => {
+    vi.stubGlobal('Notification', { permission: 'granted' })
+    render(<SettingsSheet {...withPush} />)
+    expect(screen.getByRole('switch')).toHaveAccessibleDescription(
+      /sin volver a preguntar/i,
+    )
+  })
+
   it('says a browser without the API cannot, without telling it to install', () => {
     vi.stubGlobal('Notification', undefined)
     render(<SettingsSheet {...withPush} />)

@@ -1,5 +1,5 @@
 import { ChevronRight } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { AuthUser } from '../contexts/AuthContext'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { issueApiKey, openShortcutImport, regenerateApiKey } from '../lib/api'
@@ -70,6 +70,7 @@ export function SettingsSheet({
   onToast,
   onClose,
 }: Props) {
+  const id = useId()
   const sheetRef = useRef<HTMLDivElement>(null)
   // The install row is a button where the browser can prompt and a plain row
   // where it cannot, so this holds either element.
@@ -199,7 +200,7 @@ export function SettingsSheet({
                   <span className="settings-sheet__row-label">
                     Avisos en este dispositivo
                   </span>
-                  <span className="settings-sheet__row-sub">
+                  <span className="settings-sheet__row-sub" id={`${id}-push`}>
                     {state === 'unavailable'
                       ? isIOS
                         ? 'En iPhone hay que instalar la app en la pantalla de inicio'
@@ -213,6 +214,10 @@ export function SettingsSheet({
                     role="switch"
                     aria-checked={state === 'on'}
                     aria-label="Avisos en este dispositivo"
+                    // The three switch states share a name and differ only in
+                    // the line under it, so a reader that skipped the row would
+                    // hear the same control three ways.
+                    aria-describedby={`${id}-push`}
                     className={`settings-sheet__switch${
                       state === 'on' ? ' settings-sheet__switch--on' : ''
                     }`}
@@ -235,7 +240,11 @@ export function SettingsSheet({
                     Cómo
                   </button>
                 )}
-                {state === 'unavailable' && isIOS && (
+                {/* Only where there is an install row to be sent to. An iPhone
+                    already on the home screen but too old for Web Push reaches
+                    this same state, and pointing it at a row that is not there
+                    is the broken-looking control this row avoids elsewhere. */}
+                {state === 'unavailable' && isIOS && showInstallRow && (
                   <button
                     type="button"
                     className="settings-sheet__row-chevron"

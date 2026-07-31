@@ -307,7 +307,8 @@ Unit, in `SettingsSheet.test.tsx` unless noted:
   person adds one back and it passes again.
 - state 4 renders no switch at all, not a disabled one
 - state 3's switch turns push on without calling `requestPermission`
-- the sheet closes on Escape, on the overlay and on a swipe
+- the sheet closes on Escape and on the overlay. The swipe is `useSwipeToDismiss`,
+  which has its own tests; asserting it again here would test the hook twice
 - appearance: three options, `radiogroup`, the current preference checked
 - `AppearanceSegment.test.tsx` drops its `menuitemradio` case
 - `DashboardScreen.test.tsx` — the avatar opens the sheet; no `role="menu"`
