@@ -57,7 +57,8 @@ silencio.**
 **Out.**
 
 - **Undo on delete.** Reasoned below; it needs a backend change this phase does
-  not make.
+  not make. Filed as JAV-96, which also records the cheaper half — a line that
+  was never in a cart restores faithfully with no backend change at all.
 - **Recovery against a deleted list.** Settled by the handoff's own out-of-scope
   list: that line is marked irrecoverable and can only be discarded. No
   «guardarlo en otra lista».
@@ -189,8 +190,11 @@ undoing it would mean re-creating the row. `ItemCreate` accepts name, quantity,
 brand, stores, ean and price and **cannot set purchased state or a trip**. So
 undoing the deletion of a line that was in the cart would put it back as
 pending, detached from the shop it belonged to — an "undo" that silently
-downgrades what it restores. Deferred with that reason, and the confirm stays.
-Doing it properly is a backend change, which this phase does not make.
+downgrades what it restores. Deferred with that reason, and the confirm stays. Doing
+it properly is a backend change, which this phase does not make: it is JAV-96,
+where the two sizes of the fix are set out — the pending-only undo that needs
+nothing, and the restore that carries purchase state and trip, which changes
+what *delete* means in the data model and wants an ADR.
 
 ### `19c` — «Cambios sin enviar»
 
