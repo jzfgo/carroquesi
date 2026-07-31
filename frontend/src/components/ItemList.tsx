@@ -37,11 +37,7 @@ interface Props {
   /** Opens the close sheet for a trip that tore off before anyone filed it. */
   onCloseFiledTrip?: (purchaseId: string) => void
   totalItems?: number
-  /** What this list has to say about itself — it goes under the rubric,
-   *  inside the sheet, where a list's own notices belong. */
-  notice?: ReactNode
   /** Item ids written here and not on the server yet. */
-  queuedItemIds?: ReadonlySet<string>
   /** Passed down so each row can draw its two writing controls as
    *  unavailable. The rows stay readable and still open. */
   isOffline?: boolean
@@ -61,8 +57,6 @@ export function ItemList({
   onCloseTrip,
   onCloseFiledTrip,
   totalItems,
-  notice,
-  queuedItemIds,
   isOffline = false,
   footer,
 }: Props) {
@@ -72,17 +66,9 @@ export function ItemList({
   const TRIPS_SHOWN = 3
   const [tripsShown, setTripsShown] = useState(TRIPS_SHOWN)
 
-  // The notice is a property of the screen, not of the sheet the rows are on.
-  // Having no signal is a fact about the device, and a change the server
-  // refused outlives whatever the list happens to be showing — so both have to
-  // be said on a list that failed to load, is still loading, or is empty. On
-  // the first of those it is the whole explanation: without it the screen says
-  // "no se pudieron cargar los productos" and offers a retry, which reads as
-  // the server's fault and blames the household for not pressing it.
   if (status === 'loading') {
     return (
       <div className="item-list item-list--stack">
-        {notice}
         {[0, 1, 2].map((i) => (
           <div key={i} className="item-list__skeleton" aria-hidden />
         ))}
@@ -93,7 +79,6 @@ export function ItemList({
   if (status === 'error') {
     return (
       <div className="item-list item-list--stack">
-        {notice}
         <div className="item-list--centered">
           <p>No se pudieron cargar los productos</p>
           <button className="item-list__retry" onClick={onRetry}>
@@ -134,7 +119,6 @@ export function ItemList({
   if (active.length === 0 && cart.length === 0 && purchased.length === 0) {
     return (
       <div className="item-list item-list--stack">
-        {notice}
         <div className="item-list--centered" style={{ gap: '0.75rem' }}>
           <Mascot size={120} />
           <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}>
@@ -229,7 +213,6 @@ export function ItemList({
             </span>
           </span>
         </div>
-        {notice}
         {pendingByStore.map(({ shops, items: group }) => (
           <div key={shops.join('\u0000')}>
             {/* Written, not printed: a shop is something the household put on
@@ -249,7 +232,6 @@ export function ItemList({
               <ItemCard
                 key={item.id}
                 item={item}
-                queued={queuedItemIds?.has(item.id)}
                 isOffline={isOffline}
                 onTogglePurchased={onTogglePurchased}
                 onOpen={onOpen}
@@ -273,7 +255,6 @@ export function ItemList({
               <ItemCard
                 key={item.id}
                 item={item}
-                queued={queuedItemIds?.has(item.id)}
                 isOffline={isOffline}
                 onTogglePurchased={onTogglePurchased}
                 onOpen={onOpen}

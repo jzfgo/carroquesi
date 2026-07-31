@@ -14,8 +14,6 @@ const CIRCLE_LABEL = {
 
 interface Props {
   item: ListItem
-  /** Written here, not on the server yet. Only ever true while offline. */
-  queued?: boolean
   /** No signal, so the two controls that write are drawn as unavailable. The
    *  row itself stays live: opening the item is a read, and refusing that
    *  would make the list less useful in the aisle for nothing. */
@@ -39,7 +37,6 @@ interface Props {
  */
 export function ItemCard({
   item,
-  queued,
   isOffline = false,
   onTogglePurchased,
   onOpen,
@@ -126,21 +123,7 @@ export function ItemCard({
         onClick={() => onOpen(item.id)}
         aria-label={item.name}
       >
-        {/* The dot is what makes the band's count checkable: without it "2
-            cambios" is a number with nothing to hold it against. No dot, no
-            row to hold it — an empty slot is not drawn (rule 6). */}
-        {queued ? (
-          <span className="item-card__written">
-            <span className="item-card__name">{item.name}</span>
-            <span
-              className="item-card__queued"
-              role="img"
-              aria-label="Sin enviar"
-            />
-          </span>
-        ) : (
-          <span className="item-card__name">{item.name}</span>
-        )}
+        <span className="item-card__name">{item.name}</span>
         {subline && <span className="item-card__sub">{subline}</span>}
       </button>
 

@@ -11,9 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
-import { useQueueDrain } from '../hooks/useQueueDrain'
 import * as api from '../lib/api'
-import * as offlineQueue from '../lib/offlineQueue'
 import * as receiptAi from '../lib/receiptAi'
 import { apiError } from '../lib/testApiError'
 import { madridDay } from '../lib/tripDay'
@@ -47,15 +45,6 @@ vi.mock('../contexts/FeatureFlagsContext', () => ({
   useFeatureFlags: vi.fn(),
 }))
 vi.mock('../hooks/useListItems')
-vi.mock('../hooks/useQueueDrain', () => ({
-  useQueueDrain: vi.fn(() => ({
-    pendingCount: 0,
-    pendingItemIds: new Set<string>(),
-    rejected: [],
-    retryRejected: vi.fn(),
-    discardRejected: vi.fn(),
-  })),
-}))
 // lib/push imports lib/firebase, which calls getAuth() at module scope and
 // throws auth/invalid-api-key without Firebase env vars -- as in CI, where a
 // local .env would otherwise hide it. Mock the module, not the env.
@@ -65,12 +54,6 @@ vi.mock('../lib/firebase', () => ({
   messagingPromise: Promise.resolve(null),
 }))
 vi.mock('../lib/api')
-// Partial, not whole: useQueueDrain still needs the real getAll and remove,
-// and a bare factory would drop every export it does not name.
-vi.mock('../lib/offlineQueue', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../lib/offlineQueue')>()),
-  enqueue: vi.fn(),
-}))
 vi.mock('../lib/receiptAi', () => ({ parseReceiptWithAi: vi.fn() }))
 vi.mock('./ListMembersSheet', () => ({
   ListMembersSheet: () => (
@@ -1675,19 +1658,9 @@ describe('with no connection', () => {
    * it off — this screen used to say it too, from the notice it hands to
    * ItemList, and only while the top of the list happened to be on screen.
    *
-   * Asserted absent so a second statement cannot come back here. The notice
-   * itself still matters and is covered by the test below: it is the only
-   * durable door to writes the server refused.
+   * Asserted absent so a second statement cannot come back here.
    */
   it('never states the condition itself', async () => {
-    vi.mocked(useQueueDrain).mockReturnValue({
-      pendingCount: 2,
-      pendingItemIds: new Set<string>(),
-      rejected: [],
-      retryRejected: vi.fn(),
-      discardRejected: vi.fn(),
-    } as unknown as ReturnType<typeof useQueueDrain>)
-
     render(<ListScreen listId="l1" listName="Mercado" listOwnerId="u1" />)
 
     await waitFor(() =>
@@ -1695,38 +1668,6 @@ describe('with no connection', () => {
     )
     expect(screen.queryByText(/sin conexión/i)).toBeNull()
     expect(screen.queryByText(/se enviarán solos/i)).toBeNull()
-  })
-
-  it('offers the way back to what the server refused', async () => {
-    vi.mocked(useQueueDrain).mockReturnValue({
-      pendingCount: 0,
-      pendingItemIds: new Set<string>(),
-      // A whole row, not just an id: the sheet reads what the op was about in
-      // order to work out whether anything else is waiting on it.
-      rejected: [
-        {
-          id: 'q1',
-          listId: 'l1',
-          type: 'addItem',
-          payload: { name: 'Pan' },
-          enqueuedAt: 0,
-          label: 'Pan',
-          failure: { status: 503, at: 0 },
-        },
-      ],
-      retryRejected: vi.fn(),
-      discardRejected: vi.fn(),
-    } as unknown as ReturnType<typeof useQueueDrain>)
-
-    render(<ListScreen listId="l1" listName="Mercado" listOwnerId="u1" />)
-
-    await waitFor(() =>
-      expect(screen.getByText('1 cambio sin enviar')).toBeVisible(),
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Ver cuáles' }))
-    expect(
-      screen.getByRole('dialog', { name: 'Cambios sin enviar' }),
-    ).toBeVisible()
   })
 
   it('will not rename the list, and leaves the screen as it was', async () => {
@@ -1979,9 +1920,7 @@ describe('closing a trip', () => {
         total: null,
       },
     ])
-    vi.mocked(api.closePurchase).mockRejectedValue(
-      new TypeError('Failed to fetch'),
-    )
+    vi.mocked(api.closePurchase).mockResolvedValue({} as never)
     renderWithCart()
 
     await openSheet()
@@ -1991,11 +1930,14 @@ describe('closing a trip', () => {
       screen.getByRole('button', { name: 'Guardar compra' }),
     )
 
+    // Asserted on the call rather than on a queued op: the pinning happens
+    // before the request either way, and there is no longer a queue to read
+    // it out of.
     await waitFor(() =>
-      expect(offlineQueue.enqueue).toHaveBeenCalledWith(
-        expect.objectContaining({
-          payload: expect.objectContaining({ purchase_id: 'open-trip' }),
-        }),
+      expect(api.closePurchase).toHaveBeenCalledWith(
+        expect.anything(),
+        'l1',
+        expect.objectContaining({ purchase_id: 'open-trip' }),
       ),
     )
   })
@@ -2018,9 +1960,7 @@ describe('closing a trip', () => {
         total: null,
       },
     ])
-    vi.mocked(api.closePurchase).mockRejectedValue(
-      new TypeError('Failed to fetch'),
-    )
+    vi.mocked(api.closePurchase).mockResolvedValue({} as never)
     renderWithCart()
 
     await openSheet()
@@ -2030,16 +1970,25 @@ describe('closing a trip', () => {
       screen.getByRole('button', { name: 'Guardar compra' }),
     )
 
+    // Asserted on the call rather than on a queued op: the pinning happens
+    // before the request either way, and there is no longer a queue to read
+    // it out of.
     await waitFor(() =>
-      expect(offlineQueue.enqueue).toHaveBeenCalledWith(
-        expect.objectContaining({
-          payload: expect.objectContaining({ purchase_id: 'open-trip' }),
-        }),
+      expect(api.closePurchase).toHaveBeenCalledWith(
+        expect.anything(),
+        'l1',
+        expect.objectContaining({ purchase_id: 'open-trip' }),
       ),
     )
   })
 
-  it('keeps a close the network refused, rather than losing the shop', async () => {
+  /**
+   * The queue used to be what kept the shop. Nothing does now except the sheet
+   * staying up — every price typed and every quantity corrected lives in its
+   * own state and is seeded once — so this is the assertion that matters most
+   * in the whole file. Dismiss on failure and the shop is gone.
+   */
+  it('keeps the sheet up when the close fails, rather than losing the shop', async () => {
     vi.mocked(api.closePurchase).mockRejectedValue(
       new TypeError('Failed to fetch'),
     )
@@ -2053,10 +2002,13 @@ describe('closing a trip', () => {
     )
 
     await waitFor(() =>
-      expect(offlineQueue.enqueue).toHaveBeenCalledWith(
-        expect.objectContaining({ listId: 'l1', type: 'closePurchase' }),
-      ),
+      expect(
+        screen.getByText('No se pudo guardar la compra'),
+      ).toBeInTheDocument(),
     )
+    expect(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    ).toBeInTheDocument()
   })
 })
 

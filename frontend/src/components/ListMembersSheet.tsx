@@ -9,7 +9,7 @@ import {
   getListMembers,
   removeMember,
 } from '../lib/api'
-import { isRetryable } from '../lib/queueCopy'
+import { isRetryable } from '../lib/refusalCopy'
 import { refusalMessage } from '../lib/refusalCopy'
 import './ListMembersSheet.css'
 import { Toast } from './Toast'

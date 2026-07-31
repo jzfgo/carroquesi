@@ -387,46 +387,6 @@ describe('the day boundary', () => {
   })
 })
 
-/**
- * The dot is what makes the band's count checkable: without it "2 cambios" is
- * a number with nothing to hold it against. It costs six pixels — far less
- * than the screenshot tolerance — so it is pinned here rather than left to a
- * baseline that would go on passing after it vanished.
- */
-describe('ItemCard — the queued dot', () => {
-  it('marks a row that is written here and not on the server yet', () => {
-    const { container } = render(
-      <ItemCard
-        item={makeItem()}
-        queued
-        onTogglePurchased={() => {}}
-        onOpen={() => {}}
-      />,
-    )
-    expect(container.querySelector('.item-card__queued')).not.toBeNull()
-    // A purely visual mark says nothing to a screen reader, and the row is
-    // exactly where the count is checked.
-    expect(screen.getByLabelText('Sin enviar')).toBeInTheDocument()
-  })
-
-  it('draws nothing on a row that has been sent', () => {
-    const { container } = render(
-      <ItemCard
-        item={makeItem()}
-        onTogglePurchased={() => {}}
-        onOpen={() => {}}
-      />,
-    )
-    expect(container.querySelector('.item-card__queued')).toBeNull()
-  })
-})
-
-
-/**
- * The row keeps working as a row without a signal — it still reads, and it
- * still opens. What it stops offering is the two things that write. The band
- * above the router says why; a control that cannot succeed says it here.
- */
 describe('with no connection', () => {
   it('does not offer to move the line in or out of the cart', () => {
     const onTogglePurchased = vi.fn()

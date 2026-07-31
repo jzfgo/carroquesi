@@ -10,7 +10,6 @@ import { useListSeen } from '../hooks/useListSeen'
 import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
 import { usePurchases } from '../hooks/usePurchases'
 import { usePWAInstall } from '../hooks/usePWAInstall'
-import { useQueueDrain } from '../hooks/useQueueDrain'
 import { useTearOff } from '../hooks/useTearOff'
 import { useToast } from '../hooks/useToast'
 import {
@@ -36,13 +35,10 @@ import { computeCostSummary } from '../lib/itemCost'
 import { itemState } from '../lib/itemState'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseNaiveUtc } from '../lib/naiveUtc'
-import { isNetworkError } from '../lib/networkError'
-import { enqueue } from '../lib/offlineQueue'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
-import { isRetryable } from '../lib/queueCopy'
 import { parseReceiptWithAi } from '../lib/receiptAi'
-import { itemRefusal } from '../lib/refusalCopy'
+import { isRetryable, itemRefusal } from '../lib/refusalCopy'
 import type {
   BarcodeRead,
   DueSuggestion,
@@ -62,7 +58,6 @@ import { ItemDetailSheet } from './ItemDetailSheet'
 import { ItemList } from './ItemList'
 import { ListActionSheet } from './ListActionSheet'
 import { ListHeader } from './ListHeader'
-import { ListNotice } from './ListNotice'
 import './ListScreen.css'
 import LogPurchaseSheet from './LogPurchaseSheet'
 import { NotificationPrimingCard } from './NotificationPrimingCard'
@@ -72,7 +67,6 @@ import { SmartInputBar } from './SmartInputBar'
 import { StoreEditSheet } from './StoreEditSheet'
 import { TagEditSheet } from './TagEditSheet'
 import { Toast } from './Toast'
-import { UnsentChangesSheet } from './UnsentChangesSheet'
 
 interface Props {
   listId: string
@@ -456,35 +450,14 @@ export function ListScreen({
           : unnamed
       try {
         await closePurchase(getToken, listId, payload)
-      } catch (err) {
-        if (!isNetworkError(err)) {
-          // The sheet stays up. Its rows are seeded once and live in its own
-          // state, so closing it here would throw away every price typed,
-          // every quantity corrected and every product added by hand — for a
-          // reason the household can do nothing about. Leaving it open costs
-          // one more tap and keeps the shop.
-          showToast('No se pudo guardar la compra')
-          return
-        }
-        // Principle 3: never lose a write. The sheet is the whole shop, and
-        // the phone is most likely offline in the aisle where it was filled
-        // in, so it waits in the queue instead of being refused.
-        try {
-          await enqueue({
-            listId,
-            type: 'closePurchase',
-            payload,
-            // The shop, which is how anyone would recognise it later.
-            label: payload.store,
-          })
-        } catch {
-          // No queue either — private browsing, or no quota left. Say so and
-          // leave the sheet up, because it is now the only copy of the shop.
-          showToast('No se pudo guardar la compra')
-          return
-        }
-        dismissCloseSheet()
-        showToast('Se guardará cuando vuelva la conexión')
+      } catch {
+        // The sheet stays up, for any failure now rather than only for the
+        // ones the queue would not take. Its rows are seeded once and live in
+        // its own state, so closing it here would throw away every price
+        // typed, every quantity corrected and every product added by hand.
+        // Leaving it open costs one more tap and keeps the shop — which
+        // matters more now that nothing else is holding a copy of it.
+        showToast('No se pudo guardar la compra')
         return
       }
       dismissCloseSheet()
@@ -501,18 +474,6 @@ export function ListScreen({
       showToast,
     ],
   )
-
-  const [rejectedOpen, setRejectedOpen] = useState(false)
-  // No `pendingCount`: the band it fed («n cambios se enviarán solos») is
-  // gone, and with writes refused there is nothing in flight to count.
-  const { pendingItemIds, rejected, retryRejected, discardRejected } =
-    useQueueDrain({
-    listId,
-    getToken,
-    onDrained: retry,
-    showToast,
-    onShowRejected: () => setRejectedOpen(true),
-  })
 
   // Debounced suggestions — only when name has 2+ chars
   useEffect(() => {
@@ -1026,15 +987,6 @@ export function ListScreen({
         status={status}
         items={filteredItems}
         totalItems={allUnpurchasedCount}
-        notice={
-          <ListNotice
-            rejectedCount={rejected.length}
-            onShowRejected={() => setRejectedOpen(true)}
-          />
-        }
-        /* The dot exists only while there is no signal: with a connection the
-           queue empties in less time than it takes to look at it. */
-        queuedItemIds={isOffline ? pendingItemIds : undefined}
         isOffline={isOffline}
         onTogglePurchased={handleTogglePurchased}
         onOpen={handleItemMenuOpen}
@@ -1216,15 +1168,6 @@ export function ListScreen({
           onClose={handleDueSuggestionsClose}
         />
       )}
-      {rejectedOpen && (
-        <UnsentChangesSheet
-          rejected={rejected}
-          onRetry={retryRejected}
-          onDiscard={discardRejected}
-          onClose={() => setRejectedOpen(false)}
-        />
-      )}
-
       {toast && (
         <Toast
           // A second notice with the same words is a second notice, and

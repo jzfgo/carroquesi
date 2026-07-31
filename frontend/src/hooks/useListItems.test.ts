@@ -2,31 +2,11 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
 import { ApiError } from '../lib/api'
-import * as offlineQueue from '../lib/offlineQueue'
 import { apiError } from '../lib/testApiError'
 import type { ListItem } from '../types'
 import { useListItems } from './useListItems'
 
 vi.mock('../lib/api')
-// Same conversion as the module-scope helpers below, and for the same reason —
-// a vi.mock factory runs once at module load, so an implementation attached
-// after construction is cleared before the first test and never comes back.
-// Nothing re-stubs enqueue in beforeEach, so the QueuedOp shape below would
-// simply have stopped being returned while still sitting here describing what
-// enqueue gives you.
-// Only `enqueue` stands in. The rest of the module stays real: `newTempId`
-// and the id helpers beside it are pure, and they are what the code under test
-// uses to mint the row it paints before the server has answered.
-vi.mock('../lib/offlineQueue', async (importOriginal) => ({
-  ...(await importOriginal<typeof offlineQueue>()),
-  enqueue: vi.fn(async () => ({
-    id: 'q1',
-    listId: 'list-1',
-    type: 'addItem',
-    payload: {},
-    enqueuedAt: 0,
-  })),
-}))
 
 const mockGetToken = vi.fn(async () => 'token')
 const mockShowToast = vi.fn()
@@ -218,10 +198,13 @@ describe('useListItems — the undo on a tap', () => {
     )
   })
 
-  // The queue is local, so there is nothing to wait for and the notice is
-  // still immediate — and two ops for one item drain in the order they were
-  // written, which is the right answer.
-  it('offers the undo once the queue has taken the write', async () => {
+  /**
+   * The rule this guards is unchanged — an undo is offered only once the write
+   * it undoes has settled — but «settled» used to include «the queue took it».
+   * There is no queue, so a write that never reached the server has nothing to
+   * undo, and offering one would be a control known in advance to fail.
+   */
+  it('offers no undo for a write that never landed', async () => {
     vi.mocked(api.updateItem).mockRejectedValue(new TypeError('offline'))
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -232,13 +215,11 @@ describe('useListItems — the undo on a tap', () => {
       await result.current.togglePurchased('item-1')
     })
 
-    expect(offlineQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'updateItem', label: 'Leche' }),
+    expect(mockShowToast).not.toHaveBeenCalledWith(
+      expect.stringContaining('En el carro'),
+      expect.anything(),
     )
-    expect(mockShowToast).toHaveBeenCalledWith(
-      'En el carro, Leche',
-      expect.objectContaining({ label: 'Deshacer' }),
-    )
+    expect(result.current.items[0].purchased).toBe(false)
   })
 })
 
@@ -275,32 +256,6 @@ describe('useListItems — togglePurchased sends the tap time', () => {
       'list-1',
       'item-1',
       { purchased: true, purchased_at: tapInstant },
-    )
-  })
-
-  it('queues the tap instant too, so a late drain still files into the right trip', async () => {
-    vi.mocked(api.updateItem).mockRejectedValue(
-      new TypeError('Failed to fetch'),
-    )
-    const { result } = renderHook(() =>
-      useListItems('list-1', mockGetToken, mockShowToast),
-    )
-    await waitFor(() => expect(result.current.status).toBe('success'))
-
-    await act(async () => {
-      await result.current.togglePurchased('item-1')
-    })
-
-    const tapInstant = result.current.items[0].purchased_at
-    expect(offlineQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'updateItem',
-        listId: 'list-1',
-        payload: {
-          itemId: 'item-1',
-          patch: { purchased: true, purchased_at: tapInstant },
-        },
-      }),
     )
   })
 
@@ -687,8 +642,13 @@ describe('useListItems — stale-while-revalidate cache', () => {
   })
 })
 
-describe('useListItems — write queue on network error', () => {
-  it('addItem: keeps temp item in list on network error', async () => {
+describe('useListItems — a write that fails on the network', () => {
+  /**
+   * The invert. This used to assert the temp row *stayed*, because the queue
+   * had taken it. Nothing holds it now, so the row goes back and the failure
+   * is said out loud — which is the whole of what replaced the queue.
+   */
+  it('addItem: takes the row back when the network fails', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
     vi.mocked(api.createItem).mockRejectedValue(
       new TypeError('Failed to fetch'),
@@ -709,11 +669,11 @@ describe('useListItems — write queue on network error', () => {
       })
     })
 
-    // temp item should still be in list (not rolled back)
-    expect(result.current.items).toHaveLength(2)
-    expect(result.current.items.some((i) => i.name === 'Nueva')).toBe(true)
-    expect(offlineQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'addItem', listId: 'list-1' }),
+    expect(result.current.items).toHaveLength(1)
+    expect(result.current.items.some((i) => i.name === 'Nueva')).toBe(false)
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se pudo añadir el producto',
+      expect.objectContaining({ label: 'Reintentar' }),
     )
   })
 
@@ -739,10 +699,9 @@ describe('useListItems — write queue on network error', () => {
 
     // temp item should be removed (rolled back)
     expect(result.current.items).toHaveLength(1)
-    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
 
-  it('togglePurchased: keeps toggled state on network error', async () => {
+  it('togglePurchased: takes the tap back when the network fails', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
     vi.mocked(api.updateItem).mockRejectedValue(
       new TypeError('Failed to fetch'),
@@ -757,10 +716,10 @@ describe('useListItems — write queue on network error', () => {
       await result.current.togglePurchased('item-1')
     })
 
-    // item should be marked as purchased (not rolled back)
-    expect(result.current.items[0].purchased).toBe(true)
-    expect(offlineQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'updateItem', listId: 'list-1' }),
+    expect(result.current.items[0].purchased).toBe(false)
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se pudo actualizar el producto',
+      expect.objectContaining({ label: 'Reintentar' }),
     )
   })
 
@@ -780,7 +739,6 @@ describe('useListItems — write queue on network error', () => {
     })
 
     expect(result.current.items[0].purchased).toBe(false)
-    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
 
   it('removeItem: rolls back and shows a specific toast on 409 (trip filed)', async () => {
@@ -802,7 +760,6 @@ describe('useListItems — write queue on network error', () => {
 
     // Optimistic removal must be rolled back — the 409 means it is still there.
     expect(result.current.items).toHaveLength(1)
-    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
     expect(mockShowToast).toHaveBeenCalledWith(
       'No se puede eliminar un producto de una compra ya archivada',
     )
@@ -1116,20 +1073,4 @@ describe('useListItems — no write leaves without a signal', () => {
     },
   )
 
-  it('says nothing about a queue, because there is not one', async () => {
-    const result = await mounted()
-    setOnLine(false)
-    vi.clearAllMocks()
-
-    await act(async () => {
-      await result.current.addItem({
-        name: 'Pan',
-        quantity: null,
-        brand: null,
-        stores: [],
-      })
-    })
-
-    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
-  })
 })

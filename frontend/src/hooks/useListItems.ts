@@ -14,10 +14,12 @@ import {
 } from '../lib/api'
 import { AVATAR_COLORS } from '../lib/avatarColors'
 import { itemState } from '../lib/itemState'
-import { isNetworkError } from '../lib/networkError'
-import { enqueue, newTempId } from '../lib/offlineQueue'
-import { isRetryable } from '../lib/queueCopy'
-import { itemRefusal, refusalMessage } from '../lib/refusalCopy'
+import { newTempId } from '../lib/tempId'
+import {
+  isRetryable,
+  itemRefusal,
+  refusalMessage,
+} from '../lib/refusalCopy'
 import type { ListItem, Member, ParsedInput, TagField } from '../types'
 import { isOfflineNow } from './useIsOffline'
 import type { ShowToast } from './useToast'
@@ -223,21 +225,12 @@ export function useListItems(
       try {
         await updateItem(getToken, listId, itemId, patch)
       } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueue({
-            listId,
-            type: 'updateItem',
-            payload: { itemId, patch },
-            label: targetItem?.name ?? '',
-          })
-        } else {
-          setItems(snapshot)
-          showToast(
-            itemRefusal(err, 'No se pudo actualizar el producto'),
-            retryAction(err, () => void toggle(itemId)),
-          )
-          return
-        }
+        setItems(snapshot)
+        showToast(
+          itemRefusal(err, 'No se pudo actualizar el producto'),
+          retryAction(err, () => void toggle(itemId)),
+        )
+        return
       }
 
       // The write has settled — the server answered, or the queue took it.
@@ -308,34 +301,15 @@ export function useListItems(
         })) as ListItem
         setItems((prev) => prev.map((i) => (i.id === tempId ? created : i)))
       } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueue({
-            listId,
-            type: 'addItem',
-            tempId,
-            label: parsed.name,
-            payload: {
-              name: parsed.name,
-              quantity: parsed.quantity,
-              brand: parsed.brand,
-              stores: parsed.stores,
-              ean: parsed.ean ?? null,
-              price: null,
-              price_per: null,
-              price_store: null,
-            },
-          })
+        setItems((prev) => prev.filter((i) => i.id !== tempId))
+        if (err instanceof ApiError && err.status === 409) {
+          // Sending it again would be refused again for the same reason.
+          showToast(DUPLICATE_TOAST)
         } else {
-          setItems((prev) => prev.filter((i) => i.id !== tempId))
-          if (err instanceof ApiError && err.status === 409) {
-            // Sending it again would be refused again for the same reason.
-            showToast(DUPLICATE_TOAST)
-          } else {
-            showToast(
-              refusalMessage(err, 'No se pudo añadir el producto'),
-              retryAction(err, () => void add(parsed)),
-            )
-          }
+          showToast(
+            refusalMessage(err, 'No se pudo añadir el producto'),
+            retryAction(err, () => void add(parsed)),
+          )
         }
       }
     },
@@ -346,27 +320,17 @@ export function useListItems(
     async function tag(itemId: string, field: TagField, value: string | null) {
       if (isOfflineNow()) return
       const snapshot = itemsRef.current
-      const name = snapshot.find((i) => i.id === itemId)?.name ?? ''
       setItems(
         snapshot.map((i) => (i.id === itemId ? { ...i, [field]: value } : i)),
       )
       try {
         await updateItem(getToken, listId, itemId, { [field]: value })
       } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueue({
-            listId,
-            type: 'updateItem',
-            payload: { itemId, patch: { [field]: value } },
-            label: name,
-          })
-        } else {
-          setItems(snapshot)
-          showToast(
-            itemRefusal(err, 'No se pudo actualizar el producto'),
-            retryAction(err, () => void tag(itemId, field, value)),
-          )
-        }
+        setItems(snapshot)
+        showToast(
+          itemRefusal(err, 'No se pudo actualizar el producto'),
+          retryAction(err, () => void tag(itemId, field, value)),
+        )
       }
     },
     [getToken, listId, showToast],
@@ -376,25 +340,15 @@ export function useListItems(
     async function setStores(itemId: string, stores: string[]) {
       if (isOfflineNow()) return
       const snapshot = itemsRef.current
-      const name = snapshot.find((i) => i.id === itemId)?.name ?? ''
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, stores } : i)))
       try {
         await updateItem(getToken, listId, itemId, { stores })
       } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueue({
-            listId,
-            type: 'updateItem',
-            payload: { itemId, patch: { stores } },
-            label: name,
-          })
-        } else {
-          setItems(snapshot)
-          showToast(
-            itemRefusal(err, 'No se pudo actualizar el producto'),
-            retryAction(err, () => void setStores(itemId, stores)),
-          )
-        }
+        setItems(snapshot)
+        showToast(
+          itemRefusal(err, 'No se pudo actualizar el producto'),
+          retryAction(err, () => void setStores(itemId, stores)),
+        )
       }
     },
     [getToken, listId, showToast],
@@ -408,22 +362,11 @@ export function useListItems(
       try {
         await updateItem(getToken, listId, itemId, { name })
       } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueue({
-            listId,
-            type: 'updateItem',
-            payload: { itemId, patch: { name } },
-            // The name somebody typed, which is the one worth recognising in
-            // the sheet even though the server never took it.
-            label: name,
-          })
-        } else {
-          setItems(snapshot)
-          showToast(
-            itemRefusal(err, 'No se pudo renombrar el producto'),
-            retryAction(err, () => void rename(itemId, name)),
-          )
-        }
+        setItems(snapshot)
+        showToast(
+          itemRefusal(err, 'No se pudo renombrar el producto'),
+          retryAction(err, () => void rename(itemId, name)),
+        )
       }
     },
     [getToken, listId, showToast],
@@ -433,19 +376,11 @@ export function useListItems(
     async function remove(itemId: string) {
       if (isOfflineNow()) return
       const snapshot = itemsRef.current
-      const name = snapshot.find((i) => i.id === itemId)?.name ?? ''
       setItems((prev) => prev.filter((i) => i.id !== itemId))
       try {
         await deleteItem(getToken, listId, itemId)
       } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueue({
-            listId,
-            type: 'deleteItem',
-            payload: { itemId },
-            label: name,
-          })
-        } else if (err instanceof ApiError && err.status === 404) {
+        if (err instanceof ApiError && err.status === 404) {
           // Not a failure. The row is gone because somebody else deleted it,
           // which is what this tap asked for — so the optimistic removal
           // stands, and there is nothing to say. Restoring it and answering
