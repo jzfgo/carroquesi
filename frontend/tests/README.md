@@ -71,6 +71,18 @@ Only source files and the generated PNGs cross the bind mount; both volumes are 
 
 `--update-snapshots` only rewrites a baseline whose comparison **failed**, so it cannot repair one that is passing but wrong. If you have reason to think a baseline is stale, delete it and re-run: a _missing_ snapshot is always written. Prefer that to `--update-snapshots=all`, which also rewrites every unrelated screen with whatever noise that one run happened to produce.
 
+### Finding the stale ones without having to guess
+
+Deleting works only once you know **which** baseline is stale, and that is the part you usually do not know. Set `maxDiffPixels: 0` in `playwright.config.ts`, run `just frontend update-snapshots`, then put the number back. That rewrites every baseline whose pixels genuinely differ and leaves byte-identical ones untouched, so it finds the set instead of confirming a hunch — and because the run happens in the container the baselines already come from, machine noise is not in the picture and cannot be laundered into a file.
+
+Reach for it after any change that alters rendering app-wide: a money or date format, a type token, a shared component. Such a change moves screens nobody thought to open, and on each of them it may land under 250 — which means it does not fail, does not get rewritten, and leaves that baseline asserting a screen the app stopped drawing. It happened here: the money format moved every price in the app, and eighteen baselines across four spec files went on depicting `€0.75` while the app drew `€ 0,75`. They were 56–127 differing pixels each, against captures that were correct sitting at 1–23 — so each was also spending a third to a half of its budget on a difference nobody knew about, leaving that much less room for the machine variance the number exists to absorb.
+
+### The glyphs come from someone else's server
+
+`index.html` links Google Fonts and there is no `@font-face` anywhere in `src/`, nothing vendored, and nothing precached by the service worker. So the letterforms in every committed baseline are fetched from a third party at capture time.
+
+That is worth knowing before trusting the paragraph above about the container being the one machine whose output the others agree with — it is, but only while an external CDN keeps serving it the same bytes. If Google re-cuts a family and bumps its version directory, every baseline in the suite goes stale at once, with no commit to blame and no PR to catch it. If the re-cut is a re-hinting rather than a redraw, each capture may well move less than 250, and then the suite simply keeps asserting glyphs the app no longer draws. Self-hosting the fonts would close it, and would take a render-blocking third-party request out of production at the same time.
+
 Commit the updated PNGs **in the same PR** as the UI change that caused them to change — a visual diff failing on an unrelated PR is a real regression signal, not noise to dismiss.
 
 Review a failing visual check via the `playwright-report/` artifact CI uploads on every run — it renders expected/actual/diff images side-by-side.

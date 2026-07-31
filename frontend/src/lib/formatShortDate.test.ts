@@ -33,6 +33,16 @@ describe('formatShortDate', () => {
       formatShortDate('2026-07-22T22:30:00'),
     )
   })
+
+  // A day has no hour to misplace, so it needs no zone appending — and
+  // "2026-07-22Z" is not a form the language reads at all.
+  it('reads a date with no time on it', () => {
+    expect(formatShortDate('2026-07-22')).toBe('22 jul')
+  })
+
+  it('says nothing rather than "Invalid Date" for a stamp it cannot read', () => {
+    expect(formatShortDate('not a date')).toBe('—')
+  })
 })
 
 describe('formatMonth', () => {
