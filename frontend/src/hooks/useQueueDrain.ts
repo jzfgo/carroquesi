@@ -14,6 +14,7 @@ import {
   isTempId,
   markFailed,
   remove,
+  resolveTempId,
   targetsOf,
   type QueuedOp,
 } from '../lib/offlineQueue'
@@ -78,13 +79,25 @@ export function useQueueDrain({
     onShowRejectedRef.current = onShowRejected
   }, [onShowRejected])
 
+  // Which read is the newest. Every remove, markFailed, clearFailure and
+  // resolveTempId announces itself, so one drain starts a handful of these,
+  // each on its own connection — and IndexedDB promises nothing about the
+  // order separate connections settle in. Without this the snapshot that lands
+  // last need not be the one taken last, and `ops` is what the band's count,
+  // the row dots and the sheet's rows are all read from. The tail is where it
+  // sticks: `discardRejected` fires its removals and then waits for one
+  // refresh, so a stale read landing last leaves the sheet showing rows that
+  // are gone, with nothing further coming to correct it.
+  const reads = useRef(0)
+
   const refreshOps = useCallback(async () => {
+    const mine = ++reads.current
     const all = await getAll()
+    if (mine !== reads.current) return
     setOps(all.filter((op) => op.listId === listId))
   }, [listId])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshOps()
     window.addEventListener('cqs:queue-changed', refreshOps)
     return () => window.removeEventListener('cqs:queue-changed', refreshOps)
@@ -134,7 +147,13 @@ export function useQueueDrain({
         if (op.type === 'addItem') {
           const p = op.payload as Parameters<typeof createItem>[2]
           const created = (await createItem(getToken, op.listId, p)) as ListItem
-          if (op.tempId) tempIdMap.set(op.tempId, created.id)
+          if (op.tempId) {
+            tempIdMap.set(op.tempId, created.id)
+            // The map covers the ops already read into this pass; the store
+            // has to be told too, or a pass that ends before they are sent
+            // leaves them naming an id whose add has landed and gone.
+            await resolveTempId(op.tempId, created.id)
+          }
         } else if (op.type === 'updateItem') {
           let p = op.payload as {
             itemId: string

@@ -116,9 +116,12 @@ function openDB(): Promise<IDBDatabase> {
  * person doing it, and inverting those two sends an edit against an id its own
  * add has not created yet.
  *
- * A millisecond of drift for the second of two simultaneous writes costs
- * nothing — «hoy 8:10» cannot tell the difference — and a strict order is what
- * the drain is entitled to assume.
+ * The drift this buys is usually a millisecond, and after `seedStamp` has
+ * carried a backwards clock across a reload it can be much more: the first new
+ * op takes the old maximum plus one, so «hoy 8:10» may read as «ayer 20:15»
+ * for a change made a minute ago. That is the trade taken deliberately —
+ * `whenLabel` being a few hours out is a wrong caption, and the order being
+ * wrong is a write sent against an id its own add has not created yet.
  */
 let lastStamp = 0
 
@@ -150,8 +153,13 @@ function seedStamp(): Promise<void> {
       }
     })
     // An unreadable store is the drain's problem to report, not a reason to
-    // refuse the write that is being queued right now.
-    .catch(() => {})
+    // refuse the write that is being queued right now. Clearing the cache is
+    // what keeps one bad read from being the answer for the rest of the
+    // session: the session that needs the seed is the one whose clock is
+    // wrong, and it would go unseeded for good.
+    .catch(() => {
+      seeding = null
+    })
   return seeding
 }
 
@@ -207,6 +215,72 @@ export async function markFailed(
   failure: QueueFailure,
 ): Promise<void> {
   await patchOp(id, (op) => ({ ...op, failure }))
+}
+
+/**
+ * Write a landed add's real id into every op that was waiting for it.
+ *
+ * The drain's temp-id map lives for one pass and in memory; removing the add
+ * that filled it is durable. So a pass that ends in between — the connection
+ * dropping, or the very next op coming back 500 and waiting in the sheet —
+ * leaves those ops naming an id whose add has *already landed*. The next pass
+ * finds nothing to resolve it with, holds them, and the sheet says the product
+ * was never created, which by then is false.
+ *
+ * Making the resolution as durable as the removal is what keeps
+ * `waitsOnAnAdd` true only of an add that genuinely has not landed.
+ */
+export async function resolveTempId(
+  tempId: string,
+  realId: string,
+): Promise<void> {
+  const db = await openDB()
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, 'readwrite')
+    const store = tx.objectStore(STORE_NAME)
+    const read = store.getAll()
+    read.onsuccess = () => {
+      for (const op of read.result as QueuedOp[]) {
+        const rewritten = withRealId(op, tempId, realId)
+        if (rewritten) store.put(rewritten)
+      }
+    }
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+  window.dispatchEvent(new CustomEvent('cqs:queue-changed'))
+}
+
+/** The same fields `targetsOf` reads, written back. Null when none match. */
+function withRealId(
+  op: QueuedOp,
+  tempId: string,
+  realId: string,
+): QueuedOp | null {
+  if (!targetsOf(op).includes(tempId)) return null
+  switch (op.type) {
+    case 'updateItem':
+    case 'deleteItem': {
+      const payload = op.payload as { itemId: string }
+      return { ...op, payload: { ...payload, itemId: realId } }
+    }
+    case 'closePurchase': {
+      const payload = op.payload as PurchaseClosePayload
+      return {
+        ...op,
+        payload: {
+          ...payload,
+          lines: payload.lines.map((line) =>
+            line.item_id === tempId ? { ...line, item_id: realId } : line,
+          ),
+        },
+      }
+    }
+    // Unreachable: targetsOf answers «nothing» for an add, so the guard above
+    // has already returned. Answered anyway rather than left to fall through.
+    case 'addItem':
+      return null
+  }
 }
 
 /** Make the op sendable again, so the next drain picks it up. */

@@ -2,7 +2,14 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
-import { enqueue, getAll, HELD_FOR_ADD, remove } from '../lib/offlineQueue'
+import * as offlineQueue from '../lib/offlineQueue'
+import {
+  enqueue,
+  getAll,
+  HELD_FOR_ADD,
+  remove,
+  type QueuedOp,
+} from '../lib/offlineQueue'
 import { useQueueDrain } from './useQueueDrain'
 
 vi.mock('../lib/api')
@@ -535,5 +542,131 @@ describe('useQueueDrain — waiting on an add', () => {
       ),
     )
     await waitFor(() => expect(result.current.rejected).toHaveLength(0))
+  })
+})
+
+/**
+ * `tempIdMap` lives for one pass and in memory; removing the add that filled
+ * it is durable. So whenever a pass ends between the two, the dependent is
+ * left in the store still naming a `tmp-…` id whose add has already landed.
+ */
+describe('useQueueDrain — an add that lands mid-pass', () => {
+  async function queueAddThenRename() {
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      tempId: 'tmp-1',
+      payload: { name: 'Pimentón' },
+      label: 'Pimentón',
+    })
+    await enqueue({
+      listId: 'l1',
+      type: 'updateItem',
+      payload: { itemId: 'tmp-1', patch: { name: 'Pimentón dulce' } },
+      label: 'Pimentón dulce',
+    })
+  }
+
+  // A flapping connection is the ordinary condition here — the `break` exists
+  // for it — so "the add landed and the next op did not" is the ordinary shape
+  // of a partial drain.
+  it('sends the rest against the real id after the connection drops', async () => {
+    vi.mocked(api.createItem).mockResolvedValue({ id: 'real-1' } as never)
+    vi.mocked(api.updateItem).mockRejectedValueOnce(new TypeError('fetch'))
+    await queueAddThenRename()
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+    // The add is gone, the rename is still waiting — not refused.
+    await waitFor(() => expect(result.current.pendingCount).toBe(1))
+    expect(result.current.rejected).toHaveLength(0)
+
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    await act(async () => {
+      window.dispatchEvent(new Event('online'))
+    })
+
+    // The second pass has no `tempIdMap` from the first, so this only works
+    // if the resolution outlived it.
+    await waitFor(() => expect(api.updateItem).toHaveBeenCalledTimes(2))
+    expect(api.updateItem).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'l1',
+      'real-1',
+      { name: 'Pimentón dulce' },
+    )
+    await waitFor(() => expect(result.current.pendingCount).toBe(0))
+    expect(result.current.rejected).toHaveLength(0)
+  })
+
+  /**
+   * No flap at all. The rename comes back 500, the sheet offers a retry —
+   * correctly — and pressing it used to convert a retryable row into a
+   * terminal one that said the product had never been created.
+   */
+  it('retries against the real id rather than turning terminal', async () => {
+    vi.mocked(api.createItem).mockResolvedValue({ id: 'real-1' } as never)
+    vi.mocked(api.updateItem).mockRejectedValueOnce(apiError(500))
+    await queueAddThenRename()
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+    await waitFor(() => expect(result.current.rejected).toHaveLength(1))
+    expect(result.current.rejected[0].failure?.status).toBe(500)
+
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    await act(async () => {
+      await result.current.retryRejected([result.current.rejected[0].id])
+    })
+
+    expect(api.updateItem).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'l1',
+      'real-1',
+      { name: 'Pimentón dulce' },
+    )
+    await waitFor(() => expect(result.current.rejected).toHaveLength(0))
+  })
+})
+
+/**
+ * Every remove, markFailed, clearFailure and resolveTempId announces itself,
+ * so one drain starts a handful of reads, each on its own IndexedDB
+ * connection — and nothing promises they settle in the order they were taken.
+ * `ops` is what the band's count, the row dots and the sheet's rows all come
+ * from, so a stale snapshot landing last is the wrong answer to all three.
+ */
+describe('useQueueDrain — reads settling out of order', () => {
+  it('lets the newest read win, not the last to arrive', async () => {
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: { name: 'Pan' },
+      label: 'Pan',
+    })
+    const real = await getAll()
+
+    // The first read is held open past the second, and answers with the
+    // world as it was — the shape of a slow connection overtaken by a fast
+    // one, which is the only thing IndexedDB rules out no guarantees about.
+    let releaseStale: () => void = () => {}
+    const stale = new Promise<QueuedOp[]>((resolve) => {
+      releaseStale = () => resolve(real)
+    })
+    const spy = vi
+      .spyOn(offlineQueue, 'getAll')
+      .mockReturnValueOnce(stale)
+      .mockResolvedValue([])
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+    // The second read: empty, and it lands first.
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('cqs:queue-changed'))
+    })
+    await act(async () => {
+      releaseStale()
+      await stale
+    })
+
+    expect(result.current.pendingCount).toBe(0)
+    spy.mockRestore()
   })
 })

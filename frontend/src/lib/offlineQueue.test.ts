@@ -7,6 +7,7 @@ import {
   markFailed,
   newTempId,
   remove,
+  resolveTempId,
 } from './offlineQueue'
 
 // Clear the store between tests
@@ -242,5 +243,70 @@ describe('newTempId', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+/**
+ * The drain's temp-id map lives for one pass and in memory; removing the add
+ * that filled it is durable. Anything still waiting has to be told in the
+ * store, or a pass that ends in between leaves it naming an id whose add has
+ * already landed.
+ */
+describe('resolveTempId', () => {
+  it('writes the real id into an edit and a delete that were waiting', async () => {
+    await enqueue({
+      listId: 'l1',
+      type: 'updateItem',
+      payload: { itemId: 'tmp-1', patch: { name: 'Pimentón dulce' } },
+      label: 'Pimentón dulce',
+    })
+    await enqueue({
+      listId: 'l1',
+      type: 'deleteItem',
+      payload: { itemId: 'tmp-1' },
+      label: 'Pimentón',
+    })
+
+    await resolveTempId('tmp-1', 'real-1')
+
+    for (const op of await getAll()) {
+      expect((op.payload as { itemId: string }).itemId).toBe('real-1')
+    }
+  })
+
+  it('writes it into the one line of a close that named it', async () => {
+    await enqueue({
+      listId: 'l1',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        lines: [
+          { item_id: 'real-9', price: 2.1, price_per: null, quantity: null },
+          { item_id: 'tmp-1', price: 1.19, price_per: null, quantity: null },
+        ],
+        new_items: [],
+      },
+      label: 'Lidl',
+    })
+
+    await resolveTempId('tmp-1', 'real-1')
+
+    const [close] = await getAll()
+    const lines = (close.payload as { lines: { item_id: string }[] }).lines
+    expect(lines.map((l) => l.item_id)).toEqual(['real-9', 'real-1'])
+  })
+
+  it('leaves ops that named something else alone', async () => {
+    const other = await enqueue({
+      listId: 'l1',
+      type: 'updateItem',
+      payload: { itemId: 'tmp-2', patch: { name: 'Leche' } },
+      label: 'Leche',
+    })
+
+    await resolveTempId('tmp-1', 'real-1')
+
+    const [op] = await getAll()
+    expect(op.payload).toEqual(other.payload)
   })
 })

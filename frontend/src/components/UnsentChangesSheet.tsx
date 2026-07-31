@@ -100,11 +100,14 @@ export function UnsentChangesSheet({
           .map((id) => strandedOn.get(id))
           .filter((waited) => waited !== undefined)
 
-        // Held with nothing left to wait for: the add it needed has landed and
-        // gone, or was discarded. Nothing can resolve it now, so it is
-        // terminal — a retry would clear it, drain, be held again, and say the
-        // same thing every time it is pressed.
-        const orphaned = status === HELD_FOR_ADD && waitingOn.length === 0
+        // Held with nothing that can still resolve it — its add was discarded,
+        // or is itself refused for good. Terminal either way: a retry would
+        // clear it, drain, be held again, and say the same thing every time it
+        // is pressed. An add that can never go in leaves its dependent exactly
+        // as stranded as no add at all, so both read the same here.
+        const orphaned =
+          status === HELD_FOR_ADD &&
+          !waitingOn.some((waited) => isRetryable(waited.failure?.status ?? 0))
         const cause = orphaned ? ORPHANED : failureCause(status, op.type)
 
         return {

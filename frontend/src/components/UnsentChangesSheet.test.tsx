@@ -365,3 +365,30 @@ it('counts a close against every add it waits on, not the first', () => {
     screen.getByRole('button', { name: 'Reintentar el cambio' }),
   ).toBeInTheDocument()
 })
+
+/**
+ * An add the server can never accept leaves its dependent exactly as stranded
+ * as no add at all — so «espera a que se añada el producto» is the same
+ * promise nothing is left to keep, one hop away.
+ */
+it('does not promise an add that can never go in', () => {
+  const dead = op({
+    id: 'q-add',
+    tempId: 'tmp-1',
+    failure: { status: 404, at: 0 },
+  })
+  const held = op({
+    id: 'q-edit',
+    type: 'updateItem',
+    payload: { itemId: 'tmp-1', patch: { name: 'Pimentón dulce' } },
+    label: 'Pimentón dulce',
+    failure: { status: HELD_FOR_ADD, at: 0 },
+    enqueuedAt: Date.now() + 1,
+  })
+
+  render(<UnsentChangesSheet {...props} rejected={[dead, held]} />)
+
+  expect(screen.getByText(/el producto no llegó a crearse/)).toBeInTheDocument()
+  expect(screen.queryByText(/espera a que se añada/)).toBeNull()
+  expect(screen.queryByRole('button', { name: /Reintentar/ })).toBeNull()
+})

@@ -69,7 +69,6 @@ export function Toast({ message, action, onDismiss }: Props) {
     >
       <div className="toast__progress">
         <div
-          key={message}
           className="toast__progress-fill"
           // One number, one place. The bar is the window, so it drains from
           // the same constant the timer counts — two encodings of one duration
