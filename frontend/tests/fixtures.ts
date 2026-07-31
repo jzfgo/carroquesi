@@ -765,6 +765,25 @@ export async function expectScreenshot(
   await expect(page).toHaveScreenshot(name, { fullPage: true, ...options })
 }
 
+/**
+ * Close the undo notice a cart tap leaves behind, before anything is captured.
+ *
+ * Not because of the draining bar: `toHaveScreenshot` runs with
+ * `animations: 'disabled'`, so a finite CSS animation is fast-forwarded to its
+ * end and the bar lands at the same width every run. What is not deterministic
+ * is whether the toast is *there at all* — it dismisses itself on a wall-clock
+ * timer, and a retry cannot bring a dismissed toast back, so a slow runner is a
+ * hard failure rather than a flake that recovers.
+ *
+ * Lives here rather than in each spec because the accessible name it clicks is
+ * one rule, and three copies of it are three places to miss when it changes.
+ */
+export async function dismissUndoNotice(page: Page): Promise<void> {
+  const toast = page.locator('.toast')
+  await toast.getByRole('button', { name: 'Cerrar' }).click()
+  await expect(toast).toBeHidden()
+}
+
 // ── Gemini network-boundary mock ─────────────────────────────────────────────
 // receiptAi.ts calls the Firebase AI SDK, which — regardless of GoogleAIBackend
 // vs VertexAIBackend — issues a real fetch to this proxy domain. Intercepting

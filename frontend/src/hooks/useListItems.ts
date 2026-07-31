@@ -440,7 +440,35 @@ export function useListItems(
       const item = itemsRef.current.find((i) => i.id === itemId)
       const payload = { amount, price_per: pricePer, store }
       const fn = item?.price != null ? updatePrice : logPrice
-      await fn(getToken, listId, itemId, payload)
+
+      // Whichever verb the server will actually take, not the one this screen
+      // guessed. The endpoint is split by state — `POST` is 409 «ya tiene
+      // precio» and `PATCH` is 404 «todavía no tiene» — and the guess above is
+      // made from a local copy the *previous* attempt may already have
+      // invalidated: `logPrice` landing and the `purchased_quantity` call
+      // below it failing leaves the server holding a price and this screen
+      // without one, because `setItems` is under both.
+      //
+      // That is what the notice's «Reintentar» would then walk into. It would
+      // POST again, 409 for good, and say «no se pudo guardar» about a price
+      // the server has had all along — a control known in advance to fail, on
+      // the one write somebody typed off a shelf. And it would never heal:
+      // `_write_price` does not `_bump` the list, so the poll never refetches
+      // and the local `price` stays null until the screen remounts.
+      //
+      // So the refusal is read as what it is — an answer about which verb was
+      // wanted — and the write is repeated with the other one. A second
+      // identical call then ends the way the first should have.
+      try {
+        await fn(getToken, listId, itemId, payload)
+      } catch (err) {
+        const wrongVerb =
+          err instanceof ApiError &&
+          (fn === logPrice ? err.status === 409 : err.status === 404)
+        if (!wrongVerb) throw err
+        const other = fn === logPrice ? updatePrice : logPrice
+        await other(getToken, listId, itemId, payload)
+      }
 
       if (purchasedQuantity !== undefined) {
         await updateItem(getToken, listId, itemId, {

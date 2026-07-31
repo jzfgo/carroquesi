@@ -405,8 +405,9 @@ hop from the row rather than two.
 
 ## Known limits
 
-Six things this phase leaves standing, each with an issue — so none of them is
-a surprise to somebody reading «Cambios sin enviar» and taking it as complete.
+Seven things this phase leaves standing, each with an issue — so none of them
+is a surprise to somebody reading «Cambios sin enviar» and taking it as
+complete.
 
 The first one changes how to read the rest: **everything built here protects
 the queue, and there is a path that never reaches the queue.**
@@ -443,6 +444,20 @@ the queue, and there is a path that never reaches the queue.**
   files less than it was told.
 - **Every store call opens a connection and none are closed** (JAV-99). Which
   is why the reads needed a generation guard at all.
+- **The `price-delete-guard` screenshots race the toast they capture**
+  (JAV-102). That notice carries no action, so its window is three seconds, and
+  a retry cannot bring a dismissed toast back — a slow runner is a hard failure
+  rather than a flake. Pre-existing in shape, but these are four of the
+  baselines this phase regenerated, so the margin is written down rather than
+  left to be rediscovered.
+
+One thing this phase *did* have to close, because it created it: **a
+«Reintentar» makes non-idempotency reachable.** `savePrice` picks `POST` or
+`PATCH` from a local price that a half-finished attempt has already
+invalidated, so the retry this phase added would have 409'd for good on the
+ordinary case of logging a first price. The write now converges by reading the
+refusal as an answer about which verb was wanted. The rule is in AGENTS.md,
+because the next control added to a notice will face the same question.
 
 ## What this closes
 

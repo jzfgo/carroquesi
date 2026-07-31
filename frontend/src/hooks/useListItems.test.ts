@@ -836,3 +836,112 @@ describe('useListItems — write queue on network error', () => {
     )
   })
 })
+
+/**
+ * The price endpoint is split by state — POST refuses an item that has one,
+ * PATCH refuses one that does not — and `savePrice` picks between them from a
+ * local copy that a half-finished attempt has already made wrong.
+ *
+ * This is the sequence the notice's «Reintentar» walks into, so the retry is
+ * what the test actually exercises: the same call, made twice.
+ */
+describe('useListItems — savePrice converges on a retry', () => {
+  it('falls back to PATCH when the POST already landed', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    // It lands. The server now has a price; this screen does not, because
+    // setItems is below the second call.
+    vi.mocked(api.logPrice).mockResolvedValue({} as never)
+    vi.mocked(api.updatePrice).mockResolvedValue({} as never)
+    // The quantity write behind it fails — the connection dropping on the way
+    // out of the aisle is the ordinary way this happens.
+    vi.mocked(api.updateItem).mockRejectedValueOnce(new Error('boom'))
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await expect(
+        result.current.savePrice('item-1', 1.19, null, 'Lidl', '1'),
+      ).rejects.toThrow()
+    })
+    expect(api.logPrice).toHaveBeenCalledTimes(1)
+
+    // Pressing «Reintentar». Local price is still null, so the verb is guessed
+    // wrong a second time and the server answers 409 — which is an answer
+    // about the verb, not about the price.
+    // `.status` by hand: the automock keeps the class but stubs the
+    // constructor body, so `instanceof` passes and `status` is undefined.
+    const conflict = new ApiError(
+      409,
+      'Item already has a price; use PATCH to update it',
+    )
+    conflict.status = 409
+    vi.mocked(api.logPrice).mockRejectedValueOnce(conflict)
+
+    await act(async () => {
+      await result.current.savePrice('item-1', 1.19, null, 'Lidl', '1')
+    })
+
+    // It converged instead of refusing: the second attempt PATCHed.
+    expect(api.updatePrice).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { amount: 1.19, price_per: null, store: 'Lidl' },
+    )
+    expect(result.current.items[0].price).toBe(1.19)
+  })
+
+  // The mirror, and the reason the fallback is not one-directional: a price
+  // deleted on another phone leaves this one holding a stale `price`, so the
+  // guess goes the other way and PATCH answers «todavía no tiene».
+  it('falls back to POST when the item turned out to have no price', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([
+      { ...item1, price: 2.5 },
+    ] as never)
+    const noPrice = new ApiError(
+      404,
+      'Item has no price yet; use POST to set it',
+    )
+    noPrice.status = 404
+    vi.mocked(api.updatePrice).mockRejectedValueOnce(noPrice)
+    vi.mocked(api.logPrice).mockResolvedValue({} as never)
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.savePrice('item-1', 1.19, null, 'Lidl', '1')
+    })
+
+    expect(api.logPrice).toHaveBeenCalled()
+    expect(result.current.items[0].price).toBe(1.19)
+  })
+
+  // A refusal that is not about the verb is still a refusal. Retrying the
+  // other one would send a second write against an answer nobody read.
+  it('does not retry the other verb on a refusal that is not about it', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    const forbidden = new ApiError(403, 'Forbidden')
+    forbidden.status = 403
+    vi.mocked(api.logPrice).mockRejectedValue(forbidden)
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await expect(
+        result.current.savePrice('item-1', 1.19, null, 'Lidl', '1'),
+      ).rejects.toThrow()
+    })
+
+    expect(api.updatePrice).not.toHaveBeenCalled()
+  })
+})

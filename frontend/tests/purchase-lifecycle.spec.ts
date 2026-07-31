@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import {
+  dismissUndoNotice,
   expect,
   expectScreenshot,
   SEED_ITEMS,
@@ -40,18 +41,6 @@ async function openPrice(page: Page, name: string) {
     .locator('.item-detail')
     .getByRole('button', { name: 'Registrar un precio' })
     .click()
-}
-
-/**
- * A tap on the circle now leaves an undo notice on screen for six seconds, and
- * its bar drains as those seconds pass — so a screenshot taken after one would
- * depict a different bar width on every run. The household closes it by
- * waiting; a test cannot afford to.
- */
-async function dismissUndoNotice(page: Page) {
-  const toast = page.locator('.toast')
-  await toast.getByRole('button', { name: 'Cerrar' }).click()
-  await expect(toast).toBeHidden()
 }
 
 async function markPurchased(page: Page, name: string) {
