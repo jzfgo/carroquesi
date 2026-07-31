@@ -1,5 +1,7 @@
 # Phase 4b — offline, errors and undo
 
+> **Partly superseded (2026-08-01).** `19a`'s band and `19c` «Cambios sin enviar» are gone with the write queue; the band is now one app-level `OfflineBand` and there is nothing to be unsent. `19b`'s toasts and the undo rule survive. See `2026-07-31-remove-offline-queue-design.md` and ADR-013.
+
 Design for the second half of spec v6 phase 4. Base branch is
 `feat/redesign-spec-v6`, never `main`.
 

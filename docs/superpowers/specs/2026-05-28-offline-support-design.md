@@ -1,5 +1,7 @@
 # Offline Support Design
 
+> **Superseded (2026-08-01).** The offline write queue this designed was removed. The app is read-only without a signal; see `2026-07-31-remove-offline-queue-design.md` and ADR-013. Kept for the reasoning that led here.
+
 **Date:** 2026-05-28  
 **Status:** Approved
 

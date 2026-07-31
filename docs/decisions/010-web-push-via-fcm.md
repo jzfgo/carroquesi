@@ -91,8 +91,11 @@ only when `document.visibilityState === 'visible'`, rather than as a side effect
 `GET /lists/{id}/items`. The poll already skips hidden tabs, so hanging the reset off
 the GET would work today — but it would make notification correctness depend on a
 one-line guard in an unrelated hook, where a future refactor could remove it with
-every test still passing. It also keeps a write out of a GET, which matters because
-the offline queue retries requests.
+every test still passing. It also keeps a write out of a GET, which matters
+wherever a request may be repeated — a *Reintentar*, or a poll that re-runs.
+(This originally said «because the offline queue retries requests»; the queue
+was removed in ADR-013, but the reason for keeping a write out of a GET is not
+the queue.)
 
 **A server-side cooldown was rejected as premature.** It solves burst suppression with
 a migration and a set of concurrency edge cases, to achieve what tag-collapse plus a
