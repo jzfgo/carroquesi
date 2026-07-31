@@ -41,6 +41,7 @@ import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
 import { isRetryable } from '../lib/queueCopy'
 import { parseReceiptWithAi } from '../lib/receiptAi'
+import { itemRefusal } from '../lib/refusalCopy'
 import type {
   BarcodeRead,
   DueSuggestion,
@@ -759,11 +760,7 @@ export function ListScreen({
           // way here.
           const status = err instanceof ApiError ? err.status : 0
           showToast(
-            status === 404
-              ? 'El producto ya no existe'
-              : status === 403
-                ? 'Sin permiso en esa lista'
-                : 'No se pudo guardar el precio',
+            itemRefusal(err, 'No se pudo guardar el precio'),
             isRetryable(status)
               ? {
                   label: 'Reintentar',
@@ -1148,6 +1145,10 @@ export function ListScreen({
           onEmojiChange={(emoji) => void handleEmojiChange(emoji)}
           onRename={(newName) => void handleRename(listId, newName)}
           onDelete={() => void handleDelete(listId)}
+          onLeft={() => {
+            setMenuOpen(false)
+            onBack?.()
+          }}
           onSetDefault={() => void handleSetDefault()}
           onReceiptScan={
             isEnabled(FLAGS.AI_RECEIPT_SCANNING)

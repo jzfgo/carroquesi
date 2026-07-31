@@ -9,6 +9,7 @@ import {
   getListMembers,
   removeMember,
 } from '../lib/api'
+import { isRetryable } from '../lib/queueCopy'
 import './ListMembersSheet.css'
 import { Toast } from './Toast'
 
@@ -26,6 +27,13 @@ interface Props {
   currentUserId: string
   isOwner: boolean
   onClose: () => void
+  /**
+   * Called when the person reading this sheet has just left the list — their
+   * own «Salir», landed. The screen behind this sheet is a list they are no
+   * longer in, and nothing else would ever say so: the poll swallows the 403s
+   * it starts getting, and `ListRoute` decides «Lista no encontrada» on mount.
+   */
+  onLeft?: () => void
 }
 
 type LoadState = 'loading' | 'error' | 'ready'
@@ -37,6 +45,7 @@ export function ListMembersSheet({
   currentUserId,
   isOwner,
   onClose,
+  onLeft,
 }: Props) {
   const { getToken } = useAuth()
   const [loadState, setLoadState] = useState<LoadState>('loading')
@@ -92,9 +101,23 @@ export function ListMembersSheet({
 
   async function handleRemove(userId: string) {
     const snapshot = members
+    // Whether this tap ends *this* person's relationship with the list. One
+    // handler backs «Expulsar» and «Salir», and the two differ in exactly this.
+    const leaving = userId === currentUserId
     setMembers((prev) => prev.filter((m) => m.user_id !== userId))
     try {
       await removeMember(getToken, listId, userId)
+      // Leaving a list has to leave the list. Otherwise the sheet closes onto
+      // the screen for a list they are no longer in — fully interactive, and
+      // nothing corrects it: the poll starts 403ing and swallows it by design,
+      // `ListRoute` decided on mount, and this sheet read its members once. So
+      // they go on tapping items in, each write answering «sin permiso en esa
+      // lista» with no retry, and offline the ops queue and land as terminal
+      // rows in «Cambios sin enviar» whose only door is «Descartarlos».
+      //
+      // Same rule `handleDelete` keeps for the owner, reached from the other
+      // side: there it is a 404 saying the list is gone, here it is a success.
+      if (leaving) onLeft?.()
     } catch (err) {
       // Already gone, which is what «Expulsar» asked for. The same endpoint
       // backs «Salir», so somebody leaving on their own phone is the ordinary
@@ -105,7 +128,12 @@ export function ListMembersSheet({
       // Worse here than it was for an item: this sheet has no poll of its own,
       // `load()` runs once when it opens, so the resurrected row would stay
       // until somebody closed and reopened it.
-      if (err instanceof ApiError && err.status === 404) return
+      if (err instanceof ApiError && err.status === 404) {
+        // Already gone — and if it was *this* person's membership, they are
+        // just as out of the list as a success would have left them.
+        if (leaving) onLeft?.()
+        return
+      }
       setMembers(snapshot)
       showToast('No se pudo eliminar el miembro')
     }
@@ -129,7 +157,23 @@ export function ListMembersSheet({
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setInviteLimitReached(true)
+        return
       }
+      // Anything else used to be swallowed whole: the tap did nothing, said
+      // nothing, and left no trace. A tap that vanishes is the one thing this
+      // app is not allowed to do, and there is nothing to retry *into* here —
+      // the invite was never created — so the notice carries the way to ask
+      // again.
+      showToast(
+        'No se pudo crear el enlace',
+        isRetryable(err instanceof ApiError ? err.status : 0)
+          ? {
+              label: 'Reintentar',
+              tone: 'tomate',
+              onAct: () => void handleCopyInvite(),
+            }
+          : undefined,
+      )
     }
   }
 

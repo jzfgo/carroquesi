@@ -29,6 +29,8 @@ interface Props {
   onEmojiChange?: (emoji: string | null) => void
   onRename: (newName: string) => void
   onDelete: () => void
+  /** The current user left this list from the members sheet. */
+  onLeft?: () => void
   onSetDefault: () => void
   onReceiptScan?: () => void
   onClose: () => void
@@ -44,6 +46,7 @@ export function ListActionSheet({
   onEmojiChange,
   onRename,
   onDelete,
+  onLeft,
   onSetDefault,
   onReceiptScan,
   onClose,
@@ -258,6 +261,7 @@ export function ListActionSheet({
         currentUserId={currentUserId}
         isOwner={isOwner}
         onClose={() => setSubState('actions')}
+        onLeft={onLeft}
       />
     )
   }

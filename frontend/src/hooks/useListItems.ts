@@ -17,6 +17,7 @@ import { itemState } from '../lib/itemState'
 import { isNetworkError } from '../lib/networkError'
 import { enqueue, newTempId } from '../lib/offlineQueue'
 import { isRetryable } from '../lib/queueCopy'
+import { itemRefusal, refusalMessage } from '../lib/refusalCopy'
 import type { ListItem, Member, ParsedInput, TagField } from '../types'
 import type { ShowToast } from './useToast'
 
@@ -86,31 +87,6 @@ function retryAction(err: unknown, onAct: () => void): ToastAction | undefined {
   return isRetryable(status)
     ? { label: 'Reintentar', tone: 'tomate', onAct }
     : undefined
-}
-
-/**
- * What to say when the server refused. «No se pudo …» is right for a failure;
- * these are not failures of the write but facts about the caller or the item,
- * and «Cambios sin enviar» already has the sentence for each.
- *
- * The **scope is per status, not per call site**, which is the thing worth
- * getting right here. A 403 is about the *list* and is true of every write; a
- * 404 means «el producto ya no existe» only where the write names a product —
- * on `addItem` the missing thing is the list. Excluding `addItem` wholesale
- * because of the 404 would have cost it the 403 it should have had, so the
- * two are asked separately.
- */
-function refusalMessage(err: unknown, fallback: string): string {
-  const status = err instanceof ApiError ? err.status : 0
-  if (status === 403) return 'Sin permiso en esa lista'
-  return fallback
-}
-
-/** `refusalMessage` plus the 404 only a write that names a product can say. */
-function itemRefusal(err: unknown, fallback: string): string {
-  const status = err instanceof ApiError ? err.status : 0
-  if (status === 404) return 'El producto ya no existe'
-  return refusalMessage(err, fallback)
 }
 
 export function useListItems(

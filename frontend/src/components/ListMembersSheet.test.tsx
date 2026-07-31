@@ -384,3 +384,101 @@ test('a member who has already left stays gone, and nothing is said', async () =
     'nothing failed — they left',
   ).not.toBeInTheDocument()
 })
+
+/**
+ * Leaving a list has to leave the list. One handler backs «Expulsar» and
+ * «Salir», and only the second ends *this* person's relationship with it —
+ * so only the second navigates.
+ *
+ * Nothing else would ever say so: the list's poll starts answering 403 and
+ * swallows it by design, `ListRoute` decided on mount, and this sheet reads
+ * its members once. They would go on tapping items into a list they are not in.
+ */
+test('leaving the list leaves the list', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.removeMember).mockResolvedValue(null)
+  const onLeft = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u2"
+      isOwner={false}
+      onClose={vi.fn()}
+      onLeft={onLeft}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /salir de la lista/i }),
+  )
+
+  await waitFor(() => expect(onLeft).toHaveBeenCalled())
+})
+
+// Already out — removed by the owner a moment earlier, or the list is gone.
+// Just as out as a success would have left them.
+test('leaving a list that no longer has you still leaves', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.removeMember).mockRejectedValue(
+    apiError(404, 'Member not found'),
+  )
+  const onLeft = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u2"
+      isOwner={false}
+      onClose={vi.fn()}
+      onLeft={onLeft}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /salir de la lista/i }),
+  )
+
+  await waitFor(() => expect(onLeft).toHaveBeenCalled())
+})
+
+// Expelling somebody else does not end *your* relationship with the list, so
+// the owner stays exactly where they are.
+test('expelling somebody else does not navigate the owner away', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.removeMember).mockResolvedValue(null)
+  const onLeft = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+      onLeft={onLeft}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /expulsar a bob/i }),
+  )
+
+  await waitFor(() => expect(screen.queryByText('Bob')).not.toBeInTheDocument())
+  expect(onLeft).not.toHaveBeenCalled()
+})
+
+// A tap that does nothing and says nothing is the one thing this app is not
+// allowed to do — and this one used to swallow everything but a 429.
+test('a failed invite link says so instead of vanishing', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
+  vi.mocked(api.createOpenInvite).mockRejectedValue(
+    apiError(500, 'Server Error'),
+  )
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /copiar enlace de invitación/i }),
+  )
+
+  expect(await screen.findByText(/no se pudo crear el enlace/i)).toBeVisible()
+})
