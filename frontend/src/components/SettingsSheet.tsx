@@ -217,12 +217,16 @@ export function SettingsSheet({
 
     void issued.then(
       async ({ key }) => {
-        // This owns two things, and the second is easy to lose. It keeps the
-        // stale answer out of the sheet, and it is also what silences the
-        // toast: the copy below is never reached on a superseded request, so
-        // the refused write's `false` is never read. Relax this line believing
-        // the copy reports for itself and «Clave copiada» comes back for a
-        // revoked key, with every test still green.
+        // Two jobs. It keeps the stale answer out of the sheet, which is the
+        // real damage — that is what erases a key issued a moment ago or
+        // latches the row shut. And it swallows the copy's verdict, which here
+        // is a failure nobody should be shown: the write was refused on
+        // purpose above, so «No se pudo copiar la clave» would arrive just
+        // after a regenerate and read as the new key failing to copy.
+        //
+        // What it does not own is «Clave copiada» for a revoked key. The throw
+        // in the payload above stops that, and stops it whether this line
+        // stays or goes.
         if (!current()) return
         setShownKey(key)
         if (!key) {
