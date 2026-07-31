@@ -1024,7 +1024,6 @@ export function ListScreen({
               listId={listId}
               getToken={getToken}
               members={members}
-              purchased={activeItem.purchased}
               // The row stopped carrying these, so the sheet took them on.
               onTagClick={(field) => {
                 setActiveItemId(null)

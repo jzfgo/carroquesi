@@ -23,7 +23,6 @@ interface Props {
   onTagClick: (field: TagField | 'stores') => void
   onLogPrice: () => void
   onClone?: () => void
-  purchased?: boolean
 }
 
 /** "Puleva · en Mercadona y Alcampo" — brand and shops, when there are any. */
@@ -46,8 +45,10 @@ export function ItemDetailSheet({
   onTagClick,
   onLogPrice,
   onClone,
-  purchased,
 }: Props) {
+  // The item already says whether it was bought. Taking it as a prop as well
+  // would be one fact with two sources, free to disagree.
+  const purchased = item.purchased
   const [subState, setSubState] = useState<SubState>('detail')
   const [renameValue, setRenameValue] = useState(item.name)
   const [entries, setEntries] = useState<ChartEntry[] | null>(null)
