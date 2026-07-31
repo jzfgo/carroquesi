@@ -2,6 +2,7 @@ import { ChevronDown, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { formatAmount } from '../lib/formatPrice'
 import { formatShortDate } from '../lib/formatShortDate'
+import { parseNaiveUtc } from '../lib/naiveUtc'
 import type { ChartEntry } from '../lib/priceNormalization'
 import './PriceHistoryBlock.css'
 
@@ -91,8 +92,14 @@ function Chart({ records, tall }: { records: ChartEntry[]; tall?: boolean }) {
 
   // Position each point by when it happened, not by its index, so a gap of
   // months does not read the same as a gap of days.
+  // Parsed through the rule rather than by `new Date`, though a uniform offset
+  // would cancel out of positions this relative. What does not cancel is a
+  // stamp that fails to parse: `new Date` gives `NaN`, which is not `null`, so
+  // it survives the filter below, poisons `Math.min` and reaches the path — and
+  // a `d` with `NaN` in it draws nothing at all. The curve would simply be
+  // missing, with no row anywhere saying why. `parseNaiveUtc` returns `null`.
   const times = reversed.map((r) =>
-    r.purchased_at ? new Date(r.purchased_at).getTime() : null,
+    r.purchased_at ? parseNaiveUtc(r.purchased_at) : null,
   )
   const validTimes = times.filter((t): t is number => t !== null)
   const minMs = validTimes.length > 0 ? Math.min(...validTimes) : 0

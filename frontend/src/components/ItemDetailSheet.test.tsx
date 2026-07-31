@@ -123,6 +123,18 @@ describe('ItemDetailSheet', () => {
     expect(screen.queryByText(/la unidad|el kilo/)).not.toBeInTheDocument()
   })
 
+  // The partner of the test below: it says the date goes away, which is only
+  // worth asserting if the date was ever there to go. Asked of the same
+  // selector, not of the text — otherwise renaming the class leaves the
+  // negative matching nothing and passing, which is the failure this pair
+  // exists to rule out.
+  it('dates the last price', () => {
+    renderSheet({ purchased_at: '2026-07-15T12:00:00' })
+    expect(document.querySelector('.item-detail__last-meta')?.textContent).toBe(
+      `la unidad · Mercadona · ${day('2026-07-15T12:00:00')}`,
+    )
+  })
+
   // The whole line describes the price above it, the date included. Left in on
   // its own it reads as the day of a price nobody ever recorded.
   it('drops the date too when there is no price', () => {
@@ -133,7 +145,13 @@ describe('ItemDetailSheet', () => {
       purchased_at: '2026-07-15T12:00:00',
     })
     expect(screen.getByText('Todavía sin precio')).toBeInTheDocument()
-    expect(screen.queryByText('15 jul')).not.toBeInTheDocument()
+    // Asked of the row rather than of the text: a query naming the day passes
+    // wherever the day renders differently — in Auckland this read «15 jul»
+    // while the sheet showed «16 jul» — so it went green without the code
+    // having done anything. A zone sweep cannot find that, because the wrong
+    // reason is the same colour as the right one. The row either exists or it
+    // does not, in every zone.
+    expect(document.querySelector('.item-detail__last-meta')).toBeNull()
   })
 
   // The quantity has its own row. Repeating it here would be one fact in two

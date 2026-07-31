@@ -86,3 +86,11 @@ That is worth knowing before trusting the paragraph above about the container be
 Commit the updated PNGs **in the same PR** as the UI change that caused them to change — a visual diff failing on an unrelated PR is a real regression signal, not noise to dismiss.
 
 Review a failing visual check via the `playwright-report/` artifact CI uploads on every run — it renders expected/actual/diff images side-by-side.
+
+## Neither sweep can see a test that is green for the wrong reason
+
+The `maxDiffPixels: 0` pass above and its unit-suite sibling — running under `TZ=Pacific/Auckland`, `Pacific/Kiritimati`, `Pacific/Midway` and the rest, to catch an assertion naming a day that a reader further east would see differently — are one instrument pointed at two things, and they share a blind spot. Both work by making a hidden difference turn **red**. Neither can see a test that passes without asserting anything.
+
+Negative assertions are where that bites, because they have two ways to pass and only one of them is the test. `expect(screen.queryByText('15 jul')).not.toBeInTheDocument()` was green in every zone from −11 to +14; in most of them it was green because the sheet drew «16 jul» and the query matched nothing at all, not because the code had dropped the date it was written to catch. Reintroducing that bug settled it: Madrid failed, Auckland passed 22 of 22. The sweep ran the very zone that exposes the flaw and still reported success — a vacuous pass and a real one are the same colour.
+
+So the zone sweep audits assertions that **name** a rendered value. It cannot find the ones that quietly stopped naming one. For those, ask the DOM something with a single answer in every zone — `document.querySelector('.item-detail__last-meta')` is either there or it is not — and pair it with a positive test that the row appears when it should, so its absence means something was removed rather than never drawn.
