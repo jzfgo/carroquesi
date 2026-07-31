@@ -95,11 +95,11 @@ The `maxDiffPixels: 0` pass above has a unit-suite sibling: run the whole suite 
 cd frontend
 for tz in UTC America/New_York Europe/Madrid Asia/Tokyo \
           Pacific/Auckland Pacific/Kiritimati Pacific/Midway; do
-  printf '%-22s ' "$tz"; TZ=$tz pnpm vitest run 2>&1 | grep -E '^ +Tests +'
+  printf '%-22s ' "$tz"; TZ=$tz pnpm test 2>&1 | grep -E '^ +Tests +'
 done
 ```
 
-Those seven span −11 to +14, which is the whole range — Kiritimati and Midway are the ends, and Auckland is there because +12/+13 is where a DST-shifting far-east zone catches things a fixed +14 does not. The runner's zone is the one being varied here; the browser's is pinned separately (see above).
+Those seven span −11 to +14. That is not quite the full range — `Etc/GMT+12` exists at −12 — but Midway is the westmost *inhabited* zone, and nothing in the suite distinguishes an hour further out. Kiritimati is the eastern end, and Auckland earns its place separately: +12/+13 is where a far-east zone that observes DST catches what a fixed +14 does not. The runner's zone is what varies here; the browser's is pinned separately (see above).
 
 The two sweeps are one instrument pointed at two things, and they share a blind spot. Both work by making a hidden difference turn **red**. Neither can see a test that passes without asserting anything.
 

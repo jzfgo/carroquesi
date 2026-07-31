@@ -2001,6 +2001,45 @@ describe('closing a trip', () => {
     )
   })
 
+  // The same pin, from a stamp that names its zone. Nothing serves this shape
+  // today — `tears_off_at` is a naive datetime and Pydantic writes no offset —
+  // but the old `Date.parse(`${p.tears_off_at}Z`)` made it `NaN`, and
+  // `NaN > now` is `false`, so the live trip silently stopped existing and
+  // took this pin with it. The rescue path for a shop tapped with no signal is
+  // not where you want to discover that.
+  it('finds the open trip when its stamp already names a zone', async () => {
+    vi.mocked(api.getPurchases).mockResolvedValue([
+      {
+        id: 'open-trip',
+        list_id: 'l1',
+        opened_at: TODAY,
+        tears_off_at: new Date(Date.now() + 3_600_000).toISOString(),
+        closed_at: null,
+        store: null,
+        total: null,
+      },
+    ])
+    vi.mocked(api.closePurchase).mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    )
+    renderWithCart()
+
+    await openSheet()
+    await userEvent.click(screen.getByRole('button', { name: 'Elegir tienda' }))
+    await userEvent.type(screen.getByLabelText('Tienda'), 'Lidl')
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Guardar compra' }),
+    )
+
+    await waitFor(() =>
+      expect(offlineQueue.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.objectContaining({ purchase_id: 'open-trip' }),
+        }),
+      ),
+    )
+  })
+
   it('keeps a close the network refused, rather than losing the shop', async () => {
     vi.mocked(api.closePurchase).mockRejectedValue(
       new TypeError('Failed to fetch'),

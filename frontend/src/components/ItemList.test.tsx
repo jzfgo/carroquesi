@@ -384,7 +384,7 @@ test('shows cost next to date label in purchased section', () => {
   // sheet, and would have no date label to hang a cost on.
   const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
-  const purchasedAt = yesterday.toISOString().slice(0, 19) // no trailing Z; purchasedDateLabel appends it
+  const purchasedAt = yesterday.toISOString().slice(0, 19) // no trailing Z; the naive-UTC rule appends it
   // The trip ended shortly after — still yesterday, so settled by now.
   const purchaseEndsAt = new Date(yesterday.getTime() + 60 * 60 * 1000)
     .toISOString()
