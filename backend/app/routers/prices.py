@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlmodel import Session, select
+from sqlmodel import Session, or_, select
 
 from app.db.models import ListItem, ListMember, Purchase
 from app.dependencies import CurrentSession, CurrentUser, MemberDep
@@ -136,7 +136,10 @@ def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list[L
 
 
 def _base_conditions(item: ListItem):
-    has_price = ListItem.price.isnot(None)
+    # A shop that recorded no amount still belongs in the history: the history
+    # says what was paid and when, and "nothing was written down" is part of
+    # that answer. Unbought items with no price say nothing and stay out.
+    is_a_record = or_(ListItem.price.isnot(None), ListItem.purchased_at.isnot(None))
     if item.ean:
-        return (ListItem.ean == item.ean, has_price)
-    return (ListItem.name == item.name, ListItem.brand == item.brand, has_price)
+        return (ListItem.ean == item.ean, is_a_record)
+    return (ListItem.name == item.name, ListItem.brand == item.brand, is_a_record)

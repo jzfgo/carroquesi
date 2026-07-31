@@ -169,18 +169,44 @@ def test_get_price_history_this_list_by_name_brand(client: TestClient):
     assert stores == {"Lidl", "Mercadona"}
 
 
-def test_get_price_history_excludes_items_without_price(client: TestClient, httpx_mock: HTTPXMock):
+def test_get_price_history_excludes_unbought_items_without_price(
+    client: TestClient, httpx_mock: HTTPXMock
+):
     httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
     ean = "8410188099999"
     lst = _make_list(client)
     item1 = _make_item(client, lst["id"], name="Leche", ean=ean)
-    _make_item(client, lst["id"], name="Leche entera", ean=ean)  # no price logged
-
     _set_price(client, lst["id"], item1["id"], 0.89)
+    # A second item with the same EAN is a duplicate while the first is still
+    # unbought, so buy that one first to get the item this test is about.
+    client.patch(f"/lists/{lst['id']}/items/{item1['id']}", json={"purchased": True})
+    item2 = _make_item(client, lst["id"], name="Leche entera", ean=ean)
+    assert "id" in item2
 
     resp = client.get(f"/lists/{lst['id']}/items/{item1['id']}/prices?scope=this_list")
     assert resp.status_code == 200
     assert len(resp.json()["entries"]) == 1
+
+
+def test_get_price_history_includes_purchase_without_price(
+    client: TestClient, httpx_mock: HTTPXMock
+):
+    httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
+    ean = "8410188099998"
+    lst = _make_list(client)
+    item1 = _make_item(client, lst["id"], name="Leche", ean=ean)
+    _set_price(client, lst["id"], item1["id"], 0.89)
+    client.patch(f"/lists/{lst['id']}/items/{item1['id']}", json={"purchased": True})
+
+    item2 = _make_item(client, lst["id"], name="Leche entera", ean=ean)
+    client.patch(f"/lists/{lst['id']}/items/{item2['id']}", json={"purchased": True})
+
+    resp = client.get(f"/lists/{lst['id']}/items/{item1['id']}/prices?scope=this_list")
+    assert resp.status_code == 200
+    amounts = sorted(
+        (e["amount"] for e in resp.json()["entries"]), key=lambda a: (a is not None, a)
+    )
+    assert amounts == [None, 0.89]
 
 
 def test_get_price_history_my_lists_by_ean(client: TestClient, httpx_mock: HTTPXMock):

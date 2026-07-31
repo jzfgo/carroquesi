@@ -10,7 +10,9 @@ class PriceCreate(BaseModel):
 
 
 class PriceEntry(BaseModel):
-    amount: float
+    # None when the purchase recorded no amount. A gap in a price history is
+    # information, not an error to hide, so the entry is returned either way.
+    amount: float | None
     price_per: str | None
     store: str | None
     purchased_at: str | None = None
