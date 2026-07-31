@@ -11,10 +11,11 @@
 
 **The faces are vendored, not fetched.** `src/fonts.css` declares them and `src/assets/fonts/` holds the bytes; nothing in the app talks to `fonts.googleapis.com` or `fonts.gstatic.com`. They are **static files, checked in** — there is no generator, and there is deliberately not one: a refresh is a manual job of a few minutes that comes round every year or two, and the header comment in `src/fonts.css` is the whole recipe. Read it before changing a family, a weight or a subset.
 
-Two things in it that are load-bearing:
+Three things in it that are load-bearing:
 
 - **The `@font-face` blocks are Google's, copied through unedited.** Three of the five families are variable, so Google emits one block per requested weight all pointing at the same file. Collapsing those into a `font-weight: 400 700` range changes which instance the browser picks; dropping `unicode-range` downloads every subset on every page.
 - **A changed `.woff2` is a rendering change app-wide.** Regenerate the visual baselines in the same PR, and say in the message that letterforms moved — see the tolerance section in `tests/README.md` for why a font refresh can move every screen by less than the budget and fail nothing.
+- **Only ask for a weight the family has.** `fonts.css` is the list: Geist, Caveat and JetBrains Mono carry 400/500/600/700; **Bree Serif and Patrick Hand SC carry 400 and nothing else.** Asking those two for anything heavier fails silently in the worst way — the browser either picks 400 or draws a synthetic bold, the two do not look alike, nothing in CI can say which happened, and no rule anywhere declares the family single-weight. `--font-display` is Bree Serif, so `h1`/`h2` and every class that inherits their family is where this goes wrong.
 
 Never hard-code a face in a component. Resolve through the tokens in `colorsAndType.css` (`--font-sans`, `--font-display`, `--font-hand`, `--font-written`, `--font-mono`); `--written-scale` is a cap-height correction measured against the specific face `--font-written` names, so swapping that face means re-measuring the number.
 
