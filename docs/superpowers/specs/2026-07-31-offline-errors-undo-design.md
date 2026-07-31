@@ -394,6 +394,27 @@ whichever branch merges second regenerates them again. Nothing else moves —
 a tap now leaves an undo notice on screen, whose bar drains as it goes, so the
 helpers that mark an item purchased close it before any screenshot is taken.
 
+## Known limits
+
+Four things this phase leaves standing, each with an issue — so none of them is
+a surprise to somebody reading «Cambios sin enviar» and taking it as complete.
+
+- **A retry can quietly undo newer work** (JAV-100). A refused op stops holding
+  up the queue, which is what lets later writes keep flowing — including later
+  writes to the *same* row. Rename, get refused, rename again offline, then
+  press *Reintentar* on the first: the older name wins and nothing says so. The
+  add case is solved here because it fails loudly and permanently; this one
+  fails quietly and can be undone by hand.
+- **Drains are serialised per tab, not per queue** (JAV-98). `chain` is a ref
+  in one React tree; the store is per-origin. Two tabs waking on the same
+  reconnection both send, and the second `remove` is a no-op on a key that has
+  already gone — so the duplicate leaves no trace.
+- **A close naming an item the server cannot find is accepted** (JAV-97).
+  Guarded on the client here; the endpoint still answers 200 and files less
+  than it was told.
+- **Every store call opens a connection and none are closed** (JAV-99). Which
+  is why the reads needed a generation guard at all.
+
 ## What this closes
 
 `19a`, `19b` and `19c`, and with them JAV-89. `20a` (scanning to add, phase 6)
