@@ -86,3 +86,23 @@ That is worth knowing before trusting the paragraph above about the container be
 Commit the updated PNGs **in the same PR** as the UI change that caused them to change — a visual diff failing on an unrelated PR is a real regression signal, not noise to dismiss.
 
 Review a failing visual check via the `playwright-report/` artifact CI uploads on every run — it renders expected/actual/diff images side-by-side.
+
+## Neither sweep can see a test that is green for the wrong reason
+
+The `maxDiffPixels: 0` pass above has a unit-suite sibling: run the whole suite from one end of the world to the other, and any assertion naming a day that a reader further east would see differently turns red.
+
+```bash
+cd frontend
+for tz in UTC America/New_York Europe/Madrid Asia/Tokyo \
+          Pacific/Auckland Pacific/Kiritimati Pacific/Midway; do
+  printf '%-22s ' "$tz"; TZ=$tz pnpm test 2>&1 | grep -E '^ +Tests +'
+done
+```
+
+Those seven span −11 to +14. That is not quite the full range — `Etc/GMT+12` exists at −12 — but Midway is the westmost _inhabited_ zone, and nothing in the suite distinguishes an hour further out. Kiritimati is the eastern end, and Auckland earns its place separately: +12/+13 is where a far-east zone that observes DST catches what a fixed +14 does not. The runner's zone is what varies here; the browser's is pinned separately (see above).
+
+The two sweeps are one instrument pointed at two things, and they share a blind spot. Both work by making a hidden difference turn **red**. Neither can see a test that passes without asserting anything.
+
+Negative assertions are where that bites, because they have two ways to pass and only one of them is the test. `expect(screen.queryByText('15 jul')).not.toBeInTheDocument()` was green in every zone from −11 to +14; in most of them it was green because the sheet drew «16 jul» and the query matched nothing at all, not because the code had dropped the date it was written to catch. Reintroducing that bug settled it: Madrid failed, Auckland passed 22 of 22. The sweep ran the very zone that exposes the flaw and still reported success — a vacuous pass and a real one are the same colour.
+
+So the zone sweep audits assertions that **name** a rendered value. It cannot find the ones that quietly stopped naming one. For those, ask the DOM something with a single answer in every zone — `document.querySelector('.item-detail__last-meta')` is either there or it is not — and pair it with a positive test that the row appears when it should, so its absence means something was removed rather than never drawn.

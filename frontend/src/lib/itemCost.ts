@@ -1,4 +1,5 @@
 import type { ListItem } from '../types'
+import { parseNaiveUtc } from './naiveUtc'
 
 // SI units → kg equivalent (volume treated as water: 1 L = 1 kg)
 const UNIT_TO_KG: Record<string, number> = {
@@ -83,13 +84,19 @@ export function computeCostSummary(items: ListItem[]): CostSummary | null {
 }
 
 /**
- * Canonical date label for a purchased item.
- * Used by both ListScreen (cost grouping) and ItemList (rendering) so the
- * keys always match.
+ * Canonical date label for a purchased item — the day header over a trip's
+ * lines in ItemList.
+ *
+ * Read through `parseNaiveUtc` rather than by hand. This was
+ * `new Date(purchased_at + 'Z')`: the same rule inlined, but without its
+ * fail-safe. Appending `Z` unconditionally turns a stamp that already names
+ * its zone into `2026-07-23T00:30:00+02:00Z`, and that — like a stamp nobody
+ * can read — is an `Invalid Date`, whose `toLocaleDateString` is the literal
+ * string «Invalid Date», printed as a heading over somebody's shop. Not
+ * knowing the day is something this function can already say out loud.
  */
 export function purchasedDateLabel(purchased_at: string | null): string {
-  if (!purchased_at) return 'Fecha desconocida'
-  return new Date(purchased_at + 'Z').toLocaleDateString('es', {
-    dateStyle: 'medium',
-  })
+  const at = purchased_at === null ? null : parseNaiveUtc(purchased_at)
+  if (at === null) return 'Fecha desconocida'
+  return new Date(at).toLocaleDateString('es', { dateStyle: 'medium' })
 }

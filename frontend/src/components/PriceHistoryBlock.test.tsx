@@ -210,6 +210,29 @@ describe('PriceHistoryBlock', () => {
     expect(withIt).toBe(curve([newer, older]))
   })
 
+  // The x axis reads a stored stamp, and one it could not read used to arrive
+  // as `NaN` — which is not `null`, so it passed the filter, poisoned the range
+  // and reached the path. An SVG `d` with a `NaN` anywhere in it draws nothing:
+  // the entire curve would vanish because one record had an odd date, and no
+  // row anywhere would say why. Unreadable means unplaced now, not unplotted.
+  it('still draws every point when one date cannot be read', () => {
+    render(
+      <PriceHistoryBlock
+        entries={[
+          entry({ displayAmount: 5.49, purchased_at: '2026-07-22T12:00:00' }),
+          entry({ displayAmount: 5.1, purchased_at: 'el martes pasado' }),
+          entry({ displayAmount: 5.34, purchased_at: '2026-07-08T12:00:00' }),
+        ]}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Mercadona/ }))
+    const d = document
+      .querySelector('.phb__chart .phb__chart-line')
+      ?.getAttribute('d')
+    expect(d?.match(/[ML]/g)).toHaveLength(3)
+    expect(d).not.toContain('NaN')
+  })
+
   // The three figures have to sit on one scale. When a history normalises,
   // only the records that converted hold €/kg — reaching past them to an
   // unconverted figure prints a per-unit price under a per-kilo label, which

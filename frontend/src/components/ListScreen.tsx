@@ -35,6 +35,7 @@ import { FLAGS } from '../lib/featureFlags'
 import { computeCostSummary } from '../lib/itemCost'
 import { itemState } from '../lib/itemState'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
+import { parseNaiveUtc } from '../lib/naiveUtc'
 import { isNetworkError } from '../lib/networkError'
 import { enqueue } from '../lib/offlineQueue'
 import { parseInput } from '../lib/parseInput'
@@ -365,11 +366,31 @@ export function ListScreen({
   }, [items])
 
   // The list's live trip, if the read has landed.
+  //
+  // Through the rule, and failing the way `itemState` fails. This asks the
+  // same question of the sibling field that `itemState` reads — is this shop
+  // still going — so it has to answer it the same way, or the app holds two
+  // views of one trip. Parsed by hand it could not: `Date.parse` of a stamp
+  // that already names its zone is `NaN`, `NaN > now` is `false`, and the
+  // trip would quietly not exist. That costs the offline `purchase_id` pin
+  // below, which is there to rescue a shop tapped with no signal.
+  //
+  // One asymmetry with `itemState` is worth naming, because it is what decides
+  // the answer here. That one labels an item and can only mislabel the item it
+  // was handed; this one *picks* between trips, and a trip torn off but never
+  // filed keeps `closed_at === null` for good. So the unreadable branch can
+  // admit more than one candidate, and `find` takes whichever comes first.
+  // First is the newest — `GET /lists/{id}/purchases` orders `opened_at desc`
+  // and the Map is built from that array in order. That is the guess you would
+  // make by hand, but it rests on the endpoint's `order_by` rather than on
+  // anything visible from here.
   const openTrip = useMemo(
     () =>
-      [...purchasesById.values()].find(
-        (p) => p.closed_at === null && Date.parse(`${p.tears_off_at}Z`) > now,
-      ),
+      [...purchasesById.values()].find((p) => {
+        if (p.closed_at !== null) return false
+        const tearsOff = parseNaiveUtc(p.tears_off_at)
+        return tearsOff === null || tearsOff > now
+      }),
     [purchasesById, now],
   )
 
