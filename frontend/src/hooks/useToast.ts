@@ -1,7 +1,16 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { ToastAction } from '../components/Toast'
 
 export interface ToastState {
+  /**
+   * Which showing this is, not what it says. `Toast` keys its window on the
+   * message, so two notices carrying the same words — a flapping connection
+   * failing the same way twice — would look like one notice that never left:
+   * the second would inherit whatever was left of the first one's seconds and
+   * a bar already half drained. Used as the element's `key`, so each showing
+   * is a new one and starts its own window.
+   */
+  id: number
   message: string
   action?: ToastAction
 }
@@ -19,9 +28,10 @@ export type ShowToast = (message: string, action?: ToastAction) => void
  */
 export function useToast() {
   const [toast, setToast] = useState<ToastState | null>(null)
+  const shown = useRef(0)
 
   const showToast = useCallback<ShowToast>(
-    (message, action) => setToast({ message, action }),
+    (message, action) => setToast({ id: ++shown.current, message, action }),
     [],
   )
   const dismissToast = useCallback(() => setToast(null), [])

@@ -138,3 +138,12 @@ export function whenLabel(at: number, now: number): string {
 
 /** A row that was queued before the label existed still has to say something. */
 export const UNLABELLED = 'Un cambio'
+
+/**
+ * Held on an add that is not here any more — landed and gone, or discarded.
+ *
+ * «espera a que se añada el producto» would be a promise nothing is left to
+ * keep: there is no add in the sheet to carry this one, and sending it alone
+ * only names a temp id again. So the row says the truth and carries no retry.
+ */
+export const ORPHANED = 'el producto no llegó a crearse'

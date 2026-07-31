@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { QueuedOp } from '../lib/offlineQueue'
+import { HELD_FOR_ADD, type QueuedOp } from '../lib/offlineQueue'
 import { UnsentChangesSheet } from './UnsentChangesSheet'
 
 function op(over: Partial<QueuedOp> = {}): QueuedOp {
@@ -271,4 +271,97 @@ describe('UnsentChangesSheet', () => {
     render(<UnsentChangesSheet {...props} rejected={[op({ label: '' })]} />)
     expect(screen.getByText('Un cambio')).toBeInTheDocument()
   })
+})
+
+/**
+ * `isRetryable(HELD_FOR_ADD)` is true, so a held row's retry rests entirely on
+ * whether its add is still here to wait for. When it is not — landed and gone,
+ * or discarded — a retry can only clear it, drain, be held again, and say the
+ * same thing every time it is pressed.
+ */
+describe('UnsentChangesSheet — held with nothing left to wait for', () => {
+  const held = (over: Partial<QueuedOp> = {}) =>
+    op({
+      id: 'q-edit',
+      type: 'updateItem',
+      payload: { itemId: 'tmp-1', patch: { name: 'Pimentón dulce' } },
+      label: 'Pimentón dulce',
+      failure: { status: HELD_FOR_ADD, at: 0 },
+      ...over,
+    })
+
+  it('draws no retry once the add it waited for is gone', () => {
+    render(<UnsentChangesSheet {...props} rejected={[held()]} />)
+
+    expect(screen.queryByRole('button', { name: /Reintentar/ })).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Descartarlos' }),
+    ).toBeInTheDocument()
+  })
+
+  // «espera a que se añada el producto» would promise something nothing is
+  // left to keep.
+  it('stops promising an add that is not coming', () => {
+    render(<UnsentChangesSheet {...props} rejected={[held()]} />)
+
+    expect(
+      screen.getByText(/el producto no llegó a crearse/),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/espera a que se añada/)).toBeNull()
+  })
+
+  // With its add still here it is only waiting, and the pass carries it.
+  it('keeps waiting while the add is still in the sheet', () => {
+    const add = op({ id: 'q-add', tempId: 'tmp-1' })
+    render(
+      <UnsentChangesSheet
+        {...props}
+        rejected={[add, held({ enqueuedAt: Date.now() + 1 })]}
+      />,
+    )
+
+    expect(
+      screen.getByText(/espera a que se añada el producto/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Reintentar los 2' }),
+    ).toBeInTheDocument()
+  })
+})
+
+/**
+ * One close names one item per line, so it can wait on more than one add.
+ * Judging it by whichever stranded add came first counts a line the pass could
+ * never send.
+ */
+it('counts a close against every add it waits on, not the first', () => {
+  const ok = op({ id: 'q-a', tempId: 'tmp-1', label: 'Pan' })
+  const dead = op({
+    id: 'q-b',
+    tempId: 'tmp-2',
+    label: 'Leche',
+    failure: { status: 404, at: 0 },
+  })
+  const close = op({
+    id: 'q-close',
+    type: 'closePurchase',
+    payload: {
+      store: 'Lidl',
+      lines: [
+        { item_id: 'tmp-1', price: 1.19, price_per: null, quantity: null },
+        { item_id: 'tmp-2', price: 0.99, price_per: null, quantity: null },
+      ],
+      new_items: [],
+    },
+    label: 'Lidl',
+    failure: { status: HELD_FOR_ADD, at: 0 },
+    enqueuedAt: Date.now() + 1,
+  })
+
+  render(<UnsentChangesSheet {...props} rejected={[ok, dead, close]} />)
+
+  // Only the add that can still land. The close waits on one that never will.
+  expect(
+    screen.getByRole('button', { name: 'Reintentar el cambio' }),
+  ).toBeInTheDocument()
 })

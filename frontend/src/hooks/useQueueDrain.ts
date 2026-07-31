@@ -190,7 +190,13 @@ export function useQueueDrain({
     // modes — and every caller either uses `void` or awaits from a `finally`.
     // An escaping rejection would be unhandled, and would leave `chain`
     // rejected for the next pass to inherit.
-    chain.current = chain.current.then(runDrain, runDrain).catch(() => {})
+    chain.current = chain.current.then(runDrain, runDrain).catch((err) => {
+      // Swallowing the rejection is right; swallowing the reason is not. A
+      // store that cannot be opened at all shows nothing anywhere — the loud
+      // failure on `enqueue` covers the write path and not this one — so at
+      // least leave a trace of why the queue stopped moving.
+      console.warn('offline queue drain failed', err)
+    })
     return chain.current
   }, [runDrain])
 

@@ -1161,6 +1161,10 @@ export function ListScreen({
 
       {toast && (
         <Toast
+          // A second notice with the same words is a second notice, and
+          // starts its own window rather than inheriting what is left of
+          // the first one's.
+          key={toast.id}
           message={toast.message}
           action={toast.action}
           onDismiss={dismissToast}

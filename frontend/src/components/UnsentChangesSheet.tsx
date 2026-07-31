@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
-import { targetsOf, type QueuedOp } from '../lib/offlineQueue'
+import { HELD_FOR_ADD, targetsOf, type QueuedOp } from '../lib/offlineQueue'
 import {
   failureCause,
   isRetryable,
   opKind,
+  ORPHANED,
   UNLABELLED,
   whenLabel,
 } from '../lib/queueCopy'
@@ -92,22 +93,34 @@ export function UnsentChangesSheet({
       .sort((a, b) => a.enqueuedAt - b.enqueuedAt)
       .map((op) => {
         const status = op.failure?.status ?? 0
-        // Every id the op needs, not just an edit's — a close names one per
-        // line, and a close waiting on an add is held for the same reason.
-        const waitsFor = op.tempId
-          ? undefined
-          : targetsOf(op)
-              .map((id) => strandedOn.get(id))
-              .find(Boolean)
+        // Every id the op needs — a close names one per line, and it waits on
+        // an add for the same reason an edit does. `targetsOf` already answers
+        // «nothing» for an add, so there is no second rule about them here.
+        const waitingOn = targetsOf(op)
+          .map((id) => strandedOn.get(id))
+          .filter((waited) => waited !== undefined)
+
+        // Held with nothing left to wait for: the add it needed has landed and
+        // gone, or was discarded. Nothing can resolve it now, so it is
+        // terminal — a retry would clear it, drain, be held again, and say the
+        // same thing every time it is pressed.
+        const orphaned = status === HELD_FOR_ADD && waitingOn.length === 0
+        const cause = orphaned ? ORPHANED : failureCause(status, op.type)
+
         return {
           op,
-          why: `${opKind(op)} · ${whenLabel(op.enqueuedAt, now)} · ${failureCause(status, op.type)}`,
-          canRetry: isRetryable(status) && !waitsFor,
-          // Sent by the retry-all whenever it can stand on its own, or
-          // whenever the add it waits on is going out in the same pass.
+          why: `${opKind(op)} · ${whenLabel(op.enqueuedAt, now)} · ${cause}`,
+          canRetry: isRetryable(status) && !orphaned && waitingOn.length === 0,
+          // Sent by the retry-all whenever it can stand on its own, or when
+          // *every* add it waits on is going out in the same pass. One close
+          // can name two, and one of them being retryable is not enough — the
+          // button would be counting a line it could never send.
           inRetryAll:
             isRetryable(status) &&
-            (!waitsFor || isRetryable(waitsFor.failure?.status ?? 0)),
+            !orphaned &&
+            waitingOn.every((waited) =>
+              isRetryable(waited.failure?.status ?? 0),
+            ),
         }
       })
   }, [rejected, now])

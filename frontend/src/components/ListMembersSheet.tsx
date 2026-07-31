@@ -242,7 +242,13 @@ export function ListMembersSheet({
           </>
         )}
 
-        {toast && <Toast message={toast.message} onDismiss={dismissToast} />}
+        {toast && (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            onDismiss={dismissToast}
+          />
+        )}
       </div>
     </>
   )

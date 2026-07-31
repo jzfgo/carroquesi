@@ -46,7 +46,16 @@ export interface QueuedOp {
  * halves of one convention that nothing keeps in step.
  */
 export function newTempId(): string {
-  return `tmp-${Date.now()}`
+  // Not the clock. Two temp ids that collide are load-bearing in three places
+  // at once: the drain's `tempIdMap` would hand the second add's real id to
+  // the first add's dependents, `strandedOn` would keep only one of the two,
+  // and the optimistic row replacement would collapse both into one item — an
+  // edit meant for «Pan» landing on «Leche», quietly and on the wrong row.
+  //
+  // A temp id is only ever compared for equality, never ordered, so it does
+  // not need the stamp's sequence — and a random one cannot collide with an id
+  // still sitting in the queue from a session whose clock read differently.
+  return `tmp-${crypto.randomUUID()}`
 }
 
 export function isTempId(id: string): boolean {
@@ -119,9 +128,37 @@ function stamp(): number {
   return lastStamp
 }
 
+/**
+ * Carry the order across a reload, once, before the first new op is stamped.
+ *
+ * `lastStamp` starts at 0 on every load, so without this the sequence is only
+ * monotonic within a session and the wall clock decides again across one. A
+ * clock that steps *backwards* between loads — an NTP correction on a phone
+ * that booted wrong — would then stamp an edit before the add it depends on,
+ * and the drain would hold that edit while its add lands and leaves.
+ *
+ * Kept as a promise rather than a flag so two enqueues racing on first use
+ * both wait for the same read instead of one stamping ahead of it.
+ */
+let seeding: Promise<void> | null = null
+
+function seedStamp(): Promise<void> {
+  seeding ??= getAll()
+    .then((all) => {
+      for (const op of all) {
+        if (op.enqueuedAt > lastStamp) lastStamp = op.enqueuedAt
+      }
+    })
+    // An unreadable store is the drain's problem to report, not a reason to
+    // refuse the write that is being queued right now.
+    .catch(() => {})
+  return seeding
+}
+
 export async function enqueue(
   op: Omit<QueuedOp, 'id' | 'enqueuedAt'>,
 ): Promise<QueuedOp> {
+  await seedStamp()
   const full: QueuedOp = {
     ...op,
     id: crypto.randomUUID(),

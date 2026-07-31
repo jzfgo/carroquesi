@@ -543,7 +543,13 @@ export function DashboardScreen() {
           onClose={() => setFeedbackOpen(false)}
         />
       )}
-      {toast && <Toast message={toast.message} onDismiss={dismissToast} />}
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          onDismiss={dismissToast}
+        />
+      )}
     </div>
   )
 }

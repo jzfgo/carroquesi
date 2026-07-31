@@ -1,10 +1,11 @@
 import 'fake-indexeddb/auto'
-import { beforeEach, describe, expect, it, test } from 'vitest'
+import { beforeEach, describe, expect, it, test, vi } from 'vitest'
 import {
   clearFailure,
   enqueue,
   getAll,
   markFailed,
+  newTempId,
   remove,
 } from './offlineQueue'
 
@@ -186,5 +187,60 @@ describe('enqueue ordering', () => {
       label: 'Pimentón dulce',
     })
     expect(add.enqueuedAt).toBeLessThan(edit.enqueuedAt)
+  })
+})
+
+/**
+ * `lastStamp` starts at 0 on every load, so without seeding the order falls
+ * back to the wall clock across a reload — and a clock that stepped backwards
+ * between the two would stamp an edit before the add it depends on. A fresh
+ * import of the module is the reload: it is the only way to get the counter
+ * back to 0 without a test-only export into the code under test.
+ */
+describe('enqueue ordering across a reload', () => {
+  it('picks up after what the last session left in the store', async () => {
+    vi.useFakeTimers()
+    try {
+      const late = new Date('2026-07-31T10:01:00Z')
+      vi.setSystemTime(late)
+      const add = await enqueue({
+        listId: 'l1',
+        type: 'addItem',
+        tempId: 'tmp-1',
+        payload: {},
+        label: 'Pimentón',
+      })
+
+      // The reload, and a clock corrected a minute backwards under it.
+      vi.resetModules()
+      const fresh = await import('./offlineQueue')
+      vi.setSystemTime(new Date('2026-07-31T10:00:00Z'))
+
+      const edit = await fresh.enqueue({
+        listId: 'l1',
+        type: 'updateItem',
+        payload: { itemId: 'tmp-1' },
+        label: 'Pimentón dulce',
+      })
+
+      expect(edit.enqueuedAt).toBeGreaterThan(add.enqueuedAt)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+// Equality is all a temp id is ever asked for, and a collision would hand one
+// add's real id to another add's dependents.
+describe('newTempId', () => {
+  it('never mints the same id twice, whatever the clock says', () => {
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-07-31T10:00:00Z'))
+      const ids = new Set(Array.from({ length: 100 }, () => newTempId()))
+      expect(ids.size).toBe(100)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
