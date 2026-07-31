@@ -387,12 +387,21 @@ clock between the two adds, and waits for the band's count before advancing,
 so the two rows carry distinct stamps and their order is a fact rather than a
 tie broken by whatever the queue handed over first.
 
-**Four existing baselines do change**, and they are the phase's one merge
+**Four existing baselines do change**, and they were the phase's one merge
 hazard: `price-delete-guard-*` shows a toast, and the toast's body lost its
 border. Phase 6 regenerated those same four on `feat/item-and-prices`, so
-whichever branch merges second regenerates them again. Nothing else moves —
-a tap now leaves an undo notice on screen, whose bar drains as it goes, so the
-helpers that mark an item purchased close it before any screenshot is taken.
+whichever branch merged second had to regenerate them again. That is settled:
+phase 6 landed first (#198), this branch rebased onto it, and the four were
+regenerated in the container against both changes together. Nothing else moves
+— a tap now leaves an undo notice on screen, whose bar drains as it goes, so
+the helpers that mark an item purchased close it before any screenshot is
+taken.
+
+The rebase also took phase 6's rename of `setPriceItemId` to `setActiveItemId`
+in `handleSavePrice`, and moved this phase's price-retry test onto the new path
+into the price sheet: phase 6 folded `PriceHistorySheet` into
+`PriceHistoryBlock` inside the item sheet, so «Registrar un precio» is now one
+hop from the row rather than two.
 
 ## Known limits
 

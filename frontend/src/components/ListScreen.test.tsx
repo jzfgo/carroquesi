@@ -395,8 +395,9 @@ describe('ListScreen', () => {
    */
   it('says so again when the price retry fails too', async () => {
     const savePriceMock = vi.fn().mockRejectedValue(new Error('boom'))
-    // The history sheet is on the way to the one being tested, and it reads
-    // on mount; the api automock would hand its effect an undefined.
+    // The detail sheet is on the way to the one being tested, and it reads the
+    // price history on mount; the api automock would hand its effect an
+    // undefined.
     vi.mocked(api.getPriceHistory).mockResolvedValue({ entries: [] } as never)
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -414,9 +415,8 @@ describe('ListScreen', () => {
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
-    fireEvent.click(screen.getByRole('button', { name: /precio/i }))
     fireEvent.click(
-      await screen.findByRole('button', { name: /registrar precio/i }),
+      await screen.findByRole('button', { name: /registrar un precio/i }),
     )
     fireEvent.change(screen.getByPlaceholderText('0.00'), {
       target: { value: '1.19' },
