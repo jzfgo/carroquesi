@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AuthUser } from '../contexts/AuthContext'
 import * as api from '../lib/api'
@@ -289,6 +289,13 @@ describe('SettingsSheet — the Siri shortcut', () => {
         hand = resolve
       }) as never,
     )
+    const write = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('ClipboardItem', class ClipboardItemStub {})
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { write },
+      writable: true,
+      configurable: true,
+    })
 
     render(<SettingsSheet {...apple} />)
     const copy = screen.getByRole('button', { name: /^copiar$/i })
@@ -296,10 +303,51 @@ describe('SettingsSheet — the Siri shortcut', () => {
     fireEvent.click(copy)
 
     expect(api.issueApiKey).toHaveBeenCalledOnce()
+    // The other half of the claim, and the more fragile one: the second tap
+    // still reaches the clipboard on its own gesture. An early return for a
+    // request already in flight would keep the count above green and lose it.
+    expect(write).toHaveBeenCalledTimes(2)
 
     hand({ key: 'cqs_test-key', created: true })
     expect(await screen.findByText('cqs_test-key')).toBeInTheDocument()
     expect(screen.queryByText('••••••••••••••••')).toBeNull()
+    // One request, one voice: the joining tap copies but does not report.
+    expect(onToast).toHaveBeenCalledOnce()
+  })
+
+  /**
+   * Clearing the ref does not detach a handler already waiting on the old
+   * promise. Without an identity check the stale answer lands after the
+   * regenerate and undoes it — erasing a key issued a second ago, or showing
+   * one that has just been revoked.
+   */
+  it('lets a regenerate outrank an issue request still in flight', async () => {
+    let hand: (r: { key: string | null; created: boolean }) => void = () => {}
+    vi.mocked(api.issueApiKey).mockReturnValue(
+      new Promise<{ key: string | null; created: boolean }>((resolve) => {
+        hand = resolve
+      }) as never,
+    )
+    vi.mocked(api.regenerateApiKey).mockResolvedValue({
+      key: 'cqs_new-key',
+      regenerated_at: '',
+    } as never)
+
+    render(<SettingsSheet {...apple} />)
+    fireEvent.click(screen.getByRole('button', { name: /^copiar$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^regenerar$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, regenerar/i }))
+    expect(await screen.findByText('cqs_new-key')).toBeInTheDocument()
+
+    await act(async () => {
+      hand({ key: null, created: false })
+    })
+
+    expect(screen.getByText('cqs_new-key')).toBeInTheDocument()
+    expect(screen.queryByText('••••••••••••••••')).toBeNull()
+    expect(onToast).not.toHaveBeenCalledWith(
+      'Tu clave está oculta. Regenérala para obtener una nueva.',
+    )
   })
 
   it('steers a returning user to regenerate, because the key is unrecoverable', async () => {

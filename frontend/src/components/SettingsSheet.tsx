@@ -183,15 +183,31 @@ export function SettingsSheet({
     // a returning user — landing last, it would wipe the reveal the winner just
     // made and latch the row shut. Joining the same promise also keeps the
     // gesture, because the second tap still reaches the clipboard call.
+    const joining = issuingRef.current !== null
     const issued = (issuingRef.current ??= issueApiKey(getToken))
+
+    // Every tap copies — that is what keeps the second tap's gesture — but only
+    // the tap that made the request speaks. Two of these would say «Clave
+    // copiada» twice, and worse on Safari: an engine that refuses the second
+    // write leaves its fallback running after an await with the gesture gone,
+    // so the sheet would report copied and not copied at once.
     const copied = copyWhenReady(
       issued.then(({ key }) => {
         if (!key) throw new Error('no plaintext key to copy')
         return key
       }),
     )
+    if (joining) return
+
+    // Whether this answer still matters. Clearing the ref does not detach a
+    // handler already registered on the old promise, so a regenerate that
+    // finished while this was in flight would otherwise be undone by it —
+    // erasing a key issued a second ago, or showing one it just revoked.
+    const current = () => issuingRef.current === issued
+
     void issued.then(
       async ({ key }) => {
+        if (!current()) return
         setShownKey(key)
         if (!key) {
           setKeyHidden(true)
@@ -201,6 +217,7 @@ export function SettingsSheet({
         report(await copied)
       },
       () => {
+        if (!current()) return
         // Let the next tap try again rather than joining a request that failed.
         issuingRef.current = null
         onToast('No se pudo preparar el atajo de Siri. Inténtalo de nuevo.')
