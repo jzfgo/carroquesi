@@ -382,7 +382,13 @@ describe('SettingsSheet — the Siri shortcut', () => {
     )
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', {
-      value: { write: vi.fn().mockResolvedValue(undefined), writeText },
+      value: {
+        // Rejects, as a real engine does when the payload it was handed is
+        // refused. A resolving stub would leave `copyWhenReady` short of its
+        // catch, and the fallback assertion below could then never fail.
+        write: vi.fn().mockRejectedValue(new Error('payload refused')),
+        writeText,
+      },
       writable: true,
       configurable: true,
     })
