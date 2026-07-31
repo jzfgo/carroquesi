@@ -714,6 +714,11 @@ describe('useQueueDrain — the store fails after the server took it', () => {
     ).toHaveLength(0)
     expect(mockShowToast).not.toHaveBeenCalled()
     expect(warn).toHaveBeenCalled()
+    // The other half of the contract, and the half three assertions about
+    // what *didn't* happen would all still pass without: the op is still
+    // there, still pending, for a later pass to re-send. Deleting it here
+    // instead would satisfy every line above and lose the write.
+    expect(result.current.pendingCount).toBe(1)
 
     spy.mockRestore()
     warn.mockRestore()

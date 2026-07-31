@@ -259,26 +259,46 @@ function withRealId(
 ): QueuedOp | null {
   if (!targetsOf(op).includes(tempId)) return null
 
+  const rewritten = rewriteTarget(op, tempId, realId)
+  if (!rewritten) return null
+
   // A hold whose only reason was the unresolved id has just had that reason
   // removed, so it goes with it. Left on, the op would be read as *orphaned*
   // the moment the rewrite stopped `targetsOf` returning a temp id — terminal,
   // and «el producto no llegó a crearse» about one that now exists.
-  let next = op
-  if (op.failure?.status === HELD_FOR_ADD) {
-    next = { ...op }
-    delete next.failure
+  //
+  // Asked of the *rewritten* op, because «only reason» is a claim about all of
+  // them and a close names one id per line. Resolving one of two and lifting
+  // the hold anyway produces an op that is pending and unsendable at once: the
+  // band counts it and promises «se enviarán solos» about something that can
+  // never go, `discardRejected` cannot reach it because it is no longer
+  // marked, and every later pass holds it again and counts it again — a toast
+  // saying «1 cambio no se pudo enviar» about a change that was already there.
+  if (
+    op.failure?.status === HELD_FOR_ADD &&
+    !targetsOf(rewritten).some(isTempId)
+  ) {
+    delete rewritten.failure
   }
+  return rewritten
+}
 
+/** The rewrite itself, with the failure left exactly as it was found. */
+function rewriteTarget(
+  op: QueuedOp,
+  tempId: string,
+  realId: string,
+): QueuedOp | null {
   switch (op.type) {
     case 'updateItem':
     case 'deleteItem': {
       const payload = op.payload as { itemId: string }
-      return { ...next, payload: { ...payload, itemId: realId } }
+      return { ...op, payload: { ...payload, itemId: realId } }
     }
     case 'closePurchase': {
       const payload = op.payload as PurchaseClosePayload
       return {
-        ...next,
+        ...op,
         payload: {
           ...payload,
           lines: payload.lines.map((line) =>
@@ -287,8 +307,9 @@ function withRealId(
         },
       }
     }
-    // Unreachable: targetsOf answers «nothing» for an add, so the guard above
-    // has already returned. Answered anyway rather than left to fall through.
+    // Unreachable: targetsOf answers «nothing» for an add, so the guard in
+    // `withRealId` has already returned. Answered anyway rather than left to
+    // fall through.
     case 'addItem':
       return null
   }

@@ -331,6 +331,49 @@ it('lifts a hold whose reason it just removed', async () => {
   expect(after.failure).toBeUndefined()
 })
 
+// One line resolved is not «the reason is gone». A close names an id per line,
+// and lifting the hold with another still unresolved leaves an op that is
+// pending and unsendable at once: counted in the band, out of reach of
+// «Descartarlos», and re-held and re-counted on every pass after this one.
+it('keeps a close held while any other line still names a temp id', async () => {
+  const op = await enqueue({
+    listId: 'l1',
+    type: 'closePurchase',
+    payload: {
+      store: 'Lidl',
+      lines: [
+        { item_id: 'tmp-1', price: 1.19, price_per: null, quantity: null },
+        { item_id: 'tmp-2', price: 2.1, price_per: null, quantity: null },
+      ],
+      new_items: [],
+    },
+    label: 'Lidl',
+  })
+  await markFailed(op.id, { status: HELD_FOR_ADD, at: 0 })
+
+  await resolveTempId('tmp-1', 'real-1')
+
+  const [half] = await getAll()
+  expect(half.failure?.status).toBe(HELD_FOR_ADD)
+  expect(
+    (half.payload as { lines: { item_id: string }[] }).lines.map(
+      (l) => l.item_id,
+    ),
+  ).toEqual(['real-1', 'tmp-2'])
+
+  // And the last one standing does lift it — the hold is narrower now, not
+  // permanent.
+  await resolveTempId('tmp-2', 'real-2')
+
+  const [whole] = await getAll()
+  expect(whole.failure).toBeUndefined()
+  expect(
+    (whole.payload as { lines: { item_id: string }[] }).lines.map(
+      (l) => l.item_id,
+    ),
+  ).toEqual(['real-1', 'real-2'])
+})
+
 // A refusal the server actually made is not the rewrite's to clear.
 it('leaves a real refusal in place while resolving the id', async () => {
   const op = await enqueue({

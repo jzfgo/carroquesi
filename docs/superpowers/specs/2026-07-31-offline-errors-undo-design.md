@@ -396,9 +396,29 @@ helpers that mark an item purchased close it before any screenshot is taken.
 
 ## Known limits
 
-Four things this phase leaves standing, each with an issue — so none of them is
+Six things this phase leaves standing, each with an issue — so none of them is
 a surprise to somebody reading «Cambios sin enviar» and taking it as complete.
 
+The first one changes how to read the rest: **everything built here protects
+the queue, and there is a path that never reaches the queue.**
+
+- **A write can name an id only this device has yet** (JAV-97). `addItem`
+  paints its row under a temp id and enqueues only on a *network* error — so
+  while the POST is merely slow, the row is on screen, undimmed and tappable.
+  Crossing it off `PATCH`es a `tmp-…` id and 404s, with a *Reintentar* that
+  can only 404 again. Deleting it 404s, restores the row, and then the add
+  lands — putting back the thing the household deleted. Closing the trip files
+  a total covering a line the endpoint skipped. None of the three is ever
+  queued, so none of them reaches «Cambios sin enviar», and `targetsOf` never
+  sees them. Not fixable with this phase's machinery: there is nothing to hold
+  them *in*. It wants a promise keyed by the temp id that later mutations
+  await, or a row that is not interactive until its add resolves — a design
+  call, not a guard.
+- **The drain deletes an op whose type it does not recognise** (JAV-101). Its
+  dispatch is the one `op.type` reader that is not an exhaustive switch, so an
+  unrecognised op falls through to `remove` unsent and unannounced. Out of
+  reach of the type system only from *inside* one bundle: the PWA can serve an
+  older cached one to a tab whose queue a newer one wrote.
 - **A retry can quietly undo newer work** (JAV-100). A refused op stops holding
   up the queue, which is what lets later writes keep flowing — including later
   writes to the *same* row. Rename, get refused, rename again offline, then
@@ -409,9 +429,9 @@ a surprise to somebody reading «Cambios sin enviar» and taking it as complete.
   in one React tree; the store is per-origin. Two tabs waking on the same
   reconnection both send, and the second `remove` is a no-op on a key that has
   already gone — so the duplicate leaves no trace.
-- **A close naming an item the server cannot find is accepted** (JAV-97).
-  Guarded on the client here; the endpoint still answers 200 and files less
-  than it was told.
+- **A close naming an item the server cannot find is accepted** (JAV-97, the
+  endpoint half). Guarded in the queue here; the endpoint still answers 200 and
+  files less than it was told.
 - **Every store call opens a connection and none are closed** (JAV-99). Which
   is why the reads needed a generation guard at all.
 
