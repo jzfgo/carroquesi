@@ -34,9 +34,8 @@ export default defineConfig({
         //   default + woff2       (this line)  20 entries,  953.85 KiB
         //   …,ico,png,svg,woff2                32 entries, 2443.82 KiB
         //
-        // The third is what this file said until the review caught it: 1.5 MB
-        // of icons and mascot, added by a change whose whole payload was 247 KB
-        // of fonts.
+        // The third line is the one to remember: png/svg/ico cost 1.5 MB of
+        // icons and mascot on first install, and buy nothing.
         globPatterns: ['**/*.{js,wasm,css,html,woff2}'],
       },
       devOptions: {

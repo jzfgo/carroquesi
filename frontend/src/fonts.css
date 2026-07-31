@@ -11,11 +11,12 @@
        &family=JetBrains+Mono:wght@400;500;600
        &display=swap
 
-   Ask with a **current desktop Chrome User-Agent**. Google answers by UA, and
-   two ways: an older one gets `ttf`, roughly twice the bytes; an Android one
-   gets a *different cut* of every family, unhinted. That second split is why
-   25 mobile baselines moved when these were vendored — see `tests/README.md`.
-   The desktop cut is the one committed here, for every device.
+   Ask with a **current desktop Chrome User-Agent**. Google answers by UA, two
+   ways: an older one gets `ttf`, roughly twice the bytes; an Android one gets a
+   *different cut* of every family, with the hinting tables stripped. The
+   desktop cut is what is committed here, and it is what every device gets.
+   Fetching with the wrong UA changes the letterforms on some screens and
+   nothing else, which is as quiet as a bug gets.
 
    Then: keep the `latin` and `latin-ext` blocks and drop cyrillic, greek and
    vietnamese (10 more files, 180 KB, alphabets a Spanish grocery list does not

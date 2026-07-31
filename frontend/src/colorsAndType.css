@@ -25,12 +25,9 @@
    ThemeManager is what puts the class there; do not move it to <body>.
    ───────────────────────────────────────────────────────────── */
 
-/* The one place the faces are declared. index.html used to link Google Fonts
-   as well, with a family list that had drifted from this one — it was missing
-   Patrick Hand SC, which is what the list itself is written in. Two requests
-   for one set of fonts is one too many, and a set that disagrees with itself
-   is worse: whichever request a reader looked at, it was not the whole
-   answer. */
+/* The one place the faces are declared — keep it that way. A second declaration
+   in index.html can disagree with this one about which families the app has,
+   and neither is then the whole answer. */
 @import './fonts.css';
 
 /* ── 1. CORE PALETTE — light (default) ────────────────────── */

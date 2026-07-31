@@ -106,13 +106,12 @@ remains the right tool in the *page*, where it manages token lifecycle and rotat
   key unset means the fonts build, serve, and never precache — the app opens offline in
   a fallback face and nothing says so, because everything still renders.
 
-  The gate was applied rather than assumed, and it caught a first attempt at this that
-  had reached for the same "safety" pattern the paragraph above rejects:
+  Measured rather than assumed, which is what the paragraph above asks for:
 
   | `globPatterns` | entries | size |
   | --- | ---: | ---: |
   | unset (workbox default `**/*.{js,wasm,css,html}`) | 10 | 707.26 KiB |
-  | `**/*.{js,wasm,css,html,woff2}` — what shipped | 20 | 953.85 KiB |
+  | `**/*.{js,wasm,css,html,woff2}` — chosen | 20 | 953.85 KiB |
   | `**/*.{js,css,html,ico,png,svg,woff2}` — rejected | 32 | 2443.82 KiB |
 
   The fonts cost 10 entries and 247 KiB, which is the whole of what they weigh on disk.
