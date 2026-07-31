@@ -40,6 +40,8 @@ So when a visual check fails by thousands of pixels on a screen you believe you 
 
 The residual after that is ordinary glyph antialiasing, and it does not respond to geometry. `price-history-open-*` is the densest screen in the suite and sits just over the budget on this account alone: the container renders it about 280 pixels away from what both CI and an Arch host render, and those two agree with each other exactly. Nothing is wrong with it, and there is nothing to fix in the app — it is the container being the outlier, on the one screen crowded enough for that to matter.
 
+Narrowing that capture to the sheet was tried, on the reasoning that the app header behind it is not the surface under test. It bought **one pixel**, 281 to 280. The lesson generalises: a per-row diff taken at your own threshold is a good way to find _where_ pixels differ, but it does not tell you which of them this comparator counts. `toHaveScreenshot` scores each pixel by colour distance, so a large area of faint disagreement can read as almost nothing while a small area of stark disagreement is the whole number. Here the header was the faint kind and the item name and the mono figures were the stark kind — all three inside the sheet. Measure the change, not the region, before spending a helper API on it.
+
 ### Regenerating baselines
 
 Baselines must be generated in the container, never on your own machine. Every committed PNG came out of that one image, so it is the only machine whose output the rest of them still agree with. That holds whatever you run, Ubuntu included — the image carries a fixed set of font packages, which is not the set a desktop install of the same distribution ends up with.
