@@ -85,7 +85,7 @@ What it described: the container is the one machine whose output the rest of the
 
 Vendoring turns that from a silent event into a diff. A refresh is `just frontend fetch-fonts`, and a changed `.woff2` in its output **is** the notice: the letterforms moved, so the baselines have to be regenerated in the same commit. That is the half the vendoring does not do by itself — it makes the change visible, it does not make it safe. Treat a font refresh as an app-wide rendering change, which is what the section above is about.
 
-One thing did not change. `≈`, drawn beside a converted price in the item sheet, is outside every subset Google serves — `latin` included — so it came from a system font before and still does. It is the one glyph in the suite whose shape is still the container's to decide.
+One thing did not change. `≈` — beside a converted price in `PriceHistoryBlock`, and beside the running total in `LogPurchaseSheet` — is outside every subset Google serves, `latin` included, so it came from a system font before and still does. It is the one glyph in the suite whose shape is still the container's to decide.
 
 Commit the updated PNGs **in the same PR** as the UI change that caused them to change — a visual diff failing on an unrelated PR is a real regression signal, not noise to dismiss.
 

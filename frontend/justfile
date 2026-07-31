@@ -86,8 +86,7 @@ typecheck-watch:
 # A changed .woff2 means the letterforms changed: regenerate the visual
 # baselines in the same commit (just frontend update-snapshots).
 fetch-fonts:
-    python3 scripts/fetch-fonts.py
-    {{ nvm-exec }} pnpm exec prettier --write src/fonts.css
+    {{ nvm-exec }} python3 scripts/fetch-fonts.py
 
 # Regenerate PWA icons from source assets in public/
 pwa-icons:

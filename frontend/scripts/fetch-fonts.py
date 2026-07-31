@@ -29,15 +29,22 @@ alphabets a Spanish grocery list does not write in. It is not free: an item
 face. That is the trade, it is reversible by editing one line here, and it is
 worth naming because nothing else in the app will tell you.
 
-Note `≈` (U+2248), which `PriceHistoryBlock` draws beside a converted price, is
-outside *every* subset Google serves, `latin` included. It already came from a
-system font and still does. Dropping subsets does not touch it.
+Note `≈` (U+2248) — drawn beside a converted price in `PriceHistoryBlock` and in
+`LogPurchaseSheet` — is outside *every* subset Google serves, `latin` included.
+It already came from a system font and still does. Dropping subsets does not
+touch it.
+
+The emitted CSS is run through stylelint and Prettier at the end. No value
+changes — it is purely how the file is laid out — but the step lives here
+rather than in the `just` recipe so that a bare `python3 scripts/fetch-fonts.py`
+cannot leave behind a file that fails `just ci`.
 """
 
 from __future__ import annotations
 
 import re
 import shutil
+import subprocess
 import sys
 import urllib.request
 from pathlib import Path
@@ -74,8 +81,11 @@ SRC_RE = re.compile(r"url\((?P<url>https://fonts\.gstatic\.com/[^)]*)\)")
 
 HEADER = """/* Vendored from Google Fonts by `scripts/fetch-fonts.py` — do not edit.
    To change a family, a weight or a subset, edit that script and re-run it:
-   `just frontend fetch-fonts`. Every block below is Google's own, unmodified
-   except for the `src:` URL, which now points at `src/assets/fonts/`.
+   `just frontend fetch-fonts`. Every declaration below is Google's own: the
+   only rewrite is the `src:` URL, which now points at `src/assets/fonts/`.
+   Stylelint and Prettier then lay the file out — quotes dropped from the
+   family names that do not need them, `unicode-range` rewrapped — which
+   changes how it reads and not one value in it.
 
    Vite fingerprints these files at build time, so a refreshed cut of a family
    is served under a new name and no browser can hold a stale one. */
@@ -84,6 +94,30 @@ HEADER = """/* Vendored from Google Fonts by `scripts/fetch-fonts.py` — do not
 
 def slug(family: str) -> str:
     return family.lower().replace(" ", "-")
+
+
+def format_css(path: Path) -> bool:
+    """Lay the emitted file out the way `just ci` expects to find it.
+
+    Google's CSS is not written to this repo's house style: it quotes family
+    names, which `font-family-name-quotes` rejects, and it runs the `/* subset */
+    */` comments straight onto the previous rule, which `comment-empty-line-before`
+    rejects. Neither changes a value — stylelint's own `--fix` resolves both —
+    but `src/fonts.css` is in neither ignore file, so a run that skipped this
+    would leave the repo one commit from a red CI job with no reason for anyone
+    to suspect the font script of it. Failing here is therefore a real failure.
+
+    stylelint first, prettier second, so the final say on layout is prettier's,
+    which is the order `just ci` checks them in.
+    """
+    if shutil.which("pnpm") is None:
+        print("pnpm not on PATH — run `just frontend fetch-fonts` instead", file=sys.stderr)
+        return False
+    for tool in (["stylelint", "--fix"], ["prettier", "--write"]):
+        if subprocess.run(["pnpm", "exec", *tool, str(path)]).returncode != 0:
+            print(f"{tool[0]} could not format {path}", file=sys.stderr)
+            return False
+    return True
 
 
 def main() -> int:
@@ -95,43 +129,64 @@ def main() -> int:
     with urllib.request.urlopen(request) as response:
         css = response.read().decode()
 
-    # Rebuilt from scratch rather than merged into: a family or a subset removed
-    # from the request above has to disappear from the tree too, and an
-    # incremental write would leave it behind, still shipped and still precached.
-    if FONT_DIR.exists():
-        shutil.rmtree(FONT_DIR)
-    FONT_DIR.mkdir(parents=True)
+    # Downloaded beside the real directory and moved over it at the end, rather
+    # than into it. The replacement has to be wholesale — a family or a subset
+    # removed from the request above must disappear from the tree too, and an
+    # incremental write would leave it behind, still shipped and still precached
+    # — but deleting first means any failure after that point (a dropped
+    # connection mid-loop, the bail below) leaves `src/assets/fonts/` empty or
+    # half-filled while `src/fonts.css` still names all ten files. The build
+    # breaks, and nothing on screen says the remedy is `git checkout`.
+    staging = FONT_DIR.with_name(FONT_DIR.name + ".partial")
+    if staging.exists():
+        shutil.rmtree(staging)
+    staging.mkdir(parents=True)
 
     out: list[str] = [HEADER]
     downloaded: dict[str, str] = {}
 
-    for match in BLOCK_RE.finditer(css):
-        subset = match.group("subset")
-        if subset not in SUBSETS:
-            continue
-        block = match.group("block")
+    # The staging directory must not outlive a failed run either: left behind
+    # inside `src/`, it is untracked litter that the next run would have to
+    # recognise as stale rather than resumable.
+    try:
+        for match in BLOCK_RE.finditer(css):
+            subset = match.group("subset")
+            if subset not in SUBSETS:
+                continue
+            block = match.group("block")
 
-        family = FAMILY_RE.search(block).group("family")
-        url = SRC_RE.search(block).group("url")
+            family = FAMILY_RE.search(block).group("family")
+            url = SRC_RE.search(block).group("url")
 
-        # The variable families repeat one URL across every weight. Name the file
-        # for what it holds, not for Google's hash, and fetch it once.
-        name = downloaded.get(url)
-        if name is None:
-            name = f"{slug(family)}-{subset}.woff2"
-            request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-            with urllib.request.urlopen(request) as response:
-                (FONT_DIR / name).write_bytes(response.read())
-            downloaded[url] = name
+            # The variable families repeat one URL across every weight. Name the
+            # file for what it holds, not for Google's hash, and fetch it once.
+            name = downloaded.get(url)
+            if name is None:
+                name = f"{slug(family)}-{subset}.woff2"
+                request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+                with urllib.request.urlopen(request) as response:
+                    (staging / name).write_bytes(response.read())
+                downloaded[url] = name
 
-        out.append(f"/* {subset} */")
-        out.append(SRC_RE.sub(f"url('./assets/fonts/{name}')", block))
+            out.append(f"/* {subset} */")
+            out.append(SRC_RE.sub(f"url('./assets/fonts/{name}')", block))
 
-    if not downloaded:
-        print("no @font-face blocks matched — did the CSS format change?", file=sys.stderr)
-        return 1
+        if not downloaded:
+            print("no @font-face blocks matched — did the CSS format change?", file=sys.stderr)
+            return 1
+
+        # Everything is on disk and the CSS names only files that exist. Swap.
+        if FONT_DIR.exists():
+            shutil.rmtree(FONT_DIR)
+        staging.rename(FONT_DIR)
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
 
     CSS_OUT.write_text("\n".join(out) + "\n")
+
+    if not format_css(CSS_OUT):
+        return 1
 
     names = set(downloaded.values())
     total = sum((FONT_DIR / n).stat().st_size for n in names)
