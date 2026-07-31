@@ -102,6 +102,24 @@
   box-shadow: var(--focus-ring);
 }
 
+/* The name and its queue mark on one line. */
+.item-card__written {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Attention, never text (rule 4) — 6 px of --miel-0 is the whole statement. */
+.item-card__queued {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--miel-0);
+}
+
 /* Rule 15 — the letterform says who put the line there, and no label ever does.
    The hand is intention: what you wrote down, still to be done. */
 .item-card__name {

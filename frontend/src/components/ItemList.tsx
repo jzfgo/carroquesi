@@ -37,6 +37,11 @@ interface Props {
   /** Opens the close sheet for a trip that tore off before anyone filed it. */
   onCloseFiledTrip?: (purchaseId: string) => void
   totalItems?: number
+  /** What this list has to say about itself — it goes under the rubric,
+   *  inside the sheet, where a list's own notices belong. */
+  notice?: ReactNode
+  /** Item ids written here and not on the server yet. */
+  queuedItemIds?: ReadonlySet<string>
   footer?: ReactNode
 }
 
@@ -53,6 +58,8 @@ export function ItemList({
   onCloseTrip,
   onCloseFiledTrip,
   totalItems,
+  notice,
+  queuedItemIds,
   footer,
 }: Props) {
   // How many past trips are on the board before the rest are folded away.
@@ -204,6 +211,7 @@ export function ItemList({
             </span>
           </span>
         </div>
+        {notice}
         {pendingByStore.map(({ shops, items: group }) => (
           <div key={shops.join('\u0000')}>
             {/* Written, not printed: a shop is something the household put on
@@ -223,6 +231,7 @@ export function ItemList({
               <ItemCard
                 key={item.id}
                 item={item}
+                queued={queuedItemIds?.has(item.id)}
                 onTogglePurchased={onTogglePurchased}
                 onOpen={onOpen}
                 onClone={onClone}
@@ -245,6 +254,7 @@ export function ItemList({
               <ItemCard
                 key={item.id}
                 item={item}
+                queued={queuedItemIds?.has(item.id)}
                 onTogglePurchased={onTogglePurchased}
                 onOpen={onOpen}
                 onClone={onClone}

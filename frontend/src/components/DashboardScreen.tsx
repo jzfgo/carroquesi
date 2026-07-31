@@ -20,6 +20,7 @@ import { useApplePlatform } from '../hooks/useApplePlatform'
 import { useIsOffline } from '../hooks/useIsOffline'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { usePWAInstall } from '../hooks/usePWAInstall'
+import { useToast } from '../hooks/useToast'
 import type { FeedbackPayload } from '../lib/api'
 import { createList, getLists, submitFeedback } from '../lib/api'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
@@ -86,7 +87,7 @@ export function DashboardScreen() {
   const [fetchError, setFetchError] = useState(false)
   const { isOffline } = useIsOffline()
   usePageTitle(undefined)
-  const [toast, setToast] = useState<string | null>(null)
+  const { toast, showToast, dismissToast } = useToast()
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
   const { isEnabled } = useFeatureFlags()
@@ -95,12 +96,6 @@ export function DashboardScreen() {
   const isApplePlatform = useApplePlatform()
 
   const defaultList = lists?.find((l) => l.is_default) ?? null
-
-  useEffect(() => {
-    if (!toast) return
-    const id = setTimeout(() => setToast(null), 3000)
-    return () => clearTimeout(id)
-  }, [toast])
 
   const [reorderRequested, setReorderRequested] = useState(false)
   const [moveMessage, setMoveMessage] = useState('')
@@ -157,21 +152,21 @@ export function DashboardScreen() {
   const handleFeedbackSubmit = useCallback(
     async (payload: FeedbackPayload) => {
       if (isOffline) {
-        setToast('No se pudo enviar el feedback')
+        showToast('No se pudo enviar el feedback')
         return
       }
       setFeedbackSubmitting(true)
       try {
         await submitFeedback(getToken, payload)
         setFeedbackOpen(false)
-        setToast('Feedback enviado')
+        showToast('Feedback enviado')
       } catch {
-        setToast('No se pudo enviar el feedback')
+        showToast('No se pudo enviar el feedback')
       } finally {
         setFeedbackSubmitting(false)
       }
     },
-    [getToken, isOffline],
+    [getToken, isOffline, showToast],
   )
 
   // Arranging is a mode, not a second affordance bolted to every row. #171
@@ -299,20 +294,20 @@ export function DashboardScreen() {
   const handleCreate = useCallback(
     async (name: string) => {
       if (isOffline) {
-        setToast('No disponible sin conexión')
+        showToast('No disponible sin conexión')
         return false
       }
       try {
         await createList(getToken, { name, emoji: randomEmoji() })
       } catch {
-        setToast('No se pudo confirmar si se creó la lista')
+        showToast('No se pudo confirmar si se creó la lista')
         await fetchLists(true)
         return false
       }
       await fetchLists()
       return true
     },
-    [getToken, fetchLists, isOffline],
+    [getToken, fetchLists, isOffline, showToast],
   )
 
   if (fetchError) {
@@ -536,7 +531,7 @@ export function DashboardScreen() {
             setFeedbackOpen(true)
           }}
           onSignOut={() => void signOut()}
-          onToast={setToast}
+          onToast={showToast}
           onClose={() => setSettingsOpen(false)}
         />
       )}
@@ -548,7 +543,7 @@ export function DashboardScreen() {
           onClose={() => setFeedbackOpen(false)}
         />
       )}
-      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+      {toast && <Toast message={toast.message} onDismiss={dismissToast} />}
     </div>
   )
 }

@@ -88,6 +88,18 @@ async function gotoList(page: Page) {
   await expect(page.getByText(ITEM_CAFE.name)).toBeVisible()
 }
 
+/**
+ * A tap on the circle now leaves an undo notice on screen for six seconds, and
+ * its bar drains as those seconds pass — so a screenshot taken after one would
+ * depict a different bar width on every run. The household closes it by
+ * waiting; a test cannot afford to.
+ */
+async function dismissUndoNotice(page: Page) {
+  const toast = page.locator('.toast')
+  await toast.getByRole('button', { name: 'Cerrar' }).click()
+  await expect(toast).toBeHidden()
+}
+
 async function putInCart(page: Page, name: string) {
   await itemCard(page, name)
     .getByRole('checkbox', { name: 'Poner en el carro' })
@@ -95,6 +107,7 @@ async function putInCart(page: Page, name: string) {
   await expect(
     itemCard(page, name).getByRole('checkbox', { name: 'Sacar del carro' }),
   ).toBeVisible()
+  await dismissUndoNotice(page)
 }
 
 async function openCloseSheet(page: Page) {
@@ -355,7 +368,7 @@ test.describe('functional', () => {
     await openCloseSheet(page)
     await scanFromSheet(page)
 
-    await expect(page.getByRole('alert')).toContainText(
+    await expect(page.locator('.toast')).toContainText(
       'No se pudo leer el ticket',
     )
     // The sheet is still up, still has no paper on it, and still offers to

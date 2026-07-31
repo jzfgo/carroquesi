@@ -122,6 +122,117 @@ describe('useListItems — togglePurchased', () => {
     expect(result.current.items[0].purchased).toBe(false)
     expect(mockShowToast).toHaveBeenCalledWith(
       'No se pudo actualizar el producto',
+      expect.objectContaining({ label: 'Reintentar', tone: 'tomate' }),
+    )
+  })
+})
+
+describe('useListItems — the undo on a tap', () => {
+  /**
+   * The ordering is the whole point, so the test has to hold the write open.
+   *
+   * Written as "tap, await, assert the toast" it passes no matter where the
+   * call sits, because by then everything has settled. Here the answer is
+   * withheld: an undo offered now would send the inverse while the write it
+   * reverses is still in flight, and the two can land in either order.
+   *
+   * Move the showToast call above the await and this goes red.
+   */
+  it('does not offer the undo until the write it undoes has settled', async () => {
+    let answer!: () => void
+    vi.mocked(api.updateItem).mockReturnValue(
+      new Promise((resolve) => {
+        answer = () => resolve({} as never)
+      }) as never,
+    )
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    let tap!: Promise<void>
+    act(() => {
+      tap = result.current.togglePurchased('item-1')
+    })
+
+    expect(result.current.items[0].purchased).toBe(true)
+    expect(mockShowToast).not.toHaveBeenCalled()
+
+    await act(async () => {
+      answer()
+      await tap
+    })
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'En el carro, Leche',
+      expect.objectContaining({ label: 'Deshacer', tone: 'verde' }),
+    )
+  })
+
+  it('sends the inverse through the same mutation the tap used', async () => {
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+    const [, action] = mockShowToast.mock.calls.at(-1)!
+
+    await act(async () => {
+      await action.onAct()
+    })
+
+    expect(result.current.items[0].purchased).toBe(false)
+    expect(api.updateItem).toHaveBeenLastCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { purchased: false },
+    )
+  })
+
+  it('says which way the line went', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([
+      { ...item1, purchased: true, purchased_at: '2026-01-01T10:00:00' },
+    ] as never)
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'Fuera del carro, Leche',
+      expect.objectContaining({ label: 'Deshacer' }),
+    )
+  })
+
+  // The queue is local, so there is nothing to wait for and the notice is
+  // still immediate — and two ops for one item drain in the order they were
+  // written, which is the right answer.
+  it('offers the undo once the queue has taken the write', async () => {
+    vi.mocked(api.updateItem).mockRejectedValue(new TypeError('offline'))
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(offlineQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'updateItem', label: 'Leche' }),
+    )
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'En el carro, Leche',
+      expect.objectContaining({ label: 'Deshacer' }),
     )
   })
 })
@@ -258,7 +369,10 @@ describe('useListItems — addItem', () => {
     })
 
     expect(result.current.items).toHaveLength(initialLength)
-    expect(mockShowToast).toHaveBeenCalledWith('No se pudo añadir el producto')
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se pudo añadir el producto',
+      expect.objectContaining({ label: 'Reintentar', tone: 'tomate' }),
+    )
   })
 
   it('blocks duplicate name (case-insensitive) and shows toast without calling API', async () => {
@@ -398,6 +512,7 @@ describe('useListItems — updateTag', () => {
     expect(result.current.items[0].brand).toBeNull()
     expect(mockShowToast).toHaveBeenCalledWith(
       'No se pudo actualizar el producto',
+      expect.objectContaining({ label: 'Reintentar', tone: 'tomate' }),
     )
   })
 })
@@ -713,6 +828,7 @@ describe('useListItems — write queue on network error', () => {
     expect(result.current.items).toHaveLength(1)
     expect(mockShowToast).toHaveBeenCalledWith(
       'No se pudo eliminar el producto',
+      expect.objectContaining({ label: 'Reintentar', tone: 'tomate' }),
     )
   })
 })

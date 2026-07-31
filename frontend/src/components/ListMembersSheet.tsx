@@ -2,6 +2,7 @@ import { Crown, Link2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { useToast } from '../hooks/useToast'
 import {
   ApiError,
   createOpenInvite,
@@ -42,7 +43,7 @@ export function ListMembersSheet({
   const [members, setMembers] = useState<BackendMember[]>([])
   const [inviteLimitReached, setInviteLimitReached] = useState(false)
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
+  const { toast, showToast, dismissToast } = useToast()
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
 
@@ -96,7 +97,7 @@ export function ListMembersSheet({
       await removeMember(getToken, listId, userId)
     } catch {
       setMembers(snapshot)
-      setToast('No se pudo eliminar el miembro')
+      showToast('No se pudo eliminar el miembro')
     }
   }
 
@@ -111,7 +112,7 @@ export function ListMembersSheet({
       const url = `${window.location.origin}/i/${data.id}`
       try {
         await navigator.clipboard.writeText(url)
-        setToast('Enlace copiado')
+        showToast('Enlace copiado')
       } catch {
         setFallbackUrl(url)
       }
@@ -241,7 +242,7 @@ export function ListMembersSheet({
           </>
         )}
 
-        {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+        {toast && <Toast message={toast.message} onDismiss={dismissToast} />}
       </div>
     </>
   )

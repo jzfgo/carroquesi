@@ -1,6 +1,12 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, test } from 'vitest'
-import { enqueue, getAll, remove } from './offlineQueue'
+import {
+  clearFailure,
+  enqueue,
+  getAll,
+  markFailed,
+  remove,
+} from './offlineQueue'
 
 // Clear the store between tests
 beforeEach(async () => {
@@ -15,6 +21,7 @@ describe('offlineQueue', () => {
       listId: 'l1',
       type: 'addItem',
       payload: { name: 'Leche' },
+      label: 'Leche',
     })
     expect(op.id).toBeTruthy()
     expect(op.enqueuedAt).toBeGreaterThanOrEqual(before)
@@ -23,11 +30,17 @@ describe('offlineQueue', () => {
   })
 
   test('getAll returns all stored ops', async () => {
-    await enqueue({ listId: 'l1', type: 'addItem', payload: { name: 'A' } })
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: { name: 'A' },
+      label: 'A',
+    })
     await enqueue({
       listId: 'l1',
       type: 'deleteItem',
       payload: { itemId: 'i1' },
+      label: 'A',
     })
     const all = await getAll()
     expect(all).toHaveLength(2)
@@ -38,6 +51,7 @@ describe('offlineQueue', () => {
       listId: 'l1',
       type: 'addItem',
       payload: { name: 'A' },
+      label: 'A',
     })
     await remove(op.id)
     const all = await getAll()
@@ -50,6 +64,7 @@ describe('offlineQueue', () => {
       type: 'addItem',
       tempId: 'tmp-99',
       payload: {},
+      label: 'A',
     })
     expect(op.tempId).toBe('tmp-99')
   })
@@ -63,12 +78,22 @@ describe('offlineQueue', () => {
       },
       { once: true },
     )
-    await enqueue({ listId: 'l1', type: 'addItem', payload: {} })
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: {},
+      label: 'A',
+    })
     expect(fired).toBe(true)
   })
 
   test('remove dispatches cqs:queue-changed event', async () => {
-    const op = await enqueue({ listId: 'l1', type: 'addItem', payload: {} })
+    const op = await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: {},
+      label: 'A',
+    })
     let fired = false
     window.addEventListener(
       'cqs:queue-changed',
@@ -79,5 +104,47 @@ describe('offlineQueue', () => {
     )
     await remove(op.id)
     expect(fired).toBe(true)
+  })
+
+  test('markFailed records the answer and keeps the op', async () => {
+    const op = await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: { name: 'A' },
+      label: 'A',
+    })
+    await markFailed(op.id, { status: 409, at: 1000 })
+
+    const [stored] = await getAll()
+    expect(stored.failure).toEqual({ status: 409, at: 1000 })
+  })
+
+  test('clearFailure makes the op sendable again', async () => {
+    const op = await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: { name: 'A' },
+      label: 'A',
+    })
+    await markFailed(op.id, { status: 409, at: 1000 })
+    await clearFailure(op.id)
+
+    const [stored] = await getAll()
+    expect(stored.failure).toBeUndefined()
+  })
+
+  // Drained, or discarded from the sheet, while the answer was in flight.
+  // Writing the row back would resurrect a change already dealt with.
+  test('markFailed does not resurrect an op that is gone', async () => {
+    const op = await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: { name: 'A' },
+      label: 'A',
+    })
+    await remove(op.id)
+    await markFailed(op.id, { status: 409, at: 1000 })
+
+    expect(await getAll()).toHaveLength(0)
   })
 })

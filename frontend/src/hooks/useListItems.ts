@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ToastAction } from '../components/Toast'
 import {
   ApiError,
   createItem,
@@ -16,6 +17,7 @@ import { itemState } from '../lib/itemState'
 import { isNetworkError } from '../lib/networkError'
 import { enqueue } from '../lib/offlineQueue'
 import type { ListItem, Member, ParsedInput, TagField } from '../types'
+import type { ShowToast } from './useToast'
 
 const DUPLICATE_TOAST = 'Ya está en la lista'
 
@@ -64,10 +66,15 @@ function saveListCache(
   }
 }
 
+/** The control that closes a notice about something the user typed and lost. */
+function retryAction(onAct: () => void): ToastAction {
+  return { label: 'Reintentar', tone: 'tomate', onAct }
+}
+
 export function useListItems(
   listId: string,
   getToken: () => Promise<string>,
-  showToast: (msg: string) => void,
+  showToast: ShowToast,
 ) {
   const [status, setStatus] = useState<Status>('loading')
   const [items, setItems] = useState<ListItem[]>([])
@@ -108,7 +115,7 @@ export function useListItems(
   }, [listId, getToken])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     void fetchAll()
   }, [fetchAll])
 
@@ -144,7 +151,9 @@ export function useListItems(
   }, [listId, getToken])
 
   const togglePurchased = useCallback(
-    async (itemId: string) => {
+    // Named so the undo can call the same mutation the tap did. A second write
+    // path is how the reconcile guard gets bypassed, and nothing goes red.
+    async function toggle(itemId: string) {
       const snapshot = itemsRef.current
       const targetItem = snapshot.find((i) => i.id === itemId)
       const prevPurchased = targetItem?.purchased ?? false
@@ -189,18 +198,34 @@ export function useListItems(
             listId,
             type: 'updateItem',
             payload: { itemId, patch },
+            label: targetItem?.name ?? '',
           })
         } else {
           setItems(snapshot)
-          showToast('No se pudo actualizar el producto')
+          showToast(
+            'No se pudo actualizar el producto',
+            retryAction(() => void toggle(itemId)),
+          )
+          return
         }
       }
+
+      // The write has settled — the server answered, or the queue took it.
+      // Only now is there anything to undo, and only now can the inverse not
+      // overtake the write it reverses. Offline this still reads as instant,
+      // because the queue is local.
+      showToast(
+        prevPurchased
+          ? `Fuera del carro, ${targetItem?.name ?? ''}`
+          : `En el carro, ${targetItem?.name ?? ''}`,
+        { label: 'Deshacer', tone: 'verde', onAct: () => void toggle(itemId) },
+      )
     },
     [getToken, listId, showToast],
   )
 
   const addItem = useCallback(
-    async (parsed: ParsedInput) => {
+    async function add(parsed: ParsedInput) {
       const nameLower = parsed.name.trim().toLowerCase()
       const isDuplicate = itemsRef.current.some(
         (i) =>
@@ -257,6 +282,7 @@ export function useListItems(
             listId,
             type: 'addItem',
             tempId,
+            label: parsed.name,
             payload: {
               name: parsed.name,
               quantity: parsed.quantity,
@@ -271,9 +297,13 @@ export function useListItems(
         } else {
           setItems((prev) => prev.filter((i) => i.id !== tempId))
           if (err instanceof ApiError && err.status === 409) {
+            // Sending it again would be refused again for the same reason.
             showToast(DUPLICATE_TOAST)
           } else {
-            showToast('No se pudo añadir el producto')
+            showToast(
+              'No se pudo añadir el producto',
+              retryAction(() => void add(parsed)),
+            )
           }
         }
       }
@@ -282,8 +312,9 @@ export function useListItems(
   )
 
   const updateTag = useCallback(
-    async (itemId: string, field: TagField, value: string | null) => {
+    async function tag(itemId: string, field: TagField, value: string | null) {
       const snapshot = itemsRef.current
+      const name = snapshot.find((i) => i.id === itemId)?.name ?? ''
       setItems(
         snapshot.map((i) => (i.id === itemId ? { ...i, [field]: value } : i)),
       )
@@ -295,10 +326,14 @@ export function useListItems(
             listId,
             type: 'updateItem',
             payload: { itemId, patch: { [field]: value } },
+            label: name,
           })
         } else {
           setItems(snapshot)
-          showToast('No se pudo actualizar el producto')
+          showToast(
+            'No se pudo actualizar el producto',
+            retryAction(() => void tag(itemId, field, value)),
+          )
         }
       }
     },
@@ -306,8 +341,9 @@ export function useListItems(
   )
 
   const updateStores = useCallback(
-    async (itemId: string, stores: string[]) => {
+    async function setStores(itemId: string, stores: string[]) {
       const snapshot = itemsRef.current
+      const name = snapshot.find((i) => i.id === itemId)?.name ?? ''
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, stores } : i)))
       try {
         await updateItem(getToken, listId, itemId, { stores })
@@ -317,10 +353,14 @@ export function useListItems(
             listId,
             type: 'updateItem',
             payload: { itemId, patch: { stores } },
+            label: name,
           })
         } else {
           setItems(snapshot)
-          showToast('No se pudo actualizar el producto')
+          showToast(
+            'No se pudo actualizar el producto',
+            retryAction(() => void setStores(itemId, stores)),
+          )
         }
       }
     },
@@ -328,7 +368,7 @@ export function useListItems(
   )
 
   const renameItem = useCallback(
-    async (itemId: string, name: string) => {
+    async function rename(itemId: string, name: string) {
       const snapshot = itemsRef.current
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, name } : i)))
       try {
@@ -339,10 +379,16 @@ export function useListItems(
             listId,
             type: 'updateItem',
             payload: { itemId, patch: { name } },
+            // The name somebody typed, which is the one worth recognising in
+            // the sheet even though the server never took it.
+            label: name,
           })
         } else {
           setItems(snapshot)
-          showToast('No se pudo renombrar el producto')
+          showToast(
+            'No se pudo renombrar el producto',
+            retryAction(() => void rename(itemId, name)),
+          )
         }
       }
     },
@@ -350,14 +396,20 @@ export function useListItems(
   )
 
   const removeItem = useCallback(
-    async (itemId: string) => {
+    async function remove(itemId: string) {
       const snapshot = itemsRef.current
+      const name = snapshot.find((i) => i.id === itemId)?.name ?? ''
       setItems((prev) => prev.filter((i) => i.id !== itemId))
       try {
         await deleteItem(getToken, listId, itemId)
       } catch (err) {
         if (isNetworkError(err)) {
-          await enqueue({ listId, type: 'deleteItem', payload: { itemId } })
+          await enqueue({
+            listId,
+            type: 'deleteItem',
+            payload: { itemId },
+            label: name,
+          })
         } else if (err instanceof ApiError && err.status === 409) {
           // ItemDetailSheet already hides Eliminar for a filed item, so this
           // is the backstop for the race where the trip files (a receipt
@@ -368,7 +420,10 @@ export function useListItems(
           )
         } else {
           setItems(snapshot)
-          showToast('No se pudo eliminar el producto')
+          showToast(
+            'No se pudo eliminar el producto',
+            retryAction(() => void remove(itemId)),
+          )
         }
       }
     },

@@ -14,6 +14,8 @@ const CIRCLE_LABEL = {
 
 interface Props {
   item: ListItem
+  /** Written here, not on the server yet. Only ever true while offline. */
+  queued?: boolean
   onTogglePurchased: (itemId: string) => void
   /** Opens the item — where its brand, its shop, its price, who added it and
    *  everything that can be done to it live. The row says only what it is. */
@@ -31,7 +33,13 @@ interface Props {
  * who added it and what can be done to it all live one tap away, in the item's
  * own sheet, where there is room to say them properly.
  */
-export function ItemCard({ item, onTogglePurchased, onOpen, onClone }: Props) {
+export function ItemCard({
+  item,
+  queued,
+  onTogglePurchased,
+  onOpen,
+  onClone,
+}: Props) {
   // Three states, not two. The middle one is what the old boolean could not
   // say: picked up, but the trip is not over. See lib/itemState.
   const state = itemState(item)
@@ -112,7 +120,21 @@ export function ItemCard({ item, onTogglePurchased, onOpen, onClone }: Props) {
         onClick={() => onOpen(item.id)}
         aria-label={item.name}
       >
-        <span className="item-card__name">{item.name}</span>
+        {/* The dot is what makes the band's count checkable: without it "2
+            cambios" is a number with nothing to hold it against. No dot, no
+            row to hold it — an empty slot is not drawn (rule 6). */}
+        {queued ? (
+          <span className="item-card__written">
+            <span className="item-card__name">{item.name}</span>
+            <span
+              className="item-card__queued"
+              role="img"
+              aria-label="Sin enviar"
+            />
+          </span>
+        ) : (
+          <span className="item-card__name">{item.name}</span>
+        )}
         {subline && <span className="item-card__sub">{subline}</span>}
       </button>
 

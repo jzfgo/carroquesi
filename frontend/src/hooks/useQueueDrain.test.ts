@@ -7,15 +7,29 @@ import { useQueueDrain } from './useQueueDrain'
 
 vi.mock('../lib/api')
 
+/**
+ * `vi.mock('../lib/api')` is an automock: it keeps the class, so
+ * `instanceof ApiError` still passes, but stubs the constructor body and
+ * leaves `status` undefined. The status is the whole input to the cause and to
+ * whether a line may be retried, so it is set by hand here.
+ */
+function apiError(status: number): api.ApiError {
+  const err = new api.ApiError(status, 'boom')
+  err.status = status
+  return err
+}
+
 const mockGetToken = vi.fn(async () => 'token')
 const mockOnDrained = vi.fn()
 const mockShowToast = vi.fn()
+const mockOnShowRejected = vi.fn()
 
 const defaultParams = {
   listId: 'l1',
   getToken: mockGetToken,
   onDrained: mockOnDrained,
   showToast: mockShowToast,
+  onShowRejected: mockOnShowRejected,
 }
 
 beforeEach(async () => {
@@ -38,7 +52,9 @@ describe('useQueueDrain — pendingCount', () => {
   it('updates when an op is enqueued', async () => {
     const { result } = renderHook(() => useQueueDrain(defaultParams))
     await waitFor(() => expect(result.current.pendingCount).toBe(0))
-    await act(() => enqueue({ listId: 'l1', type: 'addItem', payload: {} }))
+    await act(() =>
+      enqueue({ listId: 'l1', type: 'addItem', payload: {}, label: 'Leche' }),
+    )
     await waitFor(() => expect(result.current.pendingCount).toBe(1))
   })
 })
@@ -68,6 +84,7 @@ describe('useQueueDrain — drain on mount', () => {
       type: 'addItem',
       tempId: 'tmp-1',
       payload: { name: 'Leche' },
+      label: 'Leche',
     })
 
     const { result } = renderHook(() => useQueueDrain(defaultParams))
@@ -80,7 +97,12 @@ describe('useQueueDrain — drain on mount', () => {
       value: false,
       configurable: true,
     })
-    await enqueue({ listId: 'l1', type: 'addItem', payload: { name: 'Leche' } })
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: { name: 'Leche' },
+      label: 'Leche',
+    })
 
     renderHook(() => useQueueDrain(defaultParams))
     await new Promise((r) => setTimeout(r, 50))
@@ -117,6 +139,7 @@ describe('useQueueDrain — drain on reconnect', () => {
       type: 'addItem',
       tempId: 'tmp-1',
       payload: { name: 'Leche' },
+      label: 'Leche',
     })
     await waitFor(() => expect(result.current.pendingCount).toBe(1))
 
@@ -125,27 +148,6 @@ describe('useQueueDrain — drain on reconnect', () => {
     })
     await waitFor(() => expect(mockOnDrained).toHaveBeenCalled())
     await waitFor(() => expect(result.current.pendingCount).toBe(0))
-  })
-
-  it('shows toast when a server error causes a failure', async () => {
-    vi.mocked(api.createItem).mockRejectedValue(
-      new api.ApiError(500, 'Server Error'),
-    )
-    await enqueue({
-      listId: 'l1',
-      type: 'addItem',
-      payload: { name: 'Leche' },
-    })
-
-    renderHook(() => useQueueDrain(defaultParams))
-    await act(async () => {
-      window.dispatchEvent(new Event('online'))
-    })
-    await waitFor(() =>
-      expect(mockShowToast).toHaveBeenCalledWith(
-        expect.stringContaining('cambio'),
-      ),
-    )
   })
 
   it('drains a queued close through closePurchase', async () => {
@@ -160,6 +162,7 @@ describe('useQueueDrain — drain on reconnect', () => {
         lines: [{ item_id: 'a', price: 1.19, price_per: null, quantity: null }],
         new_items: [],
       },
+      label: 'Lidl',
     })
 
     renderHook(() => useQueueDrain(defaultParams))
@@ -186,6 +189,7 @@ describe('useQueueDrain — drain on reconnect', () => {
       tempId: 'tmp-1',
       type: 'addItem',
       payload: { name: 'Leche' },
+      label: 'Leche',
     })
     clock.mockReturnValue(2000)
     await enqueue({
@@ -201,6 +205,7 @@ describe('useQueueDrain — drain on reconnect', () => {
         ],
         new_items: [],
       },
+      label: 'Lidl',
     })
     clock.mockRestore()
 
@@ -219,7 +224,11 @@ describe('useQueueDrain — drain on reconnect', () => {
     )
   })
 
-  it('says a whole shop was lost, not that one change failed', async () => {
+  it('keeps a refused write instead of deleting it', async () => {
+    // Somebody else filed the trip first. Not a network error — which is
+    // exactly the case that used to call remove() and lose the shop: the
+    // store, the date, every price typed and everything added by hand.
+    vi.mocked(api.closePurchase).mockRejectedValue(apiError(409))
     await enqueue({
       listId: 'l1',
       type: 'closePurchase',
@@ -231,165 +240,148 @@ describe('useQueueDrain — drain on reconnect', () => {
         lines: [{ item_id: 'a', price: 1.19, price_per: null, quantity: null }],
         new_items: [],
       },
+      label: 'Lidl',
     })
-    // Someone else filed the trip first. Not a network error, so the op is
-    // dropped — and what goes with it is the store, the date, every price
-    // typed and everything added by hand. "1 change" does not describe that.
-    vi.mocked(api.closePurchase).mockRejectedValue(
-      new api.ApiError(409, 'nothing to close'),
-    )
 
-    renderHook(() => useQueueDrain(defaultParams))
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
 
-    await waitFor(() =>
-      expect(mockShowToast).toHaveBeenCalledWith(
-        'No se pudo guardar una compra. Vuelve a cerrarla',
-      ),
-    )
+    await waitFor(() => expect(result.current.rejected).toHaveLength(1))
+    expect(result.current.rejected[0].failure?.status).toBe(409)
+    expect(await getAll()).toHaveLength(1)
   })
 
-  // Two shops in one evening is a case this app is built for, so the plural
-  // is the branch the counter exists to serve — and it was the one nothing
-  // rendered.
-  it('agrees in number when two shops were lost', async () => {
-    for (const store of ['Lidl', 'Mercadona']) {
-      await enqueue({
-        listId: 'l1',
-        type: 'closePurchase',
-        payload: {
-          store,
-          purchased_at: '2026-07-30T18:00:00',
-          purchase_id: null,
-          total: null,
-          lines: [
-            { item_id: 'a', price: 1.19, price_per: null, quantity: null },
-          ],
-          new_items: [],
-        },
-      })
-    }
-    vi.mocked(api.closePurchase).mockRejectedValue(
-      new api.ApiError(409, 'nothing to close'),
-    )
-
-    renderHook(() => useQueueDrain(defaultParams))
-
-    await waitFor(() =>
-      expect(mockShowToast).toHaveBeenCalledWith(
-        'No se pudieron guardar 2 compras. Vuelve a cerrarlas',
-      ),
-    )
-  })
-
-  // The two counts move independently, so the plural verb must not be keyed
-  // off the wrong one.
-  it('counts one stray change beside two lost shops', async () => {
-    for (const store of ['Lidl', 'Mercadona']) {
-      await enqueue({
-        listId: 'l1',
-        type: 'closePurchase',
-        payload: {
-          store,
-          purchased_at: '2026-07-30T18:00:00',
-          purchase_id: null,
-          total: null,
-          lines: [
-            { item_id: 'a', price: 1.19, price_per: null, quantity: null },
-          ],
-          new_items: [],
-        },
-      })
-    }
-    await enqueue({
-      listId: 'l1',
-      type: 'addItem',
-      payload: { name: 'Pan' },
-    })
-    vi.mocked(api.closePurchase).mockRejectedValue(
-      new api.ApiError(409, 'nothing to close'),
-    )
-    vi.mocked(api.createItem).mockRejectedValue(
-      new api.ApiError(422, 'unprocessable'),
-    )
-
-    renderHook(() => useQueueDrain(defaultParams))
-
-    await waitFor(() =>
-      expect(mockShowToast).toHaveBeenCalledWith(
-        'No se pudieron guardar 2 compras, ni 1 cambio más. Vuelve a cerrarlas',
-      ),
-    )
-  })
-
-  // One shop and something else. The verb stays singular: the subject comes
-  // after it, and a postposed subject joined by "ni" takes the singular. This
-  // is the row that decides the rule, so it needs rendering somewhere.
-  it('keeps the verb singular for one shop lost beside a change', async () => {
-    await enqueue({
-      listId: 'l1',
-      type: 'closePurchase',
-      payload: {
-        store: 'Lidl',
-        purchased_at: '2026-07-30T18:00:00',
-        purchase_id: null,
-        total: null,
-        lines: [{ item_id: 'a', price: 1.19, price_per: null, quantity: null }],
-        new_items: [],
-      },
-    })
-    await enqueue({
-      listId: 'l1',
-      type: 'addItem',
-      payload: { name: 'Pan' },
-    })
-    vi.mocked(api.closePurchase).mockRejectedValue(
-      new api.ApiError(409, 'nothing to close'),
-    )
-    vi.mocked(api.createItem).mockRejectedValue(
-      new api.ApiError(422, 'unprocessable'),
-    )
-
-    renderHook(() => useQueueDrain(defaultParams))
-
-    await waitFor(() =>
-      expect(mockShowToast).toHaveBeenCalledWith(
-        'No se pudo guardar una compra, ni 1 cambio más. Vuelve a cerrarla',
-      ),
-    )
-  })
-
-  // The other count has a plural of its own, and every case above happens to
-  // leave it at one.
-  it('counts more than one stray change', async () => {
-    await enqueue({
-      listId: 'l1',
-      type: 'closePurchase',
-      payload: {
-        store: 'Lidl',
-        purchased_at: '2026-07-30T18:00:00',
-        purchase_id: null,
-        total: null,
-        lines: [{ item_id: 'a', price: 1.19, price_per: null, quantity: null }],
-        new_items: [],
-      },
-    })
+  it('counts every refusal once and leads to the sheet', async () => {
+    vi.mocked(api.createItem).mockRejectedValue(apiError(422))
     for (const name of ['Pan', 'Leche']) {
-      await enqueue({ listId: 'l1', type: 'addItem', payload: { name } })
+      await enqueue({
+        listId: 'l1',
+        type: 'addItem',
+        payload: { name },
+        label: name,
+      })
     }
-    vi.mocked(api.closePurchase).mockRejectedValue(
-      new api.ApiError(409, 'nothing to close'),
-    )
-    vi.mocked(api.createItem).mockRejectedValue(
-      new api.ApiError(422, 'unprocessable'),
-    )
 
     renderHook(() => useQueueDrain(defaultParams))
 
     await waitFor(() =>
       expect(mockShowToast).toHaveBeenCalledWith(
-        'No se pudo guardar una compra, ni 2 cambios más. Vuelve a cerrarla',
+        '2 cambios no se pudieron enviar',
+        expect.objectContaining({ label: 'Ver cuáles', tone: 'miel' }),
       ),
     )
+    // The notice is one of the sheet's two doors, so the control has to open
+    // it rather than only naming it.
+    mockShowToast.mock.calls[0][1].onAct()
+    expect(mockOnShowRejected).toHaveBeenCalled()
+  })
+
+  it('does not send a refused op again on the next drain', async () => {
+    vi.mocked(api.createItem).mockRejectedValue(apiError(422))
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: { name: 'Pan' },
+      label: 'Pan',
+    })
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+    await waitFor(() => expect(result.current.rejected).toHaveLength(1))
+    expect(api.createItem).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      window.dispatchEvent(new Event('online'))
+    })
+    await new Promise((r) => setTimeout(r, 50))
+    expect(api.createItem).toHaveBeenCalledTimes(1)
+  })
+
+  it('retrying sends it again and clears it when it lands', async () => {
+    vi.mocked(api.createItem).mockRejectedValue(apiError(503))
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: { name: 'Pan' },
+      label: 'Pan',
+    })
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+    await waitFor(() => expect(result.current.rejected).toHaveLength(1))
+
+    vi.mocked(api.createItem).mockResolvedValue({ id: 'real-1' } as never)
+    await act(async () => {
+      await result.current.retryRejected([result.current.rejected[0].id])
+    })
+
+    await waitFor(() => expect(result.current.rejected).toHaveLength(0))
+    expect(await getAll()).toHaveLength(0)
+  })
+
+  it('leaves a refused op out of the count and out of the dots', async () => {
+    vi.mocked(api.updateItem).mockRejectedValue(apiError(404))
+    await enqueue({
+      listId: 'l1',
+      type: 'updateItem',
+      payload: { itemId: 'item-1', patch: { purchased: true } },
+      label: 'Pan',
+    })
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() => expect(result.current.rejected).toHaveLength(1))
+    // The band promises these send themselves, and this one will not.
+    expect(result.current.pendingCount).toBe(0)
+    expect(result.current.pendingItemIds.has('item-1')).toBe(false)
+  })
+
+  it('marks the row a queued write belongs to', async () => {
+    Object.defineProperty(navigator, 'onLine', {
+      value: false,
+      configurable: true,
+    })
+    await enqueue({
+      listId: 'l1',
+      type: 'updateItem',
+      payload: { itemId: 'item-1', patch: { purchased: true } },
+      label: 'Pan',
+    })
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      tempId: 'tmp-9',
+      payload: { name: 'Sal' },
+      label: 'Sal',
+    })
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() => expect(result.current.pendingCount).toBe(2))
+    // A row added offline is painted under its temp id, and an edited row
+    // under the server's. Both have to match, or the count is a number with
+    // nothing to check it against.
+    expect(result.current.pendingItemIds.has('item-1')).toBe(true)
+    expect(result.current.pendingItemIds.has('tmp-9')).toBe(true)
+  })
+
+  it('discards every refused op at once', async () => {
+    vi.mocked(api.createItem).mockRejectedValue(apiError(404))
+    for (const name of ['Pan', 'Leche']) {
+      await enqueue({
+        listId: 'l1',
+        type: 'addItem',
+        payload: { name },
+        label: name,
+      })
+    }
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+    await waitFor(() => expect(result.current.rejected).toHaveLength(2))
+
+    await act(async () => {
+      await result.current.discardRejected()
+    })
+
+    await waitFor(() => expect(result.current.rejected).toHaveLength(0))
+    expect(await getAll()).toHaveLength(0)
   })
 
   it('does not drain ops for a different listId', async () => {
@@ -398,6 +390,7 @@ describe('useQueueDrain — drain on reconnect', () => {
       listId: 'l2',
       type: 'addItem',
       payload: { name: 'Leche' },
+      label: 'Leche',
     })
 
     renderHook(() => useQueueDrain(defaultParams))
