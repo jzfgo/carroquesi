@@ -26,6 +26,10 @@ interface Props {
   /** Whether this list is the current user's default (Siri target). */
   isDefault: boolean
   listEmoji?: string | null
+  /** No signal. The list-level writes — rename, emoji, default, delete — are
+   *  drawn as unavailable. The board picker is not one of them: it is a
+   *  per-device preference that travels nowhere. */
+  isOffline?: boolean
   onEmojiChange?: (emoji: string | null) => void
   onRename: (newName: string) => void
   onDelete: () => void
@@ -43,6 +47,7 @@ export function ListActionSheet({
   isOwner,
   isDefault,
   listEmoji = null,
+  isOffline = false,
   onEmojiChange,
   onRename,
   onDelete,
@@ -100,6 +105,7 @@ export function ListActionSheet({
                 onSetDefault()
                 onClose()
               }}
+              disabled={isOffline}
             >
               <Star size={18} /> Marcar como predeterminada
             </button>
@@ -107,6 +113,7 @@ export function ListActionSheet({
           <button
             className="list-action-sheet__action"
             onClick={() => setSubState('rename')}
+            disabled={isOffline}
           >
             <Pencil size={18} /> Renombrar
           </button>
@@ -117,6 +124,7 @@ export function ListActionSheet({
             <button
               className="list-action-sheet__action"
               onClick={() => setSubState('emoji')}
+              disabled={isOffline}
             >
               <Smile size={18} /> Emoji
             </button>
@@ -151,6 +159,7 @@ export function ListActionSheet({
             <button
               className="list-action-sheet__action list-action-sheet__action--danger"
               onClick={() => setSubState('confirm-delete')}
+              disabled={isOffline}
             >
               <Trash2 size={18} /> Eliminar lista
             </button>
@@ -183,7 +192,9 @@ export function ListActionSheet({
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && trimmed) onRename(trimmed)
+                if (e.key === 'Enter' && trimmed && !isOffline) {
+                  onRename(trimmed)
+                }
               }}
               autoFocus
               aria-label="Nombre de la lista"
@@ -191,7 +202,7 @@ export function ListActionSheet({
             <button
               className="list-action-sheet__save-btn"
               onClick={() => onRename(trimmed)}
-              disabled={!trimmed}
+              disabled={!trimmed || isOffline}
               aria-label="Guardar"
             >
               Guardar
@@ -285,6 +296,7 @@ export function ListActionSheet({
         <button
           className="list-action-sheet__confirm-btn"
           onClick={onDelete}
+          disabled={isOffline}
           aria-label="Sí, eliminar lista"
         >
           Sí, eliminar lista

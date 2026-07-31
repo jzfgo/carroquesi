@@ -1681,12 +1681,14 @@ describe('with no connection', () => {
       />,
     )
     openMenu()
-    fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
-    fireEvent.change(
-      screen.getByRole('textbox', { name: 'Nombre de la lista' }),
-      { target: { value: 'Mercadillo' } },
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    // Disabled, not merely inert. A silent guard behind a live control is a
+    // tap that does nothing and says nothing — worse than the toast this
+    // replaced. The assertion below would pass either way; this one is what
+    // fails if the control comes back.
+    const rename = screen.getByRole('button', { name: /renombrar/i })
+    expect(rename).toBeDisabled()
+    fireEvent.click(rename)
 
     // Silent: `OfflineBand` states the condition once, above the router.
     expect(screen.queryByText(/no disponible sin conexión/i)).toBeNull()
@@ -1707,8 +1709,9 @@ describe('with no connection', () => {
       />,
     )
     openMenu()
-    fireEvent.click(screen.getByRole('button', { name: /^emoji$/i }))
-    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+    const emoji = screen.getByRole('button', { name: /^emoji$/i })
+    expect(emoji).toBeDisabled()
+    fireEvent.click(emoji)
 
     // Silent: `OfflineBand` states the condition once, above the router.
     expect(screen.queryByText(/no disponible sin conexión/i)).toBeNull()
@@ -1751,8 +1754,9 @@ describe('with no connection', () => {
       />,
     )
     openMenu()
-    fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
-    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar lista/i }))
+    const del = screen.getByRole('button', { name: /eliminar lista/i })
+    expect(del).toBeDisabled()
+    fireEvent.click(del)
 
     // Silent: `OfflineBand` states the condition once, above the router.
     expect(screen.queryByText(/no disponible sin conexión/i)).toBeNull()

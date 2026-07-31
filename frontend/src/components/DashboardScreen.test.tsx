@@ -413,8 +413,18 @@ describe('DashboardScreen — offline', () => {
     await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
 
     goOffline()
-    await openCreateAndSubmit('Costco')
 
+    // Asserted *before* submitting, deliberately. After a refused submit the
+    // card's own `creating` flag leaves the button disabled anyway, so the
+    // same assertion there passes with the offline gate deleted — vacuously.
+    // Here the only thing that can disable it is the gate.
+    fireEvent.click(screen.getByRole('button', { name: /nueva lista/i }))
+    fireEvent.change(await screen.findByPlaceholderText(/nombre/i), {
+      target: { value: 'Costco' },
+    })
+    expect(screen.getByRole('button', { name: /crear/i })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: /crear/i }))
     expect(api.createList).not.toHaveBeenCalled()
     // Silent: the band says it once, above the router. What still has to hold
     // is that there is something to come back to — this is the half the guard
@@ -605,6 +615,7 @@ describe('DashboardScreen — offline', () => {
     // Nothing said, and «no se pudo enviar» in particular: it claimed an
     // attempt that the guard never made. The band states the condition.
     expect(screen.queryByText(/no se pudo enviar el feedback/i)).toBeNull()
+    expect(screen.getByRole('button', { name: /^enviar$/i })).toBeDisabled()
     expect(api.submitFeedback).not.toHaveBeenCalled()
     // Pinned rather than discriminating: the message has to survive for there
     // to be anything to send once there is a connection.

@@ -501,6 +501,7 @@ export function DashboardScreen() {
         </DndContext>
         <div className="dashboard-screen__create">
           <CreateListCard
+            isOffline={isOffline}
             isFirst={lists.length === 0}
             onCreate={handleCreate}
           />
@@ -530,6 +531,7 @@ export function DashboardScreen() {
       )}
       {feedbackOpen && (
         <FeedbackSheet
+          isOffline={isOffline}
           defaultEmail={user?.email}
           isSubmitting={feedbackSubmitting}
           onSubmit={(payload) => void handleFeedbackSubmit(payload)}

@@ -5,6 +5,9 @@ import { Mascot } from './Mascot'
 
 interface Props {
   isFirst?: boolean
+  /** No signal: the card does not offer to create, rather than taking a name
+   *  and quietly doing nothing with it. */
+  isOffline?: boolean
   /** Resolves `true` once the list exists, `false` if it does not.
    *
    *  `false` covers both refusal (offline) and failure (the request threw).
@@ -25,7 +28,11 @@ interface Props {
   onCreate: (name: string) => Promise<boolean>
 }
 
-export function CreateListCard({ isFirst, onCreate }: Props) {
+export function CreateListCard({
+  isFirst,
+  isOffline = false,
+  onCreate,
+}: Props) {
   const [expanded, setExpanded] = useState(false)
   const [name, setName] = useState('')
   const [creating, setCreating] = useState(false)
@@ -113,12 +120,12 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
         onChange={(e) => setName(e.target.value)}
         placeholder="Nombre de la lista"
         onKeyDown={(e) => {
-          if (e.key === 'Enter') void handleSubmit()
+          if (e.key === 'Enter' && !isOffline) void handleSubmit()
           if (e.key === 'Escape') collapse()
         }}
       />
       <button
-        disabled={!name.trim() || creating}
+        disabled={!name.trim() || creating || isOffline}
         onClick={() => void handleSubmit()}
       >
         Crear lista

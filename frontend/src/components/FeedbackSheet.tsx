@@ -6,6 +6,8 @@ import './FeedbackSheet.css'
 interface Props {
   defaultEmail: string | null | undefined
   isSubmitting: boolean
+  /** No signal: nothing is sent, so nothing offers to send. */
+  isOffline?: boolean
   onSubmit: (payload: FeedbackPayload) => void
   onClose: () => void
 }
@@ -13,6 +15,7 @@ interface Props {
 export function FeedbackSheet({
   defaultEmail,
   isSubmitting,
+  isOffline = false,
   onSubmit,
   onClose,
 }: Props) {
@@ -84,7 +87,7 @@ export function FeedbackSheet({
           <button
             type="submit"
             className="feedback-sheet__primary"
-            disabled={!canSubmit}
+            disabled={!canSubmit || isOffline}
           >
             {isSubmitting ? 'Enviando...' : 'Enviar'}
           </button>

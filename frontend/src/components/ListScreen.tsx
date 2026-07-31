@@ -1114,6 +1114,7 @@ export function ListScreen({
 
       {menuOpen && (
         <ListActionSheet
+          isOffline={isOffline}
           listId={listId}
           listName={localListName}
           currentUserId={currentUserId}
