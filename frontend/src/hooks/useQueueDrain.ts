@@ -98,9 +98,17 @@ export function useQueueDrain({
   }, [listId])
 
   useEffect(() => {
-    void refreshOps()
-    window.addEventListener('cqs:queue-changed', refreshOps)
-    return () => window.removeEventListener('cqs:queue-changed', refreshOps)
+    // The event system drops whatever a listener returns, so an async one that
+    // rejects is an unhandled rejection on every queue event. Same shape as
+    // the drain's own catch, one call site over.
+    const onQueueChanged = () => {
+      refreshOps().catch((err) =>
+        console.warn('offline queue could not be read', err),
+      )
+    }
+    onQueueChanged()
+    window.addEventListener('cqs:queue-changed', onQueueChanged)
+    return () => window.removeEventListener('cqs:queue-changed', onQueueChanged)
   }, [refreshOps])
 
   // Still going out. A refused op is not counted here and does not wear the
@@ -143,10 +151,15 @@ export function useQueueDrain({
         failures++
         continue
       }
+      // Whether the server has it. Everything after this point in the `try` is
+      // local bookkeeping, and a store that fails there must not be reported
+      // as a refusal — see the catch.
+      let sent = false
       try {
         if (op.type === 'addItem') {
           const p = op.payload as Parameters<typeof createItem>[2]
           const created = (await createItem(getToken, op.listId, p)) as ListItem
+          sent = true
           if (op.tempId) {
             tempIdMap.set(op.tempId, created.id)
             // The map covers the ops already read into this pass; the store
@@ -162,11 +175,13 @@ export function useQueueDrain({
           const realId = tempIdMap.get(p.itemId)
           if (realId) p = { ...p, itemId: realId }
           await updateItem(getToken, op.listId, p.itemId, p.patch)
+          sent = true
         } else if (op.type === 'deleteItem') {
           let p = op.payload as { itemId: string }
           const realId = tempIdMap.get(p.itemId)
           if (realId) p = { ...p, itemId: realId }
           await deleteItem(getToken, op.listId, p.itemId)
+          sent = true
         } else if (op.type === 'closePurchase') {
           const p = op.payload as PurchaseClosePayload
           // An item added offline is named by its temp id here, because the
@@ -176,9 +191,25 @@ export function useQueueDrain({
             return realId ? { ...line, item_id: realId } : line
           })
           await closePurchase(getToken, op.listId, { ...p, lines })
+          sent = true
         }
         await remove(op.id)
       } catch (err) {
+        // The server took it and the store could not record that. Calling it a
+        // refusal would be false twice over: «el servidor falló» about a write
+        // the server accepted, and a «Reintentar» whose only effect is to send
+        // it again — a second row on the list, or a second trip filed under
+        // the same total, which the duplicate guard cannot catch because by
+        // then the list genuinely does contain it.
+        //
+        // The op stays pending, so a later pass will re-send it and can still
+        // duplicate. Closing that needs an idempotency key the API does not
+        // have; what this stops is the app *inviting* the duplicate through a
+        // button, and counting a landed write among the failures.
+        if (sent) {
+          console.warn('offline queue could not record a sent write', err)
+          continue
+        }
         if (isNetworkError(err)) break
         // The write stays. Deleting it here is what used to turn a refusal
         // into a number in a notice that left after three seconds.

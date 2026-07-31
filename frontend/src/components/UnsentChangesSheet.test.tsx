@@ -364,6 +364,13 @@ it('counts a close against every add it waits on, not the first', () => {
   expect(
     screen.getByRole('button', { name: 'Reintentar el cambio' }),
   ).toBeInTheDocument()
+
+  // And it must say so. One dead add among two strands the close exactly as
+  // completely as one dead add on its own, so the row cannot go on promising
+  // that something is still coming.
+  expect(
+    screen.getByText(/Compra · .* · el producto no llegó a crearse/),
+  ).toBeInTheDocument()
 })
 
 /**

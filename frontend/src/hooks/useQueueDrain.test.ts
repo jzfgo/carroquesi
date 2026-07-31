@@ -670,3 +670,52 @@ describe('useQueueDrain — reads settling out of order', () => {
     spy.mockRestore()
   })
 })
+
+/**
+ * Everything after the request in the `try` is local bookkeeping. A store that
+ * fails there is not a refusal, and reporting it as one hands somebody a
+ * «Reintentar» whose only effect is a second row on the list — or a second
+ * trip filed under the same total.
+ */
+describe('useQueueDrain — the store fails after the server took it', () => {
+  it('does not call a landed write a refusal', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const open = indexedDB.open.bind(indexedDB)
+    let breakNext = false
+    const spy = vi
+      .spyOn(indexedDB, 'open')
+      .mockImplementation((...args: Parameters<typeof open>) => {
+        if (breakNext) {
+          breakNext = false
+          throw new Error('quota exceeded')
+        }
+        return open(...args)
+      })
+
+    // The write lands, and the bookkeeping that follows it cannot be recorded.
+    vi.mocked(api.createItem).mockImplementation(async () => {
+      breakNext = true
+      return { id: 'real-1' } as never
+    })
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      tempId: 'tmp-1',
+      payload: { name: 'Pimentón' },
+      label: 'Pimentón',
+    })
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+    await waitFor(() => expect(mockOnDrained).toHaveBeenCalled())
+
+    expect(
+      result.current.rejected,
+      'the server accepted it — there is nothing to answer for',
+    ).toHaveLength(0)
+    expect(mockShowToast).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalled()
+
+    spy.mockRestore()
+    warn.mockRestore()
+  })
+})

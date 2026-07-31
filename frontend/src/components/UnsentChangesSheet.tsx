@@ -105,9 +105,15 @@ export function UnsentChangesSheet({
         // clear it, drain, be held again, and say the same thing every time it
         // is pressed. An add that can never go in leaves its dependent exactly
         // as stranded as no add at all, so both read the same here.
-        const orphaned =
-          status === HELD_FOR_ADD &&
-          !waitingOn.some((waited) => isRetryable(waited.failure?.status ?? 0))
+        //
+        // «Every one of them», not «any of them», and the same question
+        // `inRetryAll` asks below: a close goes out only when all of its adds
+        // land, so one dead add among two strands it exactly as completely as
+        // one dead add on its own.
+        const canStillLand =
+          waitingOn.length > 0 &&
+          waitingOn.every((waited) => isRetryable(waited.failure?.status ?? 0))
+        const orphaned = status === HELD_FOR_ADD && !canStillLand
         const cause = orphaned ? ORPHANED : failureCause(status, op.type)
 
         return {

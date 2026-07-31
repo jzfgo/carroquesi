@@ -4,6 +4,7 @@ import {
   clearFailure,
   enqueue,
   getAll,
+  HELD_FOR_ADD,
   markFailed,
   newTempId,
   remove,
@@ -309,4 +310,94 @@ describe('resolveTempId', () => {
     const [op] = await getAll()
     expect(op.payload).toEqual(other.payload)
   })
+})
+
+// The hold's only reason was an id nothing had created. Rewriting the id
+// removes the reason, and leaving the failure on would make the sheet read the
+// op as orphaned — terminal, and «el producto no llegó a crearse» about one
+// that now exists.
+it('lifts a hold whose reason it just removed', async () => {
+  const op = await enqueue({
+    listId: 'l1',
+    type: 'updateItem',
+    payload: { itemId: 'tmp-1', patch: { name: 'Pimentón dulce' } },
+    label: 'Pimentón dulce',
+  })
+  await markFailed(op.id, { status: HELD_FOR_ADD, at: 0 })
+
+  await resolveTempId('tmp-1', 'real-1')
+
+  const [after] = await getAll()
+  expect(after.failure).toBeUndefined()
+})
+
+// A refusal the server actually made is not the rewrite's to clear.
+it('leaves a real refusal in place while resolving the id', async () => {
+  const op = await enqueue({
+    listId: 'l1',
+    type: 'updateItem',
+    payload: { itemId: 'tmp-1', patch: { name: 'Pimentón dulce' } },
+    label: 'Pimentón dulce',
+  })
+  await markFailed(op.id, { status: 500, at: 0 })
+
+  await resolveTempId('tmp-1', 'real-1')
+
+  const [after] = await getAll()
+  expect(after.failure?.status).toBe(500)
+  expect((after.payload as { itemId: string }).itemId).toBe('real-1')
+})
+
+/**
+ * The seed is the guard for a session whose clock is wrong, which is the
+ * session nobody reproduces by hand — so a read failure disabling it for the
+ * rest of that session has to be caught here. `indexedDB` is a global the
+ * fake installs, so the seam needs no injection into the module under test.
+ */
+it('tries the seed again after a read that failed', async () => {
+  vi.useFakeTimers()
+  const open = indexedDB.open.bind(indexedDB)
+  try {
+    vi.setSystemTime(new Date('2026-07-31T10:01:00Z'))
+    const ahead = await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: {},
+      label: 'old',
+    })
+
+    vi.resetModules()
+    const fresh = await import('./offlineQueue')
+    vi.setSystemTime(new Date('2026-07-31T10:00:00Z'))
+
+    // The first seed read cannot open the store; the write right after it can.
+    let broken = true
+    const spy = vi
+      .spyOn(indexedDB, 'open')
+      .mockImplementation((...args: Parameters<typeof open>) => {
+        if (broken) {
+          broken = false
+          throw new Error('nope')
+        }
+        return open(...args)
+      })
+
+    await fresh.enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      payload: {},
+      label: 'a',
+    })
+    const second = await fresh.enqueue({
+      listId: 'l1',
+      type: 'updateItem',
+      payload: { itemId: 'x' },
+      label: 'b',
+    })
+
+    expect(second.enqueuedAt).toBeGreaterThan(ahead.enqueuedAt)
+    spy.mockRestore()
+  } finally {
+    vi.useRealTimers()
+  }
 })

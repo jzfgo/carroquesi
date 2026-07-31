@@ -258,16 +258,27 @@ function withRealId(
   realId: string,
 ): QueuedOp | null {
   if (!targetsOf(op).includes(tempId)) return null
+
+  // A hold whose only reason was the unresolved id has just had that reason
+  // removed, so it goes with it. Left on, the op would be read as *orphaned*
+  // the moment the rewrite stopped `targetsOf` returning a temp id — terminal,
+  // and «el producto no llegó a crearse» about one that now exists.
+  let next = op
+  if (op.failure?.status === HELD_FOR_ADD) {
+    next = { ...op }
+    delete next.failure
+  }
+
   switch (op.type) {
     case 'updateItem':
     case 'deleteItem': {
       const payload = op.payload as { itemId: string }
-      return { ...op, payload: { ...payload, itemId: realId } }
+      return { ...next, payload: { ...payload, itemId: realId } }
     }
     case 'closePurchase': {
       const payload = op.payload as PurchaseClosePayload
       return {
-        ...op,
+        ...next,
         payload: {
           ...payload,
           lines: payload.lines.map((line) =>
