@@ -299,11 +299,20 @@ def test_get_price_history_my_lists_excludes_other_users(
     assert "Lidl" not in stores
 
 
-def test_get_price_history_all_includes_other_users(
+def test_get_price_history_refuses_to_read_across_households(
     client: TestClient, other_client: TestClient, httpx_mock: HTTPXMock
 ):
+    """There is no scope that reads another household's rows.
+
+    A price history entry carries the shop, the date and the quantity as well
+    as the amount, so a scope spanning every list would answer with where and
+    when a stranger shops. The community price is the sanctioned way to learn
+    what a product costs elsewhere, and it reads aggregated third-party data
+    instead. This asserts the widest scope the API accepts still stops at the
+    lists the caller belongs to.
+    """
     httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
-    ean = "8410188066666"
+    ean = "8410188066667"
     lst_alice = _make_list(client)
     item_alice = _make_item(client, lst_alice["id"], name="Leche", ean=ean)
     _set_price(client, lst_alice["id"], item_alice["id"], 0.89, store="Mercadona")
@@ -315,11 +324,14 @@ def test_get_price_history_all_includes_other_users(
         json={"amount": 0.79, "store": "Lidl"},
     )
 
-    resp = client.get(f"/lists/{lst_alice['id']}/items/{item_alice['id']}/prices?scope=all")
+    assert (
+        client.get(f"/lists/{lst_alice['id']}/items/{item_alice['id']}/prices?scope=all")
+    ).status_code == 422
+
+    resp = client.get(f"/lists/{lst_alice['id']}/items/{item_alice['id']}/prices?scope=my_lists")
     assert resp.status_code == 200
     stores = {e["store"] for e in resp.json()["entries"]}
-    assert "Mercadona" in stores
-    assert "Lidl" in stores
+    assert stores == {"Mercadona"}
 
 
 def test_get_price_history_invalid_scope(client: TestClient):

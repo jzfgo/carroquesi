@@ -95,7 +95,7 @@ def get_price_history(
     session: CurrentSession,
     current_user: CurrentUser,
     _: MemberDep,
-    scope: Annotated[str, Query(pattern="^(this_list|my_lists|all)$")] = "this_list",
+    scope: Annotated[str, Query(pattern="^(this_list|my_lists)$")] = "this_list",
 ):
     item = _get_item_or_404(session, item_id, list_id)
     items = _query_by_scope(session, item, scope, current_user.id)
@@ -142,14 +142,17 @@ def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list[L
     if scope == "this_list":
         return session.exec(select(ListItem).where(ListItem.list_id == item.list_id, *base)).all()
 
-    if scope == "my_lists":
-        my_list_ids = session.exec(
-            select(ListMember.list_id).where(ListMember.user_id == user_id)
-        ).all()
-        return session.exec(select(ListItem).where(ListItem.list_id.in_(my_list_ids), *base)).all()
-
-    # scope == "all"
-    return session.exec(select(ListItem).where(*base)).all()
+    # scope == "my_lists". There was a third, "all", which searched every list
+    # in the database — so it answered with the shop, the date and the quantity
+    # of strangers' purchases, not only their prices. Nothing ever called it,
+    # and the app already has a community price that is built the other way
+    # round: get_community_price reads aggregated third-party data, not the
+    # rows of the household next door. Removed while it was still free to
+    # remove; the reasons to keep a dormant one are never as good later.
+    my_list_ids = session.exec(
+        select(ListMember.list_id).where(ListMember.user_id == user_id)
+    ).all()
+    return session.exec(select(ListItem).where(ListItem.list_id.in_(my_list_ids), *base)).all()
 
 
 def _base_conditions(item: ListItem):

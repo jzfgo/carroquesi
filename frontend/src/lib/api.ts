@@ -274,7 +274,7 @@ export function getPriceHistory(
   getToken: () => Promise<string>,
   listId: string,
   itemId: string,
-  scope: 'this_list' | 'my_lists' | 'all',
+  scope: 'this_list' | 'my_lists',
 ): Promise<PriceHistoryResponse> {
   return apiFetch(
     getToken,
