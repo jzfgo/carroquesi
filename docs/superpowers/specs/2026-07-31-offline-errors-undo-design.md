@@ -405,15 +405,42 @@ hop from the row rather than two.
 
 ## Known limits
 
-Ten things this phase leaves standing, each with an issue — so none of them
+Eleven things this phase leaves standing, each with an issue — so none of them
 is a surprise to somebody reading «Cambios sin enviar» and taking it as
 complete.
 
-The first two go first because they are one fact from two sides, and it is the
-fact that most contradicts this spec's own argument: **everything built here
-protects the queue, and there are writes that never reach it.** JAV-103 is a
-write with no queued form at all; JAV-97 is one that has a queued form and
-takes a path that skips it.
+The first one is the largest, and it is a deliberate deferral rather than an
+oversight.
+
+- **A list opened with no coverage still says «Error al cargar la lista»**
+  (JAV-106). Everything below the route works without a signal — the items and
+  members paint from `cqs_list_cache_…`, the queue is IndexedDB, and the band,
+  the dot and this sheet are pure state — and none of it is reachable, because
+  `ListRoute` gates the screen on a live `getList` and `apiFetch` lets a
+  network failure through as a raw `TypeError`. So the sentence this phase
+  exists to delete is still the answer to opening a list at the shop, one
+  component above the one that was fixed. Not a regression: it is how `main`
+  behaves.
+
+  It was built and then cut. The route needed a cache of its own, and that
+  cache then needed invalidating on four arrivals, scoping to a user, a shape
+  floor, and an effect to follow the row on screen — nine commits of coherence
+  work, parked on `feat/offline-read-cache`. The reason it did not settle is
+  worth reading before rebuilding it: the app would have two independent
+  offline systems, writes in IndexedDB and reads in three hand-maintained
+  `localStorage` keys, with nothing reconciling them. The band counts the
+  queue and the rows come from the cache — two sources of truth for what is on
+  a list offline. JAV-106 records the alternative.
+
+  The corollary is that `ItemList`'s loading and error notice slots are
+  covering a **race** rather than the case their comment names: reaching them
+  needs `getList` to have succeeded and `fetchAll` to then fail with no cache.
+
+The next two are one fact from two sides, and it is the fact that most
+contradicts this spec's own argument: **everything built here protects the
+queue, and there are writes that never reach it.** JAV-103 is a write with no
+queued form at all; JAV-97 is one that has a queued form and takes a path that
+skips it.
 
 - **A price never reaches the queue** (JAV-103). The case for building this
   sheet was that «for writes somebody typed and cannot re-type from memory, a
