@@ -37,7 +37,28 @@ touch it.
 The emitted CSS is run through stylelint and Prettier at the end. No value
 changes — it is purely how the file is laid out — but the step lives here
 rather than in the `just` recipe so that a bare `python3 scripts/fetch-fonts.py`
-cannot leave behind a file that fails `just ci`.
+cannot leave behind a file that fails `just ci` *silently*. It can still leave
+one: the check pass below runs after the swap, so a genuine disagreement
+between the two formatters exits 1 with the file on disk. That is the right way
+round — rolling a good font refresh back over a lint quarrel would be worse —
+but it is «not without saying so», not «not at all».
+
+`.stylelintrc.json` turns `font-family-name-quotes` off for the emitted file,
+and that override is load-bearing rather than cosmetic. With it on, stylelint
+strips the quotes from any single-word family and this repo's
+`value-keyword-case: lower` then lowercases what is left — measured, not
+assumed: `'Fantasy'` becomes `fantasy` and `'Inherit'` becomes `inherit`, which
+stop naming fonts and start naming a CSS generic and a CSS-wide keyword. Both
+are real Google families. Off, Google's quoting survives verbatim, which is
+what the header of the generated file claims and now what it does.
+
+(`'Caption'` survives as `Caption` — case is preserved, so the `font` shorthand
+keywords are not in the danger set. Only the generics and the CSS-wide
+keywords are, because only they are matched lowercase.)
+
+There is no lock. Two runs at once share the staging and backup paths and will
+corrupt each other; this is a hand-run script and a lockfile is a worse trade
+than the bug. One at a time.
 """
 
 from __future__ import annotations
@@ -72,19 +93,6 @@ USER_AGENT = (
 
 SUBSETS = ("latin", "latin-ext")
 
-# Family names that must never lose their quotes. `font-family-name-quotes`
-# strips quotes from any single-word name it judges not to need them, and for
-# these the quotes are the whole meaning: `'Fantasy'` unquoted stops naming a
-# font and starts naming a generic, `'Inherit'` becomes a CSS-wide keyword. All
-# five families here are safe and none of this can happen without someone
-# editing FONTS_URL — which is the moment worth catching, and the reason this
-# is an assertion rather than a comment. Raised by the re-review of #201.
-RESERVED_FAMILY_NAMES = {
-    "serif", "sans-serif", "cursive", "fantasy", "monospace", "system-ui",
-    "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded", "math", "emoji",
-    "fangsong", "inherit", "initial", "unset", "revert", "revert-layer", "default",
-}
-
 FONT_DIR = Path("src/assets/fonts")
 CSS_OUT = Path("src/fonts.css")
 
@@ -97,9 +105,11 @@ HEADER = """/* Vendored from Google Fonts by `scripts/fetch-fonts.py` — do not
    To change a family, a weight or a subset, edit that script and re-run it:
    `just frontend fetch-fonts`. Every declaration below is Google's own: the
    only rewrite is the `src:` URL, which now points at `src/assets/fonts/`.
-   Stylelint and Prettier then lay the file out — quotes dropped from the
-   family names that do not need them, `unicode-range` rewrapped — which
-   changes how it reads and not one value in it.
+   Stylelint and Prettier then lay the file out — blank lines before the
+   subset comments, `unicode-range` rewrapped — which changes how it reads and
+   not one value in it. Family names keep Google's quoting: `.stylelintrc.json`
+   turns `font-family-name-quotes` off here, and the script's docstring says
+   which two real families that rule would otherwise break.
 
    Vite fingerprints these files at build time, so a refreshed cut of a family
    is served under a new name and no browser can hold a stale one. */
@@ -140,7 +150,10 @@ def format_css(path: Path) -> bool:
         if subprocess.run(["pnpm", "exec", *tool, str(path)]).returncode != 0:
             print(
                 f"{path} still fails {tool[0]} after formatting — the two fixers "
-                "disagree, and this file would fail `just ci`",
+                "disagree, and this file would fail `just ci`. Resolve the rule "
+                "conflict, or exempt src/fonts.css in .stylelintrc.json or "
+                ".prettierignore from whichever rule lost. The fonts themselves "
+                "are already in place; only the layout of the CSS is unsettled.",
                 file=sys.stderr,
             )
             return False
@@ -178,13 +191,24 @@ def main() -> int:
     # back. Deleting first and renaming second — which is what this did until the
     # re-review — has a window where a failed rename destroys the old set and the
     # cleanup then destroys the new one, leaving neither. Rare, and worse than
-    # the bug being fixed.
+    # the bug being fixed. The point is not that the rollback is thorough; it is
+    # that no step in the region is irreversible, which is what makes a rollback
+    # possible at all.
+    #
+    # All three of these are siblings of what they replace, by construction, so
+    # `rename` and `os.replace` stay within one filesystem and `EXDEV` cannot
+    # arise. Worth saying because it is the first thing a reader re-worries.
     staging = FONT_DIR.with_name(FONT_DIR.name + ".partial")
     backup = FONT_DIR.with_name(FONT_DIR.name + ".previous")
     css_staging = CSS_OUT.with_suffix(CSS_OUT.suffix + ".partial")
+    # `ignore_errors`, and checked afterwards: whatever stopped a previous run
+    # from removing these may still be holding them, and an uncaught traceback
+    # here fires before anything is protected.
     for leftover in (staging, backup):
+        shutil.rmtree(leftover, ignore_errors=True)
         if leftover.exists():
-            shutil.rmtree(leftover)
+            print(f"{leftover} is in the way and will not delete — remove it", file=sys.stderr)
+            return 1
     staging.mkdir(parents=True)
 
     out: list[str] = [HEADER]
@@ -202,14 +226,6 @@ def main() -> int:
             block = match.group("block")
 
             family = FAMILY_RE.search(block).group("family")
-            if family.lower() in RESERVED_FAMILY_NAMES:
-                print(
-                    f"«{family}» is a CSS keyword; unquoted it would stop naming a "
-                    "font. Request a different family, or exempt this file from "
-                    "font-family-name-quotes before adding it.",
-                    file=sys.stderr,
-                )
-                return 1
             url = SRC_RE.search(block).group("url")
 
             # The variable families repeat one URL across every weight. Name the
@@ -217,6 +233,32 @@ def main() -> int:
             name = downloaded.get(url)
             if name is None:
                 name = f"{slug(family)}-{subset}.woff2"
+                # The cache is keyed on the URL and the filename on family and
+                # subset, and those two agree only while a family+subset pair
+                # yields exactly one file. It does for all five families here —
+                # the variable ones share one file across their weights and the
+                # static ones have a single weight. Two ordinary edits break it:
+                # an `ital` axis, and a static family requested at several
+                # weights. Then two distinct URLs are downloaded to one path and
+                # the second silently overwrites the first, every affected block
+                # points at whichever landed last, and the summary below
+                # under-reports because it counts unique names. Measured with
+                # `Nunito:ital,wght@0,400;1,400`: four blocks, two files, the
+                # roman text rendering the italic cut, exit 0.
+                #
+                # A naming scheme is the wrong fix — there is no good name to
+                # invent for a case that does not exist yet. Stopping is right,
+                # and the same call the reserved-name check used to make: this
+                # is only reachable by editing `FONTS_URL`, and that edit should
+                # fail loudly rather than produce ten plausible files.
+                if name in downloaded.values():
+                    print(
+                        f"{name} is wanted by two different files — "
+                        f"{slug(family)}-{subset} no longer identifies one. Put the "
+                        "style and weight in the name before requesting this.",
+                        file=sys.stderr,
+                    )
+                    return 1
                 request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
                 with urllib.request.urlopen(request) as response:
                     (staging / name).write_bytes(response.read())
@@ -244,16 +286,37 @@ def main() -> int:
         swapped = True
     finally:
         if swapped:
+            # `ignore_errors` because a swap that has landed must not be
+            # reported as a failure over a directory that would not delete. But
+            # a *partial* removal then survives a run that printed success, so
+            # say so — otherwise it sits there untracked, one `git add -A` from
+            # committing a second copy of the fonts, and the next run trips over
+            # it before anything is protected.
             shutil.rmtree(backup, ignore_errors=True)
+            if backup.exists():
+                print(
+                    f"the refresh succeeded, but {backup} would not delete — "
+                    "remove it by hand before the next run",
+                    file=sys.stderr,
+                )
         else:
             # Publication never started, or started and did not finish. Either
             # way the tree goes back to what it was, rather than to whichever
-            # half happened to land.
-            shutil.rmtree(staging, ignore_errors=True)
-            css_staging.unlink(missing_ok=True)
-            if backup.exists():
-                shutil.rmtree(FONT_DIR, ignore_errors=True)
-                backup.rename(FONT_DIR)
+            # half happened to land. Wrapped, because an exception raised in
+            # here would replace the one that caused the rollback and point the
+            # traceback at the cleanup instead of the cause.
+            try:
+                shutil.rmtree(staging, ignore_errors=True)
+                css_staging.unlink(missing_ok=True)
+                if backup.exists():
+                    shutil.rmtree(FONT_DIR, ignore_errors=True)
+                    backup.rename(FONT_DIR)
+            except OSError as cleanup_error:
+                print(
+                    f"rollback did not complete: {cleanup_error}. The previous "
+                    f"fonts are at {backup}; the error below is what started it.",
+                    file=sys.stderr,
+                )
 
     if not format_css(CSS_OUT):
         return 1

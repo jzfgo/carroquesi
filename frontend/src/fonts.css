@@ -2,9 +2,11 @@
    To change a family, a weight or a subset, edit that script and re-run it:
    `just frontend fetch-fonts`. Every declaration below is Google's own: the
    only rewrite is the `src:` URL, which now points at `src/assets/fonts/`.
-   Stylelint and Prettier then lay the file out — quotes dropped from the
-   family names that do not need them, `unicode-range` rewrapped — which
-   changes how it reads and not one value in it.
+   Stylelint and Prettier then lay the file out — blank lines before the
+   subset comments, `unicode-range` rewrapped — which changes how it reads and
+   not one value in it. Family names keep Google's quoting: `.stylelintrc.json`
+   turns `font-family-name-quotes` off here, and the script's docstring says
+   which two real families that rule would otherwise break.
 
    Vite fingerprints these files at build time, so a refreshed cut of a family
    is served under a new name and no browser can hold a stale one. */
@@ -37,7 +39,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: Caveat;
+  font-family: 'Caveat';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
@@ -50,7 +52,7 @@
 
 /* latin */
 @font-face {
-  font-family: Caveat;
+  font-family: 'Caveat';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
@@ -63,7 +65,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: Caveat;
+  font-family: 'Caveat';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -76,7 +78,7 @@
 
 /* latin */
 @font-face {
-  font-family: Caveat;
+  font-family: 'Caveat';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -89,7 +91,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: Caveat;
+  font-family: 'Caveat';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
@@ -102,7 +104,7 @@
 
 /* latin */
 @font-face {
-  font-family: Caveat;
+  font-family: 'Caveat';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
@@ -115,7 +117,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: Geist;
+  font-family: 'Geist';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -128,7 +130,7 @@
 
 /* latin */
 @font-face {
-  font-family: Geist;
+  font-family: 'Geist';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -141,7 +143,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: Geist;
+  font-family: 'Geist';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
@@ -154,7 +156,7 @@
 
 /* latin */
 @font-face {
-  font-family: Geist;
+  font-family: 'Geist';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
@@ -167,7 +169,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: Geist;
+  font-family: 'Geist';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -180,7 +182,7 @@
 
 /* latin */
 @font-face {
-  font-family: Geist;
+  font-family: 'Geist';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -193,7 +195,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: Geist;
+  font-family: 'Geist';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
@@ -206,7 +208,7 @@
 
 /* latin */
 @font-face {
-  font-family: Geist;
+  font-family: 'Geist';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
