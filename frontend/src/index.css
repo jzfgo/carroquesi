@@ -46,8 +46,8 @@ body {
 }
 
 /* The weight is declared rather than left alone because the UA sheet draws
-   headings bold, and Bree Serif is vendored as a single 400 face — see
-   fonts.css. Anything else here asks the family for a cut it does not have. */
+   headings bold, and the display face is vendored as a single 400 cut.
+   Anything else here asks the family for a weight it does not have. */
 h1,
 h2 {
   font-family: var(--font-display);

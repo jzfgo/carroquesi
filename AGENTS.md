@@ -80,6 +80,10 @@ Diff the precache manifest before and after any worker config change; a successf
 
 **Nothing else may join that glob, and no wider pattern may reach it.** `sw.js`, `registerSW.js`, `index.html` and `manifest.webmanifest` sit at the root of `dist/` under fixed names — a pattern like `**/*.@(js|css)` would sweep the first two, and a year of `immutable` on `sw.js` is a service worker that can never be replaced on a device that has it. If you widen the glob, list `dist/` afterwards and check the unhashed names are still outside it.
 
+The guarantee also has to hold from the inside, and that is the easier one to break. Nothing unhashed can currently reach `dist/assets/`: Vite is left on its default `assets/[name]-[hash][ext]`, and `public/` — which is copied through verbatim, names intact — has no `assets/` subdirectory. Creating one would put a fixed-name file under a year of `immutable` with nothing to announce it.
+
+**A year of `immutable` can also land on an HTML body.** Header globs are matched against the request path *before* rewrites, so a request for a hashed asset that no longer exists — an open tab reaching for the previous build's chunk — matches this rule, falls through the catch-all rewrite, and is answered with `index.html` at `200`, `text/html`, cached for a year under that URL. Measured against the hosting emulator, not inferred. It is survivable rather than fine: the tab fails on the MIME type, and a reload takes a fresh `index.html` naming URLs that do work, so the poisoned entry is stranded rather than served again. Worth knowing before reading a support report about one dead tab that a reload fixes.
+
 ### Dev auth bypass
 
 Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|seed-bob|seed-carol` in `frontend/.env` to bypass Google Sign-In locally. Frontend sends `X-Dev-User-Id` and backend resolves the user from it. Add `X-Dev-Is-Admin: true` to also mark the dev user as admin. **Never enable this in production.**
