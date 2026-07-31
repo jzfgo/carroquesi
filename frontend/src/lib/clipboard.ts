@@ -31,3 +31,34 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     return false
   }
 }
+
+/**
+ * Copy text that has to be fetched before it can be copied.
+ *
+ * WebKit drops the user's gesture across an await, and both paths in
+ * `copyToClipboard` need that gesture — the legacy `execCommand` fallback is
+ * gated on it too, so it does not rescue the modern one. A handler that waits
+ * for the network and then copies is therefore refused on Safari and iOS.
+ *
+ * `clipboard.write` exists for this case: it takes a promise, so the call
+ * happens on the tap and the value arrives later.
+ */
+export async function copyWhenReady(text: Promise<string>): Promise<boolean> {
+  const blob = text.then((t) => new Blob([t], { type: 'text/plain' }))
+  // Nothing reads `blob` when the fallback below runs, and an unobserved
+  // rejection is a console error everywhere. This marks it read; callers still
+  // learn the real outcome from the boolean.
+  void blob.catch(() => undefined)
+
+  try {
+    // A `ClipboardItem` that exists and a `ClipboardItem` that accepts a promise
+    // are separate facts, and engines have shipped the first without the second.
+    // Building it inside the try covers both, and the missing-constructor case.
+    await navigator.clipboard.write([new ClipboardItem({ 'text/plain': blob })])
+    return true
+  } catch {
+    // Unsupported or refused. Wait for the text and take the ordinary path,
+    // which still works wherever the gesture is not required.
+    return text.then(copyToClipboard, () => false)
+  }
+}

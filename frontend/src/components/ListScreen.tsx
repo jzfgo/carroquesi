@@ -908,6 +908,7 @@ export function ListScreen({
             Boolean(localStorage.getItem('push-sharing-intent'))
           }
           isIOS={isIOS}
+          listName={localListName}
           onEnable={() => void enablePush(getToken)}
         />
       )}

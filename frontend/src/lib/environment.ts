@@ -1,6 +1,10 @@
 export const IS_DEV = import.meta.env.DEV
 export const IS_PROD = import.meta.env.PROD
 
+/** Replaced at build time from package.json. Settings prints it; nothing branches on it. */
+declare const __APP_VERSION__: string
+export const APP_VERSION = __APP_VERSION__
+
 export const FIREBASE_API_KEY = import.meta.env.VITE_FIREBASE_API_KEY as
   string | undefined
 export const FIREBASE_AUTH_DOMAIN = import.meta.env

@@ -93,6 +93,8 @@ Run with `just frontend test-e2e` (alias: `pnpm test:e2e`). It runs against the 
 
 Visual regression: key screens are checked via `toHaveScreenshot()` (wrapped in the `expectScreenshot` helper in `fixtures.ts`), baselines committed under `frontend/tests/*-snapshots/`. Only `chromium`/`Mobile Chrome` carry baselines. Regenerate with `just frontend update-snapshots`, which runs the container every committed baseline came out of — not a stand-in for CI, which renders on its own runner and is why there is a pixel budget at all. See `frontend/tests/README.md`. Three rules there are easy to breach by accident: the tolerance is an absolute pixel count, never a ratio; anything a screenshot shows must be deterministic — pin the clock before capturing a screen that prints a date; and the suite's timezone is pinned in `playwright.config.ts`, so every committed baseline is Madrid-rendered. Unpinning it or changing the zone hands the render environment back to the machine, which is how a baseline comes to pass while depicting the wrong day. The pin covers the **browser** only — Playwright does not touch the Node runner's `TZ`, and the vitest suite still runs at the machine's zone, so unit tests that touch dates have to be made zone-less themselves.
 
+What a screen shows but does not own is masked instead, via `expectScreenshot`'s `mask` option — the release version in the settings foot is the first of these, because it changes at every release and the screen does not. **Masking the glyphs is only half of it: the mask is drawn at the element's bounding box, so an element sized by its content moves the box when the content changes length.** Pin the geometry too — the version has a fixed `min-width` in `ch` for exactly this. Verify by rendering two values of different length and confirming the baselines come out byte-identical; passing under the pixel budget is not the same answer.
+
 A screenshot is also a weak guard for a small visual affordance: a real one can cost far less than the tolerance, so the budget lets it vanish silently. When the thing under test *is* a style rule, assert the computed style as well.
 
 The remaining gotchas — ports, dev-auth setup, the `loadEnvFile()` `${VAR}` non-expansion, and the browser matrix — are in `frontend/AGENTS.md`. Read that file directly if your harness does not load nested guidance automatically.
@@ -106,6 +108,20 @@ The remaining gotchas — ports, dev-auth setup, the `loadEnvFile()` `${VAR}` no
 Scanning a receipt and closing a shopping trip are one act, so a scan has no screen and no endpoint of its own. The flow: client parse (`receiptAi.ts` via Gemini) → backend fuzzy match (`POST /lists/{id}/receipt`, `receipt_matcher.py`) → the matched and unmatched lines fill the close sheet (`CloseTripSheet` in ticket mode) → one save through `POST /lists/{id}/purchases/close`.
 
 That one save records the shop, prices the items, links the scan to the trip, and stores the receipt→item names the user confirmed. `VITE_RECAPTCHA_SITE_KEY` required in production for Firebase App Check (reCAPTCHA v3).
+
+### Settings
+
+`SettingsSheet` is the only home for a setting. It opens from the dashboard avatar and holds notifications, appearance, the Siri shortcut and the app block; there is no settings screen and no avatar menu. A setting offered anywhere else is a second path to one action, which is the duplication this sheet was built to remove — installing used to be a menu item *and* a permanent banner.
+
+Three rules there are easy to breach and nothing will fail if you do:
+
+- **Nothing may be awaited before a gesture-gated call.** WebKit revokes transient activation across an `await`, so the call that needs the user's tap has to be the first statement of the handler. This binds every such API, not just one:
+  - `enablePush` opens with `Notification.requestPermission()`. A caller that awaits an auth token, a transition or a confirmation first can lose the grant, and on iOS the denial that follows is permanent for the whole origin. Two callers reach it — the sheet's switch and `NotificationPrimingCard`.
+  - The Siri **Copiar** row has the same problem with a harder shape: the key does not exist until the tap asks for it, so the obvious `await issueApiKey(...)` then copy is refused on the very platforms that block is shown on. `copyWhenReady` in `lib/clipboard.ts` hands `clipboard.write` a *promise*, so the call lands on the gesture and the value arrives later. Note the legacy `execCommand` fallback is gated on activation too, so it never rescues the modern path.
+
+  Both are pinned by a unit test that clicks and asserts with no `await` in between — the copy one drives `issueApiKey` with a promise that never resolves, so a write can only have happened before the key arrived. Adding an `await` to either test makes it pass while the bug is back.
+- **The switch has five states, not four.** `pushState` in `lib/push.ts` derives them, and it reads `canReceivePush` *before* `permissionState`: an iPhone in Safari reports `default` and can still never deliver a push. Two of the five — granted-and-subscribed and granted-without-a-token — are identical to the system and opposite to the user, because the token is per device.
+- **`unavailable` covers three devices, not one.** An iPhone that can install its way out, an iPhone already installed and merely too old for Web Push, and a browser that is neither. They get three different sentences from `pushSubtitle`, and the chevron to the install row only appears where that row exists. Telling an installed phone to install is the broken-looking control the rest of the row avoids.
 
 ### Purchased item rules
 
