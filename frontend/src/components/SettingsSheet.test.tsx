@@ -46,6 +46,9 @@ beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
   vi.stubGlobal('Notification', { permission: 'default' })
+  // jsdom has no ClipboardItem. Stubbing it back to absent each time keeps the
+  // one test that supplies it from leaking into the rest.
+  vi.stubGlobal('ClipboardItem', undefined)
   vi.mocked(api.issueApiKey).mockResolvedValue({
     key: null,
     created: false,
@@ -93,8 +96,17 @@ describe('SettingsSheet — notifications', () => {
     expect(screen.queryByRole('switch')).toBeNull()
     expect(screen.getByText(/bloqueados en los ajustes/i)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /^cómo$/i }))
-    expect(screen.getByText(/ajustes de tu navegador/i)).toBeInTheDocument()
+    // The note is in the document from the start so the button can name it,
+    // which is why this asserts on visibility rather than presence.
+    const how = screen.getByRole('button', { name: /^cómo$/i })
+    expect(screen.getByText(/ajustes de tu navegador/i)).not.toBeVisible()
+    expect(how).toHaveAttribute(
+      'aria-controls',
+      screen.getByText(/ajustes de tu navegador/i).id,
+    )
+
+    fireEvent.click(how)
+    expect(screen.getByText(/ajustes de tu navegador/i)).toBeVisible()
   })
 
   it('offers no switch on an iPhone that has not installed the app', () => {
@@ -111,14 +123,16 @@ describe('SettingsSheet — notifications', () => {
   })
 
   // An iPhone already on the home screen but too old for Web Push lands in the
-  // same state with nowhere to be sent.
-  it('drops the chevron when there is no install row behind it', () => {
+  // same state with nowhere to be sent — and nothing left to do about it, so it
+  // must not be told to install what it has already installed.
+  it('tells an installed iPhone the truth instead of telling it to install', () => {
     vi.stubGlobal('Notification', undefined)
     render(<SettingsSheet {...withPush} isIOS isInstalled />)
     expect(screen.queryByRole('button', { name: /ir a instalar/i })).toBeNull()
     expect(
-      screen.getByText(/en iphone hay que instalar la app/i),
-    ).toBeInTheDocument()
+      screen.queryByText(/hay que instalar la app/i),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText(/versión más reciente de ios/i)).toBeInTheDocument()
   })
 
   it('points the switch at the line that tells its three states apart', () => {
@@ -152,18 +166,6 @@ describe('SettingsSheet — notifications', () => {
     render(<SettingsSheet {...withPush} />)
     fireEvent.click(screen.getByRole('switch'))
 
-    expect(requestPermission).toHaveBeenCalledOnce()
-  })
-
-  it('turns on from granted-without-token without prompting again', () => {
-    const requestPermission = vi.fn(async () => 'granted')
-    vi.stubGlobal('Notification', { permission: 'granted', requestPermission })
-
-    render(<SettingsSheet {...withPush} />)
-    fireEvent.click(screen.getByRole('switch'))
-
-    // enablePush reaches requestPermission either way; what matters is that the
-    // browser does not re-prompt, which it will not once permission is granted.
     expect(requestPermission).toHaveBeenCalledOnce()
   })
 
@@ -240,6 +242,33 @@ describe('SettingsSheet — the Siri shortcut', () => {
     expect(screen.getByText('cqs_test-key')).toBeInTheDocument()
   })
 
+  /**
+   * The same regression as the notifications switch, on the other handler in
+   * this sheet.
+   *
+   * The key does not exist until this tap asks for it, so awaiting the request
+   * and then copying is the obvious shape — and it is refused on Safari and
+   * iOS, the only platforms this block is shown on, because WebKit takes the
+   * gesture away across the await. `issueApiKey` here never resolves, so the
+   * write can only have been called before the key arrived. There is
+   * deliberately no `await` between the click and the assertion.
+   */
+  it('starts the clipboard write on the tap, before the key arrives', () => {
+    vi.mocked(api.issueApiKey).mockReturnValue(new Promise(() => {}) as never)
+    const write = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('ClipboardItem', class ClipboardItemStub {})
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { write },
+      writable: true,
+      configurable: true,
+    })
+
+    render(<SettingsSheet {...apple} />)
+    fireEvent.click(screen.getByRole('button', { name: /^copiar$/i }))
+
+    expect(write).toHaveBeenCalledOnce()
+  })
+
   it('steers a returning user to regenerate, because the key is unrecoverable', async () => {
     render(<SettingsSheet {...apple} />)
     fireEvent.click(screen.getByRole('button', { name: /^copiar$/i }))
@@ -249,6 +278,20 @@ describe('SettingsSheet — the Siri shortcut', () => {
         'Tu clave está oculta. Regenérala para obtener una nueva.',
       ),
     )
+  })
+
+  it('asks the server once, then answers from what it already knows', async () => {
+    render(<SettingsSheet {...apple} />)
+    const copy = screen.getByRole('button', { name: /^copiar$/i })
+
+    fireEvent.click(copy)
+    await waitFor(() => expect(onToast).toHaveBeenCalledOnce())
+    fireEvent.click(copy)
+    await waitFor(() => expect(onToast).toHaveBeenCalledTimes(2))
+
+    // The answer cannot change until the key is regenerated, so asking again
+    // spends a request to be told the same thing.
+    expect(api.issueApiKey).toHaveBeenCalledOnce()
   })
 
   it('refuses to issue a key with no default list to send items to', async () => {

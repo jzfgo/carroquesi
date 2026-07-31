@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { AuthUser } from '../contexts/AuthContext'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { issueApiKey, openShortcutImport, regenerateApiKey } from '../lib/api'
-import { copyToClipboard } from '../lib/clipboard'
+import { copyToClipboard, copyWhenReady } from '../lib/clipboard'
 import { APP_VERSION } from '../lib/environment'
 import type { PushState } from '../lib/push'
 import {
@@ -24,6 +24,26 @@ const PUSH_SUBTITLE: Record<Exclude<PushState, 'unavailable'>, string> = {
   on: 'Cuando alguien añada o compre en tus listas',
   off: 'Se vuelven a encender sin volver a preguntar',
   denied: 'Bloqueados en los ajustes del sistema, no aquí',
+}
+
+/**
+ * The line under the switch.
+ *
+ * `unavailable` is the one state that covers three different devices, and they
+ * need three different sentences: an iPhone that can install its way out, an
+ * iPhone already installed and simply too old for Web Push, and a browser that
+ * is neither. Telling the second one to install is telling it to do what it has
+ * already done.
+ */
+function pushSubtitle(
+  state: PushState,
+  { isIOS, isInstalled }: { isIOS: boolean; isInstalled: boolean },
+): string {
+  if (state !== 'unavailable') return PUSH_SUBTITLE[state]
+  if (!isIOS) return 'Este navegador no puede recibir avisos'
+  return isInstalled
+    ? 'Tu iPhone necesita una versión más reciente de iOS'
+    : 'En iPhone hay que instalar la app en la pantalla de inicio'
 }
 
 interface Props {
@@ -85,6 +105,10 @@ export function SettingsSheet({
   const [howOpen, setHowOpen] = useState(false)
 
   const [shownKey, setShownKey] = useState<string | null>(null)
+  // A returning user's key is unrecoverable, and the server says so by handing
+  // back null. Remembering that turns every later tap into a toast instead of
+  // another request that can only give the same answer.
+  const [keyHidden, setKeyHidden] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
 
@@ -121,30 +145,55 @@ export function SettingsSheet({
     void request.catch(() => undefined).finally(syncPushState)
   }
 
-  async function handleCopyKey() {
+  /**
+   * Like the switch above, this must not await before it copies.
+   *
+   * The key does not exist until the first tap asks for it, so the copy has to
+   * wait for a round trip — and WebKit takes the gesture away across that await,
+   * which would refuse the write on Safari and iOS, the only platforms this
+   * block is shown on. So the clipboard call starts on the tap and the key
+   * arrives inside it.
+   */
+  function handleCopyKey() {
     if (!defaultListName) {
       onToast('Marca una lista como predeterminada para usar el atajo de Siri')
       return
     }
-    let key = shownKey
-    if (!key) {
-      try {
-        // Idempotent, and only ever hands back plaintext on first issuance:
-        // what the server keeps is a hash. A returning user gets null and is
-        // told to regenerate.
-        key = (await issueApiKey(getToken)).key
-      } catch {
-        onToast('No se pudo preparar el atajo de Siri. Inténtalo de nuevo.')
-        return
-      }
-      setShownKey(key)
+    const report = (ok: boolean) =>
+      onToast(ok ? 'Clave copiada' : 'No se pudo copiar la clave')
+
+    if (shownKey) {
+      void copyToClipboard(shownKey).then(report)
+      return
     }
-    if (!key) {
+    if (keyHidden) {
       onToast('Tu clave está oculta. Regenérala para obtener una nueva.')
       return
     }
-    const ok = await copyToClipboard(key)
-    onToast(ok ? 'Clave copiada' : 'No se pudo copiar la clave')
+
+    // Idempotent, and only ever hands back plaintext on first issuance: what
+    // the server keeps is a hash. A returning user gets null and is told to
+    // regenerate.
+    const issued = issueApiKey(getToken)
+    const copied = copyWhenReady(
+      issued.then(({ key }) => {
+        if (!key) throw new Error('no plaintext key to copy')
+        return key
+      }),
+    )
+    void issued.then(
+      async ({ key }) => {
+        setShownKey(key)
+        if (!key) {
+          setKeyHidden(true)
+          onToast('Tu clave está oculta. Regenérala para obtener una nueva.')
+          return
+        }
+        report(await copied)
+      },
+      () =>
+        onToast('No se pudo preparar el atajo de Siri. Inténtalo de nuevo.'),
+    )
   }
 
   async function handleRegenerate() {
@@ -152,6 +201,7 @@ export function SettingsSheet({
     try {
       const { key } = await regenerateApiKey(getToken)
       setShownKey(key)
+      setKeyHidden(false)
       onToast('Clave regenerada. Pégala en el atajo.')
     } catch {
       onToast('No se pudo regenerar la clave. Inténtalo de nuevo.')
@@ -201,11 +251,7 @@ export function SettingsSheet({
                     Avisos en este dispositivo
                   </span>
                   <span className="settings-sheet__row-sub" id={`${id}-push`}>
-                    {state === 'unavailable'
-                      ? isIOS
-                        ? 'En iPhone hay que instalar la app en la pantalla de inicio'
-                        : 'Este navegador no puede recibir avisos'
-                      : PUSH_SUBTITLE[state]}
+                    {pushSubtitle(state, { isIOS, isInstalled })}
                   </span>
                 </span>
                 {(state === 'ask' || state === 'on' || state === 'off') && (
@@ -235,6 +281,7 @@ export function SettingsSheet({
                     type="button"
                     className="settings-sheet__row-action"
                     aria-expanded={howOpen}
+                    aria-controls={`${id}-how`}
                     onClick={() => setHowOpen((o) => !o)}
                   >
                     Cómo
@@ -255,8 +302,15 @@ export function SettingsSheet({
                   </button>
                 )}
               </div>
-              {state === 'denied' && howOpen && (
-                <p className="settings-sheet__note">
+              {/* Present whenever the row is blocked and hidden until asked:
+                  the button names this element, and a name that points at
+                  something not in the document points at nothing. */}
+              {state === 'denied' && (
+                <p
+                  className="settings-sheet__note"
+                  id={`${id}-how`}
+                  hidden={!howOpen}
+                >
                   Abre los ajustes de tu navegador, busca las notificaciones de
                   este sitio y vuelve a permitirlas.
                 </p>
@@ -334,7 +388,7 @@ export function SettingsSheet({
                     <button
                       type="button"
                       className="settings-sheet__row-action"
-                      onClick={() => void handleCopyKey()}
+                      onClick={handleCopyKey}
                     >
                       Copiar
                     </button>

@@ -285,9 +285,16 @@
   line-height: 1;
 }
 
+/* The width is fixed, not fitted. The foot is space-between, so a version that
+   grows a digit would otherwise move its own left edge — which reflows nothing
+   visible but does move the box the screenshots mask, and the release bump is
+   exactly when nobody is looking at this suite. `ch` is exact here because the
+   face is monospaced. */
 .settings-sheet__version {
+  min-width: 8ch;
   color: var(--ink-3);
   font-family: var(--font-mono);
   font-size: 11.5px;
   line-height: 1;
+  text-align: right;
 }

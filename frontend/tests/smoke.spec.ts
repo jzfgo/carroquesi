@@ -49,10 +49,13 @@ for (const { name: themeName, colorScheme } of THEMES) {
     })
 
     // The dashboard is flat surface, and so is this: the sheet is the largest
-    // place that could pick up paper language by accident.
+    // place that could pick up paper language by accident. The version in the
+    // foot is masked — it changes at every release, and this screen does not.
     test('settings opens from the avatar', async ({ page }) => {
       await openSettings(page)
-      await expectScreenshot(page, `settings-${themeName}.png`)
+      await expectScreenshot(page, `settings-${themeName}.png`, {
+        mask: [page.locator('.settings-sheet__version')],
+      })
     })
 
     test('list screen shows items', async ({ page }) => {

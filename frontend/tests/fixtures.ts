@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from '@playwright/test'
+import { test as base, expect, type Locator, type Page } from '@playwright/test'
 import type {
   ApiList,
   ListItem,
@@ -695,10 +695,14 @@ const VISUAL_PROJECTS = new Set(['chromium', 'Mobile Chrome'])
 export async function expectScreenshot(
   page: Page,
   name: string,
+  // Anything on the screen whose value is not the test's to fix — the release
+  // version is the first — is painted over rather than compared. A baseline
+  // that encodes it goes stale on a bump that has nothing to do with the screen.
+  options: { mask?: Locator[] } = {},
 ): Promise<void> {
   const projectName = test.info().project.name
   if (!VISUAL_PROJECTS.has(projectName)) return
-  await expect(page).toHaveScreenshot(name, { fullPage: true })
+  await expect(page).toHaveScreenshot(name, { fullPage: true, ...options })
 }
 
 // ── Gemini network-boundary mock ─────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { copyToClipboard } from './clipboard'
+import { copyToClipboard, copyWhenReady } from './clipboard'
 
 const originalClipboard = Object.getOwnPropertyDescriptor(
   navigator,
@@ -57,5 +57,69 @@ describe('copyToClipboard', () => {
     setExecCommand(false)
 
     expect(await copyToClipboard('cqs_key')).toBe(false)
+  })
+})
+
+describe('copyWhenReady', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  /**
+   * The point of the whole function: WebKit revokes the user's gesture across
+   * an await, and both paths in `copyToClipboard` need that gesture. So the
+   * clipboard call has to be made while the text is still a promise.
+   */
+  it('calls write before the text resolves', async () => {
+    let give: (t: string) => void = () => {}
+    const text = new Promise<string>((resolve) => {
+      give = resolve
+    })
+    const write = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('ClipboardItem', class ClipboardItemStub {})
+    setClipboard({ write })
+
+    const copying = copyWhenReady(text)
+    await Promise.resolve()
+    expect(write).toHaveBeenCalledOnce()
+
+    give('cqs_key')
+    expect(await copying).toBe(true)
+  })
+
+  it('falls back to the ordinary path where ClipboardItem is absent', async () => {
+    vi.stubGlobal('ClipboardItem', undefined)
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    setClipboard({ writeText })
+
+    expect(await copyWhenReady(Promise.resolve('cqs_key'))).toBe(true)
+    expect(writeText).toHaveBeenCalledWith('cqs_key')
+  })
+
+  // An engine can ship the constructor without accepting a promise for the
+  // value, which throws where a missing constructor would not.
+  it('falls back when the constructor refuses a promise', async () => {
+    vi.stubGlobal(
+      'ClipboardItem',
+      class ClipboardItemStub {
+        constructor() {
+          throw new TypeError('not a Blob')
+        }
+      },
+    )
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    setClipboard({ writeText, write: vi.fn() })
+
+    expect(await copyWhenReady(Promise.resolve('cqs_key'))).toBe(true)
+    expect(writeText).toHaveBeenCalledWith('cqs_key')
+  })
+
+  it('reports failure when the text never arrives', async () => {
+    vi.stubGlobal('ClipboardItem', class ClipboardItemStub {})
+    setClipboard({ write: vi.fn().mockRejectedValue(new Error('rejected')) })
+
+    expect(await copyWhenReady(Promise.reject(new Error('offline')))).toBe(
+      false,
+    )
   })
 })
