@@ -29,6 +29,7 @@ import { createDragAnnouncements } from '../lib/dragAnnouncements'
 import { FLAGS } from '../lib/featureFlags'
 import type { Direction } from '../lib/listOrder'
 import { moveAnnouncement, moveList } from '../lib/listOrder'
+import { OFFLINE_REFUSAL } from '../lib/refusalCopy'
 import type { ApiList } from '../types'
 import { CreateListCard } from './CreateListCard'
 import './DashboardScreen.css'
@@ -294,7 +295,7 @@ export function DashboardScreen() {
   const handleCreate = useCallback(
     async (name: string) => {
       if (isOffline) {
-        showToast('No disponible sin conexión')
+        showToast(OFFLINE_REFUSAL)
         return false
       }
       try {

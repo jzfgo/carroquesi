@@ -1024,3 +1024,107 @@ describe('useListItems — a refusal that can never change its mind carries no r
     expect(mockShowToast).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * The gate, asked of every mutation the hook exposes.
+ *
+ * Table-driven on purpose: the rule is «no write leaves this hook without a
+ * signal», and a rule stated once per mutation is a rule that acquires a
+ * ninth mutation without one. Adding a member to the hook's returned object
+ * and not to this table is the gap it exists to make visible.
+ *
+ * `savePrice` and `clearItemPrice` are here for completeness even though
+ * `ListScreen` refuses them one level up — those two callers close a sheet
+ * around the call, so they cannot delegate the refusal. This is the backstop
+ * underneath them.
+ */
+describe('useListItems — no write leaves without a signal', () => {
+  function setOnLine(value: boolean) {
+    Object.defineProperty(navigator, 'onLine', { value, configurable: true })
+  }
+
+  afterEach(() => setOnLine(true))
+
+  async function mounted() {
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+    return result
+  }
+
+  type Hook = Awaited<ReturnType<typeof mounted>>
+
+  const MUTATIONS: [string, (r: Hook) => Promise<unknown>][] = [
+    ['togglePurchased', (r) => r.current.togglePurchased('item-1')],
+    [
+      'addItem',
+      (r) =>
+        r.current.addItem({
+          name: 'Pan',
+          quantity: null,
+          brand: null,
+          stores: [],
+        }),
+    ],
+    ['updateTag', (r) => r.current.updateTag('item-1', 'brand', 'Danone')],
+    ['updateStores', (r) => r.current.updateStores('item-1', ['Lidl'])],
+    ['renameItem', (r) => r.current.renameItem('item-1', 'Pan de molde')],
+    ['removeItem', (r) => r.current.removeItem('item-1')],
+    ['savePrice', (r) => r.current.savePrice('item-1', 1.19, null, 'Lidl', '1')],
+    ['clearItemPrice', (r) => r.current.clearItemPrice('item-1')],
+  ]
+
+  it.each(MUTATIONS)('%s reaches no endpoint offline', async (_name, call) => {
+    const result = await mounted()
+    setOnLine(false)
+    vi.clearAllMocks()
+
+    await act(async () => {
+      await call(result)
+    })
+
+    expect(api.createItem).not.toHaveBeenCalled()
+    expect(api.updateItem).not.toHaveBeenCalled()
+    expect(api.deleteItem).not.toHaveBeenCalled()
+    expect(api.logPrice).not.toHaveBeenCalled()
+    expect(api.updatePrice).not.toHaveBeenCalled()
+    expect(api.deletePrice).not.toHaveBeenCalled()
+    expect(mockShowToast).toHaveBeenCalledWith('No disponible sin conexión')
+  })
+
+  it.each(MUTATIONS)(
+    '%s leaves the list exactly as it found it',
+    async (_name, call) => {
+      const result = await mounted()
+      const before = result.current.items
+      setOnLine(false)
+
+      await act(async () => {
+        await call(result)
+      })
+
+      // The guard sits ahead of the optimistic paint, so there is no rollback
+      // to get right. Identity, not equality: a paint-then-restore would
+      // satisfy a deep compare and is the thing being ruled out.
+      expect(result.current.items).toBe(before)
+    },
+  )
+
+  it('says nothing about a queue, because there is not one', async () => {
+    const result = await mounted()
+    setOnLine(false)
+    vi.clearAllMocks()
+
+    await act(async () => {
+      await result.current.addItem({
+        name: 'Pan',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
+    })
+
+    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
+  })
+})

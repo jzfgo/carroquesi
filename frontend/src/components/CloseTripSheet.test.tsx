@@ -370,21 +370,31 @@ describe('CloseTripSheet', () => {
     expect(screen.getByLabelText('Pan')).toBeChecked()
   })
 
-  it('promises that a close made offline is kept, not refused', () => {
+  it('says the close needs a connection, and promises nothing', () => {
     renderSheet({ isOffline: true })
 
+    expect(screen.getByText('Disponible con conexión')).toBeInTheDocument()
+    // The old sentence undertook to send it later, which only the queue could
+    // honour. Asserted absent so the promise cannot come back without this
+    // failing.
     expect(
-      screen.getByText('Se guardará cuando vuelva la conexión'),
-    ).toBeInTheDocument()
+      screen.queryByText('Se guardará cuando vuelva la conexión'),
+    ).not.toBeInTheDocument()
   })
 
-  it('still lets the household save while offline', async () => {
+  it('refuses the save while offline, and the sheet stays up', async () => {
     const { onSave } = renderSheet({ isOffline: true })
 
     await userEvent.click(screen.getByRole('button', { name: 'Mercadona' }))
+
+    expect(save()).toBeDisabled()
+
     await userEvent.click(save())
 
-    expect(onSave).toHaveBeenCalled()
+    // The whole shop — every price typed and every quantity corrected — is
+    // still on screen and still the only copy of itself.
+    expect(onSave).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Leche')).toBeInTheDocument()
   })
 
   // Both of a row's targets are painted smaller than they are touched, so a

@@ -551,7 +551,7 @@ export function CloseTripSheet({
         aria-label="Guardar compra"
         aria-describedby={check && total ? 'cts-save-amount' : undefined}
         onClick={handleSave}
-        disabled={!canSave || saving}
+        disabled={!canSave || saving || isOffline}
       >
         Guardar compra
         {check && total && (
@@ -561,13 +561,12 @@ export function CloseTripSheet({
           </span>
         )}
       </button>
-      {/* Not "needs a connection", the way a sheet that writes straight to the
-          API says it. This close goes through the offline queue, so it is kept
-          and sent later — and a supermarket basement is where it will most
-          often be written. */}
-      {isOffline && (
-        <p className="cts__offline">Se guardará cuando vuelva la conexión</p>
-      )}
+      {/* It used to promise the close would be kept and sent later, which was
+          true while the queue existed to keep it. It does not, so the sheet
+          says what the disabled button already shows — and it stays open, so
+          nothing typed into it is lost by reading this. Same sentence as the
+          price sheet, because it is the same fact. */}
+      {isOffline && <p className="cts__offline">Disponible con conexión</p>}
       <button type="button" className="cts__cancel" onClick={onClose}>
         Cancelar
       </button>

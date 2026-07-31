@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
 import { useBoard } from '../hooks/useBoard'
-import { useIsOffline } from '../hooks/useIsOffline'
+import { isOfflineNow, useIsOffline } from '../hooks/useIsOffline'
 import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
 import { useListSeen } from '../hooks/useListSeen'
@@ -42,7 +42,7 @@ import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
 import { isRetryable } from '../lib/queueCopy'
 import { parseReceiptWithAi } from '../lib/receiptAi'
-import { itemRefusal } from '../lib/refusalCopy'
+import { itemRefusal, OFFLINE_REFUSAL } from '../lib/refusalCopy'
 import type {
   BarcodeRead,
   DueSuggestion,
@@ -180,7 +180,7 @@ export function ListScreen({
   const handleRename = useCallback(
     async (listId: string, newName: string) => {
       if (isOffline) {
-        showToast('No disponible sin conexión')
+        showToast(OFFLINE_REFUSAL)
         return
       }
       const previous = localListName
@@ -200,7 +200,7 @@ export function ListScreen({
   const handleEmojiChange = useCallback(
     async (emoji: string | null) => {
       if (isOffline) {
-        showToast('No disponible sin conexión')
+        showToast(OFFLINE_REFUSAL)
         return
       }
       const previous = localEmoji
@@ -222,7 +222,7 @@ export function ListScreen({
 
   const handleSetDefault = useCallback(async () => {
     if (isOffline) {
-      showToast('No disponible sin conexión')
+      showToast(OFFLINE_REFUSAL)
       return
     }
     setLocalIsDefault(true)
@@ -239,7 +239,7 @@ export function ListScreen({
   const handleDelete = useCallback(
     async (listId: string) => {
       if (isOffline) {
-        showToast('No disponible sin conexión')
+        showToast(OFFLINE_REFUSAL)
         return
       }
       try {
@@ -438,6 +438,16 @@ export function ListScreen({
 
   const handleCloseTrip = useCallback(
     async (unnamed: PurchaseClosePayload) => {
+      // The most expensive write in the app — a whole shop and a money total —
+      // and the only queued one with no gate of its own until now. Refused
+      // before anything is attempted, and the sheet is left up for the same
+      // reason the refusal branch below leaves it up: it is the only copy of
+      // every price typed and every quantity corrected.
+      if (isOfflineNow()) {
+        showToast(OFFLINE_REFUSAL)
+        return
+      }
+
       // Name the trip even when closing the one that is open.
       //
       // A null purchase_id means "whichever trip is open when the server
@@ -748,6 +758,15 @@ export function ListScreen({
       purchasedQuantity: string | null,
     ) => {
       if (!logPriceFor) return
+      // Ahead of the two setters below, which close the sheet before the write
+      // is even attempted. Refusing inside `savePrice` instead would shut the
+      // sheet on an amount somebody read off a shelf and typed in, and the
+      // toast would be the only trace of it. Here the sheet stays open holding
+      // it, which is the whole difference.
+      if (isOfflineNow()) {
+        showToast(OFFLINE_REFUSAL)
+        return
+      }
       const itemId = logPriceFor.itemId
       setLogPriceFor(null)
       setActiveItemId(null)
@@ -800,6 +819,14 @@ export function ListScreen({
 
   const handleDeletePrice = useCallback(async () => {
     if (!logPriceFor) return
+    // Before the call, because this one closes the sheet when the promise
+    // *resolves* — and a refusal that returns cleanly resolves. Guarded only
+    // inside `clearItemPrice`, the sheet would shut as though the price had
+    // been deleted while the row still shows it.
+    if (isOfflineNow()) {
+      showToast(OFFLINE_REFUSAL)
+      return
+    }
     try {
       await clearItemPrice(logPriceFor.itemId)
       setLogPriceFor(null)

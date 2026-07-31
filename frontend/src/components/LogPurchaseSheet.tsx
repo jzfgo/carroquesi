@@ -237,7 +237,10 @@ export default function LogPurchaseSheet({
         <button
           className="lps__delete"
           onClick={handleDelete}
-          disabled={deleting}
+          // Deleting a price is as much a write as saving one, and the save
+          // above has been gated since this sheet was written. The pair was
+          // only ever half covered.
+          disabled={deleting || !!isOffline}
           type="button"
         >
           {deleting ? 'Eliminando...' : 'Eliminar precio'}
