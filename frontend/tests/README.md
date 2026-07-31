@@ -89,7 +89,19 @@ Review a failing visual check via the `playwright-report/` artifact CI uploads o
 
 ## Neither sweep can see a test that is green for the wrong reason
 
-The `maxDiffPixels: 0` pass above and its unit-suite sibling — running under `TZ=Pacific/Auckland`, `Pacific/Kiritimati`, `Pacific/Midway` and the rest, to catch an assertion naming a day that a reader further east would see differently — are one instrument pointed at two things, and they share a blind spot. Both work by making a hidden difference turn **red**. Neither can see a test that passes without asserting anything.
+The `maxDiffPixels: 0` pass above has a unit-suite sibling: run the whole suite from one end of the world to the other, and any assertion naming a day that a reader further east would see differently turns red.
+
+```bash
+cd frontend
+for tz in UTC America/New_York Europe/Madrid Asia/Tokyo \
+          Pacific/Auckland Pacific/Kiritimati Pacific/Midway; do
+  printf '%-22s ' "$tz"; TZ=$tz pnpm vitest run 2>&1 | grep -E '^ +Tests +'
+done
+```
+
+Those seven span −11 to +14, which is the whole range — Kiritimati and Midway are the ends, and Auckland is there because +12/+13 is where a DST-shifting far-east zone catches things a fixed +14 does not. The runner's zone is the one being varied here; the browser's is pinned separately (see above).
+
+The two sweeps are one instrument pointed at two things, and they share a blind spot. Both work by making a hidden difference turn **red**. Neither can see a test that passes without asserting anything.
 
 Negative assertions are where that bites, because they have two ways to pass and only one of them is the test. `expect(screen.queryByText('15 jul')).not.toBeInTheDocument()` was green in every zone from −11 to +14; in most of them it was green because the sheet drew «16 jul» and the query matched nothing at all, not because the code had dropped the date it was written to catch. Reintroducing that bug settled it: Madrid failed, Auckland passed 22 of 22. The sweep ran the very zone that exposes the flaw and still reported success — a vacuous pass and a real one are the same colour.
 

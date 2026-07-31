@@ -92,9 +92,12 @@ function Chart({ records, tall }: { records: ChartEntry[]; tall?: boolean }) {
 
   // Position each point by when it happened, not by its index, so a gap of
   // months does not read the same as a gap of days.
-  // Parsed through the rule rather than by `new Date`, though a uniform offset
-  // would cancel out of positions this relative. What does not cancel is a
-  // stamp that fails to parse: `new Date` gives `NaN`, which is not `null`, so
+  // Parsed through the rule rather than by `new Date`. A constant offset would
+  // have cancelled out of positions this relative — but only a constant one,
+  // and a local-time read is not constant across a DST boundary, so a span
+  // reaching over March or October was already an hour out. Immaterial at
+  // chart scale. What is not immaterial is a stamp that fails to parse:
+  // `new Date` gives `NaN`, which is not `null`, so
   // it survives the filter below, poisons `Math.min` and reaches the path — and
   // a `d` with `NaN` in it draws nothing at all. The curve would simply be
   // missing, with no row anywhere saying why. `parseNaiveUtc` returns `null`.
