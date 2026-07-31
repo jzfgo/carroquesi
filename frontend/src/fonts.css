@@ -11,6 +11,10 @@
        &family=JetBrains+Mono:wght@400;500;600
        &display=swap
 
+   Those weights have to cover the ones `colorsAndType.css` asks for through
+   its `--font-*` tokens. A weight used there but not requested here is
+   synthesised by the browser, which looks nearly right and is not.
+
    Ask with a **current desktop Chrome User-Agent**. Google answers by UA, two
    ways: an older one gets `ttf`, roughly twice the bytes; an Android one gets a
    *different cut* of every family, with the hinting tables stripped. The
@@ -22,11 +26,38 @@
    vietnamese (10 more files, 180 KB, alphabets a Spanish grocery list does not
    write in — an item *named* in Cyrillic now falls back to a system face);
    download each `src:` URL into `assets/fonts/` named `<family>-<subset>.woff2`;
-   point the `src:` at it. That is the only edit. If two blocks would ever want
-   one filename — an `ital` axis, or a static family at several weights — put
-   the style and weight in the name, or they overwrite each other silently.
+   point the `src:` at it. That is the only edit to the *content*. If two blocks
+   would ever want one filename — an `ital` axis, or a static family at several
+   weights — put the style and weight in the name, or they overwrite each other
+   silently, and `curl -o` will not say so.
 
-   Do not tidy the blocks. Three of the five families are variable, so Google
+   Then run, from `frontend/`:
+
+     pnpm exec stylelint --fix src/fonts.css
+     pnpm exec prettier --write src/fonts.css
+
+   which is why the file below does not look like Google's output. That pass
+   unquotes single-word family names, puts a blank line before each subset
+   comment, and rewraps `unicode-range`. It changes no value — but skipping it
+   is not cosmetic: `lefthook` runs `stylelint --fix` on staged CSS and stages
+   the result, so the first two happen behind your back, while nothing runs
+   prettier before CI does. The unwrapped `unicode-range` is what fails
+   `Format check`.
+
+   (Mind the obvious trap while editing this header: a close-comment sequence
+   written anywhere in here ends it, and the rest of the prose becomes CSS.)
+
+   One thing that pass gets wrong, and there is no code left to catch it: it
+   unquotes a single-word family, and `value-keyword-case: lower` then
+   lowercases it. For most names that is harmless. For a family whose name is a
+   CSS generic (`Fantasy`, `Cursive`, `Emoji`) or a CSS-wide keyword
+   (`Inherit`, `Initial`, `Revert`) it is not — unquoted and lowercased, the
+   name stops denoting a font. All are real families on Google Fonts. If you
+   add one, quote it back and exempt it in `.stylelintrc.json`, or choose
+   another face.
+
+   Do not tidy the blocks themselves — that is a different thing from the
+   formatting pass above. Three of the five families are variable, so Google
    emits one block per weight all pointing at the same file; folding those into
    a `font-weight: 400 700` range changes which instance the browser picks, and
    dropping `unicode-range` downloads every subset on every page.
