@@ -2,9 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { itemTrail } from './itemTrail'
 import type { ChartEntry } from './priceNormalization'
 
-// Every instant here is midday UTC. The vitest runner takes the machine's
-// timezone — only the browser's is pinned — so a midnight timestamp would land
-// on a different day depending on where the suite runs.
+// Every instant here is midday UTC, which keeps the rendered day stable for
+// any reader within twelve hours of Greenwich. That is most of them and not
+// all of them: New Zealand is +12 or +13, so noon UTC is already tomorrow
+// there. The runner's zone is not pinned — only the browser's is — so a test
+// that names a day outright is a test that fails for whoever sits furthest
+// east. Where the day matters, `day()` asks for the same instant rather than
+// spelling out a calendar.
+const day = (iso: string) =>
+  new Date(`${iso}Z`).toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'short',
+  })
 function entry(over: Partial<ChartEntry> = {}): ChartEntry {
   // The two amounts default to the same number because that is what a history
   // that converted nothing looks like. Letting them drift apart by accident
@@ -29,7 +38,7 @@ describe('itemTrail', () => {
       createdAt: '2026-07-18T12:00:00',
       entries: [],
     })
-    expect(first).toBe('Lo añadió Marta el 18 jul.')
+    expect(first).toBe(`Lo añadió Marta el ${day('2026-07-18T12:00:00')}.`)
   })
 
   it('says nothing about who added it when the member is unknown', () => {
@@ -53,7 +62,7 @@ describe('itemTrail', () => {
       ],
     })
     expect(trail).toEqual([
-      'Comprado 3 veces desde marzo, la última el 22 jul.',
+      `Comprado 3 veces desde marzo, la última el ${day('2026-07-22T12:00:00')}.`,
     ])
   })
 

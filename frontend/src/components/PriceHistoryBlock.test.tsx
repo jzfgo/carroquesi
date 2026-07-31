@@ -15,6 +15,15 @@ function entry(over: Partial<ChartEntry> = {}): ChartEntry {
   }
 }
 
+// The runner's zone is not pinned — only the browser's is — so an assertion
+// naming a day is one that fails for whoever sits furthest east: noon UTC is
+// already tomorrow in New Zealand. `day()` asks for the same instant instead.
+const day = (iso: string) =>
+  new Date(`${iso}Z`).toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'short',
+  })
+
 describe('PriceHistoryBlock', () => {
   it('groups the records by shop, newest shop first', () => {
     render(
@@ -39,7 +48,9 @@ describe('PriceHistoryBlock', () => {
         ]}
       />,
     )
-    expect(screen.getByText('2 precios · último 22 jul')).toBeInTheDocument()
+    expect(
+      screen.getByText(`2 precios · último ${day('2026-07-22T12:00:00')}`),
+    ).toBeInTheDocument()
   })
 
   // A visit that wrote nothing down is a visit, not a price. Counting it puts
@@ -59,7 +70,9 @@ describe('PriceHistoryBlock', () => {
       />,
     )
     // Three visits, two of them with a price, the newer priced one on 22 jul.
-    expect(screen.getByText('2 precios · último 22 jul')).toBeInTheDocument()
+    expect(
+      screen.getByText(`2 precios · último ${day('2026-07-22T12:00:00')}`),
+    ).toBeInTheDocument()
   })
 
   it('says so plainly for a shop that has only ever written nothing down', () => {
@@ -76,7 +89,9 @@ describe('PriceHistoryBlock', () => {
     )
     // Only visits to date, so the date says so rather than borrowing «último».
     expect(
-      screen.getByText('Sin precio · última visita 21 jun'),
+      screen.getByText(
+        `Sin precio · última visita ${day('2026-06-21T12:00:00')}`,
+      ),
     ).toBeInTheDocument()
   })
 
@@ -105,7 +120,7 @@ describe('PriceHistoryBlock', () => {
     // And the date beside it belongs to that price, not to the silent visit
     // on 22 jul that happens to be this shop's newest record.
     expect(
-      within(row).getByText('1 precio · último 15 jul'),
+      within(row).getByText(`1 precio · último ${day('2026-07-15T12:00:00')}`),
     ).toBeInTheDocument()
   })
 

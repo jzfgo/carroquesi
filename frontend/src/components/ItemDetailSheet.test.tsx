@@ -78,6 +78,15 @@ beforeEach(() => {
   })
 })
 
+// The runner's zone is not pinned — only the browser's is — so an assertion
+// naming a day is one that fails for whoever sits furthest east: noon UTC is
+// already tomorrow in New Zealand. `day()` asks for the same instant instead.
+const day = (iso: string) =>
+  new Date(`${iso}Z`).toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'short',
+  })
+
 describe('ItemDetailSheet', () => {
   it('is named by the item, and says its brand and shops under it', async () => {
     renderSheet()
@@ -202,7 +211,9 @@ describe('ItemDetailSheet', () => {
     renderSheet()
     await waitFor(() =>
       expect(
-        screen.getByText(/Lo añadió Marta el 18 jul\./),
+        screen.getByText(`Lo añadió Marta el ${day('2026-07-18T12:00:00')}.`, {
+          exact: false,
+        }),
       ).toBeInTheDocument(),
     )
   })

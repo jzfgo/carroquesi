@@ -1,4 +1,4 @@
-import { parseNaiveUtc } from './naiveUtc'
+import { DATE_ONLY, parseNaiveUtc } from './naiveUtc'
 
 /**
  * Read a stored instant for display.
@@ -15,7 +15,14 @@ import { parseNaiveUtc } from './naiveUtc'
  */
 function format(iso: string, options: Intl.DateTimeFormatOptions): string {
   const at = parseNaiveUtc(iso)
-  return at === null ? '—' : new Date(at).toLocaleDateString('es-ES', options)
+  if (at === null) return '—'
+  // An instant is shown in the reader's zone, which is where they were when it
+  // happened. A bare day is not an instant and has no hour to move: read as
+  // midnight UTC and then rendered locally, it would print as the day before
+  // for every reader west of Greenwich. Rendering it in UTC hands back the day
+  // it was given.
+  const zone = DATE_ONLY.test(iso) ? { timeZone: 'UTC' } : undefined
+  return new Date(at).toLocaleDateString('es-ES', { ...options, ...zone })
 }
 
 /** "22 jul" — the form every date in the item sheet takes. */

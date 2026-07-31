@@ -34,9 +34,12 @@ describe('formatShortDate', () => {
     )
   })
 
-  // A day has no hour to misplace, so it needs no zone appending — and
-  // "2026-07-22Z" is not a form the language reads at all.
-  it('reads a date with no time on it', () => {
+  // The one case that may name a day, because the code pins the zone for it:
+  // a bare day is not an instant, so it is rendered in UTC and comes back the
+  // day it was given. Read as midnight UTC and rendered locally instead, it
+  // printed the day before for every reader west of Greenwich — which is what
+  // this assertion looked like before, and it was green only in Madrid.
+  it('gives back the day it was handed, in any zone', () => {
     expect(formatShortDate('2026-07-22')).toBe('22 jul')
   })
 
