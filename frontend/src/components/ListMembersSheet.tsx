@@ -95,7 +95,17 @@ export function ListMembersSheet({
     setMembers((prev) => prev.filter((m) => m.user_id !== userId))
     try {
       await removeMember(getToken, listId, userId)
-    } catch {
+    } catch (err) {
+      // Already gone, which is what «Expulsar» asked for. The same endpoint
+      // backs «Salir», so somebody leaving on their own phone is the ordinary
+      // way this 404 happens — and restoring their row would put a person back
+      // into a household they have just left, under a notice saying the
+      // removal failed when it did not.
+      //
+      // Worse here than it was for an item: this sheet has no poll of its own,
+      // `load()` runs once when it opens, so the resurrected row would stay
+      // until somebody closed and reopened it.
+      if (err instanceof ApiError && err.status === 404) return
       setMembers(snapshot)
       showToast('No se pudo eliminar el miembro')
     }

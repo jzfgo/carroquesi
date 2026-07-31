@@ -1602,6 +1602,37 @@ describe('the list itself', () => {
     )
     expect(onBack).not.toHaveBeenCalled()
   })
+
+  /**
+   * Deleted already — from the other tab, or the installed app beside this
+   * one. `require_owner` resolves the list before it checks who is asking, so
+   * not-the-owner is a 403 and a 404 can only mean the list is gone.
+   *
+   * Leaving is what the tap asked for, and it is also the only way out:
+   * the five-second poll swallows its own errors, and `ListRoute` decides
+   * «Lista no encontrada» on mount only. Reporting a failure here left
+   * somebody adding items to a list the server does not have.
+   */
+  it('leaves when the list was already deleted elsewhere', async () => {
+    vi.mocked(api.deleteList).mockRejectedValue(apiError(404, 'List not found'))
+    const onBack = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        onBack={onBack}
+      />,
+    )
+    openMenu()
+    fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar lista/i }))
+
+    await waitFor(() => expect(onBack).toHaveBeenCalled())
+    expect(
+      screen.queryByText(/no se pudo eliminar la lista/i),
+    ).not.toBeInTheDocument()
+  })
 })
 
 // ---------------------------------------------------------------------------

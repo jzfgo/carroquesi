@@ -244,7 +244,23 @@ export function ListScreen({
         await deleteList(getToken, listId)
         setMenuOpen(false)
         onBack?.()
-      } catch {
+      } catch (err) {
+        // Already deleted — from the other tab, or the installed app beside
+        // this one. `require_owner` resolves the list before it checks who is
+        // asking, so not-the-owner is a 403 and a 404 here can only mean the
+        // list is gone. Which is what the tap asked for, so it leaves the
+        // same way a success does.
+        //
+        // Reporting a failure instead left somebody *on the screen for it*:
+        // the five-second poll swallows its own errors by design, and
+        // `ListRoute`'s 404 handling only runs on mount, so nothing after
+        // this would have corrected it. They would go on adding items to a
+        // list the server does not have.
+        if (err instanceof ApiError && err.status === 404) {
+          setMenuOpen(false)
+          onBack?.()
+          return
+        }
         showToast('No se pudo eliminar la lista')
       }
     },
@@ -745,7 +761,9 @@ export function ListScreen({
           showToast(
             status === 404
               ? 'El producto ya no existe'
-              : 'No se pudo guardar el precio',
+              : status === 403
+                ? 'Sin permiso en esa lista'
+                : 'No se pudo guardar el precio',
             isRetryable(status)
               ? {
                   label: 'Reintentar',

@@ -90,19 +90,27 @@ function retryAction(err: unknown, onAct: () => void): ToastAction | undefined {
 
 /**
  * What to say when the server refused. «No se pudo …» is right for a failure;
- * these two are not failures of the write but facts about the item or the
- * caller, and «Cambios sin enviar» already has the sentence for each.
+ * these are not failures of the write but facts about the caller or the item,
+ * and «Cambios sin enviar» already has the sentence for each.
  *
- * **Item-scoped**, unlike `retryAction`. The button rule is the same for every
- * write; the sentence is not. A 404 on `addItem` is about the *list* — the
- * sheet says «la lista ya no existe» — so that site keeps its own wording and
- * does not call this.
+ * The **scope is per status, not per call site**, which is the thing worth
+ * getting right here. A 403 is about the *list* and is true of every write; a
+ * 404 means «el producto ya no existe» only where the write names a product —
+ * on `addItem` the missing thing is the list. Excluding `addItem` wholesale
+ * because of the 404 would have cost it the 403 it should have had, so the
+ * two are asked separately.
  */
 function refusalMessage(err: unknown, fallback: string): string {
   const status = err instanceof ApiError ? err.status : 0
-  if (status === 404) return 'El producto ya no existe'
   if (status === 403) return 'Sin permiso en esa lista'
   return fallback
+}
+
+/** `refusalMessage` plus the 404 only a write that names a product can say. */
+function itemRefusal(err: unknown, fallback: string): string {
+  const status = err instanceof ApiError ? err.status : 0
+  if (status === 404) return 'El producto ya no existe'
+  return refusalMessage(err, fallback)
 }
 
 export function useListItems(
@@ -236,7 +244,7 @@ export function useListItems(
         } else {
           setItems(snapshot)
           showToast(
-            refusalMessage(err, 'No se pudo actualizar el producto'),
+            itemRefusal(err, 'No se pudo actualizar el producto'),
             retryAction(err, () => void toggle(itemId)),
           )
           return
@@ -334,7 +342,7 @@ export function useListItems(
             showToast(DUPLICATE_TOAST)
           } else {
             showToast(
-              'No se pudo añadir el producto',
+              refusalMessage(err, 'No se pudo añadir el producto'),
               retryAction(err, () => void add(parsed)),
             )
           }
@@ -364,7 +372,7 @@ export function useListItems(
         } else {
           setItems(snapshot)
           showToast(
-            refusalMessage(err, 'No se pudo actualizar el producto'),
+            itemRefusal(err, 'No se pudo actualizar el producto'),
             retryAction(err, () => void tag(itemId, field, value)),
           )
         }
@@ -391,7 +399,7 @@ export function useListItems(
         } else {
           setItems(snapshot)
           showToast(
-            refusalMessage(err, 'No se pudo actualizar el producto'),
+            itemRefusal(err, 'No se pudo actualizar el producto'),
             retryAction(err, () => void setStores(itemId, stores)),
           )
         }
@@ -419,7 +427,7 @@ export function useListItems(
         } else {
           setItems(snapshot)
           showToast(
-            refusalMessage(err, 'No se pudo renombrar el producto'),
+            itemRefusal(err, 'No se pudo renombrar el producto'),
             retryAction(err, () => void rename(itemId, name)),
           )
         }
@@ -463,7 +471,7 @@ export function useListItems(
         } else {
           setItems(snapshot)
           showToast(
-            'No se pudo eliminar el producto',
+            refusalMessage(err, 'No se pudo eliminar el producto'),
             retryAction(err, () => void remove(itemId)),
           )
         }

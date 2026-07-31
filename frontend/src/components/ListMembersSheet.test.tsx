@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as api from '../lib/api'
+import { apiError } from '../lib/testApiError'
 import { ListMembersSheet, type BackendMember } from './ListMembersSheet'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
@@ -350,4 +351,36 @@ test('tapping the overlay calls onClose', async () => {
   await screen.findByText(/Alice/)
   fireEvent.click(container.querySelector('.list-members-sheet__overlay')!)
   expect(onClose).toHaveBeenCalled()
+})
+
+/**
+ * A 404 means the membership is already gone, and the endpoint that backs
+ * «Expulsar» is the one that backs «Salir» — so the ordinary way to reach it
+ * is the other person leaving on their own phone a moment earlier.
+ *
+ * This sheet reads its members once when it opens, so a row put back here is
+ * put back until somebody closes and reopens it.
+ */
+test('a member who has already left stays gone, and nothing is said', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.removeMember).mockRejectedValue(
+    apiError(404, 'Member not found'),
+  )
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /expulsar a bob/i }),
+  )
+
+  await waitFor(() => expect(screen.queryByText('Bob')).not.toBeInTheDocument())
+  expect(
+    screen.queryByText(/no se pudo eliminar el miembro/i),
+    'nothing failed — they left',
+  ).not.toBeInTheDocument()
 })
