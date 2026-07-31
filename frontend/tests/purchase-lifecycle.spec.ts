@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import {
+  dismissUndoNotice,
   expect,
   expectScreenshot,
   SEED_ITEMS,
@@ -51,6 +52,7 @@ async function markPurchased(page: Page, name: string) {
       name: 'Sacar del carro',
     }),
   ).toBeVisible()
+  await dismissUndoNotice(page)
 }
 
 const THEMES = [
@@ -280,7 +282,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
       const sheet = page.locator('.lps')
       await sheet.getByRole('button', { name: 'Eliminar precio' }).click()
 
-      await expect(page.getByRole('alert')).toContainText(
+      await expect(page.locator('.toast')).toContainText(
         'No se puede eliminar el precio de una compra ya archivada',
       )
       await expectScreenshot(page, `price-delete-guard-${themeName}.png`)

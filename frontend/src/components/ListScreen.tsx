@@ -12,6 +12,7 @@ import { usePurchases } from '../hooks/usePurchases'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useQueueDrain } from '../hooks/useQueueDrain'
 import { useTearOff } from '../hooks/useTearOff'
+import { useToast } from '../hooks/useToast'
 import {
   ApiError,
   closePurchase,
@@ -38,7 +39,9 @@ import { isNetworkError } from '../lib/networkError'
 import { enqueue } from '../lib/offlineQueue'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
+import { isRetryable } from '../lib/queueCopy'
 import { parseReceiptWithAi } from '../lib/receiptAi'
+import { itemRefusal } from '../lib/refusalCopy'
 import type {
   BarcodeRead,
   DueSuggestion,
@@ -58,6 +61,7 @@ import { ItemDetailSheet } from './ItemDetailSheet'
 import { ItemList } from './ItemList'
 import { ListActionSheet } from './ListActionSheet'
 import { ListHeader } from './ListHeader'
+import { ListNotice } from './ListNotice'
 import './ListScreen.css'
 import LogPurchaseSheet from './LogPurchaseSheet'
 import { NotificationPrimingCard } from './NotificationPrimingCard'
@@ -67,6 +71,7 @@ import { SmartInputBar } from './SmartInputBar'
 import { StoreEditSheet } from './StoreEditSheet'
 import { TagEditSheet } from './TagEditSheet'
 import { Toast } from './Toast'
+import { UnsentChangesSheet } from './UnsentChangesSheet'
 
 interface Props {
   listId: string
@@ -148,7 +153,7 @@ export function ListScreen({
   const { isOffline } = useIsOffline()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
-  const [toast, setToast] = useState<string | null>(null)
+  const { toast, showToast, dismissToast } = useToast()
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [filterQuery, setFilterQuery] = useState('')
@@ -174,7 +179,7 @@ export function ListScreen({
   const handleRename = useCallback(
     async (listId: string, newName: string) => {
       if (isOffline) {
-        setToast('No disponible sin conexión')
+        showToast('No disponible sin conexión')
         return
       }
       const previous = localListName
@@ -185,16 +190,16 @@ export function ListScreen({
         onRename?.(newName)
       } catch {
         setLocalListName(previous)
-        setToast('No se pudo renombrar la lista')
+        showToast('No se pudo renombrar la lista')
       }
     },
-    [getToken, isOffline, localListName, onRename],
+    [getToken, isOffline, localListName, onRename, showToast],
   )
 
   const handleEmojiChange = useCallback(
     async (emoji: string | null) => {
       if (isOffline) {
-        setToast('No disponible sin conexión')
+        showToast('No disponible sin conexión')
         return
       }
       const previous = localEmoji
@@ -208,15 +213,15 @@ export function ListScreen({
         onEmojiChanged?.(emoji)
       } catch {
         setLocalEmoji(previous)
-        setToast('No se pudo cambiar el emoji')
+        showToast('No se pudo cambiar el emoji')
       }
     },
-    [getToken, isOffline, listId, localEmoji, onEmojiChanged],
+    [getToken, isOffline, listId, localEmoji, onEmojiChanged, showToast],
   )
 
   const handleSetDefault = useCallback(async () => {
     if (isOffline) {
-      setToast('No disponible sin conexión')
+      showToast('No disponible sin conexión')
       return
     }
     setLocalIsDefault(true)
@@ -226,25 +231,41 @@ export function ListScreen({
       onSetDefault?.(true)
     } catch {
       setLocalIsDefault(false)
-      setToast('No se pudo marcar como predeterminada')
+      showToast('No se pudo marcar como predeterminada')
     }
-  }, [getToken, isOffline, listId, onSetDefault])
+  }, [getToken, isOffline, listId, onSetDefault, showToast])
 
   const handleDelete = useCallback(
     async (listId: string) => {
       if (isOffline) {
-        setToast('No disponible sin conexión')
+        showToast('No disponible sin conexión')
         return
       }
       try {
         await deleteList(getToken, listId)
         setMenuOpen(false)
         onBack?.()
-      } catch {
-        setToast('No se pudo eliminar la lista')
+      } catch (err) {
+        // Already deleted — from the other tab, or the installed app beside
+        // this one. `require_owner` resolves the list before it checks who is
+        // asking, so not-the-owner is a 403 and a 404 here can only mean the
+        // list is gone. Which is what the tap asked for, so it leaves the
+        // same way a success does.
+        //
+        // Reporting a failure instead left somebody *on the screen for it*:
+        // the five-second poll swallows its own errors by design, and
+        // `ListRoute`'s 404 handling only runs on mount, so nothing after
+        // this would have corrected it. They would go on adding items to a
+        // list the server does not have.
+        if (err instanceof ApiError && err.status === 404) {
+          setMenuOpen(false)
+          onBack?.()
+          return
+        }
+        showToast('No se pudo eliminar la lista')
       }
     },
-    [getToken, onBack, isOffline],
+    [getToken, onBack, isOffline, showToast],
   )
 
   const [eanLookup, setEanLookup] = useState<EanLookupState>({
@@ -278,7 +299,7 @@ export function ListScreen({
     savePrice,
     clearItemPrice,
     retry,
-  } = useListItems(listId, getToken, setToast)
+  } = useListItems(listId, getToken, showToast)
 
   // Wakes the screen at each trip's tear-off instant. Without this, the cart
   // does not visibly empty at midnight until something else causes a
@@ -426,36 +447,58 @@ export function ListScreen({
           // every quantity corrected and every product added by hand — for a
           // reason the household can do nothing about. Leaving it open costs
           // one more tap and keeps the shop.
-          setToast('No se pudo guardar la compra')
+          showToast('No se pudo guardar la compra')
           return
         }
         // Principle 3: never lose a write. The sheet is the whole shop, and
         // the phone is most likely offline in the aisle where it was filled
         // in, so it waits in the queue instead of being refused.
         try {
-          await enqueue({ listId, type: 'closePurchase', payload })
+          await enqueue({
+            listId,
+            type: 'closePurchase',
+            payload,
+            // The shop, which is how anyone would recognise it later.
+            label: payload.store,
+          })
         } catch {
           // No queue either — private browsing, or no quota left. Say so and
           // leave the sheet up, because it is now the only copy of the shop.
-          setToast('No se pudo guardar la compra')
+          showToast('No se pudo guardar la compra')
           return
         }
         dismissCloseSheet()
-        setToast('Se guardará cuando vuelva la conexión')
+        showToast('Se guardará cuando vuelva la conexión')
         return
       }
       dismissCloseSheet()
       retry()
       refreshPurchases()
     },
-    [getToken, listId, openTrip, retry, refreshPurchases, dismissCloseSheet],
+    [
+      getToken,
+      listId,
+      openTrip,
+      retry,
+      refreshPurchases,
+      dismissCloseSheet,
+      showToast,
+    ],
   )
 
-  const { pendingCount } = useQueueDrain({
+  const [rejectedOpen, setRejectedOpen] = useState(false)
+  const {
+    pendingCount,
+    pendingItemIds,
+    rejected,
+    retryRejected,
+    discardRejected,
+  } = useQueueDrain({
     listId,
     getToken,
     onDrained: retry,
-    showToast: setToast,
+    showToast,
+    onShowRejected: () => setRejectedOpen(true),
   })
 
   // Debounced suggestions — only when name has 2+ chars
@@ -497,7 +540,7 @@ export function ListScreen({
       e.target.value = ''
       if (!file) return
       if (file.size > 10 * 1024 * 1024) {
-        setToast('El archivo es demasiado grande (máx. 10 MB)')
+        showToast('El archivo es demasiado grande (máx. 10 MB)')
         return
       }
       setReceiptUploading(true)
@@ -526,12 +569,12 @@ export function ListScreen({
         setClosingTrip((trip) => trip ?? { purchaseId: null })
       } catch (e) {
         console.error('Receipt scan failed:', e)
-        setToast('No se pudo leer el ticket')
+        showToast('No se pudo leer el ticket')
       } finally {
         setReceiptUploading(false)
       }
     },
-    [getToken, listId, items, now, closingTrip, ticket],
+    [getToken, listId, items, now, closingTrip, ticket, showToast],
   )
 
   // Which product a printed line was. Answering it also teaches the app the
@@ -639,10 +682,13 @@ export function ListScreen({
     setScannedProduct(product)
   }, [])
 
-  const handleScanError = useCallback((message: string) => {
-    setScanning(false)
-    setToast(message)
-  }, [])
+  const handleScanError = useCallback(
+    (message: string) => {
+      setScanning(false)
+      showToast(message)
+    },
+    [showToast],
+  )
 
   const handleScanAdd = useCallback(
     (item: { name: string; brand: string | null; stores: string[] }) => {
@@ -681,22 +727,54 @@ export function ListScreen({
       purchasedQuantity: string | null,
     ) => {
       if (!logPriceFor) return
-      try {
-        await savePrice(
-          logPriceFor.itemId,
-          amount,
-          pricePer,
-          store,
-          purchasedQuantity,
-        )
-        if (store) setLastPriceStore(store)
-      } catch {
-        // non-critical
-      }
+      const itemId = logPriceFor.itemId
       setLogPriceFor(null)
       setActiveItemId(null)
+
+      // Named, and retried through itself rather than through `savePrice`.
+      // `savePrice` does not catch, so a *second* failure sent straight back
+      // into it is an unhandled rejection with nothing on screen — the amount
+      // would be lost exactly the quiet way this catch exists to prevent, and
+      // only ever on the attempt nobody is watching. `handleSavePrice` cannot
+      // call itself instead: it clears `logPriceFor` before the first await,
+      // so a second pass would return at the guard above.
+      async function attempt() {
+        try {
+          await savePrice(itemId, amount, pricePer, store, purchasedQuantity)
+          if (store) setLastPriceStore(store)
+        } catch (err) {
+          // An amount somebody read off a shelf and typed in. It used to be
+          // swallowed here as non-critical, which made losing it silent — the
+          // one thing this must never be. The notice carries the way to send
+          // it again, so the sheet does not have to stay open holding it.
+          //
+          // But only where sending it again could end differently. This is the
+          // same `isRetryable` the sheet draws its rows with, and the same rule
+          // one screen over: a control known in advance to fail is not a
+          // control. Unconditional, the 404 from a product a flatmate deleted
+          // while this sheet was open would offer a button that makes *two*
+          // doomed requests per press, for as long as anybody keeps pressing.
+          //
+          // And 404 has a truer sentence than «no se pudo». «Cambios sin
+          // enviar» already says it for the same fact, so it is said the same
+          // way here.
+          const status = err instanceof ApiError ? err.status : 0
+          showToast(
+            itemRefusal(err, 'No se pudo guardar el precio'),
+            isRetryable(status)
+              ? {
+                  label: 'Reintentar',
+                  tone: 'tomate',
+                  onAct: () => void attempt(),
+                }
+              : undefined,
+          )
+        }
+      }
+
+      await attempt()
     },
-    [logPriceFor, savePrice],
+    [logPriceFor, savePrice, showToast],
   )
 
   const handleDeletePrice = useCallback(async () => {
@@ -715,14 +793,14 @@ export function ListScreen({
         // trip has been filed, which is midnight by default but is 18:40 the
         // moment someone taps "Cerrar compra". Same wording as the
         // un-purchase toast, because it is the same rule.
-        setToast('No se puede eliminar el precio de una compra ya archivada')
+        showToast('No se puede eliminar el precio de una compra ya archivada')
         throw err
       } else {
-        setToast('No se pudo eliminar el precio')
+        showToast('No se pudo eliminar el precio')
         throw err
       }
     }
-  }, [logPriceFor, clearItemPrice])
+  }, [logPriceFor, clearItemPrice, showToast])
 
   const handleScanEdit = useCallback((prefill: string) => {
     setScannedProduct(null)
@@ -911,15 +989,6 @@ export function ListScreen({
         />
       )}
 
-      {isOffline && (
-        <div className="offline-banner offline-banner--sticky" role="status">
-          Sin conexión
-          {pendingCount > 0
-            ? ` · ${pendingCount} ${pendingCount === 1 ? 'cambio pendiente' : 'cambios pendientes'}`
-            : ' · Los cambios se sincronizarán al reconectar'}
-        </div>
-      )}
-
       {items.length > 0 && (
         <FilterBar
           stores={stores}
@@ -933,6 +1002,17 @@ export function ListScreen({
         status={status}
         items={filteredItems}
         totalItems={allUnpurchasedCount}
+        notice={
+          <ListNotice
+            isOffline={isOffline}
+            pendingCount={pendingCount}
+            rejectedCount={rejected.length}
+            onShowRejected={() => setRejectedOpen(true)}
+          />
+        }
+        /* The dot exists only while there is no signal: with a connection the
+           queue empties in less time than it takes to look at it. */
+        queuedItemIds={isOffline ? pendingItemIds : undefined}
         onTogglePurchased={handleTogglePurchased}
         onOpen={handleItemMenuOpen}
         onRetry={retry}
@@ -1065,6 +1145,10 @@ export function ListScreen({
           onEmojiChange={(emoji) => void handleEmojiChange(emoji)}
           onRename={(newName) => void handleRename(listId, newName)}
           onDelete={() => void handleDelete(listId)}
+          onLeft={() => {
+            setMenuOpen(false)
+            onBack?.()
+          }}
           onSetDefault={() => void handleSetDefault()}
           onReceiptScan={
             isEnabled(FLAGS.AI_RECEIPT_SCANNING)
@@ -1105,7 +1189,26 @@ export function ListScreen({
           onClose={handleDueSuggestionsClose}
         />
       )}
-      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+      {rejectedOpen && (
+        <UnsentChangesSheet
+          rejected={rejected}
+          onRetry={retryRejected}
+          onDiscard={discardRejected}
+          onClose={() => setRejectedOpen(false)}
+        />
+      )}
+
+      {toast && (
+        <Toast
+          // A second notice with the same words is a second notice, and
+          // starts its own window rather than inheriting what is left of
+          // the first one's.
+          key={toast.id}
+          message={toast.message}
+          action={toast.action}
+          onDismiss={dismissToast}
+        />
+      )}
       {scanning && (
         <BarcodeScanner
           getToken={getToken}

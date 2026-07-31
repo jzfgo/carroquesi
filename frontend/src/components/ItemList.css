@@ -10,6 +10,12 @@
   padding: 14px 12px 200px;
 }
 
+/* These three states are one panel with the list's notice above it. */
+.item-list--stack {
+  display: flex;
+  flex-direction: column;
+}
+
 /* Text directly on the board is the hardest reading surface in the product, so
    the empty and error states stay on paper. */
 .item-list--centered {
@@ -22,6 +28,12 @@
   color: var(--text);
   font-size: 15px;
   padding: 40px 20px;
+}
+
+/* The panel still takes the rest of the scroll area, so it stays centred in
+   what the notice leaves rather than sitting straight under it. */
+.item-list--stack > .item-list--centered {
+  flex: 1;
 }
 
 /* ── SHEETS ─────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
 import { ApiError } from '../lib/api'
 import * as offlineQueue from '../lib/offlineQueue'
+import { apiError } from '../lib/testApiError'
 import type { ListItem } from '../types'
 import { useListItems } from './useListItems'
 
@@ -13,7 +14,11 @@ vi.mock('../lib/api')
 // Nothing re-stubs enqueue in beforeEach, so the QueuedOp shape below would
 // simply have stopped being returned while still sitting here describing what
 // enqueue gives you.
-vi.mock('../lib/offlineQueue', () => ({
+// Only `enqueue` stands in. The rest of the module stays real: `newTempId`
+// and the id helpers beside it are pure, and they are what the code under test
+// uses to mint the row it paints before the server has answered.
+vi.mock('../lib/offlineQueue', async (importOriginal) => ({
+  ...(await importOriginal<typeof offlineQueue>()),
   enqueue: vi.fn(async () => ({
     id: 'q1',
     listId: 'list-1',
@@ -122,6 +127,117 @@ describe('useListItems — togglePurchased', () => {
     expect(result.current.items[0].purchased).toBe(false)
     expect(mockShowToast).toHaveBeenCalledWith(
       'No se pudo actualizar el producto',
+      expect.objectContaining({ label: 'Reintentar', tone: 'tomate' }),
+    )
+  })
+})
+
+describe('useListItems — the undo on a tap', () => {
+  /**
+   * The ordering is the whole point, so the test has to hold the write open.
+   *
+   * Written as "tap, await, assert the toast" it passes no matter where the
+   * call sits, because by then everything has settled. Here the answer is
+   * withheld: an undo offered now would send the inverse while the write it
+   * reverses is still in flight, and the two can land in either order.
+   *
+   * Move the showToast call above the await and this goes red.
+   */
+  it('does not offer the undo until the write it undoes has settled', async () => {
+    let answer!: () => void
+    vi.mocked(api.updateItem).mockReturnValue(
+      new Promise((resolve) => {
+        answer = () => resolve({} as never)
+      }) as never,
+    )
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    let tap!: Promise<void>
+    act(() => {
+      tap = result.current.togglePurchased('item-1')
+    })
+
+    expect(result.current.items[0].purchased).toBe(true)
+    expect(mockShowToast).not.toHaveBeenCalled()
+
+    await act(async () => {
+      answer()
+      await tap
+    })
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'En el carro, Leche',
+      expect.objectContaining({ label: 'Deshacer', tone: 'verde' }),
+    )
+  })
+
+  it('sends the inverse through the same mutation the tap used', async () => {
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+    const [, action] = mockShowToast.mock.calls.at(-1)!
+
+    await act(async () => {
+      await action.onAct()
+    })
+
+    expect(result.current.items[0].purchased).toBe(false)
+    expect(api.updateItem).toHaveBeenLastCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { purchased: false },
+    )
+  })
+
+  it('says which way the line went', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([
+      { ...item1, purchased: true, purchased_at: '2026-01-01T10:00:00' },
+    ] as never)
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'Fuera del carro, Leche',
+      expect.objectContaining({ label: 'Deshacer' }),
+    )
+  })
+
+  // The queue is local, so there is nothing to wait for and the notice is
+  // still immediate — and two ops for one item drain in the order they were
+  // written, which is the right answer.
+  it('offers the undo once the queue has taken the write', async () => {
+    vi.mocked(api.updateItem).mockRejectedValue(new TypeError('offline'))
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(offlineQueue.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'updateItem', label: 'Leche' }),
+    )
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'En el carro, Leche',
+      expect.objectContaining({ label: 'Deshacer' }),
     )
   })
 })
@@ -258,7 +374,10 @@ describe('useListItems — addItem', () => {
     })
 
     expect(result.current.items).toHaveLength(initialLength)
-    expect(mockShowToast).toHaveBeenCalledWith('No se pudo añadir el producto')
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se pudo añadir el producto',
+      expect.objectContaining({ label: 'Reintentar', tone: 'tomate' }),
+    )
   })
 
   it('blocks duplicate name (case-insensitive) and shows toast without calling API', async () => {
@@ -330,8 +449,7 @@ describe('useListItems — addItem', () => {
   })
 
   it('shows "Ya está en la lista" toast on 409 from API (race condition)', async () => {
-    const apiErr = new ApiError(409, 'Item already in list')
-    apiErr.status = 409
+    const apiErr = apiError(409, 'Item already in list')
     vi.mocked(api.createItem).mockRejectedValue(apiErr)
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -398,6 +516,7 @@ describe('useListItems — updateTag', () => {
     expect(result.current.items[0].brand).toBeNull()
     expect(mockShowToast).toHaveBeenCalledWith(
       'No se pudo actualizar el producto',
+      expect.objectContaining({ label: 'Reintentar', tone: 'tomate' }),
     )
   })
 })
@@ -666,16 +785,10 @@ describe('useListItems — write queue on network error', () => {
 
   it('removeItem: rolls back and shows a specific toast on 409 (trip filed)', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    const apiErr = new ApiError(
+    const apiErr = apiError(
       409,
       'Cannot delete an item from a trip that has already been filed',
     )
-    // Not redundant with the constructor, which does assign `status`
-    // (api.ts:18). `vi.mock('../lib/api')` above is an automock: it keeps the
-    // class — so `instanceof ApiError` still passes and the branch is entered
-    // — but stubs the constructor body, leaving `status` undefined. Drop this
-    // line and the guard falls through to the generic toast.
-    apiErr.status = 409
     vi.mocked(api.deleteItem).mockRejectedValue(apiErr)
 
     const { result } = renderHook(() =>
@@ -697,9 +810,8 @@ describe('useListItems — write queue on network error', () => {
 
   it('removeItem: rolls back with the generic toast on a non-409 server error', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    vi.mocked(api.deleteItem).mockRejectedValue(
-      new ApiError(500, 'Server Error'),
-    )
+    const boom = apiError(500, 'Server Error')
+    vi.mocked(api.deleteItem).mockRejectedValue(boom)
 
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -713,6 +825,202 @@ describe('useListItems — write queue on network error', () => {
     expect(result.current.items).toHaveLength(1)
     expect(mockShowToast).toHaveBeenCalledWith(
       'No se pudo eliminar el producto',
+      expect.objectContaining({ label: 'Reintentar', tone: 'tomate' }),
     )
+  })
+})
+
+/**
+ * The price endpoint is split by state — POST refuses an item that has one,
+ * PATCH refuses one that does not — and `savePrice` picks between them from a
+ * local copy that a half-finished attempt has already made wrong.
+ *
+ * This is the sequence the notice's «Reintentar» walks into, so the retry is
+ * what the test actually exercises: the same call, made twice.
+ */
+describe('useListItems — savePrice converges on a retry', () => {
+  it('falls back to PATCH when the POST already landed', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    // It lands. The server now has a price; this screen does not, because
+    // setItems is below the second call.
+    vi.mocked(api.logPrice).mockResolvedValue({} as never)
+    vi.mocked(api.updatePrice).mockResolvedValue({} as never)
+    // The quantity write behind it fails — the connection dropping on the way
+    // out of the aisle is the ordinary way this happens.
+    vi.mocked(api.updateItem).mockRejectedValueOnce(new Error('boom'))
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await expect(
+        result.current.savePrice('item-1', 1.19, null, 'Lidl', '1'),
+      ).rejects.toThrow()
+    })
+    expect(api.logPrice).toHaveBeenCalledTimes(1)
+
+    const conflict = apiError(
+      409,
+      'Item already has a price; use PATCH to update it',
+    )
+    vi.mocked(api.logPrice).mockRejectedValueOnce(conflict)
+
+    await act(async () => {
+      await result.current.savePrice('item-1', 1.19, null, 'Lidl', '1')
+    })
+
+    // It converged instead of refusing: the second attempt PATCHed.
+    expect(api.updatePrice).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { amount: 1.19, price_per: null, store: 'Lidl' },
+    )
+    expect(result.current.items[0].price).toBe(1.19)
+    // The shape, not only the outcome: one POST per attempt and exactly one
+    // PATCH. A refactor firing both verbs every time would satisfy the
+    // assertions above and double every price write.
+    expect(api.logPrice).toHaveBeenCalledTimes(2)
+    expect(api.updatePrice).toHaveBeenCalledTimes(1)
+  })
+
+  // The path with the most moving parts, and the one that decides whether the
+  // person is left with a door or with silence: the fallback itself fails.
+  it('propagates when the fallback fails too, so the notice can re-show', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    const conflict = apiError(409, 'Item already has a price')
+    vi.mocked(api.logPrice).mockRejectedValue(conflict)
+    const boom = apiError(500, 'Server Error')
+    vi.mocked(api.updatePrice).mockRejectedValue(boom)
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await expect(
+        result.current.savePrice('item-1', 1.19, null, 'Lidl', '1'),
+      ).rejects.toThrow()
+    })
+
+    // The fallback's own refusal is what reaches the caller — not the 409,
+    // which by then is an answer about a door nobody is standing at.
+    expect(api.updatePrice).toHaveBeenCalledTimes(1)
+    expect(result.current.items[0].price).toBeNull()
+  })
+
+  // The mirror, and the reason the fallback is not one-directional: a price
+  // deleted on another phone leaves this one holding a stale `price`, so the
+  // guess goes the other way and PATCH answers «todavía no tiene».
+  it('falls back to POST when the item turned out to have no price', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([
+      { ...item1, price: 2.5 },
+    ] as never)
+    const noPrice = apiError(404, 'Item has no price yet; use POST to set it')
+    vi.mocked(api.updatePrice).mockRejectedValueOnce(noPrice)
+    vi.mocked(api.logPrice).mockResolvedValue({} as never)
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.savePrice('item-1', 1.19, null, 'Lidl', '1')
+    })
+
+    expect(api.logPrice).toHaveBeenCalled()
+    expect(result.current.items[0].price).toBe(1.19)
+  })
+
+  // A refusal that is not about the verb is still a refusal. Retrying the
+  // other one would send a second write against an answer nobody read.
+  it('does not retry the other verb on a refusal that is not about it', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    const forbidden = apiError(403, 'Forbidden')
+    vi.mocked(api.logPrice).mockRejectedValue(forbidden)
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await expect(
+        result.current.savePrice('item-1', 1.19, null, 'Lidl', '1'),
+      ).rejects.toThrow()
+    })
+
+    expect(api.updatePrice).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The rule AGENTS.md states as universal, asked of the six controls that
+ * predate the price toast. A row deleted on another phone is up to five
+ * seconds stale here, so a tap landing on a 404 is the ordinary case rather
+ * than an exotic one.
+ */
+describe('useListItems — a refusal that can never change its mind carries no retry', () => {
+  it('togglePurchased: a 404 says the true thing and offers nothing', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    vi.mocked(api.updateItem).mockRejectedValue(apiError(404, 'Item not found'))
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'El producto ya no existe',
+      undefined,
+    )
+  })
+
+  it('togglePurchased: a 500 still offers the retry', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    vi.mocked(api.updateItem).mockRejectedValue(apiError(500, 'Server Error'))
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se pudo actualizar el producto',
+      expect.objectContaining({ label: 'Reintentar', tone: 'tomate' }),
+    )
+  })
+
+  // A 404 on a delete is not a failure: the household asked for the row to be
+  // gone and it is gone. Restoring it put back a product somebody had already
+  // got rid of, behind a button that could only 404 again.
+  it('removeItem: a 404 leaves the row deleted and says nothing', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    vi.mocked(api.deleteItem).mockRejectedValue(apiError(404, 'Item not found'))
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.removeItem('item-1')
+    })
+
+    expect(result.current.items).toHaveLength(0)
+    expect(mockShowToast).not.toHaveBeenCalled()
   })
 })

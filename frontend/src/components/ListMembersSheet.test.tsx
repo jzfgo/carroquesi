@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as api from '../lib/api'
+import { apiError } from '../lib/testApiError'
 import { ListMembersSheet, type BackendMember } from './ListMembersSheet'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
@@ -350,4 +351,182 @@ test('tapping the overlay calls onClose', async () => {
   await screen.findByText(/Alice/)
   fireEvent.click(container.querySelector('.list-members-sheet__overlay')!)
   expect(onClose).toHaveBeenCalled()
+})
+
+/**
+ * A 404 means the membership is already gone, and the endpoint that backs
+ * «Expulsar» is the one that backs «Salir» — so the ordinary way to reach it
+ * is the other person leaving on their own phone a moment earlier.
+ *
+ * This sheet reads its members once when it opens, so a row put back here is
+ * put back until somebody closes and reopens it.
+ */
+test('a member who has already left stays gone, and nothing is said', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.removeMember).mockRejectedValue(
+    apiError(404, 'Member not found'),
+  )
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /expulsar a bob/i }),
+  )
+
+  await waitFor(() => expect(screen.queryByText('Bob')).not.toBeInTheDocument())
+  expect(
+    screen.queryByText(/no se pudo eliminar el miembro/i),
+    'nothing failed — they left',
+  ).not.toBeInTheDocument()
+})
+
+/**
+ * Leaving a list has to leave the list. One handler backs «Expulsar» and
+ * «Salir», and only the second ends *this* person's relationship with it —
+ * so only the second navigates.
+ *
+ * Nothing else would ever say so: the list's poll starts answering 403 and
+ * swallows it by design, `ListRoute` decided on mount, and this sheet reads
+ * its members once. They would go on tapping items into a list they are not in.
+ */
+test('leaving the list leaves the list', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.removeMember).mockResolvedValue(null)
+  const onLeft = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u2"
+      isOwner={false}
+      onClose={vi.fn()}
+      onLeft={onLeft}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /salir de la lista/i }),
+  )
+
+  await waitFor(() => expect(onLeft).toHaveBeenCalled())
+})
+
+// Already out — removed by the owner a moment earlier, or the list is gone.
+// Just as out as a success would have left them.
+test('leaving a list that no longer has you still leaves', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.removeMember).mockRejectedValue(
+    apiError(404, 'Member not found'),
+  )
+  const onLeft = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u2"
+      isOwner={false}
+      onClose={vi.fn()}
+      onLeft={onLeft}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /salir de la lista/i }),
+  )
+
+  await waitFor(() => expect(onLeft).toHaveBeenCalled())
+})
+
+// Expelling somebody else does not end *your* relationship with the list, so
+// the owner stays exactly where they are.
+test('expelling somebody else does not navigate the owner away', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.removeMember).mockResolvedValue(null)
+  const onLeft = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+      onLeft={onLeft}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /expulsar a bob/i }),
+  )
+
+  await waitFor(() => expect(screen.queryByText('Bob')).not.toBeInTheDocument())
+  expect(onLeft).not.toHaveBeenCalled()
+})
+
+// A tap that does nothing and says nothing is the one thing this app is not
+// allowed to do — and this one used to swallow everything but a 429.
+test('a failed invite link says so instead of vanishing', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
+  vi.mocked(api.createOpenInvite).mockRejectedValue(
+    apiError(500, 'Server Error'),
+  )
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /copiar enlace de invitación/i }),
+  )
+
+  expect(await screen.findByText(/no se pudo crear el enlace/i)).toBeVisible()
+  // The other half. Asserting only the sentence is satisfied by a toast whose
+  // action was built and then dropped on the way to the render — which is
+  // exactly what happened, because this sheet was not passing `action` at all.
+  expect(screen.getByRole('button', { name: 'Reintentar' })).toBeVisible()
+})
+
+// And withheld where sending it again could only answer the same way. 409 is
+// «la lista está llena», which no amount of asking will change.
+test('a refusal that can never change its mind carries no retry', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
+  vi.mocked(api.createOpenInvite).mockRejectedValue(
+    apiError(409, 'List is full'),
+  )
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /copiar enlace de invitación/i }),
+  )
+
+  expect(await screen.findByText(/no se pudo crear el enlace/i)).toBeVisible()
+  expect(
+    screen.queryByRole('button', { name: 'Reintentar' }),
+  ).not.toBeInTheDocument()
+})
+
+// A 403 is not «no se pudo» — it is the same fact every other write now names.
+test('an invite refused for permission says which fact it was', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
+  vi.mocked(api.createOpenInvite).mockRejectedValue(apiError(403, 'Forbidden'))
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /copiar enlace de invitación/i }),
+  )
+
+  expect(await screen.findByText(/sin permiso en esa lista/i)).toBeVisible()
 })

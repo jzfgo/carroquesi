@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import path from 'node:path'
 import {
+  dismissUndoNotice,
   expect,
   expectScreenshot,
   GEMINI_ENDPOINT_PATTERN,
@@ -95,6 +96,7 @@ async function putInCart(page: Page, name: string) {
   await expect(
     itemCard(page, name).getByRole('checkbox', { name: 'Sacar del carro' }),
   ).toBeVisible()
+  await dismissUndoNotice(page)
 }
 
 async function openCloseSheet(page: Page) {
@@ -355,7 +357,7 @@ test.describe('functional', () => {
     await openCloseSheet(page)
     await scanFromSheet(page)
 
-    await expect(page.getByRole('alert')).toContainText(
+    await expect(page.locator('.toast')).toContainText(
       'No se pudo leer el ticket',
     )
     // The sheet is still up, still has no paper on it, and still offers to

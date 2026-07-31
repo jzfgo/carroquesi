@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import {
+  dismissUndoNotice,
   expect,
   expectScreenshot,
   SEED_ITEMS,
@@ -37,6 +38,7 @@ async function putInCart(page: Page, name: string) {
   await expect(
     itemCard(page, name).getByRole('checkbox', { name: 'Sacar del carro' }),
   ).toBeVisible()
+  await dismissUndoNotice(page)
 }
 
 /** The one shop this list has bought from before, so the one pill it offers. */

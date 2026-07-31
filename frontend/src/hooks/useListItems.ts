@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ToastAction } from '../components/Toast'
 import {
   ApiError,
   createItem,
@@ -14,8 +15,11 @@ import {
 import { AVATAR_COLORS } from '../lib/avatarColors'
 import { itemState } from '../lib/itemState'
 import { isNetworkError } from '../lib/networkError'
-import { enqueue } from '../lib/offlineQueue'
+import { enqueue, newTempId } from '../lib/offlineQueue'
+import { isRetryable } from '../lib/queueCopy'
+import { itemRefusal, refusalMessage } from '../lib/refusalCopy'
 import type { ListItem, Member, ParsedInput, TagField } from '../types'
+import type { ShowToast } from './useToast'
 
 const DUPLICATE_TOAST = 'Ya está en la lista'
 
@@ -64,10 +68,31 @@ function saveListCache(
   }
 }
 
+/**
+ * The control that closes a notice about something the user typed and lost —
+ * where sending it again could end differently, and nothing where it could not.
+ *
+ * The rule lives here rather than at the six call sites because it is one rule.
+ * Each site deciding a status at a time is how «Reintentar» ended up on a 404:
+ * the item was deleted on another phone, this screen is up to five seconds
+ * stale, and the tap lands on a row the server no longer has. Every press then
+ * repeats the same request for the same answer, which is the definition of a
+ * control known in advance to fail.
+ *
+ * Same `isRetryable` as «Cambios sin enviar», so the two screens cannot come to
+ * different conclusions about the same status.
+ */
+function retryAction(err: unknown, onAct: () => void): ToastAction | undefined {
+  const status = err instanceof ApiError ? err.status : 0
+  return isRetryable(status)
+    ? { label: 'Reintentar', tone: 'tomate', onAct }
+    : undefined
+}
+
 export function useListItems(
   listId: string,
   getToken: () => Promise<string>,
-  showToast: (msg: string) => void,
+  showToast: ShowToast,
 ) {
   const [status, setStatus] = useState<Status>('loading')
   const [items, setItems] = useState<ListItem[]>([])
@@ -108,7 +133,6 @@ export function useListItems(
   }, [listId, getToken])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchAll()
   }, [fetchAll])
 
@@ -144,7 +168,9 @@ export function useListItems(
   }, [listId, getToken])
 
   const togglePurchased = useCallback(
-    async (itemId: string) => {
+    // Named so the undo can call the same mutation the tap did. A second write
+    // path is how the reconcile guard gets bypassed, and nothing goes red.
+    async function toggle(itemId: string) {
       const snapshot = itemsRef.current
       const targetItem = snapshot.find((i) => i.id === itemId)
       const prevPurchased = targetItem?.purchased ?? false
@@ -189,18 +215,34 @@ export function useListItems(
             listId,
             type: 'updateItem',
             payload: { itemId, patch },
+            label: targetItem?.name ?? '',
           })
         } else {
           setItems(snapshot)
-          showToast('No se pudo actualizar el producto')
+          showToast(
+            itemRefusal(err, 'No se pudo actualizar el producto'),
+            retryAction(err, () => void toggle(itemId)),
+          )
+          return
         }
       }
+
+      // The write has settled — the server answered, or the queue took it.
+      // Only now is there anything to undo, and only now can the inverse not
+      // overtake the write it reverses. Offline this still reads as instant,
+      // because the queue is local.
+      showToast(
+        prevPurchased
+          ? `Fuera del carro, ${targetItem?.name ?? ''}`
+          : `En el carro, ${targetItem?.name ?? ''}`,
+        { label: 'Deshacer', tone: 'verde', onAct: () => void toggle(itemId) },
+      )
     },
     [getToken, listId, showToast],
   )
 
   const addItem = useCallback(
-    async (parsed: ParsedInput) => {
+    async function add(parsed: ParsedInput) {
       const nameLower = parsed.name.trim().toLowerCase()
       const isDuplicate = itemsRef.current.some(
         (i) =>
@@ -212,7 +254,7 @@ export function useListItems(
         showToast(DUPLICATE_TOAST)
         return
       }
-      const tempId = `tmp-${Date.now()}`
+      const tempId = newTempId()
       const temp: ListItem = {
         id: tempId,
         list_id: listId,
@@ -257,6 +299,7 @@ export function useListItems(
             listId,
             type: 'addItem',
             tempId,
+            label: parsed.name,
             payload: {
               name: parsed.name,
               quantity: parsed.quantity,
@@ -271,9 +314,13 @@ export function useListItems(
         } else {
           setItems((prev) => prev.filter((i) => i.id !== tempId))
           if (err instanceof ApiError && err.status === 409) {
+            // Sending it again would be refused again for the same reason.
             showToast(DUPLICATE_TOAST)
           } else {
-            showToast('No se pudo añadir el producto')
+            showToast(
+              refusalMessage(err, 'No se pudo añadir el producto'),
+              retryAction(err, () => void add(parsed)),
+            )
           }
         }
       }
@@ -282,8 +329,9 @@ export function useListItems(
   )
 
   const updateTag = useCallback(
-    async (itemId: string, field: TagField, value: string | null) => {
+    async function tag(itemId: string, field: TagField, value: string | null) {
       const snapshot = itemsRef.current
+      const name = snapshot.find((i) => i.id === itemId)?.name ?? ''
       setItems(
         snapshot.map((i) => (i.id === itemId ? { ...i, [field]: value } : i)),
       )
@@ -295,10 +343,14 @@ export function useListItems(
             listId,
             type: 'updateItem',
             payload: { itemId, patch: { [field]: value } },
+            label: name,
           })
         } else {
           setItems(snapshot)
-          showToast('No se pudo actualizar el producto')
+          showToast(
+            itemRefusal(err, 'No se pudo actualizar el producto'),
+            retryAction(err, () => void tag(itemId, field, value)),
+          )
         }
       }
     },
@@ -306,8 +358,9 @@ export function useListItems(
   )
 
   const updateStores = useCallback(
-    async (itemId: string, stores: string[]) => {
+    async function setStores(itemId: string, stores: string[]) {
       const snapshot = itemsRef.current
+      const name = snapshot.find((i) => i.id === itemId)?.name ?? ''
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, stores } : i)))
       try {
         await updateItem(getToken, listId, itemId, { stores })
@@ -317,10 +370,14 @@ export function useListItems(
             listId,
             type: 'updateItem',
             payload: { itemId, patch: { stores } },
+            label: name,
           })
         } else {
           setItems(snapshot)
-          showToast('No se pudo actualizar el producto')
+          showToast(
+            itemRefusal(err, 'No se pudo actualizar el producto'),
+            retryAction(err, () => void setStores(itemId, stores)),
+          )
         }
       }
     },
@@ -328,7 +385,7 @@ export function useListItems(
   )
 
   const renameItem = useCallback(
-    async (itemId: string, name: string) => {
+    async function rename(itemId: string, name: string) {
       const snapshot = itemsRef.current
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, name } : i)))
       try {
@@ -339,10 +396,16 @@ export function useListItems(
             listId,
             type: 'updateItem',
             payload: { itemId, patch: { name } },
+            // The name somebody typed, which is the one worth recognising in
+            // the sheet even though the server never took it.
+            label: name,
           })
         } else {
           setItems(snapshot)
-          showToast('No se pudo renombrar el producto')
+          showToast(
+            itemRefusal(err, 'No se pudo renombrar el producto'),
+            retryAction(err, () => void rename(itemId, name)),
+          )
         }
       }
     },
@@ -350,14 +413,29 @@ export function useListItems(
   )
 
   const removeItem = useCallback(
-    async (itemId: string) => {
+    async function remove(itemId: string) {
       const snapshot = itemsRef.current
+      const name = snapshot.find((i) => i.id === itemId)?.name ?? ''
       setItems((prev) => prev.filter((i) => i.id !== itemId))
       try {
         await deleteItem(getToken, listId, itemId)
       } catch (err) {
         if (isNetworkError(err)) {
-          await enqueue({ listId, type: 'deleteItem', payload: { itemId } })
+          await enqueue({
+            listId,
+            type: 'deleteItem',
+            payload: { itemId },
+            label: name,
+          })
+        } else if (err instanceof ApiError && err.status === 404) {
+          // Not a failure. The row is gone because somebody else deleted it,
+          // which is what this tap asked for — so the optimistic removal
+          // stands, and there is nothing to say. Restoring it and answering
+          // «no se pudo eliminar» put back a product the household had already
+          // got rid of, over a control that could only 404 again.
+          //
+          // `handleDeletePrice` has read a 404 delete as success since before
+          // this phase; two answers to one status is the disagreement.
         } else if (err instanceof ApiError && err.status === 409) {
           // ItemDetailSheet already hides Eliminar for a filed item, so this
           // is the backstop for the race where the trip files (a receipt
@@ -368,7 +446,10 @@ export function useListItems(
           )
         } else {
           setItems(snapshot)
-          showToast('No se pudo eliminar el producto')
+          showToast(
+            refusalMessage(err, 'No se pudo eliminar el producto'),
+            retryAction(err, () => void remove(itemId)),
+          )
         }
       }
     },
@@ -386,7 +467,59 @@ export function useListItems(
       const item = itemsRef.current.find((i) => i.id === itemId)
       const payload = { amount, price_per: pricePer, store }
       const fn = item?.price != null ? updatePrice : logPrice
-      await fn(getToken, listId, itemId, payload)
+
+      // Whichever verb the server will actually take, not the one this screen
+      // guessed. The endpoint is split by state — `POST` is 409 «ya tiene
+      // precio» and `PATCH` is 404 «todavía no tiene» — and the guess above is
+      // made from a local copy the *previous* attempt may already have
+      // invalidated: `logPrice` landing and the `purchased_quantity` call
+      // below it failing leaves the server holding a price and this screen
+      // without one, because `setItems` is under both.
+      //
+      // That is what the notice's «Reintentar» would then walk into. It would
+      // POST again, 409 for good, and say «no se pudo guardar» about a price
+      // the server has had all along — a control known in advance to fail, on
+      // the one write somebody typed off a shelf. And it would never heal:
+      // `_write_price` does not `_bump` the list, so the poll never refetches
+      // and the local `price` stays null until the screen remounts.
+      //
+      // So the refusal is read as what it is — an answer about which verb was
+      // wanted — and the write is repeated with the other one.
+      //
+      // This is not a second write against a server that said no. Both routes
+      // are `_get_item_or_404` → one precondition → the *same* `_write_price`,
+      // with the same body: two doors into one write, each guarding the state
+      // the other one expects. `isRetryable` withholds a retry because an
+      // identical request gets an identical answer, and this request is not
+      // identical — it is the complement, named by the refusal itself («use
+      // PATCH to update it»).
+      //
+      // Two things this accepts deliberately:
+      //
+      // The 409 was the only place this app could have noticed that another
+      // phone priced the item first, and the fallback now overwrites it
+      // without saying so. That is last-write-wins, which is what every other
+      // field on this row already does, and the person is looking at the
+      // number they just read off a shelf.
+      //
+      // `update_price` also answers 404 for an item that is simply *gone*
+      // (`_get_item_or_404`), which is not an answer about the verb — and from
+      // here the two are indistinguishable. It is safe only because
+      // `create_price` runs that same lookup before its own guard, so the
+      // fallback re-404s and the error surfaces unchanged. That is a
+      // cross-file invariant with nothing on either side encoding it: if
+      // `create_price` ever learns to create the item too, this becomes a
+      // write against a precondition nobody checked.
+      try {
+        await fn(getToken, listId, itemId, payload)
+      } catch (err) {
+        const wrongVerb =
+          err instanceof ApiError &&
+          (fn === logPrice ? err.status === 409 : err.status === 404)
+        if (!wrongVerb) throw err
+        const other = fn === logPrice ? updatePrice : logPrice
+        await other(getToken, listId, itemId, payload)
+      }
 
       if (purchasedQuantity !== undefined) {
         await updateItem(getToken, listId, itemId, {

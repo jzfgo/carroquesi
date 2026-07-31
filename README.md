@@ -29,6 +29,7 @@ Those two artifacts are the deployable output; where they run is a separate choi
 - **Auth & AI:** Firebase handles Google Sign-In and AI-powered receipt parsing (Gemini via Firebase AI SDK). The frontend sends a Firebase ID token on every request; the backend validates it via the Firebase Admin SDK.
 - **Data:** All CRUD goes through the FastAPI backend. No Firestore.
 - **Real-time sync:** Short-polling — the frontend hits `GET /lists/{id}/updated-at` every 5s and re-fetches items when the timestamp changes.
+- **Offline:** The supermarket is where there is no coverage, so item writes queue in IndexedDB and send themselves when the network returns. The list says so under its own header and marks the lines still waiting. A write the server refuses is kept, not dropped: it waits in «Cambios sin enviar», where it says why it did not go in and can be sent again or discarded.
 
 ## Architecture Decisions
 

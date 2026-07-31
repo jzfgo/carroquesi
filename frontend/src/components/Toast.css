@@ -22,16 +22,36 @@
   }
 }
 
-.toast__progress {
-  height: 3px;
-  background: var(--verde-border);
+/* The colour of a notice lives here and nowhere else. A tinted edge on the
+   body spilled the colour round the corners, and a grey one turned the notice
+   into an alert card, which is exactly what it is not. */
+.toast--verde {
+  --toast-ink: var(--verde-0);
+  --toast-track: var(--verde-border);
 }
 
+.toast--tomate {
+  --toast-ink: var(--tomate-0);
+  --toast-track: var(--tomate-border);
+}
+
+.toast--miel {
+  --toast-ink: var(--miel-0);
+  --toast-track: var(--miel-border);
+}
+
+.toast__progress {
+  height: 3px;
+  background: var(--toast-track);
+}
+
+/* The bar is not decoration: it is the time left to act. Its duration is set
+   inline from the same constant that fires the dismiss timer. */
 .toast__progress-fill {
   height: 100%;
-  background: var(--verde-0);
+  background: var(--toast-ink);
   border-radius: 0 2px 2px 0;
-  animation: toast-drain 3s linear forwards;
+  animation: toast-drain linear forwards;
 }
 
 @keyframes toast-drain {
@@ -46,8 +66,6 @@
 
 .toast__body {
   background: var(--paper-0);
-  border: 1px solid var(--verde-border);
-  border-top: none;
   padding: 11px 14px;
   display: flex;
   align-items: center;
@@ -71,7 +89,11 @@
   font-weight: 700;
   color: var(--tinta-0);
   white-space: nowrap;
-  padding: 4px 0 4px 4px;
+
+  /* Painted where the mockup draws it; touchable at 44 px (rule 7). The
+     negative margin keeps the extra height out of the toast's own box. */
+  padding: 13px 0 13px 4px;
+  margin: -13px 0;
   cursor: pointer;
   background: none;
   border: none;

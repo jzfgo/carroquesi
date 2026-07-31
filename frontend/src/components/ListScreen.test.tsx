@@ -11,9 +11,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
+import { useQueueDrain } from '../hooks/useQueueDrain'
 import * as api from '../lib/api'
 import * as offlineQueue from '../lib/offlineQueue'
 import * as receiptAi from '../lib/receiptAi'
+import { apiError } from '../lib/testApiError'
 import { madridDay } from '../lib/tripDay'
 import type { BarcodeRead, ListItem, ReceiptScanResult } from '../types'
 import { ListScreen } from './ListScreen'
@@ -46,7 +48,13 @@ vi.mock('../contexts/FeatureFlagsContext', () => ({
 }))
 vi.mock('../hooks/useListItems')
 vi.mock('../hooks/useQueueDrain', () => ({
-  useQueueDrain: vi.fn(() => ({ pendingCount: 0 })),
+  useQueueDrain: vi.fn(() => ({
+    pendingCount: 0,
+    pendingItemIds: new Set<string>(),
+    rejected: [],
+    retryRejected: vi.fn(),
+    discardRejected: vi.fn(),
+  })),
 }))
 // lib/push imports lib/firebase, which calls getAuth() at module scope and
 // throws auth/invalid-api-key without Firebase env vars -- as in CI, where a
@@ -377,6 +385,97 @@ describe('ListScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
 
     expect(removeItemMock).toHaveBeenCalledWith('i1')
+  })
+
+  /**
+   * The amount somebody read off a shelf. The first failure says so; the
+   * retry used to go straight back into `savePrice`, which does not catch, so
+   * a second failure was an unhandled rejection with nothing on screen — the
+   * amount lost exactly the quiet way this notice exists to prevent, and only
+   * ever on the attempt nobody is watching.
+   */
+  it('says so again when the price retry fails too', async () => {
+    const savePriceMock = vi.fn().mockRejectedValue(new Error('boom'))
+    // The detail sheet is on the way to the one being tested, and it reads the
+    // price history on mount; the api automock would hand its effect an
+    // undefined.
+    vi.mocked(api.getPriceHistory).mockResolvedValue({ entries: [] } as never)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({
+          id: 'i1',
+          name: 'Manzanas',
+          purchased: true,
+          purchased_at: TODAY,
+        }),
+      ],
+      savePrice: savePriceMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: /registrar un precio/i }),
+    )
+    fireEvent.change(screen.getByPlaceholderText('0.00'), {
+      target: { value: '1.19' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await screen.findByText('No se pudo guardar el precio')
+    expect(savePriceMock).toHaveBeenCalledTimes(1)
+
+    // Taking the action closes the notice, so a second failure has to raise a
+    // new one. Sent straight back into `savePrice` it raised nothing at all.
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    await waitFor(() => expect(savePriceMock).toHaveBeenCalledTimes(2))
+    expect(
+      await screen.findByText('No se pudo guardar el precio'),
+    ).toBeInTheDocument()
+  })
+
+  /**
+   * The same rule the sheet draws its rows with, one screen over. A 404 is a
+   * fact about the data — the product is gone — so «Reintentar» there is a
+   * control known in advance to fail, and it would make two doomed requests a
+   * press now that `savePrice` falls back.
+   */
+  it('offers no retry on a refusal that can never succeed', async () => {
+    const gone = apiError(404, 'Item not found')
+    const savePriceMock = vi.fn().mockRejectedValue(gone)
+    vi.mocked(api.getPriceHistory).mockResolvedValue({ entries: [] } as never)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({
+          id: 'i1',
+          name: 'Manzanas',
+          purchased: true,
+          purchased_at: TODAY,
+        }),
+      ],
+      savePrice: savePriceMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: /registrar un precio/i }),
+    )
+    fireEvent.change(screen.getByPlaceholderText('0.00'), {
+      target: { value: '1.19' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    // And it says the true thing, not «no se pudo» about a product that is
+    // gone — the same sentence «Cambios sin enviar» uses for the same fact.
+    await screen.findByText('El producto ya no existe')
+    expect(
+      screen.queryByRole('button', { name: 'Reintentar' }),
+    ).not.toBeInTheDocument()
   })
 
   it('handles EanSearch finding a product and adding it', async () => {
@@ -1503,6 +1602,37 @@ describe('the list itself', () => {
     )
     expect(onBack).not.toHaveBeenCalled()
   })
+
+  /**
+   * Deleted already — from the other tab, or the installed app beside this
+   * one. `require_owner` resolves the list before it checks who is asking, so
+   * not-the-owner is a 403 and a 404 can only mean the list is gone.
+   *
+   * Leaving is what the tap asked for, and it is also the only way out:
+   * the five-second poll swallows its own errors, and `ListRoute` decides
+   * «Lista no encontrada» on mount only. Reporting a failure here left
+   * somebody adding items to a list the server does not have.
+   */
+  it('leaves when the list was already deleted elsewhere', async () => {
+    vi.mocked(api.deleteList).mockRejectedValue(apiError(404, 'List not found'))
+    const onBack = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        onBack={onBack}
+      />,
+    )
+    openMenu()
+    fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar lista/i }))
+
+    await waitFor(() => expect(onBack).toHaveBeenCalled())
+    expect(
+      screen.queryByText(/no se pudo eliminar la lista/i),
+    ).not.toBeInTheDocument()
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -1538,6 +1668,63 @@ describe('with no connection', () => {
 
   const openMenu = () =>
     fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+
+  /**
+   * The band and the way into «Cambios sin enviar» both come from the notice
+   * this screen hands to ItemList. Nothing else here asserts that it hands one
+   * over, so dropping the prop would take both away with the whole suite still
+   * green — and the second of them is the only durable door to writes the
+   * server refused.
+   */
+  it('says there is no connection, and how many changes are waiting', async () => {
+    vi.mocked(useQueueDrain).mockReturnValue({
+      pendingCount: 2,
+      pendingItemIds: new Set<string>(),
+      rejected: [],
+      retryRejected: vi.fn(),
+      discardRejected: vi.fn(),
+    } as unknown as ReturnType<typeof useQueueDrain>)
+
+    render(<ListScreen listId="l1" listName="Mercado" listOwnerId="u1" />)
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('Sin conexión · 2 cambios se enviarán solos'),
+      ).toBeVisible(),
+    )
+  })
+
+  it('offers the way back to what the server refused', async () => {
+    vi.mocked(useQueueDrain).mockReturnValue({
+      pendingCount: 0,
+      pendingItemIds: new Set<string>(),
+      // A whole row, not just an id: the sheet reads what the op was about in
+      // order to work out whether anything else is waiting on it.
+      rejected: [
+        {
+          id: 'q1',
+          listId: 'l1',
+          type: 'addItem',
+          payload: { name: 'Pan' },
+          enqueuedAt: 0,
+          label: 'Pan',
+          failure: { status: 503, at: 0 },
+        },
+      ],
+      retryRejected: vi.fn(),
+      discardRejected: vi.fn(),
+    } as unknown as ReturnType<typeof useQueueDrain>)
+
+    render(<ListScreen listId="l1" listName="Mercado" listOwnerId="u1" />)
+
+    await waitFor(() =>
+      expect(screen.getByText('1 cambio sin enviar')).toBeVisible(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Ver cuáles' }))
+    expect(
+      screen.getByRole('dialog', { name: 'Cambios sin enviar' }),
+    ).toBeVisible()
+  })
 
   it('will not rename the list, and says why', async () => {
     const onRename = vi.fn()
@@ -1927,7 +2114,7 @@ describe('writing down a trip that already tore off', () => {
 
   it('keeps the sheet open when the close is refused', async () => {
     vi.mocked(api.closePurchase).mockRejectedValue(
-      new api.ApiError(400, 'Some items are not in the trip being closed'),
+      apiError(400, 'Some items are not in the trip being closed'),
     )
     renderWithUnfiledTicket()
 
