@@ -109,6 +109,9 @@ export function SettingsSheet({
   // back null. Remembering that turns every later tap into a toast instead of
   // another request that can only give the same answer.
   const [keyHidden, setKeyHidden] = useState(false)
+  // The request in flight, so a second tap joins it rather than starting its
+  // own. State cannot do this job: both taps read the same render.
+  const issuingRef = useRef<ReturnType<typeof issueApiKey> | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
 
@@ -174,7 +177,13 @@ export function SettingsSheet({
     // Idempotent, and only ever hands back plaintext on first issuance: what
     // the server keeps is a hash. A returning user gets null and is told to
     // regenerate.
-    const issued = issueApiKey(getToken)
+    //
+    // Which is why two taps must not become two requests. The server can only
+    // hand the plaintext to one of them, and the loser gets the null meant for
+    // a returning user — landing last, it would wipe the reveal the winner just
+    // made and latch the row shut. Joining the same promise also keeps the
+    // gesture, because the second tap still reaches the clipboard call.
+    const issued = (issuingRef.current ??= issueApiKey(getToken))
     const copied = copyWhenReady(
       issued.then(({ key }) => {
         if (!key) throw new Error('no plaintext key to copy')
@@ -191,8 +200,11 @@ export function SettingsSheet({
         }
         report(await copied)
       },
-      () =>
-        onToast('No se pudo preparar el atajo de Siri. Inténtalo de nuevo.'),
+      () => {
+        // Let the next tap try again rather than joining a request that failed.
+        issuingRef.current = null
+        onToast('No se pudo preparar el atajo de Siri. Inténtalo de nuevo.')
+      },
     )
   }
 
@@ -202,6 +214,8 @@ export function SettingsSheet({
       const { key } = await regenerateApiKey(getToken)
       setShownKey(key)
       setKeyHidden(false)
+      // The old request's answer is about a key that no longer exists.
+      issuingRef.current = null
       onToast('Clave regenerada. Pégala en el atajo.')
     } catch {
       onToast('No se pudo regenerar la clave. Inténtalo de nuevo.')

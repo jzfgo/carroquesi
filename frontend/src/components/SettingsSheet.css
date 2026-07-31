@@ -289,7 +289,10 @@
    grows a digit would otherwise move its own left edge — which reflows nothing
    visible but does move the box the screenshots mask, and the release bump is
    exactly when nobody is looking at this suite. `ch` is exact here because the
-   face is monospaced. */
+   face is monospaced.
+
+   It is a floor, so it holds for versions up to eight characters — `v0.100.0`
+   fits, `v0.100.10` would grow the box again. Widen it before that day. */
 .settings-sheet__version {
   min-width: 8ch;
   color: var(--ink-3);

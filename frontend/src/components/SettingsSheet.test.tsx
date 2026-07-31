@@ -49,6 +49,13 @@ beforeEach(() => {
   // jsdom has no ClipboardItem. Stubbing it back to absent each time keeps the
   // one test that supplies it from leaking into the rest.
   vi.stubGlobal('ClipboardItem', undefined)
+  // Same reason, and `stubGlobal` cannot reach it: this is a property of
+  // `navigator`, so the one test that replaces it would keep it replaced.
+  Object.defineProperty(navigator, 'clipboard', {
+    value: undefined,
+    writable: true,
+    configurable: true,
+  })
   vi.mocked(api.issueApiKey).mockResolvedValue({
     key: null,
     created: false,
@@ -267,6 +274,32 @@ describe('SettingsSheet — the Siri shortcut', () => {
     fireEvent.click(screen.getByRole('button', { name: /^copiar$/i }))
 
     expect(write).toHaveBeenCalledOnce()
+  })
+
+  /**
+   * The plaintext key is handed out once, so a second request can only be told
+   * what a returning user is told — null. Two taps that both reach the server
+   * therefore race, and the loser's null landing last would erase the reveal
+   * the winner just made and shut the row for good.
+   */
+  it('makes one request however many times Copiar is tapped', async () => {
+    let hand: (r: { key: string | null; created: boolean }) => void = () => {}
+    vi.mocked(api.issueApiKey).mockReturnValue(
+      new Promise<{ key: string | null; created: boolean }>((resolve) => {
+        hand = resolve
+      }) as never,
+    )
+
+    render(<SettingsSheet {...apple} />)
+    const copy = screen.getByRole('button', { name: /^copiar$/i })
+    fireEvent.click(copy)
+    fireEvent.click(copy)
+
+    expect(api.issueApiKey).toHaveBeenCalledOnce()
+
+    hand({ key: 'cqs_test-key', created: true })
+    expect(await screen.findByText('cqs_test-key')).toBeInTheDocument()
+    expect(screen.queryByText('••••••••••••••••')).toBeNull()
   })
 
   it('steers a returning user to regenerate, because the key is unrecoverable', async () => {
