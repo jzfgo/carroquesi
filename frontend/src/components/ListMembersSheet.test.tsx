@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, vi } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as api from '../lib/api'
 import { apiError } from '../lib/testApiError'
@@ -529,4 +529,90 @@ test('an invite refused for permission says which fact it was', async () => {
   )
 
   expect(await screen.findByText(/sin permiso en esa lista/i)).toBeVisible()
+})
+
+describe('ListMembersSheet — with no connection', () => {
+  beforeEach(() => {
+    vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB] as never)
+  })
+
+  test('does not offer to expel a member', async () => {
+    render(
+      <ListMembersSheet
+        listId="l1"
+        currentUserId="u1"
+        isOwner={true}
+        isOffline
+        onClose={vi.fn()}
+      />,
+    )
+
+    const expel = await screen.findByRole('button', { name: /expulsar a bob/i })
+    expect(expel).toBeDisabled()
+    fireEvent.click(expel)
+
+    expect(api.removeMember).not.toHaveBeenCalled()
+    // The optimistic filter runs before the request, so a guard placed after
+    // it would take the row off screen for a write that never happens.
+    expect(screen.getByText('Bob')).toBeInTheDocument()
+  })
+
+  test('does not offer to leave the list', async () => {
+    render(
+      <ListMembersSheet
+        listId="l1"
+        currentUserId="u2"
+        isOwner={false}
+        isOffline
+        onClose={vi.fn()}
+      />,
+    )
+
+    const leave = await screen.findByRole('button', {
+      name: /salir de la lista/i,
+    })
+    expect(leave).toBeDisabled()
+    fireEvent.click(leave)
+
+    expect(api.removeMember).not.toHaveBeenCalled()
+  })
+
+  test('does not offer to create an invite', async () => {
+    render(
+      <ListMembersSheet
+        listId="l1"
+        currentUserId="u1"
+        isOwner={true}
+        isOffline
+        onClose={vi.fn()}
+      />,
+    )
+
+    const invite = await screen.findByRole('button', {
+      name: /copiar enlace de invitación/i,
+    })
+    expect(invite).toBeDisabled()
+    fireEvent.click(invite)
+
+    expect(api.createOpenInvite).not.toHaveBeenCalled()
+  })
+
+  // Re-reading the member list is a read. Refusing it would leave somebody
+  // staring at an error with no way to try again once the signal returns.
+  test('still offers to load the members again', async () => {
+    vi.mocked(api.getListMembers).mockRejectedValue(new Error('net'))
+    render(
+      <ListMembersSheet
+        listId="l1"
+        currentUserId="u1"
+        isOwner={true}
+        isOffline
+        onClose={vi.fn()}
+      />,
+    )
+
+    expect(
+      await screen.findByRole('button', { name: /reintentar/i }),
+    ).toBeEnabled()
+  })
 })

@@ -26,6 +26,10 @@ interface Props {
   listId: string
   currentUserId: string
   isOwner: boolean
+  /** No signal. Both writes here — «Expulsar»/«Salir» and creating an invite
+   *  — are refused and drawn as unavailable. Re-loading the member list is a
+   *  read and stays live. */
+  isOffline?: boolean
   onClose: () => void
   /**
    * Called when the person reading this sheet has just left the list — their
@@ -44,6 +48,7 @@ export function ListMembersSheet({
   listId,
   currentUserId,
   isOwner,
+  isOffline = false,
   onClose,
   onLeft,
 }: Props) {
@@ -100,6 +105,9 @@ export function ListMembersSheet({
   }, [onClose])
 
   async function handleRemove(userId: string) {
+    // Ahead of the optimistic filter below, so no row disappears for a write
+    // that is not going to happen.
+    if (isOffline) return
     const snapshot = members
     // Whether this tap ends *this* person's relationship with the list. One
     // handler backs «Expulsar» and «Salir», and the two differ in exactly this.
@@ -140,6 +148,7 @@ export function ListMembersSheet({
   }
 
   async function handleCopyInvite() {
+    if (isOffline) return
     setInviteLimitReached(false)
     setFallbackUrl(null)
     try {
@@ -249,6 +258,7 @@ export function ListMembersSheet({
                     <button
                       className="list-members-sheet__action-btn"
                       onClick={() => void handleRemove(member.user_id)}
+                      disabled={isOffline}
                       aria-label={`Expulsar a ${member.display_name}`}
                     >
                       Expulsar
@@ -258,6 +268,7 @@ export function ListMembersSheet({
                     <button
                       className="list-members-sheet__action-btn"
                       onClick={() => void handleRemove(member.user_id)}
+                      disabled={isOffline}
                       aria-label="Salir de la lista"
                     >
                       Salir
@@ -282,7 +293,7 @@ export function ListMembersSheet({
                   <button
                     className="list-members-sheet__invite-btn"
                     onClick={() => void handleCopyInvite()}
-                    disabled={inviteLimitReached}
+                    disabled={inviteLimitReached || isOffline}
                   >
                     <Link2 size={15} /> Copiar enlace de invitación
                   </button>

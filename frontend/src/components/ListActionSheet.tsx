@@ -268,6 +268,7 @@ export function ListActionSheet({
   if (subState === 'members') {
     return (
       <ListMembersSheet
+        isOffline={isOffline}
         listId={listId}
         currentUserId={currentUserId}
         isOwner={isOwner}

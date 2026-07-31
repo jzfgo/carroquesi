@@ -286,14 +286,22 @@ of the op union being deleted. Left ungated it becomes a write that fails with
 a toast at the worst possible moment, so it needs the two-sided gate more than
 anything else in the list.
 
-**Ungated and unqueued already.** These fail online-style today and are already
-consistent with the new model; they need no change beyond confirming the toast
-copy does not promise a retry:
+**Were ungated, now gated.** These attempted-then-failed rather than refusing
+up front, which made them the exception to the rule everything else keeps:
 
-- `ListMembersSheet.handleRemove` (backs both «Expulsar» and «Salir»)
-- `handleCopyInvite`
-- `clearItemPrice` — see JAV-103's note that it is `savePrice`'s untreated sibling
-- push token registration
+- `ListMembersSheet.handleRemove` — backs both «Expulsar» and «Salir»; the
+  guard sits ahead of the optimistic filter, so no row leaves the sheet for a
+  write that will not happen
+- `ListMembersSheet.handleCopyInvite` — creating an invite is a POST. Gated
+  with `handleRemove` rather than left behind: one sheet with one live write
+  and one dead one is the inconsistency this pass exists to remove
+- `clearItemPrice` — covered by `handleDeletePrice` one level up
+
+Still outside the gate, deliberately: **push token registration** (not a write
+somebody asked for), the **board picker** (a per-device preference that travels
+nowhere), and every **read retry** — `ListMembersSheet`'s «Reintentar», and the
+refetches in `ItemList`, `DashboardScreen` and `InviteScreen`. Refusing a read
+would leave somebody looking at an error with no way to try again.
 
 The consequence worth stating: **the price path's existing `disabled={!canSave
 || !!isOffline}` becomes the whole answer for prices.** That is the precise
