@@ -160,6 +160,14 @@ for (const { name: themeName, colorScheme } of THEMES) {
 
       const sheet = page.locator('.item-detail')
       await expect(sheet).toBeVisible()
+
+      // The sheet sits on the bottom edge, so a fractional height gives it a
+      // fractional top and every hairline inside it falls between two device
+      // rows. Two machines then pick different rows, and one full-width rule
+      // moving one row is 2560 pixels — ten times the whole budget, for a
+      // screen that looks identical. This says so in one line instead.
+      const top = await sheet.evaluate((el) => el.getBoundingClientRect().top)
+      expect(top % 1).toBe(0)
       // The four blocks of 22a, in the order a sheet is opened for. By role,
       // because "Eliminar producto" also contains the word "Producto".
       for (const block of ['Último precio', 'Producto', 'Rastro']) {

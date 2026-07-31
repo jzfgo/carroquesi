@@ -287,7 +287,7 @@ describe('PriceHistoryBlock', () => {
 
     const alcampo = screen.getByRole('button', { name: /Alcampo/ })
     const style = getComputedStyle(alcampo.closest('.phb__store')!)
-    expect(style.opacity === '' || style.opacity === '1').toBe(true)
+    expect(style.opacity).toBe('1')
     expect(within(alcampo).getByText('5,34')).toBeInTheDocument()
   })
 })
