@@ -97,7 +97,10 @@ for (const { name: themeName, colorScheme } of THEMES) {
 
       await expect(page.locator('.offline-band')).toContainText('Sin conexión')
 
-      // The two writes reachable from the list itself.
+      // A name first: the add button is also disabled on an empty field, so
+      // without this the assertion passes on `!hasName` and would go on
+      // passing with the offline gate deleted.
+      await page.getByLabel('Añadir producto').fill('Manzanas')
       await expect(
         page.getByRole('button', { name: 'Añadir', exact: true }),
       ).toBeDisabled()
@@ -126,6 +129,9 @@ for (const { name: themeName, colorScheme } of THEMES) {
         'De nuevo en línea',
       )
       await expect(page.locator('.offline-band')).toBeHidden()
+
+      // Same trap as above: type before asserting the control came back.
+      await page.getByLabel('Añadir producto').fill('Manzanas')
       await expect(
         page.getByRole('button', { name: 'Añadir', exact: true }),
       ).toBeEnabled()

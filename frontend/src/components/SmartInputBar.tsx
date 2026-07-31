@@ -292,7 +292,10 @@ export function SmartInputBar({
         <button
           className="smart-input__add"
           onClick={onSubmit}
-          disabled={!hasName || inEanMode}
+          // The scan button beside this one has been gated since the bar was
+          // written; this one never was, and it is the primary write on the
+          // whole screen.
+          disabled={!hasName || inEanMode || isOffline}
           aria-label="Añadir"
         >
           <span aria-hidden="true" className="smart-input__add-icon" />
