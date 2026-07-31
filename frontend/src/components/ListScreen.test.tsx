@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
+import { useQueueDrain } from '../hooks/useQueueDrain'
 import * as api from '../lib/api'
 import * as offlineQueue from '../lib/offlineQueue'
 import * as receiptAi from '../lib/receiptAi'
@@ -1544,6 +1545,51 @@ describe('with no connection', () => {
 
   const openMenu = () =>
     fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+
+  /**
+   * The band and the way into «Cambios sin enviar» both come from the notice
+   * this screen hands to ItemList. Nothing else here asserts that it hands one
+   * over, so dropping the prop would take both away with the whole suite still
+   * green — and the second of them is the only durable door to writes the
+   * server refused.
+   */
+  it('says there is no connection, and how many changes are waiting', async () => {
+    vi.mocked(useQueueDrain).mockReturnValue({
+      pendingCount: 2,
+      pendingItemIds: new Set<string>(),
+      rejected: [],
+      retryRejected: vi.fn(),
+      discardRejected: vi.fn(),
+    } as unknown as ReturnType<typeof useQueueDrain>)
+
+    render(<ListScreen listId="l1" listName="Mercado" listOwnerId="u1" />)
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('Sin conexión · 2 cambios se enviarán solos'),
+      ).toBeVisible(),
+    )
+  })
+
+  it('offers the way back to what the server refused', async () => {
+    vi.mocked(useQueueDrain).mockReturnValue({
+      pendingCount: 0,
+      pendingItemIds: new Set<string>(),
+      rejected: [{ id: 'q1' }],
+      retryRejected: vi.fn(),
+      discardRejected: vi.fn(),
+    } as unknown as ReturnType<typeof useQueueDrain>)
+
+    render(<ListScreen listId="l1" listName="Mercado" listOwnerId="u1" />)
+
+    await waitFor(() =>
+      expect(screen.getByText('1 cambio sin enviar')).toBeVisible(),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Ver cuáles' }))
+    expect(
+      screen.getByRole('dialog', { name: 'Cambios sin enviar' }),
+    ).toBeVisible()
+  })
 
   it('will not rename the list, and says why', async () => {
     const onRename = vi.fn()

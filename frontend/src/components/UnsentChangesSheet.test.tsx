@@ -76,6 +76,60 @@ describe('UnsentChangesSheet', () => {
     )
   })
 
+  /**
+   * The pass is the whole point of withholding the per-line retry. Leaving the
+   * dependent out of it is what strands it for good: the add would succeed,
+   * stop being in this sheet, and leave the edit pointing at a `tmp-…` id
+   * nothing can resolve any more.
+   */
+  it('sends a stranded change with the add it is waiting for', async () => {
+    const onRetry = vi.fn(async () => {})
+    const add = op({ id: 'q-add', tempId: 'tmp-1' })
+    const edit = op({
+      id: 'q-edit',
+      type: 'updateItem',
+      payload: { itemId: 'tmp-1', patch: { name: 'Pimentón dulce' } },
+      label: 'Pimentón dulce',
+      enqueuedAt: Date.now() + 1,
+    })
+
+    render(
+      <UnsentChangesSheet
+        {...props}
+        rejected={[add, edit]}
+        onRetry={onRetry}
+      />,
+    )
+
+    await screen.getByRole('button', { name: 'Reintentar los 2' }).click()
+    await waitFor(() =>
+      expect(onRetry).toHaveBeenCalledWith(['q-add', 'q-edit']),
+    )
+  })
+
+  // Its add can never go in, so neither can it. Nothing to send.
+  it('leaves a change stranded on an irrecoverable add out of the pass', () => {
+    const add = op({
+      id: 'q-add',
+      tempId: 'tmp-1',
+      failure: { status: 404, at: 0 },
+    })
+    const edit = op({
+      id: 'q-edit',
+      type: 'updateItem',
+      payload: { itemId: 'tmp-1', patch: { name: 'Pimentón dulce' } },
+      label: 'Pimentón dulce',
+      enqueuedAt: Date.now() + 1,
+    })
+
+    render(<UnsentChangesSheet {...props} rejected={[add, edit]} />)
+
+    expect(screen.queryByRole('button', { name: /Reintentar/ })).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Descartarlos' }),
+    ).toBeInTheDocument()
+  })
+
   it('counts the button against the rows that actually carry a retry', () => {
     render(
       <UnsentChangesSheet

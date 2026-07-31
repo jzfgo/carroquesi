@@ -996,3 +996,57 @@ test('leaves the header alone when nothing can act on the stamp', () => {
     screen.queryByRole('button', { name: 'Cerrar compra' }),
   ).not.toBeInTheDocument()
 })
+
+/**
+ * Having no signal is a fact about the device, and a refused write outlives
+ * whatever the list happens to be showing. Both used to be said by a banner
+ * above this component; moving them into the sheet put them behind three
+ * early returns, and the state where the notice matters most — a list that
+ * could not load because there is no network — was the one that lost it.
+ */
+describe('ItemList — the notice slot', () => {
+  const notice = <p>Sin conexión</p>
+
+  it('says it on a list that could not load', () => {
+    render(
+      <ItemList
+        status="error"
+        items={[]}
+        notice={notice}
+        onTogglePurchased={() => {}}
+        onOpen={() => {}}
+        onRetry={() => {}}
+      />,
+    )
+    expect(screen.getByText('Sin conexión')).toBeInTheDocument()
+  })
+
+  it('says it while the list is still loading', () => {
+    render(
+      <ItemList
+        status="loading"
+        items={[]}
+        notice={notice}
+        onTogglePurchased={() => {}}
+        onOpen={() => {}}
+        onRetry={() => {}}
+      />,
+    )
+    expect(screen.getByText('Sin conexión')).toBeInTheDocument()
+  })
+
+  it('says it on a list with nothing on it', () => {
+    render(
+      <ItemList
+        status="success"
+        items={[]}
+        notice={notice}
+        onTogglePurchased={() => {}}
+        onOpen={() => {}}
+        onRetry={() => {}}
+      />,
+    )
+    expect(screen.getByText('Sin productos todavía')).toBeInTheDocument()
+    expect(screen.getByText('Sin conexión')).toBeInTheDocument()
+  })
+})

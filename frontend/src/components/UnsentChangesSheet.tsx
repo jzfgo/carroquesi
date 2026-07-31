@@ -21,7 +21,10 @@ interface Props {
 interface Row {
   op: QueuedOp
   why: string
+  /** Whether this line is offered a retry of its own. */
   canRetry: boolean
+  /** Whether «Reintentar los N» sends it. A wider set — see below. */
+  inRetryAll: boolean
 }
 
 /**
@@ -66,30 +69,40 @@ export function UnsentChangesSheet({
 
   const rows = useMemo<Row[]>(() => {
     // An op whose add has not gone through points at a `tmp-…` id the server
-    // has never seen. Sending it alone would 404 and come back irrecoverable
-    // while the add that would have fixed it is still sitting there. So it is
-    // discard-only until the add is dealt with; «Reintentar los N» unmarks
-    // everything and drains in one pass, which is where the add goes first.
-    const strandedTempIds = new Set(
-      rejected.map((op) => op.tempId).filter((id): id is string => Boolean(id)),
-    )
+    // has never seen. Sending it alone would PATCH that id, 404, and come back
+    // irrecoverable while the add that would have fixed it is still sitting
+    // there — so it gets no retry of its own.
+    //
+    // It does go out with «Reintentar los N», which is one drain pass: the add
+    // runs first, the pass learns its real id, and the dependent is rewritten
+    // behind it. Leaving it out of that pass is what would strand it for good,
+    // because the add succeeds, stops being here, and the dependent is left
+    // pointing at an id nothing can resolve any more.
+    const strandedOn = new Map<string, QueuedOp>()
+    for (const op of rejected) if (op.tempId) strandedOn.set(op.tempId, op)
+
     return rejected
       .slice()
       .sort((a, b) => a.enqueuedAt - b.enqueuedAt)
       .map((op) => {
         const status = op.failure?.status ?? 0
-        const dependsOnStranded =
-          !op.tempId &&
-          strandedTempIds.has((op.payload as { itemId?: string })?.itemId ?? '')
+        const itemId = (op.payload as { itemId?: string } | null)?.itemId
+        const waitsFor =
+          op.tempId || !itemId ? undefined : strandedOn.get(itemId)
         return {
           op,
           why: `${opKind(op)} · ${whenLabel(op.enqueuedAt, now)} · ${failureCause(status, op.type)}`,
-          canRetry: isRetryable(status) && !dependsOnStranded,
+          canRetry: isRetryable(status) && !waitsFor,
+          // Sent by the retry-all whenever it can stand on its own, or
+          // whenever the add it waits on is going out in the same pass.
+          inRetryAll:
+            isRetryable(status) &&
+            (!waitsFor || isRetryable(waitsFor.failure?.status ?? 0)),
         }
       })
   }, [rejected, now])
 
-  const retryable = rows.filter((r) => r.canRetry)
+  const retryAll = rows.filter((r) => r.inRetryAll)
 
   async function run(action: () => Promise<void>) {
     setBusy(true)
@@ -139,19 +152,19 @@ export function UnsentChangesSheet({
         </div>
 
         <div className="unsent__foot">
-          {/* Counted against the rows actually drawn with a retry. A button
+          {/* Counted against what pressing it actually sends. A button
               offering to retry nothing is not a control (rule 6). */}
-          {retryable.length > 0 && (
+          {retryAll.length > 0 && (
             <button
               className="unsent__retry-all"
               disabled={busy}
               onClick={() =>
-                void run(() => onRetry(retryable.map((r) => r.op.id)))
+                void run(() => onRetry(retryAll.map((r) => r.op.id)))
               }
             >
-              {retryable.length === 1
+              {retryAll.length === 1
                 ? 'Reintentar el cambio'
-                : `Reintentar los ${retryable.length}`}
+                : `Reintentar los ${retryAll.length}`}
             </button>
           )}
           <button

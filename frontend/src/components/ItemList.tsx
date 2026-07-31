@@ -68,9 +68,17 @@ export function ItemList({
   const TRIPS_SHOWN = 3
   const [tripsShown, setTripsShown] = useState(TRIPS_SHOWN)
 
+  // The notice is a property of the screen, not of the sheet the rows are on.
+  // Having no signal is a fact about the device, and a change the server
+  // refused outlives whatever the list happens to be showing — so both have to
+  // be said on a list that failed to load, is still loading, or is empty. On
+  // the first of those it is the whole explanation: without it the screen says
+  // "no se pudieron cargar los productos" and offers a retry, which reads as
+  // the server's fault and blames the household for not pressing it.
   if (status === 'loading') {
     return (
-      <div className="item-list">
+      <div className="item-list item-list--stack">
+        {notice}
         {[0, 1, 2].map((i) => (
           <div key={i} className="item-list__skeleton" aria-hidden />
         ))}
@@ -80,11 +88,14 @@ export function ItemList({
 
   if (status === 'error') {
     return (
-      <div className="item-list item-list--centered">
-        <p>No se pudieron cargar los productos</p>
-        <button className="item-list__retry" onClick={onRetry}>
-          Reintentar
-        </button>
+      <div className="item-list item-list--stack">
+        {notice}
+        <div className="item-list--centered">
+          <p>No se pudieron cargar los productos</p>
+          <button className="item-list__retry" onClick={onRetry}>
+            Reintentar
+          </button>
+        </div>
       </div>
     )
   }
@@ -118,20 +129,23 @@ export function ItemList({
 
   if (active.length === 0 && cart.length === 0 && purchased.length === 0) {
     return (
-      <div className="item-list item-list--centered" style={{ gap: '0.75rem' }}>
-        <Mascot size={120} />
-        <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}>
-          Sin productos todavía
-        </p>
-        <p
-          style={{
-            margin: 0,
-            color: 'var(--color-text-secondary)',
-            fontSize: '0.9rem',
-          }}
-        >
-          Añade el primero desde abajo
-        </p>
+      <div className="item-list item-list--stack">
+        {notice}
+        <div className="item-list--centered" style={{ gap: '0.75rem' }}>
+          <Mascot size={120} />
+          <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}>
+            Sin productos todavía
+          </p>
+          <p
+            style={{
+              margin: 0,
+              color: 'var(--color-text-secondary)',
+              fontSize: '0.9rem',
+            }}
+          >
+            Añade el primero desde abajo
+          </p>
+        </div>
       </div>
     )
   }

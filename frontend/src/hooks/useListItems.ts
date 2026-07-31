@@ -115,7 +115,6 @@ export function useListItems(
   }, [listId, getToken])
 
   useEffect(() => {
-     
     void fetchAll()
   }, [fetchAll])
 
