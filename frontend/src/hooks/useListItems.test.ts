@@ -816,9 +816,12 @@ describe('useListItems — write queue on network error', () => {
 
   it('removeItem: rolls back with the generic toast on a non-409 server error', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    vi.mocked(api.deleteItem).mockRejectedValue(
-      new ApiError(500, 'Server Error'),
-    )
+    // `.status` by hand — the automock stubs the constructor body. Without it
+    // the status reads `undefined`, which `isRetryable` answers *false* to, so
+    // this test would assert a «Reintentar» the code correctly withheld.
+    const boom = new ApiError(500, 'Server Error')
+    boom.status = 500
+    vi.mocked(api.deleteItem).mockRejectedValue(boom)
 
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -976,5 +979,80 @@ describe('useListItems — savePrice converges on a retry', () => {
     })
 
     expect(api.updatePrice).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The rule AGENTS.md states as universal, asked of the six controls that
+ * predate the price toast. A row deleted on another phone is up to five
+ * seconds stale here, so a tap landing on a 404 is the ordinary case rather
+ * than an exotic one.
+ */
+describe('useListItems — a refusal that can never change its mind carries no retry', () => {
+  function apiErr(status: number, detail = 'boom') {
+    const err = new ApiError(status, detail)
+    // The automock keeps the class and stubs the constructor body, so this is
+    // what makes `status` readable. Without it every assertion below passes
+    // for the wrong reason.
+    err.status = status
+    return err
+  }
+
+  it('togglePurchased: a 404 says the true thing and offers nothing', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    vi.mocked(api.updateItem).mockRejectedValue(apiErr(404, 'Item not found'))
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'El producto ya no existe',
+      undefined,
+    )
+  })
+
+  it('togglePurchased: a 500 still offers the retry', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    vi.mocked(api.updateItem).mockRejectedValue(apiErr(500, 'Server Error'))
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se pudo actualizar el producto',
+      expect.objectContaining({ label: 'Reintentar', tone: 'tomate' }),
+    )
+  })
+
+  // A 404 on a delete is not a failure: the household asked for the row to be
+  // gone and it is gone. Restoring it put back a product somebody had already
+  // got rid of, behind a button that could only 404 again.
+  it('removeItem: a 404 leaves the row deleted and says nothing', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    vi.mocked(api.deleteItem).mockRejectedValue(apiErr(404, 'Item not found'))
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.removeItem('item-1')
+    })
+
+    expect(result.current.items).toHaveLength(0)
+    expect(mockShowToast).not.toHaveBeenCalled()
   })
 })

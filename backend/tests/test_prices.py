@@ -111,6 +111,30 @@ def test_patch_price_updates_item_fields(client: TestClient):
     assert updated["price_store"] == "Mercadona"
 
 
+def test_post_price_404s_for_an_item_that_does_not_exist(client: TestClient):
+    """The frontend's price fallback leans on this.
+
+    `savePrice` picks POST or PATCH from a local copy that a half-finished
+    attempt may have invalidated, so it reads a refusal as an answer about
+    *which verb was wanted* and repeats the write with the other one. But PATCH
+    answers 404 for two different facts — «no price yet» and «no item at all» —
+    and the client cannot tell them apart, so a deleted item takes the fallback
+    too.
+
+    That is safe only while `create_price` resolves the item *before* it checks
+    the price, so the fallback POST re-404s and the error surfaces unchanged.
+    Teach it to create the item as well and the client would start writing
+    against a precondition nobody checked. This test is what makes that go red.
+    """
+    lst = _make_list(client)
+
+    resp = client.post(
+        f"/lists/{lst['id']}/items/does-not-exist/prices",
+        json={"amount": 1.19},
+    )
+    assert resp.status_code == 404
+
+
 def test_patch_price_not_found_if_no_price(client: TestClient):
     lst = _make_list(client)
     item = _make_item(client, lst["id"])

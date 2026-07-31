@@ -409,7 +409,11 @@ Eight things this phase leaves standing, each with an issue — so none of them
 is a surprise to somebody reading «Cambios sin enviar» and taking it as
 complete.
 
-The one that most contradicts this spec's own argument goes first.
+The first two go first because they are one fact from two sides, and it is the
+fact that most contradicts this spec's own argument: **everything built here
+protects the queue, and there are writes that never reach it.** JAV-103 is a
+write with no queued form at all; JAV-97 is one that has a queued form and
+takes a path that skips it.
 
 - **A price never reaches the queue** (JAV-103). The case for building this
   sheet was that «for writes somebody typed and cannot re-type from memory, a
@@ -421,9 +425,6 @@ The one that most contradicts this spec's own argument goes first.
   `!navigator.onLine`, so on a connected-but-dead network — a captive portal, a
   basement with the association up and no route — it reads *online*, the gate
   is open, and the save is attempted in precisely the state where it fails.
-
-The first one changes how to read the rest: **everything built here protects
-the queue, and there is a path that never reaches the queue.**
 
 - **A write can name an id only this device has yet** (JAV-97). `addItem`
   paints its row under a temp id and enqueues only on a *network* error — so

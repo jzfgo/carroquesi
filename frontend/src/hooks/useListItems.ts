@@ -16,6 +16,7 @@ import { AVATAR_COLORS } from '../lib/avatarColors'
 import { itemState } from '../lib/itemState'
 import { isNetworkError } from '../lib/networkError'
 import { enqueue, newTempId } from '../lib/offlineQueue'
+import { isRetryable } from '../lib/queueCopy'
 import type { ListItem, Member, ParsedInput, TagField } from '../types'
 import type { ShowToast } from './useToast'
 
@@ -66,9 +67,35 @@ function saveListCache(
   }
 }
 
-/** The control that closes a notice about something the user typed and lost. */
-function retryAction(onAct: () => void): ToastAction {
-  return { label: 'Reintentar', tone: 'tomate', onAct }
+/**
+ * The control that closes a notice about something the user typed and lost —
+ * where sending it again could end differently, and nothing where it could not.
+ *
+ * The rule lives here rather than at the six call sites because it is one rule.
+ * Each site deciding a status at a time is how «Reintentar» ended up on a 404:
+ * the item was deleted on another phone, this screen is up to five seconds
+ * stale, and the tap lands on a row the server no longer has. Every press then
+ * repeats the same request for the same answer, which is the definition of a
+ * control known in advance to fail.
+ *
+ * Same `isRetryable` as «Cambios sin enviar», so the two screens cannot come to
+ * different conclusions about the same status.
+ */
+function retryAction(err: unknown, onAct: () => void): ToastAction | undefined {
+  const status = err instanceof ApiError ? err.status : 0
+  return isRetryable(status)
+    ? { label: 'Reintentar', tone: 'tomate', onAct }
+    : undefined
+}
+
+/**
+ * What to say when the server refused. «No se pudo …» is right for a failure;
+ * a 404 is not a failure of the write but a fact about the item, and the sheet
+ * already has the sentence for it.
+ */
+function refusalMessage(err: unknown, fallback: string): string {
+  const status = err instanceof ApiError ? err.status : 0
+  return status === 404 ? 'El producto ya no existe' : fallback
 }
 
 export function useListItems(
@@ -202,8 +229,8 @@ export function useListItems(
         } else {
           setItems(snapshot)
           showToast(
-            'No se pudo actualizar el producto',
-            retryAction(() => void toggle(itemId)),
+            refusalMessage(err, 'No se pudo actualizar el producto'),
+            retryAction(err, () => void toggle(itemId)),
           )
           return
         }
@@ -301,7 +328,7 @@ export function useListItems(
           } else {
             showToast(
               'No se pudo añadir el producto',
-              retryAction(() => void add(parsed)),
+              retryAction(err, () => void add(parsed)),
             )
           }
         }
@@ -330,8 +357,8 @@ export function useListItems(
         } else {
           setItems(snapshot)
           showToast(
-            'No se pudo actualizar el producto',
-            retryAction(() => void tag(itemId, field, value)),
+            refusalMessage(err, 'No se pudo actualizar el producto'),
+            retryAction(err, () => void tag(itemId, field, value)),
           )
         }
       }
@@ -357,8 +384,8 @@ export function useListItems(
         } else {
           setItems(snapshot)
           showToast(
-            'No se pudo actualizar el producto',
-            retryAction(() => void setStores(itemId, stores)),
+            refusalMessage(err, 'No se pudo actualizar el producto'),
+            retryAction(err, () => void setStores(itemId, stores)),
           )
         }
       }
@@ -385,8 +412,8 @@ export function useListItems(
         } else {
           setItems(snapshot)
           showToast(
-            'No se pudo renombrar el producto',
-            retryAction(() => void rename(itemId, name)),
+            refusalMessage(err, 'No se pudo renombrar el producto'),
+            retryAction(err, () => void rename(itemId, name)),
           )
         }
       }
@@ -409,6 +436,15 @@ export function useListItems(
             payload: { itemId },
             label: name,
           })
+        } else if (err instanceof ApiError && err.status === 404) {
+          // Not a failure. The row is gone because somebody else deleted it,
+          // which is what this tap asked for — so the optimistic removal
+          // stands, and there is nothing to say. Restoring it and answering
+          // «no se pudo eliminar» put back a product the household had already
+          // got rid of, over a control that could only 404 again.
+          //
+          // `handleDeletePrice` has read a 404 delete as success since before
+          // this phase; two answers to one status is the disagreement.
         } else if (err instanceof ApiError && err.status === 409) {
           // ItemDetailSheet already hides Eliminar for a filed item, so this
           // is the backstop for the race where the trip files (a receipt
@@ -421,7 +457,7 @@ export function useListItems(
           setItems(snapshot)
           showToast(
             'No se pudo eliminar el producto',
-            retryAction(() => void remove(itemId)),
+            retryAction(err, () => void remove(itemId)),
           )
         }
       }
