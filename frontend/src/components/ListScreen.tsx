@@ -1039,7 +1039,7 @@ export function ListScreen({
           if (editingTag.field === 'stores') {
             return (
               <StoreEditSheet
-          isOffline={isOffline}
+                isOffline={isOffline}
                 key={editingTag.itemId}
                 item={editedItem}
                 items={items}
@@ -1053,7 +1053,7 @@ export function ListScreen({
           }
           return (
             <TagEditSheet
-          isOffline={isOffline}
+              isOffline={isOffline}
               key={`${editingTag.itemId}-${editingTag.field}`}
               item={editedItem}
               field={editingTag.field}
@@ -1077,7 +1077,7 @@ export function ListScreen({
           if (!activeItem) return null
           return (
             <ItemDetailSheet
-          isOffline={isOffline}
+              isOffline={isOffline}
               item={activeItem}
               listId={listId}
               getToken={getToken}

@@ -1028,7 +1028,10 @@ describe('useListItems — no write leaves without a signal', () => {
     ['updateStores', (r) => r.current.updateStores('item-1', ['Lidl'])],
     ['renameItem', (r) => r.current.renameItem('item-1', 'Pan de molde')],
     ['removeItem', (r) => r.current.removeItem('item-1')],
-    ['savePrice', (r) => r.current.savePrice('item-1', 1.19, null, 'Lidl', '1')],
+    [
+      'savePrice',
+      (r) => r.current.savePrice('item-1', 1.19, null, 'Lidl', '1'),
+    ],
     ['clearItemPrice', (r) => r.current.clearItemPrice('item-1')],
   ]
 
@@ -1072,5 +1075,4 @@ describe('useListItems — no write leaves without a signal', () => {
       expect(result.current.items).toBe(before)
     },
   )
-
 })

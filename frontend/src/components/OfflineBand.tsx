@@ -1,8 +1,8 @@
 import { Cloud, CloudOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useIsOffline } from '../hooks/useIsOffline'
-import { AUTO_DISMISS_MS } from './Toast'
 import './OfflineBand.css'
+import { AUTO_DISMISS_MS } from './Toast'
 
 /**
  * What this device's connection is doing, said once for the whole app.

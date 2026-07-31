@@ -174,7 +174,6 @@ describe('StoreEditSheet', () => {
   })
 })
 
-
 describe('StoreEditSheet — with no connection', () => {
   // Every control in this sheet writes: `addStore` and `removeStore` both call
   // `onSave` straight away, so there is no local draft that could be kept.

@@ -333,7 +333,6 @@ describe('ItemDetailSheet', () => {
   })
 })
 
-
 describe('ItemDetailSheet — with no connection', () => {
   it('does not offer to rename', () => {
     const onRename = vi.fn()

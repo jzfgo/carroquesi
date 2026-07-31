@@ -15,7 +15,11 @@ interface Props {
   onClose: () => void
 }
 
-export function StoreEditSheet({ item, items, onSave, onClose,
+export function StoreEditSheet({
+  item,
+  items,
+  onSave,
+  onClose,
   isOffline = false,
 }: Props) {
   const [input, setInput] = useState('')

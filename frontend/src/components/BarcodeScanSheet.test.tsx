@@ -373,7 +373,6 @@ describe('BarcodeScanSheet', () => {
   })
 })
 
-
 describe('BarcodeScanSheet — with no connection', () => {
   it('does not offer to add the scanned product', () => {
     const onAdd = vi.fn()

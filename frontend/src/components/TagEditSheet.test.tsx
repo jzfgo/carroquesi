@@ -224,7 +224,6 @@ test('does not show suggestions for quantity field', () => {
   ).not.toBeInTheDocument()
 })
 
-
 describe('TagEditSheet — with no connection', () => {
   it('offers neither saving nor clearing the value', () => {
     const onSave = vi.fn()

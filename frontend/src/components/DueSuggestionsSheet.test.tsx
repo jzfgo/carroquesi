@@ -76,7 +76,6 @@ test('clicking overlay calls onClose', () => {
   expect(baseProps.onClose).toHaveBeenCalled()
 })
 
-
 describe('DueSuggestionsSheet — with no connection', () => {
   test('does not offer to add a suggestion', () => {
     const onAdd = vi.fn()
