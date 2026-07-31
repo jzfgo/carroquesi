@@ -170,8 +170,15 @@ export function ItemDetailSheet({
   }
 
   const sub = subtitle(item)
+  // A price in this app is always per unit or per weight, so the meta says
+  // which — that is the thing a figure on its own does not tell you. The
+  // quantity is not repeated here: it has its own row below (rule 3).
   const lastPriceMeta = [
-    item.quantity ? `${item.quantity}` : null,
+    item.price != null
+      ? item.price_per === 'KILOGRAM'
+        ? 'el kilo'
+        : 'la unidad'
+      : null,
     item.price_store,
     item.purchased_at ? formatShortDate(item.purchased_at) : null,
   ]
@@ -229,7 +236,8 @@ export function ItemDetailSheet({
               <div className="item-detail__last-figure">
                 {item.price != null ? (
                   <p className="item-detail__last-price t-price t-price--big">
-                    {formatPrice(item.price, item.price_per)}
+                    {/* No /kg here: the line below already says el kilo. */}
+                    {formatPrice(item.price)}
                   </p>
                 ) : (
                   <p className="item-detail__no-price">Todavía sin precio</p>

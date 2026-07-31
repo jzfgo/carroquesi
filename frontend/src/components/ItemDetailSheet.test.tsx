@@ -94,6 +94,34 @@ describe('ItemDetailSheet', () => {
     expect(screen.getByText('€ 5,34')).toBeInTheDocument()
   })
 
+  // A price here is always per unit or per weight. The figure alone does not
+  // say which, so the line under it does — once, and not on the figure too.
+  it('says what the price is per, and says it once', () => {
+    renderSheet()
+    expect(screen.getByText(/^la unidad · Mercadona/)).toBeInTheDocument()
+    expect(screen.getByText('€ 5,34')).toBeInTheDocument()
+  })
+
+  it('says el kilo for a price by weight', () => {
+    renderSheet({ price_per: 'KILOGRAM' })
+    expect(screen.getByText(/^el kilo · Mercadona/)).toBeInTheDocument()
+    // Not "€ 5,34/kg": the basis belongs in one place (rule 3).
+    expect(screen.getByText('€ 5,34')).toBeInTheDocument()
+  })
+
+  it('does not name a basis when there is no price to have one', () => {
+    renderSheet({ price: null, price_store: null })
+    expect(screen.queryByText(/la unidad|el kilo/)).not.toBeInTheDocument()
+  })
+
+  // The quantity has its own row. Repeating it here would be one fact in two
+  // places on one screen.
+  it('does not repeat the quantity above the record it belongs to', () => {
+    renderSheet({ quantity: '6 ud' })
+    expect(screen.getByText('6 ud')).toBeInTheDocument()
+    expect(screen.getAllByText('6 ud')).toHaveLength(1)
+  })
+
   it('says so plainly when nothing has been paid yet', () => {
     renderSheet({ price: null })
     expect(screen.getByText('Todavía sin precio')).toBeInTheDocument()
