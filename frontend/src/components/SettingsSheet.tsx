@@ -183,8 +183,18 @@ export function SettingsSheet({
     // a returning user — landing last, it would wipe the reveal the winner just
     // made and latch the row shut. Joining the same promise also keeps the
     // gesture, because the second tap still reaches the clipboard call.
+    //
+    // Nothing clears the ref on success, and nothing needs to: the two branches
+    // above answer once a key is known either way, so a settled promise is
+    // never reached again. Moving them below this leaves it reachable.
     const joining = issuingRef.current !== null
     const issued = (issuingRef.current ??= issueApiKey(getToken))
+
+    // Whether this answer still matters. Clearing the ref does not detach a
+    // handler already registered on the old promise, so a regenerate that
+    // finished while this was in flight would otherwise be undone by it —
+    // erasing a key issued a second ago, or showing one it just revoked.
+    const current = () => issuingRef.current === issued
 
     // Every tap copies — that is what keeps the second tap's gesture — but only
     // the tap that made the request speaks. Two of these would say «Clave
@@ -193,17 +203,17 @@ export function SettingsSheet({
     // so the sheet would report copied and not copied at once.
     const copied = copyWhenReady(
       issued.then(({ key }) => {
+        // The write is already in flight and waiting on this, so refusing it
+        // here is the only way to stop it. A regenerate that landed meanwhile
+        // has revoked this key, and a clipboard quietly holding a dead key is
+        // worse than one that was never touched: the sheet would be right and
+        // the paste would fail.
+        if (!current()) throw new Error('superseded by a regenerate')
         if (!key) throw new Error('no plaintext key to copy')
         return key
       }),
     )
     if (joining) return
-
-    // Whether this answer still matters. Clearing the ref does not detach a
-    // handler already registered on the old promise, so a regenerate that
-    // finished while this was in flight would otherwise be undone by it —
-    // erasing a key issued a second ago, or showing one it just revoked.
-    const current = () => issuingRef.current === issued
 
     void issued.then(
       async ({ key }) => {

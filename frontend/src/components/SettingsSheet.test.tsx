@@ -350,6 +350,58 @@ describe('SettingsSheet — the Siri shortcut', () => {
     )
   })
 
+  /**
+   * The other half of the same race. The identity guard keeps the stale answer
+   * out of the sheet, but the clipboard write is already in flight waiting on
+   * that answer, so the only way to stop it is to refuse the value.
+   *
+   * This asserts the payload rejects; that a rejected payload leaves the
+   * clipboard alone is `copyWhenReady`'s own contract, pinned in
+   * `clipboard.test.ts`.
+   */
+  it('refuses the pending clipboard write when a regenerate supersedes it', async () => {
+    let hand: (r: { key: string | null; created: boolean }) => void = () => {}
+    vi.mocked(api.issueApiKey).mockReturnValue(
+      new Promise<{ key: string | null; created: boolean }>((resolve) => {
+        hand = resolve
+      }) as never,
+    )
+    vi.mocked(api.regenerateApiKey).mockResolvedValue({
+      key: 'cqs_new-key',
+      regenerated_at: '',
+    } as never)
+
+    let payload: Promise<Blob> | undefined
+    vi.stubGlobal(
+      'ClipboardItem',
+      class ClipboardItemStub {
+        constructor(items: Record<string, Promise<Blob>>) {
+          payload = items['text/plain']
+        }
+      },
+    )
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { write: vi.fn().mockResolvedValue(undefined), writeText },
+      writable: true,
+      configurable: true,
+    })
+
+    render(<SettingsSheet {...apple} />)
+    fireEvent.click(screen.getByRole('button', { name: /^copiar$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^regenerar$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, regenerar/i }))
+    expect(await screen.findByText('cqs_new-key')).toBeInTheDocument()
+
+    await act(async () => {
+      hand({ key: 'cqs_revoked-key', created: true })
+    })
+
+    await expect(payload).rejects.toThrow(/superseded/)
+    // Nor may it reach the clipboard by the fallback path.
+    expect(writeText).not.toHaveBeenCalledWith('cqs_revoked-key')
+  })
+
   it('steers a returning user to regenerate, because the key is unrecoverable', async () => {
     render(<SettingsSheet {...apple} />)
     fireEvent.click(screen.getByRole('button', { name: /^copiar$/i }))
