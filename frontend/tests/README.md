@@ -30,6 +30,16 @@ One consequence is easy to get wrong. `timezoneId` pins the **browser**, and Pla
 
 One thing to know before you pin a spec that also adds items: `useListItems` builds the optimistic temporary id from the clock, so under a frozen one two adds in the same test produce the same id. No spec hits this today — the one that adds items is not pinned — but the combination is easy to reach from here.
 
+### A hairline can cost ten times the budget
+
+A 1px rule across a 1280px screen is 1280 pixels. Move it one row and the diff counts both rows: 2560, against a budget of 250. The screen looks identical, and no amount of staring at the two images finds it.
+
+That move is not a change anyone made. A rule lands on a whole device row only if the box it sits on does. `.item-detail` was capped at `88vh` — 633.6px on a 720px viewport — and sits on the bottom edge, so a fractional height gave it a fractional top; the heading added a second fraction, because 24px of type at 1.3 is a 31.2px line. Every rule in the sheet ended up about a tenth of a pixel from the point where the browser has to choose one row or the other, and the container and the CI runner chose differently.
+
+So when a visual check fails by thousands of pixels on a screen you believe you did not change, measure before you look. Count the differing pixels per row: a row at exactly the image width is a rule that moved, and the fix is upstream of the screenshot. `round(down, …, 1px)` on the offending height makes the geometry whole, with the plain value left above it as the fallback. Do not reach for the tolerance — a budget large enough to hide a moved hairline is large enough to hide four buttons.
+
+The residual after that is ordinary glyph antialiasing, and it does not respond to geometry. `price-history-open-*` is the densest screen in the suite and sits just over the budget on this account alone: the container renders it about 280 pixels away from what both CI and an Arch host render, and those two agree with each other exactly. Nothing is wrong with it, and there is nothing to fix in the app — it is the container being the outlier, on the one screen crowded enough for that to matter.
+
 ### Regenerating baselines
 
 Baselines must be generated in the container, never on your own machine. Every committed PNG came out of that one image, so it is the only machine whose output the rest of them still agree with. That holds whatever you run, Ubuntu included — the image carries a fixed set of font packages, which is not the set a desktop install of the same distribution ends up with.
