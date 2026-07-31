@@ -1,5 +1,5 @@
 import { ShoppingCart, Store } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { formatPrice } from '../lib/formatPrice'
 import { parseQuantityFactor } from '../lib/itemCost'
@@ -39,6 +39,16 @@ export default function LogPurchaseSheet({
 }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
+
+  // The same way out every other sheet offers. Dragging it down already
+  // closed it, so a keyboard was the one way in here with no way back.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [onClose])
 
   const stores = item.stores ?? []
   // Guard again here so the component stays self-contained if reused elsewhere
@@ -104,7 +114,13 @@ export default function LogPurchaseSheet({
   }
 
   return (
-    <div className="lps" ref={sheetRef}>
+    <div
+      className="lps"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Registrar compra: ${item.name}`}
+      ref={sheetRef}
+    >
       <div className="lps__handle" {...swipe} />
       <div className="lps__title">
         <ShoppingCart size={18} /> Registrar compra

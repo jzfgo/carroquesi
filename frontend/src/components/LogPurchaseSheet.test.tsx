@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ListItem } from '../types'
@@ -203,5 +203,42 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
 
     // 2.0 €/kg * 0.5 kg = 1.00 €
     expect(screen.getByText(/€ 1,00/i)).toBeInTheDocument()
+  })
+
+  // It is a sheet over a scrim like every other one, and it was the only one
+  // that never said so. A screen reader had nothing to tell it apart from the
+  // list behind it, and a keyboard had no way back out.
+  it('names itself as the dialog it is', () => {
+    render(
+      <LogPurchaseSheet
+        item={BASE_ITEM}
+        initialAmount={null}
+        initialPricePer={null}
+        initialStore={null}
+        initialPurchasedQuantity={null}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByRole('dialog', { name: 'Registrar compra: Leche' }),
+    ).toHaveAttribute('aria-modal', 'true')
+  })
+
+  it('closes on Escape', async () => {
+    const onClose = vi.fn()
+    render(
+      <LogPurchaseSheet
+        item={BASE_ITEM}
+        initialAmount={null}
+        initialPricePer={null}
+        initialStore={null}
+        initialPurchasedQuantity={null}
+        onSave={vi.fn()}
+        onClose={onClose}
+      />,
+    )
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalled()
   })
 })
