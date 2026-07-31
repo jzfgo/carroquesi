@@ -320,9 +320,7 @@ describe('ListScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
 
     // The sheet is the item, so the item's name is what names it.
-    expect(
-      screen.getByRole('dialog', { name: 'Manzanas' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Manzanas' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /^Nombre/ }))
     const input = screen.getByRole('textbox', { name: 'Nombre' })
@@ -346,9 +344,7 @@ describe('ListScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
 
-    expect(
-      screen.getByRole('dialog', { name: 'Manzanas' }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Manzanas' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /eliminar producto/i }))
     fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))

@@ -8,7 +8,7 @@ import { itemTrail } from '../lib/itemTrail'
 import { normalizeEntries, type ChartEntry } from '../lib/priceNormalization'
 import type { ListItem, Member, TagField } from '../types'
 import './ItemDetailSheet.css'
-import { PriceHistoryBlock } from './PriceHistoryBlock'
+import { PriceHistoryBlock, PriceSparkline } from './PriceHistoryBlock'
 
 type SubState = 'detail' | 'rename' | 'confirm-delete'
 
@@ -88,9 +88,7 @@ export function ItemDetailSheet({
     [addedBy, item.created_at, entries],
   )
 
-  const overlay = (
-    <div className="item-detail__overlay" onClick={onClose} />
-  )
+  const overlay = <div className="item-detail__overlay" onClick={onClose} />
 
   if (subState === 'rename') {
     const trimmed = renameValue.trim()
@@ -224,17 +222,24 @@ export function ItemDetailSheet({
 
         <div className="item-detail__scroll">
           <section className="item-detail__block">
-            <h3 className="t-eyebrow item-detail__block-title">Último precio</h3>
-            {item.price != null ? (
-              <p className="item-detail__last-price t-price t-price--big">
-                {formatPrice(item.price, item.price_per)}
-              </p>
-            ) : (
-              <p className="item-detail__no-price">Todavía sin precio</p>
-            )}
-            {lastPriceMeta && (
-              <p className="item-detail__last-meta">{lastPriceMeta}</p>
-            )}
+            <h3 className="t-eyebrow item-detail__block-title">
+              Último precio
+            </h3>
+            <div className="item-detail__last">
+              <div className="item-detail__last-figure">
+                {item.price != null ? (
+                  <p className="item-detail__last-price t-price t-price--big">
+                    {formatPrice(item.price, item.price_per)}
+                  </p>
+                ) : (
+                  <p className="item-detail__no-price">Todavía sin precio</p>
+                )}
+                {lastPriceMeta && (
+                  <p className="item-detail__last-meta">{lastPriceMeta}</p>
+                )}
+              </div>
+              <PriceSparkline entries={entries ?? []} />
+            </div>
             <PriceHistoryBlock
               entries={entries ?? []}
               onLogPrice={onLogPrice}

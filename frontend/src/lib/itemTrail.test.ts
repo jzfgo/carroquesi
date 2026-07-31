@@ -29,7 +29,11 @@ describe('itemTrail', () => {
 
   it('says nothing about who added it when the member is unknown', () => {
     expect(
-      itemTrail({ addedBy: null, createdAt: '2026-07-18T12:00:00', entries: [] }),
+      itemTrail({
+        addedBy: null,
+        createdAt: '2026-07-18T12:00:00',
+        entries: [],
+      }),
     ).toEqual([])
   })
 
@@ -43,7 +47,9 @@ describe('itemTrail', () => {
         entry({ purchased_at: '2026-05-02T12:00:00' }),
       ],
     })
-    expect(trail).toEqual(['Comprado 3 veces desde marzo, la última el 22 jul.'])
+    expect(trail).toEqual([
+      'Comprado 3 veces desde marzo, la última el 22 jul.',
+    ])
   })
 
   it('counts one purchase in words, not as a figure', () => {

@@ -86,6 +86,60 @@ describe('PriceHistoryBlock', () => {
     }
   })
 
+  // The three figures have to sit on one scale. When a history normalises,
+  // only the records that converted hold €/kg — reaching past them to an
+  // unconverted figure prints a per-unit price under a per-kilo label, which
+  // is a price nobody paid.
+  it('computes its three figures only from records on the same scale', () => {
+    render(
+      <PriceHistoryBlock
+        entries={[
+          // Newest, but per unit: it never converted, so it is not comparable.
+          entry({
+            originalAmount: 0.65,
+            displayAmount: null,
+            displayPricePer: 'KILOGRAM',
+          }),
+          entry({
+            originalAmount: 1.49,
+            displayAmount: 0.99,
+            displayPricePer: 'KILOGRAM',
+            purchased_at: '2026-07-15T12:00:00',
+          }),
+          entry({
+            originalAmount: 1.05,
+            displayAmount: 1.05,
+            displayPricePer: 'KILOGRAM',
+            purchased_at: '2026-07-08T12:00:00',
+          }),
+        ]}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Mercadona/ }))
+
+    expect(screen.getByText('Mínimo').textContent).toContain('0,99/kg')
+    expect(screen.getByText('Máximo').textContent).toContain('1,05/kg')
+    // The newest *comparable* record, not the newest record.
+    expect(screen.getByText('Último').textContent).toContain('0,99/kg')
+    expect(screen.getByText('Último').textContent).not.toContain('0,65')
+  })
+
+  it('has nothing to say when no record converted', () => {
+    render(
+      <PriceHistoryBlock
+        entries={[
+          entry({
+            originalAmount: 0.65,
+            displayAmount: null,
+            displayPricePer: 'KILOGRAM',
+          }),
+        ]}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Mercadona/ }))
+    expect(screen.getByText('Mínimo').textContent).toContain('—')
+  })
+
   // A screenshot cannot guard either of the next two. The ≈ is one glyph and
   // the ink of «sin precio» is a colour swap — both cost far less than the
   // suite's 250px absolute budget, so a baseline stays green without them.
@@ -168,7 +222,9 @@ describe('PriceHistoryBlock', () => {
 
   it('names the group for a record with no shop', () => {
     render(<PriceHistoryBlock entries={[entry({ store: null })]} />)
-    expect(screen.getByRole('button', { name: /Sin tienda/ })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Sin tienda/ }),
+    ).toBeInTheDocument()
   })
 
   it('says so plainly when there is no history at all', () => {

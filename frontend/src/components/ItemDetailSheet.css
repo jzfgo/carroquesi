@@ -62,18 +62,35 @@
   margin: 0 20px 8px;
 }
 
+.item-detail__last {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 20px;
+}
+
+.item-detail__last-figure {
+  min-width: 0;
+}
+
+.item-detail__last .phb__sparkline {
+  width: 96px;
+  height: 32px;
+}
+
 .item-detail__last-price {
-  margin: 0 20px;
+  margin: 0;
 }
 
 .item-detail__no-price {
-  margin: 0 20px;
+  margin: 0;
   font-size: var(--fs-18);
   color: var(--fg-subtle);
 }
 
 .item-detail__last-meta {
-  margin: 2px 20px 12px;
+  margin: 2px 0 0;
   font-size: var(--fs-14);
   color: var(--fg-subtle);
 }

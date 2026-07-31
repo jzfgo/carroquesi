@@ -55,6 +55,11 @@
   flex-shrink: 0;
 }
 
+/* The block's margin is its own; the sheet's price block sets its spacing. */
+.phb {
+  margin-top: 12px;
+}
+
 .phb__chevron {
   flex-shrink: 0;
   color: var(--ink-3);

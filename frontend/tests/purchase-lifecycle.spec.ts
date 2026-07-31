@@ -15,6 +15,7 @@ import {
 declare function getComputedStyle(el: unknown): {
   color: string
   backgroundColor: string
+  opacity: string
 }
 
 const LIST_ID = SEED_LISTS[0].id
@@ -31,12 +32,13 @@ async function gotoList(page: Page) {
 }
 
 /** The row carries no price control any more — brand, shop and price all live
- *  one tap in, on the item itself. */
+ *  one tap in, on the item itself. The history is a block of that sheet rather
+ *  than a sheet of its own, so opening the item is the whole journey. */
 async function openPrice(page: Page, name: string) {
   await itemCard(page, name).locator('.item-card__open').click()
   await page
-    .locator('.item-action-sheet')
-    .getByRole('button', { name: /precio/i })
+    .locator('.item-detail')
+    .getByRole('button', { name: 'Registrar un precio' })
     .click()
 }
 
@@ -142,12 +144,51 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await expect(
         page.getByText(ITEM_CAFE.brand ?? '', { exact: true }).first(),
       ).toBeVisible()
-      await expect(page.getByRole('button', { name: 'Renombrar' })).toHaveCount(
-        0,
-      )
+      // Bought, so the fields state themselves and no longer open an editor.
+      await expect(page.getByRole('button', { name: /^Nombre/ })).toHaveCount(0)
       await expect(
-        page.getByRole('button', { name: 'Comprar de nuevo' }),
+        page.getByRole('button', { name: 'Volver a comprar' }),
       ).toBeVisible()
+      await page.keyboard.press('Escape')
+    })
+
+    test('the item sheet states its price, then opens a shop where it stands', async ({
+      page,
+    }) => {
+      await gotoList(page)
+      await itemCard(page, ITEM_LECHE.name).locator('.item-card__open').click()
+
+      const sheet = page.locator('.item-detail')
+      await expect(sheet).toBeVisible()
+      // The four blocks of 22a, in the order a sheet is opened for. By role,
+      // because "Eliminar producto" also contains the word "Producto".
+      for (const block of ['Último precio', 'Producto', 'Rastro']) {
+        await expect(sheet.getByRole('heading', { name: block })).toBeVisible()
+      }
+      await expectScreenshot(page, `item-detail-${themeName}.png`)
+
+      // 22b: the shop opens in place. The others neither move nor fade.
+      // Scoped to the price block — the «Tiendas» field row names the shops too.
+      const shops = sheet.locator('.phb')
+      const alcampo = shops.getByRole('button', { name: /Alcampo/ })
+      const mercadona = shops.getByRole('button', { name: /Mercadona/ })
+      await expect(alcampo).toBeVisible()
+      await mercadona.click()
+      await expect(mercadona).toHaveAttribute('aria-expanded', 'true')
+      await expect(alcampo).toBeVisible()
+
+      // Rule 5 says the unopened shop is not dimmed. A screenshot cannot hold
+      // this on its own: an opacity of 0.4 on one row is well inside the
+      // tolerance the suite allows.
+      const faded = await alcampo.evaluate((el) => getComputedStyle(el).opacity)
+      expect(faded).toBe('1')
+
+      // A converted amount says so, and a shop that wrote nothing down says
+      // that too. Both are too small for the pixel budget to notice.
+      await expect(sheet.getByText('sin precio')).toBeVisible()
+      await expect(sheet.getByText(/≈/).first()).toBeVisible()
+      await expectScreenshot(page, `price-history-open-${themeName}.png`)
+
       await page.keyboard.press('Escape')
     })
 
@@ -158,10 +199,6 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await markPurchased(page, ITEM_CAFE.name)
 
       await openPrice(page, ITEM_CAFE.name)
-      await page
-        .locator('.phs')
-        .getByRole('button', { name: '+ Registrar precio' })
-        .click()
 
       const sheet = page.locator('.lps')
       await expect(sheet).toBeVisible()
@@ -205,10 +242,6 @@ for (const { name: themeName, colorScheme } of THEMES) {
       )
 
       await openPrice(page, ITEM_LECHE.name)
-      await page
-        .locator('.phs')
-        .getByRole('button', { name: 'Actualizar precio' })
-        .click()
       const sheet = page.locator('.lps')
       await sheet.getByRole('button', { name: 'Eliminar precio' }).click()
 

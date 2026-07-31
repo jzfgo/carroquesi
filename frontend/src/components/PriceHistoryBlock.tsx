@@ -39,10 +39,7 @@ function groupByStore(entries: ChartEntry[]): StoreGroup[] {
  */
 function recordedAmount(r: ChartEntry): string | null {
   if (r.originalAmount === null) return null
-  return formatAmount(
-    r.originalAmount,
-    r.originalPricePer as 'KILOGRAM' | null,
-  )
+  return formatAmount(r.originalAmount, r.originalPricePer as 'KILOGRAM' | null)
 }
 
 /** The €/kg the app worked out, when it is not simply the recorded figure. */
@@ -52,15 +49,33 @@ function convertedAmount(r: ChartEntry): string | null {
   return `≈ ${formatAmount(r.displayAmount, r.displayPricePer)}`
 }
 
-/** The series the three figures are computed over, on one consistent scale. */
-function comparableAmounts(records: ChartEntry[]): number[] {
-  const converted = records
-    .map((r) => r.displayAmount)
-    .filter((a): a is number => a !== null)
-  if (converted.length > 0) return converted
-  return records
-    .map((r) => r.originalAmount)
-    .filter((a): a is number => a !== null)
+/**
+ * The records the three figures may be computed over.
+ *
+ * displayAmount is the only field on one consistent scale: when the history
+ * normalises, every entry that could convert holds €/kg and the rest hold null.
+ * Falling back to originalAmount for those would put a per-unit price and a
+ * per-kilo price in the same comparison, and print the answer under whichever
+ * unit came first — a figure nobody ever paid.
+ */
+function comparableRecords(records: ChartEntry[]): ChartEntry[] {
+  return records.filter((r) => r.displayAmount !== null)
+}
+
+/**
+ * The whole history as one curve, for the top of the sheet. It answers "is it
+ * going up" without asking anyone to read a number, which is the reason 22a
+ * puts it beside the price rather than under the records.
+ */
+export function PriceSparkline({ entries }: { entries: ChartEntry[] }) {
+  // A shop that recorded no amount is left out rather than drawn as a break.
+  // The records below are where a gap is the point; up here the curve is only
+  // ever the prices there are, and severing it at a missing one says the price
+  // did something, which is exactly what nobody knows.
+  const byDate = comparableRecords(entries).sort((a, b) =>
+    (b.purchased_at ?? '').localeCompare(a.purchased_at ?? ''),
+  )
+  return <Chart records={byDate} />
 }
 
 function Chart({ records, tall }: { records: ChartEntry[]; tall?: boolean }) {
@@ -162,19 +177,15 @@ function Chart({ records, tall }: { records: ChartEntry[]; tall?: boolean }) {
 }
 
 function StoreDetail({ records }: { records: ChartEntry[] }) {
-  const comparable = comparableAmounts(records)
-  const pricePer = records.find((r) => r.displayAmount !== null)
-    ? records[0].displayPricePer
-    : (records[0].originalPricePer as 'KILOGRAM' | null)
-
-  const latest = records[0]
-  const latestFigure =
-    latest.displayAmount ?? latest.originalAmount ?? comparable[0] ?? null
+  // Records arrive newest first, so the first comparable one is the last price.
+  const comparable = comparableRecords(records)
+  const amounts = comparable.map((r) => r.displayAmount as number)
+  const pricePer = comparable[0]?.displayPricePer ?? null
 
   const stats: [string, number | null][] = [
-    ['Mínimo', comparable.length > 0 ? Math.min(...comparable) : null],
-    ['Máximo', comparable.length > 0 ? Math.max(...comparable) : null],
-    ['Último', latestFigure],
+    ['Mínimo', amounts.length > 0 ? Math.min(...amounts) : null],
+    ['Máximo', amounts.length > 0 ? Math.max(...amounts) : null],
+    ['Último', amounts.length > 0 ? amounts[0] : null],
   ]
 
   return (

@@ -81,7 +81,9 @@ beforeEach(() => {
 describe('ItemDetailSheet', () => {
   it('is named by the item, and says its brand and shops under it', async () => {
     renderSheet()
-    expect(screen.getByRole('dialog', { name: 'Leche entera' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('dialog', { name: 'Leche entera' }),
+    ).toBeInTheDocument()
     expect(
       screen.getByText('Puleva · en Mercadona y Alcampo'),
     ).toBeInTheDocument()
@@ -170,7 +172,9 @@ describe('ItemDetailSheet', () => {
 
     for (const field of ['Nombre', 'Marca', 'Cantidad', 'Tiendas']) {
       expect(screen.getByText(field)).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: new RegExp(`^${field}`) })).toBeNull()
+      expect(
+        screen.queryByRole('button', { name: new RegExp(`^${field}`) }),
+      ).toBeNull()
     }
   })
 

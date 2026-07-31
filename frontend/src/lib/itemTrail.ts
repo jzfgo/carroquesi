@@ -44,7 +44,9 @@ export function itemTrail({
     const first = purchases[0].purchased_at
     const last = purchases[purchases.length - 1].purchased_at
     const times =
-      purchases.length === 1 ? 'Comprado una vez' : `Comprado ${purchases.length} veces`
+      purchases.length === 1
+        ? 'Comprado una vez'
+        : `Comprado ${purchases.length} veces`
     sentences.push(
       `${times} desde ${month(first)}, la última el ${shortDate(last)}.`,
     )

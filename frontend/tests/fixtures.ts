@@ -52,6 +52,64 @@ export const SEED_LISTS: ApiList[] = [
   },
 ]
 
+/**
+ * A history worth drawing, for the one item the 22a/22b screenshots open.
+ * Every other item derives its single entry from its own price, which is what
+ * the endpoint returns for something bought once.
+ *
+ * The shapes here are the ones the block has to tell apart: two shops, a record
+ * whose amount converts to €/kg and so carries ≈, and a shop that recorded no
+ * amount at all. A null amount is a real response — the read returns anything
+ * bought, priced or not.
+ */
+export const SEED_PRICE_HISTORY: Record<
+  string,
+  {
+    amount: number | null
+    price_per: string | null
+    store: string | null
+    purchased_at: string | null
+    quantity: string | null
+  }[]
+> = {
+  // Every quantity is in litres so the whole history converts and stays on one
+  // scale. Mixing a count with a volume is a real case, but it leaves most of
+  // the records unconvertible and makes a poor thing to draw as canonical.
+  'item-leche': [
+    // The newest record is the item's own price, because that is what the
+    // item's price is. A fixture where the two disagree draws a sheet that
+    // contradicts itself.
+    {
+      amount: 0.65,
+      price_per: null,
+      store: 'Mercadona',
+      purchased_at: '2026-07-12T10:00:00',
+      quantity: '1 l',
+    },
+    {
+      amount: 1.05,
+      price_per: null,
+      store: 'Mercadona',
+      purchased_at: '2026-07-05T10:00:00',
+      quantity: '1 l',
+    },
+    {
+      amount: null,
+      price_per: null,
+      store: 'Mercadona',
+      purchased_at: '2026-06-21T10:00:00',
+      quantity: '1 l',
+    },
+    {
+      amount: 1.89,
+      price_per: null,
+      store: 'Alcampo',
+      purchased_at: '2026-06-03T10:00:00',
+      quantity: '2 l',
+    },
+  ],
+}
+
 export const SEED_ITEMS: Record<string, ListItem[]> = {
   'seed-list-compra': [
     {
@@ -590,8 +648,10 @@ export async function installApiMocks(page: Page): Promise<void> {
         if (!item) return json({ detail: 'Not found' }, 404)
 
         if (method === 'GET') {
+          const seeded = SEED_PRICE_HISTORY[itemId]
           const entries =
-            item.price != null
+            seeded ??
+            (item.price != null
               ? [
                   {
                     amount: item.price,
@@ -601,7 +661,7 @@ export async function installApiMocks(page: Page): Promise<void> {
                     quantity: item.quantity,
                   },
                 ]
-              : []
+              : [])
           return json({
             entries,
             community_price: null,
