@@ -15,12 +15,29 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.ts',
       injectManifest: {
-        // The default glob is `{js,css,html,ico,png,svg}` — no woff2. Without
-        // this line the vendored faces build and serve but are never precached,
-        // so an offline open falls back to a system face and says nothing about
-        // it, because everything still renders. Self-hosting without this is
-        // self-hosting that does not reach the case it was for.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // ADR-009 says leave this unset, and it is right about why: the PWA
+        // icons come from `manifest.icons` via `includeManifestIcons`, not from
+        // here, so a "safety" pattern naming png/svg/ico protects nothing and
+        // sweeps every image in the tree into the first install. This is the
+        // one thing it does not cover — woff2 is absent from workbox-build's
+        // default `**/*.{js,wasm,css,html}` (`InjectManifestOptions.json`;
+        // vite-plugin-pwa supplies no default of its own), so without naming it
+        // the vendored faces build and serve but never precache, and an offline
+        // open falls back to a system face while everything still renders.
+        //
+        // So: the default, plus woff2, and nothing else. `wasm` is carried
+        // through unused rather than dropped — narrowing the default is a
+        // separate decision from widening it. Measured, per ADR-009's rule that
+        // a successful build proves nothing here:
+        //
+        //   unset (default)                    10 entries,  707.26 KiB
+        //   default + woff2       (this line)  20 entries,  953.85 KiB
+        //   …,ico,png,svg,woff2                32 entries, 2443.82 KiB
+        //
+        // The third is what this file said until the review caught it: 1.5 MB
+        // of icons and mascot, added by a change whose whole payload was 247 KB
+        // of fonts.
+        globPatterns: ['**/*.{js,wasm,css,html,woff2}'],
       },
       devOptions: {
         enabled: true,
