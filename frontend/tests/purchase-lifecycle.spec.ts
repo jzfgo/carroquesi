@@ -196,11 +196,33 @@ for (const { name: themeName, colorScheme } of THEMES) {
       const faded = await alcampo.evaluate((el) => getComputedStyle(el).opacity)
       expect(faded).toBe('1')
 
-      // A converted amount says so, and a shop that wrote nothing down says
-      // that too. Both are too small for the pixel budget to notice.
-      await expect(sheet.getByText('sin precio')).toBeVisible()
-      await expect(sheet.getByText(/≈/).first()).toBeVisible()
-      await expectScreenshot(page, `price-history-open-${themeName}.png`)
+      // The opened shop is asserted rather than photographed, and the reason is
+      // measured rather than assumed. A screenshot of it differs by ~280 pixels
+      // between the container every baseline comes from and both CI and a
+      // developer's machine — those two agreeing with each other exactly. It is
+      // not geometry and not a missing font: the sheet's rules land on whole
+      // pixels, and JetBrains Mono loads and draws identically in both (a bare
+      // family measures 80px either side). It is the rasterisation of this
+      // panel's dense mono figures, which the two font stacks hint differently.
+      // Nothing in the app can move that, and the budget is a number to lower
+      // rather than raise, so this screen carries no baseline and states its
+      // contents instead. `item-detail-*` above still photographs the sheet.
+      const detail = sheet.locator('.phb__detail')
+      // The three figures, on one scale, over the records they are computed
+      // from — the thing the panel exists to say.
+      await expect(detail.getByText('Mínimo').first()).toContainText('0,65/kg')
+      await expect(detail.getByText('Máximo').first()).toContainText('1,05/kg')
+      await expect(detail.getByText('Último').first()).toContainText('0,65/kg')
+      // A shop that wrote nothing down says so, and a converted amount carries
+      // its ≈ beside the figure somebody confirmed. Both were always too small
+      // for the pixel budget to notice.
+      await expect(detail.getByText('sin precio')).toBeVisible()
+      await expect(detail.locator('.phb__record-converted').first()).toHaveText(
+        '≈ 0,65/kg',
+      )
+      // Three visits at this shop, two of them with a price.
+      await expect(detail.locator('.phb__record')).toHaveCount(3)
+      await expect(mercadona).toContainText('2 precios · último 12 jul')
 
       await page.keyboard.press('Escape')
     })
