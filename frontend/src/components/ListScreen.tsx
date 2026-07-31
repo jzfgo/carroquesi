@@ -1029,7 +1029,14 @@ export function ListScreen({
                 setActiveItemId(null)
                 handleTagClick(activeItemId, field)
               }}
-              onLogPrice={() => handleOpenLogPrice(activeItemId)}
+              // Closed first, like every other way out of this sheet. Left
+              // open it would sit under the price sheet as a second modal
+              // dialog, still listening for Escape — so Escape would shut the
+              // sheet behind and leave the one in front standing.
+              onLogPrice={() => {
+                setActiveItemId(null)
+                handleOpenLogPrice(activeItemId)
+              }}
               onRename={(name) => {
                 void renameItem(activeItemId, name)
                 setActiveItemId(null)

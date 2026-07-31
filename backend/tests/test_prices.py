@@ -209,6 +209,55 @@ def test_get_price_history_includes_purchase_without_price(
     assert amounts == [None, 0.89]
 
 
+def test_get_price_history_names_the_shop_from_the_trip(client: TestClient, httpx_mock: HTTPXMock):
+    """A shop that wrote no amount still knows where it happened.
+
+    price_store is only written next to a price, so these rows carry none of
+    their own. Without the trip to fall back on they would all pile up under
+    "no shop", which is the one thing the history is sure is wrong.
+    """
+    httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
+    ean = "8410188066666"
+    lst = _make_list(client)
+    priced = _make_item(client, lst["id"], name="Leche", ean=ean)
+    _set_price(client, lst["id"], priced["id"], 0.89, store="Mercadona")
+    client.patch(f"/lists/{lst['id']}/items/{priced['id']}", json={"purchased": True})
+
+    # The same product bought again, with nobody writing the price down.
+    silent = _make_item(client, lst["id"], name="Leche entera", ean=ean)
+    client.patch(f"/lists/{lst['id']}/items/{silent['id']}", json={"purchased": True})
+    closed = client.post(f"/lists/{lst['id']}/purchases/close", json={"store": "Lidl"})
+    assert closed.status_code == 200
+
+    resp = client.get(f"/lists/{lst['id']}/items/{priced['id']}/prices?scope=this_list")
+    assert resp.status_code == 200
+    stores = {e["amount"]: e["store"] for e in resp.json()["entries"]}
+    # Its own price_store still wins where there is one.
+    assert stores[0.89] == "Mercadona"
+    assert stores[None] == "Lidl"
+
+
+def test_get_price_history_leaves_a_midnight_trip_unplaced(
+    client: TestClient, httpx_mock: HTTPXMock
+):
+    """Nobody named this shop, so the history does not invent one."""
+    httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
+    ean = "8410188055555"
+    lst = _make_list(client)
+    priced = _make_item(client, lst["id"], name="Leche", ean=ean)
+    _set_price(client, lst["id"], priced["id"], 0.89, store="Mercadona")
+    client.patch(f"/lists/{lst['id']}/items/{priced['id']}", json={"purchased": True})
+
+    # Purchased, attached to a trip that was never closed by a person.
+    silent = _make_item(client, lst["id"], name="Leche entera", ean=ean)
+    client.patch(f"/lists/{lst['id']}/items/{silent['id']}", json={"purchased": True})
+
+    resp = client.get(f"/lists/{lst['id']}/items/{priced['id']}/prices?scope=this_list")
+    assert resp.status_code == 200
+    stores = {e["amount"]: e["store"] for e in resp.json()["entries"]}
+    assert stores[None] is None
+
+
 def test_get_price_history_my_lists_by_ean(client: TestClient, httpx_mock: HTTPXMock):
     httpx_mock.add_response(json=_OPEN_PRICES_EMPTY)
     ean = "8410188022222"

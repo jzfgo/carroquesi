@@ -173,17 +173,19 @@ export function ItemDetailSheet({
   // A price in this app is always per unit or per weight, so the meta says
   // which — that is the thing a figure on its own does not tell you. The
   // quantity is not repeated here: it has its own row below (rule 3).
-  const lastPriceMeta = [
-    item.price != null
-      ? item.price_per === 'KILOGRAM'
-        ? 'el kilo'
-        : 'la unidad'
-      : null,
-    item.price_store,
-    item.purchased_at ? formatShortDate(item.purchased_at) : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  // Every part of this line describes the price above it, the date included. An
+  // item with no price has nothing for it to describe, and a date on its own
+  // under «Todavía sin precio» reads as the day of a price nobody recorded.
+  const lastPriceMeta =
+    item.price == null
+      ? ''
+      : [
+          item.price_per === 'KILOGRAM' ? 'el kilo' : 'la unidad',
+          item.price_store,
+          item.purchased_at ? formatShortDate(item.purchased_at) : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
 
   // Purchased items are mostly read-only. The handoff never drew this case, so
   // the app's own rule decides it.

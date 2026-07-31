@@ -1,12 +1,6 @@
 import { formatPrice } from './formatPrice'
+import { formatShortDate } from './formatShortDate'
 import type { ChartEntry } from './priceNormalization'
-
-function shortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-ES', {
-    day: 'numeric',
-    month: 'short',
-  })
-}
 
 function month(iso: string): string {
   return new Date(iso).toLocaleDateString('es-ES', { month: 'long' })
@@ -31,7 +25,7 @@ export function itemTrail({
   const sentences: string[] = []
 
   if (addedBy) {
-    sentences.push(`Lo añadió ${addedBy} el ${shortDate(createdAt)}.`)
+    sentences.push(`Lo añadió ${addedBy} el ${formatShortDate(createdAt)}.`)
   }
 
   const purchases = entries
@@ -48,20 +42,28 @@ export function itemTrail({
         ? 'Comprado una vez'
         : `Comprado ${purchases.length} veces`
     sentences.push(
-      `${times} desde ${month(first)}, la última el ${shortDate(last)}.`,
+      `${times} desde ${month(first)}, la última el ${formatShortDate(last)}.`,
     )
   }
 
   // Only what somebody confirmed, and only when the two ends differ: "se paga
   // entre X y X" says less than the price already said.
-  const amounts = entries
-    .map((e) => e.originalAmount)
-    .filter((a): a is number => a !== null)
+  //
+  // The two ends have to be on one scale. displayAmount is that scale: it holds
+  // the recorded figure when the history did not convert anything, and €/kg for
+  // every record that could convert when it did. Reading the recorded figures
+  // instead would join a per-unit price and a per-kilo price with "entre", and
+  // this sentence has no column heading to warn anyone.
+  const comparable = entries.filter((e) => e.displayAmount !== null)
+  const amounts = comparable.map((e) => e.displayAmount as number)
   if (amounts.length > 1) {
     const min = Math.min(...amounts)
     const max = Math.max(...amounts)
+    const pricePer = comparable[0].displayPricePer
     if (min !== max) {
-      sentences.push(`Se paga entre ${formatPrice(min)} y ${formatPrice(max)}.`)
+      sentences.push(
+        `Se paga entre ${formatPrice(min, pricePer)} y ${formatPrice(max, pricePer)}.`,
+      )
     }
   }
 

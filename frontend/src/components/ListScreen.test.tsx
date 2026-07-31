@@ -307,6 +307,30 @@ describe('ListScreen', () => {
     ])
   })
 
+  // Two modal dialogs open at once is one too many. The item sheet listens for
+  // Escape on the document, so left standing behind the price sheet it would
+  // answer a key meant for the sheet in front and shut itself instead.
+  it('closes the item sheet when the price sheet opens over it', async () => {
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Manzanas' })],
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
+    expect(document.querySelector('.item-detail')).toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /registrar un precio/i }),
+    )
+
+    expect(document.querySelector('.lps')).toBeInTheDocument()
+    expect(document.querySelector('.item-detail')).not.toBeInTheDocument()
+    // Nothing is left listening for a key it should no longer answer.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(document.querySelector('.lps')).toBeInTheDocument()
+  })
+
   it('opens ItemDetailSheet when the row is tapped and handles rename', async () => {
     const renameItemMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({

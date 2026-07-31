@@ -99,11 +99,12 @@ def get_price_history(
 ):
     item = _get_item_or_404(session, item_id, list_id)
     items = _query_by_scope(session, item, scope, current_user.id)
+    trip_stores = _trip_stores(session, items)
     entries = [
         PriceEntry(
             amount=i.price,
             price_per=i.price_per,
-            store=i.price_store,
+            store=i.price_store or trip_stores.get(i.purchase_id or ""),
             purchased_at=i.purchased_at.isoformat() if i.purchased_at else None,
             quantity=i.quantity,
         )
@@ -117,6 +118,22 @@ def get_price_history(
         community_price=community_price,
         community_price_per=community_price_per,
     )
+
+
+def _trip_stores(session: Session, items: list[ListItem]) -> dict[str, str | None]:
+    """The shop each trip named, for the rows that do not carry one themselves.
+
+    `price_store` is only ever written next to a price, so a shop that recorded
+    no amount has none. The trip it belongs to still knows where it happened,
+    and that is the same answer — so the history files the row under the shop
+    instead of stranding it under "no shop". A trip filed by midnight rather
+    than by a person names none either, and those stay unplaced.
+    """
+    wanted = {i.purchase_id for i in items if i.price_store is None and i.purchase_id}
+    if not wanted:
+        return {}
+    trips = session.exec(select(Purchase).where(Purchase.id.in_(wanted))).all()
+    return {t.id: t.store for t in trips}
 
 
 def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list[ListItem]:

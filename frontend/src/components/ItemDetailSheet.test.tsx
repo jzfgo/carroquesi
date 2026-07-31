@@ -114,6 +114,19 @@ describe('ItemDetailSheet', () => {
     expect(screen.queryByText(/la unidad|el kilo/)).not.toBeInTheDocument()
   })
 
+  // The whole line describes the price above it, the date included. Left in on
+  // its own it reads as the day of a price nobody ever recorded.
+  it('drops the date too when there is no price', () => {
+    renderSheet({
+      price: null,
+      price_store: null,
+      purchased: true,
+      purchased_at: '2026-07-15T12:00:00',
+    })
+    expect(screen.getByText('Todavía sin precio')).toBeInTheDocument()
+    expect(screen.queryByText('15 jul')).not.toBeInTheDocument()
+  })
+
   // The quantity has its own row. Repeating it here would be one fact in two
   // places on one screen.
   it('does not repeat the quantity above the record it belongs to', () => {

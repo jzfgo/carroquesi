@@ -86,6 +86,48 @@ describe('PriceHistoryBlock', () => {
     }
   })
 
+  // The stats and the curve read the same records, so they have to agree about
+  // which ones count. A record that would not convert has a price, but not one
+  // this axis can hold — plotting it would scale the curve to a figure nobody
+  // paid, directly under three stats that correctly ignore it.
+  it('draws the curve as though an unconvertible record were not there', () => {
+    const older = entry({
+      originalAmount: 1.05,
+      displayAmount: 1.05,
+      displayPricePer: 'KILOGRAM',
+      purchased_at: '2026-07-08T12:00:00',
+    })
+    const newer = entry({
+      originalAmount: 1.49,
+      displayAmount: 0.99,
+      displayPricePer: 'KILOGRAM',
+      purchased_at: '2026-07-15T12:00:00',
+    })
+    // Dated between the other two, so it cannot change the curve's time span.
+    const unconvertible = entry({
+      originalAmount: 0.65,
+      displayAmount: null,
+      displayPricePer: 'KILOGRAM',
+      purchased_at: '2026-07-11T12:00:00',
+    })
+
+    function curve(entries: ChartEntry[]): string | null {
+      const view = render(<PriceHistoryBlock entries={entries} />)
+      fireEvent.click(
+        within(view.container).getByRole('button', { name: /Mercadona/ }),
+      )
+      const d = view.container
+        .querySelector('.phb__chart .phb__chart-line')
+        ?.getAttribute('d')
+      view.unmount()
+      return d ?? null
+    }
+
+    const withIt = curve([newer, unconvertible, older])
+    expect(withIt).not.toBeNull()
+    expect(withIt).toBe(curve([newer, older]))
+  })
+
   // The three figures have to sit on one scale. When a history normalises,
   // only the records that converted hold €/kg — reaching past them to an
   // unconverted figure prints a per-unit price under a per-kilo label, which

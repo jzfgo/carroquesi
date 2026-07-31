@@ -68,20 +68,22 @@ function comparableRecords(records: ChartEntry[]): ChartEntry[] {
  * puts it beside the price rather than under the records.
  */
 export function PriceSparkline({ entries }: { entries: ChartEntry[] }) {
-  // A shop that recorded no amount is left out rather than drawn as a break.
-  // The records below are where a gap is the point; up here the curve is only
-  // ever the prices there are, and severing it at a missing one says the price
-  // did something, which is exactly what nobody knows.
-  const byDate = comparableRecords(entries).sort((a, b) =>
+  const byDate = [...entries].sort((a, b) =>
     (b.purchased_at ?? '').localeCompare(a.purchased_at ?? ''),
   )
   return <Chart records={byDate} />
 }
 
 function Chart({ records, tall }: { records: ChartEntry[]; tall?: boolean }) {
-  const reversed = [...records].reverse()
-  const amounts = reversed.map((r) => r.displayAmount ?? r.originalAmount)
-  const valid = amounts.filter((a): a is number => a !== null)
+  // Only the records this axis can hold. One that recorded no amount has no
+  // price to draw. One that would not convert has a price, but not on the scale
+  // the rest of the curve is using — plotting it anyway plants a per-unit price
+  // on a per-kilo axis and draws a climb nobody paid. Both are stated in the
+  // list below, where a row can say in words what happened. Drawing either as a
+  // break in the line would instead claim the price did something across that
+  // stretch, which is the one thing nobody knows.
+  const reversed = comparableRecords(records).reverse()
+  const amounts = reversed.map((r) => r.displayAmount as number)
 
   const w = tall ? 200 : 60
   const h = tall ? 48 : 28
@@ -105,54 +107,21 @@ function Chart({ records, tall }: { records: ChartEntry[]; tall?: boolean }) {
     return pad + ((times[i]! - minMs) / timeRange) * (w - 2 * pad)
   }
 
-  if (valid.length < 2) return null
+  // One price is a dot, not a curve, and says nothing about a direction.
+  if (amounts.length < 2) return null
 
-  const min = Math.min(...valid)
-  const max = Math.max(...valid)
+  const min = Math.min(...amounts)
+  const max = Math.max(...amounts)
   const range = max - min || 1
   // A flat series sits in the middle rather than along the top edge.
   const getY = (amount: number) =>
     min === max ? h / 2 : pad + ((max - amount) / range) * (h - 2 * pad)
 
-  const pts = amounts.map((a, i) => ({
-    x: getX(i),
-    y: a === null ? null : getY(a),
-  }))
-
+  const pts = amounts.map((a, i) => ({ x: getX(i), y: getY(a) }))
   const line = pts
-    .map((pt, i) => {
-      if (pt.y === null) return null
-      const prev = i > 0 ? pts[i - 1] : null
-      const cmd = prev === null || prev.y === null ? 'M' : 'L'
-      return `${cmd}${pt.x.toFixed(1)},${pt.y.toFixed(1)}`
-    })
-    .filter(Boolean)
+    .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`)
     .join(' ')
-
-  // Fill under each unbroken run of two or more points. A run of one has no
-  // area, and filling across a gap would draw a price nobody recorded.
-  const areas: string[] = []
-  let runStart: number | null = null
-  for (let i = 0; i <= pts.length; i++) {
-    const isValid = i < pts.length && pts[i].y !== null
-    if (isValid && runStart === null) {
-      runStart = i
-    } else if (!isValid && runStart !== null) {
-      const run = pts.slice(runStart, i)
-      if (run.length >= 2) {
-        const runLine = run
-          .map(
-            (p, j) =>
-              `${j === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y!.toFixed(1)}`,
-          )
-          .join(' ')
-        areas.push(
-          `${runLine} L${run[run.length - 1].x.toFixed(1)},${h} L${run[0].x.toFixed(1)},${h} Z`,
-        )
-      }
-      runStart = null
-    }
-  }
+  const area = `${line} L${pts[pts.length - 1].x.toFixed(1)},${h} L${pts[0].x.toFixed(1)},${h} Z`
 
   return (
     <svg
@@ -161,17 +130,13 @@ function Chart({ records, tall }: { records: ChartEntry[]; tall?: boolean }) {
       preserveAspectRatio="none"
       aria-hidden="true"
     >
-      {areas.map((d, i) => (
-        <path key={i} d={d} className="phb__chart-area" />
-      ))}
-      {line && (
-        <path
-          d={line}
-          className="phb__chart-line"
-          strokeWidth={tall ? 2 : 1.5}
-          fill="none"
-        />
-      )}
+      <path d={area} className="phb__chart-area" />
+      <path
+        d={line}
+        className="phb__chart-line"
+        strokeWidth={tall ? 2 : 1.5}
+        fill="none"
+      />
     </svg>
   )
 }

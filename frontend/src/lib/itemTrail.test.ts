@@ -6,12 +6,17 @@ import type { ChartEntry } from './priceNormalization'
 // timezone — only the browser's is pinned — so a midnight timestamp would land
 // on a different day depending on where the suite runs.
 function entry(over: Partial<ChartEntry> = {}): ChartEntry {
+  // The two amounts default to the same number because that is what a history
+  // that converted nothing looks like. Letting them drift apart by accident
+  // builds a record no normalisation can produce.
+  const originalAmount =
+    over.originalAmount === undefined ? 1 : over.originalAmount
   return {
-    displayAmount: 1,
+    displayAmount: originalAmount,
     displayPricePer: null,
     store: 'Mercadona',
     purchased_at: '2026-03-18T12:00:00',
-    originalAmount: 1,
+    originalAmount,
     originalPricePer: null,
     ...over,
   }
@@ -81,6 +86,36 @@ describe('itemTrail', () => {
       entries: [entry({ originalAmount: 5.1 }), entry({ originalAmount: 5.1 })],
     })
     expect(trail.some((s) => s.startsWith('Se paga'))).toBe(false)
+  })
+
+  // The sentence has no column heading to warn anyone, so both ends have to be
+  // the same kind of number. A history holding a per-kilo price and a per-unit
+  // one converts what it can and leaves the rest without a display amount.
+  it('keeps both ends of the range on one scale, and says which', () => {
+    const trail = itemTrail({
+      addedBy: null,
+      createdAt: '2026-03-01T12:00:00',
+      entries: [
+        entry({
+          originalAmount: 1.49,
+          displayAmount: 0.99,
+          displayPricePer: 'KILOGRAM',
+        }),
+        entry({
+          originalAmount: 1.2,
+          displayAmount: 1.2,
+          displayPricePer: 'KILOGRAM',
+          originalPricePer: 'KILOGRAM',
+        }),
+        // Per unit, and no quantity to convert it: not on this scale at all.
+        entry({
+          originalAmount: 5.34,
+          displayAmount: null,
+          displayPricePer: 'KILOGRAM',
+        }),
+      ],
+    })
+    expect(trail[1]).toBe('Se paga entre € 0,99/kg y € 1,20/kg.')
   })
 
   it('ignores a shop that recorded no amount when working out the range', () => {
