@@ -13,9 +13,9 @@ import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import { useQueueDrain } from '../hooks/useQueueDrain'
 import * as api from '../lib/api'
-import { ApiError } from '../lib/api'
 import * as offlineQueue from '../lib/offlineQueue'
 import * as receiptAi from '../lib/receiptAi'
+import { apiError } from '../lib/testApiError'
 import { madridDay } from '../lib/tripDay'
 import type { BarcodeRead, ListItem, ReceiptScanResult } from '../types'
 import { ListScreen } from './ListScreen'
@@ -443,8 +443,7 @@ describe('ListScreen', () => {
    * press now that `savePrice` falls back.
    */
   it('offers no retry on a refusal that can never succeed', async () => {
-    const gone = new ApiError(404, 'Item not found')
-    gone.status = 404
+    const gone = apiError(404, 'Item not found')
     const savePriceMock = vi.fn().mockRejectedValue(gone)
     vi.mocked(api.getPriceHistory).mockResolvedValue({ entries: [] } as never)
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
@@ -2084,7 +2083,7 @@ describe('writing down a trip that already tore off', () => {
 
   it('keeps the sheet open when the close is refused', async () => {
     vi.mocked(api.closePurchase).mockRejectedValue(
-      new api.ApiError(400, 'Some items are not in the trip being closed'),
+      apiError(400, 'Some items are not in the trip being closed'),
     )
     renderWithUnfiledTicket()
 

@@ -77,12 +77,23 @@ export function failureCause(status: number, type: QueuedOp['type']): string {
  * Whether sending the same thing again could ever end differently.
  *
  * One rule: a status that states a fact about the data will say the same thing
- * to the same request, and a status about who you are or how busy the server
- * is will not. So a line the server can never accept is drawn without a retry
- * — offering one there is a control that is known in advance to fail.
+ * to the same request, and a status about how busy the server is — or about a
+ * credential that can be refreshed — will not. So a line the server can never
+ * accept is drawn without a retry: offering one there is a control that is
+ * known in advance to fail.
+ *
+ * **401 is here and 403 is not**, which looks inconsistent and is not. A 401 is
+ * answered by the next call carrying a fresh token. Every 403 this backend
+ * raises is a standing fact about the caller — not a member, not the owner, not
+ * an admin, still on the waitlist, the feature flag off, the invite addressed
+ * to somebody else — and none of them is changed by asking again. Being removed
+ * from a list would otherwise put a *Reintentar* on every write, forever.
+ *
+ * This is asked of a live button under a thumb as well as of a row in a sheet,
+ * so a status has to be wrong in only one of those places to be wrong here.
  */
 export function isRetryable(status: number): boolean {
-  if (status === 401 || status === 403 || status === 408 || status === 429) {
+  if (status === 401 || status === 408 || status === 429) {
     return true
   }
   // Below 400 is the failure that threw without an HTTP answer to read. Not

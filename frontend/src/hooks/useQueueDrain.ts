@@ -180,7 +180,23 @@ export function useQueueDrain({
           let p = op.payload as { itemId: string }
           const realId = tempIdMap.get(p.itemId)
           if (realId) p = { ...p, itemId: realId }
-          await deleteItem(getToken, op.listId, p.itemId)
+          // A 404 is not a refusal here, for the same reason it is not one on
+          // the online path: the row is gone, which is exactly what the tap
+          // asked for. Somebody deletes a product in the shop with no signal,
+          // a flatmate deletes the same one from home, and on reconnect this
+          // answers 404 — nothing failed, and both are agreed.
+          //
+          // Called a refusal it is worse here than it ever was on a toast:
+          // `isRetryable(404)` is false and `failureCause` reads «el producto
+          // ya no existe», so the sheet holds a terminal row whose only door
+          // is «Descartarlos» — a lost write reported, counted in the band,
+          // and left for the household to dismiss by hand. A toast at least
+          // leaves after six seconds.
+          try {
+            await deleteItem(getToken, op.listId, p.itemId)
+          } catch (err) {
+            if (!(err instanceof ApiError && err.status === 404)) throw err
+          }
           sent = true
         } else if (op.type === 'closePurchase') {
           const p = op.payload as PurchaseClosePayload

@@ -10,21 +10,10 @@ import {
   remove,
   type QueuedOp,
 } from '../lib/offlineQueue'
+import { apiError } from '../lib/testApiError'
 import { useQueueDrain } from './useQueueDrain'
 
 vi.mock('../lib/api')
-
-/**
- * `vi.mock('../lib/api')` is an automock: it keeps the class, so
- * `instanceof ApiError` still passes, but stubs the constructor body and
- * leaves `status` undefined. The status is the whole input to the cause and to
- * whether a line may be retried, so it is set by hand here.
- */
-function apiError(status: number): api.ApiError {
-  const err = new api.ApiError(status, 'boom')
-  err.status = status
-  return err
-}
 
 const mockGetToken = vi.fn(async () => 'token')
 const mockOnDrained = vi.fn()
@@ -722,5 +711,50 @@ describe('useQueueDrain — the store fails after the server took it', () => {
 
     spy.mockRestore()
     warn.mockRestore()
+  })
+})
+
+/**
+ * The online path stopped calling a 404 on a delete a failure; the queued one
+ * has to agree, or the same act gets two answers one file apart. And the
+ * queue's version of the lie is the more durable: a toast leaves after six
+ * seconds, a terminal row in «Cambios sin enviar» waits to be dismissed.
+ */
+describe('useQueueDrain — a delete the server has already done', () => {
+  it('treats a 404 as sent rather than refused', async () => {
+    vi.mocked(api.deleteItem).mockRejectedValue(apiError(404, 'Item not found'))
+    await enqueue({
+      listId: 'l1',
+      type: 'deleteItem',
+      payload: { itemId: 'item-1' },
+      label: 'Pimentón',
+    })
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+    await waitFor(() => expect(mockOnDrained).toHaveBeenCalled())
+
+    // Gone from the queue, because it is gone from the server — which is what
+    // the tap asked for.
+    await waitFor(() => expect(result.current.pendingCount).toBe(0))
+    expect(
+      result.current.rejected,
+      'nothing failed, so there is nothing to answer for',
+    ).toHaveLength(0)
+    expect(mockShowToast).not.toHaveBeenCalled()
+  })
+
+  // The narrowing is to 404 alone. A 500 on the same op is still a refusal.
+  it('still refuses a delete the server actually failed', async () => {
+    vi.mocked(api.deleteItem).mockRejectedValue(apiError(500, 'Server Error'))
+    await enqueue({
+      listId: 'l1',
+      type: 'deleteItem',
+      payload: { itemId: 'item-1' },
+      label: 'Pimentón',
+    })
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+    await waitFor(() => expect(result.current.rejected).toHaveLength(1))
+    expect(result.current.rejected[0].failure?.status).toBe(500)
   })
 })

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
 import { ApiError } from '../lib/api'
 import * as offlineQueue from '../lib/offlineQueue'
+import { apiError } from '../lib/testApiError'
 import type { ListItem } from '../types'
 import { useListItems } from './useListItems'
 
@@ -448,8 +449,7 @@ describe('useListItems — addItem', () => {
   })
 
   it('shows "Ya está en la lista" toast on 409 from API (race condition)', async () => {
-    const apiErr = new ApiError(409, 'Item already in list')
-    apiErr.status = 409
+    const apiErr = apiError(409, 'Item already in list')
     vi.mocked(api.createItem).mockRejectedValue(apiErr)
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -785,16 +785,10 @@ describe('useListItems — write queue on network error', () => {
 
   it('removeItem: rolls back and shows a specific toast on 409 (trip filed)', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    const apiErr = new ApiError(
+    const apiErr = apiError(
       409,
       'Cannot delete an item from a trip that has already been filed',
     )
-    // Not redundant with the constructor, which does assign `status`
-    // (api.ts:18). `vi.mock('../lib/api')` above is an automock: it keeps the
-    // class — so `instanceof ApiError` still passes and the branch is entered
-    // — but stubs the constructor body, leaving `status` undefined. Drop this
-    // line and the guard falls through to the generic toast.
-    apiErr.status = 409
     vi.mocked(api.deleteItem).mockRejectedValue(apiErr)
 
     const { result } = renderHook(() =>
@@ -816,11 +810,7 @@ describe('useListItems — write queue on network error', () => {
 
   it('removeItem: rolls back with the generic toast on a non-409 server error', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    // `.status` by hand — the automock stubs the constructor body. Without it
-    // the status reads `undefined`, which `isRetryable` answers *false* to, so
-    // this test would assert a «Reintentar» the code correctly withheld.
-    const boom = new ApiError(500, 'Server Error')
-    boom.status = 500
+    const boom = apiError(500, 'Server Error')
     vi.mocked(api.deleteItem).mockRejectedValue(boom)
 
     const { result } = renderHook(() =>
@@ -871,16 +861,10 @@ describe('useListItems — savePrice converges on a retry', () => {
     })
     expect(api.logPrice).toHaveBeenCalledTimes(1)
 
-    // Pressing «Reintentar». Local price is still null, so the verb is guessed
-    // wrong a second time and the server answers 409 — which is an answer
-    // about the verb, not about the price.
-    // `.status` by hand: the automock keeps the class but stubs the
-    // constructor body, so `instanceof` passes and `status` is undefined.
-    const conflict = new ApiError(
+    const conflict = apiError(
       409,
       'Item already has a price; use PATCH to update it',
     )
-    conflict.status = 409
     vi.mocked(api.logPrice).mockRejectedValueOnce(conflict)
 
     await act(async () => {
@@ -906,11 +890,9 @@ describe('useListItems — savePrice converges on a retry', () => {
   // person is left with a door or with silence: the fallback itself fails.
   it('propagates when the fallback fails too, so the notice can re-show', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    const conflict = new ApiError(409, 'Item already has a price')
-    conflict.status = 409
+    const conflict = apiError(409, 'Item already has a price')
     vi.mocked(api.logPrice).mockRejectedValue(conflict)
-    const boom = new ApiError(500, 'Server Error')
-    boom.status = 500
+    const boom = apiError(500, 'Server Error')
     vi.mocked(api.updatePrice).mockRejectedValue(boom)
 
     const { result } = renderHook(() =>
@@ -937,11 +919,7 @@ describe('useListItems — savePrice converges on a retry', () => {
     vi.mocked(api.getListItems).mockResolvedValue([
       { ...item1, price: 2.5 },
     ] as never)
-    const noPrice = new ApiError(
-      404,
-      'Item has no price yet; use POST to set it',
-    )
-    noPrice.status = 404
+    const noPrice = apiError(404, 'Item has no price yet; use POST to set it')
     vi.mocked(api.updatePrice).mockRejectedValueOnce(noPrice)
     vi.mocked(api.logPrice).mockResolvedValue({} as never)
     vi.mocked(api.updateItem).mockResolvedValue({} as never)
@@ -963,8 +941,7 @@ describe('useListItems — savePrice converges on a retry', () => {
   // other one would send a second write against an answer nobody read.
   it('does not retry the other verb on a refusal that is not about it', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    const forbidden = new ApiError(403, 'Forbidden')
-    forbidden.status = 403
+    const forbidden = apiError(403, 'Forbidden')
     vi.mocked(api.logPrice).mockRejectedValue(forbidden)
 
     const { result } = renderHook(() =>
@@ -989,18 +966,9 @@ describe('useListItems — savePrice converges on a retry', () => {
  * than an exotic one.
  */
 describe('useListItems — a refusal that can never change its mind carries no retry', () => {
-  function apiErr(status: number, detail = 'boom') {
-    const err = new ApiError(status, detail)
-    // The automock keeps the class and stubs the constructor body, so this is
-    // what makes `status` readable. Without it every assertion below passes
-    // for the wrong reason.
-    err.status = status
-    return err
-  }
-
   it('togglePurchased: a 404 says the true thing and offers nothing', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    vi.mocked(api.updateItem).mockRejectedValue(apiErr(404, 'Item not found'))
+    vi.mocked(api.updateItem).mockRejectedValue(apiError(404, 'Item not found'))
 
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -1019,7 +987,7 @@ describe('useListItems — a refusal that can never change its mind carries no r
 
   it('togglePurchased: a 500 still offers the retry', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    vi.mocked(api.updateItem).mockRejectedValue(apiErr(500, 'Server Error'))
+    vi.mocked(api.updateItem).mockRejectedValue(apiError(500, 'Server Error'))
 
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
@@ -1041,7 +1009,7 @@ describe('useListItems — a refusal that can never change its mind carries no r
   // got rid of, behind a button that could only 404 again.
   it('removeItem: a 404 leaves the row deleted and says nothing', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
-    vi.mocked(api.deleteItem).mockRejectedValue(apiErr(404, 'Item not found'))
+    vi.mocked(api.deleteItem).mockRejectedValue(apiError(404, 'Item not found'))
 
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),

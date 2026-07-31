@@ -90,12 +90,19 @@ function retryAction(err: unknown, onAct: () => void): ToastAction | undefined {
 
 /**
  * What to say when the server refused. «No se pudo …» is right for a failure;
- * a 404 is not a failure of the write but a fact about the item, and the sheet
- * already has the sentence for it.
+ * these two are not failures of the write but facts about the item or the
+ * caller, and «Cambios sin enviar» already has the sentence for each.
+ *
+ * **Item-scoped**, unlike `retryAction`. The button rule is the same for every
+ * write; the sentence is not. A 404 on `addItem` is about the *list* — the
+ * sheet says «la lista ya no existe» — so that site keeps its own wording and
+ * does not call this.
  */
 function refusalMessage(err: unknown, fallback: string): string {
   const status = err instanceof ApiError ? err.status : 0
-  return status === 404 ? 'El producto ya no existe' : fallback
+  if (status === 404) return 'El producto ya no existe'
+  if (status === 403) return 'Sin permiso en esa lista'
+  return fallback
 }
 
 export function useListItems(

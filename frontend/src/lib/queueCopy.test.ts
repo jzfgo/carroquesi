@@ -88,9 +88,19 @@ describe('isRetryable', () => {
   })
 
   it('offers one where the answer can change', () => {
-    for (const status of [401, 403, 408, 429, 500, 503]) {
+    for (const status of [401, 408, 429, 500, 503]) {
       expect(isRetryable(status)).toBe(true)
     }
+  })
+
+  // 401 and 403 look like one family and are not. A 401 is answered by the
+  // next call carrying a fresh token; every 403 this backend raises is a
+  // standing fact about the caller — not a member, not the owner, not an
+  // admin, on the waitlist, the flag off, somebody else's invite. Being
+  // removed from a list would otherwise put a «Reintentar» on every write.
+  it('refuses one on a permission that asking again will not change', () => {
+    expect(isRetryable(403)).toBe(false)
+    expect(isRetryable(401)).toBe(true)
   })
 
   // No HTTP answer to read — a failure on this side. Not knowing why is not
