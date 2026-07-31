@@ -14,6 +14,14 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
+      injectManifest: {
+        // The default glob is `{js,css,html,ico,png,svg}` — no woff2. Without
+        // this line the vendored faces build and serve but are never precached,
+        // so an offline open falls back to a system face and says nothing about
+        // it, because everything still renders. Self-hosting without this is
+        // self-hosting that does not reach the case it was for.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+      },
       devOptions: {
         enabled: true,
         type: 'module',

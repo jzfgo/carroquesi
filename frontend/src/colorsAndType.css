@@ -3,7 +3,9 @@
    Paper-and-ink palette inspired by a real hand-written grocery
    list. Native light + dark. Mobile/touch first.
 
-   Fonts (via Google Fonts — see fonts/README.md for self-host):
+   Fonts (vendored, not fetched — `scripts/fetch-fonts.py` writes ./fonts.css
+   and the woff2 files it points at, and is where a family, a weight or a
+   subset is changed):
      Geist           — body & UI (clean neutral grotesque)
      Bree Serif      — display, screen titles, pre-printed sheet titles
      Caveat          — sparing hand-written accent (wordmark, annotations,
@@ -23,7 +25,13 @@
    ThemeManager is what puts the class there; do not move it to <body>.
    ───────────────────────────────────────────────────────────── */
 
-@import 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Bree+Serif&family=Caveat:wght@500;600;700&family=Patrick+Hand+SC&family=JetBrains+Mono:wght@400;500;600&display=swap';
+/* The one place the faces are declared. index.html used to link Google Fonts
+   as well, with a family list that had drifted from this one — it was missing
+   Patrick Hand SC, which is what the list itself is written in. Two requests
+   for one set of fonts is one too many, and a set that disagrees with itself
+   is worse: whichever request a reader looked at, it was not the whole
+   answer. */
+@import './fonts.css';
 
 /* ── 1. CORE PALETTE — light (default) ────────────────────── */
 :root {

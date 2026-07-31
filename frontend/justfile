@@ -82,6 +82,13 @@ typecheck:
 typecheck-watch:
     {{ nvm-exec }} pnpm typecheck:watch
 
+# Re-vendor the web fonts from Google (rewrites src/fonts.css + src/assets/fonts/)
+# A changed .woff2 means the letterforms changed: regenerate the visual
+# baselines in the same commit (just frontend update-snapshots).
+fetch-fonts:
+    python3 scripts/fetch-fonts.py
+    {{ nvm-exec }} pnpm exec prettier --write src/fonts.css
+
 # Regenerate PWA icons from source assets in public/
 pwa-icons:
     {{ nvm-exec }} pnpm generate-pwa-assets

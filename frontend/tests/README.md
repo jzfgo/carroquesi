@@ -77,11 +77,15 @@ Deleting works only once you know **which** baseline is stale, and that is the p
 
 Reach for it after any change that alters rendering app-wide: a money or date format, a type token, a shared component. Such a change moves screens nobody thought to open, and on each of them it may land under 250 — which means it does not fail, does not get rewritten, and leaves that baseline asserting a screen the app stopped drawing. It happened here: the money format moved every price in the app, and eighteen baselines across four spec files went on depicting `€0.75` while the app drew `€ 0,75`. They were 56–127 differing pixels each, against captures that were correct sitting at 1–23 — so each was also spending a third to a half of its budget on a difference nobody knew about, leaving that much less room for the machine variance the number exists to absorb.
 
-### The glyphs come from someone else's server
+### The glyphs used to come from someone else's server
 
-`index.html` links Google Fonts and there is no `@font-face` anywhere in `src/`, nothing vendored, and nothing precached by the service worker. So the letterforms in every committed baseline are fetched from a third party at capture time.
+They no longer do. `src/fonts.css` declares every face and `src/assets/fonts/` holds the bytes, both written by `scripts/fetch-fonts.py`; nothing in the app requests `fonts.googleapis.com` or `fonts.gstatic.com` any more. This section stays because what it described was real, and vendoring is only half the fix.
 
-That is worth knowing before trusting the paragraph above about the container being the one machine whose output the others agree with — it is, but only while an external CDN keeps serving it the same bytes. If Google re-cuts a family and bumps its version directory, every baseline in the suite goes stale at once, with no commit to blame and no PR to catch it. If the re-cut is a re-hinting rather than a redraw, each capture may well move less than 250, and then the suite simply keeps asserting glyphs the app no longer draws. Self-hosting the fonts would close it, and would take a render-blocking third-party request out of production at the same time.
+What it described: the container is the one machine whose output the rest of the baselines agree with — but that held only while an external CDN kept serving it the same bytes. Google re-cuts a family and bumps its version directory (`geist/v5`, `caveat/v23`) when it does, and every baseline in the suite went stale at once, with no commit to blame and no PR to catch it. Worse if the re-cut were a re-hinting rather than a redraw: each capture moves less than 250, nothing fails, and the suite goes on asserting glyphs the app stopped drawing. Nothing in this repo could have told you it had happened.
+
+Vendoring turns that from a silent event into a diff. A refresh is `just frontend fetch-fonts`, and a changed `.woff2` in its output **is** the notice: the letterforms moved, so the baselines have to be regenerated in the same commit. That is the half the vendoring does not do by itself — it makes the change visible, it does not make it safe. Treat a font refresh as an app-wide rendering change, which is what the section above is about.
+
+One thing did not change. `≈`, drawn beside a converted price in the item sheet, is outside every subset Google serves — `latin` included — so it came from a system font before and still does. It is the one glyph in the suite whose shape is still the container's to decide.
 
 Commit the updated PNGs **in the same PR** as the UI change that caused them to change — a visual diff failing on an unrelated PR is a real regression signal, not noise to dismiss.
 
