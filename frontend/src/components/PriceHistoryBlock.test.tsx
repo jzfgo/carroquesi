@@ -58,7 +58,7 @@ describe('PriceHistoryBlock', () => {
         ]}
       />,
     )
-    // Three visits, the last of them on 21 jun, and two prices among them.
+    // Three visits, two of them with a price, the newer priced one on 22 jul.
     expect(screen.getByText('2 precios · último 22 jul')).toBeInTheDocument()
   })
 
@@ -74,7 +74,10 @@ describe('PriceHistoryBlock', () => {
         ]}
       />,
     )
-    expect(screen.getByText('Sin precio · último 21 jun')).toBeInTheDocument()
+    // Only visits to date, so the date says so rather than borrowing «último».
+    expect(
+      screen.getByText('Sin precio · última visita 21 jun'),
+    ).toBeInTheDocument()
   })
 
   // The headline is the last price. Taking it from the newest record prints a
@@ -99,6 +102,11 @@ describe('PriceHistoryBlock', () => {
     const row = screen.getByRole('button', { name: /Mercadona/ })
     expect(within(row).getByText('1,05')).toBeInTheDocument()
     expect(within(row).queryByText('—')).toBeNull()
+    // And the date beside it belongs to that price, not to the silent visit
+    // on 22 jul that happens to be this shop's newest record.
+    expect(
+      within(row).getByText('1 precio · último 15 jul'),
+    ).toBeInTheDocument()
   })
 
   it('opens a shop where it stands and closes it again', () => {

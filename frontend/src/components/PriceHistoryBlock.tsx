@@ -221,7 +221,9 @@ export function PriceHistoryBlock({ entries, onLogPrice }: Props) {
         const isOpen = openStore === group.store
         // A shop's records are its visits, and a visit that wrote nothing down
         // is one of them. It is not a price, though: counting it would put
-        // «3 precios» over a list whose third line reads «sin precio».
+        // «3 precios» over a list whose third line reads «sin precio». The
+        // count describes that list, not the chart — a row shows an amount on
+        // exactly the rows counted here.
         const priced = group.records.filter((r) => r.originalAmount !== null)
         // The headline is the last price, not the last visit. Reading it off
         // the newest record prints «—» for a shop with plenty of prices whose
@@ -246,12 +248,21 @@ export function PriceHistoryBlock({ entries, onLogPrice }: Props) {
                   {group.store ?? 'Sin tienda'}
                 </span>
                 <span className="phb__store-meta">
+                  {/* «último» has one antecedent, and it is «precios» — so the
+                      date is the last price's, not the last visit's. Dating
+                      the visit put a day beside a figure from another one. A
+                      shop with no price at all has only visits to date. */}
                   {priced.length === 0
-                    ? 'Sin precio'
-                    : `${priced.length} ${priced.length === 1 ? 'precio' : 'precios'}`}
-                  {lastVisit.purchased_at
-                    ? ` · último ${formatShortDate(lastVisit.purchased_at)}`
-                    : ''}
+                    ? `Sin precio${
+                        lastVisit.purchased_at
+                          ? ` · última visita ${formatShortDate(lastVisit.purchased_at)}`
+                          : ''
+                      }`
+                    : `${priced.length} ${priced.length === 1 ? 'precio' : 'precios'}${
+                        latest.purchased_at
+                          ? ` · último ${formatShortDate(latest.purchased_at)}`
+                          : ''
+                      }`}
                 </span>
               </span>
               <Chart records={group.records} />

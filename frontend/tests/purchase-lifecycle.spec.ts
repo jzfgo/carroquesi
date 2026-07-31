@@ -166,6 +166,11 @@ for (const { name: themeName, colorScheme } of THEMES) {
       // rows. Two machines then pick different rows, and one full-width rule
       // moving one row is 2560 pixels — ten times the whole budget, for a
       // screen that looks identical. This says so in one line instead.
+      //
+      // What the rounded cap makes whole is the cap. A sheet short enough not
+      // to overflow is the sum of its parts again, and its top is whole only
+      // if they are. This one overflows, so the check holds here; it is not a
+      // promise about every sheet.
       const top = await sheet.evaluate((el) => el.getBoundingClientRect().top)
       expect(top % 1).toBe(0)
       // The four blocks of 22a, in the order a sheet is opened for. By role,

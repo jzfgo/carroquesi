@@ -333,6 +333,7 @@ describe('ListScreen', () => {
     // so the next person is free to close it.
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(document.querySelector('.item-detail')).not.toBeInTheDocument()
+    expect(document.querySelector('.lps')).toBeInTheDocument()
   })
 
   it('opens ItemDetailSheet when the row is tapped and handles rename', async () => {

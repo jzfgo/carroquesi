@@ -20,7 +20,9 @@ export interface NormalizationResult {
 /**
  * Converts PriceEntry records to ChartEntry records, normalizing to €/kg when
  * any entry has a parseable SI quantity or is already price_per='KILOGRAM'.
- * Entries that cannot be converted receive displayAmount=null (rendered as isolated dots).
+ * Entries that cannot be converted receive displayAmount=null. Nothing draws
+ * them: a curve can only hold records on its own scale, so they are left to the
+ * record list, which states in words what each one was.
  *
  * The trigger is global: if any entry qualifies, all entries are processed,
  * ensuring cross-store comparison on a consistent scale.
