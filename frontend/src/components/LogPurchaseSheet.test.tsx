@@ -202,6 +202,6 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
     )
 
     // 2.0 €/kg * 0.5 kg = 1.00 €
-    expect(screen.getByText(/€1\.00/i)).toBeInTheDocument()
+    expect(screen.getByText(/€ 1,00/i)).toBeInTheDocument()
   })
 })
