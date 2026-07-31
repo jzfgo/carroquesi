@@ -1,10 +1,6 @@
 import { formatPrice } from './formatPrice'
-import { formatShortDate } from './formatShortDate'
+import { formatMonth, formatShortDate } from './formatShortDate'
 import type { ChartEntry } from './priceNormalization'
-
-function month(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-ES', { month: 'long' })
-}
 
 interface TrailInput {
   addedBy: string | null
@@ -42,7 +38,7 @@ export function itemTrail({
         ? 'Comprado una vez'
         : `Comprado ${purchases.length} veces`
     sentences.push(
-      `${times} desde ${month(first)}, la última el ${formatShortDate(last)}.`,
+      `${times} desde ${formatMonth(first)}, la última el ${formatShortDate(last)}.`,
     )
   }
 
