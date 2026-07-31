@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { QueuedOp } from './offlineQueue'
+import { HELD_FOR_ADD, type QueuedOp } from './offlineQueue'
 import { failureCause, isRetryable, opKind, whenLabel } from './queueCopy'
 
 function op(over: Partial<QueuedOp>): QueuedOp {
@@ -55,6 +55,20 @@ describe('failureCause', () => {
     expect(failureCause(409, 'updateItem')).toBe('la compra ya está archivada')
   })
 
+  /**
+   * A held op was never sent, so nothing answered it. Falling through to the
+   * default would blame a server that was never asked — the same kind of lie
+   * as telling somebody the product was deleted when it was never created.
+   */
+  it('does not blame the server for something it never saw', () => {
+    expect(failureCause(HELD_FOR_ADD, 'updateItem')).toBe(
+      'espera a que se añada el producto',
+    )
+    expect(failureCause(HELD_FOR_ADD, 'closePurchase')).toBe(
+      'espera a que se añada el producto',
+    )
+  })
+
   it('says the rest in the language of the house', () => {
     expect(failureCause(400, 'addItem')).toBe('el servidor no lo aceptó')
     expect(failureCause(422, 'addItem')).toBe('el servidor no lo aceptó')
@@ -83,6 +97,13 @@ describe('isRetryable', () => {
   // the same as knowing it can never work.
   it('offers one when there was no answer at all', () => {
     expect(isRetryable(0)).toBe(true)
+  })
+
+  // A held op is the whole reason «Reintentar los N» exists: it goes out in
+  // the pass that lands the add it waits on. Foreclosing on it here would
+  // leave it in the sheet with no way out but discarding.
+  it('offers one on something only held back', () => {
+    expect(isRetryable(HELD_FOR_ADD)).toBe(true)
   })
 })
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
-import type { QueuedOp } from '../lib/offlineQueue'
+import { targetsOf, type QueuedOp } from '../lib/offlineQueue'
 import {
   failureCause,
   isRetryable,
@@ -63,9 +63,15 @@ export function UnsentChangesSheet({
 
   // Nothing left to answer for. Closing is the only honest state: a sheet
   // titled "unsent changes" with no rows is a screen about nothing.
+  //
+  // Not while a retry is running, though. Clearing a failure is what makes an
+  // op sendable, and it announces itself — so the rows empty the instant the
+  // retry starts, long before anything has been sent. Closing there would take
+  // the sheet away at the moment it is doing its job, and answer with silence
+  // followed by a toast if it went wrong.
   useEffect(() => {
-    if (rejected.length === 0) onClose()
-  }, [rejected.length, onClose])
+    if (rejected.length === 0 && !busy) onClose()
+  }, [rejected.length, busy, onClose])
 
   const rows = useMemo<Row[]>(() => {
     // An op whose add has not gone through points at a `tmp-…` id the server
@@ -86,9 +92,13 @@ export function UnsentChangesSheet({
       .sort((a, b) => a.enqueuedAt - b.enqueuedAt)
       .map((op) => {
         const status = op.failure?.status ?? 0
-        const itemId = (op.payload as { itemId?: string } | null)?.itemId
-        const waitsFor =
-          op.tempId || !itemId ? undefined : strandedOn.get(itemId)
+        // Every id the op needs, not just an edit's — a close names one per
+        // line, and a close waiting on an add is held for the same reason.
+        const waitsFor = op.tempId
+          ? undefined
+          : targetsOf(op)
+              .map((id) => strandedOn.get(id))
+              .find(Boolean)
         return {
           op,
           why: `${opKind(op)} · ${whenLabel(op.enqueuedAt, now)} · ${failureCause(status, op.type)}`,

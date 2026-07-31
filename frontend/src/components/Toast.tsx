@@ -39,10 +39,26 @@ export function Toast({ message, action, onDismiss }: Props) {
   // no control, and someone tabbing to it is slower than someone tapping it.
   const [held, setHeld] = useState(false)
 
+  // What is left of the window. Holding has to *pause* it rather than restart
+  // it: a toast that goes back to a full six seconds every time focus leaves
+  // is a different promise from the one the bar is drawing, and the bar cannot
+  // be made to restart with it — a CSS animation resumes where it stopped.
+  const remainingMs = useRef(windowMs)
+  useEffect(() => {
+    remainingMs.current = windowMs
+  }, [message, windowMs])
+
   useEffect(() => {
     if (held) return
-    const timer = setTimeout(() => onDismissRef.current(), windowMs)
-    return () => clearTimeout(timer)
+    const from = Date.now()
+    const timer = setTimeout(() => onDismissRef.current(), remainingMs.current)
+    return () => {
+      clearTimeout(timer)
+      remainingMs.current = Math.max(
+        0,
+        remainingMs.current - (Date.now() - from),
+      )
+    }
   }, [message, windowMs, held])
 
   return (
@@ -58,7 +74,15 @@ export function Toast({ message, action, onDismiss }: Props) {
           // One number, one place. The bar is the window, so it drains from
           // the same constant the timer counts — two encodings of one duration
           // drift apart, and no screenshot would show it.
-          style={{ animationDuration: `${windowMs}ms` }}
+          //
+          // Sharing the constant is not enough on its own: the timer stops
+          // while focus is inside and the animation would not, so the bar
+          // would empty under a control that is still live. They hold
+          // together, and they resume together.
+          style={{
+            animationDuration: `${windowMs}ms`,
+            animationPlayState: held ? 'paused' : 'running',
+          }}
         />
       </div>
       <div className="toast__body">

@@ -15,7 +15,7 @@ import {
 import { AVATAR_COLORS } from '../lib/avatarColors'
 import { itemState } from '../lib/itemState'
 import { isNetworkError } from '../lib/networkError'
-import { enqueue } from '../lib/offlineQueue'
+import { enqueue, newTempId } from '../lib/offlineQueue'
 import type { ListItem, Member, ParsedInput, TagField } from '../types'
 import type { ShowToast } from './useToast'
 
@@ -236,7 +236,7 @@ export function useListItems(
         showToast(DUPLICATE_TOAST)
         return
       }
-      const tempId = `tmp-${Date.now()}`
+      const tempId = newTempId()
       const temp: ListItem = {
         id: tempId,
         list_id: listId,

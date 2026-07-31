@@ -712,21 +712,32 @@ export function ListScreen({
       const itemId = logPriceFor.itemId
       setLogPriceFor(null)
       setActiveItemId(null)
-      try {
-        await savePrice(itemId, amount, pricePer, store, purchasedQuantity)
-        if (store) setLastPriceStore(store)
-      } catch {
-        // An amount somebody read off a shelf and typed in. It used to be
-        // swallowed here as non-critical, which made losing it silent — the
-        // one thing this must never be. The notice carries the way to send it
-        // again, so the sheet does not have to stay open holding it.
-        showToast('No se pudo guardar el precio', {
-          label: 'Reintentar',
-          tone: 'tomate',
-          onAct: () =>
-            void savePrice(itemId, amount, pricePer, store, purchasedQuantity),
-        })
+
+      // Named, and retried through itself rather than through `savePrice`.
+      // `savePrice` does not catch, so a *second* failure sent straight back
+      // into it is an unhandled rejection with nothing on screen — the amount
+      // would be lost exactly the quiet way this catch exists to prevent, and
+      // only ever on the attempt nobody is watching. `handleSavePrice` cannot
+      // call itself instead: it clears `logPriceFor` before the first await,
+      // so a second pass would return at the guard above.
+      async function attempt() {
+        try {
+          await savePrice(itemId, amount, pricePer, store, purchasedQuantity)
+          if (store) setLastPriceStore(store)
+        } catch {
+          // An amount somebody read off a shelf and typed in. It used to be
+          // swallowed here as non-critical, which made losing it silent — the
+          // one thing this must never be. The notice carries the way to send
+          // it again, so the sheet does not have to stay open holding it.
+          showToast('No se pudo guardar el precio', {
+            label: 'Reintentar',
+            tone: 'tomate',
+            onAct: () => void attempt(),
+          })
+        }
       }
+
+      await attempt()
     },
     [logPriceFor, savePrice, showToast],
   )

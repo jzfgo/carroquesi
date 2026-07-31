@@ -13,7 +13,11 @@ vi.mock('../lib/api')
 // Nothing re-stubs enqueue in beforeEach, so the QueuedOp shape below would
 // simply have stopped being returned while still sitting here describing what
 // enqueue gives you.
-vi.mock('../lib/offlineQueue', () => ({
+// Only `enqueue` stands in. The rest of the module stays real: `newTempId`
+// and the id helpers beside it are pure, and they are what the code under test
+// uses to mint the row it paints before the server has answered.
+vi.mock('../lib/offlineQueue', async (importOriginal) => ({
+  ...(await importOriginal<typeof offlineQueue>()),
   enqueue: vi.fn(async () => ({
     id: 'q1',
     listId: 'list-1',

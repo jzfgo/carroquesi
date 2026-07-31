@@ -143,6 +143,50 @@ test('does not run out while focus is inside it', () => {
   expect(dismiss).toHaveBeenCalledTimes(1)
 })
 
+/**
+ * Holding has to *pause* the window, not restart it. Both readings dismiss
+ * eventually, so the boundary is the only assertion that tells them apart:
+ * two seconds were spent before the hold, so four are left after it — not
+ * another full six.
+ *
+ * The bar is the visible half of the same promise. It shares the constant
+ * already; what it did not share was the pause, so it drained to nothing
+ * under a control that was still live and still worked.
+ */
+test('holding pauses the window rather than restarting it', () => {
+  const dismiss = vi.fn()
+  const { container } = render(
+    <Toast message="En el carro, pan" action={undo()} onDismiss={dismiss} />,
+  )
+  const fill = () =>
+    container.querySelector<HTMLElement>('.toast__progress-fill')!
+
+  act(() => {
+    vi.advanceTimersByTime(2000)
+  })
+  act(() => {
+    screen.getByRole('button', { name: 'Deshacer' }).focus()
+  })
+  expect(fill().style.animationPlayState).toBe('paused')
+
+  act(() => {
+    vi.advanceTimersByTime(30000)
+  })
+  act(() => {
+    screen.getByRole('button', { name: 'Deshacer' }).blur()
+  })
+  expect(fill().style.animationPlayState).toBe('running')
+
+  act(() => {
+    vi.advanceTimersByTime(3999)
+  })
+  expect(dismiss, 'four seconds were left, not six').not.toHaveBeenCalled()
+  act(() => {
+    vi.advanceTimersByTime(2)
+  })
+  expect(dismiss).toHaveBeenCalledTimes(1)
+})
+
 // The colour is the whole difference between the three notices, and it lives
 // only in the bar — the body carries no border of its own.
 test('the tone rides on the action', () => {

@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto'
-import { beforeEach, describe, expect, test } from 'vitest'
+import { beforeEach, describe, expect, it, test } from 'vitest'
 import {
   clearFailure,
   enqueue,
@@ -146,5 +146,45 @@ describe('offlineQueue', () => {
     await markFailed(op.id, { status: 409, at: 1000 })
 
     expect(await getAll()).toHaveLength(0)
+  })
+})
+
+/**
+ * `enqueuedAt` is the only thing that orders the queue, and `getAll()` comes
+ * back in key order — random UUIDs — so a tie is broken arbitrarily rather
+ * than by insertion order. Adding something and immediately fixing its name is
+ * one gesture; inverting those two sends the edit against an id its own add
+ * has not created yet.
+ */
+describe('enqueue ordering', () => {
+  it('never hands two ops the same instant', async () => {
+    const stamps = new Set<number>()
+    for (let i = 0; i < 50; i++) {
+      const op = await enqueue({
+        listId: 'l1',
+        type: 'addItem',
+        payload: {},
+        label: `x${i}`,
+      })
+      stamps.add(op.enqueuedAt)
+    }
+    expect(stamps.size).toBe(50)
+  })
+
+  it('keeps an add in front of the edit that follows it', async () => {
+    const add = await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      tempId: 'tmp-1',
+      payload: {},
+      label: 'Pimentón',
+    })
+    const edit = await enqueue({
+      listId: 'l1',
+      type: 'updateItem',
+      payload: { itemId: 'tmp-1', patch: { name: 'Pimentón dulce' } },
+      label: 'Pimentón dulce',
+    })
+    expect(add.enqueuedAt).toBeLessThan(edit.enqueuedAt)
   })
 })

@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
-import { enqueue, getAll, remove } from '../lib/offlineQueue'
+import { enqueue, getAll, HELD_FOR_ADD, remove } from '../lib/offlineQueue'
 import { useQueueDrain } from './useQueueDrain'
 
 vi.mock('../lib/api')
@@ -398,5 +398,142 @@ describe('useQueueDrain — drain on reconnect', () => {
       window.dispatchEvent(new Event('online'))
     })
     expect(api.createItem).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The drain used to send a dependent op against the temp id its add had not
+ * turned into a real one yet. `items.py` answers that with a clean 404, which
+ * `failureCause` reads as «el producto ya no existe» — false, the product was
+ * never created — and `isRetryable` reads as permanent. So the op arrived in
+ * the sheet already beyond rescue, and the guard written to carry it behind
+ * its add never got to see it.
+ */
+describe('useQueueDrain — waiting on an add', () => {
+  const rename = {
+    listId: 'l1',
+    type: 'updateItem' as const,
+    payload: { itemId: 'tmp-1', patch: { name: 'Pimentón dulce' } },
+    label: 'Pimentón dulce',
+  }
+
+  async function queueAddThenRename() {
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      tempId: 'tmp-1',
+      payload: { name: 'Pimentón' },
+      label: 'Pimentón',
+    })
+    await enqueue(rename)
+  }
+
+  it('does not send an edit against an id no add has created', async () => {
+    vi.mocked(api.createItem).mockRejectedValue(apiError(500))
+    await queueAddThenRename()
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() => expect(result.current.rejected).toHaveLength(2))
+    expect(
+      api.updateItem,
+      'a PATCH on tmp-1 is a 404 that can never be undone',
+    ).not.toHaveBeenCalled()
+  })
+
+  // Held, not refused — and it has to say so, because every other cause in
+  // the sheet blames a server that in this case was never asked.
+  it('marks it as waiting rather than as something the server refused', async () => {
+    vi.mocked(api.createItem).mockRejectedValue(apiError(500))
+    await queueAddThenRename()
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() => expect(result.current.rejected).toHaveLength(2))
+    const held = result.current.rejected.find((op) => op.type === 'updateItem')
+    expect(held?.failure?.status).toBe(HELD_FOR_ADD)
+  })
+
+  /**
+   * Worse than the 404 an edit gets. `purchases.py` skips a line whose item it
+   * cannot find instead of refusing the call, so a close one line short comes
+   * back 200: the trip is filed under a total covering items it never filed,
+   * and the op is deleted as sent.
+   */
+  it('does not send a close naming a line no add has created', async () => {
+    vi.mocked(api.createItem).mockRejectedValue(apiError(500))
+    await enqueue({
+      listId: 'l1',
+      type: 'addItem',
+      tempId: 'tmp-1',
+      payload: { name: 'Pimentón' },
+      label: 'Pimentón',
+    })
+    await enqueue({
+      listId: 'l1',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        purchased_at: '2026-07-30T18:00:00',
+        purchase_id: null,
+        total: null,
+        lines: [
+          { item_id: 'real-9', price: 2.1, price_per: null, quantity: null },
+          { item_id: 'tmp-1', price: 1.19, price_per: null, quantity: null },
+        ],
+        new_items: [],
+      },
+      label: 'Lidl',
+    })
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() => expect(result.current.rejected).toHaveLength(2))
+    expect(api.closePurchase).not.toHaveBeenCalled()
+  })
+
+  // Both rows are in the sheet, so both are in the number that leads to it.
+  it('counts a held change in what the notice says', async () => {
+    vi.mocked(api.createItem).mockRejectedValue(apiError(500))
+    await queueAddThenRename()
+
+    renderHook(() => useQueueDrain(defaultParams))
+
+    await waitFor(() =>
+      expect(mockShowToast).toHaveBeenCalledWith(
+        '2 cambios no se pudieron enviar',
+        expect.objectContaining({ label: 'Ver cuáles' }),
+      ),
+    )
+  })
+
+  /**
+   * Retrying the add alone would land it, delete it, and leave the rename
+   * naming a temp id nothing can resolve — with no add left in the sheet to
+   * wait for, so the sheet would start offering it a retry that can only hold
+   * it again.
+   */
+  it('carries what was waiting on an add when the add is retried', async () => {
+    vi.mocked(api.createItem).mockRejectedValueOnce(apiError(500))
+    await queueAddThenRename()
+
+    const { result } = renderHook(() => useQueueDrain(defaultParams))
+    await waitFor(() => expect(result.current.rejected).toHaveLength(2))
+
+    vi.mocked(api.createItem).mockResolvedValue({ id: 'real-1' } as never)
+    const addId = result.current.rejected.find((op) => op.tempId)!.id
+    await act(async () => {
+      await result.current.retryRejected([addId])
+    })
+
+    await waitFor(() =>
+      expect(api.updateItem).toHaveBeenCalledWith(
+        expect.anything(),
+        'l1',
+        'real-1',
+        { name: 'Pimentón dulce' },
+      ),
+    )
+    await waitFor(() => expect(result.current.rejected).toHaveLength(0))
   })
 })

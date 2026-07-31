@@ -386,6 +386,55 @@ describe('ListScreen', () => {
     expect(removeItemMock).toHaveBeenCalledWith('i1')
   })
 
+  /**
+   * The amount somebody read off a shelf. The first failure says so; the
+   * retry used to go straight back into `savePrice`, which does not catch, so
+   * a second failure was an unhandled rejection with nothing on screen — the
+   * amount lost exactly the quiet way this notice exists to prevent, and only
+   * ever on the attempt nobody is watching.
+   */
+  it('says so again when the price retry fails too', async () => {
+    const savePriceMock = vi.fn().mockRejectedValue(new Error('boom'))
+    // The history sheet is on the way to the one being tested, and it reads
+    // on mount; the api automock would hand its effect an undefined.
+    vi.mocked(api.getPriceHistory).mockResolvedValue({ entries: [] } as never)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({
+          id: 'i1',
+          name: 'Manzanas',
+          purchased: true,
+          purchased_at: TODAY,
+        }),
+      ],
+      savePrice: savePriceMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
+    fireEvent.click(screen.getByRole('button', { name: /precio/i }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: /registrar precio/i }),
+    )
+    fireEvent.change(screen.getByPlaceholderText('0.00'), {
+      target: { value: '1.19' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await screen.findByText('No se pudo guardar el precio')
+    expect(savePriceMock).toHaveBeenCalledTimes(1)
+
+    // Taking the action closes the notice, so a second failure has to raise a
+    // new one. Sent straight back into `savePrice` it raised nothing at all.
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    await waitFor(() => expect(savePriceMock).toHaveBeenCalledTimes(2))
+    expect(
+      await screen.findByText('No se pudo guardar el precio'),
+    ).toBeInTheDocument()
+  })
+
   it('handles EanSearch finding a product and adding it', async () => {
     const addItemMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
@@ -1575,7 +1624,19 @@ describe('with no connection', () => {
     vi.mocked(useQueueDrain).mockReturnValue({
       pendingCount: 0,
       pendingItemIds: new Set<string>(),
-      rejected: [{ id: 'q1' }],
+      // A whole row, not just an id: the sheet reads what the op was about in
+      // order to work out whether anything else is waiting on it.
+      rejected: [
+        {
+          id: 'q1',
+          listId: 'l1',
+          type: 'addItem',
+          payload: { name: 'Pan' },
+          enqueuedAt: 0,
+          label: 'Pan',
+          failure: { status: 503, at: 0 },
+        },
+      ],
       retryRejected: vi.fn(),
       discardRejected: vi.fn(),
     } as unknown as ReturnType<typeof useQueueDrain>)

@@ -1,8 +1,20 @@
+import type { PurchaseClosePayload } from '../types'
+
 /** What the server answered when it refused the write. */
 export interface QueueFailure {
   status: number
   at: number
 }
+
+/**
+ * Held rather than refused: this op points at something an add was supposed to
+ * create, and that add has not landed. Nothing was sent, so no server said
+ * anything about it.
+ *
+ * Outside the HTTP range deliberately — no response can ever carry it, so it
+ * cannot collide with a status somebody has to read as one.
+ */
+export const HELD_FOR_ADD = -1
 
 export interface QueuedOp {
   id: string
@@ -24,6 +36,48 @@ export interface QueuedOp {
   failure?: QueueFailure
 }
 
+/**
+ * The id an optimistic add paints its row under until the server answers with
+ * a real one.
+ *
+ * Minted and recognised in one place on purpose. The drain has to be able to
+ * ask "is this id one the server has never seen?" before it sends anything,
+ * and a prefix invented at the call site and re-invented at the check is two
+ * halves of one convention that nothing keeps in step.
+ */
+export function newTempId(): string {
+  return `tmp-${Date.now()}`
+}
+
+export function isTempId(id: string): boolean {
+  return id.startsWith('tmp-')
+}
+
+/**
+ * The items an op points at — none for an add, one for an edit or a delete,
+ * and every line of a close.
+ *
+ * An add is not in here: its temp id is what it *creates*, not what it needs
+ * to already exist. That asymmetry is the whole reason this function exists,
+ * and it is what lets the drain, the retry and the sheet all ask "what does
+ * this op depend on?" and get the same answer.
+ */
+export function targetsOf(op: QueuedOp): string[] {
+  switch (op.type) {
+    case 'updateItem':
+    case 'deleteItem': {
+      const payload = op.payload as { itemId?: string } | null
+      return payload?.itemId ? [payload.itemId] : []
+    }
+    case 'closePurchase':
+      return (op.payload as PurchaseClosePayload).lines.map(
+        (line) => line.item_id,
+      )
+    case 'addItem':
+      return []
+  }
+}
+
 const DB_NAME = 'cqs_offline'
 const STORE_NAME = 'offline_ops'
 // Adding fields to the stored objects is not a schema change: the store is
@@ -43,13 +97,35 @@ function openDB(): Promise<IDBDatabase> {
   })
 }
 
+/**
+ * The last stamp handed out, so no two ops in this session can share one.
+ *
+ * `enqueuedAt` is the only thing that orders the queue, and `getAll()` comes
+ * back in key order — random UUIDs — so a tie is not resolved by insertion
+ * order but arbitrarily. Two writes in the same millisecond is not exotic:
+ * adding something and immediately correcting its name is one gesture to the
+ * person doing it, and inverting those two sends an edit against an id its own
+ * add has not created yet.
+ *
+ * A millisecond of drift for the second of two simultaneous writes costs
+ * nothing — «hoy 8:10» cannot tell the difference — and a strict order is what
+ * the drain is entitled to assume.
+ */
+let lastStamp = 0
+
+function stamp(): number {
+  const now = Date.now()
+  lastStamp = now > lastStamp ? now : lastStamp + 1
+  return lastStamp
+}
+
 export async function enqueue(
   op: Omit<QueuedOp, 'id' | 'enqueuedAt'>,
 ): Promise<QueuedOp> {
   const full: QueuedOp = {
     ...op,
     id: crypto.randomUUID(),
-    enqueuedAt: Date.now(),
+    enqueuedAt: stamp(),
   }
   const db = await openDB()
   await new Promise<void>((resolve, reject) => {

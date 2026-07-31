@@ -1,4 +1,4 @@
-import type { QueuedOp } from './offlineQueue'
+import { HELD_FOR_ADD, type QueuedOp } from './offlineQueue'
 
 /**
  * Turning a queued operation into a line somebody can read.
@@ -51,6 +51,12 @@ function updateKind(payload: unknown): string {
 export function failureCause(status: number, type: QueuedOp['type']): string {
   const onAList = type === 'addItem' || type === 'closePurchase'
   switch (status) {
+    // Not a refusal at all — it was never sent, because what it points at does
+    // not exist yet. Falling through to the default would blame a server that
+    // never answered, which is the same lie as telling somebody the product
+    // was deleted when it was never created.
+    case HELD_FOR_ADD:
+      return 'espera a que se añada el producto'
     case 400:
     case 422:
       return 'el servidor no lo aceptó'

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { QueuedOp } from '../lib/offlineQueue'
 import { UnsentChangesSheet } from './UnsentChangesSheet'
@@ -187,6 +187,83 @@ describe('UnsentChangesSheet', () => {
     const onClose = vi.fn()
     render(<UnsentChangesSheet {...props} rejected={[]} onClose={onClose} />)
     expect(onClose).toHaveBeenCalled()
+  })
+
+  /**
+   * Clearing a failure is what makes an op sendable again, and it announces
+   * itself — so the rows empty the instant a retry *starts*, long before
+   * anything has been sent. Closing there takes the sheet away at the moment
+   * it is doing its job, and answers with silence.
+   */
+  it('stays open while its own retry is still running', async () => {
+    const onClose = vi.fn()
+    let release: () => void = () => {}
+    const onRetry = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve
+        }),
+    )
+
+    const { rerender } = render(
+      <UnsentChangesSheet
+        {...props}
+        rejected={[op({ id: 'q7' })]}
+        onRetry={onRetry}
+        onClose={onClose}
+      />,
+    )
+    screen.getByRole('button', { name: 'Reintentar' }).click()
+    await waitFor(() => expect(onRetry).toHaveBeenCalled())
+
+    // What the drain's own refresh does the moment the failure is cleared.
+    rerender(
+      <UnsentChangesSheet
+        {...props}
+        rejected={[]}
+        onRetry={onRetry}
+        onClose={onClose}
+      />,
+    )
+    expect(onClose).not.toHaveBeenCalled()
+
+    await act(async () => {
+      release()
+    })
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  /**
+   * A close names one item per line, so it waits on an add exactly the way an
+   * edit does. Reading only `payload.itemId` saw nothing to wait for and
+   * offered a retry that could only ever be held again.
+   */
+  it('withholds a retry from a close waiting on an add', () => {
+    const add = op({ id: 'q-add', tempId: 'tmp-1' })
+    const close = op({
+      id: 'q-close',
+      type: 'closePurchase',
+      payload: {
+        store: 'Lidl',
+        lines: [
+          { item_id: 'real-9', price: null, price_per: null, quantity: null },
+          { item_id: 'tmp-1', price: 1.19, price_per: null, quantity: null },
+        ],
+        new_items: [],
+      },
+      label: 'Lidl',
+      enqueuedAt: Date.now() + 1,
+    })
+
+    render(<UnsentChangesSheet {...props} rejected={[add, close]} />)
+
+    // The add's own, and not the close's.
+    expect(screen.getAllByRole('button', { name: 'Reintentar' })).toHaveLength(
+      1,
+    )
+    expect(
+      screen.getByRole('button', { name: 'Reintentar los 2' }),
+    ).toBeInTheDocument()
   })
 
   // Rows written before the label existed still have to say something.
