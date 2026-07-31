@@ -16,7 +16,7 @@ export interface ToastAction {
   onAct: () => void
 }
 
-const AUTO_DISMISS_MS = 3000
+export const AUTO_DISMISS_MS = 3000
 /** Three seconds is long enough to read and short for a decision. */
 const ACTION_DISMISS_MS = 6000
 

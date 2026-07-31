@@ -39,6 +39,21 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+
+  /* The band is a flex child above the router, so the screen below it can no
+     longer claim a whole viewport without pushing the document taller than
+     one. Every screen subtracts this instead.
+
+     It is a variable rather than `flex: 1` on each screen because those six
+     rules deliberately pick between `svh` and `dvh` — they differ in how they
+     treat the mobile browser's own chrome, and flattening them to `flex: 1`
+     would silently decide that question for all of them. */
+  --offline-band-h: 34px;
+  --band-offset: 0px;
+}
+
+#root:has(> .offline-band) {
+  --band-offset: var(--offline-band-h);
 }
 
 body {
@@ -88,20 +103,6 @@ code {
   to {
     transform: rotate(360deg);
   }
-}
-
-.offline-banner {
-  background: var(--color-text-secondary);
-  color: #fff;
-  font-size: 0.75rem;
-  text-align: center;
-  padding: 4px 8px;
-}
-
-.offline-banner--sticky {
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
 
 /* Present to a screen reader, absent to everyone else. Not `display: none` and

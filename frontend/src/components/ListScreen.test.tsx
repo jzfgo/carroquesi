@@ -1670,13 +1670,16 @@ describe('with no connection', () => {
     fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
 
   /**
-   * The band and the way into «Cambios sin enviar» both come from the notice
-   * this screen hands to ItemList. Nothing else here asserts that it hands one
-   * over, so dropping the prop would take both away with the whole suite still
-   * green — and the second of them is the only durable door to writes the
-   * server refused.
+   * The condition belongs to the device, not to this list. `OfflineBand` says
+   * it once above the router, where no sheet covers it and no scroll carries
+   * it off — this screen used to say it too, from the notice it hands to
+   * ItemList, and only while the top of the list happened to be on screen.
+   *
+   * Asserted absent so a second statement cannot come back here. The notice
+   * itself still matters and is covered by the test below: it is the only
+   * durable door to writes the server refused.
    */
-  it('says there is no connection, and how many changes are waiting', async () => {
+  it('never states the condition itself', async () => {
     vi.mocked(useQueueDrain).mockReturnValue({
       pendingCount: 2,
       pendingItemIds: new Set<string>(),
@@ -1688,10 +1691,10 @@ describe('with no connection', () => {
     render(<ListScreen listId="l1" listName="Mercado" listOwnerId="u1" />)
 
     await waitFor(() =>
-      expect(
-        screen.getByText('Sin conexión · 2 cambios se enviarán solos'),
-      ).toBeVisible(),
+      expect(screen.getByRole('heading').textContent).toContain('Mercado'),
     )
+    expect(screen.queryByText(/sin conexión/i)).toBeNull()
+    expect(screen.queryByText(/se enviarán solos/i)).toBeNull()
   })
 
   it('offers the way back to what the server refused', async () => {
@@ -1726,7 +1729,7 @@ describe('with no connection', () => {
     ).toBeVisible()
   })
 
-  it('will not rename the list, and says why', async () => {
+  it('will not rename the list, and leaves the screen as it was', async () => {
     const onRename = vi.fn()
     render(
       <ListScreen
@@ -1744,15 +1747,14 @@ describe('with no connection', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
-    await waitFor(() =>
-      expect(screen.getByText(/no disponible sin conexión/i)).toBeVisible(),
-    )
+    // Silent: `OfflineBand` states the condition once, above the router.
+    expect(screen.queryByText(/no disponible sin conexión/i)).toBeNull()
     expect(api.updateList).not.toHaveBeenCalled()
     expect(onRename).not.toHaveBeenCalled()
     expect(screen.getByRole('heading').textContent).toContain('Mercado')
   })
 
-  it('will not change the emoji, and says why', async () => {
+  it('will not change the emoji, and leaves the screen as it was', async () => {
     const onEmojiChanged = vi.fn()
     render(
       <ListScreen
@@ -1767,9 +1769,8 @@ describe('with no connection', () => {
     fireEvent.click(screen.getByRole('button', { name: /^emoji$/i }))
     fireEvent.click(screen.getByRole('button', { name: '🍎' }))
 
-    await waitFor(() =>
-      expect(screen.getByText(/no disponible sin conexión/i)).toBeVisible(),
-    )
+    // Silent: `OfflineBand` states the condition once, above the router.
+    expect(screen.queryByText(/no disponible sin conexión/i)).toBeNull()
     expect(api.updateList).not.toHaveBeenCalled()
     expect(onEmojiChanged).not.toHaveBeenCalled()
     // The optimistic paint must not happen either — showing the new glyph and
@@ -1777,7 +1778,7 @@ describe('with no connection', () => {
     expect(screen.getByRole('heading').textContent).toContain('🛒')
   })
 
-  it('will not mark a default, and says why', async () => {
+  it('will not mark a default, and leaves the screen as it was', async () => {
     const onSetDefault = vi.fn()
     render(
       <ListScreen
@@ -1792,14 +1793,13 @@ describe('with no connection', () => {
       screen.getByRole('button', { name: /marcar como predeterminada/i }),
     )
 
-    await waitFor(() =>
-      expect(screen.getByText(/no disponible sin conexión/i)).toBeVisible(),
-    )
+    // Silent: `OfflineBand` states the condition once, above the router.
+    expect(screen.queryByText(/no disponible sin conexión/i)).toBeNull()
     expect(api.setDefaultList).not.toHaveBeenCalled()
     expect(onSetDefault).not.toHaveBeenCalled()
   })
 
-  it('will not delete the list, and says why', async () => {
+  it('will not delete the list, and leaves the screen as it was', async () => {
     const onBack = vi.fn()
     render(
       <ListScreen
@@ -1813,9 +1813,8 @@ describe('with no connection', () => {
     fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
     fireEvent.click(screen.getByRole('button', { name: /sí, eliminar lista/i }))
 
-    await waitFor(() =>
-      expect(screen.getByText(/no disponible sin conexión/i)).toBeVisible(),
-    )
+    // Silent: `OfflineBand` states the condition once, above the router.
+    expect(screen.queryByText(/no disponible sin conexión/i)).toBeNull()
     expect(api.deleteList).not.toHaveBeenCalled()
     expect(onBack).not.toHaveBeenCalled()
   })

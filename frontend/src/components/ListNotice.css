@@ -1,16 +1,4 @@
-/* Inside the sheet, under the rubric — where this list's own notices live.
-
-   Sticky because it is the *only* thing that explains why the controls below
-   it do nothing. It is the first child of `.item-list`, which is the scroll
-   container, so without this it scrolls away after a screen of products —
-   and a household forty rows down taps a dead checkbox with the reason off
-   screen. Under `.list-header` (z-index 50), which it must not cover. */
-.list-notice {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-}
-
+/* Inside the sheet, under the rubric — where this list's own notices live. */
 .list-notice__row {
   display: flex;
   align-items: center;

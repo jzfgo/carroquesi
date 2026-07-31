@@ -11,7 +11,7 @@
   width: 100%;
   max-width: 430px; /* comfortable on large phones / tablet emulation */
   margin: 0 auto;
-  min-height: 100svh;
+  min-height: calc(100svh - var(--band-offset, 0px));
   display: flex;
   flex-direction: column;
   background: var(--bg);

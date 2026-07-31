@@ -146,13 +146,6 @@
   box-sizing: border-box;
 }
 
-.lps__offline-msg {
-  font-size: 12px;
-  color: var(--ink-2);
-  text-align: center;
-  margin: 8px 16px 0;
-}
-
 .lps__save {
   display: block;
   width: calc(100% - 32px);

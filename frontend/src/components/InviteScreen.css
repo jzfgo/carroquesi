@@ -4,7 +4,7 @@
   align-items: center;
   justify-content: center;
   gap: 1.5rem;
-  min-height: 100dvh;
+  min-height: calc(100dvh - var(--band-offset, 0px));
   padding: 1.5rem;
   background: var(--color-bg);
 }

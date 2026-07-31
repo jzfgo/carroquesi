@@ -1,0 +1,33 @@
+/* Above the router and above every sheet, so the one statement of the
+   condition cannot be covered by the surface that made somebody ask.
+   The ceiling elsewhere is 300 (`BarcodeScanner`), which is fullscreen and
+   is the one thing this may sit over. */
+.offline-band {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  height: var(--offline-band-h);
+  z-index: 400;
+  background: var(--paper-1);
+  border-bottom: 1px solid var(--paper-2);
+  font-size: var(--fs-13);
+  font-weight: 500;
+
+  /* Secondary on a darker paper rung is --ink-1, not --ink-2 (rule 4). */
+  color: var(--ink-1);
+}
+
+.offline-band svg {
+  flex-shrink: 0;
+}
+
+/* Reconnection is the one thing here worth a colour: it is a change rather
+   than a condition, it is good news, and it leaves on its own. Verde is the
+   tone the toasts already use for a write that landed. */
+.offline-band--restored {
+  background: var(--success-bg);
+  color: var(--success);
+  border-bottom-color: var(--success-border);
+}

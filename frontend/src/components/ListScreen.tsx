@@ -42,7 +42,7 @@ import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
 import { isRetryable } from '../lib/queueCopy'
 import { parseReceiptWithAi } from '../lib/receiptAi'
-import { itemRefusal, OFFLINE_REFUSAL } from '../lib/refusalCopy'
+import { itemRefusal } from '../lib/refusalCopy'
 import type {
   BarcodeRead,
   DueSuggestion,
@@ -179,10 +179,7 @@ export function ListScreen({
 
   const handleRename = useCallback(
     async (listId: string, newName: string) => {
-      if (isOffline) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      if (isOffline) return
       const previous = localListName
       setLocalListName(newName)
       setMenuOpen(false)
@@ -199,10 +196,7 @@ export function ListScreen({
 
   const handleEmojiChange = useCallback(
     async (emoji: string | null) => {
-      if (isOffline) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      if (isOffline) return
       const previous = localEmoji
       setLocalEmoji(emoji)
       try {
@@ -221,10 +215,7 @@ export function ListScreen({
   )
 
   const handleSetDefault = useCallback(async () => {
-    if (isOffline) {
-      showToast(OFFLINE_REFUSAL)
-      return
-    }
+    if (isOffline) return
     setLocalIsDefault(true)
     setMenuOpen(false)
     try {
@@ -238,10 +229,7 @@ export function ListScreen({
 
   const handleDelete = useCallback(
     async (listId: string) => {
-      if (isOffline) {
-        showToast(OFFLINE_REFUSAL)
-        return
-      }
+      if (isOffline) return
       try {
         await deleteList(getToken, listId)
         setMenuOpen(false)
@@ -515,13 +503,10 @@ export function ListScreen({
   )
 
   const [rejectedOpen, setRejectedOpen] = useState(false)
-  const {
-    pendingCount,
-    pendingItemIds,
-    rejected,
-    retryRejected,
-    discardRejected,
-  } = useQueueDrain({
+  // No `pendingCount`: the band it fed («n cambios se enviarán solos») is
+  // gone, and with writes refused there is nothing in flight to count.
+  const { pendingItemIds, rejected, retryRejected, discardRejected } =
+    useQueueDrain({
     listId,
     getToken,
     onDrained: retry,
@@ -1043,8 +1028,6 @@ export function ListScreen({
         totalItems={allUnpurchasedCount}
         notice={
           <ListNotice
-            isOffline={isOffline}
-            pendingCount={pendingCount}
             rejectedCount={rejected.length}
             onShowRejected={() => setRejectedOpen(true)}
           />

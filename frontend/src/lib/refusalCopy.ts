@@ -17,24 +17,6 @@ import { ApiError } from './api'
  * account of the 404 cost it the 403 it should have had, so the two are asked
  * separately.
  */
-/**
- * Said when a write is refused for want of a signal — the one refusal no
- * server had a hand in.
- *
- * It carries no action. A *Reintentar* would be a control known in advance to
- * fail: the network is the reason and pressing it again cannot change that.
- * The band is what states the condition; this only says the tap did nothing,
- * and it should only ever be reached by a control pressed in the instant
- * between the `offline` event and React rendering it disabled.
- *
- * The wording is the one the list-level gates have used since they were
- * written — «no disponible», not «no se pudo», because nothing was attempted
- * and «no se pudo» would blame a server that never heard about it. Naming it
- * here is what stops the fifteen-odd gates this now covers from drifting into
- * fifteen sentences about one fact.
- */
-export const OFFLINE_REFUSAL = 'No disponible sin conexión'
-
 export function refusalMessage(err: unknown, fallback: string): string {
   const status = err instanceof ApiError ? err.status : 0
   if (status === 403) return 'Sin permiso en esa lista'

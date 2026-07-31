@@ -561,12 +561,6 @@ export function CloseTripSheet({
           </span>
         )}
       </button>
-      {/* It used to promise the close would be kept and sent later, which was
-          true while the queue existed to keep it. It does not, so the sheet
-          says what the disabled button already shows — and it stays open, so
-          nothing typed into it is lost by reading this. Same sentence as the
-          price sheet, because it is the same fact. */}
-      {isOffline && <p className="cts__offline">Disponible con conexión</p>}
       <button type="button" className="cts__cancel" onClick={onClose}>
         Cancelar
       </button>

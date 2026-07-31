@@ -326,7 +326,10 @@ describe('DashboardScreen — offline', () => {
     localStorage.removeItem('cqs_dashboard_cache_u1')
   })
 
-  it('shows offline banner when navigator.onLine is false', async () => {
+  // The band left this screen. It is `OfflineBand`, mounted above the router
+  // so one statement covers every route and every sheet — see its own suite.
+  // Asserted absent here so a second one cannot reappear on the dashboard.
+  it('never states the condition itself', async () => {
     Object.defineProperty(navigator, 'onLine', {
       value: false,
       configurable: true,
@@ -334,9 +337,13 @@ describe('DashboardScreen — offline', () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
 
     render(<DashboardScreen />)
-    await waitFor(() =>
-      expect(screen.getByText(/sin conexión/i)).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
+    expect(screen.queryByText(/sin conexión/i)).toBeNull()
+
+    Object.defineProperty(navigator, 'onLine', {
+      value: true,
+      configurable: true,
+    })
   })
 
   it('saves fetched lists to cache', async () => {
@@ -399,7 +406,7 @@ describe('DashboardScreen — offline', () => {
     })
   })
 
-  it('will not create a list without a connection, and says why', async () => {
+  it('will not create a list without a connection, and keeps the name', async () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
 
     render(<DashboardScreen />)
@@ -408,15 +415,12 @@ describe('DashboardScreen — offline', () => {
     goOffline()
     await openCreateAndSubmit('Costco')
 
-    await waitFor(() =>
-      expect(
-        screen.getByText(/no disponible sin conexión/i),
-      ).toBeInTheDocument(),
-    )
     expect(api.createList).not.toHaveBeenCalled()
-    // The toast says to come back with a connection, so there has to be
-    // something to come back to. This is the half the guard used to get
-    // wrong: it refused the write and discarded the name in the same breath.
+    // Silent: the band says it once, above the router. What still has to hold
+    // is that there is something to come back to — this is the half the guard
+    // used to get wrong, refusing the write and discarding the name in the
+    // same breath.
+    expect(screen.queryByText(/no disponible sin conexión/i)).toBeNull()
     expect(screen.getByPlaceholderText(/nombre/i)).toHaveValue('Costco')
   })
 
@@ -582,7 +586,7 @@ describe('DashboardScreen — offline', () => {
     expect(screen.getByText('Mercado')).toBeInTheDocument()
   })
 
-  it('will not submit feedback without a connection, and says why', async () => {
+  it('will not submit feedback without a connection, and keeps the message', async () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
 
     render(<DashboardScreen />)
@@ -598,16 +602,9 @@ describe('DashboardScreen — offline', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: /^enviar$/i }))
 
-    await waitFor(() =>
-      expect(
-        screen.getByText(/no se pudo enviar el feedback/i),
-      ).toBeInTheDocument(),
-    )
-    // This is the assertion that separates the two, and the only one that does:
-    // the toast string is shared with the network-failure path, and so is the
-    // sheet staying open — see the failure test above, which asserts that same
-    // pair, because the catch skips setFeedbackOpen(false) just as the guard's
-    // early return does.
+    // Nothing said, and «no se pudo enviar» in particular: it claimed an
+    // attempt that the guard never made. The band states the condition.
+    expect(screen.queryByText(/no se pudo enviar el feedback/i)).toBeNull()
     expect(api.submitFeedback).not.toHaveBeenCalled()
     // Pinned rather than discriminating: the message has to survive for there
     // to be anything to send once there is a connection.

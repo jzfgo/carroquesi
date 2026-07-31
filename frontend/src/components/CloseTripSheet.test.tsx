@@ -370,16 +370,21 @@ describe('CloseTripSheet', () => {
     expect(screen.getByLabelText('Pan')).toBeChecked()
   })
 
-  it('says the close needs a connection, and promises nothing', () => {
+  /**
+   * The sheet says nothing about the connection, in either direction. It used
+   * to promise the close would be sent later — which only the queue could
+   * honour — and then to state the condition itself, which `OfflineBand` now
+   * does once for the whole app, above the router and over this sheet. Both
+   * sentences are asserted absent so neither can come back.
+   */
+  it('never speaks about the connection', () => {
     renderSheet({ isOffline: true })
 
-    expect(screen.getByText('Disponible con conexión')).toBeInTheDocument()
-    // The old sentence undertook to send it later, which only the queue could
-    // honour. Asserted absent so the promise cannot come back without this
-    // failing.
     expect(
       screen.queryByText('Se guardará cuando vuelva la conexión'),
     ).not.toBeInTheDocument()
+    expect(screen.queryByText(/disponible con conexión/i)).toBeNull()
+    expect(screen.queryByText(/sin conexión/i)).toBeNull()
   })
 
   it('refuses the save while offline, and the sheet stays up', async () => {

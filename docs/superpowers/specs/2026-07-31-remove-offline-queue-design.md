@@ -126,31 +126,51 @@ sites, and the fact that no component guards on a `tmp-…` id.
 Worth being explicit, because it is the natural thing to assume this removal
 fixes: **it does not.**
 
-### The band says it; a refused tap says nothing
+### One band, above the router, and every guard is silent
 
-One fact, one place. The condition is stated by the band and by the disabled
-state of the control that was pressed — a toast on top would be the same fact a
-third time, once per tap, over a bar already on screen saying it.
+The condition belongs to the **device**, not to a list, a sheet or a screen.
+So it is said exactly once, by `OfflineBand`, mounted in `App` above `<Routes>`
+— outside every screen's chrome, over every sheet, unaffected by any scroll.
 
-So a guard that refuses a write is **silent**. What it must never be is silent
-*and* unexplained, which turns on two things the band did not do before:
+That replaces four separate statements, each of which was true only while its
+own surface happened to be visible:
 
-- **The band is sticky.** It is the first child of `.item-list`, which is the
-  scroll container, so it used to scroll away after a screen of products.
-  Forty rows down, a dead checkbox had its explanation off screen. `position:
-  sticky; top: 0` at `z-index: 40`, under `.list-header`'s 50.
-- **Every surface that covers it carries the same line.** `CloseTripSheet` and
-  `LogPurchaseSheet` already do («Disponible con conexión»); the rest do not
-  yet, and until a sheet has one its guard keeps its toast. That is the rule:
-  *where the band is visible the guard is silent, and a surface that hides the
-  band says it itself.*
+| was | now |
+| -- | -- |
+| `ListNotice`'s «Sin conexión · n cambios se enviarán solos» | gone; `ListNotice` is only refused writes |
+| `DashboardScreen`'s own `.offline-banner` | gone |
+| `CloseTripSheet`'s «Se guardará cuando vuelva la conexión» | gone |
+| `LogPurchaseSheet`'s «Disponible con conexión» | gone |
 
-The four list-level gates (rename, emoji, set-default, delete) keep their toast
-for exactly this reason — they fire from a menu drawn over the list.
+Because the one band cannot be covered or scrolled away, **every guard is
+silent** — including the four list-level ones and both dashboard ones.
+`OFFLINE_REFUSAL` was added for those and then deleted in the same change: with
+the band saying it, no call site needed a sentence at all.
+
+**Three states, because reconnection is a change rather than a condition:**
+
+- `offline` — persists for as long as it holds. It is a fact about now.
+- `restored` — «De nuevo en línea», in `--success` tone, for `AUTO_DISMISS_MS`
+  (imported from `Toast`, so the app holds one idea of how long a sentence
+  takes to read). Driven by the `online` **event**, not by the value: mounting
+  with a connection is not a transition, so a cold start cannot congratulate
+  itself, and no previous value has to be remembered.
+- `hidden`.
+
+`isOffline` wins over `restored`, so losing the signal again mid-window says so
+rather than continuing to congratulate.
+
+**The layout cost, stated.** The band is a flex child of `#root` above the
+router, so a screen below it can no longer claim a whole viewport without
+pushing the document taller than one. Six screens subtract `var(--band-offset)`,
+which is `0px` until `#root:has(> .offline-band)`. A variable rather than
+`flex: 1` on each, because those six deliberately choose between `svh` and
+`dvh` — they differ on the mobile browser's own chrome, and flattening them
+would silently decide that question for all six.
 
 The one case that still speaks is a write that **fails** after being attempted:
-that is a different sentence («no se pudo…»), on a screen where the band is
-correctly absent because `navigator.onLine` is `true`. See limit 1.
+a different sentence («no se pudo…»), on a screen where the band is correctly
+absent because `navigator.onLine` is `true`. See limit 1.
 
 ### Controls are disabled, not tappable-then-refused
 

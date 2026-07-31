@@ -1,7 +1,7 @@
 .dashboard-screen {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: calc(100dvh - var(--band-offset, 0px));
   background: var(--paper-0);
 }
 

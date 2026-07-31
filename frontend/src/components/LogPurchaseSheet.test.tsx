@@ -139,9 +139,12 @@ describe('LogPurchaseSheet — offline', () => {
     onClose: vi.fn(),
   }
 
-  it('shows offline message when isOffline is true', () => {
+  // The condition is stated once, by `OfflineBand`, above the router and over
+  // this sheet. What the sheet still owes is the disabled control below.
+  it('never speaks about the connection', () => {
     render(<LogPurchaseSheet {...baseProps} item={BASE_ITEM} isOffline />)
-    expect(screen.getByText(/disponible con conexión/i)).toBeInTheDocument()
+    expect(screen.queryByText(/disponible con conexión/i)).toBeNull()
+    expect(screen.queryByText(/sin conexión/i)).toBeNull()
   })
 
   it('disables save button when isOffline is true', () => {
@@ -149,13 +152,11 @@ describe('LogPurchaseSheet — offline', () => {
     expect(screen.getByRole('button', { name: /guardar/i })).toBeDisabled()
   })
 
-  it('does not show offline message when isOffline is false', () => {
+  it('leaves both price controls live with a connection', () => {
     render(
       <LogPurchaseSheet {...baseProps} item={BASE_ITEM} isOffline={false} />,
     )
-    expect(
-      screen.queryByText(/disponible con conexión/i),
-    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /guardar/i })).toBeEnabled()
   })
 })
 

@@ -224,7 +224,6 @@ export default function LogPurchaseSheet({
           />
         )}
       </div>
-      {isOffline && <p className="lps__offline-msg">Disponible con conexión</p>}
       <button
         className="lps__save"
         onClick={handleSave}

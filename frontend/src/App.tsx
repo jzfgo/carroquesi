@@ -4,6 +4,7 @@ import { DashboardScreen } from './components/DashboardScreen'
 import { InviteScreen } from './components/InviteScreen'
 import { ListRoute } from './components/ListRoute'
 import { Loading } from './components/Loading'
+import { OfflineBand } from './components/OfflineBand'
 import { SignInScreen } from './components/SignInScreen'
 import { ThemeManager } from './components/ThemeManager'
 import { WaitlistScreen } from './components/WaitlistScreen'
@@ -56,6 +57,9 @@ export default function App() {
         <FeatureFlagsProvider>
           <ThemeManager>
             <PushNavigation />
+            {/* Above the router on purpose: one band for the whole app, and
+                nothing below it may say the same thing again. */}
+            <OfflineBand />
             <Routes>
               <Route path="/invite/:id" element={<InviteScreen />} />
               <Route

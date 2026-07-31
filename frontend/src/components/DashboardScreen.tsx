@@ -29,7 +29,6 @@ import { createDragAnnouncements } from '../lib/dragAnnouncements'
 import { FLAGS } from '../lib/featureFlags'
 import type { Direction } from '../lib/listOrder'
 import { moveAnnouncement, moveList } from '../lib/listOrder'
-import { OFFLINE_REFUSAL } from '../lib/refusalCopy'
 import type { ApiList } from '../types'
 import { CreateListCard } from './CreateListCard'
 import './DashboardScreen.css'
@@ -152,10 +151,9 @@ export function DashboardScreen() {
 
   const handleFeedbackSubmit = useCallback(
     async (payload: FeedbackPayload) => {
-      if (isOffline) {
-        showToast('No se pudo enviar el feedback')
-        return
-      }
+      // Silent, like every other gate: the band above the router is already
+      // saying it, and «no se pudo enviar» claimed an attempt never made.
+      if (isOffline) return
       setFeedbackSubmitting(true)
       try {
         await submitFeedback(getToken, payload)
@@ -294,10 +292,9 @@ export function DashboardScreen() {
   // holding a name whose list already exists.
   const handleCreate = useCallback(
     async (name: string) => {
-      if (isOffline) {
-        showToast(OFFLINE_REFUSAL)
-        return false
-      }
+      // Still false, not silence-and-succeed: the card reads this to decide
+      // whether to keep what was typed.
+      if (isOffline) return false
       try {
         await createList(getToken, { name, emoji: randomEmoji() })
       } catch {
@@ -359,11 +356,6 @@ export function DashboardScreen() {
           )}
         </button>
       </header>
-      {isOffline && (
-        <div className="offline-banner" role="status">
-          Sin conexión
-        </div>
-      )}
       <main className="dashboard-screen__lists">
         {lists.length > 0 && (
           <div className="dashboard-screen__panel-head">
