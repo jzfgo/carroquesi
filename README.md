@@ -31,6 +31,8 @@ Those two artifacts are the deployable output; where they run is a separate choi
 - **Real-time sync:** Short-polling — the frontend hits `GET /lists/{id}/updated-at` every 5s and re-fetches items when the timestamp changes.
 - **Offline:** The supermarket is where there is no coverage, so item writes queue in IndexedDB and send themselves when the network returns. The list says so under its own header and marks the lines still waiting. A write the server refuses is kept, not dropped: it waits in «Cambios sin enviar», where it says why it did not go in and can be sent again or discarded.
 
+- **Fonts:** vendored, not linked. The five faces are checked in, served from the app's own origin and precached with everything else, so the app opens offline in the type it was designed in and no page load asks a CDN what it looks like. The header of `frontend/src/fonts.css` records where they came from.
+
 ## Architecture Decisions
 
 Significant tradeoffs are documented in [`docs/decisions/`](docs/decisions/) (e.g. sync strategy, auth model, ORM choice, AI integration, feature flags, etc.).

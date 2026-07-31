@@ -7,6 +7,17 @@
 > read a single instructions file — OpenCode and Codex pin `AGENTS.md` — should
 > open it directly when working on the frontend.
 
+## Fonts
+
+**The faces are vendored, not fetched.** `src/fonts.css` declares them and `src/assets/fonts/` holds the bytes; nothing in the app talks to `fonts.googleapis.com` or `fonts.gstatic.com`. They are **static files, checked in** — there is no generator, and there is deliberately not one: a refresh is a manual job of a few minutes that comes round every year or two, and the header comment in `src/fonts.css` is the whole recipe. Read it before changing a family, a weight or a subset.
+
+Two things in it that are load-bearing:
+
+- **The `@font-face` blocks are Google's, copied through unedited.** Three of the five families are variable, so Google emits one block per requested weight all pointing at the same file. Collapsing those into a `font-weight: 400 700` range changes which instance the browser picks; dropping `unicode-range` downloads every subset on every page.
+- **A changed `.woff2` is a rendering change app-wide.** Regenerate the visual baselines in the same PR, and say in the message that letterforms moved — see the tolerance section in `tests/README.md` for why a font refresh can move every screen by less than the budget and fail nothing.
+
+Never hard-code a face in a component. Resolve through the tokens in `colorsAndType.css` (`--font-sans`, `--font-display`, `--font-hand`, `--font-written`, `--font-mono`); `--written-scale` is a cap-height correction measured against the specific face `--font-written` names, so swapping that face means re-measuring the number.
+
 ## Unit tests (vitest)
 
 **Stylesheets are inert by default.** `getComputedStyle` in jsdom returns nothing for a rule that lives in a CSS file, so a test asserting a computed style passes whatever the stylesheet says — it is vacuous, not green. Opt a file in through `test.css.include` in `frontend/vite.config.ts`, one pattern at a time. Turning it on everywhere lets jsdom compute visibility from stylesheets across the whole suite, which can flip any existing visibility assertion.

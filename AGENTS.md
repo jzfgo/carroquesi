@@ -70,7 +70,9 @@ The worker is **`frontend/src/sw.ts`** — real source, linted and typechecked v
 
 Anything imported by `sw.ts` must stay DOM-free and WebWorker-safe, and must be listed in `tsconfig.worker.json`'s `include` (currently `sw.ts` and `lib/pushCopy.ts`).
 
-Leave `injectManifest.globPatterns` **unset**. The PWA icons and `manifest.webmanifest` are injected from `manifest.icons` via `includeManifestIcons`, not globbed — setting an explicit pattern triples the precache instead of protecting it. Diff the precache manifest before and after any worker config change; a successful build proves nothing. See [ADR-009](docs/decisions/009-single-service-worker.md).
+`injectManifest.globPatterns` is **the workbox default plus `woff2`** — `['**/*.{js,wasm,css,html,woff2}']` — and `woff2` is the only thing that has ever earned a place there. The PWA icons and `manifest.webmanifest` are injected from `manifest.icons` via `includeManifestIcons`, not globbed, so naming `png`/`svg`/`ico` here protects nothing and triples the precache. `woff2` is not that mistake: the faces are vendored in `src/assets/fonts/` and are genuinely absent from the default, so leaving it out means they build, serve, and never precache. Measured — unset 10 entries / 707 KiB, with `woff2` 20 / 954 KiB, with `ico,png,svg` as well 32 / 2444 KiB.
+
+Diff the precache manifest before and after any worker config change; a successful build proves nothing, and every variant above builds cleanly. See [ADR-009](docs/decisions/009-single-service-worker.md).
 
 ### Dev auth bypass
 

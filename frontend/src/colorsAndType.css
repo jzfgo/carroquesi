@@ -3,7 +3,9 @@
    Paper-and-ink palette inspired by a real hand-written grocery
    list. Native light + dark. Mobile/touch first.
 
-   Fonts (via Google Fonts — see fonts/README.md for self-host):
+   Fonts (vendored, not fetched — ./fonts.css and the woff2 files it points at
+   are checked in, and its header is the recipe for changing a family, a weight
+   or a subset):
      Geist           — body & UI (clean neutral grotesque)
      Bree Serif      — display, screen titles, pre-printed sheet titles
      Caveat          — sparing hand-written accent (wordmark, annotations,
@@ -23,7 +25,10 @@
    ThemeManager is what puts the class there; do not move it to <body>.
    ───────────────────────────────────────────────────────────── */
 
-@import 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Bree+Serif&family=Caveat:wght@500;600;700&family=Patrick+Hand+SC&family=JetBrains+Mono:wght@400;500;600&display=swap';
+/* The one place the faces are declared — keep it that way. A second declaration
+   in index.html can disagree with this one about which families the app has,
+   and neither is then the whole answer. */
+@import './fonts.css';
 
 /* ── 1. CORE PALETTE — light (default) ────────────────────── */
 :root {
