@@ -457,8 +457,32 @@ export function useListItems(
       // and the local `price` stays null until the screen remounts.
       //
       // So the refusal is read as what it is — an answer about which verb was
-      // wanted — and the write is repeated with the other one. A second
-      // identical call then ends the way the first should have.
+      // wanted — and the write is repeated with the other one.
+      //
+      // This is not a second write against a server that said no. Both routes
+      // are `_get_item_or_404` → one precondition → the *same* `_write_price`,
+      // with the same body: two doors into one write, each guarding the state
+      // the other one expects. `isRetryable` withholds a retry because an
+      // identical request gets an identical answer, and this request is not
+      // identical — it is the complement, named by the refusal itself («use
+      // PATCH to update it»).
+      //
+      // Two things this accepts deliberately:
+      //
+      // The 409 was the only place this app could have noticed that another
+      // phone priced the item first, and the fallback now overwrites it
+      // without saying so. That is last-write-wins, which is what every other
+      // field on this row already does, and the person is looking at the
+      // number they just read off a shelf.
+      //
+      // `update_price` also answers 404 for an item that is simply *gone*
+      // (`_get_item_or_404`), which is not an answer about the verb — and from
+      // here the two are indistinguishable. It is safe only because
+      // `create_price` runs that same lookup before its own guard, so the
+      // fallback re-404s and the error surfaces unchanged. That is a
+      // cross-file invariant with nothing on either side encoding it: if
+      // `create_price` ever learns to create the item too, this becomes a
+      // write against a precondition nobody checked.
       try {
         await fn(getToken, listId, itemId, payload)
       } catch (err) {

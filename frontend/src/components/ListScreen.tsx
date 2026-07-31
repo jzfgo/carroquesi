@@ -39,6 +39,7 @@ import { isNetworkError } from '../lib/networkError'
 import { enqueue } from '../lib/offlineQueue'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
+import { isRetryable } from '../lib/queueCopy'
 import { parseReceiptWithAi } from '../lib/receiptAi'
 import type {
   BarcodeRead,
@@ -724,16 +725,35 @@ export function ListScreen({
         try {
           await savePrice(itemId, amount, pricePer, store, purchasedQuantity)
           if (store) setLastPriceStore(store)
-        } catch {
+        } catch (err) {
           // An amount somebody read off a shelf and typed in. It used to be
           // swallowed here as non-critical, which made losing it silent — the
           // one thing this must never be. The notice carries the way to send
           // it again, so the sheet does not have to stay open holding it.
-          showToast('No se pudo guardar el precio', {
-            label: 'Reintentar',
-            tone: 'tomate',
-            onAct: () => void attempt(),
-          })
+          //
+          // But only where sending it again could end differently. This is the
+          // same `isRetryable` the sheet draws its rows with, and the same rule
+          // one screen over: a control known in advance to fail is not a
+          // control. Unconditional, the 404 from a product a flatmate deleted
+          // while this sheet was open would offer a button that makes *two*
+          // doomed requests per press, for as long as anybody keeps pressing.
+          //
+          // And 404 has a truer sentence than «no se pudo». «Cambios sin
+          // enviar» already says it for the same fact, so it is said the same
+          // way here.
+          const status = err instanceof ApiError ? err.status : 0
+          showToast(
+            status === 404
+              ? 'El producto ya no existe'
+              : 'No se pudo guardar el precio',
+            isRetryable(status)
+              ? {
+                  label: 'Reintentar',
+                  tone: 'tomate',
+                  onAct: () => void attempt(),
+                }
+              : undefined,
+          )
         }
       }
 

@@ -405,9 +405,22 @@ hop from the row rather than two.
 
 ## Known limits
 
-Seven things this phase leaves standing, each with an issue — so none of them
+Eight things this phase leaves standing, each with an issue — so none of them
 is a surprise to somebody reading «Cambios sin enviar» and taking it as
 complete.
+
+The one that most contradicts this spec's own argument goes first.
+
+- **A price never reaches the queue** (JAV-103). The case for building this
+  sheet was that «for writes somebody typed and cannot re-type from memory, a
+  six-second toast is not a door» — and the price is the paradigm case of
+  exactly that. Yet `savePrice` is not one of the six `enqueue` sites and there
+  is no `setPrice` op: a failed price is never in IndexedDB, never in the
+  band's count, never in this sheet. Its only door is the toast. The gate at
+  `LogPurchaseSheet.tsx:231` covers less than it looks: `isOffline` is
+  `!navigator.onLine`, so on a connected-but-dead network — a captive portal, a
+  basement with the association up and no route — it reads *online*, the gate
+  is open, and the save is attempted in precisely the state where it fails.
 
 The first one changes how to read the rest: **everything built here protects
 the queue, and there is a path that never reaches the queue.**

@@ -13,6 +13,7 @@ import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import { useQueueDrain } from '../hooks/useQueueDrain'
 import * as api from '../lib/api'
+import { ApiError } from '../lib/api'
 import * as offlineQueue from '../lib/offlineQueue'
 import * as receiptAi from '../lib/receiptAi'
 import { madridDay } from '../lib/tripDay'
@@ -433,6 +434,49 @@ describe('ListScreen', () => {
     expect(
       await screen.findByText('No se pudo guardar el precio'),
     ).toBeInTheDocument()
+  })
+
+  /**
+   * The same rule the sheet draws its rows with, one screen over. A 404 is a
+   * fact about the data — the product is gone — so «Reintentar» there is a
+   * control known in advance to fail, and it would make two doomed requests a
+   * press now that `savePrice` falls back.
+   */
+  it('offers no retry on a refusal that can never succeed', async () => {
+    const gone = new ApiError(404, 'Item not found')
+    gone.status = 404
+    const savePriceMock = vi.fn().mockRejectedValue(gone)
+    vi.mocked(api.getPriceHistory).mockResolvedValue({ entries: [] } as never)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({
+          id: 'i1',
+          name: 'Manzanas',
+          purchased: true,
+          purchased_at: TODAY,
+        }),
+      ],
+      savePrice: savePriceMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Manzanas' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: /registrar un precio/i }),
+    )
+    fireEvent.change(screen.getByPlaceholderText('0.00'), {
+      target: { value: '1.19' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    // And it says the true thing, not «no se pudo» about a product that is
+    // gone — the same sentence «Cambios sin enviar» uses for the same fact.
+    await screen.findByText('El producto ya no existe')
+    expect(
+      screen.queryByRole('button', { name: 'Reintentar' }),
+    ).not.toBeInTheDocument()
   })
 
   it('handles EanSearch finding a product and adding it', async () => {

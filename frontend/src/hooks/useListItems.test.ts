@@ -892,6 +892,39 @@ describe('useListItems — savePrice converges on a retry', () => {
       { amount: 1.19, price_per: null, store: 'Lidl' },
     )
     expect(result.current.items[0].price).toBe(1.19)
+    // The shape, not only the outcome: one POST per attempt and exactly one
+    // PATCH. A refactor firing both verbs every time would satisfy the
+    // assertions above and double every price write.
+    expect(api.logPrice).toHaveBeenCalledTimes(2)
+    expect(api.updatePrice).toHaveBeenCalledTimes(1)
+  })
+
+  // The path with the most moving parts, and the one that decides whether the
+  // person is left with a door or with silence: the fallback itself fails.
+  it('propagates when the fallback fails too, so the notice can re-show', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    const conflict = new ApiError(409, 'Item already has a price')
+    conflict.status = 409
+    vi.mocked(api.logPrice).mockRejectedValue(conflict)
+    const boom = new ApiError(500, 'Server Error')
+    boom.status = 500
+    vi.mocked(api.updatePrice).mockRejectedValue(boom)
+
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await expect(
+        result.current.savePrice('item-1', 1.19, null, 'Lidl', '1'),
+      ).rejects.toThrow()
+    })
+
+    // The fallback's own refusal is what reaches the caller — not the 409,
+    // which by then is an answer about a door nobody is standing at.
+    expect(api.updatePrice).toHaveBeenCalledTimes(1)
+    expect(result.current.items[0].price).toBeNull()
   })
 
   // The mirror, and the reason the fallback is not one-directional: a price
