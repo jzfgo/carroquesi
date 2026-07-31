@@ -9,9 +9,9 @@
 
 ## Fonts
 
-**The faces are vendored, not fetched.** `src/fonts.css` declares them and `src/assets/fonts/` holds the bytes; nothing in the app talks to `fonts.googleapis.com` or `fonts.gstatic.com`. Both files are **generated** — `scripts/fetch-fonts.py` writes them, and that script is where a family, a weight or a subset is changed. Editing `src/fonts.css` by hand is a change the next refresh silently discards.
+**The faces are vendored, not fetched.** `src/fonts.css` declares them and `src/assets/fonts/` holds the bytes; nothing in the app talks to `fonts.googleapis.com` or `fonts.gstatic.com`. They are **static files, checked in** — there is no generator, and there is deliberately not one: a refresh is a manual job of a few minutes that comes round every year or two, and the header comment in `src/fonts.css` is the whole recipe. Read it before changing a family, a weight or a subset.
 
-Two things about it that are load-bearing:
+Two things in it that are load-bearing:
 
 - **The `@font-face` blocks are Google's, copied through unedited.** Three of the five families are variable, so Google emits one block per requested weight all pointing at the same file. Collapsing those into a `font-weight: 400 700` range changes which instance the browser picks; dropping `unicode-range` downloads every subset on every page.
 - **A changed `.woff2` is a rendering change app-wide.** Regenerate the visual baselines in the same PR, and say in the message that letterforms moved — see the tolerance section in `tests/README.md` for why a font refresh can move every screen by less than the budget and fail nothing.

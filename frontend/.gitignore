@@ -34,9 +34,3 @@ dist-ssr
 # Coverage
 /coverage/
 
-# scripts/fetch-fonts.py stages here and swaps on success. A successful run
-# leaves neither behind — but a removal it could not complete does, and one
-# `git add -A` would then commit a second copy of every font.
-/src/assets/fonts.partial/
-/src/assets/fonts.previous/
-/src/fonts.css.partial

@@ -1,12 +1,37 @@
-/* Vendored from Google Fonts by `scripts/fetch-fonts.py` — do not edit.
-   To change a family, a weight or a subset, edit that script and re-run it:
-   `just frontend fetch-fonts`. Every declaration below is Google's own: the
-   only rewrite is the `src:` URL, which now points at `src/assets/fonts/`.
-   Stylelint and Prettier then lay the file out — blank lines before the
-   subset comments, `unicode-range` rewrapped — which changes how it reads and
-   not one value in it. Family names keep Google's quoting: `.stylelintrc.json`
-   turns `font-family-name-quotes` off here, and the script's docstring says
-   which two real families that rule would otherwise break.
+/* Vendored from Google Fonts on 2026-07-31. Static files, checked in — there
+   is no generator, and this comment is the whole of what a refresh needs.
+
+   Fetched from, verbatim:
+
+     https://fonts.googleapis.com/css2
+       ?family=Geist:wght@400;500;600;700
+       &family=Bree+Serif
+       &family=Caveat:wght@500;600;700
+       &family=Patrick+Hand+SC
+       &family=JetBrains+Mono:wght@400;500;600
+       &display=swap
+
+   Ask with a **current desktop Chrome User-Agent**. Google answers by UA, and
+   two ways: an older one gets `ttf`, roughly twice the bytes; an Android one
+   gets a *different cut* of every family, unhinted. That second split is why
+   25 mobile baselines moved when these were vendored — see `tests/README.md`.
+   The desktop cut is the one committed here, for every device.
+
+   Then: keep the `latin` and `latin-ext` blocks and drop cyrillic, greek and
+   vietnamese (10 more files, 180 KB, alphabets a Spanish grocery list does not
+   write in — an item *named* in Cyrillic now falls back to a system face);
+   download each `src:` URL into `assets/fonts/` named `<family>-<subset>.woff2`;
+   point the `src:` at it. That is the only edit. If two blocks would ever want
+   one filename — an `ital` axis, or a static family at several weights — put
+   the style and weight in the name, or they overwrite each other silently.
+
+   Do not tidy the blocks. Three of the five families are variable, so Google
+   emits one block per weight all pointing at the same file; folding those into
+   a `font-weight: 400 700` range changes which instance the browser picks, and
+   dropping `unicode-range` downloads every subset on every page.
+
+   A changed `.woff2` here is an app-wide rendering change: regenerate the
+   visual baselines in the same PR and say the letterforms moved.
 
    Vite fingerprints these files at build time, so a refreshed cut of a family
    is served under a new name and no browser can hold a stale one. */
@@ -39,7 +64,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: 'Caveat';
+  font-family: Caveat;
   font-style: normal;
   font-weight: 500;
   font-display: swap;
@@ -52,7 +77,7 @@
 
 /* latin */
 @font-face {
-  font-family: 'Caveat';
+  font-family: Caveat;
   font-style: normal;
   font-weight: 500;
   font-display: swap;
@@ -65,7 +90,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: 'Caveat';
+  font-family: Caveat;
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -78,7 +103,7 @@
 
 /* latin */
 @font-face {
-  font-family: 'Caveat';
+  font-family: Caveat;
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -91,7 +116,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: 'Caveat';
+  font-family: Caveat;
   font-style: normal;
   font-weight: 700;
   font-display: swap;
@@ -104,7 +129,7 @@
 
 /* latin */
 @font-face {
-  font-family: 'Caveat';
+  font-family: Caveat;
   font-style: normal;
   font-weight: 700;
   font-display: swap;
@@ -117,7 +142,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: 'Geist';
+  font-family: Geist;
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -130,7 +155,7 @@
 
 /* latin */
 @font-face {
-  font-family: 'Geist';
+  font-family: Geist;
   font-style: normal;
   font-weight: 400;
   font-display: swap;
@@ -143,7 +168,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: 'Geist';
+  font-family: Geist;
   font-style: normal;
   font-weight: 500;
   font-display: swap;
@@ -156,7 +181,7 @@
 
 /* latin */
 @font-face {
-  font-family: 'Geist';
+  font-family: Geist;
   font-style: normal;
   font-weight: 500;
   font-display: swap;
@@ -169,7 +194,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: 'Geist';
+  font-family: Geist;
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -182,7 +207,7 @@
 
 /* latin */
 @font-face {
-  font-family: 'Geist';
+  font-family: Geist;
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -195,7 +220,7 @@
 
 /* latin-ext */
 @font-face {
-  font-family: 'Geist';
+  font-family: Geist;
   font-style: normal;
   font-weight: 700;
   font-display: swap;
@@ -208,7 +233,7 @@
 
 /* latin */
 @font-face {
-  font-family: 'Geist';
+  font-family: Geist;
   font-style: normal;
   font-weight: 700;
   font-display: swap;

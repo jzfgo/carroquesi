@@ -3,9 +3,9 @@
    Paper-and-ink palette inspired by a real hand-written grocery
    list. Native light + dark. Mobile/touch first.
 
-   Fonts (vendored, not fetched — `scripts/fetch-fonts.py` writes ./fonts.css
-   and the woff2 files it points at, and is where a family, a weight or a
-   subset is changed):
+   Fonts (vendored, not fetched — ./fonts.css and the woff2 files it points at
+   are checked in, and its header is the recipe for changing a family, a weight
+   or a subset):
      Geist           — body & UI (clean neutral grotesque)
      Bree Serif      — display, screen titles, pre-printed sheet titles
      Caveat          — sparing hand-written accent (wordmark, annotations,
