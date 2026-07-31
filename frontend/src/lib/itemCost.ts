@@ -94,9 +94,18 @@ export function computeCostSummary(items: ListItem[]): CostSummary | null {
  * can read — is an `Invalid Date`, whose `toLocaleDateString` is the literal
  * string «Invalid Date», printed as a heading over somebody's shop. Not
  * knowing the day is something this function can already say out loud.
+ *
+ * `es-ES` rather than `es`, which is what this asked for until now. The two
+ * render identically for `dateStyle: 'medium'` — checked across every month —
+ * so nothing on screen moves; the point is that they are not guaranteed to.
+ * `es` is the language, and CLDR resolves it to Spain today by convention
+ * rather than by promise. Every other formatter in the app already names the
+ * region: `formatShortDate` and `formatPrice` both say `es-ES`, and a house
+ * that writes `1.234,56 €` should not be asking for its dates in a dialect it
+ * did not pick.
  */
 export function purchasedDateLabel(purchased_at: string | null): string {
   const at = purchased_at === null ? null : parseNaiveUtc(purchased_at)
   if (at === null) return 'Fecha desconocida'
-  return new Date(at).toLocaleDateString('es', { dateStyle: 'medium' })
+  return new Date(at).toLocaleDateString('es-ES', { dateStyle: 'medium' })
 }

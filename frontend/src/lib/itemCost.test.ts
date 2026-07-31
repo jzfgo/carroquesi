@@ -75,7 +75,7 @@ describe('computeCostSummary — purchased_quantity', () => {
 // naming a day is one that fails for whoever sits furthest east. `day()` asks
 // for the same instant instead.
 const day = (iso: string) =>
-  new Date(iso).toLocaleDateString('es', { dateStyle: 'medium' })
+  new Date(iso).toLocaleDateString('es-ES', { dateStyle: 'medium' })
 
 describe('purchasedDateLabel', () => {
   it('reads a stored stamp as the naive UTC it is', () => {
@@ -102,5 +102,30 @@ describe('purchasedDateLabel', () => {
 
   it('still says it does not know when there is no stamp', () => {
     expect(purchasedDateLabel(null)).toBe('Fecha desconocida')
+  })
+
+  // `day()` above mirrors the implementation, so it cannot see the locale tag
+  // change under it — the one thing it does not pin is the one thing it shares.
+  // This asks the question the mirror cannot: the label is Spanish. It stays
+  // zone-free by naming the whole set rather than a month, because no single
+  // instant lands on one calendar day everywhere from −11 to +14.
+  it('writes the month in Spanish', () => {
+    const months = [
+      'ene',
+      'feb',
+      'mar',
+      'abr',
+      'may',
+      'jun',
+      'jul',
+      'ago',
+      'sept',
+      'oct',
+      'nov',
+      'dic',
+    ]
+    const label = purchasedDateLabel('2026-07-22T12:00:00')
+    expect(label).toMatch(/^\d{1,2} \p{L}+ \d{4}$/u)
+    expect(months).toContain(label.split(' ')[1])
   })
 })
