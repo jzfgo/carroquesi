@@ -99,13 +99,15 @@ code {
   padding: 4px 8px;
 }
 
-.offline-banner--sticky {
-  position: sticky;
+/* Overlays instead of sitting in flow: spotty connectivity would otherwise
+   shift the whole layout on every flip. */
+.offline-banner--overlay {
+  position: fixed;
   top: 0;
-  z-index: 10;
-}
-
-.offline-banner--band {
+  right: 0;
+  left: 0;
+  z-index: 150;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 4px);
   animation: band-drop-in 0.3s ease-out;
   transition: background-color 0.3s ease;
 }
@@ -145,7 +147,7 @@ code {
 /* Unmounting is timer-driven, not animation-driven, so stripping the
    animations here cannot strand the band on screen. */
 @media (prefers-reduced-motion: reduce) {
-  .offline-banner--band,
+  .offline-banner--overlay,
   .offline-banner--leaving {
     animation: none;
     transition: none;

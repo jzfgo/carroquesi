@@ -40,8 +40,7 @@ export function OfflineBand() {
   const backOnline = phase !== 'offline'
   const classes = [
     'offline-banner',
-    'offline-banner--sticky',
-    'offline-banner--band',
+    'offline-banner--overlay',
     backOnline ? 'offline-banner--back-online' : '',
     phase === 'leaving' ? 'offline-banner--leaving' : '',
   ]
