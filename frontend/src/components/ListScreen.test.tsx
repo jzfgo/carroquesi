@@ -94,6 +94,19 @@ const emptyHookResult = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // Before, not after. Two tests in this file mutate `navigator.onLine`, and
+  // a reset that runs afterwards is one a test has to remember — the inline
+  // case below did not, and a single red assertion read as seventeen, every
+  // later test in the file running offline and pointing everywhere except the
+  // cause. Running first makes that impossible even for a test that dies in a
+  // way no cleanup sees, and the assert turns a leak into one red hook named
+  // for this file's setup.
+  //
+  // `delete` rather than redefining to `true`: it uncovers jsdom's prototype
+  // accessor, so the assert would catch a future jsdom making `onLine` an
+  // instance property. Redefining would shadow that case forever.
+  delete (navigator as { onLine?: boolean }).onLine
+  expect(navigator.onLine).toBe(true)
   // useListSeen fires on mount and chains .catch on the result; the api
   // automock would otherwise return undefined.
   vi.mocked(api.markListSeen).mockResolvedValue(null)

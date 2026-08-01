@@ -19,10 +19,15 @@ import { AUTO_DISMISS_MS } from './Toast'
  */
 export function OfflineBand() {
   const { isOffline } = useIsOffline()
-  // A counter, not a boolean: a second `online` with no `offline` between
-  // them (a wifi→cellular handover) has to restart the window rather than
-  // inherit what is left of the first one's, and setting `true` over `true`
-  // bails out of the render so the timer effect never re-runs.
+  // A counter, not a boolean, and the only state this needs. Every `online`
+  // increments it to a value distinct from its predecessor, so the timer
+  // effect re-runs and the window is full-length — including on a handover,
+  // an `online` with no `offline` before it, where setting `true` over `true`
+  // would bail out of the render and inherit the remainder of the last one.
+  //
+  // Nothing listens for `offline`: `isOffline` wins over this at the bottom,
+  // so the counter is only ever read while there *is* a connection, and by
+  // then the next `online` has already refreshed it.
   const [restoreCount, setRestoreCount] = useState(0)
 
   useEffect(() => {
@@ -32,17 +37,8 @@ export function OfflineBand() {
     // instead would need the previous one remembered, and would congratulate
     // the app on every cold start.
     const onOnline = () => setRestoreCount((n) => n + 1)
-    // Cleared on the way out, so a second reconnection starts its own window
-    // rather than inheriting what was left of the first one's. Without this,
-    // `setRestored(true)` on an already-true state bails out of the render and
-    // the timer effect never re-runs.
-    const onOffline = () => setRestoreCount(0)
     window.addEventListener('online', onOnline)
-    window.addEventListener('offline', onOffline)
-    return () => {
-      window.removeEventListener('online', onOnline)
-      window.removeEventListener('offline', onOffline)
-    }
+    return () => window.removeEventListener('online', onOnline)
   }, [])
 
   useEffect(() => {

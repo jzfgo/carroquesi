@@ -108,61 +108,61 @@ describe('OfflineBand', () => {
     announce(false)
     expect(screen.getByRole('status')).toHaveTextContent('Sin conexión')
   })
-})
 
-/** Losing the signal again clears the pending dismissal, so the window that
- *  follows is a fresh one rather than the remainder of the last. */
-it('gives a reconnection after a fresh outage its own window', () => {
-  render(<OfflineBand />)
-  announce(false)
-  announce(true)
+  /** The ordinary sequence: an outage, then a reconnection, then a full window.
+   *  Pinned separately from the handover below because it is the common path. */
+  it('gives a reconnection after an outage its own window', () => {
+    render(<OfflineBand />)
+    announce(false)
+    announce(true)
 
-  act(() => {
-    vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
+    act(() => {
+      vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
+    })
+    announce(false)
+    announce(true)
+
+    // Would already be gone if the first window had carried over.
+    act(() => {
+      vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
+    })
+    expect(screen.getByText('De nuevo en línea')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(600)
+    })
+    expect(screen.queryByText('De nuevo en línea')).toBeNull()
   })
-  announce(false)
-  announce(true)
 
-  // Would already be gone if the first window had carried over.
-  act(() => {
-    vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
+  /**
+   * The case the counter exists for, and the one the test above does *not*
+   * cover: a browser can fire `online` with no `offline` between them — a
+   * wifi→cellular handover. Under a boolean, setting `true` over `true` bails
+   * out of the render, the effect never re-runs, and the second window inherits
+   * what was left of the first.
+   *
+   * Neuter `setRestoreCount((n) => n + 1)` to `setRestoreCount(1)` and only this
+   * one goes red.
+   */
+  it('restarts the window on a handover, with no outage between', () => {
+    render(<OfflineBand />)
+    announce(false)
+    announce(true)
+
+    act(() => {
+      vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
+    })
+    // No `announce(false)`: the signal never dropped, it changed underneath.
+    announce(true)
+
+    act(() => {
+      vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
+    })
+    expect(screen.getByText('De nuevo en línea')).toBeInTheDocument()
+
+    act(() => {
+      vi.advanceTimersByTime(600)
+    })
+    expect(screen.queryByText('De nuevo en línea')).toBeNull()
   })
-  expect(screen.getByText('De nuevo en línea')).toBeInTheDocument()
-
-  act(() => {
-    vi.advanceTimersByTime(600)
-  })
-  expect(screen.queryByText('De nuevo en línea')).toBeNull()
-})
-
-/**
- * The case the counter exists for, and the one the test above does *not*
- * cover: a browser can fire `online` with no `offline` between them — a
- * wifi→cellular handover. Under a boolean, setting `true` over `true` bails
- * out of the render, the effect never re-runs, and the second window inherits
- * what was left of the first.
- *
- * Neuter `setRestoreCount((n) => n + 1)` to `setRestoreCount(1)` and only this
- * one goes red.
- */
-it('restarts the window on a handover, with no outage between', () => {
-  render(<OfflineBand />)
-  announce(false)
-  announce(true)
-
-  act(() => {
-    vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
-  })
-  // No `announce(false)`: the signal never dropped, it changed underneath.
-  announce(true)
-
-  act(() => {
-    vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
-  })
-  expect(screen.getByText('De nuevo en línea')).toBeInTheDocument()
-
-  act(() => {
-    vi.advanceTimersByTime(600)
-  })
-  expect(screen.queryByText('De nuevo en línea')).toBeNull()
 })
