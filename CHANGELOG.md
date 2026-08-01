@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.22.0] — 2026-08-01
+
+### Added
+- **offline:** Replace the write queue with a read-only offline mode (#208)
+
+- **stores:** Per-list store registry with canonical display names (JAV-82, PR-B) (#221)
+
+- **frontend:** Derive API types from the backend OpenAPI schema (JAV-77) (#224)
+
+- **receipts:** Log and persist inference source on receipt parses (JAV-57) (#228)
+
+
+### Changed
+- **e2e:** Run Playwright on two workers in CI (JAV-49) (#191)
+
+
+### Fixed
+- **test:** Visual baselines that can no longer pass while showing the wrong UI (JAV-60) (#181)
+
+- **test:** Make the timezone a fixture and assert the strikethrough (JAV-70, JAV-71) (#183)
+
+- **receipt:** Retry AI receipt scan on transient failure and split error messages (JAV-51) (#186)
+
+- **e2e:** Close backend contract gap (JAV-48) (#187)
+
+- **a11y:** Declare Spanish as the document language (JAV-11) (#190)
+
+- **sync:** Stop an in-flight read from reverting a write (JAV-81) (#194)
+
+- **push:** React to the enablePush outcome so the priming card retires (JAV-104) (#209)
+
+- **offline:** Say «Sin conexión» when a list load never reached the server (JAV-106) (#210)
+
+- **e2e:** Hold the toast timer under the price-delete-guard screenshots (JAV-102) (#211)
+
+- **lists:** Leave a list that stops being yours (JAV-105) (#213)
+
+- **ci:** Fail loudly when a PR edits the review workflow, and let the reviewer run commands (JAV-50) (#215)
+
+- **items:** Let a fresh write revert a backdated purchase (JAV-46) (#217)
+
+- **prices:** Judge same-day guards in the viewer's calendar (JAV-63) (#218)
+
+- **hooks:** Format staged frontend files with Prettier before commit (JAV-109) (#220)
+
+- **stores:** Compare store names by deterministic key (JAV-82, PR-A) (#219)
+
+- **e2e:** Validate write-path mock responses against backend models (JAV-78) (#222)
+
+- **frontend:** Construct Firebase and Gemini clients lazily (JAV-47) (#223)
+
+- **prices:** Price_per is KILOGRAM or nothing, on the way in and out (JAV-111) (#225)
+
+- **skills:** Anchor babysit-pr run-id grep to the View job link (JAV-79) (#227)
+
+
+---
 ## [0.21.1] — 2026-07-29
 
 ### Fixed
