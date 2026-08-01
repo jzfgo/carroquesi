@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { submitWaitlistSignup } from '../lib/api'
-import { auth } from '../lib/firebase'
+import { getFirebaseAuth } from '../lib/firebase'
 import './WaitlistScreen.css'
 import { Wordmark } from './Wordmark'
 
@@ -19,7 +19,8 @@ export function WaitlistScreen({
 }: WaitlistScreenProps = {}) {
   usePageTitle('Acceso anticipado')
   const { signIn, signOut, isWaitlisted } = useAuth()
-  const [email, setEmail] = useState(() => auth.currentUser?.email ?? '')
+  const googleUser = getFirebaseAuth().currentUser
+  const [email, setEmail] = useState(() => googleUser?.email ?? '')
   const [submittedEmail, setSubmittedEmail] = useState('')
   const [isAlreadyAllowed, setIsAlreadyAllowed] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -54,7 +55,7 @@ export function WaitlistScreen({
     }
   }
 
-  const googleEmail = auth.currentUser?.email
+  const googleEmail = googleUser?.email
   const displayError =
     errorMsg ||
     (isWaitlisted && googleEmail
@@ -245,7 +246,7 @@ export function WaitlistScreen({
         Continuar con Google
       </button>
 
-      {(isWaitlisted || auth.currentUser) && (
+      {(isWaitlisted || googleUser) && (
         <button className="waitlist__cancel" onClick={() => void signOut()}>
           Salir
         </button>

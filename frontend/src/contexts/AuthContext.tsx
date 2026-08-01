@@ -17,7 +17,7 @@ import {
 } from 'react'
 import { ApiError, syncUser } from '../lib/api'
 import { DEV_USER_ID } from '../lib/environment'
-import { auth } from '../lib/firebase'
+import { getFirebaseAuth } from '../lib/firebase'
 import { disablePush, syncPushToken } from '../lib/push'
 
 export interface AuthUser {
@@ -78,59 +78,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      firebaseUserRef.current = fbUser
-      if (fbUser) {
-        setLoading(true)
-        try {
-          const getToken = () => getIdToken(fbUser, false)
-          const data = (await syncUser(getToken)) as {
-            id: string
-            display_name: string
-            photo_url: string | null
-            email: string
-            features?: string[]
-          }
-          setUser({
-            id: data.id,
-            displayName: data.display_name,
-            photoUrl: data.photo_url,
-            email: data.email,
-            features: data.features ?? [],
-          })
-          setIsWaitlisted(false)
-        } catch (err) {
-          if (err instanceof ApiError && err.status === 403) {
-            try {
-              const body = JSON.parse(err.message)
-              if (body.detail === 'waitlist') {
-                setUser(null)
-                setIsWaitlisted(true)
-                setLoading(false)
-                return
-              }
-            } catch {
-              // Ignore JSON parse errors
+    const unsubscribe = onAuthStateChanged(
+      getFirebaseAuth(),
+      async (fbUser) => {
+        firebaseUserRef.current = fbUser
+        if (fbUser) {
+          setLoading(true)
+          try {
+            const getToken = () => getIdToken(fbUser, false)
+            const data = (await syncUser(getToken)) as {
+              id: string
+              display_name: string
+              photo_url: string | null
+              email: string
+              features?: string[]
             }
+            setUser({
+              id: data.id,
+              displayName: data.display_name,
+              photoUrl: data.photo_url,
+              email: data.email,
+              features: data.features ?? [],
+            })
+            setIsWaitlisted(false)
+          } catch (err) {
+            if (err instanceof ApiError && err.status === 403) {
+              try {
+                const body = JSON.parse(err.message)
+                if (body.detail === 'waitlist') {
+                  setUser(null)
+                  setIsWaitlisted(true)
+                  setLoading(false)
+                  return
+                }
+              } catch {
+                // Ignore JSON parse errors
+              }
+            }
+            if (
+              err instanceof ApiError &&
+              (err.status === 401 || err.status === 403)
+            ) {
+              setUser(null)
+              setLoading(false)
+              return
+            }
+            // A network error from syncUser should not sign the user out.
+            // Keep existing session state; only clear on explicit Firebase sign-out.
+            setUser((prev) => prev)
           }
-          if (
-            err instanceof ApiError &&
-            (err.status === 401 || err.status === 403)
-          ) {
-            setUser(null)
-            setLoading(false)
-            return
-          }
-          // A network error from syncUser should not sign the user out.
-          // Keep existing session state; only clear on explicit Firebase sign-out.
-          setUser((prev) => prev)
+        } else {
+          setUser(null)
+          setIsWaitlisted(false)
         }
-      } else {
-        setUser(null)
-        setIsWaitlisted(false)
-      }
-      setLoading(false)
-    })
+        setLoading(false)
+      },
+    )
     return unsubscribe
   }, [])
 
@@ -155,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [userId, getToken])
 
   const signIn = async () => {
-    await signInWithPopup(auth, new GoogleAuthProvider())
+    await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider())
   }
 
   const signOut = async () => {
@@ -163,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // receiving the previous user's lists. Best-effort — a failure here must
     // never block signing out.
     await disablePush(getToken).catch(() => undefined)
-    await firebaseSignOut(auth)
+    await firebaseSignOut(getFirebaseAuth())
   }
 
   return (

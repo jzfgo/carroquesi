@@ -1,10 +1,11 @@
-import { getAI, GoogleAIBackend } from 'firebase/ai'
-import { initializeApp } from 'firebase/app'
+import { getAI, GoogleAIBackend, type AI } from 'firebase/ai'
+import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check'
-import { getAuth } from 'firebase/auth'
+import { getAuth, type Auth } from 'firebase/auth'
 import {
   getMessaging,
   isSupported as isMessagingSupported,
+  type Messaging,
 } from 'firebase/messaging'
 import {
   FIREBASE_API_KEY,
@@ -28,23 +29,48 @@ const firebaseConfig = {
   measurementId: FIREBASE_MEASUREMENT_ID,
 }
 
-const app = initializeApp(firebaseConfig)
+let app: FirebaseApp | undefined
 
-if (!IS_DEV && RECAPTCHA_SITE_KEY) {
-  initializeAppCheck(app, {
-    provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
-    isTokenAutoRefreshEnabled: true,
-  })
+// Lazy so a missing or bad Firebase config surfaces where Firebase is first
+// used, not as a crash while this module is being imported.
+function getFirebaseApp(): FirebaseApp {
+  if (!app) {
+    app = initializeApp(firebaseConfig)
+    // App Check must attach before any feature touches the app, so it rides
+    // along with app creation.
+    if (!IS_DEV && RECAPTCHA_SITE_KEY) {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+        isTokenAutoRefreshEnabled: true,
+      })
+    }
+  }
+  return app
 }
 
-export const auth = getAuth(app)
-export const ai = getAI(app, { backend: new GoogleAIBackend() })
+let auth: Auth | undefined
+
+export function getFirebaseAuth(): Auth {
+  return (auth ??= getAuth(getFirebaseApp()))
+}
+
+let ai: AI | undefined
+
+export function getFirebaseAi(): AI {
+  return (ai ??= getAI(getFirebaseApp(), { backend: new GoogleAIBackend() }))
+}
+
+let messagingPromise: Promise<Messaging | null> | undefined
 
 /**
  * Resolves to null where the browser has no Push API — notably iOS Safari
  * outside a home-screen app, where the messaging entrypoint cannot initialise
  * at all. Callers must treat null as "push is impossible here", not "not yet".
+ * The promise is memoised, so concurrent callers share one isSupported()
+ * probe and at most one getMessaging() construction.
  */
-export const messagingPromise = isMessagingSupported().then((ok) =>
-  ok ? getMessaging(app) : null,
-)
+export function getMessagingIfSupported(): Promise<Messaging | null> {
+  return (messagingPromise ??= isMessagingSupported().then((ok) =>
+    ok ? getMessaging(getFirebaseApp()) : null,
+  ))
+}

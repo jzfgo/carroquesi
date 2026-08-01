@@ -3,11 +3,11 @@ import type { MockInstance } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Kept in its own file so stubbing generateContent — a whole fake model
-// response — never constrains the pure toReceiptInstant tests next door. Both
-// files stub ./firebase; only this one needs to fake the SDK's behaviour.
+// response — never constrains the pure toReceiptInstant tests next door.
+// The accessor is stubbed because the real one would build the real Firebase
+// app, which needs credentials the test runner does not have.
 vi.mock('./firebase', () => ({
-  auth: { currentUser: null },
-  ai: {},
+  getFirebaseAi: vi.fn(() => ({})),
 }))
 
 const mockGenerateContent = vi.fn()

@@ -1,7 +1,7 @@
 import { deleteToken, getToken as getFcmToken } from 'firebase/messaging'
 import { deletePushToken, registerPushToken } from './api'
 import { FIREBASE_VAPID_KEY } from './environment'
-import { messagingPromise } from './firebase'
+import { getMessagingIfSupported } from './firebase'
 
 export type PermissionState = 'unsupported' | 'default' | 'granted' | 'denied'
 
@@ -65,7 +65,7 @@ export async function enablePush(
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') return null
 
-  const messaging = await messagingPromise
+  const messaging = await getMessagingIfSupported()
   if (!messaging || !FIREBASE_VAPID_KEY) return null
 
   const registration = await navigator.serviceWorker.ready
@@ -90,7 +90,7 @@ export async function disablePush(
   // can reach FCM to delete the token. Otherwise a failed delete would leave
   // syncPushToken believing the device is still subscribed and re-register it.
   localStorage.removeItem(DEVICE_SUBSCRIBED_KEY)
-  const messaging = await messagingPromise
+  const messaging = await getMessagingIfSupported()
   if (!messaging) return
   const registration = await navigator.serviceWorker.ready
   const token = await getFcmToken(messaging, {
@@ -123,7 +123,7 @@ export async function syncPushToken(
   }
   if (permissionState() !== 'granted') return
   if (localStorage.getItem(DEVICE_SUBSCRIBED_KEY) !== '1') return
-  const messaging = await messagingPromise
+  const messaging = await getMessagingIfSupported()
   if (!messaging || !FIREBASE_VAPID_KEY) return
   const registration = await navigator.serviceWorker.ready
   const token = await getFcmToken(messaging, {
