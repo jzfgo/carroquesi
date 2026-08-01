@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
 from pytest_httpx import HTTPXMock
@@ -394,6 +394,48 @@ def test_delete_price_204_if_purchased_today(client: TestClient):
 
     resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
     assert resp.status_code == 204
+
+
+def test_delete_price_judges_today_in_the_clients_calendar(client: TestClient, session):
+    """The X-Client-Timezone header decides whose day the guard compares.
+
+    Nothing is pinned here, so the test picks, from the live clock, a
+    fixed-offset zone whose calendar day currently disagrees with UTC's,
+    and a purchase instant the two calendars judge differently. Whichever
+    branch runs, the expected verdict is the opposite of the UTC one — so
+    the test fails if the header never reaches the comparison. Both signs
+    of the mismatch are pinned deterministically in the client-day unit
+    tests; this one only proves the plumbing.
+    """
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+    _set_price(client, lst["id"], item["id"], 1.99)
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if now.hour < 12:
+        # The client's today (UTC-12) is UTC's yesterday. A purchase late in
+        # UTC's yesterday sits on the client's today: allowed, where UTC 422s.
+        tz = "Etc/GMT+12"
+        purchased_at = now - timedelta(hours=now.hour + 1)
+        expected = 204
+    else:
+        # The client's today (UTC+14) is UTC's tomorrow. A purchase earlier in
+        # UTC's today sits on the client's yesterday: refused, where UTC 204s.
+        tz = "Etc/GMT-14"
+        purchased_at = now.replace(hour=9, minute=30)
+        expected = 422
+
+    db_item = session.get(DBListItem, item["id"])
+    db_item.purchased_at = purchased_at
+    session.add(db_item)
+    session.commit()
+
+    resp = client.delete(
+        f"/lists/{lst['id']}/items/{item['id']}/prices",
+        headers={"X-Client-Timezone": tz},
+    )
+    assert resp.status_code == expected
 
 
 def test_price_history_entry_includes_quantity(client: TestClient):

@@ -52,6 +52,19 @@ describe('apiFetch — authorization', () => {
       }),
     )
   })
+
+  it('declares the viewer timezone so day guards judge the right calendar', async () => {
+    mockFetch.mockReturnValue(mockResponse([]))
+    await getLists(mockGetToken)
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/lists'),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'X-Client-Timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
+      }),
+    )
+  })
 })
 
 describe('ApiError', () => {

@@ -12,6 +12,12 @@ import { reportRequestOutcome } from './connectivity'
 import { BACKEND_URL, DEV_USER_ID } from './environment'
 import { isNetworkError } from './networkError'
 
+// Date-based guards on the server judge "today" in the viewer's calendar,
+// so every request declares which calendar that is. Resolved once: a page
+// cannot change timezone without reloading. Absent (old clients, exotic
+// engines), the server falls back to UTC days.
+const CLIENT_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -35,6 +41,7 @@ async function apiFetch(
         'Content-Type': 'application/json',
         ...(options.headers as Record<string, string> | undefined),
         Authorization: `Bearer ${token}`,
+        ...(CLIENT_TIMEZONE ? { 'X-Client-Timezone': CLIENT_TIMEZONE } : {}),
         ...(DEV_USER_ID ? { 'X-Dev-User-Id': DEV_USER_ID } : {}),
       },
     })
