@@ -101,6 +101,18 @@ describe('ListRoute', () => {
     )
   })
 
+  it('blames the connection, not the load, when fetch never reached the server', async () => {
+    // apiFetch does not wrap fetch, so no coverage surfaces as a raw TypeError.
+    vi.mocked(api.getList).mockRejectedValue(new TypeError('Failed to fetch'))
+    render(<ListRoute />)
+    await waitFor(() =>
+      expect(screen.getByText(/Sin conexión/)).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByText('Error al cargar la lista.'),
+    ).not.toBeInTheDocument()
+  })
+
   it('shows generic error on unknown failure', async () => {
     vi.mocked(api.getList).mockRejectedValue(new Error('Network error'))
     render(<ListRoute />)

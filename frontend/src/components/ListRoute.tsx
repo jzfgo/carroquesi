@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { ApiError, getList } from '../lib/api'
+import { isNetworkError } from '../lib/networkError'
 import type { ApiList } from '../types'
 import { ListScreen } from './ListScreen'
 
@@ -12,7 +13,7 @@ export function ListRoute() {
   const { getToken } = useAuth()
   const [list, setList] = useState<ApiList | null>(null)
   const [error, setError] = useState<
-    'not_found' | 'forbidden' | 'unknown' | null
+    'not_found' | 'forbidden' | 'offline' | 'unknown' | null
   >(null)
   usePageTitle(list?.name ?? undefined)
 
@@ -28,6 +29,9 @@ export function ListRoute() {
         if (err instanceof ApiError && err.status === 404) setError('not_found')
         else if (err instanceof ApiError && err.status === 403)
           setError('forbidden')
+        // A fetch that never reached the server is this device's coverage,
+        // not the list's fault — blame the connection, not the load.
+        else if (isNetworkError(err)) setError('offline')
         else setError('unknown')
       })
     return () => {
@@ -52,7 +56,9 @@ export function ListRoute() {
             ? 'Lista no encontrada.'
             : error === 'forbidden'
               ? 'No tienes acceso a esta lista.'
-              : 'Error al cargar la lista.'}
+              : error === 'offline'
+                ? 'Sin conexión. Esta lista se abrirá cuando vuelva la señal.'
+                : 'Error al cargar la lista.'}
         </p>
         <button
           onClick={() => navigate('/')}
