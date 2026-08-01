@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   acceptInvite,
   ApiError,
@@ -16,6 +16,7 @@ import {
   updateItem,
   updateList,
 } from './api'
+import { isOnline, reportRequestOutcome } from './connectivity'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -317,5 +318,24 @@ describe('regenerateApiKey', () => {
       key: 'cqs_abc123',
       regenerated_at: '2026-07-16T00:00:00',
     })
+  })
+})
+
+describe('apiFetch — connectivity evidence', () => {
+  afterEach(() => {
+    reportRequestOutcome(true)
+  })
+
+  it('a network failure flips the store offline', async () => {
+    mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await expect(getLists(mockGetToken)).rejects.toThrow()
+    expect(isOnline()).toBe(false)
+  })
+
+  it('any response — even an error status — proves the server reachable', async () => {
+    reportRequestOutcome(false)
+    mockFetch.mockReturnValueOnce(mockResponse({ detail: 'boom' }, 500))
+    await expect(getLists(mockGetToken)).rejects.toThrow()
+    expect(isOnline()).toBe(true)
   })
 })
