@@ -76,3 +76,8 @@ class ReceiptPriceBatch(BaseModel):
     patches: list[PricePatch] = []
     new_items: list[NewPurchasedItem] = []
     mappings: list[NameMappingCreate] = []
+
+
+class ReceiptPriceApplyResult(BaseModel):
+    items_updated: int
+    items_created: int

@@ -13,6 +13,10 @@ class ListUpdate(BaseModel):
     emoji: str | None = None
 
 
+class ListUpdatedAtRead(BaseModel):
+    updated_at: datetime
+
+
 class ListRead(BaseModel):
     id: str
     name: str

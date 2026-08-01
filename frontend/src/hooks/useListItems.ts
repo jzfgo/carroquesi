@@ -160,7 +160,7 @@ export function useListItems(
           getListItems(getToken, listId) as Promise<ListItem[]>,
           getListMembers(getToken, listId) as Promise<BackendMember[]>,
           getListStores(getToken, listId) as Promise<ListStoreEntry[]>,
-          getListUpdatedAt(getToken, listId) as Promise<{ updated_at: string }>,
+          getListUpdatedAt(getToken, listId),
         ])
       setItems((prev) => reconcileItems(rawItems, prev, isLocallyNewer))
       const map = new Map<string, Member>()
@@ -214,9 +214,7 @@ export function useListItems(
       const clockAtStart = writeClock.current
       const isLocallyNewer = beginRead()
       try {
-        const data = (await getListUpdatedAt(getToken, listId)) as {
-          updated_at: string
-        }
+        const data = await getListUpdatedAt(getToken, listId)
         const changed =
           lastUpdatedAt.current !== null &&
           data.updated_at !== lastUpdatedAt.current

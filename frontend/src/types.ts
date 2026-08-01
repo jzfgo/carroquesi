@@ -99,6 +99,10 @@ export interface PriceHistoryResponse {
   community_price_per: string | null
 }
 
+export interface ListUpdatedAt {
+  updated_at: string
+}
+
 /** Receipt Scan Types */
 
 export type PriceType = 'UNIT' | 'KILOGRAM' | 'MULTI'
@@ -177,6 +181,11 @@ export interface ReceiptPriceBatch {
   patches: PricePatch[]
   new_items: NewPurchasedItem[]
   mappings: NameMapping[]
+}
+
+export interface ReceiptPriceApplyResult {
+  items_updated: number
+  items_created: number
 }
 
 export interface BackendMember {
