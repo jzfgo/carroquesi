@@ -33,7 +33,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>()
   return {
     ...actual,
-    useNavigate: vi.fn().mockReturnValue(vi.fn()),
+    useNavigate: vi.fn(),
   }
 })
 vi.mock('../hooks/usePWAInstall')
@@ -88,7 +88,7 @@ beforeEach(() => {
     isInstallable: false,
     isInstalled: false,
     isIOS: false,
-    promptInstall: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    promptInstall: vi.fn(async () => undefined),
   })
   vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(false)
   vi.mocked(api.openShortcutImport).mockImplementation(() => {})
@@ -323,7 +323,7 @@ describe('DashboardScreen — avatar menu and install banner', () => {
       isInstallable: true,
       isInstalled: false,
       isIOS: false,
-      promptInstall: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      promptInstall: vi.fn(async () => undefined),
     })
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
@@ -345,9 +345,7 @@ describe('DashboardScreen — avatar menu and install banner', () => {
   })
 
   it('clicking "Instalar app" calls promptInstall and closes menu', async () => {
-    const mockPromptInstall = vi
-      .fn<() => Promise<void>>()
-      .mockResolvedValue(undefined)
+    const mockPromptInstall = vi.fn(async () => undefined)
     vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
       isInstallable: true,
       isInstalled: false,
@@ -368,7 +366,7 @@ describe('DashboardScreen — avatar menu and install banner', () => {
       isInstallable: true,
       isInstalled: false,
       isIOS: false,
-      promptInstall: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      promptInstall: vi.fn(async () => undefined),
     })
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
@@ -388,7 +386,7 @@ describe('DashboardScreen — avatar menu and install banner', () => {
       isInstallable: true,
       isInstalled: true,
       isIOS: false,
-      promptInstall: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      promptInstall: vi.fn(async () => undefined),
     })
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
@@ -719,7 +717,7 @@ describe('DashboardScreen — avatar menu and install banner', () => {
       created: true,
     } as never)
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    const writeText = vi.fn().mockResolvedValue(undefined)
+    const writeText = vi.fn(async () => undefined)
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText },
       writable: true,

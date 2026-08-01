@@ -12,7 +12,7 @@ function setClipboard(value: unknown) {
 
 // jsdom doesn't implement document.execCommand, so we assign a mock directly.
 function setExecCommand(result: boolean) {
-  const fn = vi.fn().mockReturnValue(result)
+  const fn = vi.fn(() => result)
   ;(document as unknown as { execCommand: unknown }).execCommand = fn
   return fn
 }
@@ -27,7 +27,7 @@ afterEach(() => {
 
 describe('copyToClipboard', () => {
   it('uses navigator.clipboard.writeText in a secure context', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined)
+    const writeText = vi.fn(async () => undefined)
     setClipboard({ writeText })
 
     expect(await copyToClipboard('cqs_key')).toBe(true)
@@ -45,7 +45,9 @@ describe('copyToClipboard', () => {
   })
 
   it('falls back to execCommand when writeText rejects', async () => {
-    setClipboard({ writeText: vi.fn().mockRejectedValue(new Error('denied')) })
+    setClipboard({
+      writeText: vi.fn(() => Promise.reject(new Error('denied'))),
+    })
     const execCommand = setExecCommand(true)
 
     expect(await copyToClipboard('cqs_key')).toBe(true)

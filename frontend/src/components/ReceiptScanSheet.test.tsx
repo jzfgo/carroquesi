@@ -88,12 +88,12 @@ const mockPurchasedItems = [
   },
 ]
 
-function renderSheet(
-  overrides: Partial<Parameters<typeof ReceiptScanSheet>[0]> = {},
-) {
+type SheetProps = Parameters<typeof ReceiptScanSheet>[0]
+
+function renderSheet(overrides: Partial<SheetProps> = {}) {
   // Resolves true (success) by default, matching the real onConfirm contract —
   // guardrail tests that need a failure/pending outcome override this.
-  const onConfirm = vi.fn().mockResolvedValue(true)
+  const onConfirm = vi.fn<SheetProps['onConfirm']>(async () => true)
   const onClose = vi.fn()
   render(
     <ReceiptScanSheet
@@ -214,21 +214,21 @@ describe('ReceiptScanSheet', () => {
     const unit = patches.find(
       (p: { item_id: string }) => p.item_id === 'item-1',
     )
-    expect(unit.price).toBe(1.15)
-    expect(unit.price_per).toBeNull()
-    expect(unit.quantity).toBe('1')
+    expect(unit!.price).toBe(1.15)
+    expect(unit!.price_per).toBeNull()
+    expect(unit!.quantity).toBe('1')
 
     const kg = patches.find((p: { item_id: string }) => p.item_id === 'item-2')
-    expect(kg.price).toBeCloseTo(11.4)
-    expect(kg.price_per).toBe('KILOGRAM')
-    expect(kg.quantity).toBe('202g')
+    expect(kg!.price).toBeCloseTo(11.4)
+    expect(kg!.price_per).toBe('KILOGRAM')
+    expect(kg!.quantity).toBe('202g')
 
     const multi = patches.find(
       (p: { item_id: string }) => p.item_id === 'item-3',
     )
-    expect(multi.price).toBeCloseTo(0.95)
-    expect(multi.price_per).toBeNull()
-    expect(multi.quantity).toBe('3')
+    expect(multi!.price).toBeCloseTo(0.95)
+    expect(multi!.price_per).toBeNull()
+    expect(multi!.quantity).toBe('3')
   })
 
   it('footer shows selected total and receipt total', () => {
@@ -332,8 +332,8 @@ describe('create mode', () => {
       (m: { receipt_name: string }) => m.receipt_name === 'mani dulce',
     )
     expect(created).toBeTruthy()
-    expect(created.item_name).toBe('Cacahuetes dulces')
-    expect(created.store).toBe('Mercadona')
+    expect(created!.item_name).toBe('Cacahuetes dulces')
+    expect(created!.store).toBe('Mercadona')
   })
 
   it('maps to the parsed name, not the raw sigil text', () => {
@@ -348,7 +348,7 @@ describe('create mode', () => {
     const created = mappings.find(
       (m: { receipt_name: string }) => m.receipt_name === 'mani dulce',
     )
-    expect(created.item_name).toBe('Cacahuetes')
+    expect(created!.item_name).toBe('Cacahuetes')
   })
 })
 
@@ -472,7 +472,9 @@ describe('confirm guardrails', () => {
   })
 
   it('re-enables confirm after a rejected submit, so the user can retry', async () => {
-    const onConfirm = vi.fn().mockRejectedValue(new Error('network'))
+    const onConfirm = vi.fn<SheetProps['onConfirm']>(() =>
+      Promise.reject(new Error('network')),
+    )
     renderSheet({ onConfirm })
     const confirm = screen.getByRole('button', {
       name: /Guardar precios/,
@@ -485,7 +487,7 @@ describe('confirm guardrails', () => {
     // This is the branch the real ListScreen hits: submitReceiptPrices
     // rejects, handleReceiptConfirm catches it and resolves false — it
     // never rejects across the onConfirm boundary.
-    const onConfirm = vi.fn().mockResolvedValue(false)
+    const onConfirm = vi.fn<SheetProps['onConfirm']>(async () => false)
     renderSheet({ onConfirm })
     const confirm = screen.getByRole('button', {
       name: /Guardar precios/,
@@ -499,7 +501,7 @@ describe('confirm guardrails', () => {
     const pending = new Promise<boolean>((resolve) => {
       resolveSubmit = resolve
     })
-    const onConfirm = vi.fn().mockReturnValue(pending)
+    const onConfirm = vi.fn<SheetProps['onConfirm']>(() => pending)
     renderSheet({ onConfirm })
     const confirm = screen.getByRole('button', {
       name: /Guardar precios/,
@@ -563,7 +565,7 @@ describe('barcode scan into a create row', () => {
   })
 
   it('applies a second scan into the same row, proving identity — not latch — drives it', () => {
-    const onConfirm = vi.fn().mockResolvedValue(true)
+    const onConfirm = vi.fn<SheetProps['onConfirm']>(async () => true)
     const onClose = vi.fn()
     const { rerender } = render(
       <ReceiptScanSheet
@@ -603,7 +605,7 @@ describe('barcode scan into a create row', () => {
   })
 
   it('does not re-apply the same pendingScan object on an unrelated re-render', () => {
-    const onConfirm = vi.fn().mockResolvedValue(true)
+    const onConfirm = vi.fn<SheetProps['onConfirm']>(async () => true)
     const onClose = vi.fn()
     const pendingScan = { index: 3, product: mockProduct }
     const { rerender } = render(

@@ -7,7 +7,7 @@ const defaults = {
   isInstallable: true,
   isInstalled: false,
   isIOS: false,
-  promptInstall: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  promptInstall: vi.fn(async () => undefined),
 }
 
 beforeEach(() => {
@@ -45,9 +45,7 @@ describe('InstallBanner', () => {
   })
 
   it('install button calls promptInstall', async () => {
-    const promptInstall = vi
-      .fn<() => Promise<void>>()
-      .mockResolvedValue(undefined)
+    const promptInstall = vi.fn(async () => undefined)
     render(<InstallBanner {...defaults} promptInstall={promptInstall} />)
     await userEvent.click(screen.getByRole('button', { name: /instalar/i }))
     expect(promptInstall).toHaveBeenCalledOnce()

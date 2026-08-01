@@ -5,7 +5,7 @@ import { usePWAInstall } from './usePWAInstall'
 // jsdom doesn't implement matchMedia — provide a mock
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation((query: string) => ({
+  value: vi.fn((query: string) => ({
     matches: false,
     media: query,
     addEventListener: vi.fn(),
@@ -18,7 +18,7 @@ Object.defineProperty(window, 'matchMedia', {
 })
 
 function makeInstallEvent() {
-  const promptFn = vi.fn().mockResolvedValue(undefined)
+  const promptFn = vi.fn(async () => undefined)
   const userChoice = Promise.resolve({ outcome: 'accepted' as const })
   return Object.assign(new Event('beforeinstallprompt'), {
     prompt: promptFn,
@@ -144,7 +144,7 @@ describe('usePWAInstall', () => {
 
   it('resets after promptInstall rejects so a future call can proceed', async () => {
     const fakeEvent = Object.assign(new Event('beforeinstallprompt'), {
-      prompt: vi.fn().mockRejectedValue(new Error('dismissed')),
+      prompt: vi.fn(() => Promise.reject(new Error('dismissed'))),
       userChoice: Promise.resolve({ outcome: 'dismissed' as const }),
     })
     const { result } = renderHook(() => usePWAInstall())

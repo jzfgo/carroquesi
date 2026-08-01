@@ -122,7 +122,7 @@ test('accepts invite and navigates to the list on success', async () => {
 })
 
 test('calls signIn when not authenticated and button clicked', async () => {
-  const mockSignIn = vi.fn().mockResolvedValue(undefined)
+  const mockSignIn = vi.fn(async () => undefined)
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: null,
     getToken: mockGetToken,

@@ -11,7 +11,7 @@ beforeEach(() => {
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: null,
     getToken: vi.fn(),
-    signIn: vi.fn().mockResolvedValue(undefined),
+    signIn: vi.fn(async () => undefined),
     signOut: vi.fn(),
     loading: false,
     isWaitlisted: false,
@@ -30,7 +30,7 @@ describe('SignInScreen', () => {
   })
 
   it('calls signIn when button is clicked', () => {
-    const mockSignIn = vi.fn().mockResolvedValue(undefined)
+    const mockSignIn = vi.fn(async () => undefined)
     vi.mocked(AuthContext.useAuth).mockReturnValue({
       user: null,
       getToken: vi.fn(),

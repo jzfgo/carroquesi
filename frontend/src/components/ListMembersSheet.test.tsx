@@ -292,7 +292,7 @@ test('remove failure reverts member list and shows toast', async () => {
 test('copy invite success writes to clipboard and shows toast', async () => {
   vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
   vi.mocked(api.createOpenInvite).mockResolvedValue({ id: 'inv-123' })
-  const writeText = vi.fn().mockResolvedValue(undefined)
+  const writeText = vi.fn(async () => undefined)
   Object.defineProperty(navigator, 'clipboard', {
     value: { writeText },
     writable: true,
@@ -375,7 +375,9 @@ test('clipboard unavailable shows fallback URL input', async () => {
   vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
   vi.mocked(api.createOpenInvite).mockResolvedValue({ id: 'inv-456' })
   Object.defineProperty(navigator, 'clipboard', {
-    value: { writeText: vi.fn().mockRejectedValue(new Error('no clipboard')) },
+    value: {
+      writeText: vi.fn(() => Promise.reject(new Error('no clipboard'))),
+    },
     writable: true,
     configurable: true,
   })

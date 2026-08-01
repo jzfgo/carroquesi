@@ -46,7 +46,7 @@ describe('LogPurchaseSheet delete button', () => {
     initialPurchasedQuantity: null,
     onSave: vi.fn(),
     onClose: vi.fn(),
-    onDelete: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    onDelete: vi.fn(async () => undefined),
   }
 
   beforeEach(() => {
@@ -96,7 +96,7 @@ describe('LogPurchaseSheet delete button', () => {
   })
 
   it('calls onDelete when the button is clicked', async () => {
-    const onDelete = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
+    const onDelete = vi.fn(async () => undefined)
     const item = { ...BASE_ITEM, price: 1.99 }
     render(
       <LogPurchaseSheet

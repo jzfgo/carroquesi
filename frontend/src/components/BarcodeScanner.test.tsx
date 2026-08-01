@@ -31,7 +31,7 @@ beforeEach(() => {
   const mockTrack = { stop: vi.fn() }
   const mockStream = { getTracks: () => [mockTrack] }
   Object.defineProperty(navigator, 'mediaDevices', {
-    value: { getUserMedia: vi.fn().mockResolvedValue(mockStream) },
+    value: { getUserMedia: vi.fn(async () => mockStream) },
     configurable: true,
   })
 
@@ -39,7 +39,7 @@ beforeEach(() => {
   vi.stubGlobal(
     'BarcodeDetector',
     class {
-      detect = vi.fn().mockResolvedValue([])
+      detect = vi.fn(async () => [])
     },
   )
 
@@ -85,7 +85,7 @@ describe('BarcodeScanner', () => {
     vi.stubGlobal(
       'BarcodeDetector',
       class {
-        detect = vi.fn().mockResolvedValue([{ rawValue: '8411327122016' }])
+        detect = vi.fn(async () => [{ rawValue: '8411327122016' }])
       },
     )
     const product = { name: 'Leche', brand: 'Pascual', stores: [] }
@@ -107,7 +107,7 @@ describe('BarcodeScanner', () => {
     vi.stubGlobal(
       'BarcodeDetector',
       class {
-        detect = vi.fn().mockResolvedValue([{ rawValue: '8411327122016' }])
+        detect = vi.fn(async () => [{ rawValue: '8411327122016' }])
       },
     )
     ;(api.getBarcode as Mock).mockRejectedValue(new ApiError(404, 'not found'))
@@ -130,7 +130,7 @@ describe('BarcodeScanner', () => {
     vi.stubGlobal(
       'BarcodeDetector',
       class {
-        detect = vi.fn().mockResolvedValue([{ rawValue: '8411327122016' }])
+        detect = vi.fn(async () => [{ rawValue: '8411327122016' }])
       },
     )
     ;(api.getBarcode as Mock).mockRejectedValue(
@@ -157,7 +157,7 @@ describe('BarcodeScanner', () => {
     vi.stubGlobal(
       'BarcodeDetector',
       class {
-        detect = vi.fn().mockResolvedValue([{ rawValue: '8411327122016' }])
+        detect = vi.fn(async () => [{ rawValue: '8411327122016' }])
       },
     )
     ;(api.getBarcode as Mock).mockRejectedValue(new Error('network failure'))
