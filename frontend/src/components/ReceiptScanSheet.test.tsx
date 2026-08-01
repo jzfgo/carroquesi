@@ -645,7 +645,12 @@ describe('barcode scan into a create row', () => {
 // because the threshold in lib/receiptDate.ts is relative to today: a literal
 // would silently change verdict as real-world time passes.
 
-/** A fixed **local** instant, so nothing here reads the wall clock.
+/** A pinned **local** instant, so nothing here reads the wall clock's day.
+ *
+ *  Pinned, not frozen: the suite's fake timers advance in real time
+ *  (`shouldAdvanceTime`), so this is where the clock starts, not where it
+ *  stays. Flipping the day from 00:30 would take almost a day of runtime,
+ *  and the day is all anything below reads.
  *
  *  Reading it was the whole defect. `lib/receiptDate.ts` reduces `now` to the
  *  viewer's local day, so a fixture reduced to a UTC day drifted by one
@@ -670,6 +675,10 @@ describe('barcode scan into a create row', () => {
  *  stopped one sign short. 00:30 makes the eastern sign — the one that
  *  actually bit, in Madrid — fail on every local run rather than for two
  *  hours a night.
+ *
+ *  The western sign is not left out: the calendar guard below re-pins the
+ *  clock to local 23:30 — the evening hours are where zones behind UTC
+ *  diverge — so one local run now exercises both signs.
  *
  *  Worth knowing before trusting a green CI run here: **UTC never diverges at
  *  any hour**, so the runner cannot catch this class at all. The guard below
@@ -716,6 +725,13 @@ describe('ReceiptScanSheet receipt date', () => {
   // module's own local-day reduction, so this compares the fixture's calendar
   // against the one the code under test actually uses.
   test('builds fixtures on the same calendar the module reads', () => {
+    expect(daysAway(0)).toBe(todayInputValue())
+
+    // Local 23:30 covers the offset sign 00:30 cannot: zones behind UTC
+    // diverge from the UTC day during the local evening. It is still the
+    // 25th in every zone, and `daysAway` ignores the clock entirely, so
+    // both instants must agree with the module's reduction.
+    vi.setSystemTime(new Date(2026, 6, 25, 23, 30, 0))
     expect(daysAway(0)).toBe(todayInputValue())
   })
 
