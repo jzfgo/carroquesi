@@ -105,9 +105,15 @@
   font-family: inherit;
 }
 
+/* Stated rather than inherited: this is a `b`, so without a weight here the UA
+   sheet resolves it to 700, which the mono family does not have. It survives
+   that today only because the family reaches 600 and the browser stops faking
+   bold there — a thinner cut, or a heavier request, and the sigil would start
+   being drawn instead of chosen. 600 is what it has always rendered as. */
 .smart-input__chip b {
   color: var(--accent);
   font-family: var(--font-mono);
+  font-weight: 600;
 }
 
 .smart-input__chip--active {

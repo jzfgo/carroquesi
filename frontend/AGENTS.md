@@ -20,14 +20,18 @@ Three things in it that are load-bearing:
   | family          | token            | vendored weights      |
   | --------------- | ---------------- | --------------------- |
   | Geist           | `--font-sans`    | 400 / 500 / 600 / 700 |
-  | Caveat          | `--font-hand`    | 400 / 500 / 600 / 700 |
+  | Caveat          | `--font-hand`    | 500 / 600 / 700       |
   | JetBrains Mono  | `--font-mono`    | 400 / 500 / 600       |
   | Bree Serif      | `--font-display` | **400 only**          |
   | Patrick Hand SC | `--font-written` | **400 only**          |
 
-  Asking for a weight that is not there fails in the worst way available: below 600 the browser quietly selects the nearest face, at 600 and above it smears the outlines into a synthetic bold. Those two outcomes look nothing alike, the amount of smear differs between engines, and nothing in CI can tell you which one you got. Count the rows above before writing a `font-weight` next to one of these tokens — the two single-weight families are the ones that bite, and `--font-display` is inherited by every `h1`/`h2`.
+  Asking for a weight that is not there gives you one of two very different things, and **which one depends on the face that gets chosen, not on how far the request missed.** The browser first selects the nearest available cut; it then draws a synthetic bold — thickening the outlines algorithmically — only if that chosen cut is below 600. So JetBrains Mono answers a request for 700 with its real 600 and nothing is faked, while Bree Serif answers 600 _or_ 700 with its 400 and both are smeared. A family that stops at 600 is safe from the ugly outcome; one that stops at 400 is not.
 
-  Four rules breach this today and are known: `.rls__title` and `.invite-screen__list-name` at 700, `.settings-sheet__block-title` and `.waitlist__success-headline` at 600. All four are synthetic bold. They are left alone because correcting them decides how much emphasis a heading carries, which is a design question rather than a bug — but do not read them as a precedent, and do not lengthen this list without making that decision. Nothing else breaches it: `--font-serif` is an unused alias of `--font-display`, no descendant of a `--font-written` element asks for a heavier cut, and the heaviest live `--font-mono` request is 600.
+  The quiet outcome is the one to watch, because nothing about it looks wrong. Caveat has no 400, so asking for one gets the 500 face — heavier than you asked, no smear to give it away, and nothing in CI able to say so. Count the rows above before writing a `font-weight` next to one of these tokens.
+
+  **A weight can be asked for without anyone writing one.** The UA stylesheet bolds `b`, `strong`, `th` and `h1`–`h6`, and `bolder`/`lighter` resolve against whatever is inherited — so grepping for `font-weight:` finds the declarations and misses these entirely. When a rule sets one of these tokens on an element the UA already bolds, or on an ancestor of one, say the weight explicitly.
+
+  Four rules breach this today and are known: `.rls__title` and `.invite-screen__list-name` at 700, `.settings-sheet__block-title` and `.waitlist__success-headline` at 600. All four land on Bree Serif's 400, so all four are drawn with synthetic bold. They are left alone because correcting them decides how much emphasis a heading carries, which is a design question rather than a bug — but do not read them as a precedent, and do not lengthen this list without making that decision. Nothing else breaches it: `--font-serif` is an unused alias of `--font-display`, no descendant of a `--font-written` element asks for a heavier cut, and every `--font-mono` request resolves to a real cut.
 
 Never hard-code a face in a component. Resolve through the tokens in `colorsAndType.css` (`--font-sans`, `--font-display`, `--font-hand`, `--font-written`, `--font-mono`); `--written-scale` is a cap-height correction measured against the specific face `--font-written` names, so swapping that face means re-measuring the number.
 
