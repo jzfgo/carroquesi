@@ -51,9 +51,6 @@ vi.mock('../contexts/FeatureFlagsContext', () => ({
   useFeatureFlags: vi.fn(),
 }))
 vi.mock('../hooks/useListItems')
-vi.mock('../hooks/useQueueDrain', () => ({
-  useQueueDrain: vi.fn(() => ({ pendingCount: 0 })),
-}))
 // lib/push imports lib/firebase, which calls getAuth() at module scope and
 // throws auth/invalid-api-key without Firebase env vars -- as in CI, where a
 // local .env would otherwise hide it. Mock the module, not the env.

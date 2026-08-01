@@ -2,20 +2,10 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
 import { ApiError } from '../lib/api'
-import * as offlineQueue from '../lib/offlineQueue'
 import type { ListItem } from '../types'
 import { useListItems } from './useListItems'
 
 vi.mock('../lib/api')
-vi.mock('../lib/offlineQueue', () => ({
-  enqueue: vi.fn().mockResolvedValue({
-    id: 'q1',
-    listId: 'list-1',
-    type: 'addItem',
-    payload: {},
-    enqueuedAt: 0,
-  }),
-}))
 
 const mockGetToken = vi.fn().mockResolvedValue('token')
 const mockShowToast = vi.fn()
@@ -499,7 +489,6 @@ describe('useListItems — errors roll back the optimistic write', () => {
 
     expect(result.current.items).toHaveLength(1)
     expect(mockShowToast).toHaveBeenCalledWith('No se pudo añadir el producto')
-    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
 
   it('addItem: removes temp item on server error (ApiError)', async () => {
@@ -524,7 +513,6 @@ describe('useListItems — errors roll back the optimistic write', () => {
 
     // temp item should be removed (rolled back)
     expect(result.current.items).toHaveLength(1)
-    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
 
   it('togglePurchased: rolls back on network error', async () => {
@@ -546,7 +534,6 @@ describe('useListItems — errors roll back the optimistic write', () => {
     expect(mockShowToast).toHaveBeenCalledWith(
       'No se pudo actualizar el producto',
     )
-    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
 
   it('togglePurchased: rolls back on server error', async () => {
@@ -565,7 +552,6 @@ describe('useListItems — errors roll back the optimistic write', () => {
     })
 
     expect(result.current.items[0].purchased).toBe(false)
-    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
 })
 
