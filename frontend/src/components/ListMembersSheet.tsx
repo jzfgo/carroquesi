@@ -56,17 +56,9 @@ export function ListMembersSheet({
   }, [getToken, listId])
 
   useEffect(() => {
-    void (async () => {
-      setLoadState('loading')
-      try {
-        const data = (await getListMembers(getToken, listId)) as BackendMember[]
-        setMembers(data)
-        setLoadState('ready')
-      } catch {
-        setLoadState('error')
-      }
-    })()
-  }, [getToken, listId])
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: load() flips its loading flag before fetching, for the mount exactly as for the retry button
+    void load()
+  }, [load])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {

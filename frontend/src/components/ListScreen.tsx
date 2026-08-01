@@ -144,16 +144,24 @@ export function ListScreen({
   // A write answering 403/404 only *suggests* the list is gone — the missing
   // thing is often the item. Re-read the list itself and evict only when that
   // second, independent answer agrees: a membership check that is wrong once
-  // costs somebody their shopping screen mid-aisle.
-  const confirmListGone = useCallback(async () => {
+  // costs somebody their shopping screen mid-aisle. Answers whether it
+  // evicted, so a caller holding a failure message can stand down when the
+  // terminal screen is about to say something better.
+  const confirmListGone = useCallback(async (): Promise<boolean> => {
+    if (!onListGone) return false
     try {
       await getList(getToken, listId)
+      return false
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
-        onListGone?.('not_found')
-      } else if (err instanceof ApiError && err.status === 403) {
-        onListGone?.('forbidden')
+        onListGone('not_found')
+        return true
       }
+      if (err instanceof ApiError && err.status === 403) {
+        onListGone('forbidden')
+        return true
+      }
+      return false
     }
   }, [getToken, listId, onListGone])
 
@@ -211,8 +219,10 @@ export function ListScreen({
           onBack?.()
           return
         }
+        // The failure toast is right for a transient 403 but wrong next to
+        // the terminal screen — when the confirm evicts, let it answer alone.
         if (err instanceof ApiError && err.status === 403) {
-          void confirmListGone()
+          if (await confirmListGone()) return
         }
         setToast('No se pudo eliminar la lista')
       }

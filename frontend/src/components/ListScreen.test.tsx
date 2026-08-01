@@ -1197,6 +1197,48 @@ describe('the list stops being the reader’s after mount', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('a delete answered 403 evicts without the failure toast when confirmed', async () => {
+    vi.mocked(api.deleteList).mockRejectedValue(apiError(403))
+    vi.mocked(api.getList).mockRejectedValue(apiError(403))
+    const onListGone = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Test"
+        listOwnerId="u1"
+        onListGone={onListGone}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
+
+    await waitFor(() => expect(onListGone).toHaveBeenCalledWith('forbidden'))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('a delete answered 403 keeps the toast when the re-read lands clean', async () => {
+    vi.mocked(api.deleteList).mockRejectedValue(apiError(403))
+    vi.mocked(api.getList).mockResolvedValue({} as never)
+    const onListGone = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Test"
+        listOwnerId="u1"
+        onListGone={onListGone}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudo eliminar la lista',
+    )
+    expect(onListGone).not.toHaveBeenCalled()
+  })
+
   it('a successful self-removal in the members sheet leaves the screen', async () => {
     const onBack = vi.fn()
     render(
