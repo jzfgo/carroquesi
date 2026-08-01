@@ -47,6 +47,7 @@ beforeEach(() => {
   localStorage.removeItem('cqs_list_cache_list-1')
   vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
   vi.mocked(api.getListMembers).mockResolvedValue(mockRawMembers as never)
+  vi.mocked(api.getListStores).mockResolvedValue([] as never)
   vi.mocked(api.getListUpdatedAt).mockResolvedValue({
     updated_at: '2026-01-01T00:00:00',
   } as never)
@@ -523,6 +524,71 @@ describe('useListItems — stale-while-revalidate cache', () => {
     )
     await waitFor(() => expect(result.current.status).toBe('success'))
     expect(result.current.items[0].name).toBe('Cached Leche')
+
+    localStorage.removeItem('cqs_list_cache_list-1')
+  })
+})
+
+describe('useListItems — store registry', () => {
+  it('resolves any spelling variant to the canonical display name', async () => {
+    vi.mocked(api.getListStores).mockResolvedValue([
+      { store_key: 'ahorramas', display_name: 'Ahorramas' },
+    ] as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    expect(result.current.displayStore('Ahorra Más')).toBe('Ahorramas')
+    expect(result.current.displayStore('AHORRAMAS')).toBe('Ahorramas')
+    // Unknown stores fall back to the typed string.
+    expect(result.current.displayStore('Frutería de Ana')).toBe(
+      'Frutería de Ana',
+    )
+  })
+
+  it('applyStoreRename echoes the new label without a refetch', async () => {
+    vi.mocked(api.getListStores).mockResolvedValue([
+      { store_key: 'ahorramas', display_name: 'Ahorra Más' },
+    ] as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    act(() => {
+      result.current.applyStoreRename('ahorramas', 'Ahorramas')
+    })
+
+    expect(result.current.displayStore('ahorra más')).toBe('Ahorramas')
+    expect(result.current.storeEntries).toEqual([
+      { store_key: 'ahorramas', display_name: 'Ahorramas' },
+    ])
+  })
+
+  it('caches store entries and paints them before the network answers', async () => {
+    vi.mocked(api.getListStores).mockResolvedValue([
+      { store_key: 'lidl', display_name: 'Lidl' },
+    ] as never)
+    const first = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(first.result.current.status).toBe('success'))
+    first.unmount()
+
+    const raw = localStorage.getItem('cqs_list_cache_list-1')
+    expect(JSON.parse(raw!).stores).toEqual([
+      { store_key: 'lidl', display_name: 'Lidl' },
+    ])
+
+    // A hung network still paints the cached registry.
+    vi.mocked(api.getListStores).mockReturnValue(new Promise(() => {}) as never)
+    vi.mocked(api.getListItems).mockReturnValue(new Promise(() => {}) as never)
+    const second = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(second.result.current.status).toBe('success'))
+    expect(second.result.current.displayStore('LIDL')).toBe('Lidl')
 
     localStorage.removeItem('cqs_list_cache_list-1')
   })

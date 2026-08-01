@@ -19,6 +19,7 @@ from app.routers import (
     receipt,
     share,
     shortcuts,
+    stores,
     suggestions,
     waitlist,
 )
@@ -55,6 +56,7 @@ app.include_router(suggestions.router)
 app.include_router(barcode.router)
 app.include_router(prices.router)
 app.include_router(receipt.router)
+app.include_router(stores.router)
 app.include_router(share.router)
 app.include_router(feedback.router)
 app.include_router(waitlist.router)

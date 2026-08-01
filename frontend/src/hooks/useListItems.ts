@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ApiError,
   createItem,
@@ -6,6 +6,7 @@ import {
   deletePrice,
   getListItems,
   getListMembers,
+  getListStores,
   getListUpdatedAt,
   logPrice,
   updateItem,
@@ -15,9 +16,11 @@ import { AVATAR_COLORS } from '../lib/avatarColors'
 import { isOnline } from '../lib/connectivity'
 import { isSameCalendarDay } from '../lib/isSameCalendarDay'
 import { reconcileItems } from '../lib/reconcileItems'
+import { storeKey } from '../lib/storeKey'
 import type {
   BackendMember,
   ListItem,
+  ListStoreEntry,
   Member,
   ParsedInput,
   TagField,
@@ -40,23 +43,23 @@ function toMember(m: BackendMember, index: number): Member {
   }
 }
 
-function loadListCache(
-  listId: string,
-): { items: ListItem[]; members: BackendMember[] } | null {
+interface ListCache {
+  items: ListItem[]
+  members: BackendMember[]
+  // Optional: caches written before the store registry existed lack it.
+  stores?: ListStoreEntry[]
+}
+
+function loadListCache(listId: string): ListCache | null {
   try {
     const raw = localStorage.getItem(`cqs_list_cache_${listId}`)
-    return raw
-      ? (JSON.parse(raw) as { items: ListItem[]; members: BackendMember[] })
-      : null
+    return raw ? (JSON.parse(raw) as ListCache) : null
   } catch {
     return null
   }
 }
 
-function saveListCache(
-  listId: string,
-  data: { items: ListItem[]; members: BackendMember[] },
-) {
+function saveListCache(listId: string, data: ListCache) {
   try {
     localStorage.setItem(`cqs_list_cache_${listId}`, JSON.stringify(data))
   } catch {
@@ -73,6 +76,7 @@ export function useListItems(
   const [status, setStatus] = useState<Status>('loading')
   const [items, setItems] = useState<ListItem[]>([])
   const [members, setMembers] = useState<Map<string, Member>>(new Map())
+  const [storeEntries, setStoreEntries] = useState<ListStoreEntry[]>([])
   const lastUpdatedAt = useRef<string | null>(null)
   const itemsRef = useRef<ListItem[]>(items)
   useEffect(() => {
@@ -97,9 +101,10 @@ export function useListItems(
   // another list on screen and into the new list's cache.
   const writeClock = useRef(0)
   const writtenAt = useRef(new Map<string, number>())
-  const cachedMembers = useRef<{
+  const cachedMeta = useRef<{
     listId: string
     members: BackendMember[]
+    stores: ListStoreEntry[]
   } | null>(null)
   const rereadOnNextPoll = useRef(false)
 
@@ -142,6 +147,7 @@ export function useListItems(
       cached.members.forEach((m, i) => map.set(m.user_id, toMember(m, i)))
       setItems(cached.items)
       setMembers(map)
+      setStoreEntries(cached.stores ?? [])
       setStatus('success')
     } else {
       setStatus('loading')
@@ -149,22 +155,25 @@ export function useListItems(
     const clockAtStart = writeClock.current
     const isLocallyNewer = beginRead()
     try {
-      const [rawItems, rawMembers, updatedAtData] = await Promise.all([
-        getListItems(getToken, listId) as Promise<ListItem[]>,
-        getListMembers(getToken, listId) as Promise<BackendMember[]>,
-        getListUpdatedAt(getToken, listId) as Promise<{ updated_at: string }>,
-      ])
+      const [rawItems, rawMembers, rawStores, updatedAtData] =
+        await Promise.all([
+          getListItems(getToken, listId) as Promise<ListItem[]>,
+          getListMembers(getToken, listId) as Promise<BackendMember[]>,
+          getListStores(getToken, listId) as Promise<ListStoreEntry[]>,
+          getListUpdatedAt(getToken, listId) as Promise<{ updated_at: string }>,
+        ])
       setItems((prev) => reconcileItems(rawItems, prev, isLocallyNewer))
       const map = new Map<string, Member>()
       rawMembers.forEach((m, i) => map.set(m.user_id, toMember(m, i)))
       setMembers(map)
+      setStoreEntries(rawStores)
       lastUpdatedAt.current = updatedAtData.updated_at
       // The merge keeps the whole item, so a change another shopper made to one
       // the user also wrote goes with it. The timestamp cannot be trusted to
       // bring it back — it may already cover the write — so ask the next poll
       // to read again. By then the write has settled and the server wins.
       if (writeClock.current !== clockAtStart) rereadOnNextPoll.current = true
-      cachedMembers.current = { listId, members: rawMembers }
+      cachedMeta.current = { listId, members: rawMembers, stores: rawStores }
       setStatus('success')
     } catch {
       if (!cached) setStatus('error')
@@ -185,10 +194,14 @@ export function useListItems(
   // read that fails leaves the previous list's members behind, so each half
   // has to say which list it came from or the other list lands under this key.
   useEffect(() => {
-    const cached = cachedMembers.current
+    const cached = cachedMeta.current
     const itemsAreThisList = items.every((i) => i.list_id === listId)
     if (cached?.listId === listId && itemsAreThisList) {
-      saveListCache(listId, { items, members: cached.members })
+      saveListCache(listId, {
+        items,
+        members: cached.members,
+        stores: cached.stores,
+      })
     }
   }, [items, listId])
 
@@ -208,8 +221,17 @@ export function useListItems(
           lastUpdatedAt.current !== null &&
           data.updated_at !== lastUpdatedAt.current
         if (changed || rereadOnNextPoll.current) {
-          const raw = (await getListItems(getToken, listId)) as ListItem[]
+          // Stores ride along: a rename elsewhere bumps the list, and the
+          // labels on screen must follow it.
+          const [raw, rawStores] = await Promise.all([
+            getListItems(getToken, listId) as Promise<ListItem[]>,
+            getListStores(getToken, listId) as Promise<ListStoreEntry[]>,
+          ])
           setItems((prev) => reconcileItems(raw, prev, isLocallyNewer))
+          setStoreEntries(rawStores)
+          if (cachedMeta.current?.listId === listId) {
+            cachedMeta.current.stores = rawStores
+          }
           // Settled only once a read has landed and nothing raced it. A read
           // that failed leaves the request standing, and one a write raced
           // renews it — the poll drops the same changes fetchAll does, because
@@ -539,10 +561,40 @@ export function useListItems(
     [getToken, listId, markWritten, showToast, suspectListGone],
   )
 
+  // Item rows keep whatever spelling was typed; rendering resolves it to the
+  // registry's canonical name. Unknown keys fall back to the raw string, so a
+  // store the registry has not caught up with still shows something real.
+  const displayStore = useMemo(() => {
+    const byKey = new Map(
+      storeEntries.map((e) => [e.store_key, e.display_name]),
+    )
+    return (raw: string) => byKey.get(storeKey(raw)) ?? raw
+  }, [storeEntries])
+
+  // Local echo of a rename this client just made; the poll confirms it.
+  const applyStoreRename = useCallback(
+    (renamedKey: string, displayName: string) => {
+      setStoreEntries((prev) =>
+        prev.map((e) =>
+          e.store_key === renamedKey ? { ...e, display_name: displayName } : e,
+        ),
+      )
+      if (cachedMeta.current?.listId === listId) {
+        cachedMeta.current.stores = cachedMeta.current.stores.map((e) =>
+          e.store_key === renamedKey ? { ...e, display_name: displayName } : e,
+        )
+      }
+    },
+    [listId],
+  )
+
   return {
     status,
     items,
     members,
+    storeEntries,
+    displayStore,
+    applyStoreRename,
     togglePurchased,
     addItem,
     updateTag,

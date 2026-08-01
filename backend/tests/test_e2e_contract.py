@@ -122,3 +122,8 @@ def test_e2e_fixtures_match_backend_schemas():
 
     # 5. /lists/:id/receipt -> ReceiptScanResult
     assert_exact(response_model("POST", "/lists/{list_id}/receipt"), data["SEED_RECEIPT_RESULT"])
+
+    # 6. /lists/:id/stores -> list[StoreRead]
+    stores_model = response_model("GET", "/lists/{list_id}/stores")
+    for stores in data["SEED_STORES"].values():
+        assert_exact(stores_model, stores)

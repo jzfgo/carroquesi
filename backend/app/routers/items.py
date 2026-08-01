@@ -10,6 +10,7 @@ from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 from app.services.client_day import ClientTimezone, same_client_day
 from app.services.push import notify_list_change
+from app.services.store_registry import ensure_stores
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,7 @@ def add_item(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Item already in list")
     item = ListItem(list_id=lst.id, added_by=current_user.id, **body.model_dump())
     session.add(item)
+    ensure_stores(session, lst.id, body.stores)
     _bump(lst, session)
     session.commit()
     session.refresh(item)
@@ -99,6 +101,8 @@ def update_item(
     purchased = data.pop("purchased", None)
     for field, value in data.items():
         setattr(item, field, value)
+    if data.get("stores"):
+        ensure_stores(session, lst.id, data["stores"])
     if purchased is True and item.purchased_at is None:
         item.purchased_at = datetime.now(UTC).replace(tzinfo=None)
         item.purchased_by = current_user.id

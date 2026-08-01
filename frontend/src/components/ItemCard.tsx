@@ -15,6 +15,8 @@ interface Props {
   onMenuOpen: (itemId: string) => void
   onPriceClick?: (itemId: string) => void
   onClone?: (itemId: string) => void
+  /** Resolves a raw store string to the list's canonical display name. */
+  displayStore?: (raw: string) => string
 }
 
 export function ItemCard({
@@ -25,6 +27,7 @@ export function ItemCard({
   onMenuOpen,
   onPriceClick,
   onClone,
+  displayStore = (raw) => raw,
 }: Props) {
   const member = members.get(item.added_by)
   const initial = member?.initial ?? '?'
@@ -117,7 +120,7 @@ export function ItemCard({
           )}
 
           {item.stores.length > 0
-            ? item.stores.map((store) =>
+            ? [...new Set(item.stores.map(displayStore))].map((store) =>
                 item.purchased ? (
                   <span key={store} className="item-card__tag">
                     <span aria-hidden>

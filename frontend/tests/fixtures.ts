@@ -3,6 +3,7 @@ import type {
   ApiList,
   BackendMember,
   ListItem,
+  ListStoreEntry,
   NewPurchasedItem,
   PriceType,
   ReceiptScanResult,
@@ -22,6 +23,8 @@ export const SEED_LISTS: ApiList[] = data.SEED_LISTS
 export const SEED_ITEMS: Record<string, ListItem[]> = data.SEED_ITEMS
 
 const SEED_MEMBERS: Record<string, BackendMember[]> = data.SEED_MEMBERS
+
+const SEED_STORES: Record<string, ListStoreEntry[]> = data.SEED_STORES
 
 // A ReceiptScanSheet review, matching item-leche (existing price, gets updated)
 // and item-cafe (no price yet), plus one unmatched line — mirrors the shape
@@ -159,6 +162,11 @@ export async function installApiMocks(page: Page): Promise<void> {
       // /lists/:id/members
       if (sub === '/members') {
         if (method === 'GET') return json(SEED_MEMBERS[listId] ?? [])
+      }
+
+      // /lists/:id/stores — the store registry; fetched with every list read.
+      if (sub === '/stores') {
+        if (method === 'GET') return json(SEED_STORES[listId] ?? [])
       }
 
       // /lists/:id/due-suggestions

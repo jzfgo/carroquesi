@@ -154,3 +154,49 @@ test('ESC from confirm-delete sub-state returns to actions, not closing the shee
   expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
   expect(baseProps.onClose).not.toHaveBeenCalled()
 })
+
+test('hides Tiendas when the registry is empty or the callback is absent', () => {
+  render(
+    <ListActionSheet
+      {...baseProps}
+      storeEntries={[]}
+      onRenameStore={vi.fn()}
+    />,
+  )
+  expect(
+    screen.queryByRole('button', { name: 'Tiendas' }),
+  ).not.toBeInTheDocument()
+})
+
+test('renames a store through the Tiendas sub-state', () => {
+  const onRenameStore = vi.fn()
+  render(
+    <ListActionSheet
+      {...baseProps}
+      storeEntries={[
+        { store_key: 'ahorramas', display_name: 'Ahorra Más' },
+        { store_key: 'lidl', display_name: 'Lidl' },
+      ]}
+      onRenameStore={onRenameStore}
+    />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Tiendas' }))
+  fireEvent.click(screen.getByRole('button', { name: /renombrar ahorra más/i }))
+  const input = screen.getByRole('textbox', { name: /nombre de ahorra más/i })
+  fireEvent.change(input, { target: { value: 'Ahorramas' } })
+  fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
+  expect(onRenameStore).toHaveBeenCalledWith('ahorramas', 'Ahorramas')
+})
+
+test('Volver returns from Tiendas to the actions menu', () => {
+  render(
+    <ListActionSheet
+      {...baseProps}
+      storeEntries={[{ store_key: 'lidl', display_name: 'Lidl' }]}
+      onRenameStore={vi.fn()}
+    />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Tiendas' }))
+  fireEvent.click(screen.getByRole('button', { name: /volver/i }))
+  expect(screen.getByRole('button', { name: 'Tiendas' })).toBeInTheDocument()
+})

@@ -10,6 +10,8 @@ interface Props {
   onAdd: (s: DueSuggestion) => void
   onDismiss: (s: DueSuggestion) => void
   onClose: () => void
+  /** Resolves a raw store string to the list's canonical display name. */
+  displayStore?: (raw: string) => string
 }
 
 export function DueSuggestionsSheet({
@@ -17,6 +19,7 @@ export function DueSuggestionsSheet({
   onAdd,
   onDismiss,
   onClose,
+  displayStore = (raw) => raw,
 }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
@@ -49,7 +52,9 @@ export function DueSuggestionsSheet({
         <p className="due-suggestions-sheet__title">Toca comprar</p>
         <div className="due-suggestions-sheet__list">
           {suggestions.map((s) => {
-            const meta = [s.brand, ...s.stores].filter(Boolean).join(' · ')
+            const meta = [s.brand, ...new Set(s.stores.map(displayStore))]
+              .filter(Boolean)
+              .join(' · ')
             return (
               <div key={s.name} className="due-suggestions-sheet__row">
                 <div className="due-suggestions-sheet__info">

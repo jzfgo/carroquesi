@@ -25,6 +25,12 @@ export interface ParsedInput {
   ean?: string | null
 }
 
+/** A per-list store registry entry: key for comparison, name for display. */
+export interface ListStoreEntry {
+  store_key: string
+  display_name: string
+}
+
 export interface Member {
   id: string
   displayName: string
