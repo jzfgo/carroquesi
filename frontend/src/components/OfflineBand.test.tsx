@@ -15,7 +15,9 @@ afterEach(() => {
 describe('OfflineBand', () => {
   it('renders nothing on a cold online start', () => {
     render(<OfflineBand />)
-    act(() => vi.advanceTimersByTime(3000))
+    act(() => vi.advanceTimersByTime(2100))
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(900))
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
