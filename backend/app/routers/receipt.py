@@ -13,6 +13,7 @@ from app.schemas.receipt import (
 from app.services import feature_flags
 from app.services.receipt_matcher import match_lines, normalise
 from app.services.store_key import store_key
+from app.services.store_registry import ensure_stores
 
 router = APIRouter(tags=["receipt"])
 
@@ -194,6 +195,15 @@ def apply_receipt_prices(
             )
         )
         created += 1
+
+    ensure_stores(
+        session,
+        list_id,
+        [
+            *(patch.store for patch in body.patches if patch.store),
+            *(new.store for new in body.new_items if new.store),
+        ],
+    )
 
     for m in body.mappings:
         # Mapping rows are pure lookup keys, never displayed. Store them

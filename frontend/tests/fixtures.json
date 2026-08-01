@@ -156,5 +156,19 @@
         "line_total": 1.0
       }
     ]
+  },
+  "SEED_STORES": {
+    "seed-list-compra": [
+      {
+        "store_key": "mercadona",
+        "display_name": "Mercadona"
+      }
+    ],
+    "seed-list-fiesta": [
+      {
+        "store_key": "mercadona",
+        "display_name": "Mercadona"
+      }
+    ]
   }
 }

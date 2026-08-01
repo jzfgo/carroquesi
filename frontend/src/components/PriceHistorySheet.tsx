@@ -17,6 +17,8 @@ interface Props {
   onLogPrice: () => void
   onClose: () => void
   readOnly?: boolean
+  /** Resolves a raw store string to the list's canonical display name. */
+  displayStore?: (raw: string) => string
 }
 
 interface StoreGroup {
@@ -24,13 +26,20 @@ interface StoreGroup {
   records: ChartEntry[]
 }
 
-function groupByStore(entries: ChartEntry[]): StoreGroup[] {
+function groupByStore(
+  entries: ChartEntry[],
+  displayStore: (raw: string) => string,
+): StoreGroup[] {
   // Spelling variants of one shop share a price history: group by key,
-  // label with the first-seen typed form.
+  // label with the registry's canonical name.
   const map = new Map<string, StoreGroup>()
   for (const entry of entries) {
     const key = entry.store ? storeKey(entry.store) : '__none__'
-    if (!map.has(key)) map.set(key, { store: entry.store, records: [] })
+    if (!map.has(key))
+      map.set(key, {
+        store: entry.store ? displayStore(entry.store) : null,
+        records: [],
+      })
     map.get(key)!.records.push(entry)
   }
   for (const group of map.values()) {
@@ -355,6 +364,7 @@ export default function PriceHistorySheet({
   onLogPrice,
   onClose,
   readOnly,
+  displayStore = (raw) => raw,
 }: Props) {
   const [scope, setScope] = useState<Scope>('this_list')
   const [history, setHistory] = useState<PriceHistoryResponse | null>(null)
@@ -383,7 +393,9 @@ export default function PriceHistorySheet({
   }
 
   const normalized = history ? normalizeEntries(history.entries) : null
-  const groups = normalized ? groupByStore(normalized.entries) : null
+  const groups = normalized
+    ? groupByStore(normalized.entries, displayStore)
+    : null
 
   return (
     <div className="phs" ref={sheetRef}>

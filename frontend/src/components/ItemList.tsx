@@ -23,6 +23,8 @@ interface Props {
   purchasedCostByDate?: Map<string, CostSummary | null>
   totalItems?: number
   footer?: ReactNode
+  /** Resolves a raw store string to the list's canonical display name. */
+  displayStore?: (raw: string) => string
 }
 
 function CostBadge({
@@ -54,6 +56,7 @@ export function ItemList({
   purchasedCostByDate,
   totalItems,
   footer,
+  displayStore,
 }: Props) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
 
@@ -150,6 +153,7 @@ export function ItemList({
           onMenuOpen={onMenuOpen}
           onPriceClick={onPriceClick}
           onClone={onClone}
+          displayStore={displayStore}
         />
       ))}
       {footer}
@@ -194,6 +198,7 @@ export function ItemList({
                     onMenuOpen={onMenuOpen}
                     onPriceClick={onPriceClick}
                     onClone={onClone}
+                    displayStore={displayStore}
                   />
                 ))}
               </div>

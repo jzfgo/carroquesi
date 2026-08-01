@@ -15,6 +15,7 @@ import {
   getDueSuggestions,
   getList,
   getSuggestions,
+  renameStore,
   setDefaultList,
   submitParsedReceipt,
   submitReceiptPrices,
@@ -260,6 +261,9 @@ export function ListScreen({
     status,
     items,
     members,
+    storeEntries,
+    displayStore,
+    applyStoreRename,
     togglePurchased,
     addItem,
     updateTag,
@@ -270,6 +274,22 @@ export function ListScreen({
     clearItemPrice,
     retry,
   } = useListItems(listId, getToken, setToast, confirmListGone)
+
+  const handleRenameStore = useCallback(
+    async (renamedKey: string, displayName: string) => {
+      if (isOffline) {
+        setToast('No disponible sin conexión')
+        return
+      }
+      try {
+        await renameStore(getToken, listId, renamedKey, displayName)
+        applyStoreRename(renamedKey, displayName)
+      } catch {
+        setToast('No se pudo renombrar la tienda')
+      }
+    },
+    [applyStoreRename, getToken, isOffline, listId],
+  )
 
   // Debounced suggestions — only when name has 2+ chars
   useEffect(() => {
@@ -718,8 +738,8 @@ export function ListScreen({
   }, [items])
 
   const stores = useMemo(() => {
-    // One chip per store, not per spelling: dedupe by key, keep the
-    // first-seen typed form as the label.
+    // One chip per store, not per spelling: dedupe by key and label with
+    // the registry's canonical name.
     const seen = new Set<string>()
     const result: string[] = []
     for (const item of items.filter((i) => !i.purchased)) {
@@ -727,12 +747,12 @@ export function ListScreen({
         const key = storeKey(s)
         if (!seen.has(key)) {
           seen.add(key)
-          result.push(s)
+          result.push(displayStore(s))
         }
       }
     }
     return result.sort()
-  }, [items])
+  }, [items, displayStore])
 
   const filteredItems = useMemo(
     () =>
@@ -833,6 +853,7 @@ export function ListScreen({
         onClone={handleCloneItem}
         pendingCost={pendingCost}
         purchasedCostByDate={purchasedCostByDate}
+        displayStore={displayStore}
         footer={
           allUnpurchasedCount === 0 &&
           items.length > 0 &&
@@ -939,6 +960,8 @@ export function ListScreen({
               : undefined
           }
           onClose={() => setMenuOpen(false)}
+          storeEntries={storeEntries}
+          onRenameStore={(key, name) => void handleRenameStore(key, name)}
         />
       )}
       {!editingTag && !menuOpen && !activeItemId && (
@@ -966,6 +989,7 @@ export function ListScreen({
       {dueSuggestionsOpen && filteredDueSuggestions.length > 0 && (
         <DueSuggestionsSheet
           suggestions={filteredDueSuggestions}
+          displayStore={displayStore}
           onAdd={handleSuggestionAdd}
           onDismiss={handleSuggestionDismiss}
           onClose={handleDueSuggestionsClose}
@@ -983,6 +1007,7 @@ export function ListScreen({
       {scannedProduct && (
         <BarcodeScanSheet
           product={scannedProduct}
+          displayStore={displayStore}
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onAdd={handleScanAdd as any}
           onEdit={handleScanEdit}
@@ -992,6 +1017,7 @@ export function ListScreen({
       {eanLookup.status === 'found' && (
         <BarcodeScanSheet
           product={eanLookup.product}
+          displayStore={displayStore}
           initialBrand={parsed.brand ?? undefined}
           initialStores={parsed.stores}
           onAdd={handleEanAdd}
@@ -1014,6 +1040,7 @@ export function ListScreen({
                 <PriceHistorySheet
                   item={priceItem}
                   listId={listId}
+                  displayStore={displayStore}
                   getToken={getToken}
                   onLogPrice={() => handleOpenLogPrice(priceItemId)}
                   onClose={() => setPriceItemId(null)}
@@ -1037,6 +1064,7 @@ export function ListScreen({
               <div className="sheet-container">
                 <LogPurchaseSheet
                   item={logItem}
+                  displayStore={displayStore}
                   initialAmount={logPriceFor.initialAmount}
                   initialPricePer={logPriceFor.initialPricePer}
                   initialStore={logPriceFor.initialStore}

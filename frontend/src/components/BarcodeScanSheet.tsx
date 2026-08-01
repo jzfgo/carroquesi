@@ -10,6 +10,8 @@ interface Props {
   product: BarcodeRead
   initialBrand?: string | null
   initialStores?: string[]
+  /** Resolves a raw store string to the list's canonical display name. */
+  displayStore?: (raw: string) => string
   onAdd: (item: {
     name: string
     brand: string | null
@@ -32,6 +34,7 @@ export function BarcodeScanSheet({
   product,
   initialBrand,
   initialStores,
+  displayStore = (raw) => raw,
   onAdd,
   onEdit,
   onClose,
@@ -41,7 +44,7 @@ export function BarcodeScanSheet({
   // store must select the displayed chip, not render a phantom twin.
   const byKey = new Map<string, string>()
   for (const s of [...product.stores, ...(initialStores ?? [])]) {
-    if (!byKey.has(storeKey(s))) byKey.set(storeKey(s), s)
+    if (!byKey.has(storeKey(s))) byKey.set(storeKey(s), displayStore(s))
   }
   const allStores = [...byKey.values()]
 

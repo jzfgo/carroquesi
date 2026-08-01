@@ -159,6 +159,22 @@ export function getListUpdatedAt(
   return apiFetch(getToken, `/lists/${listId}/updated-at`)
 }
 
+export function getListStores(getToken: () => Promise<string>, listId: string) {
+  return apiFetch(getToken, `/lists/${listId}/stores`)
+}
+
+export function renameStore(
+  getToken: () => Promise<string>,
+  listId: string,
+  storeKey: string,
+  displayName: string,
+) {
+  return apiFetch(getToken, `/lists/${listId}/stores/${storeKey}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ display_name: displayName }),
+  })
+}
+
 /**
  * Reset the caller's unseen watermark for this list, which is what the push
  * notification change count is derived from. Explicit rather than a side effect

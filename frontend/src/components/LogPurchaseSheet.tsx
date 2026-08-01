@@ -23,6 +23,8 @@ interface Props {
   ) => void
   onDelete?: () => Promise<void>
   onClose: () => void
+  /** Resolves a raw store string to the list's canonical display name. */
+  displayStore?: (raw: string) => string
 }
 
 export default function LogPurchaseSheet({
@@ -35,15 +37,18 @@ export default function LogPurchaseSheet({
   onSave,
   onDelete,
   onClose,
+  displayStore = (raw) => raw,
 }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
 
-  // One chip per store: dedupe spelling variants by key, first typed form
-  // as the label.
+  // One chip per store: dedupe spelling variants by key and label with the
+  // registry's canonical name.
   const storesByKey = new Map<string, string>()
   for (const s of item.stores ?? []) {
-    if (!storesByKey.has(storeKey(s))) storesByKey.set(storeKey(s), s)
+    if (!storesByKey.has(storeKey(s))) {
+      storesByKey.set(storeKey(s), displayStore(s))
+    }
   }
   const stores = [...storesByKey.values()]
   // Guard again here so the component stays self-contained if reused elsewhere

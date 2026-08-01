@@ -80,6 +80,23 @@ class ListItem(SQLModel, table=True):
     price_store: str | None = Field(default=None)
 
 
+class ListStore(SQLModel, table=True):
+    """Per-list store registry: one row per store key, holding the canonical
+    display name every surface renders. Item rows keep the raw typed strings;
+    only rendering resolves through this table, so a rename never rewrites
+    anyone's data. store_key is immutable; display_name is free text."""
+
+    __tablename__ = "list_stores"
+    __table_args__ = (UniqueConstraint("list_id", "store_key"),)
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    list_id: str = Field(foreign_key="lists.id")
+    store_key: str
+    display_name: str
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+
 class ListInvite(SQLModel, table=True):
     __tablename__ = "list_invites"
 

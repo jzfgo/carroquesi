@@ -1,10 +1,11 @@
-import { Pencil, Receipt, Star, Trash2, Users } from 'lucide-react'
+import { Pencil, Receipt, Star, Store, Trash2, Users } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import type { ListStoreEntry } from '../types'
 import './ListActionSheet.css'
 import { ListMembersSheet } from './ListMembersSheet'
 
-type SubState = 'actions' | 'rename' | 'members' | 'confirm-delete'
+type SubState = 'actions' | 'rename' | 'members' | 'stores' | 'confirm-delete'
 
 interface Props {
   listId: string
@@ -22,6 +23,9 @@ interface Props {
   onLeftList?: () => void
   /** The member sheet got an answer that suggests the list is gone. */
   onListSuspect?: () => void
+  /** The list's store registry; absent or empty hides the stores entry. */
+  storeEntries?: ListStoreEntry[]
+  onRenameStore?: (storeKey: string, displayName: string) => void
 }
 
 export function ListActionSheet({
@@ -37,9 +41,13 @@ export function ListActionSheet({
   onClose,
   onLeftList,
   onListSuspect,
+  storeEntries,
+  onRenameStore,
 }: Props) {
   const [subState, setSubState] = useState<SubState>('actions')
   const [renameValue, setRenameValue] = useState(listName)
+  const [editingStoreKey, setEditingStoreKey] = useState<string | null>(null)
+  const [storeNameValue, setStoreNameValue] = useState('')
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
 
@@ -101,6 +109,14 @@ export function ListActionSheet({
           >
             <Users size={18} /> Gestionar Miembros
           </button>
+          {onRenameStore && (storeEntries?.length ?? 0) > 0 && (
+            <button
+              className="list-action-sheet__action"
+              onClick={() => setSubState('stores')}
+            >
+              <Store size={18} /> Tiendas
+            </button>
+          )}
           {onReceiptScan && (
             <button
               className="list-action-sheet__action"
@@ -168,6 +184,83 @@ export function ListActionSheet({
             aria-label="Cancelar"
           >
             Cancelar
+          </button>
+        </div>
+      </>
+    )
+  }
+
+  if (subState === 'stores') {
+    const trimmedStore = storeNameValue.trim()
+    return (
+      <>
+        {overlay}
+        <div
+          className="list-action-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Tiendas"
+          ref={sheetRef}
+        >
+          <div className="list-action-sheet__handle" {...swipe} />
+          <p className="list-action-sheet__list-name">
+            <Store size={16} /> Tiendas
+          </p>
+          {(storeEntries ?? []).map((entry) =>
+            editingStoreKey === entry.store_key ? (
+              <div
+                key={entry.store_key}
+                className="list-action-sheet__input-row"
+              >
+                <input
+                  className="list-action-sheet__input"
+                  type="text"
+                  value={storeNameValue}
+                  onChange={(e) => setStoreNameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && trimmedStore) {
+                      onRenameStore?.(entry.store_key, trimmedStore)
+                      setEditingStoreKey(null)
+                    }
+                  }}
+                  autoFocus
+                  aria-label={`Nombre de ${entry.display_name}`}
+                />
+                <button
+                  className="list-action-sheet__save-btn"
+                  onClick={() => {
+                    onRenameStore?.(entry.store_key, trimmedStore)
+                    setEditingStoreKey(null)
+                  }}
+                  disabled={!trimmedStore}
+                  aria-label="Guardar"
+                >
+                  Guardar
+                </button>
+              </div>
+            ) : (
+              <button
+                key={entry.store_key}
+                className="list-action-sheet__action"
+                onClick={() => {
+                  setEditingStoreKey(entry.store_key)
+                  setStoreNameValue(entry.display_name)
+                }}
+                aria-label={`Renombrar ${entry.display_name}`}
+              >
+                <Pencil size={18} /> {entry.display_name}
+              </button>
+            ),
+          )}
+          <button
+            className="list-action-sheet__cancel-link"
+            onClick={() => {
+              setEditingStoreKey(null)
+              setSubState('actions')
+            }}
+            aria-label="Volver"
+          >
+            Volver
           </button>
         </div>
       </>

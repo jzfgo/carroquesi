@@ -17,6 +17,7 @@ import * as receiptAi from '../lib/receiptAi'
 import type {
   BarcodeRead,
   ListItem,
+  ListStoreEntry,
   NameMapping,
   NewPurchasedItem,
   PricePatch,
@@ -160,6 +161,9 @@ const emptyHookResult = {
   status: 'success' as const,
   items: [] as ListItem[],
   members: new Map(),
+  storeEntries: [] as ListStoreEntry[],
+  displayStore: (raw: string) => raw,
+  applyStoreRename: vi.fn(),
   togglePurchased: vi.fn(),
   addItem: vi.fn(),
   updateTag: vi.fn(),
@@ -383,6 +387,31 @@ describe('ListScreen', () => {
       filterBar.queryByRole('button', { name: 'AHORRA MAS' }),
     ).not.toBeInTheDocument()
     expect(filterBar.getByRole('button', { name: 'Lidl' })).toBeInTheDocument()
+  })
+
+  it('labels chips and item tags with the registry canonical name', () => {
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Pan', stores: ['ahorra mas'] })],
+      storeEntries: [{ store_key: 'ahorramas', display_name: 'Ahorramas' }],
+      displayStore: (raw: string) =>
+        raw.toLowerCase().replace(/\s/g, '') === 'ahorramas'
+          ? 'Ahorramas'
+          : raw,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const filterBar = within(
+      document.querySelector('.filter-bar') as HTMLElement,
+    )
+    expect(
+      filterBar.getByRole('button', { name: 'Ahorramas' }),
+    ).toBeInTheDocument()
+    // The item card tag resolves through the same function.
+    expect(
+      document.querySelector('.item-card__tag:not(.item-card__tag--cta)'),
+    ).toHaveTextContent('Ahorramas')
   })
 
   it('opens ItemActionSheet when menu button is clicked and handles rename', async () => {

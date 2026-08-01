@@ -32,6 +32,7 @@ Two documents hold the durable truth this file does not repeat. Read the relevan
 - `price_cache`: cached community price data by EAN (amount, price_per, fetched_at); negative-caches misses too
 - `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results)
 - `receipt_name_mappings`: learned receipt→item name mappings per store; improves auto-matching on future scans
+- `list_stores`: per-list store registry — `store_key` → canonical `display_name`, renameable by members. See [ADR-013](docs/decisions/013-store-registry.md)
 - `feedback_submissions`: in-app user feedback (message, email, source, user_agent)
 - `waitlist_signups`: early-access waitlist (email, allowed_at, invite_token)
 - `user_features`: per-user feature flag overrides; `feature` must match a key in the flag registry in `backend/app/services/feature_flags.py`
@@ -103,7 +104,7 @@ The remaining gotchas — ports, dev-auth setup, the `loadEnvFile()` `${VAR}` no
 
 ### Store names
 
-Store names are free text from four sources and no two people spell a shop the same way, so **comparisons go through a deterministic key and display keeps the typed string**. The key collapses spelling variants only (case, accents, whitespace, punctuation) — vocabulary variants like `BM` vs `BM Supermercados` stay apart on purpose, and fuzzy matching was measured and rejected (a wrong merge silently fuses price histories). Two implementations, one rule: `backend/app/services/store_key.py` and `frontend/src/lib/storeKey.ts`, pinned to the shared vector file `storeKeyVectors.json` that both suites assert — change one only through that file. `receipt_name_mappings` stores key-normalised `store` and `normalise()`d `receipt_name` (they are pure lookup keys, never displayed); any new store comparison must use the key, any new store render must use a stored raw string.
+Store names are free text from four sources and no two people spell a shop the same way, so **comparisons go through a deterministic key and display goes through the per-list registry** ([ADR-013](docs/decisions/013-store-registry.md)). The key collapses spelling variants only (case, accents, whitespace, punctuation) — vocabulary variants like `BM` vs `BM Supermercados` stay apart on purpose, and fuzzy matching was measured and rejected (a wrong merge silently fuses price histories). Two implementations, one rule: `backend/app/services/store_key.py` and `frontend/src/lib/storeKey.ts`, pinned to the shared vector file `storeKeyVectors.json` that both suites assert — change one only through that file. `receipt_name_mappings` stores key-normalised `store` and `normalise()`d `receipt_name` (they are pure lookup keys, never displayed). Item rows keep the raw typed strings; rendering resolves them via `displayStore` (from `useListItems`), falling back to the raw string for unregistered keys. Any backend write that introduces a store string must call `ensure_stores` (`app/services/store_registry.py`); any new store comparison must use the key; never persist a resolved display name back onto an item.
 
 ### Receipt scanning
 

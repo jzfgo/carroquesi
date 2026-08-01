@@ -8,6 +8,7 @@ from app.dependencies import CurrentSession, CurrentUser, MemberDep
 from app.schemas.prices import PriceCreate, PriceEntry, PriceHistoryResponse
 from app.services.client_day import ClientTimezone, same_client_day
 from app.services.community_price import get_community_price
+from app.services.store_registry import ensure_stores
 
 router = APIRouter(prefix="/lists/{list_id}/items/{item_id}/prices", tags=["prices"])
 
@@ -26,6 +27,8 @@ def _write_price(item: ListItem, price_in: PriceCreate, session: Session) -> Pri
     item.price_per = price_in.price_per
     item.price_store = price_in.store
     session.add(item)
+    if price_in.store:
+        ensure_stores(session, item.list_id, [price_in.store])
     session.commit()
     session.refresh(item)
     return PriceEntry(amount=item.price, price_per=item.price_per, store=item.price_store)
