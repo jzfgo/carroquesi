@@ -220,6 +220,15 @@ record that a clean re-review has completed.
 **Entered from Step 1** whenever `statusCheckRollup` has failing checks. This is part of the
 loop, not an appendix — Steps 2–3 are scoped to comment threads and will never fix CI.
 
+**One red check is deliberate and cannot be fixed:** on a PR that touches
+`.github/workflows/claude.yml`, the `Claude Code` check fails itself on purpose.
+claude-code-action refuses to run a workflow file that differs from the copy on `main` —
+a security property — and used to exit **green** having reviewed nothing; the workflow
+now fails that run loudly instead, so the red check *is* the "this PR edits the reviewer,
+review it by hand" marker. Do not treat it as a CI failure, do not push commits trying to
+turn it green, and do not let it send you around this section's loop. Handle it under the
+*Exit Condition*'s workflow-edit exception instead.
+
 If `statusCheckRollup` has failing checks:
 
 1. Find the failed run:
@@ -264,6 +273,17 @@ git log -1 --format=%cI HEAD                                # its commit time
 ```
 
 If HEAD is newer than the clean review, that review is stale → go back to **Step 4**.
+
+**Exception — the PR edits `.github/workflows/claude.yml`:** its `Claude Code` check is
+red **by design** (see *Handling CI Failures*) and can never pass, so exclude that one
+check from condition #3 rather than looping on it. Conditions #1 and #2 still apply in
+full: the refusal is about the workflow definition a run *executes*, and `@claude`
+comment runs execute `main`'s copy, so comment-triggered re-reviews of the PR's code
+still work normally. Note the limit, though — that re-review runs the *old* reviewer
+over the diff; nothing can exercise the edited workflow before merge. At exit, report
+the red check for what it is: the workflow change itself is unreviewed by machinery,
+needs a human eye, and is proven only by the first post-merge PR that does not touch
+the file.
 
 Condition #2 is deliberately "at least one completed clean re-review", not "the latest one,
 if any, was clean". The weaker phrasing is **vacuously true on a PR that has never been
