@@ -5,8 +5,8 @@ import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
 import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
 import { useListSeen } from '../hooks/useListSeen'
-import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
 import { useOnline } from '../hooks/useOnline'
+import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import {
   ApiError,
