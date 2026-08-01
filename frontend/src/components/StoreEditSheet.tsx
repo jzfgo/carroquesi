@@ -1,6 +1,7 @@
 import { Store } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { storeKey } from '../lib/storeKey'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem } from '../types'
 import './StoreEditSheet.css'
@@ -18,13 +19,16 @@ export function StoreEditSheet({ item, items, onSave, onClose }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
 
+  // Compare by key so a spelling variant of a store already on the item
+  // is neither suggested nor added next to it.
+  const currentKeys = new Set(currentStores.map(storeKey))
   const suggestions = clientSideSuggestions(items, 'stores', input).filter(
-    (s) => !currentStores.includes(s),
+    (s) => !currentKeys.has(storeKey(s)),
   )
 
   function addStore(name: string) {
     const trimmed = name.trim()
-    if (!trimmed || currentStores.includes(trimmed)) return
+    if (!trimmed || currentKeys.has(storeKey(trimmed))) return
     onSave([...currentStores, trimmed])
   }
 

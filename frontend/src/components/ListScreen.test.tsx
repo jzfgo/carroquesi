@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
@@ -352,6 +359,30 @@ describe('ListScreen', () => {
       'Mercadona',
       'Carrefour',
     ])
+  })
+
+  it('renders one filter chip per store across spelling variants', () => {
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({ id: 'i1', name: 'Pan', stores: ['Ahorramás'] }),
+        makeItem({ id: 'i2', name: 'Queso', stores: ['AHORRA MAS'] }),
+        makeItem({ id: 'i3', name: 'Sal', stores: ['Lidl'] }),
+      ],
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const filterBar = within(
+      document.querySelector('.filter-bar') as HTMLElement,
+    )
+    expect(
+      filterBar.getByRole('button', { name: 'Ahorramás' }),
+    ).toBeInTheDocument()
+    expect(
+      filterBar.queryByRole('button', { name: 'AHORRA MAS' }),
+    ).not.toBeInTheDocument()
+    expect(filterBar.getByRole('button', { name: 'Lidl' })).toBeInTheDocument()
   })
 
   it('opens ItemActionSheet when menu button is clicked and handles rename', async () => {

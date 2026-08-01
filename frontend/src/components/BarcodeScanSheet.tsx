@@ -2,6 +2,7 @@ import { Globe, Pencil, Store, Tag } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
+import { storeKey } from '../lib/storeKey'
 import type { BarcodeRead } from '../types'
 import './BarcodeScanSheet.css'
 
@@ -35,15 +36,18 @@ export function BarcodeScanSheet({
   onEdit,
   onClose,
 }: Props) {
-  // Merge product.stores and initialStores so sigil-provided stores are always shown
-  const productStoreSet = new Set(product.stores)
-  const extraStores = (initialStores ?? []).filter(
-    (s) => !productStoreSet.has(s),
-  )
-  const allStores = [...product.stores, ...extraStores]
+  // Merge product.stores and initialStores so sigil-provided stores are
+  // always shown. Compare by key: a sigil-typed spelling variant of an OFF
+  // store must select the displayed chip, not render a phantom twin.
+  const byKey = new Map<string, string>()
+  for (const s of [...product.stores, ...(initialStores ?? [])]) {
+    if (!byKey.has(storeKey(s))) byKey.set(storeKey(s), s)
+  }
+  const allStores = [...byKey.values()]
 
   const [selectedStores, setSelectedStores] = useState<Set<string>>(
-    new Set(initialStores ?? []),
+    () =>
+      new Set((initialStores ?? []).map((s) => byKey.get(storeKey(s)) ?? s)),
   )
 
   const sheetRef = useRef<HTMLDivElement>(null)

@@ -4,6 +4,7 @@ import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { getPriceHistory } from '../lib/api'
 import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
 import { normalizeEntries, type ChartEntry } from '../lib/priceNormalization'
+import { storeKey } from '../lib/storeKey'
 import type { ListItem, PriceHistoryResponse } from '../types'
 import './PriceHistorySheet.css'
 
@@ -24,9 +25,11 @@ interface StoreGroup {
 }
 
 function groupByStore(entries: ChartEntry[]): StoreGroup[] {
+  // Spelling variants of one shop share a price history: group by key,
+  // label with the first-seen typed form.
   const map = new Map<string, StoreGroup>()
   for (const entry of entries) {
-    const key = entry.store ?? '__none__'
+    const key = entry.store ? storeKey(entry.store) : '__none__'
     if (!map.has(key)) map.set(key, { store: entry.store, records: [] })
     map.get(key)!.records.push(entry)
   }

@@ -1,5 +1,6 @@
 import { Search, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { storeKey } from '../lib/storeKey'
 import './FilterBar.css'
 
 interface Props {
@@ -20,7 +21,11 @@ export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
     }
   }, [mode])
 
-  const activeChip = stores.find((s) => query === `@${s}`) ?? null
+  // The query carries a typed store name; the chip label may be a different
+  // spelling of the same shop. Compare by key, keep emitting display strings.
+  const activeChip = query.startsWith('@')
+    ? (stores.find((s) => storeKey(query.slice(1)) === storeKey(s)) ?? null)
+    : null
 
   return (
     <div

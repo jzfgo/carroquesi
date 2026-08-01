@@ -27,6 +27,7 @@ import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
 import { parseReceiptWithAi } from '../lib/receiptAi'
+import { storeKey } from '../lib/storeKey'
 import type {
   BarcodeRead,
   DueSuggestion,
@@ -717,12 +718,15 @@ export function ListScreen({
   }, [items])
 
   const stores = useMemo(() => {
+    // One chip per store, not per spelling: dedupe by key, keep the
+    // first-seen typed form as the label.
     const seen = new Set<string>()
     const result: string[] = []
     for (const item of items.filter((i) => !i.purchased)) {
       for (const s of item.stores) {
-        if (!seen.has(s)) {
-          seen.add(s)
+        const key = storeKey(s)
+        if (!seen.has(key)) {
+          seen.add(key)
           result.push(s)
         }
       }

@@ -192,3 +192,11 @@ def test_fetch_community_price_from_results_discards_unknown_price_per():
     amount, price_per = _fetch_community_price_from_results(results)
     assert amount is None
     assert price_per is None
+
+
+def test_parse_stores_dedupes_spelling_variants():
+    from app.routers.barcode import _parse_stores
+
+    assert _parse_stores("Carrefour, carrefour ,CARREFOUR") == ["Carrefour"]
+    assert _parse_stores("Mercadona, Alcampo") == ["Mercadona", "Alcampo"]
+    assert _parse_stores(None) == []
