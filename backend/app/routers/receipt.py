@@ -6,6 +6,7 @@ from sqlmodel import select
 from app.db.models import List, ListItem, ReceiptNameMapping, ReceiptScan
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.receipt import (
+    ReceiptPriceApplyResult,
     ReceiptPriceBatch,
     ReceiptScanRequest,
     ReceiptScanResult,
@@ -130,7 +131,7 @@ def scan_receipt(
     )
 
 
-@router.post("/lists/{list_id}/receipt-prices")
+@router.post("/lists/{list_id}/receipt-prices", response_model=ReceiptPriceApplyResult)
 def apply_receipt_prices(
     list_id: str,
     body: ReceiptPriceBatch,

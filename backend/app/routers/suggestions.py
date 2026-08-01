@@ -10,6 +10,7 @@ from sqlmodel import func, select
 from app.db.models import ListItem, ListMember
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, MemberOrDefaultDep
 from app.schemas.due_suggestions import DueSuggestionRead
+from app.schemas.lists import ListUpdatedAtRead
 from app.schemas.suggestions import SuggestionRead
 
 router = APIRouter(tags=["suggestions"])
@@ -161,7 +162,7 @@ def get_due_suggestions(
     return results[:10]
 
 
-@router.get("/lists/{list_id}/updated-at")
+@router.get("/lists/{list_id}/updated-at", response_model=ListUpdatedAtRead)
 def get_updated_at(list_and_user: MemberDep):
     lst, _ = list_and_user
-    return {"updated_at": lst.updated_at.isoformat()}
+    return {"updated_at": lst.updated_at}

@@ -127,3 +127,26 @@ def test_e2e_fixtures_match_backend_schemas():
     stores_model = response_model("GET", "/lists/{list_id}/stores")
     for stores in data["SEED_STORES"].values():
         assert_exact(stores_model, stores)
+
+    # 7. Write-path templates. The mocks in fixtures.ts answer a write by
+    # spreading echoed request fields over one of these, so what this validates
+    # is the full key set and every value the echo does not overwrite. The two
+    # PATCH mocks are not templated: they spread a patch over an item or list
+    # fixture already validated above, and a patch body cannot invent keys.
+    assert_exact(response_model("POST", "/auth/sync"), data["ALICE"])
+    assert_exact(response_model("POST", "/lists"), data["SEED_CREATED_LIST"])
+    item_model = response_model("POST", "/lists/{list_id}/items")
+    assert_exact(item_model, data["SEED_CREATED_ITEM"])
+    assert_exact(item_model, data["SEED_IMPULSE_ITEM"])
+    prices_path = "/lists/{list_id}/items/{item_id}/prices"
+    assert_exact(response_model("POST", prices_path), data["SEED_PRICE_ENTRY"])
+    assert_exact(response_model("PATCH", prices_path), data["SEED_PRICE_ENTRY"])
+    assert_exact(response_model("GET", prices_path), data["SEED_PRICE_HISTORY"])
+    assert_exact(
+        response_model("POST", "/lists/{list_id}/receipt-prices"),
+        data["SEED_RECEIPT_APPLY_RESULT"],
+    )
+    assert_exact(
+        response_model("GET", "/lists/{list_id}/updated-at"),
+        data["SEED_UPDATED_AT"],
+    )

@@ -170,5 +170,71 @@
         "display_name": "Mercadona"
       }
     ]
+  },
+  "SEED_CREATED_LIST": {
+    "id": "new-list-template",
+    "name": "Lista nueva",
+    "emoji": null,
+    "owner_id": "seed-user-alice",
+    "created_at": "2026-06-23T10:00:00",
+    "updated_at": "2026-06-23T10:00:00",
+    "item_count": 0,
+    "purchased_count": 0,
+    "is_default": false
+  },
+  "SEED_CREATED_ITEM": {
+    "id": "new-item-template",
+    "list_id": "seed-list-compra",
+    "name": "Nuevo articulo",
+    "quantity": null,
+    "purchased_quantity": null,
+    "brand": null,
+    "stores": [],
+    "purchased": false,
+    "purchased_at": null,
+    "ean": null,
+    "price": null,
+    "price_per": null,
+    "price_store": null,
+    "added_by": "seed-user-alice",
+    "created_at": "2026-06-23T10:00:00",
+    "updated_at": "2026-06-23T10:00:00"
+  },
+  "SEED_IMPULSE_ITEM": {
+    "id": "impulse-item-template",
+    "list_id": "seed-list-compra",
+    "name": "Pan integral",
+    "quantity": null,
+    "purchased_quantity": "1",
+    "brand": null,
+    "stores": ["Mercadona"],
+    "purchased": true,
+    "purchased_at": "2026-07-10T00:00:00",
+    "ean": null,
+    "price": 1.0,
+    "price_per": null,
+    "price_store": "Mercadona",
+    "added_by": "seed-user-alice",
+    "created_at": "2026-06-23T10:00:00",
+    "updated_at": "2026-06-23T10:00:00"
+  },
+  "SEED_PRICE_ENTRY": {
+    "amount": 0.75,
+    "price_per": null,
+    "store": "Mercadona",
+    "purchased_at": null,
+    "quantity": null
+  },
+  "SEED_PRICE_HISTORY": {
+    "entries": [],
+    "community_price": null,
+    "community_price_per": null
+  },
+  "SEED_RECEIPT_APPLY_RESULT": {
+    "items_updated": 2,
+    "items_created": 1
+  },
+  "SEED_UPDATED_AT": {
+    "updated_at": "2026-06-23T10:00:00"
   }
 }

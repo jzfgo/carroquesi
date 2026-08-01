@@ -4,8 +4,12 @@ import type {
   BackendMember,
   ListItem,
   ListStoreEntry,
+  ListUpdatedAt,
   NewPurchasedItem,
+  PriceEntry,
+  PriceHistoryResponse,
   PriceType,
+  ReceiptPriceApplyResult,
   ReceiptScanResult,
   UserMe,
 } from '../src/types'
@@ -25,6 +29,18 @@ export const SEED_ITEMS: Record<string, ListItem[]> = data.SEED_ITEMS
 const SEED_MEMBERS: Record<string, BackendMember[]> = data.SEED_MEMBERS
 
 const SEED_STORES: Record<string, ListStoreEntry[]> = data.SEED_STORES
+
+// Write-path templates. A write mock answers by spreading the echoed request
+// fields over one of these, so the key set — and every value the echo leaves
+// alone — is pinned by the same backend test that validates the read fixtures.
+const SEED_CREATED_LIST: ApiList = data.SEED_CREATED_LIST
+const SEED_CREATED_ITEM: ListItem = data.SEED_CREATED_ITEM
+const SEED_IMPULSE_ITEM: ListItem = data.SEED_IMPULSE_ITEM
+const SEED_PRICE_ENTRY: PriceEntry = data.SEED_PRICE_ENTRY
+const SEED_PRICE_HISTORY: PriceHistoryResponse = data.SEED_PRICE_HISTORY
+const SEED_RECEIPT_APPLY_RESULT: ReceiptPriceApplyResult =
+  data.SEED_RECEIPT_APPLY_RESULT
+const SEED_UPDATED_AT: ListUpdatedAt = data.SEED_UPDATED_AT
 
 // A ReceiptScanSheet review, matching item-leche (existing price, gets updated)
 // and item-cafe (no price yet), plus one unmatched line — mirrors the shape
@@ -81,14 +97,11 @@ export async function installApiMocks(page: Page): Promise<void> {
         const body = (req.postDataJSON() ?? {}) as Record<string, unknown>
         const now = naiveUtc(new Date().toISOString())
         return json({
+          ...SEED_CREATED_LIST,
           ...body,
           id: `new-list-${Date.now()}`,
-          owner_id: ALICE.id,
-          is_default: false,
           created_at: now,
           updated_at: now,
-          item_count: 0,
-          purchased_count: 0,
         })
       }
     }
@@ -121,8 +134,9 @@ export async function installApiMocks(page: Page): Promise<void> {
       }
 
       // /lists/:id/updated-at (polled every 5s)
-      if (sub === '/updated-at') {
+      if (sub === '/updated-at' && method === 'GET') {
         return json({
+          ...SEED_UPDATED_AT,
           updated_at: list?.updated_at ?? naiveUtc(new Date().toISOString()),
         })
       }
@@ -138,19 +152,9 @@ export async function installApiMocks(page: Page): Promise<void> {
           const body = (req.postDataJSON() ?? {}) as Partial<ListItem>
           const now = naiveUtc(new Date().toISOString())
           return json({
+            ...SEED_CREATED_ITEM,
             id: `new-item-${Date.now()}`,
             list_id: listId,
-            name: '',
-            quantity: null,
-            brand: null,
-            purchased: false,
-            purchased_at: null,
-            ean: null,
-            purchased_quantity: null,
-            price: null,
-            price_per: null,
-            price_store: null,
-            added_by: ALICE.id,
             created_at: now,
             updated_at: now,
             ...body,
@@ -199,18 +203,15 @@ export async function installApiMocks(page: Page): Promise<void> {
         const body = (req.postDataJSON() ?? {}) as {
           patches?: unknown[]
           new_items?: NewPurchasedItem[]
-          receipt_date?: string | null
         }
         const now = new Date().toISOString()
-        // Mirrors the router: an impulse buy is born purchased, stamped with
-        // the receipt's own instant when there is one.
-        const receiptDate = body.receipt_date
-          ? body.receipt_date.includes('T')
-            ? body.receipt_date
-            : body.receipt_date + 'T00:00:00'
-          : now
-        const purchasedAt = naiveUtc(receiptDate)
+        // An impulse buy is born purchased. On the real backend its purchase
+        // instant comes from parsing the submitted receipt date — a rule that
+        // lives there and only there. Deriving it here again would be a second
+        // copy of that rule, drifting on its own, so the mock stamps the
+        // request's arrival instead; no spec reads the value.
         const created = (body.new_items ?? []).map((n, idx) => ({
+          ...SEED_IMPULSE_ITEM,
           id: `created-item-${idx}-${now}`,
           list_id: listId,
           name: n.name,
@@ -218,18 +219,17 @@ export async function installApiMocks(page: Page): Promise<void> {
           purchased_quantity: n.quantity,
           brand: n.brand,
           stores: n.store ? [n.store] : [],
-          purchased: true,
-          purchased_at: purchasedAt,
+          purchased_at: naiveUtc(now),
           ean: n.ean,
           price: n.price,
           price_per: n.price_per,
           price_store: n.store,
-          added_by: ALICE.id,
           created_at: naiveUtc(now),
           updated_at: naiveUtc(now),
         }))
         createdItems[listId] = [...(createdItems[listId] ?? []), ...created]
         return json({
+          ...SEED_RECEIPT_APPLY_RESULT,
           items_updated: body.patches?.length ?? 0,
           items_created: created.length,
         })
@@ -267,6 +267,7 @@ export async function installApiMocks(page: Page): Promise<void> {
             item.price != null
               ? [
                   {
+                    ...SEED_PRICE_ENTRY,
                     amount: item.price,
                     price_per: item.price_per,
                     store: item.price_store,
@@ -275,11 +276,7 @@ export async function installApiMocks(page: Page): Promise<void> {
                   },
                 ]
               : []
-          return json({
-            entries,
-            community_price: null,
-            community_price_per: null,
-          })
+          return json({ ...SEED_PRICE_HISTORY, entries })
         }
 
         const body = (req.postDataJSON() ?? {}) as {
@@ -287,20 +284,16 @@ export async function installApiMocks(page: Page): Promise<void> {
           price_per: string | null
           store: string | null
         }
+        // A price write answers with the entry as written, and the writer does
+        // not fill purchased_at or quantity — the template's nulls are the
+        // backend's actual response, not a gap in the mock.
         if (method === 'POST') {
           if (item.price != null)
             return json(
               { detail: 'Item already has a price; use PATCH to update it' },
               409,
             )
-          return json(
-            {
-              ...body,
-              purchased_at: item.purchased_at,
-              quantity: item.quantity,
-            },
-            201,
-          )
+          return json({ ...SEED_PRICE_ENTRY, ...body }, 201)
         }
         if (method === 'PATCH') {
           if (item.price == null)
@@ -308,11 +301,7 @@ export async function installApiMocks(page: Page): Promise<void> {
               { detail: 'Item has no price yet; use POST to set it' },
               404,
             )
-          return json({
-            ...body,
-            purchased_at: item.purchased_at,
-            quantity: item.quantity,
-          })
+          return json({ ...SEED_PRICE_ENTRY, ...body })
         }
         if (method === 'DELETE') {
           if (item.price == null)

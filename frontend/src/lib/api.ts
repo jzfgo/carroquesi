@@ -1,8 +1,10 @@
 import type {
   BarcodeRead,
   DueSuggestion,
+  ListUpdatedAt,
   PriceEntry,
   PriceHistoryResponse,
+  ReceiptPriceApplyResult,
   ReceiptPriceBatch,
   ReceiptScanRequest,
   ReceiptScanResult,
@@ -155,8 +157,11 @@ export function getListMembers(
 export function getListUpdatedAt(
   getToken: () => Promise<string>,
   listId: string,
-) {
-  return apiFetch(getToken, `/lists/${listId}/updated-at`)
+): Promise<ListUpdatedAt> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/updated-at`,
+  ) as Promise<ListUpdatedAt>
 }
 
 export function getListStores(getToken: () => Promise<string>, listId: string) {
@@ -376,11 +381,11 @@ export function submitReceiptPrices(
   getToken: () => Promise<string>,
   listId: string,
   batch: ReceiptPriceBatch,
-): Promise<{ items_updated: number; items_created: number }> {
+): Promise<ReceiptPriceApplyResult> {
   return apiFetch(getToken, `/lists/${listId}/receipt-prices`, {
     method: 'POST',
     body: JSON.stringify(batch),
-  }) as Promise<{ items_updated: number; items_created: number }>
+  }) as Promise<ReceiptPriceApplyResult>
 }
 
 /**
