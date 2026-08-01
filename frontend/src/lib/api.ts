@@ -169,10 +169,16 @@ export function renameStore(
   storeKey: string,
   displayName: string,
 ) {
-  return apiFetch(getToken, `/lists/${listId}/stores/${storeKey}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ display_name: displayName }),
-  })
+  // A punctuation-only store name falls back to a raw-punctuation key, so
+  // the key is not guaranteed URL-safe.
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/stores/${encodeURIComponent(storeKey)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ display_name: displayName }),
+    },
+  )
 }
 
 /**

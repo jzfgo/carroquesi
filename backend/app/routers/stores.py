@@ -36,7 +36,7 @@ def rename_store(
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Store not found")
     now = datetime.now(UTC).replace(tzinfo=None)
-    row.display_name = body.display_name.strip()
+    row.display_name = body.display_name
     row.updated_at = now
     session.add(row)
     # Other members' open lists must repaint with the new label; the poll

@@ -110,6 +110,32 @@ def test_rename_store_updates_label_and_bumps_list(client: TestClient, session: 
     assert after > before
 
 
+def test_rename_store_rejects_blank_display_name(client: TestClient, session: Session):
+    lst = _create_list(client)
+    client.post(f"/lists/{lst['id']}/items", json={"name": "Pan", "stores": ["Lidl"]})
+
+    response = client.patch(
+        f"/lists/{lst['id']}/stores/lidl",
+        json={"display_name": "   "},
+    )
+    assert response.status_code == 422
+
+    row = session.exec(select(ListStore)).one()
+    assert row.display_name == "Lidl"
+
+
+def test_rename_store_strips_surrounding_whitespace(client: TestClient):
+    lst = _create_list(client)
+    client.post(f"/lists/{lst['id']}/items", json={"name": "Pan", "stores": ["Lidl"]})
+
+    response = client.patch(
+        f"/lists/{lst['id']}/stores/lidl",
+        json={"display_name": "  LIDL  "},
+    )
+    assert response.status_code == 200
+    assert response.json()["display_name"] == "LIDL"
+
+
 def test_rename_unknown_store_404s(client: TestClient):
     lst = _create_list(client)
     response = client.patch(
@@ -187,7 +213,7 @@ def test_backfill_tie_breaks_on_first_seen(session: Session, user):
     assert row.display_name == "Ahorra Más"
 
 
-def test_backfill_skips_lists_with_existing_entries(session: Session, user):
+def test_backfill_skips_keys_with_existing_entries(session: Session, user):
     lst = List(id="l1", name="L", owner_id=user.id)
     session.add(lst)
     session.add(ListStore(list_id="l1", store_key="lidl", display_name="LIDL renamed"))
