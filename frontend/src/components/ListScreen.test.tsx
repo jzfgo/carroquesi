@@ -5,6 +5,7 @@ import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import * as api from '../lib/api'
 import { reportRequestOutcome } from '../lib/connectivity'
+import * as push from '../lib/push'
 import * as receiptAi from '../lib/receiptAi'
 import type {
   BarcodeRead,
@@ -59,6 +60,14 @@ vi.mock('../lib/firebase', () => ({
   auth: {},
   ai: {},
   messagingPromise: Promise.resolve(null),
+}))
+// Partial mock so the priming-card tests can script the permission and the
+// enablePush outcome; importOriginal keeps the exports they don't touch.
+vi.mock('../lib/push', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/push')>()),
+  canReceivePush: vi.fn(),
+  enablePush: vi.fn(),
+  permissionState: vi.fn(),
 }))
 vi.mock('../lib/api')
 vi.mock('../lib/receiptAi', () => ({ parseReceiptWithAi: vi.fn() }))
@@ -1079,5 +1088,71 @@ describe('ListScreen — offline refusal keeps user input', () => {
       'No se pudo guardar el precio',
     )
     expect(screen.getByText('Registrar compra')).toBeInTheDocument()
+  })
+})
+
+describe('notification priming card', () => {
+  // The card's gate reads the OS permission, which the enablePush mocks move
+  // the way the browser would: the click's outcome changes what the next
+  // permissionState() call answers.
+  let permission: push.PermissionState
+
+  beforeEach(() => {
+    localStorage.clear()
+    localStorage.setItem('push-sharing-intent', '1')
+    permission = 'default'
+    vi.mocked(push.permissionState).mockImplementation(() => permission)
+    vi.mocked(push.canReceivePush).mockReturnValue(true)
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+  })
+
+  it('retires the card once enabling succeeds', async () => {
+    vi.mocked(push.enablePush).mockImplementation(async () => {
+      permission = 'granted'
+      return 'fcm-token'
+    })
+    render(<ListScreen listId="l1" listName="Mercado" listOwnerId="u1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Activar avisos' }))
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: 'Activar avisos' }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('retires the card on a denial instead of re-offering a dead prompt', async () => {
+    vi.mocked(push.enablePush).mockImplementation(async () => {
+      permission = 'denied'
+      return null
+    })
+    render(<ListScreen listId="l1" listName="Mercado" listOwnerId="u1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Activar avisos' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('complementary')).not.toBeInTheDocument(),
+    )
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('a rejected enable shows a notice instead of failing silently', async () => {
+    vi.mocked(push.enablePush).mockImplementation(async () => {
+      // The OS grant took; minting or registering the token failed after.
+      permission = 'granted'
+      throw new Error('network')
+    })
+    render(<ListScreen listId="l1" listName="Mercado" listOwnerId="u1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Activar avisos' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudieron activar los avisos',
+    )
   })
 })
