@@ -296,6 +296,10 @@ export function DashboardScreen() {
 
   const handleEmojiChange = useCallback(
     async (list: ApiList, emoji: string | null) => {
+      if (isOffline) {
+        setToast('No disponible sin conexión')
+        return
+      }
       let snapshot: ApiList[] | null = null
       setLists((prev) => {
         snapshot = prev
@@ -311,7 +315,7 @@ export function DashboardScreen() {
         setToast('No se pudo cambiar el emoji')
       }
     },
-    [getToken],
+    [getToken, isOffline],
   )
 
   const handleSetDefault = useCallback(

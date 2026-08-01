@@ -33,7 +33,9 @@ online/offline events, plus the outcome of every request through
 `apiFetch` (any response proves reachability; a fetch `TypeError` proves
 the opposite). The 5-second list poll doubles as the heartbeat, so the
 flaky-signal case — `navigator.onLine` true, every request timing out —
-is detected within one tick. The store is module state
+is detected within one tick. The poll runs only on the list screen;
+elsewhere the flaky case waits for the next request, while clean
+disconnects still arrive through the browser event. The store is module state
 (`lib/connectivity.ts`), not React context, because its producers
 (`apiFetch`, window events) are not React.
 

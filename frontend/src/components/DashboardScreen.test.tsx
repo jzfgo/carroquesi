@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -12,6 +13,7 @@ import * as FeatureFlagsContext from '../contexts/FeatureFlagsContext'
 import * as useApplePlatformModule from '../hooks/useApplePlatform'
 import * as usePWAInstallModule from '../hooks/usePWAInstall'
 import * as api from '../lib/api'
+import { reportRequestOutcome } from '../lib/connectivity'
 import { DashboardScreen } from './DashboardScreen'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
@@ -836,6 +838,27 @@ describe('DashboardScreen — offline', () => {
     const raw = localStorage.getItem('cqs_dashboard_cache_u1')
     expect(raw).not.toBeNull()
     localStorage.removeItem('cqs_dashboard_cache_u1')
+  })
+
+  it('an offline emoji change is refused with a toast and never calls the API', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /cambiar emoji/i })[0],
+    )
+
+    act(() => reportRequestOutcome(false))
+    fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+
+    expect(
+      await screen.findByText('No disponible sin conexión'),
+    ).toBeInTheDocument()
+    expect(vi.mocked(api.updateList)).not.toHaveBeenCalled()
+
+    // The connectivity store is module-level state; leave it online so later
+    // tests in this file start from the default.
+    act(() => reportRequestOutcome(true))
   })
 })
 
