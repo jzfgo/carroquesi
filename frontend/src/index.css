@@ -104,3 +104,50 @@ code {
   top: 0;
   z-index: 10;
 }
+
+.offline-banner--band {
+  animation: band-drop-in 0.3s ease-out;
+  transition: background-color 0.3s ease;
+}
+
+.offline-banner--back-online {
+  background: var(--success);
+}
+
+.offline-banner--leaving {
+  animation: band-lift-out 0.3s ease-in forwards;
+}
+
+@keyframes band-drop-in {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes band-lift-out {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+/* Unmounting is timer-driven, not animation-driven, so stripping the
+   animations here cannot strand the band on screen. */
+@media (prefers-reduced-motion: reduce) {
+  .offline-banner--band,
+  .offline-banner--leaving {
+    animation: none;
+    transition: none;
+  }
+}
