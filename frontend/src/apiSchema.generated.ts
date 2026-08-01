@@ -959,7 +959,7 @@ export interface components {
             /** Amount */
             amount: number;
             /** Price Per */
-            price_per: string | null;
+            price_per: "KILOGRAM" | null;
             /** Purchased At */
             purchased_at?: string | null;
             /** Quantity */
@@ -983,7 +983,7 @@ export interface components {
             /** Price */
             price: number;
             /** Price Per */
-            price_per?: string | null;
+            price_per?: "KILOGRAM" | null;
             /** Quantity */
             quantity?: string | null;
             /** Store */

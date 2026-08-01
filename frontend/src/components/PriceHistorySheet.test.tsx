@@ -52,7 +52,7 @@ test('renders item name as title and fetches price history', async () => {
     entries: [
       {
         amount: 0.85,
-        price_per: 'UNIT',
+        price_per: null,
         store: 'Mercadona',
         purchased_at: '2026-07-20T12:00:00Z',
         quantity: '1',
@@ -138,14 +138,14 @@ test('spelling variants of one store share a single history group', async () => 
     entries: [
       {
         amount: 0.85,
-        price_per: 'UNIT',
+        price_per: null,
         store: 'Ahorramás',
         purchased_at: '2026-07-20T12:00:00Z',
         quantity: '1',
       },
       {
         amount: 0.89,
-        price_per: 'UNIT',
+        price_per: null,
         store: 'AHORRA MAS',
         purchased_at: '2026-07-15T12:00:00Z',
         quantity: '1',
@@ -171,14 +171,14 @@ test('clicking a store row expands it to show detailed stats and records', async
     entries: [
       {
         amount: 0.85,
-        price_per: 'UNIT',
+        price_per: null,
         store: 'Mercadona',
         purchased_at: '2026-07-20T12:00:00Z',
         quantity: '1',
       },
       {
         amount: 0.89,
-        price_per: 'UNIT',
+        price_per: null,
         store: 'Mercadona',
         purchased_at: '2026-07-15T12:00:00Z',
         quantity: '1',
