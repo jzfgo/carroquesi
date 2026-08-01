@@ -109,7 +109,7 @@ Four-step flow: client parse (`receiptAi.ts` via Gemini) → backend fuzzy match
 
 Purchased items are mostly read-only (rename/qty/brand/store edits disabled). Price deletion has a **same-day guard**: `LogPurchaseSheet` hides the control, and `DELETE /lists/{id}/items/{item_id}/prices` enforces it (returns 422 for prior-day purchases).
 
-Un-purchasing is same-day only, **plus a write grace window**: a record written within `UNPURCHASE_GRACE` (backend items router, mirrored in `useListItems`) can be un-purchased regardless of `purchased_at`, because a receipt scan backdates the purchase to the shopping trip and a wrong receipt link must stay reversible. The grace keys off `list_items.updated_at`, so any endpoint that sets `purchased_at` must also stamp `updated_at` — the receipt apply does. The price-delete guard needs no grace: it only fires while `purchased_at` is set, so un-purchase first, then delete freely.
+Un-purchasing is same-day only, **plus a write grace window**: a record written within `UNPURCHASE_GRACE` (backend items router, mirrored in `useListItems`) can be un-purchased regardless of `purchased_at`, because a receipt scan backdates the purchase to the shopping trip and a wrong receipt link must stay reversible. The grace keys off `list_items.updated_at`, so any endpoint that sets `purchased_at` must also stamp `updated_at` — the receipt apply does. The converse holds too: a price-only receipt patch to an already-purchased item deliberately does not move `updated_at`, because that would reopen the window on someone's days-old purchase. The price-delete guard needs no grace: it only fires while `purchased_at` is set, so un-purchase first, then delete freely.
 
 ## Backend
 

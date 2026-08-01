@@ -605,8 +605,12 @@ def test_receipt_prices_marks_unpurchased_item_as_purchased(client, session, use
 
 
 def test_receipt_prices_does_not_rewrite_an_existing_purchase_timestamp(client, session):
-    """A co-shopper may have purchased it days ago; only prices should change."""
-    original = session.get(ListItem, "item-almendras").purchased_at
+    """A co-shopper may have purchased it days ago; only prices should change.
+    updated_at must not move either: a price-only patch reopening the
+    unpurchase grace window would let the co-shopper's purchase be reverted."""
+    original_item = session.get(ListItem, "item-almendras")
+    original = original_item.purchased_at
+    original_updated_at = original_item.updated_at
 
     response = client.post(
         f"/lists/{LIST_ID}/receipt-prices",
@@ -629,7 +633,9 @@ def test_receipt_prices_does_not_rewrite_an_existing_purchase_timestamp(client, 
     assert response.status_code == 200
 
     session.expire_all()
-    assert session.get(ListItem, "item-almendras").purchased_at == original
+    item = session.get(ListItem, "item-almendras")
+    assert item.purchased_at == original
+    assert item.updated_at == original_updated_at
 
 
 def test_receipt_prices_stamps_updated_at(client, session, user):

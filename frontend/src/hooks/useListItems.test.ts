@@ -25,8 +25,10 @@ const item1: ListItem = {
   price_per: null,
   price_store: null,
   added_by: 'user-1',
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
+  // Naive, no zone suffix: the API serializes timestamps that way, and the
+  // hook appends 'Z' before parsing. A 'Z' here would parse as Invalid Date.
+  created_at: '2026-01-01T00:00:00',
+  updated_at: '2026-01-01T00:00:00',
 }
 
 const mockRawMembers = [
