@@ -1,11 +1,12 @@
 # ADR-011: Offline is read-only
 
-## Status
-
-Accepted (2026-08-01). Reverses the offline-write half of the original
-sync design; PRODUCT.md principle 3 was rewritten with it.
+**Status:** Accepted
+**Date:** 2026-08-01
 
 ## Context
+
+Reverses the offline-write half of the original sync design; PRODUCT.md
+principle 3 was rewritten with it.
 
 Item writes used to go through an IndexedDB queue (`lib/offlineQueue.ts`)
 that replayed on reconnect (`useQueueDrain`), with tempId remapping so
