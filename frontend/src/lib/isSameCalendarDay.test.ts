@@ -30,9 +30,7 @@ describe('isSameCalendarDay', () => {
   })
 
   it('a purchase later the same local day is today', () => {
-    expect(isSameCalendarDay(naiveUtc(new Date(2026, 6, 25, 22, 0)))).toBe(
-      true,
-    )
+    expect(isSameCalendarDay(naiveUtc(new Date(2026, 6, 25, 22, 0)))).toBe(true)
   })
 
   it('a purchase before local midnight is not today, however near', () => {
