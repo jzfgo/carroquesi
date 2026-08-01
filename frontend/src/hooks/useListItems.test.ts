@@ -25,8 +25,10 @@ const item1: ListItem = {
   price_per: null,
   price_store: null,
   added_by: 'user-1',
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
+  // Naive, no zone suffix: the API serializes timestamps that way, and the
+  // hook appends 'Z' before parsing. A 'Z' here would parse as Invalid Date.
+  created_at: '2026-01-01T00:00:00',
+  updated_at: '2026-01-01T00:00:00',
 }
 
 const mockRawMembers = [
@@ -107,6 +109,66 @@ describe('useListItems — togglePurchased', () => {
     expect(result.current.items[0].purchased).toBe(false)
     expect(mockShowToast).toHaveBeenCalledWith(
       'No se pudo actualizar el producto',
+    )
+  })
+
+  // The API serializes timestamps without a zone suffix; mimic that.
+  const naiveUtc = (msAgo: number) =>
+    new Date(Date.now() - msAgo).toISOString().slice(0, -1)
+  const TWO_DAYS = 48 * 60 * 60 * 1000
+
+  it('refuses to unpurchase a prior-day purchase once the write grace expired', async () => {
+    const stale: ListItem = {
+      ...item1,
+      purchased: true,
+      purchased_at: naiveUtc(TWO_DAYS),
+      updated_at: naiveUtc(TWO_DAYS),
+    }
+    vi.mocked(api.getListItems).mockResolvedValue([stale] as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(api.updateItem).not.toHaveBeenCalled()
+    expect(result.current.items[0].purchased).toBe(true)
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se puede desmarcar un producto comprado en otro día',
+    )
+  })
+
+  it('allows unpurchasing a backdated purchase while the write grace holds', async () => {
+    // A receipt scanned days after shopping: purchased_at is backdated,
+    // but the record was written a minute ago.
+    const backdated: ListItem = {
+      ...item1,
+      purchased: true,
+      purchased_at: naiveUtc(TWO_DAYS),
+      updated_at: naiveUtc(60 * 1000),
+    }
+    vi.mocked(api.getListItems).mockResolvedValue([backdated] as never)
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(result.current.items[0].purchased).toBe(false)
+    expect(api.updateItem).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      {
+        purchased: false,
+      },
     )
   })
 })

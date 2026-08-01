@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import case, func, nulls_last, or_
@@ -13,6 +13,12 @@ from app.services.push import notify_list_change
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/lists/{list_id}/items", tags=["items"])
+
+# A purchase from a receipt scan is backdated to the shopping trip, so the
+# same-day rule alone would make a wrong receipt link permanent the moment
+# it is made. A record written moments ago can still be reverted: the user
+# is undoing their own fresh write, not rewriting historical spend.
+UNPURCHASE_GRACE = timedelta(minutes=15)
 
 
 def _bump(lst: List, session: Session) -> None:
@@ -96,8 +102,10 @@ def update_item(
         item.purchased_by = current_user.id
     elif purchased is False:
         if item.purchased_at is not None:
-            today = datetime.now(UTC).date()
-            if item.purchased_at.date() != today:
+            now = datetime.now(UTC).replace(tzinfo=None)
+            purchased_today = item.purchased_at.date() == now.date()
+            recently_written = now - item.updated_at <= UNPURCHASE_GRACE
+            if not purchased_today and not recently_written:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Cannot unpurchase an item purchased on a previous day",
