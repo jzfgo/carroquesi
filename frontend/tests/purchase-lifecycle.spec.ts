@@ -146,6 +146,15 @@ for (const { name: themeName, colorScheme } of THEMES) {
     test('same-day price-deletion guard surfaces a 422 from the backend', async ({
       page,
     }) => {
+      // This test screenshots with the toast in frame, and the toast dismisses
+      // itself via setTimeout after 3 s. The setFixedTime in beforeEach does
+      // not hold that timer — it pins only what Date answers and leaves timers
+      // on the real clock — so on a slow runner the toast can vanish between
+      // the text assertion and the capture, and no retry brings it back.
+      // install() fakes the timer functions themselves: the 3 s never elapses
+      // unless the test advances the clock. Scoped to this test, not the file,
+      // so the other tests keep running timers.
+      await page.clock.install({ time: FIXED_NOW })
       await gotoList(page)
       await markPurchased(page, ITEM_LECHE.name)
 
