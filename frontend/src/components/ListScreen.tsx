@@ -104,6 +104,11 @@ export function ListScreen({
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [toast, setToast] = useState<string | null>(null)
+  // Held in state, not read inline in JSX: the priming card gates on this, and
+  // only a state change after enablePush settles re-renders it away. Otherwise
+  // the card keeps offering «Activar avisos» after a grant — or after a denial,
+  // when the browser will never show the prompt again.
+  const [pushPermission, setPushPermission] = useState(() => permissionState())
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [filterQuery, setFilterQuery] = useState('')
@@ -737,7 +742,7 @@ export function ListScreen({
       {isEnabled(FLAGS.PUSH_NOTIFICATIONS) && (
         <NotificationPrimingCard
           canReceive={canReceivePush({ isIOS, isInstalled })}
-          permission={permissionState()}
+          permission={pushPermission}
           // Sharing intent, not just a shared list: every list starts solo, so
           // gating on member count alone would only offer notifications to an
           // owner AFTER they had already missed the first change.
@@ -751,7 +756,14 @@ export function ListScreen({
             Boolean(localStorage.getItem('push-sharing-intent'))
           }
           isIOS={isIOS}
-          onEnable={() => void enablePush(getToken)}
+          // enablePush must run first in the gesture: an await before its
+          // Notification.requestPermission() call makes Safari drop the
+          // transient activation and never show the prompt.
+          onEnable={() =>
+            void enablePush(getToken)
+              .catch(() => setToast('No se pudieron activar los avisos'))
+              .finally(() => setPushPermission(permissionState()))
+          }
         />
       )}
 
