@@ -10,12 +10,12 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
-  reportRequestOutcome(true)
 })
 
 describe('OfflineBand', () => {
   it('renders nothing on a cold online start', () => {
     render(<OfflineBand />)
+    act(() => vi.advanceTimersByTime(3000))
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 

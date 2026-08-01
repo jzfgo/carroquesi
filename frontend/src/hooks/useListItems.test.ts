@@ -1103,13 +1103,10 @@ describe('useListItems — a poll that lands after a write settles', () => {
 
 describe('useListItems — offline guard', () => {
   beforeEach(() => {
+    reportRequestOutcome(true)
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
     vi.mocked(api.createItem).mockClear()
     vi.mocked(api.updateItem).mockClear()
-  })
-
-  afterEach(() => {
-    reportRequestOutcome(true)
   })
 
   it('addItem: refuses with a toast and touches nothing', async () => {

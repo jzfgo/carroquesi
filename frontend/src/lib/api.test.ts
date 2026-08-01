@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   acceptInvite,
   ApiError,
@@ -322,7 +322,7 @@ describe('regenerateApiKey', () => {
 })
 
 describe('apiFetch — connectivity evidence', () => {
-  afterEach(() => {
+  beforeEach(() => {
     reportRequestOutcome(true)
   })
 
@@ -330,6 +330,12 @@ describe('apiFetch — connectivity evidence', () => {
     mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     await expect(getLists(mockGetToken)).rejects.toThrow()
     expect(isOnline()).toBe(false)
+  })
+
+  it('a non-network rejection is not offline evidence', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('boom'))
+    await expect(getLists(mockGetToken)).rejects.toThrow()
+    expect(isOnline()).toBe(true)
   })
 
   it('any response — even an error status — proves the server reachable', async () => {
