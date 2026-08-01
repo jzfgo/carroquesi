@@ -118,7 +118,7 @@ Prefer `just` from repo root (`just backend` lists recipes).
 ### Key conventions
 
 - FastAPI app entrypoint: `backend/app/main.py`
-- ORM: **SQLModel** (canonical FastAPI approach). Migrations via **Alembic**. When a migration alters an existing column, wrap the change in `op.batch_alter_table()` — the test suite runs on SQLite, which cannot alter columns in place.
+- ORM: **SQLModel** (canonical FastAPI approach). Migrations via **Alembic**. Local dev runs on SQLite, which cannot alter a column or add and drop constraints in place — wrap those in `op.batch_alter_table()`. The test suite builds its schema from the models and never runs migrations, so a green suite proves nothing here. Batch mode rebuilds the table with a `CAST`, which can corrupt a type change; migration `465041cfdecb` branches on the dialect instead, and explains when to do that.
 - Settings via `pydantic_settings` in `backend/app/core/config.py`, loaded from `backend/.env`
 - Firebase Admin SDK init in `backend/app/core/firebase.py` — singleton pattern
 - Auth dependency in `backend/app/dependencies.py`: `get_current_user`, `require_member`, `require_owner`, `require_admin`
