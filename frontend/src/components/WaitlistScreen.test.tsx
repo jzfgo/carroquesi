@@ -20,8 +20,8 @@ beforeEach(() => {
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: null,
     getToken: vi.fn(),
-    signIn: vi.fn().mockResolvedValue(undefined),
-    signOut: vi.fn().mockResolvedValue(undefined),
+    signIn: vi.fn(async () => undefined),
+    signOut: vi.fn(async () => undefined),
     loading: false,
     isWaitlisted: true,
   })
@@ -118,7 +118,7 @@ describe('WaitlistScreen', () => {
   })
 
   it('calls signIn on Google button click', () => {
-    const mockSignIn = vi.fn().mockResolvedValue(undefined)
+    const mockSignIn = vi.fn(async () => undefined)
     vi.mocked(AuthContext.useAuth).mockReturnValue({
       user: null,
       getToken: vi.fn(),

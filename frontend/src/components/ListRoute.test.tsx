@@ -22,11 +22,8 @@ vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>()
   return {
     ...actual,
-    useParams: vi.fn().mockReturnValue({ id: 'l1' }),
-    useNavigate: vi.fn().mockReturnValue(vi.fn()),
-    useLocation: vi
-      .fn()
-      .mockReturnValue({ pathname: '/lists/l1', state: null }),
+    useParams: vi.fn(),
+    useNavigate: vi.fn(),
   }
 })
 

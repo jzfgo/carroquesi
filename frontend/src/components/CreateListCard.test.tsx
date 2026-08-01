@@ -26,7 +26,7 @@ describe('CreateListCard', () => {
   })
 
   it('calls onCreate with the typed name and collapses', async () => {
-    const onCreate = vi.fn().mockResolvedValue(undefined)
+    const onCreate = vi.fn(async () => undefined)
     render(<CreateListCard onCreate={onCreate} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.change(screen.getByPlaceholderText(/nombre/i), {
@@ -55,7 +55,7 @@ describe('CreateListCard', () => {
   })
 
   it('ENTER key submits the form', async () => {
-    const onCreate = vi.fn().mockResolvedValue(undefined)
+    const onCreate = vi.fn(async () => undefined)
     render(<CreateListCard onCreate={onCreate} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.change(screen.getByPlaceholderText(/nombre/i), {

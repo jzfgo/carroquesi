@@ -1088,9 +1088,7 @@ describe('ListScreen — offline refusal keeps user input', () => {
   })
 
   it('a failed price save toasts and keeps the sheet open', async () => {
-    const savePriceMock = vi
-      .fn<() => Promise<void>>()
-      .mockRejectedValue(new Error('network'))
+    const savePriceMock = vi.fn(() => Promise.reject(new Error('network')))
     await openLogPurchaseSheet(savePriceMock)
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
