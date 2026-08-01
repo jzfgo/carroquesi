@@ -44,7 +44,9 @@ set -u
 # under-running costs a production bug.
 SHARED='^(\.github/workflows/|justfile|lefthook\.yml|scripts/|\.config/|\.envrc)'
 
-FRONTEND='^frontend/'
+# The frontend types are generated from backend/openapi.json, so changes to it
+# must trigger a frontend run (the lint job checks the generated types are fresh).
+FRONTEND='^(frontend/|backend/openapi\.json)'
 # The backend e2e contract test reads the frontend fixtures.json, so changes to it must trigger a backend test run.
 BACKEND='^(backend/|frontend/tests/fixtures\.json)'
 TOOLING='^(\.claude/hooks/|scripts/)'

@@ -49,6 +49,11 @@ test-tooling:
     python3 .claude/hooks/test_hooks.py
     python3 scripts/test-ci-changed-areas.py
 
+# Regenerate the OpenAPI snapshot and the frontend types derived from it
+openapi:
+    just backend openapi
+    just frontend openapi-types
+
 # Check formatting, type-check, lint, and test
 ci:
     just format-check

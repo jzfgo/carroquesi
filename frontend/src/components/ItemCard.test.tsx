@@ -38,6 +38,7 @@ const BASE_ITEM: ListItem = {
   list_id: 'l1',
   name: 'Leche Entera',
   quantity: '2 unidades',
+  purchased_quantity: null,
   brand: 'Hacendado',
   stores: ['Mercadona'],
   purchased: false,

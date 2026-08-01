@@ -1,21 +1,52 @@
-export interface ListItem {
-  id: string
-  list_id: string
-  name: string
-  quantity: string | null
-  purchased_quantity?: string | null
-  brand: string | null
-  stores: string[]
-  purchased: boolean
-  purchased_at: string | null
-  ean: string | null
-  price: number | null
-  price_per: string | null
-  price_store: string | null
-  added_by: string
-  created_at: string
-  updated_at: string
-}
+import type { components } from './apiSchema.generated'
+
+type S = components['schemas']
+
+/**
+ * API types are aliases over the OpenAPI-generated schema, so a backend shape
+ * change fails typecheck here instead of drifting silently. Regenerate with
+ * `just openapi`. The names predate the generator and are kept to avoid
+ * import churn.
+ *
+ * A pydantic field with a default is "not required" in OpenAPI, so it comes
+ * out optional (`?`). For a response model that is a fiction — FastAPI always
+ * serializes every field — so response aliases wrap in `Required<>` to keep
+ * `undefined` out of consumer code. Request aliases stay as generated:
+ * an optional field there really can be omitted.
+ */
+
+// Responses
+export type ListItem = S['ItemRead']
+export type ApiList = S['ListRead']
+export type BackendMember = S['MemberRead']
+export type UserMe = Required<S['UserRead']>
+export type ListStoreEntry = S['StoreRead']
+export type Suggestion = S['SuggestionRead']
+export type DueSuggestion = S['DueSuggestionRead']
+export type BarcodeRead = Required<S['BarcodeRead']>
+export type PriceEntry = Required<S['PriceEntry']>
+export type PriceHistoryResponse = Required<
+  Omit<S['PriceHistoryResponse'], 'entries'>
+> & { entries: PriceEntry[] }
+export type ListUpdatedAt = S['ListUpdatedAtRead']
+export type MatchedLine = Required<S['MatchedLine']>
+export type UnmatchedLine = Required<S['UnmatchedLine']>
+export type ReceiptScanResult = Required<
+  Omit<S['ReceiptScanResult'], 'matched' | 'unmatched'>
+> & { matched: MatchedLine[]; unmatched: UnmatchedLine[] }
+export type ReceiptPriceApplyResult = S['ReceiptPriceApplyResult']
+
+// Requests
+export type ParsedLine = S['ParsedLine']
+export type ReceiptScanRequest = S['ReceiptScanRequest']
+export type PricePatch = S['PricePatch']
+export type NameMapping = S['NameMappingCreate']
+export type NewPurchasedItem = S['NewPurchasedItem']
+export type ReceiptPriceBatch = S['ReceiptPriceBatch']
+
+export type PriceType = ParsedLine['price_type']
+
+/** Frontend-only types below — these never cross the API boundary. */
 
 export interface ParsedInput {
   name: string
@@ -23,12 +54,6 @@ export interface ParsedInput {
   brand: string | null
   stores: string[]
   ean?: string | null
-}
-
-/** A per-list store registry entry: key for comparison, name for display. */
-export interface ListStoreEntry {
-  store_key: string
-  display_name: string
 }
 
 export interface Member {
@@ -39,171 +64,9 @@ export interface Member {
   photoUrl: string | null
 }
 
-export interface Suggestion {
-  name: string
-  brand: string | null
-  stores: string[]
-}
-
-export interface DueSuggestion {
-  name: string
-  brand: string | null
-  stores: string[]
-  days_overdue: number
-  dismissal_ttl_days: number
-  median_interval_days: number
-  days_since_last: number
-  avg_quantity: number | null
-}
-
-export interface BarcodeRead {
-  ean: string
-  name: string
-  brand: string | null
-  stores: string[]
-  community_price: number | null
-  community_price_per: 'KILOGRAM' | null
-}
-
 export type TagField = 'brand' | 'quantity'
 
 export interface EditingTag {
   itemId: string
   field: TagField | 'stores'
-}
-
-export interface ApiList {
-  id: string
-  name: string
-  emoji: string | null
-  owner_id: string
-  created_at: string
-  updated_at: string
-  item_count: number
-  purchased_count: number
-  /** Whether this list is the requesting user's default (Siri target). */
-  is_default: boolean
-}
-
-export interface PriceEntry {
-  amount: number
-  price_per: string | null
-  store: string | null
-  purchased_at: string | null
-  quantity: string | null
-}
-
-export interface PriceHistoryResponse {
-  entries: PriceEntry[]
-  community_price: number | null
-  community_price_per: string | null
-}
-
-export interface ListUpdatedAt {
-  updated_at: string
-}
-
-/** Receipt Scan Types */
-
-export type PriceType = 'UNIT' | 'KILOGRAM' | 'MULTI'
-
-export interface ParsedLine {
-  name: string
-  price_type: PriceType
-  unit_price: number
-  quantity: number | null
-  line_total: number
-}
-
-export interface ReceiptScanRequest {
-  store: string | null
-  receipt_date: string | null
-  receipt_total: number | null
-  lines: ParsedLine[]
-}
-
-export interface MatchedLine {
-  receipt_name: string
-  item_id: string
-  item_name: string
-  price_type: PriceType
-  unit_price: number
-  quantity: number | null
-  line_total: number
-}
-
-export interface UnmatchedLine {
-  receipt_name: string
-  price_type: PriceType
-  unit_price: number
-  quantity: number | null
-  line_total: number
-}
-
-export interface ReceiptScanResult {
-  scan_id: string
-  store: string | null
-  receipt_date: string | null
-  receipt_total: number | null
-  matched: MatchedLine[]
-  unmatched: UnmatchedLine[]
-}
-
-export interface PricePatch {
-  item_id: string
-  price: number
-  price_per: string | null
-  store: string | null
-  quantity: string | null
-}
-
-export interface NameMapping {
-  store: string
-  receipt_name: string
-  item_name: string
-  item_brand: string | null
-}
-
-export interface NewPurchasedItem {
-  name: string
-  brand: string | null
-  ean: string | null
-  price: number
-  price_per: string | null
-  store: string | null
-  quantity: string | null
-}
-
-export interface ReceiptPriceBatch {
-  scan_id: string | null
-  /** Receipt date, or a full UTC instant when a time was extracted. */
-  receipt_date: string | null
-  patches: PricePatch[]
-  new_items: NewPurchasedItem[]
-  mappings: NameMapping[]
-}
-
-export interface ReceiptPriceApplyResult {
-  items_updated: number
-  items_created: number
-}
-
-export interface BackendMember {
-  id: string
-  user_id: string
-  list_id: string
-  display_name: string
-  photo_url: string | null
-  created_at: string
-}
-
-/** The `/users/me` response. */
-export interface UserMe {
-  id: string
-  email: string
-  display_name: string | null
-  photo_url: string | null
-  features: string[]
-  has_api_key: boolean
-  api_key_last_used_at: string | null
 }

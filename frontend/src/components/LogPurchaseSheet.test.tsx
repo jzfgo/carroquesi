@@ -10,6 +10,7 @@ const BASE_ITEM: ListItem = {
   list_id: 'l1',
   name: 'Leche',
   quantity: null,
+  purchased_quantity: null,
   brand: null,
   stores: [],
   purchased: false,

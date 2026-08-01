@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -7,4 +9,4 @@ class BarcodeRead(BaseModel):
     brand: str | None
     stores: list[str]  # parsed from comma-separated DB field; [] if None
     community_price: float | None = None
-    community_price_per: str | None = None  # None = per unit, "KILOGRAM" = per kg
+    community_price_per: Literal["KILOGRAM"] | None = None  # None = per unit

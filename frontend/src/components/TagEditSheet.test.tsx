@@ -7,6 +7,7 @@ const BASE_ITEM: ListItem = {
   list_id: 'l1',
   name: 'Leche entera',
   quantity: '2',
+  purchased_quantity: null,
   brand: 'Hacendado',
   stores: ['Mercadona'],
   purchased: false,

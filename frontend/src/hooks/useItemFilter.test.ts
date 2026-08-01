@@ -7,6 +7,7 @@ const base: ListItem = {
   list_id: 'l1',
   name: '',
   quantity: null,
+  purchased_quantity: null,
   brand: null,
   stores: [],
   purchased: false,
