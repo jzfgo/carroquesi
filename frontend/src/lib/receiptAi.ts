@@ -4,9 +4,10 @@ import {
   FinishReason,
   getGenerativeModel,
   InferenceMode,
+  type GenerativeModel,
 } from 'firebase/ai'
 import type { ParsedLine, ReceiptScanRequest } from '../types'
-import { ai } from './firebase'
+import { getFirebaseAi } from './firebase'
 
 const RECEIPT_SCHEMA = {
   type: 'object',
@@ -49,25 +50,32 @@ RULES:
 - Normalise product names to Spanish title case.
 - CRITICAL: If any value is unclear, partially obscured, or you are not fully confident, return null or omit the line. Do not guess. Accuracy over completeness.`
 
-const model = getGenerativeModel(ai, {
-  mode: InferenceMode.PREFER_IN_CLOUD,
-  onDeviceParams: {
-    createOptions: {
-      expectedInputs: [{ type: 'image' }],
-      expectedOutputs: [{ type: 'text', languages: ['es'] }],
+let model: GenerativeModel | undefined
+
+// Built on first scan, not at import: users who never scan a receipt never
+// pay for the model, and a bad Firebase config fails inside the scan flow's
+// error handling instead of crashing whatever imported this module.
+function getModel(): GenerativeModel {
+  return (model ??= getGenerativeModel(getFirebaseAi(), {
+    mode: InferenceMode.PREFER_IN_CLOUD,
+    onDeviceParams: {
+      createOptions: {
+        expectedInputs: [{ type: 'image' }],
+        expectedOutputs: [{ type: 'text', languages: ['es'] }],
+      },
+      promptOptions: {
+        responseConstraint: RECEIPT_SCHEMA,
+      },
     },
-    promptOptions: {
-      responseConstraint: RECEIPT_SCHEMA,
+    inCloudParams: {
+      model: 'gemini-3.5-flash',
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseJsonSchema: RECEIPT_SCHEMA,
+      },
     },
-  },
-  inCloudParams: {
-    model: 'gemini-3.5-flash',
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseJsonSchema: RECEIPT_SCHEMA,
-    },
-  },
-})
+  }))
+}
 
 export interface ParseReceiptOptions {
   /**
@@ -279,6 +287,9 @@ async function generateContentWithRetry(
   options?: ParseReceiptOptions,
 ) {
   const initialDelay = options?.delayMs ?? INITIAL_RETRY_DELAY_MS
+  // Outside the loop and the try: a config error is not a transient parse
+  // failure, so it must reject immediately rather than enter the backoff.
+  const model = getModel()
 
   for (let attempt = 0; ; attempt++) {
     try {

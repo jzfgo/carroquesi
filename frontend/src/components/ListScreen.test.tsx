@@ -61,13 +61,13 @@ vi.mock('../contexts/FeatureFlagsContext', () => ({
   useFeatureFlags: vi.fn(),
 }))
 vi.mock('../hooks/useListItems')
-// lib/push imports lib/firebase, which calls getAuth() at module scope and
-// throws auth/invalid-api-key without Firebase env vars -- as in CI, where a
-// local .env would otherwise hide it. Mock the module, not the env.
+// Stubbed so no transitive import builds the real Firebase app, which needs
+// credentials the test runner does not have. Null messaging short-circuits
+// the push lifecycle.
 vi.mock('../lib/firebase', () => ({
-  auth: {},
-  ai: {},
-  messagingPromise: Promise.resolve(null),
+  getFirebaseAuth: vi.fn(() => ({ currentUser: null })),
+  getFirebaseAi: vi.fn(() => ({})),
+  getMessagingIfSupported: vi.fn(() => Promise.resolve(null)),
 }))
 // Partial mock so the priming-card tests can script the permission and the
 // enablePush outcome; importOriginal keeps the exports they don't touch.

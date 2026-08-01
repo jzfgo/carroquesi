@@ -5,9 +5,10 @@ import * as AuthContext from '../contexts/AuthContext'
 import * as api from '../lib/api'
 import { InviteScreen } from './InviteScreen'
 
+// The waitlisted branch renders WaitlistScreen, which reads currentUser
+// during render; the stub keeps that read from building the real Firebase app.
 vi.mock('../lib/firebase', () => ({
-  auth: { currentUser: null },
-  ai: {},
+  getFirebaseAuth: vi.fn(() => ({ currentUser: null })),
 }))
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))

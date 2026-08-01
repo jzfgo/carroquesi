@@ -10,7 +10,7 @@ const { fakeMessaging } = vi.hoisted(() => ({
 }))
 
 vi.mock('./firebase', () => ({
-  messagingPromise: Promise.resolve(fakeMessaging),
+  getMessagingIfSupported: vi.fn(() => Promise.resolve(fakeMessaging)),
 }))
 vi.mock('./environment', () => ({ FIREBASE_VAPID_KEY: 'vapid-key' }))
 vi.mock('firebase/messaging', () => ({
