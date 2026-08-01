@@ -163,10 +163,13 @@ which may be a CI run rather than the review action.
 > several re-reviews target the same PR. The `[View job]` link remains the exact answer.
 
 ```bash
-# 1. resolve the run id(s) from the claude comment(s) on THIS PR
+# 1. resolve the run id(s) from the claude comment(s) on THIS PR —
+#    one per comment, from the [View job] link only, in comment order.
+#    The rendered link text varies: "View job" once finished, "View job run"
+#    on the in-progress placeholder — the pattern must accept both.
 gh api repos/:owner/:repo/issues/<number>/comments --paginate \
   --jq '.[] | select(.user.login=="claude[bot]") | .body' \
-  | grep -oE 'actions/runs/[0-9]+' | grep -oE '[0-9]+$' | sort -u
+  | grep -oE '\[View job[^]]*\]\([^)]*/runs/[0-9]+' | grep -oE '[0-9]+$'
 
 # 2. primary gate: that run has finished
 gh run view <run-id> --json status,conclusion --jq '"\(.status)/\(.conclusion)"'
@@ -175,6 +178,16 @@ gh run view <run-id> --json status,conclusion --jq '"\(.status)/\(.conclusion)"'
 gh api repos/:owner/:repo/issues/<number>/comments --paginate \
   --jq '.[] | select(.body | test("runs/<run-id>")) | .body'
 ```
+
+**The grep in step 1 must stay anchored to the `[View job]` link — it looks narrow on
+purpose.** A finished review body cites more than one run: its own, in the `[View job]`
+link, and the CI run it reports on ("CI green for `<sha>`" links the CI run). An
+unanchored `actions/runs/` grep returns both with no way to tell them apart, and CI
+finishes minutes before the review — so gating on the CI id sees `completed/success`
+while the review is still running, reads the placeholder, finds no findings, and exits
+against a review that never happened. Do not add `sort -u` back either: with several
+review comments on one PR it discards which id belongs to which comment, and run ids
+are not ordered by review recency.
 
 On a re-review, step 1 returns **every** run id the bot has posted on this PR, including
 ones you already consumed. Carry the known-old ids forward and skip them explicitly, then
