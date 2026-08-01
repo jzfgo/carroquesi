@@ -92,7 +92,7 @@ only when `document.visibilityState === 'visible'`, rather than as a side effect
 the GET would work today — but it would make notification correctness depend on a
 one-line guard in an unrelated hook, where a future refactor could remove it with
 every test still passing. It also keeps a write out of a GET, which matters because
-the offline queue retries requests.
+a read must stay safe to retry or repeat.
 
 **A server-side cooldown was rejected as premature.** It solves burst suppression with
 a migration and a set of concurrency edge cases, to achieve what tag-collapse plus a

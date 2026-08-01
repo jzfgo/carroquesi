@@ -50,6 +50,9 @@ is detected within one tick. The store is module state
   evidence.
 - Pre-removal clients may hold queued writes in IndexedDB; startup deletes
   the `cqs_offline` database so they do not sit stranded.
+- ADR-010's polling/push complement is unaffected: polling keeps an open
+  app fresh, push reaches a closed one, and neither depended on the write
+  queue.
 
 ## Alternatives considered
 
