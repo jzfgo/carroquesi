@@ -1025,6 +1025,8 @@ export interface components {
         };
         /** ReceiptScanRequest */
         ReceiptScanRequest: {
+            /** Inference Source */
+            inference_source?: string | null;
             /** Lines */
             lines: components["schemas"]["ParsedLine"][];
             /** Receipt Date */

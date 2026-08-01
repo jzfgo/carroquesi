@@ -125,14 +125,14 @@ describe('parseReceiptWithAi wiring', () => {
     expect(result.lines).toEqual([])
   })
 
-  describe('inference source logging', () => {
+  describe('inference source', () => {
     let infoSpy: MockInstance<typeof console.info>
 
     beforeEach(() => {
       infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
     })
 
-    it('logs which model answered', async () => {
+    it('logs which model answered and returns it on the request', async () => {
       const { parseReceiptWithAi } = await import('./receiptAi')
       mockGenerateContent.mockResolvedValue({
         response: {
@@ -141,18 +141,20 @@ describe('parseReceiptWithAi wiring', () => {
         },
       })
 
-      await parseReceiptWithAi(receiptFile())
+      const result = await parseReceiptWithAi(receiptFile())
 
+      expect(result.inference_source).toBe(InferenceSource.ON_DEVICE)
       expect(infoSpy).toHaveBeenCalledWith(
         expect.stringContaining(InferenceSource.ON_DEVICE),
       )
     })
 
-    it('logs "unknown" when the SDK reports no source', async () => {
+    it('logs "unknown" and returns null when the SDK reports no source', async () => {
       const { parseReceiptWithAi } = await import('./receiptAi')
 
-      await parseReceiptWithAi(receiptFile())
+      const result = await parseReceiptWithAi(receiptFile())
 
+      expect(result.inference_source).toBeNull()
       expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('unknown'))
     })
 
@@ -175,7 +177,7 @@ describe('parseReceiptWithAi wiring', () => {
           },
         })
 
-      await parseReceiptWithAi(receiptFile(), { delayMs: 0 })
+      const result = await parseReceiptWithAi(receiptFile(), { delayMs: 0 })
 
       expect(infoSpy).toHaveBeenNthCalledWith(
         1,
@@ -185,6 +187,9 @@ describe('parseReceiptWithAi wiring', () => {
         2,
         expect.stringContaining(InferenceSource.IN_CLOUD),
       )
+      // The request carries the source of the generation whose parse
+      // succeeded — that is the one whose lines the scan row records.
+      expect(result.inference_source).toBe(InferenceSource.IN_CLOUD)
     })
   })
 

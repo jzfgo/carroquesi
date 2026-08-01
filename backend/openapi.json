@@ -1339,6 +1339,17 @@
       },
       "ReceiptScanRequest": {
         "properties": {
+          "inference_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inference Source"
+          },
           "lines": {
             "items": {
               "$ref": "#/components/schemas/ParsedLine"

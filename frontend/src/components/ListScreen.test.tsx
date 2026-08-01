@@ -771,6 +771,7 @@ describe('receipt price confirmation toast', () => {
       store: 'Mercadona',
       receipt_date: '2026-07-20',
       receipt_total: 10,
+      inference_source: 'in_cloud',
       lines: [],
     })
     vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
@@ -821,6 +822,7 @@ describe('receipt price confirmation toast', () => {
       store: 'Mercadona',
       receipt_date: '2026-07-20',
       receipt_total: 10,
+      inference_source: 'in_cloud',
       lines: [],
     })
     vi.mocked(api.submitParsedReceipt).mockRejectedValue(
@@ -920,6 +922,7 @@ describe('pendingScan session isolation', () => {
       store: 'Mercadona',
       receipt_date: '2026-07-20',
       receipt_total: 10,
+      inference_source: 'in_cloud',
       lines: [],
     })
     vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
@@ -979,6 +982,7 @@ describe('receipt date correction', () => {
       store: 'Mercadona',
       receipt_date: '2026-07-20',
       receipt_total: 10,
+      inference_source: 'in_cloud',
       lines: [],
     })
     vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)

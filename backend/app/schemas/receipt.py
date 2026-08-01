@@ -15,6 +15,10 @@ class ReceiptScanRequest(BaseModel):
     store: str | None = None
     receipt_date: str | None = None
     receipt_total: float | None = None
+    # Which model produced the parse ("on_device" or "in_cloud"). Audit-only,
+    # so a plain str: a value the SDK invents later must be recorded, not
+    # rejected with a 422.
+    inference_source: str | None = None
     lines: list[ParsedLine]
 
 

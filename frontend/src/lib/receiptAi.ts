@@ -303,12 +303,16 @@ async function generateContentWithRetry(
         `Receipt parse inference source: ${result.response.inferenceSource ?? 'unknown'}`,
       )
       const text = result.response.text()
-      return JSON.parse(text) as {
+      const parsed = JSON.parse(text) as {
         store?: string | null
         receipt_date?: string | null
         receipt_time?: string | null
         receipt_total?: number | null
         lines: ParsedLine[]
+      }
+      return {
+        parsed,
+        inferenceSource: result.response.inferenceSource ?? null,
       }
     } catch (error: unknown) {
       if (attempt === MAX_RETRIES || !isRetryable(error)) throw error
@@ -324,14 +328,18 @@ export async function parseReceiptWithAi(
   options?: ParseReceiptOptions,
 ): Promise<ReceiptScanRequest> {
   const filePart = await fileToInlinePart(file)
-  const raw = await generateContentWithRetry(filePart, options)
+  const { parsed, inferenceSource } = await generateContentWithRetry(
+    filePart,
+    options,
+  )
   return {
-    store: raw.store ?? null,
+    store: parsed.store ?? null,
     receipt_date: toReceiptInstant(
-      raw.receipt_date ?? null,
-      raw.receipt_time ?? null,
+      parsed.receipt_date ?? null,
+      parsed.receipt_time ?? null,
     ),
-    receipt_total: raw.receipt_total ?? null,
-    lines: raw.lines,
+    receipt_total: parsed.receipt_total ?? null,
+    inference_source: inferenceSource,
+    lines: parsed.lines,
   }
 }
