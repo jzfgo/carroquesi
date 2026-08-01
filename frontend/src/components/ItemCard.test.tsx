@@ -3,8 +3,8 @@ import { vi } from 'vitest'
 import type { ListItem, Member } from '../types'
 import { ItemCard } from './ItemCard'
 
-vi.mock('../contexts/AuthContext', () => ({
-  useAuth: vi.fn().mockReturnValue({
+vi.mock('../contexts/AuthContext', () => {
+  const auth = {
     user: {
       id: 'user-1',
       displayName: 'Ana',
@@ -16,8 +16,9 @@ vi.mock('../contexts/AuthContext', () => ({
     signIn: vi.fn(),
     signOut: vi.fn(),
     loading: false,
-  }),
-}))
+  }
+  return { useAuth: vi.fn(() => auth) }
+})
 
 const MEMBERS: Map<string, Member> = new Map([
   [

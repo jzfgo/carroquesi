@@ -31,7 +31,7 @@ const mockItem: ListItem = {
   updated_at: '2026-07-20T12:00:00Z',
 }
 
-const mockGetToken = vi.fn().mockResolvedValue('test-token')
+const mockGetToken = vi.fn(async () => 'test-token')
 const mockOnLogPrice = vi.fn()
 const mockOnClose = vi.fn()
 

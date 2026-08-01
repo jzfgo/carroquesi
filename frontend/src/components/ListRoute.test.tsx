@@ -30,7 +30,7 @@ vi.mock('react-router-dom', async (importOriginal) => {
   }
 })
 
-const mockGetToken = vi.fn().mockResolvedValue('token')
+const mockGetToken = vi.fn(async () => 'token')
 let mockNavigate: ReturnType<typeof vi.fn>
 
 beforeEach(() => {

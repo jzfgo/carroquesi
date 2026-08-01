@@ -16,7 +16,7 @@ vi.mock('../lib/api', async (importOriginal) => {
   }
 })
 
-const mockGetToken = vi.fn().mockResolvedValue('token')
+const mockGetToken = vi.fn(async () => 'token')
 
 const ALICE: BackendMember = {
   id: 'lm1',

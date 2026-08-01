@@ -39,8 +39,8 @@ vi.mock('react-router-dom', async (importOriginal) => {
 vi.mock('../hooks/usePWAInstall')
 vi.mock('../hooks/useApplePlatform')
 
-const mockGetToken = vi.fn().mockResolvedValue('token')
-const mockSignOut = vi.fn().mockResolvedValue(undefined)
+const mockGetToken = vi.fn(async () => 'token')
+const mockSignOut = vi.fn(async () => undefined)
 let mockNavigate: ReturnType<typeof vi.fn>
 
 beforeEach(() => {

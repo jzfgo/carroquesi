@@ -8,7 +8,7 @@ import { useListItems } from './useListItems'
 
 vi.mock('../lib/api')
 
-const mockGetToken = vi.fn().mockResolvedValue('token')
+const mockGetToken = vi.fn(async () => 'token')
 const mockShowToast = vi.fn()
 
 const item1: ListItem = {
