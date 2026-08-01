@@ -76,7 +76,7 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 
 - Mobile-first, card-based layout
 - Sticky "Smart Input" bar fixed at the bottom of the screen
-- Firebase SDK used in the frontend for Auth (Google Sign-In) and AI (Gemini receipt parsing via Firebase AI SDK)
+- Firebase SDK used in the frontend for Auth (Google Sign-In) and AI (Gemini receipt parsing via Firebase AI SDK). Clients are constructed **lazily** behind memoised accessors in `lib/firebase.ts` (`getFirebaseAuth()`, `getFirebaseAi()`, `getMessagingIfSupported()`) — never at module scope. A client built at import time turns a bad config into a crash during module evaluation, and forces credentials onto every test that transitively imports the module; CI runs the suite with no Firebase env, so that mistake surfaces only there
 - All data fetched from the FastAPI backend via REST
 - Short-poll `GET /lists/{list_id}/updated-at` every 5s; re-fetch items only when timestamp changes
 - **Offline is read-only** ([ADR-011](docs/decisions/011-offline-is-read-only.md)): connectivity lives in a module store (`lib/connectivity.ts`) fed by browser events and by every `apiFetch` outcome — any response proves the server reachable, a fetch `TypeError` proves it is not, last signal wins. `OfflineBand` (rendered once in `App`) overlays the top of the screen while offline; it must stay `position: fixed`, never in flow, or spotty signal shifts the layout. Every mutation in `useListItems` starts with an `isOnline()` guard that refuses with a toast. A new mutation needs that guard; without it the write fails as a rollback + generic error toast instead of a clean refusal — worse copy, same safety
