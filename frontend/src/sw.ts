@@ -37,8 +37,9 @@ cleanupOutdatedCaches()
 // Deleting it would change nothing today. It is kept as the anchor that keeps
 // that true — if a catch handler or offline fallback is ever added, an
 // unmatched backend call would otherwise start being swallowed by it.
-// Offline behaviour is handled in-app by the IndexedDB write queue and
-// localStorage read cache, not by the worker.
+// Offline behaviour is handled in-app, not by the worker: the localStorage
+// read cache keeps the list readable, and the app goes read-only and
+// refuses writes.
 registerRoute(new RegExp(`^${escapeRegex(BACKEND_URL)}/`), new NetworkOnly())
 
 // Data-only messages: FCM wraps the payload, so read `data` when present.

@@ -4,6 +4,7 @@ import { DashboardScreen } from './components/DashboardScreen'
 import { InviteScreen } from './components/InviteScreen'
 import { ListRoute } from './components/ListRoute'
 import { Loading } from './components/Loading'
+import { OfflineBand } from './components/OfflineBand'
 import { SignInScreen } from './components/SignInScreen'
 import { ThemeManager } from './components/ThemeManager'
 import { WaitlistScreen } from './components/WaitlistScreen'
@@ -55,6 +56,7 @@ export default function App() {
       <AuthProvider>
         <FeatureFlagsProvider>
           <ThemeManager>
+            <OfflineBand />
             <PushNavigation />
             <Routes>
               <Route path="/invite/:id" element={<InviteScreen />} />

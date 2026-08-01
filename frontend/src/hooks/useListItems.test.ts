@@ -2,20 +2,11 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
 import { ApiError } from '../lib/api'
-import * as offlineQueue from '../lib/offlineQueue'
+import { reportRequestOutcome } from '../lib/connectivity'
 import type { ListItem } from '../types'
 import { useListItems } from './useListItems'
 
 vi.mock('../lib/api')
-vi.mock('../lib/offlineQueue', () => ({
-  enqueue: vi.fn().mockResolvedValue({
-    id: 'q1',
-    listId: 'list-1',
-    type: 'addItem',
-    payload: {},
-    enqueuedAt: 0,
-  }),
-}))
 
 const mockGetToken = vi.fn().mockResolvedValue('token')
 const mockShowToast = vi.fn()
@@ -475,8 +466,8 @@ describe('useListItems — stale-while-revalidate cache', () => {
   })
 })
 
-describe('useListItems — write queue on network error', () => {
-  it('addItem: keeps temp item in list on network error', async () => {
+describe('useListItems — errors roll back the optimistic write', () => {
+  it('addItem: removes temp item on network error', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
     vi.mocked(api.createItem).mockRejectedValue(
       new TypeError('Failed to fetch'),
@@ -497,12 +488,8 @@ describe('useListItems — write queue on network error', () => {
       })
     })
 
-    // temp item should still be in list (not rolled back)
-    expect(result.current.items).toHaveLength(2)
-    expect(result.current.items.some((i) => i.name === 'Nueva')).toBe(true)
-    expect(offlineQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'addItem', listId: 'list-1' }),
-    )
+    expect(result.current.items).toHaveLength(1)
+    expect(mockShowToast).toHaveBeenCalledWith('No se pudo añadir el producto')
   })
 
   it('addItem: removes temp item on server error (ApiError)', async () => {
@@ -527,10 +514,9 @@ describe('useListItems — write queue on network error', () => {
 
     // temp item should be removed (rolled back)
     expect(result.current.items).toHaveLength(1)
-    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
 
-  it('togglePurchased: keeps toggled state on network error', async () => {
+  it('togglePurchased: rolls back on network error', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
     vi.mocked(api.updateItem).mockRejectedValue(
       new TypeError('Failed to fetch'),
@@ -545,10 +531,9 @@ describe('useListItems — write queue on network error', () => {
       await result.current.togglePurchased('item-1')
     })
 
-    // item should be marked as purchased (not rolled back)
-    expect(result.current.items[0].purchased).toBe(true)
-    expect(offlineQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'updateItem', listId: 'list-1' }),
+    expect(result.current.items[0].purchased).toBe(false)
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se pudo actualizar el producto',
     )
   })
 
@@ -568,7 +553,6 @@ describe('useListItems — write queue on network error', () => {
     })
 
     expect(result.current.items[0].purchased).toBe(false)
-    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
 })
 
@@ -1114,5 +1098,51 @@ describe('useListItems — a poll that lands after a write settles', () => {
     expect(result.current.items.find((i) => i.id === 'item-1')?.purchased).toBe(
       true,
     )
+  })
+})
+
+describe('useListItems — offline guard', () => {
+  beforeEach(() => {
+    reportRequestOutcome(true)
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    vi.mocked(api.createItem).mockClear()
+    vi.mocked(api.updateItem).mockClear()
+  })
+
+  it('addItem: refuses with a toast and touches nothing', async () => {
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    reportRequestOutcome(false)
+    await act(async () => {
+      await result.current.addItem({
+        name: 'Nueva',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
+    })
+
+    expect(result.current.items).toHaveLength(1)
+    expect(api.createItem).not.toHaveBeenCalled()
+    expect(mockShowToast).toHaveBeenCalledWith('Sin conexión')
+  })
+
+  it('togglePurchased: refuses with a toast and touches nothing', async () => {
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    reportRequestOutcome(false)
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(result.current.items[0].purchased).toBe(false)
+    expect(api.updateItem).not.toHaveBeenCalled()
+    expect(mockShowToast).toHaveBeenCalledWith('Sin conexión')
   })
 })

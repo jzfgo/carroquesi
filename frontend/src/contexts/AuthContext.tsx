@@ -134,9 +134,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsubscribe
   }, [])
 
-  // useCallback so the identity is stable: getToken is handed to consumers that
-  // put it in effect dependency arrays (useListSeen, useQueueDrain), where a
-  // fresh function each render would re-fire their effects for no reason. It
+  // useCallback so the identity is stable: getToken is handed to consumers
+  // that put it in effect dependency arrays (useListSeen), where a fresh
+  // function each render would re-fire their effects for no reason. It
   // closes over nothing but a module constant and a ref, so [] is correct.
   const getToken = useCallback(async (): Promise<string> => {
     if (DEV_USER_ID) return 'dev-bypass'

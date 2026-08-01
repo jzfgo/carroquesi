@@ -67,7 +67,7 @@ def mark_list_seen(list_and_user: MemberDep, session: CurrentSession):
     /lists/{id}/items: hanging it off the GET would make notification
     correctness depend on the visibilityState guard in useListItems.ts, an
     implicit cross-module invariant a refactor could remove silently. It also
-    keeps a write out of a GET, which the offline queue retries. See ADR-010.
+    keeps a write out of a GET, which must stay safe to retry. See ADR-010.
     """
     lst, current_user = list_and_user
     # .one(), not .first(): require_member has already 403'd in this same

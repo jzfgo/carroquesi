@@ -2,13 +2,12 @@ import { Camera, Image, Receipt } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
-import { useIsOffline } from '../hooks/useIsOffline'
 import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
 import { useListSeen } from '../hooks/useListSeen'
+import { useOnline } from '../hooks/useOnline'
 import { useOwnBrandInference } from '../hooks/useOwnBrandInference'
 import { usePWAInstall } from '../hooks/usePWAInstall'
-import { useQueueDrain } from '../hooks/useQueueDrain'
 import {
   ApiError,
   deleteList,
@@ -101,7 +100,7 @@ export function ListScreen({
   // Resets the push unseen watermark and clears this list's tray notifications
   // whenever the list is actually on screen.
   useListSeen(listId, getToken)
-  const { isOffline } = useIsOffline()
+  const isOffline = !useOnline()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [toast, setToast] = useState<string | null>(null)
@@ -225,13 +224,6 @@ export function ListScreen({
     clearItemPrice,
     retry,
   } = useListItems(listId, getToken, setToast)
-
-  const { pendingCount } = useQueueDrain({
-    listId,
-    getToken,
-    onDrained: retry,
-    showToast: setToast,
-  })
 
   // Debounced suggestions — only when name has 2+ chars
   useEffect(() => {
@@ -443,12 +435,16 @@ export function ListScreen({
 
   const handleSubmit = useCallback(() => {
     if (!parsed.name.trim()) return
+    if (isOffline) {
+      setToast('Sin conexión')
+      return
+    }
     const stores = storeToAdd
       ? [...new Set([...parsed.stores, storeToAdd])]
       : parsed.stores
     void addItem({ ...parsed, stores })
     setInputValue('')
-  }, [parsed, addItem, storeToAdd])
+  }, [parsed, addItem, storeToAdd, isOffline])
 
   const handleInputSuggestionAdd = useCallback(
     (suggestion: Suggestion) => {
@@ -538,6 +534,10 @@ export function ListScreen({
       purchasedQuantity: string | null,
     ) => {
       if (!logPriceFor) return
+      if (isOffline) {
+        setToast('Sin conexión')
+        return
+      }
       try {
         await savePrice(
           logPriceFor.itemId,
@@ -546,18 +546,23 @@ export function ListScreen({
           store,
           purchasedQuantity,
         )
-        if (store) setLastPriceStore(store)
       } catch {
-        // non-critical
+        setToast('No se pudo guardar el precio')
+        return
       }
+      if (store) setLastPriceStore(store)
       setLogPriceFor(null)
       setPriceItemId(null)
     },
-    [logPriceFor, savePrice],
+    [logPriceFor, savePrice, isOffline],
   )
 
   const handleDeletePrice = useCallback(async () => {
     if (!logPriceFor) return
+    if (isOffline) {
+      setToast('Sin conexión')
+      return
+    }
     try {
       await clearItemPrice(logPriceFor.itemId)
       setLogPriceFor(null)
@@ -577,7 +582,7 @@ export function ListScreen({
         throw err
       }
     }
-  }, [logPriceFor, clearItemPrice])
+  }, [logPriceFor, clearItemPrice, isOffline])
 
   const handleScanEdit = useCallback((prefill: string) => {
     setScannedProduct(null)
@@ -750,15 +755,6 @@ export function ListScreen({
         />
       )}
 
-      {isOffline && (
-        <div className="offline-banner offline-banner--sticky" role="status">
-          Sin conexión
-          {pendingCount > 0
-            ? ` · ${pendingCount} ${pendingCount === 1 ? 'cambio pendiente' : 'cambios pendientes'}`
-            : ' · Los cambios se sincronizarán al reconectar'}
-        </div>
-      )}
-
       {items.length > 0 && (
         <FilterBar
           stores={stores}
@@ -898,7 +894,6 @@ export function ListScreen({
             onClear={handleClear}
             onScanRequest={handleScanRequest}
             onEanSearch={handleEanSearch}
-            isOffline={isOffline}
             eanLoading={eanLookup.status === 'loading'}
             eanError={eanLookup.status === 'error' ? eanLookup.message : null}
             inferredStoreChip={visibleChip}
@@ -990,7 +985,6 @@ export function ListScreen({
                   onSave={handleSavePrice}
                   onDelete={handleDeletePrice}
                   onClose={() => setLogPriceFor(null)}
-                  isOffline={isOffline}
                 />
               </div>
             </>

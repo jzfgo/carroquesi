@@ -8,7 +8,9 @@ import type {
   ReceiptScanResult,
   Suggestion,
 } from '../types'
+import { reportRequestOutcome } from './connectivity'
 import { BACKEND_URL, DEV_USER_ID } from './environment'
+import { isNetworkError } from './networkError'
 
 export class ApiError extends Error {
   status: number
@@ -25,15 +27,23 @@ async function apiFetch(
   options: RequestInit = {},
 ): Promise<unknown> {
   const token = await getToken()
-  const res = await fetch(`${BACKEND_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> | undefined),
-      Authorization: `Bearer ${token}`,
-      ...(DEV_USER_ID ? { 'X-Dev-User-Id': DEV_USER_ID } : {}),
-    },
-  })
+  let res: Response
+  try {
+    res = await fetch(`${BACKEND_URL}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string> | undefined),
+        Authorization: `Bearer ${token}`,
+        ...(DEV_USER_ID ? { 'X-Dev-User-Id': DEV_USER_ID } : {}),
+      },
+    })
+  } catch (err) {
+    if (isNetworkError(err)) reportRequestOutcome(false)
+    throw err
+  }
+  // Any response proves the server is reachable, error statuses included.
+  reportRequestOutcome(true)
   if (!res.ok) throw new ApiError(res.status, await res.text())
   if (res.status === 204) return null
   return res.json()

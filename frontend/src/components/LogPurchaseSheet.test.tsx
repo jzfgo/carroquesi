@@ -117,36 +117,6 @@ describe('LogPurchaseSheet delete button', () => {
   })
 })
 
-describe('LogPurchaseSheet — offline', () => {
-  const baseProps = {
-    initialAmount: 1.99,
-    initialPricePer: null as null,
-    initialStore: null,
-    initialPurchasedQuantity: null,
-    onSave: vi.fn(),
-    onClose: vi.fn(),
-  }
-
-  it('shows offline message when isOffline is true', () => {
-    render(<LogPurchaseSheet {...baseProps} item={BASE_ITEM} isOffline />)
-    expect(screen.getByText(/disponible con conexión/i)).toBeInTheDocument()
-  })
-
-  it('disables save button when isOffline is true', () => {
-    render(<LogPurchaseSheet {...baseProps} item={BASE_ITEM} isOffline />)
-    expect(screen.getByRole('button', { name: /guardar/i })).toBeDisabled()
-  })
-
-  it('does not show offline message when isOffline is false', () => {
-    render(
-      <LogPurchaseSheet {...baseProps} item={BASE_ITEM} isOffline={false} />,
-    )
-    expect(
-      screen.queryByText(/disponible con conexión/i),
-    ).not.toBeInTheDocument()
-  })
-})
-
 describe('LogPurchaseSheet quantity and price calculation', () => {
   it('calls onSave with updated price, store, and quantity when clicked', async () => {
     const onSave = vi.fn()

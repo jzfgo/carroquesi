@@ -4,6 +4,7 @@ import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import * as api from '../lib/api'
+import { reportRequestOutcome } from '../lib/connectivity'
 import * as receiptAi from '../lib/receiptAi'
 import type {
   BarcodeRead,
@@ -51,9 +52,6 @@ vi.mock('../contexts/FeatureFlagsContext', () => ({
   useFeatureFlags: vi.fn(),
 }))
 vi.mock('../hooks/useListItems')
-vi.mock('../hooks/useQueueDrain', () => ({
-  useQueueDrain: vi.fn(() => ({ pendingCount: 0 })),
-}))
 // lib/push imports lib/firebase, which calls getAuth() at module scope and
 // throws auth/invalid-api-key without Firebase env vars -- as in CI, where a
 // local .env would otherwise hide it. Mock the module, not the env.
@@ -995,5 +993,91 @@ describe('receipt date correction', () => {
 
     await screen.findByRole('alert')
     expect(screen.getByTestId('mock-date-confirmed')).toHaveTextContent('false')
+  })
+})
+
+describe('ListScreen — offline refusal keeps user input', () => {
+  beforeEach(() => {
+    reportRequestOutcome(true)
+  })
+
+  afterEach(() => {
+    // The connectivity store is module-level state; leave it online so later
+    // suites don't inherit an offline world.
+    reportRequestOutcome(true)
+  })
+
+  // Opens the LogPurchaseSheet the way a user does: price tag on a purchased
+  // item → price history → "Actualizar precio".
+  async function openLogPurchaseSheet(
+    savePriceMock: ReturnType<
+      typeof useListItemsModule.useListItems
+    >['savePrice'],
+  ) {
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({
+          id: 'i1',
+          name: 'Manzanas',
+          purchased: true,
+          purchased_at: TODAY,
+          price: 3.15,
+        }),
+      ],
+      savePrice: savePriceMock,
+    })
+    vi.mocked(api.getPriceHistory).mockResolvedValue({
+      entries: [],
+      community_price: null,
+      community_price_per: null,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+    fireEvent.click(document.querySelector('.item-card__tag--price')!)
+    fireEvent.click(
+      await screen.findByRole('button', { name: /actualizar precio/i }),
+    )
+    expect(screen.getByText('Registrar compra')).toBeInTheDocument()
+  }
+
+  it('an offline submit toasts, keeps the typed input, and sends nothing', async () => {
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+    const input = screen.getByRole('textbox', { name: /añadir producto/i })
+    fireEvent.change(input, { target: { value: 'Leche' } })
+
+    act(() => reportRequestOutcome(false))
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Sin conexión')
+    expect(input).toHaveValue('Leche')
+    expect(emptyHookResult.addItem).not.toHaveBeenCalled()
+    expect(api.createItem).not.toHaveBeenCalled()
+  })
+
+  it('an offline price save keeps the sheet open and records nothing', async () => {
+    const savePriceMock = vi.fn<() => Promise<void>>()
+    await openLogPurchaseSheet(savePriceMock)
+
+    act(() => reportRequestOutcome(false))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Sin conexión')
+    expect(screen.getByText('Registrar compra')).toBeInTheDocument()
+    expect(savePriceMock).not.toHaveBeenCalled()
+  })
+
+  it('a failed price save toasts and keeps the sheet open', async () => {
+    const savePriceMock = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(new Error('network'))
+    await openLogPurchaseSheet(savePriceMock)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudo guardar el precio',
+    )
+    expect(screen.getByText('Registrar compra')).toBeInTheDocument()
   })
 })
