@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { lookupOwnBrandStore } from '../lib/ownBrands'
+import { storeKey } from '../lib/storeKey'
 
 interface OwnBrandInference {
   visibleChip: string | null
@@ -22,7 +23,7 @@ export function useOwnBrandInference(
 
   const alreadyAdded =
     inferredStore !== null &&
-    explicitStores.some((s) => s.toLowerCase() === inferredStore.toLowerCase())
+    explicitStores.some((s) => storeKey(s) === storeKey(inferredStore))
 
   const active = !dismissed && !alreadyAdded && inferredStore !== null
 

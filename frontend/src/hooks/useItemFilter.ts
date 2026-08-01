@@ -1,4 +1,5 @@
 import { parseInput } from '../lib/parseInput'
+import { storeKey } from '../lib/storeKey'
 import type { ListItem } from '../types'
 
 export function filterItems(
@@ -10,7 +11,7 @@ export function filterItems(
 
   const parsed = parseInput(query)
   const text = parsed.name.trim().toLowerCase()
-  const stores = parsed.stores.map((s) => s.toLowerCase())
+  const stores = parsed.stores.map((s) => storeKey(s))
   const brand = parsed.brand?.toLowerCase() ?? null
   const strictStore = options?.strictStore ?? false
 
@@ -18,7 +19,7 @@ export function filterItems(
     if (text && !item.name.toLowerCase().includes(text)) return false
 
     if (stores.length > 0) {
-      const itemStores = item.stores.map((s) => s.toLowerCase())
+      const itemStores = item.stores.map((s) => storeKey(s))
       // chip filter: items with no store assigned pass through
       // search filter (strictStore): items with no store are excluded
       if (

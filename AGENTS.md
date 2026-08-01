@@ -101,6 +101,10 @@ The remaining gotchas — ports, dev-auth setup, the `loadEnvFile()` `${VAR}` no
 
 `parseInput.ts` → `ParsedInput`. Sigils: `+qty`, `#brand`, `@store` (multiple allowed), `|EAN` (8/13 digits). Values with spaces need quotes: `#"El Corte Inglés"`, `@'Carrefour Express'`.
 
+### Store names
+
+Store names are free text from four sources and no two people spell a shop the same way, so **comparisons go through a deterministic key and display keeps the typed string**. The key collapses spelling variants only (case, accents, whitespace, punctuation) — vocabulary variants like `BM` vs `BM Supermercados` stay apart on purpose, and fuzzy matching was measured and rejected (a wrong merge silently fuses price histories). Two implementations, one rule: `backend/app/services/store_key.py` and `frontend/src/lib/storeKey.ts`, pinned to the shared vector file `storeKeyVectors.json` that both suites assert — change one only through that file. `receipt_name_mappings` stores key-normalised `store` and `normalise()`d `receipt_name` (they are pure lookup keys, never displayed); any new store comparison must use the key, any new store render must use a stored raw string.
+
 ### Receipt scanning
 
 Four-step flow: client parse (`receiptAi.ts` via Gemini) → backend fuzzy match (`receipt_matcher.py`) → user review (`ReceiptScanSheet`) → apply prices. `VITE_RECAPTCHA_SITE_KEY` required in production for Firebase App Check (reCAPTCHA v3).

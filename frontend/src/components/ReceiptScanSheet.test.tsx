@@ -328,8 +328,9 @@ describe('create mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /Guardar precios/ }))
 
     const mappings = onConfirm.mock.calls[0][1]
+    // Raw receipt text on the wire; the backend derives the lookup keys.
     const created = mappings.find(
-      (m: { receipt_name: string }) => m.receipt_name === 'mani dulce',
+      (m: { receipt_name: string }) => m.receipt_name === 'MANI DULCE',
     )
     expect(created).toBeTruthy()
     expect(created!.item_name).toBe('Cacahuetes dulces')
@@ -346,7 +347,7 @@ describe('create mode', () => {
 
     const mappings = onConfirm.mock.calls[0][1]
     const created = mappings.find(
-      (m: { receipt_name: string }) => m.receipt_name === 'mani dulce',
+      (m: { receipt_name: string }) => m.receipt_name === 'MANI DULCE',
     )
     expect(created!.item_name).toBe('Cacahuetes')
   })

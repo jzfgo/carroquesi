@@ -1,0 +1,22 @@
+[
+  { "input": "Ahorramás", "key": "ahorramas" },
+  { "input": "Ahorra Más", "key": "ahorramas" },
+  { "input": "AhorraMás", "key": "ahorramas" },
+  { "input": "AHORRAMAS", "key": "ahorramas" },
+  { "input": "  ahorra   mas  ", "key": "ahorramas" },
+  { "input": "Carrefour", "key": "carrefour" },
+  { "input": "Carrefour Express", "key": "carrefourexpress" },
+  { "input": "Lidl Plus", "key": "lidlplus" },
+  { "input": "El Corte Inglés", "key": "elcorteingles" },
+  { "input": "Día", "key": "dia" },
+  { "input": "Alcampo-City", "key": "alcampocity" },
+  { "input": "24H", "key": "24h" },
+  { "input": "365", "key": "365" },
+  { "input": "Дикси", "key": "дикси" },
+  { "input": "永旺", "key": "永旺" },
+  { "input": "Frutería de Ana", "key": "fruteriadeana" },
+  { "input": "***", "key": "***" },
+  { "input": "?!", "key": "?!" },
+  { "input": "", "key": "" },
+  { "input": "   ", "key": "" }
+]

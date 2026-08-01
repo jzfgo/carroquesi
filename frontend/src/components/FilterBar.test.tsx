@@ -57,6 +57,25 @@ describe('FilterBar', () => {
     )
   })
 
+  test('store chip is active for a spelling variant of its name', () => {
+    // The query may carry another member's typing of the same shop.
+    render(
+      <FilterBar
+        stores={['Ahorramás', 'Lidl']}
+        query="@AHORRA MAS"
+        onChange={() => {}}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Ahorramás' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByRole('button', { name: 'Lidl' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+  })
+
   test('clicking a store chip calls onChange with "@StoreName"', () => {
     const onChange = vi.fn()
     render(<FilterBar stores={['Mercadona']} query="" onChange={onChange} />)

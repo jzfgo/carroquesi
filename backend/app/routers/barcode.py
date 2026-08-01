@@ -10,6 +10,7 @@ from app.db.models import BarcodeCache
 from app.dependencies import CurrentSession, CurrentUser
 from app.schemas.barcode import BarcodeRead
 from app.services.community_price import get_community_price
+from app.services.store_key import store_key
 
 router = APIRouter(tags=["barcode"])
 
@@ -25,9 +26,15 @@ _SISTER_SITES = [
 
 
 def _parse_stores(raw: str | None) -> list[str]:
+    """Open Food Facts stores are crowd-typed free text; dedupe spelling
+    variants by key, keeping the first raw form for display."""
     if not raw:
         return []
-    return [s.strip() for s in raw.split(",") if s.strip()]
+    by_key: dict[str, str] = {}
+    for s in raw.split(","):
+        if s.strip():
+            by_key.setdefault(store_key(s), s.strip())
+    return list(by_key.values())
 
 
 def _to_read(

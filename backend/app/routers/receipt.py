@@ -11,7 +11,8 @@ from app.schemas.receipt import (
     ReceiptScanResult,
 )
 from app.services import feature_flags
-from app.services.receipt_matcher import match_lines
+from app.services.receipt_matcher import match_lines, normalise
+from app.services.store_key import store_key
 
 router = APIRouter(tags=["receipt"])
 
@@ -95,14 +96,15 @@ def scan_receipt(
 
     store = body.store
     if store is None and matched:
-        stores = {
-            item.price_store
-            for m in matched
-            for item in purchased_items
-            if item.id == m.item_id and item.price_store
-        }
+        # Dedupe candidates by key so spelling variants of one shop still
+        # infer; keep the first-seen raw form as the displayed value.
+        stores: dict[str, str] = {}
+        for m in matched:
+            for item in purchased_items:
+                if item.id == m.item_id and item.price_store:
+                    stores.setdefault(store_key(item.price_store), item.price_store)
         if len(stores) == 1:
-            store = stores.pop()
+            store = next(iter(stores.values()))
 
     scan = ReceiptScan(
         list_id=list_id,
@@ -194,9 +196,14 @@ def apply_receipt_prices(
         created += 1
 
     for m in body.mappings:
+        # Mapping rows are pure lookup keys, never displayed. Store them
+        # key-normalised so the write and the read derive the same key —
+        # raw strings from different sources almost never match exactly.
+        m_store = store_key(m.store)
+        m_receipt_name = normalise(m.receipt_name)
         stmt = select(ReceiptNameMapping).where(
-            ReceiptNameMapping.store == m.store,
-            ReceiptNameMapping.receipt_name == m.receipt_name,
+            ReceiptNameMapping.store == m_store,
+            ReceiptNameMapping.receipt_name == m_receipt_name,
         )
         existing = session.exec(stmt).first()
         if existing:
@@ -209,8 +216,8 @@ def apply_receipt_prices(
         else:
             session.add(
                 ReceiptNameMapping(
-                    store=m.store,
-                    receipt_name=m.receipt_name,
+                    store=m_store,
+                    receipt_name=m_receipt_name,
                     item_name=m.item_name,
                     item_brand=m.item_brand,
                     confirmed_by=current_user.id,

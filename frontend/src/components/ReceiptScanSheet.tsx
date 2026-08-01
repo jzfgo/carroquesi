@@ -332,10 +332,12 @@ export default function ReceiptScanSheet({
         itemName = createdName(ls) || null
       }
       if (!itemName) return []
+      // Raw strings on the wire: the backend derives the lookup keys, and a
+      // half-normalisation here would diverge from its rule.
       return [
         {
           store,
-          receipt_name: allLines[i].receipt_name.toLowerCase(),
+          receipt_name: allLines[i].receipt_name,
           item_name: itemName,
           item_brand: null,
         },

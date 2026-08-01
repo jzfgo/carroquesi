@@ -146,6 +146,54 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
     expect(onSave).toHaveBeenCalledWith(2.5, null, 'Lidl', '5')
   })
 
+  it('renders one chip per store across spelling variants', () => {
+    const item = {
+      ...BASE_ITEM,
+      stores: ['Ahorramás', 'AHORRA MAS', 'Lidl'],
+    }
+    render(
+      <LogPurchaseSheet
+        item={item}
+        initialAmount={null}
+        initialPricePer={null}
+        initialStore={null}
+        initialPurchasedQuantity={null}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByRole('button', { name: /Ahorramás/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /AHORRA MAS/ }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Lidl/ })).toBeInTheDocument()
+  })
+
+  it('a hand-typed spelling variant reuses the existing chip form', async () => {
+    const onSave = vi.fn()
+    const item = { ...BASE_ITEM, stores: ['Ahorramás'] }
+    render(
+      <LogPurchaseSheet
+        item={item}
+        initialAmount={2}
+        initialPricePer={null}
+        initialStore={null}
+        initialPurchasedQuantity={null}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: /\+ otra/ }))
+    await userEvent.type(
+      screen.getByPlaceholderText(/nombre de la tienda/i),
+      'ahorra mas',
+    )
+    await userEvent.click(screen.getByRole('button', { name: /guardar/i }))
+    expect(onSave).toHaveBeenCalledWith(2, null, 'Ahorramás', null)
+  })
+
   it('shows live cost preview when quantity and price are filled', async () => {
     render(
       <LogPurchaseSheet

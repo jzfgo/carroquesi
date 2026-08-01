@@ -4,6 +4,7 @@ import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { formatPrice } from '../lib/formatPrice'
 import { isSameCalendarDay } from '../lib/isSameCalendarDay'
 import { parseQuantityFactor } from '../lib/itemCost'
+import { storeKey } from '../lib/storeKey'
 import type { ListItem } from '../types'
 import './LogPurchaseSheet.css'
 
@@ -38,7 +39,13 @@ export default function LogPurchaseSheet({
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
 
-  const stores = item.stores ?? []
+  // One chip per store: dedupe spelling variants by key, first typed form
+  // as the label.
+  const storesByKey = new Map<string, string>()
+  for (const s of item.stores ?? []) {
+    if (!storesByKey.has(storeKey(s))) storesByKey.set(storeKey(s), s)
+  }
+  const stores = [...storesByKey.values()]
   // Guard again here so the component stays self-contained if reused elsewhere
   const effectiveSuggestion =
     stores.length === 0 ? (suggestedStore ?? null) : null
@@ -74,8 +81,13 @@ export default function LogPurchaseSheet({
 
   function handleSave() {
     if (!canSave) return
+    // A hand-typed store that keys-equal an existing chip reuses the chip's
+    // form, so price_store doesn't accumulate spelling variants.
+    const typed = newStore.trim()
     const finalStore =
-      addingStore && newStore.trim() ? newStore.trim() : selectedStore
+      addingStore && typed
+        ? (storesByKey.get(storeKey(typed)) ?? typed)
+        : selectedStore
     const finalPurchasedQty = purchasedQtyStr.trim() || null
     onSave(amount, pricePer, finalStore, finalPurchasedQty)
   }

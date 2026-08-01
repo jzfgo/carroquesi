@@ -133,6 +133,39 @@ test('switches scope and refetches history', async () => {
   })
 })
 
+test('spelling variants of one store share a single history group', async () => {
+  const mockResponse: PriceHistoryResponse = {
+    entries: [
+      {
+        amount: 0.85,
+        price_per: 'UNIT',
+        store: 'Ahorramás',
+        purchased_at: '2026-07-20T12:00:00Z',
+        quantity: '1',
+      },
+      {
+        amount: 0.89,
+        price_per: 'UNIT',
+        store: 'AHORRA MAS',
+        purchased_at: '2026-07-15T12:00:00Z',
+        quantity: '1',
+      },
+    ],
+    community_price: null,
+    community_price_per: null,
+  }
+
+  vi.mocked(getPriceHistory).mockResolvedValueOnce(mockResponse)
+
+  render(<PriceHistorySheet {...baseProps} />)
+
+  // One group, labeled with the first-seen typed form.
+  await waitFor(() => {
+    expect(screen.getByText('Ahorramás')).toBeInTheDocument()
+  })
+  expect(screen.queryByText('AHORRA MAS')).not.toBeInTheDocument()
+})
+
 test('clicking a store row expands it to show detailed stats and records', async () => {
   const mockResponse: PriceHistoryResponse = {
     entries: [

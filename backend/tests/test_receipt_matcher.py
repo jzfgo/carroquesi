@@ -70,9 +70,10 @@ def test_unmatched_when_score_too_low(session):
 
 
 def test_mapping_lookup_takes_priority(session):
+    # Mapping rows are stored key-normalised (see the receipt-prices upsert).
     mapping = ReceiptNameMapping(
         id="map-1",
-        store="Mercadona",
+        store="mercadona",
         receipt_name="mani dulce",
         item_name="Maní dulce",
         confirmed_by="user-1",
@@ -84,6 +85,50 @@ def test_mapping_lookup_takes_priority(session):
     matched, unmatched = match_lines([_unit("MANI DULCE", 3.15)], "Mercadona", items, session)
     assert len(matched) == 1
     assert matched[0].item_id == "item-1"
+
+
+def test_mapping_lookup_folds_store_spelling_variants(session):
+    # The row was learned when someone typed "Ahorra Más"; today's scan reads
+    # the header as "AHORRAMAS". Both must derive the same key.
+    mapping = ReceiptNameMapping(
+        id="map-1",
+        store="ahorramas",
+        receipt_name="mani dulce",
+        item_name="Maní dulce",
+        confirmed_by="user-1",
+    )
+    session.add(mapping)
+    session.commit()
+
+    items = [_item("item-1", "Maní dulce"), _item("item-2", "Frutos secos mix")]
+    matched, unmatched = match_lines([_unit("MANI DULCE", 3.15)], "AHORRAMAS", items, session)
+    assert len(matched) == 1
+    assert matched[0].item_id == "item-1"
+
+
+def test_mapping_resolves_item_across_casing_where_fuzzy_cannot(session):
+    # The receipt line shares no words with the item name, so fuzzy scores
+    # far below the threshold; only the mapping can make this match. The
+    # mapping's item_name casing differs from the stored item's — the lookup
+    # must fold both, or the mapping silently falls through to fuzzy and the
+    # line lands unmatched.
+    mapping = ReceiptNameMapping(
+        id="map-1",
+        store="mercadona",
+        receipt_name="d.creme selection",
+        item_name="BOMBONES SURTIDOS",
+        confirmed_by="user-1",
+    )
+    session.add(mapping)
+    session.commit()
+
+    items = [_item("item-1", "Bombones surtidos")]
+    matched, unmatched = match_lines(
+        [_unit("D.CREME SELECTION", 4.50)], "Mercadona", items, session
+    )
+    assert len(matched) == 1
+    assert matched[0].item_id == "item-1"
+    assert len(unmatched) == 0
 
 
 def test_kilogram_line_carries_quantity(session):
@@ -116,7 +161,7 @@ def test_fuzzy_match_prefers_most_recent_duplicate(session):
 def test_mapping_lookup_prefers_most_recent_duplicate(session):
     mapping = ReceiptNameMapping(
         id="map-1",
-        store="Mercadona",
+        store="mercadona",
         receipt_name="leche",
         item_name="Leche",
         confirmed_by="user-1",
@@ -134,11 +179,12 @@ def test_mapping_lookup_dedupes_case_and_accent_duplicates(session):
     # Re-adding an already-purchased item doesn't reuse the exact stored
     # casing (see items.py's case-insensitive-but-purchased-excluding dup
     # check), so two purchased rows can differ only in case/accents. A
-    # mapping learned against the stale casing ("leche") must not resolve to
-    # the item that dedup already dropped in favour of the first-seen one.
+    # mapping learned against the stale casing ("leche") resolves through
+    # the normalised item index to the first-seen (most relevant) row, not
+    # to the duplicate that dedup dropped.
     mapping = ReceiptNameMapping(
         id="map-1",
-        store="Mercadona",
+        store="mercadona",
         receipt_name="leche",
         item_name="leche",
         confirmed_by="user-1",

@@ -93,6 +93,23 @@ describe('BarcodeScanSheet', () => {
     )
   })
 
+  it('a sigil-typed spelling variant selects the displayed chip, no twin', () => {
+    render(
+      <BarcodeScanSheet
+        product={product}
+        initialStores={['MERCADONA ']}
+        onAdd={vi.fn()}
+        onEdit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    // One chip, labeled with the product's form, already selected.
+    const chips = screen.getAllByRole('button', { name: /mercadona/i })
+    expect(chips).toHaveLength(1)
+    expect(chips[0]).toHaveAccessibleName('Mercadona')
+    expect(chips[0]).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('clicking a chip toggles its selected state', async () => {
     render(
       <BarcodeScanSheet

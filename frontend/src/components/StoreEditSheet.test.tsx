@@ -103,6 +103,23 @@ describe('StoreEditSheet', () => {
     expect(onSave).not.toHaveBeenCalled()
   })
 
+  it('does not add a spelling variant of an existing store', () => {
+    const onSave = vi.fn()
+    render(
+      <StoreEditSheet
+        item={BASE_ITEM}
+        items={[]}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />,
+    )
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: 'MERCADONÁ' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
   it('does not add empty string', () => {
     const onSave = vi.fn()
     render(

@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import pytest
 from sqlmodel import select
 
-from app.db.models import List, ListItem, ListMember, ReceiptScan
+from app.db.models import List, ListItem, ListMember, ReceiptNameMapping, ReceiptScan
 from app.db.models import UserFeature as _UserFeature
 from app.routers.receipt import _parse_receipt_at
 from app.schemas.receipt import ReceiptPriceBatch
@@ -122,6 +122,50 @@ def test_post_receipt_store_stays_null_when_items_have_mixed_stores(client, sess
     )
     assert response.status_code == 200
     assert response.json()["store"] is None
+
+
+def test_post_receipt_infers_store_across_spelling_variants(client, session):
+    """Two members spelled the same shop differently; inference must still
+    see one store, and answer with a raw typed form, not the key."""
+    item2 = ListItem(
+        id="item-bacon",
+        list_id=LIST_ID,
+        name="Bacon lonchas",
+        added_by=session.get(ListItem, "item-almendras").added_by,
+        purchased_at=datetime(2026, 4, 11, 15, 57, 0),
+        price_store="ahorra más",
+    )
+    item = session.get(ListItem, "item-almendras")
+    item.price_store = "Ahorramás"
+    session.add_all([item, item2])
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json={
+            "store": None,
+            "receipt_date": None,
+            "receipt_total": None,
+            "lines": [
+                {
+                    "name": "BEBIDA ALMENDRAS 0%",
+                    "price_type": "UNIT",
+                    "unit_price": 1.15,
+                    "quantity": None,
+                    "line_total": 1.15,
+                },
+                {
+                    "name": "BACON LONCHAS",
+                    "price_type": "UNIT",
+                    "unit_price": 2.30,
+                    "quantity": None,
+                    "line_total": 2.30,
+                },
+            ],
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["store"] == "Ahorramás"
 
 
 def test_post_receipt_returns_kilogram_price_type(client, session):
@@ -889,3 +933,90 @@ def test_scan_record_stores_midnight_for_a_bare_date(client, session):
     scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body()).json()["scan_id"]
     scan = session.get(ReceiptScan, scan_id)
     assert scan.receipt_at == datetime(2026, 4, 11, 0, 0)
+
+
+def _mapping_batch(store: str, receipt_name: str, item_name: str) -> dict:
+    return {
+        "scan_id": None,
+        "receipt_date": "2026-04-11T17:42:00Z",
+        "patches": [],
+        "new_items": [],
+        "mappings": [
+            {
+                "store": store,
+                "receipt_name": receipt_name,
+                "item_name": item_name,
+                "item_brand": None,
+            }
+        ],
+    }
+
+
+def test_receipt_prices_stores_mappings_key_normalised(client, session):
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_mapping_batch("Ahorra Más", "D.CREME  SELECCIÓN", "Bombones surtidos"),
+    )
+    assert response.status_code == 200
+
+    row = session.exec(select(ReceiptNameMapping)).one()
+    assert row.store == "ahorramas"
+    assert row.receipt_name == "d.creme seleccion"
+    assert row.item_name == "Bombones surtidos"
+
+
+def test_receipt_prices_upsert_folds_spelling_variants(client, session):
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_mapping_batch("Ahorra Más", "MANÍ DULCE", "Maní dulce"),
+    )
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_mapping_batch("AHORRAMAS", "mani  dulce", "Maní dulce"),
+    )
+
+    rows = session.exec(select(ReceiptNameMapping)).all()
+    assert len(rows) == 1
+    assert rows[0].use_count == 2
+
+
+def test_mapping_written_by_apply_is_found_by_the_next_scan(client, session, user):
+    """The whole point of the table: confirm once, match forever. The write
+    and the read must derive the same key from different spellings."""
+    session.add(
+        ListItem(
+            id="item-bombones",
+            list_id=LIST_ID,
+            name="Bombones surtidos",
+            added_by=user.id,
+            purchased_at=datetime(2026, 4, 11, 15, 57, 0),
+        )
+    )
+    session.commit()
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_mapping_batch("Ahorra Más", "D.CREME SELECTION", "Bombones surtidos"),
+    )
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json={
+            "store": "AHORRAMAS",
+            "receipt_date": "2026-04-11",
+            "receipt_total": 4.50,
+            "lines": [
+                {
+                    "name": "D.CREME SELECTION",
+                    "price_type": "UNIT",
+                    "unit_price": 4.50,
+                    "quantity": None,
+                    "line_total": 4.50,
+                }
+            ],
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["matched"]) == 1
+    assert body["matched"][0]["item_id"] == "item-bombones"

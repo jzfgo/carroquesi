@@ -94,6 +94,34 @@ test('skips null values', () => {
   expect(result).not.toContain(null)
 })
 
+test('stores: matches across spacing and accents by key', () => {
+  const variants: ListItem[] = [
+    { ...items[0], id: 'v1', stores: ['Ahorra Más'] },
+  ]
+  // The space in the stored value breaks a plain startsWith.
+  expect(clientSideSuggestions(variants, 'stores', 'ahorram')).toEqual([
+    'Ahorra Más',
+  ])
+})
+
+test('stores: dedupes spelling variants, first typed form wins', () => {
+  const variants: ListItem[] = [
+    { ...items[0], id: 'v1', stores: ['Ahorramás'] },
+    { ...items[0], id: 'v2', stores: ['AHORRA MAS'] },
+    { ...items[0], id: 'v3', stores: ['Lidl'] },
+  ]
+  expect(clientSideSuggestions(variants, 'stores', '')).toEqual([
+    'Ahorramás',
+    'Lidl',
+  ])
+})
+
+test('brands: keep plain lowercase matching, no accent folding', () => {
+  const branded: ListItem[] = [{ ...items[0], id: 'b1', brand: 'Días' }]
+  expect(clientSideSuggestions(branded, 'brand', 'dia')).toEqual([])
+  expect(clientSideSuggestions(branded, 'brand', 'día')).toEqual(['Días'])
+})
+
 describe('formatFrequency', () => {
   test('< 2 days → cada día', () => expect(formatFrequency(1)).toBe('cada día'))
   test('2 days → cada 2 días', () =>

@@ -149,3 +149,29 @@ describe('useItemFilter', () => {
     expect(ids).not.toContain('y')
   })
 })
+
+describe('store spelling variants', () => {
+  const variantItems: ListItem[] = [
+    { ...base, id: 'v1', name: 'Pan', stores: ['Ahorramás'] },
+    { ...base, id: 'v2', name: 'Queso', stores: ['Ahorra Mas'] },
+    { ...base, id: 'v3', name: 'Nueces', stores: ['Lidl'] },
+    { ...base, id: 'v4', name: 'Sal', stores: [] },
+  ]
+
+  test('@store matches case and accent variants of the same shop', () => {
+    const result = filterItems(variantItems, '@AHORRAMAS')
+    expect(result.map((i) => i.id)).toEqual(['v1', 'v2', 'v4'])
+  })
+
+  test('strictStore matches variants but excludes storeless items', () => {
+    const result = filterItems(variantItems, '@"ahorra más"', {
+      strictStore: true,
+    })
+    expect(result.map((i) => i.id)).toEqual(['v1', 'v2'])
+  })
+
+  test('variants of different shops stay apart', () => {
+    const result = filterItems(variantItems, '@lidl', { strictStore: true })
+    expect(result.map((i) => i.id)).toEqual(['v3'])
+  })
+})

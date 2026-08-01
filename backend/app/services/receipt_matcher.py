@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 
 from app.db.models import ListItem, ReceiptNameMapping
 from app.schemas.receipt import MatchedLine, ParsedLine, UnmatchedLine
+from app.services.store_key import store_key
 
 MATCH_THRESHOLD = 70
 
@@ -22,8 +23,9 @@ def _lookup_mapping(
 ) -> ReceiptNameMapping | None:
     if not store:
         return None
+    # Rows are stored key-normalised; the scan's store arrives as free text.
     stmt = select(ReceiptNameMapping).where(
-        ReceiptNameMapping.store == store,
+        ReceiptNameMapping.store == store_key(store),
         ReceiptNameMapping.receipt_name == norm_name,
     )
     return session.exec(stmt).first()
@@ -41,14 +43,14 @@ def match_lines(
     # purchased_items is ordered by relevance (most recent, or closest to the
     # receipt date when known); keep only the first (most relevant) item per
     # normalised name so duplicate purchases of the same item — even with
-    # minor casing/accent differences — don't resolve to the wrong row.
+    # minor casing/accent differences — don't resolve to the wrong row. The
+    # dict is keyed by that same normalised name: a mapping's item_name must
+    # find the item even when their casings differ.
     item_by_name: dict[str, ListItem] = {}
-    seen_normalised: set[str] = set()
     for i in purchased_items:
         norm_name = normalise(i.name)
-        if norm_name not in seen_normalised:
-            seen_normalised.add(norm_name)
-            item_by_name[i.name] = i
+        if norm_name not in item_by_name:
+            item_by_name[norm_name] = i
     purchased_items = list(item_by_name.values())
 
     for line in lines:
@@ -56,7 +58,7 @@ def match_lines(
 
         mapping = _lookup_mapping(store, norm, session)
         if mapping:
-            item = item_by_name.get(mapping.item_name)
+            item = item_by_name.get(normalise(mapping.item_name))
             if item:
                 matched.append(
                     MatchedLine(
