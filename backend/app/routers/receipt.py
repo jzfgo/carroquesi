@@ -165,6 +165,10 @@ def apply_receipt_prices(
         # client-sent flag could rewrite a timestamp set by another member.
         if item.purchased_at is None:
             item.purchased_at = purchase_ts
+        # The unpurchase grace window keys off the write time. Without this
+        # stamp, a backdated purchase could never be reverted, even seconds
+        # after a wrong link.
+        item.updated_at = now
         session.add(item)
         updated += 1
 

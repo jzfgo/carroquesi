@@ -24,6 +24,8 @@ import type {
 
 const DUPLICATE_TOAST = 'Ya está en la lista'
 const OFFLINE_TOAST = 'Sin conexión'
+// Must match UNPURCHASE_GRACE in the backend items router.
+const UNPURCHASE_GRACE_MS = 15 * 60 * 1000
 
 type Status = 'loading' | 'error' | 'success'
 
@@ -245,7 +247,10 @@ export function useListItems(
       const targetItem = snapshot.find((i) => i.id === itemId)
       const prevPurchased = targetItem?.purchased ?? false
 
-      // Prevent unpurchasing items purchased on a previous calendar day
+      // A purchase from a prior calendar day cannot be undone — unless its
+      // record was written within the grace window, because a receipt scan
+      // backdates purchases and a wrong link must stay reversible. The server
+      // enforces the same rule; this copy only saves the round-trip.
       if (prevPurchased && targetItem?.purchased_at) {
         const purchasedDate = new Date(targetItem.purchased_at + 'Z')
         const today = new Date()
@@ -253,7 +258,9 @@ export function useListItems(
           purchasedDate.getFullYear() === today.getFullYear() &&
           purchasedDate.getMonth() === today.getMonth() &&
           purchasedDate.getDate() === today.getDate()
-        if (!sameDay) {
+        const writtenAt = new Date(targetItem.updated_at + 'Z').getTime()
+        const withinGrace = Date.now() - writtenAt <= UNPURCHASE_GRACE_MS
+        if (!sameDay && !withinGrace) {
           showToast('No se puede desmarcar un producto comprado en otro día')
           return
         }

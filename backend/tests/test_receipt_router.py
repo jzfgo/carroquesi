@@ -632,6 +632,47 @@ def test_receipt_prices_does_not_rewrite_an_existing_purchase_timestamp(client, 
     assert session.get(ListItem, "item-almendras").purchased_at == original
 
 
+def test_receipt_prices_stamps_updated_at(client, session, user):
+    """The unpurchase grace window keys off updated_at. If this write does not
+    move it, a backdated purchase can never be reverted."""
+    session.add(
+        ListItem(
+            id="item-queso",
+            list_id=LIST_ID,
+            name="Queso curado",
+            added_by=user.id,
+            purchased_at=None,
+            updated_at=datetime(2026, 1, 1),
+        )
+    )
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": "2026-04-11T17:42:00Z",
+            "patches": [
+                {
+                    "item_id": "item-queso",
+                    "price": 4.5,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": None,
+                }
+            ],
+            "new_items": [],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    item = session.get(ListItem, "item-queso")
+    assert item.purchased_at == datetime(2026, 4, 11, 17, 42)
+    assert item.updated_at > datetime(2026, 4, 11, 17, 42)
+
+
 def test_receipt_prices_falls_back_to_now_without_a_receipt_date(client, session, user):
     """Older clients omit receipt_date; the purchase still gets a timestamp."""
     session.add(

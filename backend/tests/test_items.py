@@ -152,10 +152,57 @@ def test_cannot_unpurchase_item_from_previous_day(client: TestClient, session: S
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
 
-    # Backdate purchased_at to yesterday
+    # Backdate both timestamps: purchased yesterday, and not written since.
     db_item = session.get(ListItem, item["id"])
     session.refresh(db_item)
-    db_item.purchased_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
+    yesterday = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
+    db_item.purchased_at = yesterday
+    db_item.updated_at = yesterday
+    session.add(db_item)
+    session.commit()
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+    assert response.status_code == 409
+
+
+def test_unpurchase_backdated_item_within_write_grace(client: TestClient, session: Session):
+    """A receipt scanned days after shopping backdates purchased_at, but the
+    record itself was just written — undoing a wrong link must still work."""
+    from app.db.models import ListItem
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    # Purchased two days ago, but the record was written moments ago.
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    db_item.purchased_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=2)
+    session.add(db_item)
+    session.commit()
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+    assert response.status_code == 200
+    assert response.json()["purchased"] is False
+
+    session.refresh(db_item)
+    assert db_item.purchased_at is None
+
+
+def test_cannot_unpurchase_when_write_grace_expired(client: TestClient, session: Session):
+    from app.db.models import ListItem
+    from app.routers.items import UNPURCHASE_GRACE
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    # Purchased two days ago, last written just past the grace window.
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    now = datetime.now(UTC).replace(tzinfo=None)
+    db_item.purchased_at = now - timedelta(days=2)
+    db_item.updated_at = now - UNPURCHASE_GRACE - timedelta(minutes=1)
     session.add(db_item)
     session.commit()
 
