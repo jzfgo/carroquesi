@@ -626,6 +626,11 @@ export function ListScreen({
 
   const handleSubmit = useCallback(() => {
     if (!parsed.name.trim()) return
+    // Ahead of `setInputValue('')`, which runs whether or not the add did —
+    // so a refusal inside `addItem` alone wipes a product name typed in an
+    // aisle and shows nothing. Same reason the price handlers refuse here:
+    // a caller that mutates UI around the call cannot delegate its refusal.
+    if (isOfflineNow()) return
     const stores = storeToAdd
       ? [...new Set([...parsed.stores, storeToAdd])]
       : parsed.stores
@@ -635,6 +640,8 @@ export function ListScreen({
 
   const handleInputSuggestionAdd = useCallback(
     (suggestion: Suggestion) => {
+      // Same shape: clears the input and the suggestions after `addItem`.
+      if (isOfflineNow()) return
       void addItem({
         name: suggestion.name,
         brand: suggestion.brand,
@@ -1104,6 +1111,8 @@ export function ListScreen({
                 setActiveItemId(null)
               }}
               onClone={() => {
+                // Closes the sheet after the call, so the refusal comes first.
+                if (isOfflineNow()) return
                 handleCloneItem(activeItemId)
                 setActiveItemId(null)
               }}

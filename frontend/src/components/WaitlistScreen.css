@@ -3,7 +3,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: calc(100dvh - var(--band-offset, 0px));
+  min-height: calc(100dvh - var(--band-offset, 0px));
   gap: 1rem;
   padding: 2rem;
   background: var(--paper-0);

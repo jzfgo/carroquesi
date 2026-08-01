@@ -909,3 +909,52 @@ describe('SmartInputBar — suggestion chips with no connection', () => {
     expect(chip).toBeEnabled()
   })
 })
+
+describe('SmartInputBar — the add paths with no connection', () => {
+  function renderBar(over = {}) {
+    const onSubmit = vi.fn()
+    render(
+      <SmartInputBar
+        value="Pan"
+        parsed={parseInput('Pan')}
+        items={NO_ITEMS}
+        suggestions={[]}
+        isOffline
+        onChange={noop}
+        onSubmit={onSubmit}
+        onClear={noop}
+        onScanRequest={noop}
+        onEanSearch={noop}
+        {...over}
+      />,
+    )
+    return { onSubmit }
+  }
+
+  test('does not offer the add button', () => {
+    renderBar()
+    expect(screen.getByLabelText('Añadir')).toBeDisabled()
+  })
+
+  /**
+   * The button is disabled, so the key is the only way left in — and the
+   * caller clears the field whether or not the add happened, which makes
+   * this the one refusal that destroys what somebody typed.
+   */
+  test('does not submit on Enter, so the typed name survives', () => {
+    const { onSubmit } = renderBar()
+    fireEvent.keyDown(screen.getByLabelText('Añadir producto'), {
+      key: 'Enter',
+    })
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  test('both come back with a connection', () => {
+    const { onSubmit } = renderBar({ isOffline: false })
+    expect(screen.getByLabelText('Añadir')).toBeEnabled()
+    fireEvent.keyDown(screen.getByLabelText('Añadir producto'), {
+      key: 'Enter',
+    })
+    expect(onSubmit).toHaveBeenCalled()
+  })
+})

@@ -19,7 +19,11 @@ import { AUTO_DISMISS_MS } from './Toast'
  */
 export function OfflineBand() {
   const { isOffline } = useIsOffline()
-  const [restored, setRestored] = useState(false)
+  // A counter, not a boolean: a second `online` with no `offline` between
+  // them (a wifi→cellular handover) has to restart the window rather than
+  // inherit what is left of the first one's, and setting `true` over `true`
+  // bails out of the render so the timer effect never re-runs.
+  const [restoredAt, setRestoredAt] = useState(0)
 
   useEffect(() => {
     // The *event*, not the value. `online` fires on a transition, so opening
@@ -27,12 +31,12 @@ export function OfflineBand() {
     // one — which is what «De nuevo en línea» claims. Reading the value here
     // instead would need the previous one remembered, and would congratulate
     // the app on every cold start.
-    const onOnline = () => setRestored(true)
+    const onOnline = () => setRestoredAt((n) => n + 1)
     // Cleared on the way out, so a second reconnection starts its own window
     // rather than inheriting what was left of the first one's. Without this,
     // `setRestored(true)` on an already-true state bails out of the render and
     // the timer effect never re-runs.
-    const onOffline = () => setRestored(false)
+    const onOffline = () => setRestoredAt(0)
     window.addEventListener('online', onOnline)
     window.addEventListener('offline', onOffline)
     return () => {
@@ -42,19 +46,19 @@ export function OfflineBand() {
   }, [])
 
   useEffect(() => {
-    if (!restored) return
+    if (restoredAt === 0) return
     // The one transient state. The offline half reports a *condition* and
     // stays while it holds; this half reports a *change*, and a change is over
     // once it has been read. Same window as a bare toast, from the same
     // constant — the app should not hold two ideas about how long a sentence
     // takes to read.
-    const timer = setTimeout(() => setRestored(false), AUTO_DISMISS_MS)
+    const timer = setTimeout(() => setRestoredAt(0), AUTO_DISMISS_MS)
     return () => clearTimeout(timer)
-  }, [restored])
+  }, [restoredAt])
 
   // The live condition wins over the announcement of a change to it: losing
   // the signal again mid-window must say so, not keep congratulating.
-  const band = isOffline ? 'offline' : restored ? 'restored' : 'hidden'
+  const band = isOffline ? 'offline' : restoredAt > 0 ? 'restored' : 'hidden'
   if (band === 'hidden') return null
 
   const offline = band === 'offline'

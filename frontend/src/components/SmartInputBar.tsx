@@ -266,7 +266,11 @@ export function SmartInputBar({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && hasName && !inEanMode) onSubmit()
+            // The add button beside this is disabled offline; the keyboard
+            // goes round it. Every other Enter path in the tree carries this.
+            if (e.key === 'Enter' && hasName && !inEanMode && !isOffline) {
+              onSubmit()
+            }
           }}
           placeholder="Añadir producto…"
           aria-label="Añadir producto"

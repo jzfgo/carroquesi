@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: calc(100dvh - var(--band-offset, 0px));
+  min-height: calc(100dvh - var(--band-offset, 0px));
 }
 
 .loading__spinner {
