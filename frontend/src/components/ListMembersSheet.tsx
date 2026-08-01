@@ -1,6 +1,7 @@
 import { Crown, Link2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { isOfflineNow } from '../hooks/useIsOffline'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { useToast } from '../hooks/useToast'
 import {
@@ -107,7 +108,7 @@ export function ListMembersSheet({
   async function handleRemove(userId: string) {
     // Ahead of the optimistic filter below, so no row disappears for a write
     // that is not going to happen.
-    if (isOffline) return
+    if (isOfflineNow()) return
     const snapshot = members
     // Whether this tap ends *this* person's relationship with the list. One
     // handler backs «Expulsar» and «Salir», and the two differ in exactly this.
@@ -120,8 +121,7 @@ export function ListMembersSheet({
       // nothing corrects it: the poll starts 403ing and swallows it by design,
       // `ListRoute` decided on mount, and this sheet read its members once. So
       // they go on tapping items in, each write answering «sin permiso en esa
-      // lista» with no retry, and offline the ops queue and land as terminal
-      // rows in «Cambios sin enviar» whose only door is «Descartarlos».
+      // lista» with no retry.
       //
       // Same rule `handleDelete` keeps for the owner, reached from the other
       // side: there it is a 404 saying the list is gone, here it is a success.
@@ -148,7 +148,7 @@ export function ListMembersSheet({
   }
 
   async function handleCopyInvite() {
-    if (isOffline) return
+    if (isOfflineNow()) return
     setInviteLimitReached(false)
     setFallbackUrl(null)
     try {

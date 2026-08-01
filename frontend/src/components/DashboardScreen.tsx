@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
 import { useApplePlatform } from '../hooks/useApplePlatform'
-import { useIsOffline } from '../hooks/useIsOffline'
+import { isOfflineNow, useIsOffline } from '../hooks/useIsOffline'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useToast } from '../hooks/useToast'
@@ -153,7 +153,7 @@ export function DashboardScreen() {
     async (payload: FeedbackPayload) => {
       // Silent, like every other gate: the band above the router is already
       // saying it, and «no se pudo enviar» claimed an attempt never made.
-      if (isOffline) return
+      if (isOfflineNow()) return
       setFeedbackSubmitting(true)
       try {
         await submitFeedback(getToken, payload)
@@ -165,7 +165,7 @@ export function DashboardScreen() {
         setFeedbackSubmitting(false)
       }
     },
-    [getToken, isOffline, showToast],
+    [getToken, showToast],
   )
 
   // Arranging is a mode, not a second affordance bolted to every row. #171
@@ -294,7 +294,7 @@ export function DashboardScreen() {
     async (name: string) => {
       // Still false, not silence-and-succeed: the card reads this to decide
       // whether to keep what was typed.
-      if (isOffline) return false
+      if (isOfflineNow()) return false
       try {
         await createList(getToken, { name, emoji: randomEmoji() })
       } catch {
@@ -305,7 +305,7 @@ export function DashboardScreen() {
       await fetchLists()
       return true
     },
-    [getToken, fetchLists, isOffline, showToast],
+    [getToken, fetchLists, showToast],
   )
 
   if (fetchError) {

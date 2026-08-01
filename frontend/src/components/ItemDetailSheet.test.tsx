@@ -360,3 +360,18 @@ describe('ItemDetailSheet — with no connection', () => {
     expect(onDelete).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * The other door to repurchasing. `ItemCard` gates the row's «volver a
+ * comprar»; this one is worse ungated, because `ListScreen`'s handler closes
+ * the sheet whether or not the add happened.
+ */
+it('does not offer to buy a settled item again without a connection', () => {
+  const onClone = vi.fn()
+  renderSheet({ purchased: true }, { isOffline: true, onClone })
+
+  const again = screen.getByRole('button', { name: /volver a comprar/i })
+  expect(again).toBeDisabled()
+  fireEvent.click(again)
+  expect(onClone).not.toHaveBeenCalled()
+})

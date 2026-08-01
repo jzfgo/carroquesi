@@ -28,8 +28,17 @@ export function OfflineBand() {
     // instead would need the previous one remembered, and would congratulate
     // the app on every cold start.
     const onOnline = () => setRestored(true)
+    // Cleared on the way out, so a second reconnection starts its own window
+    // rather than inheriting what was left of the first one's. Without this,
+    // `setRestored(true)` on an already-true state bails out of the render and
+    // the timer effect never re-runs.
+    const onOffline = () => setRestored(false)
     window.addEventListener('online', onOnline)
-    return () => window.removeEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+    return () => {
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
   }, [])
 
   useEffect(() => {

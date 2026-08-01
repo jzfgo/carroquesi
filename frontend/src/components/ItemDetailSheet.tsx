@@ -317,7 +317,14 @@ export function ItemDetailSheet({
           {/* Only for something already bought. An item still on the list has
               nothing to come back to. */}
           {purchased && onClone && (
-            <button className="item-detail__primary" onClick={onClone}>
+            <button
+              className="item-detail__primary"
+              onClick={onClone}
+              // The same act the row gates (`ItemCard`), by the other door.
+              // Ungated it was worse than a silent no-op: the caller closes
+              // this sheet, so the sheet shut and no row appeared.
+              disabled={isOffline}
+            >
               <RotateCcw size={18} aria-hidden /> Volver a comprar
             </button>
           )}

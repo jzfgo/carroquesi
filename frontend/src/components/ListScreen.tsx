@@ -173,7 +173,7 @@ export function ListScreen({
 
   const handleRename = useCallback(
     async (listId: string, newName: string) => {
-      if (isOffline) return
+      if (isOfflineNow()) return
       const previous = localListName
       setLocalListName(newName)
       setMenuOpen(false)
@@ -185,12 +185,12 @@ export function ListScreen({
         showToast('No se pudo renombrar la lista')
       }
     },
-    [getToken, isOffline, localListName, onRename, showToast],
+    [getToken, localListName, onRename, showToast],
   )
 
   const handleEmojiChange = useCallback(
     async (emoji: string | null) => {
-      if (isOffline) return
+      if (isOfflineNow()) return
       const previous = localEmoji
       setLocalEmoji(emoji)
       try {
@@ -205,11 +205,11 @@ export function ListScreen({
         showToast('No se pudo cambiar el emoji')
       }
     },
-    [getToken, isOffline, listId, localEmoji, onEmojiChanged, showToast],
+    [getToken, listId, localEmoji, onEmojiChanged, showToast],
   )
 
   const handleSetDefault = useCallback(async () => {
-    if (isOffline) return
+    if (isOfflineNow()) return
     setLocalIsDefault(true)
     setMenuOpen(false)
     try {
@@ -219,11 +219,11 @@ export function ListScreen({
       setLocalIsDefault(false)
       showToast('No se pudo marcar como predeterminada')
     }
-  }, [getToken, isOffline, listId, onSetDefault, showToast])
+  }, [getToken, listId, onSetDefault, showToast])
 
   const handleDelete = useCallback(
     async (listId: string) => {
-      if (isOffline) return
+      if (isOfflineNow()) return
       try {
         await deleteList(getToken, listId)
         setMenuOpen(false)
@@ -248,7 +248,7 @@ export function ListScreen({
         showToast('No se pudo eliminar la lista')
       }
     },
-    [getToken, onBack, isOffline, showToast],
+    [getToken, onBack, showToast],
   )
 
   const [eanLookup, setEanLookup] = useState<EanLookupState>({

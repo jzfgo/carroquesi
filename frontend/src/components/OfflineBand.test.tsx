@@ -109,3 +109,31 @@ describe('OfflineBand', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Sin conexión')
   })
 })
+
+/**
+ * A second outage inside the first reconnection's window used to inherit
+ * whatever was left of it: `setRestored(true)` on an already-true state bails
+ * out of the render, so the timer effect never re-ran.
+ */
+it('gives a second reconnection its own window', () => {
+  render(<OfflineBand />)
+  announce(false)
+  announce(true)
+
+  act(() => {
+    vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
+  })
+  announce(false)
+  announce(true)
+
+  // Would already be gone if the first window had carried over.
+  act(() => {
+    vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
+  })
+  expect(screen.getByText('De nuevo en línea')).toBeInTheDocument()
+
+  act(() => {
+    vi.advanceTimersByTime(600)
+  })
+  expect(screen.queryByText('De nuevo en línea')).toBeNull()
+})

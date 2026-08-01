@@ -159,6 +159,11 @@ export function SmartInputBar({
               key={suggestionLabel(s)}
               className={`smart-input__suggestion${i === 0 ? ' smart-input__suggestion--top' : ''}`}
               onClick={() => applySuggestion(s)}
+              // Only the chips that *write*. With a sigil active, or for a
+              // plain string, `applySuggestion` fills the field and nothing
+              // else — that is local, and stays live. Without one, a
+              // `Suggestion` object goes straight to `addItem`.
+              disabled={isOffline && !activeSigil && typeof s !== 'string'}
             >
               {suggestionLabel(s)}
             </button>

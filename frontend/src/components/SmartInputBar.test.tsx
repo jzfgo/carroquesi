@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { describe, expect, test, vi } from 'vitest'
 import { parseInput } from '../lib/parseInput'
 import type { ListItem } from '../types'
 import { SmartInputBar } from './SmartInputBar'
@@ -858,4 +859,53 @@ test('✨ button click calls onDueSuggestionsOpen', () => {
     screen.getByRole('button', { name: /sugerencias pendientes/i }),
   )
   expect(onDueSuggestionsOpen).toHaveBeenCalledTimes(1)
+})
+
+/**
+ * A suggestion chip is two different controls wearing one shape. With no
+ * sigil active it *adds the product* — a write. With one, or for a plain
+ * string, it only fills the field. Only the first is refused.
+ */
+describe('SmartInputBar — suggestion chips with no connection', () => {
+  const SUGGESTION = { name: 'Leche', brand: null, stores: [] }
+
+  function renderBar(over = {}) {
+    const onSuggestionAdd = vi.fn()
+    render(
+      <SmartInputBar
+        value=""
+        parsed={parseInput('')}
+        items={NO_ITEMS}
+        suggestions={[SUGGESTION]}
+        isOffline
+        onChange={noop}
+        onSubmit={noop}
+        onClear={noop}
+        onScanRequest={noop}
+        onEanSearch={noop}
+        onSuggestionAdd={onSuggestionAdd}
+        {...over}
+      />,
+    )
+    return { onSuggestionAdd }
+  }
+
+  test('does not offer a chip whose tap adds the product', () => {
+    const { onSuggestionAdd } = renderBar()
+
+    const chip = screen.getByRole('button', { name: 'Leche' })
+    expect(chip).toBeDisabled()
+    fireEvent.click(chip)
+    expect(onSuggestionAdd).not.toHaveBeenCalled()
+  })
+
+  // With a sigil active the same chip completes the text instead of writing,
+  // so refusing it would take away a local edit for no reason.
+  test('still offers a chip that only fills the field', () => {
+    const onChange = vi.fn()
+    renderBar({ value: '@', parsed: parseInput('@'), onChange })
+
+    const chip = screen.getAllByRole('button')[0]
+    expect(chip).toBeEnabled()
+  })
 })

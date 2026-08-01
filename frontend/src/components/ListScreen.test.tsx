@@ -454,7 +454,7 @@ describe('ListScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     // And it says the true thing, not «no se pudo» about a product that is
-    // gone — the same sentence «Cambios sin enviar» uses for the same fact.
+    // gone — the same sentence every other write says for the same fact.
     await screen.findByText('El producto ya no existe')
     expect(
       screen.queryByRole('button', { name: 'Reintentar' }),

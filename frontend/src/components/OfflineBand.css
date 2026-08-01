@@ -9,6 +9,15 @@
   gap: 8px;
   flex-shrink: 0;
   height: var(--offline-band-h);
+
+  /* Sticky, because the silence of every write guard rests on this being on
+     screen. `ListScreen` scrolls inside `.item-list`, so a static band would
+     have held there — but the dashboard, the invite and the waitlist screens
+     scroll the document itself, and a household with enough lists would have
+     scrolled the explanation away. It still occupies flow, so
+     `--band-offset` is unaffected. */
+  position: sticky;
+  top: 0;
   z-index: 400;
   background: var(--paper-1);
   border-bottom: 1px solid var(--paper-2);

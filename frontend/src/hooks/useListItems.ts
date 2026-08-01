@@ -78,8 +78,8 @@ function saveListCache(
  * repeats the same request for the same answer, which is the definition of a
  * control known in advance to fail.
  *
- * Same `isRetryable` as «Cambios sin enviar», so the two screens cannot come to
- * different conclusions about the same status.
+ * Same `isRetryable` the price toast and `ListMembersSheet` ask, so no two
+ * call sites can come to different conclusions about the same status.
  */
 function retryAction(err: unknown, onAct: () => void): ToastAction | undefined {
   const status = err instanceof ApiError ? err.status : 0
@@ -193,8 +193,9 @@ export function useListItems(
         return
       }
 
-      // The tap instant, which only this device knows. Sent so that an offline
-      // tap drained tomorrow morning still files into tonight's trip.
+      // The tap instant, which only this device knows. Sent rather than left
+      // to the server's clock so a slow request still files into the trip that
+      // was open when the circle was pressed, not the one open when it lands.
       const nowStr = !prevPurchased
         ? new Date().toISOString().slice(0, -1)
         : null
@@ -229,10 +230,9 @@ export function useListItems(
         return
       }
 
-      // The write has settled — the server answered, or the queue took it.
-      // Only now is there anything to undo, and only now can the inverse not
-      // overtake the write it reverses. Offline this still reads as instant,
-      // because the queue is local.
+      // The write has settled — the server answered. Only now is there
+      // anything to undo, and only now can the inverse not overtake the write
+      // it reverses. A write that never landed is never offered one.
       showToast(
         prevPurchased
           ? `Fuera del carro, ${targetItem?.name ?? ''}`
