@@ -294,6 +294,14 @@ async function generateContentWithRetry(
   for (let attempt = 0; ; attempt++) {
     try {
       const result = await model.generateContent([filePart, PROMPT])
+      // PREFER_IN_CLOUD falls back to the on-device model silently, so when a
+      // parse reads a field wrong there is no telling which model produced
+      // it. Logged on every generation to build a baseline of how often the
+      // fallback fires at all, and before the JSON parse on purpose: a
+      // garbled response is the one most worth attributing.
+      console.info(
+        `Receipt parse inference source: ${result.response.inferenceSource ?? 'unknown'}`,
+      )
       const text = result.response.text()
       return JSON.parse(text) as {
         store?: string | null
