@@ -1,4 +1,9 @@
-import { AIError, AIErrorCode, FinishReason } from 'firebase/ai'
+import {
+  AIError,
+  AIErrorCode,
+  FinishReason,
+  InferenceSource,
+} from 'firebase/ai'
 import type { MockInstance } from 'vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -118,6 +123,74 @@ describe('parseReceiptWithAi wiring', () => {
     expect(result.store).toBe('Mercadona')
     expect(result.receipt_total).toBe(1.15)
     expect(result.lines).toEqual([])
+  })
+
+  describe('inference source', () => {
+    let infoSpy: MockInstance<typeof console.info>
+
+    beforeEach(() => {
+      infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
+    })
+
+    it('logs which model answered and returns it on the request', async () => {
+      const { parseReceiptWithAi } = await import('./receiptAi')
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          ...successResponse.response,
+          inferenceSource: InferenceSource.ON_DEVICE,
+        },
+      })
+
+      const result = await parseReceiptWithAi(receiptFile())
+
+      expect(result.inference_source).toBe(InferenceSource.ON_DEVICE)
+      expect(infoSpy).toHaveBeenCalledWith(
+        expect.stringContaining(InferenceSource.ON_DEVICE),
+      )
+    })
+
+    it('logs "unknown" and returns null when the SDK reports no source', async () => {
+      const { parseReceiptWithAi } = await import('./receiptAi')
+
+      const result = await parseReceiptWithAi(receiptFile())
+
+      expect(result.inference_source).toBeNull()
+      expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('unknown'))
+    })
+
+    it('attributes a garbled response, not just the retry that follows it', async () => {
+      const { parseReceiptWithAi } = await import('./receiptAi')
+      // The suspected failure shape: the on-device model garbles its output,
+      // the retry lands in the cloud and succeeds. If only the success were
+      // logged, the fallback would stay invisible — the whole point is lost.
+      mockGenerateContent
+        .mockResolvedValueOnce({
+          response: {
+            text: () => '{"store":"Mercadona","lines":[{"na',
+            inferenceSource: InferenceSource.ON_DEVICE,
+          },
+        })
+        .mockResolvedValueOnce({
+          response: {
+            ...successResponse.response,
+            inferenceSource: InferenceSource.IN_CLOUD,
+          },
+        })
+
+      const result = await parseReceiptWithAi(receiptFile(), { delayMs: 0 })
+
+      expect(infoSpy).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(InferenceSource.ON_DEVICE),
+      )
+      expect(infoSpy).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining(InferenceSource.IN_CLOUD),
+      )
+      // The request carries the source of the generation whose parse
+      // succeeded — that is the one whose lines the scan row records.
+      expect(result.inference_source).toBe(InferenceSource.IN_CLOUD)
+    })
   })
 
   describe('retrying', () => {

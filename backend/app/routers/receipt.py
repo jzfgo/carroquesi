@@ -116,6 +116,7 @@ def scan_receipt(
         receipt_total=body.receipt_total,
         parsed_lines=[line.model_dump() for line in body.lines],
         match_result=[m.model_dump() for m in matched],
+        inference_source=body.inference_source,
     )
     session.add(scan)
     session.commit()

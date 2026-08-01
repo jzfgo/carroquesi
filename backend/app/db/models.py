@@ -139,6 +139,9 @@ class ReceiptScan(SQLModel, table=True):
     receipt_total: float | None = None
     parsed_lines: list[dict] | None = Field(default=None, sa_column=Column(JSON))
     match_result: list[dict] | None = Field(default=None, sa_column=Column(JSON))
+    # "on_device" or "in_cloud", as the Firebase AI SDK reported it. None when
+    # the SDK did not say, or the scan predates the column.
+    inference_source: str | None = None
     items_updated: int = 0
     created_at: datetime = Field(default_factory=_now)
 

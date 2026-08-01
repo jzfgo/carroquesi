@@ -68,6 +68,25 @@ def test_post_receipt_returns_scan_result(client):
     assert body["matched"][0]["price_type"] == "UNIT"
 
 
+def test_post_receipt_persists_inference_source(client, session):
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json={**_unit_body(), "inference_source": "on_device"},
+    )
+    assert response.status_code == 200
+
+    scan = session.get(ReceiptScan, response.json()["scan_id"])
+    assert scan.inference_source == "on_device"
+
+
+def test_post_receipt_inference_source_null_when_client_omits_it(client, session):
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body())
+    assert response.status_code == 200
+
+    scan = session.get(ReceiptScan, response.json()["scan_id"])
+    assert scan.inference_source is None
+
+
 def test_post_receipt_infers_store_when_null(client, session):
     item = session.get(ListItem, "item-almendras")
     item.price_store = "Mercadona"

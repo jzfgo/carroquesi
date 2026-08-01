@@ -294,13 +294,25 @@ async function generateContentWithRetry(
   for (let attempt = 0; ; attempt++) {
     try {
       const result = await model.generateContent([filePart, PROMPT])
+      // PREFER_IN_CLOUD falls back to the on-device model silently, so when a
+      // parse reads a field wrong there is no telling which model produced
+      // it. Logged on every generation to build a baseline of how often the
+      // fallback fires at all, and before the JSON parse on purpose: a
+      // garbled response is the one most worth attributing.
+      console.info(
+        `Receipt parse inference source: ${result.response.inferenceSource ?? 'unknown'}`,
+      )
       const text = result.response.text()
-      return JSON.parse(text) as {
+      const parsed = JSON.parse(text) as {
         store?: string | null
         receipt_date?: string | null
         receipt_time?: string | null
         receipt_total?: number | null
         lines: ParsedLine[]
+      }
+      return {
+        parsed,
+        inferenceSource: result.response.inferenceSource ?? null,
       }
     } catch (error: unknown) {
       if (attempt === MAX_RETRIES || !isRetryable(error)) throw error
@@ -316,14 +328,18 @@ export async function parseReceiptWithAi(
   options?: ParseReceiptOptions,
 ): Promise<ReceiptScanRequest> {
   const filePart = await fileToInlinePart(file)
-  const raw = await generateContentWithRetry(filePart, options)
+  const { parsed, inferenceSource } = await generateContentWithRetry(
+    filePart,
+    options,
+  )
   return {
-    store: raw.store ?? null,
+    store: parsed.store ?? null,
     receipt_date: toReceiptInstant(
-      raw.receipt_date ?? null,
-      raw.receipt_time ?? null,
+      parsed.receipt_date ?? null,
+      parsed.receipt_time ?? null,
     ),
-    receipt_total: raw.receipt_total ?? null,
-    lines: raw.lines,
+    receipt_total: parsed.receipt_total ?? null,
+    inference_source: inferenceSource,
+    lines: parsed.lines,
   }
 }
