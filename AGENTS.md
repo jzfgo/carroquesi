@@ -123,7 +123,6 @@ Prefer `just` from repo root (`just backend` lists recipes).
 - Firebase Admin SDK init in `backend/app/core/firebase.py` — singleton pattern
 - Auth dependency in `backend/app/dependencies.py`: `get_current_user`, `require_member`, `require_owner`, `require_admin`
 - `is_admin` is a transient Python attribute on `User`, read from Firebase JWT custom claim `decoded.get("is_admin", False)` — never stored in the DB
-- Schemas (request/response Pydantic models) in `backend/app/schemas/`
 - Tests use SQLite in-memory (via `StaticPool`) — no Postgres needed to run the test suite
 - Dockerized: `backend/Dockerfile` → deployed to Cloud Run; runs `alembic upgrade head` on startup
 
@@ -134,7 +133,6 @@ All known flags and defaults live in the registry in `backend/app/services/featu
 ## Infrastructure
 
 - Firebase project config lives in `frontend/src/lib/firebase.ts` (Auth only — no Firestore, no Storage)
-- Environment variables go in `.env` files (see `backend/.env.example` and `frontend/.env.example`)
 - Cloud Run service URL stored as an env var in the frontend for API calls
 - **The app is Postgres-host-agnostic** — the backend's entire contract with the database is `DATABASE_URL`, and no code path assumes a particular provider. Keep it that way: don't introduce host-specific assumptions without an ADR
 - The **canonical deployment** (the one the maintainer runs) hosts Postgres on Neon. Its backup policy, RPO/RTO, and restore runbook are in [ADR-008](docs/decisions/008-database-backup-policy.md) — read it before a risky migration or any recovery attempt. If you deployed this yourself elsewhere, the Neon specifics don't apply to you; the decision structure does
@@ -143,8 +141,6 @@ All known flags and defaults live in the registry in `backend/app/services/featu
 
 ### General Workflow
 
-- Check `git status --short` before and after changes
-- Implement the smallest complete fix first, then iterate
 - **YAGNI.** Build what the task needs, not what a later one might: no parameter, abstraction, or config knob without a caller today. This is *Complexity is earned* at coding time — see [PRODUCT.md](PRODUCT.md)
 - **DRY is about rules, not lines.** Duplicated code is often fine — abstract on the third occurrence, not the second. Duplicated *rules* drift apart, so encode one twice only when the copies do different jobs (the same-day price guard is a UI affordance and an API enforcement), never when they do the same one
 - **Write comments and docs in plain, short English.** One idea per sentence. Use common words, not rare or figurative ones: the reader is not always a native speaker. A comment says *why*, not *where*: never cite line numbers, file paths, or issue IDs in a code comment. Nothing checks those links, so they go stale on the next move, and the commit message tells the reader more. Docs are the index, so they cite freely. Keep the length in proportion to the decision. Commit and PR titles are exempt; their style is deliberate.
@@ -188,7 +184,6 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 - Use squash merge for PRs by default
 - When asked to 'update X', assume this includes committing and pushing unless stated otherwise
 - Always check git status for untracked changes before assuming worktree is clean
-- For CI: use `pnpm install --frozen-lockfile` for clean installs
 - If the current worktree contains unrelated or unexpected changes, stop and ask before proceeding
 - **Alembic migrations must be the last step before merging**, after rebasing on main — never create a migration in parallel with another branch that also has one (migration version conflicts require manual resolution and are easy to get wrong)
 
@@ -200,9 +195,6 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 
 ### Local Dev Environment
 
-- Use direnv (`.envrc` in repo root) for local environment variables — run `direnv allow` after cloning
-- Use nvm (respect `.nvmrc`) for Node version management
-- Use uv for Python toolchain and virtual environment management
 - Backend uses FastAPI with Firebase; ensure `.env` and Firebase config are present before running
 - Frontend typecheck must use `tsconfig.app.json` (root tsconfig.json has files:[] and silently passes)
 - Never commit a **platform-narrowed** `pnpm-lock.yaml` — one where a native binding resolved for your platform only, so installs break everywhere else. Note this is about *completeness, not presence*: packages like `sharp` and `@rollup/rollup` legitimately ship a full per-platform matrix, and every version bump of them adds new per-platform entries. That is expected and fine. The `lockfile-guard` pre-commit hook enforces exactly this — for each native binding family added, the lockfile must name it for more than one OS
