@@ -1146,3 +1146,107 @@ describe('useListItems — offline guard', () => {
     expect(mockShowToast).toHaveBeenCalledWith('Sin conexión')
   })
 })
+
+describe('useListItems — list-gone suspicion', () => {
+  const onListSuspect = vi.fn()
+
+  // The automocked ApiError constructor sets nothing, so give the instance
+  // the status the real one would carry.
+  function apiError(status: number) {
+    const err = new ApiError(status, 'answer')
+    err.status = status
+    return err
+  }
+
+  beforeEach(() => {
+    reportRequestOutcome(true)
+  })
+
+  function renderWithSuspect() {
+    return renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast, onListSuspect),
+    )
+  }
+
+  it('reports a 404 write answer', async () => {
+    vi.mocked(api.updateItem).mockRejectedValue(apiError(404))
+    const { result } = renderWithSuspect()
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(onListSuspect).toHaveBeenCalled()
+  })
+
+  it('reports a 403 answer to a create', async () => {
+    vi.mocked(api.createItem).mockRejectedValue(apiError(403))
+    const { result } = renderWithSuspect()
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.addItem({
+        name: 'Nueva',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
+    })
+
+    expect(onListSuspect).toHaveBeenCalled()
+  })
+
+  it('reports a 404 price write and still rethrows it', async () => {
+    vi.mocked(api.logPrice).mockRejectedValue(apiError(404))
+    const { result } = renderWithSuspect()
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await expect(
+        result.current.savePrice('item-1', 2.5, null, null),
+      ).rejects.toThrow()
+    })
+
+    expect(onListSuspect).toHaveBeenCalled()
+  })
+
+  it('stays quiet on a network failure or a server error', async () => {
+    vi.mocked(api.updateItem).mockRejectedValueOnce(
+      new TypeError('Failed to fetch'),
+    )
+    vi.mocked(api.updateItem).mockRejectedValueOnce(apiError(500))
+    const { result } = renderWithSuspect()
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(onListSuspect).not.toHaveBeenCalled()
+  })
+
+  it('reports a typed 404 from the poll, not a poll blip', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const { result } = renderWithSuspect()
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    vi.mocked(api.getListUpdatedAt).mockRejectedValueOnce(
+      new TypeError('Failed to fetch'),
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
+    expect(onListSuspect).not.toHaveBeenCalled()
+
+    vi.mocked(api.getListUpdatedAt).mockRejectedValueOnce(apiError(404))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
+    expect(onListSuspect).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
+  })
+})

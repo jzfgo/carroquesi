@@ -65,6 +65,7 @@ export function useListItems(
   listId: string,
   getToken: () => Promise<string>,
   showToast: (msg: string) => void,
+  onListSuspect?: () => void,
 ) {
   const [status, setStatus] = useState<Status>('loading')
   const [items, setItems] = useState<ListItem[]>([])
@@ -98,6 +99,22 @@ export function useListItems(
     members: BackendMember[]
   } | null>(null)
   const rereadOnNextPoll = useRef(false)
+
+  // A 403 or 404 may mean the list itself is gone or no longer the user's —
+  // or only that the item is. This reports the suspicion; the caller confirms
+  // with a re-read of the list before evicting anyone, so a single odd answer
+  // never costs somebody their screen.
+  const suspectListGone = useCallback(
+    (err: unknown) => {
+      if (
+        err instanceof ApiError &&
+        (err.status === 403 || err.status === 404)
+      ) {
+        onListSuspect?.()
+      }
+    },
+    [onListSuspect],
+  )
 
   const markWritten = useCallback(
     (...itemIds: string[]) => {
@@ -201,8 +218,12 @@ export function useListItems(
           rereadOnNextPoll.current = writeClock.current !== clockAtStart
         }
         lastUpdatedAt.current = data.updated_at
-      } catch {
-        // polling failures are silent
+      } catch (err) {
+        // Polling failures are silent — a blip must not blank the list. But a
+        // typed 403/404 is the server answering, not a blip, and the poll is
+        // the only arrival for someone who idles on a list they lost. The
+        // confirming re-read still decides.
+        suspectListGone(err)
       }
     }
 
@@ -212,7 +233,7 @@ export function useListItems(
       clearInterval(id)
       document.removeEventListener('visibilitychange', poll)
     }
-  }, [listId, getToken, beginRead])
+  }, [listId, getToken, beginRead, suspectListGone])
 
   const togglePurchased = useCallback(
     async (itemId: string) => {
@@ -257,14 +278,15 @@ export function useListItems(
         await updateItem(getToken, listId, itemId, {
           purchased: !prevPurchased,
         })
-      } catch {
+      } catch (err) {
         setItems(snapshot)
         showToast('No se pudo actualizar el producto')
+        suspectListGone(err)
       } finally {
         markWritten(itemId)
       }
     },
-    [getToken, listId, showToast, markWritten],
+    [getToken, listId, showToast, markWritten, suspectListGone],
   )
 
   const addItem = useCallback(
@@ -340,10 +362,12 @@ export function useListItems(
         } else {
           showToast('No se pudo añadir el producto')
         }
+        // A 404 here can only be about the list — the item does not exist yet.
+        suspectListGone(err)
         markWritten(tempId)
       }
     },
-    [getToken, listId, showToast, markWritten],
+    [getToken, listId, showToast, markWritten, suspectListGone],
   )
 
   const updateTag = useCallback(
@@ -359,14 +383,15 @@ export function useListItems(
       markWritten(itemId)
       try {
         await updateItem(getToken, listId, itemId, { [field]: value })
-      } catch {
+      } catch (err) {
         setItems(snapshot)
         showToast('No se pudo actualizar el producto')
+        suspectListGone(err)
       } finally {
         markWritten(itemId)
       }
     },
-    [getToken, listId, showToast, markWritten],
+    [getToken, listId, showToast, markWritten, suspectListGone],
   )
 
   const updateStores = useCallback(
@@ -380,14 +405,15 @@ export function useListItems(
       markWritten(itemId)
       try {
         await updateItem(getToken, listId, itemId, { stores })
-      } catch {
+      } catch (err) {
         setItems(snapshot)
         showToast('No se pudo actualizar el producto')
+        suspectListGone(err)
       } finally {
         markWritten(itemId)
       }
     },
-    [getToken, listId, showToast, markWritten],
+    [getToken, listId, showToast, markWritten, suspectListGone],
   )
 
   const renameItem = useCallback(
@@ -401,14 +427,15 @@ export function useListItems(
       markWritten(itemId)
       try {
         await updateItem(getToken, listId, itemId, { name })
-      } catch {
+      } catch (err) {
         setItems(snapshot)
         showToast('No se pudo renombrar el producto')
+        suspectListGone(err)
       } finally {
         markWritten(itemId)
       }
     },
-    [getToken, listId, showToast, markWritten],
+    [getToken, listId, showToast, markWritten, suspectListGone],
   )
 
   const removeItem = useCallback(
@@ -422,14 +449,15 @@ export function useListItems(
       markWritten(itemId)
       try {
         await deleteItem(getToken, listId, itemId)
-      } catch {
+      } catch (err) {
         setItems(snapshot)
         showToast('No se pudo eliminar el producto')
+        suspectListGone(err)
       } finally {
         markWritten(itemId)
       }
     },
-    [getToken, listId, showToast, markWritten],
+    [getToken, listId, showToast, markWritten, suspectListGone],
   )
 
   const savePrice = useCallback(
@@ -447,12 +475,19 @@ export function useListItems(
       const item = itemsRef.current.find((i) => i.id === itemId)
       const payload = { amount, price_per: pricePer, store }
       const fn = item?.price != null ? updatePrice : logPrice
-      await fn(getToken, listId, itemId, payload)
+      try {
+        await fn(getToken, listId, itemId, payload)
 
-      if (purchasedQuantity !== undefined) {
-        await updateItem(getToken, listId, itemId, {
-          purchased_quantity: purchasedQuantity,
-        })
+        if (purchasedQuantity !== undefined) {
+          await updateItem(getToken, listId, itemId, {
+            purchased_quantity: purchasedQuantity,
+          })
+        }
+      } catch (err) {
+        // The caller owns the rollback and the toast; only the suspicion
+        // report belongs here.
+        suspectListGone(err)
+        throw err
       }
 
       setItems((prev) =>
@@ -474,7 +509,7 @@ export function useListItems(
       // enough: by the time a later read starts, the server already answered.
       markWritten(itemId)
     },
-    [getToken, listId, markWritten, showToast],
+    [getToken, listId, markWritten, showToast, suspectListGone],
   )
 
   const clearItemPrice = useCallback(
@@ -483,7 +518,12 @@ export function useListItems(
         showToast(OFFLINE_TOAST)
         return
       }
-      await deletePrice(getToken, listId, itemId)
+      try {
+        await deletePrice(getToken, listId, itemId)
+      } catch (err) {
+        suspectListGone(err)
+        throw err
+      }
       setItems((prev) =>
         prev.map((i) =>
           i.id === itemId
@@ -493,7 +533,7 @@ export function useListItems(
       )
       markWritten(itemId)
     },
-    [getToken, listId, markWritten, showToast],
+    [getToken, listId, markWritten, showToast, suspectListGone],
   )
 
   return {

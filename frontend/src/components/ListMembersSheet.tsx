@@ -17,6 +17,10 @@ interface Props {
   currentUserId: string
   isOwner: boolean
   onClose: () => void
+  /** The current user's own removal succeeded — they are no longer a member. */
+  onLeft?: () => void
+  /** An answer arrived that suggests the list itself is gone or forbidden. */
+  onListSuspect?: () => void
 }
 
 type LoadState = 'loading' | 'error' | 'ready'
@@ -28,6 +32,8 @@ export function ListMembersSheet({
   currentUserId,
   isOwner,
   onClose,
+  onLeft,
+  onListSuspect,
 }: Props) {
   const { getToken } = useAuth()
   const [loadState, setLoadState] = useState<LoadState>('loading')
@@ -86,9 +92,18 @@ export function ListMembersSheet({
     setMembers((prev) => prev.filter((m) => m.user_id !== userId))
     try {
       await removeMember(getToken, listId, userId)
-    } catch {
+      // Leaving is the person's own act — staying on a list they just left
+      // would strand them on a screen that no longer answers to them.
+      if (userId === currentUserId) onLeft?.()
+    } catch (err) {
       setMembers(snapshot)
       setToast('No se pudo eliminar el miembro')
+      if (
+        err instanceof ApiError &&
+        (err.status === 403 || err.status === 404)
+      ) {
+        onListSuspect?.()
+      }
     }
   }
 
@@ -110,7 +125,15 @@ export function ListMembersSheet({
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
         setInviteLimitReached(true)
+        return
       }
+      if (
+        err instanceof ApiError &&
+        (err.status === 403 || err.status === 404)
+      ) {
+        onListSuspect?.()
+      }
+      setToast('No se pudo crear el enlace')
     }
   }
 

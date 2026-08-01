@@ -13,6 +13,7 @@ import {
   deleteList,
   getBarcode,
   getDueSuggestions,
+  getList,
   getSuggestions,
   setDefaultList,
   submitParsedReceipt,
@@ -66,6 +67,8 @@ interface Props {
   onRename?: (newName: string) => void
   onSetDefault?: (isDefault: boolean) => void
   onBack?: () => void
+  /** The list stopped being the reader's after mount — confirmed, not suspected. */
+  onListGone?: (reason: 'not_found' | 'forbidden') => void
 }
 
 type EanLookupState =
@@ -83,6 +86,7 @@ export function ListScreen({
   onRename,
   onSetDefault,
   onBack,
+  onListGone,
 }: Props) {
   const { getToken, user } = useAuth()
   const [localListName, setLocalListName] = useState(listName)
@@ -137,6 +141,22 @@ export function ListScreen({
     [],
   )
 
+  // A write answering 403/404 only *suggests* the list is gone — the missing
+  // thing is often the item. Re-read the list itself and evict only when that
+  // second, independent answer agrees: a membership check that is wrong once
+  // costs somebody their shopping screen mid-aisle.
+  const confirmListGone = useCallback(async () => {
+    try {
+      await getList(getToken, listId)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        onListGone?.('not_found')
+      } else if (err instanceof ApiError && err.status === 403) {
+        onListGone?.('forbidden')
+      }
+    }
+  }, [getToken, listId, onListGone])
+
   const handleRename = useCallback(
     async (listId: string, newName: string) => {
       if (isOffline) {
@@ -183,11 +203,21 @@ export function ListScreen({
         await deleteList(getToken, listId)
         setMenuOpen(false)
         onBack?.()
-      } catch {
+      } catch (err) {
+        // Deleting a list that is already gone is success arriving late —
+        // finish the tap instead of blaming it.
+        if (err instanceof ApiError && err.status === 404) {
+          setMenuOpen(false)
+          onBack?.()
+          return
+        }
+        if (err instanceof ApiError && err.status === 403) {
+          void confirmListGone()
+        }
         setToast('No se pudo eliminar la lista')
       }
     },
-    [getToken, onBack, isOffline],
+    [getToken, onBack, isOffline, confirmListGone],
   )
 
   const [eanLookup, setEanLookup] = useState<EanLookupState>({
@@ -228,7 +258,7 @@ export function ListScreen({
     savePrice,
     clearItemPrice,
     retry,
-  } = useListItems(listId, getToken, setToast)
+  } = useListItems(listId, getToken, setToast, confirmListGone)
 
   // Debounced suggestions — only when name has 2+ chars
   useEffect(() => {
@@ -885,6 +915,10 @@ export function ListScreen({
           onRename={(newName) => void handleRename(listId, newName)}
           onDelete={() => void handleDelete(listId)}
           onSetDefault={() => void handleSetDefault()}
+          // Leaving the list is the person's own act to end the relationship —
+          // leaving the screen completes the tap.
+          onLeftList={() => onBack?.()}
+          onListSuspect={() => void confirmListGone()}
           onReceiptScan={
             isEnabled(FLAGS.AI_RECEIPT_SCANNING)
               ? () => handleReceiptScan()

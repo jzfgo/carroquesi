@@ -117,6 +117,10 @@ export function ListRoute() {
         setList((prev) => (prev ? { ...prev, is_default: isDefault } : null))
       }
       onBack={() => navigate('/')}
+      // The list can stop being the reader's after mount — deleted elsewhere,
+      // or membership revoked. The screen confirms it before reporting, so
+      // this is the same terminal answer the mount-time check gives.
+      onListGone={setError}
     />
   )
 }
