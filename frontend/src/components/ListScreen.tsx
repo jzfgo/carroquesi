@@ -435,12 +435,16 @@ export function ListScreen({
 
   const handleSubmit = useCallback(() => {
     if (!parsed.name.trim()) return
+    if (isOffline) {
+      setToast('Sin conexión')
+      return
+    }
     const stores = storeToAdd
       ? [...new Set([...parsed.stores, storeToAdd])]
       : parsed.stores
     void addItem({ ...parsed, stores })
     setInputValue('')
-  }, [parsed, addItem, storeToAdd])
+  }, [parsed, addItem, storeToAdd, isOffline])
 
   const handleInputSuggestionAdd = useCallback(
     (suggestion: Suggestion) => {
@@ -530,6 +534,10 @@ export function ListScreen({
       purchasedQuantity: string | null,
     ) => {
       if (!logPriceFor) return
+      if (isOffline) {
+        setToast('Sin conexión')
+        return
+      }
       try {
         await savePrice(
           logPriceFor.itemId,
@@ -538,18 +546,23 @@ export function ListScreen({
           store,
           purchasedQuantity,
         )
-        if (store) setLastPriceStore(store)
       } catch {
-        // non-critical
+        setToast('No se pudo guardar el precio')
+        return
       }
+      if (store) setLastPriceStore(store)
       setLogPriceFor(null)
       setPriceItemId(null)
     },
-    [logPriceFor, savePrice],
+    [logPriceFor, savePrice, isOffline],
   )
 
   const handleDeletePrice = useCallback(async () => {
     if (!logPriceFor) return
+    if (isOffline) {
+      setToast('Sin conexión')
+      return
+    }
     try {
       await clearItemPrice(logPriceFor.itemId)
       setLogPriceFor(null)
@@ -569,7 +582,7 @@ export function ListScreen({
         throw err
       }
     }
-  }, [logPriceFor, clearItemPrice])
+  }, [logPriceFor, clearItemPrice, isOffline])
 
   const handleScanEdit = useCallback((prefill: string) => {
     setScannedProduct(null)
