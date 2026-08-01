@@ -115,6 +115,10 @@ check("agents doc only", ["AGENTS.md"], (False, False, False))
 check("nested agents doc", ["frontend/AGENTS.md"], (True, False, False))
 check("nested agents doc (backend)", ["backend/AGENTS.md"], (False, True, False))
 check("fixtures JSON", ["frontend/tests/fixtures.json"], (True, True, False))
+# The OpenAPI snapshot feeds the generated frontend types: a change to it must
+# run the frontend job, whose lint step fails when the types are stale.
+check("openapi snapshot", ["backend/openapi.json"], (True, True, False))
+check("generated api types", ["frontend/src/apiSchema.generated.ts"], (True, False, False))
 check("frontend source", ["frontend/src/App.tsx"], (True, False, False))
 check("frontend lockfile", ["frontend/pnpm-lock.yaml"], (True, False, False))
 check("backend source", ["backend/app/main.py"], (False, True, False))

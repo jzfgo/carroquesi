@@ -57,6 +57,10 @@ migration-status:
 migration-rollback:
     uv run alembic downgrade -1
 
+# Export the OpenAPI schema snapshot to backend/openapi.json
+openapi:
+    uv run python scripts/export_openapi.py
+
 # Seed the local database with test data
 seed:
     uv run python scripts/seed.py

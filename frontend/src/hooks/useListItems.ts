@@ -335,6 +335,7 @@ export function useListItems(
         list_id: listId,
         name: parsed.name,
         quantity: parsed.quantity,
+        purchased_quantity: null,
         brand: parsed.brand,
         stores: parsed.stores,
         purchased: false,

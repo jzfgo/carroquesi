@@ -8,6 +8,7 @@ const item: ListItem = {
   list_id: 'l1',
   name: 'Leche entera',
   quantity: null,
+  purchased_quantity: null,
   brand: null,
   stores: [],
   purchased: false,

@@ -67,9 +67,13 @@ format:
 format-check:
     {{ nvm-exec }} pnpm format:check
 
-# Lint (eslint + stylelint)
+# Lint (eslint + stylelint + generated-types freshness)
 lint:
     {{ nvm-exec }} pnpm lint
+
+# Regenerate src/apiSchema.generated.ts from backend/openapi.json
+openapi-types:
+    {{ nvm-exec }} pnpm openapi:types
 
 # Type-check (tsc -p tsconfig.app.json --noEmit)
 typecheck:

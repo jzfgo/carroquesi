@@ -8,6 +8,7 @@ function item(id: string, overrides: Partial<ListItem> = {}): ListItem {
     list_id: 'list-1',
     name: id,
     quantity: null,
+    purchased_quantity: null,
     brand: null,
     stores: [],
     purchased: false,

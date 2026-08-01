@@ -24,7 +24,7 @@ const mockItem: ListItem = {
   purchased_at: null,
   ean: null,
   price: 0.85,
-  price_per: 'UNIT',
+  price_per: null,
   price_store: 'Mercadona',
   added_by: 'user-123',
   created_at: '2026-07-20T12:00:00Z',
@@ -59,7 +59,7 @@ test('renders item name as title and fetches price history', async () => {
       },
     ],
     community_price: 0.89,
-    community_price_per: 'UNIT',
+    community_price_per: null,
   }
 
   vi.mocked(getPriceHistory).mockResolvedValueOnce(mockResponse)

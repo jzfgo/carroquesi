@@ -16,6 +16,7 @@ const item1: ListItem = {
   list_id: 'list-1',
   name: 'Leche',
   quantity: null,
+  purchased_quantity: null,
   brand: null,
   stores: [],
   purchased: false,

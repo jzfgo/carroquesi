@@ -14,6 +14,9 @@ coverage
 tmp/
 tmp/dry-run/
 
+# Generated from backend/openapi.json — regenerate with `just openapi`
+src/apiSchema.generated.ts
+
 # HAR fixtures are opaque recorded artifacts — don't reformat them
 tests/fixtures/*.har
 playwright/recordings/*.har

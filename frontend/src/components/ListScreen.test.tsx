@@ -215,6 +215,7 @@ function makeItem(overrides: Partial<ListItem>): ListItem {
     list_id: 'l1',
     name: 'Item',
     quantity: null,
+    purchased_quantity: null,
     brand: null,
     stores: [],
     purchased: false,

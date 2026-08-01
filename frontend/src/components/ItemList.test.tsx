@@ -29,6 +29,7 @@ const makeItem = (id: string, purchased = false): ListItem => ({
   list_id: 'l1',
   name: `Item ${id}`,
   quantity: null,
+  purchased_quantity: null,
   brand: null,
   stores: [],
   purchased,

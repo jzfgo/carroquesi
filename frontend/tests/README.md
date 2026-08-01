@@ -11,6 +11,7 @@ The payloads sit in JSON rather than in the spec so that both ends can check the
 Two consequences worth knowing before you edit `fixtures.json`:
 
 - The backend suite has to stay green. `scripts/ci-changed-areas.sh` counts this file as a backend change for exactly that reason.
+- The types in `src/types.ts` are not hand-written: the API aliases re-export `src/apiSchema.generated.ts`, generated from `backend/openapi.json` with `just openapi`. The fixtures therefore satisfy the backend's _shapes_ by construction; what the pytest round-trip adds is _values_ — a key the backend silently defaults is invisible to OpenAPI `required` but fails the exact-equality check. Two freshness tests keep the generated pair honest: `backend/tests/test_openapi_snapshot.py` fails when the snapshot lags the app, and `pnpm openapi:check` (part of `pnpm lint`) fails when the types lag the snapshot.
 - Write paths are covered through templates. A write mock answers by spreading the echoed request fields over a `SEED_*` template from this file, so the key set and every non-echoed value are validated like the read fixtures. What remains outside the guard: the echoed request fields themselves, and the two PATCH mocks (list and item), which spread a patch over an already-validated base — a patch body cannot invent keys, so a template would add nothing.
 
 ## Visual regression
