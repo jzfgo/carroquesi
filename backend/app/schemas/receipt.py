@@ -48,7 +48,7 @@ class ReceiptScanResult(BaseModel):
 class PricePatch(BaseModel):
     item_id: str
     price: float
-    price_per: str | None = None
+    price_per: Literal["KILOGRAM"] | None = None  # None = per unit, "KILOGRAM" = per kg
     store: str | None = None
     quantity: str | None = None
 

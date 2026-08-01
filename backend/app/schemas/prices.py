@@ -11,7 +11,7 @@ class PriceCreate(BaseModel):
 
 class PriceEntry(BaseModel):
     amount: float
-    price_per: str | None
+    price_per: Literal["KILOGRAM"] | None  # None = per unit, "KILOGRAM" = per kg
     store: str | None
     purchased_at: str | None = None
     quantity: str | None = None
