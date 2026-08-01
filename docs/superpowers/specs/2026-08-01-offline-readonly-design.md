@@ -118,9 +118,8 @@ Code:
 - the six `enqueue()` branches in `useListItems`
 - the `pendingCount` banner in `ListScreen` and the offline banner in
   `DashboardScreen` (replaced by the one band)
-- `isOffline` props on `SmartInputBar` and `LogPurchaseSheet`
-
-Tests scattered outside the queue's own file (confirmed by audit):
+- `isOffline` props on `SmartInputBar` and `LogPurchaseShee`
+  Tests scattered outside the queue's own file (confirmed by audit):
 
 - `useListItems.test.ts`: the "write queue on network error" describe —
   rewritten to assert rollback + toast, not enqueue (done in prototype)
@@ -154,7 +153,17 @@ so pre-upgrade queued writes do not sit stranded in users' browsers forever.
   cold online start.
 - `useListItems.test.ts`: guard tests (offline write → toast, no API call)
   plus the rewritten rollback tests.
-- E2E: none. No fixture simulates offline today; out of scope.
+- E2E: audited, no changes needed. No spec file references offline, the
+  queue, or connectivity simulation. The fixtures' unhandled-route fallback
+  fulfils a 404 — a response, so under the new detection it counts as
+  reachable and the band can never appear in an E2E run. Baselines need no
+  regeneration: the change alters nothing rendered while online, verified by
+  running the baseline projects at `--retries=0` on this branch and on clean
+  `main` — identical results (chromium green both times; Mobile Chrome fails
+  the same 10 screenshots both times, a pre-existing host-vs-container font
+  rendering gap, not this change).
+- `tests/README.md` keeps its note about the queue-drain race that
+  `retries: 2` once hid. It recounts history and stays as written.
 
 ## Out of scope
 
