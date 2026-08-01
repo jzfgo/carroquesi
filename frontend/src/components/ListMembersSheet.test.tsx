@@ -213,6 +213,64 @@ test('Salir removes current user from list', async () => {
   expect(api.removeMember).toHaveBeenCalledWith(mockGetToken, 'l1', 'u2')
 })
 
+test('a successful Salir reports onLeft', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.removeMember).mockResolvedValue(null)
+  const onLeft = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u2"
+      isOwner={false}
+      onClose={vi.fn()}
+      onLeft={onLeft}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /salir de la lista/i }),
+  )
+  await waitFor(() => expect(onLeft).toHaveBeenCalled())
+})
+
+test('expelling another member never reports onLeft', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.removeMember).mockResolvedValue(null)
+  const onLeft = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+      onLeft={onLeft}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /expulsar a bob/i }),
+  )
+  await waitFor(() => expect(api.removeMember).toHaveBeenCalled())
+  expect(onLeft).not.toHaveBeenCalled()
+})
+
+test('a 404 on remove reports onListSuspect', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.removeMember).mockRejectedValue(new api.ApiError(404, 'gone'))
+  const onListSuspect = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u2"
+      isOwner={false}
+      onClose={vi.fn()}
+      onListSuspect={onListSuspect}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /salir de la lista/i }),
+  )
+  await waitFor(() => expect(onListSuspect).toHaveBeenCalled())
+})
+
 test('remove failure reverts member list and shows toast', async () => {
   vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
   vi.mocked(api.removeMember).mockRejectedValue(new Error('fail'))
@@ -273,6 +331,44 @@ test('invite limit reached shows message and disables button', async () => {
   fireEvent.click(await screen.findByRole('button', { name: /copiar enlace/i }))
   expect(await screen.findByText(/límite de invitaciones/i)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /copiar enlace/i })).toBeDisabled()
+})
+
+test('a failed invite says so instead of staying silent', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
+  vi.mocked(api.createOpenInvite).mockRejectedValue(
+    new api.ApiError(500, 'boom'),
+  )
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+    />,
+  )
+  fireEvent.click(await screen.findByRole('button', { name: /copiar enlace/i }))
+  expect(
+    await screen.findByText(/no se pudo crear el enlace/i),
+  ).toBeInTheDocument()
+})
+
+test('a 403 on invite reports onListSuspect', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
+  vi.mocked(api.createOpenInvite).mockRejectedValue(
+    new api.ApiError(403, 'forbidden'),
+  )
+  const onListSuspect = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      isOwner={true}
+      onClose={vi.fn()}
+      onListSuspect={onListSuspect}
+    />,
+  )
+  fireEvent.click(await screen.findByRole('button', { name: /copiar enlace/i }))
+  await waitFor(() => expect(onListSuspect).toHaveBeenCalled())
 })
 
 test('clipboard unavailable shows fallback URL input', async () => {

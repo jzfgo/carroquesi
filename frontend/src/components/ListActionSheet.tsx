@@ -18,6 +18,10 @@ interface Props {
   onSetDefault: () => void
   onReceiptScan?: () => void
   onClose: () => void
+  /** The member sheet reported a successful self-removal. */
+  onLeftList?: () => void
+  /** The member sheet got an answer that suggests the list is gone. */
+  onListSuspect?: () => void
 }
 
 export function ListActionSheet({
@@ -31,6 +35,8 @@ export function ListActionSheet({
   onSetDefault,
   onReceiptScan,
   onClose,
+  onLeftList,
+  onListSuspect,
 }: Props) {
   const [subState, setSubState] = useState<SubState>('actions')
   const [renameValue, setRenameValue] = useState(listName)
@@ -175,6 +181,8 @@ export function ListActionSheet({
         currentUserId={currentUserId}
         isOwner={isOwner}
         onClose={() => setSubState('actions')}
+        onLeft={onLeftList}
+        onListSuspect={onListSuspect}
       />
     )
   }

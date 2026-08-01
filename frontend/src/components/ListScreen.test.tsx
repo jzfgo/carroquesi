@@ -71,10 +71,21 @@ vi.mock('../lib/push', async (importOriginal) => ({
 }))
 vi.mock('../lib/api')
 vi.mock('../lib/receiptAi', () => ({ parseReceiptWithAi: vi.fn() }))
+// Exposes the two report callbacks as buttons so tests can prove they arrive
+// through the real ListActionSheet, not just that ListScreen defines them.
 vi.mock('./ListMembersSheet', () => ({
-  ListMembersSheet: () => (
+  ListMembersSheet: ({
+    onLeft,
+    onListSuspect,
+  }: {
+    onLeft?: () => void
+    onListSuspect?: () => void
+  }) => (
     <div role="dialog" aria-label="Miembros">
-      Sheet
+      {onLeft && <button onClick={() => onLeft()}>Salir (mock)</button>}
+      {onListSuspect && (
+        <button onClick={() => onListSuspect()}>Sospechar (mock)</button>
+      )}
     </div>
   ),
 }))
@@ -1088,6 +1099,179 @@ describe('ListScreen — offline refusal keeps user input', () => {
       'No se pudo guardar el precio',
     )
     expect(screen.getByText('Registrar compra')).toBeInTheDocument()
+  })
+})
+
+describe('the list stops being the reader’s after mount', () => {
+  // The automocked ApiError constructor sets nothing, so give the instance
+  // the status the real one would carry.
+  function apiError(status: number) {
+    const err = new api.ApiError(status, 'answer')
+    err.status = status
+    return err
+  }
+
+  function suspectFromHook() {
+    // The hook is fully mocked, so drive the callback ListScreen handed it —
+    // the same one a write answering 403/404 would fire.
+    const suspect = vi.mocked(useListItemsModule.useListItems).mock.calls[0][3]
+    expect(suspect).toBeDefined()
+    return suspect!
+  }
+
+  it('confirms a suspicious answer with a re-read before evicting', async () => {
+    vi.mocked(api.getList).mockRejectedValue(apiError(404))
+    const onListGone = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Test"
+        listOwnerId="u1"
+        onListGone={onListGone}
+      />,
+    )
+
+    await act(async () => {
+      suspectFromHook()()
+    })
+
+    expect(api.getList).toHaveBeenCalledWith(mockGetToken, 'l1')
+    await waitFor(() => expect(onListGone).toHaveBeenCalledWith('not_found'))
+  })
+
+  it('reports forbidden when the re-read answers 403', async () => {
+    vi.mocked(api.getList).mockRejectedValue(apiError(403))
+    const onListGone = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Test"
+        listOwnerId="u1"
+        onListGone={onListGone}
+      />,
+    )
+
+    await act(async () => {
+      suspectFromHook()()
+    })
+
+    await waitFor(() => expect(onListGone).toHaveBeenCalledWith('forbidden'))
+  })
+
+  it('one odd answer does not evict when the re-read lands clean', async () => {
+    vi.mocked(api.getList).mockResolvedValue({} as never)
+    const onListGone = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Test"
+        listOwnerId="u1"
+        onListGone={onListGone}
+      />,
+    )
+
+    await act(async () => {
+      suspectFromHook()()
+    })
+
+    expect(api.getList).toHaveBeenCalled()
+    expect(onListGone).not.toHaveBeenCalled()
+  })
+
+  it('a delete answered 404 completes the tap instead of blaming it', async () => {
+    vi.mocked(api.deleteList).mockRejectedValue(apiError(404))
+    const onBack = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Test"
+        listOwnerId="u1"
+        onBack={onBack}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
+
+    await waitFor(() => expect(onBack).toHaveBeenCalled())
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('a delete answered 403 evicts without the failure toast when confirmed', async () => {
+    vi.mocked(api.deleteList).mockRejectedValue(apiError(403))
+    vi.mocked(api.getList).mockRejectedValue(apiError(403))
+    const onListGone = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Test"
+        listOwnerId="u1"
+        onListGone={onListGone}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
+
+    await waitFor(() => expect(onListGone).toHaveBeenCalledWith('forbidden'))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('a delete answered 403 keeps the toast when the re-read lands clean', async () => {
+    vi.mocked(api.deleteList).mockRejectedValue(apiError(403))
+    vi.mocked(api.getList).mockResolvedValue({} as never)
+    const onListGone = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Test"
+        listOwnerId="u1"
+        onListGone={onListGone}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudo eliminar la lista',
+    )
+    expect(onListGone).not.toHaveBeenCalled()
+  })
+
+  it('a successful self-removal in the members sheet leaves the screen', async () => {
+    const onBack = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Test"
+        listOwnerId="u1"
+        onBack={onBack}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    fireEvent.click(screen.getByRole('button', { name: /gestionar miembros/i }))
+    fireEvent.click(screen.getByText('Salir (mock)'))
+
+    expect(onBack).toHaveBeenCalled()
+  })
+
+  it('a suspicion from the members sheet reaches the confirming re-read', async () => {
+    vi.mocked(api.getList).mockRejectedValue(apiError(404))
+    const onListGone = vi.fn()
+    render(
+      <ListScreen
+        listId="l1"
+        listName="Test"
+        listOwnerId="u1"
+        onListGone={onListGone}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    fireEvent.click(screen.getByRole('button', { name: /gestionar miembros/i }))
+    fireEvent.click(screen.getByText('Sospechar (mock)'))
+
+    await waitFor(() => expect(onListGone).toHaveBeenCalledWith('not_found'))
   })
 })
 
