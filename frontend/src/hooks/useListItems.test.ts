@@ -475,8 +475,8 @@ describe('useListItems — stale-while-revalidate cache', () => {
   })
 })
 
-describe('useListItems — write queue on network error', () => {
-  it('addItem: keeps temp item in list on network error', async () => {
+describe('useListItems — errors roll back the optimistic write', () => {
+  it('addItem: removes temp item on network error', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
     vi.mocked(api.createItem).mockRejectedValue(
       new TypeError('Failed to fetch'),
@@ -497,12 +497,9 @@ describe('useListItems — write queue on network error', () => {
       })
     })
 
-    // temp item should still be in list (not rolled back)
-    expect(result.current.items).toHaveLength(2)
-    expect(result.current.items.some((i) => i.name === 'Nueva')).toBe(true)
-    expect(offlineQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'addItem', listId: 'list-1' }),
-    )
+    expect(result.current.items).toHaveLength(1)
+    expect(mockShowToast).toHaveBeenCalledWith('No se pudo añadir el producto')
+    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
 
   it('addItem: removes temp item on server error (ApiError)', async () => {
@@ -530,7 +527,7 @@ describe('useListItems — write queue on network error', () => {
     expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
 
-  it('togglePurchased: keeps toggled state on network error', async () => {
+  it('togglePurchased: rolls back on network error', async () => {
     vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
     vi.mocked(api.updateItem).mockRejectedValue(
       new TypeError('Failed to fetch'),
@@ -545,11 +542,11 @@ describe('useListItems — write queue on network error', () => {
       await result.current.togglePurchased('item-1')
     })
 
-    // item should be marked as purchased (not rolled back)
-    expect(result.current.items[0].purchased).toBe(true)
-    expect(offlineQueue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'updateItem', listId: 'list-1' }),
+    expect(result.current.items[0].purchased).toBe(false)
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'No se pudo actualizar el producto',
     )
+    expect(offlineQueue.enqueue).not.toHaveBeenCalled()
   })
 
   it('togglePurchased: rolls back on server error', async () => {

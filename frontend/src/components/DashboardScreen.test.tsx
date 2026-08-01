@@ -826,19 +826,6 @@ describe('DashboardScreen — offline', () => {
     localStorage.removeItem('cqs_dashboard_cache_u1')
   })
 
-  it('shows offline banner when navigator.onLine is false', async () => {
-    Object.defineProperty(navigator, 'onLine', {
-      value: false,
-      configurable: true,
-    })
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-
-    render(<DashboardScreen />)
-    await waitFor(() =>
-      expect(screen.getByText(/sin conexión/i)).toBeInTheDocument(),
-    )
-  })
-
   it('saves fetched lists to cache', async () => {
     localStorage.removeItem('cqs_dashboard_cache_u1')
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)

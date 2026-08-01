@@ -22,7 +22,6 @@ interface Props {
   ) => void
   onDelete?: () => Promise<void>
   onClose: () => void
-  isOffline?: boolean
 }
 
 export default function LogPurchaseSheet({
@@ -35,7 +34,6 @@ export default function LogPurchaseSheet({
   onSave,
   onDelete,
   onClose,
-  isOffline,
 }: Props) {
   const sheetRef = useRef<HTMLDivElement>(null)
   const swipe = useSwipeToDismiss(sheetRef, onClose)
@@ -204,11 +202,10 @@ export default function LogPurchaseSheet({
           />
         )}
       </div>
-      {isOffline && <p className="lps__offline-msg">Disponible con conexión</p>}
       <button
         className="lps__save"
         onClick={handleSave}
-        disabled={!canSave || !!isOffline}
+        disabled={!canSave}
         type="button"
       >
         Guardar

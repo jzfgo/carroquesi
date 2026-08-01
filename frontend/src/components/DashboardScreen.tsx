@@ -18,7 +18,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
 import { useApplePlatform } from '../hooks/useApplePlatform'
-import { useIsOffline } from '../hooks/useIsOffline'
+import { useOnline } from '../hooks/useOnline'
 import { usePageTitle } from '../hooks/usePageTitle'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import type { FeedbackPayload } from '../lib/api'
@@ -102,7 +102,7 @@ export function DashboardScreen() {
   const navigate = useNavigate()
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
-  const { isOffline } = useIsOffline()
+  const isOffline = !useOnline()
   usePageTitle(undefined)
   const [activeList, setActiveList] = useState<ApiList | null>(null)
   const [emojiList, setEmojiList] = useState<ApiList | null>(null)
@@ -456,11 +456,6 @@ export function DashboardScreen() {
           )}
         </div>
       </header>
-      {isOffline && (
-        <div className="offline-banner" role="status">
-          Sin conexión
-        </div>
-      )}
       <main className="dashboard-screen__lists">
         <InstallBanner
           isInstallable={isInstallable}

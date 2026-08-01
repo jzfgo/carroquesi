@@ -734,46 +734,6 @@ test('inferredStoreChip=null — no extra chip rendered', () => {
   expect(screen.queryByTestId('inferred-store-chip')).not.toBeInTheDocument()
 })
 
-test('barcode scan button is disabled when isOffline is true', () => {
-  render(
-    <SmartInputBar
-      value=""
-      parsed={parseInput('')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={noop}
-      onSubmit={noop}
-      onClear={noop}
-      onScanRequest={noop}
-      onEanSearch={noop}
-      isOffline={true}
-    />,
-  )
-  expect(
-    screen.getByRole('button', { name: /escanear código de barras/i }),
-  ).toBeDisabled()
-})
-
-test('barcode scan button is enabled when isOffline is false', () => {
-  render(
-    <SmartInputBar
-      value=""
-      parsed={parseInput('')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={noop}
-      onSubmit={noop}
-      onClear={noop}
-      onScanRequest={noop}
-      onEanSearch={noop}
-      isOffline={false}
-    />,
-  )
-  expect(
-    screen.getByRole('button', { name: /escanear código de barras/i }),
-  ).not.toBeDisabled()
-})
-
 // ── Due suggestions button ────────────────────────────────────────────────────
 
 test('✨ button renders when dueSuggestionsCount > 0', () => {

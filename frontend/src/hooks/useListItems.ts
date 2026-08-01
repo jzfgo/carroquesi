@@ -12,8 +12,7 @@ import {
   updatePrice,
 } from '../lib/api'
 import { AVATAR_COLORS } from '../lib/avatarColors'
-import { isNetworkError } from '../lib/networkError'
-import { enqueue } from '../lib/offlineQueue'
+import { isOnline } from '../lib/connectivity'
 import { reconcileItems } from '../lib/reconcileItems'
 import type {
   BackendMember,
@@ -24,6 +23,7 @@ import type {
 } from '../types'
 
 const DUPLICATE_TOAST = 'Ya está en la lista'
+const OFFLINE_TOAST = 'Sin conexión'
 
 type Status = 'loading' | 'error' | 'success'
 
@@ -216,6 +216,10 @@ export function useListItems(
 
   const togglePurchased = useCallback(
     async (itemId: string) => {
+      if (!isOnline()) {
+        showToast(OFFLINE_TOAST)
+        return
+      }
       const snapshot = itemsRef.current
       const targetItem = snapshot.find((i) => i.id === itemId)
       const prevPurchased = targetItem?.purchased ?? false
@@ -253,17 +257,9 @@ export function useListItems(
         await updateItem(getToken, listId, itemId, {
           purchased: !prevPurchased,
         })
-      } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueue({
-            listId,
-            type: 'updateItem',
-            payload: { itemId, patch: { purchased: !prevPurchased } },
-          })
-        } else {
-          setItems(snapshot)
-          showToast('No se pudo actualizar el producto')
-        }
+      } catch {
+        setItems(snapshot)
+        showToast('No se pudo actualizar el producto')
       } finally {
         markWritten(itemId)
       }
@@ -273,6 +269,10 @@ export function useListItems(
 
   const addItem = useCallback(
     async (parsed: ParsedInput) => {
+      if (!isOnline()) {
+        showToast(OFFLINE_TOAST)
+        return
+      }
       const nameLower = parsed.name.trim().toLowerCase()
       const isDuplicate = itemsRef.current.some(
         (i) =>
@@ -334,29 +334,11 @@ export function useListItems(
         // predates the swap knows it only by the temporary one.
         markWritten(tempId, created.id)
       } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueue({
-            listId,
-            type: 'addItem',
-            tempId,
-            payload: {
-              name: parsed.name,
-              quantity: parsed.quantity,
-              brand: parsed.brand,
-              stores: parsed.stores,
-              ean: parsed.ean ?? null,
-              price: null,
-              price_per: null,
-              price_store: null,
-            },
-          })
+        setItems((prev) => prev.filter((i) => i.id !== tempId))
+        if (err instanceof ApiError && err.status === 409) {
+          showToast(DUPLICATE_TOAST)
         } else {
-          setItems((prev) => prev.filter((i) => i.id !== tempId))
-          if (err instanceof ApiError && err.status === 409) {
-            showToast(DUPLICATE_TOAST)
-          } else {
-            showToast('No se pudo añadir el producto')
-          }
+          showToast('No se pudo añadir el producto')
         }
         markWritten(tempId)
       }
@@ -366,6 +348,10 @@ export function useListItems(
 
   const updateTag = useCallback(
     async (itemId: string, field: TagField, value: string | null) => {
+      if (!isOnline()) {
+        showToast(OFFLINE_TOAST)
+        return
+      }
       const snapshot = itemsRef.current
       setItems(
         snapshot.map((i) => (i.id === itemId ? { ...i, [field]: value } : i)),
@@ -373,17 +359,9 @@ export function useListItems(
       markWritten(itemId)
       try {
         await updateItem(getToken, listId, itemId, { [field]: value })
-      } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueue({
-            listId,
-            type: 'updateItem',
-            payload: { itemId, patch: { [field]: value } },
-          })
-        } else {
-          setItems(snapshot)
-          showToast('No se pudo actualizar el producto')
-        }
+      } catch {
+        setItems(snapshot)
+        showToast('No se pudo actualizar el producto')
       } finally {
         markWritten(itemId)
       }
@@ -393,22 +371,18 @@ export function useListItems(
 
   const updateStores = useCallback(
     async (itemId: string, stores: string[]) => {
+      if (!isOnline()) {
+        showToast(OFFLINE_TOAST)
+        return
+      }
       const snapshot = itemsRef.current
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, stores } : i)))
       markWritten(itemId)
       try {
         await updateItem(getToken, listId, itemId, { stores })
-      } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueue({
-            listId,
-            type: 'updateItem',
-            payload: { itemId, patch: { stores } },
-          })
-        } else {
-          setItems(snapshot)
-          showToast('No se pudo actualizar el producto')
-        }
+      } catch {
+        setItems(snapshot)
+        showToast('No se pudo actualizar el producto')
       } finally {
         markWritten(itemId)
       }
@@ -418,22 +392,18 @@ export function useListItems(
 
   const renameItem = useCallback(
     async (itemId: string, name: string) => {
+      if (!isOnline()) {
+        showToast(OFFLINE_TOAST)
+        return
+      }
       const snapshot = itemsRef.current
       setItems(snapshot.map((i) => (i.id === itemId ? { ...i, name } : i)))
       markWritten(itemId)
       try {
         await updateItem(getToken, listId, itemId, { name })
-      } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueue({
-            listId,
-            type: 'updateItem',
-            payload: { itemId, patch: { name } },
-          })
-        } else {
-          setItems(snapshot)
-          showToast('No se pudo renombrar el producto')
-        }
+      } catch {
+        setItems(snapshot)
+        showToast('No se pudo renombrar el producto')
       } finally {
         markWritten(itemId)
       }
@@ -443,18 +413,18 @@ export function useListItems(
 
   const removeItem = useCallback(
     async (itemId: string) => {
+      if (!isOnline()) {
+        showToast(OFFLINE_TOAST)
+        return
+      }
       const snapshot = itemsRef.current
       setItems((prev) => prev.filter((i) => i.id !== itemId))
       markWritten(itemId)
       try {
         await deleteItem(getToken, listId, itemId)
-      } catch (err) {
-        if (isNetworkError(err)) {
-          await enqueue({ listId, type: 'deleteItem', payload: { itemId } })
-        } else {
-          setItems(snapshot)
-          showToast('No se pudo eliminar el producto')
-        }
+      } catch {
+        setItems(snapshot)
+        showToast('No se pudo eliminar el producto')
       } finally {
         markWritten(itemId)
       }
@@ -470,6 +440,10 @@ export function useListItems(
       store: string | null,
       purchasedQuantity?: string | null,
     ) => {
+      if (!isOnline()) {
+        showToast(OFFLINE_TOAST)
+        return
+      }
       const item = itemsRef.current.find((i) => i.id === itemId)
       const payload = { amount, price_per: pricePer, store }
       const fn = item?.price != null ? updatePrice : logPrice
@@ -500,11 +474,15 @@ export function useListItems(
       // enough: by the time a later read starts, the server already answered.
       markWritten(itemId)
     },
-    [getToken, listId, markWritten],
+    [getToken, listId, markWritten, showToast],
   )
 
   const clearItemPrice = useCallback(
     async (itemId: string) => {
+      if (!isOnline()) {
+        showToast(OFFLINE_TOAST)
+        return
+      }
       await deletePrice(getToken, listId, itemId)
       setItems((prev) =>
         prev.map((i) =>
@@ -515,7 +493,7 @@ export function useListItems(
       )
       markWritten(itemId)
     },
-    [getToken, listId, markWritten],
+    [getToken, listId, markWritten, showToast],
   )
 
   return {

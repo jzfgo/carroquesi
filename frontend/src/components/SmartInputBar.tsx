@@ -76,7 +76,6 @@ interface Props {
   eanError?: string | null
   inferredStoreChip?: string | null
   onDismissInferredStore?: () => void
-  isOffline?: boolean
   dueSuggestionsCount?: number
   onDueSuggestionsOpen?: () => void
 }
@@ -96,7 +95,6 @@ export function SmartInputBar({
   eanError,
   inferredStoreChip,
   onDismissInferredStore,
-  isOffline = false,
   dueSuggestionsCount,
   onDueSuggestionsOpen,
 }: Props) {
@@ -284,7 +282,6 @@ export function SmartInputBar({
             onClick={onScanRequest}
             aria-label="Escanear código de barras"
             type="button"
-            disabled={isOffline}
           >
             <ScanBarcode size={20} />
           </button>
