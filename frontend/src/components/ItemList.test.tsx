@@ -5,8 +5,8 @@ import { purchasedDateLabel } from '../lib/itemCost'
 import type { ListItem, Member } from '../types'
 import { ItemList } from './ItemList'
 
-vi.mock('../contexts/AuthContext', () => ({
-  useAuth: vi.fn().mockReturnValue({
+vi.mock('../contexts/AuthContext', () => {
+  const auth = {
     user: {
       id: 'u1',
       displayName: 'Test',
@@ -18,8 +18,9 @@ vi.mock('../contexts/AuthContext', () => ({
     signIn: vi.fn(),
     signOut: vi.fn(),
     loading: false,
-  }),
-}))
+  }
+  return { useAuth: vi.fn(() => auth) }
+})
 
 const MEMBERS: Map<string, Member> = new Map()
 

@@ -136,7 +136,7 @@ vi.mock('./ReceiptScanSheet', () => ({
   ),
 }))
 
-const mockGetToken = vi.fn().mockResolvedValue('token')
+const mockGetToken = vi.fn(async () => 'token')
 
 const emptyHookResult = {
   status: 'success' as const,
