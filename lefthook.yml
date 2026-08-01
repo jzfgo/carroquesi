@@ -12,24 +12,44 @@
 
 pre-commit:
   parallel: true
-  commands:
-    backend-lint:
+  jobs:
+    - name: backend-lint
       root: "backend/"
       glob: "**/*.py"
       run: uv run ruff check --fix {staged_files} && uv run ruff format {staged_files}
       stage_fixed: true
 
-    frontend-lint:
-      root: "frontend/"
-      glob: "**/*.{ts,tsx}"
-      run: pnpm exec eslint --fix {staged_files}
-      stage_fixed: true
+    # The frontend steps share files: ESLint and stylelint rewrite the same
+    # ts/tsx and css files Prettier formats. The group is piped so only one
+    # fixer writes a file at a time — run in parallel, two fixers can write
+    # the same file at once and the slower one silently overwrites the
+    # faster one's fix. Prettier runs last so it formats the linters' output.
+    - name: frontend
+      group:
+        piped: true
+        jobs:
+          - name: frontend-lint
+            root: "frontend/"
+            glob: "**/*.{ts,tsx}"
+            run: pnpm exec eslint --fix {staged_files}
+            stage_fixed: true
 
-    frontend-stylelint:
-      root: "frontend/"
-      glob: "**/*.css"
-      run: pnpm exec stylelint --fix {staged_files}
-      stage_fixed: true
+          - name: frontend-stylelint
+            root: "frontend/"
+            glob: "**/*.css"
+            run: pnpm exec stylelint --fix {staged_files}
+            stage_fixed: true
+
+          # CI runs `prettier --check .` in frontend/, so what Prettier covers
+          # is decided by .prettierignore and Prettier's own parsers. No glob
+          # here on purpose: a glob would encode that coverage a second time,
+          # and the copies drift (Prettier formats *.md and *.json, which no
+          # lint glob matches). --ignore-unknown skips staged files Prettier
+          # has no parser for; ignore files still apply to explicit paths.
+          - name: frontend-format
+            root: "frontend/"
+            run: pnpm exec prettier --write --ignore-unknown {staged_files}
+            stage_fixed: true
 
     # Never commit platform-narrowed native bindings to pnpm-lock.yaml.
     #
@@ -40,7 +60,7 @@ pre-commit:
     # So we judge completeness, not presence: for each native-binding family
     # added, the staged lockfile must name that family at that version for more
     # than one OS.
-    lockfile-guard:
+    - name: lockfile-guard
       glob: "frontend/pnpm-lock.yaml"
       run: |
         # Arch segments may be hyphenated (linux-x64-gnu, linux-arm-musleabihf),
@@ -70,7 +90,7 @@ pre-commit:
           exit 1
         fi
 
-    secrets:
+    - name: secrets
       run: |
         if ! command -v gitleaks >/dev/null 2>&1; then
           echo "⚠️  gitleaks not found — skipping secret scan (install: brew install gitleaks)"
