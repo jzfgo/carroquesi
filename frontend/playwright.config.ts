@@ -75,21 +75,24 @@ export default defineConfig({
   // while showing the wrong UI never heals, because --update-snapshots only
   // rewrites what already failed.
   //
-  // 250 is known to be enough, not known to be tight. CI passes every screen
-  // on a runner that installs its own fonts, while the baselines come out of a
-  // container, so the gap between those two machines is at most 250 — a run
-  // that passes cannot say how much less.
+  // 50 comes from a measurement, not a guess. With this set to zero, the CI
+  // runner — which installs its own fonts, while every baseline comes out of
+  // the container — disagreed with the baselines by 6 to 23 pixels per screen,
+  // and twelve of the twenty-eight screens matched pixel for pixel. The counts
+  // were identical across every retry, so that is rasterization noise, not
+  // flake. The budget is roughly twice the worst case, which leaves room for
+  // the runner's fonts to drift a little without going red.
   //
   // What bounds it from above is the signal it has to preserve. The only
   // measurement of that is the strikethrough on a purchased item: deleting it
-  // moves about 75 pixels, which passes here. That particular loss no longer
-  // depends on this number — purchase-lifecycle.spec.ts now asserts the
-  // computed style, so the rule cannot vanish silently. The class of problem
-  // stands, though: 75 is the going rate for a visible affordance, and one
-  // without its own assertion would still slip through. So treat this as a
-  // number to lower, never to raise.
+  // moves about 75 pixels. That particular loss no longer depends on this
+  // number — purchase-lifecycle.spec.ts asserts the computed style, so the
+  // rule cannot vanish silently. The class of problem stands, though: 75 is
+  // the going rate for a visible affordance, and one smaller than this budget
+  // and without its own assertion would still slip through. So treat this as
+  // a number to lower, never to raise.
   expect: {
-    toHaveScreenshot: { maxDiffPixels: 250 },
+    toHaveScreenshot: { maxDiffPixels: 50 },
   },
   projects: [
     {

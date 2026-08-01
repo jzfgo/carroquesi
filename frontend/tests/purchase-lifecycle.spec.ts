@@ -83,8 +83,9 @@ for (const { name: themeName, colorScheme } of THEMES) {
       // the class above does not prove it renders — the modifier can be present
       // with the rule that styles it gone. The screenshot below is the only
       // other witness, and it cannot be trusted with this on its own: deleting
-      // the rule moves about 75 pixels, well inside the tolerance, so the
-      // affordance can leave the screen with all twelve baselines still green.
+      // the rule moves only about 75 pixels, close to the tolerance rather
+      // than far above it, so a budget raise or a font shift could let the
+      // affordance leave the screen with all the baselines still green.
       // Assert the computed style, which is what actually produces the pixels.
       // This does pin which element carries the rule: text-decoration paints
       // onto descendants without computing on them, so moving the rule to an
