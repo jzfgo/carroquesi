@@ -13,6 +13,7 @@ import {
 } from '../lib/api'
 import { AVATAR_COLORS } from '../lib/avatarColors'
 import { isOnline } from '../lib/connectivity'
+import { isSameCalendarDay } from '../lib/isSameCalendarDay'
 import { reconcileItems } from '../lib/reconcileItems'
 import type {
   BackendMember,
@@ -250,17 +251,12 @@ export function useListItems(
       // A purchase from a prior calendar day cannot be undone — unless its
       // record was written within the grace window, because a receipt scan
       // backdates purchases and a wrong link must stay reversible. The server
-      // enforces the same rule; this copy only saves the round-trip.
+      // enforces the same rule in the same calendar (every request declares
+      // the viewer's timezone); this copy only saves the round-trip.
       if (prevPurchased && targetItem?.purchased_at) {
-        const purchasedDate = new Date(targetItem.purchased_at + 'Z')
-        const today = new Date()
-        const sameDay =
-          purchasedDate.getFullYear() === today.getFullYear() &&
-          purchasedDate.getMonth() === today.getMonth() &&
-          purchasedDate.getDate() === today.getDate()
         const writtenAt = new Date(targetItem.updated_at + 'Z').getTime()
         const withinGrace = Date.now() - writtenAt <= UNPURCHASE_GRACE_MS
-        if (!sameDay && !withinGrace) {
+        if (!isSameCalendarDay(targetItem.purchased_at) && !withinGrace) {
           showToast('No se puede desmarcar un producto comprado en otro día')
           return
         }

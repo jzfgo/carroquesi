@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 from app.db.models import List, ListItem, User
 from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
+from app.services.client_day import ClientTimezone, same_client_day
 from app.services.push import notify_list_change
 
 logger = logging.getLogger(__name__)
@@ -87,6 +88,7 @@ def update_item(
     body: ItemUpdate,
     list_and_user: MemberOrDefaultDep,
     session: CurrentSession,
+    client_tz: ClientTimezone,
 ):
     lst, current_user = list_and_user
     item = session.get(ListItem, item_id)
@@ -103,7 +105,7 @@ def update_item(
     elif purchased is False:
         if item.purchased_at is not None:
             now = datetime.now(UTC).replace(tzinfo=None)
-            purchased_today = item.purchased_at.date() == now.date()
+            purchased_today = same_client_day(item.purchased_at, client_tz, now=now)
             recently_written = now - item.updated_at <= UNPURCHASE_GRACE
             if not purchased_today and not recently_written:
                 raise HTTPException(

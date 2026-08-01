@@ -210,6 +210,47 @@ def test_cannot_unpurchase_when_write_grace_expired(client: TestClient, session:
     assert response.status_code == 409
 
 
+def test_unpurchase_judges_today_in_the_clients_calendar(client: TestClient, session: Session):
+    """The X-Client-Timezone header decides whose day the guard compares.
+
+    Same construction as the price-delete twin: a fixed-offset zone whose
+    calendar day currently disagrees with UTC's, a purchase instant the
+    two calendars judge differently, and an expected verdict opposite to
+    the UTC one. The write grace is pushed out of the way so only the day
+    rule decides.
+    """
+    from app.db.models import ListItem
+    from app.routers.items import UNPURCHASE_GRACE
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if now.hour < 12:
+        tz = "Etc/GMT+12"
+        purchased_at = now - timedelta(hours=now.hour + 1)
+        expected = 200
+    else:
+        tz = "Etc/GMT-14"
+        purchased_at = now.replace(hour=9, minute=30)
+        expected = 409
+
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    db_item.purchased_at = purchased_at
+    db_item.updated_at = now - UNPURCHASE_GRACE - timedelta(minutes=1)
+    session.add(db_item)
+    session.commit()
+
+    response = client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"purchased": False},
+        headers={"X-Client-Timezone": tz},
+    )
+    assert response.status_code == expected
+
+
 def test_add_item_with_ean(client: TestClient):
     lst = _create_list(client)
     response = client.post(
