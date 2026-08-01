@@ -144,4 +144,6 @@ For reference, the **canonical deployment** (the one the maintainer runs) uses:
 
 **Firebase Auth is the one genuine exception.** It is a dependency, not a deployment choice: the backend validates Firebase ID tokens via the Admin SDK ([ADR-002](docs/decisions/002-firebase-auth-only-postgres-for-data.md)), so a Firebase project is required no matter where you host. Firebase *Hosting* is not required — the two are independent despite the shared name.
 
+**Whichever static host you pick, serve `assets/` immutable and everything else short.** The Vite build content-hashes every file under `assets/` — scripts, styles and the font faces — so those can safely take `Cache-Control: public, max-age=31536000, immutable`. The files beside it (`index.html`, `sw.js`, `registerSW.js`, `manifest.webmanifest`) keep fixed names across builds and must not, or a device that has cached the service worker will never see another one. `frontend/firebase.json` does this for the canonical deployment.
+
 Whatever you deploy on, the backup policy for it is yours to own. [ADR-008](docs/decisions/008-database-backup-policy.md) documents the canonical deployment's; the Neon commands won't apply elsewhere, but the decision structure does.

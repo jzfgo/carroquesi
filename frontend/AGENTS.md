@@ -11,10 +11,23 @@
 
 **The faces are vendored, not fetched.** `src/fonts.css` declares them and `src/assets/fonts/` holds the bytes; nothing in the app talks to `fonts.googleapis.com` or `fonts.gstatic.com`. They are **static files, checked in** — there is no generator, and there is deliberately not one: a refresh is a manual job of a few minutes that comes round every year or two, and the header comment in `src/fonts.css` is the whole recipe. Read it before changing a family, a weight or a subset.
 
-Two things in it that are load-bearing:
+Three things in it that are load-bearing:
 
 - **The `@font-face` blocks are Google's, copied through unedited.** Three of the five families are variable, so Google emits one block per requested weight all pointing at the same file. Collapsing those into a `font-weight: 400 700` range changes which instance the browser picks; dropping `unicode-range` downloads every subset on every page.
 - **A changed `.woff2` is a rendering change app-wide.** Regenerate the visual baselines in the same PR, and say in the message that letterforms moved — see the tolerance section in `tests/README.md` for why a font refresh can move every screen by less than the budget and fail nothing.
+- **Only ask for a weight the family has.** `fonts.css` is the list, and it is shorter than it looks:
+
+  | family          | token            | vendored weights      |
+  | --------------- | ---------------- | --------------------- |
+  | Geist           | `--font-sans`    | 400 / 500 / 600 / 700 |
+  | Caveat          | `--font-hand`    | 400 / 500 / 600 / 700 |
+  | JetBrains Mono  | `--font-mono`    | 400 / 500 / 600       |
+  | Bree Serif      | `--font-display` | **400 only**          |
+  | Patrick Hand SC | `--font-written` | **400 only**          |
+
+  Asking for a weight that is not there fails in the worst way available: below 600 the browser quietly selects the nearest face, at 600 and above it smears the outlines into a synthetic bold. Those two outcomes look nothing alike, the amount of smear differs between engines, and nothing in CI can tell you which one you got. Count the rows above before writing a `font-weight` next to one of these tokens — the two single-weight families are the ones that bite, and `--font-display` is inherited by every `h1`/`h2`.
+
+  Four rules breach this today and are known: `.rls__title` and `.invite-screen__list-name` at 700, `.settings-sheet__block-title` and `.waitlist__success-headline` at 600. All four are synthetic bold. They are left alone because correcting them decides how much emphasis a heading carries, which is a design question rather than a bug — but do not read them as a precedent, and do not lengthen this list without making that decision. Nothing else breaches it: `--font-serif` is an unused alias of `--font-display`, no descendant of a `--font-written` element asks for a heavier cut, and the heaviest live `--font-mono` request is 600.
 
 Never hard-code a face in a component. Resolve through the tokens in `colorsAndType.css` (`--font-sans`, `--font-display`, `--font-hand`, `--font-written`, `--font-mono`); `--written-scale` is a cap-height correction measured against the specific face `--font-written` names, so swapping that face means re-measuring the number.
 
