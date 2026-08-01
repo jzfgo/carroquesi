@@ -89,7 +89,7 @@ export default defineConfig({
   // without its own assertion would still slip through. So treat this as a
   // number to lower, never to raise.
   expect: {
-    toHaveScreenshot: { maxDiffPixels: 250 },
+    toHaveScreenshot: { maxDiffPixels: 0 },
   },
   projects: [
     {
