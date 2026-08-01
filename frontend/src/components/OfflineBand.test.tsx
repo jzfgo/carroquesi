@@ -110,12 +110,9 @@ describe('OfflineBand', () => {
   })
 })
 
-/**
- * A second outage inside the first reconnection's window used to inherit
- * whatever was left of it: `setRestored(true)` on an already-true state bails
- * out of the render, so the timer effect never re-ran.
- */
-it('gives a second reconnection its own window', () => {
+/** Losing the signal again clears the pending dismissal, so the window that
+ *  follows is a fresh one rather than the remainder of the last. */
+it('gives a reconnection after a fresh outage its own window', () => {
   render(<OfflineBand />)
   announce(false)
   announce(true)
@@ -127,6 +124,38 @@ it('gives a second reconnection its own window', () => {
   announce(true)
 
   // Would already be gone if the first window had carried over.
+  act(() => {
+    vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
+  })
+  expect(screen.getByText('De nuevo en línea')).toBeInTheDocument()
+
+  act(() => {
+    vi.advanceTimersByTime(600)
+  })
+  expect(screen.queryByText('De nuevo en línea')).toBeNull()
+})
+
+/**
+ * The case the counter exists for, and the one the test above does *not*
+ * cover: a browser can fire `online` with no `offline` between them — a
+ * wifi→cellular handover. Under a boolean, setting `true` over `true` bails
+ * out of the render, the effect never re-runs, and the second window inherits
+ * what was left of the first.
+ *
+ * Neuter `setRestoreCount((n) => n + 1)` to `setRestoreCount(1)` and only this
+ * one goes red.
+ */
+it('restarts the window on a handover, with no outage between', () => {
+  render(<OfflineBand />)
+  announce(false)
+  announce(true)
+
+  act(() => {
+    vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
+  })
+  // No `announce(false)`: the signal never dropped, it changed underneath.
+  announce(true)
+
   act(() => {
     vi.advanceTimersByTime(AUTO_DISMISS_MS - 500)
   })

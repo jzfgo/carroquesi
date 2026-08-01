@@ -509,6 +509,56 @@ describe('ListScreen', () => {
     })
   })
 
+  /**
+   * The «Añadir a la lista» button is disabled offline, so this can only be
+   * reached in the window between the `offline` event and React drawing it —
+   * which is exactly why the handler refuses too. What it protects is the
+   * costliest string in the input bar to have to key twice.
+   */
+  it('will not add a scanned code without a connection, and keeps what was typed', async () => {
+    const addItemMock = vi.fn()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      addItem: addItemMock,
+    })
+    vi.mocked(api.getBarcode).mockResolvedValueOnce({
+      ean: '8412345678901',
+      name: 'Tomates',
+      brand: 'Carrefour',
+      stores: ['Carrefour'],
+      community_price: null,
+      community_price_per: null,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    const input = screen.getByRole('textbox', { name: /añadir producto/i })
+    fireEvent.change(input, { target: { value: '|8412345678901' } })
+    fireEvent.click(screen.getByRole('button', { name: /buscar producto/i }))
+    await waitFor(() => expect(screen.getByText('Tomates')).toBeInTheDocument())
+
+    // The signal goes after the lookup landed, which is the ordinary way to
+    // arrive here: the sheet is already open and the code already typed.
+    Object.defineProperty(navigator, 'onLine', {
+      configurable: true,
+      get: () => false,
+    })
+    try {
+      fireEvent.click(
+        screen.getByRole('button', { name: /añadir a la lista/i }),
+      )
+
+      expect(addItemMock).not.toHaveBeenCalled()
+      expect(input).toHaveValue('|8412345678901')
+    } finally {
+      // In the `finally`, not after the assertions: a failure here would
+      // otherwise leave every later test in this file running offline, and
+      // one red test would read as seventeen.
+      delete (navigator as { onLine?: boolean }).onLine
+    }
+    expect(navigator.onLine).toBe(true)
+  })
+
   it('opens DueSuggestionsSheet and handles adding suggestions', async () => {
     const addItemMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({

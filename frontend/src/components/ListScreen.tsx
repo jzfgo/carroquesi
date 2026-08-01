@@ -673,6 +673,7 @@ export function ListScreen({
 
   const handleScanAdd = useCallback(
     (item: { name: string; brand: string | null; stores: string[] }) => {
+      if (isOfflineNow()) return
       const ean = scannedProduct?.ean ?? null
       setScannedProduct(null)
       void addItem({
@@ -827,6 +828,9 @@ export function ListScreen({
 
   const handleEanAdd = useCallback(
     (item: { name: string; brand: string | null; stores: string[] }) => {
+      // The costliest string in the bar to have to type twice: a hand-keyed
+      // EAN, cleared here whether or not the add happened.
+      if (isOfflineNow()) return
       const ean = eanLookup.status === 'found' ? eanLookup.product.ean : null
       setEanLookup({ status: 'idle' })
       setInputValue('')
@@ -848,6 +852,9 @@ export function ListScreen({
 
   const handleSuggestionAdd = useCallback(
     (s: DueSuggestion) => {
+      // The setter runs after the add here rather than before, which does not
+      // change the class: the row leaves the sheet either way.
+      if (isOfflineNow()) return
       void addItem({
         name: s.name,
         brand: s.brand,
@@ -1051,6 +1058,7 @@ export function ListScreen({
                 item={editedItem}
                 items={items}
                 onSave={(stores: string[]) => {
+                  if (isOfflineNow()) return
                   void updateStores(editingTag.itemId, stores)
                   setEditingTag(null)
                 }}
@@ -1066,6 +1074,7 @@ export function ListScreen({
               field={editingTag.field}
               items={items}
               onSave={(value) => {
+                if (isOfflineNow()) return
                 void updateTag(
                   editingTag.itemId,
                   editingTag.field as TagField,
@@ -1103,10 +1112,12 @@ export function ListScreen({
                 handleOpenLogPrice(activeItemId)
               }}
               onRename={(name) => {
+                if (isOfflineNow()) return
                 void renameItem(activeItemId, name)
                 setActiveItemId(null)
               }}
               onDelete={() => {
+                if (isOfflineNow()) return
                 void removeItem(activeItemId)
                 setActiveItemId(null)
               }}
