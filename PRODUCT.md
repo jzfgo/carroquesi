@@ -31,7 +31,7 @@ Four things together, none of which a generic shared-list app could truthfully c
 1. **Price memory built from real receipts.** Scan a supermarket receipt, an AI pass parses the lines, the backend fuzzy-matches them to list items, and after review the prices land on the items. From then on each item carries a price history, and a shopping session shows a running cost total. The list becomes the household's own price record — not a store's, not a comparison site's.
 2. **A list that partly writes itself.** Purchase history produces product suggestions and "due again" prompts, so the weekly list is not rebuilt from zero.
 3. **Built for a household, not a power user.** Google Sign-In, share a link, done. No workspaces, no roles to configure, no onboarding to read.
-4. **Designed for the aisle, not the desk.** Installable PWA, offline write queue that replays on reconnect, barcode scanning, and push notifications — for a phone held one-handed in a supermarket with poor signal.
+4. **Designed for the aisle, not the desk.** Installable PWA, a cached list that stays readable without signal, barcode scanning, and push notifications — for a phone held one-handed in a supermarket with poor signal.
 
 The receipt→price loop is the sharpest of the four: it is the only one that produces data the household could not get anywhere else.
 
@@ -40,7 +40,7 @@ The receipt→price loop is the sharpest of the four: it is the only one that pr
 - **Two distinct moments.** *Composing* (at home, calm, adding and tidying items) and *shopping* (in-store, one hand, moving, glancing). The same screens serve both; the in-store moment is the harsher constraint and wins ties.
 - **Two-device concurrency is the normal case, not an edge case.** Two people in the same list at the same time — one at home adding, one in the store checking off — is the situation the product exists for. State changes between any two interactions.
 - **Sync is short-polling**, every 5 seconds against a list timestamp, with a re-fetch only on change ([ADR-001](docs/decisions/001-short-polling-for-list-sync.md)). Web Push complements it — polling keeps an *open* app fresh, push reaches a *closed* one — and is best-effort: unavailable on iOS without a home-screen install, so it can never be relied on as a sync mechanism ([ADR-010](docs/decisions/010-web-push-via-fcm.md)).
-- **Connectivity is unreliable by assumption.** Item writes go through an IndexedDB offline queue and replay on reconnect; they never hit the API directly.
+- **Connectivity is unreliable by assumption.** The app detects offline from evidence (browser events plus failed requests, so a flaky one-bar connection counts too), says so in a band, and goes read-only: the cached list stays visible, writes are refused with a toast. Recovery is announced and polling re-syncs within one tick ([ADR-011](docs/decisions/011-offline-is-read-only.md)).
 - **The receipt is a physical artifact** photographed under supermarket or kitchen lighting — crumpled, thermal-printed, sometimes truncated. Parsing is imperfect by nature, which is why a human review step sits between the AI parse and the applied prices.
 - **Stores are named, not enumerated.** Prices are logged against free-text store names (the seed data uses Carrefour, Lidl, Dia, and El Corte Inglés; users type whatever they shop at), and per-store name mappings are learned from receipts over time.
 
@@ -106,7 +106,7 @@ Absences future work must **not** fabricate:
 
 1. **The aisle wins the tie.** When the calm at-home moment and the one-handed in-store moment want different things, design for the store. It is the harder scene and the one the product exists for.
 2. **Assume two people and a changing list.** Anything that only holds for a single user, a stable snapshot, an empty list, or a short one is not finished. Concurrency and unreliable connectivity are the normal case, not edge cases.
-3. **Never lose a write.** Offline queueing is the contract, not an optimization. A path that bypasses it silently drops the user's work.
+3. **Offline is honest.** You can always see your list. A write the app cannot deliver is refused visibly, never dropped silently and never queued to resurface later. A path that fails a write without telling the user breaks this contract.
 4. **The craft bar is a non-technical household succeeding unaided.** Nothing ships whose value requires the maintainer to explain it. If only a developer would use it, it is feature creep.
 5. **Earned data, honestly shown.** Prices, history, and suggestions come from what the household actually bought. Never present inferred or fabricated numbers as recorded ones, and keep imperfect AI output behind human review.
 6. **Complexity is earned.** This is a household tool for its maintainer and the people close to them, and a showcase of how that maintainer builds products. Enterprise hardening is not the goal. Some jank is fine when removing it would cost more than the harm it does. Prefer a design that makes a failure impossible over one that handles it. Do not add a branch for a state the data model cannot produce.
