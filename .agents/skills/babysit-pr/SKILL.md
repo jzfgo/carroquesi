@@ -164,10 +164,12 @@ which may be a CI run rather than the review action.
 
 ```bash
 # 1. resolve the run id(s) from the claude comment(s) on THIS PR —
-#    one per comment, from the [View job] link only, in comment order
+#    one per comment, from the [View job] link only, in comment order.
+#    The rendered link text varies: "View job" once finished, "View job run"
+#    on the in-progress placeholder — the pattern must accept both.
 gh api repos/:owner/:repo/issues/<number>/comments --paginate \
   --jq '.[] | select(.user.login=="claude[bot]") | .body' \
-  | grep -oE '\[View job\]\([^)]*/runs/[0-9]+' | grep -oE '[0-9]+$'
+  | grep -oE '\[View job[^]]*\]\([^)]*/runs/[0-9]+' | grep -oE '[0-9]+$'
 
 # 2. primary gate: that run has finished
 gh run view <run-id> --json status,conclusion --jq '"\(.status)/\(.conclusion)"'
