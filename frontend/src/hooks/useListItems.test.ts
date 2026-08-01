@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../lib/api'
 import { ApiError } from '../lib/api'
+import { reportRequestOutcome } from '../lib/connectivity'
 import type { ListItem } from '../types'
 import { useListItems } from './useListItems'
 
@@ -1097,5 +1098,54 @@ describe('useListItems — a poll that lands after a write settles', () => {
     expect(result.current.items.find((i) => i.id === 'item-1')?.purchased).toBe(
       true,
     )
+  })
+})
+
+describe('useListItems — offline guard', () => {
+  beforeEach(() => {
+    vi.mocked(api.getListItems).mockResolvedValue([item1] as never)
+    vi.mocked(api.createItem).mockClear()
+    vi.mocked(api.updateItem).mockClear()
+  })
+
+  afterEach(() => {
+    reportRequestOutcome(true)
+  })
+
+  it('addItem: refuses with a toast and touches nothing', async () => {
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    reportRequestOutcome(false)
+    await act(async () => {
+      await result.current.addItem({
+        name: 'Nueva',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
+    })
+
+    expect(result.current.items).toHaveLength(1)
+    expect(api.createItem).not.toHaveBeenCalled()
+    expect(mockShowToast).toHaveBeenCalledWith('Sin conexión')
+  })
+
+  it('togglePurchased: refuses with a toast and touches nothing', async () => {
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    reportRequestOutcome(false)
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(result.current.items[0].purchased).toBe(false)
+    expect(api.updateItem).not.toHaveBeenCalled()
+    expect(mockShowToast).toHaveBeenCalledWith('Sin conexión')
   })
 })
