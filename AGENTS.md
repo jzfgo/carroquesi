@@ -47,7 +47,8 @@ Important invariants:
 - invite acceptance is explicit before access is granted
 - at most one `list_members.is_default=true` per user; the Siri `"default"` resolver is explicit-only (no most-recently-updated fallback) and 404s when unset. Auto-assigned on a user's first list; never auto-promoted when a default list is deleted. Managed via `backend/app/services/default_list.py`. See [ADR-007](docs/decisions/007-per-user-default-list.md)
 - `list_members.last_seen_at` is the push unseen-count watermark. Reset it **only while the list is actually visible** (`POST /lists/{id}/seen`, called from `useListSeen`) — marking a backgrounded tab as seen silently defeats the feature. The count is *derived* from `list_items` at send time, never accumulated, so dropped or duplicate pushes cannot cause drift. See [ADR-010](docs/decisions/010-web-push-via-fcm.md)
-- push notifications fire on item creation and on `purchased_at` going `NULL` → set, and on nothing else. Un-purchasing is a correction and must stay silent
+- push notifications fire on item creation, on `purchased_at` going `NULL` → set, and on ownership transfer (`PUT /lists/{list_id}/owner`: `ownership_transferred` to the new owner, `owner_changed` to the other remaining members), and on nothing else. Un-purchasing is a correction and must stay silent
+- the list owner cannot leave their own list: owner self-leave answers 409 "Transfer ownership before leaving" — transfer first (owner-only; target must be a current member), then leave normally. Transfer moves only `lists.owner_id`; memberships and default-list flags stay untouched
 - prune a push token only on a **typed** FCM verdict (`UnregisteredError`, `SenderIdMismatchError`), never on an error-message substring — a global misconfiguration would otherwise delete every token in the table
 
 ## Frontend
