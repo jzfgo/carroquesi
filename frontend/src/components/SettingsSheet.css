@@ -71,6 +71,49 @@
   color: var(--ink-2);
 }
 
+/* The 34a appearance segment: a recessed 3-up track, outer radius 11 over
+   inner 8 through the 3px gap/padding. */
+.settings-sheet__segment {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  box-sizing: border-box;
+  margin: 6px 20px 2px;
+  padding: 3px;
+  border-radius: 11px;
+  background: var(--bg-sunken);
+}
+
+.settings-sheet__segment-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: var(--hit-min);
+  padding: 0;
+  border: none;
+  border-top: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
+/* The selected segment is lifted, and the lift follows rule 17: it always
+   carries the lit edge and the cast, and the token layer zeroes whichever
+   one the light does not use. */
+.settings-sheet__segment-btn[aria-checked='true'] {
+  border-top-color: var(--edge-lit-2);
+  background: var(--paper-lift);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
 /* 23a row: 52px minimum, text column left, control/chevron right. */
 .settings-sheet__row {
   display: grid;

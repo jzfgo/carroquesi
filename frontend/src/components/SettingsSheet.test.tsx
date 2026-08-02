@@ -6,6 +6,7 @@ import * as useApplePlatformModule from '../hooks/useApplePlatform'
 import * as usePWAInstallModule from '../hooks/usePWAInstall'
 import * as api from '../lib/api'
 import { SettingsSheet } from './SettingsSheet'
+import { ThemeManager } from './ThemeManager'
 
 vi.mock('../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 vi.mock('../contexts/FeatureFlagsContext', () => ({
@@ -30,6 +31,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.unstubAllGlobals()
   localStorage.removeItem('push-device-subscribed')
+  localStorage.removeItem('cqs_theme')
+  document.documentElement.classList.remove('theme-light', 'theme-dark')
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: {
       id: 'u1',
@@ -109,6 +112,121 @@ describe('SettingsSheet — identity and footer', () => {
     const { onClose } = renderSheet()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledOnce()
+  })
+})
+
+describe('SettingsSheet — Aspecto', () => {
+  // Class application lives in ThemeManager (subscribed to lib/theme), so the
+  // tests that assert the html class mount the sheet inside it, as App does.
+  function renderWithThemeManager() {
+    render(
+      <ThemeManager>
+        <SettingsSheet
+          defaultListName="Mercado"
+          onFeedback={vi.fn()}
+          onToast={vi.fn()}
+          onClose={vi.fn()}
+        />
+      </ThemeManager>,
+    )
+  }
+
+  it('renders the three options as radios, Sistema checked by default', () => {
+    renderSheet()
+    const group = screen.getByRole('radiogroup', { name: 'Aspecto' })
+    expect(group).toBeInTheDocument()
+    const radios = screen.getAllByRole('radio')
+    expect(radios.map((r) => r.textContent)).toEqual([
+      'Claro',
+      'Oscuro',
+      'Sistema',
+    ])
+    expect(screen.getByRole('radio', { name: 'Sistema' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    expect(screen.getByRole('radio', { name: 'Claro' })).toHaveAttribute(
+      'aria-checked',
+      'false',
+    )
+  })
+
+  it('is the first block, above Avisos', () => {
+    enablePushFlag()
+    vi.stubGlobal('Notification', { permission: 'default' })
+    renderSheet()
+    const aspecto = screen.getByText('Aspecto', { selector: 'h3' })
+    const avisos = screen.getByText('Avisos', { selector: 'h3' })
+    expect(
+      aspecto.compareDocumentPosition(avisos) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('picking Claro persists the preference and applies the light class', () => {
+    renderWithThemeManager()
+    fireEvent.click(screen.getByRole('radio', { name: 'Claro' }))
+    expect(localStorage.getItem('cqs_theme')).toBe('light')
+    expect(document.documentElement.classList.contains('theme-light')).toBe(
+      true,
+    )
+    expect(screen.getByRole('radio', { name: 'Claro' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+  })
+
+  it('picking Oscuro persists the preference and applies the dark class', () => {
+    renderWithThemeManager()
+    fireEvent.click(screen.getByRole('radio', { name: 'Oscuro' }))
+    expect(localStorage.getItem('cqs_theme')).toBe('dark')
+    expect(document.documentElement.classList.contains('theme-dark')).toBe(true)
+  })
+
+  it('returning to Sistema clears the stored key and both classes', () => {
+    renderWithThemeManager()
+    fireEvent.click(screen.getByRole('radio', { name: 'Oscuro' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Sistema' }))
+    expect(localStorage.getItem('cqs_theme')).toBeNull()
+    expect(document.documentElement.classList.contains('theme-dark')).toBe(
+      false,
+    )
+    expect(document.documentElement.classList.contains('theme-light')).toBe(
+      false,
+    )
+  })
+
+  it('reopens with the stored preference selected', () => {
+    localStorage.setItem('cqs_theme', 'dark')
+    renderSheet()
+    expect(screen.getByRole('radio', { name: 'Oscuro' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+  })
+
+  it('arrow keys move selection and focus, wrapping at the ends', () => {
+    renderSheet()
+    const sistema = screen.getByRole('radio', { name: 'Sistema' })
+    // Roving tabindex: only the checked radio is in the tab order.
+    expect(sistema).toHaveAttribute('tabindex', '0')
+    expect(screen.getByRole('radio', { name: 'Claro' })).toHaveAttribute(
+      'tabindex',
+      '-1',
+    )
+
+    sistema.focus()
+    fireEvent.keyDown(sistema, { key: 'ArrowRight' })
+    const claro = screen.getByRole('radio', { name: 'Claro' })
+    expect(claro).toHaveAttribute('aria-checked', 'true')
+    expect(claro).toHaveFocus()
+    expect(localStorage.getItem('cqs_theme')).toBe('light')
+
+    fireEvent.keyDown(claro, { key: 'ArrowLeft' })
+    const sistemaAgain = screen.getByRole('radio', { name: 'Sistema' })
+    expect(sistemaAgain).toHaveAttribute('aria-checked', 'true')
+    expect(sistemaAgain).toHaveFocus()
+    expect(localStorage.getItem('cqs_theme')).toBeNull()
   })
 })
 
