@@ -80,10 +80,7 @@ test('panel rows keep the 38a geometry', async ({ page }) => {
   const rows = page.locator('.list-card')
   await expect(rows).toHaveCount(SEED_LISTS.length)
 
-  const columns = await rows
-    .first()
-    .evaluate((el) => getComputedStyle(el).gridTemplateColumns)
-  expect(columns.startsWith('36px ')).toBe(true)
+  await expect(rows.first()).toHaveCSS('grid-template-columns', /^36px /)
 
   await expect(page.locator('.list-card__emoji').first()).toHaveCSS(
     'font-size',
