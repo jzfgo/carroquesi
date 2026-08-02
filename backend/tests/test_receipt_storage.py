@@ -64,14 +64,19 @@ def test_generate_upload_url_signs_a_constrained_put(mock_client):
 
 @pytest.mark.parametrize(
     ("content_type", "ext"),
-    [("image/jpeg", "jpg"), ("image/png", "png"), ("image/webp", "webp")],
+    [
+        ("image/jpeg", "jpg"),
+        ("image/png", "png"),
+        ("image/webp", "webp"),
+        ("application/pdf", "pdf"),
+    ],
 )
 def test_generate_upload_url_maps_content_type_to_extension(mock_client, content_type, ext):
     path, _ = receipt_storage.generate_upload_url("l", "s", content_type, max_bytes=1)
     assert path == f"receipts/l/s.{ext}"
 
 
-@pytest.mark.parametrize("content_type", ["image/gif", "application/pdf", "text/html", ""])
+@pytest.mark.parametrize("content_type", ["image/gif", "text/html", ""])
 def test_generate_upload_url_rejects_other_content_types(mock_client, content_type):
     with pytest.raises(ValueError):
         receipt_storage.generate_upload_url("l", "s", content_type, max_bytes=1)
