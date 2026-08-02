@@ -1,11 +1,4 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import * as reactRouter from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
@@ -222,13 +215,13 @@ describe('DashboardScreen', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/lists/l1')
   })
 
-  it('opens avatar menu on avatar click and calls signOut via menu item', async () => {
+  it('opens the settings sheet from the avatar and signs out from its footer', async () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    expect(screen.getByRole('menu')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('menuitem', { name: /cerrar sesión/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }))
+    expect(screen.getByRole('dialog', { name: 'Ajustes' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /salir de la cuenta/i }))
     expect(mockSignOut).toHaveBeenCalledOnce()
   })
 })
@@ -342,115 +335,52 @@ describe('DashboardScreen — list management', () => {
   })
 })
 
-describe('DashboardScreen — avatar menu and install banner', () => {
-  it('avatar menu closes when clicking outside', async () => {
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    expect(screen.getByRole('menu')).toBeInTheDocument()
-    fireEvent.mouseDown(document.body)
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-  })
-
-  it('avatar menu closes when Escape is pressed', async () => {
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    expect(screen.getByRole('menu')).toBeInTheDocument()
-    fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-  })
-
-  it('avatar menu shows "Instalar app" when installable', async () => {
+describe('DashboardScreen — settings sheet wiring', () => {
+  it('renders neither the install banner nor the inline notifications toggle', async () => {
+    // Both moved into the settings sheet; the dashboard keeps only the panel.
+    vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
+      isEnabled: (flag: string) => flag === 'push_notifications',
+    })
     vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
       isInstallable: true,
       isInstalled: false,
       isIOS: false,
       promptInstall: vi.fn(async () => undefined),
     })
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    expect(
-      screen.getByRole('menuitem', { name: /instalar app/i }),
-    ).toBeInTheDocument()
-  })
-
-  it('avatar menu hides "Instalar app" when not installable and not iOS', async () => {
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    expect(
-      screen.queryByRole('menuitem', { name: /instalar app/i }),
-    ).not.toBeInTheDocument()
-  })
-
-  it('clicking "Instalar app" calls promptInstall and closes menu', async () => {
-    const mockPromptInstall = vi.fn(async () => undefined)
-    vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
-      isInstallable: true,
-      isInstalled: false,
-      isIOS: false,
-      promptInstall: mockPromptInstall,
-    })
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /instalar app/i }))
-    expect(mockPromptInstall).toHaveBeenCalledOnce()
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
-  })
-
-  it('renders InstallBanner when installable', async () => {
-    vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
-      isInstallable: true,
-      isInstalled: false,
-      isIOS: false,
-      promptInstall: vi.fn(async () => undefined),
-    })
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    expect(screen.getByRole('complementary')).toBeInTheDocument()
-  })
-
-  it('does not render InstallBanner when not installable and not iOS', async () => {
+    vi.stubGlobal('Notification', { permission: 'default' })
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
     expect(screen.queryByRole('complementary')).not.toBeInTheDocument()
-  })
-
-  it('avatar menu hides "Instalar app" when already installed', async () => {
-    vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
-      isInstallable: true,
-      isInstalled: true,
-      isIOS: false,
-      promptInstall: vi.fn(async () => undefined),
-    })
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
     expect(
-      screen.queryByRole('menuitem', { name: /instalar app/i }),
+      screen.queryByRole('button', { name: /avisarme de cambios/i }),
     ).not.toBeInTheDocument()
+    vi.unstubAllGlobals()
   })
 
-  it('opens feedback sheet from avatar menu with the user email prefilled', async () => {
+  it('the settings sheet names the default list as the Siri destination', async () => {
+    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }))
+    // "Mercado" is the flagged default in twoLists.
+    expect(screen.getByText('Añade a «Mercado»')).toBeInTheDocument()
+    await waitFor(() => expect(api.issueApiKey).toHaveBeenCalledOnce())
+  })
+
+  it('"Contar algo al equipo" swaps to the feedback sheet with the email prefilled', async () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
 
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /enviar feedback/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: /contar algo al equipo/i }),
+    )
 
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    // One sheet at a time: settings is gone, feedback is up.
+    expect(screen.queryByRole('dialog', { name: 'Ajustes' })).toBeNull()
     expect(
       screen.getByRole('dialog', { name: /enviar feedback/i }),
     ).toBeInTheDocument()
@@ -466,8 +396,10 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
 
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /enviar feedback/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: /contar algo al equipo/i }),
+    )
     fireEvent.change(screen.getByLabelText(/mensaje/i), {
       target: { value: 'Great app' },
     })
@@ -492,8 +424,10 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
 
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    fireEvent.click(screen.getByRole('menuitem', { name: /enviar feedback/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: /contar algo al equipo/i }),
+    )
     fireEvent.change(screen.getByLabelText(/mensaje/i), {
       target: { value: 'Great app' },
     })
@@ -509,143 +443,13 @@ describe('DashboardScreen — avatar menu and install banner', () => {
     ).toBeInTheDocument()
   })
 
-  it('avatar menu shows "Añadir atajo a Siri" on Apple platforms', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    expect(
-      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
-    ).toBeInTheDocument()
-  })
-
-  it('avatar menu hides "Añadir atajo a Siri" on non-Apple platforms', async () => {
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    expect(
-      screen.queryByRole('menuitem', { name: /añadir atajo a siri/i }),
-    ).not.toBeInTheDocument()
-  })
-
-  // Opens the Siri sheet via the single menu item and waits for it to appear.
-  async function openSiriSheet() {
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    fireEvent.click(
-      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
-    )
-    await waitFor(() =>
-      expect(
-        screen.getByRole('dialog', { name: /atajo de siri/i }),
-      ).toBeInTheDocument(),
-    )
-  }
-
-  it('there is a single Siri menu item — no separate "Regenerar clave" entry', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    expect(
-      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
-    ).toBeInTheDocument()
-    // regeneration now lives inside the sheet, not the avatar menu
-    expect(
-      screen.queryByRole('menuitem', { name: /regenerar clave/i }),
-    ).not.toBeInTheDocument()
-  })
-
-  it('Siri sheet names the default list as the destination', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    await openSiriSheet()
-    // "Mercado" is the flagged default in twoLists.
-    expect(screen.getByText(/se añadirán a/i)).toBeInTheDocument()
-    expect(
-      within(screen.getByRole('dialog', { name: /atajo de siri/i })).getByText(
-        'Mercado',
-      ),
-    ).toBeInTheDocument()
-  })
-
-  it('blocks Siri setup and nudges when the user has no default list', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    const noDefault = twoLists.map((l) => ({ ...l, is_default: false }))
-    vi.mocked(api.getLists).mockResolvedValue(noDefault as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    fireEvent.click(
-      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
-    )
-    await waitFor(() =>
-      expect(
-        screen.getByText(/marca una lista como predeterminada/i),
-      ).toBeInTheDocument(),
-    )
-    expect(api.issueApiKey).not.toHaveBeenCalled()
-    expect(
-      screen.queryByRole('dialog', { name: /atajo de siri/i }),
-    ).not.toBeInTheDocument()
-  })
-
-  it('first issuance: opens the sheet showing the key, without auto-importing or rotating', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    vi.mocked(api.issueApiKey).mockResolvedValue({
-      key: 'cqs_test-key',
-      created: true,
-    } as never)
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    await openSiriSheet()
-    expect(api.issueApiKey).toHaveBeenCalledOnce()
-    expect(api.regenerateApiKey).not.toHaveBeenCalled()
-    expect(screen.getByText('cqs_test-key')).toBeInTheDocument()
-    // import is deferred to an explicit tap, and never auto-fires on open
-    expect(api.openShortcutImport).not.toHaveBeenCalled()
-  })
-
-  it('returning user (key already exists): opens the sheet with no key shown, steering to regenerate', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    // default issueApiKey mock returns { key: null, created: false }
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    await openSiriSheet()
-    expect(api.issueApiKey).toHaveBeenCalledOnce()
-    expect(api.regenerateApiKey).not.toHaveBeenCalled()
-    expect(api.openShortcutImport).not.toHaveBeenCalled()
-    // no key is displayed (it's unrecoverable) — the masked field + hint show instead
-    expect(screen.queryByText('cqs_test-key')).not.toBeInTheDocument()
-    expect(screen.getByText(/tu clave está oculta/i)).toBeInTheDocument()
-  })
-
-  it('tapping "Añadir a Shortcuts" launches the import', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    await openSiriSheet()
-    fireEvent.click(screen.getByRole('button', { name: /añadir a shortcuts/i }))
-    expect(api.openShortcutImport).toHaveBeenCalledOnce()
-  })
-
-  it('shows a generic error toast when issuing the key fails, and does not open the sheet', async () => {
+  it('sheet toasts (e.g. a failed key issuance) surface through the dashboard toast', async () => {
     vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
     vi.mocked(api.issueApiKey).mockRejectedValue(new Error('boom'))
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
-    fireEvent.click(screen.getByRole('button', { name: /menú de usuario/i }))
-    fireEvent.click(
-      screen.getByRole('menuitem', { name: /añadir atajo a siri/i }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustes' }))
     await waitFor(() =>
       expect(
         screen.getByText(
@@ -653,127 +457,6 @@ describe('DashboardScreen — avatar menu and install banner', () => {
         ),
       ).toBeInTheDocument(),
     )
-    expect(
-      screen.queryByRole('dialog', { name: /atajo de siri/i }),
-    ).not.toBeInTheDocument()
-    expect(api.openShortcutImport).not.toHaveBeenCalled()
-  })
-
-  it('regenerate: opens a follow-up confirm sheet; confirming rotates the key', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    vi.mocked(api.issueApiKey).mockResolvedValue({
-      key: 'cqs_old-key',
-      created: true,
-    } as never)
-    vi.mocked(api.regenerateApiKey).mockResolvedValue({
-      key: 'cqs_new-key',
-      regenerated_at: '',
-    } as never)
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    await openSiriSheet()
-    expect(screen.getByText('cqs_old-key')).toBeInTheDocument()
-
-    // tapping opens a separate confirm sheet — no rotation yet
-    fireEvent.click(screen.getByRole('button', { name: /regenerar clave/i }))
-    expect(api.regenerateApiKey).not.toHaveBeenCalled()
-    expect(
-      screen.getByRole('dialog', { name: /regenerar clave/i }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText(/se invalidará tu clave actual/i),
-    ).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: /sí, regenerar/i }))
-    await waitFor(() => expect(api.regenerateApiKey).toHaveBeenCalledOnce())
-    // the base sheet's key field updates and the confirm sheet closes
-    await waitFor(() =>
-      expect(screen.getByText('cqs_new-key')).toBeInTheDocument(),
-    )
-    expect(
-      screen.queryByRole('dialog', { name: /regenerar clave/i }),
-    ).not.toBeInTheDocument()
-    expect(api.openShortcutImport).not.toHaveBeenCalled()
-  })
-
-  it('regenerate: cancelling the follow-up confirm sheet does not rotate the key', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    vi.mocked(api.issueApiKey).mockResolvedValue({
-      key: 'cqs_old-key',
-      created: true,
-    } as never)
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    await openSiriSheet()
-    fireEvent.click(screen.getByRole('button', { name: /regenerar clave/i }))
-    fireEvent.click(screen.getByRole('button', { name: /cancelar/i }))
-    expect(api.regenerateApiKey).not.toHaveBeenCalled()
-    expect(screen.getByText('cqs_old-key')).toBeInTheDocument()
-    // the confirm sheet is gone; the base sheet remains
-    expect(
-      screen.queryByRole('dialog', { name: /regenerar clave/i }),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('dialog', { name: /atajo de siri/i }),
-    ).toBeInTheDocument()
-  })
-
-  it('shows an error toast when regenerating fails, keeping the sheet open', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    vi.mocked(api.issueApiKey).mockResolvedValue({
-      key: 'cqs_old-key',
-      created: true,
-    } as never)
-    vi.mocked(api.regenerateApiKey).mockRejectedValue(new Error('boom'))
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    await openSiriSheet()
-    fireEvent.click(screen.getByRole('button', { name: /regenerar clave/i }))
-    fireEvent.click(screen.getByRole('button', { name: /sí, regenerar/i }))
-    await waitFor(() =>
-      expect(
-        screen.getByText('No se pudo regenerar la clave. Inténtalo de nuevo.'),
-      ).toBeInTheDocument(),
-    )
-    expect(
-      screen.getByRole('dialog', { name: /atajo de siri/i }),
-    ).toBeInTheDocument()
-  })
-
-  it('dismissing the sheet hides it', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    await openSiriSheet()
-    fireEvent.click(screen.getByRole('button', { name: /cerrar/i }))
-    expect(
-      screen.queryByRole('dialog', { name: /atajo de siri/i }),
-    ).not.toBeInTheDocument()
-  })
-
-  it('copying the key writes it to the clipboard and toasts, without leaking it into any error message', async () => {
-    vi.mocked(useApplePlatformModule.useApplePlatform).mockReturnValue(true)
-    vi.mocked(api.issueApiKey).mockResolvedValue({
-      key: 'cqs_test-key',
-      created: true,
-    } as never)
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-    const writeText = vi.fn(async () => undefined)
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText },
-      writable: true,
-      configurable: true,
-    })
-    render(<DashboardScreen />)
-    await waitFor(() => screen.getByText('Mercado'))
-    await openSiriSheet()
-    fireEvent.click(screen.getByRole('button', { name: /copiar clave/i }))
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith('cqs_test-key'))
-    expect(screen.getByText('Clave copiada')).toBeInTheDocument()
   })
 })
 
@@ -902,72 +585,5 @@ describe('DashboardScreen — offline', () => {
     // The connectivity store is module-level state; leave it online so later
     // tests in this file start from the default.
     act(() => reportRequestOutcome(true))
-  })
-})
-
-describe('notifications toggle', () => {
-  beforeEach(() => {
-    // The shared setup disables every flag; this control is gated on one.
-    // Enable only that flag — a blanket `() => true` switches on unrelated
-    // features whose code paths this file does not mock.
-    vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
-      isEnabled: (flag: string) => flag === 'push_notifications',
-    })
-    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
-  })
-
-  it('offers to enable notifications when permission has not been answered', async () => {
-    vi.stubGlobal('Notification', { permission: 'default' })
-
-    render(<DashboardScreen />)
-
-    expect(
-      await screen.findByRole('button', { name: /avisarme de cambios/i }),
-    ).toBeInTheDocument()
-  })
-
-  it('switches to the blocked message when the user denies the prompt', async () => {
-    // The regression this guards: denying does not change isPushEnabled() --
-    // false before, false after -- so setPushOn is a same-value update and
-    // React may skip the re-render. Reading permission live in JSX would then
-    // leave the stale button on screen, which is the very state this control
-    // exists to avoid.
-    let permission = 'default'
-    vi.stubGlobal('Notification', {
-      get permission() {
-        return permission
-      },
-      requestPermission: vi.fn(async () => {
-        permission = 'denied'
-        return 'denied'
-      }),
-    })
-
-    render(<DashboardScreen />)
-    fireEvent.click(
-      await screen.findByRole('button', { name: /avisarme de cambios/i }),
-    )
-
-    expect(
-      await screen.findByText(/ajustes de tu navegador/i),
-    ).toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: /avisarme de cambios/i }),
-    ).toBeNull()
-  })
-
-  it('explains how to unblock instead of offering a dead button when denied', async () => {
-    // Once denied, requestPermission() returns without prompting, so a button
-    // here would look broken: tapping it could never change anything.
-    vi.stubGlobal('Notification', { permission: 'denied' })
-
-    render(<DashboardScreen />)
-
-    expect(
-      await screen.findByText(/ajustes de tu navegador/i),
-    ).toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: /avisarme de cambios/i }),
-    ).toBeNull()
   })
 })
