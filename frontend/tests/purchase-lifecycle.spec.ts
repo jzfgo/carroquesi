@@ -78,35 +78,21 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await markPurchased(page, ITEM_CAFE.name)
 
       const card = itemCard(page, ITEM_CAFE.name)
-      await expect(card).toHaveClass(/item-card--purchased/)
-      // The strikethrough is the affordance that says "bought" at a glance, and
-      // the class above does not prove it renders — the modifier can be present
-      // with the rule that styles it gone. The screenshot below is the only
-      // other witness, and it cannot be trusted with this on its own: deleting
-      // the rule moves only about 75 pixels, close to the tolerance rather
-      // than far above it, so a budget raise or a font shift could let the
-      // affordance leave the screen with all the baselines still green.
-      // Assert the computed style, which is what actually produces the pixels.
-      // This does pin which element carries the rule: text-decoration paints
-      // onto descendants without computing on them, so moving the rule to an
-      // ancestor would keep the line visible and fail here anyway. That is a
-      // loud failure rather than a silent one, which is the right way round.
-      await expect(card.locator('.item-card__name')).toHaveCSS(
-        'text-decoration-line',
-        'line-through',
-      )
+      // A fresh purchase sits in the cart (trip still open). The state reads
+      // from the circle and the voice — no strikethrough anywhere (DESIGN.md).
+      await expect(card).toHaveClass(/item-card--cart/)
       await expectScreenshot(page, `item-purchased-${themeName}.png`)
 
-      // Read-only: brand/store are no longer editable buttons, just text
+      // Read-only: brand is plain text in the meta line, not an editable button
       await expect(
         card.getByRole('button', { name: ITEM_CAFE.brand ?? '' }),
       ).toHaveCount(0)
-      await expect(
-        card.getByText(ITEM_CAFE.brand ?? '', { exact: true }),
-      ).toBeVisible()
+      await expect(card.locator('.item-card__meta')).toContainText(
+        ITEM_CAFE.brand ?? '',
+      )
 
-      // Menu offers "buy again" instead of rename
-      await card.getByRole('button', { name: 'Opciones del producto' }).click()
+      // Row tap offers "buy again" instead of rename
+      await card.locator('.item-card__body').click()
       await expect(page.getByRole('button', { name: 'Renombrar' })).toHaveCount(
         0,
       )
@@ -122,9 +108,8 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await gotoList(page)
       await markPurchased(page, ITEM_CAFE.name)
 
-      await itemCard(page, ITEM_CAFE.name)
-        .getByRole('button', { name: 'Registrar precio' })
-        .click()
+      await itemCard(page, ITEM_CAFE.name).locator('.item-card__body').click()
+      await page.getByRole('button', { name: 'Registrar precio' }).click()
       await page
         .locator('.phs')
         .getByRole('button', { name: '+ Registrar precio' })
@@ -140,7 +125,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
 
       await expect(sheet).toBeHidden()
       await expect(
-        itemCard(page, ITEM_CAFE.name).locator('.item-card__tag--price'),
+        itemCard(page, ITEM_CAFE.name).locator('.item-card__amount'),
       ).toBeVisible()
     })
 
@@ -178,9 +163,8 @@ for (const { name: themeName, colorScheme } of THEMES) {
         },
       )
 
-      await itemCard(page, ITEM_LECHE.name)
-        .locator('.item-card__tag--price')
-        .click()
+      await itemCard(page, ITEM_LECHE.name).locator('.item-card__body').click()
+      await page.getByRole('button', { name: 'Registrar precio' }).click()
       await page
         .locator('.phs')
         .getByRole('button', { name: 'Actualizar precio' })
@@ -196,7 +180,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
       // Sheet stays open and the price is untouched
       await expect(sheet).toBeVisible()
       await expect(
-        itemCard(page, ITEM_LECHE.name).locator('.item-card__tag--price'),
+        itemCard(page, ITEM_LECHE.name).locator('.item-card__amount'),
       ).toBeVisible()
     })
   })

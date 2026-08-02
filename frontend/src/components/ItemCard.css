@@ -1,180 +1,178 @@
+/* The item row: two voices on one sheet. Instructions are written in the
+   household's hand (--font-written); records are printed in mono. State is
+   carried by the circle, the typeface and the amount column — never by a
+   strikethrough, never by dimming the row. */
+
 .item-card {
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
   display: flex;
-  align-items: flex-start;
-  padding: 12px 16px 12px 20px;
+  align-items: center;
   gap: 12px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--rule);
 }
 
-.item-card__checkbox {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 2px solid var(--border);
-  background: none;
-  cursor: pointer;
-  flex-shrink: 0;
-  margin-top: 3px;
-  padding: 0;
+/* ── The status circle — first touch target ─────────────────── */
+
+/* Painted at 24px; the ::before overlay stretches the tap to --hit-min
+   without growing the mark (the paint-small hit pattern). */
+.item-card__circle {
   position: relative;
-}
-
-.item-card__checkbox[aria-checked='true'] {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.item-card__checkbox[aria-checked='true']::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 12px;
-  height: 7px;
-  border-left: 2px solid white;
-  border-bottom: 2px solid white;
-  transform: translate(-50%, -60%) rotate(-45deg);
-}
-
-.item-card__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.item-card__name-row {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 5px;
-}
-
-.item-card__name {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-.item-card__qty {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border-radius: 20px;
-  padding: 1px 7px;
-  white-space: nowrap;
-}
-
-.item-card__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.item-card__tag {
-  background: var(--paper-1);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 2px 7px;
-  font-size: 11.5px;
-  color: var(--text);
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  white-space: nowrap;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.item-card__tag--cta {
-  background: transparent;
-  border: 1.5px dashed var(--border);
-}
-
-.item-card__tag--cta:hover,
-.item-card__tag--cta:focus {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-bg);
-}
-
-.item-card--purchased .item-card__name {
-  text-decoration: line-through;
-  color: var(--purchased);
-}
-
-.item-card--purchased .item-card__qty {
-  background: var(--paper-1);
-  color: var(--purchased);
-}
-
-.item-card--purchased .item-card__tag {
-  opacity: 0.45;
-}
-
-.item-card__right {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.item-card__avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  font-size: 11px;
-  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  margin-top: 3px;
-}
-
-.item-card__avatar-img {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.item-card__menu {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-  color: var(--ink-2);
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
   padding: 0;
-  line-height: 1;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
 }
 
-.item-card__tag--price {
-  background: var(--verde-bg);
-  color: var(--verde-0);
-  border: 1px solid var(--verde-border);
-  font-family: var(--font-mono);
+.item-card__circle::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
 }
 
-.item-card__tag--buy-again {
-  background: var(--accent-bg);
-  color: var(--accent);
-  border: 1.5px dashed var(--accent);
-  font-weight: 600;
-  transition:
-    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease;
+/* Offline: the mark is a promise, not yet a record (dashed is refillable).
+   The filled states paint border and ground alike, so the dash only ever
+   shows on the empty pending circle. */
+.item-card__circle--offline {
+  border-style: dashed;
 }
 
-.item-card__tag--buy-again:hover,
-.item-card__tag--buy-again:focus {
-  background: var(--accent);
+.item-card--cart .item-card__circle {
+  border-color: var(--tinta-0);
+  background: var(--tinta-0);
   color: var(--accent-fg);
+}
+
+.item-card--bought .item-card__circle {
+  border-color: var(--verde-0);
+  background: var(--verde-0);
+  color: var(--accent-fg);
+}
+
+/* ── The row body — second touch target ─────────────────────── */
+
+.item-card__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 1px;
+  min-width: 0;
+  min-height: var(--hit-min);
+  padding: 8px 0;
+  justify-content: center;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.item-card__line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.item-card__name {
+  font-family: var(--font-written);
+  font-size: calc(21px * var(--written-scale));
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-0);
+  overflow-wrap: anywhere;
+}
+
+.item-card__qty {
+  font-family: var(--font-written);
+  font-size: calc(18px * var(--written-scale));
+  line-height: var(--lh-snug);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-1);
+  white-space: nowrap;
+}
+
+.item-card__meta {
+  font-family: var(--font-written);
+  font-size: calc(16px * var(--written-scale));
+  line-height: var(--lh-snug);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-1);
+}
+
+/* The amount column: tabular mono in plain ink — the grayscale ink rule
+   keeps every figure grey; only the tick is green. */
+.item-card__amount {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-1);
+  white-space: nowrap;
+}
+
+/* A bought row is a printed record: mono, uppercase, secondary ink. In-cart
+   rows keep the written voice — you wrote them, also on the stub. */
+.item-card--bought .item-card__name {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  letter-spacing: var(--tracking-wide);
+  color: var(--ink-1);
+}
+
+.item-card--bought .item-card__qty {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  letter-spacing: var(--tracking-wide);
+  color: var(--ink-2);
+}
+
+.item-card--bought .item-card__meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  letter-spacing: var(--tracking-wide);
+  color: var(--ink-2);
+}
+
+/* ── The re-buy disc ────────────────────────────────────────── */
+
+/* Re-buying is a primary function, not an undo: an accent disc on lines
+   from previous days. Dashed — an action not yet taken. */
+.item-card__rebuy {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1.5px dashed var(--accent);
+  border-radius: 50%;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.item-card__rebuy::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+.item-card__rebuy:hover,
+.item-card__rebuy:focus-visible {
   border-style: solid;
-  border-color: var(--accent);
-  transform: scale(1.05);
+  background: var(--accent-bg);
 }

@@ -2,27 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { vi } from 'vitest'
 import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
-import type { ListItem, Member } from '../types'
+import type { ListItem } from '../types'
 import { ItemList } from './ItemList'
-
-vi.mock('../contexts/AuthContext', () => {
-  const auth = {
-    user: {
-      id: 'u1',
-      displayName: 'Test',
-      photoUrl: null,
-      email: 'test@example.com',
-      features: [],
-    },
-    getToken: vi.fn(),
-    signIn: vi.fn(),
-    signOut: vi.fn(),
-    loading: false,
-  }
-  return { useAuth: vi.fn(() => auth) }
-})
-
-const MEMBERS: Map<string, Member> = new Map()
 
 const makeItem = (id: string, purchased = false): ListItem => ({
   id,
@@ -34,6 +15,7 @@ const makeItem = (id: string, purchased = false): ListItem => ({
   stores: [],
   purchased,
   purchased_at: null,
+  purchase_ends_at: null,
   ean: null,
   price: null,
   price_per: null,
@@ -43,19 +25,23 @@ const makeItem = (id: string, purchased = false): ListItem => ({
   updated_at: '',
 })
 
-test('shows loading skeleton inside the pending sheet', () => {
-  const { container } = render(
+type ListProps = Partial<React.ComponentProps<typeof ItemList>>
+
+function renderList(props: ListProps = {}) {
+  return render(
     <ItemList
-      status="loading"
+      status="success"
       items={[]}
-      members={MEMBERS}
       onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
+      onOpenActions={() => {}}
       onRetry={() => {}}
-      onPriceClick={() => {}}
+      {...props}
     />,
   )
+}
+
+test('shows loading skeleton inside the pending sheet', () => {
+  const { container } = renderList({ status: 'loading' })
   expect(
     container.querySelector('.paper--pending .item-list__skeleton'),
   ).toBeInTheDocument()
@@ -63,18 +49,7 @@ test('shows loading skeleton inside the pending sheet', () => {
 
 test('shows error state with retry button inside the pending sheet', () => {
   const retry = vi.fn()
-  const { container } = render(
-    <ItemList
-      status="error"
-      items={[]}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={retry}
-      onPriceClick={() => {}}
-    />,
-  )
+  const { container } = renderList({ status: 'error', onRetry: retry })
   expect(
     screen.getByText(/No se pudieron cargar los productos/i),
   ).toBeInTheDocument()
@@ -86,18 +61,7 @@ test('shows error state with retry button inside the pending sheet', () => {
 })
 
 test('shows empty state with mascot inside the pending sheet, titled at zero', () => {
-  const { container } = render(
-    <ItemList
-      status="success"
-      items={[]}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  const { container } = renderList()
   expect(screen.getByRole('img', { name: /mascota/i })).toBeInTheDocument()
   expect(screen.getByText(/Sin productos todavía/i)).toBeInTheDocument()
   expect(screen.getByText(/Añade el primero desde abajo/i)).toBeInTheDocument()
@@ -108,52 +72,20 @@ test('shows empty state with mascot inside the pending sheet, titled at zero', (
 })
 
 test('renders the sheet title with the pending count', () => {
-  const items = [makeItem('a'), makeItem('b')]
-  const { container } = render(
-    <ItemList
-      status="success"
-      items={items}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  const { container } = renderList({ items: [makeItem('a'), makeItem('b')] })
   expect(screen.getByText('Por comprar')).toBeInTheDocument()
   expect(container.querySelector('.paper__title-count')?.textContent).toBe('2')
 })
 
 test('sheet title counts a single item', () => {
-  const { container } = render(
-    <ItemList
-      status="success"
-      items={[makeItem('a')]}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  const { container } = renderList({ items: [makeItem('a')] })
   expect(container.querySelector('.paper__title-count')?.textContent).toBe('1')
 })
 
 test('pending items render inside the pending sheet', () => {
-  const { container } = render(
-    <ItemList
-      status="success"
-      items={[makeItem('a'), makeItem('b', true)]}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  const { container } = renderList({
+    items: [makeItem('a'), makeItem('b', true)],
+  })
   const sheet = container.querySelector('.paper--pending')
   expect(sheet).toBeInTheDocument()
   expect(within(sheet as HTMLElement).getByText('Item a')).toBeVisible()
@@ -168,18 +100,7 @@ test('the purchased area is one settled sheet, even across dates', () => {
     { ...makeItem('b', true), purchased_at: '2026-07-30T10:00:00' },
     { ...makeItem('c', true), purchased_at: '2026-07-20T10:00:00' },
   ]
-  const { container } = render(
-    <ItemList
-      status="success"
-      items={items}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  const { container } = renderList({ items })
   const sheets = container.querySelectorAll('.paper--settled')
   expect(sheets).toHaveLength(1)
   const settled = sheets[0] as HTMLElement
@@ -189,52 +110,17 @@ test('the purchased area is one settled sheet, even across dates', () => {
 })
 
 test('purchased section hidden when no items purchased', () => {
-  render(
-    <ItemList
-      status="success"
-      items={[makeItem('a')]}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  renderList({ items: [makeItem('a')] })
   expect(screen.queryByText('Comprados')).not.toBeInTheDocument()
 })
 
 test('purchased section shown when items purchased', () => {
-  const items = [makeItem('a', false), makeItem('b', true)]
-  render(
-    <ItemList
-      status="success"
-      items={items}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  renderList({ items: [makeItem('a', false), makeItem('b', true)] })
   expect(screen.getByRole('button', { name: /comprados/i })).toBeInTheDocument()
 })
 
 test('purchased section is expanded by default', () => {
-  const items = [makeItem('a', false), makeItem('b', true)]
-  render(
-    <ItemList
-      status="success"
-      items={items}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  renderList({ items: [makeItem('a', false), makeItem('b', true)] })
   expect(screen.getByRole('button', { name: /comprados/i })).toHaveAttribute(
     'aria-expanded',
     'true',
@@ -243,19 +129,7 @@ test('purchased section is expanded by default', () => {
 })
 
 test('tapping the purchased header collapses the section', () => {
-  const items = [makeItem('a', false), makeItem('b', true)]
-  render(
-    <ItemList
-      status="success"
-      items={items}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  renderList({ items: [makeItem('a', false), makeItem('b', true)] })
   fireEvent.click(screen.getByRole('button', { name: /comprados/i }))
   expect(screen.getByRole('button', { name: /comprados/i })).toHaveAttribute(
     'aria-expanded',
@@ -265,23 +139,70 @@ test('tapping the purchased header collapses the section', () => {
 })
 
 test('tapping the purchased header again re-expands the section', () => {
-  const items = [makeItem('a', false), makeItem('b', true)]
-  render(
-    <ItemList
-      status="success"
-      items={items}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  renderList({ items: [makeItem('a', false), makeItem('b', true)] })
   const toggle = screen.getByRole('button', { name: /comprados/i })
   fireEvent.click(toggle)
   fireEvent.click(toggle)
   expect(screen.getByText('Item b')).toBeInTheDocument()
+})
+
+// ---------------------------------------------------------------------------
+// Store group headers — pending sheet only
+// ---------------------------------------------------------------------------
+
+test('pending items group under a hand-written store header', () => {
+  const items = [
+    { ...makeItem('a'), stores: ['Mercadona'], created_at: '1' },
+    { ...makeItem('b'), stores: [], created_at: '2' },
+    { ...makeItem('c'), stores: ['Mercadona'], created_at: '3' },
+  ]
+  const { container } = renderList({ items })
+  const labels = container.querySelectorAll('.item-list__store-label')
+  expect(labels).toHaveLength(1)
+  expect(labels[0]).toHaveTextContent('Mercadona')
+  // Both Mercadona items live in the group under the header.
+  const group = labels[0].parentElement as HTMLElement
+  expect(within(group).getByText('Item a')).toBeInTheDocument()
+  expect(within(group).getByText('Item c')).toBeInTheDocument()
+  expect(within(group).queryByText('Item b')).not.toBeInTheDocument()
+})
+
+test('items without a store lead the sheet under no header', () => {
+  const items = [
+    { ...makeItem('a'), stores: ['Lidl'], created_at: '1' },
+    { ...makeItem('b'), stores: [], created_at: '2' },
+  ]
+  const { container } = renderList({ items })
+  const texts = [
+    ...container.querySelectorAll('.item-card__name, .item-list__store-label'),
+  ].map((n) => n.textContent)
+  expect(texts).toEqual(['Item b', 'Lidl', 'Item a'])
+})
+
+test('spelling variants group by storeKey and label with the registry name', () => {
+  const items = [
+    { ...makeItem('a'), stores: ['ahorra mas'], created_at: '1' },
+    { ...makeItem('b'), stores: ['AHORRA MÁS'], created_at: '2' },
+  ]
+  const { container } = renderList({ items, displayStore: () => 'Ahorramas' })
+  const labels = container.querySelectorAll('.item-list__store-label')
+  expect(labels).toHaveLength(1)
+  expect(labels[0]).toHaveTextContent('Ahorramas')
+})
+
+test('purchased rows get no store headers', () => {
+  const items = [
+    {
+      ...makeItem('b', true),
+      stores: ['Mercadona'],
+      purchased_at: '2026-07-30T10:00:00',
+    },
+  ]
+  const { container } = renderList({ items })
+  const settled = container.querySelector('.paper--settled') as HTMLElement
+  expect(
+    settled.querySelector('.item-list__store-label'),
+  ).not.toBeInTheDocument()
 })
 
 // ---------------------------------------------------------------------------
@@ -292,21 +213,7 @@ function renderWithCost(
   pendingCost?: CostSummary | null,
   purchasedCostByDate?: Map<string, CostSummary | null>,
 ) {
-  const items = [makeItem('a')]
-  render(
-    <ItemList
-      status="success"
-      items={items}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-      pendingCost={pendingCost}
-      purchasedCostByDate={purchasedCostByDate}
-    />,
-  )
+  renderList({ items: [makeItem('a')], pendingCost, purchasedCostByDate })
 }
 
 test('shows formatted total in pending label when cost is exact', () => {
@@ -349,19 +256,7 @@ test('shows cost next to date label in purchased section', () => {
   const costByDate = new Map([
     [label, { total: 5, partial: false } as CostSummary],
   ])
-  render(
-    <ItemList
-      status="success"
-      items={[makeItem('a'), item]}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-      purchasedCostByDate={costByDate}
-    />,
-  )
+  renderList({ items: [makeItem('a'), item], purchasedCostByDate: costByDate })
   expect(
     document.querySelector('.item-list__date-label-cost'),
   ).toBeInTheDocument()
@@ -377,19 +272,7 @@ test('shows ≥ prefix in date label when purchased cost is partial', () => {
   const costByDate = new Map([
     [label, { total: 2, partial: true } as CostSummary],
   ])
-  render(
-    <ItemList
-      status="success"
-      items={[makeItem('a'), item]}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-      purchasedCostByDate={costByDate}
-    />,
-  )
+  renderList({ items: [makeItem('a'), item], purchasedCostByDate: costByDate })
   expect(
     document.querySelector('.item-list__date-label-cost')?.textContent,
   ).toMatch(/≥/)
@@ -400,37 +283,14 @@ test('no date-label cost badge when purchasedCostByDate is omitted', () => {
     ...makeItem('b', true),
     purchased_at: new Date().toISOString().slice(0, 19),
   }
-  render(
-    <ItemList
-      status="success"
-      items={[makeItem('a'), item]}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  renderList({ items: [makeItem('a'), item] })
   expect(
     document.querySelector('.item-list__date-label-cost'),
   ).not.toBeInTheDocument()
 })
 
 test('purchased items appear below active items', () => {
-  const items = [makeItem('a', true), makeItem('b', false)]
-  render(
-    <ItemList
-      status="success"
-      items={items}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  renderList({ items: [makeItem('a', true), makeItem('b', false)] })
   const allItems = screen.getAllByText(/Item [ab]/)
   // Item b (active) should appear before Item a (purchased)
   expect(allItems[0].textContent).toContain('b')
@@ -442,56 +302,21 @@ test('purchased items appear below active items', () => {
 // ---------------------------------------------------------------------------
 
 test('shows "X de Y" count when totalItems differs from filtered count', () => {
-  const items = [makeItem('a')]
-  const { container } = render(
-    <ItemList
-      status="success"
-      items={items}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-      totalItems={3}
-    />,
-  )
+  const { container } = renderList({ items: [makeItem('a')], totalItems: 3 })
   expect(container.querySelector('.paper__title-count')?.textContent).toBe(
     '1 de 3',
   )
 })
 
 test('shows plain count when totalItems equals filtered count', () => {
-  const items = [makeItem('a'), makeItem('b')]
-  const { container } = render(
-    <ItemList
-      status="success"
-      items={items}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-      totalItems={2}
-    />,
-  )
+  const { container } = renderList({
+    items: [makeItem('a'), makeItem('b')],
+    totalItems: 2,
+  })
   expect(container.querySelector('.paper__title-count')?.textContent).toBe('2')
 })
 
 test('shows plain count when totalItems is omitted', () => {
-  const items = [makeItem('a')]
-  const { container } = render(
-    <ItemList
-      status="success"
-      items={items}
-      members={MEMBERS}
-      onTogglePurchased={() => {}}
-      onTagClick={() => {}}
-      onMenuOpen={() => {}}
-      onRetry={() => {}}
-      onPriceClick={() => {}}
-    />,
-  )
+  const { container } = renderList({ items: [makeItem('a')] })
   expect(container.querySelector('.paper__title-count')?.textContent).toBe('1')
 })

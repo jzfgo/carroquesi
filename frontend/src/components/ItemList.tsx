@@ -2,7 +2,8 @@ import { useState, type ReactNode } from 'react'
 import { formatPrice } from '../lib/formatPrice'
 import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
-import type { ListItem, Member, TagField } from '../types'
+import { storeKey } from '../lib/storeKey'
+import type { ListItem } from '../types'
 import { ItemCard } from './ItemCard'
 import './ItemList.css'
 import { Mascot } from './Mascot'
@@ -13,12 +14,10 @@ type Status = 'loading' | 'error' | 'success'
 interface Props {
   status: Status
   items: ListItem[]
-  members: Map<string, Member>
   onTogglePurchased: (itemId: string) => void
-  onTagClick: (itemId: string, field: TagField | 'stores') => void
-  onMenuOpen: (itemId: string) => void
+  /** Row tap — opens the item action sheet for that item. */
+  onOpenActions: (itemId: string) => void
   onRetry: () => void
-  onPriceClick: (itemId: string) => void
   onClone?: (itemId: string) => void
   pendingCost?: CostSummary | null
   purchasedCostByDate?: Map<string, CostSummary | null>
@@ -37,7 +36,7 @@ function CostBadge({
 }) {
   return (
     <span className={className}>
-      {cost.partial ? '≥\u202f' : ''}
+      {cost.partial ? '≥ ' : ''}
       {formatPrice(cost.total)}
     </span>
   )
@@ -46,18 +45,15 @@ function CostBadge({
 export function ItemList({
   status,
   items,
-  members,
   onTogglePurchased,
-  onTagClick,
-  onMenuOpen,
+  onOpenActions,
   onRetry,
-  onPriceClick,
   onClone,
   pendingCost,
   purchasedCostByDate,
   totalItems,
   footer,
-  displayStore,
+  displayStore = (raw) => raw,
 }: Props) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
 
@@ -136,6 +132,33 @@ export function ItemList({
     )
   }
 
+  // Group pending items under a header per target shop. Comparison goes by
+  // storeKey() and the label through the registry's display name (the JAV-82
+  // rule); an item with several shops files under its first one, and items
+  // with no shop lead the sheet under no header. Groups keep the order of
+  // first appearance — the order the household wrote them in.
+  const activeByStore: {
+    key: string
+    label: string | null
+    items: ListItem[]
+  }[] = []
+  const groupIndex = new Map<string, (typeof activeByStore)[number]>()
+  for (const item of active) {
+    const raw = item.stores[0]
+    const key = raw ? storeKey(raw) : ''
+    let group = groupIndex.get(key)
+    if (!group) {
+      group = { key, label: raw ? displayStore(raw) : null, items: [] }
+      groupIndex.set(key, group)
+      if (key === '') {
+        activeByStore.unshift(group)
+      } else {
+        activeByStore.push(group)
+      }
+    }
+    group.items.push(item)
+  }
+
   // Group purchased items by local date label, preserving backend order (newest first)
   const purchasedByDate: { label: string; items: ListItem[] }[] = []
   for (const item of purchased) {
@@ -164,18 +187,22 @@ export function ItemList({
             </span>
           </span>
         </p>
-        {active.map((item) => (
-          <ItemCard
-            key={item.id}
-            item={item}
-            members={members}
-            onTogglePurchased={onTogglePurchased}
-            onTagClick={onTagClick}
-            onMenuOpen={onMenuOpen}
-            onPriceClick={onPriceClick}
-            onClone={onClone}
-            displayStore={displayStore}
-          />
+        {activeByStore.map((group) => (
+          <div key={group.key}>
+            {group.label !== null && (
+              <p className="item-list__store-label">{group.label}</p>
+            )}
+            {group.items.map((item) => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                onTogglePurchased={onTogglePurchased}
+                onOpenActions={onOpenActions}
+                onClone={onClone}
+                displayStore={displayStore}
+              />
+            ))}
+          </div>
         ))}
       </section>
       {footer}
@@ -215,11 +242,8 @@ export function ItemList({
                     <ItemCard
                       key={item.id}
                       item={item}
-                      members={members}
                       onTogglePurchased={onTogglePurchased}
-                      onTagClick={onTagClick}
-                      onMenuOpen={onMenuOpen}
-                      onPriceClick={onPriceClick}
+                      onOpenActions={onOpenActions}
                       onClone={onClone}
                       displayStore={displayStore}
                     />

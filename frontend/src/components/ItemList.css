@@ -30,6 +30,20 @@
   font-size: var(--fs-15);
 }
 
+/* Store group header on the pending sheet: the target shop, jotted in the
+   household's hand above its items. A label on the paper, not a control. */
+.item-list__store-label {
+  margin: 0;
+  padding: 8px 20px 0;
+  font-family: var(--font-written);
+  font-size: calc(17px * var(--written-scale));
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
 .item-list__label-text {
   min-width: 0;
   overflow: hidden;

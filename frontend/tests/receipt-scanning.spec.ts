@@ -260,13 +260,11 @@ test.describe('functional', () => {
     await expect(
       created.getByRole('checkbox', { name: 'Marcar como no comprado' }),
     ).toBeVisible()
-    await expect(created.getByText('Bimbo', { exact: true })).toBeVisible()
+    await expect(created.locator('.item-card__meta')).toContainText('Bimbo')
     // formatPrice() uses Intl with the *browser's* locale and the config pins
     // none, so the decimal separator differs between a local run and CI's
     // container. Match either rather than baking in one environment's output.
-    await expect(created.locator('.item-card__tag--price')).toContainText(
-      /1[.,]00/,
-    )
+    await expect(created.locator('.item-card__amount')).toContainText(/1[.,]00/)
   })
 
   // The seam JAV-54 exists to close, end to end: a misread date empties the

@@ -849,12 +849,9 @@ export function ListScreen({
         status={status}
         items={filteredItems}
         totalItems={allUnpurchasedCount}
-        members={members}
         onTogglePurchased={handleTogglePurchased}
-        onTagClick={handleTagClick}
-        onMenuOpen={handleItemMenuOpen}
+        onOpenActions={handleItemMenuOpen}
         onRetry={retry}
-        onPriceClick={(itemId) => setPriceItemId(itemId)}
         onClone={handleCloneItem}
         pendingCost={pendingCost}
         purchasedCostByDate={purchasedCostByDate}
@@ -930,6 +927,14 @@ export function ListScreen({
               purchased={activeItem.purchased}
               onRename={(name) => {
                 void renameItem(activeItemId, name)
+                setActiveItemId(null)
+              }}
+              onEditField={(field) => {
+                handleTagClick(activeItemId, field)
+                setActiveItemId(null)
+              }}
+              onPrice={() => {
+                setPriceItemId(activeItemId)
                 setActiveItemId(null)
               }}
               onDelete={() => {
