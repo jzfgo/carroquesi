@@ -1,7 +1,15 @@
 # ADR-002: Firebase for auth only; all data in PostgreSQL via FastAPI
 
-**Status:** Accepted  
+**Status:** Accepted — superseded in part by [ADR-015](015-gcs-receipt-storage-signed-urls.md)  
 **Date:** 2024
+
+> **Carve-out (2026-08-02):** receipt *images* are binary blobs and live in
+> Google Cloud Storage, reached only through backend-issued signed URLs
+> ([ADR-015](015-gcs-receipt-storage-signed-urls.md)). Everything below still
+> holds for data: all application data stays in PostgreSQL, and the Firebase
+> client SDK remains Auth-only (plus AI for receipt parsing, per
+> [ADR-004](004-gemini-via-firebase-ai-sdk-for-receipt-scanning.md)) — it is
+> never used for Storage.
 
 ## Context
 
