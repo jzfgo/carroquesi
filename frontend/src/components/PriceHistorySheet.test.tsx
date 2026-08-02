@@ -58,8 +58,6 @@ test('renders item name as title and fetches price history', async () => {
         quantity: '1',
       },
     ],
-    community_price: 0.89,
-    community_price_per: null,
   }
 
   vi.mocked(getPriceHistory).mockResolvedValueOnce(mockResponse)
@@ -77,7 +75,6 @@ test('renders item name as title and fetches price history', async () => {
     )
   })
 
-  expect(screen.getByText(/0,89|0\.89/)).toBeInTheDocument()
   expect(screen.getByText('Mercadona')).toBeInTheDocument()
   expect(screen.getByText(/1 precio/)).toBeInTheDocument()
   expect(screen.getByText(/0,85|0\.85/)).toBeInTheDocument()
@@ -86,8 +83,6 @@ test('renders item name as title and fetches price history', async () => {
 test('renders empty state when there are no prices', async () => {
   vi.mocked(getPriceHistory).mockResolvedValueOnce({
     entries: [],
-    community_price: null,
-    community_price_per: null,
   })
 
   render(<PriceHistorySheet {...baseProps} />)
@@ -100,8 +95,6 @@ test('renders empty state when there are no prices', async () => {
 test('switches scope and refetches history', async () => {
   vi.mocked(getPriceHistory).mockResolvedValue({
     entries: [],
-    community_price: null,
-    community_price_per: null,
   })
 
   render(<PriceHistorySheet {...baseProps} />)
@@ -151,8 +144,6 @@ test('spelling variants of one store share a single history group', async () => 
         quantity: '1',
       },
     ],
-    community_price: null,
-    community_price_per: null,
   }
 
   vi.mocked(getPriceHistory).mockResolvedValueOnce(mockResponse)
@@ -184,8 +175,6 @@ test('clicking a store row expands it to show detailed stats and records', async
         quantity: '1',
       },
     ],
-    community_price: null,
-    community_price_per: null,
   }
 
   vi.mocked(getPriceHistory).mockResolvedValueOnce(mockResponse)
@@ -209,8 +198,6 @@ test('clicking a store row expands it to show detailed stats and records', async
 test('calls onLogPrice when log price button is clicked', async () => {
   vi.mocked(getPriceHistory).mockResolvedValueOnce({
     entries: [],
-    community_price: null,
-    community_price_per: null,
   })
 
   // Render with an item with no price so "+ Registrar precio" button is displayed
@@ -228,8 +215,6 @@ test('calls onLogPrice when log price button is clicked', async () => {
 test('hides log price button when readOnly is true', async () => {
   vi.mocked(getPriceHistory).mockResolvedValueOnce({
     entries: [],
-    community_price: null,
-    community_price_per: null,
   })
 
   render(<PriceHistorySheet {...baseProps} readOnly={true} />)

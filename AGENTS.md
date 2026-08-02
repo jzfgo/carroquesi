@@ -26,10 +26,10 @@ Two documents hold the durable truth this file does not repeat. Read the relevan
 - `users`: user profile and Firebase identity (`firebase_uid`)
 - `lists`: list metadata and ownership (`owner_id`)
 - `list_members`: list membership links; `is_default` flags the member's default list (the Siri `list_id="default"` target)
-- `list_items`: item data, purchase state (`purchased_at`), actual purchased quantity (`purchased_quantity`), and pricing (`price`, `price_per`, `price_store`)
+- `list_items`: item data, purchase state (`purchased_at`), actual purchased quantity (`purchased_quantity`), pricing (`price`, `price_per`, `price_store`), and the trip it was bought on (`purchase_id`, nullable)
+- `purchases`: shopping trips, declared at reconciliation — `tears_off_at` is the stamped local-midnight boundary, `closed_at` NULL means still open (or never written down, on backfilled rows), `total` is a confirmed figure never summed from lines; at most one open trip per `(list_id, tears_off_at)` via partial unique index. See [ADR-014](docs/decisions/014-purchase-entity-and-trip-boundary.md)
 - `list_invites`: opt-in invitations; `id` is the share token
 - `barcode_cache`: cached barcode lookup data
-- `price_cache`: cached community price data by EAN (amount, price_per, fetched_at); negative-caches misses too
 - `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results)
 - `receipt_name_mappings`: learned receipt→item name mappings per store; improves auto-matching on future scans
 - `list_stores`: per-list store registry — `store_key` → canonical `display_name`, renameable by members. See [ADR-013](docs/decisions/013-store-registry.md)
@@ -114,9 +114,9 @@ Four-step flow: client parse (`receiptAi.ts` via Gemini) → backend fuzzy match
 
 ### Purchased item rules
 
-Purchased items are mostly read-only (rename/qty/brand/store edits disabled). Price deletion has a **same-day guard**: `LogPurchaseSheet` hides the control, and `DELETE /lists/{id}/items/{item_id}/prices` enforces it (returns 422 for prior-day purchases). "Day" in these guards means the **viewer's calendar day**: every `apiFetch` request declares the browser's IANA zone via `X-Client-Timezone`, the backend evaluates the guard in that zone (`app/services/client_day.py`), and a missing or unknown zone falls back to UTC days (Siri Shortcuts). The frontend mirrors delegate to `lib/isSameCalendarDay.ts`; a new date-based rule must use these helpers rather than reduce timestamps to UTC days. See [ADR-012](docs/decisions/012-viewer-day-for-date-guards.md).
+Purchased items are mostly read-only (rename/qty/brand/store edits disabled). Whether a purchase can still be corrected is the **trip-open rule** ([ADR-014](docs/decisions/014-purchase-entity-and-trip-boundary.md)): an item's trip stops taking changes at `closed_at ?? tears_off_at`, exposed to clients as `ItemRead.purchase_ends_at` and answered by `app/services/trips.is_open` on the backend and `lib/isTripOpen.ts` on the frontend. The mirror treats a missing `purchase_ends_at` as open — an optimistic write has no trip yet, and the server has the last word — while the backend treats a purchased item with a NULL or dangling `purchase_id` as **closed** (refusing an edit is recoverable; reopening spend nobody can date is not). The viewer's timezone (`X-Client-Timezone`, [ADR-012](docs/decisions/012-viewer-day-for-date-guards.md)) decides where the boundary is stamped when a trip opens; it is no longer consulted when a guard fires. Price deletion uses this rule: `LogPurchaseSheet` hides the control, and `DELETE /lists/{id}/items/{item_id}/prices` enforces it (422 once the trip has ended). The dashboard progress counts in `app/routers/lists.py` use the same rule in SQL, via a LEFT JOIN onto `purchases`.
 
-Un-purchasing is same-day only, **plus a write grace window**: a record written within `UNPURCHASE_GRACE` (backend items router, mirrored in `useListItems`) can be un-purchased regardless of `purchased_at`, because a receipt scan backdates the purchase to the shopping trip and a wrong receipt link must stay reversible. The grace keys off `list_items.updated_at`, so any endpoint that sets `purchased_at` must also stamp `updated_at` — the receipt apply does. The converse holds too: a price-only receipt patch to an already-purchased item deliberately does not move `updated_at`, because that would reopen the window on someone's days-old purchase. The price-delete guard needs no grace: it only fires while `purchased_at` is set, so un-purchase first, then delete freely.
+Un-purchasing is allowed only while the trip is open, **plus a write grace window**: a record written within `UNPURCHASE_GRACE` (backend items router, mirrored in `useListItems`) can be un-purchased regardless of its trip, because a receipt scan backdates the purchase to the shopping trip and a wrong receipt link must stay reversible. The grace keys off `list_items.updated_at`, so any endpoint that sets `purchased_at` must also stamp `updated_at` — the receipt apply does. The converse holds too: a price-only receipt patch to an already-purchased item deliberately does not move `updated_at`, because that would reopen the window on someone's days-old purchase. The price-delete guard needs no grace: it only fires while `purchased_at` is set, so un-purchase first, then delete freely.
 
 ## Backend
 
@@ -153,7 +153,7 @@ All known flags and defaults live in the registry in `backend/app/services/featu
 ### General Workflow
 
 - **YAGNI.** Build what the task needs, not what a later one might: no parameter, abstraction, or config knob without a caller today. This is *Complexity is earned* at coding time — see [PRODUCT.md](PRODUCT.md)
-- **DRY is about rules, not lines.** Duplicated code is often fine — abstract on the third occurrence, not the second. Duplicated *rules* drift apart, so encode one twice only when the copies do different jobs (the same-day price guard is a UI affordance and an API enforcement), never when they do the same one
+- **DRY is about rules, not lines.** Duplicated code is often fine — abstract on the third occurrence, not the second. Duplicated *rules* drift apart, so encode one twice only when the copies do different jobs (the trip-open price guard is a UI affordance and an API enforcement), never when they do the same one
 - **Write comments and docs in plain, short English.** One idea per sentence. Use common words, not rare or figurative ones: the reader is not always a native speaker. A comment says *why*, not *where*: never cite line numbers, file paths, or issue IDs in a code comment. Nothing checks those links, so they go stale on the next move, and the commit message tells the reader more. Docs are the index, so they cite freely. Keep the length in proportion to the decision. Commit and PR titles are exempt; their style is deliberate.
 - **A paragraph defending a workaround means the code is wrong.** If a paragraph is needed to argue the hack is OK, fix the code instead
 - Start both servers: `just dev` (uses overmind + `Procfile.local`); use `just dev network` to expose on LAN
@@ -231,7 +231,3 @@ A task is complete only when **all** of the following are true:
 - [ ] Lint and relevant tests pass (`just ci` for full check)
 - [ ] Only intentional files changed (no platform-narrowed `pnpm-lock.yaml`)
 - [ ] `CHANGELOG.md` untouched — it is generated on `main` at release time. The release PR is the only exception
-
-## Out of Scope
-
-- Submitting prices to Open Prices (requires proof image + OSM location)

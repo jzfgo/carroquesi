@@ -382,6 +382,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists/{list_id}/purchases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Purchases
+         * @description The list's trips, newest shop first.
+         *
+         *     The sort key is when each trip stopped (or will stop) taking items —
+         *     the same instant the trip-open rule compares against. An open cart's
+         *     boundary is in the future, so it naturally sorts first; a trip that
+         *     tore off with nobody writing it down sorts by the day it covered, not
+         *     by whenever someone later looks at it. The id tie-break keeps pages
+         *     stable when two trips share a boundary.
+         */
+        get: operations["list_purchases_lists__list_id__purchases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lists/{list_id}/purchases/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Purchase
+         * @description Declare what a shop was — claim lines out of a trip and file them.
+         *
+         *     Claiming every item in the cart closes the trip in place; claiming fewer
+         *     splits the selection onto its own ticket and leaves the rest in the
+         *     cart. There is no date control: the ticket's dates derive from the
+         *     claimed lines' purchased_at and the close instant, which covers every
+         *     shop the current write paths can produce.
+         *
+         *     No push fires here. Like the receipt apply, a close records a shop that
+         *     already happened — nothing joins the list unpurchased, and the impulse
+         *     buys it creates are born bought, the same shape that path creates
+         *     silently.
+         */
+        post: operations["close_purchase_lists__list_id__purchases_close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lists/{list_id}/purchases/{purchase_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Purchase Items
+         * @description The lines of one ticket, in the order they went into the cart.
+         */
+        get: operations["get_purchase_items_lists__list_id__purchases__purchase_id__items_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{list_id}/receipt": {
         parameters: {
             query?: never;
@@ -620,10 +698,6 @@ export interface components {
         BarcodeRead: {
             /** Brand */
             brand: string | null;
-            /** Community Price */
-            community_price?: number | null;
-            /** Community Price Per */
-            community_price_per?: "KILOGRAM" | null;
             /** Ean */
             ean: string;
             /** Name */
@@ -769,6 +843,10 @@ export interface components {
             price_per: "KILOGRAM" | null;
             /** Price Store */
             price_store: string | null;
+            /** Purchase Ends At */
+            purchase_ends_at?: string | null;
+            /** Purchase Id */
+            purchase_id?: string | null;
             /** Purchased */
             readonly purchased: boolean;
             /** Purchased At */
@@ -807,8 +885,26 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * ListMemberBrief
+         * @description A member as shown on list overviews: id and display name, nothing else.
+         *
+         *     Deliberately carries no email and no photo — the overview payload must not
+         *     leak contact details of co-members.
+         */
+        ListMemberBrief: {
+            /** Display Name */
+            display_name: string;
+            /** User Id */
+            user_id: string;
+        };
         /** ListRead */
         ListRead: {
+            /**
+             * Cart Count
+             * @default 0
+             */
+            cart_count: number;
             /**
              * Created At
              * Format: date-time
@@ -828,6 +924,11 @@ export interface components {
              * @default 0
              */
             item_count: number;
+            /**
+             * Members
+             * @default []
+             */
+            members: components["schemas"]["ListMemberBrief"][];
             /** Name */
             name: string;
             /** Owner Id */
@@ -969,10 +1070,6 @@ export interface components {
         };
         /** PriceHistoryResponse */
         PriceHistoryResponse: {
-            /** Community Price */
-            community_price?: number | null;
-            /** Community Price Per */
-            community_price_per?: "KILOGRAM" | null;
             /** Entries */
             entries: components["schemas"]["PriceEntry"][];
         };
@@ -988,6 +1085,119 @@ export interface components {
             quantity?: string | null;
             /** Store */
             store?: string | null;
+        };
+        /** PurchaseCloseBody */
+        PurchaseCloseBody: {
+            /** Lines */
+            lines: components["schemas"]["PurchaseLine"][];
+            /** New Items */
+            new_items?: components["schemas"]["PurchaseNewItem"][];
+            /** Purchase Id */
+            purchase_id?: string | null;
+            /** Store */
+            store: string;
+            /** Total */
+            total?: number | null;
+        };
+        /**
+         * PurchaseLine
+         * @description One claimed line of the close sheet.
+         *
+         *     Unlike a receipt's PricePatch, `price` is optional: a line without an
+         *     amount is a legitimate outcome — bought, nobody kept the figure — and no
+         *     amount is invented for it. No store either: a ticket belongs to one shop,
+         *     stated once on the close.
+         */
+        PurchaseLine: {
+            /** Item Id */
+            item_id: string;
+            /** Price */
+            price?: number | null;
+            /** Price Per */
+            price_per?: "KILOGRAM" | null;
+            /** Quantity */
+            quantity?: string | null;
+        };
+        /**
+         * PurchaseNewItem
+         * @description Something bought that was never on the list. Born already purchased.
+         */
+        PurchaseNewItem: {
+            /** Brand */
+            brand?: string | null;
+            /** Ean */
+            ean?: string | null;
+            /** Name */
+            name: string;
+            /** Price */
+            price?: number | null;
+            /** Price Per */
+            price_per?: "KILOGRAM" | null;
+            /** Quantity */
+            quantity?: string | null;
+        };
+        /** PurchasePage */
+        PurchasePage: {
+            /** Purchases */
+            purchases: components["schemas"]["PurchaseSummary"][];
+            /** Total */
+            total: number;
+        };
+        /** PurchaseRead */
+        PurchaseRead: {
+            /** Closed At */
+            closed_at: string | null;
+            /** Id */
+            id: string;
+            /** List Id */
+            list_id: string;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Store */
+            store: string | null;
+            /**
+             * Tears Off At
+             * Format: date-time
+             */
+            tears_off_at: string;
+            /** Total */
+            total: number | null;
+        };
+        /**
+         * PurchaseSummary
+         * @description One row of the purchase history page.
+         *
+         *     Carries what the page renders per ticket without fetching its lines:
+         *     how many lines it holds, and whether a receipt scan reconciled it.
+         */
+        PurchaseSummary: {
+            /** Closed At */
+            closed_at: string | null;
+            /** Has Receipt */
+            has_receipt: boolean;
+            /** Id */
+            id: string;
+            /** Line Count */
+            line_count: number;
+            /** List Id */
+            list_id: string;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Store */
+            store: string | null;
+            /**
+             * Tears Off At
+             * Format: date-time
+             */
+            tears_off_at: string;
+            /** Total */
+            total: number | null;
         };
         /** PushTokenBody */
         PushTokenBody: {
@@ -2042,7 +2252,6 @@ export interface operations {
                 "x-dev-user-id"?: string | null;
                 "x-dev-is-admin"?: string | null;
                 "x-api-key"?: string | null;
-                "x-client-timezone"?: string | null;
             };
             path: {
                 list_id: string;
@@ -2206,6 +2415,119 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_purchases_lists__list_id__purchases_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchasePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_purchase_lists__list_id__purchases_close_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseCloseBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_purchase_items_lists__list_id__purchases__purchase_id__items_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                purchase_id: string;
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemRead"][];
+                };
             };
             /** @description Validation Error */
             422: {

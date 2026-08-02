@@ -18,6 +18,17 @@
       "updated_at": "2026-06-23T10:00:00",
       "item_count": 2,
       "purchased_count": 0,
+      "cart_count": 0,
+      "members": [
+        {
+          "user_id": "seed-user-alice",
+          "display_name": "Alice (seed)"
+        },
+        {
+          "user_id": "seed-user-bob",
+          "display_name": "Bob (seed)"
+        }
+      ],
       "is_default": true
     },
     {
@@ -29,6 +40,13 @@
       "updated_at": "2026-06-23T10:00:00",
       "item_count": 1,
       "purchased_count": 0,
+      "cart_count": 0,
+      "members": [
+        {
+          "user_id": "seed-user-alice",
+          "display_name": "Alice (seed)"
+        }
+      ],
       "is_default": false
     }
   ],
@@ -44,6 +62,8 @@
         "stores": ["Mercadona"],
         "purchased": false,
         "purchased_at": null,
+        "purchase_id": null,
+        "purchase_ends_at": null,
         "ean": null,
         "price": 0.65,
         "price_per": null,
@@ -62,6 +82,8 @@
         "stores": ["Mercadona"],
         "purchased": false,
         "purchased_at": null,
+        "purchase_id": null,
+        "purchase_ends_at": null,
         "ean": null,
         "price": null,
         "price_per": null,
@@ -82,6 +104,8 @@
         "stores": ["Mercadona"],
         "purchased": false,
         "purchased_at": null,
+        "purchase_id": null,
+        "purchase_ends_at": null,
         "ean": null,
         "price": null,
         "price_per": null,
@@ -180,6 +204,8 @@
     "updated_at": "2026-06-23T10:00:00",
     "item_count": 0,
     "purchased_count": 0,
+    "cart_count": 0,
+    "members": [],
     "is_default": false
   },
   "SEED_CREATED_ITEM": {
@@ -192,6 +218,8 @@
     "stores": [],
     "purchased": false,
     "purchased_at": null,
+    "purchase_id": null,
+    "purchase_ends_at": null,
     "ean": null,
     "price": null,
     "price_per": null,
@@ -210,6 +238,8 @@
     "stores": ["Mercadona"],
     "purchased": true,
     "purchased_at": "2026-07-10T00:00:00",
+    "purchase_id": null,
+    "purchase_ends_at": null,
     "ean": null,
     "price": 1.0,
     "price_per": null,
@@ -226,9 +256,7 @@
     "quantity": null
   },
   "SEED_PRICE_HISTORY": {
-    "entries": [],
-    "community_price": null,
-    "community_price_per": null
+    "entries": []
   },
   "SEED_RECEIPT_APPLY_RESULT": {
     "items_updated": 2,

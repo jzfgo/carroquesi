@@ -41,29 +41,6 @@
             ],
             "title": "Brand"
           },
-          "community_price": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Community Price"
-          },
-          "community_price_per": {
-            "anyOf": [
-              {
-                "const": "KILOGRAM",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Community Price Per"
-          },
           "ean": {
             "title": "Ean",
             "type": "string"
@@ -523,6 +500,29 @@
             ],
             "title": "Price Store"
           },
+          "purchase_ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Ends At"
+          },
+          "purchase_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Id"
+          },
           "purchased": {
             "readOnly": true,
             "title": "Purchased",
@@ -696,8 +696,32 @@
         "title": "ListCreate",
         "type": "object"
       },
+      "ListMemberBrief": {
+        "description": "A member as shown on list overviews: id and display name, nothing else.\n\nDeliberately carries no email and no photo — the overview payload must not\nleak contact details of co-members.",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "display_name"
+        ],
+        "title": "ListMemberBrief",
+        "type": "object"
+      },
       "ListRead": {
         "properties": {
+          "cart_count": {
+            "default": 0,
+            "title": "Cart Count",
+            "type": "integer"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -727,6 +751,14 @@
             "default": 0,
             "title": "Item Count",
             "type": "integer"
+          },
+          "members": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ListMemberBrief"
+            },
+            "title": "Members",
+            "type": "array"
           },
           "name": {
             "title": "Name",
@@ -1165,29 +1197,6 @@
       },
       "PriceHistoryResponse": {
         "properties": {
-          "community_price": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Community Price"
-          },
-          "community_price_per": {
-            "anyOf": [
-              {
-                "const": "KILOGRAM",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Community Price Per"
-          },
           "entries": {
             "items": {
               "$ref": "#/components/schemas/PriceEntry"
@@ -1252,6 +1261,347 @@
           "price"
         ],
         "title": "PricePatch",
+        "type": "object"
+      },
+      "PurchaseCloseBody": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseLine"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Lines",
+            "type": "array"
+          },
+          "new_items": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseNewItem"
+            },
+            "maxItems": 200,
+            "title": "New Items",
+            "type": "array"
+          },
+          "purchase_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Id"
+          },
+          "store": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Store",
+            "type": "string"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "required": [
+          "store",
+          "lines"
+        ],
+        "title": "PurchaseCloseBody",
+        "type": "object"
+      },
+      "PurchaseLine": {
+        "description": "One claimed line of the close sheet.\n\nUnlike a receipt's PricePatch, `price` is optional: a line without an\namount is a legitimate outcome — bought, nobody kept the figure — and no\namount is invented for it. No store either: a ticket belongs to one shop,\nstated once on the close.",
+        "properties": {
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "price_per": {
+            "anyOf": [
+              {
+                "const": "KILOGRAM",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Per"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          }
+        },
+        "required": [
+          "item_id"
+        ],
+        "title": "PurchaseLine",
+        "type": "object"
+      },
+      "PurchaseNewItem": {
+        "description": "Something bought that was never on the list. Born already purchased.",
+        "properties": {
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "ean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ean"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "price_per": {
+            "anyOf": [
+              {
+                "const": "KILOGRAM",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Per"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PurchaseNewItem",
+        "type": "object"
+      },
+      "PurchasePage": {
+        "properties": {
+          "purchases": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseSummary"
+            },
+            "title": "Purchases",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "purchases",
+          "total"
+        ],
+        "title": "PurchasePage",
+        "type": "object"
+      },
+      "PurchaseRead": {
+        "properties": {
+          "closed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "list_id": {
+            "title": "List Id",
+            "type": "string"
+          },
+          "opened_at": {
+            "format": "date-time",
+            "title": "Opened At",
+            "type": "string"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "tears_off_at": {
+            "format": "date-time",
+            "title": "Tears Off At",
+            "type": "string"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "required": [
+          "id",
+          "list_id",
+          "opened_at",
+          "tears_off_at",
+          "closed_at",
+          "store",
+          "total"
+        ],
+        "title": "PurchaseRead",
+        "type": "object"
+      },
+      "PurchaseSummary": {
+        "description": "One row of the purchase history page.\n\nCarries what the page renders per ticket without fetching its lines:\nhow many lines it holds, and whether a receipt scan reconciled it.",
+        "properties": {
+          "closed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "has_receipt": {
+            "title": "Has Receipt",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "line_count": {
+            "title": "Line Count",
+            "type": "integer"
+          },
+          "list_id": {
+            "title": "List Id",
+            "type": "string"
+          },
+          "opened_at": {
+            "format": "date-time",
+            "title": "Opened At",
+            "type": "string"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "tears_off_at": {
+            "format": "date-time",
+            "title": "Tears Off At",
+            "type": "string"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "required": [
+          "id",
+          "list_id",
+          "opened_at",
+          "tears_off_at",
+          "closed_at",
+          "store",
+          "total",
+          "line_count",
+          "has_receipt"
+        ],
+        "title": "PurchaseSummary",
         "type": "object"
       },
       "PushTokenBody": {
@@ -3919,22 +4269,6 @@
               ],
               "title": "X-Api-Key"
             }
-          },
-          {
-            "in": "header",
-            "name": "x-client-timezone",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Client-Timezone"
-            }
           }
         ],
         "responses": {
@@ -4596,6 +4930,340 @@
         "summary": "Remove Member",
         "tags": [
           "members"
+        ]
+      }
+    },
+    "/lists/{list_id}/purchases": {
+      "get": {
+        "description": "The list's trips, newest shop first.\n\nThe sort key is when each trip stopped (or will stop) taking items —\nthe same instant the trip-open rule compares against. An open cart's\nboundary is in the future, so it naturally sorts first; a trip that\ntore off with nobody writing it down sorts by the day it covered, not\nby whenever someone later looks at it. The id tie-break keeps pages\nstable when two trips share a boundary.",
+        "operationId": "list_purchases_lists__list_id__purchases_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchasePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Purchases",
+        "tags": [
+          "purchases"
+        ]
+      }
+    },
+    "/lists/{list_id}/purchases/close": {
+      "post": {
+        "description": "Declare what a shop was — claim lines out of a trip and file them.\n\nClaiming every item in the cart closes the trip in place; claiming fewer\nsplits the selection onto its own ticket and leaves the rest in the\ncart. There is no date control: the ticket's dates derive from the\nclaimed lines' purchased_at and the close instant, which covers every\nshop the current write paths can produce.\n\nNo push fires here. Like the receipt apply, a close records a shop that\nalready happened — nothing joins the list unpurchased, and the impulse\nbuys it creates are born bought, the same shape that path creates\nsilently.",
+        "operationId": "close_purchase_lists__list_id__purchases_close_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseCloseBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Close Purchase",
+        "tags": [
+          "purchases"
+        ]
+      }
+    },
+    "/lists/{list_id}/purchases/{purchase_id}/items": {
+      "get": {
+        "description": "The lines of one ticket, in the order they went into the cart.",
+        "operationId": "get_purchase_items_lists__list_id__purchases__purchase_id__items_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "purchase_id",
+            "required": true,
+            "schema": {
+              "title": "Purchase Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ItemRead"
+                  },
+                  "title": "Response Get Purchase Items Lists  List Id  Purchases  Purchase Id  Items Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Purchase Items",
+        "tags": [
+          "purchases"
         ]
       }
     },

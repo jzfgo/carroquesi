@@ -9,8 +9,6 @@ const product: BarcodeRead = {
   name: 'Leche Entera',
   brand: 'Pascual',
   stores: ['Mercadona', 'Alcampo'],
-  community_price: null,
-  community_price_per: null,
 }
 
 const productNoExtras: BarcodeRead = {
@@ -18,8 +16,6 @@ const productNoExtras: BarcodeRead = {
   name: 'Producto Genérico',
   brand: null,
   stores: [],
-  community_price: null,
-  community_price_per: null,
 }
 
 describe('BarcodeScanSheet', () => {

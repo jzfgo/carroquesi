@@ -50,10 +50,10 @@ Confirmed and shipped:
 
 - Multiple shared lists per user; membership by explicit, opt-in invitation — access is granted only after the invite is accepted.
 - Items with quantity, brand, store, tags, and barcode; a purchased state that records *when*, *how much* was actually bought, and at what price.
-- Purchased items are largely read-only. Price deletion carries a same-day guard, enforced on both the client and the server.
+- Purchased items are largely read-only. Price deletion is allowed only while the item's shopping trip is still open, enforced on both the client and the server.
 - Smart Input bar with a sigil syntax (`+qty`, `#brand`, `@store`, `|EAN`) for fast entry, alongside plain typing.
 - Suggestions from purchase history, and due-again prompts.
-- Barcode lookup with caching; community price lookup by EAN, with misses negative-cached.
+- Barcode lookup with caching.
 - Receipt scanning: client-side parse via Gemini → backend fuzzy match → user review → apply. Behind a feature flag, default off.
 - Web Push via FCM, on item add and on first purchase only. Un-purchasing is a correction and stays silent. Enabled by default; token presence *is* the on/off state.
 - Each member has at most one default list, set explicitly, never inferred — the target of the Siri Shortcuts `"default"` resolver ([ADR-007](docs/decisions/007-per-user-default-list.md)).
@@ -66,7 +66,6 @@ Constraints future work must respect:
 - **Google Sign-In via Firebase Auth is the only human sign-in path.** No passwords, no email/password fallback, no other providers today.
 - **Firebase is a dependency, not a deployment choice** — the backend validates Firebase ID tokens ([ADR-002](docs/decisions/002-firebase-auth-only-postgres-for-data.md)). Everything else (static host, container runtime, Postgres host) is swappable; the backend's entire contract with the database is `DATABASE_URL`.
 - **No Firestore.** All CRUD goes through the FastAPI backend.
-- Submitting prices to Open Prices is explicitly **out of scope** (it requires a proof image and an OSM location).
 
 Terminology, as the product uses it:
 

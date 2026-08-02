@@ -1,7 +1,6 @@
-import { Globe, Pencil, Store, Tag } from 'lucide-react'
+import { Pencil, Store, Tag } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
-import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
 import { storeKey } from '../lib/storeKey'
 import type { BarcodeRead } from '../types'
 import './BarcodeScanSheet.css'
@@ -113,28 +112,6 @@ export function BarcodeScanSheet({
             <Pencil size={16} />
           </button>
         </div>
-
-        {product.community_price !== null && (
-          <div className="bss__community-price">
-            <span className="bss__community-price-text">
-              <Globe size={14} /> Precio estimado
-            </span>
-            <span className="bss__community-price-value">
-              ~
-              {formatPrice(
-                product.community_price,
-                product.community_price_per,
-              )}
-            </span>
-            <button
-              className="bss__community-price-info"
-              title={COMMUNITY_PRICE_TOOLTIP}
-              aria-label="Información sobre el precio de la comunidad"
-            >
-              ⓘ
-            </button>
-          </div>
-        )}
 
         <div className="bss__actions">
           <button className="bss__cancel" onClick={onClose}>

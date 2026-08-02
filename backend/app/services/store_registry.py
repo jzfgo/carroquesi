@@ -44,7 +44,15 @@ def backfill_list_stores(session: Session) -> None:
     """
     counts: dict[tuple[str, str], dict[str, int]] = {}
     order: dict[tuple[str, str], dict[str, int]] = {}
-    items = session.exec(select(ListItem).order_by(ListItem.created_at)).all()
+    # Column selects, not a model select. The migration calls this against the
+    # schema as of its own revision, and a model select names every column the
+    # *current* model has — so a list_items column added by any later
+    # migration would break the upgrade path from scratch.
+    items = session.exec(
+        select(ListItem.list_id, ListItem.stores, ListItem.price_store).order_by(
+            ListItem.created_at
+        )
+    ).all()
     seq = 0
     for item in items:
         for raw in [*item.stores, *([item.price_store] if item.price_store else [])]:
@@ -59,7 +67,10 @@ def backfill_list_stores(session: Session) -> None:
                 order[group][raw] = seq
                 seq += 1
 
-    existing = {(row.list_id, row.store_key) for row in session.exec(select(ListStore)).all()}
+    existing = {
+        (row.list_id, row.store_key)
+        for row in session.exec(select(ListStore.list_id, ListStore.store_key)).all()
+    }
     for (list_id, key), variants in counts.items():
         if (list_id, key) in existing:
             continue

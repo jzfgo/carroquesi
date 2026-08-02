@@ -9,7 +9,6 @@ from app.core.http import HEADERS as _OFF_HEADERS
 from app.db.models import BarcodeCache
 from app.dependencies import CurrentSession, CurrentUser
 from app.schemas.barcode import BarcodeRead
-from app.services.community_price import get_community_price
 from app.services.store_key import store_key
 
 router = APIRouter(tags=["barcode"])
@@ -37,18 +36,12 @@ def _parse_stores(raw: str | None) -> list[str]:
     return list(by_key.values())
 
 
-def _to_read(
-    entry: BarcodeCache,
-    community_price: float | None = None,
-    community_price_per: str | None = None,
-) -> BarcodeRead:
+def _to_read(entry: BarcodeCache) -> BarcodeRead:
     return BarcodeRead(
         ean=entry.ean,
         name=entry.name,
         brand=entry.brand,
         stores=_parse_stores(entry.stores),
-        community_price=community_price,
-        community_price_per=community_price_per,
     )
 
 
@@ -93,8 +86,7 @@ def get_barcode(
     # Cache lookup
     cached = session.exec(select(BarcodeCache).where(BarcodeCache.ean == ean)).first()
     if cached:
-        community_price, community_price_per = get_community_price(ean, session)
-        return _to_read(cached, community_price, community_price_per)
+        return _to_read(cached)
 
     result = _fetch_product(ean)
     if result is None:
@@ -110,10 +102,8 @@ def get_barcode(
         session.rollback()
         cached = session.exec(select(BarcodeCache).where(BarcodeCache.ean == ean)).first()
         if cached:
-            community_price, community_price_per = get_community_price(ean, session)
-            return _to_read(cached, community_price, community_price_per)
+            return _to_read(cached)
         raise HTTPException(status_code=503, detail="Cache error") from None
 
     session.refresh(entry)
-    community_price, community_price_per = get_community_price(ean, session)
-    return _to_read(entry, community_price, community_price_per)
+    return _to_read(entry)

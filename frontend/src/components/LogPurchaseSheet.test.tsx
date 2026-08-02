@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { isSameCalendarDay } from '../lib/isSameCalendarDay'
 import type { ListItem } from '../types'
 import LogPurchaseSheet from './LogPurchaseSheet'
 
@@ -15,6 +14,7 @@ const BASE_ITEM: ListItem = {
   stores: [],
   purchased: false,
   purchased_at: null,
+  purchase_ends_at: null,
   ean: null,
   price: null,
   price_per: null,
@@ -23,21 +23,6 @@ const BASE_ITEM: ListItem = {
   created_at: '',
   updated_at: '',
 }
-
-describe('isSameCalendarDay', () => {
-  it('returns true for null', () => {
-    expect(isSameCalendarDay(null)).toBe(true)
-  })
-
-  it('returns true for a timestamp from today', () => {
-    expect(isSameCalendarDay(new Date().toISOString())).toBe(true)
-  })
-
-  it('returns false for a timestamp from yesterday', () => {
-    const yesterday = '2020-01-01T00:00:00.000Z'
-    expect(isSameCalendarDay(yesterday)).toBe(false)
-  })
-})
 
 describe('LogPurchaseSheet delete button', () => {
   const baseProps = {
@@ -69,12 +54,15 @@ describe('LogPurchaseSheet delete button', () => {
     ).toBeInTheDocument()
   })
 
-  it('is shown when item has a price and was purchased today', () => {
+  it('is shown when item has a price and its trip is still open', () => {
     const item = {
       ...BASE_ITEM,
       price: 1.99,
       purchased: true,
       purchased_at: new Date().toISOString(),
+      purchase_ends_at: new Date(Date.now() + 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, -1),
     }
     render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
     expect(
@@ -82,13 +70,13 @@ describe('LogPurchaseSheet delete button', () => {
     ).toBeInTheDocument()
   })
 
-  it('is hidden when item has a price but was purchased on a previous day', () => {
-    const yesterday = '2020-01-01T00:00:00.000Z'
+  it('is hidden when item has a price but its trip has ended', () => {
     const item = {
       ...BASE_ITEM,
       price: 1.99,
       purchased: true,
-      purchased_at: yesterday,
+      purchased_at: '2020-01-01T00:00:00',
+      purchase_ends_at: '2020-01-02T00:00:00',
     }
     render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
     expect(

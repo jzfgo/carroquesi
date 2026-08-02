@@ -2,7 +2,7 @@ import { ShoppingCart, Store } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { formatPrice } from '../lib/formatPrice'
-import { isSameCalendarDay } from '../lib/isSameCalendarDay'
+import { isTripOpen } from '../lib/isTripOpen'
 import { parseQuantityFactor } from '../lib/itemCost'
 import { storeKey } from '../lib/storeKey'
 import type { ListItem } from '../types'
@@ -72,7 +72,7 @@ export default function LogPurchaseSheet({
   const amount = parseFloat(amountStr)
   const canSave = !isNaN(amount) && amount > 0
   const canDelete =
-    item.price != null && !!onDelete && isSameCalendarDay(item.purchased_at)
+    item.price != null && !!onDelete && isTripOpen(item.purchase_ends_at)
 
   const liveCost: number | null = (() => {
     const price = parseFloat(amountStr)
