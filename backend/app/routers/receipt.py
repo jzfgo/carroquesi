@@ -62,6 +62,17 @@ def scan_receipt(
             detail="ai_receipt_scanning feature not enabled",
         )
 
+    # Consent is separate from the rollout flag, and the details differ so the
+    # UI can tell "not available to you" from "you have not agreed yet". The
+    # client-side Gemini parse is gated in the frontend on the same account
+    # preference; what this check covers is the server side — matching against
+    # purchase history and writing the scan record.
+    if current_user.receipt_consent != "granted":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="receipt_consent_required",
+        )
+
     # _parse_receipt_at normalises to naive UTC, so a receipt printed just
     # after local midnight can yield a UTC date one day earlier than the
     # wall-clock date. That skew is at most a few hours and is absorbed by
@@ -156,6 +167,15 @@ def apply_receipt_prices(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="ai_receipt_scanning feature not enabled",
+        )
+
+    # Same consent gate as the scan step, same reasoning as the flag gate
+    # above: this endpoint writes prices and must not be reachable by a
+    # direct call from a user who never agreed to receipt processing.
+    if current_user.receipt_consent != "granted":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="receipt_consent_required",
         )
 
     now = datetime.now(UTC).replace(tzinfo=None)
