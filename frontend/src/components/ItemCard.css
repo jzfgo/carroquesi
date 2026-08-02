@@ -6,8 +6,9 @@
    Sizes follow the 30a proportions against the 24px circle: the written name
    at calc(24px * --written-scale) carries a ~14.9px cap (Patrick Hand SC caps
    measure 0.69 em), standing level with the circle's 15px glyph — the
-   handwriting is the dominant mark on the row. The printed record is a step
-   finer, and everything else steps down from the name. */
+   handwriting is the dominant mark on the row. The printed record matches it
+   by cap height, not by px (the Cap-Height Rule — arithmetic at the bought
+   rules below), and everything else steps down from the name. */
 
 /* Rows sit directly on the paper — no rule between them. Rules belong to
    sections: the sheet title and the store group headers. */
@@ -145,11 +146,12 @@
 }
 
 /* The amount column: tabular mono in plain ink — the grayscale ink rule
-   keeps every figure grey; only the tick is green. */
+   keeps every figure grey; only the tick is green. Sized with the record
+   name it shares a line with (the Cap-Height Rule — see below). */
 .item-card__amount {
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: var(--fs-14);
+  font-size: var(--fs-20);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--ink-1);
@@ -164,12 +166,16 @@
   color: var(--ink-2);
 }
 
-/* A bought row is a printed record: mono, uppercase, secondary ink, a step
-   finer than the hand. In-cart rows keep the written voice — you wrote them,
-   also on the stub. */
+/* A bought row is a printed record: mono, uppercase, secondary ink — the
+   SAME visual size as the hand, matched by the Cap-Height Rule, never by px:
+   Patrick Hand SC at 18.9px carries a 13.03px cap that JetBrains Mono only
+   reaches at 17.5px, so mono = hand × 17.5/18.9. The 21.6px hand name
+   (cap 14.9px) lands mono on 20px; the 16.2px hand meta on 15px — both on
+   the scale. In-cart rows keep the written voice — you wrote them, also on
+   the stub. */
 .item-card--bought .item-card__name {
   font-family: var(--font-mono);
-  font-size: var(--fs-14);
+  font-size: var(--fs-20);
   font-weight: 500;
   letter-spacing: var(--tracking-wide);
   color: var(--ink-1);
@@ -177,7 +183,7 @@
 
 .item-card--bought .item-card__meta {
   font-family: var(--font-mono);
-  font-size: var(--fs-13);
+  font-size: var(--fs-15);
   letter-spacing: var(--tracking-wide);
   color: var(--ink-2);
 }
