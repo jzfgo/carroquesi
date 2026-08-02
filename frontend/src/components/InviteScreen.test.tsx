@@ -41,6 +41,7 @@ vi.mock('react-router-dom', () => ({
 }))
 
 const mockGetToken = vi.fn(async () => 'token')
+const mockSignOut = vi.fn(async () => undefined)
 const authedUser = {
   id: 'u1',
   displayName: 'Alice',
@@ -54,7 +55,7 @@ function mockAuth(user: typeof authedUser | null = authedUser) {
     user,
     getToken: mockGetToken,
     signIn: vi.fn(),
-    signOut: vi.fn(),
+    signOut: mockSignOut,
     loading: false,
     isWaitlisted: false,
   })
@@ -143,7 +144,7 @@ test('calls signIn when not authenticated and button clicked', async () => {
   await waitFor(() => expect(mockSignIn).toHaveBeenCalledOnce())
 })
 
-test('shows error message for 404', async () => {
+test('shows error message for 404 with a home link and no other action', async () => {
   vi.mocked(api.getInvitePreview).mockRejectedValue(
     new api.ApiError(404, 'Not found'),
   )
@@ -152,9 +153,15 @@ test('shows error message for 404', async () => {
     expect(screen.getByText('Esta invitación no existe')).toBeInTheDocument(),
   )
   expect(screen.getByText('Ir al inicio \u2192')).toBeInTheDocument()
+  expect(
+    screen.queryByRole('button', { name: 'Reintentar' }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('button', { name: 'Cambiar de cuenta' }),
+  ).not.toBeInTheDocument()
 })
 
-test('shows error message for 410', async () => {
+test('shows error message for 410 with a home link', async () => {
   vi.mocked(api.getInvitePreview).mockRejectedValue(
     new api.ApiError(410, 'Gone'),
   )
@@ -162,19 +169,29 @@ test('shows error message for 410', async () => {
   await waitFor(() =>
     expect(screen.getByText('Esta invitación ha expirado')).toBeInTheDocument(),
   )
+  expect(screen.getByText('Ir al inicio →')).toBeInTheDocument()
+  expect(
+    screen.queryByRole('button', { name: 'Cambiar de cuenta' }),
+  ).not.toBeInTheDocument()
 })
 
-test('shows error message for 409', async () => {
+test('shows the list-full message for 409 with a home link', async () => {
   vi.mocked(api.getInvitePreview).mockRejectedValue(
     new api.ApiError(409, 'Conflict'),
   )
   render(<InviteScreen />)
   await waitFor(() =>
-    expect(screen.getByText('La lista ya está llena')).toBeInTheDocument(),
+    expect(
+      screen.getByText('La lista ya está llena — el tope son 5'),
+    ).toBeInTheDocument(),
   )
+  expect(screen.getByText('Ir al inicio →')).toBeInTheDocument()
+  expect(
+    screen.queryByRole('button', { name: 'Cambiar de cuenta' }),
+  ).not.toBeInTheDocument()
 })
 
-test('shows error message for 403 on accept', async () => {
+test('shows error message for 403 on accept with a "Cambiar de cuenta" action', async () => {
   vi.mocked(api.getInvitePreview).mockResolvedValue(previewData)
   vi.mocked(api.acceptInvite).mockRejectedValue(
     new api.ApiError(403, 'Forbidden'),
@@ -187,6 +204,32 @@ test('shows error message for 403 on accept', async () => {
       screen.getByText('Esta invitación es para otra cuenta'),
     ).toBeInTheDocument(),
   )
+  expect(
+    screen.getByRole('button', { name: 'Cambiar de cuenta' }),
+  ).toBeInTheDocument()
+})
+
+test('"Cambiar de cuenta" signs out and returns to the invite preview', async () => {
+  vi.mocked(api.getInvitePreview).mockResolvedValue(previewData)
+  vi.mocked(api.acceptInvite).mockRejectedValue(
+    new api.ApiError(403, 'Forbidden'),
+  )
+  // Signing out flips the auth mock, as the real sign-out flips the context.
+  mockSignOut.mockImplementationOnce(async () => {
+    mockAuth(null)
+  })
+  render(<InviteScreen />)
+  await waitFor(() => screen.getByRole('button', { name: 'Unirse a la lista' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Unirse a la lista' }))
+  await waitFor(() => screen.getByRole('button', { name: 'Cambiar de cuenta' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Cambiar de cuenta' }))
+  await waitFor(() => expect(mockSignOut).toHaveBeenCalledOnce())
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Iniciar sesión para unirse' }),
+    ).toBeInTheDocument(),
+  )
+  expect(screen.getByText('Compras')).toBeInTheDocument()
 })
 
 test('shows network error with retry button, retry re-fetches on success', async () => {

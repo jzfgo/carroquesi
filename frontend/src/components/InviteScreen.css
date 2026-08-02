@@ -6,7 +6,7 @@
   gap: 1.5rem;
   min-height: 100dvh;
   padding: 1.5rem;
-  background: var(--color-bg);
+  background: var(--paper-0);
 }
 
 .invite-screen__card {
@@ -17,10 +17,11 @@
   width: 100%;
   max-width: 360px;
   padding: 2rem 1.5rem;
-  background: var(--color-surface);
-  border-radius: 1rem;
-  border: 1px solid var(--color-border);
+  background: var(--paper-0);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
   text-align: center;
+  box-sizing: border-box;
 }
 
 .invite-screen__icon {
@@ -30,39 +31,53 @@
 
 .invite-screen__list-name {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--fs-20);
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--ink-0);
 }
 
 .invite-screen__inviter {
   margin: 0;
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
+  font-size: var(--fs-14);
+  color: var(--ink-2);
 }
 
 .invite-screen__btn {
   width: 100%;
+  min-height: 44px;
   padding: 0.75rem 1.5rem;
-  background: var(--color-primary);
-  color: white;
+  background: var(--accent);
+  color: var(--accent-fg);
   border: none;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  font-weight: 500;
+  border-radius: var(--r-md);
+  font-size: var(--fs-16);
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
   margin-top: 0.5rem;
+  transition: background 0.2s;
+  box-sizing: border-box;
+}
+
+.invite-screen__btn:hover {
+  background: var(--accent-hover);
+}
+
+.invite-screen__btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .invite-screen__error {
   margin: 0;
-  color: var(--color-text-secondary);
-  font-size: 0.9375rem;
+  color: var(--ink-1);
+  font-size: var(--fs-15);
+  line-height: var(--lh-base);
 }
 
 .invite-screen__home-link {
-  font-size: 0.875rem;
-  color: var(--color-primary);
+  font-size: var(--fs-14);
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -71,7 +86,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 3px solid var(--color-border);
-  border-top-color: var(--color-primary);
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
   animation: spin 0.8s linear infinite;
 }
