@@ -5,6 +5,29 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#EEF1F5" />
+    <!-- Pre-paint theme application. Duplicates src/lib/theme.ts on purpose:
+         it must run synchronously before first paint, so it can import
+         nothing. Key, validity rule and the two meta colours (the paper-0
+         values) must stay in step with lib/theme.ts and ThemeManager.tsx. -->
+    <script>
+      ;(function () {
+        var pref = null
+        try {
+          pref = localStorage.getItem('cqs_theme')
+        } catch (e) {
+          /* storage unavailable — fall through to system */
+        }
+        if (pref !== 'light' && pref !== 'dark') pref = 'system'
+        if (pref !== 'system')
+          document.documentElement.classList.add('theme-' + pref)
+        var dark =
+          pref === 'dark' ||
+          (pref === 'system' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches)
+        var meta = document.querySelector('meta[name="theme-color"]')
+        if (meta) meta.setAttribute('content', dark ? '#252731' : '#EEF1F5')
+      })()
+    </script>
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
     <title>CarroQueSí</title>
     <meta property="og:title" content="CarroQueSí" />
