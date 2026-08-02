@@ -6,7 +6,8 @@
     "photo_url": null,
     "features": ["ai_receipt_scanning", "push_notifications"],
     "has_api_key": false,
-    "api_key_last_used_at": null
+    "api_key_last_used_at": null,
+    "receipt_consent": "granted"
   },
   "SEED_LISTS": [
     {

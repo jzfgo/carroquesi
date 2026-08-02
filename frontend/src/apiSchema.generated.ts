@@ -643,6 +643,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/receipt-consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Receipt Consent
+         * @description Record the user's receipt-scanning consent decision.
+         *
+         *     Re-sending the same decision is fine; the timestamp always reflects the
+         *     most recent time the user stated it.
+         */
+        put: operations["set_receipt_consent_users_me_receipt_consent_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/waitlist": {
         parameters: {
             query?: never;
@@ -1204,6 +1227,14 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** ReceiptConsentUpdate */
+        ReceiptConsentUpdate: {
+            /**
+             * Consent
+             * @enum {string}
+             */
+            consent: "granted" | "declined";
+        };
         /** ReceiptPriceApplyResult */
         ReceiptPriceApplyResult: {
             /** Items Created */
@@ -1320,6 +1351,8 @@ export interface components {
             id: string;
             /** Photo Url */
             photo_url: string | null;
+            /** Receipt Consent */
+            receipt_consent?: ("granted" | "declined") | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -2898,6 +2931,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_receipt_consent_users_me_receipt_consent_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReceiptConsentUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
