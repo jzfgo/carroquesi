@@ -1,3 +1,18 @@
+/* Self-hosted fonts (Fontsource, latin subset only) — one file per family
+   and weight in use, so the service worker can precache exactly these faces
+   and no request leaves the origin. */
+@import '@fontsource/geist/latin-400.css';
+@import '@fontsource/geist/latin-500.css';
+@import '@fontsource/geist/latin-600.css';
+@import '@fontsource/geist/latin-700.css';
+@import '@fontsource/bree-serif/latin-400.css';
+@import '@fontsource/caveat/latin-500.css';
+@import '@fontsource/caveat/latin-600.css';
+@import '@fontsource/caveat/latin-700.css';
+@import '@fontsource/patrick-hand-sc/latin-400.css';
+@import '@fontsource/jetbrains-mono/latin-400.css';
+@import '@fontsource/jetbrains-mono/latin-500.css';
+@import '@fontsource/jetbrains-mono/latin-600.css';
 @import './colorsAndType.css';
 
 /* Compat aliases — map legacy component token names onto new canonical names.
