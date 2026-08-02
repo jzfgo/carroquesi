@@ -500,6 +500,18 @@
             ],
             "title": "Price Store"
           },
+          "purchase_ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Ends At"
+          },
           "purchased": {
             "readOnly": true,
             "title": "Purchased",
@@ -3904,22 +3916,6 @@
                 }
               ],
               "title": "X-Api-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-client-timezone",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Client-Timezone"
             }
           }
         ],

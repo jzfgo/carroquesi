@@ -3,7 +3,21 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.db.models import List, ListItem, ListMember, ReceiptScan, User
+from app.db.models import List, ListItem, ListMember, Purchase, ReceiptScan, User
+
+
+def _reshape_trip(session: Session, item_id: str, *, tear_off=None, closed_at=None) -> Purchase:
+    """Move the boundary of the trip an item was purchased on."""
+    db_item = session.get(ListItem, item_id)
+    session.refresh(db_item)
+    trip = session.get(Purchase, db_item.purchase_id)
+    if tear_off is not None:
+        trip.tears_off_at = tear_off
+    if closed_at is not None:
+        trip.closed_at = closed_at
+    session.add(trip)
+    session.commit()
+    return trip
 
 
 def test_create_list(client: TestClient, session: Session):
@@ -182,30 +196,27 @@ def test_purchased_count_reflects_purchased_at(client: TestClient):
     assert target["purchased_count"] == 1
 
 
-def test_items_purchased_on_prior_days_excluded_from_counts(client: TestClient, session: Session):
-    """Items purchased before today must not appear in item_count or purchased_count."""
+def test_items_on_torn_off_trips_excluded_from_counts(client: TestClient, session: Session):
+    """Items whose trip tore off must not appear in item_count or purchased_count."""
     lst = client.post("/lists", json={"name": "Trip"}).json()
     list_id = lst["id"]
 
-    # Add two items and purchase both
     item_old = client.post(f"/lists/{list_id}/items", json={"name": "Yesterday item"}).json()
     item_today = client.post(f"/lists/{list_id}/items", json={"name": "Today item"}).json()
     client.post(f"/lists/{list_id}/items", json={"name": "Not yet"})
 
+    # Purchase the first item and tear its trip off before purchasing the
+    # second, so the second purchase opens a fresh trip of its own.
     client.patch(f"/lists/{list_id}/items/{item_old['id']}", json={"purchased": True})
+    now = datetime.now(UTC).replace(tzinfo=None)
+    _reshape_trip(session, item_old["id"], tear_off=now - timedelta(hours=1))
     client.patch(f"/lists/{list_id}/items/{item_today['id']}", json={"purchased": True})
-
-    # Backdate item_old's purchased_at to yesterday via session
-    yesterday = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
-    db_item = session.get(ListItem, item_old["id"])
-    db_item.purchased_at = yesterday
-    session.add(db_item)
-    session.commit()
 
     lists = client.get("/lists").json()
     target = next(row for row in lists if row["id"] == list_id)
 
-    # item_old (yesterday) is excluded; item_today + item_unpurchased remain in scope
+    # item_old (torn-off trip) is excluded; item_today + the unpurchased
+    # item remain in scope — the LEFT JOIN keeps items without a trip.
     assert target["item_count"] == 2
     assert target["purchased_count"] == 1
 
@@ -249,7 +260,7 @@ def test_get_lists_payload_contains_no_emails(client: TestClient, session: Sessi
         assert set(member) == {"user_id", "display_name"}
 
 
-def test_cart_count_counts_todays_purchases_and_excludes_prior_days(
+def test_cart_count_counts_open_trip_purchases_and_excludes_torn_off_trips(
     client: TestClient, session: Session
 ):
     lst = client.post("/lists", json={"name": "Carro"}).json()
@@ -258,18 +269,38 @@ def test_cart_count_counts_todays_purchases_and_excludes_prior_days(
     item_today = client.post(f"/lists/{list_id}/items", json={"name": "Hoy"}).json()
     item_old = client.post(f"/lists/{list_id}/items", json={"name": "Ayer"}).json()
     client.post(f"/lists/{list_id}/items", json={"name": "Pendiente"})
-    client.patch(f"/lists/{list_id}/items/{item_today['id']}", json={"purchased": True})
-    client.patch(f"/lists/{list_id}/items/{item_old['id']}", json={"purchased": True})
 
-    yesterday = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
-    db_item = session.get(ListItem, item_old["id"])
-    db_item.purchased_at = yesterday
-    session.add(db_item)
-    session.commit()
+    # Same trick as the counts test above: tear off the first purchase's
+    # trip so the second purchase lands on a fresh open trip.
+    client.patch(f"/lists/{list_id}/items/{item_old['id']}", json={"purchased": True})
+    now = datetime.now(UTC).replace(tzinfo=None)
+    _reshape_trip(session, item_old["id"], tear_off=now - timedelta(hours=1))
+    client.patch(f"/lists/{list_id}/items/{item_today['id']}", json={"purchased": True})
 
     data = client.get("/lists").json()
     target = next(row for row in data if row["id"] == list_id)
     assert target["cart_count"] == 1
+
+
+def test_counts_exclude_a_trip_closed_before_its_tear_off(client: TestClient, session: Session):
+    """Closing early wins over the tear-off: a reconciled trip leaves the cart
+    even while its midnight boundary is still ahead."""
+    lst = client.post("/lists", json={"name": "Carro"}).json()
+    list_id = lst["id"]
+
+    item = client.post(f"/lists/{list_id}/items", json={"name": "Cerrado"}).json()
+    client.post(f"/lists/{list_id}/items", json={"name": "Pendiente"})
+    client.patch(f"/lists/{list_id}/items/{item['id']}", json={"purchased": True})
+    now = datetime.now(UTC).replace(tzinfo=None)
+    trip = _reshape_trip(session, item["id"], closed_at=now - timedelta(minutes=5))
+    assert trip.tears_off_at > now
+
+    data = client.get("/lists").json()
+    target = next(row for row in data if row["id"] == list_id)
+    assert target["cart_count"] == 0
+    assert target["purchased_count"] == 0
+    # The unpurchased item still counts: the join must not drop it.
+    assert target["item_count"] == 1
 
 
 def test_single_list_endpoints_keep_member_and_cart_defaults(client: TestClient):

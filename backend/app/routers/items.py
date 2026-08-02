@@ -8,17 +8,17 @@ from sqlmodel import Session, select
 from app.db.models import List, ListItem, Purchase, User
 from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
-from app.services.client_day import ClientTimezone, same_client_day
+from app.services import trips
+from app.services.client_day import ClientTimezone
 from app.services.push import notify_list_change
 from app.services.store_registry import ensure_stores
-from app.services.trips import open_trip_for
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/lists/{list_id}/items", tags=["items"])
 
 # A purchase from a receipt scan is backdated to the shopping trip, so the
-# same-day rule alone would make a wrong receipt link permanent the moment
+# trip-open rule alone would make a wrong receipt link permanent the moment
 # it is made. A record written moments ago can still be reverted: the user
 # is undoing their own fresh write, not rewriting historical spend.
 UNPURCHASE_GRACE = timedelta(minutes=15)
@@ -54,7 +54,30 @@ def get_items(
             ListItem.created_at.asc(),
         )
     )
-    return session.exec(query).all()
+    items = session.exec(query).all()
+    _attach_purchase_ends_at(session, items)
+    return items
+
+
+def _attach_purchase_ends_at(session: Session, items: list[ListItem]) -> None:
+    """Stamp each item with its trip's end instant, in one query for the page.
+
+    The value rides on the ORM object as a transient attribute (the way
+    User.is_admin does) and ItemRead picks it up; items without a trip keep
+    the schema's None default.
+    """
+    trip_ids = {item.purchase_id for item in items if item.purchase_id is not None}
+    if not trip_ids:
+        return
+    trips_by_id = {
+        trip.id: trip
+        for trip in session.exec(select(Purchase).where(Purchase.id.in_(trip_ids))).all()
+    }
+    for item in items:
+        trip = trips_by_id.get(item.purchase_id) if item.purchase_id else None
+        if trip is not None:
+            # object.__setattr__ because pydantic rejects undeclared fields.
+            object.__setattr__(item, "purchase_ends_at", trips.ends_at(trip))
 
 
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
@@ -108,16 +131,20 @@ def update_item(
         now = datetime.now(UTC).replace(tzinfo=None)
         item.purchased_at = now
         item.purchased_by = current_user.id
-        item.purchase_id = open_trip_for(session, lst.id, now, client_tz).id
+        item.purchase_id = trips.open_trip_for(session, lst.id, now, client_tz).id
     elif purchased is False:
         if item.purchased_at is not None:
             now = datetime.now(UTC).replace(tzinfo=None)
-            purchased_today = same_client_day(item.purchased_at, client_tz, now=now)
+            # A purchased item whose trip row is missing counts as closed:
+            # better to refuse an undo than to reopen spend nobody can date.
+            # The grace window below still rescues a fresh write.
+            trip = session.get(Purchase, item.purchase_id) if item.purchase_id else None
+            trip_open = trip is not None and trips.is_open(trip, now)
             recently_written = now - item.updated_at <= UNPURCHASE_GRACE
-            if not purchased_today and not recently_written:
+            if not trip_open and not recently_written:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Cannot unpurchase an item purchased on a previous day",
+                    detail="Cannot unpurchase an item from a closed trip",
                 )
         item.purchased_at = None
         emptied_trip_id, item.purchase_id = item.purchase_id, None
@@ -136,6 +163,7 @@ def update_item(
     _bump(lst, session)
     session.commit()
     session.refresh(item)
+    _attach_purchase_ends_at(session, [item])
     # Only NULL -> set notifies. Un-purchasing is a correction, and corrections
     # should not buzz every member's phone.
     if not was_purchased and item.purchased_at is not None:
