@@ -5,12 +5,13 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import case, func, nulls_last, or_
 from sqlmodel import Session, select
 
-from app.db.models import List, ListItem, User
+from app.db.models import List, ListItem, Purchase, User
 from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 from app.services.client_day import ClientTimezone, same_client_day
 from app.services.push import notify_list_change
 from app.services.store_registry import ensure_stores
+from app.services.trips import open_trip_for
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +105,10 @@ def update_item(
     if data.get("stores"):
         ensure_stores(session, lst.id, data["stores"])
     if purchased is True and item.purchased_at is None:
-        item.purchased_at = datetime.now(UTC).replace(tzinfo=None)
+        now = datetime.now(UTC).replace(tzinfo=None)
+        item.purchased_at = now
         item.purchased_by = current_user.id
+        item.purchase_id = open_trip_for(session, lst.id, now, client_tz).id
     elif purchased is False:
         if item.purchased_at is not None:
             now = datetime.now(UTC).replace(tzinfo=None)
@@ -117,6 +120,17 @@ def update_item(
                     detail="Cannot unpurchase an item purchased on a previous day",
                 )
         item.purchased_at = None
+        emptied_trip_id, item.purchase_id = item.purchase_id, None
+        if emptied_trip_id is not None:
+            # An unreconciled trip this emptied would otherwise linger and
+            # silently swallow later taps, so it goes with its last item. A
+            # closed trip is a historical record and stays, empty or not.
+            trip = session.get(Purchase, emptied_trip_id)
+            still_used = session.exec(
+                select(ListItem).where(ListItem.purchase_id == emptied_trip_id).limit(1)
+            ).first()
+            if trip is not None and trip.closed_at is None and still_used is None:
+                session.delete(trip)
     item.updated_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(item)
     _bump(lst, session)

@@ -251,6 +251,149 @@ def test_unpurchase_judges_today_in_the_clients_calendar(client: TestClient, ses
     assert response.status_code == expected
 
 
+def test_purchase_assigns_the_open_trip(client: TestClient, session: Session):
+    from sqlmodel import select
+
+    from app.db.models import ListItem, Purchase
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    assert response.status_code == 200
+
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    assert db_item.purchase_id is not None
+    trip = session.get(Purchase, db_item.purchase_id)
+    assert trip.list_id == lst["id"]
+    assert trip.opened_at == db_item.purchased_at
+    assert trip.closed_at is None
+    assert trip.tears_off_at > db_item.purchased_at
+    assert len(session.exec(select(Purchase)).all()) == 1
+
+
+def test_two_purchases_share_one_trip(client: TestClient, session: Session):
+    from sqlmodel import select
+
+    from app.db.models import ListItem, Purchase
+
+    lst = _create_list(client)
+    first = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    second = client.post(f"/lists/{lst['id']}/items", json={"name": "Milk"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{first['id']}", json={"purchased": True})
+    client.patch(f"/lists/{lst['id']}/items/{second['id']}", json={"purchased": True})
+
+    session.expire_all()
+    ids = {
+        session.get(ListItem, first["id"]).purchase_id,
+        session.get(ListItem, second["id"]).purchase_id,
+    }
+    assert None not in ids
+    assert len(ids) == 1
+    assert len(session.exec(select(Purchase)).all()) == 1
+
+
+def test_purchase_without_timezone_header_stamps_a_utc_boundary(
+    client: TestClient, session: Session
+):
+    """A client that declares no zone (Siri, API-key callers) is judged in UTC
+    days, so its trip must tear off at the next UTC midnight."""
+    from app.db.models import ListItem, Purchase
+    from app.services.trips import tears_off_at_for
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    trip = session.get(Purchase, db_item.purchase_id)
+    assert trip.tears_off_at == tears_off_at_for(db_item.purchased_at, UTC)
+
+
+def test_purchase_stamps_the_boundary_in_the_clients_zone(client: TestClient, session: Session):
+    from zoneinfo import ZoneInfo
+
+    from app.db.models import ListItem, Purchase
+    from app.services.trips import tears_off_at_for
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"purchased": True},
+        headers={"X-Client-Timezone": "Etc/GMT+12"},
+    )
+
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    trip = session.get(Purchase, db_item.purchase_id)
+    assert trip.tears_off_at == tears_off_at_for(db_item.purchased_at, ZoneInfo("Etc/GMT+12"))
+
+
+def test_unpurchase_clears_the_trip_link_and_deletes_the_emptied_open_trip(
+    client: TestClient, session: Session
+):
+    from sqlmodel import select
+
+    from app.db.models import ListItem, Purchase
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+    assert response.status_code == 200
+
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    assert db_item.purchase_id is None
+    assert session.exec(select(Purchase)).all() == []
+
+
+def test_unpurchase_keeps_an_open_trip_that_still_has_items(client: TestClient, session: Session):
+    from app.db.models import ListItem, Purchase
+
+    lst = _create_list(client)
+    first = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    second = client.post(f"/lists/{lst['id']}/items", json={"name": "Milk"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{first['id']}", json={"purchased": True})
+    client.patch(f"/lists/{lst['id']}/items/{second['id']}", json={"purchased": True})
+
+    trip_id = session.get(ListItem, first["id"]).purchase_id
+    client.patch(f"/lists/{lst['id']}/items/{first['id']}", json={"purchased": False})
+
+    session.expire_all()
+    assert session.get(Purchase, trip_id) is not None
+    assert session.get(ListItem, second["id"]).purchase_id == trip_id
+    assert session.get(ListItem, first["id"]).purchase_id is None
+
+
+def test_unpurchase_never_deletes_a_closed_trip(client: TestClient, session: Session):
+    """A closed trip is a historical record: someone wrote the shop down.
+    Emptying it must not erase it."""
+    from app.db.models import ListItem, Purchase
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    trip = session.get(Purchase, db_item.purchase_id)
+    trip.closed_at = datetime.now(UTC).replace(tzinfo=None)
+    session.add(trip)
+    session.commit()
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+    assert response.status_code == 200
+
+    session.expire_all()
+    assert session.get(Purchase, trip.id) is not None
+    session.refresh(db_item)
+    assert db_item.purchase_id is None
+
+
 def test_add_item_with_ean(client: TestClient):
     lst = _create_list(client)
     response = client.post(
