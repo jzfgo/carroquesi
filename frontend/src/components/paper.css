@@ -76,8 +76,8 @@
 }
 
 /* The pre-printed sheet title: serif, with the mono count opposite. Its
-   dashed underline is the section-rule voice — store group headers carry
-   the same stroke; rows never carry one. */
+   dashed underline is the sheet's one full-width rule; store group headers
+   carry their own solid text-width underline instead, and rows carry none. */
 .paper__title {
   display: flex;
   align-items: baseline;
