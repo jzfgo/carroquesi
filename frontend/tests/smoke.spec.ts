@@ -71,6 +71,28 @@ for (const { name: themeName, colorScheme } of THEMES) {
   })
 }
 
+// The 38a panel geometry is a style rule, and a drift smaller than the
+// screenshot pixel budget would vanish silently — so the load-bearing numbers
+// are asserted as computed styles too: 36px emoji column, 28px glyph, and the
+// 56/50px row heights (with and without a subtitle).
+test('panel rows keep the 38a geometry', async ({ page }) => {
+  await page.goto('/')
+  const rows = page.locator('.list-card')
+  await expect(rows).toHaveCount(SEED_LISTS.length)
+
+  await expect(rows.first()).toHaveCSS('grid-template-columns', /^36px /)
+
+  await expect(page.locator('.list-card__emoji').first()).toHaveCSS(
+    'font-size',
+    '28px',
+  )
+
+  // Compra semanal is shared with a cart running, so its row carries a
+  // subtitle; Fiesta de cumple is solo with an empty cart and stays compact.
+  expect((await rows.nth(0).boundingBox())?.height).toBe(56)
+  expect((await rows.nth(1).boundingBox())?.height).toBe(50)
+})
+
 // A screen reader picks its pronunciation engine from `lang`. Nothing on
 // screen changes when it is wrong, so no screenshot can catch this. The
 // manifest is a second document with its own copy of the declaration, and

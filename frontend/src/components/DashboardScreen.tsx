@@ -461,76 +461,93 @@ export function DashboardScreen() {
         </div>
       </header>
       <main className="dashboard-screen__lists">
-        <InstallBanner
-          isInstallable={isInstallable}
-          isInstalled={isInstalled}
-          isIOS={isIOS}
-          promptInstall={promptInstall}
-        />
-        {isEnabled(FLAGS.PUSH_NOTIFICATIONS) &&
-          canReceivePush({ isIOS, isInstalled }) &&
-          // Once permission is denied the browser will not re-prompt, so a
-          // button here would call requestPermission(), return immediately and
-          // change nothing — a control that looks broken. Explain the way out
-          // instead of offering a dead action.
-          (permission === 'denied' ? (
-            <p className="notifications-toggle notifications-toggle--blocked">
-              <span className="notifications-toggle__icon" aria-hidden="true">
-                <BellOff size={18} />
-              </span>
-              Has bloqueado los avisos. Actívalos en los ajustes de tu navegador
-              para volver a recibirlos.
-            </p>
-          ) : (
-            <button
-              className="notifications-toggle"
-              onClick={async () => {
-                // Reads back the real state rather than assuming success: the
-                // OS prompt can be denied, and on iOS that denial is permanent.
-                if (pushOn) await disablePush(getToken).catch(() => undefined)
-                else await enablePush(getToken).catch(() => undefined)
-                setPushOn(isPushEnabled())
+        <div className="dashboard-screen__notices">
+          <InstallBanner
+            isInstallable={isInstallable}
+            isInstalled={isInstalled}
+            isIOS={isIOS}
+            promptInstall={promptInstall}
+          />
+          {isEnabled(FLAGS.PUSH_NOTIFICATIONS) &&
+            canReceivePush({ isIOS, isInstalled }) &&
+            // Once permission is denied the browser will not re-prompt, so a
+            // button here would call requestPermission(), return immediately and
+            // change nothing — a control that looks broken. Explain the way out
+            // instead of offering a dead action.
+            (permission === 'denied' ? (
+              <p className="notifications-toggle notifications-toggle--blocked">
+                <span className="notifications-toggle__icon" aria-hidden="true">
+                  <BellOff size={18} />
+                </span>
+                Has bloqueado los avisos. Actívalos en los ajustes de tu
+                navegador para volver a recibirlos.
+              </p>
+            ) : (
+              <button
+                className="notifications-toggle"
+                onClick={async () => {
+                  // Reads back the real state rather than assuming success: the
+                  // OS prompt can be denied, and on iOS that denial is permanent.
+                  if (pushOn) await disablePush(getToken).catch(() => undefined)
+                  else await enablePush(getToken).catch(() => undefined)
+                  setPushOn(isPushEnabled())
 
-                setPermission(permissionState())
-              }}
-            >
-              <span className="notifications-toggle__icon" aria-hidden="true">
-                {pushOn ? <BellOff size={18} /> : <Bell size={18} />}
-              </span>
-              {pushOn
-                ? 'Desactivar avisos'
-                : 'Avisarme de cambios en mis listas'}
-            </button>
-          ))}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={lists.map((l) => l.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {lists.map((list) => (
-              <SortableListCard
-                key={list.id}
-                list={list}
-                isOwner={list.owner_id === (user?.id ?? '')}
-                onClick={() => {
-                  navigate(`/lists/${list.id}`)
-                  setActiveList(null)
+                  setPermission(permissionState())
                 }}
-                onMenuOpen={() => {
-                  setActiveList(list)
-                }}
-                onEmojiTap={() => {
-                  setEmojiList(list)
-                }}
-              />
+              >
+                <span className="notifications-toggle__icon" aria-hidden="true">
+                  {pushOn ? <BellOff size={18} /> : <Bell size={18} />}
+                </span>
+                {pushOn
+                  ? 'Desactivar avisos'
+                  : 'Avisarme de cambios en mis listas'}
+              </button>
             ))}
-          </SortableContext>
-        </DndContext>
-        <CreateListCard isFirst={lists.length === 0} onCreate={handleCreate} />
+        </div>
+        {lists.length === 0 ? (
+          <div className="dashboard-screen__empty">
+            <CreateListCard isFirst onCreate={handleCreate} />
+          </div>
+        ) : (
+          <section className="dashboard-screen__panel">
+            <div className="dashboard-screen__eyebrow">
+              <h2 className="dashboard-screen__eyebrow-label">Tus listas</h2>
+              <span className="dashboard-screen__eyebrow-count">
+                {lists.length}
+              </span>
+            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={lists.map((l) => l.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {lists.map((list) => (
+                  <SortableListCard
+                    key={list.id}
+                    list={list}
+                    currentUserId={user?.id ?? ''}
+                    isOwner={list.owner_id === (user?.id ?? '')}
+                    onClick={() => {
+                      navigate(`/lists/${list.id}`)
+                      setActiveList(null)
+                    }}
+                    onMenuOpen={() => {
+                      setActiveList(list)
+                    }}
+                    onEmojiTap={() => {
+                      setEmojiList(list)
+                    }}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+            <CreateListCard onCreate={handleCreate} />
+          </section>
+        )}
       </main>
       {activeList && (
         <ListActionSheet

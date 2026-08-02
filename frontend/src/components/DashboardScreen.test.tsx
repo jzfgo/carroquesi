@@ -114,6 +114,11 @@ const twoLists = [
     updated_at: '',
     item_count: 8,
     purchased_count: 3,
+    cart_count: 3,
+    members: [
+      { user_id: 'u1', display_name: 'Alice' },
+      { user_id: 'u2', display_name: 'Marta' },
+    ],
     is_default: true,
   },
   {
@@ -125,6 +130,8 @@ const twoLists = [
     updated_at: '',
     item_count: 2,
     purchased_count: 0,
+    cart_count: 0,
+    members: [{ user_id: 'u1', display_name: 'Alice' }],
     is_default: false,
   },
 ]
@@ -143,12 +150,50 @@ describe('DashboardScreen', () => {
     expect(screen.getByText('Costco')).toBeInTheDocument()
   })
 
-  it('shows progress subtitle on list cards', async () => {
+  it('shows the members-and-cart subtitle on shared list rows', async () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)
     await waitFor(() =>
-      expect(screen.getByText('3 de 8 comprados')).toBeInTheDocument(),
+      expect(
+        screen.getByText('Marta y tú · 3 en el carro'),
+      ).toBeInTheDocument(),
     )
+  })
+
+  it('shows the pending count on each row', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    const { container } = render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    const counts = container.querySelectorAll('.list-card__pending')
+    // Mercado: 8 items, 3 purchased -> 5 pending. Costco: 2 - 0 -> 2.
+    expect(Array.from(counts).map((c) => c.textContent)).toEqual(['5', '2'])
+  })
+
+  it('shows the "Tus listas" eyebrow with the list count', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    expect(
+      screen.getByRole('heading', { name: 'Tus listas' }),
+    ).toBeInTheDocument()
+    expect(
+      document.querySelector('.dashboard-screen__eyebrow-count'),
+    ).toHaveTextContent('2')
+  })
+
+  it('hides the eyebrow and shows the 16c empty state when there are no lists', async () => {
+    vi.mocked(api.getLists).mockResolvedValue([] as never)
+    render(<DashboardScreen />)
+    await waitFor(() =>
+      expect(screen.getByText('Aún no tienes listas')).toBeInTheDocument(),
+    )
+    expect(screen.queryByRole('heading', { name: 'Tus listas' })).toBeNull()
+    expect(
+      screen.getByText('Empieza una y compártela en casa.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Crear la primera lista' }),
+    ).toBeInTheDocument()
   })
 
   it('shows error state when fetch fails', async () => {

@@ -54,8 +54,61 @@
 .dashboard-screen__lists {
   display: flex;
   flex-direction: column;
+  flex: 1;
+}
+
+/* Install banner and notifications toggle keep the old padded-card layout;
+   the panel rows below bleed to the screen edges. */
+.dashboard-screen__notices {
+  display: flex;
+  flex-direction: column;
   gap: 0.75rem;
-  padding: 1.25rem;
+  padding: 1rem 1.25rem 0;
+}
+
+.dashboard-screen__notices:empty {
+  display: none;
+}
+
+.dashboard-screen__panel {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 38a eyebrow: label row over the flat list group, mono count right. */
+.dashboard-screen__eyebrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 14px 20px 8px;
+}
+
+.dashboard-screen__eyebrow-label {
+  margin: 0;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.dashboard-screen__eyebrow-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 16c first-run empty: centred on the flat surface below the notices. */
+.dashboard-screen__empty {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: center;
+  padding: 0 1.25rem 3rem;
 }
 
 .dashboard-screen__spinner {
