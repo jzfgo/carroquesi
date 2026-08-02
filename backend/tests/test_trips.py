@@ -229,3 +229,208 @@ def test_losing_the_race_does_not_revert_the_callers_pending_item(
     assert len(session.exec(select(Purchase)).all()) == 1
     session.refresh(item)
     assert item.purchased_at == now
+
+
+def _purchased_item(session: Session, lst: List, user: User, name: str, when: datetime) -> ListItem:
+    """An item tapped at `when`, in whatever trip that instant resolves to."""
+    trip = trips.open_trip_for(session, lst.id, when, MADRID)
+    item = ListItem(
+        list_id=lst.id,
+        name=name,
+        added_by=user.id,
+        purchased_at=when,
+        purchased_by=user.id,
+        purchase_id=trip.id,
+    )
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    return item
+
+
+def test_close_claiming_every_item_closes_the_trip_in_place(
+    session: Session, lst: List, user: User
+):
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
+    bread = _purchased_item(session, lst, user, "Pan", datetime(2026, 7, 28, 17, 0))
+    now = datetime(2026, 7, 28, 18, 0)
+
+    closed = trips.close(session, lst.id, [milk.id, bread.id], "Lidl", 14.60, now)
+    session.commit()
+
+    assert closed.id == milk.purchase_id == bread.purchase_id
+    assert closed.closed_at == now
+    assert closed.store == "Lidl"
+    assert closed.total == 14.60
+    # opened_at is the earliest claimed tap, not whenever the row was made.
+    assert closed.opened_at == datetime(2026, 7, 28, 16, 0)
+    assert len(session.exec(select(Purchase)).all()) == 1
+
+
+def test_close_claiming_a_subset_splits_off_a_new_closed_trip(
+    session: Session, lst: List, user: User
+):
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
+    bread = _purchased_item(session, lst, user, "Pan", datetime(2026, 7, 28, 17, 0))
+    source_id = milk.purchase_id
+    now = datetime(2026, 7, 28, 18, 0)
+
+    closed = trips.close(session, lst.id, [bread.id], "Lidl", 5.0, now)
+    session.commit()
+    session.refresh(milk)
+    session.refresh(bread)
+
+    assert closed.id != source_id
+    assert bread.purchase_id == closed.id
+    assert milk.purchase_id == source_id
+    assert closed.closed_at == now
+    assert closed.opened_at == datetime(2026, 7, 28, 17, 0)
+    remainder = session.get(Purchase, source_id)
+    assert remainder.closed_at is None
+    # The split inherits the source's boundary: same day, same tear-off.
+    assert closed.tears_off_at == remainder.tears_off_at
+
+
+def test_a_split_recomputes_the_remainders_opened_at(session: Session, lst: List, user: User):
+    """The earliest tap leaves for the new ticket; the remainder must not
+    keep claiming a start time that now belongs to it."""
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
+    bread = _purchased_item(session, lst, user, "Pan", datetime(2026, 7, 28, 17, 0))
+    now = datetime(2026, 7, 28, 18, 0)
+
+    trips.close(session, lst.id, [milk.id], "Lidl", None, now)
+    session.commit()
+
+    remainder = session.get(Purchase, bread.purchase_id)
+    assert remainder.opened_at == datetime(2026, 7, 28, 17, 0)
+
+
+def test_close_refuses_an_unknown_item(session: Session, lst: List, user: User):
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
+    now = datetime(2026, 7, 28, 18, 0)
+
+    with pytest.raises(trips.NotInTheCart):
+        trips.close(session, lst.id, [milk.id, "no-such-item"], "Lidl", None, now)
+
+    session.rollback()
+    assert session.get(Purchase, milk.purchase_id).closed_at is None
+
+
+def test_close_refuses_an_item_already_on_another_ticket(session: Session, lst: List, user: User):
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
+    bread = _purchased_item(session, lst, user, "Pan", datetime(2026, 7, 28, 17, 0))
+    now = datetime(2026, 7, 28, 18, 0)
+    trips.close(session, lst.id, [milk.id], "Lidl", None, now)
+    session.commit()
+
+    with pytest.raises(trips.NotInTheCart):
+        trips.close(session, lst.id, [milk.id, bread.id], "Mercadona", None, now)
+
+
+def test_close_with_no_open_trip_raises(session: Session, lst: List):
+    with pytest.raises(trips.NothingToClose):
+        trips.close(session, lst.id, ["anything"], "Lidl", None, datetime(2026, 7, 28, 18, 0))
+
+
+def test_close_by_name_reaches_a_torn_off_trip(session: Session, lst: List, user: User):
+    """A trip that tore off with nobody saying what it was, written down
+    later. Invisible to the open-cart lookup; naming it is the only way in."""
+    tapped = datetime(2026, 7, 25, 19, 0)
+    milk = _purchased_item(session, lst, user, "Leche", tapped)
+    now = datetime(2026, 7, 28, 9, 0)
+
+    closed = trips.close(
+        session, lst.id, [milk.id], "Mercadona", 8.30, now, purchase_id=milk.purchase_id
+    )
+    session.commit()
+
+    assert closed.id == milk.purchase_id
+    assert closed.closed_at == now
+    assert closed.store == "Mercadona"
+    assert closed.tears_off_at < now
+
+
+def test_close_by_name_refuses_a_trip_on_another_list(session: Session, user: User):
+    list_a = List(name="Casa", owner_id=user.id)
+    list_b = List(name="Oficina", owner_id=user.id)
+    session.add(list_a)
+    session.add(list_b)
+    session.commit()
+    milk = _purchased_item(session, list_a, user, "Leche", datetime(2026, 7, 28, 16, 0))
+
+    with pytest.raises(trips.NothingToClose):
+        trips.close(
+            session,
+            list_b.id,
+            [milk.id],
+            "Lidl",
+            None,
+            datetime(2026, 7, 28, 18, 0),
+            purchase_id=milk.purchase_id,
+        )
+
+
+def test_close_by_name_refuses_an_already_closed_trip(session: Session, lst: List, user: User):
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
+    now = datetime(2026, 7, 28, 18, 0)
+    trips.close(session, lst.id, [milk.id], "Lidl", 14.60, now)
+    session.commit()
+
+    with pytest.raises(trips.NothingToClose):
+        trips.close(
+            session,
+            lst.id,
+            [milk.id],
+            "Mercadona",
+            8.30,
+            now,
+            purchase_id=milk.purchase_id,
+        )
+
+    session.rollback()
+    trip = session.get(Purchase, milk.purchase_id)
+    assert trip.store == "Lidl"
+    assert trip.total == 14.60
+
+
+def test_a_close_that_lost_the_race_hits_the_conditional_update(
+    session: Session, lst: List, user: User, monkeypatch: pytest.MonkeyPatch
+):
+    """Two members close the same cart; the loser's SELECT ran before the
+    winner's commit landed. Under READ COMMITTED the resolve can then hand
+    back a trip that is already closed, and only the conditional UPDATE
+    notices — by matching zero rows.
+
+    Two interleaved transactions cannot be staged in one synchronous test,
+    so the stale read is simulated: the winner's close is committed for
+    real, and the loser's resolving SELECT is forced to return the trip as
+    if it were still open.
+    """
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
+    now = datetime(2026, 7, 28, 18, 0)
+    trip = session.get(Purchase, milk.purchase_id)
+    trips.close(session, lst.id, [milk.id], "Lidl", 14.60, now)
+    session.commit()
+
+    real_exec = session.exec
+
+    def stale_resolve(statement, *args, **kwargs):
+        if "purchases.closed_at IS NULL" in str(statement):
+
+            class _Stale:
+                def first(self):
+                    return trip
+
+            return _Stale()
+        return real_exec(statement, *args, **kwargs)
+
+    monkeypatch.setattr(session, "exec", stale_resolve)
+
+    with pytest.raises(trips.NothingToClose):
+        trips.close(session, lst.id, [milk.id], "Mercadona", 8.30, now)
+
+    session.rollback()
+    session.refresh(trip)
+    # The winner's confirmed figures survived.
+    assert trip.store == "Lidl"
+    assert trip.total == 14.60

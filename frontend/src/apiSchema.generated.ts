@@ -382,6 +382,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists/{list_id}/purchases/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Purchase
+         * @description Declare what a shop was — claim lines out of a trip and file them.
+         *
+         *     Claiming every item in the cart closes the trip in place; claiming fewer
+         *     splits the selection onto its own ticket and leaves the rest in the
+         *     cart. There is no date control: the ticket's dates derive from the
+         *     claimed lines' purchased_at and the close instant, which covers every
+         *     shop the current write paths can produce.
+         *
+         *     No push fires here. Like the receipt apply, a close records a shop that
+         *     already happened — nothing joins the list unpurchased, and the impulse
+         *     buys it creates are born bought, the same shape that path creates
+         *     silently.
+         */
+        post: operations["close_purchase_lists__list_id__purchases_close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{list_id}/receipt": {
         parameters: {
             query?: never;
@@ -1005,6 +1036,79 @@ export interface components {
             quantity?: string | null;
             /** Store */
             store?: string | null;
+        };
+        /** PurchaseCloseBody */
+        PurchaseCloseBody: {
+            /** Lines */
+            lines: components["schemas"]["PurchaseLine"][];
+            /** New Items */
+            new_items?: components["schemas"]["PurchaseNewItem"][];
+            /** Purchase Id */
+            purchase_id?: string | null;
+            /** Store */
+            store: string;
+            /** Total */
+            total?: number | null;
+        };
+        /**
+         * PurchaseLine
+         * @description One claimed line of the close sheet.
+         *
+         *     Unlike a receipt's PricePatch, `price` is optional: a line without an
+         *     amount is a legitimate outcome — bought, nobody kept the figure — and no
+         *     amount is invented for it. No store either: a ticket belongs to one shop,
+         *     stated once on the close.
+         */
+        PurchaseLine: {
+            /** Item Id */
+            item_id: string;
+            /** Price */
+            price?: number | null;
+            /** Price Per */
+            price_per?: "KILOGRAM" | null;
+            /** Quantity */
+            quantity?: string | null;
+        };
+        /**
+         * PurchaseNewItem
+         * @description Something bought that was never on the list. Born already purchased.
+         */
+        PurchaseNewItem: {
+            /** Brand */
+            brand?: string | null;
+            /** Ean */
+            ean?: string | null;
+            /** Name */
+            name: string;
+            /** Price */
+            price?: number | null;
+            /** Price Per */
+            price_per?: "KILOGRAM" | null;
+            /** Quantity */
+            quantity?: string | null;
+        };
+        /** PurchaseRead */
+        PurchaseRead: {
+            /** Closed At */
+            closed_at: string | null;
+            /** Id */
+            id: string;
+            /** List Id */
+            list_id: string;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Store */
+            store: string | null;
+            /**
+             * Tears Off At
+             * Format: date-time
+             */
+            tears_off_at: string;
+            /** Total */
+            total: number | null;
         };
         /** PushTokenBody */
         PushTokenBody: {
@@ -2222,6 +2326,45 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    close_purchase_lists__list_id__purchases_close_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseCloseBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseRead"];
+                };
             };
             /** @description Validation Error */
             422: {

@@ -71,6 +71,7 @@ def _make_client(session: Session, user: User) -> TestClient:
         members,
         notifications,
         prices,
+        purchases,
         receipt,
         shortcuts,
         stores,
@@ -97,6 +98,7 @@ def _make_client(session: Session, user: User) -> TestClient:
     test_app.include_router(suggestions.router)
     test_app.include_router(barcode.router)
     test_app.include_router(prices.router)
+    test_app.include_router(purchases.router)
     test_app.include_router(receipt.router)
     test_app.include_router(stores.router)
     test_app.include_router(feedback.router)
