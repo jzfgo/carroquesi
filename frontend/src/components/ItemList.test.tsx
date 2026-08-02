@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { vi } from 'vitest'
 import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
@@ -43,7 +43,7 @@ const makeItem = (id: string, purchased = false): ListItem => ({
   updated_at: '',
 })
 
-test('shows loading skeleton', () => {
+test('shows loading skeleton inside the pending sheet', () => {
   const { container } = render(
     <ItemList
       status="loading"
@@ -56,12 +56,14 @@ test('shows loading skeleton', () => {
       onPriceClick={() => {}}
     />,
   )
-  expect(container.querySelector('.item-list__skeleton')).toBeInTheDocument()
+  expect(
+    container.querySelector('.paper--pending .item-list__skeleton'),
+  ).toBeInTheDocument()
 })
 
-test('shows error state with retry button', () => {
+test('shows error state with retry button inside the pending sheet', () => {
   const retry = vi.fn()
-  render(
+  const { container } = render(
     <ItemList
       status="error"
       items={[]}
@@ -76,12 +78,15 @@ test('shows error state with retry button', () => {
   expect(
     screen.getByText(/No se pudieron cargar los productos/i),
   ).toBeInTheDocument()
+  expect(
+    container.querySelector('.paper--pending .item-list__retry'),
+  ).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: /reintentar/i }))
   expect(retry).toHaveBeenCalledTimes(1)
 })
 
-test('shows empty state with mascot and updated copy', () => {
-  render(
+test('shows empty state with mascot inside the pending sheet, titled at zero', () => {
+  const { container } = render(
     <ItemList
       status="success"
       items={[]}
@@ -96,11 +101,15 @@ test('shows empty state with mascot and updated copy', () => {
   expect(screen.getByRole('img', { name: /mascota/i })).toBeInTheDocument()
   expect(screen.getByText(/Sin productos todavía/i)).toBeInTheDocument()
   expect(screen.getByText(/Añade el primero desde abajo/i)).toBeInTheDocument()
+  const sheet = container.querySelector('.paper--pending')
+  expect(sheet).toBeInTheDocument()
+  expect(within(sheet as HTMLElement).getByText('Por comprar')).toBeVisible()
+  expect(container.querySelector('.paper__title-count')?.textContent).toBe('0')
 })
 
-test('renders active items section label', () => {
+test('renders the sheet title with the pending count', () => {
   const items = [makeItem('a'), makeItem('b')]
-  render(
+  const { container } = render(
     <ItemList
       status="success"
       items={items}
@@ -112,11 +121,12 @@ test('renders active items section label', () => {
       onPriceClick={() => {}}
     />,
   )
-  expect(screen.getByText('2 productos por comprar')).toBeInTheDocument()
+  expect(screen.getByText('Por comprar')).toBeInTheDocument()
+  expect(container.querySelector('.paper__title-count')?.textContent).toBe('2')
 })
 
-test('section label reads "1 item left" for single item', () => {
-  render(
+test('sheet title counts a single item', () => {
+  const { container } = render(
     <ItemList
       status="success"
       items={[makeItem('a')]}
@@ -128,7 +138,54 @@ test('section label reads "1 item left" for single item', () => {
       onPriceClick={() => {}}
     />,
   )
-  expect(screen.getByText('1 producto por comprar')).toBeInTheDocument()
+  expect(container.querySelector('.paper__title-count')?.textContent).toBe('1')
+})
+
+test('pending items render inside the pending sheet', () => {
+  const { container } = render(
+    <ItemList
+      status="success"
+      items={[makeItem('a'), makeItem('b', true)]}
+      members={MEMBERS}
+      onTogglePurchased={() => {}}
+      onTagClick={() => {}}
+      onMenuOpen={() => {}}
+      onRetry={() => {}}
+      onPriceClick={() => {}}
+    />,
+  )
+  const sheet = container.querySelector('.paper--pending')
+  expect(sheet).toBeInTheDocument()
+  expect(within(sheet as HTMLElement).getByText('Item a')).toBeVisible()
+  expect(
+    within(sheet as HTMLElement).queryByText('Item b'),
+  ).not.toBeInTheDocument()
+})
+
+test('the purchased area is one settled sheet, even across dates', () => {
+  const items = [
+    makeItem('a'),
+    { ...makeItem('b', true), purchased_at: '2026-07-30T10:00:00' },
+    { ...makeItem('c', true), purchased_at: '2026-07-20T10:00:00' },
+  ]
+  const { container } = render(
+    <ItemList
+      status="success"
+      items={items}
+      members={MEMBERS}
+      onTogglePurchased={() => {}}
+      onTagClick={() => {}}
+      onMenuOpen={() => {}}
+      onRetry={() => {}}
+      onPriceClick={() => {}}
+    />,
+  )
+  const sheets = container.querySelectorAll('.paper--settled')
+  expect(sheets).toHaveLength(1)
+  const settled = sheets[0] as HTMLElement
+  expect(within(settled).getByText('Item b')).toBeVisible()
+  expect(within(settled).getByText('Item c')).toBeVisible()
+  expect(within(settled).queryByText('Item a')).not.toBeInTheDocument()
 })
 
 test('purchased section hidden when no items purchased', () => {
@@ -384,9 +441,9 @@ test('purchased items appear below active items', () => {
 // totalItems prop — filtered count label
 // ---------------------------------------------------------------------------
 
-test('shows "X de Y" label when totalItems differs from filtered count', () => {
+test('shows "X de Y" count when totalItems differs from filtered count', () => {
   const items = [makeItem('a')]
-  render(
+  const { container } = render(
     <ItemList
       status="success"
       items={items}
@@ -399,12 +456,14 @@ test('shows "X de Y" label when totalItems differs from filtered count', () => {
       totalItems={3}
     />,
   )
-  expect(screen.getByText('1 de 3 productos por comprar')).toBeInTheDocument()
+  expect(container.querySelector('.paper__title-count')?.textContent).toBe(
+    '1 de 3',
+  )
 })
 
-test('shows normal label when totalItems equals filtered count', () => {
+test('shows plain count when totalItems equals filtered count', () => {
   const items = [makeItem('a'), makeItem('b')]
-  render(
+  const { container } = render(
     <ItemList
       status="success"
       items={items}
@@ -417,12 +476,12 @@ test('shows normal label when totalItems equals filtered count', () => {
       totalItems={2}
     />,
   )
-  expect(screen.getByText('2 productos por comprar')).toBeInTheDocument()
+  expect(container.querySelector('.paper__title-count')?.textContent).toBe('2')
 })
 
-test('shows normal label when totalItems is omitted', () => {
+test('shows plain count when totalItems is omitted', () => {
   const items = [makeItem('a')]
-  render(
+  const { container } = render(
     <ItemList
       status="success"
       items={items}
@@ -434,5 +493,5 @@ test('shows normal label when totalItems is omitted', () => {
       onPriceClick={() => {}}
     />,
   )
-  expect(screen.getByText('1 producto por comprar')).toBeInTheDocument()
+  expect(container.querySelector('.paper__title-count')?.textContent).toBe('1')
 })

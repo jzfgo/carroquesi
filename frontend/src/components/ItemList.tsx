@@ -6,6 +6,7 @@ import type { ListItem, Member, TagField } from '../types'
 import { ItemCard } from './ItemCard'
 import './ItemList.css'
 import { Mascot } from './Mascot'
+import './paper.css'
 
 type Status = 'loading' | 'error' | 'success'
 
@@ -63,20 +64,24 @@ export function ItemList({
   if (status === 'loading') {
     return (
       <div className="item-list">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="item-list__skeleton" aria-hidden />
-        ))}
+        <div className="paper paper--pending">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="item-list__skeleton" aria-hidden />
+          ))}
+        </div>
       </div>
     )
   }
 
   if (status === 'error') {
     return (
-      <div className="item-list item-list--centered">
-        <p>No se pudieron cargar los productos</p>
-        <button className="item-list__retry" onClick={onRetry}>
-          Reintentar
-        </button>
+      <div className="item-list">
+        <div className="paper paper--pending item-list__sheet-message">
+          <p>No se pudieron cargar los productos</p>
+          <button className="item-list__retry" onClick={onRetry}>
+            Reintentar
+          </button>
+        </div>
       </div>
     )
   }
@@ -101,20 +106,32 @@ export function ItemList({
 
   if (active.length === 0 && purchased.length === 0) {
     return (
-      <div className="item-list item-list--centered" style={{ gap: '0.75rem' }}>
-        <Mascot size={120} />
-        <p style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}>
-          Sin productos todavía
-        </p>
-        <p
-          style={{
-            margin: 0,
-            color: 'var(--color-text-secondary)',
-            fontSize: '0.9rem',
-          }}
-        >
-          Añade el primero desde abajo
-        </p>
+      <div className="item-list">
+        <div className="paper paper--pending">
+          <p className="paper__title">
+            <span className="paper__title-text">Por comprar</span>
+            <span className="paper__title-meta">
+              <span className="paper__title-count">0</span>
+            </span>
+          </p>
+          <div className="item-list__sheet-message">
+            <Mascot size={120} />
+            <p
+              style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}
+            >
+              Sin productos todavía
+            </p>
+            <p
+              style={{
+                margin: 0,
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.9rem',
+              }}
+            >
+              Añade el primero desde abajo
+            </p>
+          </div>
+        </div>
       </div>
     )
   }
@@ -133,35 +150,40 @@ export function ItemList({
 
   return (
     <div className="item-list">
-      <p className="item-list__label">
-        <span className="item-list__label-text">
-          {totalItems !== undefined && totalItems !== active.length
-            ? `${active.length} de ${totalItems} productos por comprar`
-            : `${active.length} ${active.length === 1 ? 'producto' : 'productos'} por comprar`}
-        </span>
-        {pendingCost && (
-          <CostBadge cost={pendingCost} className="item-list__label-cost" />
-        )}
-      </p>
-      {active.map((item) => (
-        <ItemCard
-          key={item.id}
-          item={item}
-          members={members}
-          onTogglePurchased={onTogglePurchased}
-          onTagClick={onTagClick}
-          onMenuOpen={onMenuOpen}
-          onPriceClick={onPriceClick}
-          onClone={onClone}
-          displayStore={displayStore}
-        />
-      ))}
+      <section className="paper paper--pending" aria-label="Por comprar">
+        <p className="paper__title">
+          <span className="paper__title-text">Por comprar</span>
+          <span className="paper__title-meta">
+            {pendingCost && (
+              <CostBadge cost={pendingCost} className="item-list__label-cost" />
+            )}
+            <span className="paper__title-count">
+              {totalItems !== undefined && totalItems !== active.length
+                ? `${active.length} de ${totalItems}`
+                : `${active.length}`}
+            </span>
+          </span>
+        </p>
+        {active.map((item) => (
+          <ItemCard
+            key={item.id}
+            item={item}
+            members={members}
+            onTogglePurchased={onTogglePurchased}
+            onTagClick={onTagClick}
+            onMenuOpen={onMenuOpen}
+            onPriceClick={onPriceClick}
+            onClone={onClone}
+            displayStore={displayStore}
+          />
+        ))}
+      </section>
       {footer}
 
       {purchased.length > 0 && (
         <>
           <button
-            className="item-list__label item-list__label--toggle"
+            className="item-list__purchased-toggle"
             onClick={() => setPurchasedCollapsed((c) => !c)}
             aria-expanded={!purchasedCollapsed}
           >
@@ -171,38 +193,41 @@ export function ItemList({
               aria-hidden
             />
           </button>
-          {!purchasedCollapsed &&
-            purchasedByDate.map(({ label, items: group }) => (
-              <div key={label}>
-                <p className="item-list__date-label">
-                  <span className="item-list__label-text">{label}</span>
-                  {(() => {
-                    const c = purchasedCostByDate?.get(label)
-                    return (
-                      c && (
-                        <CostBadge
-                          cost={c}
-                          className="item-list__date-label-cost"
-                        />
+          {!purchasedCollapsed && (
+            <section className="paper paper--settled" aria-label="Comprados">
+              {purchasedByDate.map(({ label, items: group }) => (
+                <div key={label}>
+                  <p className="item-list__date-label">
+                    <span className="item-list__label-text">{label}</span>
+                    {(() => {
+                      const c = purchasedCostByDate?.get(label)
+                      return (
+                        c && (
+                          <CostBadge
+                            cost={c}
+                            className="item-list__date-label-cost"
+                          />
+                        )
                       )
-                    )
-                  })()}
-                </p>
-                {group.map((item) => (
-                  <ItemCard
-                    key={item.id}
-                    item={item}
-                    members={members}
-                    onTogglePurchased={onTogglePurchased}
-                    onTagClick={onTagClick}
-                    onMenuOpen={onMenuOpen}
-                    onPriceClick={onPriceClick}
-                    onClone={onClone}
-                    displayStore={displayStore}
-                  />
-                ))}
-              </div>
-            ))}
+                    })()}
+                  </p>
+                  {group.map((item) => (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      members={members}
+                      onTogglePurchased={onTogglePurchased}
+                      onTagClick={onTagClick}
+                      onMenuOpen={onMenuOpen}
+                      onPriceClick={onPriceClick}
+                      onClone={onClone}
+                      displayStore={displayStore}
+                    />
+                  ))}
+                </div>
+              ))}
+            </section>
+          )}
         </>
       )}
     </div>

@@ -1,0 +1,116 @@
+/* The paper model: a sheet lying on the board.
+ *
+ * The Same-Relief Rule (rule 17): a sheet ALWAYS carries border-top
+ * (edge-lit), border-bottom (edge-cast) and box-shadow (cast). Light paints
+ * the cast and turns the edges transparent; dark paints the edges and a hard
+ * cast instead. Each mode zeroes what it doesn't use through the tokens, so
+ * the CSS here is identical in both lights.
+ *
+ * Paper is cut, not rounded (--r-sheet). A sheet carries no side padding of
+ * its own: the paper bleeds to its edges and the content keeps its own 20px
+ * margins inside.
+ */
+
+.paper {
+  /* Rung 1 by default; the rung modifiers override all three. */
+  --paper-lit: var(--edge-lit-1);
+  --paper-cast-edge: var(--edge-cast-1);
+  --paper-cast: var(--sheet-cast-list);
+
+  position: relative;
+  background: var(--paper-0);
+  border-top: 1px solid var(--paper-lit);
+  border-bottom: 1px solid var(--paper-cast-edge);
+  border-radius: var(--r-sheet);
+  box-shadow: var(--paper-cast);
+}
+
+/* Rung 1 — the live list: the thickest stock, the deepest cast on the
+   table. No veil, no rim: this is the sheet everything else settles under. */
+.paper--pending {
+  --paper-lit: var(--edge-lit-1);
+  --paper-cast-edge: var(--edge-cast-1);
+  --paper-cast: var(--sheet-cast-list);
+
+  padding-bottom: 10px;
+}
+
+/* Rung 2 — a settled purchase: thinner stock, finer cast, dimmed by the
+   veil, with the lit rim on its cut edge. */
+.paper--settled {
+  --paper-lit: var(--edge-lit-2);
+  --paper-cast-edge: var(--edge-cast-2);
+  --paper-cast: var(--sheet-cast-receipt);
+
+  padding-bottom: 8px;
+}
+
+/* The veil dims the whole settled sheet against the live one, header
+   included. The z-index keeps it above positioned children inside the
+   sheet; pointer-events lets every tap through. */
+.paper--settled::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--veil);
+  border-radius: inherit;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+/* The rim light on the settled sheet's cut edge — a 1.5px background layer,
+   not a border, because it must paint above the veil. It starts at -1px to
+   reach over the edge border (transparent in light) so the falloff begins
+   at the visual edge. Dark resolves --sheet-rim to none. */
+.paper--settled::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: 0;
+  left: 0;
+  z-index: 3;
+  height: 1.5px;
+  background: var(--sheet-rim);
+  pointer-events: none;
+}
+
+/* The pre-printed sheet title: serif, with the mono count opposite. The
+   dashed underline is the only rule a sheet contains. */
+.paper__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 20px 8px;
+  border-bottom: 1px dashed var(--rule-dashed);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  color: var(--ink-0);
+}
+
+.paper__title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paper__title-meta {
+  display: flex;
+  align-items: baseline;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.paper__title-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--ink-2);
+}
