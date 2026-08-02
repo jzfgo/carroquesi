@@ -54,8 +54,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.db.models import BarcodeCache, List, ListInvite, ListItem, ListMember, User, UserFeature
+from app.db.models import (
+    BarcodeCache,
+    List,
+    ListInvite,
+    ListItem,
+    ListMember,
+    Purchase,
+    User,
+    UserFeature,
+)
 from app.db.session import engine
+from app.services.trips import tears_off_at_for
 
 
 def now() -> datetime:
@@ -1694,6 +1704,38 @@ SEED_ITEMS = [
     ),
 ]
 
+
+def build_seed_trips(items: list[ListItem]) -> list[Purchase]:
+    """One trip per (list, local day), assigned onto the purchased items.
+
+    Purchased seed items must honor the invariant "purchased => purchase_id
+    set". Grouping uses the machine's local zone — the zone a browser here
+    would declare — so today's purchases land in today's open trip and can be
+    unchecked in the dev app. Past days' trips keep closed_at NULL, the way
+    the production backfill did: nobody wrote those shops down.
+    """
+    tz = datetime.now(UTC).astimezone().tzinfo
+    trips: dict[tuple[str, datetime], Purchase] = {}
+    for item in items:
+        if item.purchased_at is None:
+            continue
+        tears_off = tears_off_at_for(item.purchased_at, tz)
+        key = (item.list_id, tears_off)
+        trip = trips.get(key)
+        if trip is None:
+            trip = Purchase(
+                id=f"seed-trip-{item.list_id.removeprefix('seed-list-')}-{tears_off:%Y%m%d}",
+                list_id=item.list_id,
+                opened_at=item.purchased_at,
+                tears_off_at=tears_off,
+            )
+            trips[key] = trip
+        elif item.purchased_at < trip.opened_at:
+            trip.opened_at = item.purchased_at
+        item.purchase_id = trip.id
+    return list(trips.values())
+
+
 SEED_INVITES = [
     ListInvite(
         id="seed-invite-compra", list_id="seed-list-compra", invited_email=None, invited_by=ALICE_ID
@@ -1755,6 +1797,7 @@ def _delete_seed_rows(session: Session) -> None:
         (UserFeature, UserFeature.id),
         (ListInvite, ListInvite.id),
         (ListItem, ListItem.id),
+        (Purchase, Purchase.id),
         (ListMember, ListMember.id),
         (List, List.id),
         (BarcodeCache, BarcodeCache.id),
@@ -1787,6 +1830,9 @@ def main() -> None:
         print(f"  +{len(SEED_LISTS)} lists")
         _insert(session, SEED_MEMBERS)
         print(f"  +{len(SEED_MEMBERS)} memberships")
+        seed_trips = build_seed_trips(SEED_ITEMS)
+        _insert(session, seed_trips)
+        print(f"  +{len(seed_trips)} trips")
         _insert(session, SEED_ITEMS)
         print(f"  +{len(SEED_ITEMS)} items")
         _insert(session, SEED_INVITES)
