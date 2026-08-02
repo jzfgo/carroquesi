@@ -1,6 +1,6 @@
 # ADR-015: Receipt images in Google Cloud Storage via backend-issued signed URLs
 
-**Status:** Accepted
+**Status:** Accepted, allowed types amended 2026-08-02
 **Date:** 2026-08-02
 
 ## Context
@@ -38,11 +38,15 @@ membership — and the consent model when it lands — before minting any URL.
   constrained to this shape.
 - **Object layout:** `receipts/{list_id}/{scan_id}.<ext>`. Keyed by list, not
   by user, so access and retention follow the list the receipt belongs to.
-- **Limits:** 10 MB per image; `image/jpeg`, `image/png`, or `image/webp`
-  only. Both are enforced inside the signature — the signed URL binds the
-  exact `Content-Type` and an `X-Goog-Content-Length-Range` condition — so
-  GCS itself rejects an upload that exceeds them, even though the bytes never
-  pass through the backend.
+- **Limits:** 10 MB per file; `image/jpeg`, `image/png`, `image/webp`, or
+  `application/pdf`. Both are enforced inside the signature — the signed URL
+  binds the exact `Content-Type` and an `X-Goog-Content-Length-Range`
+  condition — so GCS itself rejects an upload that exceeds them, even though
+  the bytes never pass through the backend. *(Amended 2026-08-02:
+  `application/pdf` joined the original image-only list — supermarket apps
+  export multi-page receipts as PDF, and a page count carried as scan
+  metadata covers the multi-page display need. Same 10 MB cap; a PDF receipt
+  is no heavier than a photo.)*
 - **Retention: list-lifetime, no age cap.** Receipts live as long as their
   list. Deleting a list deletes its `receipts/{list_id}/` prefix, best
   effort. **Recorded obligation:** when an account-deletion endpoint exists,

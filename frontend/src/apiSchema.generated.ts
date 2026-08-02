@@ -460,6 +460,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists/{list_id}/purchases/{purchase_id}/receipt-scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Purchase Receipt Scans
+         * @description The scans that reconciled one trip, oldest first. Membership only.
+         */
+        get: operations["list_purchase_receipt_scans_lists__list_id__purchases__purchase_id__receipt_scans_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{list_id}/receipt": {
         parameters: {
             query?: never;
@@ -488,6 +508,58 @@ export interface paths {
         put?: never;
         /** Apply Receipt Prices */
         post: operations["apply_receipt_prices_lists__list_id__receipt_prices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lists/{list_id}/receipts/{scan_id}/file-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Receipt File Url
+         * @description Mint a signed GET URL for a stored receipt file.
+         *
+         *     Membership only — no flag, no consent. Consent gates the act of
+         *     processing a receipt; viewing what the household already stored is not
+         *     that act, and a member who declined consent may still need to check a
+         *     price against the paper someone else scanned.
+         */
+        get: operations["get_receipt_file_url_lists__list_id__receipts__scan_id__file_url_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lists/{list_id}/receipts/{scan_id}/upload-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Receipt Upload Url
+         * @description Mint a signed PUT URL so the client can store the original receipt.
+         *
+         *     Storing the file is part of processing the receipt, so the same flag and
+         *     consent gates as the scan apply. The file's path is recorded now, at mint
+         *     time: the bytes go straight to GCS, so the backend never learns whether
+         *     the PUT finished. There is no confirm step — re-minting overwrites the
+         *     same deterministic path, which both heals a failed upload and replaces a
+         *     stored file idempotently.
+         */
+        post: operations["create_receipt_upload_url_lists__list_id__receipts__scan_id__upload_url_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1235,6 +1307,15 @@ export interface components {
              */
             consent: "granted" | "declined";
         };
+        /** ReceiptFileUrlResult */
+        ReceiptFileUrlResult: {
+            /** Content Type */
+            content_type: string;
+            /** Pages */
+            pages: number | null;
+            /** Url */
+            url: string;
+        };
         /** ReceiptPriceApplyResult */
         ReceiptPriceApplyResult: {
             /** Items Created */
@@ -1291,6 +1372,43 @@ export interface components {
             store?: string | null;
             /** Unmatched */
             unmatched: components["schemas"]["UnmatchedLine"][];
+        };
+        /**
+         * ReceiptScanSummary
+         * @description One scan of a trip, as the purchase page's thumbnails need it.
+         */
+        ReceiptScanSummary: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** File Pages */
+            file_pages: number | null;
+            /** Has File */
+            has_file: boolean;
+            /** Id */
+            id: string;
+            /** Receipt At */
+            receipt_at: string | null;
+            /** Receipt Total */
+            receipt_total: number | null;
+            /** Store */
+            store: string | null;
+        };
+        /** ReceiptUploadUrlRequest */
+        ReceiptUploadUrlRequest: {
+            /** Content Type */
+            content_type: string;
+            /** Pages */
+            pages?: number | null;
+        };
+        /** ReceiptUploadUrlResult */
+        ReceiptUploadUrlResult: {
+            /** Expires In */
+            expires_in: number;
+            /** Upload Url */
+            upload_url: string;
         };
         /** StoreRead */
         StoreRead: {
@@ -2573,6 +2691,42 @@ export interface operations {
             };
         };
     };
+    list_purchase_receipt_scans_lists__list_id__purchases__purchase_id__receipt_scans_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+                purchase_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptScanSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     scan_receipt_lists__list_id__receipt_post: {
         parameters: {
             query?: never;
@@ -2638,6 +2792,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReceiptPriceApplyResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_receipt_file_url_lists__list_id__receipts__scan_id__file_url_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+                scan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptFileUrlResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_receipt_upload_url_lists__list_id__receipts__scan_id__upload_url_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+                scan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReceiptUploadUrlRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptUploadUrlResult"];
                 };
             };
             /** @description Validation Error */

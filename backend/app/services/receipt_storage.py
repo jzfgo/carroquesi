@@ -28,8 +28,23 @@ from app.core.config import settings
 UPLOAD_URL_EXPIRY = timedelta(minutes=15)
 DOWNLOAD_URL_EXPIRY = timedelta(minutes=10)
 
-# Allowed receipt image types, mapped to the object name extension.
-_EXTENSIONS = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+# One cap for every receipt file, image or PDF. Enforced inside the signed
+# URL's length condition, so GCS applies it even though the bytes never pass
+# through the backend.
+MAX_RECEIPT_BYTES = 10 * 1024 * 1024
+
+# Allowed receipt file types, mapped to the object name extension. PDF sits
+# beside the image types because supermarket apps export multi-page receipts
+# as PDF.
+_EXTENSIONS = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "application/pdf": "pdf",
+}
+
+# What an upload may declare; the API edge answers anything else with 415.
+ALLOWED_CONTENT_TYPES = frozenset(_EXTENSIONS)
 
 _client: storage.Client | None = None
 
