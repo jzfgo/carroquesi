@@ -280,6 +280,18 @@ export function removeMember(
   })
 }
 
+/** Hand the list to another current member (owner only); answers 204. */
+export function transferOwnership(
+  getToken: () => Promise<string>,
+  listId: string,
+  userId: string,
+) {
+  return apiFetch(getToken, `/lists/${listId}/owner`, {
+    method: 'PUT',
+    body: JSON.stringify({ user_id: userId }),
+  })
+}
+
 export function createOpenInvite(
   getToken: () => Promise<string>,
   listId: string,

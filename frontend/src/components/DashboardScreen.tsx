@@ -375,7 +375,7 @@ export function DashboardScreen() {
           listId={activeList.id}
           listName={activeList.name}
           currentUserId={user?.id ?? ''}
-          isOwner={activeList.owner_id === (user?.id ?? '')}
+          ownerId={activeList.owner_id}
           isDefault={activeList.is_default}
           onRename={(newName) => void handleRename(activeList, newName)}
           onDelete={() => void handleDelete(activeList)}

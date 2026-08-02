@@ -18,7 +18,8 @@ interface Props {
   listId: string
   listName: string
   currentUserId: string
-  isOwner: boolean
+  /** The list's owner (lists.owner_id); gates owner-only actions. */
+  ownerId: string
   /** Whether this list is the current user's default (Siri target). */
   isDefault: boolean
   onRename: (newName: string) => void
@@ -39,7 +40,7 @@ export function ListActionSheet({
   listId,
   listName,
   currentUserId,
-  isOwner,
+  ownerId,
   isDefault,
   onRename,
   onDelete,
@@ -56,13 +57,14 @@ export function ListActionSheet({
   const [editingStoreKey, setEditingStoreKey] = useState<string | null>(null)
   const [storeNameValue, setStoreNameValue] = useState('')
   const sheetRef = useRef<SheetHandle>(null)
+  const isOwner = ownerId === currentUserId
 
   if (subState === 'members') {
     return (
       <ListMembersSheet
         listId={listId}
         currentUserId={currentUserId}
-        isOwner={isOwner}
+        ownerId={ownerId}
         onClose={() => setSubState('actions')}
         onLeft={onLeftList}
         onListSuspect={onListSuspect}
