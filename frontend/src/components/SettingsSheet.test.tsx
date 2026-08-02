@@ -119,10 +119,22 @@ describe('SettingsSheet — Avisos', () => {
     expect(screen.queryByText('Avisos en este dispositivo')).toBeNull()
   })
 
-  it('hides the block where push cannot work (no Notification API)', () => {
+  it('hides the block where push cannot work (non-iOS, no Notification API)', () => {
     enablePushFlag()
     renderSheet()
     expect(screen.queryByText('Avisos en este dispositivo')).toBeNull()
+  })
+
+  it('shows the block on an uninstalled iPhone even though push cannot work yet', () => {
+    enablePushFlag()
+    vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
+      isInstallable: false,
+      isInstalled: false,
+      isIOS: true,
+      promptInstall: vi.fn(async () => undefined),
+    })
+    renderSheet()
+    expect(screen.getByText('Avisos en este dispositivo')).toBeInTheDocument()
   })
 
   it('offers the switch, off, when permission has not been answered', () => {
@@ -130,6 +142,9 @@ describe('SettingsSheet — Avisos', () => {
     vi.stubGlobal('Notification', { permission: 'default' })
     renderSheet()
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false')
+    expect(
+      screen.getByText('El sistema te lo preguntará una sola vez'),
+    ).toBeInTheDocument()
   })
 
   it('shows the switch on when this device is subscribed', () => {
@@ -138,6 +153,19 @@ describe('SettingsSheet — Avisos', () => {
     localStorage.setItem('push-device-subscribed', '1')
     renderSheet()
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true')
+    expect(
+      screen.getByText('Cuando alguien añada o compre en tus listas'),
+    ).toBeInTheDocument()
+  })
+
+  it('promises no re-prompt when permission is granted but this device is off', () => {
+    enablePushFlag()
+    vi.stubGlobal('Notification', { permission: 'granted' })
+    renderSheet()
+    expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false')
+    expect(
+      screen.getByText('Se vuelven a encender sin volver a preguntar'),
+    ).toBeInTheDocument()
   })
 
   it('turning off unsubscribes this device and flips the switch', async () => {
@@ -174,17 +202,73 @@ describe('SettingsSheet — Avisos', () => {
     renderSheet()
     fireEvent.click(screen.getByRole('switch'))
     expect(
-      await screen.findByText(/ajustes de tu navegador/i),
+      await screen.findByText('Bloqueados en los ajustes del sistema, no aquí'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('switch')).toBeNull()
   })
 
-  it('explains how to unblock instead of offering a dead switch when denied', () => {
+  it('shows the blocked message instead of a dead switch when denied', () => {
     enablePushFlag()
     vi.stubGlobal('Notification', { permission: 'denied' })
     renderSheet()
-    expect(screen.getByText(/ajustes de tu navegador/i)).toBeInTheDocument()
+    expect(
+      screen.getByText('Bloqueados en los ajustes del sistema, no aquí'),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('switch')).toBeNull()
+  })
+
+  it('«Cómo» expands the unblock instructions inline, and collapses them again', () => {
+    enablePushFlag()
+    vi.stubGlobal('Notification', { permission: 'denied' })
+    renderSheet()
+    expect(screen.queryByText(/ajustes de tu navegador/i)).toBeNull()
+
+    const how = screen.getByRole('button', { name: 'Cómo' })
+    expect(how).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(how)
+    expect(how).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText(/ajustes de tu navegador/i)).toBeInTheDocument()
+
+    fireEvent.click(how)
+    expect(screen.queryByText(/ajustes de tu navegador/i)).toBeNull()
+  })
+
+  it('on an uninstalled iPhone the row leads to the install row, no switch', () => {
+    enablePushFlag()
+    vi.mocked(usePWAInstallModule.usePWAInstall).mockReturnValue({
+      isInstallable: false,
+      isInstalled: false,
+      isIOS: true,
+      promptInstall: vi.fn(async () => undefined),
+    })
+    const scrollIntoView = vi.fn()
+    window.HTMLElement.prototype.scrollIntoView = scrollIntoView
+    renderSheet()
+
+    expect(
+      screen.getByText(
+        'En iPhone hay que instalar la app en la pantalla de inicio',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('switch')).toBeNull()
+    // The invariant the chevron relies on: not installed means the install
+    // row is on this same sheet, so there is always somewhere to scroll to.
+    expect(
+      screen.getByText('Instalar en la pantalla de inicio'),
+    ).toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /avisos en este dispositivo/i }),
+    )
+    expect(scrollIntoView).toHaveBeenCalledOnce()
+    expect(scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'center',
+    })
+    // and it scrolled the install row, not something else
+    expect(
+      (scrollIntoView.mock.contexts[0] as HTMLElement).textContent,
+    ).toContain('Instalar en la pantalla de inicio')
   })
 })
 

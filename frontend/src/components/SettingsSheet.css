@@ -168,6 +168,16 @@
   color: var(--ink-1);
 }
 
+/* The denied state's «Cómo» answer: plain text under the row, not a row of
+   its own — it belongs to the row above and carries no control. */
+.settings-sheet__how-text {
+  margin: 0;
+  padding: 2px 20px 10px;
+  font-size: var(--fs-12);
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
 .settings-sheet__chevron {
   flex-shrink: 0;
   color: var(--ink-3);

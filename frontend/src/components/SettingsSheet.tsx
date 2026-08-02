@@ -52,6 +52,13 @@ export function SettingsSheet({
   // that would reveal the blocked message. This value genuinely changes
   // ('default' -> 'denied'), so it cannot hit that bailout.
   const [permission, setPermission] = useState(() => permissionState())
+  const [howOpen, setHowOpen] = useState(false)
+  // Points at the install row so the Avisos row on an uninstalled iPhone can
+  // lead there instead of repeating its instructions.
+  const installRowRef = useRef<HTMLElement | null>(null)
+  const setInstallRowRef = (el: HTMLElement | null) => {
+    installRowRef.current = el
+  }
 
   // The key row is lazy: the sheet opens instantly and the (idempotent) key
   // issuance resolves into it. A returning user gets no plaintext back — the
@@ -109,9 +116,13 @@ export function SettingsSheet({
     onToast(ok ? 'Clave copiada' : 'No se pudo copiar la clave')
   }
 
+  // An uninstalled iPhone cannot receive push, but hiding the block there
+  // would silently drop the one platform that needs an explanation. Only a
+  // browser with no Notification API on a non-Apple device truly has nothing
+  // to say.
   const showAvisos =
     isEnabled(FLAGS.PUSH_NOTIFICATIONS) &&
-    canReceivePush({ isIOS, isInstalled })
+    (canReceivePush({ isIOS, isInstalled }) || (isIOS && !isInstalled))
   const showInstallRow = (isInstallable || isIOS) && !isInstalled
 
   return (
@@ -167,23 +178,66 @@ export function SettingsSheet({
           {showAvisos && (
             <section className="settings-sheet__block">
               <h3 className="settings-sheet__eyebrow">Avisos</h3>
-              {permission === 'denied' ? (
-                // Once permission is denied the browser will not re-prompt, so
-                // a switch here would call requestPermission(), return
-                // immediately and change nothing — a control that looks
-                // broken. Explain the way out instead of offering a dead
-                // action.
-                <div className="settings-sheet__row">
+              {isIOS && !isInstalled ? (
+                // No switch: there is nothing to activate until the app is
+                // installed. The chevron leads to the install row below
+                // instead of repeating its instructions here.
+                <button
+                  type="button"
+                  className="settings-sheet__row settings-sheet__row--action"
+                  onClick={() =>
+                    installRowRef.current?.scrollIntoView({
+                      behavior: 'smooth',
+                      block: 'center',
+                    })
+                  }
+                >
                   <span className="settings-sheet__row-text">
                     <span className="settings-sheet__row-title">
                       Avisos en este dispositivo
                     </span>
                     <span className="settings-sheet__row-subtitle">
-                      Has bloqueado los avisos. Actívalos en los ajustes de tu
-                      navegador para volver a recibirlos.
+                      En iPhone hay que instalar la app en la pantalla de inicio
                     </span>
                   </span>
-                </div>
+                  <ChevronRight
+                    size={14}
+                    className="settings-sheet__chevron"
+                    aria-hidden="true"
+                  />
+                </button>
+              ) : permission === 'denied' ? (
+                // Once permission is denied the browser will not re-prompt, so
+                // a switch here would call requestPermission(), return
+                // immediately and change nothing — a control that looks
+                // broken. The system holds the lock, and «Cómo» explains the
+                // way out instead of offering a dead action.
+                <>
+                  <div className="settings-sheet__row">
+                    <span className="settings-sheet__row-text">
+                      <span className="settings-sheet__row-title">
+                        Avisos en este dispositivo
+                      </span>
+                      <span className="settings-sheet__row-subtitle">
+                        Bloqueados en los ajustes del sistema, no aquí
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      className="settings-sheet__inline-action"
+                      aria-expanded={howOpen}
+                      onClick={() => setHowOpen((open) => !open)}
+                    >
+                      Cómo
+                    </button>
+                  </div>
+                  {howOpen && (
+                    <p className="settings-sheet__how-text">
+                      Actívalos en los ajustes de tu navegador para volver a
+                      recibirlos.
+                    </p>
+                  )}
+                </>
               ) : (
                 <button
                   type="button"
@@ -208,8 +262,16 @@ export function SettingsSheet({
                     <span className="settings-sheet__row-title">
                       Avisos en este dispositivo
                     </span>
+                    {/* The subtitle names what flipping the switch will do:
+                        granted-but-off can re-enable without the system
+                        asking again, and saying so removes the fear of
+                        touching it. */}
                     <span className="settings-sheet__row-subtitle">
-                      Cuando alguien añada o compre en tus listas
+                      {pushOn
+                        ? 'Cuando alguien añada o compre en tus listas'
+                        : permission === 'granted'
+                          ? 'Se vuelven a encender sin volver a preguntar'
+                          : 'El sistema te lo preguntará una sola vez'}
                     </span>
                   </span>
                   <span className="settings-sheet__switch" aria-hidden="true">
@@ -310,6 +372,7 @@ export function SettingsSheet({
               (isInstallable ? (
                 <button
                   type="button"
+                  ref={setInstallRowRef}
                   className="settings-sheet__row settings-sheet__row--action"
                   onClick={() => void promptInstall()}
                 >
@@ -327,7 +390,7 @@ export function SettingsSheet({
               ) : (
                 // iOS has no install prompt to trigger — the row carries the
                 // manual instruction instead of a dead action.
-                <div className="settings-sheet__row">
+                <div ref={setInstallRowRef} className="settings-sheet__row">
                   <span className="settings-sheet__row-text">
                     <span className="settings-sheet__row-title">
                       Instalar en la pantalla de inicio
