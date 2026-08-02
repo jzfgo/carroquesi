@@ -1,12 +1,106 @@
 .list-screen {
+  /* The board this list's paper lies on. Kraft is the default; data-board
+     picks the caller's hue. The pair is personal and per-list, and it never
+     leaves this screen — the confinement is the point. */
+  --board: var(--board-kraft);
+  --board-ink: var(--board-ink-kraft);
+
   width: 100%;
   max-width: 430px; /* comfortable on large phones / tablet emulation */
   margin: 0 auto;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--board);
   position: relative;
+}
+
+.list-screen[data-board='lino'] {
+  --board: var(--board-lino);
+  --board-ink: var(--board-ink-lino);
+}
+
+.list-screen[data-board='salvia'] {
+  --board: var(--board-salvia);
+  --board-ink: var(--board-ink-salvia);
+}
+
+.list-screen[data-board='niebla'] {
+  --board: var(--board-niebla);
+  --board-ink: var(--board-ink-niebla);
+}
+
+.list-screen[data-board='barro'] {
+  --board: var(--board-barro);
+  --board-ink: var(--board-ink-barro);
+}
+
+.list-screen[data-board='pizarra'] {
+  --board: var(--board-pizarra);
+  --board-ink: var(--board-ink-pizarra);
+}
+
+/* DEV-ONLY PREVIEW: header variant "board" — the header is chrome written
+   on the board, no surface of its own. Its counterpart (variant "paper", the
+   sticky --paper-0 header with its hairline) is simply ListHeader's own
+   styling untouched. One variant ships; the loser's branch gets stripped. */
+.list-screen[data-header-variant='board'] .list-header {
+  background: transparent;
+  border-bottom: none;
+}
+
+.list-screen[data-header-variant='board'] .list-header__title,
+.list-screen[data-header-variant='board'] .list-header__back,
+.list-screen[data-header-variant='board'] .list-header__menu {
+  color: var(--board-ink);
+}
+
+/* Chrome between the header and the sheets sits on the board: transparent
+   grounds, board ink, dashed hairlines where a rule is needed. Scoped to the
+   list screen on purpose — the board never restyles these components
+   anywhere else in the app. */
+.list-screen .progress-bar {
+  background: color-mix(in srgb, var(--board-ink) 18%, transparent);
+}
+
+.list-screen .push-priming {
+  margin: 10px 12px 0;
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--board-ink) 40%, transparent);
+  color: var(--board-ink);
+}
+
+.list-screen .push-priming__text,
+.list-screen .push-priming__icon,
+.list-screen .push-priming__dismiss {
+  color: var(--board-ink);
+}
+
+.list-screen .filter-bar__chip {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--board-ink) 40%, transparent);
+  color: var(--board-ink);
+}
+
+.list-screen .filter-bar__chip--active {
+  background: var(--board-ink);
+  border-color: var(--board-ink);
+  color: var(--board);
+}
+
+.list-screen .filter-bar__search-btn,
+.list-screen .filter-bar__close-btn {
+  color: var(--board-ink);
+}
+
+.list-screen .filter-bar__input {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--board-ink) 40%, transparent);
+  color: var(--board-ink);
+}
+
+.list-screen .filter-bar__input::placeholder {
+  color: color-mix(in srgb, var(--board-ink) 60%, transparent);
 }
 
 /* Override the desktop-focused root width from index.css */
@@ -39,18 +133,27 @@
   z-index: 101;
 }
 
+/* Board chrome: the scan door is written on the board — no surface, board
+   ink, and a dashed outline because the receipt it stands for is not real
+   yet. Nothing floats. */
 .receipt-scan-cta {
-  padding: 0 16px 8px;
+  padding: 0 6px 8px;
 }
 
 .receipt-scan-cta__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100%;
+  min-height: var(--hit-tap);
   padding: 12px 16px;
-  border-radius: 12px;
-  border: 1.5px dashed var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-primary);
-  font-size: 0.95rem;
+  border-radius: var(--r-md);
+  border: 1.5px dashed color-mix(in srgb, var(--board-ink) 40%, transparent);
+  background: transparent;
+  color: var(--board-ink);
+  font-family: inherit;
+  font-size: var(--fs-15);
   font-weight: 500;
   cursor: pointer;
   transition:
@@ -64,7 +167,7 @@
 }
 
 .receipt-scan-cta__btn:hover:not(:disabled) {
-  background: var(--color-surface-hover, var(--color-border));
+  background: color-mix(in srgb, var(--board-ink) 8%, transparent);
 }
 
 .receipt-source-picker {

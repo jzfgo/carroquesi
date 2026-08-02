@@ -1,5 +1,11 @@
 export type ThemePreference = 'light' | 'dark' | 'system'
 
+// The --paper-0 values. The browser paints its chrome from the meta tag, not
+// from CSS, so this map must be kept in step with every theme resolution or
+// the status bar shows the other theme's colour. ThemeManager applies it; the
+// list screen's board override hands the tag back to it on unmount.
+export const META_THEME_COLOR = { light: '#EEF1F5', dark: '#252731' } as const
+
 // Read by the inline pre-paint script in index.html too — the two must agree
 // on the key and on treating anything but 'light'/'dark' as 'system'.
 const KEY = 'cqs_theme'

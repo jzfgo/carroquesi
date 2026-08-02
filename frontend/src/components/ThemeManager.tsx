@@ -1,15 +1,11 @@
 import { useEffect } from 'react'
 import {
   getPreference,
+  META_THEME_COLOR,
   resolve,
   subscribe,
   type ThemePreference,
 } from '../lib/theme'
-
-// The --paper-0 values. The browser paints its chrome from the meta tag, not
-// from CSS, so it must be kept in step with every theme resolution or the
-// status bar shows the other theme's colour.
-const META_THEME_COLOR = { light: '#EEF1F5', dark: '#252731' } as const
 
 function apply(pref: ThemePreference, systemDark: boolean) {
   const root = document.documentElement

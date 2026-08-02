@@ -2,6 +2,7 @@ import { Camera, Image, Receipt } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
+import { useBoardThemeColor } from '../hooks/useBoardThemeColor'
 import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
 import { useListSeen } from '../hooks/useListSeen'
@@ -21,6 +22,7 @@ import {
   submitReceiptPrices,
   updateList,
 } from '../lib/api'
+import { asBoardName } from '../lib/boards'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
 import { computeCostSummary, purchasedDateLabel } from '../lib/itemCost'
@@ -65,6 +67,8 @@ interface Props {
   listName: string
   listEmoji?: string | null
   listOwnerId: string
+  /** The caller's board for this list; unknown or absent values land on kraft. */
+  board?: string | null
   isDefault?: boolean
   onRename?: (newName: string) => void
   onSetDefault?: (isDefault: boolean) => void
@@ -84,6 +88,7 @@ export function ListScreen({
   listName,
   listEmoji = null,
   listOwnerId,
+  board = null,
   isDefault = false,
   onRename,
   onSetDefault,
@@ -91,6 +96,20 @@ export function ListScreen({
   onListGone,
 }: Props) {
   const { getToken, user } = useAuth()
+  const boardName = asBoardName(board)
+  // DEV-ONLY PREVIEW AFFORDANCE: two in-list header treatments exist so they
+  // can be compared side by side on a phone, switched by the `header` query
+  // param (?header=board | ?header=paper). Only one variant ships — after the
+  // choice, the losing variant's CSS branch, this toggle, and (if "paper"
+  // wins) useBoardThemeColor are all stripped. Read once at mount on purpose:
+  // a preview knob, not navigation state.
+  const [headerVariant] = useState<'board' | 'paper'>(() =>
+    new URLSearchParams(window.location.search).get('header') === 'paper'
+      ? 'paper'
+      : 'board',
+  )
+  // The "board" header variant extends the board into the browser chrome.
+  useBoardThemeColor(boardName, headerVariant === 'board')
   const [localListName, setLocalListName] = useState(listName)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: resets optimistic local title when polling confirms external rename
@@ -792,7 +811,11 @@ export function ListScreen({
   }, [filteredItems])
 
   return (
-    <div className="list-screen">
+    <div
+      className="list-screen"
+      data-board={boardName}
+      data-header-variant={headerVariant}
+    >
       <ListHeader
         title={localListName}
         emoji={listEmoji}
