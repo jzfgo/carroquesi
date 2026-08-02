@@ -74,7 +74,7 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 
 ### Key conventions
 
-- Mobile-first, card-based layout
+- Mobile-first, single-column layout. The dashboard is the flat `38a` panel — rows on 1px rules, no cards, whole-row drag to reorder; the row subtitle comes from `lib/listSubtitle.ts` and must tolerate cached list payloads that predate `members`/`cart_count`. DESIGN.md governs the visuals
 - Sticky "Smart Input" bar fixed at the bottom of the screen
 - Bottom sheets build on the shared `Sheet` primitive (`components/Sheet.tsx`), not on hand-rolled overlays. It owns the portal, scrim, grabber, swipe/Escape/scrim dismissal, focus trap, body scroll lock, and the open/close slide. Parents control presence by mounting; the sheet owns the exit — a dismiss plays the slide-down and only then calls `onClose`, with a timeout fallback so a missed `transitionend` can never wedge a sheet open. `onDismiss` remaps dismiss gestures for sub-state sheets ("go back" instead of close), and the `SheetHandle` ref closes with the animation from content buttons
 - Firebase SDK used in the frontend for Auth (Google Sign-In) and AI (Gemini receipt parsing via Firebase AI SDK). Clients are constructed **lazily** behind memoised accessors in `lib/firebase.ts` (`getFirebaseAuth()`, `getFirebaseAi()`, `getMessagingIfSupported()`) — never at module scope. A client built at import time turns a bad config into a crash during module evaluation, and forces credentials onto every test that transitively imports the module; CI runs the suite with no Firebase env, so that mistake surfaces only there
