@@ -765,6 +765,8 @@ export interface components {
             price_per: "KILOGRAM" | null;
             /** Price Store */
             price_store: string | null;
+            /** Purchase Ends At */
+            purchase_ends_at?: string | null;
             /** Purchased */
             readonly purchased: boolean;
             /** Purchased At */
@@ -2057,7 +2059,6 @@ export interface operations {
                 "x-dev-user-id"?: string | null;
                 "x-dev-is-admin"?: string | null;
                 "x-api-key"?: string | null;
-                "x-client-timezone"?: string | null;
             };
             path: {
                 list_id: string;

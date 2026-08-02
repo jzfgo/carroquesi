@@ -308,14 +308,62 @@ def test_delete_price_404_if_no_price(client: TestClient):
     assert resp.status_code == 404
 
 
-def test_delete_price_422_if_purchased_previous_day(client: TestClient, session):
+def _tear_off_trip(session, item_id, *, tear_off=None, closed_at=None):
+    """Reshape the boundary of the trip the item was purchased on."""
+    from app.db.models import Purchase
+
+    db_item = session.get(DBListItem, item_id)
+    session.refresh(db_item)
+    trip = session.get(Purchase, db_item.purchase_id)
+    if tear_off is not None:
+        trip.tears_off_at = tear_off
+    if closed_at is not None:
+        trip.closed_at = closed_at
+    session.add(trip)
+    session.commit()
+    return trip
+
+
+def test_delete_price_422_after_the_trip_tore_off(client: TestClient, session):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+    _set_price(client, lst["id"], item["id"], 1.99)
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    now = datetime.now(UTC).replace(tzinfo=None)
+    _tear_off_trip(session, item["id"], tear_off=now - timedelta(hours=1))
+
+    resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
+    assert resp.status_code == 422
+
+
+def test_delete_price_422_when_the_trip_closed_before_a_future_tear_off(
+    client: TestClient, session
+):
+    """Closing early wins over the tear-off: settled spend stops taking edits
+    even while the trip's midnight boundary is still ahead."""
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+    _set_price(client, lst["id"], item["id"], 1.99)
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    now = datetime.now(UTC).replace(tzinfo=None)
+    trip = _tear_off_trip(session, item["id"], closed_at=now - timedelta(hours=1))
+    assert trip.tears_off_at > now
+
+    resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
+    assert resp.status_code == 422
+
+
+def test_delete_price_422_when_the_purchased_items_trip_is_missing(client: TestClient, session):
+    """A purchased item that cannot prove its trip is open is refused —
+    refusing is recoverable, erasing settled spend is not."""
     lst = _make_list(client)
     item = _make_item(client, lst["id"])
     _set_price(client, lst["id"], item["id"], 1.99)
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
 
     db_item = session.get(DBListItem, item["id"])
-    db_item.purchased_at = db_item.purchased_at - timedelta(days=1)
+    session.refresh(db_item)
+    db_item.purchase_id = None
     session.add(db_item)
     session.commit()
 
@@ -323,7 +371,7 @@ def test_delete_price_422_if_purchased_previous_day(client: TestClient, session)
     assert resp.status_code == 422
 
 
-def test_delete_price_204_if_purchased_today(client: TestClient):
+def test_delete_price_204_while_the_trip_is_open(client: TestClient):
     lst = _make_list(client)
     item = _make_item(client, lst["id"])
     _set_price(client, lst["id"], item["id"], 1.99)
@@ -331,48 +379,6 @@ def test_delete_price_204_if_purchased_today(client: TestClient):
 
     resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
     assert resp.status_code == 204
-
-
-def test_delete_price_judges_today_in_the_clients_calendar(client: TestClient, session):
-    """The X-Client-Timezone header decides whose day the guard compares.
-
-    Nothing is pinned here, so the test picks, from the live clock, a
-    fixed-offset zone whose calendar day currently disagrees with UTC's,
-    and a purchase instant the two calendars judge differently. Whichever
-    branch runs, the expected verdict is the opposite of the UTC one — so
-    the test fails if the header never reaches the comparison. Both signs
-    of the mismatch are pinned deterministically in the client-day unit
-    tests; this one only proves the plumbing.
-    """
-    lst = _make_list(client)
-    item = _make_item(client, lst["id"])
-    _set_price(client, lst["id"], item["id"], 1.99)
-    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
-
-    now = datetime.now(UTC).replace(tzinfo=None)
-    if now.hour < 12:
-        # The client's today (UTC-12) is UTC's yesterday. A purchase late in
-        # UTC's yesterday sits on the client's today: allowed, where UTC 422s.
-        tz = "Etc/GMT+12"
-        purchased_at = now - timedelta(hours=now.hour + 1)
-        expected = 204
-    else:
-        # The client's today (UTC+14) is UTC's tomorrow. A purchase earlier in
-        # UTC's today sits on the client's yesterday: refused, where UTC 204s.
-        tz = "Etc/GMT-14"
-        purchased_at = now.replace(hour=9, minute=30)
-        expected = 422
-
-    db_item = session.get(DBListItem, item["id"])
-    db_item.purchased_at = purchased_at
-    session.add(db_item)
-    session.commit()
-
-    resp = client.delete(
-        f"/lists/{lst['id']}/items/{item['id']}/prices",
-        headers={"X-Client-Timezone": tz},
-    )
-    assert resp.status_code == expected
 
 
 def test_price_history_entry_includes_quantity(client: TestClient):

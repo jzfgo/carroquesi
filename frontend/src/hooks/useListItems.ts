@@ -14,7 +14,7 @@ import {
 } from '../lib/api'
 import { AVATAR_COLORS } from '../lib/avatarColors'
 import { isOnline } from '../lib/connectivity'
-import { isSameCalendarDay } from '../lib/isSameCalendarDay'
+import { isTripOpen } from '../lib/isTripOpen'
 import { reconcileItems } from '../lib/reconcileItems'
 import { storeKey } from '../lib/storeKey'
 import type {
@@ -268,15 +268,15 @@ export function useListItems(
       const targetItem = snapshot.find((i) => i.id === itemId)
       const prevPurchased = targetItem?.purchased ?? false
 
-      // A purchase from a prior calendar day cannot be undone — unless its
+      // A purchase whose trip has ended cannot be undone — unless its
       // record was written within the grace window, because a receipt scan
-      // backdates purchases and a wrong link must stay reversible. The server
-      // enforces the same rule in the same calendar (every request declares
-      // the viewer's timezone); this copy only saves the round-trip.
+      // backdates purchases and a wrong link must stay reversible. The
+      // server enforces the same rule against the same stored boundary;
+      // this copy only saves the round-trip.
       if (prevPurchased && targetItem?.purchased_at) {
         const writtenAt = new Date(targetItem.updated_at + 'Z').getTime()
         const withinGrace = Date.now() - writtenAt <= UNPURCHASE_GRACE_MS
-        if (!isSameCalendarDay(targetItem.purchased_at) && !withinGrace) {
+        if (!isTripOpen(targetItem.purchase_ends_at) && !withinGrace) {
           showToast('No se puede desmarcar un producto comprado en otro día')
           return
         }
@@ -340,6 +340,7 @@ export function useListItems(
         stores: parsed.stores,
         purchased: false,
         purchased_at: null,
+        purchase_ends_at: null,
         ean: null,
         price: null,
         price_per: null,

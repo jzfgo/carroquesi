@@ -1,10 +1,10 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, status
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 from sqlmodel import Session, select
 
-from app.db.models import List, ListInvite, ListItem, ListMember, ReceiptScan, User
+from app.db.models import List, ListInvite, ListItem, ListMember, Purchase, ReceiptScan, User
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
 from app.schemas.lists import ListCreate, ListMemberBrief, ListRead, ListUpdate
 from app.services.default_list import ensure_default, set_default
@@ -49,21 +49,31 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
     # Uses session.execute (SQLAlchemy) rather than session.exec (SQLModel)
     # because it returns named-column Row objects from aggregation queries.
     # Only count items that are in-scope for the current shopping session:
-    # unpurchased items, plus items purchased today. Items purchased on prior
-    # days are excluded from both the denominator and the numerator so the
-    # progress bar reflects only the current trip.
-    today = func.current_date()
-    purchased_today = func.date(ListItem.purchased_at) == today
-    in_scope = or_(ListItem.purchased_at.is_(None), purchased_today)
+    # unpurchased items, plus items whose trip is still open. Items from
+    # closed or torn-off trips are excluded from both the denominator and
+    # the numerator so the progress bar reflects only the current trip.
+    #
+    # `now` is a bound naive-UTC instant, the same convention the trips
+    # service compares tears_off_at with. The LEFT JOIN keeps unpurchased
+    # items (purchase_id NULL) in item_count; a purchased item with no
+    # matching trip row joins NULL, compares as NULL, and counts as closed.
+    now = datetime.now(UTC).replace(tzinfo=None)
+    in_cart = and_(
+        ListItem.purchased_at.is_not(None),
+        func.coalesce(Purchase.closed_at, Purchase.tears_off_at) > now,
+    )
+    in_scope = or_(ListItem.purchased_at.is_(None), in_cart)
 
     count_stmt = (
         select(
             ListItem.list_id,
             func.count(ListItem.id).filter(in_scope).label("item_count"),
-            func.count(ListItem.id).filter(purchased_today).label("purchased_count"),
-            # cart_count shares purchased_count's day rule until trips exist.
-            func.count(ListItem.id).filter(purchased_today).label("cart_count"),
+            func.count(ListItem.id).filter(in_cart).label("purchased_count"),
+            # purchased_count and cart_count are one rule on purpose: an item
+            # counts toward progress exactly while it sits in the open trip.
+            func.count(ListItem.id).filter(in_cart).label("cart_count"),
         )
+        .outerjoin(Purchase, ListItem.purchase_id == Purchase.id)
         .where(ListItem.list_id.in_(list_ids))
         .group_by(ListItem.list_id)
     )

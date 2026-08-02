@@ -111,9 +111,13 @@ when it reconciled none or several.
 
 - Two people at two shops on one evening get two tickets once each
   reconciles, and share one open trip, honestly, until then.
-- Every same-day rule can become one comparison against a stored instant;
-  until each is migrated, the old copies (including the SQL one in the
-  dashboard counts) stand.
+- Every same-day rule is now one comparison against a stored instant: the
+  six copies (including the SQL one in the dashboard counts) were replaced
+  by the trip-open rule in JAV-125. `ItemRead.purchase_ends_at` carries the
+  boundary to clients; the frontend mirror (`lib/isTripOpen.ts`) treats a
+  missing value as open, while the backend treats a purchased item with no
+  live trip row as closed — the write-grace window still rescues fresh
+  writes either way.
 - A scan spanning several trips reconciles none of them — ergonomics traded
   for truth. Closing that cart by hand is recoverable; a total attached to
   lines it does not describe is not.

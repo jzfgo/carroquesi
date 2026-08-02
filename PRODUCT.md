@@ -50,7 +50,7 @@ Confirmed and shipped:
 
 - Multiple shared lists per user; membership by explicit, opt-in invitation — access is granted only after the invite is accepted.
 - Items with quantity, brand, store, tags, and barcode; a purchased state that records *when*, *how much* was actually bought, and at what price.
-- Purchased items are largely read-only. Price deletion carries a same-day guard, enforced on both the client and the server.
+- Purchased items are largely read-only. Price deletion is allowed only while the item's shopping trip is still open, enforced on both the client and the server.
 - Smart Input bar with a sigil syntax (`+qty`, `#brand`, `@store`, `|EAN`) for fast entry, alongside plain typing.
 - Suggestions from purchase history, and due-again prompts.
 - Barcode lookup with caching.
