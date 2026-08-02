@@ -70,9 +70,13 @@ test('renders item name', () => {
   expect(screen.getByText('Leche Entera')).toBeInTheDocument()
 })
 
-test('renders quantity inline', () => {
-  renderCard(BASE_ITEM)
-  expect(screen.getByText('2 unidades')).toBeInTheDocument()
+test('renders the quantity on the row line, holding the right edge', () => {
+  const { container } = renderCard(BASE_ITEM)
+  // Right alignment itself is CSS (margin-left auto on the qty); what the
+  // selector needs is the qty living on the name line, not in the meta row.
+  expect(
+    container.querySelector('.item-card__line .item-card__qty'),
+  ).toHaveTextContent('2 unidades')
 })
 
 test('renders brand and store in the meta line', () => {
@@ -198,16 +202,17 @@ test('a purchased item on a closed trip carries the bought modifier', () => {
 
 // jsdom does not apply the stylesheet, so the mono voice and the absence of a
 // strikethrough cannot be seen here. What this layer can check is the shape
-// the CSS selectors need: name, qty and meta must sit inside the bought
-// modifier for the record voice to land on them.
-test('bought state puts name, qty and meta inside the bought modifier', () => {
+// the CSS selectors need: name and meta must sit inside the bought modifier
+// for the record voice to land on them, and the quantity folds into the meta
+// row — a record's line keeps only name and amount.
+test('bought state puts the name and a qty-bearing meta inside the modifier', () => {
   const { container } = renderCard(BOUGHT_ITEM)
   const row = container.querySelector('.item-card--bought')!
   expect(row.querySelector('.item-card__name')).toHaveTextContent(
     'Leche Entera',
   )
-  expect(row.querySelector('.item-card__qty')).toHaveTextContent('487g')
-  expect(row.querySelector('.item-card__meta')).toBeInTheDocument()
+  expect(row.querySelector('.item-card__qty')).not.toBeInTheDocument()
+  expect(row.querySelector('.item-card__meta')).toHaveTextContent('487g')
 })
 
 test('bought row shows the amount in the amount column', () => {
@@ -218,14 +223,19 @@ test('bought row shows the amount in the amount column', () => {
 })
 
 test('shows purchased_quantity instead of planned quantity when purchased', () => {
-  renderCard(BOUGHT_ITEM)
-  expect(screen.getByText('487g')).toBeInTheDocument()
-  expect(screen.queryByText('2')).not.toBeInTheDocument()
+  const { container } = renderCard(BOUGHT_ITEM)
+  const meta = container.querySelector('.item-card__meta')
+  expect(meta).toHaveTextContent('487g')
+  expect(meta).not.toHaveTextContent(/\b2\b/)
 })
 
 test('shows planned quantity as fallback when purchased but no purchased_quantity', () => {
-  renderCard({ ...BOUGHT_ITEM, purchased_quantity: null, quantity: '3' })
-  expect(screen.getByText('3')).toBeInTheDocument()
+  const { container } = renderCard({
+    ...BOUGHT_ITEM,
+    purchased_quantity: null,
+    quantity: '3',
+  })
+  expect(container.querySelector('.item-card__meta')).toHaveTextContent(/\b3\b/)
 })
 
 test('bought row records the shop the price was logged at', () => {
@@ -238,37 +248,55 @@ test('bought row records the shop the price was logged at', () => {
 })
 
 // ---------------------------------------------------------------------------
-// The re-buy disc
+// The re-buy control — replaces the check on non-today records
 // ---------------------------------------------------------------------------
 
-test('a non-today purchase line offers the re-buy disc', () => {
+test('a non-today record offers re-buy instead of the check', () => {
   const onClone = vi.fn()
   renderCard(BOUGHT_ITEM, { onClone })
-  const disc = screen.getByRole('button', { name: /volver a comprar/i })
-  fireEvent.click(disc)
+  // Mutually exclusive: the re-buy control takes the circle's slot.
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  const rebuy = screen.getByRole('button', { name: /volver a comprar/i })
+  fireEvent.click(rebuy)
   expect(onClone).toHaveBeenCalledWith('i1')
 })
 
-test('a purchase from today gets no re-buy disc', () => {
+test('a purchase from today keeps the check and gets no re-buy', () => {
   const item = { ...BOUGHT_ITEM, purchased_at: TODAY }
   renderCard(item, { onClone: vi.fn() })
   expect(
     screen.queryByRole('button', { name: /volver a comprar/i }),
   ).not.toBeInTheDocument()
+  expect(screen.getByRole('checkbox')).toHaveAttribute('aria-checked', 'true')
 })
 
-test('a pending row gets no re-buy disc', () => {
+test('a pending row gets no re-buy control', () => {
   renderCard(BASE_ITEM, { onClone: vi.fn() })
   expect(
     screen.queryByRole('button', { name: /volver a comprar/i }),
   ).not.toBeInTheDocument()
 })
 
-test('no re-buy disc without an onClone handler', () => {
+test('an in-cart row never re-buys, even with purchased_at still in flight', () => {
+  const item = {
+    ...BASE_ITEM,
+    purchased: true,
+    purchased_at: null,
+    purchase_ends_at: null,
+  }
+  renderCard(item, { onClone: vi.fn() })
+  expect(
+    screen.queryByRole('button', { name: /volver a comprar/i }),
+  ).not.toBeInTheDocument()
+  expect(screen.getByRole('checkbox')).toBeInTheDocument()
+})
+
+test('no re-buy control without an onClone handler — the check stays', () => {
   renderCard(BOUGHT_ITEM)
   expect(
     screen.queryByRole('button', { name: /volver a comprar/i }),
   ).not.toBeInTheDocument()
+  expect(screen.getByRole('checkbox')).toBeInTheDocument()
 })
 
 // ---------------------------------------------------------------------------

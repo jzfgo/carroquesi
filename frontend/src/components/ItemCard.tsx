@@ -36,15 +36,16 @@ function purchasedToday(purchasedAt: string | null): boolean {
  * The item row — three states, two voices (DESIGN.md, 30a/33a):
  *
  * - Pending: an instruction in the household's handwriting. Empty circle,
- *   quantity/brand/store in the written face, no price.
+ *   the quantity in the hand on the right, brand/store beneath, no price.
  * - In cart: the trip happening. Cart glyph on `--tinta-0`; derived, not
  *   stored — a purchased item whose trip is still open (`isTripOpen`).
  * - Bought: a record. Check on `--verde-0`, printed in mono, amount in the
  *   right-hand tabular column in `--ink-1` — only the tick is green, and
  *   nothing is struck through.
  *
- * Two touch targets: the circle (toggle) and the row body (opens the item
- * action sheet, where all per-field editing lives).
+ * Two touch targets: the leading control (toggle — or re-buy, see below) and
+ * the row body (opens the item action sheet, where all per-field editing
+ * lives).
  */
 export function ItemCard({
   item,
@@ -56,6 +57,12 @@ export function ItemCard({
   const online = useOnline()
   const inCart = item.purchased && isTripOpen(item.purchase_ends_at)
   const bought = item.purchased && !inCart
+
+  // On a record from a previous day the check yields to the re-buy control:
+  // the trip is closed, so un-checking would be refused anyway, and re-buying
+  // is the primary act on a record. Today's lines keep the toggle, and an
+  // in-cart row never re-buys — its purchased_at may still be in flight.
+  const rebuy = bought && !!onClone && !purchasedToday(item.purchased_at)
 
   // For purchased items, show actual purchased qty; fall back to planned qty.
   const displayQty =
@@ -70,24 +77,39 @@ export function ItemCard({
     bought && item.price_store
       ? [displayStore(item.price_store)]
       : [...new Set(item.stores.map(displayStore))]
-  const meta = [item.brand, ...storeNames].filter(Boolean).join(' · ')
+  // A record folds its quantity into the printed detail line; an instruction
+  // keeps it in the hand, on the row itself.
+  const meta = (bought ? [displayQty, item.brand] : [item.brand])
+    .concat(storeNames)
+    .filter(Boolean)
+    .join(' · ')
 
   const state = inCart ? 'cart' : bought ? 'bought' : 'pending'
 
   return (
     <div className={`item-card item-card--${state}`}>
-      <button
-        role="checkbox"
-        aria-checked={item.purchased}
-        className={`item-card__circle${online ? '' : ' item-card__circle--offline'}`}
-        onClick={() => onTogglePurchased(item.id)}
-        aria-label={
-          item.purchased ? 'Marcar como no comprado' : 'Marcar como comprado'
-        }
-      >
-        {inCart && <ShoppingCart size={13} aria-hidden />}
-        {bought && <Check size={15} strokeWidth={3} aria-hidden />}
-      </button>
+      {rebuy ? (
+        <button
+          className="item-card__rebuy"
+          onClick={() => onClone(item.id)}
+          aria-label="Volver a comprar"
+        >
+          <RotateCcw size={18} aria-hidden />
+        </button>
+      ) : (
+        <button
+          role="checkbox"
+          aria-checked={item.purchased}
+          className={`item-card__circle${online ? '' : ' item-card__circle--offline'}`}
+          onClick={() => onTogglePurchased(item.id)}
+          aria-label={
+            item.purchased ? 'Marcar como no comprado' : 'Marcar como comprado'
+          }
+        >
+          {inCart && <ShoppingCart size={13} aria-hidden />}
+          {bought && <Check size={15} strokeWidth={3} aria-hidden />}
+        </button>
+      )}
 
       <button
         className="item-card__body"
@@ -95,7 +117,9 @@ export function ItemCard({
       >
         <span className="item-card__line">
           <span className="item-card__name">{item.name}</span>
-          {displayQty && <span className="item-card__qty">{displayQty}</span>}
+          {!bought && displayQty && (
+            <span className="item-card__qty">{displayQty}</span>
+          )}
           {/* No price on a pending row: the app does not know yet, and an
               estimate would present a guess with the authority of a record. */}
           {item.purchased && item.price != null && (
@@ -106,16 +130,6 @@ export function ItemCard({
         </span>
         {meta && <span className="item-card__meta">{meta}</span>}
       </button>
-
-      {item.purchased && onClone && !purchasedToday(item.purchased_at) && (
-        <button
-          className="item-card__rebuy"
-          onClick={() => onClone(item.id)}
-          aria-label="Volver a comprar"
-        >
-          <RotateCcw size={14} aria-hidden />
-        </button>
-      )}
     </div>
   )
 }

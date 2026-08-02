@@ -257,8 +257,10 @@ test.describe('functional', () => {
     // purchased, carrying the sigil brand and the receipt's price.
     const created = itemCard(page, 'Pan integral')
     await expect(created).toBeVisible()
+    // A record from a day before the (pinned) clock: the check yields its
+    // slot to the re-buy control.
     await expect(
-      created.getByRole('checkbox', { name: 'Marcar como no comprado' }),
+      created.getByRole('button', { name: 'Volver a comprar' }),
     ).toBeVisible()
     await expect(created.locator('.item-card__meta')).toContainText('Bimbo')
     // formatPrice() uses Intl with the *browser's* locale and the config pins
