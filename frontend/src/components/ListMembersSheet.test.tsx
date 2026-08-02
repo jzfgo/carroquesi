@@ -435,10 +435,10 @@ test('ESC key calls onClose', async () => {
   expect(onClose).toHaveBeenCalled()
 })
 
-test('tapping the overlay calls onClose', async () => {
+test('tapping the scrim calls onClose', async () => {
   vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
   const onClose = vi.fn()
-  const { container } = render(
+  render(
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
@@ -447,6 +447,6 @@ test('tapping the overlay calls onClose', async () => {
     />,
   )
   await screen.findByText(/Alice/)
-  fireEvent.click(container.querySelector('.list-members-sheet__overlay')!)
+  fireEvent.click(document.querySelector('.sheet-scrim')!)
   expect(onClose).toHaveBeenCalled()
 })
