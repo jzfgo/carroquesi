@@ -68,6 +68,14 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await addItemManzanas(page)
       await expectScreenshot(page, `add-item-${themeName}.png`)
     })
+
+    test('avatar opens the settings sheet', async ({ page }) => {
+      await assertDashboardLoaded(page)
+      await page.getByRole('button', { name: 'Ajustes' }).click()
+      await expect(page.getByRole('dialog', { name: 'Ajustes' })).toBeVisible()
+      await expect(page.getByText('Salir de la cuenta')).toBeVisible()
+      await expectScreenshot(page, `settings-sheet-${themeName}.png`)
+    })
   })
 }
 
