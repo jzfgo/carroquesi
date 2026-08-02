@@ -14,6 +14,12 @@ export default defineConfig({
         enabled: true,
         type: 'module',
       },
+      injectManifest: {
+        // The workbox default ({js,css,html}) plus woff2 only: the
+        // self-hosted fonts must render offline. Anything broader
+        // triples the precache — diff the manifest before changing.
+        globPatterns: ['**/*.{js,css,html,woff2}'],
+      },
       manifest: {
         name: 'CarroQueSí',
         short_name: 'Carroquesí',
