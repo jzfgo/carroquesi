@@ -75,9 +75,20 @@ def test_member_can_remove_themselves(
     assert response.status_code == 204
 
 
-def test_cannot_remove_owner(client: TestClient, user):
+def test_owner_self_leave_requires_transfer_first(client: TestClient, user):
     lst = _create_list(client)
     response = client.delete(f"/lists/{lst['id']}/members/{user.id}")
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Transfer ownership before leaving"
+
+
+def test_member_cannot_remove_owner(
+    client: TestClient, other_client: TestClient, other_user, user, session: Session
+):
+    lst = _create_list(client)
+    session.add(ListMember(list_id=lst["id"], user_id=other_user.id))
+    session.commit()
+    response = other_client.delete(f"/lists/{lst['id']}/members/{user.id}")
     assert response.status_code == 400
 
 
@@ -119,3 +130,100 @@ def test_get_members_display_name_falls_back_to_email_prefix(
     response = client.get(f"/lists/{lst['id']}/members")
     assert response.status_code == 200
     assert response.json()[0]["display_name"] == "alice"
+
+
+def _add_member(session: Session, list_id: str, user_id: str) -> None:
+    """Test setup only — bypasses the invite flow."""
+    session.add(ListMember(list_id=list_id, user_id=user_id))
+    session.commit()
+
+
+def test_transfer_ownership(client: TestClient, other_user, user, session: Session):
+    from app.db.models import List
+
+    lst = _create_list(client)
+    _add_member(session, lst["id"], other_user.id)
+    before = session.get(List, lst["id"]).updated_at
+
+    response = client.put(f"/lists/{lst['id']}/owner", json={"user_id": other_user.id})
+
+    assert response.status_code == 204
+    session.expire_all()
+    row = session.get(List, lst["id"])
+    assert row.owner_id == other_user.id
+    # Co-members poll updated_at, so the transfer must bump it.
+    assert row.updated_at > before
+
+
+def test_transfer_keeps_old_owner_membership(
+    client: TestClient, other_user, user, session: Session
+):
+    lst = _create_list(client)
+    _add_member(session, lst["id"], other_user.id)
+
+    client.put(f"/lists/{lst['id']}/owner", json={"user_id": other_user.id})
+
+    memberships = session.exec(select(ListMember).where(ListMember.list_id == lst["id"])).all()
+    assert {m.user_id for m in memberships} == {user.id, other_user.id}
+
+
+def test_non_owner_cannot_transfer(
+    client: TestClient, other_client: TestClient, other_user, session: Session
+):
+    lst = _create_list(client)
+    _add_member(session, lst["id"], other_user.id)
+
+    response = other_client.put(f"/lists/{lst['id']}/owner", json={"user_id": other_user.id})
+
+    assert response.status_code == 403
+
+
+def test_transfer_to_non_member_returns_404(client: TestClient, other_user):
+    lst = _create_list(client)
+    response = client.put(f"/lists/{lst['id']}/owner", json={"user_id": other_user.id})
+    assert response.status_code == 404
+
+
+def test_transfer_to_self_returns_400(client: TestClient, user):
+    lst = _create_list(client)
+    response = client.put(f"/lists/{lst['id']}/owner", json={"user_id": user.id})
+    assert response.status_code == 400
+
+
+def test_old_owner_can_leave_after_transfer(client: TestClient, other_user, user, session: Session):
+    lst = _create_list(client)
+    _add_member(session, lst["id"], other_user.id)
+
+    assert (
+        client.put(f"/lists/{lst['id']}/owner", json={"user_id": other_user.id}).status_code == 204
+    )
+    assert client.delete(f"/lists/{lst['id']}/members/{user.id}").status_code == 204
+
+    memberships = session.exec(select(ListMember).where(ListMember.list_id == lst["id"])).all()
+    assert {m.user_id for m in memberships} == {other_user.id}
+
+
+def test_transfer_notifies_after_commit(client: TestClient, other_user, session: Session):
+    from unittest.mock import patch
+
+    lst = _create_list(client)
+    _add_member(session, lst["id"], other_user.id)
+
+    with patch("app.routers.members.notify_ownership_change") as notify:
+        response = client.put(f"/lists/{lst['id']}/owner", json={"user_id": other_user.id})
+
+    assert response.status_code == 204
+    notify.assert_called_once()
+    assert notify.call_args.args[3] == other_user.id
+
+
+def test_transfer_succeeds_when_push_raises(client: TestClient, other_user, session: Session):
+    from unittest.mock import patch
+
+    lst = _create_list(client)
+    _add_member(session, lst["id"], other_user.id)
+
+    with patch("app.routers.members.notify_ownership_change", side_effect=RuntimeError("boom")):
+        response = client.put(f"/lists/{lst['id']}/owner", json={"user_id": other_user.id})
+
+    assert response.status_code == 204
