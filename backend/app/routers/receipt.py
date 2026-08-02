@@ -3,15 +3,19 @@ from datetime import UTC, datetime, time, timedelta
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlmodel import select
 
-from app.db.models import List, ListItem, Purchase, ReceiptNameMapping, ReceiptScan
+from app.db.models import List, ListItem, Purchase, ReceiptNameMapping, ReceiptScan, User
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.receipt import (
+    ReceiptFileUrlResult,
     ReceiptPriceApplyResult,
     ReceiptPriceBatch,
     ReceiptScanRequest,
     ReceiptScanResult,
+    ReceiptScanSummary,
+    ReceiptUploadUrlRequest,
+    ReceiptUploadUrlResult,
 )
-from app.services import feature_flags
+from app.services import feature_flags, receipt_storage
 from app.services.client_day import resolve_timezone
 from app.services.receipt_matcher import match_lines, normalise
 from app.services.store_key import store_key
@@ -27,6 +31,32 @@ router = APIRouter(tags=["receipt"])
 # which asks the user to confirm any scanned date this window would not cover.
 # Widening one without the other lets a misread date through unquestioned.
 RECEIPT_MATCH_WINDOW_DAYS = 3
+
+
+def _require_receipt_processing_allowed(session, current_user: User) -> None:
+    """The gates in front of every endpoint that processes a receipt.
+
+    The rollout flag answers first, then consent, with distinct details so
+    the UI can tell "not available to you" from "you have not agreed yet".
+    Consent is separate from the flag: the client-side Gemini parse is gated
+    in the frontend on the same account preference; what the server-side
+    check covers is everything these endpoints do with receipt data —
+    matching, writing scan records, storing the original file.
+
+    Reading what the household already stored is not gated here — viewing
+    is not the processing act consent covers — so the download endpoints
+    check membership only.
+    """
+    if not feature_flags.is_enabled(current_user.id, "ai_receipt_scanning", session):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="ai_receipt_scanning feature not enabled",
+        )
+    if current_user.receipt_consent != "granted":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="receipt_consent_required",
+        )
 
 
 def _parse_receipt_at(raw: str | None) -> datetime | None:
@@ -55,23 +85,7 @@ def scan_receipt(
     list_and_user: MemberDep = None,
 ):
     _, current_user = list_and_user
-
-    if not feature_flags.is_enabled(current_user.id, "ai_receipt_scanning", session):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="ai_receipt_scanning feature not enabled",
-        )
-
-    # Consent is separate from the rollout flag, and the details differ so the
-    # UI can tell "not available to you" from "you have not agreed yet". The
-    # client-side Gemini parse is gated in the frontend on the same account
-    # preference; what this check covers is the server side — matching against
-    # purchase history and writing the scan record.
-    if current_user.receipt_consent != "granted":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="receipt_consent_required",
-        )
+    _require_receipt_processing_allowed(session, current_user)
 
     # _parse_receipt_at normalises to naive UTC, so a receipt printed just
     # after local midnight can yield a UTC date one day earlier than the
@@ -159,24 +173,11 @@ def apply_receipt_prices(
     # does not change — the browser already sends the header on every request.
     client_tz = resolve_timezone(request.headers.get("x-client-timezone"))
 
-    # Gate the apply step on the same flag as the scan step. The UI reaches
-    # here only after a successful scan, so a flag-less user is already stopped
-    # upstream — but this endpoint writes prices and creates impulse buys, and
-    # must not be reachable by a direct call that skips the scan.
-    if not feature_flags.is_enabled(current_user.id, "ai_receipt_scanning", session):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="ai_receipt_scanning feature not enabled",
-        )
-
-    # Same consent gate as the scan step, same reasoning as the flag gate
-    # above: this endpoint writes prices and must not be reachable by a
-    # direct call from a user who never agreed to receipt processing.
-    if current_user.receipt_consent != "granted":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="receipt_consent_required",
-        )
+    # Same gates as the scan step. The UI reaches here only after a
+    # successful scan, so an ungated user is already stopped upstream — but
+    # this endpoint writes prices and creates impulse buys, and must not be
+    # reachable by a direct call that skips the scan.
+    _require_receipt_processing_allowed(session, current_user)
 
     now = datetime.now(UTC).replace(tzinfo=None)
     purchase_ts = _parse_receipt_at(body.receipt_date) or now
@@ -297,3 +298,128 @@ def apply_receipt_prices(
     session.commit()
 
     return {"items_updated": updated, "items_created": created}
+
+
+@router.post(
+    "/lists/{list_id}/receipts/{scan_id}/upload-url",
+    response_model=ReceiptUploadUrlResult,
+)
+def create_receipt_upload_url(
+    list_id: str,
+    scan_id: str,
+    body: ReceiptUploadUrlRequest,
+    session: CurrentSession = None,
+    list_and_user: MemberDep = None,
+):
+    """Mint a signed PUT URL so the client can store the original receipt.
+
+    Storing the file is part of processing the receipt, so the same flag and
+    consent gates as the scan apply. The file's path is recorded now, at mint
+    time: the bytes go straight to GCS, so the backend never learns whether
+    the PUT finished. There is no confirm step — re-minting overwrites the
+    same deterministic path, which both heals a failed upload and replaces a
+    stored file idempotently.
+    """
+    _, current_user = list_and_user
+    _require_receipt_processing_allowed(session, current_user)
+
+    if not receipt_storage.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Receipt storage is not configured",
+        )
+
+    scan = session.get(ReceiptScan, scan_id)
+    if scan is None or scan.list_id != list_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scan not found")
+
+    if body.content_type not in receipt_storage.ALLOWED_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unsupported receipt content type",
+        )
+
+    path, url = receipt_storage.generate_upload_url(
+        list_id, scan_id, body.content_type, max_bytes=receipt_storage.MAX_RECEIPT_BYTES
+    )
+    scan.file_path = path
+    scan.file_content_type = body.content_type
+    # Pages only mean something for a PDF; an image's stays NULL even when a
+    # client sends one.
+    scan.file_pages = body.pages if body.content_type == "application/pdf" else None
+    session.add(scan)
+    session.commit()
+
+    return ReceiptUploadUrlResult(
+        upload_url=url,
+        expires_in=int(receipt_storage.UPLOAD_URL_EXPIRY.total_seconds()),
+    )
+
+
+@router.get(
+    "/lists/{list_id}/receipts/{scan_id}/file-url",
+    response_model=ReceiptFileUrlResult,
+)
+def get_receipt_file_url(
+    list_id: str,
+    scan_id: str,
+    session: CurrentSession = None,
+    list_and_user: MemberDep = None,
+):
+    """Mint a signed GET URL for a stored receipt file.
+
+    Membership only — no flag, no consent. Consent gates the act of
+    processing a receipt; viewing what the household already stored is not
+    that act, and a member who declined consent may still need to check a
+    price against the paper someone else scanned.
+    """
+    if not receipt_storage.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Receipt storage is not configured",
+        )
+
+    scan = session.get(ReceiptScan, scan_id)
+    if scan is None or scan.list_id != list_id or scan.file_path is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receipt file not found")
+
+    return ReceiptFileUrlResult(
+        url=receipt_storage.generate_download_url(scan.file_path),
+        content_type=scan.file_content_type,
+        pages=scan.file_pages,
+    )
+
+
+@router.get(
+    "/lists/{list_id}/purchases/{purchase_id}/receipt-scans",
+    response_model=list[ReceiptScanSummary],
+)
+def list_purchase_receipt_scans(
+    list_id: str,
+    purchase_id: str,
+    session: CurrentSession = None,
+    list_and_user: MemberDep = None,
+):
+    """The scans that reconciled one trip, oldest first. Membership only."""
+    lst, _ = list_and_user
+    trip = session.get(Purchase, purchase_id)
+    if trip is None or trip.list_id != lst.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase not found")
+
+    scans = session.exec(
+        select(ReceiptScan)
+        .where(ReceiptScan.purchase_id == purchase_id)
+        .order_by(ReceiptScan.created_at.asc())
+    ).all()
+    return [
+        ReceiptScanSummary(
+            id=scan.id,
+            store=scan.store,
+            receipt_at=scan.receipt_at,
+            receipt_total=scan.receipt_total,
+            has_file=scan.file_path is not None,
+            file_pages=scan.file_pages,
+            created_at=scan.created_at,
+        )
+        for scan in scans
+    ]

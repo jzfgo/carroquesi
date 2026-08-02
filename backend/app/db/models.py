@@ -202,6 +202,16 @@ class ReceiptScan(SQLModel, table=True):
     # several trips. Indexed because the purchase history page derives
     # has_receipt by looking scans up by trip.
     purchase_id: str | None = Field(default=None, foreign_key="purchases.id", index=True)
+    # Where the original receipt file lives in the bucket, plus what it is.
+    # Recorded when the upload URL is minted: the bytes go straight to GCS
+    # and never transit the backend, so a path here proves a URL was issued,
+    # not that the upload finished. Re-minting overwrites the same
+    # deterministic path, which is how a failed upload heals.
+    file_path: str | None = None
+    file_content_type: str | None = None
+    # Client-reported page count, NULL for images. Display metadata the
+    # server cannot verify — it never sees the bytes.
+    file_pages: int | None = None
 
 
 class ReceiptNameMapping(SQLModel, table=True):

@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -85,3 +86,40 @@ class ReceiptPriceBatch(BaseModel):
 class ReceiptPriceApplyResult(BaseModel):
     items_updated: int
     items_created: int
+
+
+class ReceiptUploadUrlRequest(BaseModel):
+    # A plain str, not a Literal of the allowed types: the allowed set lives
+    # in the storage service, and the endpoint answers an unknown type with
+    # 415 rather than a 422 that hides which types exist.
+    content_type: str
+    # PDF page count as the client counted it. Optional and unverifiable —
+    # the server never sees the bytes.
+    pages: int | None = Field(default=None, ge=1)
+
+
+class ReceiptUploadUrlResult(BaseModel):
+    upload_url: str
+    # Seconds the signed PUT stays valid, so the client can warn before a
+    # slow upload would outlive its signature.
+    expires_in: int
+
+
+class ReceiptFileUrlResult(BaseModel):
+    url: str
+    content_type: str
+    pages: int | None
+
+
+class ReceiptScanSummary(BaseModel):
+    """One scan of a trip, as the purchase page's thumbnails need it."""
+
+    id: str
+    store: str | None
+    receipt_at: datetime | None
+    receipt_total: float | None
+    # Whether an upload URL was ever minted for this scan — the closest the
+    # backend can get to "a file exists" without a GCS round-trip.
+    has_file: bool
+    file_pages: int | None
+    created_at: datetime
