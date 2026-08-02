@@ -1,6 +1,7 @@
 import { Check, ChevronRight, RotateCcw, ShoppingCart } from 'lucide-react'
 import { useOnline } from '../hooks/useOnline'
-import { formatPrice } from '../lib/formatPrice'
+import { formatRowAmount } from '../lib/formatPrice'
+import { formatQuantity } from '../lib/formatQuantity'
 import { isTripOpen } from '../lib/isTripOpen'
 import type { ListItem } from '../types'
 import './ItemCard.css'
@@ -12,8 +13,6 @@ interface Props {
   onOpenActions: (itemId: string) => void
   /** Re-buy: clones a previous purchase line back onto the pending sheet. */
   onClone?: (itemId: string) => void
-  /** Resolves a raw store string to the list's canonical display name. */
-  displayStore?: (raw: string) => string
 }
 
 // Whether the purchase happened on the viewer's current local day. purchased_at
@@ -35,13 +34,18 @@ function purchasedToday(purchasedAt: string | null): boolean {
 /**
  * The item row — three states, two voices (DESIGN.md, 30a/33a):
  *
- * - Pending: an instruction in the household's handwriting. Empty circle,
- *   the quantity in the hand on the right, brand/store beneath, no price.
- * - In cart: the trip happening. Cart glyph on `--tinta-0`; derived, not
- *   stored — a purchased item whose trip is still open (`isTripOpen`).
- * - Bought: a record. Check on `--verde-0`, printed in mono, amount in the
- *   right-hand tabular column in `--ink-1` — only the tick is green, and
- *   nothing is struck through.
+ * - Pending: an instruction in the household's handwriting — name, the
+ *   quantity column on the right, brand beneath, no price. Empty circle.
+ * - In cart: still the written voice — you wrote it, and it stays yours
+ *   until the trip closes — on ink a step lighter. The circle fills with
+ *   `--tinta-0` and takes the white cart glyph. Derived, not stored: a
+ *   purchased item whose trip is still open (`isTripOpen`).
+ * - Bought: the settled record. Check on `--verde-0`, printed in mono, the
+ *   bare amount in the right-hand tabular column — only the tick is green,
+ *   and nothing is struck through.
+ *
+ * No row names its store: pending rows sit under their store group header,
+ * and a purchase's store belongs to the purchase sheet header (JAV-158).
  *
  * Two touch targets: the leading control (toggle — or re-buy, see below) and
  * the row body (opens the item action sheet, where all per-field editing
@@ -52,7 +56,6 @@ export function ItemCard({
   onTogglePurchased,
   onOpenActions,
   onClone,
-  displayStore = (raw) => raw,
 }: Props) {
   const online = useOnline()
   const inCart = item.purchased && isTripOpen(item.purchase_ends_at)
@@ -70,21 +73,14 @@ export function ItemCard({
       ? item.purchased_quantity
       : item.quantity
 
-  // A record prints the shop the price was logged at; an in-cart row keeps
-  // its target shops. A pending row names no shop at all — it already sits
-  // under its store group header. Dedupe by display name — two spellings of
-  // one store must not print twice.
-  const storeNames = bought
-    ? item.price_store
-      ? [displayStore(item.price_store)]
-      : [...new Set(item.stores.map(displayStore))]
-    : inCart
-      ? [...new Set(item.stores.map(displayStore))]
-      : []
-  // A record folds its quantity into the printed detail line; an instruction
-  // keeps it in the hand, on the row itself.
-  const meta = (bought ? [displayQty, item.brand] : [item.brand])
-    .concat(storeNames)
+  // A record folds its quantity into the printed detail line («12 UD ·
+  // PULEVA»); the other states keep it in the right-hand column and the
+  // meta carries the brand alone.
+  const meta = (
+    bought
+      ? [displayQty && formatQuantity(displayQty), item.brand]
+      : [item.brand]
+  )
     .filter(Boolean)
     .join(' · ')
 
@@ -122,14 +118,14 @@ export function ItemCard({
         <span className="item-card__line">
           <span className="item-card__name">{item.name}</span>
           {!bought && displayQty && (
-            <span className="item-card__qty">{displayQty}</span>
+            <span className="item-card__qty">{formatQuantity(displayQty)}</span>
           )}
           {/* An amount is a record's field alone: until the trip closes no
               price exists — a pending row would be guessing, and an in-cart
               figure is not yet confirmed (the Confirmed-Price Rule). */}
           {bought && item.price != null && (
             <span className="item-card__amount">
-              {formatPrice(item.price, item.price_per)}
+              {formatRowAmount(item.price, item.price_per)}
             </span>
           )}
         </span>

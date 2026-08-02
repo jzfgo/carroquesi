@@ -51,6 +51,8 @@
   border-style: dashed;
 }
 
+/* The cart state fills the circle — a solid --tinta-0 disc carrying the
+   white cart glyph, as 30a draws it. Same 24px slot, same hit. */
 .item-card--cart .item-card__circle {
   border-color: var(--tinta-0);
   background: var(--tinta-0);
@@ -124,15 +126,18 @@
   overflow-wrap: anywhere;
 }
 
-/* The quantity holds the row's right edge, still in the hand. */
+/* The quantity column holds the row's right edge, still in the hand —
+   30a's «2 UD» carries the written letterforms in the name's own ink, about
+   two thirds its size. The figure is normalized for display (formatQuantity)
+   but the stroke stays the household's. */
 .item-card__qty {
   margin-left: auto;
   font-family: var(--font-written);
-  font-size: calc(20px * var(--written-scale));
+  font-size: calc(16px * var(--written-scale));
   line-height: var(--lh-snug);
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--ink-1);
+  color: var(--ink-0);
   white-space: nowrap;
 }
 
@@ -145,34 +150,43 @@
   color: var(--ink-1);
 }
 
-/* The amount column: tabular mono in plain ink — the grayscale ink rule
-   keeps every figure grey; only the tick is green. Sized with the record
-   name it shares a line with (the Cap-Height Rule — see below). */
+/* The amount column: bare figures («8,15»), tabular mono in the strongest
+   ink on the row — 30a prints the price darker than the record name it
+   settles. Sized with that name (the Cap-Height Rule — see below). */
 .item-card__amount {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: var(--fs-20);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
-  color: var(--ink-1);
+  color: var(--ink-0);
   white-space: nowrap;
 }
 
-/* The row-tap chevron: a quiet mark at the row's edge, in the affordance's
-   ink, never the accent. Decorative — the row body is the control. */
+/* The row-tap chevron: an inactive mark at the row's edge — --ink-3
+   territory, never text ink, never the accent. Decorative — the row body is
+   the control. */
 .item-card__chevron {
   flex-shrink: 0;
   margin-left: -4px;
+  color: var(--ink-3);
+}
+
+/* An in-cart row keeps the written voice — you wrote it, and it is still
+   your instruction until the trip closes — but its ink lifts a step: 30a
+   sets TOMATES PERA a clear grey against pending's full black. --ink-2,
+   which holds AA on --paper-0 (the Surface-Relative Ink Rule). */
+.item-card--cart .item-card__name,
+.item-card--cart .item-card__qty,
+.item-card--cart .item-card__meta {
   color: var(--ink-2);
 }
 
-/* A bought row is a printed record: mono, uppercase, secondary ink — the
-   SAME visual size as the hand, matched by the Cap-Height Rule, never by px:
-   Patrick Hand SC at 18.9px carries a 13.03px cap that JetBrains Mono only
-   reaches at 17.5px, so mono = hand × 17.5/18.9. The 21.6px hand name
-   (cap 14.9px) lands mono on 20px; the 16.2px hand meta on 15px — both on
-   the scale. In-cart rows keep the written voice — you wrote them, also on
-   the stub. */
+/* A bought row is a printed record: mono, uppercase — the SAME visual size
+   as the hand, matched by the Cap-Height Rule, never by px: Patrick Hand SC
+   at 18.9px carries a 13.03px cap that JetBrains Mono only reaches at
+   17.5px, so mono = hand × 17.5/18.9. The 21.6px hand name (cap 14.9px)
+   lands mono on 20px; the 16.2px hand meta on 15px — both on the scale. */
 .item-card--bought .item-card__name {
   font-family: var(--font-mono);
   font-size: var(--fs-20);

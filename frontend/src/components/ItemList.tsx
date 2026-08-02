@@ -199,7 +199,6 @@ export function ItemList({
                 onTogglePurchased={onTogglePurchased}
                 onOpenActions={onOpenActions}
                 onClone={onClone}
-                displayStore={displayStore}
               />
             ))}
           </div>
@@ -245,7 +244,6 @@ export function ItemList({
                       onTogglePurchased={onTogglePurchased}
                       onOpenActions={onOpenActions}
                       onClone={onClone}
-                      displayStore={displayStore}
                     />
                   ))}
                 </div>

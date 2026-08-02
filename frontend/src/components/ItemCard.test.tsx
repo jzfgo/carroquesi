@@ -47,7 +47,6 @@ function renderCard(
     onTogglePurchased: (id: string) => void
     onOpenActions: (id: string) => void
     onClone: (id: string) => void
-    displayStore: (raw: string) => string
   }> = {},
 ) {
   return render(
@@ -56,7 +55,6 @@ function renderCard(
       onTogglePurchased={handlers.onTogglePurchased ?? (() => {})}
       onOpenActions={handlers.onOpenActions ?? (() => {})}
       onClone={handlers.onClone}
-      displayStore={handlers.displayStore}
     />,
   )
 }
@@ -70,13 +68,15 @@ test('renders item name', () => {
   expect(screen.getByText('Leche Entera')).toBeInTheDocument()
 })
 
-test('renders the quantity on the row line, holding the right edge', () => {
+test('renders the quantity on the row line, normalized for display', () => {
   const { container } = renderCard(BASE_ITEM)
   // Right alignment itself is CSS (margin-left auto on the qty); what the
   // selector needs is the qty living on the name line, not in the meta row.
+  // «2 unidades» prints as «2 UD» — display only, the stored value is
+  // untouched.
   expect(
     container.querySelector('.item-card__line .item-card__qty'),
-  ).toHaveTextContent('2 unidades')
+  ).toHaveTextContent(/^2 UD$/)
 })
 
 test('pending meta carries the brand but not the store — the group header names it', () => {
@@ -169,18 +169,17 @@ test('an in-cart row shows no amount — no price until the trip closes', () => 
   expect(container.querySelector('.item-card__amount')).not.toBeInTheDocument()
 })
 
-test('in-cart meta resolves stores through displayStore and dedupes variants', () => {
+test('in-cart meta carries the brand alone — no store on any row', () => {
   const item = {
     ...BASE_ITEM,
     purchased: true,
     purchased_at: TODAY,
     purchase_ends_at: STILL_OPEN,
-    brand: null,
-    stores: ['ahorra mas', 'Ahorramás'],
+    stores: ['Mercadona'],
   }
-  const { container } = renderCard(item, { displayStore: () => 'Ahorramas' })
+  const { container } = renderCard(item)
   expect(container.querySelector('.item-card__meta')).toHaveTextContent(
-    /^Ahorramas$/,
+    /^Hacendado$/,
   )
 })
 
@@ -210,7 +209,7 @@ test('a purchased item on a closed trip carries the bought modifier', () => {
 // strikethrough cannot be seen here. What this layer can check is the shape
 // the CSS selectors need: name and meta must sit inside the bought modifier
 // for the record voice to land on them, and the quantity folds into the meta
-// row — a record's line keeps only name and amount.
+// row («487 G · Hacendado») — a record's line keeps only name and amount.
 test('bought state puts the name and a qty-bearing meta inside the modifier', () => {
   const { container } = renderCard(BOUGHT_ITEM)
   const row = container.querySelector('.item-card--bought')!
@@ -218,20 +217,22 @@ test('bought state puts the name and a qty-bearing meta inside the modifier', ()
     'Leche Entera',
   )
   expect(row.querySelector('.item-card__qty')).not.toBeInTheDocument()
-  expect(row.querySelector('.item-card__meta')).toHaveTextContent('487g')
+  expect(row.querySelector('.item-card__meta')).toHaveTextContent(
+    '487 G · Hacendado',
+  )
 })
 
-test('bought row shows the amount in the amount column', () => {
+test('bought row prints the bare amount — comma decimal, no symbol', () => {
   const { container } = renderCard(BOUGHT_ITEM)
-  expect(container.querySelector('.item-card__amount')?.textContent).toMatch(
-    /3[,.]50/,
+  expect(container.querySelector('.item-card__amount')).toHaveTextContent(
+    /^3,50$/,
   )
 })
 
 test('shows purchased_quantity instead of planned quantity when purchased', () => {
   const { container } = renderCard(BOUGHT_ITEM)
   const meta = container.querySelector('.item-card__meta')
-  expect(meta).toHaveTextContent('487g')
+  expect(meta).toHaveTextContent('487 G')
   expect(meta).not.toHaveTextContent(/\b2\b/)
 })
 
@@ -241,16 +242,15 @@ test('shows planned quantity as fallback when purchased but no purchased_quantit
     purchased_quantity: null,
     quantity: '3',
   })
-  expect(container.querySelector('.item-card__meta')).toHaveTextContent(/\b3\b/)
+  expect(container.querySelector('.item-card__meta')).toHaveTextContent('3 UD')
 })
 
-test('bought row records the shop the price was logged at', () => {
+test('a bought row names no store — that context is the purchase sheet header', () => {
   const item = { ...BOUGHT_ITEM, price_store: 'Lidl', stores: ['Mercadona'] }
   const { container } = renderCard(item)
-  expect(container.querySelector('.item-card__meta')).toHaveTextContent('Lidl')
-  expect(container.querySelector('.item-card__meta')).not.toHaveTextContent(
-    'Mercadona',
-  )
+  const meta = container.querySelector('.item-card__meta')
+  expect(meta).not.toHaveTextContent('Lidl')
+  expect(meta).not.toHaveTextContent('Mercadona')
 })
 
 // ---------------------------------------------------------------------------
