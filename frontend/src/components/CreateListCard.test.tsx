@@ -3,14 +3,31 @@ import { describe, expect, it, vi } from 'vitest'
 import { CreateListCard } from './CreateListCard'
 
 describe('CreateListCard', () => {
-  it('shows "Crea tu primera lista" when isFirst', () => {
+  it('shows the "Crear la primera lista" button when isFirst', () => {
     render(<CreateListCard isFirst onCreate={vi.fn()} />)
-    expect(screen.getByText(/primera lista/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Crear la primera lista' }),
+    ).toBeInTheDocument()
   })
 
-  it('shows "+ Nueva lista" when not isFirst', () => {
+  it('shows the one-sentence lead when isFirst', () => {
+    render(<CreateListCard isFirst onCreate={vi.fn()} />)
+    expect(
+      screen.getByText('Empieza una y compártela en casa.'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the "Nueva lista" row when not isFirst', () => {
     render(<CreateListCard onCreate={vi.fn()} />)
     expect(screen.getByText(/nueva lista/i)).toBeInTheDocument()
+  })
+
+  it('the empty-state button expands to the input', () => {
+    render(<CreateListCard isFirst onCreate={vi.fn()} />)
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Crear la primera lista' }),
+    )
+    expect(screen.getByPlaceholderText(/nombre/i)).toBeInTheDocument()
   })
 
   it('expands to input when clicked', () => {

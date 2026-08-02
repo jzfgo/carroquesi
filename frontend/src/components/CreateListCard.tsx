@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useState } from 'react'
 import './CreateListCard.css'
 import { Mascot } from './Mascot'
@@ -14,29 +14,33 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
   const [creating, setCreating] = useState(false)
 
   if (!expanded) {
+    if (isFirst) {
+      // 16c first-run empty: the one empty state that earns the mascot —
+      // flat surface (this is not a list yet), serif title, one sentence,
+      // one button.
+      return (
+        <div className="create-list-empty">
+          <Mascot size={104} />
+          <h2 className="create-list-empty__title">Aún no tienes listas</h2>
+          <p className="create-list-empty__lead">
+            Empieza una y compártela en casa.
+          </p>
+          <button
+            className="create-list-empty__cta"
+            onClick={() => setExpanded(true)}
+          >
+            Crear la primera lista
+          </button>
+        </div>
+      )
+    }
     return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '0.75rem',
-        }}
-      >
-        {isFirst && (
-          <>
-            <Mascot size={120} />
-            <p
-              style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}
-            >
-              Aún no tienes listas
-            </p>
-          </>
-        )}
-        <button className="create-list-card" onClick={() => setExpanded(true)}>
-          {isFirst ? 'Crea tu primera lista' : '+ Nueva lista'}
-        </button>
-      </div>
+      <button className="create-list-row" onClick={() => setExpanded(true)}>
+        <span className="create-list-row__icon" aria-hidden>
+          <Plus size={19} strokeWidth={2.2} />
+        </span>
+        <span className="create-list-row__label">Nueva lista</span>
+      </button>
     )
   }
 
@@ -53,7 +57,9 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
   }
 
   return (
-    <div className="create-list-card create-list-card--expanded">
+    <div
+      className={`create-list-input${isFirst ? ' create-list-input--alone' : ''}`}
+    >
       <input
         autoFocus
         value={name}
@@ -68,13 +74,14 @@ export function CreateListCard({ isFirst, onCreate }: Props) {
         }}
       />
       <button
+        className="create-list-input__submit"
         disabled={!name.trim() || creating}
         onClick={() => void handleSubmit()}
       >
         Crear lista
       </button>
       <button
-        className="create-list-card--cancel"
+        className="create-list-input__cancel"
         onClick={() => {
           setExpanded(false)
           setName('')
