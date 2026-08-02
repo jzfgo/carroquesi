@@ -79,6 +79,34 @@ for (const { name: themeName, colorScheme } of THEMES) {
   })
 }
 
+// The 34a override: an explicit preference beats the OS scheme, and the
+// pre-paint script in index.html restores it before first paint on the next
+// load. The dark baselines above stay on pure OS dark — no stored preference —
+// so they keep exercising the media-query path this test deliberately leaves.
+test.describe('appearance override', () => {
+  test.use({ colorScheme: 'dark' })
+
+  test('picking Claro overrides OS dark and survives a reload', async ({
+    page,
+  }) => {
+    await assertDashboardLoaded(page)
+    await page.getByRole('button', { name: 'Ajustes' }).click()
+    await expect(page.getByRole('dialog', { name: 'Ajustes' })).toBeVisible()
+    await page.getByRole('radio', { name: 'Claro' }).click()
+
+    const html = page.locator('html')
+    await expect(html).toHaveClass(/theme-light/)
+    // The light --paper-0, painted from :root — the class must beat the
+    // media query, not merely be present.
+    await expect(html).toHaveCSS('background-color', 'rgb(238, 241, 245)')
+
+    await page.reload()
+    await expect(page.getByLabel(SEED_LISTS[0].name)).toBeVisible()
+    await expect(html).toHaveClass(/theme-light/)
+    await expect(html).toHaveCSS('background-color', 'rgb(238, 241, 245)')
+  })
+})
+
 // The 38a panel geometry is a style rule, and a drift smaller than the
 // screenshot pixel budget would vanish silently — so the load-bearing numbers
 // are asserted as computed styles too: 36px emoji column, 28px glyph, and the
