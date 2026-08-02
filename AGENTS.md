@@ -26,7 +26,8 @@ Two documents hold the durable truth this file does not repeat. Read the relevan
 - `users`: user profile and Firebase identity (`firebase_uid`)
 - `lists`: list metadata and ownership (`owner_id`)
 - `list_members`: list membership links; `is_default` flags the member's default list (the Siri `list_id="default"` target)
-- `list_items`: item data, purchase state (`purchased_at`), actual purchased quantity (`purchased_quantity`), and pricing (`price`, `price_per`, `price_store`)
+- `list_items`: item data, purchase state (`purchased_at`), actual purchased quantity (`purchased_quantity`), pricing (`price`, `price_per`, `price_store`), and the trip it was bought on (`purchase_id`, nullable)
+- `purchases`: shopping trips, declared at reconciliation — `tears_off_at` is the stamped local-midnight boundary, `closed_at` NULL means still open (or never written down, on backfilled rows), `total` is a confirmed figure never summed from lines; at most one open trip per `(list_id, tears_off_at)` via partial unique index. See [ADR-014](docs/decisions/014-purchase-entity-and-trip-boundary.md)
 - `list_invites`: opt-in invitations; `id` is the share token
 - `barcode_cache`: cached barcode lookup data
 - `price_cache`: cached community price data by EAN (amount, price_per, fetched_at); negative-caches misses too
