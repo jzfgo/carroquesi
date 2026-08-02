@@ -405,14 +405,12 @@ describe('ListScreen', () => {
     expect(
       filterBar.getByRole('button', { name: 'Ahorramas' }),
     ).toBeInTheDocument()
-    // The row meta line and the store group header resolve through the same
-    // function.
-    expect(document.querySelector('.item-card__meta')).toHaveTextContent(
-      'Ahorramas',
-    )
+    // The store group header resolves through the same function. A pending
+    // row's own meta names no shop — the header already does.
     expect(document.querySelector('.item-list__store-label')).toHaveTextContent(
       'Ahorramas',
     )
+    expect(document.querySelector('.item-card__meta')).not.toBeInTheDocument()
   })
 
   it('opens ItemActionSheet when the row is tapped and handles rename', async () => {
@@ -574,6 +572,42 @@ describe('ListScreen', () => {
       quantity: null,
       ean: null,
     })
+  })
+
+  it('offers no price entry for pending or in-cart items', () => {
+    // Prices exist only on closed-trip records: an in-cart item (open trip)
+    // and a pending item both open the sheet without a price action.
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({ id: 'i1', name: 'Manzanas' }),
+        makeItem({
+          id: 'i2',
+          name: 'Peras',
+          purchased: true,
+          purchased_at: TODAY,
+        }),
+      ],
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
+    expect(
+      screen.queryByRole('button', { name: /historial de precios/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /registrar precio/i }),
+    ).not.toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    fireEvent.click(screen.getByRole('button', { name: /peras/i }))
+    expect(
+      screen.queryByRole('button', { name: /historial de precios/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /registrar precio/i }),
+    ).not.toBeInTheDocument()
   })
 })
 
@@ -1091,11 +1125,14 @@ describe('ListScreen — offline refusal keeps user input', () => {
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
       items: [
+        // A closed-trip record: the price entry exists only there — a
+        // pending or in-cart item offers no price affordance at all.
         makeItem({
           id: 'i1',
           name: 'Manzanas',
           purchased: true,
           purchased_at: TODAY,
+          purchase_ends_at: YESTERDAY,
           price: 3.15,
         }),
       ],

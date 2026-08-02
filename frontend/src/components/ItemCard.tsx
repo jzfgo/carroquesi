@@ -1,4 +1,4 @@
-import { Check, RotateCcw, ShoppingCart } from 'lucide-react'
+import { Check, ChevronRight, RotateCcw, ShoppingCart } from 'lucide-react'
 import { useOnline } from '../hooks/useOnline'
 import { formatPrice } from '../lib/formatPrice'
 import { isTripOpen } from '../lib/isTripOpen'
@@ -70,13 +70,17 @@ export function ItemCard({
       ? item.purchased_quantity
       : item.quantity
 
-  // Bought rows record the shop the price was logged at; instruction rows
-  // list the target shops. Dedupe by display name — two spellings of one
-  // store must not print twice.
-  const storeNames =
-    bought && item.price_store
+  // A record prints the shop the price was logged at; an in-cart row keeps
+  // its target shops. A pending row names no shop at all — it already sits
+  // under its store group header. Dedupe by display name — two spellings of
+  // one store must not print twice.
+  const storeNames = bought
+    ? item.price_store
       ? [displayStore(item.price_store)]
       : [...new Set(item.stores.map(displayStore))]
+    : inCart
+      ? [...new Set(item.stores.map(displayStore))]
+      : []
   // A record folds its quantity into the printed detail line; an instruction
   // keeps it in the hand, on the row itself.
   const meta = (bought ? [displayQty, item.brand] : [item.brand])
@@ -120,9 +124,10 @@ export function ItemCard({
           {!bought && displayQty && (
             <span className="item-card__qty">{displayQty}</span>
           )}
-          {/* No price on a pending row: the app does not know yet, and an
-              estimate would present a guess with the authority of a record. */}
-          {item.purchased && item.price != null && (
+          {/* An amount is a record's field alone: until the trip closes no
+              price exists — a pending row would be guessing, and an in-cart
+              figure is not yet confirmed (the Confirmed-Price Rule). */}
+          {bought && item.price != null && (
             <span className="item-card__amount">
               {formatPrice(item.price, item.price_per)}
             </span>
@@ -130,6 +135,10 @@ export function ItemCard({
         </span>
         {meta && <span className="item-card__meta">{meta}</span>}
       </button>
+
+      {/* The row-tap affordance: icons live in the affordance — the circle,
+          the chevron, the pencil (the Grayscale Ink Rule). */}
+      <ChevronRight size={16} className="item-card__chevron" aria-hidden />
     </div>
   )
 }

@@ -79,27 +79,15 @@ test('renders the quantity on the row line, holding the right edge', () => {
   ).toHaveTextContent('2 unidades')
 })
 
-test('renders brand and store in the meta line', () => {
+test('pending meta carries the brand but not the store — the group header names it', () => {
   const { container } = renderCard(BASE_ITEM)
-  expect(container.querySelector('.item-card__meta')).toHaveTextContent(
-    'Hacendado · Mercadona',
-  )
+  const meta = container.querySelector('.item-card__meta')
+  expect(meta).toHaveTextContent(/^Hacendado$/)
+  expect(meta).not.toHaveTextContent('Mercadona')
 })
 
-test('meta line resolves stores through displayStore and dedupes variants', () => {
-  const item = {
-    ...BASE_ITEM,
-    brand: null,
-    stores: ['ahorra mas', 'Ahorramás'],
-  }
-  const { container } = renderCard(item, { displayStore: () => 'Ahorramas' })
-  expect(container.querySelector('.item-card__meta')).toHaveTextContent(
-    /^Ahorramas$/,
-  )
-})
-
-test('omits the meta line when there is no brand and no store', () => {
-  const item = { ...BASE_ITEM, brand: null, stores: [] }
+test('omits the meta line on a pending row with no brand', () => {
+  const item = { ...BASE_ITEM, brand: null, stores: ['Mercadona'] }
   const { container } = renderCard(item)
   expect(container.querySelector('.item-card__meta')).not.toBeInTheDocument()
 })
@@ -116,6 +104,11 @@ test('pending row carries the pending modifier and an empty circle', () => {
   const circle = screen.getByRole('checkbox')
   expect(circle).toHaveAttribute('aria-checked', 'false')
   expect(circle.querySelector('svg')).not.toBeInTheDocument()
+})
+
+test('every row carries the row-tap chevron', () => {
+  const { container } = renderCard(BASE_ITEM)
+  expect(container.querySelector('.item-card__chevron')).toBeInTheDocument()
 })
 
 // ---------------------------------------------------------------------------
@@ -164,7 +157,7 @@ test('a purchased item with no trip yet (optimistic write) is in the cart', () =
   expect(container.querySelector('.item-card--cart')).toBeInTheDocument()
 })
 
-test('an in-cart row shows a recorded price in the amount column', () => {
+test('an in-cart row shows no amount — no price until the trip closes', () => {
   const item = {
     ...BASE_ITEM,
     purchased: true,
@@ -173,8 +166,21 @@ test('an in-cart row shows a recorded price in the amount column', () => {
     price: 3.5,
   }
   const { container } = renderCard(item)
-  expect(container.querySelector('.item-card__amount')?.textContent).toMatch(
-    /3[,.]50/,
+  expect(container.querySelector('.item-card__amount')).not.toBeInTheDocument()
+})
+
+test('in-cart meta resolves stores through displayStore and dedupes variants', () => {
+  const item = {
+    ...BASE_ITEM,
+    purchased: true,
+    purchased_at: TODAY,
+    purchase_ends_at: STILL_OPEN,
+    brand: null,
+    stores: ['ahorra mas', 'Ahorramás'],
+  }
+  const { container } = renderCard(item, { displayStore: () => 'Ahorramas' })
+  expect(container.querySelector('.item-card__meta')).toHaveTextContent(
+    /^Ahorramas$/,
   )
 })
 

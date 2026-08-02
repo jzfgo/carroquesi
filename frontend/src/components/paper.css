@@ -75,8 +75,9 @@
   pointer-events: none;
 }
 
-/* The pre-printed sheet title: serif, with the mono count opposite. The
-   dashed underline is the only rule a sheet contains. */
+/* The pre-printed sheet title: serif, with the mono count opposite. Its
+   dashed underline is the section-rule voice — store group headers carry
+   the same stroke; rows never carry one. */
 .paper__title {
   display: flex;
   align-items: baseline;

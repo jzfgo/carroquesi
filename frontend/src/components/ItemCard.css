@@ -9,8 +9,8 @@
    handwriting is the dominant mark on the row. The printed record is a step
    finer, and everything else steps down from the name. */
 
-/* Rows sit directly on the paper — no rule between them. The sheet's only
-   rule is the dashed underline of its pre-printed title. */
+/* Rows sit directly on the paper — no rule between them. Rules belong to
+   sections: the sheet title and the store group headers. */
 .item-card {
   display: flex;
   align-items: center;
@@ -63,8 +63,10 @@
 }
 
 /* The re-buy control takes the circle's slot on records from previous days —
-   it replaces the check rather than joining it. A bare accent glyph, no disc:
-   re-buying is an act, not a state. Same paint-small hit as the circle. */
+   it replaces the check rather than joining it. A bare ink glyph, no disc:
+   inside the sheet tinta resolves to --ink-1 (the Grayscale Ink Rule) — the
+   status circle is the one control that keeps its colour. Same paint-small
+   hit as the circle. */
 .item-card__rebuy {
   position: relative;
   display: flex;
@@ -76,7 +78,7 @@
   padding: 0;
   border: none;
   background: none;
-  color: var(--accent);
+  color: var(--ink-1);
   cursor: pointer;
 }
 
@@ -152,6 +154,14 @@
   font-variant-numeric: tabular-nums;
   color: var(--ink-1);
   white-space: nowrap;
+}
+
+/* The row-tap chevron: a quiet mark at the row's edge, in the affordance's
+   ink, never the accent. Decorative — the row body is the control. */
+.item-card__chevron {
+  flex-shrink: 0;
+  margin-left: -4px;
+  color: var(--ink-2);
 }
 
 /* A bought row is a printed record: mono, uppercase, secondary ink, a step

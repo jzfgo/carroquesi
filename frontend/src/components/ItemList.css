@@ -31,11 +31,14 @@
 }
 
 /* Store group header on the pending sheet: the target shop, jotted in the
-   household's hand above its items. A label on the paper, not a control.
+   household's hand above its items. A label on the paper, not a control. Its
+   dashed underline is the section-rule voice the sheet title uses — sections
+   carry rules; the rows between them never do.
    text-align is explicit — the root still centers text for legacy screens. */
 .item-list__store-label {
   margin: 0;
-  padding: 8px 20px 0;
+  padding: 10px 20px 4px;
+  border-bottom: 1px dashed var(--rule-dashed);
   font-family: var(--font-written);
   font-size: calc(19px * var(--written-scale));
   font-weight: 400;
