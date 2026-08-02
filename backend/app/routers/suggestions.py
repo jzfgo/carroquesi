@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from collections import defaultdict
 from datetime import UTC, datetime
 from statistics import mean, median
@@ -7,11 +8,11 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 from sqlmodel import func, select
 
-from app.db.models import ListItem, ListMember
+from app.db.models import List, ListItem, ListMember
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, MemberOrDefaultDep
 from app.schemas.due_suggestions import DueSuggestionRead
 from app.schemas.lists import ListUpdatedAtRead
-from app.schemas.suggestions import SuggestionRead
+from app.schemas.suggestions import ElsewhereMatchRead, SuggestionRead
 
 router = APIRouter(tags=["suggestions"])
 
@@ -80,6 +81,67 @@ def get_suggestions(
         )
         for r in rows
     ]
+
+
+def _fold_name(text: str) -> str:
+    """Fold an item name for equality: lowercase, strip accents (NFD, drop
+    combining marks), collapse whitespace runs, trim.
+
+    Exact match after folding, on purpose. Fuzzy matching silently declares
+    two different products the same — the reason store auto-merge was
+    rejected (ADR-013) — so "pimenton" finds "Pimentón" but "pimento" finds
+    nothing. Distinct from receipt_matcher.normalise, which also strips a
+    leading quantity because receipt lines carry one; item names don't.
+    """
+    text = text.lower()
+    text = "".join(c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn")
+    return re.sub(r"\s+", " ", text).strip()
+
+
+@router.get("/lists/{list_id}/items/elsewhere", response_model=ElsewhereMatchRead | None)
+def get_elsewhere_match(
+    name: Annotated[str, Query(min_length=1)],
+    list_and_user: MemberDep,
+    session: CurrentSession,
+):
+    """Find the searched name on another of the caller's lists.
+
+    Answers the empty-search line ("you have this on <list>") with the single
+    most relevant match, or null when the name appears nowhere else.
+    """
+    lst, current_user = list_and_user
+
+    memberships = session.exec(
+        select(ListMember).where(ListMember.user_id == current_user.id)
+    ).all()
+    other_list_ids = [m.list_id for m in memberships if m.list_id != lst.id]
+    if not other_list_ids:
+        return None
+
+    # Fetch every item on the other lists and fold names in Python. Accent
+    # folding defeats a plain SQL index, and a household's lists hold tens of
+    # items — don't optimise this.
+    rows = session.exec(
+        select(ListItem, List)
+        .join(List, List.id == ListItem.list_id)
+        .where(ListItem.list_id.in_(other_list_ids))
+    ).all()
+
+    target = _fold_name(name)
+    matches = [(item, item_list) for item, item_list in rows if _fold_name(item.name) == target]
+    if not matches:
+        return None
+
+    purchased = [m for m in matches if m[0].purchased_at is not None]
+    if purchased:
+        item, item_list = max(purchased, key=lambda m: m[0].purchased_at)
+    else:
+        item, item_list = max(matches, key=lambda m: m[0].updated_at)
+    return ElsewhereMatchRead(
+        list_id=item_list.id,
+        list_name=item_list.name,
+        last_purchased_at=item.purchased_at,
+    )
 
 
 @router.get("/lists/{list_id}/due-suggestions", response_model=list[DueSuggestionRead])

@@ -309,6 +309,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists/{list_id}/items/elsewhere": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Elsewhere Match
+         * @description Find the searched name on another of the caller's lists.
+         *
+         *     Answers the empty-search line ("you have this on <list>") with the single
+         *     most relevant match, or null when the name appears nowhere else.
+         */
+        get: operations["get_elsewhere_match_lists__list_id__items_elsewhere_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{list_id}/items/{item_id}": {
         parameters: {
             query?: never;
@@ -850,6 +873,18 @@ export interface components {
             name: string;
             /** Stores */
             stores: string[];
+        };
+        /**
+         * ElsewhereMatchRead
+         * @description The searched name found on another list the caller belongs to.
+         */
+        ElsewhereMatchRead: {
+            /** Last Purchased At */
+            last_purchased_at: string | null;
+            /** List Id */
+            list_id: string;
+            /** List Name */
+            list_name: string;
         };
         /** FeatureToggleRequest */
         FeatureToggleRequest: {
@@ -2264,6 +2299,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ItemRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_elsewhere_match_lists__list_id__items_elsewhere_get: {
+        parameters: {
+            query: {
+                name: string;
+            };
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElsewhereMatchRead"] | null;
                 };
             };
             /** @description Validation Error */
