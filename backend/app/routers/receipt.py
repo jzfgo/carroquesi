@@ -262,6 +262,11 @@ def apply_receipt_prices(
         scan = session.get(ReceiptScan, body.scan_id)
         if scan:
             scan.items_updated = updated + created
+            if trip is not None:
+                # The one trip this apply filed lines onto. A price-only
+                # apply opens no trip and leaves the link NULL — the scan
+                # reconciled nothing.
+                scan.purchase_id = trip.id
             session.add(scan)
 
     lst = session.get(List, list_id)
