@@ -58,5 +58,14 @@ The day in a date-based guard is the **viewer's calendar day**.
 - A traveling user's "today" moves with them. That is the intended
   meaning, not drift: the guard asks whether the purchase belongs to the
   day the user is currently living through.
-- Any future date-based rule must use `same_client_day` /
-  `isSameCalendarDay` rather than reducing timestamps to UTC days.
+- Any future date-based rule must resolve the viewer's zone through
+  `app/services/client_day.py` rather than reducing timestamps to UTC
+  days.
+- **Update (JAV-125):** the two guards that motivated this record now ask
+  a stored trip boundary instead of computing a day at request time — see
+  [ADR-014](014-purchase-entity-and-trip-boundary.md). The decision here
+  survives as the app's single timezone authority: `X-Client-Timezone`,
+  trusted, UTC fallback, resolved by `app/services/client_day.py`. It is
+  consumed when a trip's `tears_off_at` is stamped at creation, no longer
+  each time a guard fires. `isSameCalendarDay` is gone with the guards;
+  its frontend successor is `lib/isTripOpen.ts`.
