@@ -1,11 +1,18 @@
 import { Pencil, Receipt, Star, Store, Trash2, Users } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { useRef, useState } from 'react'
 import type { ListStoreEntry } from '../types'
 import './ListActionSheet.css'
 import { ListMembersSheet } from './ListMembersSheet'
+import { Sheet, type SheetHandle } from './Sheet'
 
 type SubState = 'actions' | 'rename' | 'members' | 'stores' | 'confirm-delete'
+
+const LABELS: Record<Exclude<SubState, 'members'>, string> = {
+  actions: 'Opciones de lista',
+  rename: 'Renombrar lista',
+  stores: 'Tiendas',
+  'confirm-delete': 'Confirmar eliminación',
+}
 
 interface Props {
   listId: string
@@ -48,36 +55,38 @@ export function ListActionSheet({
   const [renameValue, setRenameValue] = useState(listName)
   const [editingStoreKey, setEditingStoreKey] = useState<string | null>(null)
   const [storeNameValue, setStoreNameValue] = useState('')
-  const sheetRef = useRef<HTMLDivElement>(null)
-  const swipe = useSwipeToDismiss(sheetRef, onClose)
+  const sheetRef = useRef<SheetHandle>(null)
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return
-      if (subState === 'actions') onClose()
-      // 'members' manages its own Escape; 'rename'/'confirm-delete' navigate back
-      else if (subState !== 'members') setSubState('actions')
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose, subState])
-
-  const overlay = (
-    <div className="list-action-sheet__overlay" onClick={onClose} />
-  )
-
-  if (subState === 'actions') {
+  if (subState === 'members') {
     return (
-      <>
-        {overlay}
-        <div
-          className="list-action-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Opciones de lista"
-          ref={sheetRef}
-        >
-          <div className="list-action-sheet__handle" {...swipe} />
+      <ListMembersSheet
+        listId={listId}
+        currentUserId={currentUserId}
+        isOwner={isOwner}
+        onClose={() => setSubState('actions')}
+        onLeft={onLeftList}
+        onListSuspect={onListSuspect}
+      />
+    )
+  }
+
+  const trimmed = renameValue.trim()
+  const trimmedStore = storeNameValue.trim()
+
+  return (
+    <Sheet
+      ref={sheetRef}
+      className="list-action-sheet"
+      label={LABELS[subState]}
+      onClose={onClose}
+      // A sub-state is a step inside the sheet: dismissing it goes back to
+      // the actions menu, and only the menu itself closes the sheet.
+      onDismiss={
+        subState === 'actions' ? undefined : () => setSubState('actions')
+      }
+    >
+      {subState === 'actions' && (
+        <>
           <p className="list-action-sheet__list-name">{listName}</p>
           {isDefault ? (
             <div
@@ -91,7 +100,7 @@ export function ListActionSheet({
               className="list-action-sheet__action"
               onClick={() => {
                 onSetDefault()
-                onClose()
+                sheetRef.current?.close()
               }}
             >
               <Star size={18} /> Marcar como predeterminada
@@ -122,7 +131,7 @@ export function ListActionSheet({
               className="list-action-sheet__action"
               onClick={() => {
                 onReceiptScan()
-                onClose()
+                sheetRef.current?.close()
               }}
             >
               <Receipt size={18} /> Escanear ticket
@@ -136,24 +145,11 @@ export function ListActionSheet({
               <Trash2 size={18} /> Eliminar lista
             </button>
           )}
-        </div>
-      </>
-    )
-  }
+        </>
+      )}
 
-  if (subState === 'rename') {
-    const trimmed = renameValue.trim()
-    return (
-      <>
-        {overlay}
-        <div
-          className="list-action-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Renombrar lista"
-          ref={sheetRef}
-        >
-          <div className="list-action-sheet__handle" {...swipe} />
+      {subState === 'rename' && (
+        <>
           <p className="list-action-sheet__list-name">
             <Pencil size={16} /> Renombrar lista
           </p>
@@ -185,24 +181,11 @@ export function ListActionSheet({
           >
             Cancelar
           </button>
-        </div>
-      </>
-    )
-  }
+        </>
+      )}
 
-  if (subState === 'stores') {
-    const trimmedStore = storeNameValue.trim()
-    return (
-      <>
-        {overlay}
-        <div
-          className="list-action-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Tiendas"
-          ref={sheetRef}
-        >
-          <div className="list-action-sheet__handle" {...swipe} />
+      {subState === 'stores' && (
+        <>
           <p className="list-action-sheet__list-name">
             <Store size={16} /> Tiendas
           </p>
@@ -262,55 +245,31 @@ export function ListActionSheet({
           >
             Volver
           </button>
-        </div>
-      </>
-    )
-  }
+        </>
+      )}
 
-  if (subState === 'members') {
-    return (
-      <ListMembersSheet
-        listId={listId}
-        currentUserId={currentUserId}
-        isOwner={isOwner}
-        onClose={() => setSubState('actions')}
-        onLeft={onLeftList}
-        onListSuspect={onListSuspect}
-      />
-    )
-  }
-
-  // subState === 'confirm-delete'
-  return (
-    <>
-      {overlay}
-      <div
-        className="list-action-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Confirmar eliminación"
-        ref={sheetRef}
-      >
-        <div className="list-action-sheet__handle" {...swipe} />
-        <p className="list-action-sheet__list-name">{listName}</p>
-        <p className="list-action-sheet__warning">
-          Se eliminarán todos los productos. Esta acción no se puede deshacer.
-        </p>
-        <button
-          className="list-action-sheet__confirm-btn"
-          onClick={onDelete}
-          aria-label="Sí, eliminar lista"
-        >
-          Sí, eliminar lista
-        </button>
-        <button
-          className="list-action-sheet__cancel-btn"
-          onClick={() => setSubState('actions')}
-          aria-label="Cancelar"
-        >
-          Cancelar
-        </button>
-      </div>
-    </>
+      {subState === 'confirm-delete' && (
+        <>
+          <p className="list-action-sheet__list-name">{listName}</p>
+          <p className="list-action-sheet__warning">
+            Se eliminarán todos los productos. Esta acción no se puede deshacer.
+          </p>
+          <button
+            className="list-action-sheet__confirm-btn"
+            onClick={onDelete}
+            aria-label="Sí, eliminar lista"
+          >
+            Sí, eliminar lista
+          </button>
+          <button
+            className="list-action-sheet__cancel-btn"
+            onClick={() => setSubState('actions')}
+            aria-label="Cancelar"
+          >
+            Cancelar
+          </button>
+        </>
+      )}
+    </Sheet>
   )
 }
