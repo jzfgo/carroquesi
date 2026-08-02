@@ -21,6 +21,7 @@ const item1: ListItem = {
   stores: [],
   purchased: false,
   purchased_at: null,
+  purchase_ends_at: null,
   ean: null,
   price: null,
   price_per: null,
@@ -119,11 +120,12 @@ describe('useListItems — togglePurchased', () => {
     new Date(Date.now() - msAgo).toISOString().slice(0, -1)
   const TWO_DAYS = 48 * 60 * 60 * 1000
 
-  it('refuses to unpurchase a prior-day purchase once the write grace expired', async () => {
+  it('refuses to unpurchase from an ended trip once the write grace expired', async () => {
     const stale: ListItem = {
       ...item1,
       purchased: true,
       purchased_at: naiveUtc(TWO_DAYS),
+      purchase_ends_at: naiveUtc(TWO_DAYS - 60 * 60 * 1000),
       updated_at: naiveUtc(TWO_DAYS),
     }
     vi.mocked(api.getListItems).mockResolvedValue([stale] as never)
@@ -144,12 +146,13 @@ describe('useListItems — togglePurchased', () => {
   })
 
   it('allows unpurchasing a backdated purchase while the write grace holds', async () => {
-    // A receipt scanned days after shopping: purchased_at is backdated,
-    // but the record was written a minute ago.
+    // A receipt scanned days after shopping: purchased_at is backdated onto
+    // a trip that has ended, but the record was written a minute ago.
     const backdated: ListItem = {
       ...item1,
       purchased: true,
       purchased_at: naiveUtc(TWO_DAYS),
+      purchase_ends_at: naiveUtc(TWO_DAYS - 60 * 60 * 1000),
       updated_at: naiveUtc(60 * 1000),
     }
     vi.mocked(api.getListItems).mockResolvedValue([backdated] as never)
