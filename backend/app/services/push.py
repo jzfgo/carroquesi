@@ -7,6 +7,7 @@ Decision: docs/decisions/010-web-push-via-fcm.md
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -128,6 +129,78 @@ def _is_dead_token(exc: Exception | None) -> bool:
     return isinstance(exc, messaging.UnregisteredError | messaging.SenderIdMismatchError)
 
 
+def _payloads_for(
+    session: Session,
+    lst: List,
+    actor: User,
+    recipients: dict[str, Recipient],
+    event_for: Callable[[str], str],
+    item_name: str,
+) -> list[tuple[list[str], messaging.MulticastMessage]]:
+    """One multicast per recipient per token batch, each carrying that
+    recipient's own derived unseen count. ``event_for`` picks the event name per
+    recipient, because one change can mean different things to different members
+    (an ownership transfer is "you now run this list" only to the new owner)."""
+    payloads: list[tuple[list[str], messaging.MulticastMessage]] = []
+    for recipient in recipients.values():
+        event = event_for(recipient.user_id)
+        count = unseen_count_for(session, lst.id, recipient.user_id, recipient.watermark)
+        for i in range(0, len(recipient.tokens), MULTICAST_BATCH_SIZE):
+            batch = recipient.tokens[i : i + MULTICAST_BATCH_SIZE]
+            payloads.append((batch, _build_message(batch, lst, actor, event, item_name, count)))
+    return payloads
+
+
+def _send_and_prune(
+    session: Session, lst: List, payloads: list[tuple[list[str], messaging.MulticastMessage]]
+) -> None:
+    """Deliver the batches within the send budget, then prune dead tokens."""
+    # Threads do network only. All DB access stays on this thread, because a
+    # SQLModel Session is not thread-safe.
+    dead: list[str] = []
+    # Deliberately not `with ThreadPoolExecutor(...)`: the context manager exits
+    # via shutdown(wait=True), which joins every submitted future and would make
+    # the timeout below decorative. shutdown(wait=False) lets a hung send finish
+    # on its own thread while the request returns inside its budget.
+    #
+    # KNOWN LIMITATION (deferred, see JAV-9): this pool is per-call. A send
+    # that outlives the budget keeps running on a non-daemon thread — up to
+    # firebase_admin's 120s HTTP timeout — so during an FCM outage threads and
+    # sockets accumulate rather than being bounded process-wide. A module-level
+    # pool would cap them, but must never be .shutdown() per request and would
+    # need the hang test to release its worker; not worth that at this app's
+    # scale, where the count is tens during an outage and Cloud Run's SIGTERM
+    # grace bounds process exit. Revisit if member counts or traffic grow.
+    pool = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_SENDS)
+    try:
+        futures = {
+            pool.submit(messaging.send_each_for_multicast, msg): batch for batch, msg in payloads
+        }
+        done, pending = wait(futures, timeout=SEND_TIMEOUT_SECONDS)
+        for future in pending:
+            future.cancel()
+            logger.warning("push send timed out for list %s", lst.id)
+        for future in done:
+            batch = futures[future]
+            try:
+                result = future.result()
+            except Exception:
+                logger.exception("push send failed for list %s", lst.id)
+                continue
+            # strict=True: FCM returns exactly one response per token sent, so
+            # a length mismatch is a real bug, not something to zip past quietly.
+            for token, response in zip(batch, result.responses, strict=True):
+                if not response.success and _is_dead_token(response.exception):
+                    dead.append(token)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+
+    if dead:
+        for row in session.exec(select(PushToken).where(PushToken.token.in_(dead))).all():
+            session.delete(row)
+        session.commit()
+
+
 def notify_list_change(
     session: Session, lst: List, actor: User, event: str, item_name: str
 ) -> None:
@@ -143,61 +216,35 @@ def notify_list_change(
         recipients = recipients_for(session, lst.id, actor_id=actor.id)
         if not recipients:
             return
-
-        payloads: list[tuple[list[str], messaging.MulticastMessage]] = []
-        for recipient in recipients.values():
-            count = unseen_count_for(session, lst.id, recipient.user_id, recipient.watermark)
-            for i in range(0, len(recipient.tokens), MULTICAST_BATCH_SIZE):
-                batch = recipient.tokens[i : i + MULTICAST_BATCH_SIZE]
-                payloads.append((batch, _build_message(batch, lst, actor, event, item_name, count)))
-
-        # Threads do network only. All DB access stays on this thread, because a
-        # SQLModel Session is not thread-safe.
-        dead: list[str] = []
-        # Deliberately not `with ThreadPoolExecutor(...)`: the context manager exits
-        # via shutdown(wait=True), which joins every submitted future and would make
-        # the timeout below decorative. shutdown(wait=False) lets a hung send finish
-        # on its own thread while the request returns inside its budget.
-        #
-        # KNOWN LIMITATION (deferred, see JAV-9): this pool is per-call. A send
-        # that outlives the budget keeps running on a non-daemon thread — up to
-        # firebase_admin's 120s HTTP timeout — so during an FCM outage threads and
-        # sockets accumulate rather than being bounded process-wide. A module-level
-        # pool would cap them, but must never be .shutdown() per request and would
-        # need the hang test to release its worker; not worth that at this app's
-        # scale, where the count is tens during an outage and Cloud Run's SIGTERM
-        # grace bounds process exit. Revisit if member counts or traffic grow.
-        pool = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_SENDS)
-        try:
-            futures = {
-                pool.submit(messaging.send_each_for_multicast, msg): batch
-                for batch, msg in payloads
-            }
-            done, pending = wait(futures, timeout=SEND_TIMEOUT_SECONDS)
-            for future in pending:
-                future.cancel()
-                logger.warning("push send timed out for list %s", lst.id)
-            for future in done:
-                batch = futures[future]
-                try:
-                    result = future.result()
-                except Exception:
-                    logger.exception("push send failed for list %s", lst.id)
-                    continue
-                # strict=True: FCM returns exactly one response per token sent, so
-                # a length mismatch is a real bug, not something to zip past quietly.
-                for token, response in zip(batch, result.responses, strict=True):
-                    if not response.success and _is_dead_token(response.exception):
-                        dead.append(token)
-        finally:
-            pool.shutdown(wait=False, cancel_futures=True)
-
-        if dead:
-            for row in session.exec(select(PushToken).where(PushToken.token.in_(dead))).all():
-                session.delete(row)
-            session.commit()
+        payloads = _payloads_for(session, lst, actor, recipients, lambda _: event, item_name)
+        _send_and_prune(session, lst, payloads)
     except Exception:
         # A push failure must not surface as a failed list write. Roll back so the
         # request handler is never handed a session left mid-transaction.
+        session.rollback()
+        logger.exception("push notification failed for list %s", lst.id)
+
+
+def notify_ownership_change(session: Session, lst: List, actor: User, new_owner_id: str) -> None:
+    """Tell the remaining members the list changed hands. Never raises.
+
+    The new owner gets an "ownership_transferred" event; every other member gets
+    "owner_changed". Both are framed as an ownership change, not a departure, so
+    the copy stays true whether or not the old owner then leaves the list. The
+    actor (the old owner) is excluded like any other actor: they made the change.
+    """
+    try:
+        recipients = recipients_for(session, lst.id, actor_id=actor.id)
+        if not recipients:
+            return
+
+        def event_for(user_id: str) -> str:
+            return "ownership_transferred" if user_id == new_owner_id else "owner_changed"
+
+        payloads = _payloads_for(session, lst, actor, recipients, event_for, item_name="")
+        _send_and_prune(session, lst, payloads)
+    except Exception:
+        # A push failure must not surface as a failed ownership transfer. Roll back
+        # so the request handler is never handed a session left mid-transaction.
         session.rollback()
         logger.exception("push notification failed for list %s", lst.id)
