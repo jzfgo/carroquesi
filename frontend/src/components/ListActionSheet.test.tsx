@@ -141,10 +141,18 @@ test('Cancelar in confirmation sub-state returns to actions sub-state', () => {
   expect(baseProps.onClose).not.toHaveBeenCalled()
 })
 
-test('tapping the overlay calls onClose from actions sub-state', () => {
-  const { container } = render(<ListActionSheet {...baseProps} />)
-  fireEvent.click(container.querySelector('.list-action-sheet__overlay')!)
+test('tapping the scrim calls onClose from actions sub-state', () => {
+  render(<ListActionSheet {...baseProps} />)
+  fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
   expect(baseProps.onClose).toHaveBeenCalled()
+})
+
+test('tapping the scrim from rename sub-state returns to actions, not closing the sheet', () => {
+  render(<ListActionSheet {...baseProps} />)
+  fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
+  fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
+  expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
+  expect(baseProps.onClose).not.toHaveBeenCalled()
 })
 
 test('ESC from confirm-delete sub-state returns to actions, not closing the sheet', () => {

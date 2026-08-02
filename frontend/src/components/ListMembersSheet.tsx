@@ -1,7 +1,6 @@
 import { Crown, Link2 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import {
   ApiError,
   createOpenInvite,
@@ -10,6 +9,7 @@ import {
 } from '../lib/api'
 import type { BackendMember } from '../types'
 import './ListMembersSheet.css'
+import { Sheet } from './Sheet'
 import { Toast } from './Toast'
 
 interface Props {
@@ -41,8 +41,6 @@ export function ListMembersSheet({
   const [inviteLimitReached, setInviteLimitReached] = useState(false)
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  const sheetRef = useRef<HTMLDivElement>(null)
-  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   const load = useCallback(async () => {
     setLoadState('loading')
@@ -59,25 +57,6 @@ export function ListMembersSheet({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: load() flips its loading flag before fetching, for the mount exactly as for the retry button
     void load()
   }, [load])
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-
-    function handleClickOutside(e: MouseEvent) {
-      if (sheetRef.current && !sheetRef.current.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-
-    document.addEventListener('keydown', onKeyDown)
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('keydown', onKeyDown)
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [onClose])
 
   async function handleRemove(userId: string) {
     const snapshot = members
@@ -132,124 +111,113 @@ export function ListMembersSheet({
   const listFull = members.length >= MAX_MEMBERS
 
   return (
-    <>
-      <div className="list-members-sheet__overlay" onClick={onClose}></div>
-      <div
-        className="list-members-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Miembros"
-        ref={sheetRef}
-      >
-        <div className="list-members-sheet__handle" {...swipe} />
+    <Sheet className="list-members-sheet" label="Miembros" onClose={onClose}>
+      {loadState === 'loading' && (
+        <span
+          className="list-members-sheet__spinner"
+          role="status"
+          aria-label="Cargando"
+        />
+      )}
 
-        {loadState === 'loading' && (
-          <span
-            className="list-members-sheet__spinner"
-            role="status"
-            aria-label="Cargando"
-          />
-        )}
+      {loadState === 'error' && (
+        <div className="list-members-sheet__error">
+          <span>No se pudieron cargar los miembros</span>
+          <button
+            className="list-members-sheet__retry-btn"
+            onClick={() => void load()}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
-        {loadState === 'error' && (
-          <div className="list-members-sheet__error">
-            <span>No se pudieron cargar los miembros</span>
-            <button
-              className="list-members-sheet__retry-btn"
-              onClick={() => void load()}
-            >
-              Reintentar
-            </button>
-          </div>
-        )}
+      {loadState === 'ready' && (
+        <>
+          <p className="list-members-sheet__section-title">
+            Miembros · {members.length}
+          </p>
 
-        {loadState === 'ready' && (
-          <>
-            <p className="list-members-sheet__section-title">
-              Miembros · {members.length}
-            </p>
+          {members.map((member) => {
+            const isCurrentUser = member.user_id === currentUserId
+            const isOwnerRow = isCurrentUser && isOwner
 
-            {members.map((member) => {
-              const isCurrentUser = member.user_id === currentUserId
-              const isOwnerRow = isCurrentUser && isOwner
-
-              return (
-                <div
-                  key={member.user_id}
-                  className="list-members-sheet__member-row"
-                >
-                  <div className="list-members-sheet__avatar">
-                    {member.photo_url ? (
-                      <img src={member.photo_url} alt={member.display_name} />
-                    ) : (
-                      <span>
-                        {member.display_name?.[0]?.toUpperCase() ?? '?'}
-                      </span>
-                    )}
-                  </div>
-                  <span className="list-members-sheet__member-name">
-                    {member.display_name}
-                    {isOwnerRow && (
-                      <span className="list-members-sheet__owner-badge">
-                        <Crown size={11} /> Propietario
-                      </span>
-                    )}
-                  </span>
-                  {isOwner && !isCurrentUser && (
-                    <button
-                      className="list-members-sheet__action-btn"
-                      onClick={() => void handleRemove(member.user_id)}
-                      aria-label={`Expulsar a ${member.display_name}`}
-                    >
-                      Expulsar
-                    </button>
-                  )}
-                  {!isOwner && isCurrentUser && (
-                    <button
-                      className="list-members-sheet__action-btn"
-                      onClick={() => void handleRemove(member.user_id)}
-                      aria-label="Salir de la lista"
-                    >
-                      Salir
-                    </button>
+            return (
+              <div
+                key={member.user_id}
+                className="list-members-sheet__member-row"
+              >
+                <div className="list-members-sheet__avatar">
+                  {member.photo_url ? (
+                    <img src={member.photo_url} alt={member.display_name} />
+                  ) : (
+                    <span>
+                      {member.display_name?.[0]?.toUpperCase() ?? '?'}
+                    </span>
                   )}
                 </div>
-              )
-            })}
-
-            {!listFull && (
-              <>
-                <div className="list-members-sheet__divider" />
-                {fallbackUrl ? (
-                  <input
-                    className="list-members-sheet__fallback-input"
-                    readOnly
-                    value={fallbackUrl}
-                    aria-label="Enlace de invitación"
-                    onFocus={(e) => e.target.select()}
-                  />
-                ) : (
+                <span className="list-members-sheet__member-name">
+                  {member.display_name}
+                  {isOwnerRow && (
+                    <span className="list-members-sheet__owner-badge">
+                      <Crown size={11} /> Propietario
+                    </span>
+                  )}
+                </span>
+                {isOwner && !isCurrentUser && (
                   <button
-                    className="list-members-sheet__invite-btn"
-                    onClick={() => void handleCopyInvite()}
-                    disabled={inviteLimitReached}
+                    className="list-members-sheet__action-btn"
+                    onClick={() => void handleRemove(member.user_id)}
+                    aria-label={`Expulsar a ${member.display_name}`}
                   >
-                    <Link2 size={15} /> Copiar enlace de invitación
+                    Expulsar
                   </button>
                 )}
-                {inviteLimitReached && (
-                  <p className="list-members-sheet__invite-limit">
-                    Límite de invitaciones alcanzado. Espera a que expiren o
-                    sean aceptadas.
-                  </p>
+                {!isOwner && isCurrentUser && (
+                  <button
+                    className="list-members-sheet__action-btn"
+                    onClick={() => void handleRemove(member.user_id)}
+                    aria-label="Salir de la lista"
+                  >
+                    Salir
+                  </button>
                 )}
-              </>
-            )}
-          </>
-        )}
+              </div>
+            )
+          })}
 
-        {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
-      </div>
-    </>
+          {!listFull && (
+            <>
+              <div className="list-members-sheet__divider" />
+              {fallbackUrl ? (
+                <input
+                  className="list-members-sheet__fallback-input"
+                  readOnly
+                  value={fallbackUrl}
+                  aria-label="Enlace de invitación"
+                  onFocus={(e) => e.target.select()}
+                />
+              ) : (
+                <button
+                  className="list-members-sheet__invite-btn"
+                  onClick={() => void handleCopyInvite()}
+                  disabled={inviteLimitReached}
+                >
+                  <Link2 size={15} /> Copiar enlace de invitación
+                </button>
+              )}
+              {inviteLimitReached && (
+                <p className="list-members-sheet__invite-limit">
+                  Límite de invitaciones alcanzado. Espera a que expiren o sean
+                  aceptadas.
+                </p>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+    </Sheet>
   )
 }

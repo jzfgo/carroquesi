@@ -1,31 +1,11 @@
-.feedback-sheet__overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99;
-  background: color-mix(in srgb, var(--ink-0) 10%, transparent);
+.feedback-sheet {
+  padding-inline: 16px;
 }
 
-.feedback-sheet {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 100;
+.feedback-sheet__form {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 0 16px 28px;
-  background: var(--paper-0);
-  border-top: 1px solid var(--border);
-}
-
-.feedback-sheet__handle {
-  width: 36px;
-  height: 4px;
-  margin: 10px auto 12px;
-  border-radius: 2px;
-  background: var(--border);
-  touch-action: none;
 }
 
 .feedback-sheet__title {

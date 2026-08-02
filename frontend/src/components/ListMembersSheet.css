@@ -1,32 +1,5 @@
 .list-members-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--paper-0);
-  border-top: 1px solid var(--border);
-  padding: 0 16px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  z-index: 100;
-}
-
-.list-members-sheet__overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99;
-  background: transparent;
-  cursor: default;
-}
-
-.list-members-sheet__handle {
-  width: 36px;
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  margin: 10px auto 16px;
-  touch-action: none;
+  padding-inline: 16px;
 }
 
 .list-members-sheet__section-title {
