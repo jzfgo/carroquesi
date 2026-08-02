@@ -30,7 +30,6 @@ Two documents hold the durable truth this file does not repeat. Read the relevan
 - `purchases`: shopping trips, declared at reconciliation — `tears_off_at` is the stamped local-midnight boundary, `closed_at` NULL means still open (or never written down, on backfilled rows), `total` is a confirmed figure never summed from lines; at most one open trip per `(list_id, tears_off_at)` via partial unique index. See [ADR-014](docs/decisions/014-purchase-entity-and-trip-boundary.md)
 - `list_invites`: opt-in invitations; `id` is the share token
 - `barcode_cache`: cached barcode lookup data
-- `price_cache`: cached community price data by EAN (amount, price_per, fetched_at); negative-caches misses too
 - `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results)
 - `receipt_name_mappings`: learned receipt→item name mappings per store; improves auto-matching on future scans
 - `list_stores`: per-list store registry — `store_key` → canonical `display_name`, renameable by members. See [ADR-013](docs/decisions/013-store-registry.md)
@@ -231,7 +230,3 @@ A task is complete only when **all** of the following are true:
 - [ ] Lint and relevant tests pass (`just ci` for full check)
 - [ ] Only intentional files changed (no platform-narrowed `pnpm-lock.yaml`)
 - [ ] `CHANGELOG.md` untouched — it is generated on `main` at release time. The release PR is the only exception
-
-## Out of Scope
-
-- Submitting prices to Open Prices (requires proof image + OSM location)

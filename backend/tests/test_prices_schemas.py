@@ -23,13 +23,11 @@ def test_price_create_rejects_zero():
 
 def test_price_history_response_structure():
     entry = PriceEntry(amount=1.99, price_per=None, store="Mercadona")
-    resp = PriceHistoryResponse(entries=[entry], community_price=1.85, community_price_per=None)
+    resp = PriceHistoryResponse(entries=[entry])
     assert len(resp.entries) == 1
     assert resp.entries[0].amount == 1.99
-    assert resp.community_price == 1.85
 
 
 def test_price_history_empty():
     resp = PriceHistoryResponse(entries=[])
     assert resp.entries == []
-    assert resp.community_price is None

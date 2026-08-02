@@ -620,10 +620,6 @@ export interface components {
         BarcodeRead: {
             /** Brand */
             brand: string | null;
-            /** Community Price */
-            community_price?: number | null;
-            /** Community Price Per */
-            community_price_per?: "KILOGRAM" | null;
             /** Ean */
             ean: string;
             /** Name */
@@ -992,10 +988,6 @@ export interface components {
         };
         /** PriceHistoryResponse */
         PriceHistoryResponse: {
-            /** Community Price */
-            community_price?: number | null;
-            /** Community Price Per */
-            community_price_per?: "KILOGRAM" | null;
             /** Entries */
             entries: components["schemas"]["PriceEntry"][];
         };

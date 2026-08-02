@@ -7,7 +7,6 @@ from app.db.models import ListItem, ListMember
 from app.dependencies import CurrentSession, CurrentUser, MemberDep
 from app.schemas.prices import PriceCreate, PriceEntry, PriceHistoryResponse
 from app.services.client_day import ClientTimezone, same_client_day
-from app.services.community_price import get_community_price
 from app.services.store_registry import ensure_stores
 
 router = APIRouter(prefix="/lists/{list_id}/items/{item_id}/prices", tags=["prices"])
@@ -111,14 +110,7 @@ def get_price_history(
         )
         for i in items
     ]
-    community_price, community_price_per = (
-        get_community_price(item.ean, session) if item.ean else (None, None)
-    )
-    return PriceHistoryResponse(
-        entries=entries,
-        community_price=community_price,
-        community_price_per=community_price_per,
-    )
+    return PriceHistoryResponse(entries=entries)
 
 
 def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list[ListItem]:

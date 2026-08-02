@@ -172,16 +172,6 @@ class BarcodeCache(SQLModel, table=True):
     created_at: datetime = Field(default_factory=_now)
 
 
-class PriceCache(SQLModel, table=True):
-    __tablename__ = "price_cache"
-
-    id: str = Field(default_factory=_uuid, primary_key=True)
-    ean: str = Field(unique=True, index=True)
-    amount: float | None = Field(default=None)  # None = fetched but no usable data (negative cache)
-    price_per: str | None = Field(default=None)  # None=unit, "KILOGRAM"=per kg
-    fetched_at: datetime = Field(default_factory=_now)
-
-
 class ReceiptScan(SQLModel, table=True):
     __tablename__ = "receipt_scans"
 
