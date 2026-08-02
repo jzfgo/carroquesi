@@ -696,8 +696,32 @@
         "title": "ListCreate",
         "type": "object"
       },
+      "ListMemberBrief": {
+        "description": "A member as shown on list overviews: id and display name, nothing else.\n\nDeliberately carries no email and no photo — the overview payload must not\nleak contact details of co-members.",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "display_name"
+        ],
+        "title": "ListMemberBrief",
+        "type": "object"
+      },
       "ListRead": {
         "properties": {
+          "cart_count": {
+            "default": 0,
+            "title": "Cart Count",
+            "type": "integer"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -727,6 +751,14 @@
             "default": 0,
             "title": "Item Count",
             "type": "integer"
+          },
+          "members": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/ListMemberBrief"
+            },
+            "title": "Members",
+            "type": "array"
           },
           "name": {
             "title": "Name",
