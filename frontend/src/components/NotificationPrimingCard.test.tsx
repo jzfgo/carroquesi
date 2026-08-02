@@ -7,6 +7,7 @@ const props = {
   permission: 'default' as const,
   hasSharingIntent: true,
   isIOS: false,
+  listName: 'Casa',
   onEnable: vi.fn(),
 }
 
@@ -21,6 +22,14 @@ describe('NotificationPrimingCard', () => {
     expect(
       screen.getByRole('button', { name: /activar avisos/i }),
     ).toBeInTheDocument()
+  })
+
+  it('names the list it watches', () => {
+    render(<NotificationPrimingCard {...props} />)
+    expect(
+      screen.getByText(/te avisamos cuando alguien añada o compre algo en/i),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Casa')).toBeInTheDocument()
   })
 
   it('stays hidden without sharing intent', () => {

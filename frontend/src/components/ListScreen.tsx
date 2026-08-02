@@ -820,6 +820,7 @@ export function ListScreen({
             Boolean(localStorage.getItem('push-sharing-intent'))
           }
           isIOS={isIOS}
+          listName={localListName}
           // enablePush must run first in the gesture: an await before its
           // Notification.requestPermission() call makes Safari drop the
           // transient activation and never show the prompt.
