@@ -66,6 +66,27 @@
         "title": "BarcodeRead",
         "type": "object"
       },
+      "BoardPrefUpdate": {
+        "properties": {
+          "board": {
+            "enum": [
+              "kraft",
+              "lino",
+              "salvia",
+              "niebla",
+              "barro",
+              "pizarra"
+            ],
+            "title": "Board",
+            "type": "string"
+          }
+        },
+        "required": [
+          "board"
+        ],
+        "title": "BoardPrefUpdate",
+        "type": "object"
+      },
       "DueSuggestionRead": {
         "properties": {
           "avg_quantity": {
@@ -717,6 +738,17 @@
       },
       "ListRead": {
         "properties": {
+          "board": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Board"
+          },
           "cart_count": {
             "default": 0,
             "title": "Cart Count",
@@ -5109,6 +5141,105 @@
         "summary": "Remove Member",
         "tags": [
           "members"
+        ]
+      }
+    },
+    "/lists/{list_id}/prefs/board": {
+      "put": {
+        "description": "Pick the board this list sits on, for the caller only.\n\nPersonal presentation state — deliberately does NOT bump lists.updated_at,\nthe same rule as set_default_list: the board is invisible to co-members\nand must not trigger their polls.",
+        "operationId": "set_board_pref_lists__list_id__prefs_board_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoardPrefUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Board Pref",
+        "tags": [
+          "lists"
         ]
       }
     },

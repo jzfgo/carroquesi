@@ -382,6 +382,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists/{list_id}/prefs/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Board Pref
+         * @description Pick the board this list sits on, for the caller only.
+         *
+         *     Personal presentation state — deliberately does NOT bump lists.updated_at,
+         *     the same rule as set_default_list: the board is invisible to co-members
+         *     and must not trigger their polls.
+         */
+        put: operations["set_board_pref_lists__list_id__prefs_board_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{list_id}/purchases": {
         parameters: {
             query?: never;
@@ -800,6 +824,14 @@ export interface components {
             /** Stores */
             stores: string[];
         };
+        /** BoardPrefUpdate */
+        BoardPrefUpdate: {
+            /**
+             * Board
+             * @enum {string}
+             */
+            board: "kraft" | "lino" | "salvia" | "niebla" | "barro" | "pizarra";
+        };
         /** DueSuggestionRead */
         DueSuggestionRead: {
             /** Avg Quantity */
@@ -995,6 +1027,8 @@ export interface components {
         };
         /** ListRead */
         ListRead: {
+            /** Board */
+            board?: string | null;
             /**
              * Cart Count
              * @default 0
@@ -2559,6 +2593,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_board_pref_lists__list_id__prefs_board_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BoardPrefUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {

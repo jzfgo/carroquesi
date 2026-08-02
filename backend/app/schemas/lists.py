@@ -1,6 +1,15 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
+
+# The board palette, as the API validates it. Must stay in step with
+# list_board.BOARDS (the assignment order) — a test pins the two together.
+Board = Literal["kraft", "lino", "salvia", "niebla", "barro", "pizarra"]
+
+
+class BoardPrefUpdate(BaseModel):
+    board: Board
 
 
 class ListCreate(BaseModel):
@@ -43,3 +52,7 @@ class ListRead(BaseModel):
     members: list[ListMemberBrief] = []
     # Whether this list is the requesting user's default (Siri target).
     is_default: bool = False
+    # The requesting user's board for this list — personal, never another
+    # member's. Populated (and lazily assigned) only on the single-list GET;
+    # the panel listing and create leave it null.
+    board: str | None = None
