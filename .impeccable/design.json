@@ -8,7 +8,7 @@
         "role": "neutral",
         "displayName": "Composition Paper",
         "canonical": "#eef1f5",
-        "dark": "#131419",
+        "dark": "#252731",
         "tonalRamp": [
           "#15161b",
           "#2b2e36",
@@ -24,7 +24,7 @@
         "role": "neutral",
         "displayName": "Recessed Paper",
         "canonical": "#e3e7ed",
-        "dark": "#1b1c22",
+        "dark": "#2e313b",
         "tonalRamp": [
           "#141519",
           "#282b32",
@@ -40,7 +40,7 @@
         "role": "neutral",
         "displayName": "Paper Edge",
         "canonical": "#b4bac4",
-        "dark": "#3a3c44",
+        "dark": "#4a4d57",
         "tonalRamp": [
           "#171920",
           "#2a2d35",
@@ -52,12 +52,12 @@
           "#d6dae1"
         ]
       },
-      "table": {
+      "board-kraft": {
         "role": "secondary",
-        "displayName": "Wooden Table",
+        "displayName": "Kraft Board",
         "canonical": "#c2a982",
-        "dark": "#3b2f22",
-        "note": "The surface the sheets lie on. Visible only in the seam between them, never behind content. The one warm colour in the product, and the only one exempt from the grayscale ink rule.",
+        "dark": "#2a1d0a",
+        "note": "The default of the six boards (el tablero) the sheet lies on — per person and per list, confined to an open list. The full set with paired inks is in extensions.boards. The only colour exempt from the grayscale ink rule.",
         "tonalRamp": [
           "#241c12",
           "#3b2f22",
@@ -73,7 +73,7 @@
         "role": "neutral",
         "displayName": "Pencil Black",
         "canonical": "#15161b",
-        "dark": "#edeef2",
+        "dark": "#f0f1f5",
         "tonalRamp": [
           "#15161b",
           "#353742",
@@ -181,6 +181,73 @@
         "measuredCapHeight": "12.95px at 17.5px size — matched to Hand by cap height, not px"
       }
     },
+    "boards": {
+      "note": "Six board hues behind the sheet, personal per list. Each hue carries its own ink; every board/ink pair holds >= 4.5:1 in both lights. Dark ink is #e4ded3 on warm boards, #d9dbe1 on cool ones.",
+      "hues": [
+        {
+          "name": "kraft",
+          "light": "#c2a982",
+          "dark": "#2a1d0a",
+          "inkLight": "#15161b",
+          "inkDark": "#e4ded3"
+        },
+        {
+          "name": "lino",
+          "light": "#c8c2b3",
+          "dark": "#232014",
+          "inkLight": "#15161b",
+          "inkDark": "#e4ded3"
+        },
+        {
+          "name": "salvia",
+          "light": "#a9b8a5",
+          "dark": "#12240f",
+          "inkLight": "#15161b",
+          "inkDark": "#d9dbe1"
+        },
+        {
+          "name": "niebla",
+          "light": "#a9b6c6",
+          "dark": "#0f1e33",
+          "inkLight": "#15161b",
+          "inkDark": "#d9dbe1"
+        },
+        {
+          "name": "barro",
+          "light": "#c59a8a",
+          "dark": "#331409",
+          "inkLight": "#15161b",
+          "inkDark": "#e4ded3"
+        },
+        {
+          "name": "pizarra",
+          "light": "#a8a8ad",
+          "dark": "#1b1c24",
+          "inkLight": "#15161b",
+          "inkDark": "#d9dbe1"
+        }
+      ],
+      "veil": {
+        "light": "rgb(21 22 27 / 4%)",
+        "dark": "rgb(0 0 0 / 20%)",
+        "purpose": "Multiply veil dimming a settled (receipt) sheet against the live one."
+      },
+      "void": {
+        "light": "transparent",
+        "dark": "#0a0a0d",
+        "purpose": "The die-cut hole between pending and cart. In light it shows the board through; in dark it is deeper than any board."
+      },
+      "paperLift": {
+        "light": "var(--paper-0)",
+        "dark": "#2e313b",
+        "purpose": "Modal sheet surface. Steps UP in dark: there is no room below the sheet at night."
+      },
+      "series": {
+        "light": "var(--paper-2)",
+        "dark": "#3c4050",
+        "purpose": "Secondary chart series."
+      }
+    },
     "shadows": [
       {
         "name": "shadow-sm",
@@ -203,19 +270,34 @@
         "purpose": "Bottom sheet — casts upward."
       },
       {
-        "name": "cast-list",
+        "name": "sheet-cast-list",
         "value": "0 1px 1.5px rgb(22 27 45 / 16%), 0 4px 9px -4px rgb(22 27 45 / 30%)",
-        "purpose": "TARGET. The ~80 g/m2 list sheet casting onto the table."
+        "dark": "0 3px 0 -1px rgb(0 0 0 / 60%), 0 8px 16px -7px rgb(0 0 0 / 80%)",
+        "purpose": "The ~80 g/m2 list sheet casting onto the board. In dark the soft cast becomes a hard drop under the lit edge (rule 17)."
       },
       {
-        "name": "cast-receipt",
+        "name": "sheet-cast-receipt",
         "value": "0 1px 1px rgb(22 27 45 / 16%), 0 2px 5px -3px rgb(22 27 45 / 30%)",
-        "purpose": "TARGET. The ~50 g/m2 receipt — thinner stock, shallower cast."
+        "dark": "0 3px 0 -1px rgb(0 0 0 / 60%)",
+        "purpose": "The ~50 g/m2 receipt — thinner stock, shallower cast."
       },
       {
-        "name": "rim-receipt",
-        "value": "linear-gradient(to bottom, rgb(255 255 255 / 58%) 0 1px, rgb(255 255 255 / 22%) 1px 1.5px, transparent 1.5px)",
-        "purpose": "TARGET. Rim light on the receipt's cut edge. Must be a layer above the paper canvas AND the multiply veil — an inset box-shadow paints beneath an element's children and is covered."
+        "name": "edge-lit",
+        "value": "transparent",
+        "dark": "rgb(255 255 255 / 15%) / 8% / 4% by height rung",
+        "purpose": "1px top border on every sheet. The sheet's CSS is identical in both modes: light zeroes the edges and paints the shadow; dark paints the edges."
+      },
+      {
+        "name": "edge-cast",
+        "value": "transparent",
+        "dark": "rgb(0 0 0 / 55%) / 45% / 30% by height rung",
+        "purpose": "1px bottom border on every sheet, paired with edge-lit."
+      },
+      {
+        "name": "sheet-rim",
+        "value": "linear-gradient(to bottom, rgb(255 255 255 / 58%) 0 1px, rgb(255 255 255 / 22%) 1px 1.5px)",
+        "dark": "none",
+        "purpose": "Rim light on the receipt's cut edge — a 1.5px layer above the paper canvas AND the multiply veil; an inset box-shadow paints beneath an element's children and is covered."
       },
       {
         "name": "focus-ring",
