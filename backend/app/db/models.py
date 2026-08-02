@@ -254,6 +254,31 @@ class UserFeature(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=_now)
 
 
+class UserListPref(SQLModel, table=True):
+    """Per-user, per-list presentation preferences (currently: the board).
+
+    Rule 20 of the redesign: a list's identity is shared, its orientation is
+    personal. Name and emoji are the list itself, seen by every member; the
+    board is how the list sits on *your* shelf. So this lives in its own
+    table rather than as a ListMember column — the shared/personal split
+    stays explicit in the schema — and a member's board is never serialized
+    to co-members. Writes here must not bump lists.updated_at, the same rule
+    as ListMember.is_default.
+    """
+
+    __tablename__ = "user_list_prefs"
+    __table_args__ = (UniqueConstraint("user_id", "list_id"),)
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    user_id: str = Field(foreign_key="users.id", index=True)
+    list_id: str = Field(foreign_key="lists.id")
+    # Plain TEXT, validated at the API layer (like store_key): the palette
+    # lives in app/services/list_board.py and the request schema, not in a
+    # DB constraint, so extending it never needs a migration.
+    board: str
+    created_at: datetime = Field(default_factory=_now)
+
+
 class ApiKey(SQLModel, table=True):
     __tablename__ = "api_keys"
 

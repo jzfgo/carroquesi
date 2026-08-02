@@ -5,11 +5,21 @@ from fastapi import APIRouter, status
 from sqlalchemy import and_, func, or_
 from sqlmodel import Session, select
 
-from app.db.models import List, ListInvite, ListItem, ListMember, Purchase, ReceiptScan, User
+from app.db.models import (
+    List,
+    ListInvite,
+    ListItem,
+    ListMember,
+    Purchase,
+    ReceiptScan,
+    User,
+    UserListPref,
+)
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
-from app.schemas.lists import ListCreate, ListMemberBrief, ListRead, ListUpdate
+from app.schemas.lists import BoardPrefUpdate, ListCreate, ListMemberBrief, ListRead, ListUpdate
 from app.services import receipt_storage
 from app.services.default_list import ensure_default, set_default
+from app.services.list_board import ensure_board, get_board, set_board
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +31,9 @@ def _bump(lst: List, session: Session) -> None:
     session.add(lst)
 
 
-def _read_with_default(lst: List, session: Session, user_id: str) -> ListRead:
+def _read_with_default(
+    lst: List, session: Session, user_id: str, board: str | None = None
+) -> ListRead:
     """Build a ListRead carrying this user's per-membership is_default flag.
 
     (item_count/purchased_count/cart_count/members keep their ListRead defaults
@@ -31,7 +43,11 @@ def _read_with_default(lst: List, session: Session, user_id: str) -> ListRead:
     membership = session.exec(
         select(ListMember).where(ListMember.list_id == lst.id, ListMember.user_id == user_id)
     ).first()
-    return ListRead(**lst.model_dump(), is_default=bool(membership and membership.is_default))
+    return ListRead(
+        **lst.model_dump(),
+        is_default=bool(membership and membership.is_default),
+        board=board,
+    )
 
 
 @router.get("", response_model=list[ListRead])
@@ -137,7 +153,13 @@ def create_list(
 @router.get("/{list_id}", response_model=ListRead)
 def get_list(list_and_user: MemberDep, session: CurrentSession):
     lst, current_user = list_and_user
-    return _read_with_default(lst, session, current_user.id)
+    # Lazy assignment happens here and only here: opening the list is the
+    # first moment the board is seen, so this response always carries one and
+    # the screen never flashes a default. The panel listing and create stay
+    # unassigned on purpose.
+    board = ensure_board(session, current_user.id, lst.id)
+    session.commit()
+    return _read_with_default(lst, session, current_user.id, board=board)
 
 
 @router.patch("/{list_id}", response_model=ListRead)
@@ -154,8 +176,12 @@ def update_list(
     _bump(lst, session)
     session.commit()
     session.refresh(lst)
-    # is_default carried through so a rename can't misreport the caller's default.
-    return _read_with_default(lst, session, current_user.id)
+    # is_default and board carried through so a rename can't misreport the
+    # caller's state. get_board, not ensure_board: an update is not an open,
+    # so it must not assign.
+    return _read_with_default(
+        lst, session, current_user.id, board=get_board(session, current_user.id, lst.id)
+    )
 
 
 @router.put("/{list_id}/default", status_code=status.HTTP_204_NO_CONTENT)
@@ -173,6 +199,23 @@ def set_default_list(
     session.commit()
 
 
+@router.put("/{list_id}/prefs/board", status_code=status.HTTP_204_NO_CONTENT)
+def set_board_pref(
+    body: BoardPrefUpdate,
+    list_and_user: MemberDep,
+    session: CurrentSession,
+):
+    """Pick the board this list sits on, for the caller only.
+
+    Personal presentation state — deliberately does NOT bump lists.updated_at,
+    the same rule as set_default_list: the board is invisible to co-members
+    and must not trigger their polls.
+    """
+    lst, current_user = list_and_user
+    set_board(session, current_user.id, lst.id, body.board)
+    session.commit()
+
+
 @router.delete("/{list_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_list(
     list_and_user: OwnerDep,
@@ -186,6 +229,8 @@ def delete_list(
         session.delete(member)
     for invite in session.exec(select(ListInvite).where(ListInvite.list_id == lst.id)).all():
         session.delete(invite)
+    for pref in session.exec(select(UserListPref).where(UserListPref.list_id == lst.id)).all():
+        session.delete(pref)
     for scan in session.exec(select(ReceiptScan).where(ReceiptScan.list_id == lst.id)).all():
         session.delete(scan)
     session.delete(lst)

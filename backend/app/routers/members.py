@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import Session, select
 
-from app.db.models import List, ListInvite, ListMember, User
+from app.db.models import List, ListInvite, ListMember, User, UserListPref
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
 from app.schemas.members import AddMemberRequest, InviteCreated, MemberRead
 
@@ -103,5 +103,12 @@ def remove_member(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
 
     session.delete(member)
+    # The board pref is state about a membership, so it leaves with it. A
+    # later re-join starts clean and gets a fresh lazy assignment.
+    pref = session.exec(
+        select(UserListPref).where(UserListPref.list_id == list_id, UserListPref.user_id == user_id)
+    ).first()
+    if pref is not None:
+        session.delete(pref)
     _bump(lst, session)
     session.commit()
