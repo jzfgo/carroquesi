@@ -1397,3 +1397,42 @@ describe('notification priming card', () => {
     )
   })
 })
+
+describe('the board under the paper', () => {
+  it('maps the list board onto the screen', () => {
+    const { container } = render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        board="salvia"
+      />,
+    )
+    expect(container.querySelector('.list-screen')).toHaveAttribute(
+      'data-board',
+      'salvia',
+    )
+  })
+
+  it('lands unknown and absent boards on kraft', () => {
+    const { container } = render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        board="terrazo"
+      />,
+    )
+    expect(container.querySelector('.list-screen')).toHaveAttribute(
+      'data-board',
+      'kraft',
+    )
+    const { container: second } = render(
+      <ListScreen listId="l2" listName="Otra" listOwnerId="u1" />,
+    )
+    expect(second.querySelector('.list-screen')).toHaveAttribute(
+      'data-board',
+      'kraft',
+    )
+  })
+})
