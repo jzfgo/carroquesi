@@ -18,6 +18,17 @@
       "updated_at": "2026-06-23T10:00:00",
       "item_count": 2,
       "purchased_count": 0,
+      "cart_count": 0,
+      "members": [
+        {
+          "user_id": "seed-user-alice",
+          "display_name": "Alice (seed)"
+        },
+        {
+          "user_id": "seed-user-bob",
+          "display_name": "Bob (seed)"
+        }
+      ],
       "is_default": true
     },
     {
@@ -29,6 +40,13 @@
       "updated_at": "2026-06-23T10:00:00",
       "item_count": 1,
       "purchased_count": 0,
+      "cart_count": 0,
+      "members": [
+        {
+          "user_id": "seed-user-alice",
+          "display_name": "Alice (seed)"
+        }
+      ],
       "is_default": false
     }
   ],
@@ -180,6 +198,8 @@
     "updated_at": "2026-06-23T10:00:00",
     "item_count": 0,
     "purchased_count": 0,
+    "cart_count": 0,
+    "members": [],
     "is_default": false
   },
   "SEED_CREATED_ITEM": {

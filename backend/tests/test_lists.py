@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.db.models import List, ListItem, ListMember, ReceiptScan
+from app.db.models import List, ListItem, ListMember, ReceiptScan, User
 
 
 def test_create_list(client: TestClient, session: Session):
@@ -92,6 +92,7 @@ def test_get_lists_includes_zero_counts_when_no_items(client: TestClient):
     assert len(data) == 1
     assert data[0]["item_count"] == 0
     assert data[0]["purchased_count"] == 0
+    assert data[0]["cart_count"] == 0
 
 
 def test_get_lists_returns_correct_counts(client: TestClient):
@@ -207,3 +208,75 @@ def test_items_purchased_on_prior_days_excluded_from_counts(client: TestClient, 
     # item_old (yesterday) is excluded; item_today + item_unpurchased remain in scope
     assert target["item_count"] == 2
     assert target["purchased_count"] == 1
+
+
+def test_get_lists_includes_member_names(client: TestClient, session: Session, user, other_user):
+    lst = client.post("/lists", json={"name": "Compartida"}).json()
+    session.add(ListMember(list_id=lst["id"], user_id=other_user.id))
+    session.commit()
+
+    data = client.get("/lists").json()
+    members = data[0]["members"]
+    assert {(m["user_id"], m["display_name"]) for m in members} == {
+        (user.id, "Alice"),
+        (other_user.id, "Bob"),
+    }
+
+
+def test_get_lists_member_name_falls_back_to_email_local_part(client: TestClient, session: Session):
+    lst = client.post("/lists", json={"name": "Con invitada"}).json()
+    anon = User(firebase_uid="uid-carla", display_name=None, email="carla@example.com")
+    session.add(anon)
+    session.commit()
+    session.refresh(anon)
+    session.add(ListMember(list_id=lst["id"], user_id=anon.id))
+    session.commit()
+
+    data = client.get("/lists").json()
+    names = {m["display_name"] for m in data[0]["members"]}
+    assert "carla" in names
+
+
+def test_get_lists_payload_contains_no_emails(client: TestClient, session: Session, other_user):
+    lst = client.post("/lists", json={"name": "Privada"}).json()
+    session.add(ListMember(list_id=lst["id"], user_id=other_user.id))
+    session.commit()
+
+    response = client.get("/lists")
+    assert response.status_code == 200
+    assert "@example.com" not in response.text
+    for member in response.json()[0]["members"]:
+        assert set(member) == {"user_id", "display_name"}
+
+
+def test_cart_count_counts_todays_purchases_and_excludes_prior_days(
+    client: TestClient, session: Session
+):
+    lst = client.post("/lists", json={"name": "Carro"}).json()
+    list_id = lst["id"]
+
+    item_today = client.post(f"/lists/{list_id}/items", json={"name": "Hoy"}).json()
+    item_old = client.post(f"/lists/{list_id}/items", json={"name": "Ayer"}).json()
+    client.post(f"/lists/{list_id}/items", json={"name": "Pendiente"})
+    client.patch(f"/lists/{list_id}/items/{item_today['id']}", json={"purchased": True})
+    client.patch(f"/lists/{list_id}/items/{item_old['id']}", json={"purchased": True})
+
+    yesterday = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
+    db_item = session.get(ListItem, item_old["id"])
+    db_item.purchased_at = yesterday
+    session.add(db_item)
+    session.commit()
+
+    data = client.get("/lists").json()
+    target = next(row for row in data if row["id"] == list_id)
+    assert target["cart_count"] == 1
+
+
+def test_single_list_endpoints_keep_member_and_cart_defaults(client: TestClient):
+    created = client.post("/lists", json={"name": "Individual"}).json()
+    assert created["members"] == []
+    assert created["cart_count"] == 0
+
+    detail = client.get(f"/lists/{created['id']}").json()
+    assert detail["members"] == []
+    assert detail["cart_count"] == 0

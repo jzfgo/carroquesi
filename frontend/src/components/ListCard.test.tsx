@@ -12,6 +12,8 @@ const makeList = (overrides: Partial<ApiList> = {}): ApiList => ({
   updated_at: '',
   item_count: 8,
   purchased_count: 3,
+  cart_count: 0,
+  members: [],
   is_default: false,
   ...overrides,
 })

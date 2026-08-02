@@ -807,8 +807,26 @@ export interface components {
             /** Name */
             name: string;
         };
+        /**
+         * ListMemberBrief
+         * @description A member as shown on list overviews: id and display name, nothing else.
+         *
+         *     Deliberately carries no email and no photo — the overview payload must not
+         *     leak contact details of co-members.
+         */
+        ListMemberBrief: {
+            /** Display Name */
+            display_name: string;
+            /** User Id */
+            user_id: string;
+        };
         /** ListRead */
         ListRead: {
+            /**
+             * Cart Count
+             * @default 0
+             */
+            cart_count: number;
             /**
              * Created At
              * Format: date-time
@@ -828,6 +846,11 @@ export interface components {
              * @default 0
              */
             item_count: number;
+            /**
+             * Members
+             * @default []
+             */
+            members: components["schemas"]["ListMemberBrief"][];
             /** Name */
             name: string;
             /** Owner Id */
