@@ -2,7 +2,6 @@ import { Camera, Image, Receipt } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
-import { useBoardThemeColor } from '../hooks/useBoardThemeColor'
 import { filterItems } from '../hooks/useItemFilter'
 import { useListItems } from '../hooks/useListItems'
 import { useListSeen } from '../hooks/useListSeen'
@@ -97,19 +96,6 @@ export function ListScreen({
 }: Props) {
   const { getToken, user } = useAuth()
   const boardName = asBoardName(board)
-  // DEV-ONLY PREVIEW AFFORDANCE: two in-list header treatments exist so they
-  // can be compared side by side on a phone, switched by the `header` query
-  // param (?header=board | ?header=paper). Only one variant ships — after the
-  // choice, the losing variant's CSS branch, this toggle, and (if "paper"
-  // wins) useBoardThemeColor are all stripped. Read once at mount on purpose:
-  // a preview knob, not navigation state.
-  const [headerVariant] = useState<'board' | 'paper'>(() =>
-    new URLSearchParams(window.location.search).get('header') === 'paper'
-      ? 'paper'
-      : 'board',
-  )
-  // The "board" header variant extends the board into the browser chrome.
-  useBoardThemeColor(boardName, headerVariant === 'board')
   const [localListName, setLocalListName] = useState(listName)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: resets optimistic local title when polling confirms external rename
@@ -811,11 +797,7 @@ export function ListScreen({
   }, [filteredItems])
 
   return (
-    <div
-      className="list-screen"
-      data-board={boardName}
-      data-header-variant={headerVariant}
-    >
+    <div className="list-screen" data-board={boardName}>
       <ListHeader
         title={localListName}
         emoji={listEmoji}

@@ -40,21 +40,6 @@
   --board-ink: var(--board-ink-pizarra);
 }
 
-/* DEV-ONLY PREVIEW: header variant "board" — the header is chrome written
-   on the board, no surface of its own. Its counterpart (variant "paper", the
-   sticky --paper-0 header with its hairline) is simply ListHeader's own
-   styling untouched. One variant ships; the loser's branch gets stripped. */
-.list-screen[data-header-variant='board'] .list-header {
-  background: transparent;
-  border-bottom: none;
-}
-
-.list-screen[data-header-variant='board'] .list-header__title,
-.list-screen[data-header-variant='board'] .list-header__back,
-.list-screen[data-header-variant='board'] .list-header__menu {
-  color: var(--board-ink);
-}
-
 /* Chrome between the header and the sheets sits on the board: transparent
    grounds, board ink, dashed hairlines where a rule is needed. Scoped to the
    list screen on purpose — the board never restyles these components
