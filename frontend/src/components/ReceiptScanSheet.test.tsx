@@ -519,8 +519,6 @@ const mockProduct = {
   name: 'Cacahuetes dulces',
   brand: 'Hacendado',
   stores: [],
-  community_price: null,
-  community_price_per: null,
 }
 
 describe('barcode scan into a create row', () => {
@@ -587,8 +585,6 @@ describe('barcode scan into a create row', () => {
       name: 'Almendras crudas',
       brand: 'Auchan',
       stores: [],
-      community_price: null,
-      community_price_per: null,
     }
     rerender(
       <ReceiptScanSheet

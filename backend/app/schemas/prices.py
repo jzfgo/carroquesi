@@ -19,5 +19,3 @@ class PriceEntry(BaseModel):
 
 class PriceHistoryResponse(BaseModel):
     entries: list[PriceEntry]
-    community_price: float | None = None
-    community_price_per: Literal["KILOGRAM"] | None = None  # None = per unit

@@ -41,29 +41,6 @@
             ],
             "title": "Brand"
           },
-          "community_price": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Community Price"
-          },
-          "community_price_per": {
-            "anyOf": [
-              {
-                "const": "KILOGRAM",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Community Price Per"
-          },
           "ean": {
             "title": "Ean",
             "type": "string"
@@ -1197,29 +1174,6 @@
       },
       "PriceHistoryResponse": {
         "properties": {
-          "community_price": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Community Price"
-          },
-          "community_price_per": {
-            "anyOf": [
-              {
-                "const": "KILOGRAM",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Community Price Per"
-          },
           "entries": {
             "items": {
               "$ref": "#/components/schemas/PriceEntry"

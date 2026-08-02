@@ -246,9 +246,7 @@
     "quantity": null
   },
   "SEED_PRICE_HISTORY": {
-    "entries": [],
-    "community_price": null,
-    "community_price_per": null
+    "entries": []
   },
   "SEED_RECEIPT_APPLY_RESULT": {
     "items_updated": 2,

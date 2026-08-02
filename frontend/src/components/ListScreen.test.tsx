@@ -51,8 +51,6 @@ const { mockNewItem, mockScannedProduct } = vi.hoisted(() => ({
     name: 'Cacahuetes dulces',
     brand: 'Hacendado',
     stores: [],
-    community_price: null,
-    community_price_per: null,
   },
 }))
 
@@ -479,8 +477,6 @@ describe('ListScreen', () => {
       name: 'Tomates',
       brand: 'Carrefour',
       stores: ['Carrefour'],
-      community_price: null,
-      community_price_per: null,
     })
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
@@ -1114,8 +1110,6 @@ describe('ListScreen — offline refusal keeps user input', () => {
     })
     vi.mocked(api.getPriceHistory).mockResolvedValue({
       entries: [],
-      community_price: null,
-      community_price_per: null,
     })
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
