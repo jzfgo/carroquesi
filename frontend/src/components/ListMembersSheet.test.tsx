@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { beforeEach, vi } from 'vitest'
 import * as AuthContext from '../contexts/AuthContext'
 import * as api from '../lib/api'
@@ -13,6 +19,7 @@ vi.mock('../lib/api', async (importOriginal) => {
     getListMembers: vi.fn(),
     removeMember: vi.fn(),
     createOpenInvite: vi.fn(),
+    transferOwnership: vi.fn(),
   }
 })
 
@@ -33,6 +40,25 @@ const BOB: BackendMember = {
   display_name: 'Bob',
   photo_url: null,
   created_at: '',
+}
+const CAROL: BackendMember = {
+  id: 'lm3',
+  user_id: 'u3',
+  list_id: 'l1',
+  display_name: 'Carol',
+  photo_url: null,
+  created_at: '',
+}
+
+function makeMembers(count: number): BackendMember[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `lm${i}`,
+    user_id: `u${i}`,
+    list_id: 'l1',
+    display_name: `User ${i}`,
+    photo_url: null,
+    created_at: '',
+  }))
 }
 
 beforeEach(() => {
@@ -59,7 +85,7 @@ test('shows spinner while loading', () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
@@ -72,7 +98,7 @@ test('shows error and retry button when fetch fails', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
@@ -88,7 +114,7 @@ test('renders member list after fetch', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
@@ -96,118 +122,235 @@ test('renders member list after fetch', async () => {
   expect(screen.getByText('Bob')).toBeInTheDocument()
 })
 
-test('owner is sole member — no Expulsar buttons', async () => {
+test('header says how many of the five seats are taken', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB, CAROL])
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      ownerId="u1"
+      onClose={vi.fn()}
+    />,
+  )
+  expect(await screen.findByText('3 de 5')).toBeInTheDocument()
+})
+
+test('invite footer says how many still fit', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB, CAROL])
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      ownerId="u1"
+      onClose={vi.fn()}
+    />,
+  )
+  expect(
+    await screen.findByText(
+      'Quien abra el enlace entra en esta lista. Caben 2 más.',
+    ),
+  ).toBeInTheDocument()
+})
+
+test('invite footer uses the singular when one seat is left', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue(makeMembers(4))
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u0"
+      ownerId="u0"
+      onClose={vi.fn()}
+    />,
+  )
+  expect(
+    await screen.findByText(
+      'Quien abra el enlace entra en esta lista. Cabe 1 más.',
+    ),
+  ).toBeInTheDocument()
+})
+
+test('a full list hides the invite button and says the list is full', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue(makeMembers(5))
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u0"
+      ownerId="u0"
+      onClose={vi.fn()}
+    />,
+  )
+  expect(await screen.findByText('La lista está completa.')).toBeInTheDocument()
+  expect(screen.getByText('5 de 5')).toBeInTheDocument()
+  expect(
+    screen.queryByRole('button', { name: /copiar enlace/i }),
+  ).not.toBeInTheDocument()
+})
+
+test('the owner row carries the crown badge', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      ownerId="u1"
+      onClose={vi.fn()}
+    />,
+  )
+  const aliceName = await screen.findByText('Alice')
+  expect(within(aliceName).getByText('Propietario')).toBeInTheDocument()
+})
+
+test('a non-owner viewer still sees the crown on the owner row', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u2"
+      ownerId="u1"
+      onClose={vi.fn()}
+    />,
+  )
+  const aliceName = await screen.findByText('Alice')
+  expect(within(aliceName).getByText('Propietario')).toBeInTheDocument()
+  expect(within(screen.getByText('Bob')).queryByText('Propietario')).toBeNull()
+})
+
+test('sole owner sees neither Quitar nor Salir', async () => {
   vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
   render(
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
   await screen.findByText(/Alice/)
   expect(
-    screen.queryByRole('button', { name: /expulsar/i }),
+    screen.queryByRole('button', { name: /quitar/i }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.queryByRole('button', { name: /salir de esta lista/i }),
   ).not.toBeInTheDocument()
 })
 
-test('owner row has no action button', async () => {
+test('owner row has no Quitar button', async () => {
   vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
   render(
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
   await screen.findByText(/Alice/)
   expect(
-    screen.queryByRole('button', { name: /expulsar a alice/i }),
+    screen.queryByRole('button', { name: /quitar a alice/i }),
   ).not.toBeInTheDocument()
 })
 
-test('owner sees Expulsar on other members', async () => {
+test('owner sees Quitar on other members', async () => {
   vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
   render(
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
   expect(
-    await screen.findByRole('button', { name: /expulsar a bob/i }),
+    await screen.findByRole('button', { name: /quitar a bob/i }),
   ).toBeInTheDocument()
 })
 
-test('non-owner sees Salir on own row only', async () => {
+test('non-owner sees Salir below the divider and no Quitar anywhere', async () => {
   vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
   render(
     <ListMembersSheet
       listId="l1"
       currentUserId="u2"
-      isOwner={false}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
   expect(
-    await screen.findByRole('button', { name: /salir de la lista/i }),
+    await screen.findByRole('button', { name: /salir de esta lista/i }),
   ).toBeInTheDocument()
   expect(
-    screen.queryByRole('button', { name: /expulsar/i }),
+    screen.queryByRole('button', { name: /quitar/i }),
   ).not.toBeInTheDocument()
 })
 
-test('non-owner does not see action on other members', async () => {
-  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
-  render(
-    <ListMembersSheet
-      listId="l1"
-      currentUserId="u2"
-      isOwner={false}
-      onClose={vi.fn()}
-    />,
-  )
-  await screen.findByText('Alice')
-  expect(
-    screen.queryByRole('button', { name: /expulsar a alice/i }),
-  ).not.toBeInTheDocument()
-})
-
-test('Expulsar removes member optimistically and calls DELETE', async () => {
+test('Quitar asks first, and confirming removes the member', async () => {
   vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
   vi.mocked(api.removeMember).mockResolvedValue(null)
   render(
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
-  fireEvent.click(
-    await screen.findByRole('button', { name: /expulsar a bob/i }),
-  )
+  fireEvent.click(await screen.findByRole('button', { name: /quitar a bob/i }))
+  expect(screen.getByText('¿Quitar a Bob de la lista?')).toBeInTheDocument()
+  expect(api.removeMember).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: /sí, quitar/i }))
   await waitFor(() => expect(screen.queryByText('Bob')).not.toBeInTheDocument())
   expect(api.removeMember).toHaveBeenCalledWith(mockGetToken, 'l1', 'u2')
 })
 
-test('Salir removes current user from list', async () => {
+test('cancelling the Quitar confirmation keeps the member', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      ownerId="u1"
+      onClose={vi.fn()}
+    />,
+  )
+  fireEvent.click(await screen.findByRole('button', { name: /quitar a bob/i }))
+  fireEvent.click(screen.getByRole('button', { name: /cancelar/i }))
+  expect(screen.getByText('Bob')).toBeInTheDocument()
+  expect(api.removeMember).not.toHaveBeenCalled()
+})
+
+test('ESC from the Quitar confirmation goes back without closing', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  const onClose = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      ownerId="u1"
+      onClose={onClose}
+    />,
+  )
+  fireEvent.click(await screen.findByRole('button', { name: /quitar a bob/i }))
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(screen.getByText('Bob')).toBeInTheDocument()
+  expect(
+    screen.queryByText('¿Quitar a Bob de la lista?'),
+  ).not.toBeInTheDocument()
+  expect(onClose).not.toHaveBeenCalled()
+})
+
+test('Salir removes the current user from the list', async () => {
   vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
   vi.mocked(api.removeMember).mockResolvedValue(null)
   render(
     <ListMembersSheet
       listId="l1"
       currentUserId="u2"
-      isOwner={false}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
   fireEvent.click(
-    await screen.findByRole('button', { name: /salir de la lista/i }),
+    await screen.findByRole('button', { name: /salir de esta lista/i }),
   )
   await waitFor(() => expect(screen.queryByText('Bob')).not.toBeInTheDocument())
   expect(api.removeMember).toHaveBeenCalledWith(mockGetToken, 'l1', 'u2')
@@ -221,18 +364,18 @@ test('a successful Salir reports onLeft', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u2"
-      isOwner={false}
+      ownerId="u1"
       onClose={vi.fn()}
       onLeft={onLeft}
     />,
   )
   fireEvent.click(
-    await screen.findByRole('button', { name: /salir de la lista/i }),
+    await screen.findByRole('button', { name: /salir de esta lista/i }),
   )
   await waitFor(() => expect(onLeft).toHaveBeenCalled())
 })
 
-test('expelling another member never reports onLeft', async () => {
+test('removing another member never reports onLeft', async () => {
   vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
   vi.mocked(api.removeMember).mockResolvedValue(null)
   const onLeft = vi.fn()
@@ -240,14 +383,13 @@ test('expelling another member never reports onLeft', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
       onLeft={onLeft}
     />,
   )
-  fireEvent.click(
-    await screen.findByRole('button', { name: /expulsar a bob/i }),
-  )
+  fireEvent.click(await screen.findByRole('button', { name: /quitar a bob/i }))
+  fireEvent.click(screen.getByRole('button', { name: /sí, quitar/i }))
   await waitFor(() => expect(api.removeMember).toHaveBeenCalled())
   expect(onLeft).not.toHaveBeenCalled()
 })
@@ -260,13 +402,13 @@ test('a 404 on remove reports onListSuspect', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u2"
-      isOwner={false}
+      ownerId="u1"
       onClose={vi.fn()}
       onListSuspect={onListSuspect}
     />,
   )
   fireEvent.click(
-    await screen.findByRole('button', { name: /salir de la lista/i }),
+    await screen.findByRole('button', { name: /salir de esta lista/i }),
   )
   await waitFor(() => expect(onListSuspect).toHaveBeenCalled())
 })
@@ -278,15 +420,141 @@ test('remove failure reverts member list and shows toast', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
+      onClose={vi.fn()}
+    />,
+  )
+  fireEvent.click(await screen.findByRole('button', { name: /quitar a bob/i }))
+  fireEvent.click(screen.getByRole('button', { name: /sí, quitar/i }))
+  expect(await screen.findByText('Bob')).toBeInTheDocument()
+  expect(screen.getByText(/no se pudo quitar/i)).toBeInTheDocument()
+})
+
+test('a stray 409 on self-leave explains the transfer requirement', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.removeMember).mockRejectedValue(
+    new api.ApiError(409, 'Transfer ownership before leaving'),
+  )
+  const onListSuspect = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u2"
+      ownerId="u1"
+      onClose={vi.fn()}
+      onListSuspect={onListSuspect}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /salir de esta lista/i }),
+  )
+  expect(
+    await screen.findByText(
+      'Transfiere la propiedad antes de salir de la lista.',
+    ),
+  ).toBeInTheDocument()
+  expect(screen.getByText('Bob')).toBeInTheDocument()
+  expect(onListSuspect).not.toHaveBeenCalled()
+})
+
+test('owner Salir opens the transfer picker, then transfers and leaves', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB, CAROL])
+  vi.mocked(api.transferOwnership).mockResolvedValue(null)
+  vi.mocked(api.removeMember).mockResolvedValue(null)
+  const onLeft = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      ownerId="u1"
+      onClose={vi.fn()}
+      onLeft={onLeft}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /salir de esta lista/i }),
+  )
+  expect(
+    screen.getByText('Antes de salir, elige quién se queda como propietario.'),
+  ).toBeInTheDocument()
+  expect(api.removeMember).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Bob' }))
+  await waitFor(() => expect(onLeft).toHaveBeenCalled())
+  expect(api.transferOwnership).toHaveBeenCalledWith(mockGetToken, 'l1', 'u2')
+  expect(api.removeMember).toHaveBeenCalledWith(mockGetToken, 'l1', 'u1')
+})
+
+test('cancelling the transfer picker goes back to the member list', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
   fireEvent.click(
-    await screen.findByRole('button', { name: /expulsar a bob/i }),
+    await screen.findByRole('button', { name: /salir de esta lista/i }),
   )
+  fireEvent.click(screen.getByRole('button', { name: /cancelar/i }))
   expect(await screen.findByText('Bob')).toBeInTheDocument()
-  expect(screen.getByText(/no se pudo eliminar/i)).toBeInTheDocument()
+  expect(api.transferOwnership).not.toHaveBeenCalled()
+})
+
+test('a failed transfer leaves membership untouched', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.transferOwnership).mockRejectedValue(new Error('fail'))
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      ownerId="u1"
+      onClose={vi.fn()}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /salir de esta lista/i }),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Bob' }))
+  expect(
+    await screen.findByText('No se pudo transferir la propiedad'),
+  ).toBeInTheDocument()
+  expect(api.removeMember).not.toHaveBeenCalled()
+  const aliceName = await screen.findByText('Alice')
+  expect(within(aliceName).getByText('Propietario')).toBeInTheDocument()
+})
+
+test('transfer succeeds but leave fails: toast, refetch, crown moves', async () => {
+  vi.mocked(api.getListMembers).mockResolvedValue([ALICE, BOB])
+  vi.mocked(api.transferOwnership).mockResolvedValue(null)
+  vi.mocked(api.removeMember).mockRejectedValue(new Error('fail'))
+  const onLeft = vi.fn()
+  render(
+    <ListMembersSheet
+      listId="l1"
+      currentUserId="u1"
+      ownerId="u1"
+      onClose={vi.fn()}
+      onLeft={onLeft}
+    />,
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: /salir de esta lista/i }),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Bob' }))
+  expect(
+    await screen.findByText(
+      'La lista ya tiene nuevo propietario, pero no se pudo salir. Inténtalo de nuevo.',
+    ),
+  ).toBeInTheDocument()
+  expect(onLeft).not.toHaveBeenCalled()
+  expect(api.getListMembers).toHaveBeenCalledTimes(2)
+  const bobName = await screen.findByText('Bob')
+  expect(within(bobName).getByText('Propietario')).toBeInTheDocument()
+  expect(
+    within(screen.getByText('Alice')).queryByText('Propietario'),
+  ).toBeNull()
 })
 
 test('copy invite success writes to clipboard and shows toast', async () => {
@@ -302,7 +570,7 @@ test('copy invite success writes to clipboard and shows toast', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
@@ -324,7 +592,7 @@ test('invite limit reached shows message and disables button', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
@@ -342,7 +610,7 @@ test('a failed invite says so instead of staying silent', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
@@ -362,7 +630,7 @@ test('a 403 on invite reports onListSuspect', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
       onListSuspect={onListSuspect}
     />,
@@ -385,7 +653,7 @@ test('clipboard unavailable shows fallback URL input', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={vi.fn()}
     />,
   )
@@ -395,30 +663,6 @@ test('clipboard unavailable shows fallback URL input', async () => {
   ).toBeInTheDocument()
 })
 
-test('invite button hidden when list has 5 members', async () => {
-  const fiveMembers: BackendMember[] = Array.from({ length: 5 }, (_, i) => ({
-    id: `lm${i}`,
-    user_id: `u${i}`,
-    list_id: 'l1',
-    display_name: `User ${i}`,
-    photo_url: null,
-    created_at: '',
-  }))
-  vi.mocked(api.getListMembers).mockResolvedValue(fiveMembers)
-  render(
-    <ListMembersSheet
-      listId="l1"
-      currentUserId="u0"
-      isOwner={true}
-      onClose={vi.fn()}
-    />,
-  )
-  await screen.findByText(/User 0/)
-  expect(
-    screen.queryByRole('button', { name: /copiar enlace/i }),
-  ).not.toBeInTheDocument()
-})
-
 test('ESC key calls onClose', async () => {
   vi.mocked(api.getListMembers).mockResolvedValue([ALICE])
   const onClose = vi.fn()
@@ -426,7 +670,7 @@ test('ESC key calls onClose', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={onClose}
     />,
   )
@@ -442,7 +686,7 @@ test('tapping the scrim calls onClose', async () => {
     <ListMembersSheet
       listId="l1"
       currentUserId="u1"
-      isOwner={true}
+      ownerId="u1"
       onClose={onClose}
     />,
   )

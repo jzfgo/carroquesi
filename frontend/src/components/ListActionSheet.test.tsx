@@ -14,7 +14,7 @@ const baseProps = {
   listId: 'l1',
   listName: 'Mercado semanal',
   currentUserId: 'u1',
-  isOwner: true,
+  ownerId: 'u1',
   isDefault: false,
   onRename: vi.fn(),
   onDelete: vi.fn(),
@@ -52,15 +52,15 @@ test('shows non-actionable "Lista predeterminada" indicator when already default
   ).not.toBeInTheDocument()
 })
 
-test('shows Eliminar lista when isOwner is true', () => {
+test('shows Eliminar lista when the current user owns the list', () => {
   render(<ListActionSheet {...baseProps} />)
   expect(
     screen.getByRole('button', { name: /eliminar lista/i }),
   ).toBeInTheDocument()
 })
 
-test('hides Eliminar lista when isOwner is false', () => {
-  render(<ListActionSheet {...baseProps} isOwner={false} />)
+test('hides Eliminar lista when someone else owns the list', () => {
+  render(<ListActionSheet {...baseProps} ownerId="u2" />)
   expect(
     screen.queryByRole('button', { name: /eliminar lista/i }),
   ).not.toBeInTheDocument()

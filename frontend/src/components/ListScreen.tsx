@@ -249,7 +249,6 @@ export function ListScreen({
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [receiptSourcePickerOpen, setReceiptSourcePickerOpen] = useState(false)
   const currentUserId = user!.id
-  const isOwner = listOwnerId === currentUserId
 
   const parsed = useMemo(() => parseInput(inputValue), [inputValue])
   const {
@@ -946,7 +945,7 @@ export function ListScreen({
           listId={listId}
           listName={localListName}
           currentUserId={currentUserId}
-          isOwner={isOwner}
+          ownerId={listOwnerId}
           isDefault={localIsDefault}
           onRename={(newName) => void handleRename(listId, newName)}
           onDelete={() => void handleDelete(listId)}
