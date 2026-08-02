@@ -8,6 +8,7 @@ dependencies = [
     "email-validator>=2.3.0",
     "fastapi[standard]>=0.139.2",
     "firebase-admin>=7.5.0",
+    "google-cloud-storage>=3.10.0",
     "httpx>=0.28.1",
     "psycopg2-binary>=2.9.12",
     "pydantic-settings>=2.13.1",

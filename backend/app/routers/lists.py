@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, status
@@ -7,7 +8,10 @@ from sqlmodel import Session, select
 from app.db.models import List, ListInvite, ListItem, ListMember, Purchase, ReceiptScan, User
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
 from app.schemas.lists import ListCreate, ListMemberBrief, ListRead, ListUpdate
+from app.services import receipt_storage
 from app.services.default_list import ensure_default, set_default
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/lists", tags=["lists"])
 
@@ -175,6 +179,7 @@ def delete_list(
     session: CurrentSession,
 ):
     lst, _ = list_and_user
+    list_id = lst.id
     for item in session.exec(select(ListItem).where(ListItem.list_id == lst.id)).all():
         session.delete(item)
     for member in session.exec(select(ListMember).where(ListMember.list_id == lst.id)).all():
@@ -185,3 +190,9 @@ def delete_list(
         session.delete(scan)
     session.delete(lst)
     session.commit()
+    # After the commit and best effort: a storage hiccup must not block list
+    # deletion. A failure only leaves orphaned objects, which cost pennies.
+    try:
+        receipt_storage.delete_list_receipts(list_id)
+    except Exception:
+        logger.exception("Failed to delete receipt objects for list %s", list_id)
