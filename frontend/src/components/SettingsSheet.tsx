@@ -14,6 +14,11 @@ import {
   isPushEnabled,
   permissionState,
 } from '../lib/push'
+import {
+  getPreference,
+  setPreference,
+  type ThemePreference,
+} from '../lib/theme'
 import './SettingsSheet.css'
 import { Sheet, type SheetHandle } from './Sheet'
 
@@ -28,10 +33,18 @@ interface Props {
 
 const MASK = '••••••••••••••••'
 
+// The 34a segment. Three options and not a switch, because «like the system»
+// is what most people want and a two-state switch cannot say it.
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: 'light', label: 'Claro' },
+  { value: 'dark', label: 'Oscuro' },
+  { value: 'system', label: 'Sistema' },
+]
+
 /**
- * The 23a settings sheet: identity header, then four blocks ordered by how
- * often each is reached for — Avisos, Atajo de Siri, La app, and the
- * sign-out footer.
+ * The 23a settings sheet: identity header, then the blocks — Aspecto first
+ * (the 34a switcher, leading as on the artboard), Avisos, Atajo de Siri,
+ * La app, and the sign-out footer.
  */
 export function SettingsSheet({
   defaultListName,
@@ -44,6 +57,30 @@ export function SettingsSheet({
   const isApplePlatform = useApplePlatform()
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
   const sheetRef = useRef<SheetHandle>(null)
+
+  const [themePref, setThemePref] = useState<ThemePreference>(() =>
+    getPreference(),
+  )
+  // Roving focus for the radiogroup: arrow keys select AND move focus, so the
+  // focused segment must be reachable imperatively.
+  const themeRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+  const selectTheme = (index: number) => {
+    const { value } = THEME_OPTIONS[index]
+    setThemePref(value)
+    setPreference(value)
+  }
+
+  const onThemeKeyDown = (event: React.KeyboardEvent, index: number) => {
+    let delta: number
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') delta = 1
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') delta = -1
+    else return
+    event.preventDefault()
+    const next = (index + delta + THEME_OPTIONS.length) % THEME_OPTIONS.length
+    selectTheme(next)
+    themeRefs.current[next]?.focus()
+  }
 
   const [pushOn, setPushOn] = useState(() => isPushEnabled())
   // Permission is held in state rather than read inline in JSX. A denial does
@@ -174,6 +211,33 @@ export function SettingsSheet({
               <span className="settings-sheet__email">{user?.email}</span>
             </span>
           </header>
+
+          <section className="settings-sheet__block">
+            <h3 className="settings-sheet__eyebrow">Aspecto</h3>
+            <div
+              role="radiogroup"
+              aria-label="Aspecto"
+              className="settings-sheet__segment"
+            >
+              {THEME_OPTIONS.map(({ value, label }, index) => (
+                <button
+                  key={value}
+                  ref={(el) => {
+                    themeRefs.current[index] = el
+                  }}
+                  type="button"
+                  role="radio"
+                  aria-checked={themePref === value}
+                  tabIndex={themePref === value ? 0 : -1}
+                  className="settings-sheet__segment-btn"
+                  onClick={() => selectTheme(index)}
+                  onKeyDown={(event) => onThemeKeyDown(event, index)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </section>
 
           {showAvisos && (
             <section className="settings-sheet__block">
