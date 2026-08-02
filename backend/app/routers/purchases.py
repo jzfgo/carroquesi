@@ -1,15 +1,108 @@
 import math
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import func
+from sqlmodel import select
 
-from app.db.models import ListItem
+from app.db.models import ListItem, Purchase, ReceiptScan
 from app.dependencies import CurrentSession, MemberDep
-from app.schemas.purchases import PurchaseCloseBody, PurchaseRead
+from app.schemas.items import ItemRead
+from app.schemas.purchases import PurchaseCloseBody, PurchasePage, PurchaseRead, PurchaseSummary
 from app.services import trips
 from app.services.store_registry import ensure_stores
 
 router = APIRouter(prefix="/lists/{list_id}/purchases", tags=["purchases"])
+
+
+@router.get("", response_model=PurchasePage)
+def list_purchases(
+    session: CurrentSession,
+    list_and_user: MemberDep,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+):
+    """The list's trips, newest shop first.
+
+    The sort key is when each trip stopped (or will stop) taking items —
+    the same instant the trip-open rule compares against. An open cart's
+    boundary is in the future, so it naturally sorts first; a trip that
+    tore off with nobody writing it down sorts by the day it covered, not
+    by whenever someone later looks at it. The id tie-break keeps pages
+    stable when two trips share a boundary.
+    """
+    lst, _ = list_and_user
+    stopped_at = func.coalesce(Purchase.closed_at, Purchase.tears_off_at)
+    page = list(
+        session.exec(
+            select(Purchase)
+            .where(Purchase.list_id == lst.id)
+            .order_by(stopped_at.desc(), Purchase.id.desc())
+            .offset(offset)
+            .limit(limit)
+        ).all()
+    )
+    total = session.exec(
+        select(func.count()).select_from(Purchase).where(Purchase.list_id == lst.id)
+    ).one()
+
+    # Two grouped lookups for the whole page rather than one query per row.
+    line_counts: dict[str, int] = {}
+    scanned: set[str] = set()
+    if page:
+        page_ids = [trip.id for trip in page]
+        line_counts = dict(
+            session.exec(
+                select(ListItem.purchase_id, func.count())
+                .where(ListItem.purchase_id.in_(page_ids))
+                .group_by(ListItem.purchase_id)
+            ).all()
+        )
+        scanned = set(
+            session.exec(
+                select(ReceiptScan.purchase_id)
+                .where(ReceiptScan.purchase_id.in_(page_ids))
+                .distinct()
+            ).all()
+        )
+
+    return PurchasePage(
+        purchases=[
+            PurchaseSummary(
+                **trip.model_dump(),
+                line_count=line_counts.get(trip.id, 0),
+                has_receipt=trip.id in scanned,
+            )
+            for trip in page
+        ],
+        total=total,
+    )
+
+
+@router.get("/{purchase_id}/items", response_model=list[ItemRead])
+def get_purchase_items(
+    purchase_id: str,
+    session: CurrentSession,
+    list_and_user: MemberDep,
+):
+    """The lines of one ticket, in the order they went into the cart."""
+    lst, _ = list_and_user
+    trip = session.get(Purchase, purchase_id)
+    if trip is None or trip.list_id != lst.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase not found")
+    items = session.exec(
+        select(ListItem)
+        .where(ListItem.purchase_id == trip.id)
+        .order_by(ListItem.purchased_at.asc(), ListItem.created_at.asc())
+    ).all()
+    # One trip, so its boundary is computed once — no need for the grouped
+    # lookup the items feed does.
+    ends_at = trips.ends_at(trip)
+    for item in items:
+        # object.__setattr__ because pydantic rejects undeclared fields.
+        object.__setattr__(item, "purchase_ends_at", ends_at)
+    return items
 
 
 def _reject_bad_amount(value: float | None, what: str) -> None:

@@ -580,3 +580,22 @@ def test_item_read_carries_the_trips_end_instant(client: TestClient, session: Se
 
     listed = client.get(f"/lists/{lst['id']}/items").json()
     assert listed[0]["purchase_ends_at"] == closed.isoformat()
+
+
+def test_item_read_carries_the_trip_it_was_bought_on(client: TestClient, session: Session):
+    from app.db.models import ListItem
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    assert item["purchase_id"] is None
+
+    patched = client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True}
+    ).json()
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    assert db_item.purchase_id is not None
+    assert patched["purchase_id"] == db_item.purchase_id
+
+    listed = client.get(f"/lists/{lst['id']}/items").json()
+    assert listed[0]["purchase_id"] == db_item.purchase_id

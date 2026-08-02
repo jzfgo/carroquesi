@@ -191,9 +191,9 @@ class ReceiptScan(SQLModel, table=True):
     # The trip this scan reconciled, when it reconciled exactly one. A scan is
     # evidence and a purchase is the confirmed fact, so this link is nullable
     # both ways in time: a scan can predate any reconciliation or span
-    # several trips. Unindexed on purpose: nothing queries scans by trip yet.
-    # Add an index when something does — Postgres will not create it for you.
-    purchase_id: str | None = Field(default=None, foreign_key="purchases.id")
+    # several trips. Indexed because the purchase history page derives
+    # has_receipt by looking scans up by trip.
+    purchase_id: str | None = Field(default=None, foreign_key="purchases.id", index=True)
 
 
 class ReceiptNameMapping(SQLModel, table=True):

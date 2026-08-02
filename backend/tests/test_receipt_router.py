@@ -1198,3 +1198,73 @@ def test_price_only_receipt_apply_opens_no_trip(client, session):
     )
     assert response.status_code == 200
     assert session.exec(sql_select(Purchase)).all() == []
+
+
+def test_receipt_apply_links_the_scan_to_the_trip_it_filed(client, session, user):
+    """The link is what the purchase page's has_receipt reads."""
+    session.add(
+        ListItem(
+            id="item-pan-link",
+            list_id=LIST_ID,
+            name="Pan de molde",
+            added_by=user.id,
+            purchased_at=None,
+        )
+    )
+    session.commit()
+    scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body()).json()["scan_id"]
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "receipt_date": "2026-04-11T17:42:00Z",
+            "patches": [
+                {
+                    "item_id": "item-pan-link",
+                    "price": 1.25,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": None,
+                }
+            ],
+            "new_items": [],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    scan = session.get(ReceiptScan, scan_id)
+    item = session.get(ListItem, "item-pan-link")
+    assert scan.purchase_id is not None
+    assert scan.purchase_id == item.purchase_id
+
+
+def test_price_only_receipt_apply_leaves_the_scan_unlinked(client, session):
+    """No trip was filed, so the scan reconciled nothing — the link stays
+    NULL rather than pointing at a trip this apply never touched."""
+    scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body()).json()["scan_id"]
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": scan_id,
+            "receipt_date": "2026-04-11T17:42:00Z",
+            "patches": [
+                {
+                    "item_id": "item-almendras",
+                    "price": 1.15,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": None,
+                }
+            ],
+            "new_items": [],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    assert session.get(ReceiptScan, scan_id).purchase_id is None

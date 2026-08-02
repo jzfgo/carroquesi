@@ -382,6 +382,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists/{list_id}/purchases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Purchases
+         * @description The list's trips, newest shop first.
+         *
+         *     The sort key is when each trip stopped (or will stop) taking items —
+         *     the same instant the trip-open rule compares against. An open cart's
+         *     boundary is in the future, so it naturally sorts first; a trip that
+         *     tore off with nobody writing it down sorts by the day it covered, not
+         *     by whenever someone later looks at it. The id tie-break keeps pages
+         *     stable when two trips share a boundary.
+         */
+        get: operations["list_purchases_lists__list_id__purchases_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{list_id}/purchases/close": {
         parameters: {
             query?: never;
@@ -407,6 +434,26 @@ export interface paths {
          *     silently.
          */
         post: operations["close_purchase_lists__list_id__purchases_close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lists/{list_id}/purchases/{purchase_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Purchase Items
+         * @description The lines of one ticket, in the order they went into the cart.
+         */
+        get: operations["get_purchase_items_lists__list_id__purchases__purchase_id__items_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -798,6 +845,8 @@ export interface components {
             price_store: string | null;
             /** Purchase Ends At */
             purchase_ends_at?: string | null;
+            /** Purchase Id */
+            purchase_id?: string | null;
             /** Purchased */
             readonly purchased: boolean;
             /** Purchased At */
@@ -1087,12 +1136,52 @@ export interface components {
             /** Quantity */
             quantity?: string | null;
         };
+        /** PurchasePage */
+        PurchasePage: {
+            /** Purchases */
+            purchases: components["schemas"]["PurchaseSummary"][];
+            /** Total */
+            total: number;
+        };
         /** PurchaseRead */
         PurchaseRead: {
             /** Closed At */
             closed_at: string | null;
             /** Id */
             id: string;
+            /** List Id */
+            list_id: string;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Store */
+            store: string | null;
+            /**
+             * Tears Off At
+             * Format: date-time
+             */
+            tears_off_at: string;
+            /** Total */
+            total: number | null;
+        };
+        /**
+         * PurchaseSummary
+         * @description One row of the purchase history page.
+         *
+         *     Carries what the page renders per ticket without fetching its lines:
+         *     how many lines it holds, and whether a receipt scan reconciled it.
+         */
+        PurchaseSummary: {
+            /** Closed At */
+            closed_at: string | null;
+            /** Has Receipt */
+            has_receipt: boolean;
+            /** Id */
+            id: string;
+            /** Line Count */
+            line_count: number;
             /** List Id */
             list_id: string;
             /**
@@ -2338,6 +2427,44 @@ export interface operations {
             };
         };
     };
+    list_purchases_lists__list_id__purchases_get: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+            };
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchasePage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     close_purchase_lists__list_id__purchases_close_post: {
         parameters: {
             query?: never;
@@ -2364,6 +2491,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PurchaseRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_purchase_items_lists__list_id__purchases__purchase_id__items_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                purchase_id: string;
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemRead"][];
                 };
             };
             /** @description Validation Error */
