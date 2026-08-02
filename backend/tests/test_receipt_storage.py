@@ -5,6 +5,7 @@ from datetime import timedelta
 from unittest.mock import MagicMock
 
 import pytest
+from fastapi.testclient import TestClient
 
 from app.core.config import settings
 from app.services import receipt_storage
@@ -117,3 +118,29 @@ def test_delete_list_receipts_deletes_the_list_prefix(mock_client):
 def test_delete_list_receipts_unconfigured_is_a_noop(unconfigured):
     # No client is mocked: touching GCS here would blow up on missing credentials.
     assert receipt_storage.delete_list_receipts("list-1") == 0
+
+
+def test_delete_list_purges_receipt_objects(client: TestClient, monkeypatch):
+    deleted_lists: list[str] = []
+    monkeypatch.setattr(
+        receipt_storage, "delete_list_receipts", lambda list_id: deleted_lists.append(list_id) or 0
+    )
+    created = client.post("/lists", json={"name": "Con Ticket"}).json()
+
+    response = client.delete(f"/lists/{created['id']}")
+
+    assert response.status_code == 204
+    assert deleted_lists == [created["id"]]
+
+
+def test_delete_list_survives_a_storage_error(client: TestClient, monkeypatch):
+    def boom(list_id: str) -> int:
+        raise RuntimeError("gcs down")
+
+    monkeypatch.setattr(receipt_storage, "delete_list_receipts", boom)
+    created = client.post("/lists", json={"name": "To Delete"}).json()
+
+    response = client.delete(f"/lists/{created['id']}")
+
+    assert response.status_code == 204
+    assert client.get(f"/lists/{created['id']}").status_code == 404
