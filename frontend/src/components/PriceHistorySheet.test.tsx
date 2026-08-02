@@ -58,7 +58,7 @@ test('renders item name as title and fetches price history', async () => {
         quantity: '1',
       },
     ],
-    community_price: 0.89,
+    community_price: null,
     community_price_per: null,
   }
 
@@ -77,7 +77,6 @@ test('renders item name as title and fetches price history', async () => {
     )
   })
 
-  expect(screen.getByText(/0,89|0\.89/)).toBeInTheDocument()
   expect(screen.getByText('Mercadona')).toBeInTheDocument()
   expect(screen.getByText(/1 precio/)).toBeInTheDocument()
   expect(screen.getByText(/0,85|0\.85/)).toBeInTheDocument()

@@ -128,29 +128,3 @@
   cursor: pointer;
   font-family: inherit;
 }
-
-.bss__community-price {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  color: var(--ink-2);
-  font-size: 13px;
-}
-
-.bss__community-price-value {
-  font-weight: 600;
-  color: var(--ink-0);
-}
-
-.bss__community-price-info {
-  cursor: help;
-  margin-left: auto;
-  color: var(--ink-0);
-  font-size: 12px;
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  padding: 0;
-  font-family: inherit;
-}

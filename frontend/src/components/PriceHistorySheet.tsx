@@ -1,8 +1,8 @@
-import { AlertTriangle, Globe, Pencil, Store } from 'lucide-react'
+import { AlertTriangle, Pencil, Store } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { getPriceHistory } from '../lib/api'
-import { COMMUNITY_PRICE_TOOLTIP, formatPrice } from '../lib/formatPrice'
+import { formatPrice } from '../lib/formatPrice'
 import { normalizeEntries, type ChartEntry } from '../lib/priceNormalization'
 import { storeKey } from '../lib/storeKey'
 import type { ListItem, PriceHistoryResponse } from '../types'
@@ -422,24 +422,6 @@ export default function PriceHistorySheet({
 
       {normalized?.isNormalized && (
         <div className="phs__normalized-badge">≈ €/kg</div>
-      )}
-
-      {history?.community_price != null && (
-        <div className="phs__community">
-          <span>
-            <Globe size={14} /> Precio estimado
-          </span>
-          <span className="phs__community-price">
-            ~{formatPrice(history.community_price, history.community_price_per)}
-          </span>
-          <button
-            className="phs__community-info"
-            title={COMMUNITY_PRICE_TOOLTIP}
-            aria-label="Información sobre el precio de la comunidad"
-          >
-            ⓘ
-          </button>
-        </div>
       )}
 
       <div className="phs__content">
