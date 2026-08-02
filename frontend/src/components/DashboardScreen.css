@@ -57,19 +57,6 @@
   flex: 1;
 }
 
-/* Install banner and notifications toggle keep the old padded-card layout;
-   the panel rows below bleed to the screen edges. */
-.dashboard-screen__notices {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem 0;
-}
-
-.dashboard-screen__notices:empty {
-  display: none;
-}
-
 .dashboard-screen__panel {
   display: flex;
   flex-direction: column;
@@ -129,81 +116,4 @@
   border: none;
   cursor: pointer;
   font-size: var(--fs-16);
-}
-
-.dashboard-screen__avatar-wrapper {
-  position: relative;
-}
-
-.dashboard-screen__avatar-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  background: var(--paper-0);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-md);
-  min-width: 160px;
-  overflow: hidden;
-  z-index: 100;
-}
-
-.dashboard-screen__avatar-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.625rem 0.875rem;
-  border: none;
-  background: none;
-  font-size: var(--fs-14);
-  color: var(--ink-0);
-  cursor: pointer;
-  text-align: left;
-}
-
-.dashboard-screen__avatar-menu-item:hover {
-  background: var(--paper-1);
-}
-
-.dashboard-screen__avatar-menu-item + .dashboard-screen__avatar-menu-item {
-  border-top: 1px solid var(--border);
-}
-
-/* Reads as a control, not a text field: accent-tinted like InstallBanner, with
-   a leading icon. A pale left-aligned box with a hairline border was being
-   mistaken for a disabled input, which is fatal for an opt-in affordance. */
-.notifications-toggle {
-  display: flex;
-  gap: 0.625rem;
-  align-items: center;
-  width: 100%;
-  min-height: var(--hit-min, 44px);
-  padding: 0.625rem 0.75rem;
-  font-family: inherit;
-  font-size: var(--fs-14);
-  font-weight: 600;
-  color: var(--accent, #1a3fa0);
-  text-align: left;
-  cursor: pointer;
-  background: var(--accent-bg, rgb(26 63 160 / 8%));
-  border: 1px solid var(--accent-border, rgb(26 63 160 / 28%));
-  border-radius: 12px;
-}
-
-.notifications-toggle__icon {
-  display: flex;
-  flex-shrink: 0;
-}
-
-/* Blocked state: informational, not actionable — muted so it does not invite a
-   tap that the browser would ignore. */
-.notifications-toggle--blocked {
-  margin: 0;
-  font-weight: 400;
-  line-height: 1.35;
-  color: var(--fg-muted, #353742);
-  cursor: default;
-  background: var(--bg-raised, #fff);
-  border-color: var(--border, #e2e6ee);
 }

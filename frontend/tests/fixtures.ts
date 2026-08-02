@@ -90,6 +90,11 @@ export async function installApiMocks(page: Page): Promise<void> {
     if (method === 'POST' && path === '/auth/sync') return json(ALICE)
     if (method === 'GET' && path === '/users/me') return json(ALICE)
 
+    // Settings sheet key issuance — fired on open under Apple UAs (the two
+    // iPhone projects). Steady state: the key exists, no plaintext returned.
+    if (method === 'POST' && path === '/account/api-key')
+      return json({ key: null, created: false })
+
     // Lists collection
     if (path === '/lists') {
       if (method === 'GET') return json(SEED_LISTS)
