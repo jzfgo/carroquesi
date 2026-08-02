@@ -447,6 +447,6 @@ test('tapping the scrim calls onClose', async () => {
     />,
   )
   await screen.findByText(/Alice/)
-  fireEvent.click(document.querySelector('.sheet-scrim')!)
+  fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
   expect(onClose).toHaveBeenCalled()
 })

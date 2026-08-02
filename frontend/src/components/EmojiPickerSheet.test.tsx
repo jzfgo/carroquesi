@@ -42,7 +42,7 @@ describe('EmojiPickerSheet', () => {
     render(
       <EmojiPickerSheet current={null} onSelect={vi.fn()} onClose={onClose} />,
     )
-    fireEvent.click(document.querySelector('.sheet-scrim')!)
+    fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
     expect(onClose).toHaveBeenCalledOnce()
   })
 

@@ -93,7 +93,7 @@ export function Sheet({
     // Clear swipe-drag leftovers so the exit class drives the transform.
     el.style.transform = ''
     el.style.transition = ''
-    el.classList.add('sheet--closing')
+    el.classList.add('modal-sheet--closing')
     const duration = exitDurationMs(el)
     if (duration <= 0) {
       finishClose()
@@ -147,9 +147,9 @@ export function Sheet({
 
   return createPortal(
     <>
-      <div className="sheet-scrim" onClick={dismiss} />
+      <div className="modal-sheet-scrim" onClick={dismiss} />
       <div
-        className={`sheet${className ? ` ${className}` : ''}`}
+        className={`modal-sheet${className ? ` ${className}` : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={label}
@@ -157,7 +157,7 @@ export function Sheet({
         tabIndex={-1}
         ref={panelRef}
       >
-        <div className="sheet__handle" {...swipe} />
+        <div className="modal-sheet__handle" {...swipe} />
         {children}
       </div>
     </>,

@@ -1,4 +1,4 @@
-.sheet-scrim {
+.modal-sheet-scrim {
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -8,7 +8,7 @@
 /* A modal sheet always carries border-top (edge-lit), border-bottom
    (edge-cast) AND box-shadow (sheet-cast); the theme zeroes the ones it
    does not draw. */
-.sheet {
+.modal-sheet {
   position: fixed;
   left: 0;
   right: 0;
@@ -23,10 +23,10 @@
   box-shadow: var(--sheet-cast-list);
   padding-bottom: max(env(safe-area-inset-bottom), 16px);
   outline: none;
-  animation: sheet-enter var(--dur-slow) var(--ease-spring);
+  animation: modal-sheet-enter var(--dur-slow) var(--ease-spring);
 }
 
-@keyframes sheet-enter {
+@keyframes modal-sheet-enter {
   from {
     transform: translateY(100%);
   }
@@ -35,14 +35,14 @@
 /* Exit is a transition, not an animation, so a dismiss mid-entrance slides
    down from wherever the sheet currently is. The component reads this
    transition's duration to schedule the unmount. */
-.sheet--closing {
+.modal-sheet--closing {
   animation: none;
   transform: translateY(100%);
   transition: transform var(--dur-slow) var(--ease-spring);
   pointer-events: none;
 }
 
-.sheet__handle {
+.modal-sheet__handle {
   flex-shrink: 0;
   width: 36px;
   height: 4px;
@@ -53,11 +53,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sheet {
+  .modal-sheet {
     animation: none;
   }
 
-  .sheet--closing {
+  .modal-sheet--closing {
     transition: none;
   }
 }

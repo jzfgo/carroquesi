@@ -25,7 +25,7 @@ afterEach(() => {
 })
 
 function panel(): HTMLElement {
-  return document.querySelector('.sheet')!
+  return document.querySelector('.modal-sheet')!
 }
 
 describe('Sheet chrome and aria wiring', () => {
@@ -59,7 +59,7 @@ describe('Sheet chrome and aria wiring', () => {
       </Sheet>,
     )
     const el = document.querySelector('.list-action-sheet')!
-    expect(el).toHaveClass('sheet')
+    expect(el).toHaveClass('modal-sheet')
     expect(el.parentElement).toBe(document.body)
   })
 
@@ -69,7 +69,7 @@ describe('Sheet chrome and aria wiring', () => {
         <p>contenido</p>
       </Sheet>,
     )
-    expect(document.querySelector('.sheet__handle')).toBeInTheDocument()
+    expect(document.querySelector('.modal-sheet__handle')).toBeInTheDocument()
   })
 })
 
@@ -92,7 +92,7 @@ describe('dismissal', () => {
         <p>contenido</p>
       </Sheet>,
     )
-    fireEvent.click(document.querySelector('.sheet-scrim')!)
+    fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
     expect(onClose).toHaveBeenCalledOnce()
   })
 
@@ -105,10 +105,10 @@ describe('dismissal', () => {
       </Sheet>,
     )
     fireEvent.keyDown(document, { key: 'Escape' })
-    fireEvent.click(document.querySelector('.sheet-scrim')!)
+    fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
     expect(onDismiss).toHaveBeenCalledTimes(2)
     expect(onClose).not.toHaveBeenCalled()
-    expect(panel()).not.toHaveClass('sheet--closing')
+    expect(panel()).not.toHaveClass('modal-sheet--closing')
   })
 
   it('ref handle close() runs the same closing path', () => {
@@ -134,7 +134,7 @@ describe('close animation', () => {
       </Sheet>,
     )
     fireEvent.keyDown(document, { key: 'Escape' })
-    expect(panel()).toHaveClass('sheet--closing')
+    expect(panel()).toHaveClass('modal-sheet--closing')
     expect(onClose).not.toHaveBeenCalled()
     fireEvent.transitionEnd(panel())
     expect(onClose).toHaveBeenCalledOnce()
@@ -194,7 +194,7 @@ describe('close animation', () => {
     )
     fireEvent.keyDown(document, { key: 'Escape' })
     fireEvent.keyDown(document, { key: 'Escape' })
-    fireEvent.click(document.querySelector('.sheet-scrim')!)
+    fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
     fireEvent.transitionEnd(panel())
     fireEvent.transitionEnd(panel())
     expect(onClose).toHaveBeenCalledOnce()

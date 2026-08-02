@@ -41,7 +41,7 @@ describe('ApiKeySheet dismissal', () => {
     const onClose = renderSheet()
     fireEvent.click(screen.getByRole('button', { name: 'Regenerar clave' }))
 
-    fireEvent.click(document.querySelector('.sheet-scrim')!)
+    fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
     expect(
       screen.getByRole('dialog', { name: 'Atajo de Siri' }),
     ).toBeInTheDocument()
