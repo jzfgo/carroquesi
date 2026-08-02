@@ -1039,3 +1039,162 @@ def test_mapping_written_by_apply_is_found_by_the_next_scan(client, session, use
     body = response.json()
     assert len(body["matched"]) == 1
     assert body["matched"][0]["item_id"] == "item-bombones"
+
+
+def test_receipt_apply_files_a_new_purchase_into_the_current_open_trip(client, session, user):
+    """The receipt backdates purchased_at to the shopping trip, but the trip
+    link points at the *current* open cart — purchased implies a trip, and
+    guessing a past trip from a parsed date would be a claim nobody made.
+    Reconciliation re-files it later."""
+    from app.db.models import Purchase
+
+    session.add(
+        ListItem(
+            id="item-pan-trip",
+            list_id=LIST_ID,
+            name="Pan de molde",
+            added_by=user.id,
+            purchased_at=None,
+        )
+    )
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": "2026-04-11T17:42:00Z",
+            "patches": [
+                {
+                    "item_id": "item-pan-trip",
+                    "price": 1.25,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": None,
+                }
+            ],
+            "new_items": [],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    item = session.get(ListItem, "item-pan-trip")
+    assert item.purchased_at == datetime(2026, 4, 11, 17, 42)
+    assert item.purchase_id is not None
+    trip = session.get(Purchase, item.purchase_id)
+    assert trip.list_id == LIST_ID
+    assert trip.closed_at is None
+    # The trip is the current cart, not one invented for the receipt's date.
+    assert trip.tears_off_at > datetime.now(UTC).replace(tzinfo=None)
+
+
+def test_receipt_apply_created_items_join_the_same_open_trip(client, session, user):
+    from sqlmodel import select as sql_select
+
+    from app.db.models import Purchase
+
+    session.add(
+        ListItem(
+            id="item-pan-trip2",
+            list_id=LIST_ID,
+            name="Pan de molde",
+            added_by=user.id,
+            purchased_at=None,
+        )
+    )
+    session.commit()
+
+    body = _new_item_body()
+    body["patches"] = [
+        {
+            "item_id": "item-pan-trip2",
+            "price": 1.25,
+            "price_per": None,
+            "store": "Mercadona",
+            "quantity": None,
+        }
+    ]
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+    assert response.status_code == 200
+
+    session.expire_all()
+    patched = session.get(ListItem, "item-pan-trip2")
+    created = session.exec(sql_select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert patched.purchase_id is not None
+    assert created.purchase_id == patched.purchase_id
+    assert len(session.exec(sql_select(Purchase)).all()) == 1
+
+
+def test_receipt_apply_stamps_the_trip_boundary_in_the_clients_zone(client, session, user):
+    from zoneinfo import ZoneInfo
+
+    from app.db.models import Purchase
+    from app.services.trips import tears_off_at_for
+
+    session.add(
+        ListItem(
+            id="item-pan-trip3",
+            list_id=LIST_ID,
+            name="Pan de molde",
+            added_by=user.id,
+            purchased_at=None,
+        )
+    )
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": "2026-04-11T17:42:00Z",
+            "patches": [
+                {
+                    "item_id": "item-pan-trip3",
+                    "price": 1.25,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": None,
+                }
+            ],
+            "new_items": [],
+            "mappings": [],
+        },
+        headers={"X-Client-Timezone": "Etc/GMT+12"},
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    item = session.get(ListItem, "item-pan-trip3")
+    trip = session.get(Purchase, item.purchase_id)
+    assert trip.tears_off_at == tears_off_at_for(trip.opened_at, ZoneInfo("Etc/GMT+12"))
+
+
+def test_price_only_receipt_apply_opens_no_trip(client, session):
+    """Logging a price on an already-purchased item claims nothing about a
+    shop happening now, so no cart may appear as a side effect."""
+    from sqlmodel import select as sql_select
+
+    from app.db.models import Purchase
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "scan_id": None,
+            "receipt_date": "2026-04-11T17:42:00Z",
+            "patches": [
+                {
+                    "item_id": "item-almendras",
+                    "price": 1.15,
+                    "price_per": None,
+                    "store": "Mercadona",
+                    "quantity": None,
+                }
+            ],
+            "new_items": [],
+            "mappings": [],
+        },
+    )
+    assert response.status_code == 200
+    assert session.exec(sql_select(Purchase)).all() == []

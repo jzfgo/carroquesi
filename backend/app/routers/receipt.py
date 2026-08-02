@@ -1,9 +1,9 @@
 from datetime import UTC, datetime, time, timedelta
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlmodel import select
 
-from app.db.models import List, ListItem, ReceiptNameMapping, ReceiptScan
+from app.db.models import List, ListItem, Purchase, ReceiptNameMapping, ReceiptScan
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.receipt import (
     ReceiptPriceApplyResult,
@@ -12,9 +12,11 @@ from app.schemas.receipt import (
     ReceiptScanResult,
 )
 from app.services import feature_flags
+from app.services.client_day import resolve_timezone
 from app.services.receipt_matcher import match_lines, normalise
 from app.services.store_key import store_key
 from app.services.store_registry import ensure_stores
+from app.services.trips import open_trip_for
 
 router = APIRouter(tags=["receipt"])
 
@@ -136,10 +138,15 @@ def scan_receipt(
 def apply_receipt_prices(
     list_id: str,
     body: ReceiptPriceBatch,
+    request: Request,
     session: CurrentSession = None,
     list_and_user: MemberDep = None,
 ):
     _, current_user = list_and_user
+    # Read raw rather than through the ClientTimezone dependency: a declared
+    # Header would surface in the OpenAPI schema, and this endpoint's contract
+    # does not change — the browser already sends the header on every request.
+    client_tz = resolve_timezone(request.headers.get("x-client-timezone"))
 
     # Gate the apply step on the same flag as the scan step. The UI reaches
     # here only after a successful scan, so a flag-less user is already stopped
@@ -154,6 +161,19 @@ def apply_receipt_prices(
     now = datetime.now(UTC).replace(tzinfo=None)
     purchase_ts = _parse_receipt_at(body.receipt_date) or now
     updated = 0
+
+    # Items a receipt marks purchased join the *current* open trip, even
+    # though their purchased_at is backdated to the shopping trip: purchased
+    # implies a trip, and guessing a past trip from a parsed date would be a
+    # claim nobody made. Reconciliation re-files them later. Created lazily so
+    # a price-only apply opens no trip.
+    trip: Purchase | None = None
+
+    def current_trip() -> Purchase:
+        nonlocal trip
+        if trip is None:
+            trip = open_trip_for(session, list_id, now, client_tz)
+        return trip
 
     for patch in body.patches:
         item = session.get(ListItem, patch.item_id)
@@ -170,6 +190,7 @@ def apply_receipt_prices(
         # client-sent flag could rewrite a timestamp set by another member.
         if item.purchased_at is None:
             item.purchased_at = purchase_ts
+            item.purchase_id = current_trip().id
             # The unpurchase grace window keys off the write time. Without
             # this stamp, a backdated purchase could never be reverted, even
             # seconds after a wrong link. Price-only patches stay out: logging
@@ -194,6 +215,7 @@ def apply_receipt_prices(
                 price_per=new.price_per,
                 price_store=new.store,
                 purchased_at=purchase_ts,
+                purchase_id=current_trip().id,
             )
         )
         created += 1
