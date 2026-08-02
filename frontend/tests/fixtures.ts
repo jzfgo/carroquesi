@@ -22,7 +22,12 @@ export const GEMINI_ENDPOINT_PATTERN =
 // The payloads live in fixtures.json so a backend test can validate them
 // against the Pydantic response models. Annotating them here keeps the other
 // half of the contract: a change to src/types has to break this file too.
-export const ALICE: UserMe = data.ALICE
+// The JSON import widens "granted" to string, so the union field needs a
+// narrowing cast, like price_type below.
+export const ALICE: UserMe = {
+  ...data.ALICE,
+  receipt_consent: data.ALICE.receipt_consent as UserMe['receipt_consent'],
+}
 export const SEED_LISTS: ApiList[] = data.SEED_LISTS
 export const SEED_ITEMS: Record<string, ListItem[]> = data.SEED_ITEMS
 

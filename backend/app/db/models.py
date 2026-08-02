@@ -24,6 +24,14 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True)
     photo_url: str | None = None
     created_at: datetime = Field(default_factory=_now)
+    # Consent to AI processing of this user's receipts. NULL means the user
+    # was never asked; "granted" and "declined" are explicit decisions.
+    # receipt_consent_at records when the current decision was made — a
+    # consent record needs a date to be accountable. Declining after granting
+    # does not delete earlier scan artifacts: consent gates future
+    # processing, not history.
+    receipt_consent: str | None = None
+    receipt_consent_at: datetime | None = None
 
 
 class List(SQLModel, table=True):

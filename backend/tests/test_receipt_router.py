@@ -13,14 +13,17 @@ LIST_ID = "list-receipt-test"
 
 @pytest.fixture(autouse=True)
 def enable_receipt_flag(session, user):
-    """Enable ai_receipt_scanning for the test user so existing tests keep passing."""
+    """Enable ai_receipt_scanning and grant consent so the endpoint tests
+    exercise their own behaviour, not the gates in front of it."""
     row = _UserFeature(
         user_id=user.id,
         feature="ai_receipt_scanning",
         enabled=True,
         granted_by="admin",
     )
-    session.add(row)
+    user.receipt_consent = "granted"
+    user.receipt_consent_at = datetime.now(UTC).replace(tzinfo=None)
+    session.add_all([row, user])
     session.commit()
 
 
@@ -550,6 +553,54 @@ def test_receipt_prices_returns_403_when_flag_disabled(session, other_user, othe
         json={"scan_id": None, "patches": [], "mappings": []},
     )
     assert response.status_code == 403
+
+
+RECEIPT_ENDPOINT_BODIES = [
+    ("receipt", _unit_body()),
+    ("receipt-prices", {"scan_id": None, "patches": [], "mappings": []}),
+]
+
+
+@pytest.mark.parametrize("consent", [None, "declined"])
+@pytest.mark.parametrize(("endpoint", "body"), RECEIPT_ENDPOINT_BODIES)
+def test_endpoints_return_403_without_consent(client, session, user, consent, endpoint, body):
+    """With the flag on but consent unset or declined, both receipt endpoints
+    must refuse with a detail distinct from the flag's, so the UI can tell
+    "not available to you" from "you have not agreed yet"."""
+    user.receipt_consent = consent
+    session.add(user)
+    session.commit()
+
+    response = client.post(f"/lists/{LIST_ID}/{endpoint}", json=body)
+    assert response.status_code == 403
+    assert response.json()["detail"] == "receipt_consent_required"
+
+
+@pytest.mark.parametrize(("endpoint", "body"), RECEIPT_ENDPOINT_BODIES)
+def test_endpoints_pass_consent_gate_when_granted(client, endpoint, body):
+    # The autouse fixture grants both the flag and consent.
+    response = client.post(f"/lists/{LIST_ID}/{endpoint}", json=body)
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize("consent", [None, "granted", "declined"])
+@pytest.mark.parametrize(("endpoint", "body"), RECEIPT_ENDPOINT_BODIES)
+def test_flag_gate_answers_first_regardless_of_consent(
+    session, other_user, other_client, consent, endpoint, body
+):
+    """Without the flag, the flag's own 403 detail is the answer even for a
+    user who granted consent — the two refusals must never blur."""
+    from app.db.models import List, ListMember
+
+    lst = List(id="list-receipt-other", name="Other List", owner_id=other_user.id)
+    mem = ListMember(list_id="list-receipt-other", user_id=other_user.id)
+    other_user.receipt_consent = consent
+    session.add_all([lst, mem, other_user])
+    session.commit()
+
+    response = other_client.post(f"/lists/list-receipt-other/{endpoint}", json=body)
+    assert response.status_code == 403
+    assert response.json()["detail"] == "ai_receipt_scanning feature not enabled"
 
 
 def test_receipt_prices_is_backward_compatible_with_pre_new_items_clients(client, session):

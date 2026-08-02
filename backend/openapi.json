@@ -1617,6 +1617,23 @@
         "title": "PushTokenBody",
         "type": "object"
       },
+      "ReceiptConsentUpdate": {
+        "properties": {
+          "consent": {
+            "enum": [
+              "granted",
+              "declined"
+            ],
+            "title": "Consent",
+            "type": "string"
+          }
+        },
+        "required": [
+          "consent"
+        ],
+        "title": "ReceiptConsentUpdate",
+        "type": "object"
+      },
       "ReceiptPriceApplyResult": {
         "properties": {
           "items_created": {
@@ -1974,6 +1991,21 @@
               }
             ],
             "title": "Photo Url"
+          },
+          "receipt_consent": {
+            "anyOf": [
+              {
+                "enum": [
+                  "granted",
+                  "declined"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt Consent"
           }
         },
         "required": [
@@ -6251,6 +6283,103 @@
           }
         ],
         "summary": "Get Me",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/users/me/receipt-consent": {
+      "put": {
+        "description": "Record the user's receipt-scanning consent decision.\n\nRe-sending the same decision is fine; the timestamp always reflects the\nmost recent time the user stated it.",
+        "operationId": "set_receipt_consent_users_me_receipt_consent_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiptConsentUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Receipt Consent",
         "tags": [
           "users"
         ]

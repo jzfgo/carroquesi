@@ -81,11 +81,16 @@ BOB_ID = "seed-user-bob"
 CAROL_ID = "seed-user-carol"
 
 SEED_USERS = [
+    # Alice carries the ai_receipt_scanning flag (see SEED_FEATURES), and the
+    # receipt endpoints also require consent — grant it so the dev scan flow
+    # works end to end without clicking through the consent prompt first.
     User(
         id=ALICE_ID,
         firebase_uid="seed-alice",
         display_name="Alice (seed)",
         email="alice@seed.local",
+        receipt_consent="granted",
+        receipt_consent_at=now(),
     ),
     User(id=BOB_ID, firebase_uid="seed-bob", display_name="Bob (seed)", email="bob@seed.local"),
     User(
