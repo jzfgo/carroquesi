@@ -43,6 +43,8 @@ class ItemRead(BaseModel):
     price_per: Literal["KILOGRAM"] | None
     price_store: str | None
     purchased_at: datetime | None
+    # The trip this item was bought on. None while unpurchased.
+    purchase_id: str | None = None
     # When this item's trip stops taking items — closed by hand, or torn off
     # at its stamped local midnight. None while unpurchased. Clients read it
     # to mirror the trip-open guards without re-deriving the boundary.

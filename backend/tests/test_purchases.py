@@ -34,8 +34,9 @@ def _lines(*items) -> list[dict]:
 
 
 def _pid(session: Session, item: dict) -> str | None:
-    """The trip an item is filed under. Read from the row: ItemRead does not
-    carry purchase_id — the read surface for trips is later work."""
+    """The trip an item is filed under, read fresh from the row. ItemRead
+    carries purchase_id too, but the dicts these tests hold were captured
+    before the writes under test."""
     row = session.get(ListItem, item["id"])
     session.refresh(row)
     return row.purchase_id
@@ -501,3 +502,198 @@ def test_a_close_with_too_many_lines_is_rejected(client: TestClient):
     )
 
     assert response.status_code == 422
+
+
+# --- The read side: the history page and one ticket's lines ---
+
+
+def _page(client: TestClient, list_id: str, **params):
+    return client.get(f"/lists/{list_id}/purchases", params=params)
+
+
+def _backdate_close(session: Session, trip_id: str, days_ago: int) -> None:
+    trip = session.get(Purchase, trip_id)
+    trip.closed_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days_ago)
+    session.add(trip)
+    session.commit()
+
+
+def test_the_page_puts_the_open_cart_first_then_newest_shop(client: TestClient, session: Session):
+    lst = _create_list(client)
+    # A shop nobody wrote down, five days back: its key is its tear-off.
+    forgotten = _tap(client, lst["id"], "Aceitunas")
+    torn_id = _tear_off(session, forgotten, days_ago=5)
+    # Two written-down shops, two and one days back.
+    milk = _tap(client, lst["id"], "Leche")
+    older = _close(client, lst["id"], store="Lidl", total=14.60, lines=_lines(milk)).json()
+    _backdate_close(session, older["id"], days_ago=2)
+    bread = _tap(client, lst["id"], "Pan")
+    newer = _close(client, lst["id"], store="Mercadona", lines=_lines(bread)).json()
+    _backdate_close(session, newer["id"], days_ago=1)
+    # Today's open cart.
+    oil = _tap(client, lst["id"], "Aceite")
+    cart_id = _pid(session, oil)
+
+    response = _page(client, lst["id"])
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 4
+    assert [p["id"] for p in body["purchases"]] == [cart_id, newer["id"], older["id"], torn_id]
+    # The torn-off proto-trip is honest about what nobody recorded.
+    proto = body["purchases"][3]
+    assert proto["closed_at"] is None
+    assert proto["store"] is None
+    assert proto["total"] is None
+    assert proto["line_count"] == 1
+
+
+def test_trips_sharing_a_boundary_tie_break_on_id(client: TestClient, session: Session):
+    lst = _create_list(client)
+    instant = datetime(2026, 7, 1, 12, 0, 0)
+    boundary = datetime(2026, 7, 1, 22, 0, 0)
+    for trip_id in ("trip-a", "trip-b"):
+        session.add(
+            Purchase(
+                id=trip_id,
+                list_id=lst["id"],
+                opened_at=instant,
+                tears_off_at=boundary,
+                closed_at=instant,
+                store="Lidl",
+            )
+        )
+    session.commit()
+
+    body = _page(client, lst["id"]).json()
+
+    assert [p["id"] for p in body["purchases"]] == ["trip-b", "trip-a"]
+
+
+def test_the_page_is_a_window_and_the_total_is_the_whole_list(client: TestClient, session: Session):
+    lst = _create_list(client)
+    for day, name in enumerate(["Leche", "Pan", "Aceite"], start=1):
+        item = _tap(client, lst["id"], name)
+        ticket = _close(client, lst["id"], store="Lidl", lines=_lines(item)).json()
+        _backdate_close(session, ticket["id"], days_ago=day)
+
+    first = _page(client, lst["id"], limit=2).json()
+    assert first["total"] == 3
+    assert len(first["purchases"]) == 2
+
+    second = _page(client, lst["id"], offset=2, limit=2).json()
+    assert second["total"] == 3
+    assert len(second["purchases"]) == 1
+    assert second["purchases"][0]["id"] not in {p["id"] for p in first["purchases"]}
+
+
+def test_the_page_rejects_absurd_windows(client: TestClient):
+    lst = _create_list(client)
+
+    assert _page(client, lst["id"], limit=0).status_code == 422
+    assert _page(client, lst["id"], limit=101).status_code == 422
+    assert _page(client, lst["id"], offset=-1).status_code == 422
+
+
+def test_a_ticket_emptied_by_an_unpurchase_counts_zero_lines(client: TestClient, session: Session):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    ticket = _close(client, lst["id"], store="Lidl", total=3.20, lines=_lines(milk)).json()
+    # The write-grace window lets the fresh tap be reverted even though its
+    # ticket is closed; the closed ticket itself stays, a historical record.
+    undo = client.patch(f"/lists/{lst['id']}/items/{milk['id']}", json={"purchased": False})
+    assert undo.status_code == 200
+
+    body = _page(client, lst["id"]).json()
+
+    (row,) = [p for p in body["purchases"] if p["id"] == ticket["id"]]
+    assert row["line_count"] == 0
+
+
+def test_has_receipt_reflects_a_linked_scan(client: TestClient, session: Session, user):
+    from app.db.models import ReceiptScan
+
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    scanned = _close(client, lst["id"], store="Lidl", lines=_lines(milk)).json()
+    bread = _tap(client, lst["id"], "Pan")
+    unscanned = _close(client, lst["id"], store="Dia", lines=_lines(bread)).json()
+    # Two scans reconciled the same trip, and a third — the historic shape,
+    # from before scans carried the link — reconciled none.
+    session.add(ReceiptScan(list_id=lst["id"], scanned_by=user.id, purchase_id=scanned["id"]))
+    session.add(ReceiptScan(list_id=lst["id"], scanned_by=user.id, purchase_id=scanned["id"]))
+    session.add(ReceiptScan(list_id=lst["id"], scanned_by=user.id, purchase_id=None))
+    session.commit()
+
+    by_id = {p["id"]: p for p in _page(client, lst["id"]).json()["purchases"]}
+
+    assert by_id[scanned["id"]]["has_receipt"] is True
+    assert by_id[unscanned["id"]]["has_receipt"] is False
+
+
+def test_a_non_member_cannot_read_the_page(client: TestClient, other_client: TestClient):
+    lst = _create_list(client)
+
+    assert other_client.get(f"/lists/{lst['id']}/purchases").status_code == 403
+
+
+def test_a_tickets_lines_come_in_tap_order_with_the_boundary_stamped(
+    client: TestClient, session: Session
+):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    bread = _tap(client, lst["id"], "Pan")
+    # Taps land microseconds apart; set the order beyond doubt. The bread
+    # went into the cart first, so created_at alone would order it wrong.
+    now = datetime.now(UTC).replace(tzinfo=None)
+    session.get(ListItem, bread["id"]).purchased_at = now - timedelta(hours=2)
+    session.get(ListItem, milk["id"]).purchased_at = now - timedelta(hours=1)
+    session.commit()
+    ticket = _close(client, lst["id"], store="Lidl", lines=_lines(milk, bread)).json()
+
+    response = client.get(f"/lists/{lst['id']}/purchases/{ticket['id']}/items")
+
+    assert response.status_code == 200
+    lines = response.json()
+    assert [line["name"] for line in lines] == ["Pan", "Leche"]
+    for line in lines:
+        assert line["purchase_id"] == ticket["id"]
+        assert line["purchase_ends_at"] == ticket["closed_at"]
+
+
+def test_an_open_carts_lines_are_readable_too(client: TestClient, session: Session):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    cart_id = _pid(session, milk)
+
+    lines = client.get(f"/lists/{lst['id']}/purchases/{cart_id}/items").json()
+
+    assert [line["name"] for line in lines] == ["Leche"]
+    # An open cart's boundary is its tear-off, still ahead.
+    ends_at = datetime.fromisoformat(lines[0]["purchase_ends_at"])
+    assert ends_at > datetime.now(UTC).replace(tzinfo=None)
+
+
+def test_another_lists_ticket_reads_as_not_found(
+    client: TestClient, other_client: TestClient, session: Session
+):
+    """A purchase id is not proof of access to the trip it names."""
+    mine = _create_list(client)
+    theirs = other_client.post("/lists", json={"name": "Vecinos"}).json()
+    their_bread = _tap(other_client, theirs["id"], "Pan")
+    their_cart = _pid(session, their_bread)
+
+    assert client.get(f"/lists/{mine['id']}/purchases/{their_cart}/items").status_code == 404
+    assert client.get(f"/lists/{mine['id']}/purchases/no-such-trip/items").status_code == 404
+
+
+def test_a_non_member_cannot_read_a_tickets_lines(
+    client: TestClient, other_client: TestClient, session: Session
+):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    cart_id = _pid(session, milk)
+
+    response = other_client.get(f"/lists/{lst['id']}/purchases/{cart_id}/items")
+
+    assert response.status_code == 403

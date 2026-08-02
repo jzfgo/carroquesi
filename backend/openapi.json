@@ -512,6 +512,17 @@
             ],
             "title": "Purchase Ends At"
           },
+          "purchase_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Id"
+          },
           "purchased": {
             "readOnly": true,
             "title": "Purchased",
@@ -1427,6 +1438,27 @@
         "title": "PurchaseNewItem",
         "type": "object"
       },
+      "PurchasePage": {
+        "properties": {
+          "purchases": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseSummary"
+            },
+            "title": "Purchases",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "purchases",
+          "total"
+        ],
+        "title": "PurchasePage",
+        "type": "object"
+      },
       "PurchaseRead": {
         "properties": {
           "closed_at": {
@@ -1492,6 +1524,84 @@
           "total"
         ],
         "title": "PurchaseRead",
+        "type": "object"
+      },
+      "PurchaseSummary": {
+        "description": "One row of the purchase history page.\n\nCarries what the page renders per ticket without fetching its lines:\nhow many lines it holds, and whether a receipt scan reconciled it.",
+        "properties": {
+          "closed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "has_receipt": {
+            "title": "Has Receipt",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "line_count": {
+            "title": "Line Count",
+            "type": "integer"
+          },
+          "list_id": {
+            "title": "List Id",
+            "type": "string"
+          },
+          "opened_at": {
+            "format": "date-time",
+            "title": "Opened At",
+            "type": "string"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "tears_off_at": {
+            "format": "date-time",
+            "title": "Tears Off At",
+            "type": "string"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "required": [
+          "id",
+          "list_id",
+          "opened_at",
+          "tears_off_at",
+          "closed_at",
+          "store",
+          "total",
+          "line_count",
+          "has_receipt"
+        ],
+        "title": "PurchaseSummary",
         "type": "object"
       },
       "PushTokenBody": {
@@ -4823,6 +4933,125 @@
         ]
       }
     },
+    "/lists/{list_id}/purchases": {
+      "get": {
+        "description": "The list's trips, newest shop first.\n\nThe sort key is when each trip stopped (or will stop) taking items —\nthe same instant the trip-open rule compares against. An open cart's\nboundary is in the future, so it naturally sorts first; a trip that\ntore off with nobody writing it down sorts by the day it covered, not\nby whenever someone later looks at it. The id tie-break keeps pages\nstable when two trips share a boundary.",
+        "operationId": "list_purchases_lists__list_id__purchases_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchasePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Purchases",
+        "tags": [
+          "purchases"
+        ]
+      }
+    },
     "/lists/{list_id}/purchases/close": {
       "post": {
         "description": "Declare what a shop was — claim lines out of a trip and file them.\n\nClaiming every item in the cart closes the trip in place; claiming fewer\nsplits the selection onto its own ticket and leaves the rest in the\ncart. There is no date control: the ticket's dates derive from the\nclaimed lines' purchased_at and the close instant, which covers every\nshop the current write paths can produce.\n\nNo push fires here. Like the receipt apply, a close records a shop that\nalready happened — nothing joins the list unpurchased, and the impulse\nbuys it creates are born bought, the same shape that path creates\nsilently.",
@@ -4924,6 +5153,115 @@
           }
         ],
         "summary": "Close Purchase",
+        "tags": [
+          "purchases"
+        ]
+      }
+    },
+    "/lists/{list_id}/purchases/{purchase_id}/items": {
+      "get": {
+        "description": "The lines of one ticket, in the order they went into the cart.",
+        "operationId": "get_purchase_items_lists__list_id__purchases__purchase_id__items_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "purchase_id",
+            "required": true,
+            "schema": {
+              "title": "Purchase Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ItemRead"
+                  },
+                  "title": "Response Get Purchase Items Lists  List Id  Purchases  Purchase Id  Items Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Purchase Items",
         "tags": [
           "purchases"
         ]

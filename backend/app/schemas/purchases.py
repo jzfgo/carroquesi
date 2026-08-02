@@ -68,3 +68,24 @@ class PurchaseRead(BaseModel):
     closed_at: datetime | None
     store: str | None
     total: float | None
+
+
+class PurchaseSummary(PurchaseRead):
+    """One row of the purchase history page.
+
+    Carries what the page renders per ticket without fetching its lines:
+    how many lines it holds, and whether a receipt scan reconciled it.
+    """
+
+    line_count: int
+    # Derived from receipt_scans.purchase_id, which only an applied scan
+    # sets. Scans that predate the link stay NULL, so old tickets read
+    # False even when a receipt was scanned for them.
+    has_receipt: bool
+
+
+class PurchasePage(BaseModel):
+    purchases: list[PurchaseSummary]
+    # Every trip the list has, not the page's share of them — the client
+    # needs it to know whether to ask for another page.
+    total: int
