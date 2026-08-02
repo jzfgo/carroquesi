@@ -64,3 +64,73 @@ def test_users_me_reflects_api_key_state(client: TestClient, session: Session, u
     assert data["has_api_key"] is True
     assert data["api_key_last_used_at"] is not None
     assert datetime.fromisoformat(data["api_key_last_used_at"]) == last_used
+
+
+def test_sync_returns_null_consent_when_never_asked(client: TestClient, user: User):
+    response = client.post("/auth/sync")
+    assert response.status_code == 200
+    data = response.json()
+    assert "receipt_consent" in data
+    assert data["receipt_consent"] is None
+
+
+def test_put_receipt_consent_grants(client: TestClient, session: Session, user: User):
+    response = client.put("/users/me/receipt-consent", json={"consent": "granted"})
+    assert response.status_code == 200
+    assert response.json()["receipt_consent"] == "granted"
+
+    session.refresh(user)
+    assert user.receipt_consent == "granted"
+    assert user.receipt_consent_at is not None
+
+
+def test_put_receipt_consent_declines(client: TestClient, session: Session, user: User):
+    response = client.put("/users/me/receipt-consent", json={"consent": "declined"})
+    assert response.status_code == 200
+    assert response.json()["receipt_consent"] == "declined"
+
+    session.refresh(user)
+    assert user.receipt_consent == "declined"
+    assert user.receipt_consent_at is not None
+
+
+def test_put_receipt_consent_is_idempotent(client: TestClient, session: Session, user: User):
+    client.put("/users/me/receipt-consent", json={"consent": "granted"})
+    response = client.put("/users/me/receipt-consent", json={"consent": "granted"})
+    assert response.status_code == 200
+    assert response.json()["receipt_consent"] == "granted"
+
+
+def test_put_receipt_consent_retoggle_restamps_timestamp(
+    client: TestClient, session: Session, user: User
+):
+    client.put("/users/me/receipt-consent", json={"consent": "granted"})
+    session.refresh(user)
+
+    # Backdate the stamp so the second decision provably rewrites it.
+    user.receipt_consent_at = datetime(2020, 1, 1, 0, 0, 0)
+    session.add(user)
+    session.commit()
+
+    response = client.put("/users/me/receipt-consent", json={"consent": "declined"})
+    assert response.status_code == 200
+    assert response.json()["receipt_consent"] == "declined"
+
+    session.refresh(user)
+    assert user.receipt_consent == "declined"
+    assert user.receipt_consent_at > datetime(2020, 1, 1, 0, 0, 0)
+
+
+def test_put_receipt_consent_rejects_unknown_values(client: TestClient):
+    response = client.put("/users/me/receipt-consent", json={"consent": "maybe"})
+    assert response.status_code == 422
+
+
+def test_users_me_carries_consent_decision(client: TestClient, session: Session, user: User):
+    user.receipt_consent = "declined"
+    session.add(user)
+    session.commit()
+
+    response = client.get("/users/me")
+    assert response.status_code == 200
+    assert response.json()["receipt_consent"] == "declined"

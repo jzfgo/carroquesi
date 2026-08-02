@@ -23,14 +23,14 @@ Two documents hold the durable truth this file does not repeat. Read the relevan
 
 ## Core Data Model
 
-- `users`: user profile and Firebase identity (`firebase_uid`)
+- `users`: user profile, Firebase identity (`firebase_uid`), and receipt-scanning consent (`receipt_consent`: NULL = never asked, else "granted"/"declined"; both receipt endpoints require "granted" on top of the `ai_receipt_scanning` flag, answering 403 `receipt_consent_required`)
 - `lists`: list metadata and ownership (`owner_id`)
 - `list_members`: list membership links; `is_default` flags the member's default list (the Siri `list_id="default"` target)
 - `list_items`: item data, purchase state (`purchased_at`), actual purchased quantity (`purchased_quantity`), pricing (`price`, `price_per`, `price_store`), and the trip it was bought on (`purchase_id`, nullable)
 - `purchases`: shopping trips, declared at reconciliation — `tears_off_at` is the stamped local-midnight boundary, `closed_at` NULL means still open (or never written down, on backfilled rows), `total` is a confirmed figure never summed from lines; at most one open trip per `(list_id, tears_off_at)` via partial unique index. See [ADR-014](docs/decisions/014-purchase-entity-and-trip-boundary.md)
 - `list_invites`: opt-in invitations; `id` is the share token
 - `barcode_cache`: cached barcode lookup data
-- `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results)
+- `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results), plus where the original file sits in the bucket when one was uploaded (`file_path`/`file_content_type`/`file_pages`, recorded when the upload URL is minted — the backend never sees the bytes)
 - `receipt_name_mappings`: learned receipt→item name mappings per store; improves auto-matching on future scans
 - `list_stores`: per-list store registry — `store_key` → canonical `display_name`, renameable by members. See [ADR-013](docs/decisions/013-store-registry.md)
 - `feedback_submissions`: in-app user feedback (message, email, source, user_agent)
@@ -47,7 +47,8 @@ Important invariants:
 - invite acceptance is explicit before access is granted
 - at most one `list_members.is_default=true` per user; the Siri `"default"` resolver is explicit-only (no most-recently-updated fallback) and 404s when unset. Auto-assigned on a user's first list; never auto-promoted when a default list is deleted. Managed via `backend/app/services/default_list.py`. See [ADR-007](docs/decisions/007-per-user-default-list.md)
 - `list_members.last_seen_at` is the push unseen-count watermark. Reset it **only while the list is actually visible** (`POST /lists/{id}/seen`, called from `useListSeen`) — marking a backgrounded tab as seen silently defeats the feature. The count is *derived* from `list_items` at send time, never accumulated, so dropped or duplicate pushes cannot cause drift. See [ADR-010](docs/decisions/010-web-push-via-fcm.md)
-- push notifications fire on item creation and on `purchased_at` going `NULL` → set, and on nothing else. Un-purchasing is a correction and must stay silent
+- push notifications fire on item creation, on `purchased_at` going `NULL` → set, and on ownership transfer (`PUT /lists/{list_id}/owner`: `ownership_transferred` to the new owner, `owner_changed` to the other remaining members), and on nothing else. Un-purchasing is a correction and must stay silent
+- the list owner cannot leave their own list: owner self-leave answers 409 "Transfer ownership before leaving" — transfer first (owner-only; target must be a current member), then leave normally. Transfer moves only `lists.owner_id`; memberships and default-list flags stay untouched
 - prune a push token only on a **typed** FCM verdict (`UnregisteredError`, `SenderIdMismatchError`), never on an error-message substring — a global misconfiguration would otherwise delete every token in the table
 
 ## Frontend
@@ -146,6 +147,7 @@ All known flags and defaults live in the registry in `backend/app/services/featu
 ## Infrastructure
 
 - Firebase project config lives in `frontend/src/lib/firebase.ts` (Auth only — no Firestore, no Storage)
+- Receipt files (photos or PDFs, 10 MB cap) live in a private GCS bucket (`RECEIPT_STORAGE_BUCKET`; empty = storage disabled). Clients never touch the bucket directly: the backend checks membership in Postgres and mints short-lived V4 signed URLs (`app/services/receipt_storage.py`), and `frontend/storage.rules` stays fully locked. Uploading gates on the flag + consent like scanning; downloading gates on membership only. Retention is list-lifetime — deleting a list purges its `receipts/{list_id}/` prefix best-effort. See [ADR-015](docs/decisions/015-gcs-receipt-storage-signed-urls.md)
 - Cloud Run service URL stored as an env var in the frontend for API calls
 - **The app is Postgres-host-agnostic** — the backend's entire contract with the database is `DATABASE_URL`, and no code path assumes a particular provider. Keep it that way: don't introduce host-specific assumptions without an ADR
 - The **canonical deployment** (the one the maintainer runs) hosts Postgres on Neon. Its backup policy, RPO/RTO, and restore runbook are in [ADR-008](docs/decisions/008-database-backup-policy.md) — read it before a risky migration or any recovery attempt. If you deployed this yourself elsewhere, the Neon specifics don't apply to you; the decision structure does

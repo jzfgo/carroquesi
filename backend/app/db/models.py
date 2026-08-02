@@ -24,6 +24,14 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, index=True)
     photo_url: str | None = None
     created_at: datetime = Field(default_factory=_now)
+    # Consent to AI processing of this user's receipts. NULL means the user
+    # was never asked; "granted" and "declined" are explicit decisions.
+    # receipt_consent_at records when the current decision was made — a
+    # consent record needs a date to be accountable. Declining after granting
+    # does not delete earlier scan artifacts: consent gates future
+    # processing, not history.
+    receipt_consent: str | None = None
+    receipt_consent_at: datetime | None = None
 
 
 class List(SQLModel, table=True):
@@ -194,6 +202,16 @@ class ReceiptScan(SQLModel, table=True):
     # several trips. Indexed because the purchase history page derives
     # has_receipt by looking scans up by trip.
     purchase_id: str | None = Field(default=None, foreign_key="purchases.id", index=True)
+    # Where the original receipt file lives in the bucket, plus what it is.
+    # Recorded when the upload URL is minted: the bytes go straight to GCS
+    # and never transit the backend, so a path here proves a URL was issued,
+    # not that the upload finished. Re-minting overwrites the same
+    # deterministic path, which is how a failed upload heals.
+    file_path: str | None = None
+    file_content_type: str | None = None
+    # Client-reported page count, NULL for images. Display metadata the
+    # server cannot verify — it never sees the bytes.
+    file_pages: int | None = None
 
 
 class ReceiptNameMapping(SQLModel, table=True):
@@ -234,6 +252,31 @@ class UserFeature(SQLModel, table=True):
     granted_by: str
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
+
+
+class UserListPref(SQLModel, table=True):
+    """Per-user, per-list presentation preferences (currently: the board).
+
+    Rule 20 of the redesign: a list's identity is shared, its orientation is
+    personal. Name and emoji are the list itself, seen by every member; the
+    board is how the list sits on *your* shelf. So this lives in its own
+    table rather than as a ListMember column — the shared/personal split
+    stays explicit in the schema — and a member's board is never serialized
+    to co-members. Writes here must not bump lists.updated_at, the same rule
+    as ListMember.is_default.
+    """
+
+    __tablename__ = "user_list_prefs"
+    __table_args__ = (UniqueConstraint("user_id", "list_id"),)
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    user_id: str = Field(foreign_key="users.id", index=True)
+    list_id: str = Field(foreign_key="lists.id")
+    # Plain TEXT, validated at the API layer (like store_key): the palette
+    # lives in app/services/list_board.py and the request schema, not in a
+    # DB constraint, so extending it never needs a migration.
+    board: str
+    created_at: datetime = Field(default_factory=_now)
 
 
 class ApiKey(SQLModel, table=True):

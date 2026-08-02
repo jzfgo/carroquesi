@@ -309,6 +309,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists/{list_id}/items/elsewhere": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Elsewhere Match
+         * @description Find the searched name on another of the caller's lists.
+         *
+         *     Answers the empty-search line ("you have this on <list>") with the single
+         *     most relevant match, or null when the name appears nowhere else.
+         */
+        get: operations["get_elsewhere_match_lists__list_id__items_elsewhere_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{list_id}/items/{item_id}": {
         parameters: {
             query?: never;
@@ -377,6 +400,47 @@ export interface paths {
         post?: never;
         /** Remove Member */
         delete: operations["remove_member_lists__list_id__members__user_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lists/{list_id}/owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Transfer Ownership */
+        put: operations["transfer_ownership_lists__list_id__owner_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lists/{list_id}/prefs/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Board Pref
+         * @description Pick the board this list sits on, for the caller only.
+         *
+         *     Personal presentation state — deliberately does NOT bump lists.updated_at,
+         *     the same rule as set_default_list: the board is invisible to co-members
+         *     and must not trigger their polls.
+         */
+        put: operations["set_board_pref_lists__list_id__prefs_board_put"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -460,6 +524,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists/{list_id}/purchases/{purchase_id}/receipt-scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Purchase Receipt Scans
+         * @description The scans that reconciled one trip, oldest first. Membership only.
+         */
+        get: operations["list_purchase_receipt_scans_lists__list_id__purchases__purchase_id__receipt_scans_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{list_id}/receipt": {
         parameters: {
             query?: never;
@@ -488,6 +572,58 @@ export interface paths {
         put?: never;
         /** Apply Receipt Prices */
         post: operations["apply_receipt_prices_lists__list_id__receipt_prices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lists/{list_id}/receipts/{scan_id}/file-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Receipt File Url
+         * @description Mint a signed GET URL for a stored receipt file.
+         *
+         *     Membership only — no flag, no consent. Consent gates the act of
+         *     processing a receipt; viewing what the household already stored is not
+         *     that act, and a member who declined consent may still need to check a
+         *     price against the paper someone else scanned.
+         */
+        get: operations["get_receipt_file_url_lists__list_id__receipts__scan_id__file_url_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lists/{list_id}/receipts/{scan_id}/upload-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Receipt Upload Url
+         * @description Mint a signed PUT URL so the client can store the original receipt.
+         *
+         *     Storing the file is part of processing the receipt, so the same flag and
+         *     consent gates as the scan apply. The file's path is recorded now, at mint
+         *     time: the bytes go straight to GCS, so the backend never learns whether
+         *     the PUT finished. There is no confirm step — re-minting overwrites the
+         *     same deterministic path, which both heals a failed upload and replaces a
+         *     stored file idempotently.
+         */
+        post: operations["create_receipt_upload_url_lists__list_id__receipts__scan_id__upload_url_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -643,6 +779,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/users/me/receipt-consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Receipt Consent
+         * @description Record the user's receipt-scanning consent decision.
+         *
+         *     Re-sending the same decision is fine; the timestamp always reflects the
+         *     most recent time the user stated it.
+         */
+        put: operations["set_receipt_consent_users_me_receipt_consent_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/waitlist": {
         parameters: {
             query?: never;
@@ -705,6 +864,14 @@ export interface components {
             /** Stores */
             stores: string[];
         };
+        /** BoardPrefUpdate */
+        BoardPrefUpdate: {
+            /**
+             * Board
+             * @enum {string}
+             */
+            board: "kraft" | "lino" | "salvia" | "niebla" | "barro" | "pizarra";
+        };
         /** DueSuggestionRead */
         DueSuggestionRead: {
             /** Avg Quantity */
@@ -723,6 +890,18 @@ export interface components {
             name: string;
             /** Stores */
             stores: string[];
+        };
+        /**
+         * ElsewhereMatchRead
+         * @description The searched name found on another list the caller belongs to.
+         */
+        ElsewhereMatchRead: {
+            /** Last Purchased At */
+            last_purchased_at: string | null;
+            /** List Id */
+            list_id: string;
+            /** List Name */
+            list_name: string;
         };
         /** FeatureToggleRequest */
         FeatureToggleRequest: {
@@ -900,6 +1079,8 @@ export interface components {
         };
         /** ListRead */
         ListRead: {
+            /** Board */
+            board?: string | null;
             /**
              * Cart Count
              * @default 0
@@ -1204,6 +1385,23 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** ReceiptConsentUpdate */
+        ReceiptConsentUpdate: {
+            /**
+             * Consent
+             * @enum {string}
+             */
+            consent: "granted" | "declined";
+        };
+        /** ReceiptFileUrlResult */
+        ReceiptFileUrlResult: {
+            /** Content Type */
+            content_type: string;
+            /** Pages */
+            pages: number | null;
+            /** Url */
+            url: string;
+        };
         /** ReceiptPriceApplyResult */
         ReceiptPriceApplyResult: {
             /** Items Created */
@@ -1261,6 +1459,43 @@ export interface components {
             /** Unmatched */
             unmatched: components["schemas"]["UnmatchedLine"][];
         };
+        /**
+         * ReceiptScanSummary
+         * @description One scan of a trip, as the purchase page's thumbnails need it.
+         */
+        ReceiptScanSummary: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** File Pages */
+            file_pages: number | null;
+            /** Has File */
+            has_file: boolean;
+            /** Id */
+            id: string;
+            /** Receipt At */
+            receipt_at: string | null;
+            /** Receipt Total */
+            receipt_total: number | null;
+            /** Store */
+            store: string | null;
+        };
+        /** ReceiptUploadUrlRequest */
+        ReceiptUploadUrlRequest: {
+            /** Content Type */
+            content_type: string;
+            /** Pages */
+            pages?: number | null;
+        };
+        /** ReceiptUploadUrlResult */
+        ReceiptUploadUrlResult: {
+            /** Expires In */
+            expires_in: number;
+            /** Upload Url */
+            upload_url: string;
+        };
         /** StoreRead */
         StoreRead: {
             /** Display Name */
@@ -1281,6 +1516,11 @@ export interface components {
             name: string;
             /** Stores */
             stores: string[];
+        };
+        /** TransferOwnershipRequest */
+        TransferOwnershipRequest: {
+            /** User Id */
+            user_id: string;
         };
         /** UnmatchedLine */
         UnmatchedLine: {
@@ -1320,6 +1560,8 @@ export interface components {
             id: string;
             /** Photo Url */
             photo_url: string | null;
+            /** Receipt Consent */
+            receipt_consent?: ("granted" | "declined") | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -2092,6 +2334,43 @@ export interface operations {
             };
         };
     };
+    get_elsewhere_match_lists__list_id__items_elsewhere_get: {
+        parameters: {
+            query: {
+                name: string;
+            };
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElsewhereMatchRead"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     delete_item_lists__list_id__items__item_id__delete: {
         parameters: {
             query?: never;
@@ -2427,6 +2706,80 @@ export interface operations {
             };
         };
     };
+    transfer_ownership_lists__list_id__owner_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnershipRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_board_pref_lists__list_id__prefs_board_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BoardPrefUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_purchases_lists__list_id__purchases_get: {
         parameters: {
             query?: {
@@ -2540,6 +2893,42 @@ export interface operations {
             };
         };
     };
+    list_purchase_receipt_scans_lists__list_id__purchases__purchase_id__receipt_scans_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+                purchase_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptScanSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     scan_receipt_lists__list_id__receipt_post: {
         parameters: {
             query?: never;
@@ -2605,6 +2994,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReceiptPriceApplyResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_receipt_file_url_lists__list_id__receipts__scan_id__file_url_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+                scan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptFileUrlResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_receipt_upload_url_lists__list_id__receipts__scan_id__upload_url_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+                scan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReceiptUploadUrlRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptUploadUrlResult"];
                 };
             };
             /** @description Validation Error */
@@ -2898,6 +3363,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_receipt_consent_users_me_receipt_consent_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReceiptConsentUpdate"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

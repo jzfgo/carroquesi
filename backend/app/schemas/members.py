@@ -7,6 +7,10 @@ class AddMemberRequest(BaseModel):
     email: EmailStr
 
 
+class TransferOwnershipRequest(BaseModel):
+    user_id: str
+
+
 class InviteCreated(BaseModel):
     status: str
     email: str

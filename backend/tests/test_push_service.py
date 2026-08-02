@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 from app.db.models import List, ListItem, ListMember, PushToken, User
 from app.services.push import (
     notify_list_change,
+    notify_ownership_change,
     recipients_for,
     unseen_count_for,
     watermark_for,
@@ -304,6 +305,61 @@ def test_send_returns_within_budget_when_fcm_hangs(session, user, other_user):
         release.set()
 
     assert elapsed < 5
+
+
+def test_ownership_change_targets_each_audience(session, user, other_user):
+    """New owner hears "you now run this list"; other members hear "ownership
+    changed"; the old owner (the actor) hears nothing."""
+    third = User(firebase_uid="uid-carol", display_name="Carol", email="c@example.com")
+    session.add(third)
+    session.commit()
+    lst = _make_shared_list(session, user, other_user)
+    session.add(ListMember(list_id=lst.id, user_id=third.id))
+    session.add(PushToken(user_id=user.id, token="alice-tok"))
+    session.add(PushToken(user_id=other_user.id, token="bob-tok"))
+    session.add(PushToken(user_id=third.id, token="carol-tok"))
+    session.commit()
+
+    with patch("app.services.push.messaging.send_each_for_multicast") as send:
+        send.side_effect = lambda message: _batch_for(message)
+        notify_ownership_change(session, lst, actor=user, new_owner_id=other_user.id)
+
+    event_by_token = {}
+    for call in send.call_args_list:
+        message = call.args[0]
+        for tok in message.tokens:
+            event_by_token[tok] = message.data["event"]
+    assert event_by_token == {
+        "bob-tok": "ownership_transferred",
+        "carol-tok": "owner_changed",
+    }
+
+
+def test_ownership_change_payload_shape_matches_item_events(session, user, other_user):
+    """The worker composes copy from the same data fields for every event."""
+    lst = _make_shared_list(session, user, other_user)
+    session.add(PushToken(user_id=other_user.id, token="bob-tok"))
+    session.commit()
+
+    with patch("app.services.push.messaging.send_each_for_multicast") as send:
+        send.side_effect = lambda message: _batch_for(message)
+        notify_ownership_change(session, lst, actor=user, new_owner_id=other_user.id)
+
+    message = send.call_args.args[0]
+    assert message.data["list_name"] == lst.name
+    assert message.data["actor_name"] == user.display_name
+    assert message.data["item_name"] == ""
+    assert message.data["unseen_count"] == "0"
+
+
+def test_ownership_change_never_raises(session, user, other_user):
+    lst = _make_shared_list(session, user, other_user)
+    session.add(PushToken(user_id=other_user.id, token="tok"))
+    session.commit()
+
+    with patch("app.services.push.messaging.send_each_for_multicast") as send:
+        send.side_effect = RuntimeError("FCM down")
+        notify_ownership_change(session, lst, actor=user, new_owner_id=other_user.id)
 
 
 def test_adding_an_item_notifies(client, session, user, other_user):
