@@ -58,6 +58,30 @@ test('emoji grid: picking an emoji calls onEmojiChange, ∅ clears it', () => {
   expect(baseProps.onEmojiChange).toHaveBeenCalledWith(null)
 })
 
+test('board picker: swatches render, active is pressed, picking calls onBoardChange', () => {
+  const onBoardChange = vi.fn()
+  render(
+    <ListActionSheet
+      {...baseProps}
+      board="kraft"
+      onBoardChange={onBoardChange}
+    />,
+  )
+  expect(screen.getByRole('button', { name: 'kraft' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'salvia' }))
+  expect(onBoardChange).toHaveBeenCalledWith('salvia')
+})
+
+test('board picker is hidden without board/onBoardChange (dashboard path)', () => {
+  render(<ListActionSheet {...baseProps} />)
+  expect(
+    screen.queryByRole('button', { name: 'kraft' }),
+  ).not.toBeInTheDocument()
+})
+
 test('default switch is off and setting it calls onSetDefault', () => {
   render(<ListActionSheet {...baseProps} isDefault={false} />)
   const sw = screen.getByRole('switch', { name: 'Lista predeterminada' })

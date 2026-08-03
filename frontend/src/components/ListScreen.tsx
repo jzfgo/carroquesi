@@ -16,12 +16,13 @@ import {
   getList,
   getSuggestions,
   renameStore,
+  setBoardPref,
   setDefaultList,
   submitParsedReceipt,
   submitReceiptPrices,
   updateList,
 } from '../lib/api'
-import { asBoardName } from '../lib/boards'
+import { asBoardName, type BoardName } from '../lib/boards'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
 import { isTripOpen } from '../lib/isTripOpen'
@@ -97,7 +98,11 @@ export function ListScreen({
   onListGone,
 }: Props) {
   const { getToken, user } = useAuth()
-  const boardName = asBoardName(board)
+  const [localBoard, setLocalBoard] = useState(asBoardName(board))
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: resets optimistic board when the route's list data refreshes
+    setLocalBoard(asBoardName(board))
+  }, [board])
   const [localListName, setLocalListName] = useState(listName)
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: resets optimistic local title when polling confirms external rename
@@ -233,6 +238,24 @@ export function ListScreen({
       }
     },
     [getToken, isOffline, listId, localEmoji],
+  )
+
+  const handleBoardChange = useCallback(
+    async (next: BoardName) => {
+      if (isOffline) {
+        setToast('No disponible sin conexión')
+        return
+      }
+      const previous = localBoard
+      setLocalBoard(next)
+      try {
+        await setBoardPref(getToken, listId, next)
+      } catch {
+        setLocalBoard(previous)
+        setToast('No se pudo cambiar el tablero')
+      }
+    },
+    [getToken, isOffline, listId, localBoard],
   )
 
   const handleDelete = useCallback(
@@ -842,7 +865,7 @@ export function ListScreen({
   }
 
   return (
-    <div className="list-screen" data-board={boardName}>
+    <div className="list-screen" data-board={localBoard}>
       <ListHeader
         title={localListName}
         emoji={localEmoji}
@@ -1022,6 +1045,8 @@ export function ListScreen({
           ownerId={listOwnerId}
           isDefault={localIsDefault}
           memberCount={members.size}
+          board={localBoard}
+          onBoardChange={(b) => void handleBoardChange(b)}
           onRename={(newName) => void handleRename(listId, newName)}
           onEmojiChange={(emoji) => void handleEmojiChange(emoji)}
           onDelete={() => void handleDelete(listId)}
