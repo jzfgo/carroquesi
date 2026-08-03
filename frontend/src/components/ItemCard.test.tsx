@@ -68,14 +68,19 @@ test('renders item name', () => {
   expect(screen.getByText('Leche Entera')).toBeInTheDocument()
 })
 
-test('renders the quantity column, normalized for display', () => {
+test('renders the quantity column as bare digits for a plain count', () => {
   const { container } = renderCard(BASE_ITEM)
   // Placement is CSS; what the selector needs is the qty in its own column,
-  // outside the meta row. «2 unidades» prints as «2 UD» — display only, the
-  // stored value is untouched.
+  // outside the meta row. «2 unidades» prints as bare «2» per 21b — UD is
+  // dropped from the unpurchased column; the stored value is untouched.
   const qty = container.querySelector('.item-card__qty')
-  expect(qty).toHaveTextContent(/^2 UD$/)
+  expect(qty).toHaveTextContent(/^2$/)
   expect(qty?.closest('.item-card__text')).toBeNull()
+})
+
+test('the quantity column keeps a weight unit, where it would otherwise be ambiguous', () => {
+  const { container } = renderCard({ ...BASE_ITEM, quantity: '1kg' })
+  expect(container.querySelector('.item-card__qty')).toHaveTextContent(/^1 KG$/)
 })
 
 test('pending meta carries the brand but not the store — the group header names it', () => {

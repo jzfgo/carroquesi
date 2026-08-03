@@ -1,7 +1,7 @@
 import { Check, ChevronRight, RotateCcw, ShoppingCart } from 'lucide-react'
 import { useOnline } from '../hooks/useOnline'
 import { formatRowAmount } from '../lib/formatPrice'
-import { formatQuantity } from '../lib/formatQuantity'
+import { formatQuantity, formatQuantityColumn } from '../lib/formatQuantity'
 import { isTripOpen } from '../lib/isTripOpen'
 import { parseQuantityFactor } from '../lib/itemCost'
 import type { ListItem } from '../types'
@@ -121,7 +121,9 @@ export function ItemCard({
           {meta && <span className="item-card__meta">{meta}</span>}
         </span>
         {!bought && displayQty && (
-          <span className="item-card__qty">{formatQuantity(displayQty)}</span>
+          <span className="item-card__qty">
+            {formatQuantityColumn(displayQty)}
+          </span>
         )}
         {/* An amount is a record's field alone: until the trip closes no
             price exists — a pending row would be guessing, and an in-cart
