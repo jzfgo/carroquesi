@@ -151,6 +151,27 @@
   color: var(--ink-0);
 }
 
+/* The inline "Sueles comprar" block (20b): the tail of the pending sheet,
+   fenced off from the list above by a dashed rule and titled in the same hand
+   that wrote the list — muted, because none of it is written yet. The rule and
+   label are inset to the 20px gutter; the SuggestionRows below keep their own
+   gutter, so the label sits above the row names without indenting the rows.
+   The label steps a touch above the row names (store-header size) but drops to
+   --ink-2. */
+.item-list__suggestions-label {
+  margin: 10px 20px 2px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--rule-dashed);
+  font-family: var(--font-written);
+  font-size: calc(19px * var(--written-scale));
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--ink-2);
+}
+
 /* Store group header on the pending sheet: the target shop, jotted in the
    household's hand and underlined by the same pen — a solid stroke hugging
    the label with a hair of overhang, per the handoff crop. Text-width, so

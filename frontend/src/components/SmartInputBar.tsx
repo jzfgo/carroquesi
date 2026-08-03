@@ -1,4 +1,4 @@
-import { ArrowUp, ScanBarcode, Sparkles, Store, Tag, X } from 'lucide-react'
+import { ArrowUp, ScanBarcode, Store, Tag, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem, ParsedInput, Suggestion } from '../types'
@@ -45,8 +45,6 @@ interface Props {
   eanError?: string | null
   inferredStoreChip?: string | null
   onDismissInferredStore?: () => void
-  dueSuggestionsCount?: number
-  onDueSuggestionsOpen?: () => void
 }
 
 export function SmartInputBar({
@@ -64,8 +62,6 @@ export function SmartInputBar({
   eanError,
   inferredStoreChip,
   onDismissInferredStore,
-  dueSuggestionsCount,
-  onDueSuggestionsOpen,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   // The input's focus proxies "keyboard open": on a touch device the soft
@@ -197,19 +193,6 @@ export function SmartInputBar({
       )}
 
       <div className="smart-input__row">
-        {(dueSuggestionsCount ?? 0) > 0 && (
-          <button
-            className="smart-input__due-btn"
-            onClick={onDueSuggestionsOpen}
-            aria-label={`Sugerencias pendientes (${dueSuggestionsCount})`}
-            type="button"
-          >
-            <Sparkles size={18} />
-            <span className="smart-input__due-badge">
-              {dueSuggestionsCount}
-            </span>
-          </button>
-        )}
         <input
           className="smart-input__field"
           type="text"

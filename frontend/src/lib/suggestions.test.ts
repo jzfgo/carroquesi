@@ -2,6 +2,7 @@ import type { ListItem } from '../types'
 import {
   clientSideSuggestions,
   formatFrequency,
+  formatLastPurchase,
   formatRecency,
 } from './suggestions'
 
@@ -159,4 +160,28 @@ describe('formatRecency', () => {
     expect(formatRecency(21)).toBe('hace 3 semanas'))
   test('60 days → hace 2 meses', () =>
     expect(formatRecency(60)).toBe('hace 2 meses'))
+})
+
+// The suggestion meta line's recency phrase (20b) — singular words for the
+// day/month buckets, plural numerals in between, matching the frame verbatim
+// («LA ÚLTIMA HACE 9 DÍAS» / «LA ÚLTIMA HACE UN MES»).
+describe('formatLastPurchase', () => {
+  test('1 day → la última hace un día', () =>
+    expect(formatLastPurchase(1)).toBe('la última hace un día'))
+  test('9 days → la última hace 9 días (the frame example)', () =>
+    expect(formatLastPurchase(9)).toBe('la última hace 9 días'))
+  test('13 days → la última hace 13 días', () =>
+    expect(formatLastPurchase(13)).toBe('la última hace 13 días'))
+  test('14 days → la última hace 2 semanas', () =>
+    expect(formatLastPurchase(14)).toBe('la última hace 2 semanas'))
+  test('21 days → la última hace 3 semanas', () =>
+    expect(formatLastPurchase(21)).toBe('la última hace 3 semanas'))
+  test('28 days → la última hace un mes', () =>
+    expect(formatLastPurchase(28)).toBe('la última hace un mes'))
+  test('59 days → la última hace un mes (the frame example)', () =>
+    expect(formatLastPurchase(59)).toBe('la última hace un mes'))
+  test('60 days → la última hace 2 meses', () =>
+    expect(formatLastPurchase(60)).toBe('la última hace 2 meses'))
+  test('90 days → la última hace 3 meses', () =>
+    expect(formatLastPurchase(90)).toBe('la última hace 3 meses'))
 })

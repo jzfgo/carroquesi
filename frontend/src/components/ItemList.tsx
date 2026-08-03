@@ -5,10 +5,11 @@ import { isTripOpen } from '../lib/isTripOpen'
 import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
 import { storeKey } from '../lib/storeKey'
-import type { ElsewhereMatch, ListItem } from '../types'
+import type { DueSuggestion, ElsewhereMatch, ListItem } from '../types'
 import { ItemCard } from './ItemCard'
 import './ItemList.css'
 import './paper.css'
+import { SuggestionRow } from './SuggestionRow'
 
 type Status = 'loading' | 'error' | 'success'
 
@@ -36,6 +37,12 @@ interface Props {
   elsewhereMatch?: ElsewhereMatch | null
   /** Adds the current query as a new item from the no-results state. */
   onAddFromSearch?: () => void
+  /** Habit reminders shown inline at the tail of a populated list (20b). */
+  suggestions?: DueSuggestion[]
+  /** Accept a suggestion — writes it onto the list with its avg quantity. */
+  onSuggestionAdd?: (s: DueSuggestion) => void
+  /** Dismiss a suggestion — «no este mes», records a TTL and drops it. */
+  onSuggestionDismiss?: (s: DueSuggestion) => void
 }
 
 function CostBadge({
@@ -70,6 +77,9 @@ export function ItemList({
   query = '',
   elsewhereMatch = null,
   onAddFromSearch,
+  suggestions = [],
+  onSuggestionAdd,
+  onSuggestionDismiss,
 }: Props) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
 
@@ -135,6 +145,17 @@ export function ItemList({
 
   const listEmpty =
     active.length === 0 && cart.length === 0 && bought.length === 0
+
+  // Inline "Sueles comprar" (20b): at most three, and never a line already on
+  // the sheet. The server usually filters these out, but a name typed by hand
+  // in the meantime could still collide, so fold-compare against every row —
+  // pending, in-cart and settled — before offering it.
+  const onList = new Set(
+    [...active, ...cart, ...bought].map((i) => i.name.trim().toLowerCase()),
+  )
+  const shownSuggestions = suggestions
+    .filter((s) => !onList.has(s.name.trim().toLowerCase()))
+    .slice(0, 3)
 
   // No-results search (16c): a search that matched nothing. This covers the
   // sheet with a flat surface instead of drawing on paper — a blank sheet
@@ -292,6 +313,26 @@ export function ItemList({
                   ))}
                 </div>
               ))}
+
+              {/* "Sueles comprar" (20b): up to three habit reminders written in
+                  muted ink under a dashed rule, at the very tail of the pending
+                  list. A suggestion is a line the house hasn't written yet, so
+                  it sits after everything it has. It never reaches the header
+                  count, and nothing renders when there is nothing to suggest —
+                  no empty rule announcing the absence. */}
+              {shownSuggestions.length > 0 && (
+                <div className="item-list__suggestions">
+                  <p className="item-list__suggestions-label">Sueles comprar</p>
+                  {shownSuggestions.map((s) => (
+                    <SuggestionRow
+                      key={s.name}
+                      suggestion={s}
+                      onAdd={(x) => onSuggestionAdd?.(x)}
+                      onDismiss={(x) => onSuggestionDismiss?.(x)}
+                    />
+                  ))}
+                </div>
+              )}
             </>
           )}
 
