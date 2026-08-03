@@ -1346,7 +1346,7 @@ describe('the list stops being the reader’s after mount', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
-    fireEvent.click(screen.getByRole('button', { name: /gestionar miembros/i }))
+    fireEvent.click(screen.getByRole('button', { name: /miembros/i }))
     fireEvent.click(screen.getByText('Salir (mock)'))
 
     expect(onBack).toHaveBeenCalled()
@@ -1364,7 +1364,7 @@ describe('the list stops being the reader’s after mount', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
-    fireEvent.click(screen.getByRole('button', { name: /gestionar miembros/i }))
+    fireEvent.click(screen.getByRole('button', { name: /miembros/i }))
     fireEvent.click(screen.getByText('Sospechar (mock)'))
 
     await waitFor(() => expect(onListGone).toHaveBeenCalledWith('not_found'))

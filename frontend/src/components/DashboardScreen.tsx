@@ -200,7 +200,6 @@ export function DashboardScreen() {
           ? prev.map((l) => (l.id === list.id ? { ...l, name: newName } : l))
           : prev
       })
-      setActiveList(null)
       try {
         await updateList(getToken, list.id, { name: newName })
       } catch {
@@ -249,7 +248,6 @@ export function DashboardScreen() {
           ? prev.map((l) => ({ ...l, is_default: l.id === list.id }))
           : prev
       })
-      setActiveList(null)
       try {
         await setDefaultList(getToken, list.id)
       } catch {
@@ -374,10 +372,12 @@ export function DashboardScreen() {
         <ListActionSheet
           listId={activeList.id}
           listName={activeList.name}
+          listEmoji={activeList.emoji}
           currentUserId={user?.id ?? ''}
           ownerId={activeList.owner_id}
           isDefault={activeList.is_default}
           onRename={(newName) => void handleRename(activeList, newName)}
+          onEmojiChange={(emoji) => void handleEmojiChange(activeList, emoji)}
           onDelete={() => void handleDelete(activeList)}
           onSetDefault={() => void handleSetDefault(activeList)}
           onClose={() => setActiveList(null)}

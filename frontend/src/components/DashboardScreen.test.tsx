@@ -232,7 +232,7 @@ describe('DashboardScreen — list management', () => {
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
     fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
-    expect(screen.getByText(/renombrar/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Nombre de la lista')).toBeInTheDocument()
   })
 
   it('confirming rename updates the list name in the dashboard', async () => {
@@ -240,11 +240,9 @@ describe('DashboardScreen — list management', () => {
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
     fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
-    fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
-    fireEvent.change(screen.getByRole('textbox'), {
-      target: { value: 'Mercado Nuevo' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
+    const field = screen.getByLabelText('Nombre de la lista')
+    fireEvent.change(field, { target: { value: 'Mercado Nuevo' } })
+    fireEvent.blur(field)
     await waitFor(() =>
       expect(screen.getByText('Mercado Nuevo')).toBeInTheDocument(),
     )
@@ -257,7 +255,7 @@ describe('DashboardScreen — list management', () => {
     // Second list (Costco) is not the default → its sheet offers the action.
     fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[1])
     fireEvent.click(
-      screen.getByRole('button', { name: /marcar como predeterminada/i }),
+      screen.getByRole('switch', { name: 'Lista predeterminada' }),
     )
     await waitFor(() =>
       expect(api.setDefaultList).toHaveBeenCalledWith(
@@ -285,11 +283,9 @@ describe('DashboardScreen — list management', () => {
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
     fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
-    fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
-    fireEvent.change(screen.getByRole('textbox'), {
-      target: { value: 'Mercado Nuevo' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
+    const field = screen.getByLabelText('Nombre de la lista')
+    fireEvent.change(field, { target: { value: 'Mercado Nuevo' } })
+    fireEvent.blur(field)
     await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
     expect(screen.getByText(/no se pudo renombrar/i)).toBeInTheDocument()
   })
