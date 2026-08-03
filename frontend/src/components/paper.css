@@ -199,6 +199,10 @@
   line-height: 1.1;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+
+  /* Explicit: the root centres text for legacy screens, and this span fills
+     the grid's wide column, so without it the rubric reads centred. */
+  text-align: left;
   color: var(--ink-0);
 }
 
