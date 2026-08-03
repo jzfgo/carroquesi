@@ -95,23 +95,25 @@
 
 .item-card__body {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   flex: 1;
-  gap: 1px;
+  gap: 8px;
   min-width: 0;
   min-height: var(--hit-min);
   padding: 8px 0;
-  justify-content: center;
   border: none;
   background: none;
   text-align: left;
   cursor: pointer;
 }
 
-.item-card__line {
+/* Name over meta on the left; the qty or amount column keeps the right
+   edge, centered on the row the way 21b sets it. */
+.item-card__text {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  flex-direction: column;
+  flex: 1;
+  gap: 1px;
   min-width: 0;
 }
 
@@ -126,14 +128,15 @@
   overflow-wrap: anywhere;
 }
 
-/* The quantity column holds the row's right edge, still in the hand —
-   30a's «2 UD» carries the written letterforms in the name's own ink, about
-   two thirds its size. The figure is normalized for display (formatQuantity)
-   but the stroke stays the household's. */
+/* The quantity column holds the row's right edge, still in the hand and at
+   the name's own size and ink — 21b's digits measure level with the name
+   caps (68:62 in the crop; Patrick Hand SC draws digits at cap height). The
+   figure is normalized for display (formatQuantity) but the stroke stays
+   the household's. */
 .item-card__qty {
-  margin-left: auto;
+  flex-shrink: 0;
   font-family: var(--font-written);
-  font-size: calc(16px * var(--written-scale));
+  font-size: calc(24px * var(--written-scale));
   line-height: var(--lh-snug);
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -150,16 +153,33 @@
   color: var(--ink-1);
 }
 
-/* The amount column: bare figures («8,15»), tabular mono in the strongest
-   ink on the row — 30a prints the price darker than the record name it
-   settles. Sized with that name (the Cap-Height Rule — see below). */
+/* The amount column, as 21b prints it: the line total on top — name-sized
+   (mono digits sit at cap height, so --fs-20 matches the record name) but a
+   weight up, in the strongest ink on the row — and the unit price beneath
+   in the quiet figure voice («5,34» over «0,89/UD»). */
 .item-card__amount {
-  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.item-card__amount-total {
   font-family: var(--font-mono);
   font-size: var(--fs-20);
-  font-weight: 500;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  line-height: var(--lh-snug);
   color: var(--ink-0);
+  white-space: nowrap;
+}
+
+.item-card__amount-unit {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-snug);
+  color: var(--ink-2);
   white-space: nowrap;
 }
 

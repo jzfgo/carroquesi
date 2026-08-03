@@ -68,15 +68,14 @@ test('renders item name', () => {
   expect(screen.getByText('Leche Entera')).toBeInTheDocument()
 })
 
-test('renders the quantity on the row line, normalized for display', () => {
+test('renders the quantity column, normalized for display', () => {
   const { container } = renderCard(BASE_ITEM)
-  // Right alignment itself is CSS (margin-left auto on the qty); what the
-  // selector needs is the qty living on the name line, not in the meta row.
-  // «2 unidades» prints as «2 UD» — display only, the stored value is
-  // untouched.
-  expect(
-    container.querySelector('.item-card__line .item-card__qty'),
-  ).toHaveTextContent(/^2 UD$/)
+  // Placement is CSS; what the selector needs is the qty in its own column,
+  // outside the meta row. «2 unidades» prints as «2 UD» — display only, the
+  // stored value is untouched.
+  const qty = container.querySelector('.item-card__qty')
+  expect(qty).toHaveTextContent(/^2 UD$/)
+  expect(qty?.closest('.item-card__text')).toBeNull()
 })
 
 test('pending meta carries the brand but not the store — the group header names it', () => {
@@ -223,10 +222,64 @@ test('bought state puts the name and a qty-bearing meta inside the modifier', ()
 })
 
 test('bought row prints the bare amount — comma decimal, no symbol', () => {
+  // '487g' parses as a pack descriptor (factor 1): the total IS the price
+  // and no unit line repeats it.
   const { container } = renderCard(BOUGHT_ITEM)
-  expect(container.querySelector('.item-card__amount')).toHaveTextContent(
+  expect(container.querySelector('.item-card__amount-total')).toHaveTextContent(
     /^3,50$/,
   )
+  expect(
+    container.querySelector('.item-card__amount-unit'),
+  ).not.toBeInTheDocument()
+})
+
+test('a multi-unit record totals the line and drops the unit price beneath', () => {
+  // 21b: «5,34» over «0,89/UD» — the big figure is what the line cost.
+  const item = {
+    ...BOUGHT_ITEM,
+    price: 0.89,
+    purchased_quantity: '6',
+  }
+  const { container } = renderCard(item)
+  expect(container.querySelector('.item-card__amount-total')).toHaveTextContent(
+    /^5,34$/,
+  )
+  expect(container.querySelector('.item-card__amount-unit')).toHaveTextContent(
+    /^0,89\/UD$/,
+  )
+})
+
+test('a per-kg record totals by weight with the unit price per KG', () => {
+  const item = {
+    ...BOUGHT_ITEM,
+    price: 2.5,
+    price_per: 'KILOGRAM' as const,
+    purchased_quantity: '2kg',
+  }
+  const { container } = renderCard(item)
+  expect(container.querySelector('.item-card__amount-total')).toHaveTextContent(
+    /^5,00$/,
+  )
+  expect(container.querySelector('.item-card__amount-unit')).toHaveTextContent(
+    /^2,50\/KG$/,
+  )
+})
+
+test('a per-kg price with no weight shows the unit price, suffixed', () => {
+  const item = {
+    ...BOUGHT_ITEM,
+    price: 2.5,
+    price_per: 'KILOGRAM' as const,
+    purchased_quantity: null,
+    quantity: null,
+  }
+  const { container } = renderCard(item)
+  expect(container.querySelector('.item-card__amount-total')).toHaveTextContent(
+    /^2,50\/KG$/,
+  )
+  expect(
+    container.querySelector('.item-card__amount-unit'),
+  ).not.toBeInTheDocument()
 })
 
 test('shows purchased_quantity instead of planned quantity when purchased', () => {

@@ -3,6 +3,7 @@ import { useOnline } from '../hooks/useOnline'
 import { formatRowAmount } from '../lib/formatPrice'
 import { formatQuantity } from '../lib/formatQuantity'
 import { isTripOpen } from '../lib/isTripOpen'
+import { parseQuantityFactor } from '../lib/itemCost'
 import type { ListItem } from '../types'
 import './ItemCard.css'
 
@@ -115,21 +116,43 @@ export function ItemCard({
         className="item-card__body"
         onClick={() => onOpenActions(item.id)}
       >
-        <span className="item-card__line">
+        <span className="item-card__text">
           <span className="item-card__name">{item.name}</span>
-          {!bought && displayQty && (
-            <span className="item-card__qty">{formatQuantity(displayQty)}</span>
-          )}
-          {/* An amount is a record's field alone: until the trip closes no
-              price exists — a pending row would be guessing, and an in-cart
-              figure is not yet confirmed (the Confirmed-Price Rule). */}
-          {bought && item.price != null && (
-            <span className="item-card__amount">
-              {formatRowAmount(item.price, item.price_per)}
-            </span>
-          )}
+          {meta && <span className="item-card__meta">{meta}</span>}
         </span>
-        {meta && <span className="item-card__meta">{meta}</span>}
+        {!bought && displayQty && (
+          <span className="item-card__qty">{formatQuantity(displayQty)}</span>
+        )}
+        {/* An amount is a record's field alone: until the trip closes no
+            price exists — a pending row would be guessing, and an in-cart
+            figure is not yet confirmed (the Confirmed-Price Rule). The big
+            figure is what the line actually cost; the unit price drops to
+            the small line beneath (21b: «5,34» over «0,89/UD»). With no
+            computable factor the unit price is the only figure there is,
+            so it takes the total's place, suffixed. */}
+        {bought &&
+          item.price != null &&
+          (() => {
+            const price = item.price
+            const factor = parseQuantityFactor(displayQty, item.price_per)
+            const per = item.price_per === 'KILOGRAM' ? '/KG' : '/UD'
+            const total = factor != null ? price * factor : null
+            return (
+              <span className="item-card__amount">
+                <span className="item-card__amount-total">
+                  {total != null
+                    ? formatRowAmount(total)
+                    : `${formatRowAmount(price)}${per}`}
+                </span>
+                {total != null && factor !== 1 && (
+                  <span className="item-card__amount-unit">
+                    {formatRowAmount(price)}
+                    {per}
+                  </span>
+                )}
+              </span>
+            )
+          })()}
       </button>
 
       {/* The row-tap affordance: icons live in the affordance — the circle,

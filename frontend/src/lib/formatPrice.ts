@@ -7,17 +7,13 @@ export function formatPrice(amount: number, pricePer?: string | null): string {
 }
 
 /**
- * The bare amount an item row prints — «8,15» per 30a: comma decimal, no
- * symbol. The € belongs to sheet-header totals. A per-kg unit price keeps
- * its /kg so it never reads as a line total.
+ * The bare figure an item row prints — «8,15» per 30a/21b: comma decimal,
+ * no symbol. The € belongs to sheet-header totals, and any /UD·/KG suffix
+ * is the row's to add.
  */
-export function formatRowAmount(
-  amount: number,
-  pricePer?: string | null,
-): string {
-  const formatted = new Intl.NumberFormat('es-ES', {
+export function formatRowAmount(amount: number): string {
+  return new Intl.NumberFormat('es-ES', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount)
-  return pricePer === 'KILOGRAM' ? `${formatted}/kg` : formatted
 }
