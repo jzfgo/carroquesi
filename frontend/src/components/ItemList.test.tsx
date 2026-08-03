@@ -79,15 +79,26 @@ test('shows error state with retry button inside the pending sheet', () => {
   expect(retry).toHaveBeenCalledTimes(1)
 })
 
-test('shows empty state with mascot inside the pending sheet, titled at zero', () => {
+test('blank list keeps its paper, drops the mascot, titled at zero (16c)', () => {
   const { container } = renderList()
-  expect(screen.getByRole('img', { name: /mascota/i })).toBeInTheDocument()
-  expect(screen.getByText(/Sin productos todavía/i)).toBeInTheDocument()
-  expect(screen.getByText(/Añade el primero desde abajo/i)).toBeInTheDocument()
+  // Rule 9: no mascot inside the list — the board is behind it.
+  expect(
+    screen.queryByRole('img', { name: /mascota/i }),
+  ).not.toBeInTheDocument()
+  expect(screen.getByText(/la hoja está en blanco/i)).toBeInTheDocument()
+  expect(screen.getByText(/Escribe abajo lo primero/i)).toBeInTheDocument()
   const sheet = container.querySelector('.paper--pending')
   expect(sheet).toBeInTheDocument()
   expect(within(sheet as HTMLElement).getByText('Por comprar')).toBeVisible()
   expect(container.querySelector('.paper__title-count')?.textContent).toBe('0')
+})
+
+test('searching with an empty query still shows the blank list, not no-results', () => {
+  const { container } = renderList({ searching: true, query: '' })
+  expect(
+    container.querySelector('.item-list__search-empty'),
+  ).not.toBeInTheDocument()
+  expect(screen.getByText(/la hoja está en blanco/i)).toBeInTheDocument()
 })
 
 test('renders the sheet title with the pending count', () => {
@@ -400,4 +411,90 @@ test('shows plain count when totalItems equals filtered count', () => {
 test('shows plain count when totalItems is omitted', () => {
   const { container } = renderList({ items: [makeItem('a')] })
   expect(container.querySelector('.paper__title-count')?.textContent).toBe('1')
+})
+
+// ---------------------------------------------------------------------------
+// No-results search (16c) — a flat surface that covers the sheet
+// ---------------------------------------------------------------------------
+
+test('no-results search covers the sheet with a flat surface, not paper', () => {
+  const { container } = renderList({ searching: true, query: 'pimentón' })
+  expect(
+    container.querySelector('.item-list__search-empty'),
+  ).toBeInTheDocument()
+  expect(container.querySelector('.paper--pending')).not.toBeInTheDocument()
+  expect(container.querySelector('.item-list__search-none')?.textContent).toBe(
+    'Nada con pimentón en esta lista.',
+  )
+})
+
+test('the add action fills the list with what was searched', () => {
+  const onAddFromSearch = vi.fn()
+  renderList({ searching: true, query: 'pimentón', onAddFromSearch })
+  fireEvent.click(screen.getByRole('button', { name: /Añadir «pimentón»/i }))
+  expect(onAddFromSearch).toHaveBeenCalledTimes(1)
+})
+
+test('no cross-list line without a match', () => {
+  const { container } = renderList({ searching: true, query: 'pimentón' })
+  expect(
+    container.querySelector('.item-list__search-elsewhere'),
+  ).not.toBeInTheDocument()
+})
+
+test('the cross-list line names the other list and the purchase date', () => {
+  const { container } = renderList({
+    searching: true,
+    query: 'pimentón',
+    elsewhereMatch: {
+      list_id: 'l2',
+      list_name: 'Casa',
+      last_purchased_at: '2026-07-12T10:00:00',
+    },
+  })
+  const line = container.querySelector('.item-list__search-elsewhere')
+  expect(line?.textContent).toContain('Sí está en Casa')
+  expect(line?.textContent).toMatch(/comprado el .+\./)
+})
+
+test('the cross-list line omits the date when the match was never bought', () => {
+  const { container } = renderList({
+    searching: true,
+    query: 'pimentón',
+    elsewhereMatch: {
+      list_id: 'l2',
+      list_name: 'Casa',
+      last_purchased_at: null,
+    },
+  })
+  const line = container.querySelector('.item-list__search-elsewhere')
+  expect(line?.textContent).toBe('Sí está en Casa.')
+  expect(line?.textContent).not.toMatch(/comprado/)
+})
+
+// ---------------------------------------------------------------------------
+// All bought (16c) — the "Por comprar" sheet disappears, the ticket takes over
+// ---------------------------------------------------------------------------
+
+test('all bought: no "Por comprar" sheet, a ¡listo! line, the record stays', () => {
+  const { container } = renderList({ items: [makeBought('a')] })
+  expect(screen.queryByText('Por comprar')).not.toBeInTheDocument()
+  expect(container.querySelector('.item-list__done')?.textContent).toMatch(
+    /listo/i,
+  )
+  expect(screen.getByRole('button', { name: /comprados/i })).toBeInTheDocument()
+})
+
+test('all bought with an open cart: the talón stands alone, no perforation', () => {
+  const { container } = renderList({ items: [makeCart('a')] })
+  expect(screen.queryByText('Por comprar')).not.toBeInTheDocument()
+  expect(container.querySelector('.talon')).toBeInTheDocument()
+  // Nothing above to tear from, so no die-cut.
+  expect(container.querySelector('.perf')).not.toBeInTheDocument()
+  expect(container.querySelector('.item-list__done')).toBeInTheDocument()
+})
+
+test('no ¡listo! line while items are still pending', () => {
+  const { container } = renderList({ items: [makeItem('a'), makeBought('b')] })
+  expect(container.querySelector('.item-list__done')).not.toBeInTheDocument()
 })

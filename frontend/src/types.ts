@@ -29,6 +29,8 @@ export type PriceHistoryResponse = Required<
   Omit<S['PriceHistoryResponse'], 'entries'>
 > & { entries: PriceEntry[] }
 export type ListUpdatedAt = S['ListUpdatedAtRead']
+/** Same-name match in one of the user's other lists (JAV-138). Null = no match. */
+export type ElsewhereMatch = S['ElsewhereMatchRead']
 export type MatchedLine = Required<S['MatchedLine']>
 export type UnmatchedLine = Required<S['UnmatchedLine']>
 export type ReceiptScanResult = Required<

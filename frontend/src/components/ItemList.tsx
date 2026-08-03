@@ -1,13 +1,13 @@
+import { ArrowDown, Plus } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { formatPrice } from '../lib/formatPrice'
 import { isTripOpen } from '../lib/isTripOpen'
 import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
 import { storeKey } from '../lib/storeKey'
-import type { ListItem } from '../types'
+import type { ElsewhereMatch, ListItem } from '../types'
 import { ItemCard } from './ItemCard'
 import './ItemList.css'
-import { Mascot } from './Mascot'
 import './paper.css'
 
 type Status = 'loading' | 'error' | 'success'
@@ -28,6 +28,14 @@ interface Props {
   displayStore?: (raw: string) => string
   /** Opens the close-trip sheet from the seal. Wired in JAV-160. */
   onCloseTrip?: () => void
+  /** Search mode is on — tells a no-results search apart from an empty list. */
+  searching?: boolean
+  /** The raw search query, echoed in the no-results state (16c). */
+  query?: string
+  /** A same-name hit in another list, for the no-results third line (JAV-138). */
+  elsewhereMatch?: ElsewhereMatch | null
+  /** Adds the current query as a new item from the no-results state. */
+  onAddFromSearch?: () => void
 }
 
 function CostBadge({
@@ -58,6 +66,10 @@ export function ItemList({
   footer,
   displayStore = (raw) => raw,
   onCloseTrip,
+  searching = false,
+  query = '',
+  elsewhereMatch = null,
+  onAddFromSearch,
 }: Props) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
 
@@ -121,34 +133,73 @@ export function ItemList({
           : 0
     })
 
-  if (active.length === 0 && cart.length === 0 && bought.length === 0) {
+  const listEmpty =
+    active.length === 0 && cart.length === 0 && bought.length === 0
+
+  // No-results search (16c): a search that matched nothing. This covers the
+  // sheet with a flat surface instead of drawing on paper — a blank sheet
+  // would read as an empty list, and there is no list to show mid-search. A
+  // search dead end must still offer the way out: adding what you looked for.
+  if (searching && query.trim() !== '' && listEmpty) {
+    const term = query.trim()
+    const boughtOn = elsewhereMatch?.last_purchased_at
+      ? new Date(elsewhereMatch.last_purchased_at + 'Z').toLocaleDateString(
+          'es',
+          { day: 'numeric', month: 'short' },
+        )
+      : null
     return (
       <div className="item-list">
-        <div className="paper paper--pending">
+        <div className="item-list__search-empty">
+          <p className="item-list__search-none">
+            Nada con <b>{term}</b> en esta lista.
+          </p>
+          <button
+            type="button"
+            className="item-list__search-add"
+            onClick={onAddFromSearch}
+          >
+            <Plus size={15} strokeWidth={2.2} aria-hidden /> Añadir «{term}»
+          </button>
+          {elsewhereMatch && (
+            <p className="item-list__search-elsewhere">
+              Sí está en <b>{elsewhereMatch.list_name}</b>
+              {boughtOn ? `, comprado el ${boughtOn}` : ''}.
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Blank list (16c): genuinely empty, so the paper stays — the blank sheet is
+  // the message. Caveat is the house voice (not a line someone wrote), one
+  // instruction with the bar's real format, and an arrow at the input below.
+  // No mascot: it was earned on the dashboard, and rule 9 keeps it to where
+  // nothing is behind — here the board is.
+  if (listEmpty) {
+    return (
+      <div className="item-list">
+        <section className="paper paper--pending" aria-label="Por comprar">
           <p className="paper__title">
             <span className="paper__title-text">Por comprar</span>
             <span className="paper__title-meta">
               <span className="paper__title-count">0</span>
             </span>
           </p>
-          <div className="item-list__sheet-message">
-            <Mascot size={120} />
-            <p
-              style={{ margin: 0, fontWeight: 600, color: 'var(--color-text)' }}
-            >
-              Sin productos todavía
+          <div className="item-list__blank">
+            <p className="item-list__blank-lead">la hoja está en blanco</p>
+            <p className="item-list__blank-hint">
+              Escribe abajo lo primero: «2 kg tomates pera».
             </p>
-            <p
-              style={{
-                margin: 0,
-                color: 'var(--color-text-secondary)',
-                fontSize: '0.9rem',
-              }}
-            >
-              Añade el primero desde abajo
-            </p>
+            <ArrowDown
+              className="item-list__blank-arrow"
+              size={16}
+              strokeWidth={1.8}
+              aria-hidden
+            />
           </div>
-        </div>
+        </section>
       </div>
     )
   }
@@ -196,68 +247,88 @@ export function ItemList({
     <div className="item-list">
       {/* One solid sheet, perforated across the middle (30a). Above the tear,
           what's still to buy; below it the talón, where the cart lines sit
-          under a printed rubric and the close-trip seal. The perforation is
-          drawn on the sheet — the sheet stays solid so its cast still reads as
-          coming from the paper. */}
-      <section className="paper paper--pending" aria-label="Por comprar">
-        <p className="paper__title">
-          <span className="paper__title-text">Por comprar</span>
-          <span className="paper__title-meta">
-            {pendingCost && (
-              <CostBadge cost={pendingCost} className="item-list__label-cost" />
-            )}
-            <span className="paper__title-count">
-              {totalItems !== undefined && totalItems !== active.length
-                ? `${active.length} de ${totalItems}`
-                : `${active.length}`}
-            </span>
-          </span>
-        </p>
-        {activeByStore.map((group) => (
-          <div key={group.key}>
-            {group.label !== null && (
-              <p className="item-list__store-label">{group.label}</p>
-            )}
-            {group.items.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                onTogglePurchased={onTogglePurchased}
-                onOpenActions={onOpenActions}
-                onClone={onClone}
-              />
-            ))}
-          </div>
-        ))}
+          under a printed rubric and the close-trip seal. When nothing is left
+          to buy, the "Por comprar" head disappears (16c) and the talón stands
+          alone as the day's ticket — the perforation goes with the head it
+          tore from. */}
+      {(active.length > 0 || cart.length > 0) && (
+        <section
+          className="paper paper--pending"
+          aria-label={active.length > 0 ? 'Por comprar' : 'En el carro'}
+        >
+          {active.length > 0 && (
+            <>
+              <p className="paper__title">
+                <span className="paper__title-text">Por comprar</span>
+                <span className="paper__title-meta">
+                  {pendingCost && (
+                    <CostBadge
+                      cost={pendingCost}
+                      className="item-list__label-cost"
+                    />
+                  )}
+                  <span className="paper__title-count">
+                    {totalItems !== undefined && totalItems !== active.length
+                      ? `${active.length} de ${totalItems}`
+                      : `${active.length}`}
+                  </span>
+                </span>
+              </p>
+              {activeByStore.map((group) => (
+                <div key={group.key}>
+                  {group.label !== null && (
+                    <p className="item-list__store-label">{group.label}</p>
+                  )}
+                  {group.items.map((item) => (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      onTogglePurchased={onTogglePurchased}
+                      onOpenActions={onOpenActions}
+                      onClone={onClone}
+                    />
+                  ))}
+                </div>
+              ))}
+            </>
+          )}
 
-        {cart.length > 0 && (
-          <div className="talon" role="group" aria-label="En el carro">
-            <div className="perf" aria-hidden />
-            {/* The rubric and the seal share one row: the count on the left,
-                the close-trip stamp right where a closed ticket shows its
-                total. The stamp opens the close-trip sheet (JAV-160). */}
-            <div className="talon__head">
-              <span className="talon__rubric">En el carro · {cart.length}</span>
-              <button
-                type="button"
-                className="talon__seal"
-                onClick={() => onCloseTrip?.()}
-              >
-                <span className="stamp">Cerrar compra</span>
-              </button>
+          {cart.length > 0 && (
+            <div className="talon" role="group" aria-label="En el carro">
+              {active.length > 0 && <div className="perf" aria-hidden />}
+              {/* The rubric and the seal share one row: the count on the left,
+                  the close-trip stamp right where a closed ticket shows its
+                  total. The stamp opens the close-trip sheet (JAV-160). */}
+              <div className="talon__head">
+                <span className="talon__rubric">
+                  En el carro · {cart.length}
+                </span>
+                <button
+                  type="button"
+                  className="talon__seal"
+                  onClick={() => onCloseTrip?.()}
+                >
+                  <span className="stamp">Cerrar compra</span>
+                </button>
+              </div>
+              {cart.map((item) => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  onTogglePurchased={onTogglePurchased}
+                  onOpenActions={onOpenActions}
+                  onClone={onClone}
+                />
+              ))}
             </div>
-            {cart.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                onTogglePurchased={onTogglePurchased}
-                onOpenActions={onOpenActions}
-                onClone={onClone}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+          )}
+        </section>
+      )}
+
+      {/* All bought (16c): the "Por comprar" sheet is gone, not sitting at
+          zero. One hand-written line closes the trip — no confetti, no button;
+          refilling is just writing in the bar below. */}
+      {active.length === 0 && <p className="item-list__done">¡listo ✓!</p>}
       {footer}
 
       {bought.length > 0 && (
