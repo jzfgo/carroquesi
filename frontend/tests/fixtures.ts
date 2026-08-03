@@ -215,11 +215,15 @@ export async function installApiMocks(page: Page): Promise<void> {
           new_items?: NewPurchasedItem[]
         }
         const now = new Date().toISOString()
-        // An impulse buy is born purchased. On the real backend its purchase
-        // instant comes from parsing the submitted receipt date — a rule that
-        // lives there and only there. Deriving it here again would be a second
-        // copy of that rule, drifting on its own, so the mock stamps the
-        // request's arrival instead; no spec reads the value.
+        // An impulse buy is a purchase that already happened — you scan the
+        // receipt after the fact — so it lands as a settled record on a
+        // *closed* trip, not an in-cart line. Its purchase instant and trip
+        // boundary come from the SEED_IMPULSE_ITEM template (a prior day,
+        // torn off): on the real backend those are parsed from the submitted
+        // receipt date, and a mock re-deriving that rule would drift on its
+        // own. The template's closed trip is what makes the created card
+        // render as a bought record (price + re-buy), which the impulse test
+        // asserts.
         const created = (body.new_items ?? []).map((n, idx) => ({
           ...SEED_IMPULSE_ITEM,
           id: `created-item-${idx}-${now}`,
@@ -229,7 +233,6 @@ export async function installApiMocks(page: Page): Promise<void> {
           purchased_quantity: n.quantity ?? null,
           brand: n.brand ?? null,
           stores: n.store ? [n.store] : [],
-          purchased_at: naiveUtc(now),
           ean: n.ean ?? null,
           price: n.price,
           price_per: n.price_per ?? null,

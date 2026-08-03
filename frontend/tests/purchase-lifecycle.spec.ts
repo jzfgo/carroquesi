@@ -10,6 +10,8 @@ import {
 const LIST_ID = SEED_LISTS[0].id
 const ITEM_CAFE = SEED_ITEMS[LIST_ID][1] // no price, one store, unpurchased
 const ITEM_LECHE = SEED_ITEMS[LIST_ID][0] // has a price already, unpurchased
+const ITEM_MANTEQUILLA = SEED_ITEMS[LIST_ID][2] // closed-trip record, no price
+const ITEM_HUEVOS = SEED_ITEMS[LIST_ID][3] // closed-trip record, already priced
 
 function itemCard(page: Page, name: string) {
   return page.locator('.item-card').filter({ hasText: name })
@@ -83,9 +85,13 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await expect(card).toHaveClass(/item-card--cart/)
       await expectScreenshot(page, `item-purchased-${themeName}.png`)
 
-      // Read-only: brand is plain text in the meta line, not an editable button
+      // Read-only: the brand is plain text in the meta line, not its own
+      // editable control. `exact` matters — the row body is itself a button
+      // (it opens the action sheet) and its accessible name contains the
+      // brand, so a substring match would find it; what must not exist is a
+      // control whose whole name is the brand, i.e. the old brand chip.
       await expect(
-        card.getByRole('button', { name: ITEM_CAFE.brand ?? '' }),
+        card.getByRole('button', { name: ITEM_CAFE.brand ?? '', exact: true }),
       ).toHaveCount(0)
       await expect(card.locator('.item-card__meta')).toContainText(
         ITEM_CAFE.brand ?? '',
@@ -102,13 +108,44 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await page.keyboard.press('Escape')
     })
 
-    test('logs a price for a purchased item via LogPurchaseSheet', async ({
+    test('records a price on a closed-trip record; the affordance is absent before the trip closes', async ({
       page,
     }) => {
       await gotoList(page)
-      await markPurchased(page, ITEM_CAFE.name)
 
+      const actionSheet = page.getByRole('dialog', {
+        name: 'Opciones del producto',
+      })
+
+      // Prices belong to closed-trip records only. A pending row offers no
+      // price entry — row tap opens the action sheet without one.
+      await itemCard(page, ITEM_LECHE.name).locator('.item-card__body').click()
+      await expect(actionSheet).toBeVisible()
+      await expect(
+        page.getByRole('button', { name: 'Registrar precio' }),
+      ).toHaveCount(0)
+      await expect(
+        page.getByRole('button', { name: 'Historial de precios' }),
+      ).toHaveCount(0)
+      await page.keyboard.press('Escape')
+      await expect(actionSheet).toBeHidden()
+
+      // Nor does an in-cart row (purchased, trip still open) — the figure
+      // would not be a confirmed record yet.
+      await markPurchased(page, ITEM_CAFE.name)
       await itemCard(page, ITEM_CAFE.name).locator('.item-card__body').click()
+      await expect(actionSheet).toBeVisible()
+      await expect(
+        page.getByRole('button', { name: 'Registrar precio' }),
+      ).toHaveCount(0)
+      await page.keyboard.press('Escape')
+      await expect(actionSheet).toBeHidden()
+
+      // A closed-trip record does: row tap → Registrar precio → history →
+      // log the price. It has none yet, so the sheet offers to set one.
+      await itemCard(page, ITEM_MANTEQUILLA.name)
+        .locator('.item-card__body')
+        .click()
       await page.getByRole('button', { name: 'Registrar precio' }).click()
       await page
         .locator('.phs')
@@ -125,63 +162,36 @@ for (const { name: themeName, colorScheme } of THEMES) {
 
       await expect(sheet).toBeHidden()
       await expect(
-        itemCard(page, ITEM_CAFE.name).locator('.item-card__amount'),
+        itemCard(page, ITEM_MANTEQUILLA.name).locator('.item-card__amount'),
       ).toBeVisible()
     })
 
-    test('same-day price-deletion guard surfaces a 422 from the backend', async ({
+    test('a closed-trip record offers no price deletion — its spend is settled', async ({
       page,
     }) => {
-      // This test screenshots with the toast in frame, and the toast dismisses
-      // itself via setTimeout after 3 s. The setFixedTime in beforeEach does
-      // not hold that timer — it pins only what Date answers and leaves timers
-      // on the real clock — so on a slow runner the toast can vanish between
-      // the text assertion and the capture, and no retry brings it back.
-      // install() fakes the timer functions themselves: the 3 s never elapses
-      // unless the test advances the clock. Scoped to this test, not the file,
-      // so the other tests keep running timers.
-      await page.clock.install({ time: FIXED_NOW })
+      // The trip-boundary rule at the UI layer: once a trip has torn off, the
+      // price it recorded is permanent history. The record can still be
+      // corrected upward (Actualizar precio stays), but the sheet offers no
+      // «Eliminar precio» — deleting spend nobody can re-date is what the rule
+      // forbids. This is the same guard the backend enforces with a 422; here
+      // the control never appears, so the request is never made.
       await gotoList(page)
-      await markPurchased(page, ITEM_LECHE.name)
 
-      // Simulate the backend race: canDelete is true client-side (purchased
-      // just now), but the server still rejects the deletion.
-      await page.route(
-        `**/lists/${LIST_ID}/items/${ITEM_LECHE.id}/prices`,
-        async (route) => {
-          if (route.request().method() === 'DELETE') {
-            return route.fulfill({
-              status: 422,
-              contentType: 'application/json',
-              body: JSON.stringify({
-                detail:
-                  'Cannot delete the price of an item purchased on a previous day',
-              }),
-            })
-          }
-          return route.fallback()
-        },
-      )
-
-      await itemCard(page, ITEM_LECHE.name).locator('.item-card__body').click()
+      await itemCard(page, ITEM_HUEVOS.name).locator('.item-card__body').click()
       await page.getByRole('button', { name: 'Registrar precio' }).click()
       await page
         .locator('.phs')
         .getByRole('button', { name: 'Actualizar precio' })
         .click()
+
       const sheet = page.locator('.lps')
-      await sheet.getByRole('button', { name: 'Eliminar precio' }).click()
-
-      await expect(page.getByRole('alert')).toContainText(
-        'No se puede eliminar el precio de un artículo comprado en otro día',
-      )
-      await expectScreenshot(page, `price-delete-guard-${themeName}.png`)
-
-      // Sheet stays open and the price is untouched
       await expect(sheet).toBeVisible()
+      // Correcting the price is still on offer…
+      await expect(sheet.getByRole('button', { name: 'Guardar' })).toBeVisible()
+      // …but deletion is not, because the trip has closed.
       await expect(
-        itemCard(page, ITEM_LECHE.name).locator('.item-card__amount'),
-      ).toBeVisible()
+        sheet.getByRole('button', { name: 'Eliminar precio' }),
+      ).toHaveCount(0)
     })
   })
 }
