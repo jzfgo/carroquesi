@@ -1,6 +1,7 @@
 import type {
   BarcodeRead,
   DueSuggestion,
+  ElsewhereMatch,
   ListUpdatedAt,
   PriceEntry,
   PriceHistoryResponse,
@@ -347,6 +348,20 @@ export function getPriceHistory(
     getToken,
     `/lists/${listId}/items/${itemId}/prices?scope=${scope}`,
   ) as Promise<PriceHistoryResponse>
+}
+
+// Looks the name up across the user's OTHER lists (JAV-138). Feeds the
+// no-results search state (16c): the one line that turns a dead end into
+// "you already have this in <list>". Resolves to null when nothing matches.
+export function getElsewhereMatch(
+  getToken: () => Promise<string>,
+  listId: string,
+  name: string,
+): Promise<ElsewhereMatch | null> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/items/elsewhere?name=${encodeURIComponent(name)}`,
+  ) as Promise<ElsewhereMatch | null>
 }
 
 export function logPrice(

@@ -13,6 +13,7 @@ import {
   deleteList,
   getBarcode,
   getDueSuggestions,
+  getElsewhereMatch,
   getList,
   getSuggestions,
   renameStore,
@@ -36,6 +37,7 @@ import type {
   BarcodeRead,
   DueSuggestion,
   EditingTag,
+  ElsewhereMatch,
   NameMapping,
   NewPurchasedItem,
   PricePatch,
@@ -140,6 +142,12 @@ export function ListScreen({
   // while the chips filter loosely — so strictStore is just `searching`, and no
   // separate filterMode state is needed.
   const [searching, setSearching] = useState(false)
+  // A same-name hit in another of the user's lists, shown as the third line of
+  // the no-results search state (16c). Null unless a search came back empty and
+  // the lookup found something.
+  const [elsewhereMatch, setElsewhereMatch] = useState<ElsewhereMatch | null>(
+    null,
+  )
   const [activeItemId, setActiveItemId] = useState<string | null>(null)
   type ScanTarget = { kind: 'add' } | { kind: 'receipt-line'; index: number }
   const [scanTarget, setScanTarget] = useState<ScanTarget | null>(null)
@@ -828,6 +836,33 @@ export function ListScreen({
     [dueSuggestions],
   )
 
+  // Cross-list lookup for the no-results search state (16c). Only a search that
+  // came back empty asks the question; debounced so keystrokes don't each hit
+  // the endpoint, and guarded by `cancelled` so a slow answer for an old query
+  // can't overwrite a newer one. A failed lookup just drops the extra line.
+  useEffect(() => {
+    const query = filterQuery.trim()
+    if (!searching || query === '' || filteredItems.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear the stale answer on leaving the no-results state
+      setElsewhereMatch(null)
+      return
+    }
+    let cancelled = false
+    const id = setTimeout(() => {
+      void getElsewhereMatch(getToken, listId, query)
+        .then((match) => {
+          if (!cancelled) setElsewhereMatch(match)
+        })
+        .catch(() => {
+          if (!cancelled) setElsewhereMatch(null)
+        })
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(id)
+    }
+  }, [searching, filterQuery, filteredItems.length, getToken, listId])
+
   const { pendingCost, purchasedCostByDate } = useMemo(() => {
     const pendingItems: typeof filteredItems = []
     const byDate = new Map<string, typeof filteredItems>()
@@ -862,6 +897,19 @@ export function ListScreen({
   const closeSearch = () => {
     setSearching(false)
     setFilterQuery('')
+  }
+  // "Añadir «query»" from the no-results state (16c): searching for something
+  // absent is wanting to add it. Parses the query like the input bar so any
+  // @tienda/#marca sigils carry over, then leaves search for the filled list.
+  const handleAddFromSearch = () => {
+    const parsedSearch = parseInput(filterQuery)
+    if (!parsedSearch.name.trim()) return
+    if (isOffline) {
+      setToast('Sin conexión')
+      return
+    }
+    void addItem(parsedSearch)
+    closeSearch()
   }
 
   return (
@@ -925,6 +973,10 @@ export function ListScreen({
         status={status}
         items={filteredItems}
         totalItems={allUnpurchasedCount}
+        searching={searching}
+        query={filterQuery}
+        elsewhereMatch={elsewhereMatch}
+        onAddFromSearch={handleAddFromSearch}
         onTogglePurchased={handleTogglePurchased}
         onOpenActions={handleItemMenuOpen}
         onRetry={retry}
