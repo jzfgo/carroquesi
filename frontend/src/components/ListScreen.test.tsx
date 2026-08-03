@@ -728,8 +728,16 @@ describe('cost totals', () => {
   })
 
   it('shows cost next to the purchased date label', () => {
+    // A record — a closed trip — is what settles under a date; an open trip
+    // would be in the cart, which carries no price (JAV-152).
     renderWithItems([
-      makeItem({ id: '1', purchased: true, purchased_at: TODAY, price: 3.0 }),
+      makeItem({
+        id: '1',
+        purchased: true,
+        purchased_at: TODAY,
+        purchase_ends_at: YESTERDAY,
+        price: 3.0,
+      }),
     ])
     expect(
       document.querySelector('.item-list__date-label-cost'),

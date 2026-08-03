@@ -587,6 +587,19 @@
   font-weight: 600;
 }
 
+/* The stamp: the one sanctioned exception to the 15px content floor — 11px
+   uppercase, because the stamp is a mark and the row containing it is the
+   target (DESIGN.md, Hierarchy). Printed, so mono; the colour comes from
+   whatever mark it sits in. */
+.stamp {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
 .t-hand {
   font-family: var(--font-hand);
   font-size: 28px;
