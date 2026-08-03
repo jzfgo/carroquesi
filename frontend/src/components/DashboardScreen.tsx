@@ -200,7 +200,6 @@ export function DashboardScreen() {
           ? prev.map((l) => (l.id === list.id ? { ...l, name: newName } : l))
           : prev
       })
-      setActiveList(null)
       try {
         await updateList(getToken, list.id, { name: newName })
       } catch {
@@ -249,7 +248,6 @@ export function DashboardScreen() {
           ? prev.map((l) => ({ ...l, is_default: l.id === list.id }))
           : prev
       })
-      setActiveList(null)
       try {
         await setDefaultList(getToken, list.id)
       } catch {
@@ -370,19 +368,29 @@ export function DashboardScreen() {
           </section>
         )}
       </main>
-      {activeList && (
-        <ListActionSheet
-          listId={activeList.id}
-          listName={activeList.name}
-          currentUserId={user?.id ?? ''}
-          ownerId={activeList.owner_id}
-          isDefault={activeList.is_default}
-          onRename={(newName) => void handleRename(activeList, newName)}
-          onDelete={() => void handleDelete(activeList)}
-          onSetDefault={() => void handleSetDefault(activeList)}
-          onClose={() => setActiveList(null)}
-        />
-      )}
+      {activeList &&
+        (() => {
+          // The sheet stays open across emoji/default edits, which land in
+          // `lists`, not the one-time `activeList` snapshot — so read the live
+          // list from `lists` or the emoji tile and switch would show stale.
+          const active =
+            lists?.find((l) => l.id === activeList.id) ?? activeList
+          return (
+            <ListActionSheet
+              listId={active.id}
+              listName={active.name}
+              listEmoji={active.emoji}
+              currentUserId={user?.id ?? ''}
+              ownerId={active.owner_id}
+              isDefault={active.is_default}
+              onRename={(newName) => void handleRename(active, newName)}
+              onEmojiChange={(emoji) => void handleEmojiChange(active, emoji)}
+              onDelete={() => void handleDelete(active)}
+              onSetDefault={() => void handleSetDefault(active)}
+              onClose={() => setActiveList(null)}
+            />
+          )
+        })()}
       {emojiList && (
         <EmojiPickerSheet
           current={emojiList.emoji}

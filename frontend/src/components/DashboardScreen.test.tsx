@@ -232,7 +232,7 @@ describe('DashboardScreen — list management', () => {
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
     fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
-    expect(screen.getByText(/renombrar/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Nombre de la lista')).toBeInTheDocument()
   })
 
   it('confirming rename updates the list name in the dashboard', async () => {
@@ -240,11 +240,9 @@ describe('DashboardScreen — list management', () => {
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
     fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
-    fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
-    fireEvent.change(screen.getByRole('textbox'), {
-      target: { value: 'Mercado Nuevo' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
+    const field = screen.getByLabelText('Nombre de la lista')
+    fireEvent.change(field, { target: { value: 'Mercado Nuevo' } })
+    fireEvent.blur(field)
     await waitFor(() =>
       expect(screen.getByText('Mercado Nuevo')).toBeInTheDocument(),
     )
@@ -257,13 +255,30 @@ describe('DashboardScreen — list management', () => {
     // Second list (Costco) is not the default → its sheet offers the action.
     fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[1])
     fireEvent.click(
-      screen.getByRole('button', { name: /marcar como predeterminada/i }),
+      screen.getByRole('switch', { name: 'Lista predeterminada' }),
     )
     await waitFor(() =>
       expect(api.setDefaultList).toHaveBeenCalledWith(
         expect.any(Function),
         'l2',
       ),
+    )
+  })
+
+  it('reflects an optimistic default change in the still-open sheet', async () => {
+    // The sheet stays open on save, so it must read live list state, not the
+    // frozen open-time snapshot.
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Costco'))
+    fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[1])
+    const sw = screen.getByRole('switch', { name: 'Lista predeterminada' })
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(sw)
+    await waitFor(() =>
+      expect(
+        screen.getByRole('switch', { name: 'Lista predeterminada' }),
+      ).toHaveAttribute('aria-checked', 'true'),
     )
   })
 
@@ -285,11 +300,9 @@ describe('DashboardScreen — list management', () => {
     render(<DashboardScreen />)
     await waitFor(() => screen.getByText('Mercado'))
     fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[0])
-    fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
-    fireEvent.change(screen.getByRole('textbox'), {
-      target: { value: 'Mercado Nuevo' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
+    const field = screen.getByLabelText('Nombre de la lista')
+    fireEvent.change(field, { target: { value: 'Mercado Nuevo' } })
+    fireEvent.blur(field)
     await waitFor(() => expect(screen.getByText('Mercado')).toBeInTheDocument())
     expect(screen.getByText(/no se pudo renombrar/i)).toBeInTheDocument()
   })

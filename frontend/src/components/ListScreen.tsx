@@ -108,6 +108,11 @@ export function ListScreen({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: syncs optimistic default flag when the route's list data refreshes
     setLocalIsDefault(isDefault)
   }, [isDefault])
+  const [localEmoji, setLocalEmoji] = useState(listEmoji)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: resets optimistic emoji when the route's list data refreshes
+    setLocalEmoji(listEmoji)
+  }, [listEmoji])
   const { isEnabled } = useFeatureFlags()
   const { isIOS, isInstalled } = usePWAInstall()
   // Resets the push unseen watermark and clears this list's tray notifications
@@ -186,7 +191,6 @@ export function ListScreen({
       }
       const previous = localListName
       setLocalListName(newName)
-      setMenuOpen(false)
       try {
         await updateList(getToken, listId, { name: newName })
         onRename?.(newName)
@@ -204,7 +208,6 @@ export function ListScreen({
       return
     }
     setLocalIsDefault(true)
-    setMenuOpen(false)
     try {
       await setDefaultList(getToken, listId)
       onSetDefault?.(true)
@@ -213,6 +216,24 @@ export function ListScreen({
       setToast('No se pudo marcar como predeterminada')
     }
   }, [getToken, isOffline, listId, onSetDefault])
+
+  const handleEmojiChange = useCallback(
+    async (emoji: string | null) => {
+      if (isOffline) {
+        setToast('No disponible sin conexión')
+        return
+      }
+      const previous = localEmoji
+      setLocalEmoji(emoji)
+      try {
+        await updateList(getToken, listId, { emoji })
+      } catch {
+        setLocalEmoji(previous)
+        setToast('No se pudo cambiar el emoji')
+      }
+    },
+    [getToken, isOffline, listId, localEmoji],
+  )
 
   const handleDelete = useCallback(
     async (listId: string) => {
@@ -824,7 +845,7 @@ export function ListScreen({
     <div className="list-screen" data-board={boardName}>
       <ListHeader
         title={localListName}
-        emoji={listEmoji}
+        emoji={localEmoji}
         onMenuOpen={handleMenuToggle}
         onBack={onBack}
         onSearch={items.length > 0 && !searching ? openSearch : undefined}
@@ -996,10 +1017,13 @@ export function ListScreen({
         <ListActionSheet
           listId={listId}
           listName={localListName}
+          listEmoji={localEmoji}
           currentUserId={currentUserId}
           ownerId={listOwnerId}
           isDefault={localIsDefault}
+          memberCount={members.size}
           onRename={(newName) => void handleRename(listId, newName)}
+          onEmojiChange={(emoji) => void handleEmojiChange(emoji)}
           onDelete={() => void handleDelete(listId)}
           onSetDefault={() => void handleSetDefault()}
           // Leaving the list is the person's own act to end the relationship —

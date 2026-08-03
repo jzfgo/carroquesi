@@ -1,28 +1,38 @@
-import { Pencil, Receipt, Star, Store, Trash2, Users } from 'lucide-react'
+import { ChevronRight, Pencil, Receipt, Star, Store, Users } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { CURATED_EMOJIS } from '../lib/curatedEmojis'
 import type { ListStoreEntry } from '../types'
 import './ListActionSheet.css'
 import { ListMembersSheet } from './ListMembersSheet'
 import { Sheet, type SheetHandle } from './Sheet'
 
-type SubState = 'actions' | 'rename' | 'members' | 'stores' | 'confirm-delete'
+type SubState = 'actions' | 'members' | 'stores' | 'confirm-delete'
 
 const LABELS: Record<Exclude<SubState, 'members'>, string> = {
   actions: 'Opciones de lista',
-  rename: 'Renombrar lista',
   stores: 'Tiendas',
   'confirm-delete': 'Confirmar eliminación',
 }
 
+// The invite cap; the members row prints "N de 5" like 21a.
+const MEMBER_CAP = 5
+
 interface Props {
   listId: string
   listName: string
+  /** The list's emoji (shared identity); null shows the ∅ tile. */
+  listEmoji: string | null
   currentUserId: string
   /** The list's owner (lists.owner_id); gates owner-only actions. */
   ownerId: string
   /** Whether this list is the current user's default (Siri target). */
   isDefault: boolean
+  /** Member count for the "N de 5" meta; omitted hides the count. */
+  memberCount?: number
+  /** Save the name (called on blur/Enter of the top field). */
   onRename: (newName: string) => void
+  /** Save the emoji (grid pick; null clears it). */
+  onEmojiChange: (emoji: string | null) => void
   onDelete: () => void
   onSetDefault: () => void
   onReceiptScan?: () => void
@@ -31,7 +41,7 @@ interface Props {
   onLeftList?: () => void
   /** The member sheet got an answer that suggests the list is gone. */
   onListSuspect?: () => void
-  /** The list's store registry; absent or empty hides the stores entry. */
+  /** The list's store registry; absent or empty hides the stores row. */
   storeEntries?: ListStoreEntry[]
   onRenameStore?: (storeKey: string, displayName: string) => void
 }
@@ -39,10 +49,13 @@ interface Props {
 export function ListActionSheet({
   listId,
   listName,
+  listEmoji,
   currentUserId,
   ownerId,
   isDefault,
+  memberCount,
   onRename,
+  onEmojiChange,
   onDelete,
   onSetDefault,
   onReceiptScan,
@@ -53,7 +66,8 @@ export function ListActionSheet({
   onRenameStore,
 }: Props) {
   const [subState, setSubState] = useState<SubState>('actions')
-  const [renameValue, setRenameValue] = useState(listName)
+  // Seeded once; the sheet is transient, so external name changes needn't sync.
+  const [nameValue, setNameValue] = useState(listName)
   const [editingStoreKey, setEditingStoreKey] = useState<string | null>(null)
   const [storeNameValue, setStoreNameValue] = useState('')
   const sheetRef = useRef<SheetHandle>(null)
@@ -72,7 +86,11 @@ export function ListActionSheet({
     )
   }
 
-  const trimmed = renameValue.trim()
+  // Save the name on the way out of the field: no "Guardar", per 21a.
+  const commitName = () => {
+    const trimmed = nameValue.trim()
+    if (trimmed && trimmed !== listName) onRename(trimmed)
+  }
   const trimmedStore = storeNameValue.trim()
 
   return (
@@ -88,171 +106,191 @@ export function ListActionSheet({
       }
     >
       {subState === 'actions' && (
-        <>
-          <p className="list-action-sheet__list-name">{listName}</p>
-          {isDefault ? (
-            <div
-              className="list-action-sheet__action list-action-sheet__action--default"
-              aria-disabled="true"
-            >
-              <Star size={18} fill="currentColor" /> Lista predeterminada
-            </div>
-          ) : (
-            <button
-              className="list-action-sheet__action"
-              onClick={() => {
-                onSetDefault()
-                sheetRef.current?.close()
+        <div className="list-options">
+          {/* Name and emoji — the two data of a list, edited in place (21a). */}
+          <div className="list-options__identity">
+            <span className="list-options__emoji-tile" aria-hidden>
+              {listEmoji ?? ''}
+            </span>
+            <input
+              className="list-options__name"
+              type="text"
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onBlur={commitName}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur()
               }}
-            >
-              <Star size={18} /> Marcar como predeterminada
-            </button>
-          )}
-          <button
-            className="list-action-sheet__action"
-            onClick={() => setSubState('rename')}
+              aria-label="Nombre de la lista"
+            />
+          </div>
+
+          <div
+            className="list-options__emoji-grid"
+            role="group"
+            aria-label="Emoji de la lista"
           >
-            <Pencil size={18} /> Renombrar
-          </button>
+            <button
+              type="button"
+              className={`list-options__emoji list-options__emoji--none${listEmoji === null ? ' list-options__emoji--active' : ''}`}
+              onClick={() => onEmojiChange(null)}
+              aria-label="Ninguno"
+            >
+              ∅
+            </button>
+            {CURATED_EMOJIS.map((emoji) => (
+              <button
+                type="button"
+                key={emoji}
+                className={`list-options__emoji${emoji === listEmoji ? ' list-options__emoji--active' : ''}`}
+                onClick={() => onEmojiChange(emoji)}
+                aria-label={emoji}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+
+          {/* Default is a state, not an action: a switch. Set-only — tapping
+              when off makes this the Siri default; there is no unset. */}
+          <div className="list-options__row">
+            <Star size={18} className="list-options__row-icon" aria-hidden />
+            <span className="list-options__row-label">
+              Lista predeterminada
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isDefault}
+              className={`list-options__switch${isDefault ? ' list-options__switch--on' : ''}`}
+              onClick={() => {
+                if (!isDefault) onSetDefault()
+              }}
+              aria-label="Lista predeterminada"
+            >
+              <span className="list-options__switch-knob" aria-hidden />
+            </button>
+          </div>
+
           <button
-            className="list-action-sheet__action"
+            type="button"
+            className="list-options__row list-options__row--link"
             onClick={() => setSubState('members')}
           >
-            <Users size={18} /> Gestionar Miembros
+            <Users size={18} className="list-options__row-icon" aria-hidden />
+            <span className="list-options__row-label">Miembros</span>
+            <span className="list-options__row-meta">
+              {memberCount != null && (
+                <span className="list-options__count">
+                  {memberCount} de {MEMBER_CAP}
+                </span>
+              )}
+              <ChevronRight size={14} aria-hidden />
+            </span>
           </button>
+
           {onRenameStore && (storeEntries?.length ?? 0) > 0 && (
             <button
-              className="list-action-sheet__action"
+              type="button"
+              className="list-options__row list-options__row--link"
               onClick={() => setSubState('stores')}
             >
-              <Store size={18} /> Tiendas
+              <Store size={18} className="list-options__row-icon" aria-hidden />
+              <span className="list-options__row-label">Tiendas</span>
+              <span className="list-options__row-meta">
+                <span className="list-options__count">
+                  {storeEntries?.length}
+                </span>
+                <ChevronRight size={14} aria-hidden />
+              </span>
             </button>
           )}
+
           {onReceiptScan && (
             <button
-              className="list-action-sheet__action"
+              type="button"
+              className="list-options__row"
               onClick={() => {
                 onReceiptScan()
                 sheetRef.current?.close()
               }}
             >
-              <Receipt size={18} /> Escanear ticket
+              <Receipt
+                size={18}
+                className="list-options__row-icon"
+                aria-hidden
+              />
+              <span className="list-options__row-label">Escanear ticket</span>
+              <span />
             </button>
           )}
+
           {isOwner && (
             <button
-              className="list-action-sheet__action list-action-sheet__action--danger"
+              type="button"
+              className="list-options__delete"
               onClick={() => setSubState('confirm-delete')}
             >
-              <Trash2 size={18} /> Eliminar lista
+              Eliminar lista
             </button>
           )}
-        </>
-      )}
-
-      {subState === 'rename' && (
-        <>
-          <p className="list-action-sheet__list-name">
-            <Pencil size={16} /> Renombrar lista
-          </p>
-          <div className="list-action-sheet__input-row">
-            <input
-              className="list-action-sheet__input"
-              type="text"
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && trimmed) onRename(trimmed)
-              }}
-              autoFocus
-              aria-label="Nombre de la lista"
-            />
-            <button
-              className="list-action-sheet__save-btn"
-              onClick={() => onRename(trimmed)}
-              disabled={!trimmed}
-              aria-label="Guardar"
-            >
-              Guardar
-            </button>
-          </div>
-          <button
-            className="list-action-sheet__cancel-link"
-            onClick={() => setSubState('actions')}
-            aria-label="Cancelar"
-          >
-            Cancelar
-          </button>
-        </>
+        </div>
       )}
 
       {subState === 'stores' && (
-        <>
-          <p className="list-action-sheet__list-name">
-            <Store size={16} /> Tiendas
-          </p>
+        <div className="list-options">
+          <p className="list-options__sub-title">Tiendas</p>
           {(storeEntries ?? []).map((entry) =>
             editingStoreKey === entry.store_key ? (
               <div
                 key={entry.store_key}
-                className="list-action-sheet__input-row"
+                className="list-options__store-row list-options__store-row--editing"
               >
                 <input
-                  className="list-action-sheet__input"
+                  className="list-options__store-input"
                   type="text"
                   value={storeNameValue}
                   onChange={(e) => setStoreNameValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && trimmedStore) {
+                  onBlur={() => {
+                    if (trimmedStore)
                       onRenameStore?.(entry.store_key, trimmedStore)
-                      setEditingStoreKey(null)
-                    }
+                    setEditingStoreKey(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur()
                   }}
                   autoFocus
                   aria-label={`Nombre de ${entry.display_name}`}
                 />
-                <button
-                  className="list-action-sheet__save-btn"
-                  onClick={() => {
-                    onRenameStore?.(entry.store_key, trimmedStore)
-                    setEditingStoreKey(null)
-                  }}
-                  disabled={!trimmedStore}
-                  aria-label="Guardar"
-                >
-                  Guardar
-                </button>
               </div>
             ) : (
               <button
+                type="button"
                 key={entry.store_key}
-                className="list-action-sheet__action"
+                className="list-options__store-row"
                 onClick={() => {
                   setEditingStoreKey(entry.store_key)
                   setStoreNameValue(entry.display_name)
                 }}
                 aria-label={`Renombrar ${entry.display_name}`}
               >
-                <Pencil size={18} /> {entry.display_name}
+                <span className="list-options__store-name">
+                  {entry.display_name}
+                </span>
+                <Pencil
+                  size={16}
+                  className="list-options__store-pencil"
+                  aria-hidden
+                />
               </button>
             ),
           )}
-          <button
-            className="list-action-sheet__cancel-link"
-            onClick={() => {
-              setEditingStoreKey(null)
-              setSubState('actions')
-            }}
-            aria-label="Volver"
-          >
-            Volver
-          </button>
-        </>
+        </div>
       )}
 
       {subState === 'confirm-delete' && (
-        <>
-          <p className="list-action-sheet__list-name">{listName}</p>
+        <div className="list-options">
+          <p className="list-options__sub-title">{listName}</p>
           <p className="list-action-sheet__warning">
             Se eliminarán todos los productos. Esta acción no se puede deshacer.
           </p>
@@ -270,7 +308,7 @@ export function ListActionSheet({
           >
             Cancelar
           </button>
-        </>
+        </div>
       )}
     </Sheet>
   )
