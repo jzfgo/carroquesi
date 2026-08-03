@@ -197,10 +197,10 @@ test('the rubric counts what is in the cart', () => {
   ).toBeVisible()
 })
 
-test('the die-cut and the split sheet appear only with a cart', () => {
+test('the die-cut and the talón appear only with a cart', () => {
   const { container: empty } = renderList({ items: [makeItem('a')] })
   expect(empty.querySelector('.perf')).not.toBeInTheDocument()
-  expect(empty.querySelector('.paper--split')).not.toBeInTheDocument()
+  expect(empty.querySelector('.talon')).not.toBeInTheDocument()
   expect(
     empty.querySelector('[aria-label="En el carro"]'),
   ).not.toBeInTheDocument()
@@ -209,7 +209,7 @@ test('the die-cut and the split sheet appear only with a cart', () => {
     items: [makeItem('a'), makeCart('b')],
   })
   expect(withCart.querySelector('.perf')).toBeInTheDocument()
-  expect(withCart.querySelector('.paper--split')).toBeInTheDocument()
+  expect(withCart.querySelector('.talon')).toBeInTheDocument()
 })
 
 test('a record alone raises no cart, no cut, no seal', () => {

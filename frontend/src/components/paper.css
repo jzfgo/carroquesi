@@ -116,88 +116,122 @@
   color: var(--ink-2);
 }
 
-/* The die-cut and the counterfoil (JAV-152, DESIGN.md 28a/28c) -------------
+/* The die-cut and the talón (JAV-152, handoff 30a/33a) --------------------
  *
- * A split sheet paints its paper on the two parts instead of the sheet, so
- * the perforation between them can show through to the board (light) or the
- * void (dark). The sheet element keeps its single cast, edges and outline —
- * it is still one sheet, cut across the middle, not two.
- */
-.paper--split {
-  background: transparent;
-}
-
-.paper--split > .paper__part {
-  background: var(--paper-0);
-}
-
-/* The die-cut: the boundary between what is still to buy and what is already
-   in the cart. A perforation, not a divider — it replaces the section rule
-   rather than adding material. The ::before is a paper strip masked into
-   bridges; the round holes punched through it show the sheet's own --void
-   background: transparent in light so the board reads through, a hole deeper
-   than any board in dark. */
+ * One solid sheet, perforated across the middle. The tear is drawn on the
+ * sheet — a dotted line plus a round notch cut into each edge, the way a
+ * ticket tears off — so the sheet stays solid and its cast still reads as
+ * coming from the paper. The dots take the board's colour in light (as if
+ * the board shows through the pinholes) and the void in dark, deeper than
+ * any board; the edge notches are the board wrapping the cut, so they stay
+ * board-coloured in both. Values are the handoff's 30a. */
 .perf {
-  height: 14px;
-  background: var(--void);
+  --tear-dot: var(--board);
+
+  position: relative;
+  height: 12px;
+  background-image: radial-gradient(
+    circle at 3px 1px,
+    var(--tear-dot) 1.7px,
+    transparent 1.9px
+  );
+  background-repeat: repeat-x;
+  background-position: 0 5px;
+  background-size: 9px 2px;
+}
+
+.perf::before,
+.perf::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--board);
 }
 
 .perf::before {
-  content: '';
-  display: block;
-  height: 100%;
-  background: var(--paper-0);
-  mask: radial-gradient(circle at center, transparent 0 3px, #000 3.5px)
-    center / 14px 100% repeat-x;
+  left: -6px;
 }
 
-/* From the cut down the sheet is the talón — a counterfoil. The item names
-   stay hand-written (you wrote them, ItemCard --cart), but the rubric and the
-   seal are printed, because a stub is a printed thing. */
+.perf::after {
+  right: -6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .perf {
+    --tear-dot: var(--void);
+  }
+}
+
+.theme-light .perf {
+  --tear-dot: var(--board);
+}
+
+.theme-dark .perf {
+  --tear-dot: var(--void);
+}
+
+/* Below the tear the sheet is the talón — the cart. Item names stay
+   hand-written (ItemCard --cart); the rubric and the seal are printed. */
 .talon {
-  padding: 4px 0 8px;
+  padding-bottom: 2px;
 }
 
-/* «En el carro · N» — the pre-printed rubric of the stub. Mono like every
-   printed line, the count in the same face. No cost: an in-cart figure is not
-   a confirmed price (the Confirmed-Price Rule), so the stub only counts. */
+/* Rubric and seal share one row (30a): the count on the left, the close-trip
+   seal on the right — where a closed ticket prints its total. */
+.talon__head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  padding: 6px 16px 6px 20px;
+}
+
+/* «En el carro · N» — the printed rubric of the stub. Geist sans, wide caps,
+   ink-0: it is chrome the app prints, not something the household wrote. */
 .talon__rubric {
-  margin: 0;
-  padding: 8px 20px 4px;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--fs-12);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: var(--tracking-caps);
+  line-height: 1.1;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-2);
+
+  /* Explicit: the root centres text for legacy screens, and this span fills
+     the grid's wide column, so without it the rubric reads centred. */
+  text-align: left;
+  color: var(--ink-0);
 }
 
-/* The seal row: the whole 48px row is the target that opens the close-trip
-   sheet. The mark centres in it; the target is the row, not the stamp. */
+/* The seal is the one interactive mark on the stub; padding lifts the whole
+   button to --hit-min while the pill it carries stays the handoff's 26px. */
 .talon__seal {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: var(--hit-tap);
-  margin-top: 2px;
-  padding: 0 20px;
+  flex-shrink: 0;
+  padding: 9px 0;
   background: none;
   border: none;
   cursor: pointer;
 }
 
-/* The printed seal (28c variant 1): a pill outline, no fill, no shadow, no
-   elevation — a rubber stamp, not a button. --tinta-0 because the seal is the
-   one interactive mark on an otherwise inert stub, and the accent marks what
-   is interactive. .stamp carries the type. */
+/* The printed seal (30a): a tinta pill outline — no fill, no shadow, no
+   elevation — Geist sans caps, the accent that marks what is interactive. */
 .talon__seal .stamp {
   display: inline-flex;
   align-items: center;
   height: 26px;
-  padding: 0 14px;
+  padding: 0 11px;
   border: 1.5px solid var(--tinta-0);
   border-radius: var(--r-pill);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
   color: var(--tinta-0);
 }
