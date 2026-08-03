@@ -194,69 +194,50 @@ export function ItemList({
 
   return (
     <div className="item-list">
-      {/* One sheet, cut across the middle. When items are in the cart the
-          sheet gives up its single paper ground (paper--split) so the die-cut
-          can show the board through real holes, and the lower part becomes the
-          talón — same paper, but printed rubric and seal. */}
-      <section
-        className={`paper paper--pending${cart.length > 0 ? ' paper--split' : ''}`}
-        aria-label="Por comprar"
-      >
-        <div className="paper__part">
-          <p className="paper__title">
-            <span className="paper__title-text">Por comprar</span>
-            <span className="paper__title-meta">
-              {pendingCost && (
-                <CostBadge
-                  cost={pendingCost}
-                  className="item-list__label-cost"
-                />
-              )}
-              <span className="paper__title-count">
-                {totalItems !== undefined && totalItems !== active.length
-                  ? `${active.length} de ${totalItems}`
-                  : `${active.length}`}
-              </span>
+      {/* One solid sheet, perforated across the middle (30a). Above the tear,
+          what's still to buy; below it the talón, where the cart lines sit
+          under a printed rubric and the close-trip seal. The perforation is
+          drawn on the sheet — the sheet stays solid so its cast still reads as
+          coming from the paper. */}
+      <section className="paper paper--pending" aria-label="Por comprar">
+        <p className="paper__title">
+          <span className="paper__title-text">Por comprar</span>
+          <span className="paper__title-meta">
+            {pendingCost && (
+              <CostBadge cost={pendingCost} className="item-list__label-cost" />
+            )}
+            <span className="paper__title-count">
+              {totalItems !== undefined && totalItems !== active.length
+                ? `${active.length} de ${totalItems}`
+                : `${active.length}`}
             </span>
-          </p>
-          {activeByStore.map((group) => (
-            <div key={group.key}>
-              {group.label !== null && (
-                <p className="item-list__store-label">{group.label}</p>
-              )}
-              {group.items.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  onTogglePurchased={onTogglePurchased}
-                  onOpenActions={onOpenActions}
-                  onClone={onClone}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
+          </span>
+        </p>
+        {activeByStore.map((group) => (
+          <div key={group.key}>
+            {group.label !== null && (
+              <p className="item-list__store-label">{group.label}</p>
+            )}
+            {group.items.map((item) => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                onTogglePurchased={onTogglePurchased}
+                onOpenActions={onOpenActions}
+                onClone={onClone}
+              />
+            ))}
+          </div>
+        ))}
 
         {cart.length > 0 && (
-          <>
+          <div className="talon" role="group" aria-label="En el carro">
             <div className="perf" aria-hidden />
-            <div
-              className="paper__part talon"
-              role="group"
-              aria-label="En el carro"
-            >
-              <p className="talon__rubric">En el carro · {cart.length}</p>
-              {cart.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  onTogglePurchased={onTogglePurchased}
-                  onOpenActions={onOpenActions}
-                  onClone={onClone}
-                />
-              ))}
-              {/* The whole row is the target; the stamp is only the mark. The
-                  close-trip sheet it opens arrives with the purchases UI. */}
+            {/* The rubric and the seal share one row: the count on the left,
+                the close-trip stamp right where a closed ticket shows its
+                total. The stamp opens the close-trip sheet (JAV-160). */}
+            <div className="talon__head">
+              <span className="talon__rubric">En el carro · {cart.length}</span>
               <button
                 type="button"
                 className="talon__seal"
@@ -265,7 +246,16 @@ export function ItemList({
                 <span className="stamp">Cerrar compra</span>
               </button>
             </div>
-          </>
+            {cart.map((item) => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                onTogglePurchased={onTogglePurchased}
+                onOpenActions={onOpenActions}
+                onClone={onClone}
+              />
+            ))}
+          </div>
         )}
       </section>
       {footer}
