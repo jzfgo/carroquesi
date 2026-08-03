@@ -74,6 +74,7 @@
   border: none;
   cursor: pointer;
   padding: 0;
+  color: var(--ink-0);
 }
 
 .list-header__emoji {

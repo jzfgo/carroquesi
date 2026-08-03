@@ -125,9 +125,10 @@ export function ListScreen({
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [filterQuery, setFilterQuery] = useState('')
-  const [filterMode, setFilterMode] = useState<'chips' | 'search'>('chips')
-  // The 21b search pill takes over the title-area slot; search and the store
-  // chips are mutually exclusive filters over the same filterQuery.
+  // The 21b search pill takes over the title-area slot. `searching` is the
+  // whole mode: it filters strictly (a typed @tienda excludes storeless items),
+  // while the chips filter loosely — so strictStore is just `searching`, and no
+  // separate filterMode state is needed.
   const [searching, setSearching] = useState(false)
   const [activeItemId, setActiveItemId] = useState<string | null>(null)
   type ScanTarget = { kind: 'add' } | { kind: 'receipt-line'; index: number }
@@ -770,9 +771,8 @@ export function ListScreen({
   }, [items, displayStore])
 
   const filteredItems = useMemo(
-    () =>
-      filterItems(items, filterQuery, { strictStore: filterMode === 'search' }),
-    [items, filterQuery, filterMode],
+    () => filterItems(items, filterQuery, { strictStore: searching }),
+    [items, filterQuery, searching],
   )
   const allUnpurchasedCount = useMemo(
     () => items.filter((i) => !i.purchased).length,
@@ -813,12 +813,10 @@ export function ListScreen({
 
   const openSearch = () => {
     setSearching(true)
-    setFilterMode('search')
     setFilterQuery('')
   }
   const closeSearch = () => {
     setSearching(false)
-    setFilterMode('chips')
     setFilterQuery('')
   }
 
@@ -874,10 +872,7 @@ export function ListScreen({
           <FilterBar
             stores={stores}
             query={filterQuery}
-            onChange={(q) => {
-              setFilterMode('chips')
-              setFilterQuery(q)
-            }}
+            onChange={setFilterQuery}
           />
         )
       )}
