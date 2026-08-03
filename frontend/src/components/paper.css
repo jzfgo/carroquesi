@@ -124,7 +124,7 @@
  * coming from the paper. The dots take the board's colour in light (as if
  * the board shows through the pinholes) and the void in dark, deeper than
  * any board; the edge notches are the board wrapping the cut, so they stay
- * board-coloured in both. Values are the handoff's (30a line 417). */
+ * board-coloured in both. Values are the handoff's 30a. */
 .perf {
   --tear-dot: var(--board);
 
