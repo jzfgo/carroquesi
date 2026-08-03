@@ -58,6 +58,7 @@ import PriceHistorySheet from './PriceHistorySheet'
 import { ProgressBar } from './ProgressBar'
 import ReceiptScanSheet from './ReceiptScanSheet'
 import { SmartInputBar } from './SmartInputBar'
+import { SmartSearchPill } from './SmartSearchPill'
 import { StoreEditSheet } from './StoreEditSheet'
 import { TagEditSheet } from './TagEditSheet'
 import { Toast } from './Toast'
@@ -124,7 +125,11 @@ export function ListScreen({
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [filterQuery, setFilterQuery] = useState('')
-  const [filterMode, setFilterMode] = useState<'chips' | 'search'>('chips')
+  // The 21b search pill takes over the title-area slot. `searching` is the
+  // whole mode: it filters strictly (a typed @tienda excludes storeless items),
+  // while the chips filter loosely — so strictStore is just `searching`, and no
+  // separate filterMode state is needed.
+  const [searching, setSearching] = useState(false)
   const [activeItemId, setActiveItemId] = useState<string | null>(null)
   type ScanTarget = { kind: 'add' } | { kind: 'receipt-line'; index: number }
   const [scanTarget, setScanTarget] = useState<ScanTarget | null>(null)
@@ -766,9 +771,8 @@ export function ListScreen({
   }, [items, displayStore])
 
   const filteredItems = useMemo(
-    () =>
-      filterItems(items, filterQuery, { strictStore: filterMode === 'search' }),
-    [items, filterQuery, filterMode],
+    () => filterItems(items, filterQuery, { strictStore: searching }),
+    [items, filterQuery, searching],
   )
   const allUnpurchasedCount = useMemo(
     () => items.filter((i) => !i.purchased).length,
@@ -807,6 +811,15 @@ export function ListScreen({
     }
   }, [filteredItems])
 
+  const openSearch = () => {
+    setSearching(true)
+    setFilterQuery('')
+  }
+  const closeSearch = () => {
+    setSearching(false)
+    setFilterQuery('')
+  }
+
   return (
     <div className="list-screen" data-board={boardName}>
       <ListHeader
@@ -814,6 +827,7 @@ export function ListScreen({
         emoji={listEmoji}
         onMenuOpen={handleMenuToggle}
         onBack={onBack}
+        onSearch={items.length > 0 && !searching ? openSearch : undefined}
       />
 
       <ProgressBar purchased={purchasedCount} total={totalCount} />
@@ -847,13 +861,20 @@ export function ListScreen({
         />
       )}
 
-      {items.length > 0 && (
-        <FilterBar
-          stores={stores}
+      {searching ? (
+        <SmartSearchPill
           query={filterQuery}
           onChange={setFilterQuery}
-          onModeChange={setFilterMode}
+          onClose={closeSearch}
         />
+      ) : (
+        items.length > 0 && (
+          <FilterBar
+            stores={stores}
+            query={filterQuery}
+            onChange={setFilterQuery}
+          />
+        )
       )}
 
       <ItemList

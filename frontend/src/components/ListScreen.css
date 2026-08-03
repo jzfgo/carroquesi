@@ -86,21 +86,6 @@
   color: var(--board);
 }
 
-.list-screen .filter-bar__search-btn,
-.list-screen .filter-bar__close-btn {
-  color: var(--board-ink);
-}
-
-.list-screen .filter-bar__input {
-  background: transparent;
-  border-color: color-mix(in srgb, var(--board-ink) 40%, transparent);
-  color: var(--board-ink);
-}
-
-.list-screen .filter-bar__input::placeholder {
-  color: color-mix(in srgb, var(--board-ink) 60%, transparent);
-}
-
 /* Override the desktop-focused root width from index.css */
 #root {
   width: 100%;
