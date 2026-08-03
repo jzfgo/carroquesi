@@ -265,6 +265,23 @@ describe('DashboardScreen — list management', () => {
     )
   })
 
+  it('reflects an optimistic default change in the still-open sheet', async () => {
+    // The sheet stays open on save, so it must read live list state, not the
+    // frozen open-time snapshot.
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Costco'))
+    fireEvent.click(screen.getAllByRole('button', { name: /opciones/i })[1])
+    const sw = screen.getByRole('switch', { name: 'Lista predeterminada' })
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(sw)
+    await waitFor(() =>
+      expect(
+        screen.getByRole('switch', { name: 'Lista predeterminada' }),
+      ).toHaveAttribute('aria-checked', 'true'),
+    )
+  })
+
   it("a default list's sheet shows the non-actionable indicator, not the action", async () => {
     vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
     render(<DashboardScreen />)

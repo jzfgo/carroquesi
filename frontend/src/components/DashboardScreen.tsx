@@ -368,21 +368,29 @@ export function DashboardScreen() {
           </section>
         )}
       </main>
-      {activeList && (
-        <ListActionSheet
-          listId={activeList.id}
-          listName={activeList.name}
-          listEmoji={activeList.emoji}
-          currentUserId={user?.id ?? ''}
-          ownerId={activeList.owner_id}
-          isDefault={activeList.is_default}
-          onRename={(newName) => void handleRename(activeList, newName)}
-          onEmojiChange={(emoji) => void handleEmojiChange(activeList, emoji)}
-          onDelete={() => void handleDelete(activeList)}
-          onSetDefault={() => void handleSetDefault(activeList)}
-          onClose={() => setActiveList(null)}
-        />
-      )}
+      {activeList &&
+        (() => {
+          // The sheet stays open across emoji/default edits, which land in
+          // `lists`, not the one-time `activeList` snapshot — so read the live
+          // list from `lists` or the emoji tile and switch would show stale.
+          const active =
+            lists?.find((l) => l.id === activeList.id) ?? activeList
+          return (
+            <ListActionSheet
+              listId={active.id}
+              listName={active.name}
+              listEmoji={active.emoji}
+              currentUserId={user?.id ?? ''}
+              ownerId={active.owner_id}
+              isDefault={active.is_default}
+              onRename={(newName) => void handleRename(active, newName)}
+              onEmojiChange={(emoji) => void handleEmojiChange(active, emoji)}
+              onDelete={() => void handleDelete(active)}
+              onSetDefault={() => void handleSetDefault(active)}
+              onClose={() => setActiveList(null)}
+            />
+          )
+        })()}
       {emojiList && (
         <EmojiPickerSheet
           current={emojiList.emoji}
