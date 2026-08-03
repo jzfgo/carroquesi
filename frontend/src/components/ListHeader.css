@@ -41,6 +41,27 @@
   letter-spacing: normal;
 }
 
+/* Search + menu ride together on the right; the title stays absolutely centred
+   between them and the back control. */
+.list-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.list-header__action {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--ink-0);
+}
+
 .list-header__menu {
   width: 32px;
   height: 32px;

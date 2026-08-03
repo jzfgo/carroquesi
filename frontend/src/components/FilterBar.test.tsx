@@ -3,24 +3,27 @@ import { describe, expect, test, vi } from 'vitest'
 import { FilterBar } from './FilterBar'
 
 describe('FilterBar', () => {
-  test('renders only the search button when stores is empty', () => {
-    render(<FilterBar stores={[]} query="" onChange={() => {}} />)
-    expect(screen.getByRole('button', { name: /buscar/i })).toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: 'Todas' }),
-    ).not.toBeInTheDocument()
+  test('renders nothing when there are no stores', () => {
+    const { container } = render(
+      <FilterBar stores={[]} query="" onChange={() => {}} />,
+    )
+    expect(container).toBeEmptyDOMElement()
   })
 
-  test('renders search button and chips in chip mode', () => {
+  test('renders the store chips with no search magnifier', () => {
     render(
       <FilterBar stores={['Mercadona', 'Lidl']} query="" onChange={() => {}} />,
     )
-    expect(screen.getByRole('button', { name: /buscar/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Todas' })).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Mercadona' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Lidl' })).toBeInTheDocument()
+    // Search moved to the header (21b); the chips row carries no magnifier.
+    expect(
+      screen.queryByRole('button', { name: /buscar/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
   test('"Todas" chip is active (aria-pressed=true) when query is empty', () => {
@@ -94,31 +97,5 @@ describe('FilterBar', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Todas' }))
     expect(onChange).toHaveBeenCalledWith('')
-  })
-
-  test('clicking the search button reveals the text input', () => {
-    render(<FilterBar stores={['Mercadona']} query="" onChange={() => {}} />)
-    fireEvent.click(screen.getByRole('button', { name: /buscar/i }))
-    expect(screen.getByRole('textbox')).toBeInTheDocument()
-  })
-
-  test('typing in the search input calls onChange with the typed value', () => {
-    const onChange = vi.fn()
-    render(<FilterBar stores={['Mercadona']} query="" onChange={onChange} />)
-    fireEvent.click(screen.getByRole('button', { name: /buscar/i }))
-    fireEvent.change(screen.getByRole('textbox'), {
-      target: { value: '@Mercadona leche' },
-    })
-    expect(onChange).toHaveBeenCalledWith('@Mercadona leche')
-  })
-
-  test('clicking the close button exits search mode and calls onChange("")', () => {
-    const onChange = vi.fn()
-    render(<FilterBar stores={['Mercadona']} query="" onChange={onChange} />)
-    fireEvent.click(screen.getByRole('button', { name: /buscar/i }))
-    onChange.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: /cerrar/i }))
-    expect(onChange).toHaveBeenCalledWith('')
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 })
