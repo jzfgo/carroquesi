@@ -1,5 +1,6 @@
 import { ChevronRight, Pencil, Receipt, Star, Store, Users } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { BOARD_NAMES, type BoardName } from '../lib/boards'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
 import type { ListStoreEntry } from '../types'
 import './ListActionSheet.css'
@@ -29,6 +30,10 @@ interface Props {
   isDefault: boolean
   /** Member count for the "N de 5" meta; omitted hides the count. */
   memberCount?: number
+  /** The caller's board for this list (per-user). Omitted hides the picker
+      (e.g. the dashboard, where the board is not orientation-in-context). */
+  board?: BoardName
+  onBoardChange?: (board: BoardName) => void
   /** Save the name (called on blur/Enter of the top field). */
   onRename: (newName: string) => void
   /** Save the emoji (grid pick; null clears it). */
@@ -54,6 +59,8 @@ export function ListActionSheet({
   ownerId,
   isDefault,
   memberCount,
+  board,
+  onBoardChange,
   onRename,
   onEmojiChange,
   onDelete,
@@ -150,6 +157,36 @@ export function ListActionSheet({
               </button>
             ))}
           </div>
+
+          {/* Board picker (37a). Per-user orientation, not shared identity:
+              six swatches and a light-proof preview that redraws with the mode
+              through the tokens. In-list only (needs the live board + writer). */}
+          {board && onBoardChange && (
+            <div className="list-options__board">
+              <p className="list-options__board-label">Tablero</p>
+              <div
+                className="list-options__swatches"
+                role="group"
+                aria-label="Tablero"
+              >
+                {BOARD_NAMES.map((name) => (
+                  <button
+                    type="button"
+                    key={name}
+                    className={`list-options__swatch${name === board ? ' list-options__swatch--active' : ''}`}
+                    style={{ background: `var(--board-${name})` }}
+                    onClick={() => onBoardChange(name)}
+                    aria-label={name}
+                    aria-pressed={name === board}
+                  />
+                ))}
+              </div>
+              <p className="list-options__board-note">
+                El tablero es tuyo — cada miembro ve el suyo. El nombre y el
+                emoji son de la lista.
+              </p>
+            </div>
+          )}
 
           {/* Default is a state, not an action: a switch. Set-only — tapping
               when off makes this the Siri default; there is no unset. */}

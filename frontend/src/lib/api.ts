@@ -10,6 +10,7 @@ import type {
   ReceiptScanResult,
   Suggestion,
 } from '../types'
+import type { BoardName } from './boards'
 import { reportRequestOutcome } from './connectivity'
 import { BACKEND_URL, DEV_USER_ID } from './environment'
 import { isNetworkError } from './networkError'
@@ -141,6 +142,18 @@ export function setDefaultList(
   listId: string,
 ) {
   return apiFetch(getToken, `/lists/${listId}/default`, { method: 'PUT' })
+}
+
+/** Set the caller's board for this list — per-user, never shared (JAV-135). */
+export function setBoardPref(
+  getToken: () => Promise<string>,
+  listId: string,
+  board: BoardName,
+) {
+  return apiFetch(getToken, `/lists/${listId}/prefs/board`, {
+    method: 'PUT',
+    body: JSON.stringify({ board }),
+  })
 }
 
 export function getListItems(getToken: () => Promise<string>, listId: string) {

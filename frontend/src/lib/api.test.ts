@@ -10,6 +10,7 @@ import {
   getListUpdatedAt,
   issueApiKey,
   regenerateApiKey,
+  setBoardPref,
   shortcutFileUrl,
   submitFeedback,
   submitWaitlistSignup,
@@ -152,6 +153,20 @@ describe('updateList', () => {
       expect.objectContaining({
         method: 'PATCH',
         body: JSON.stringify({ name: 'Nuevo nombre' }),
+      }),
+    )
+  })
+})
+
+describe('setBoardPref', () => {
+  it('PUT /lists/{id}/prefs/board with the board body', async () => {
+    mockFetch.mockReturnValue(mockResponse(null, 204))
+    await setBoardPref(mockGetToken, 'l1', 'salvia')
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/lists/l1/prefs/board'),
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ board: 'salvia' }),
       }),
     )
   })

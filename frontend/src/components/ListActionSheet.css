@@ -73,6 +73,52 @@
   outline-offset: -1.5px;
 }
 
+/* Board picker (37a): six swatches + a light-proof preview. */
+.list-options__board {
+  padding: 4px 20px 12px;
+}
+
+.list-options__board-label {
+  margin: 0 0 12px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.list-options__swatches {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 7px;
+}
+
+.list-options__swatch {
+  height: 52px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.list-options__swatch--active {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 3.5px var(--paper-0);
+}
+
+/* The real board shows through the sheet's scrim and re-themes live on a pick,
+   so no separate preview is needed — just the shared-vs-personal note. */
+.list-options__board-note {
+  margin: 14px 0 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
 /* Rows: icon · label · trailing (switch, or count + chevron). */
 .list-options__row {
   display: grid;
