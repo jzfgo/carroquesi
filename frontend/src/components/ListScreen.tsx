@@ -24,6 +24,7 @@ import {
 import { asBoardName } from '../lib/boards'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
+import { isTripOpen } from '../lib/isTripOpen'
 import { computeCostSummary, purchasedDateLabel } from '../lib/itemCost'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
@@ -849,12 +850,9 @@ export function ListScreen({
         status={status}
         items={filteredItems}
         totalItems={allUnpurchasedCount}
-        members={members}
         onTogglePurchased={handleTogglePurchased}
-        onTagClick={handleTagClick}
-        onMenuOpen={handleItemMenuOpen}
+        onOpenActions={handleItemMenuOpen}
         onRetry={retry}
-        onPriceClick={(itemId) => setPriceItemId(itemId)}
         onClone={handleCloneItem}
         pendingCost={pendingCost}
         purchasedCostByDate={purchasedCostByDate}
@@ -924,6 +922,11 @@ export function ListScreen({
         (() => {
           const activeItem = items.find((i) => i.id === activeItemId)
           if (!activeItem) return null
+          // Prices belong to closed-trip records only: until the trip closes
+          // there is no amount to record, so pending and in-cart items get no
+          // price entry at all.
+          const isRecord =
+            activeItem.purchased && !isTripOpen(activeItem.purchase_ends_at)
           return (
             <ItemActionSheet
               item={activeItem}
@@ -932,6 +935,18 @@ export function ListScreen({
                 void renameItem(activeItemId, name)
                 setActiveItemId(null)
               }}
+              onEditField={(field) => {
+                handleTagClick(activeItemId, field)
+                setActiveItemId(null)
+              }}
+              onPrice={
+                isRecord
+                  ? () => {
+                      setPriceItemId(activeItemId)
+                      setActiveItemId(null)
+                    }
+                  : undefined
+              }
               onDelete={() => {
                 void removeItem(activeItemId)
                 setActiveItemId(null)

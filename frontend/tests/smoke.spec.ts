@@ -27,21 +27,6 @@ async function addItemManzanas(page: Page) {
   await page.getByLabel('Añadir producto').fill('Manzanas')
   await page.getByRole('button', { name: 'Añadir', exact: true }).click()
   await expect(page.getByText('Manzanas')).toBeVisible()
-  // The name arrives with the optimistic item, which carries no author yet, so
-  // its avatar reads "?" until the created item comes back and replaces it.
-  // Both states are on screen for real, and the screenshot below settles for
-  // whichever one it finds first — so wait for the one the baseline depicts.
-  //
-  // Assert the initial rather than the absence of "?". A negated matcher is
-  // satisfied by an element that is not there at all, so renaming the class
-  // would delete this wait without failing anything, and the race would come
-  // back unannounced. The author is seeded, so "A" is a fixture, not a guess.
-  await expect(
-    page
-      .locator('.item-card')
-      .filter({ hasText: 'Manzanas' })
-      .locator('.item-card__avatar'),
-  ).toHaveText('A')
   await awaitPrimingCard(page)
 }
 

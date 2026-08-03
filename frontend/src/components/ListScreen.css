@@ -5,14 +5,27 @@
   --board: var(--board-kraft);
   --board-ink: var(--board-ink-kraft);
 
+  /* Full width at every viewport — no column cap. The sheets span the screen
+     minus the board gutter, and the board owns everything behind them. */
   width: 100%;
-  max-width: 430px; /* comfortable on large phones / tablet emulation */
-  margin: 0 auto;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
   background: var(--board);
   position: relative;
+  isolation: isolate;
+}
+
+/* The board paints edge-to-edge of the viewport: a fixed underlay covers
+   whatever the root would otherwise show (the app's flat ground, overscroll).
+   isolation above keeps the negative z-index inside this screen's stacking
+   context, and the layer unmounts with the list — the board never leaves it. */
+.list-screen::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--board);
 }
 
 .list-screen[data-board='lino'] {

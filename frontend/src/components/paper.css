@@ -75,8 +75,9 @@
   pointer-events: none;
 }
 
-/* The pre-printed sheet title: serif, with the mono count opposite. The
-   dashed underline is the only rule a sheet contains. */
+/* The pre-printed sheet title: serif, with the mono count opposite. Its
+   dashed underline is the sheet's one full-width rule; store group headers
+   carry their own solid text-width underline instead, and rows carry none. */
 .paper__title {
   display: flex;
   align-items: baseline;

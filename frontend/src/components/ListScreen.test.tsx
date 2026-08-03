@@ -315,7 +315,7 @@ describe('ListScreen', () => {
     vi.useRealTimers()
   })
 
-  it('opens TagEditSheet when clicking on brand tag and calls updateTag on save', async () => {
+  it('opens TagEditSheet via row tap → Marca and calls updateTag on save', async () => {
     const updateTagMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -325,8 +325,8 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const brandTag = screen.getByText('Hacendado')
-    fireEvent.click(brandTag)
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Marca' }))
 
     expect(document.querySelector('.tag-edit-sheet')).toBeInTheDocument()
 
@@ -337,7 +337,7 @@ describe('ListScreen', () => {
     expect(updateTagMock).toHaveBeenCalledWith('i1', 'brand', 'Danone')
   })
 
-  it('opens StoreEditSheet when clicking on stores tag and calls updateStores on save', async () => {
+  it('opens StoreEditSheet via row tap → Tiendas and calls updateStores on save', async () => {
     const updateStoresMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -347,10 +347,8 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const storeTag = document.querySelector(
-      '.item-card__tag:not(.item-card__tag--cta)',
-    )!
-    fireEvent.click(storeTag)
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Tiendas' }))
 
     expect(document.querySelector('.store-edit-sheet')).toBeInTheDocument()
 
@@ -388,7 +386,7 @@ describe('ListScreen', () => {
     expect(filterBar.getByRole('button', { name: 'Lidl' })).toBeInTheDocument()
   })
 
-  it('labels chips and item tags with the registry canonical name', () => {
+  it('labels chips and item rows with the registry canonical name', () => {
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
       items: [makeItem({ id: 'i1', name: 'Pan', stores: ['ahorra mas'] })],
@@ -407,13 +405,15 @@ describe('ListScreen', () => {
     expect(
       filterBar.getByRole('button', { name: 'Ahorramas' }),
     ).toBeInTheDocument()
-    // The item card tag resolves through the same function.
-    expect(
-      document.querySelector('.item-card__tag:not(.item-card__tag--cta)'),
-    ).toHaveTextContent('Ahorramas')
+    // The store group header resolves through the same function. A pending
+    // row's own meta names no shop — the header already does.
+    expect(document.querySelector('.item-list__store-label')).toHaveTextContent(
+      'Ahorramas',
+    )
+    expect(document.querySelector('.item-card__meta')).not.toBeInTheDocument()
   })
 
-  it('opens ItemActionSheet when menu button is clicked and handles rename', async () => {
+  it('opens ItemActionSheet when the row is tapped and handles rename', async () => {
     const renameItemMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -423,10 +423,7 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const optionsButton = screen.getByRole('button', {
-      name: 'Opciones del producto',
-    })
-    fireEvent.click(optionsButton)
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
 
     expect(
       screen.getByRole('dialog', { name: /Opciones del producto/i }),
@@ -440,7 +437,7 @@ describe('ListScreen', () => {
     expect(renameItemMock).toHaveBeenCalledWith('i1', 'Manzanas Rojas')
   })
 
-  it('opens ItemActionSheet when menu button is clicked and handles delete', async () => {
+  it('opens ItemActionSheet when the row is tapped and handles delete', async () => {
     const removeItemMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -450,10 +447,7 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const optionsButton = screen.getByRole('button', {
-      name: 'Opciones del producto',
-    })
-    fireEvent.click(optionsButton)
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
 
     expect(
       screen.getByRole('dialog', { name: /Opciones del producto/i }),
@@ -567,10 +561,7 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const optionsButton = screen.getByRole('button', {
-      name: 'Opciones del producto',
-    })
-    fireEvent.click(optionsButton)
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
 
     fireEvent.click(screen.getByRole('button', { name: /comprar de nuevo/i }))
 
@@ -581,6 +572,42 @@ describe('ListScreen', () => {
       quantity: null,
       ean: null,
     })
+  })
+
+  it('offers no price entry for pending or in-cart items', () => {
+    // Prices exist only on closed-trip records: an in-cart item (open trip)
+    // and a pending item both open the sheet without a price action.
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({ id: 'i1', name: 'Manzanas' }),
+        makeItem({
+          id: 'i2',
+          name: 'Peras',
+          purchased: true,
+          purchased_at: TODAY,
+        }),
+      ],
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
+    expect(
+      screen.queryByRole('button', { name: /historial de precios/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /registrar precio/i }),
+    ).not.toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    fireEvent.click(screen.getByRole('button', { name: /peras/i }))
+    expect(
+      screen.queryByRole('button', { name: /historial de precios/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /registrar precio/i }),
+    ).not.toBeInTheDocument()
   })
 })
 
@@ -1088,8 +1115,8 @@ describe('ListScreen — offline refusal keeps user input', () => {
     reportRequestOutcome(true)
   })
 
-  // Opens the LogPurchaseSheet the way a user does: price tag on a purchased
-  // item → price history → "Actualizar precio".
+  // Opens the LogPurchaseSheet the way a user does: row tap on a purchased
+  // item → "Registrar precio" → price history → "Actualizar precio".
   async function openLogPurchaseSheet(
     savePriceMock: ReturnType<
       typeof useListItemsModule.useListItems
@@ -1098,11 +1125,14 @@ describe('ListScreen — offline refusal keeps user input', () => {
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
       items: [
+        // A closed-trip record: the price entry exists only there — a
+        // pending or in-cart item offers no price affordance at all.
         makeItem({
           id: 'i1',
           name: 'Manzanas',
           purchased: true,
           purchased_at: TODAY,
+          purchase_ends_at: YESTERDAY,
           price: 3.15,
         }),
       ],
@@ -1113,7 +1143,8 @@ describe('ListScreen — offline refusal keeps user input', () => {
     })
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
-    fireEvent.click(document.querySelector('.item-card__tag--price')!)
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar precio' }))
     fireEvent.click(
       await screen.findByRole('button', { name: /actualizar precio/i }),
     )
