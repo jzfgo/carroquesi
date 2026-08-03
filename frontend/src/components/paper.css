@@ -160,7 +160,9 @@
 
 /* «En el carro · N» — the pre-printed rubric of the stub. Mono like every
    printed line, the count in the same face. No cost: an in-cart figure is not
-   a confirmed price (the Confirmed-Price Rule), so the stub only counts. */
+   a confirmed price (the Confirmed-Price Rule), so the stub only counts.
+   text-align is explicit — the root still centers text for legacy screens, and
+   a printed rubric reads from the left like every other label on the sheet. */
 .talon__rubric {
   margin: 0;
   padding: 8px 20px 4px;
@@ -170,6 +172,7 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
+  text-align: left;
   color: var(--ink-2);
 }
 
