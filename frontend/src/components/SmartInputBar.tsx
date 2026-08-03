@@ -1,5 +1,5 @@
-import { ScanBarcode, Sparkles, Store, Tag, X } from 'lucide-react'
-import { useRef } from 'react'
+import { ArrowUp, ScanBarcode, Sparkles, Store, Tag, X } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem, ParsedInput, Suggestion } from '../types'
 import './SmartInputBar.css'
@@ -99,6 +99,12 @@ export function SmartInputBar({
   onDueSuggestionsOpen,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
+  // The input's focus proxies "keyboard open": on a touch device the soft
+  // keyboard is up exactly while the field is focused. The pill shows only the
+  // action you can't take another way right now, so this decides which trailing
+  // control appears (5d) — while focused, Enter submits and the send button and
+  // scanner both retire.
+  const [focused, setFocused] = useState(false)
   const activeSigil = getActiveSigil(value)
   const fieldSigil =
     activeSigil && SIGIL_FIELDS[activeSigil.sigil]
@@ -258,42 +264,60 @@ export function SmartInputBar({
           ref={inputRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && hasName && !inEanMode) onSubmit()
           }}
           placeholder="Añadir producto…"
           aria-label="Añadir producto"
         />
-        {value ? (
+        {/* One trailing control, chosen by what you can't do another way right
+            now. mousedown is swallowed so tapping never blurs the field first
+            (which would swap the button out from under the tap). */}
+        {value === '' ? (
+          // Empty: the scanner is the alternate way in — and only while the
+          // keyboard is down, because once it's up, typing is the mode.
+          !focused && (
+            <button
+              className="smart-input__scan"
+              onClick={onScanRequest}
+              onMouseDown={(e) => e.preventDefault()}
+              aria-label="Escanear código de barras"
+              type="button"
+            >
+              <ScanBarcode size={20} />
+            </button>
+          )
+        ) : focused ? (
+          // Text, keyboard up: Enter sends, so the one thing you can't do
+          // another way is wipe the field.
           <button
             className="smart-input__clear"
             onClick={() => {
               onClear()
               inputRef.current?.focus()
             }}
+            onMouseDown={(e) => e.preventDefault()}
             aria-label="Borrar"
             type="button"
           >
             <span className="smart-input__clear-icon" aria-hidden="true" />
           </button>
         ) : (
+          // Text, keyboard down: Enter is out of reach, so a single accent
+          // send button — an up-arrow, not a "+".
           <button
-            className="smart-input__scan"
-            onClick={onScanRequest}
-            aria-label="Escanear código de barras"
+            className="smart-input__add"
+            onClick={onSubmit}
+            onMouseDown={(e) => e.preventDefault()}
+            disabled={!hasName || inEanMode}
+            aria-label="Añadir"
             type="button"
           >
-            <ScanBarcode size={20} />
+            <ArrowUp size={20} strokeWidth={2.5} aria-hidden="true" />
           </button>
         )}
-        <button
-          className="smart-input__add"
-          onClick={onSubmit}
-          disabled={!hasName || inEanMode}
-          aria-label="Añadir"
-        >
-          <span aria-hidden="true" className="smart-input__add-icon" />
-        </button>
       </div>
     </div>
   )

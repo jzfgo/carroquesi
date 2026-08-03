@@ -7,6 +7,25 @@ import { SmartInputBar } from './SmartInputBar'
 const NO_ITEMS: ListItem[] = []
 const noop = () => {}
 
+function renderBar(props: Partial<React.ComponentProps<typeof SmartInputBar>>) {
+  return render(
+    <SmartInputBar
+      value=""
+      parsed={parseInput('')}
+      items={NO_ITEMS}
+      suggestions={[]}
+      onChange={noop}
+      onSubmit={noop}
+      onClear={noop}
+      onScanRequest={noop}
+      onEanSearch={noop}
+      {...props}
+    />,
+  )
+}
+
+const field = () => screen.getByRole('textbox', { name: /añadir producto/i })
+
 test('renders syntax legend chips', () => {
   render(
     <SmartInputBar
@@ -26,20 +45,10 @@ test('renders syntax legend chips', () => {
   expect(screen.getByText(/@/)).toBeInTheDocument() // store chip
 })
 
-test('add button is disabled when name is empty', () => {
-  render(
-    <SmartInputBar
-      value=""
-      parsed={parseInput('')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={noop}
-      onSubmit={noop}
-      onClear={noop}
-      onScanRequest={noop}
-      onEanSearch={noop}
-    />,
-  )
+test('send button is disabled when the text carries no product name', () => {
+  // A store sigil alone: there is text (so the send button shows, keyboard
+  // down) but nothing to add, so it stays disabled.
+  renderBar({ value: '@Mercadona', parsed: parseInput('@Mercadona') })
   expect(screen.getByRole('button', { name: /^añadir$/i })).toBeDisabled()
 })
 
@@ -553,21 +562,14 @@ test('regular parse preview not shown when in EAN mode', () => {
 
 // ── Clear button ───────────────────────────────────────────────────────────────
 
-test('clear button shown when input has text', () => {
-  render(
-    <SmartInputBar
-      value="Leche"
-      parsed={parseInput('Leche')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={noop}
-      onSubmit={noop}
-      onClear={noop}
-      onScanRequest={noop}
-      onEanSearch={noop}
-    />,
-  )
+test('clear button shown while typing (keyboard open) with text', () => {
+  renderBar({ value: 'Leche', parsed: parseInput('Leche') })
+  fireEvent.focus(field())
   expect(screen.getByRole('button', { name: /borrar/i })).toBeInTheDocument()
+  // ...and the send button is not there while the keyboard is up.
+  expect(
+    screen.queryByRole('button', { name: /^añadir$/i }),
+  ).not.toBeInTheDocument()
 })
 
 test('scan button not shown when input has text', () => {
@@ -608,21 +610,42 @@ test('scan button shown when input is empty', () => {
 
 test('clear button calls onClear', async () => {
   const onClear = vi.fn()
-  render(
-    <SmartInputBar
-      value="Leche"
-      parsed={parseInput('Leche')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={noop}
-      onSubmit={noop}
-      onClear={onClear}
-      onScanRequest={noop}
-      onEanSearch={noop}
-    />,
-  )
+  renderBar({ value: 'Leche', parsed: parseInput('Leche'), onClear })
+  fireEvent.focus(field())
   await userEvent.click(screen.getByRole('button', { name: /borrar/i }))
   expect(onClear).toHaveBeenCalled()
+})
+
+// ── Three-state pill: what you can't do another way right now (5d) ───────────
+
+test('the scanner retires while the keyboard is open', () => {
+  renderBar({ value: '', parsed: parseInput('') })
+  expect(screen.getByRole('button', { name: /escanear/i })).toBeInTheDocument()
+  fireEvent.focus(field())
+  expect(
+    screen.queryByRole('button', { name: /escanear/i }),
+  ).not.toBeInTheDocument()
+})
+
+test('keyboard open hides the send button; Enter still submits', () => {
+  const onSubmit = vi.fn()
+  renderBar({ value: 'Leche', parsed: parseInput('Leche'), onSubmit })
+  fireEvent.focus(field())
+  expect(
+    screen.queryByRole('button', { name: /^añadir$/i }),
+  ).not.toBeInTheDocument()
+  fireEvent.keyDown(field(), { key: 'Enter' })
+  expect(onSubmit).toHaveBeenCalledTimes(1)
+})
+
+test('keyboard down with text shows the accent send button, which submits', async () => {
+  const onSubmit = vi.fn()
+  // Blurred is the default in jsdom — the keyboard-down state.
+  renderBar({ value: 'Leche', parsed: parseInput('Leche'), onSubmit })
+  const send = screen.getByRole('button', { name: /^añadir$/i })
+  expect(send).toBeEnabled()
+  await userEvent.click(send)
+  expect(onSubmit).toHaveBeenCalledTimes(1)
 })
 
 // ── Own-brand inferred store chip ────────────────────────────────────────────

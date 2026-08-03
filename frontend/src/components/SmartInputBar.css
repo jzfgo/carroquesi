@@ -120,6 +120,11 @@
   display: flex;
   gap: 10px;
   align-items: center;
+
+  /* Hold the row height across the trailing swap: the scan/send buttons are
+     --hit-min, the clear is smaller and some states show none, and the row
+     must not jump as the keyboard opens and closes. */
+  min-height: var(--hit-min);
   background: var(--paper-1);
   border: 1.5px solid var(--border);
   border-radius: 14px;
@@ -131,8 +136,8 @@
 }
 
 .smart-input__scan {
-  width: 36px;
-  height: 36px;
+  width: var(--hit-min);
+  height: var(--hit-min);
   border-radius: 10px;
   background: var(--paper-1);
   border: 1px solid var(--border);
@@ -156,18 +161,19 @@
   font-family: inherit;
 }
 
+/* --ink-2 (muted text), not --ink-3: --ink-3 is a borders/inactive-marks ink
+   and fails contrast as text (the WCAG placeholder defect, JAV-153). */
 .smart-input__field::placeholder {
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .smart-input__add {
-  width: 36px;
-  height: 36px;
+  width: var(--hit-min);
+  height: var(--hit-min);
   border-radius: 10px;
   background: var(--accent);
   border: none;
   color: var(--accent-fg);
-  font-size: 22px;
   line-height: 1;
   display: flex;
   align-items: center;
@@ -180,37 +186,6 @@
 .smart-input__add:disabled {
   background: var(--border);
   cursor: not-allowed;
-}
-
-.smart-input__add-icon {
-  display: block;
-  width: 22px;
-  height: 22px;
-  position: relative;
-}
-
-.smart-input__add-icon::before,
-.smart-input__add-icon::after {
-  content: '';
-  position: absolute;
-  background: white;
-  border-radius: 2px;
-}
-
-.smart-input__add-icon::before {
-  width: 14px;
-  height: 2px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.smart-input__add-icon::after {
-  width: 2px;
-  height: 14px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
 }
 
 .smart-input__ean-code {
