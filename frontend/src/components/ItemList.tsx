@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { formatPrice } from '../lib/formatPrice'
+import { isTripOpen } from '../lib/isTripOpen'
 import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
 import { storeKey } from '../lib/storeKey'
@@ -25,6 +26,8 @@ interface Props {
   footer?: ReactNode
   /** Resolves a raw store string to the list's canonical display name. */
   displayStore?: (raw: string) => string
+  /** Opens the close-trip sheet from the seal. Wired in JAV-160. */
+  onCloseTrip?: () => void
 }
 
 function CostBadge({
@@ -54,6 +57,7 @@ export function ItemList({
   totalItems,
   footer,
   displayStore = (raw) => raw,
+  onCloseTrip,
 }: Props) {
   const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
 
@@ -88,8 +92,25 @@ export function ItemList({
       a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0,
     )
 
-  const purchased = items
-    .filter((i) => i.purchased)
+  // The three states split here, not on the row: in-cart is a purchased item
+  // whose trip is still open, and it lives on the counterfoil below the
+  // die-cut; a closed trip settles it into a record (JAV-152, DESIGN.md 30a).
+  // The cart reads top-down like a receipt being rung up — earliest first,
+  // an optimistic write with no stamp yet trailing the confirmed lines.
+  const cart = items
+    .filter((i) => i.purchased && isTripOpen(i.purchase_ends_at))
+    .sort((a, b) => {
+      if (!a.purchased_at) return 1
+      if (!b.purchased_at) return -1
+      return a.purchased_at < b.purchased_at
+        ? -1
+        : a.purchased_at > b.purchased_at
+          ? 1
+          : 0
+    })
+
+  const bought = items
+    .filter((i) => i.purchased && !isTripOpen(i.purchase_ends_at))
     .sort((a, b) => {
       if (!a.purchased_at) return 1
       if (!b.purchased_at) return -1
@@ -100,7 +121,7 @@ export function ItemList({
           : 0
     })
 
-  if (active.length === 0 && purchased.length === 0) {
+  if (active.length === 0 && cart.length === 0 && bought.length === 0) {
     return (
       <div className="item-list">
         <div className="paper paper--pending">
@@ -159,9 +180,9 @@ export function ItemList({
     group.items.push(item)
   }
 
-  // Group purchased items by local date label, preserving backend order (newest first)
+  // Group settled records by local date label, preserving backend order (newest first)
   const purchasedByDate: { label: string; items: ListItem[] }[] = []
-  for (const item of purchased) {
+  for (const item of bought) {
     const label = purchasedDateLabel(item.purchased_at)
     const last = purchasedByDate.at(-1)
     if (last && last.label === label) {
@@ -173,47 +194,90 @@ export function ItemList({
 
   return (
     <div className="item-list">
-      <section className="paper paper--pending" aria-label="Por comprar">
-        <p className="paper__title">
-          <span className="paper__title-text">Por comprar</span>
-          <span className="paper__title-meta">
-            {pendingCost && (
-              <CostBadge cost={pendingCost} className="item-list__label-cost" />
-            )}
-            <span className="paper__title-count">
-              {totalItems !== undefined && totalItems !== active.length
-                ? `${active.length} de ${totalItems}`
-                : `${active.length}`}
+      {/* One sheet, cut across the middle. When items are in the cart the
+          sheet gives up its single paper ground (paper--split) so the die-cut
+          can show the board through real holes, and the lower part becomes the
+          talón — same paper, but printed rubric and seal. */}
+      <section
+        className={`paper paper--pending${cart.length > 0 ? ' paper--split' : ''}`}
+        aria-label="Por comprar"
+      >
+        <div className="paper__part">
+          <p className="paper__title">
+            <span className="paper__title-text">Por comprar</span>
+            <span className="paper__title-meta">
+              {pendingCost && (
+                <CostBadge
+                  cost={pendingCost}
+                  className="item-list__label-cost"
+                />
+              )}
+              <span className="paper__title-count">
+                {totalItems !== undefined && totalItems !== active.length
+                  ? `${active.length} de ${totalItems}`
+                  : `${active.length}`}
+              </span>
             </span>
-          </span>
-        </p>
-        {activeByStore.map((group) => (
-          <div key={group.key}>
-            {group.label !== null && (
-              <p className="item-list__store-label">{group.label}</p>
-            )}
-            {group.items.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                onTogglePurchased={onTogglePurchased}
-                onOpenActions={onOpenActions}
-                onClone={onClone}
-              />
-            ))}
-          </div>
-        ))}
+          </p>
+          {activeByStore.map((group) => (
+            <div key={group.key}>
+              {group.label !== null && (
+                <p className="item-list__store-label">{group.label}</p>
+              )}
+              {group.items.map((item) => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  onTogglePurchased={onTogglePurchased}
+                  onOpenActions={onOpenActions}
+                  onClone={onClone}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {cart.length > 0 && (
+          <>
+            <div className="perf" aria-hidden />
+            <div
+              className="paper__part talon"
+              role="group"
+              aria-label="En el carro"
+            >
+              <p className="talon__rubric">En el carro · {cart.length}</p>
+              {cart.map((item) => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  onTogglePurchased={onTogglePurchased}
+                  onOpenActions={onOpenActions}
+                  onClone={onClone}
+                />
+              ))}
+              {/* The whole row is the target; the stamp is only the mark. The
+                  close-trip sheet it opens arrives with the purchases UI. */}
+              <button
+                type="button"
+                className="talon__seal"
+                onClick={() => onCloseTrip?.()}
+              >
+                <span className="stamp">Cerrar compra</span>
+              </button>
+            </div>
+          </>
+        )}
       </section>
       {footer}
 
-      {purchased.length > 0 && (
+      {bought.length > 0 && (
         <>
           <button
             className="item-list__purchased-toggle"
             onClick={() => setPurchasedCollapsed((c) => !c)}
             aria-expanded={!purchasedCollapsed}
           >
-            Comprados ({purchased.length})
+            Comprados ({bought.length})
             <span
               className={`item-list__chevron${purchasedCollapsed ? ' item-list__chevron--collapsed' : ''}`}
               aria-hidden

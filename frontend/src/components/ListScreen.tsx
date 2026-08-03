@@ -725,6 +725,12 @@ export function ListScreen({
     setDueSuggestions((prev) => prev.filter((x) => x.name !== s.name))
   }, [])
 
+  // The seal is the finished target; the close-trip sheet it opens (10b) is
+  // built in JAV-160. Until then tapping it says so rather than dead-ending.
+  const handleCloseTrip = useCallback(() => {
+    setToast('Cerrar la compra llega con la pantalla de compras')
+  }, [])
+
   const { purchasedCount, totalCount } = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10) // 'YYYY-MM-DD' UTC
     const isPurchasedToday = (i: (typeof items)[number]) =>
@@ -780,6 +786,10 @@ export function ListScreen({
     for (const item of filteredItems) {
       if (!item.purchased) {
         pendingItems.push(item)
+      } else if (isTripOpen(item.purchase_ends_at)) {
+        // In-cart: on the talón, never priced (the Confirmed-Price Rule), so
+        // it feeds no settled-date subtotal.
+        continue
       } else {
         const label = purchasedDateLabel(item.purchased_at)
         const group = byDate.get(label) ?? []
@@ -857,6 +867,7 @@ export function ListScreen({
         pendingCost={pendingCost}
         purchasedCostByDate={purchasedCostByDate}
         displayStore={displayStore}
+        onCloseTrip={handleCloseTrip}
         footer={
           allUnpurchasedCount === 0 &&
           items.length > 0 &&
