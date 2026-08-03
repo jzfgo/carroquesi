@@ -73,7 +73,7 @@
   outline-offset: -1.5px;
 }
 
-/* Board picker (37a): six swatches + a light-proof preview. */
+/* Board picker (37a): six board-hue swatches. */
 .list-options__board {
   padding: 4px 20px 12px;
 }

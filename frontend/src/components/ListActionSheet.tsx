@@ -159,8 +159,8 @@ export function ListActionSheet({
           </div>
 
           {/* Board picker (37a). Per-user orientation, not shared identity:
-              six swatches and a light-proof preview that redraws with the mode
-              through the tokens. In-list only (needs the live board + writer). */}
+              six board-hue swatches. In-list only (needs the live board +
+              writer). */}
           {board && onBoardChange && (
             <div className="list-options__board">
               <p className="list-options__board-label">Tablero</p>
