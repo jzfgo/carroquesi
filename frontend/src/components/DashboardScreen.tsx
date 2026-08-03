@@ -26,7 +26,6 @@ import {
   submitFeedback,
   updateList,
 } from '../lib/api'
-import { CURATED_EMOJIS } from '../lib/curatedEmojis'
 import type { ApiList } from '../types'
 import { CreateListCard } from './CreateListCard'
 import './DashboardScreen.css'
@@ -74,10 +73,6 @@ function saveDashboardCache(userId: string, lists: ApiList[]) {
   } catch {
     /* storage unavailable */
   }
-}
-
-function randomEmoji(): string {
-  return CURATED_EMOJIS[Math.floor(Math.random() * CURATED_EMOJIS.length)]
 }
 
 export function DashboardScreen() {
@@ -176,12 +171,12 @@ export function DashboardScreen() {
   }, [fetchLists])
 
   const handleCreate = useCallback(
-    async (name: string) => {
+    async (name: string, emoji: string) => {
       if (isOffline) {
         setToast('No disponible sin conexión')
         return
       }
-      await createList(getToken, { name, emoji: randomEmoji() })
+      await createList(getToken, { name, emoji })
       await fetchLists()
     },
     [getToken, fetchLists, isOffline],

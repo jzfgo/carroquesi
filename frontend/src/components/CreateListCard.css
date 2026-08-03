@@ -30,71 +30,7 @@
   color: var(--accent);
 }
 
-/* Expanded: the row swaps to an inline name input with confirm and cancel. */
-.create-list-input {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 8px;
-  align-items: center;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 56px;
-  padding: 6px 16px 6px 20px;
-  border-top: 1px solid var(--rule);
-}
-
-/* Under the 16c empty state there is no row group to belong to. */
-.create-list-input--alone {
-  border-top: none;
-  padding: 6px 0;
-}
-
-.create-list-input input {
-  min-width: 0;
-  border: none;
-  outline: none;
-  font-size: var(--fs-16);
-  background: transparent;
-  color: var(--ink-0);
-  font-family: var(--font-sans);
-}
-
-.create-list-input input::placeholder {
-  color: var(--ink-2);
-}
-
-.create-list-input__submit {
-  flex-shrink: 0;
-  min-height: var(--hit-min);
-  padding: 0 14px;
-  border-radius: var(--r-md);
-  background: var(--accent);
-  color: var(--accent-fg);
-  border: none;
-  cursor: pointer;
-  font-size: var(--fs-14);
-  font-weight: 600;
-  font-family: inherit;
-  white-space: nowrap;
-}
-
-.create-list-input__submit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Painted 16px, touchable at 44px (the .hit pattern). */
-.create-list-input__cancel {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 14px;
-  margin: -14px;
-  background: none;
-  border: none;
-  color: var(--ink-2);
-  cursor: pointer;
-}
+/* Tapping the row opens the Nueva lista sheet (21a); see CreateListSheet. */
 
 /* 16c: mascot, serif title, one sentence, one 48px accent button. */
 .create-list-empty {
