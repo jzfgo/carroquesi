@@ -147,11 +147,14 @@ export function ItemList({
     active.length === 0 && cart.length === 0 && bought.length === 0
 
   // Inline "Sueles comprar" (20b): at most three, and never a line already on
-  // the sheet. The server usually filters these out, but a name typed by hand
-  // in the meantime could still collide, so fold-compare against every row —
-  // pending, in-cart and settled — before offering it.
+  // this trip. A suggestion is derived from purchase history, so by definition
+  // it sits in the settled records below — deduping against those would hide
+  // nearly every real suggestion. We only guard against a collision with what
+  // is already written for *this* trip: the pending list and the cart. The
+  // server usually filters those too, but a name typed by hand in the meantime
+  // could still collide.
   const onList = new Set(
-    [...active, ...cart, ...bought].map((i) => i.name.trim().toLowerCase()),
+    [...active, ...cart].map((i) => i.name.trim().toLowerCase()),
   )
   const shownSuggestions = suggestions
     .filter((s) => !onList.has(s.name.trim().toLowerCase()))

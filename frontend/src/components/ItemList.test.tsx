@@ -543,7 +543,7 @@ test('caps the suggestion tail at three rows', () => {
   expect(screen.getAllByRole('button', { name: /^añadir /i })).toHaveLength(3)
 })
 
-test('excludes a suggestion already on the list (case/space-folded)', () => {
+test('excludes a suggestion already on the pending list (case/space-folded)', () => {
   renderList({
     items: [makeItem('a'), { ...makeItem('b'), name: '  Leche Entera ' }],
     suggestions: [makeSuggestion('leche entera'), makeSuggestion('Café')],
@@ -553,6 +553,18 @@ test('excludes a suggestion already on the list (case/space-folded)', () => {
   ).not.toBeInTheDocument()
   expect(
     screen.getByRole('button', { name: /añadir Café/i }),
+  ).toBeInTheDocument()
+})
+
+test('still suggests something that is only in the settled records', () => {
+  // A due-suggestion is derived from purchase history, so it will always be in
+  // the "Comprados" section — that must NOT suppress it.
+  renderList({
+    items: [makeItem('a'), makeBought('b')],
+    suggestions: [{ ...makeSuggestion('Aceite'), name: 'Item b' }],
+  })
+  expect(
+    screen.getByRole('button', { name: /añadir Item b/i }),
   ).toBeInTheDocument()
 })
 
