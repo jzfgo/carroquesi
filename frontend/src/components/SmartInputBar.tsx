@@ -30,37 +30,6 @@ function hasSigil(parsed: ParsedInput): boolean {
   )
 }
 
-const ALL_SIGILS = new Set(['+', '#', '@', '|'])
-
-/**
- * Returns the new input value after a chip tap, or null if no change is needed.
- * - If the input ends with a bare sigil (e.g. "Leche #"), replace it with the new sigil.
- * - Otherwise append the sigil if not already present anywhere in the input.
- */
-function sigilChipAction(currentValue: string, sigil: string): string | null {
-  const trimmed = currentValue.trimEnd()
-  const words = trimmed ? trimmed.split(/\s+/) : []
-  const lastWord = words[words.length - 1] ?? ''
-  const endsWithBareSigil = lastWord.length === 1 && ALL_SIGILS.has(lastWord)
-
-  if (endsWithBareSigil) {
-    if (lastWord === sigil) return null // same chip tapped again, just refocus
-    words[words.length - 1] = sigil
-    return words.join(' ')
-  }
-
-  if (sigil !== '@' && currentValue.includes(sigil)) return null
-  const sep = currentValue === '' || currentValue.endsWith(' ') ? '' : ' '
-  return currentValue + sep + sigil
-}
-
-const LEGEND_CHIPS: { sigil: string; label: string }[] = [
-  { sigil: '+', label: 'cant.' },
-  { sigil: '#', label: 'marca' },
-  { sigil: '@', label: 'tienda' },
-  { sigil: '|', label: 'cod. barras' },
-]
-
 interface Props {
   value: string
   parsed: ParsedInput
@@ -226,23 +195,6 @@ export function SmartInputBar({
           ))}
         </div>
       )}
-
-      <div className="smart-input__legend">
-        {LEGEND_CHIPS.map(({ sigil, label }) => (
-          <button
-            key={sigil}
-            className={`smart-input__chip${sigil === '|' && inEanMode ? ' smart-input__chip--active' : ''}`}
-            aria-label={`Añadir ${label}`}
-            onClick={() => {
-              const newValue = sigilChipAction(value, sigil)
-              if (newValue !== null) onChange(newValue)
-              inputRef.current?.focus()
-            }}
-          >
-            <b>{sigil}</b> {label}
-          </button>
-        ))}
-      </div>
 
       <div className="smart-input__row">
         {(dueSuggestionsCount ?? 0) > 0 && (

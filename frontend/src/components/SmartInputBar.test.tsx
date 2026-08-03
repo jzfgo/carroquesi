@@ -26,25 +26,6 @@ function renderBar(props: Partial<React.ComponentProps<typeof SmartInputBar>>) {
 
 const field = () => screen.getByRole('textbox', { name: /añadir producto/i })
 
-test('renders syntax legend chips', () => {
-  render(
-    <SmartInputBar
-      value=""
-      parsed={parseInput('')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={noop}
-      onSubmit={noop}
-      onClear={noop}
-      onScanRequest={noop}
-      onEanSearch={noop}
-    />,
-  )
-  expect(screen.getByText(/\+/)).toBeInTheDocument() // qty chip
-  expect(screen.getByText(/#/)).toBeInTheDocument() // brand chip
-  expect(screen.getByText(/@/)).toBeInTheDocument() // store chip
-})
-
 test('send button is disabled when the text carries no product name', () => {
   // A store sigil alone: there is text (so the send button shows, keyboard
   // down) but nothing to add, so it stays disabled.
@@ -218,101 +199,6 @@ test('clicking a product suggestion adds it directly with metadata', async () =>
   expect(onSuggestionAdd).toHaveBeenCalledWith(suggestion)
 })
 
-test('tapping a legend chip appends its sigil when not already present', () => {
-  const onChange = vi.fn()
-  render(
-    <SmartInputBar
-      value="Leche"
-      parsed={parseInput('Leche')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={onChange}
-      onSubmit={noop}
-      onClear={noop}
-      onScanRequest={noop}
-      onEanSearch={noop}
-    />,
-  )
-  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }))
-  expect(onChange).toHaveBeenCalledWith('Leche #')
-})
-
-test('tapping brand chip is a no-op when # already present', () => {
-  const onChange = vi.fn()
-  render(
-    <SmartInputBar
-      value="Leche #Puleva"
-      parsed={parseInput('Leche #Puleva')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={onChange}
-      onSubmit={noop}
-      onClear={noop}
-      onScanRequest={noop}
-      onEanSearch={noop}
-    />,
-  )
-  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }))
-  expect(onChange).not.toHaveBeenCalled()
-})
-
-test('tapping a legend chip on empty input sets value to just the sigil', () => {
-  const onChange = vi.fn()
-  render(
-    <SmartInputBar
-      value=""
-      parsed={parseInput('')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={onChange}
-      onSubmit={noop}
-      onClear={noop}
-      onScanRequest={noop}
-      onEanSearch={noop}
-    />,
-  )
-  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
-  expect(onChange).toHaveBeenCalledWith('@')
-})
-
-test('tapping a different chip when input ends with a bare sigil replaces it', () => {
-  const onChange = vi.fn()
-  render(
-    <SmartInputBar
-      value="Leche #"
-      parsed={parseInput('Leche #')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={onChange}
-      onSubmit={noop}
-      onClear={noop}
-      onScanRequest={noop}
-      onEanSearch={noop}
-    />,
-  )
-  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
-  expect(onChange).toHaveBeenCalledWith('Leche @')
-})
-
-test('tapping the same chip when input ends with that bare sigil is a no-op', () => {
-  const onChange = vi.fn()
-  render(
-    <SmartInputBar
-      value="Leche #"
-      parsed={parseInput('Leche #')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={onChange}
-      onSubmit={noop}
-      onClear={noop}
-      onScanRequest={noop}
-      onEanSearch={noop}
-    />,
-  )
-  fireEvent.click(screen.getByRole('button', { name: /añadir marca/i }))
-  expect(onChange).not.toHaveBeenCalled()
-})
-
 test('client-side store suggestions filtered from items when @ typed', () => {
   const items: ListItem[] = [
     {
@@ -387,45 +273,7 @@ test('parse preview shows multiple store chips', () => {
   expect(screen.getByTestId('parse-preview')).toHaveTextContent('Carrefour')
 })
 
-test('tapping tienda chip appends another @ when one is already present', () => {
-  const onChange = vi.fn()
-  render(
-    <SmartInputBar
-      value="Leche @Mercadona"
-      parsed={parseInput('Leche @Mercadona')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={onChange}
-      onSubmit={noop}
-      onClear={noop}
-      onScanRequest={noop}
-      onEanSearch={noop}
-    />,
-  )
-  fireEvent.click(screen.getByRole('button', { name: /añadir tienda/i }))
-  expect(onChange).toHaveBeenCalledWith('Leche @Mercadona @')
-})
-
 // ── EAN mode ──────────────────────────────────────────────────────────────────
-
-test('| cod. barras chip appears in legend', () => {
-  render(
-    <SmartInputBar
-      value=""
-      parsed={parseInput('')}
-      items={NO_ITEMS}
-      suggestions={[]}
-      onChange={noop}
-      onSubmit={noop}
-      onClear={noop}
-      onScanRequest={noop}
-      onEanSearch={noop}
-    />,
-  )
-  expect(
-    screen.getByRole('button', { name: /añadir cod\. barras/i }),
-  ).toBeInTheDocument()
-})
 
 test('EAN preview shown when valid EAN parsed', () => {
   render(
