@@ -254,7 +254,9 @@ export function ItemList({
       {(active.length > 0 || cart.length > 0) && (
         <section
           className="paper paper--pending"
-          aria-label={active.length > 0 ? 'Por comprar' : 'En el carro'}
+          // Standalone talón carries its name on the inner group already, so
+          // the section stays unnamed to avoid a duplicate accessible name.
+          aria-label={active.length > 0 ? 'Por comprar' : undefined}
         >
           {active.length > 0 && (
             <>
@@ -327,8 +329,12 @@ export function ItemList({
 
       {/* All bought (16c): the "Por comprar" sheet is gone, not sitting at
           zero. One hand-written line closes the trip — no confetti, no button;
-          refilling is just writing in the bar below. */}
-      {active.length === 0 && <p className="item-list__done">¡listo ✓!</p>}
+          refilling is just writing in the bar below. Not during a search: a
+          filter that happens to leave only a cart/settled match is a view, not
+          a finished list, so the "done" flourish would misread. */}
+      {active.length === 0 && !searching && (
+        <p className="item-list__done">¡listo ✓!</p>
+      )}
       {footer}
 
       {bought.length > 0 && (

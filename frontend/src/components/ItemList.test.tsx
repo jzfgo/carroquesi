@@ -498,3 +498,15 @@ test('no ¡listo! line while items are still pending', () => {
   const { container } = renderList({ items: [makeItem('a'), makeBought('b')] })
   expect(container.querySelector('.item-list__done')).not.toBeInTheDocument()
 })
+
+test('no ¡listo! line mid-search when only a cart item matches (a view, not done)', () => {
+  const { container } = renderList({
+    searching: true,
+    query: 'leche',
+    items: [makeCart('a')],
+  })
+  // The matched cart item still shows as a filtered result...
+  expect(container.querySelector('.talon')).toBeInTheDocument()
+  // ...but the "done" flourish must not — this is a filtered view.
+  expect(container.querySelector('.item-list__done')).not.toBeInTheDocument()
+})
