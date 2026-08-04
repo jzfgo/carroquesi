@@ -5846,6 +5846,120 @@
         ]
       }
     },
+    "/lists/{list_id}/purchases/{purchase_id}/items/{item_id}/rebuy": {
+      "post": {
+        "description": "Put a settled purchase's line back onto the pending list.\n\nRe-buy takes one line of a past trip — a ListItem filed under it — and\ncreates a fresh pending row carrying the product's identity, the quantity\nlast bought, and the store it was bought at. The source line stays where\nit is: this reorders the product, it does not un-file the shop.\n\nAn open cart is off limits. Its lines wear the green undo disc, and taking\none back onto the list is undo territory, not re-buy — so a line still in\nthe open trip is refused with a nudge to undo instead. A trip that closed\nearlier today is already closed, so is_open is False and the re-buy goes\nthrough; that is the same-day ficha exception, falling out of the open\nrule rather than needing a rule of its own.\n\nIdempotent against the add-item duplicate guard: if the product is already\non the pending list (same trimmed-lower name, or same ean), that existing\nrow is returned with 200 rather than a second copy created. A genuine\ncreate answers 201.",
+        "operationId": "rebuy_item_lists__list_id__purchases__purchase_id__items__item_id__rebuy_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "purchase_id",
+            "required": true,
+            "schema": {
+              "title": "Purchase Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rebuy Item",
+        "tags": [
+          "purchases"
+        ]
+      }
+    },
     "/lists/{list_id}/purchases/{purchase_id}/receipt-scans": {
       "get": {
         "description": "The scans that reconciled one trip, oldest first. Membership only.",

@@ -697,3 +697,147 @@ def test_a_non_member_cannot_read_a_tickets_lines(
     response = other_client.get(f"/lists/{lst['id']}/purchases/{cart_id}/items")
 
     assert response.status_code == 403
+
+
+# --- Re-buy: a settled line back onto the pending list ---
+
+
+def _rebuy(client: TestClient, list_id: str, purchase_id: str, item_id: str):
+    return client.post(f"/lists/{list_id}/purchases/{purchase_id}/items/{item_id}/rebuy")
+
+
+def _pending(client: TestClient, list_id: str) -> list[dict]:
+    return [i for i in client.get(f"/lists/{list_id}/items").json() if not i["purchased"]]
+
+
+def test_rebuy_from_a_closed_trip_creates_a_fresh_pending_line(
+    client: TestClient, session: Session
+):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    ticket = _close(
+        client,
+        lst["id"],
+        store="Lidl",
+        lines=[{"item_id": milk["id"], "quantity": "2 L"}],
+    ).json()
+
+    response = _rebuy(client, lst["id"], ticket["id"], milk["id"])
+
+    assert response.status_code == 201
+    fresh = response.json()
+    assert fresh["id"] != milk["id"]
+    assert fresh["name"] == "Leche"
+    assert fresh["purchased"] is False
+    assert fresh["purchased_at"] is None
+    assert fresh["purchase_id"] is None
+    # The bought quantity becomes the new pending row's planned quantity.
+    assert fresh["quantity"] == "2 L"
+    # Bought at Lidl, so it goes back on the list tagged for Lidl.
+    assert fresh["stores"] == ["Lidl"]
+    # The source line stays filed on its ticket, untouched.
+    assert _pid(session, milk) == ticket["id"]
+
+
+def test_rebuy_from_the_open_cart_is_refused(client: TestClient, session: Session):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    cart_id = _pid(session, milk)
+
+    response = _rebuy(client, lst["id"], cart_id, milk["id"])
+
+    assert response.status_code == 409
+    # Nothing new landed on the list.
+    assert len(_pending(client, lst["id"])) == 0
+
+
+def test_rebuy_of_an_item_not_on_that_purchase_is_not_found(client: TestClient, session: Session):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    bread = _tap(client, lst["id"], "Pan")
+    milk_ticket = _close(client, lst["id"], store="Lidl", lines=_lines(milk)).json()
+    bread_ticket = _close(client, lst["id"], store="Dia", lines=_lines(bread)).json()
+
+    # Bread is a real line, but not of the milk's ticket.
+    response = _rebuy(client, lst["id"], milk_ticket["id"], bread["id"])
+    assert response.status_code == 404
+    # And the bread ticket really does hold it — the 404 is about the pairing.
+    assert _rebuy(client, lst["id"], bread_ticket["id"], bread["id"]).status_code == 201
+
+
+def test_rebuy_with_an_unknown_purchase_is_not_found(client: TestClient, session: Session):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    response = _rebuy(client, lst["id"], "no-such-trip", milk["id"])
+
+    assert response.status_code == 404
+
+
+def test_rebuy_is_idempotent_against_the_pending_list(client: TestClient, session: Session):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    ticket = _close(client, lst["id"], store="Lidl", lines=_lines(milk)).json()
+
+    first = _rebuy(client, lst["id"], ticket["id"], milk["id"])
+    assert first.status_code == 201
+    second = _rebuy(client, lst["id"], ticket["id"], milk["id"])
+
+    # The product is already pending, so the second re-buy returns that row.
+    assert second.status_code == 200
+    assert second.json()["id"] == first.json()["id"]
+    pending = _pending(client, lst["id"])
+    assert len([i for i in pending if i["name"] == "Leche"]) == 1
+
+
+def test_rebuy_prefers_the_lines_own_store_over_the_trips(client: TestClient, session: Session):
+    lst = _create_list(client)
+    # The line was priced at Dia; the trip as a whole is a Lidl shop.
+    milk = _tap(client, lst["id"], "Leche")
+    ticket = _close(
+        client,
+        lst["id"],
+        store="Lidl",
+        lines=[{"item_id": milk["id"], "price": 1.19}],
+    ).json()
+    # close() writes price_store from the close's store, so force a line store
+    # that differs from the trip store to prove the precedence.
+    row = session.get(ListItem, milk["id"])
+    row.price_store = "Dia"
+    session.add(row)
+    session.commit()
+
+    fresh = _rebuy(client, lst["id"], ticket["id"], milk["id"]).json()
+
+    assert fresh["stores"] == ["Dia"]
+
+
+def test_rebuy_falls_back_to_the_trip_store(client: TestClient, session: Session):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    # No confirmed price, so the line carries no price_store; only the trip
+    # knows where the shop was.
+    ticket = _close(client, lst["id"], store="Mercadona", lines=_lines(milk)).json()
+    assert session.get(ListItem, milk["id"]).price_store is None
+
+    fresh = _rebuy(client, lst["id"], ticket["id"], milk["id"]).json()
+
+    assert fresh["stores"] == ["Mercadona"]
+
+
+def test_rebuy_notifies_on_create_but_not_on_the_idempotent_hit(client: TestClient):
+    """A re-buy is an item creation, so it pushes like add_item — but only the
+    genuine 201; the idempotent 200 changed nothing and must stay silent."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    ticket = _close(client, lst["id"], store="Lidl", lines=_lines(milk)).json()
+
+    with patch("app.routers.purchases.notify_list_change") as notify:
+        first = _rebuy(client, lst["id"], ticket["id"], milk["id"])
+        assert first.status_code == 201
+        notify.assert_called_once()
+
+    with patch("app.routers.purchases.notify_list_change") as notify:
+        second = _rebuy(client, lst["id"], ticket["id"], milk["id"])
+        assert second.status_code == 200
+        notify.assert_not_called()
