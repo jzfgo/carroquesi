@@ -81,6 +81,12 @@ describe('tripDateLabel', () => {
     vi.setSystemTime(new Date('2026-08-15T12:00:00Z'))
   }
 
+  it('a trip dated today reads «hoy» — closed or proto', () => {
+    pinNow()
+    expect(tripDateLabel('2026-08-15T09:00:00', false)).toBe('hoy')
+    expect(tripDateLabel('2026-08-15T09:00:00', true)).toBe('hoy')
+  })
+
   it('a proto in the current month is weekday + day, no month', () => {
     pinNow()
     expect(tripDateLabel('2026-08-03T10:00:00', true)).toBe('lunes 3')
