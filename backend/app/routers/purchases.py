@@ -1,6 +1,6 @@
 import logging
 import math
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
@@ -10,8 +10,15 @@ from sqlmodel import select
 from app.db.models import List, ListItem, Purchase, ReceiptScan, User
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.items import ItemRead
-from app.schemas.purchases import PurchaseCloseBody, PurchasePage, PurchaseRead, PurchaseSummary
+from app.schemas.purchases import (
+    PurchaseCloseBody,
+    PurchaseManualBody,
+    PurchasePage,
+    PurchaseRead,
+    PurchaseSummary,
+)
 from app.services import trips
+from app.services.client_day import ClientTimezone
 from app.services.push import notify_list_change
 from app.services.store_registry import ensure_stores
 
@@ -343,6 +350,57 @@ def close_purchase(
         )
 
     ensure_stores(session, lst.id, [body.store])
+    lst.updated_at = now
+    session.add(lst)
+    session.commit()
+    session.refresh(purchase)
+    return purchase
+
+
+@router.post("/manual", response_model=PurchaseRead)
+def create_manual_purchase(
+    body: PurchaseManualBody,
+    session: CurrentSession,
+    list_and_user: MemberDep,
+    client_tz: ClientTimezone,
+):
+    """Write down a shop by hand — a trip born closed, holding no lines.
+
+    Unlike a close, this claims nothing from the cart: it records that a shop
+    happened on a stated calendar day, optionally where and for how much. The
+    day is mapped to the trip's boundaries in the request's client timezone
+    (ADR-012), so a back-dated entry files under the day it covered rather than
+    under now.
+    """
+    lst, _ = list_and_user
+    _reject_bad_amount(body.total, "total")
+
+    # The local midnight that STARTS the submitted day, as naive UTC — the same
+    # shape tears_off_at_for produces, but for the day's opening rather than its
+    # close.
+    opened_at = (
+        datetime.combine(body.date, time.min, tzinfo=client_tz).astimezone(UTC).replace(tzinfo=None)
+    )
+    tears_off_at = trips.tears_off_at_for(opened_at, client_tz)
+
+    # closed_at is set to the tear-off, not now, deliberately: the history stack
+    # sorts by coalesce(closed_at, tears_off_at), so a back-dated entry must
+    # carry a date-derived boundary or it would sort under "now" instead of the
+    # day it covered. A future reader should NOT "fix" this to now. Being
+    # non-null also exempts the row from uq_purchases_open_per_list, so it never
+    # collides with the open cart or another closed trip sharing a tears_off_at.
+    now = datetime.now(UTC).replace(tzinfo=None)
+    purchase = Purchase(
+        list_id=lst.id,
+        opened_at=opened_at,
+        tears_off_at=tears_off_at,
+        closed_at=tears_off_at,
+        store=body.store,
+        total=body.total,
+    )
+    session.add(purchase)
+    if body.store is not None:
+        ensure_stores(session, lst.id, [body.store])
     lst.updated_at = now
     session.add(lst)
     session.commit()

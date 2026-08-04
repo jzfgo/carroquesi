@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -58,6 +58,28 @@ class PurchaseCloseBody(BaseModel):
     # fields that can carry an unbounded payload.
     lines: list[PurchaseLine] = Field(min_length=1, max_length=200)
     new_items: list[PurchaseNewItem] = Field(default_factory=list, max_length=200)
+
+
+class PurchaseManualBody(BaseModel):
+    """A shop entered by hand — a trip born closed, holding no lines.
+
+    Unlike a close, this names no items: it records that a shop happened on a
+    given calendar day, optionally where and for how much, without touching the
+    cart. `date` is the day the household lived through; the handler maps it to
+    the trip's boundaries in the request's client timezone (ADR-012).
+    """
+
+    # Optional, unlike the close: someone writing a shop down days later may no
+    # longer recall the shop, and a bare date is still a legitimate record.
+    store: str | None = Field(default=None, max_length=100)
+    # The calendar day the shop happened on. Required — there is no cart to
+    # derive dates from, so the day is the whole point of the request.
+    date: date
+    # Deliberately unconstrained — no ge=0, no allow_inf_nan=False. Range and
+    # finiteness are checked in the handler instead, for the reason spelled out
+    # on PurchaseCloseBody.total: a Pydantic constraint able to reject a NaN
+    # total crashes FastAPI's own 422 handler when it echoes the value back.
+    total: float | None = None
 
 
 class PurchaseRead(BaseModel):
