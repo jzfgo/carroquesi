@@ -994,6 +994,7 @@ export function ListScreen({
             listId={listId}
             getToken={getToken}
             onRebuy={handleStackRebuy}
+            onOpenLine={handleItemMenuOpen}
             onCloseTrip={handleCloseTrip}
           />
         }
