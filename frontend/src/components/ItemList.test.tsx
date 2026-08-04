@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { vi } from 'vitest'
 import type { CostSummary } from '../lib/itemCost'
-import { purchasedDateLabel } from '../lib/itemCost'
 import type { DueSuggestion, ListItem } from '../types'
 import { ItemList } from './ItemList'
 
@@ -124,56 +123,17 @@ test('pending items render inside the pending sheet, records do not', () => {
   ).not.toBeInTheDocument()
 })
 
-test('the purchased area is one settled sheet, even across dates', () => {
-  const items = [
-    makeItem('a'),
-    makeBought('b', '2026-07-30T10:00:00'),
-    makeBought('c', '2026-07-20T10:00:00'),
-  ]
-  const { container } = renderList({ items })
-  const sheets = container.querySelectorAll('.paper--settled')
-  expect(sheets).toHaveLength(1)
-  const settled = sheets[0] as HTMLElement
-  expect(within(settled).getByText('Item b')).toBeVisible()
-  expect(within(settled).getByText('Item c')).toBeVisible()
-  expect(within(settled).queryByText('Item a')).not.toBeInTheDocument()
-})
-
-test('purchased section hidden when no records', () => {
-  renderList({ items: [makeItem('a')] })
-  expect(screen.queryByText('Comprados')).not.toBeInTheDocument()
-})
-
-test('purchased section shown when a record exists', () => {
-  renderList({ items: [makeItem('a', false), makeBought('b')] })
-  expect(screen.getByRole('button', { name: /comprados/i })).toBeInTheDocument()
-})
-
-test('purchased section is expanded by default', () => {
-  renderList({ items: [makeItem('a', false), makeBought('b')] })
-  expect(screen.getByRole('button', { name: /comprados/i })).toHaveAttribute(
-    'aria-expanded',
-    'true',
-  )
-  expect(screen.getByText('Item b')).toBeInTheDocument()
-})
-
-test('tapping the purchased header collapses the section', () => {
-  renderList({ items: [makeItem('a', false), makeBought('b')] })
-  fireEvent.click(screen.getByRole('button', { name: /comprados/i }))
-  expect(screen.getByRole('button', { name: /comprados/i })).toHaveAttribute(
-    'aria-expanded',
-    'false',
-  )
-  expect(screen.queryByText('Item b')).not.toBeInTheDocument()
-})
-
-test('tapping the purchased header again re-expands the section', () => {
-  renderList({ items: [makeItem('a', false), makeBought('b')] })
-  const toggle = screen.getByRole('button', { name: /comprados/i })
-  fireEvent.click(toggle)
-  fireEvent.click(toggle)
-  expect(screen.getByText('Item b')).toBeInTheDocument()
+// Settled records render in the injected `stack` (18a), not in ItemList, so a
+// record simply never appears in the pending sheet. That negative — a bought
+// item is not queued as pending or on the talón — is what the tests below still
+// assert; the stack's own rendering lives in Stack.test.tsx / TripCard.test.tsx.
+test('a bought record does not appear in the pending sheet', () => {
+  const { container } = renderList({
+    items: [makeItem('a', false), makeBought('b')],
+  })
+  const sheet = container.querySelector('.paper--pending') as HTMLElement
+  expect(within(sheet).getByText('Item a')).toBeVisible()
+  expect(within(sheet).queryByText('Item b')).not.toBeInTheDocument()
 })
 
 // ---------------------------------------------------------------------------
@@ -186,17 +146,16 @@ function cartGroup(container: HTMLElement): HTMLElement {
     .closest('.talon') as HTMLElement
 }
 
-test('in-cart items land on the talón, not the settled sheet', () => {
+test('in-cart items land on the talón; a record neither queues nor settles here', () => {
   const { container } = renderList({
     items: [makeItem('a'), makeCart('b'), makeBought('c')],
   })
   const talon = cartGroup(container)
   expect(within(talon).getByText('Item b')).toBeVisible()
-  // The record is the other purchased state — it settles, it does not queue.
+  // The record is the other purchased state — it belongs to the stack, so it
+  // is neither on the talón nor anywhere in the item list.
   expect(within(talon).queryByText('Item c')).not.toBeInTheDocument()
-  const settled = container.querySelector('.paper--settled') as HTMLElement
-  expect(within(settled).getByText('Item c')).toBeVisible()
-  expect(within(settled).queryByText('Item b')).not.toBeInTheDocument()
+  expect(screen.queryByText('Item c')).not.toBeInTheDocument()
 })
 
 test('the rubric counts what is in the cart', () => {
@@ -292,26 +251,12 @@ test('spelling variants group by storeKey and label with the registry name', () 
   expect(labels[0]).toHaveTextContent('Ahorramas')
 })
 
-test('records get no store headers', () => {
-  const items = [
-    { ...makeBought('b', '2026-07-30T10:00:00'), stores: ['Mercadona'] },
-  ]
-  const { container } = renderList({ items })
-  const settled = container.querySelector('.paper--settled') as HTMLElement
-  expect(
-    settled.querySelector('.item-list__store-label'),
-  ).not.toBeInTheDocument()
-})
-
 // ---------------------------------------------------------------------------
 // Cost badge — pending section
 // ---------------------------------------------------------------------------
 
-function renderWithCost(
-  pendingCost?: CostSummary | null,
-  purchasedCostByDate?: Map<string, CostSummary | null>,
-) {
-  renderList({ items: [makeItem('a')], pendingCost, purchasedCostByDate })
+function renderWithCost(pendingCost?: CostSummary | null) {
+  renderList({ items: [makeItem('a')], pendingCost })
 }
 
 test('shows formatted total in pending label when cost is exact', () => {
@@ -340,54 +285,9 @@ test('no cost badge when pendingCost is omitted', () => {
   ).not.toBeInTheDocument()
 })
 
-// ---------------------------------------------------------------------------
-// Cost badge — purchased date label
-// ---------------------------------------------------------------------------
-
-test('shows cost next to date label in purchased section', () => {
-  const purchasedAt = new Date().toISOString().slice(0, 19) // no trailing Z; purchasedDateLabel appends it
-  const item = makeBought('b', purchasedAt)
-  const label = purchasedDateLabel(purchasedAt)
-  const costByDate = new Map([
-    [label, { total: 5, partial: false } as CostSummary],
-  ])
-  renderList({ items: [makeItem('a'), item], purchasedCostByDate: costByDate })
-  expect(
-    document.querySelector('.item-list__date-label-cost'),
-  ).toBeInTheDocument()
-  expect(
-    document.querySelector('.item-list__date-label-cost')?.textContent,
-  ).toMatch(/5[,.]00/)
-})
-
-test('shows ≥ prefix in date label when purchased cost is partial', () => {
-  const purchasedAt = new Date().toISOString().slice(0, 19)
-  const item = makeBought('b', purchasedAt)
-  const label = purchasedDateLabel(purchasedAt)
-  const costByDate = new Map([
-    [label, { total: 2, partial: true } as CostSummary],
-  ])
-  renderList({ items: [makeItem('a'), item], purchasedCostByDate: costByDate })
-  expect(
-    document.querySelector('.item-list__date-label-cost')?.textContent,
-  ).toMatch(/≥/)
-})
-
-test('no date-label cost badge when purchasedCostByDate is omitted', () => {
-  const item = makeBought('b', new Date().toISOString().slice(0, 19))
-  renderList({ items: [makeItem('a'), item] })
-  expect(
-    document.querySelector('.item-list__date-label-cost'),
-  ).not.toBeInTheDocument()
-})
-
-test('purchased items appear below active items', () => {
-  renderList({ items: [makeBought('a'), makeItem('b', false)] })
-  const allItems = screen.getAllByText(/Item [ab]/)
-  // Item b (active) should appear before Item a (purchased)
-  expect(allItems[0].textContent).toContain('b')
-  expect(allItems[1].textContent).toContain('a')
-})
+// Settled records no longer live in ItemList — the injected `stack` (18a) owns
+// them now, so the old per-date «Comprados» cost-badge tests moved out with the
+// block. The stack's own rendering is covered by Stack.test.tsx / TripCard.test.tsx.
 
 // ---------------------------------------------------------------------------
 // totalItems prop — filtered count label
@@ -476,13 +376,12 @@ test('the cross-list line omits the date when the match was never bought', () =>
 // All bought (16c) — the "Por comprar" sheet disappears, the ticket takes over
 // ---------------------------------------------------------------------------
 
-test('all bought: no "Por comprar" sheet, a ¡listo! line, the record stays', () => {
+test('all bought: no "Por comprar" sheet, a ¡listo! line', () => {
   const { container } = renderList({ items: [makeBought('a')] })
   expect(screen.queryByText('Por comprar')).not.toBeInTheDocument()
   expect(container.querySelector('.item-list__done')?.textContent).toMatch(
     /listo/i,
   )
-  expect(screen.getByRole('button', { name: /comprados/i })).toBeInTheDocument()
 })
 
 test('all bought with an open cart: the talón stands alone, no perforation', () => {

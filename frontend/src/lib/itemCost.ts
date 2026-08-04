@@ -93,3 +93,44 @@ export function purchasedDateLabel(purchased_at: string | null): string {
     dateStyle: 'medium',
   })
 }
+
+/**
+ * The date a trip prints in the stack (18a / 29a). A trip whose day is the
+ * viewer's today reads «hoy» — the nearest voice there is. A closed trip
+ * otherwise settles to «22 jul» (day + short month). A proto-ticket — torn off,
+ * still unwritten — prints «martes 21» (weekday + day) *while it is this
+ * month's*: the near voice, because the day is recent and its weekday still
+ * means something. Once it leaves the current month it is no longer recent, so
+ * the weekday yields to the month and it prints «21 jul» — the same day+month
+ * as a closed trip, disambiguated from one by its seal rather than its date.
+ * A day in an earlier year also carries that year — «21 jul 2025» — since the
+ * archive reaches back two years and «21 jul» alone would be ambiguous across
+ * them.
+ *
+ * Always reads `opened_at`, the day the shopping started: it is the trip's
+ * real day for every write path (a same-day close, a torn-off cart, or a
+ * back-dated manual purchase whose `closed_at`/`tears_off_at` sit on the
+ * following local midnight). Naive-UTC strings get their Z restored first, the
+ * same guard `purchasedDateLabel`/`isTripOpen` use.
+ *
+ * The weekday form is built from two parts rather than one Intl call because
+ * `{ weekday:'long', day:'numeric' }` yields «martes, 21» in es — the comma is
+ * not in the frame.
+ */
+export function tripDateLabel(openedAt: string, proto: boolean): string {
+  const d = new Date(openedAt.endsWith('Z') ? openedAt : openedAt + 'Z')
+  const now = new Date()
+  const sameYearMonth =
+    d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+  if (sameYearMonth && d.getDate() === now.getDate()) return 'hoy'
+  if (proto && sameYearMonth) {
+    const weekday = d.toLocaleDateString('es', { weekday: 'long' })
+    const day = d.toLocaleDateString('es', { day: 'numeric' })
+    return `${weekday} ${day}`
+  }
+  return d.toLocaleDateString('es', {
+    day: 'numeric',
+    month: 'short',
+    ...(d.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
+  })
+}

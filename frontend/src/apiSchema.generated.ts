@@ -1449,6 +1449,8 @@ export interface components {
             has_receipt: boolean;
             /** Id */
             id: string;
+            /** Items Total */
+            items_total?: number | null;
             /** Line Count */
             line_count: number;
             /** List Id */

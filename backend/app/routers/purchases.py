@@ -20,6 +20,7 @@ from app.schemas.purchases import (
 from app.services import trips
 from app.services.client_day import ClientTimezone
 from app.services.push import notify_list_change
+from app.services.quantity import parse_quantity_factor
 from app.services.store_registry import ensure_stores
 
 logger = logging.getLogger(__name__)
@@ -71,9 +72,10 @@ def list_purchases(
         select(func.count()).select_from(Purchase).where(Purchase.list_id == lst.id)
     ).one()
 
-    # Two grouped lookups for the whole page rather than one query per row.
+    # Grouped lookups for the whole page rather than one query per row.
     line_counts: dict[str, int] = {}
     scanned: set[str] = set()
+    items_totals: dict[str, float] = {}
     if page:
         page_ids = [trip.id for trip in page]
         line_counts = dict(
@@ -90,6 +92,30 @@ def list_purchases(
                 .distinct()
             ).all()
         )
+        # The provisional total per trip: sum each priced line's `price *
+        # factor` (the line's real amount, matching the row the app draws), not
+        # the raw price. The factor needs the quantity string parsed, so it is
+        # computed in Python rather than SQL. A line whose factor cannot apply
+        # (a per-kg price with no SI unit) contributes nothing; a trip with no
+        # contributing line stays absent, so its items_total serializes as None.
+        acc: dict[str, float] = {}
+        priced_lines = session.exec(
+            select(
+                ListItem.purchase_id,
+                ListItem.price,
+                ListItem.price_per,
+                ListItem.quantity,
+            ).where(
+                ListItem.purchase_id.in_(page_ids),
+                ListItem.price.isnot(None),
+            )
+        ).all()
+        for purchase_id, price, price_per, quantity in priced_lines:
+            factor = parse_quantity_factor(quantity, price_per)
+            if factor is None:
+                continue
+            acc[purchase_id] = acc.get(purchase_id, 0.0) + price * factor
+        items_totals = {pid: round(amount, 2) for pid, amount in acc.items()}
 
     return PurchasePage(
         purchases=[
@@ -97,6 +123,7 @@ def list_purchases(
                 **trip.model_dump(),
                 line_count=line_counts.get(trip.id, 0),
                 has_receipt=trip.id in scanned,
+                items_total=items_totals.get(trip.id),
             )
             for trip in page
         ],

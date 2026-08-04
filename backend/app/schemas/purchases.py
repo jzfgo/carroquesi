@@ -104,6 +104,11 @@ class PurchaseSummary(PurchaseRead):
     # sets. Scans that predate the link stay NULL, so old tickets read
     # False even when a receipt was scanned for them.
     has_receipt: bool
+    # A provisional total summed from the lines' `price * quantity_factor`, for
+    # a proto-ticket whose own `total` was never confirmed (a close sets that).
+    # None when no line carries a price. The stack shows it as «≈ total»; a
+    # closed trip ignores it and shows its confirmed `total`.
+    items_total: float | None = None
 
 
 class PurchasePage(BaseModel):
