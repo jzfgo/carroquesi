@@ -1,7 +1,7 @@
 import { ChevronDown, Stamp } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
-import { tripDateLabel } from '../lib/itemCost'
+import { tripDateInput, tripDateLabel } from '../lib/itemCost'
 import type { ListItem, PurchaseSummary } from '../types'
 import { ItemCard } from './ItemCard'
 import './TripCard.css'
@@ -17,7 +17,9 @@ interface Props {
   /** Open a line's product ficha (22a) — wired in Lane 3 (JAV-162). */
   onOpenLine?: (itemId: string) => void
   /** Close the proto-ticket (10b) — wired in Lane 2 (JAV-160). */
-  onCloseTrip?: (purchaseId: string) => void
+  /** Close this proto-trip. The second arg back-dates the close to the day the
+   *  trip covered, so it stays filed there instead of jumping to today. */
+  onCloseTrip?: (purchaseId: string, initialDate?: string) => void
 }
 
 const noop = () => {}
@@ -127,7 +129,9 @@ export function TripCard({
           <button
             type="button"
             className="trip-card__seal talon__seal"
-            onClick={() => onCloseTrip?.(trip.id)}
+            onClick={() =>
+              onCloseTrip?.(trip.id, tripDateInput(trip.opened_at))
+            }
           >
             <span className="stamp">Cerrar compra</span>
           </button>

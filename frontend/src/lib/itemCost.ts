@@ -134,3 +134,14 @@ export function tripDateLabel(openedAt: string, proto: boolean): string {
     ...(d.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
   })
 }
+
+/**
+ * The trip's day as a date-input value (YYYY-MM-DD) in the viewer's zone.
+ * Closing a proto-trip defaults its date to this, so the trip stays filed
+ * under the day it covered instead of jumping to today.
+ */
+export function tripDateInput(openedAt: string): string {
+  const d = new Date(openedAt.endsWith('Z') ? openedAt : openedAt + 'Z')
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}

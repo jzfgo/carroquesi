@@ -799,19 +799,22 @@ export function ListScreen({
     setDueSuggestions((prev) => prev.filter((x) => x.name !== s.name))
   }, [])
 
-  // The seal is the finished target; the close-trip sheet it opens (10b) is
-  // built in JAV-160. Until then tapping it says so rather than dead-ending.
   // The close-trip sheet (10b): no id closes the open cart, an id closes a
-  // torn-off proto-trip named by the stack's seal.
-  const [closeTrip, setCloseTrip] = useState<{ purchaseId?: string } | null>(
-    null,
-  )
+  // torn-off proto-trip named by the stack's seal. A proto also carries the day
+  // it covered, so its close back-dates there instead of defaulting to today.
+  const [closeTrip, setCloseTrip] = useState<{
+    purchaseId?: string
+    initialDate?: string
+  } | null>(null)
   // Bumped after a close so the stack remounts and refetches — the newly closed
   // trip has to appear without a manual refresh. useStack only loads on mount.
   const [stackVersion, setStackVersion] = useState(0)
-  const handleCloseTrip = useCallback((purchaseId?: string) => {
-    setCloseTrip({ purchaseId })
-  }, [])
+  const handleCloseTrip = useCallback(
+    (purchaseId?: string, initialDate?: string) => {
+      setCloseTrip({ purchaseId, initialDate })
+    },
+    [],
+  )
 
   const { purchasedCount, totalCount } = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10) // 'YYYY-MM-DD' UTC
@@ -1244,6 +1247,7 @@ export function ListScreen({
           listId={listId}
           getToken={getToken}
           purchaseId={closeTrip.purchaseId}
+          initialDate={closeTrip.initialDate}
           cartItems={
             closeTrip.purchaseId
               ? undefined

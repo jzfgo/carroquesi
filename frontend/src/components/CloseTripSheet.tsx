@@ -26,6 +26,9 @@ interface Props {
   getToken: () => Promise<string>
   /** Present for a torn-off proto-trip; absent closes the open cart. */
   purchaseId?: string
+  /** Default for the date control (YYYY-MM-DD). A proto passes the day it
+   *  covered so its close files there; the open cart leaves it as today. */
+  initialDate?: string
   /** The open cart's lines, when closing it (not fetched). */
   cartItems?: ListItem[]
   /** The list's registered stores, offered as chips even when the cart has
@@ -81,6 +84,7 @@ export function CloseTripSheet({
   listId,
   getToken,
   purchaseId,
+  initialDate,
   cartItems,
   storeOptions = [],
   displayStore,
@@ -99,7 +103,7 @@ export function CloseTripSheet({
   // sheet), plus its field.
   const [storeSubsheet, setStoreSubsheet] = useState(false)
   const [newStoreText, setNewStoreText] = useState('')
-  const [date, setDate] = useState(today())
+  const [date, setDate] = useState(initialDate ?? today())
   const [editing, setEditing] = useState<
     { index: number } | { add: true } | null
   >(null)

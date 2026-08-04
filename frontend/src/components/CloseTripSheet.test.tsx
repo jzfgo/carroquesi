@@ -137,6 +137,31 @@ test('«Guardar compra» closes with the store, date and per-line fields', async
   await waitFor(() => expect(onDone).toHaveBeenCalled())
 })
 
+test('a proto close defaults its date to the day it covered, not today', async () => {
+  // A proto's lines are fetched; seed one so the save has something to claim.
+  vi.mocked(getPurchaseItems).mockResolvedValue([
+    item({ id: 'a', name: 'Leche', price: 1.9, stores: ['Lidl'] }),
+  ])
+  render(
+    <CloseTripSheet
+      listId="l1"
+      getToken={getToken}
+      purchaseId="p1"
+      initialDate="2026-07-30"
+      storeOptions={['Lidl']}
+      displayStore={(s) => s}
+      onClose={vi.fn()}
+      onDone={vi.fn()}
+    />,
+  )
+  await waitFor(() => expect(screen.getByText('Leche')).toBeInTheDocument())
+  fireEvent.click(screen.getByText('Guardar compra'))
+  await waitFor(() => expect(closePurchase).toHaveBeenCalled())
+  const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
+  expect(body.date).toBe('2026-07-30')
+  expect(body.purchase_id).toBe('p1')
+})
+
 test('«Confirmar los precios sugeridos» applies the inherited price', async () => {
   vi.mocked(getPriceHistory).mockResolvedValue({
     entries: [
