@@ -10,11 +10,12 @@ class PriceCreate(BaseModel):
 
 
 class PriceEntry(BaseModel):
-    amount: float
+    amount: float | None  # None = "sin precio": bought, price unconfirmed
     price_per: Literal["KILOGRAM"] | None  # None = per unit, "KILOGRAM" = per kg
     store: str | None
     purchased_at: str | None = None
     quantity: str | None = None
+    is_sin_precio: bool = False
 
 
 class PriceHistoryResponse(BaseModel):

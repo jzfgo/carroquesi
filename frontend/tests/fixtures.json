@@ -297,7 +297,8 @@
     "price_per": null,
     "store": "Mercadona",
     "purchased_at": null,
-    "quantity": null
+    "quantity": null,
+    "is_sin_precio": false
   },
   "SEED_PRICE_HISTORY": {
     "entries": []

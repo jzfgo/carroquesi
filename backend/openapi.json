@@ -1202,8 +1202,20 @@
       "PriceEntry": {
         "properties": {
           "amount": {
-            "title": "Amount",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "is_sin_precio": {
+            "default": false,
+            "title": "Is Sin Precio",
+            "type": "boolean"
           },
           "price_per": {
             "anyOf": [
