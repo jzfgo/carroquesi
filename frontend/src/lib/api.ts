@@ -2,9 +2,14 @@ import type {
   BarcodeRead,
   DueSuggestion,
   ElsewhereMatch,
+  ListItem,
   ListUpdatedAt,
   PriceEntry,
   PriceHistoryResponse,
+  PurchaseCloseBody,
+  PurchaseManualBody,
+  PurchasePage,
+  PurchaseRead,
   ReceiptPriceApplyResult,
   ReceiptPriceBatch,
   ReceiptScanRequest,
@@ -348,6 +353,76 @@ export function getPriceHistory(
     getToken,
     `/lists/${listId}/items/${itemId}/prices?scope=${scope}`,
   ) as Promise<PriceHistoryResponse>
+}
+
+// --- Purchases (the stack, 18a) ---
+
+// One page of the list's trips, newest shop first (18a). `total` is the whole
+// count so the caller knows whether to ask for another page.
+export function getPurchases(
+  getToken: () => Promise<string>,
+  listId: string,
+  { offset = 0, limit = 20 }: { offset?: number; limit?: number } = {},
+): Promise<PurchasePage> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/purchases?offset=${offset}&limit=${limit}`,
+  ) as Promise<PurchasePage>
+}
+
+// The lines of one ticket, cart order (18a → the ticket's expanded view).
+export function getPurchaseItems(
+  getToken: () => Promise<string>,
+  listId: string,
+  purchaseId: string,
+): Promise<ListItem[]> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/purchases/${purchaseId}/items`,
+  ) as Promise<ListItem[]>
+}
+
+// Declare what a shop was (10b): claim cart lines onto a ticket. Body.store is
+// required; an absent purchase_id closes the open cart, a present one names a
+// torn-off trip.
+export function closePurchase(
+  getToken: () => Promise<string>,
+  listId: string,
+  body: PurchaseCloseBody,
+): Promise<PurchaseRead> {
+  return apiFetch(getToken, `/lists/${listId}/purchases/close`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }) as Promise<PurchaseRead>
+}
+
+// Write a shop down by hand (26a): a trip born closed, no lines. `date` is
+// required and back-dates the trip; the X-Client-Timezone header apiFetch
+// already sends is what files it under the right calendar day.
+export function manualPurchase(
+  getToken: () => Promise<string>,
+  listId: string,
+  body: PurchaseManualBody,
+): Promise<PurchaseRead> {
+  return apiFetch(getToken, `/lists/${listId}/purchases/manual`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }) as Promise<PurchaseRead>
+}
+
+// Re-buy a settled line (18a/22a): re-add the product to the pending list with
+// its last quantity and store. Refused for an open-cart line (that is undo).
+export function rebuyPurchaseItem(
+  getToken: () => Promise<string>,
+  listId: string,
+  purchaseId: string,
+  itemId: string,
+): Promise<ListItem> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/purchases/${purchaseId}/items/${itemId}/rebuy`,
+    { method: 'POST' },
+  ) as Promise<ListItem>
 }
 
 // Looks the name up across the user's OTHER lists (JAV-138). Feeds the

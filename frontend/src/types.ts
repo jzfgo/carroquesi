@@ -29,6 +29,14 @@ export type PriceHistoryResponse = Required<
   Omit<S['PriceHistoryResponse'], 'entries'>
 > & { entries: PriceEntry[] }
 export type ListUpdatedAt = S['ListUpdatedAtRead']
+// A shopping trip. Nullable fields (closed_at/store/total) stay `X | null`;
+// Required<> only strips the optionality a pydantic default introduces.
+export type PurchaseRead = Required<S['PurchaseRead']>
+// One row of the stack (18a): a trip plus its line count and receipt flag.
+export type PurchaseSummary = Required<S['PurchaseSummary']>
+export type PurchasePage = Required<Omit<S['PurchasePage'], 'purchases'>> & {
+  purchases: PurchaseSummary[]
+}
 /** Same-name match in one of the user's other lists (JAV-138). Null = no match. */
 export type ElsewhereMatch = S['ElsewhereMatchRead']
 export type MatchedLine = Required<S['MatchedLine']>
@@ -45,6 +53,11 @@ export type PricePatch = S['PricePatch']
 export type NameMapping = S['NameMappingCreate']
 export type NewPurchasedItem = S['NewPurchasedItem']
 export type ReceiptPriceBatch = S['ReceiptPriceBatch']
+// Close-trip (10b) and manual/back-dated (26a) purchase bodies.
+export type PurchaseLine = S['PurchaseLine']
+export type PurchaseNewItem = S['PurchaseNewItem']
+export type PurchaseCloseBody = S['PurchaseCloseBody']
+export type PurchaseManualBody = S['PurchaseManualBody']
 
 export type PriceType = ParsedLine['price_type']
 
