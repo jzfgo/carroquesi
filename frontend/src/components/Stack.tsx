@@ -82,11 +82,18 @@ export function Stack({
   const [latest, ...older] = trips
   const preview = older.slice(0, PREVIEW)
   const rest = older.slice(PREVIEW)
-  // Count still behind the door. total is the server's full row count; with an
-  // open cart present it can read one high (that row is filtered from view but
-  // still counted) — a benign over-count on a transient state.
-  const behind = Math.max(0, total - (1 + preview.length))
-  const showArchiveDoor = !unfolded && behind > 0
+  // Show the door only when it actually reveals something — the fetched trips
+  // still behind it, or more pages to pull. Gating on `total` alone renders a
+  // phantom door: `total` counts the open cart that the view filters out, so a
+  // list with an open cart and exactly the preview's worth of trips would show
+  // «anteriores · 1» that opens onto nothing.
+  const showArchiveDoor = !unfolded && (rest.length > 0 || hasMore)
+  // Its count: once every page is in, that is exactly the unshown trips; while
+  // pages remain, total minus what's shown is the estimate (it can read one
+  // high against an open cart, corrected the moment the last page lands).
+  const behind = hasMore
+    ? Math.max(rest.length, total - (1 + preview.length))
+    : rest.length
 
   return (
     <section className="stack" aria-label="Compras">

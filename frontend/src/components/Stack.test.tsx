@@ -99,6 +99,27 @@ test('the still-open cart is excluded from the stack', async () => {
   expect(screen.queryByText(/Store open/)).not.toBeInTheDocument()
 })
 
+test('no phantom archive door when an open cart pads the count', async () => {
+  // total counts the open cart the view filters out. With 3 real trips —
+  // latest + the two-trip preview — nothing is left behind, so the door must
+  // not appear even though total (4) − shown (3) would read «1».
+  vi.mocked(getPurchases).mockResolvedValue(
+    page(
+      [
+        trip('open', { closed_at: null, tears_off_at: '2099-01-01T00:00:00' }),
+        trip('a'),
+        trip('b'),
+        trip('c'),
+      ],
+      4,
+    ),
+  )
+  renderStack()
+  await waitFor(() => expect(screen.getByText(/Store a/)).toBeInTheDocument())
+  expect(screen.getByText(/Store c/)).toBeInTheDocument()
+  expect(screen.queryByText('Compras anteriores')).not.toBeInTheDocument()
+})
+
 test('the archive door unfolds the rest in place and the sentinel pages more in', async () => {
   vi.mocked(getPurchases).mockImplementation((_t, _l, opts) => {
     const offset = opts?.offset ?? 0
