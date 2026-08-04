@@ -66,6 +66,16 @@ test('a proto-ticket (closed_at null) shows «Sin tienda», the date, and the se
   expect(screen.queryByText(/€/)).not.toBeInTheDocument()
 })
 
+test('a folded proto shows the compact seal badge, not the full «Cerrar compra»', () => {
+  const trip = makeTrip({ closed_at: null, store: null, total: null })
+  render(<TripCard trip={trip} loadItems={noItems} />)
+  // The at-a-glance seal marker is present…
+  expect(screen.getByLabelText('Sin cerrar')).toBeInTheDocument()
+  // …but the full seal pill only appears once the card is expanded, so the
+  // store · date beside it never has to truncate.
+  expect(screen.queryByText('Cerrar compra')).not.toBeInTheDocument()
+})
+
 test('expanding a folded trip lazy-loads its lines', async () => {
   const loadItems = vi.fn(() => Promise.resolve([makeLine()]))
   render(<TripCard trip={makeTrip()} loadItems={loadItems} />)

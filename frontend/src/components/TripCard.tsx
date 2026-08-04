@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Stamp } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
 import { tripDateLabel } from '../lib/itemCost'
@@ -90,12 +90,19 @@ export function TripCard({
                 {trip.line_count} {trip.line_count === 1 ? 'línea' : 'líneas'}
               </span>
             )}
-            {/* Closed → the printed total; proto → the slot is left for the
-                seal (rendered as a sibling below, so it stays its own tap
-                target rather than a button inside a button). */}
+            {/* Closed → the printed total. Proto → a seal in the total's slot:
+                folded, a compact stamp badge (the at-a-glance «has a seal, not
+                a figure» tell that keeps the store·date from truncating);
+                expanded, the full «Cerrar compra» seal (rendered as a sibling
+                below, its own tap target rather than a button in a button). */}
             {!proto && trip.total != null && (
               <span className="trip-card__total">
                 € {formatRowAmount(trip.total)}
+              </span>
+            )}
+            {proto && !expanded && (
+              <span className="trip-card__seal-mark" aria-label="Sin cerrar">
+                <Stamp size={13} strokeWidth={1.8} aria-hidden />
               </span>
             )}
             {!expanded && (
@@ -108,7 +115,7 @@ export function TripCard({
             )}
           </span>
         </button>
-        {proto && (
+        {proto && expanded && (
           <button
             type="button"
             className="trip-card__seal talon__seal"

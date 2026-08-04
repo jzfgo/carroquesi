@@ -42,9 +42,11 @@
   border-bottom: 1px dashed var(--rule-dashed);
 }
 
-/* A proto-ticket reserves the right end for the absolutely-placed seal, so the
-   serif label never runs under it. */
-.trip-card--proto .trip-card__toggle {
+/* An EXPANDED proto reserves the right end for the absolutely-placed full seal,
+   so the serif label never runs under it. Folded, the seal is a compact badge
+   that flows in the meta row, so no reserve is needed — and the store·date gets
+   its full width back instead of truncating. */
+.trip-card--proto.trip-card--open .trip-card__toggle {
   padding-right: 136px;
 }
 
@@ -92,6 +94,23 @@
 .trip-card__chevron {
   flex-shrink: 0;
   color: var(--ink-3);
+}
+
+/* The folded proto's compact seal: a tinta stamp badge in the total's slot.
+   It says «this one carries a seal, not a figure» at a glance (JAV-159) without
+   the full pill's width, so the store·date beside it never truncates. The full
+   «Cerrar compra» seal returns when the card is expanded. */
+.trip-card__seal-mark {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--tinta-0);
+  border-radius: var(--r-pill);
+  color: var(--tinta-0);
 }
 
 /* The seal sits where the total prints, its own tap target (not nested in the
