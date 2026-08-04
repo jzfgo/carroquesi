@@ -1239,7 +1239,12 @@ export interface components {
         /** PriceEntry */
         PriceEntry: {
             /** Amount */
-            amount: number;
+            amount: number | null;
+            /**
+             * Is Sin Precio
+             * @default false
+             */
+            is_sin_precio: boolean;
             /** Price Per */
             price_per: "KILOGRAM" | null;
             /** Purchased At */
