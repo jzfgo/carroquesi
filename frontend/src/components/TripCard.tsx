@@ -25,8 +25,9 @@ const noop = () => {}
 /**
  * One trip in the stack (18a / 29a). Three states share one paper card:
  *
- * - Closed, folded: header only — «store · date», «N líneas», «€ total» and a
- *   down-chevron. Tapping opens it in place (lazy-loads the lines).
+ * - Closed, folded: header only — «store · date», «€ total» and a down-chevron
+ *   (the total is the glance that matters, not the line count). Tapping opens it
+ *   in place (lazy-loads the lines).
  * - Closed, expanded: the dashed-underlined header over its lines (ItemCards in
  *   the bought voice — mono, the rebuy disc on every not-today line).
  * - Proto-ticket (`closed_at == null`, JAV-159): a real purchase with gaps —
@@ -85,11 +86,6 @@ export function TripCard({
             {store} · {date}
           </span>
           <span className="trip-card__meta">
-            {!expanded && (
-              <span className="trip-card__count">
-                {trip.line_count} {trip.line_count === 1 ? 'línea' : 'líneas'}
-              </span>
-            )}
             {/* Closed → the printed total. Proto → a seal in the total's slot:
                 folded, a compact stamp badge (the at-a-glance «has a seal, not
                 a figure» tell that keeps the store·date from truncating);

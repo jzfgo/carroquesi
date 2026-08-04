@@ -42,15 +42,16 @@ const makeLine = (over: Partial<ListItem> = {}): ListItem => ({
 
 const noItems = () => Promise.resolve([])
 
-test('folded closed trip shows store · date, line count, total and a down-chevron', () => {
+test('folded closed trip shows store · date, the total and a down-chevron', () => {
   const trip = makeTrip()
   const { container } = render(<TripCard trip={trip} loadItems={noItems} />)
   const label = screen.getByText(
     `${trip.store} · ${tripDateLabel(trip.opened_at, false)}`,
   )
   expect(label).toBeInTheDocument()
-  expect(screen.getByText('2 líneas')).toBeInTheDocument()
   expect(screen.getByText('€ 8,13')).toBeInTheDocument()
+  // The line count is not shown — the total is the glance that matters.
+  expect(screen.queryByText(/líneas?/)).not.toBeInTheDocument()
   expect(container.querySelector('.trip-card__chevron')).toBeInTheDocument()
   // Folded: no lines yet.
   expect(container.querySelector('.item-card')).not.toBeInTheDocument()

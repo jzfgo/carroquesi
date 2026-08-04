@@ -1,7 +1,7 @@
 /* One trip in the stack (18a / 29a): a settled paper sheet whose header is a
-   single tap target. Folded shows «store · date · N líneas · total» + a down
-   chevron; expanded drops the chevron, adds the dashed rule and its lines. A
-   proto-ticket carries the «Cerrar compra» seal where the total would print. */
+   single tap target. Folded shows «store · date · total» + a down chevron;
+   expanded drops the chevron, adds the dashed rule and its lines. A proto-ticket
+   carries the «Cerrar compra» seal where the total would print. */
 
 .trip-card {
   box-sizing: border-box;
@@ -67,16 +67,6 @@
   align-items: center;
   flex-shrink: 0;
   gap: 10px;
-}
-
-/* «N líneas» — sans, quiet: it is the app's count, not a written mark. */
-.trip-card__count {
-  font-family: var(--font-sans);
-  font-size: var(--fs-12);
-  font-weight: 400;
-  line-height: 1;
-  color: var(--ink-2);
-  white-space: nowrap;
 }
 
 /* «€ 23,44» — the printed total, mono, tabular so columns of trips align. */
