@@ -1250,6 +1250,7 @@ export function ListScreen({
                   (i) => i.purchased && isTripOpen(i.purchase_ends_at),
                 )
           }
+          storeOptions={items.flatMap((i) => i.stores)}
           displayStore={displayStore}
           onClose={() => setCloseTrip(null)}
           onDone={() => {

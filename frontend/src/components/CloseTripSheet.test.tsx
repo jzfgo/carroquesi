@@ -85,6 +85,31 @@ test('store chips select one store', () => {
   expect(lidl.className).toContain('close-chip--on')
 })
 
+test('a store-less cart still offers registry stores and «+ otra»', async () => {
+  render(
+    <CloseTripSheet
+      listId="l1"
+      getToken={getToken}
+      cartItems={[item({ id: 'a', stores: [] })]}
+      storeOptions={['Mercadona', 'Lidl']}
+      displayStore={(s) => s}
+      onClose={vi.fn()}
+      onDone={vi.fn()}
+    />,
+  )
+  // Registry stores appear as chips though the cart names none.
+  expect(screen.getByText('Mercadona')).toBeInTheDocument()
+  // «+ otra» reveals a free-text field, and the typed store is what saves.
+  fireEvent.click(screen.getByText('+ otra'))
+  fireEvent.change(screen.getByPlaceholderText('Nombre de la tienda'), {
+    target: { value: 'Ahorramás' },
+  })
+  fireEvent.click(screen.getByText('Guardar compra'))
+  await waitFor(() => expect(closePurchase).toHaveBeenCalled())
+  const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
+  expect(body.store).toBe('Ahorramás')
+})
+
 test('«Guardar compra» closes with the store, date and per-line fields', async () => {
   const { onDone } = renderSheet([
     item({

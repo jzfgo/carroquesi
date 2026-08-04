@@ -21,6 +21,9 @@ interface Props {
   purchaseId?: string
   /** The open cart's lines, when closing it (not fetched). */
   cartItems?: ListItem[]
+  /** The list's registered stores, offered as chips even when the cart has
+   *  none — so a store-less cart can still pick one. */
+  storeOptions?: string[]
   displayStore: (raw: string) => string
   onClose: () => void
   /** After a successful close — the parent refreshes the list + stack. */
@@ -72,6 +75,7 @@ export function CloseTripSheet({
   getToken,
   purchaseId,
   cartItems,
+  storeOptions = [],
   displayStore,
   onClose,
   onDone,
@@ -81,6 +85,9 @@ export function CloseTripSheet({
     cartItems ? cartItems.map(toDraft) : [],
   )
   const [store, setStore] = useState('')
+  // «+ otra»: typing a store the cart/registry doesn't list. While on, the
+  // chips' first-store fallback yields so an empty field can't auto-pick one.
+  const [addingStore, setAddingStore] = useState(false)
   const [date, setDate] = useState(today())
   const [editing, setEditing] = useState<
     { index: number } | { add: true } | null
@@ -113,11 +120,16 @@ export function CloseTripSheet({
     }
   }, [purchaseId, getToken, listId])
 
-  // The stores offered as chips — one per store the lines mention.
+  // The stores offered as chips — those the cart's lines mention, plus the
+  // list's registered stores, so a store-less cart still has choices. «+ otra»
+  // covers anything not listed.
   const stores = useMemo(() => {
     const seen = new Set<string>()
     const out: string[] = []
-    const raws = (cartItems ?? []).flatMap((i) => [...i.stores, i.price_store])
+    const raws = [
+      ...(cartItems ?? []).flatMap((i) => [...i.stores, i.price_store]),
+      ...storeOptions,
+    ]
     for (const raw of raws) {
       if (!raw) continue
       const k = storeKey(raw)
@@ -127,11 +139,12 @@ export function CloseTripSheet({
       }
     }
     return out
-  }, [cartItems, displayStore])
+  }, [cartItems, storeOptions, displayStore])
 
-  // The active store: the tapped chip, else the first offered — derived, so no
-  // effect has to seed the default.
-  const selectedStore = store || stores[0] || ''
+  // The active store: the typed/tapped one; only when NOT typing a new store
+  // does it fall back to the first chip, so «+ otra» with an empty field stays
+  // empty (and keeps «Guardar compra» disabled until something is entered).
+  const selectedStore = addingStore ? store.trim() : store || stores[0] || ''
 
   // Fetch each line's price history once, to seed the dashed suggestions.
   useEffect(() => {
@@ -305,12 +318,25 @@ export function CloseTripSheet({
                 <button
                   key={s}
                   type="button"
-                  className={`close-chip${storeKey(s) === storeKey(selectedStore) ? ' close-chip--on' : ''}`}
-                  onClick={() => setStore(s)}
+                  className={`close-chip${!addingStore && storeKey(s) === storeKey(selectedStore) ? ' close-chip--on' : ''}`}
+                  onClick={() => {
+                    setAddingStore(false)
+                    setStore(s)
+                  }}
                 >
                   {s}
                 </button>
               ))}
+              <button
+                type="button"
+                className={`close-chip close-chip--add${addingStore ? ' close-chip--on' : ''}`}
+                onClick={() => {
+                  setAddingStore(true)
+                  setStore('')
+                }}
+              >
+                + otra
+              </button>
             </div>
             <label className="close-date">
               <Calendar size={13} aria-hidden />
@@ -323,6 +349,17 @@ export function CloseTripSheet({
               />
             </label>
           </div>
+
+          {addingStore && (
+            <input
+              className="close-sheet__new-store"
+              type="text"
+              placeholder="Nombre de la tienda"
+              value={store}
+              onChange={(e) => setStore(e.target.value)}
+              autoFocus
+            />
+          )}
 
           <div className="close-sheet__table">
             <div className="close-row close-row--head">
