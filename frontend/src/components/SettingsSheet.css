@@ -1,5 +1,8 @@
 .settings-sheet {
-  max-height: 92dvh;
+  /* The shared sheet sits 48px below the screen edge to hide its entrance
+     overshoot; a panel that caps its own height must add that back, or it
+     shows 48px less at once. */
+  max-height: calc(92dvh + 48px);
   overflow-y: auto;
 }
 
