@@ -16,9 +16,8 @@ interface Props {
   onRebuy?: (purchaseId: string, itemId: string) => void
   /** Open a line's product ficha (22a) — wired in Lane 3 (JAV-162). */
   onOpenLine?: (itemId: string) => void
-  /** Close the proto-ticket (10b) — wired in Lane 2 (JAV-160). */
-  /** Close this proto-trip. The second arg back-dates the close to the day the
-   *  trip covered, so it stays filed there instead of jumping to today. */
+  /** Close this proto-trip (10b). The second arg back-dates the close to the day
+   *  the trip covered, so it stays filed there instead of jumping to today. */
   onCloseTrip?: (purchaseId: string, initialDate?: string) => void
 }
 
