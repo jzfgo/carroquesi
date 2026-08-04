@@ -12,7 +12,12 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+
+  /* The spring entrance overshoots past its resting point, briefly lifting the
+     panel above the screen's edge. Sink the panel a hair below the edge and pay
+     it back in padding, so the overshoot reveals more of the sheet's own back,
+     never the wall behind it. Content lands in exactly the same place. */
+  bottom: -48px;
   z-index: 101;
   display: flex;
   flex-direction: column;
@@ -21,7 +26,7 @@
   border-bottom: 1px solid var(--edge-cast-1);
   border-radius: 16px 16px 0 0;
   box-shadow: var(--sheet-cast-list);
-  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+  padding-bottom: calc(max(env(safe-area-inset-bottom), 16px) + 48px);
   outline: none;
   animation: modal-sheet-enter var(--dur-slow) var(--ease-spring);
 }
@@ -42,14 +47,27 @@
   pointer-events: none;
 }
 
-.modal-sheet__handle {
+/* The grip is the whole drag target — a full-width, thumb-sized strip — so a
+   drag can start anywhere near the grabber, not only on the 4px bar itself. */
+.modal-sheet__grip {
   flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 28px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.modal-sheet__grip:active {
+  cursor: grabbing;
+}
+
+.modal-sheet__handle {
   width: 36px;
   height: 4px;
-  margin: 10px auto 12px;
   border-radius: 2px;
   background: var(--border);
-  touch-action: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

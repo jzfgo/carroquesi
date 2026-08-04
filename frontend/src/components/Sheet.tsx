@@ -157,7 +157,9 @@ export function Sheet({
         tabIndex={-1}
         ref={panelRef}
       >
-        <div className="modal-sheet__handle" {...swipe} />
+        <div className="modal-sheet__grip" {...swipe}>
+          <div className="modal-sheet__handle" />
+        </div>
         {children}
       </div>
     </>,
