@@ -549,6 +549,45 @@ def test_the_page_puts_the_open_cart_first_then_newest_shop(client: TestClient, 
     assert proto["line_count"] == 1
 
 
+def test_the_page_sums_a_provisional_items_total_from_priced_proto_lines(
+    client: TestClient, session: Session
+):
+    """A proto-ticket has no confirmed total, but its priced lines give a
+    provisional one — summed as `price * factor` (the line's real amount), not
+    the raw price, so «≈ total» matches the rows below it."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche", quantity="12 ud")
+    coffee = _tap(client, lst["id"], "Cafe", quantity="1 ud")
+    torn_id = _tear_off(session, milk, days_ago=2)
+    for item, price in ((milk, 1.90), (coffee, 3.29)):
+        row = session.get(ListItem, item["id"])
+        row.price = price
+        row.price_per = None
+        session.add(row)
+    session.commit()
+
+    body = _page(client, lst["id"]).json()
+
+    (proto,) = [p for p in body["purchases"] if p["id"] == torn_id]
+    assert proto["closed_at"] is None
+    assert proto["total"] is None
+    # 1,90 × 12 (multi-unit, not 1,90) + 3,29 × 1 = 26,09
+    assert proto["items_total"] == 26.09
+
+
+def test_the_page_leaves_items_total_null_when_no_line_is_priced(
+    client: TestClient, session: Session
+):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    torn_id = _tear_off(session, milk, days_ago=2)
+
+    body = _page(client, lst["id"]).json()
+
+    (proto,) = [p for p in body["purchases"] if p["id"] == torn_id]
+    assert proto["items_total"] is None
+
+
 def test_trips_sharing_a_boundary_tie_break_on_id(client: TestClient, session: Session):
     lst = _create_list(client)
     instant = datetime(2026, 7, 1, 12, 0, 0)

@@ -47,6 +47,7 @@ const trip = (
   total: 10,
   line_count: 3,
   has_receipt: false,
+  items_total: null,
   ...over,
 })
 

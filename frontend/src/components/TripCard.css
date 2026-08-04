@@ -80,6 +80,14 @@
   white-space: nowrap;
 }
 
+/* «≈ € 12,40» — a proto's provisional total. Unconfirmed, so it reads a step
+   quieter than a printed one; the ≈ carries the meaning, the muted ink keeps it
+   from being mistaken for a settled figure. */
+.trip-card__total--provisional {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
 /* Down, not right: the card opens in place, it does not lead anywhere. */
 .trip-card__chevron {
   flex-shrink: 0;

@@ -31,10 +31,11 @@ const noop = () => {}
  * - Closed, expanded: the dashed-underlined header over its lines (ItemCards in
  *   the bought voice — mono, the rebuy disc on every not-today line).
  * - Proto-ticket (`closed_at == null`, JAV-159): a real purchase with gaps —
- *   «Sin tienda · martes 21» and, where the total prints, the «Cerrar compra»
- *   seal (closed trips carry a figure, this carries a seal). Its lines keep the
- *   rebuy disc and their amount column stays blank — ItemCard already renders
- *   nothing when `price == null`, and a dash would make it a form.
+ *   «Sin tienda · martes 21». Where the total prints it shows a provisional
+ *   «≈ total» when its lines are priced, otherwise the «Cerrar compra» seal
+ *   (an unconfirmed figure or the seal, never a confirmed number). Its lines
+ *   keep the rebuy disc; a still-priceless line renders no amount — ItemCard
+ *   shows nothing when `price == null`, and a dash would make it a form.
  */
 export function TripCard({
   trip,
@@ -96,7 +97,16 @@ export function TripCard({
                 € {formatRowAmount(trip.total)}
               </span>
             )}
-            {proto && !expanded && (
+            {/* A proto has no confirmed total; when its lines are priced we show
+                a provisional one, «≈», summed server-side from price × factor so
+                it matches the rows. With nothing priced, the compact seal badge
+                stands in — «this one carries a seal, not a figure». */}
+            {proto && !expanded && trip.items_total != null && (
+              <span className="trip-card__total trip-card__total--provisional">
+                ≈ € {formatRowAmount(trip.items_total)}
+              </span>
+            )}
+            {proto && !expanded && trip.items_total == null && (
               <span className="trip-card__seal-mark" aria-label="Sin cerrar">
                 <Stamp size={13} strokeWidth={1.8} aria-hidden />
               </span>

@@ -16,6 +16,7 @@ const makeTrip = (over: Partial<PurchaseSummary> = {}): PurchaseSummary => ({
   total: 8.13,
   line_count: 2,
   has_receipt: false,
+  items_total: null,
   ...over,
 })
 
@@ -75,6 +76,14 @@ test('a folded proto shows the compact seal badge, not the full «Cerrar compra�
   // …but the full seal pill only appears once the card is expanded, so the
   // store · date beside it never has to truncate.
   expect(screen.queryByText('Cerrar compra')).not.toBeInTheDocument()
+})
+
+test('a folded proto with priced lines shows a provisional «≈ total», not the seal badge', () => {
+  const trip = makeTrip({ closed_at: null, total: null, items_total: 12.4 })
+  render(<TripCard trip={trip} loadItems={noItems} />)
+  expect(screen.getByText(/≈\s*€\s*12,40/)).toBeInTheDocument()
+  // The provisional figure takes the slot the seal badge would otherwise hold.
+  expect(screen.queryByLabelText('Sin cerrar')).not.toBeInTheDocument()
 })
 
 test('expanding a folded trip lazy-loads its lines', async () => {

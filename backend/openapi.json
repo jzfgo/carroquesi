@@ -1663,6 +1663,17 @@
             "title": "Id",
             "type": "string"
           },
+          "items_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items Total"
+          },
           "line_count": {
             "title": "Line Count",
             "type": "integer"
