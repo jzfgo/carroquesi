@@ -333,7 +333,15 @@ def close_purchase(
             .replace(tzinfo=None)
         )
         tears_off_at = trips.tears_off_at_for(opened_at, client_tz)
-        dating = (opened_at, tears_off_at, tears_off_at)
+        # closed_at is the reconciliation instant, but NEVER in the future.
+        # A same-day close's tear-off is tonight's midnight (ahead of now), so
+        # stamping closed_at there would leave the just-closed trip reading as
+        # «still open» (is_open compares ends_at = closed_at ?? tears_off_at
+        # against now). min() lands a same-day close at `now` and keeps a
+        # back-dated one at its covered day's tear-off (already past), so it
+        # still sorts under that day.
+        closed_at = min(tears_off_at, now)
+        dating = (opened_at, tears_off_at, closed_at)
 
     try:
         purchase = trips.close(

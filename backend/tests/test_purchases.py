@@ -137,6 +137,23 @@ def test_a_same_day_close_is_unchanged_by_the_date_extension(client: TestClient)
     assert datetime.fromisoformat(body["tears_off_at"]) > datetime.fromisoformat(body["closed_at"])
 
 
+def test_a_close_dated_today_lands_closed_at_now_not_the_future_tearoff(client: TestClient):
+    """The «Hoy ▾» control sends today's date on an ordinary close. closed_at
+    must be the close instant, never tonight's tear-off: a future closed_at
+    leaves the just-closed trip reading «still open» (is_open compares
+    closed_at ?? tears_off_at to now), and the next close then finds nothing."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    body = _close_dated(client, lst["id"], date.today(), store="Lidl", lines=_lines(milk)).json()
+
+    closed = datetime.fromisoformat(body["closed_at"])
+    tears = datetime.fromisoformat(body["tears_off_at"])
+    now = datetime.now(UTC).replace(tzinfo=None)
+    assert closed < tears  # not stamped at the future tear-off
+    assert closed <= now  # the reconciliation instant, not ahead of now
+
+
 def test_a_future_dated_close_is_rejected(client: TestClient):
     lst = _create_list(client)
     milk = _tap(client, lst["id"], "Leche")
