@@ -86,25 +86,10 @@
 }
 
 /* «+ otra»: a dashed chip, the add affordance the store chips share with the
-   rest of the app. */
+   rest of the app. It opens the «Nueva tienda» step. */
 .close-chip--add {
   border-style: dashed;
   color: var(--tinta-0);
-}
-
-/* The free-text store field revealed by «+ otra», full-width under the chips. */
-.close-sheet__new-store {
-  box-sizing: border-box;
-  min-height: 44px;
-  margin: 0 20px;
-  width: calc(100% - 40px);
-  padding: 0 12px;
-  border: 1.5px solid var(--tinta-0);
-  border-radius: var(--r-md);
-  background: var(--paper-1);
-  color: var(--ink-0);
-  font-family: var(--font-sans);
-  font-size: var(--fs-16);
 }
 
 .close-date {

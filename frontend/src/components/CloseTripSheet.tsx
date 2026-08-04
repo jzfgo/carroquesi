@@ -1,4 +1,11 @@
-import { Calendar, Check, Pencil, Plus, Receipt } from 'lucide-react'
+import {
+  Calendar,
+  Check,
+  ChevronLeft,
+  Pencil,
+  Plus,
+  Receipt,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import {
   closePurchase,
@@ -85,9 +92,13 @@ export function CloseTripSheet({
     cartItems ? cartItems.map(toDraft) : [],
   )
   const [store, setStore] = useState('')
-  // «+ otra»: typing a store the cart/registry doesn't list. While on, the
-  // chips' first-store fallback yields so an empty field can't auto-pick one.
-  const [addingStore, setAddingStore] = useState(false)
+  // Stores added by hand through the «+ otra» sub-view — offered as chips
+  // beside the cart's and the registry's, and selected on confirm.
+  const [extraStores, setExtraStores] = useState<string[]>([])
+  // The «Nueva tienda» step: a content swap of this same sheet (never a second
+  // sheet), plus its field.
+  const [storeSubsheet, setStoreSubsheet] = useState(false)
+  const [newStoreText, setNewStoreText] = useState('')
   const [date, setDate] = useState(today())
   const [editing, setEditing] = useState<
     { index: number } | { add: true } | null
@@ -129,6 +140,7 @@ export function CloseTripSheet({
     const raws = [
       ...(cartItems ?? []).flatMap((i) => [...i.stores, i.price_store]),
       ...storeOptions,
+      ...extraStores,
     ]
     for (const raw of raws) {
       if (!raw) continue
@@ -139,12 +151,24 @@ export function CloseTripSheet({
       }
     }
     return out
-  }, [cartItems, storeOptions, displayStore])
+  }, [cartItems, storeOptions, extraStores, displayStore])
 
-  // The active store: the typed/tapped one; only when NOT typing a new store
-  // does it fall back to the first chip, so «+ otra» with an empty field stays
-  // empty (and keeps «Guardar compra» disabled until something is entered).
-  const selectedStore = addingStore ? store.trim() : store || stores[0] || ''
+  // The active store: the tapped or hand-added one, or the first chip as a
+  // default. A store-less list with no chips leaves this empty, which keeps
+  // «Guardar compra» disabled until «+ otra» supplies one.
+  const selectedStore = store || stores[0] || ''
+
+  // Confirm a hand-typed store from the «Nueva tienda» sub-view: keep it as a
+  // chip and select it, then return to the table.
+  const confirmNewStore = () => {
+    const v = newStoreText.trim()
+    if (!v) return
+    setExtraStores((xs) =>
+      xs.some((x) => storeKey(x) === storeKey(v)) ? xs : [...xs, v],
+    )
+    setStore(v)
+    setStoreSubsheet(false)
+  }
 
   // Fetch each line's price history once, to seed the dashed suggestions.
   useEffect(() => {
@@ -282,25 +306,78 @@ export function CloseTripSheet({
     }
   }
 
-  // ONE sheet, whose contents swap between the 10b table and the 10d editor.
-  // Opening a line's editor never re-presents the sheet — the surface stays,
-  // only what it holds changes (the app-wide sheet↔sub-sheet rule). A dismiss
-  // gesture while editing goes back to the table rather than closing.
+  // ONE sheet, whose contents swap between the 10b table, the 10d line editor,
+  // and the «Nueva tienda» step. A step never re-presents the sheet — the
+  // surface stays, only what it holds changes (the app-wide sheet↔sub-sheet
+  // rule). A dismiss gesture on any step goes back to the table, not away.
+  const step: 'adjust' | 'store' | 'table' = editorDraft
+    ? 'adjust'
+    : storeSubsheet
+      ? 'store'
+      : 'table'
   return (
     <Sheet
-      className={`close-sheet${editorDraft ? ' close-sheet--editing' : ''}`}
+      className={`close-sheet${step !== 'table' ? ' close-sheet--editing' : ''}`}
       onClose={onClose}
-      onDismiss={editorDraft ? () => setEditing(null) : undefined}
-      label={editorDraft ? 'Ajustar producto' : 'Cerrar compra'}
+      onDismiss={
+        step === 'adjust'
+          ? () => setEditing(null)
+          : step === 'store'
+            ? () => setStoreSubsheet(false)
+            : undefined
+      }
+      label={
+        step === 'adjust'
+          ? 'Ajustar producto'
+          : step === 'store'
+            ? 'Nueva tienda'
+            : 'Cerrar compra'
+      }
     >
-      {editorDraft ? (
+      {step === 'adjust' ? (
         <AdjustProductSheet
-          line={editorDraft}
+          line={editorDraft!}
           isNew={!!editing && 'add' in editing}
           onDone={applyEdit}
           onRemove={removeEditing}
           onBack={() => setEditing(null)}
         />
+      ) : step === 'store' ? (
+        <div className="adjust-sheet__view">
+          <button
+            type="button"
+            className="adjust-sheet__back"
+            onClick={() => setStoreSubsheet(false)}
+          >
+            <ChevronLeft size={22} strokeWidth={1.8} aria-hidden />
+            Cerrar compra
+          </button>
+          <div className="adjust-sheet__body">
+            <label className="adjust-field">
+              <span className="adjust-field__label">Tienda</span>
+              <input
+                className="adjust-field__box"
+                value={newStoreText}
+                onChange={(e) => setNewStoreText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') confirmNewStore()
+                }}
+                placeholder="Nombre de la tienda"
+                autoFocus
+              />
+            </label>
+          </div>
+          <div className="adjust-sheet__footer">
+            <button
+              type="button"
+              className="adjust-sheet__done"
+              onClick={confirmNewStore}
+              disabled={newStoreText.trim() === ''}
+            >
+              Usar esta tienda
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="close-sheet__view">
           <div className="close-sheet__head">
@@ -318,21 +395,18 @@ export function CloseTripSheet({
                 <button
                   key={s}
                   type="button"
-                  className={`close-chip${!addingStore && storeKey(s) === storeKey(selectedStore) ? ' close-chip--on' : ''}`}
-                  onClick={() => {
-                    setAddingStore(false)
-                    setStore(s)
-                  }}
+                  className={`close-chip${storeKey(s) === storeKey(selectedStore) ? ' close-chip--on' : ''}`}
+                  onClick={() => setStore(s)}
                 >
                   {s}
                 </button>
               ))}
               <button
                 type="button"
-                className={`close-chip close-chip--add${addingStore ? ' close-chip--on' : ''}`}
+                className="close-chip close-chip--add"
                 onClick={() => {
-                  setAddingStore(true)
-                  setStore('')
+                  setNewStoreText('')
+                  setStoreSubsheet(true)
                 }}
               >
                 + otra
@@ -349,17 +423,6 @@ export function CloseTripSheet({
               />
             </label>
           </div>
-
-          {addingStore && (
-            <input
-              className="close-sheet__new-store"
-              type="text"
-              placeholder="Nombre de la tienda"
-              value={store}
-              onChange={(e) => setStore(e.target.value)}
-              autoFocus
-            />
-          )}
 
           <div className="close-sheet__table">
             <div className="close-row close-row--head">

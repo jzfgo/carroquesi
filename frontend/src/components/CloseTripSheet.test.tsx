@@ -99,11 +99,13 @@ test('a store-less cart still offers registry stores and «+ otra»', async () =
   )
   // Registry stores appear as chips though the cart names none.
   expect(screen.getByText('Mercadona')).toBeInTheDocument()
-  // «+ otra» reveals a free-text field, and the typed store is what saves.
+  // «+ otra» opens the «Nueva tienda» step; the typed store is confirmed there,
+  // becomes a chip, and is what saves.
   fireEvent.click(screen.getByText('+ otra'))
   fireEvent.change(screen.getByPlaceholderText('Nombre de la tienda'), {
     target: { value: 'Ahorramás' },
   })
+  fireEvent.click(screen.getByText('Usar esta tienda'))
   fireEvent.click(screen.getByText('Guardar compra'))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
