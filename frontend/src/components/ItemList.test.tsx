@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { vi } from 'vitest'
 import type { CostSummary } from '../lib/itemCost'
 import { purchasedDateLabel } from '../lib/itemCost'
-import type { ListItem } from '../types'
+import type { DueSuggestion, ListItem } from '../types'
 import { ItemList } from './ItemList'
 
 const makeItem = (id: string, purchased = false): ListItem => ({
@@ -509,4 +509,84 @@ test('no ¡listo! line mid-search when only a cart item matches (a view, not don
   expect(container.querySelector('.talon')).toBeInTheDocument()
   // ...but the "done" flourish must not — this is a filtered view.
   expect(container.querySelector('.item-list__done')).not.toBeInTheDocument()
+})
+
+// ── Inline "Sueles comprar" suggestions (20b) ─────────────────────────────────
+
+const makeSuggestion = (name: string): DueSuggestion => ({
+  name,
+  brand: null,
+  stores: ['Mercadona'],
+  avg_quantity: 2,
+  median_interval_days: 7,
+  days_since_last: 9,
+  days_overdue: 2,
+  dismissal_ttl_days: 30,
+})
+
+test('shows the "Sueles comprar" tail after the pending items', () => {
+  renderList({
+    items: [makeItem('a')],
+    suggestions: [makeSuggestion('Leche entera')],
+  })
+  expect(screen.getByText('Sueles comprar')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: /añadir Leche entera/i }),
+  ).toBeInTheDocument()
+})
+
+test('caps the suggestion tail at three rows', () => {
+  renderList({
+    items: [makeItem('a')],
+    suggestions: ['Leche', 'Pan', 'Café', 'Huevos', 'Sal'].map(makeSuggestion),
+  })
+  expect(screen.getAllByRole('button', { name: /^añadir /i })).toHaveLength(3)
+})
+
+test('excludes a suggestion already on the pending list (case/space-folded)', () => {
+  renderList({
+    items: [makeItem('a'), { ...makeItem('b'), name: '  Leche Entera ' }],
+    suggestions: [makeSuggestion('leche entera'), makeSuggestion('Café')],
+  })
+  expect(
+    screen.queryByRole('button', { name: /añadir leche entera/i }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: /añadir Café/i }),
+  ).toBeInTheDocument()
+})
+
+test('still suggests something that is only in the settled records', () => {
+  // A due-suggestion is derived from purchase history, so it will always be in
+  // the "Comprados" section — that must NOT suppress it.
+  renderList({
+    items: [makeItem('a'), makeBought('b')],
+    suggestions: [{ ...makeSuggestion('Aceite'), name: 'Item b' }],
+  })
+  expect(
+    screen.getByRole('button', { name: /añadir Item b/i }),
+  ).toBeInTheDocument()
+})
+
+test('renders no suggestions when the pending list is empty (all-bought)', () => {
+  renderList({
+    items: [makeBought('a')],
+    suggestions: [makeSuggestion('Leche entera')],
+  })
+  // active.length === 0 → the tail stays off, no dangling "Sueles comprar".
+  expect(screen.queryByText('Sueles comprar')).not.toBeInTheDocument()
+})
+
+test('renders nothing extra when there are no suggestions to show', () => {
+  renderList({ items: [makeItem('a')], suggestions: [] })
+  expect(screen.queryByText('Sueles comprar')).not.toBeInTheDocument()
+})
+
+test('the header count excludes suggestions', () => {
+  const { container } = renderList({
+    items: [makeItem('a'), makeItem('b')],
+    suggestions: [makeSuggestion('Leche'), makeSuggestion('Pan')],
+  })
+  // Two pending items, two suggestions → the count is 2, not 4.
+  expect(container.querySelector('.paper__title-count')?.textContent).toBe('2')
 })

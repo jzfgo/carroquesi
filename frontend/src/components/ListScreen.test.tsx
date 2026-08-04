@@ -12,6 +12,10 @@ import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import * as api from '../lib/api'
 import { reportRequestOutcome } from '../lib/connectivity'
+import {
+  isDismissed,
+  _resetCacheForTesting as resetDismissals,
+} from '../lib/dismissedSuggestions'
 import * as push from '../lib/push'
 import * as receiptAi from '../lib/receiptAi'
 import type {
@@ -505,10 +509,13 @@ describe('ListScreen', () => {
     })
   })
 
-  it('opens DueSuggestionsSheet and handles adding suggestions', async () => {
+  it('accepts an inline suggestion, adding it with its average quantity', async () => {
     const addItemMock = vi.fn()
+    // Suggestions render only at the tail of a populated list (20b, Q2), so the
+    // hook needs a real pending item for the "Sueles comprar" block to appear.
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Pan' })],
       addItem: addItemMock,
     })
 
@@ -527,14 +534,13 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const suggestionsBtn = await screen.findByRole('button', {
-      name: /sugerencias pendientes \(1\)/i,
+    // No sheet, no ✨ button: the row is written straight onto the paper.
+    const acceptBtn = await screen.findByRole('button', {
+      name: /añadir Yogur/i,
     })
-    fireEvent.click(suggestionsBtn)
+    expect(screen.getByText('Sueles comprar')).toBeInTheDocument()
 
-    expect(screen.getByText('Toca comprar')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: /añadir Yogur/i }))
+    fireEvent.click(acceptBtn)
 
     expect(addItemMock).toHaveBeenCalledWith({
       name: 'Yogur',
@@ -542,6 +548,41 @@ describe('ListScreen', () => {
       stores: ['Mercadona'],
       quantity: '2',
     })
+  })
+
+  it('dismisses an inline suggestion, recording a TTL so it stays hidden', async () => {
+    localStorage.clear()
+    resetDismissals()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Pan' })],
+    })
+
+    vi.mocked(api.getDueSuggestions).mockResolvedValueOnce([
+      {
+        name: 'Yogur',
+        brand: 'Danone',
+        stores: ['Mercadona'],
+        days_overdue: 1,
+        dismissal_ttl_days: 7,
+        median_interval_days: 7,
+        days_since_last: 8,
+        avg_quantity: 2,
+      },
+    ])
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    await screen.findByRole('button', { name: /añadir Yogur/i })
+    fireEvent.click(
+      screen.getByRole('button', { name: /descartar sugerencia/i }),
+    )
+
+    // The row is gone and a dismissal TTL was written — «no este mes».
+    expect(
+      screen.queryByRole('button', { name: /añadir Yogur/i }),
+    ).not.toBeInTheDocument()
+    expect(isDismissed('Yogur')).toBe(true)
   })
 
   it('handles cloning a purchased item', async () => {

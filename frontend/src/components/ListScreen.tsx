@@ -48,7 +48,6 @@ import type {
 } from '../types'
 import { BarcodeScanner } from './BarcodeScanner'
 import { BarcodeScanSheet } from './BarcodeScanSheet'
-import { DueSuggestionsSheet } from './DueSuggestionsSheet'
 import { FilterBar } from './FilterBar'
 import { ItemActionSheet } from './ItemActionSheet'
 import { ItemList } from './ItemList'
@@ -157,7 +156,6 @@ export function ListScreen({
   } | null>(null)
   const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(null)
   const [dueSuggestions, setDueSuggestions] = useState<DueSuggestion[]>([])
-  const [dueSuggestionsOpen, setDueSuggestionsOpen] = useState(false)
   const [priceItemId, setPriceItemId] = useState<string | null>(null)
   const [logPriceFor, setLogPriceFor] = useState<{
     itemId: string
@@ -166,11 +164,6 @@ export function ListScreen({
     initialStore: string | null
     suggestedStore: string | null
   } | null>(null)
-
-  const handleDueSuggestionsClose = useCallback(
-    () => setDueSuggestionsOpen(false),
-    [],
-  )
 
   // A write answering 403/404 only *suggests* the list is gone — the missing
   // thing is often the item. Re-read the list itself and evict only when that
@@ -985,6 +978,9 @@ export function ListScreen({
         purchasedCostByDate={purchasedCostByDate}
         displayStore={displayStore}
         onCloseTrip={handleCloseTrip}
+        suggestions={filteredDueSuggestions}
+        onSuggestionAdd={handleSuggestionAdd}
+        onSuggestionDismiss={handleSuggestionDismiss}
         footer={
           allUnpurchasedCount === 0 &&
           items.length > 0 &&
@@ -1134,19 +1130,8 @@ export function ListScreen({
             eanError={eanLookup.status === 'error' ? eanLookup.message : null}
             inferredStoreChip={visibleChip}
             onDismissInferredStore={dismissInferredStore}
-            dueSuggestionsCount={filteredDueSuggestions.length}
-            onDueSuggestionsOpen={() => setDueSuggestionsOpen(true)}
           />
         </div>
-      )}
-      {dueSuggestionsOpen && filteredDueSuggestions.length > 0 && (
-        <DueSuggestionsSheet
-          suggestions={filteredDueSuggestions}
-          displayStore={displayStore}
-          onAdd={handleSuggestionAdd}
-          onDismiss={handleSuggestionDismiss}
-          onClose={handleDueSuggestionsClose}
-        />
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
       {scanTarget && (
