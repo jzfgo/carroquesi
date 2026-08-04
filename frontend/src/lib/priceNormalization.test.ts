@@ -10,6 +10,7 @@ function entry(
     store: null,
     purchased_at: null,
     quantity: null,
+    is_sin_precio: false,
     ...overrides,
   }
 }

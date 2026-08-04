@@ -56,6 +56,7 @@ test('renders item name as title and fetches price history', async () => {
         store: 'Mercadona',
         purchased_at: '2026-07-20T12:00:00Z',
         quantity: '1',
+        is_sin_precio: false,
       },
     ],
   }
@@ -135,6 +136,7 @@ test('spelling variants of one store share a single history group', async () => 
         store: 'Ahorramás',
         purchased_at: '2026-07-20T12:00:00Z',
         quantity: '1',
+        is_sin_precio: false,
       },
       {
         amount: 0.89,
@@ -142,6 +144,7 @@ test('spelling variants of one store share a single history group', async () => 
         store: 'AHORRA MAS',
         purchased_at: '2026-07-15T12:00:00Z',
         quantity: '1',
+        is_sin_precio: false,
       },
     ],
   }
@@ -166,6 +169,7 @@ test('clicking a store row expands it to show detailed stats and records', async
         store: 'Mercadona',
         purchased_at: '2026-07-20T12:00:00Z',
         quantity: '1',
+        is_sin_precio: false,
       },
       {
         amount: 0.89,
@@ -173,6 +177,7 @@ test('clicking a store row expands it to show detailed stats and records', async
         store: 'Mercadona',
         purchased_at: '2026-07-15T12:00:00Z',
         quantity: '1',
+        is_sin_precio: false,
       },
     ],
   }
