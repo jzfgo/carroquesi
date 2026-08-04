@@ -806,6 +806,9 @@ export function ListScreen({
   const [closeTrip, setCloseTrip] = useState<{ purchaseId?: string } | null>(
     null,
   )
+  // Bumped after a close so the stack remounts and refetches — the newly closed
+  // trip has to appear without a manual refresh. useStack only loads on mount.
+  const [stackVersion, setStackVersion] = useState(0)
   const handleCloseTrip = useCallback((purchaseId?: string) => {
     setCloseTrip({ purchaseId })
   }, [])
@@ -987,6 +990,7 @@ export function ListScreen({
         pendingCost={pendingCost}
         stack={
           <Stack
+            key={stackVersion}
             listId={listId}
             getToken={getToken}
             onRebuy={handleStackRebuy}
@@ -1251,6 +1255,8 @@ export function ListScreen({
           onDone={() => {
             setCloseTrip(null)
             retry()
+            // Remount the stack so the just-closed trip shows immediately.
+            setStackVersion((v) => v + 1)
           }}
           onScanReceipt={() => {
             setCloseTrip(null)
