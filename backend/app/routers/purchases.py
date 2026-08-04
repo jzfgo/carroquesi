@@ -375,6 +375,22 @@ def create_manual_purchase(
     lst, _ = list_and_user
     _reject_bad_amount(body.total, "total")
 
+    # This feature back-dates a shop that already happened. A future date has no
+    # such shop, and because the trip's boundary is date-derived, a future one
+    # would carry a coalesce(closed_at, tears_off_at) key ahead of now and sort
+    # ABOVE the live cart in history. Reject it rather than file that.
+    today = datetime.now(UTC).astimezone(client_tz).date()
+    if body.date > today:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="A manual purchase cannot be dated in the future",
+        )
+
+    # An empty store is not a store: coerce blank to None so a bare record reads
+    # back the same whether the caller omitted store or sent "". ensure_stores
+    # already skips blanks; this keeps the Purchase.store column consistent too.
+    store = body.store if (body.store and body.store.strip()) else None
+
     # The local midnight that STARTS the submitted day, as naive UTC — the same
     # shape tears_off_at_for produces, but for the day's opening rather than its
     # close.
@@ -395,12 +411,12 @@ def create_manual_purchase(
         opened_at=opened_at,
         tears_off_at=tears_off_at,
         closed_at=tears_off_at,
-        store=body.store,
+        store=store,
         total=body.total,
     )
     session.add(purchase)
-    if body.store is not None:
-        ensure_stores(session, lst.id, [body.store])
+    if store is not None:
+        ensure_stores(session, lst.id, [store])
     lst.updated_at = now
     session.add(lst)
     session.commit()

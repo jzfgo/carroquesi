@@ -940,6 +940,26 @@ def test_a_negative_manual_total_is_rejected(client: TestClient):
     assert response.status_code == 422
 
 
+def test_a_future_dated_manual_purchase_is_rejected(client: TestClient):
+    """Back-dating only: a future date would sort above the live cart."""
+    lst = _create_list(client)
+
+    response = _manual(client, lst["id"], date=date.today() + timedelta(days=1), total=5.0)
+
+    assert response.status_code == 422
+
+
+def test_a_blank_manual_store_reads_back_as_none(client: TestClient, session: Session):
+    """An empty-string store is a bare record, not a store named ""."""
+    lst = _create_list(client)
+
+    body = _manual(client, lst["id"], store="   ", date=date.today()).json()
+
+    assert body["store"] is None
+    registered = session.exec(select(ListStore).where(ListStore.list_id == lst["id"])).all()
+    assert registered == []
+
+
 def test_a_manual_purchases_boundary_lands_on_the_clients_day(client: TestClient, session: Session):
     from app.services.trips import tears_off_at_for
 
