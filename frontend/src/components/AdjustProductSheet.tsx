@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
 import { parseKgFactor, parseQuantityFactor } from '../lib/itemCost'
 import './AdjustProductSheet.css'
-import { Sheet } from './Sheet'
 
 /** One line of the close draft — the shape 10b holds and 10d edits. */
 export interface DraftLine {
@@ -31,7 +30,7 @@ interface Props {
   onDone: (line: DraftLine) => void
   /** Drop the line from the close (and, for an existing item, from the cart). */
   onRemove: () => void
-  /** Back-galón / dismiss — return to 10b without committing. */
+  /** Back-galón — return to the 10b table without committing. */
   onBack: () => void
 }
 
@@ -54,6 +53,13 @@ function parsePrice(text: string): number | null {
   return Number.isFinite(n) && n >= 0 ? n : null
 }
 
+/**
+ * The adjust-product editor (10d) — rendered as the *content* of a step inside
+ * the close sheet, NOT its own `<Sheet>`. Moving between the 10b table and this
+ * editor swaps what the one sheet holds; the sheet surface itself never
+ * re-presents (the app-wide sheet↔sub-sheet rule). The parent owns the sheet
+ * and routes its back gesture here via `onBack`.
+ */
 export function AdjustProductSheet({
   line,
   isNew,
@@ -97,12 +103,7 @@ export function AdjustProductSheet({
   }
 
   return (
-    <Sheet
-      className="adjust-sheet"
-      onClose={onBack}
-      onDismiss={onBack}
-      label="Ajustar producto"
-    >
+    <div className="adjust-sheet__view">
       <button type="button" className="adjust-sheet__back" onClick={onBack}>
         <ChevronLeft size={22} strokeWidth={1.8} aria-hidden />
         Cerrar compra
@@ -225,6 +226,6 @@ export function AdjustProductSheet({
           {isNew ? 'Descartar' : 'Quitar del carro'}
         </button>
       </div>
-    </Sheet>
+    </div>
   )
 }

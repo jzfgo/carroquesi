@@ -269,168 +269,183 @@ export function CloseTripSheet({
     }
   }
 
-  if (editorDraft) {
-    return (
-      <AdjustProductSheet
-        line={editorDraft}
-        isNew={!!editing && 'add' in editing}
-        onDone={applyEdit}
-        onRemove={removeEditing}
-        onBack={() => setEditing(null)}
-      />
-    )
-  }
-
+  // ONE sheet, whose contents swap between the 10b table and the 10d editor.
+  // Opening a line's editor never re-presents the sheet — the surface stays,
+  // only what it holds changes (the app-wide sheet↔sub-sheet rule). A dismiss
+  // gesture while editing goes back to the table rather than closing.
   return (
-    <Sheet className="close-sheet" onClose={onClose} label="Cerrar compra">
-      <div className="close-sheet__head">
-        <h2 className="close-sheet__title">Cerrar compra</h2>
-        <p className="close-sheet__subtitle">
-          {included.length}{' '}
-          {included.length === 1 ? 'producto pasa' : 'productos pasan'} a
-          comprados
-        </p>
-      </div>
+    <Sheet
+      className={`close-sheet${editorDraft ? ' close-sheet--editing' : ''}`}
+      onClose={onClose}
+      onDismiss={editorDraft ? () => setEditing(null) : undefined}
+      label={editorDraft ? 'Ajustar producto' : 'Cerrar compra'}
+    >
+      {editorDraft ? (
+        <AdjustProductSheet
+          line={editorDraft}
+          isNew={!!editing && 'add' in editing}
+          onDone={applyEdit}
+          onRemove={removeEditing}
+          onBack={() => setEditing(null)}
+        />
+      ) : (
+        <div className="close-sheet__view">
+          <div className="close-sheet__head">
+            <h2 className="close-sheet__title">Cerrar compra</h2>
+            <p className="close-sheet__subtitle">
+              {included.length}{' '}
+              {included.length === 1 ? 'producto pasa' : 'productos pasan'} a
+              comprados
+            </p>
+          </div>
 
-      <div className="close-sheet__controls">
-        <div className="close-sheet__chips">
-          {stores.map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`close-chip${storeKey(s) === storeKey(selectedStore) ? ' close-chip--on' : ''}`}
-              onClick={() => setStore(s)}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-        <label className="close-date">
-          <Calendar size={13} aria-hidden />
-          <input
-            type="date"
-            className="close-date__input"
-            value={date}
-            max={today()}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </label>
-      </div>
+          <div className="close-sheet__controls">
+            <div className="close-sheet__chips">
+              {stores.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className={`close-chip${storeKey(s) === storeKey(selectedStore) ? ' close-chip--on' : ''}`}
+                  onClick={() => setStore(s)}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <label className="close-date">
+              <Calendar size={13} aria-hidden />
+              <input
+                type="date"
+                className="close-date__input"
+                value={date}
+                max={today()}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </label>
+          </div>
 
-      <div className="close-sheet__table">
-        <div className="close-row close-row--head">
-          <span>Producto</span>
-          <span>Cant.</span>
-          <span className="close-row__amount">Importe</span>
-          <span />
-        </div>
+          <div className="close-sheet__table">
+            <div className="close-row close-row--head">
+              <span>Producto</span>
+              <span>Cant.</span>
+              <span className="close-row__amount">Importe</span>
+              <span />
+            </div>
 
-        {withSuggestions.map((line, index) =>
-          line.included ? (
-            <div className="close-row" key={line.item_id ?? `new-${index}`}>
-              <span className="close-row__name">
-                {line.name}
-                {!line.item_id && (
-                  <span className="close-row__sub">no estaba en la lista</span>
-                )}
-              </span>
-              <span className="close-row__qty">{line.quantity ?? ''}</span>
-              <span className="close-row__amount">
-                {(() => {
-                  const t = lineTotal(line)
-                  if (t && t.confirmed)
-                    return (
-                      <span className="close-amount">
-                        {formatRowAmount(t.value)}
+            {withSuggestions.map((line, index) =>
+              line.included ? (
+                <div className="close-row" key={line.item_id ?? `new-${index}`}>
+                  <span className="close-row__name">
+                    {line.name}
+                    {!line.item_id && (
+                      <span className="close-row__sub">
+                        no estaba en la lista
                       </span>
-                    )
-                  if (t && !t.confirmed)
-                    return (
-                      <span className="close-amount close-amount--suggested">
-                        {formatRowAmount(t.value)}
-                      </span>
-                    )
-                  return (
-                    <span className="close-amount close-amount--none">
-                      sin precio
-                    </span>
-                  )
-                })()}
-              </span>
+                    )}
+                  </span>
+                  <span className="close-row__qty">{line.quantity ?? ''}</span>
+                  <span className="close-row__amount">
+                    {(() => {
+                      const t = lineTotal(line)
+                      if (t && t.confirmed)
+                        return (
+                          <span className="close-amount">
+                            {formatRowAmount(t.value)}
+                          </span>
+                        )
+                      if (t && !t.confirmed)
+                        return (
+                          <span className="close-amount close-amount--suggested">
+                            {formatRowAmount(t.value)}
+                          </span>
+                        )
+                      return (
+                        <span className="close-amount close-amount--none">
+                          sin precio
+                        </span>
+                      )
+                    })()}
+                  </span>
+                  <button
+                    type="button"
+                    className="close-row__pencil"
+                    onClick={() => setEditing({ index })}
+                    aria-label={`Ajustar ${line.name}`}
+                  >
+                    <Pencil size={14} aria-hidden />
+                  </button>
+                </div>
+              ) : null,
+            )}
+
+            {suggestedCount > 0 && (
               <button
                 type="button"
-                className="close-row__pencil"
-                onClick={() => setEditing({ index })}
-                aria-label={`Ajustar ${line.name}`}
+                className="close-row close-row--action"
+                onClick={confirmAllSuggested}
               >
-                <Pencil size={14} aria-hidden />
+                <span className="close-row__action-label">
+                  Confirmar{' '}
+                  {suggestedCount === 1
+                    ? 'el precio sugerido'
+                    : `los ${suggestedCount} precios sugeridos`}
+                </span>
+                <span className="close-row__action-disc close-row__action-disc--fill">
+                  <Check size={15} strokeWidth={2.6} aria-hidden />
+                </span>
               </button>
+            )}
+
+            <button
+              type="button"
+              className="close-row close-row--action"
+              onClick={() => setEditing({ add: true })}
+            >
+              <span className="close-row__action-label">Añadir producto</span>
+              <span className="close-row__action-disc close-row__action-disc--ghost">
+                <Plus size={15} aria-hidden />
+              </span>
+            </button>
+
+            <div className="close-row close-row--total">
+              <span className="close-total__label">
+                Total de lo que has puesto
+              </span>
+              <span className="close-total__value">
+                € {formatRowAmount(total)}
+              </span>
             </div>
-          ) : null,
-        )}
 
-        {suggestedCount > 0 && (
-          <button
-            type="button"
-            className="close-row close-row--action"
-            onClick={confirmAllSuggested}
-          >
-            <span className="close-row__action-label">
-              Confirmar{' '}
-              {suggestedCount === 1
-                ? 'el precio sugerido'
-                : `los ${suggestedCount} precios sugeridos`}
-            </span>
-            <span className="close-row__action-disc close-row__action-disc--fill">
-              <Check size={15} strokeWidth={2.6} aria-hidden />
-            </span>
-          </button>
-        )}
+            <p className="close-sheet__help">
+              El lapicero de cada línea abre el ajuste. Lo que dejes sin precio
+              se guarda como comprado, sin inventar el importe. Los importes en
+              discontinuo son precios heredados de la última compra.
+            </p>
+          </div>
 
-        <button
-          type="button"
-          className="close-row close-row--action"
-          onClick={() => setEditing({ add: true })}
-        >
-          <span className="close-row__action-label">Añadir producto</span>
-          <span className="close-row__action-disc close-row__action-disc--ghost">
-            <Plus size={15} aria-hidden />
-          </span>
-        </button>
-
-        <div className="close-row close-row--total">
-          <span className="close-total__label">Total de lo que has puesto</span>
-          <span className="close-total__value">€ {formatRowAmount(total)}</span>
+          <div className="close-sheet__footer">
+            <button
+              type="button"
+              className="close-sheet__save"
+              onClick={save}
+              disabled={
+                saving ||
+                selectedStore === '' ||
+                included.filter((l) => l.item_id).length === 0
+              }
+            >
+              {saving ? 'Guardando…' : 'Guardar compra'}
+            </button>
+            <button
+              type="button"
+              className="close-sheet__scan"
+              onClick={() => onScanReceipt?.()}
+            >
+              <Receipt size={16} aria-hidden /> Escanear el ticket en su lugar
+            </button>
+          </div>
         </div>
-
-        <p className="close-sheet__help">
-          El lapicero de cada línea abre el ajuste. Lo que dejes sin precio se
-          guarda como comprado, sin inventar el importe. Los importes en
-          discontinuo son precios heredados de la última compra.
-        </p>
-      </div>
-
-      <div className="close-sheet__footer">
-        <button
-          type="button"
-          className="close-sheet__save"
-          onClick={save}
-          disabled={
-            saving ||
-            selectedStore === '' ||
-            included.filter((l) => l.item_id).length === 0
-          }
-        >
-          {saving ? 'Guardando…' : 'Guardar compra'}
-        </button>
-        <button
-          type="button"
-          className="close-sheet__scan"
-          onClick={() => onScanReceipt?.()}
-        >
-          <Receipt size={16} aria-hidden /> Escanear el ticket en su lugar
-        </button>
-      </div>
+      )}
     </Sheet>
   )
 }
