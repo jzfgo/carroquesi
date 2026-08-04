@@ -504,6 +504,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists/{list_id}/purchases/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Manual Purchase
+         * @description Write down a shop by hand — a trip born closed, holding no lines.
+         *
+         *     Unlike a close, this claims nothing from the cart: it records that a shop
+         *     happened on a stated calendar day, optionally where and for how much. The
+         *     day is mapped to the trip's boundaries in the request's client timezone
+         *     (ADR-012), so a back-dated entry files under the day it covered rather than
+         *     under now.
+         */
+        post: operations["create_manual_purchase_lists__list_id__purchases_manual_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{list_id}/purchases/{purchase_id}/items": {
         parameters: {
             query?: never;
@@ -1340,6 +1366,26 @@ export interface components {
             price_per?: "KILOGRAM" | null;
             /** Quantity */
             quantity?: string | null;
+        };
+        /**
+         * PurchaseManualBody
+         * @description A shop entered by hand — a trip born closed, holding no lines.
+         *
+         *     Unlike a close, this names no items: it records that a shop happened on a
+         *     given calendar day, optionally where and for how much, without touching the
+         *     cart. `date` is the day the household lived through; the handler maps it to
+         *     the trip's boundaries in the request's client timezone (ADR-012).
+         */
+        PurchaseManualBody: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Store */
+            store?: string | null;
+            /** Total */
+            total?: number | null;
         };
         /**
          * PurchaseNewItem
@@ -2876,6 +2922,46 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["PurchaseCloseBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_manual_purchase_lists__list_id__purchases_manual_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+                "x-client-timezone"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseManualBody"];
             };
         };
         responses: {

@@ -1442,6 +1442,44 @@
         "title": "PurchaseLine",
         "type": "object"
       },
+      "PurchaseManualBody": {
+        "description": "A shop entered by hand — a trip born closed, holding no lines.\n\nUnlike a close, this names no items: it records that a shop happened on a\ngiven calendar day, optionally where and for how much, without touching the\ncart. `date` is the day the household lived through; the handler maps it to\nthe trip's boundaries in the request's client timezone (ADR-012).",
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "title": "PurchaseManualBody",
+        "type": "object"
+      },
       "PurchaseNewItem": {
         "description": "Something bought that was never on the list. Born already purchased.",
         "properties": {
@@ -5732,6 +5770,128 @@
           }
         ],
         "summary": "Close Purchase",
+        "tags": [
+          "purchases"
+        ]
+      }
+    },
+    "/lists/{list_id}/purchases/manual": {
+      "post": {
+        "description": "Write down a shop by hand — a trip born closed, holding no lines.\n\nUnlike a close, this claims nothing from the cart: it records that a shop\nhappened on a stated calendar day, optionally where and for how much. The\nday is mapped to the trip's boundaries in the request's client timezone\n(ADR-012), so a back-dated entry files under the day it covered rather than\nunder now.",
+        "operationId": "create_manual_purchase_lists__list_id__purchases_manual_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-client-timezone",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Client-Timezone"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseManualBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Manual Purchase",
         "tags": [
           "purchases"
         ]

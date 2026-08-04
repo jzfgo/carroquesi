@@ -1,6 +1,7 @@
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
@@ -841,3 +842,143 @@ def test_rebuy_notifies_on_create_but_not_on_the_idempotent_hit(client: TestClie
         second = _rebuy(client, lst["id"], ticket["id"], milk["id"])
         assert second.status_code == 200
         notify.assert_not_called()
+
+
+# --- Manual purchases: a trip written down by hand, born closed, no lines ---
+
+
+def _manual(client: TestClient, list_id: str, **body):
+    if isinstance(body.get("date"), date):
+        body["date"] = body["date"].isoformat()
+    return client.post(f"/lists/{list_id}/purchases/manual", json=body)
+
+
+def test_a_manual_purchase_is_born_closed_with_no_lines(client: TestClient, session: Session):
+    lst = _create_list(client)
+
+    response = _manual(client, lst["id"], store="Lidl", date=date.today(), total=23.40)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["closed_at"] is not None
+    assert body["store"] == "Lidl"
+    assert body["total"] == 23.40
+    trip = session.get(Purchase, body["id"])
+    assert trip.list_id == lst["id"]
+    lines = client.get(f"/lists/{lst['id']}/purchases/{body['id']}/items").json()
+    assert lines == []
+    page = _page(client, lst["id"]).json()
+    (row,) = [p for p in page["purchases"] if p["id"] == body["id"]]
+    assert row["line_count"] == 0
+
+
+def test_a_back_dated_manual_purchase_files_under_its_day_not_now(
+    client: TestClient, session: Session
+):
+    lst = _create_list(client)
+    # A shop written down by hand a week after it happened.
+    week_ago = date.today() - timedelta(days=7)
+    old = _manual(client, lst["id"], store="Lidl", date=week_ago, total=10.0).json()
+    # A genuine, more recent trip closed just now.
+    milk = _tap(client, lst["id"], "Leche")
+    recent = _close(client, lst["id"], store="Mercadona", lines=_lines(milk)).json()
+
+    body = _page(client, lst["id"]).json()
+
+    ids = [p["id"] for p in body["purchases"]]
+    # The back-dated entry did NOT jump to the top on "now": it sits under the
+    # recent trip, filed by the boundary of the day it covered.
+    assert ids.index(recent["id"]) < ids.index(old["id"])
+
+
+def test_a_total_only_manual_save_works_with_no_store(client: TestClient, session: Session):
+    lst = _create_list(client)
+
+    response = _manual(client, lst["id"], date=date.today(), total=8.75)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["store"] is None
+    assert body["total"] == 8.75
+    assert body["closed_at"] is not None
+
+
+def test_a_manual_purchase_with_no_store_and_no_total_is_a_bare_record(
+    client: TestClient, session: Session
+):
+    lst = _create_list(client)
+
+    body = _manual(client, lst["id"], date=date.today()).json()
+
+    assert body["store"] is None
+    assert body["total"] is None
+    assert body["closed_at"] is not None
+
+
+def test_a_manual_purchases_store_registers_in_the_registry(client: TestClient, session: Session):
+    lst = _create_list(client)
+
+    _manual(client, lst["id"], store="Carrefour", date=date.today()).json()
+
+    registered = session.exec(select(ListStore).where(ListStore.list_id == lst["id"])).all()
+    assert [s.display_name for s in registered] == ["Carrefour"]
+
+
+def test_a_manual_purchase_without_a_date_is_422(client: TestClient):
+    lst = _create_list(client)
+
+    response = client.post(f"/lists/{lst['id']}/purchases/manual", json={"store": "Lidl"})
+
+    assert response.status_code == 422
+
+
+def test_a_negative_manual_total_is_rejected(client: TestClient):
+    lst = _create_list(client)
+
+    response = _manual(client, lst["id"], date=date.today(), total=-5.0)
+
+    assert response.status_code == 422
+
+
+def test_a_future_dated_manual_purchase_is_rejected(client: TestClient):
+    """Back-dating only: a future date would sort above the live cart."""
+    lst = _create_list(client)
+
+    response = _manual(client, lst["id"], date=date.today() + timedelta(days=1), total=5.0)
+
+    assert response.status_code == 422
+
+
+def test_a_blank_manual_store_reads_back_as_none(client: TestClient, session: Session):
+    """An empty-string store is a bare record, not a store named ""."""
+    lst = _create_list(client)
+
+    body = _manual(client, lst["id"], store="   ", date=date.today()).json()
+
+    assert body["store"] is None
+    registered = session.exec(select(ListStore).where(ListStore.list_id == lst["id"])).all()
+    assert registered == []
+
+
+def test_a_manual_purchases_boundary_lands_on_the_clients_day(client: TestClient, session: Session):
+    from app.services.trips import tears_off_at_for
+
+    lst = _create_list(client)
+    tz = ZoneInfo("Europe/Madrid")
+    day = date(2026, 7, 15)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/manual",
+        json={"store": "Lidl", "date": day.isoformat()},
+        headers={"X-Client-Timezone": "Europe/Madrid"},
+    )
+
+    assert response.status_code == 200
+    trip = session.get(Purchase, response.json()["id"])
+    # opened_at is the local midnight that STARTS the day, as naive UTC.
+    expected_open = (
+        datetime.combine(day, datetime.min.time(), tzinfo=tz).astimezone(UTC).replace(tzinfo=None)
+    )
+    assert trip.opened_at == expected_open
+    assert trip.tears_off_at == tears_off_at_for(expected_open, tz)
+    assert trip.closed_at == trip.tears_off_at
