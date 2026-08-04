@@ -2,8 +2,8 @@ import math
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import func
+from fastapi import APIRouter, HTTPException, Query, Response, status
+from sqlalchemy import func, or_
 from sqlmodel import select
 
 from app.db.models import ListItem, Purchase, ReceiptScan
@@ -103,6 +103,90 @@ def get_purchase_items(
         # object.__setattr__ because pydantic rejects undeclared fields.
         object.__setattr__(item, "purchase_ends_at", ends_at)
     return items
+
+
+@router.post("/{purchase_id}/items/{item_id}/rebuy", response_model=ItemRead)
+def rebuy_item(
+    purchase_id: str,
+    item_id: str,
+    response: Response,
+    session: CurrentSession,
+    list_and_user: MemberDep,
+):
+    """Put a settled purchase's line back onto the pending list.
+
+    Re-buy takes one line of a past trip — a ListItem filed under it — and
+    creates a fresh pending row carrying the product's identity, the quantity
+    last bought, and the store it was bought at. The source line stays where
+    it is: this reorders the product, it does not un-file the shop.
+
+    An open cart is off limits. Its lines wear the green undo disc, and taking
+    one back onto the list is undo territory, not re-buy — so a line still in
+    the open trip is refused with a nudge to undo instead. A trip that closed
+    earlier today is already closed, so is_open is False and the re-buy goes
+    through; that is the same-day ficha exception, falling out of the open
+    rule rather than needing a rule of its own.
+
+    Idempotent against the add-item duplicate guard: if the product is already
+    on the pending list (same trimmed-lower name, or same ean), that existing
+    row is returned with 200 rather than a second copy created. A genuine
+    create answers 201.
+    """
+    lst, current_user = list_and_user
+    trip = session.get(Purchase, purchase_id)
+    if trip is None or trip.list_id != lst.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase not found")
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if trips.is_open(trip, now):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="That item is still in the open cart; undo it instead.",
+        )
+
+    line = session.exec(
+        select(ListItem).where(ListItem.id == item_id, ListItem.purchase_id == trip.id)
+    ).first()
+    if line is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+
+    store = line.price_store or trip.store
+    stores = [store] if store and store.strip() else []
+
+    # The same guard add_item enforces: a product already pending on the list
+    # is not re-added. Returning that row keeps re-buy idempotent — tapping it
+    # twice reorders the product once.
+    conditions = [func.trim(func.lower(ListItem.name)) == line.name.strip().lower()]
+    if line.ean is not None:
+        conditions.append(ListItem.ean == line.ean)
+    existing = session.exec(
+        select(ListItem)
+        .where(ListItem.list_id == lst.id, ListItem.purchased_at.is_(None))
+        .where(or_(*conditions))
+        .limit(1)
+    ).first()
+    if existing is not None:
+        response.status_code = status.HTTP_200_OK
+        return existing
+
+    pending = ListItem(
+        list_id=lst.id,
+        added_by=current_user.id,
+        name=line.name,
+        brand=line.brand,
+        ean=line.ean,
+        stores=stores,
+        quantity=line.purchased_quantity or line.quantity,
+    )
+    session.add(pending)
+    if stores:
+        ensure_stores(session, lst.id, stores)
+    lst.updated_at = now
+    session.add(lst)
+    session.commit()
+    session.refresh(pending)
+    response.status_code = status.HTTP_201_CREATED
+    return pending
 
 
 def _reject_bad_amount(value: float | None, what: str) -> None:

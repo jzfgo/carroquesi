@@ -524,6 +524,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists/{list_id}/purchases/{purchase_id}/items/{item_id}/rebuy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rebuy Item
+         * @description Put a settled purchase's line back onto the pending list.
+         *
+         *     Re-buy takes one line of a past trip — a ListItem filed under it — and
+         *     creates a fresh pending row carrying the product's identity, the quantity
+         *     last bought, and the store it was bought at. The source line stays where
+         *     it is: this reorders the product, it does not un-file the shop.
+         *
+         *     An open cart is off limits. Its lines wear the green undo disc, and taking
+         *     one back onto the list is undo territory, not re-buy — so a line still in
+         *     the open trip is refused with a nudge to undo instead. A trip that closed
+         *     earlier today is already closed, so is_open is False and the re-buy goes
+         *     through; that is the same-day ficha exception, falling out of the open
+         *     rule rather than needing a rule of its own.
+         *
+         *     Idempotent against the add-item duplicate guard: if the product is already
+         *     on the pending list (same trimmed-lower name, or same ean), that existing
+         *     row is returned with 200 rather than a second copy created. A genuine
+         *     create answers 201.
+         */
+        post: operations["rebuy_item_lists__list_id__purchases__purchase_id__items__item_id__rebuy_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{list_id}/purchases/{purchase_id}/receipt-scans": {
         parameters: {
             query?: never;
@@ -2885,6 +2922,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ItemRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rebuy_item_lists__list_id__purchases__purchase_id__items__item_id__rebuy_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                purchase_id: string;
+                item_id: string;
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemRead"];
                 };
             };
             /** @description Validation Error */
