@@ -16,6 +16,7 @@ import {
   getElsewhereMatch,
   getList,
   getSuggestions,
+  rebuyPurchaseItem,
   renameStore,
   setBoardPref,
   setDefaultList,
@@ -27,7 +28,7 @@ import { asBoardName, type BoardName } from '../lib/boards'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
 import { isTripOpen } from '../lib/isTripOpen'
-import { computeCostSummary, purchasedDateLabel } from '../lib/itemCost'
+import { computeCostSummary } from '../lib/itemCost'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
@@ -61,6 +62,7 @@ import { ProgressBar } from './ProgressBar'
 import ReceiptScanSheet from './ReceiptScanSheet'
 import { SmartInputBar } from './SmartInputBar'
 import { SmartSearchPill } from './SmartSearchPill'
+import { Stack } from './Stack'
 import { StoreEditSheet } from './StoreEditSheet'
 import { TagEditSheet } from './TagEditSheet'
 import { Toast } from './Toast'
@@ -544,6 +546,27 @@ export function ListScreen({
     [items, addItem],
   )
 
+  // Re-buy from the stack (18a/22a): a past trip's line goes back onto the
+  // pending list. Unlike handleCloneItem, the line is not in `items` (it comes
+  // from the trip's own fetch), so this hits the dedicated endpoint — the
+  // server derives store + quantity and stays idempotent — then refetches so
+  // the re-added line appears on the sheet.
+  const handleStackRebuy = useCallback(
+    async (purchaseId: string, itemId: string) => {
+      if (isOffline) {
+        setToast('Sin conexión')
+        return
+      }
+      try {
+        await rebuyPurchaseItem(getToken, listId, purchaseId, itemId)
+        retry()
+      } catch {
+        setToast('No se pudo volver a comprar')
+      }
+    },
+    [getToken, listId, isOffline, retry, setToast],
+  )
+
   const handleMenuToggle = useCallback(() => {
     setMenuOpen((prev) => !prev)
   }, [])
@@ -856,32 +879,13 @@ export function ListScreen({
     }
   }, [searching, filterQuery, filteredItems.length, getToken, listId])
 
-  const { pendingCost, purchasedCostByDate } = useMemo(() => {
-    const pendingItems: typeof filteredItems = []
-    const byDate = new Map<string, typeof filteredItems>()
-    for (const item of filteredItems) {
-      if (!item.purchased) {
-        pendingItems.push(item)
-      } else if (isTripOpen(item.purchase_ends_at)) {
-        // In-cart: on the talón, never priced (the Confirmed-Price Rule), so
-        // it feeds no settled-date subtotal.
-        continue
-      } else {
-        const label = purchasedDateLabel(item.purchased_at)
-        const group = byDate.get(label) ?? []
-        group.push(item)
-        byDate.set(label, group)
-      }
-    }
-    const costByDate = new Map<string, ReturnType<typeof computeCostSummary>>()
-    for (const [label, group] of byDate) {
-      costByDate.set(label, computeCostSummary(group))
-    }
-    return {
-      pendingCost: computeCostSummary(pendingItems),
-      purchasedCostByDate: costByDate,
-    }
-  }, [filteredItems])
+  // Only the pending subtotal lives here now: settled trips carry their own
+  // confirmed totals in the stack (18a), so there is no per-date settled
+  // subtotal to compute from the item list any more.
+  const pendingCost = useMemo(
+    () => computeCostSummary(filteredItems.filter((item) => !item.purchased)),
+    [filteredItems],
+  )
 
   const openSearch = () => {
     setSearching(true)
@@ -975,7 +979,13 @@ export function ListScreen({
         onRetry={retry}
         onClone={handleCloneItem}
         pendingCost={pendingCost}
-        purchasedCostByDate={purchasedCostByDate}
+        stack={
+          <Stack
+            listId={listId}
+            getToken={getToken}
+            onRebuy={handleStackRebuy}
+          />
+        }
         displayStore={displayStore}
         onCloseTrip={handleCloseTrip}
         suggestions={filteredDueSuggestions}

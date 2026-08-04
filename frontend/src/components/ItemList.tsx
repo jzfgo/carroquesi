@@ -1,9 +1,8 @@
 import { ArrowDown, Plus } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { formatPrice } from '../lib/formatPrice'
 import { isTripOpen } from '../lib/isTripOpen'
 import type { CostSummary } from '../lib/itemCost'
-import { purchasedDateLabel } from '../lib/itemCost'
 import { storeKey } from '../lib/storeKey'
 import type { DueSuggestion, ElsewhereMatch, ListItem } from '../types'
 import { ItemCard } from './ItemCard'
@@ -22,9 +21,12 @@ interface Props {
   onRetry: () => void
   onClone?: (itemId: string) => void
   pendingCost?: CostSummary | null
-  purchasedCostByDate?: Map<string, CostSummary | null>
   totalItems?: number
   footer?: ReactNode
+  /** The purchase stack (18a) — settled trips + proto-tickets, fetched by the
+   *  Stack component and injected so this presentational list stays data-free.
+   *  Renders below the footer, where the item-derived «Comprados» block was. */
+  stack?: ReactNode
   /** Resolves a raw store string to the list's canonical display name. */
   displayStore?: (raw: string) => string
   /** Opens the close-trip sheet from the seal. Wired in JAV-160. */
@@ -68,9 +70,9 @@ export function ItemList({
   onRetry,
   onClone,
   pendingCost,
-  purchasedCostByDate,
   totalItems,
   footer,
+  stack,
   displayStore = (raw) => raw,
   onCloseTrip,
   searching = false,
@@ -81,8 +83,6 @@ export function ItemList({
   onSuggestionAdd,
   onSuggestionDismiss,
 }: Props) {
-  const [purchasedCollapsed, setPurchasedCollapsed] = useState(false)
-
   if (status === 'loading') {
     return (
       <div className="item-list">
@@ -255,18 +255,6 @@ export function ItemList({
     group.items.push(item)
   }
 
-  // Group settled records by local date label, preserving backend order (newest first)
-  const purchasedByDate: { label: string; items: ListItem[] }[] = []
-  for (const item of bought) {
-    const label = purchasedDateLabel(item.purchased_at)
-    const last = purchasedByDate.at(-1)
-    if (last && last.label === label) {
-      last.items.push(item)
-    } else {
-      purchasedByDate.push({ label, items: [item] })
-    }
-  }
-
   return (
     <div className="item-list">
       {/* One solid sheet, perforated across the middle (30a). Above the tear,
@@ -381,52 +369,9 @@ export function ItemList({
       )}
       {footer}
 
-      {bought.length > 0 && (
-        <>
-          <button
-            className="item-list__purchased-toggle"
-            onClick={() => setPurchasedCollapsed((c) => !c)}
-            aria-expanded={!purchasedCollapsed}
-          >
-            Comprados ({bought.length})
-            <span
-              className={`item-list__chevron${purchasedCollapsed ? ' item-list__chevron--collapsed' : ''}`}
-              aria-hidden
-            />
-          </button>
-          {!purchasedCollapsed && (
-            <section className="paper paper--settled" aria-label="Comprados">
-              {purchasedByDate.map(({ label, items: group }) => (
-                <div key={label}>
-                  <p className="item-list__date-label">
-                    <span className="item-list__label-text">{label}</span>
-                    {(() => {
-                      const c = purchasedCostByDate?.get(label)
-                      return (
-                        c && (
-                          <CostBadge
-                            cost={c}
-                            className="item-list__date-label-cost"
-                          />
-                        )
-                      )
-                    })()}
-                  </p>
-                  {group.map((item) => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      onTogglePurchased={onTogglePurchased}
-                      onOpenActions={onOpenActions}
-                      onClone={onClone}
-                    />
-                  ))}
-                </div>
-              ))}
-            </section>
-          )}
-        </>
-      )}
+      {/* The stack (18a): settled trips + proto-tickets, below the sheet — the
+          per-trip successor to the old item-derived «Comprados» block. */}
+      {stack}
     </div>
   )
 }

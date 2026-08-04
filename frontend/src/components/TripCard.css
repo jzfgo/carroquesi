@@ -1,0 +1,114 @@
+/* One trip in the stack (18a / 29a): a settled paper sheet whose header is a
+   single tap target. Folded shows «store · date · N líneas · total» + a down
+   chevron; expanded drops the chevron, adds the dashed rule and its lines. A
+   proto-ticket carries the «Cerrar compra» seal where the total would print. */
+
+.trip-card {
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+
+/* The latest / any open card sits a touch prouder of the one below it. */
+.trip-card--open {
+  margin-bottom: 12px;
+}
+
+.trip-card__header {
+  position: relative;
+}
+
+/* The whole header toggles the card. No surface of its own — it is the paper's
+   own header — so background/border are cleared and the sheet shows through. */
+.trip-card__toggle {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 13px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+/* Expanded: rows follow, so the header takes the sheet's one full-width dashed
+   rule and its baseline geometry, exactly like .paper__title. */
+.trip-card--open .trip-card__toggle {
+  padding: 14px 20px 8px;
+  border-bottom: 1px dashed var(--rule-dashed);
+}
+
+/* A proto-ticket reserves the right end for the absolutely-placed seal, so the
+   serif label never runs under it. */
+.trip-card--proto .trip-card__toggle {
+  padding-right: 136px;
+}
+
+.trip-card__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  color: var(--ink-0);
+}
+
+.trip-card__meta {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+/* «N líneas» — sans, quiet: it is the app's count, not a written mark. */
+.trip-card__count {
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  font-weight: 400;
+  line-height: 1;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* «€ 23,44» — the printed total, mono, tabular so columns of trips align. */
+.trip-card__total {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--ink-1);
+  white-space: nowrap;
+}
+
+/* Down, not right: the card opens in place, it does not lead anywhere. */
+.trip-card__chevron {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+/* The seal sits where the total prints, its own tap target (not nested in the
+   toggle). .talon__seal supplies the pill; this only places it. */
+.trip-card__seal {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+}
+
+.trip-card__lines {
+  padding: 2px 0 4px;
+}
+
+/* A brief hold while a folded card's lines load — one row's worth of height so
+   the sheet does not jump open on an empty box. */
+.trip-card__loading {
+  height: 46px;
+}

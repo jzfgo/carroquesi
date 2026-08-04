@@ -1,0 +1,84 @@
+/* The stack's footer doors are chrome drawn ON the board (rule 14), never
+   paper: transparent ground, a dashed board-ink hairline on top, board ink for
+   the text. --board-ink is set per-list on .list-screen and inherits here. A
+   navigation door (versalitas + count + right-chevron) leads to the older
+   trips; an action door (label over a quiet subtitle) saves one by hand. */
+
+.stack {
+  box-sizing: border-box;
+}
+
+.stack__door {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 6px;
+  background: none;
+  border: none;
+  border-top: 1px dashed color-mix(in srgb, var(--board-ink) 40%, transparent);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--board-ink);
+}
+
+/* «Compras anteriores» — a way out to the older trips: small-caps sans, wide
+   tracked, the versalita voice of a navigation label. */
+.stack__door-label--nav {
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--board-ink);
+}
+
+.stack__door-meta {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.stack__door-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--board-ink);
+}
+
+/* The action door stacks a title over a quieter reason. */
+.stack__door--action {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding-top: 10px;
+  padding-bottom: 12px;
+}
+
+.stack__door--action .stack__door-label {
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  line-height: var(--lh-snug);
+  color: var(--board-ink);
+}
+
+.stack__door-sub {
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  color: color-mix(in srgb, var(--board-ink) 70%, transparent);
+}
+
+/* The infinite-scroll trip wire: a zero-height tail the observer watches. */
+.stack__sentinel {
+  height: 1px;
+}

@@ -202,6 +202,9 @@ beforeEach(() => {
   vi.mocked(useListItemsModule.useListItems).mockReturnValue(emptyHookResult)
   vi.mocked(api.getSuggestions).mockResolvedValue([])
   vi.mocked(api.getDueSuggestions).mockResolvedValue([])
+  // The list now mounts the stack (18a), which fetches purchases on render.
+  vi.mocked(api.getPurchases).mockResolvedValue({ purchases: [], total: 0 })
+  vi.mocked(api.getPurchaseItems).mockResolvedValue([])
 })
 
 afterEach(() => {
@@ -768,25 +771,9 @@ describe('cost totals', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows cost next to the purchased date label', () => {
-    // A record — a closed trip — is what settles under a date; an open trip
-    // would be in the cart, which carries no price (JAV-152).
-    renderWithItems([
-      makeItem({
-        id: '1',
-        purchased: true,
-        purchased_at: TODAY,
-        purchase_ends_at: YESTERDAY,
-        price: 3.0,
-      }),
-    ])
-    expect(
-      document.querySelector('.item-list__date-label-cost'),
-    ).toBeInTheDocument()
-    expect(
-      document.querySelector('.item-list__date-label-cost')?.textContent,
-    ).toMatch(/3[,.]00/)
-  })
+  // The per-date settled cost badge moved out with the «Comprados» block: the
+  // stack (18a) shows each trip's own confirmed total now, so there is no
+  // item-derived date subtotal in the list to assert.
 
   it('renders no cost badge when no items have prices', () => {
     renderWithItems([makeItem({ id: '1' }), makeItem({ id: '2' })])
@@ -1214,7 +1201,11 @@ describe('ListScreen — offline refusal keeps user input', () => {
     expect(api.createItem).not.toHaveBeenCalled()
   })
 
-  it('an offline price save keeps the sheet open and records nothing', async () => {
+  // These two drive price-save from a settled record's row. The stack (18a,
+  // Lane 1) removed that row from the item list; the record's price entry
+  // returns through the product ficha (22a) wired in Lane 3 (JAV-162), where
+  // these offline / failure cases will be re-homed. Skipped until then.
+  it.skip('an offline price save keeps the sheet open and records nothing', async () => {
     const savePriceMock = vi.fn<() => Promise<void>>()
     await openLogPurchaseSheet(savePriceMock)
 
@@ -1226,7 +1217,7 @@ describe('ListScreen — offline refusal keeps user input', () => {
     expect(savePriceMock).not.toHaveBeenCalled()
   })
 
-  it('a failed price save toasts and keeps the sheet open', async () => {
+  it.skip('a failed price save toasts and keeps the sheet open', async () => {
     const savePriceMock = vi.fn(() => Promise.reject(new Error('network')))
     await openLogPurchaseSheet(savePriceMock)
 
