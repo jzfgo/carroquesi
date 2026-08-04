@@ -79,6 +79,72 @@ def test_closing_the_whole_cart_closes_the_trip_in_place(client: TestClient, ses
     assert body["closed_at"] is not None
 
 
+def test_a_close_line_corrects_the_products_name_and_brand(client: TestClient, session: Session):
+    """The adjust-product editor (10d) can fix a line at close time; the
+    correction rides in the close payload and lands on the claimed item."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Lehce")  # a typo to fix on the sheet
+
+    response = _close(
+        client,
+        lst["id"],
+        store="Lidl",
+        lines=[{"item_id": milk["id"], "name": "Leche entera", "brand": "Hacendado"}],
+    )
+
+    assert response.status_code == 200
+    row = session.get(ListItem, milk["id"])
+    session.refresh(row)
+    assert row.name == "Leche entera"
+    assert row.brand == "Hacendado"
+
+
+def _close_dated(client: TestClient, list_id: str, day, **body):
+    return client.post(
+        f"/lists/{list_id}/purchases/close",
+        json={"date": day.isoformat(), **body},
+        headers={"X-Client-Timezone": "Europe/Madrid"},
+    )
+
+
+def test_a_back_dated_close_files_the_ticket_under_its_day(client: TestClient, session: Session):
+    """«Hoy ▾» back-dated: the ticket's boundaries derive from the stated day,
+    and closed_at is that day's tear-off (not now), so it sorts under it."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    day = date.today() - timedelta(days=7)
+
+    response = _close_dated(client, lst["id"], day, store="Lidl", lines=_lines(milk))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["closed_at"] == body["tears_off_at"]  # the day's tear-off, not now
+    opened = datetime.fromisoformat(body["opened_at"])
+    closed = datetime.fromisoformat(body["closed_at"])
+    assert opened < closed  # the day's start precedes its tear-off
+    assert closed < datetime.now(UTC).replace(tzinfo=None)  # a week ago, not today
+
+
+def test_a_same_day_close_is_unchanged_by_the_date_extension(client: TestClient):
+    """No date given → the old behaviour: closed at now, the tear-off still
+    ahead (today's boundary)."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    body = _close(client, lst["id"], store="Lidl", lines=_lines(milk)).json()
+
+    assert body["closed_at"] != body["tears_off_at"]
+    assert datetime.fromisoformat(body["tears_off_at"]) > datetime.fromisoformat(body["closed_at"])
+
+
+def test_a_future_dated_close_is_rejected(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    day = date.today() + timedelta(days=1)
+
+    assert _close_dated(client, lst["id"], day, store="Lidl", lines=_lines(milk)).status_code == 422
+
+
 def test_closing_a_subset_splits_a_new_ticket_and_leaves_the_rest_open(
     client: TestClient, session: Session
 ):

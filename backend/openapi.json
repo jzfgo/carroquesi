@@ -1341,6 +1341,18 @@
       },
       "PurchaseCloseBody": {
         "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
           "lines": {
             "items": {
               "$ref": "#/components/schemas/PurchaseLine"
@@ -1397,9 +1409,33 @@
       "PurchaseLine": {
         "description": "One claimed line of the close sheet.\n\nUnlike a receipt's PricePatch, `price` is optional: a line without an\namount is a legitimate outcome — bought, nobody kept the figure — and no\namount is invented for it. No store either: a ticket belongs to one shop,\nstated once on the close.",
         "properties": {
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
           "item_id": {
             "title": "Item Id",
             "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
           "price": {
             "anyOf": [
@@ -5682,7 +5718,7 @@
     },
     "/lists/{list_id}/purchases/close": {
       "post": {
-        "description": "Declare what a shop was — claim lines out of a trip and file them.\n\nClaiming every item in the cart closes the trip in place; claiming fewer\nsplits the selection onto its own ticket and leaves the rest in the\ncart. There is no date control: the ticket's dates derive from the\nclaimed lines' purchased_at and the close instant, which covers every\nshop the current write paths can produce.\n\nNo push fires here. Like the receipt apply, a close records a shop that\nalready happened — nothing joins the list unpurchased, and the impulse\nbuys it creates are born bought, the same shape that path creates\nsilently.",
+        "description": "Declare what a shop was — claim lines out of a trip and file them.\n\nClaiming every item in the cart closes the trip in place; claiming fewer\nsplits the selection onto its own ticket and leaves the rest in the\ncart. Absent a `date`, the ticket's dates derive from the claimed lines'\npurchased_at and the close instant. A `date` back-dates it to a stated\nday — its boundaries are mapped in the client timezone (ADR-012), the same\nmapping a manual purchase uses, so it sorts under the day it covered.\n\nA line may also carry a corrected name/brand (the adjust-product editor):\napplied to the claimed item alongside its price and quantity.\n\nNo push fires here. Like the receipt apply, a close records a shop that\nalready happened — nothing joins the list unpurchased, and the impulse\nbuys it creates are born bought, the same shape that path creates\nsilently.",
         "operationId": "close_purchase_lists__list_id__purchases_close_post",
         "parameters": [
           {
@@ -5740,6 +5776,22 @@
                 }
               ],
               "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-client-timezone",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Client-Timezone"
             }
           }
         ],

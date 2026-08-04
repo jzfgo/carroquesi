@@ -49,6 +49,7 @@ import type {
 } from '../types'
 import { BarcodeScanner } from './BarcodeScanner'
 import { BarcodeScanSheet } from './BarcodeScanSheet'
+import { CloseTripSheet } from './CloseTripSheet'
 import { FilterBar } from './FilterBar'
 import { ItemActionSheet } from './ItemActionSheet'
 import { ItemList } from './ItemList'
@@ -800,8 +801,13 @@ export function ListScreen({
 
   // The seal is the finished target; the close-trip sheet it opens (10b) is
   // built in JAV-160. Until then tapping it says so rather than dead-ending.
-  const handleCloseTrip = useCallback(() => {
-    setToast('Cerrar la compra llega con la pantalla de compras')
+  // The close-trip sheet (10b): no id closes the open cart, an id closes a
+  // torn-off proto-trip named by the stack's seal.
+  const [closeTrip, setCloseTrip] = useState<{ purchaseId?: string } | null>(
+    null,
+  )
+  const handleCloseTrip = useCallback((purchaseId?: string) => {
+    setCloseTrip({ purchaseId })
   }, [])
 
   const { purchasedCount, totalCount } = useMemo(() => {
@@ -984,6 +990,7 @@ export function ListScreen({
             listId={listId}
             getToken={getToken}
             onRebuy={handleStackRebuy}
+            onCloseTrip={handleCloseTrip}
           />
         }
         displayStore={displayStore}
@@ -1226,6 +1233,31 @@ export function ListScreen({
             </>
           )
         })()}
+
+      {closeTrip && (
+        <CloseTripSheet
+          listId={listId}
+          getToken={getToken}
+          purchaseId={closeTrip.purchaseId}
+          cartItems={
+            closeTrip.purchaseId
+              ? undefined
+              : items.filter(
+                  (i) => i.purchased && isTripOpen(i.purchase_ends_at),
+                )
+          }
+          displayStore={displayStore}
+          onClose={() => setCloseTrip(null)}
+          onDone={() => {
+            setCloseTrip(null)
+            retry()
+          }}
+          onScanReceipt={() => {
+            setCloseTrip(null)
+            handleReceiptScan()
+          }}
+        />
+      )}
 
       <input
         ref={fileInputRef}
