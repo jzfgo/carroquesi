@@ -113,7 +113,7 @@ def _close_dated(client: TestClient, list_id: str, day, **body):
     return client.post(
         f"/lists/{list_id}/purchases/close",
         json={"date": day.isoformat(), **body},
-        headers={"X-Client-Timezone": "Europe/Madrid"},
+        headers={"X-Client-Timezone": str(_MADRID)},
     )
 
 
@@ -989,7 +989,7 @@ def _manual(client: TestClient, list_id: str, **body):
     return client.post(
         f"/lists/{list_id}/purchases/manual",
         json=body,
-        headers={"X-Client-Timezone": "Europe/Madrid"},
+        headers={"X-Client-Timezone": str(_MADRID)},
     )
 
 
