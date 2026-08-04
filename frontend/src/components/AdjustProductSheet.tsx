@@ -112,12 +112,14 @@ export function AdjustProductSheet({
       <div className="adjust-sheet__body">
         <label className="adjust-field">
           <span className="adjust-field__label">Producto</span>
+          {/* No autoFocus: a form sheet opens without popping the keyboard —
+              the field waits for a tap. The sheet's focus trap parks focus on
+              the panel, not on a text input. */}
           <input
             className="adjust-field__box"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Nombre del producto"
-            autoFocus
           />
         </label>
 
