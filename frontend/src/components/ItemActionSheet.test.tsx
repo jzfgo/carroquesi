@@ -44,9 +44,10 @@ test('shows Renombrar and Eliminar buttons', () => {
   ).toBeInTheDocument()
 })
 
-test('tapping overlay calls onClose', () => {
-  const { container } = render(<ItemActionSheet {...baseProps} />)
-  fireEvent.click(container.querySelector('.item-action-sheet__overlay')!)
+test('tapping the scrim calls onClose', () => {
+  render(<ItemActionSheet {...baseProps} />)
+  // The scrim belongs to the shared Sheet primitive and is portaled to body.
+  fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
   expect(baseProps.onClose).toHaveBeenCalled()
 })
 
