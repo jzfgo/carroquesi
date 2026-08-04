@@ -96,9 +96,12 @@ export function purchasedDateLabel(purchased_at: string | null): string {
 
 /**
  * The date a trip prints in the stack (18a / 29a). A closed trip settles to
- * «22 jul» (day + short month); a proto-ticket — torn off, still unwritten —
- * prints «martes 21» (weekday + day), the near voice, because the day is
- * recent and its weekday still means something.
+ * «22 jul» (day + short month). A proto-ticket — torn off, still unwritten —
+ * prints «martes 21» (weekday + day) *while it is this month's*: the near
+ * voice, because the day is recent and its weekday still means something. Once
+ * it leaves the current month it is no longer recent, so the weekday yields to
+ * the month and it prints «21 jul» — the same day+month as a closed trip,
+ * disambiguated from one by its seal rather than its date.
  *
  * Always reads `opened_at`, the day the shopping started: it is the trip's
  * real day for every write path (a same-day close, a torn-off cart, or a
@@ -112,7 +115,10 @@ export function purchasedDateLabel(purchased_at: string | null): string {
  */
 export function tripDateLabel(openedAt: string, proto: boolean): string {
   const d = new Date(openedAt.endsWith('Z') ? openedAt : openedAt + 'Z')
-  if (proto) {
+  const now = new Date()
+  const thisMonth =
+    d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+  if (proto && thisMonth) {
     const weekday = d.toLocaleDateString('es', { weekday: 'long' })
     const day = d.toLocaleDateString('es', { day: 'numeric' })
     return `${weekday} ${day}`
