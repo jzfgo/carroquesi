@@ -97,6 +97,12 @@ describe('tripDateLabel', () => {
     expect(tripDateLabel('2026-07-21T10:00:00', true)).toBe('21 jul')
   })
 
+  it('a date in an earlier year carries the year', () => {
+    pinNow()
+    expect(tripDateLabel('2025-07-21T10:00:00', true)).toBe('21 jul 2025')
+    expect(tripDateLabel('2025-07-22T10:00:00', false)).toBe('22 jul 2025')
+  })
+
   it('a closed trip always prints day + short month', () => {
     pinNow()
     expect(tripDateLabel('2026-07-22T10:00:00', false)).toBe('22 jul')

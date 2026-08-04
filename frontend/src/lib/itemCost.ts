@@ -103,6 +103,9 @@ export function purchasedDateLabel(purchased_at: string | null): string {
  * means something. Once it leaves the current month it is no longer recent, so
  * the weekday yields to the month and it prints «21 jul» — the same day+month
  * as a closed trip, disambiguated from one by its seal rather than its date.
+ * A day in an earlier year also carries that year — «21 jul 2025» — since the
+ * archive reaches back two years and «21 jul» alone would be ambiguous across
+ * them.
  *
  * Always reads `opened_at`, the day the shopping started: it is the trip's
  * real day for every write path (a same-day close, a torn-off cart, or a
@@ -125,5 +128,9 @@ export function tripDateLabel(openedAt: string, proto: boolean): string {
     const day = d.toLocaleDateString('es', { day: 'numeric' })
     return `${weekday} ${day}`
   }
-  return d.toLocaleDateString('es', { day: 'numeric', month: 'short' })
+  return d.toLocaleDateString('es', {
+    day: 'numeric',
+    month: 'short',
+    ...(d.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' }),
+  })
 }
