@@ -823,3 +823,21 @@ def test_rebuy_falls_back_to_the_trip_store(client: TestClient, session: Session
     fresh = _rebuy(client, lst["id"], ticket["id"], milk["id"]).json()
 
     assert fresh["stores"] == ["Mercadona"]
+
+
+def test_rebuy_notifies_on_create_but_not_on_the_idempotent_hit(client: TestClient):
+    """A re-buy is an item creation, so it pushes like add_item — but only the
+    genuine 201; the idempotent 200 changed nothing and must stay silent."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    ticket = _close(client, lst["id"], store="Lidl", lines=_lines(milk)).json()
+
+    with patch("app.routers.purchases.notify_list_change") as notify:
+        first = _rebuy(client, lst["id"], ticket["id"], milk["id"])
+        assert first.status_code == 201
+        notify.assert_called_once()
+
+    with patch("app.routers.purchases.notify_list_change") as notify:
+        second = _rebuy(client, lst["id"], ticket["id"], milk["id"])
+        assert second.status_code == 200
+        notify.assert_not_called()

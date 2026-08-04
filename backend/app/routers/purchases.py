@@ -1,3 +1,4 @@
+import logging
 import math
 from datetime import UTC, datetime
 from typing import Annotated
@@ -6,14 +7,30 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func, or_
 from sqlmodel import select
 
-from app.db.models import ListItem, Purchase, ReceiptScan
+from app.db.models import List, ListItem, Purchase, ReceiptScan, User
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.items import ItemRead
 from app.schemas.purchases import PurchaseCloseBody, PurchasePage, PurchaseRead, PurchaseSummary
 from app.services import trips
+from app.services.push import notify_list_change
 from app.services.store_registry import ensure_stores
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/lists/{list_id}/purchases", tags=["purchases"])
+
+
+def _notify_safely(session, lst: List, actor: User, event: str, name: str) -> None:
+    """Push is best-effort: a notification failure must never fail the write.
+
+    Closing a trip deliberately fires nothing (see close_purchase), but a
+    re-buy is an item creation — it puts a product back on the pending list,
+    exactly like add_item — so it notifies on the same "added" event.
+    """
+    try:
+        notify_list_change(session, lst, actor, event, name)
+    except Exception:  # pragma: no cover - notify_list_change already swallows
+        logger.exception("push notification failed for list %s", lst.id)
 
 
 @router.get("", response_model=PurchasePage)
@@ -185,6 +202,9 @@ def rebuy_item(
     session.add(lst)
     session.commit()
     session.refresh(pending)
+    # A genuine create pushes, like add_item; the idempotent 200 path above
+    # returns before here and never notifies (nothing changed).
+    _notify_safely(session, lst, current_user, "added", pending.name)
     response.status_code = status.HTTP_201_CREATED
     return pending
 
