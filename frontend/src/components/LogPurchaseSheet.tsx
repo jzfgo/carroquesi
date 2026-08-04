@@ -137,6 +137,10 @@ export default function LogPurchaseSheet({
           />
           <span className="lps__sep">×</span>
           <span className="lps__euro">€</span>
+          {/* No autoFocus: this multi-field form opens without raising the
+              keyboard (the field waits for a tap). The «+ otra» store input
+              below keeps its autoFocus — it appears on a deliberate tap, not on
+              sheet open. */}
           <input
             className="lps__input"
             type="number"
@@ -146,7 +150,6 @@ export default function LogPurchaseSheet({
             onChange={(e) => setAmountStr(e.target.value)}
             min="0"
             step="0.01"
-            autoFocus
           />
           <div className="lps__unit-toggle">
             <button
