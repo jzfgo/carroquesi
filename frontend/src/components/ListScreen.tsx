@@ -1312,35 +1312,30 @@ export function ListScreen({
       )}
 
       {receiptScanResult && (
-        <>
-          <div className="sheet-overlay" onClick={handleReceiptSheetClose} />
-          <div className="sheet-container">
-            <ReceiptScanSheet
-              // A re-match replaces matched/unmatched wholesale, so line edits
-              // made against the old result are no longer meaningful. Remount
-              // rather than trying to reconcile them.
-              key={receiptScanResult.scan_id}
-              result={receiptScanResult}
-              candidateItems={items.map((i) => ({
-                id: i.id,
-                name: i.name,
-                purchased: i.purchased,
-                purchased_at: i.purchased_at,
-                brand: i.brand,
-                stores: i.stores,
-                quantity: i.quantity,
-              }))}
-              store={receiptScanResult.store}
-              onConfirm={handleReceiptConfirm}
-              onClose={handleReceiptSheetClose}
-              pendingScan={pendingScan}
-              onRequestScan={handleReceiptScanRequest}
-              onDateCorrected={handleReceiptDateCorrected}
-              rematching={receiptRematching}
-              dateConfirmed={receiptDateConfirmed}
-            />
-          </div>
-        </>
+        <ReceiptScanSheet
+          // A re-match replaces matched/unmatched wholesale, so line edits
+          // made against the old result are no longer meaningful. Remount
+          // rather than trying to reconcile them.
+          key={receiptScanResult.scan_id}
+          result={receiptScanResult}
+          candidateItems={items.map((i) => ({
+            id: i.id,
+            name: i.name,
+            purchased: i.purchased,
+            purchased_at: i.purchased_at,
+            brand: i.brand,
+            stores: i.stores,
+            quantity: i.quantity,
+          }))}
+          store={receiptScanResult.store}
+          onConfirm={handleReceiptConfirm}
+          onClose={handleReceiptSheetClose}
+          pendingScan={pendingScan}
+          onRequestScan={handleReceiptScanRequest}
+          onDateCorrected={handleReceiptDateCorrected}
+          rematching={receiptRematching}
+          dateConfirmed={receiptDateConfirmed}
+        />
       )}
     </div>
   )
