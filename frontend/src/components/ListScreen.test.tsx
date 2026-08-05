@@ -783,38 +783,6 @@ describe('cost totals', () => {
   })
 })
 
-describe('receipt scan CTA', () => {
-  const PURCHASED_ITEM = makeItem({
-    id: 'i1',
-    purchased: true,
-    purchased_at: TODAY,
-  })
-
-  it('shows receipt scan CTA when all items are purchased and flag is enabled', () => {
-    vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({
-      isEnabled: () => true,
-    })
-    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
-      ...emptyHookResult,
-      items: [PURCHASED_ITEM],
-    })
-    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
-    expect(screen.getByText(/Escanear ticket/)).toBeInTheDocument()
-  })
-
-  it('hides receipt scan CTA when flag is disabled', () => {
-    vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({
-      isEnabled: () => false,
-    })
-    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
-      ...emptyHookResult,
-      items: [PURCHASED_ITEM],
-    })
-    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
-    expect(screen.queryByText(/Escanear ticket/)).not.toBeInTheDocument()
-  })
-})
-
 describe('receipt price confirmation toast', () => {
   const mockScanResult: ReceiptScanResult = {
     scan_id: 'scan-1',

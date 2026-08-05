@@ -37,6 +37,14 @@ export type PurchaseSummary = Required<S['PurchaseSummary']>
 export type PurchasePage = Required<Omit<S['PurchasePage'], 'purchases'>> & {
   purchases: PurchaseSummary[]
 }
+// One matched trip in a stack search (21b): the trip's summary plus only the
+// lines that matched. «N de M» is lines.length of trip.line_count.
+export type PurchaseSearchTrip = Required<
+  Omit<S['PurchaseSearchTrip'], 'trip' | 'lines'>
+> & { trip: PurchaseSummary; lines: ListItem[] }
+export type PurchaseSearchResults = Required<
+  Omit<S['PurchaseSearchResults'], 'results'>
+> & { results: PurchaseSearchTrip[] }
 /** Same-name match in one of the user's other lists (JAV-138). Null = no match. */
 export type ElsewhereMatch = S['ElsewhereMatchRead']
 export type MatchedLine = Required<S['MatchedLine']>

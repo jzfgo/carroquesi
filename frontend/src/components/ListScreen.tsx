@@ -1,4 +1,4 @@
-import { Camera, Image, Receipt } from 'lucide-react'
+import { Camera, Image } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
@@ -60,6 +60,7 @@ import LogPurchaseSheet from './LogPurchaseSheet'
 import { NotificationPrimingCard } from './NotificationPrimingCard'
 import { ProgressBar } from './ProgressBar'
 import ReceiptScanSheet from './ReceiptScanSheet'
+import { SaveTicketSheet } from './SaveTicketSheet'
 import { SmartInputBar } from './SmartInputBar'
 import { SmartSearchPill } from './SmartSearchPill'
 import { Stack } from './Stack'
@@ -808,6 +809,9 @@ export function ListScreen({
     },
     [],
   )
+  // The save-a-ticket door (26a): records a shop that was never tracked here.
+  const [saveTicketOpen, setSaveTicketOpen] = useState(false)
+  const handleSaveTicket = useCallback(() => setSaveTicketOpen(true), [])
 
   const { purchasedCount, totalCount } = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10) // 'YYYY-MM-DD' UTC
@@ -992,6 +996,9 @@ export function ListScreen({
             onRebuy={handleStackRebuy}
             onOpenLine={handleItemMenuOpen}
             onCloseTrip={handleCloseTrip}
+            onSaveTicket={handleSaveTicket}
+            query={filterQuery}
+            searching={searching}
           />
         }
         displayStore={displayStore}
@@ -999,28 +1006,6 @@ export function ListScreen({
         suggestions={filteredDueSuggestions}
         onSuggestionAdd={handleSuggestionAdd}
         onSuggestionDismiss={handleSuggestionDismiss}
-        footer={
-          allUnpurchasedCount === 0 &&
-          items.length > 0 &&
-          !receiptScanResult &&
-          isEnabled(FLAGS.AI_RECEIPT_SCANNING) ? (
-            <div className="receipt-scan-cta">
-              <button
-                className="receipt-scan-cta__btn"
-                onClick={handleReceiptScan}
-                disabled={receiptUploading || isOffline}
-              >
-                {receiptUploading ? (
-                  'Procesando ticket…'
-                ) : (
-                  <>
-                    <Receipt size={16} /> Escanear ticket para registrar precios
-                  </>
-                )}
-              </button>
-            </div>
-          ) : undefined
-        }
       />
 
       {editingTag &&
@@ -1231,6 +1216,30 @@ export function ListScreen({
             setCloseTrip(null)
             handleReceiptScan()
           }}
+        />
+      )}
+
+      {saveTicketOpen && (
+        <SaveTicketSheet
+          listId={listId}
+          getToken={getToken}
+          storeOptions={items.flatMap((i) => i.stores)}
+          displayStore={displayStore}
+          onClose={() => setSaveTicketOpen(false)}
+          onDone={() => {
+            setSaveTicketOpen(false)
+            retry()
+            // Remount the stack so the just-saved record shows immediately.
+            setStackVersion((v) => v + 1)
+          }}
+          onScanReceipt={
+            isEnabled(FLAGS.AI_RECEIPT_SCANNING)
+              ? () => {
+                  setSaveTicketOpen(false)
+                  handleReceiptScan()
+                }
+              : undefined
+          }
         />
       )}
 

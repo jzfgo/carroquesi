@@ -534,6 +534,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists/{list_id}/purchases/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Purchases
+         * @description Search the list's whole purchase history (21b).
+         *
+         *     Every settled trip holding at least one line that matches the query, newest
+         *     shop first, each carrying only its matching lines and — through the summary's
+         *     line_count — how many it holds in all. The open cart is left out: its lines
+         *     live in the pending sheet, not the history, so showing them here would double
+         *     them. The query speaks the same sigils as the in-list search.
+         */
+        get: operations["search_purchases_lists__list_id__purchases_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{list_id}/purchases/{purchase_id}/items": {
         parameters: {
             query?: never;
@@ -1444,6 +1470,28 @@ export interface components {
             tears_off_at: string;
             /** Total */
             total: number | null;
+        };
+        /**
+         * PurchaseSearchResults
+         * @description Every settled trip that matched a stack search, newest shop first.
+         */
+        PurchaseSearchResults: {
+            /** Results */
+            results: components["schemas"]["PurchaseSearchTrip"][];
+        };
+        /**
+         * PurchaseSearchTrip
+         * @description One trip in a stack search (21b).
+         *
+         *     Carries the trip's summary and only the lines whose name, brand or store
+         *     matched the query. How many lines the trip holds in all rides in the
+         *     summary's line_count, so the client can print «N de M» — N being the
+         *     number of matched lines here, M the trip's whole line count.
+         */
+        PurchaseSearchTrip: {
+            /** Lines */
+            lines: components["schemas"]["ItemRead"][];
+            trip: components["schemas"]["PurchaseSummary"];
         };
         /**
          * PurchaseSummary
@@ -2985,6 +3033,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PurchaseRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_purchases_lists__list_id__purchases_search_get: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseSearchResults"];
                 };
             };
             /** @description Validation Error */

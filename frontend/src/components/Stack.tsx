@@ -1,6 +1,8 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Receipt } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useStack } from '../hooks/useStack'
+import { searchPurchases } from '../lib/api'
+import type { PurchaseSearchTrip } from '../types'
 import './Stack.css'
 import { TripCard } from './TripCard'
 
@@ -16,8 +18,13 @@ interface Props {
   /** Close a proto-ticket (10b). The second arg is the day it covered, so the
    *  close back-dates there instead of defaulting to today. */
   onCloseTrip?: (purchaseId: string, initialDate?: string) => void
-  /** Save a ticket by hand (26a) — wired in Lane 4 (JAV-163). */
+  /** Save a ticket by hand (26a). */
   onSaveTicket?: () => void
+  /** The in-list search (21b) reaches the stack too: with an active query the
+   *  stack turns into a price-history view. Shared with the pending sheet's
+   *  search — no separate state here. */
+  query?: string
+  searching?: boolean
 }
 
 // How many trips fold open below the latest before the rest slip behind the
@@ -39,6 +46,8 @@ export function Stack({
   onOpenLine,
   onCloseTrip,
   onSaveTicket,
+  query = '',
+  searching = false,
 }: Props) {
   const { trips, total, loading, hasMore, loadMore, loadItems } = useStack(
     listId,
@@ -46,6 +55,35 @@ export function Stack({
   )
   const [unfolded, setUnfolded] = useState(false)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
+
+  // Search mode: the whole history is searched server-side (not just the loaded
+  // pages), and the matched trips show force-expanded with only their matching
+  // lines. Debounced like the pending sheet's cross-list lookup, and guarded so
+  // a slow answer for an old query cannot overwrite a newer one.
+  const trimmed = query.trim()
+  const searchActive = searching && trimmed !== ''
+  const [searchResults, setSearchResults] = useState<PurchaseSearchTrip[]>([])
+  useEffect(() => {
+    if (!searchActive) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale results when leaving search
+      setSearchResults([])
+      return
+    }
+    let cancelled = false
+    const id = setTimeout(() => {
+      void searchPurchases(getToken, listId, trimmed)
+        .then((r) => {
+          if (!cancelled) setSearchResults(r.results)
+        })
+        .catch(() => {
+          if (!cancelled) setSearchResults([])
+        })
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(id)
+    }
+  }, [searchActive, trimmed, getToken, listId])
 
   // Once unfolded, a sentinel at the tail pulls the next page in as it nears
   // the viewport — the infinite scroll. Re-armed whenever the trigger inputs
@@ -61,6 +99,27 @@ export function Stack({
     return () => io.disconnect()
   }, [unfolded, hasMore, loadMore, trips.length])
 
+  // In search mode the stack IS the results: matched trips force-expanded, each
+  // showing only its matching lines, and no doors (neither «Compras anteriores»
+  // nor «Guardar un ticket» belong to a search). Trips with no match are already
+  // absent from the response.
+  if (searchActive) {
+    return (
+      <section className="stack" aria-label="Resultados">
+        {searchResults.map((r) => (
+          <TripCard
+            key={r.trip.id}
+            trip={r.trip}
+            matchingLines={r.lines}
+            loadItems={loadItems}
+            onRebuy={onRebuy}
+            onOpenLine={onOpenLine}
+          />
+        ))}
+      </section>
+    )
+  }
+
   const cardProps = { loadItems, onRebuy, onOpenLine, onCloseTrip }
 
   // The save-a-ticket door is always last and always present — even on a list
@@ -72,9 +131,17 @@ export function Stack({
       className="stack__door stack__door--action"
       onClick={() => onSaveTicket?.()}
     >
-      <span className="stack__door-label">Guardar un ticket</span>
-      <span className="stack__door-sub">
-        De una compra que no apuntaste aquí
+      <Receipt
+        className="stack__door-icon"
+        size={20}
+        strokeWidth={1.8}
+        aria-hidden
+      />
+      <span className="stack__door-text">
+        <span className="stack__door-label">Guardar un ticket</span>
+        <span className="stack__door-sub">
+          De una compra que no apuntaste aquí
+        </span>
       </span>
     </button>
   )

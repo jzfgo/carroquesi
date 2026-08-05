@@ -1,5 +1,6 @@
 import logging
 import math
+import re
 from datetime import UTC, datetime, time
 from typing import Annotated
 
@@ -15,17 +16,95 @@ from app.schemas.purchases import (
     PurchaseManualBody,
     PurchasePage,
     PurchaseRead,
+    PurchaseSearchResults,
+    PurchaseSearchTrip,
     PurchaseSummary,
 )
 from app.services import trips
 from app.services.client_day import ClientTimezone
 from app.services.push import notify_list_change
 from app.services.quantity import parse_quantity_factor
+from app.services.store_key import store_key
 from app.services.store_registry import ensure_stores
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/lists/{list_id}/purchases", tags=["purchases"])
+
+# A quoted value with an optional leading sigil, e.g. @'Ahorra Más' or #"El
+# Corte". The null byte cannot appear in a URL query, so it is safe as the
+# placeholder delimiter while the word loop runs.
+_SEARCH_QUOTED = re.compile(r"([+#@|]?)(?:\"([^\"]*)\"|'([^']*)')")
+_SEARCH_PH = "\x00"
+
+
+def _parse_search(raw: str) -> tuple[str, str | None, list[str]]:
+    """Split a search query into name text, a brand, and store keys.
+
+    Mirrors the frontend parseInput/filterItems so the trip cards filter by the
+    same rule the pending sheet does. @store (quoted or multi-word) restricts by
+    shop, #brand matches the brand, and the remaining words match the name. Like
+    the in-list search, +qty and |ean are recognised as sigils and skipped.
+    Stores come back as keys, so the comparison ignores spelling variants.
+    """
+    placeholders: list[str] = []
+
+    def _stash(match: re.Match) -> str:
+        sigil = match.group(1)
+        placeholders.append(match.group(2) if match.group(2) is not None else match.group(3))
+        return f"{sigil}{_SEARCH_PH}q{len(placeholders) - 1}{_SEARCH_PH}"
+
+    with_placeholders = _SEARCH_QUOTED.sub(_stash, raw)
+
+    def restore(text: str) -> str:
+        return re.sub(
+            rf"{_SEARCH_PH}q(\d+){_SEARCH_PH}",
+            lambda m: placeholders[int(m.group(1))],
+            text,
+        )
+
+    name_words: list[str] = []
+    brand_words: list[str] = []
+    store_entries: list[list[str]] = []
+    current: str | None = None
+    for word in with_placeholders.split():
+        sigil = word[0]
+        if sigil == "@":
+            store_entries.append([word[1:]])
+            current = "@"
+        elif sigil == "#":
+            # Only the first #brand opens the brand run, like parseInput.
+            if not brand_words:
+                brand_words.append(word[1:])
+            current = "#"
+        elif sigil == "+":
+            current = "+"
+        elif sigil == "|":
+            # ean: ignored for matching, and unlike the other sigils it does not
+            # open a run that captures the words after it.
+            continue
+        elif current == "@":
+            store_entries[-1].append(word)
+        elif current == "#":
+            brand_words.append(word)
+        elif current == "+":
+            continue
+        else:
+            name_words.append(word)
+
+    name = restore(" ".join(name_words)).strip()
+    brand = restore(" ".join(brand_words)).strip() or None
+    seen: set[str] = set()
+    store_keys: list[str] = []
+    for parts in store_entries:
+        value = restore(" ".join(parts)).strip()
+        if not value:
+            continue
+        key = store_key(value)
+        if key not in seen:
+            seen.add(key)
+            store_keys.append(key)
+    return name, brand, store_keys
 
 
 def _notify_safely(session, lst: List, actor: User, event: str, name: str) -> None:
@@ -129,6 +208,92 @@ def list_purchases(
         ],
         total=total,
     )
+
+
+@router.get("/search", response_model=PurchaseSearchResults)
+def search_purchases(
+    session: CurrentSession,
+    list_and_user: MemberDep,
+    q: Annotated[str, Query(min_length=1)],
+):
+    """Search the list's whole purchase history (21b).
+
+    Every settled trip holding at least one line that matches the query, newest
+    shop first, each carrying only its matching lines and — through the summary's
+    line_count — how many it holds in all. The open cart is left out: its lines
+    live in the pending sheet, not the history, so showing them here would double
+    them. The query speaks the same sigils as the in-list search.
+    """
+    lst, _ = list_and_user
+    name, brand, store_keys = _parse_search(q)
+    # A query that named nothing selectable would match every line of every trip
+    # — the whole history dumped out. That is not a search; answer empty.
+    if not name and brand is None and not store_keys:
+        return PurchaseSearchResults(results=[])
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    stopped_at = func.coalesce(Purchase.closed_at, Purchase.tears_off_at)
+    # A boundary at or before now is a settled trip; the one still ahead is the
+    # open cart, which the stack filters out too.
+    trip_rows = list(
+        session.exec(
+            select(Purchase)
+            .where(Purchase.list_id == lst.id, stopped_at <= now)
+            .order_by(stopped_at.desc(), Purchase.id.desc())
+        ).all()
+    )
+    # @store is strict, like the in-list search: a trip whose shop does not match
+    # — a store-less proto included — drops out entirely.
+    if store_keys:
+        trip_rows = [t for t in trip_rows if t.store and store_key(t.store) in store_keys]
+    if not trip_rows:
+        return PurchaseSearchResults(results=[])
+
+    trip_ids = [t.id for t in trip_rows]
+    line_counts = dict(
+        session.exec(
+            select(ListItem.purchase_id, func.count())
+            .where(ListItem.purchase_id.in_(trip_ids))
+            .group_by(ListItem.purchase_id)
+        ).all()
+    )
+    rows = session.exec(
+        select(ListItem)
+        .where(ListItem.purchase_id.in_(trip_ids))
+        .order_by(ListItem.purchased_at.asc(), ListItem.created_at.asc())
+    ).all()
+    name_l = name.lower()
+    brand_l = brand.lower() if brand else None
+    matched: dict[str, list[ListItem]] = {}
+    for item in rows:
+        if name_l and name_l not in item.name.lower():
+            continue
+        if brand_l is not None and (item.brand is None or brand_l not in item.brand.lower()):
+            continue
+        matched.setdefault(item.purchase_id, []).append(item)
+
+    results: list[PurchaseSearchTrip] = []
+    for trip in trip_rows:
+        lines = matched.get(trip.id)
+        if not lines:
+            continue
+        ends = trips.ends_at(trip)
+        read_lines = []
+        for item in lines:
+            # object.__setattr__ because pydantic rejects undeclared fields; the
+            # ItemRead is then built by attribute so it picks the boundary up.
+            object.__setattr__(item, "purchase_ends_at", ends)
+            read_lines.append(ItemRead.model_validate(item, from_attributes=True))
+        summary = PurchaseSummary(
+            **trip.model_dump(),
+            line_count=line_counts.get(trip.id, 0),
+            # The search view prints «N de M» where the total and receipt marks
+            # would sit, so neither is computed for it.
+            has_receipt=False,
+            items_total=None,
+        )
+        results.append(PurchaseSearchTrip(trip=summary, lines=read_lines))
+    return PurchaseSearchResults(results=results)
 
 
 @router.get("/{purchase_id}/items", response_model=list[ItemRead])

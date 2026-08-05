@@ -1122,3 +1122,99 @@ def test_a_manual_purchases_boundary_lands_on_the_clients_day(client: TestClient
     assert trip.opened_at == expected_open
     assert trip.tears_off_at == tears_off_at_for(expected_open, tz)
     assert trip.closed_at == trip.tears_off_at
+
+
+# --- Stack search (21b) --------------------------------------------------
+
+
+def _search(client: TestClient, list_id: str, q: str):
+    return client.get(f"/lists/{list_id}/purchases/search", params={"q": q})
+
+
+def test_search_returns_only_matching_lines_with_the_trips_line_count(
+    client: TestClient, session: Session
+):
+    """Each matched trip carries just its matching lines; line_count is M."""
+    lst = _create_list(client)
+    # A Mercadona trip with two lines, one of them a milk.
+    milk = _tap(client, lst["id"], "Leche entera")
+    bread = _tap(client, lst["id"], "Pan de molde")
+    _close(client, lst["id"], store="Mercadona", total=8.13, lines=_lines(milk, bread))
+    # A later Lidl trip with a single milk line.
+    milk2 = _tap(client, lst["id"], "Leche sin lactosa")
+    _close(client, lst["id"], store="Lidl", total=2.0, lines=_lines(milk2))
+
+    results = _search(client, lst["id"], "leche").json()["results"]
+
+    assert len(results) == 2
+    by_store = {r["trip"]["store"]: r for r in results}
+    merc = by_store["Mercadona"]
+    assert [line["name"] for line in merc["lines"]] == ["Leche entera"]
+    # M is the trip's whole line count, not the number matched.
+    assert merc["trip"]["line_count"] == 2
+    lidl = by_store["Lidl"]
+    assert [line["name"] for line in lidl["lines"]] == ["Leche sin lactosa"]
+    assert lidl["trip"]["line_count"] == 1
+
+
+def test_search_is_newest_first(client: TestClient, session: Session):
+    lst = _create_list(client)
+    first = _tap(client, lst["id"], "Leche")
+    _close(client, lst["id"], store="Mercadona", total=1.0, lines=_lines(first))
+    second = _tap(client, lst["id"], "Leche")
+    _close(client, lst["id"], store="Lidl", total=1.0, lines=_lines(second))
+
+    results = _search(client, lst["id"], "leche").json()["results"]
+
+    assert [r["trip"]["store"] for r in results] == ["Lidl", "Mercadona"]
+
+
+def test_search_store_sigil_matches_by_key_and_is_strict(client: TestClient, session: Session):
+    """@store keeps only that shop's trips, compared by key; others drop."""
+    lst = _create_list(client)
+    a = _tap(client, lst["id"], "Leche")
+    _close(client, lst["id"], store="Mercadona", total=1.0, lines=_lines(a))
+    b = _tap(client, lst["id"], "Leche")
+    _close(client, lst["id"], store="Lidl", total=1.0, lines=_lines(b))
+
+    # Lower-case, accent-insensitive: the key folds it onto "Mercadona".
+    results = _search(client, lst["id"], "leche @mercadona").json()["results"]
+
+    assert len(results) == 1
+    assert results[0]["trip"]["store"] == "Mercadona"
+
+
+def test_search_store_sigil_drops_a_store_less_proto(client: TestClient, session: Session):
+    """A torn-off proto with no shop cannot match an @store query."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    # Backdate its trip so it has torn off but stayed unclosed — a proto, store
+    # None. Searching by name alone finds it; searching @mercadona must not.
+    _tear_off(session, milk, days_ago=2)
+
+    assert len(_search(client, lst["id"], "leche").json()["results"]) == 1
+    assert _search(client, lst["id"], "leche @mercadona").json()["results"] == []
+
+
+def test_search_excludes_the_open_cart_and_unmatched_trips(client: TestClient, session: Session):
+    """The live cart is not history, and a trip with no match does not appear."""
+    lst = _create_list(client)
+    # Leche stays in the open cart; Pan is split off into its own closed trip.
+    _tap(client, lst["id"], "Leche fresca")
+    pan = _tap(client, lst["id"], "Pan")
+    _close(client, lst["id"], store="Lidl", total=1.0, lines=_lines(pan))
+
+    # The open cart's leche is not history, and the Lidl trip has no leche.
+    assert _search(client, lst["id"], "leche").json()["results"] == []
+
+
+def test_search_lines_carry_the_purchase_boundary(client: TestClient, session: Session):
+    """Matched lines expose purchase_ends_at, so the client mirrors the guard."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    _close(client, lst["id"], store="Mercadona", total=1.0, lines=_lines(milk))
+
+    line = _search(client, lst["id"], "leche").json()["results"][0]["lines"][0]
+
+    assert line["purchase_ends_at"] is not None
+    assert line["purchased"] is True

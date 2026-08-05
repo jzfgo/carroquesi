@@ -53,13 +53,25 @@
   color: var(--board-ink);
 }
 
-/* The action door stacks a title over a quieter reason. */
+/* The action door leads with a ticket glyph, then stacks a title over a
+   quieter reason to its right. */
 .stack__door--action {
+  justify-content: flex-start;
+  gap: 12px;
+  padding-top: 10px;
+  padding-bottom: 12px;
+}
+
+.stack__door-icon {
+  flex-shrink: 0;
+  color: var(--board-ink);
+}
+
+.stack__door-text {
+  display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 1px;
-  padding-top: 10px;
-  padding-bottom: 12px;
 }
 
 .stack__door--action .stack__door-label {
