@@ -1,29 +1,14 @@
-.sheet {
-  background: var(--paper-0);
-  border-top: 1px solid var(--border);
-  border-radius: 16px 16px 0 0;
-  box-shadow: var(--shadow-sheet);
-  display: flex;
-  flex-direction: column;
-
-  /* Reduce scrolling in a sheet that routinely holds a full shop. dvh keeps
-     the footer reachable when a mobile browser's chrome is showing. */
+/* The panel chrome (surface, corners, shadow, grabber, slide) comes from the
+   shared Sheet primitive. This adds only what the primitive leaves open: a
+   height cap with an internal scroll region, because the sheet routinely holds
+   a full shop. dvh keeps the footer reachable under a mobile browser's chrome. */
+.rss {
   max-height: 92dvh;
   overflow: hidden;
 }
 
-.sheet-handle {
-  width: 36px;
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  margin: 10px auto 0;
-  flex-shrink: 0;
-  touch-action: none;
-}
-
 .sheet-header {
-  padding: 14px 16px 12px;
+  padding: 6px 16px 12px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
@@ -366,7 +351,8 @@
 
 /* Footer */
 .sheet-footer {
-  padding: 12px 16px 24px;
+  /* No bottom safe-area here — the primitive's panel padding already clears it. */
+  padding: 12px 16px 8px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }

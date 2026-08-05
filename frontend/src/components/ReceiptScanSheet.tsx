@@ -7,8 +7,7 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { useState } from 'react'
 import { formatPrice } from '../lib/formatPrice'
 import {
   deriveUnit,
@@ -32,6 +31,7 @@ import type {
   UnmatchedLine,
 } from '../types'
 import './ReceiptScanSheet.css'
+import { Sheet } from './Sheet'
 
 export interface ItemRef {
   id: string
@@ -216,8 +216,6 @@ export default function ReceiptScanSheet({
   const [dateDraft, setDateDraft] = useState(() =>
     toDateInputValue(result.receipt_date),
   )
-  const sheetRef = useRef<HTMLDivElement>(null)
-  const swipe = useSwipeToDismiss(sheetRef, onClose)
 
   // Adjusts state in response to a prop change, per React's "you might not
   // need an effect" guidance — a scan result is an event the parent hands
@@ -400,9 +398,7 @@ export default function ReceiptScanSheet({
   }
 
   return (
-    <div className="sheet" ref={sheetRef}>
-      <div className="sheet-handle" {...swipe} />
-
+    <Sheet className="rss" label="Ticket escaneado" onClose={onClose}>
       <div className="sheet-header">
         <div className="sheet-title-row">
           <div className="sheet-title">
@@ -747,6 +743,6 @@ export default function ReceiptScanSheet({
           </span>
         </button>
       </div>
-    </div>
+    </Sheet>
   )
 }
