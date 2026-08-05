@@ -129,3 +129,42 @@ test('a sin-precio line leaves the amount column blank — no dash', async () =>
   await screen.findByText('Yogur natural')
   expect(document.querySelector('.item-card__amount')).not.toBeInTheDocument()
 })
+
+test('search mode is force-expanded, shows only the matching lines and «N de M»', () => {
+  const { container } = render(
+    <TripCard
+      trip={makeTrip({ line_count: 9 })}
+      loadItems={noItems}
+      matchingLines={[makeLine({ id: 'm', name: 'Leche entera' })]}
+    />,
+  )
+  // The matched line renders without any tap-to-expand — no fetch either.
+  expect(screen.getByText('Leche entera')).toBeInTheDocument()
+  // «N de M»: 1 matched of the trip's 9 lines.
+  expect(screen.getByText('1 de 9')).toBeInTheDocument()
+  // The total, seal and toggle chevron all yield the slot.
+  expect(screen.queryByText('€ 8,13')).not.toBeInTheDocument()
+  expect(container.querySelector('.trip-card__chevron')).not.toBeInTheDocument()
+})
+
+test('search mode renders nothing for a trip with zero matches', () => {
+  const { container } = render(
+    <TripCard trip={makeTrip()} loadItems={noItems} matchingLines={[]} />,
+  )
+  expect(container.firstChild).toBeNull()
+})
+
+test('search mode keeps the re-buy disc on a matched line', async () => {
+  const onRebuy = vi.fn()
+  render(
+    <TripCard
+      trip={makeTrip()}
+      loadItems={noItems}
+      matchingLines={[makeLine({ id: 'milk' })]}
+      onRebuy={onRebuy}
+    />,
+  )
+  const disc = await screen.findByRole('button', { name: /volver a comprar/i })
+  fireEvent.click(disc)
+  expect(onRebuy).toHaveBeenCalledWith('p1', 'milk')
+})

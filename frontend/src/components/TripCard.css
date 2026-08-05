@@ -120,6 +120,33 @@
   transform: translateY(-50%);
 }
 
+/* Search mode (21b): the card is force-expanded and its header is a plain,
+   untappable label — nothing to fold — so it takes the expanded geometry and
+   the sheet's dashed rule directly, without a toggle button. */
+.trip-card__header-static {
+  box-sizing: border-box;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 20px 8px;
+  border-bottom: 1px dashed var(--rule-dashed);
+}
+
+/* «N de M» — what you found of what the trip holds. In the total's slot: mono,
+   tabular, one step quieter than a printed total. */
+.trip-card__count {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
 .trip-card__lines {
   padding: 2px 0 4px;
 }

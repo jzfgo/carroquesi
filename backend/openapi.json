@@ -1676,6 +1676,44 @@
         "title": "PurchaseRead",
         "type": "object"
       },
+      "PurchaseSearchResults": {
+        "description": "Every settled trip that matched a stack search, newest shop first.",
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseSearchTrip"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "title": "PurchaseSearchResults",
+        "type": "object"
+      },
+      "PurchaseSearchTrip": {
+        "description": "One trip in a stack search (21b).\n\nCarries the trip's summary and only the lines whose name, brand or store\nmatched the query. How many lines the trip holds in all rides in the\nsummary's line_count, so the client can print «N de M» — N being the\nnumber of matched lines here, M the trip's whole line count.",
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ItemRead"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "trip": {
+            "$ref": "#/components/schemas/PurchaseSummary"
+          }
+        },
+        "required": [
+          "trip",
+          "lines"
+        ],
+        "title": "PurchaseSearchTrip",
+        "type": "object"
+      },
       "PurchaseSummary": {
         "description": "One row of the purchase history page.\n\nCarries what the page renders per ticket without fetching its lines:\nhow many lines it holds, and whether a receipt scan reconciled it.",
         "properties": {
@@ -5955,6 +5993,112 @@
           }
         ],
         "summary": "Create Manual Purchase",
+        "tags": [
+          "purchases"
+        ]
+      }
+    },
+    "/lists/{list_id}/purchases/search": {
+      "get": {
+        "description": "Search the list's whole purchase history (21b).\n\nEvery settled trip holding at least one line that matches the query, newest\nshop first, each carrying only its matching lines and — through the summary's\nline_count — how many it holds in all. The open cart is left out: its lines\nlive in the pending sheet, not the history, so showing them here would double\nthem. The query speaks the same sigils as the in-list search.",
+        "operationId": "search_purchases_lists__list_id__purchases_search_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseSearchResults"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search Purchases",
         "tags": [
           "purchases"
         ]

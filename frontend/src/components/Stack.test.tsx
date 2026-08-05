@@ -1,12 +1,18 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
-import { getPurchaseItems, getPurchases } from '../lib/api'
-import type { PurchasePage, PurchaseSummary } from '../types'
+import { getPurchaseItems, getPurchases, searchPurchases } from '../lib/api'
+import type {
+  ListItem,
+  PurchasePage,
+  PurchaseSearchTrip,
+  PurchaseSummary,
+} from '../types'
 import { Stack } from './Stack'
 
 vi.mock('../lib/api', () => ({
   getPurchases: vi.fn(),
   getPurchaseItems: vi.fn(),
+  searchPurchases: vi.fn(),
 }))
 
 const getToken = () => Promise.resolve('t')
@@ -54,6 +60,36 @@ const trip = (
 const page = (purchases: PurchaseSummary[], total: number): PurchasePage => ({
   purchases,
   total,
+})
+
+const line = (id: string, name: string): ListItem =>
+  ({
+    id,
+    list_id: 'l1',
+    name,
+    quantity: '1',
+    purchased_quantity: null,
+    brand: null,
+    stores: [],
+    purchased: true,
+    purchased_at: '2026-07-20T09:00:00',
+    purchase_ends_at: '2026-07-20T20:00:00',
+    ean: null,
+    price: 1.9,
+    price_per: null,
+    price_store: null,
+    added_by: 'u1',
+    created_at: '',
+    updated_at: '',
+  }) as ListItem
+
+const searchTrip = (
+  id: string,
+  lines: ListItem[],
+  over: Partial<PurchaseSummary> = {},
+): PurchaseSearchTrip => ({
+  trip: trip(id, over),
+  lines,
 })
 
 function renderStack() {
@@ -147,4 +183,43 @@ test('the archive door unfolds the rest in place and the sentinel pages more in'
   })
   await waitFor(() => expect(screen.getByText(/Store e/)).toBeInTheDocument())
   expect(screen.getByText(/Store d/)).toBeInTheDocument()
+})
+
+test('search mode renders all matching trips and hides both doors', async () => {
+  vi.mocked(getPurchases).mockResolvedValue(page([trip('a')], 1))
+  vi.mocked(searchPurchases).mockResolvedValue({
+    results: [
+      searchTrip('a', [line('la', 'Leche entera')], {
+        store: 'Mercadona',
+        line_count: 9,
+      }),
+      searchTrip('b', [line('lb', 'Leche sin lactosa')], {
+        store: 'Lidl',
+        line_count: 3,
+      }),
+    ],
+  })
+  render(<Stack listId="l1" getToken={getToken} searching query="leche" />)
+
+  await waitFor(() =>
+    expect(screen.getByText('Leche entera')).toBeInTheDocument(),
+  )
+  expect(screen.getByText('Leche sin lactosa')).toBeInTheDocument()
+  // Both are force-expanded with their «N de M» counts.
+  expect(screen.getByText('1 de 9')).toBeInTheDocument()
+  expect(screen.getByText('1 de 3')).toBeInTheDocument()
+  // No doors in search mode.
+  expect(screen.queryByText('Guardar un ticket')).not.toBeInTheDocument()
+  expect(screen.queryByText('Compras anteriores')).not.toBeInTheDocument()
+  expect(searchPurchases).toHaveBeenCalledWith(getToken, 'l1', 'leche')
+})
+
+test('the non-search stack is unaffected by an inactive search prop', async () => {
+  vi.mocked(getPurchases).mockResolvedValue(page([trip('a')], 1))
+  render(<Stack listId="l1" getToken={getToken} searching query="   " />)
+  await waitFor(() => expect(screen.getByText(/Store a/)).toBeInTheDocument())
+  // A whitespace-only query is not an active search: the save door still shows
+  // and the search endpoint is never called.
+  expect(screen.getByText('Guardar un ticket')).toBeInTheDocument()
+  expect(searchPurchases).not.toHaveBeenCalled()
 })

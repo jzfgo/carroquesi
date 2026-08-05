@@ -10,6 +10,7 @@ import type {
   PurchaseManualBody,
   PurchasePage,
   PurchaseRead,
+  PurchaseSearchResults,
   ReceiptPriceApplyResult,
   ReceiptPriceBatch,
   ReceiptScanRequest,
@@ -368,6 +369,21 @@ export function getPurchases(
     getToken,
     `/lists/${listId}/purchases?offset=${offset}&limit=${limit}`,
   ) as Promise<PurchasePage>
+}
+
+// Search the whole purchase history (21b). Returns every settled trip with a
+// line matching `q` — its summary and only the matching lines — newest first.
+// The query speaks the input-bar sigils, parsed server-side like the pending
+// search. The open cart is left out, matching the stack.
+export function searchPurchases(
+  getToken: () => Promise<string>,
+  listId: string,
+  q: string,
+): Promise<PurchaseSearchResults> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/purchases/search?q=${encodeURIComponent(q)}`,
+  ) as Promise<PurchaseSearchResults>
 }
 
 // The lines of one ticket, cart order (18a → the ticket's expanded view).

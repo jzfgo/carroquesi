@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.items import ItemRead
+
 
 class PurchaseLine(BaseModel):
     """One claimed line of the close sheet.
@@ -129,3 +131,22 @@ class PurchasePage(BaseModel):
     # Every trip the list has, not the page's share of them — the client
     # needs it to know whether to ask for another page.
     total: int
+
+
+class PurchaseSearchTrip(BaseModel):
+    """One trip in a stack search (21b).
+
+    Carries the trip's summary and only the lines whose name, brand or store
+    matched the query. How many lines the trip holds in all rides in the
+    summary's line_count, so the client can print «N de M» — N being the
+    number of matched lines here, M the trip's whole line count.
+    """
+
+    trip: PurchaseSummary
+    lines: list[ItemRead]
+
+
+class PurchaseSearchResults(BaseModel):
+    """Every settled trip that matched a stack search, newest shop first."""
+
+    results: list[PurchaseSearchTrip]

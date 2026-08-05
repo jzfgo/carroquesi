@@ -145,6 +145,10 @@ export function ItemList({
 
   const listEmpty =
     active.length === 0 && cart.length === 0 && bought.length === 0
+  // The pending sheet (active + cart) alone. A search dead end keys off this,
+  // not the whole list: settled records live in the stack below, so a term that
+  // matches only history leaves the pending sheet blank and must still say so.
+  const pendingEmpty = active.length === 0 && cart.length === 0
 
   // Inline "Sueles comprar" (20b): at most three, and never a line already on
   // this trip. A suggestion is derived from purchase history, so by definition
@@ -164,7 +168,7 @@ export function ItemList({
   // sheet with a flat surface instead of drawing on paper — a blank sheet
   // would read as an empty list, and there is no list to show mid-search. A
   // search dead end must still offer the way out: adding what you looked for.
-  if (searching && query.trim() !== '' && listEmpty) {
+  if (searching && query.trim() !== '' && pendingEmpty) {
     const term = query.trim()
     const boughtOn = elsewhereMatch?.last_purchased_at
       ? new Date(elsewhereMatch.last_purchased_at + 'Z').toLocaleDateString(
@@ -192,6 +196,10 @@ export function ItemList({
             </p>
           )}
         </div>
+        {/* Nothing pending matches, but the term may still name past shops: the
+            stack searches the whole history, so a price-history result appears
+            below the dead end (21b — «buscar leche es ver lo que has pagado»). */}
+        {stack}
       </div>
     )
   }

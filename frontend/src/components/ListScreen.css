@@ -116,43 +116,6 @@
   z-index: 101;
 }
 
-/* Board chrome: the scan door is written on the board — no surface, board
-   ink, and a dashed outline because the receipt it stands for is not real
-   yet. Nothing floats. */
-.receipt-scan-cta {
-  padding: 0 6px 8px;
-}
-
-.receipt-scan-cta__btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  min-height: var(--hit-tap);
-  padding: 12px 16px;
-  border-radius: var(--r-md);
-  border: 1.5px dashed color-mix(in srgb, var(--board-ink) 40%, transparent);
-  background: transparent;
-  color: var(--board-ink);
-  font-family: inherit;
-  font-size: var(--fs-15);
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    opacity 0.15s;
-}
-
-.receipt-scan-cta__btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.receipt-scan-cta__btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--board-ink) 8%, transparent);
-}
-
 .receipt-source-picker {
   background: var(--color-surface);
   border-radius: 16px 16px 0 0;
