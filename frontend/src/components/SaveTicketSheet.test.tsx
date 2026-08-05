@@ -26,6 +26,7 @@ function renderSheet(
       displayStore={(s) => s}
       onClose={onClose}
       onDone={onDone}
+      showToast={vi.fn()}
       {...props}
     />,
   )

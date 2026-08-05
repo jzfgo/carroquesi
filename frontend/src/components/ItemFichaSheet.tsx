@@ -281,9 +281,14 @@ export function ItemFichaSheet({
           )}
 
           <div className="ficha__footer">
-            <button className="ficha__rebuy" onClick={onClone}>
-              <RotateCcw size={16} /> Volver a comprar
-            </button>
+            {/* «Volver a comprar» clones the line onto the pending list — only
+                meaningful for something already bought. On a pending item it
+                would just add a duplicate, so it is hidden there. */}
+            {purchased && (
+              <button className="ficha__rebuy" onClick={onClone}>
+                <RotateCcw size={16} /> Volver a comprar
+              </button>
+            )}
             <button
               className="ficha__delete"
               onClick={() => setSubState('confirm-delete')}

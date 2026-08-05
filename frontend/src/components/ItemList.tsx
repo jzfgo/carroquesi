@@ -232,6 +232,9 @@ export function ItemList({
             />
           </div>
         </section>
+        {/* Even a brand-new list can record a shop it never tracked: the stack
+            carries the always-present «Guardar un ticket» door. */}
+        {stack}
       </div>
     )
   }
