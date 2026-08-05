@@ -33,6 +33,82 @@ async function markPurchased(page: Page, name: string) {
   ).toBeVisible()
 }
 
+/**
+ * A record inside an expanded trip in the stack. Closed-trip records no longer
+ * sit in the main list — they hang off their trip's card — so the closed-trip
+ * tests reach them here, not through `itemCard`.
+ */
+function stackRecord(page: Page, name: string) {
+  return page
+    .locator('.stack .trip-card__lines')
+    .locator('.item-card')
+    .filter({ hasText: name })
+}
+
+/**
+ * The two purchased seed items form one closed trip (Mercadona, 10 Jul). Serve
+ * it as the stack's first page and as the trip's lines so the records surface,
+ * and hand the unpriced record a «sin precio» history entry — the ficha only
+ * shows the price-logging row when the price history is non-empty. This lives
+ * per-test, not in the shared fixture, so a populated stack never drifts other
+ * specs' list screenshots. Writes fall through to the shared mock.
+ */
+async function installClosedTrip(page: Page) {
+  const records = SEED_ITEMS[LIST_ID].filter((i) => i.purchased)
+  const total = records.reduce((sum, i) => sum + (i.price ?? 0), 0)
+  const asJson = (value: unknown) => ({
+    contentType: 'application/json',
+    body: JSON.stringify(value),
+  })
+
+  await page.route(/\/purchases(\?|$)/, (route) =>
+    route.fulfill(
+      asJson({
+        purchases: [
+          {
+            id: 'trip-compra-0710',
+            list_id: LIST_ID,
+            opened_at: '2026-07-10T09:00:00',
+            tears_off_at: '2026-07-11T00:00:00',
+            closed_at: '2026-07-11T00:00:00',
+            store: 'Mercadona',
+            total,
+            line_count: records.length,
+            has_receipt: false,
+            items_total: total,
+          },
+        ],
+        total: 1,
+      }),
+    ),
+  )
+
+  await page.route(/\/purchases\/[^/]+\/items(\?|$)/, (route) =>
+    route.fulfill(asJson(records)),
+  )
+
+  await page.route(
+    new RegExp(`/items/${ITEM_MANTEQUILLA.id}/prices`),
+    (route) => {
+      if (route.request().method() !== 'GET') return route.fallback()
+      return route.fulfill(
+        asJson({
+          entries: [
+            {
+              amount: null,
+              is_sin_precio: true,
+              price_per: null,
+              store: 'Mercadona',
+              purchased_at: ITEM_MANTEQUILLA.purchased_at,
+              quantity: null,
+            },
+          ],
+        }),
+      )
+    },
+  )
+}
+
 const THEMES = [
   { name: 'light', colorScheme: 'light' as const },
   { name: 'dark', colorScheme: 'dark' as const },
@@ -87,9 +163,9 @@ for (const { name: themeName, colorScheme } of THEMES) {
 
       // Read-only: the brand is plain text in the meta line, not its own
       // editable control. `exact` matters — the row body is itself a button
-      // (it opens the action sheet) and its accessible name contains the
-      // brand, so a substring match would find it; what must not exist is a
-      // control whose whole name is the brand, i.e. the old brand chip.
+      // (it opens the ficha) and its accessible name contains the brand, so a
+      // substring match would find it; what must not exist is a control whose
+      // whole name is the brand, i.e. the old brand chip.
       await expect(
         card.getByRole('button', { name: ITEM_CAFE.brand ?? '', exact: true }),
       ).toHaveCount(0)
@@ -97,13 +173,17 @@ for (const { name: themeName, colorScheme } of THEMES) {
         ITEM_CAFE.brand ?? '',
       )
 
-      // Row tap offers "buy again" instead of rename
+      // Row tap opens the ficha. On a purchased record the fields are
+      // read-only — the name field is plain text, not a rename control — and
+      // the footer offers to buy it again.
       await card.locator('.item-card__body').click()
-      await expect(page.getByRole('button', { name: 'Renombrar' })).toHaveCount(
+      const ficha = page.getByRole('dialog', { name: ITEM_CAFE.name })
+      await expect(ficha).toBeVisible()
+      await expect(ficha.getByRole('button', { name: /nombre/i })).toHaveCount(
         0,
       )
       await expect(
-        page.getByRole('button', { name: 'Comprar de nuevo' }),
+        ficha.getByRole('button', { name: 'Volver a comprar' }),
       ).toBeVisible()
       await page.keyboard.press('Escape')
     })
@@ -111,45 +191,43 @@ for (const { name: themeName, colorScheme } of THEMES) {
     test('records a price on a closed-trip record; the affordance is absent before the trip closes', async ({
       page,
     }) => {
+      await installClosedTrip(page)
       await gotoList(page)
 
-      const actionSheet = page.getByRole('dialog', {
-        name: 'Opciones del producto',
-      })
-
-      // Prices belong to closed-trip records only. A pending row offers no
-      // price entry — row tap opens the action sheet without one.
+      // Prices belong to closed-trip records only. A pending row's ficha offers
+      // no price entry — the figure would not be a confirmed record yet.
       await itemCard(page, ITEM_LECHE.name).locator('.item-card__body').click()
-      await expect(actionSheet).toBeVisible()
+      const lecheFicha = page.getByRole('dialog', { name: ITEM_LECHE.name })
+      await expect(lecheFicha).toBeVisible()
       await expect(
-        page.getByRole('button', { name: 'Registrar precio' }),
-      ).toHaveCount(0)
-      await expect(
-        page.getByRole('button', { name: 'Historial de precios' }),
+        lecheFicha.getByRole('button', { name: 'Registrar un precio' }),
       ).toHaveCount(0)
       await page.keyboard.press('Escape')
-      await expect(actionSheet).toBeHidden()
+      await expect(lecheFicha).toBeHidden()
 
-      // Nor does an in-cart row (purchased, trip still open) — the figure
-      // would not be a confirmed record yet.
+      // Nor does an in-cart row (purchased, trip still open).
       await markPurchased(page, ITEM_CAFE.name)
       await itemCard(page, ITEM_CAFE.name).locator('.item-card__body').click()
-      await expect(actionSheet).toBeVisible()
+      const cafeFicha = page.getByRole('dialog', { name: ITEM_CAFE.name })
+      await expect(cafeFicha).toBeVisible()
       await expect(
-        page.getByRole('button', { name: 'Registrar precio' }),
+        cafeFicha.getByRole('button', { name: 'Registrar un precio' }),
       ).toHaveCount(0)
       await page.keyboard.press('Escape')
-      await expect(actionSheet).toBeHidden()
+      await expect(cafeFicha).toBeHidden()
 
-      // A closed-trip record does: row tap → Registrar precio → history →
-      // log the price. It has none yet, so the sheet offers to set one.
-      await itemCard(page, ITEM_MANTEQUILLA.name)
+      // A closed-trip record does. It hangs off its trip in the stack; opening
+      // it reaches the same ficha, which — having no price yet — offers to set
+      // one through the log sheet.
+      await stackRecord(page, ITEM_MANTEQUILLA.name)
         .locator('.item-card__body')
         .click()
-      await page.getByRole('button', { name: 'Registrar precio' }).click()
-      await page
-        .locator('.phs')
-        .getByRole('button', { name: '+ Registrar precio' })
+      const mantequillaFicha = page.getByRole('dialog', {
+        name: ITEM_MANTEQUILLA.name,
+      })
+      await expect(mantequillaFicha).toBeVisible()
+      await mantequillaFicha
+        .getByRole('button', { name: 'Registrar un precio' })
         .click()
 
       const sheet = page.locator('.lps')
@@ -160,10 +238,10 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await expectScreenshot(page, `log-purchase-sheet-${themeName}.png`)
       await sheet.getByRole('button', { name: 'Guardar' }).click()
 
+      // The save closes the sheet. The stack line is a separate read and is not
+      // refreshed here, so the sheet dismissing is the confirmation, not a new
+      // figure on the card.
       await expect(sheet).toBeHidden()
-      await expect(
-        itemCard(page, ITEM_MANTEQUILLA.name).locator('.item-card__amount'),
-      ).toBeVisible()
     })
 
     test('a closed-trip record offers no price deletion — its spend is settled', async ({
@@ -171,18 +249,19 @@ for (const { name: themeName, colorScheme } of THEMES) {
     }) => {
       // The trip-boundary rule at the UI layer: once a trip has torn off, the
       // price it recorded is permanent history. The record can still be
-      // corrected upward (Actualizar precio stays), but the sheet offers no
-      // «Eliminar precio» — deleting spend nobody can re-date is what the rule
-      // forbids. This is the same guard the backend enforces with a 422; here
-      // the control never appears, so the request is never made.
+      // corrected (Guardar stays), but the log sheet offers no «Eliminar
+      // precio» — deleting spend nobody can re-date is what the rule forbids.
+      // This is the same guard the backend enforces with a 422; here the
+      // control never appears, so the request is never made.
+      await installClosedTrip(page)
       await gotoList(page)
 
-      await itemCard(page, ITEM_HUEVOS.name).locator('.item-card__body').click()
-      await page.getByRole('button', { name: 'Registrar precio' }).click()
-      await page
-        .locator('.phs')
-        .getByRole('button', { name: 'Actualizar precio' })
+      await stackRecord(page, ITEM_HUEVOS.name)
+        .locator('.item-card__body')
         .click()
+      const ficha = page.getByRole('dialog', { name: ITEM_HUEVOS.name })
+      await expect(ficha).toBeVisible()
+      await ficha.getByRole('button', { name: 'Registrar un precio' }).click()
 
       const sheet = page.locator('.lps')
       await expect(sheet).toBeVisible()

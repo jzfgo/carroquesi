@@ -178,6 +178,13 @@ export async function installApiMocks(page: Page): Promise<void> {
         if (method === 'GET') return json(SEED_MEMBERS[listId] ?? [])
       }
 
+      // /lists/:id/purchases — the trip stack fetches page 0 on every list
+      // open. No seed trips, so an empty page; the mock only spares the app the
+      // 404 fallback it otherwise swallows on mount.
+      if (sub === '/purchases' && method === 'GET') {
+        return json({ purchases: [], total: 0 })
+      }
+
       // /lists/:id/stores — the store registry; fetched with every list read.
       if (sub === '/stores') {
         if (method === 'GET') return json(SEED_STORES[listId] ?? [])
