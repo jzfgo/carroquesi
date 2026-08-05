@@ -488,9 +488,13 @@ export interface paths {
          *
          *     Claiming every item in the cart closes the trip in place; claiming fewer
          *     splits the selection onto its own ticket and leaves the rest in the
-         *     cart. There is no date control: the ticket's dates derive from the
-         *     claimed lines' purchased_at and the close instant, which covers every
-         *     shop the current write paths can produce.
+         *     cart. Absent a `date`, the ticket's dates derive from the claimed lines'
+         *     purchased_at and the close instant. A `date` back-dates it to a stated
+         *     day — its boundaries are mapped in the client timezone (ADR-012), the same
+         *     mapping a manual purchase uses, so it sorts under the day it covered.
+         *
+         *     A line may also carry a corrected name/brand (the adjust-product editor):
+         *     applied to the claimed item alongside its price and quantity.
          *
          *     No push fires here. Like the receipt apply, a close records a shop that
          *     already happened — nothing joins the list unpurchased, and the impulse
@@ -1337,6 +1341,8 @@ export interface components {
         };
         /** PurchaseCloseBody */
         PurchaseCloseBody: {
+            /** Date */
+            date?: string | null;
             /** Lines */
             lines: components["schemas"]["PurchaseLine"][];
             /** New Items */
@@ -1358,8 +1364,12 @@ export interface components {
          *     stated once on the close.
          */
         PurchaseLine: {
+            /** Brand */
+            brand?: string | null;
             /** Item Id */
             item_id: string;
+            /** Name */
+            name?: string | null;
             /** Price */
             price?: number | null;
             /** Price Per */
@@ -2915,6 +2925,7 @@ export interface operations {
                 "x-dev-user-id"?: string | null;
                 "x-dev-is-admin"?: string | null;
                 "x-api-key"?: string | null;
+                "x-client-timezone"?: string | null;
             };
             path: {
                 list_id: string;

@@ -9,10 +9,13 @@ interface Props {
   getToken: () => Promise<string>
   /** Re-buy a line back onto the pending list (wired: JAV-128). */
   onRebuy?: (purchaseId: string, itemId: string) => void
-  /** Open a line's product ficha (22a) — wired in Lane 3 (JAV-162). */
+  /** Tap a line to act on it. For now this opens the item action sheet — the
+   *  same one the pending rows use — so a closed record stays priceable. The
+   *  redesigned product ficha (22a) takes over this tap later. */
   onOpenLine?: (itemId: string) => void
-  /** Close a proto-ticket (10b) — wired in Lane 2 (JAV-160). */
-  onCloseTrip?: (purchaseId: string) => void
+  /** Close a proto-ticket (10b). The second arg is the day it covered, so the
+   *  close back-dates there instead of defaulting to today. */
+  onCloseTrip?: (purchaseId: string, initialDate?: string) => void
   /** Save a ticket by hand (26a) — wired in Lane 4 (JAV-163). */
   onSaveTicket?: () => void
 }

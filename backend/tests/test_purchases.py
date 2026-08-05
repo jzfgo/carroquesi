@@ -8,6 +8,16 @@ from sqlmodel import Session, select
 
 from app.db.models import List, ListItem, ListStore, Purchase
 
+# The date helpers below declare Europe/Madrid, so "today" must be read in that
+# same zone — not from the machine clock. Reading the machine's local date makes
+# the suite flip on runners whose zone differs from Madrid, in the hours when the
+# two calendars disagree.
+_MADRID = ZoneInfo("Europe/Madrid")
+
+
+def _client_today() -> date:
+    return datetime.now(_MADRID).date()
+
 
 def _create_list(client):
     return client.post("/lists", json={"name": "Casa"}).json()
@@ -77,6 +87,89 @@ def test_closing_the_whole_cart_closes_the_trip_in_place(client: TestClient, ses
     assert body["store"] == "Lidl"
     assert body["total"] == 14.60
     assert body["closed_at"] is not None
+
+
+def test_a_close_line_corrects_the_products_name_and_brand(client: TestClient, session: Session):
+    """The adjust-product editor (10d) can fix a line at close time; the
+    correction rides in the close payload and lands on the claimed item."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Lehce")  # a typo to fix on the sheet
+
+    response = _close(
+        client,
+        lst["id"],
+        store="Lidl",
+        lines=[{"item_id": milk["id"], "name": "Leche entera", "brand": "Hacendado"}],
+    )
+
+    assert response.status_code == 200
+    row = session.get(ListItem, milk["id"])
+    session.refresh(row)
+    assert row.name == "Leche entera"
+    assert row.brand == "Hacendado"
+
+
+def _close_dated(client: TestClient, list_id: str, day, **body):
+    return client.post(
+        f"/lists/{list_id}/purchases/close",
+        json={"date": day.isoformat(), **body},
+        headers={"X-Client-Timezone": str(_MADRID)},
+    )
+
+
+def test_a_back_dated_close_files_the_ticket_under_its_day(client: TestClient, session: Session):
+    """«Hoy ▾» back-dated: the ticket's boundaries derive from the stated day,
+    and closed_at is that day's tear-off (not now), so it sorts under it."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    day = _client_today() - timedelta(days=7)
+
+    response = _close_dated(client, lst["id"], day, store="Lidl", lines=_lines(milk))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["closed_at"] == body["tears_off_at"]  # the day's tear-off, not now
+    opened = datetime.fromisoformat(body["opened_at"])
+    closed = datetime.fromisoformat(body["closed_at"])
+    assert opened < closed  # the day's start precedes its tear-off
+    assert closed < datetime.now(UTC).replace(tzinfo=None)  # a week ago, not today
+
+
+def test_a_same_day_close_is_unchanged_by_the_date_extension(client: TestClient):
+    """No date given → the old behaviour: closed at now, the tear-off still
+    ahead (today's boundary)."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    body = _close(client, lst["id"], store="Lidl", lines=_lines(milk)).json()
+
+    assert body["closed_at"] != body["tears_off_at"]
+    assert datetime.fromisoformat(body["tears_off_at"]) > datetime.fromisoformat(body["closed_at"])
+
+
+def test_a_close_dated_today_lands_closed_at_now_not_the_future_tearoff(client: TestClient):
+    """The «Hoy ▾» control sends today's date on an ordinary close. closed_at
+    must be the close instant, never tonight's tear-off: a future closed_at
+    leaves the just-closed trip reading «still open» (is_open compares
+    closed_at ?? tears_off_at to now), and the next close then finds nothing."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    body = _close_dated(client, lst["id"], _client_today(), store="Lidl", lines=_lines(milk)).json()
+
+    closed = datetime.fromisoformat(body["closed_at"])
+    tears = datetime.fromisoformat(body["tears_off_at"])
+    now = datetime.now(UTC).replace(tzinfo=None)
+    assert closed < tears  # not stamped at the future tear-off
+    assert closed <= now  # the reconciliation instant, not ahead of now
+
+
+def test_a_future_dated_close_is_rejected(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    day = _client_today() + timedelta(days=1)
+
+    assert _close_dated(client, lst["id"], day, store="Lidl", lines=_lines(milk)).status_code == 422
 
 
 def test_closing_a_subset_splits_a_new_ticket_and_leaves_the_rest_open(
@@ -889,13 +982,21 @@ def test_rebuy_notifies_on_create_but_not_on_the_idempotent_hit(client: TestClie
 def _manual(client: TestClient, list_id: str, **body):
     if isinstance(body.get("date"), date):
         body["date"] = body["date"].isoformat()
-    return client.post(f"/lists/{list_id}/purchases/manual", json=body)
+    # Declare a timezone, as the real client and the sibling _close_dated helper
+    # both do. Without it the endpoint judges the date in UTC, while these tests
+    # build it from the machine's local `_client_today()` — so in the hours when the
+    # local day is already ahead of UTC, today reads as the future and is refused.
+    return client.post(
+        f"/lists/{list_id}/purchases/manual",
+        json=body,
+        headers={"X-Client-Timezone": str(_MADRID)},
+    )
 
 
 def test_a_manual_purchase_is_born_closed_with_no_lines(client: TestClient, session: Session):
     lst = _create_list(client)
 
-    response = _manual(client, lst["id"], store="Lidl", date=date.today(), total=23.40)
+    response = _manual(client, lst["id"], store="Lidl", date=_client_today(), total=23.40)
 
     assert response.status_code == 200
     body = response.json()
@@ -916,7 +1017,7 @@ def test_a_back_dated_manual_purchase_files_under_its_day_not_now(
 ):
     lst = _create_list(client)
     # A shop written down by hand a week after it happened.
-    week_ago = date.today() - timedelta(days=7)
+    week_ago = _client_today() - timedelta(days=7)
     old = _manual(client, lst["id"], store="Lidl", date=week_ago, total=10.0).json()
     # A genuine, more recent trip closed just now.
     milk = _tap(client, lst["id"], "Leche")
@@ -933,7 +1034,7 @@ def test_a_back_dated_manual_purchase_files_under_its_day_not_now(
 def test_a_total_only_manual_save_works_with_no_store(client: TestClient, session: Session):
     lst = _create_list(client)
 
-    response = _manual(client, lst["id"], date=date.today(), total=8.75)
+    response = _manual(client, lst["id"], date=_client_today(), total=8.75)
 
     assert response.status_code == 200
     body = response.json()
@@ -947,7 +1048,7 @@ def test_a_manual_purchase_with_no_store_and_no_total_is_a_bare_record(
 ):
     lst = _create_list(client)
 
-    body = _manual(client, lst["id"], date=date.today()).json()
+    body = _manual(client, lst["id"], date=_client_today()).json()
 
     assert body["store"] is None
     assert body["total"] is None
@@ -957,7 +1058,7 @@ def test_a_manual_purchase_with_no_store_and_no_total_is_a_bare_record(
 def test_a_manual_purchases_store_registers_in_the_registry(client: TestClient, session: Session):
     lst = _create_list(client)
 
-    _manual(client, lst["id"], store="Carrefour", date=date.today()).json()
+    _manual(client, lst["id"], store="Carrefour", date=_client_today()).json()
 
     registered = session.exec(select(ListStore).where(ListStore.list_id == lst["id"])).all()
     assert [s.display_name for s in registered] == ["Carrefour"]
@@ -974,7 +1075,7 @@ def test_a_manual_purchase_without_a_date_is_422(client: TestClient):
 def test_a_negative_manual_total_is_rejected(client: TestClient):
     lst = _create_list(client)
 
-    response = _manual(client, lst["id"], date=date.today(), total=-5.0)
+    response = _manual(client, lst["id"], date=_client_today(), total=-5.0)
 
     assert response.status_code == 422
 
@@ -983,7 +1084,7 @@ def test_a_future_dated_manual_purchase_is_rejected(client: TestClient):
     """Back-dating only: a future date would sort above the live cart."""
     lst = _create_list(client)
 
-    response = _manual(client, lst["id"], date=date.today() + timedelta(days=1), total=5.0)
+    response = _manual(client, lst["id"], date=_client_today() + timedelta(days=1), total=5.0)
 
     assert response.status_code == 422
 
@@ -992,7 +1093,7 @@ def test_a_blank_manual_store_reads_back_as_none(client: TestClient, session: Se
     """An empty-string store is a bare record, not a store named ""."""
     lst = _create_list(client)
 
-    body = _manual(client, lst["id"], store="   ", date=date.today()).json()
+    body = _manual(client, lst["id"], store="   ", date=_client_today()).json()
 
     assert body["store"] is None
     registered = session.exec(select(ListStore).where(ListStore.list_id == lst["id"])).all()

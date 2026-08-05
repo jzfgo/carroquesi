@@ -129,6 +129,7 @@ def close(
     total: float | None,
     now: datetime,
     purchase_id: str | None = None,
+    dating: tuple[datetime, datetime, datetime] | None = None,
 ) -> Purchase:
     """Declare what a shop was — the act that turns a cart into a ticket.
 
@@ -143,6 +144,13 @@ def close(
     `purchase_id` names which trip to close; without it the target is the
     open cart. Naming is how a trip that tore off at midnight with nobody
     saying what it was gets written down the next morning.
+
+    `dating` back-dates the ticket to a day the caller states: an
+    (opened_at, tears_off_at, closed_at) triple, all naive UTC, derived from
+    a date in the client's timezone (the same mapping a manual purchase uses).
+    Without it the ticket files under `now` — opened_at from the claimed taps,
+    closed_at at the close instant. With it the ticket sorts under its covered
+    day, because closed_at is the date's tear-off, not now.
     """
     if purchase_id is not None:
         # A filtered SELECT rather than session.get: a caller that already
@@ -199,16 +207,31 @@ def close(
         default=trip.opened_at,
     )
 
+    # A back-dated close overrides the derived boundaries with the stated day's;
+    # otherwise the ticket keeps the taps' opening and closes at `now`.
+    final_opened = dating[0] if dating else opened_at
+    final_closed = dating[2] if dating else now
+
     if len(selection) == len(cart):
         # In place, and conditionally: the resolving SELECT above only
         # refuses a close that committed before it ran. One that commits
         # between that SELECT and this statement would be overwritten by a
         # plain assignment, so the WHERE re-checks the row as it stands and
         # zero rows updated means another member's close already won.
+        values = {
+            "opened_at": final_opened,
+            "closed_at": final_closed,
+            "store": store,
+            "total": total,
+        }
+        # Back-dating moves the tear-off too, so the row's whole day is the
+        # stated one; a same-day close leaves tears_off_at as it was.
+        if dating:
+            values["tears_off_at"] = dating[1]
         claimed = session.execute(
             update(Purchase)
             .where(Purchase.id == trip.id, Purchase.closed_at.is_(None))
-            .values(opened_at=opened_at, closed_at=now, store=store, total=total)
+            .values(**values)
         )
         if claimed.rowcount == 0:
             raise NothingToClose()
@@ -221,9 +244,9 @@ def close(
     # protection against a concurrent close is the resolving SELECT alone.
     split = Purchase(
         list_id=list_id,
-        opened_at=opened_at,
-        tears_off_at=trip.tears_off_at,
-        closed_at=now,
+        opened_at=final_opened,
+        tears_off_at=dating[1] if dating else trip.tears_off_at,
+        closed_at=final_closed,
         store=store,
         total=total,
     )

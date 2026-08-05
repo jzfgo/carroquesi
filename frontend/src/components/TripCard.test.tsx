@@ -78,12 +78,12 @@ test('a folded proto shows the compact seal badge, not the full «Cerrar compra�
   expect(screen.queryByText('Cerrar compra')).not.toBeInTheDocument()
 })
 
-test('a folded proto with priced lines shows a provisional «≈ total», not the seal badge', () => {
+test('a folded proto with priced lines shows both the provisional «≈ total» and the seal badge', () => {
   const trip = makeTrip({ closed_at: null, total: null, items_total: 12.4 })
   render(<TripCard trip={trip} loadItems={noItems} />)
   expect(screen.getByText(/≈\s*€\s*12,40/)).toBeInTheDocument()
-  // The provisional figure takes the slot the seal badge would otherwise hold.
-  expect(screen.queryByLabelText('Sin cerrar')).not.toBeInTheDocument()
+  // The seal marks every open purchase, priced or not — it sits beside the total.
+  expect(screen.getByLabelText('Sin cerrar')).toBeInTheDocument()
 })
 
 test('expanding a folded trip lazy-loads its lines', async () => {

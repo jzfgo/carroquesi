@@ -33,13 +33,16 @@ test('useSwipeToDismiss updates transform and transition styles on swipe', () =>
 
   expect(mockElement.style.transform).toBe('translateY(50px)')
 
-  // 3. TouchEnd (released at 150px, dy = 50 < threshold 80) -> snaps back
+  // 3. TouchEnd (released at 150px, dy = 50 < threshold 80) -> rides back up
   const endEventSnap = {
     changedTouches: [{ clientY: 150 }],
   } as unknown as React.TouchEvent
   handlers.onTouchEnd(endEventSnap)
 
-  expect(mockElement.style.transition).toBe('')
+  // A cleared transform, restored under the entrance spring so it animates back.
+  expect(mockElement.style.transition).toBe(
+    'transform var(--dur-slow) var(--ease-spring)',
+  )
   expect(mockElement.style.transform).toBe('')
   expect(onClose).not.toHaveBeenCalled()
 

@@ -288,14 +288,19 @@ def close_purchase(
     body: PurchaseCloseBody,
     session: CurrentSession,
     list_and_user: MemberDep,
+    client_tz: ClientTimezone,
 ):
     """Declare what a shop was — claim lines out of a trip and file them.
 
     Claiming every item in the cart closes the trip in place; claiming fewer
     splits the selection onto its own ticket and leaves the rest in the
-    cart. There is no date control: the ticket's dates derive from the
-    claimed lines' purchased_at and the close instant, which covers every
-    shop the current write paths can produce.
+    cart. Absent a `date`, the ticket's dates derive from the claimed lines'
+    purchased_at and the close instant. A `date` back-dates it to a stated
+    day — its boundaries are mapped in the client timezone (ADR-012), the same
+    mapping a manual purchase uses, so it sorts under the day it covered.
+
+    A line may also carry a corrected name/brand (the adjust-product editor):
+    applied to the claimed item alongside its price and quantity.
 
     No push fires here. Like the receipt apply, a close records a shop that
     already happened — nothing joins the list unpurchased, and the impulse
@@ -312,6 +317,32 @@ def close_purchase(
         _reject_bad_price(new.price, new.price_per, f"new_items[{index}]")
 
     now = datetime.now(UTC).replace(tzinfo=None)
+
+    # A back-dated close maps its day to the trip's boundaries the same way a
+    # manual purchase does; a future day has no shop to file, so it is refused.
+    dating = None
+    if body.date is not None:
+        if body.date > datetime.now(UTC).astimezone(client_tz).date():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="A purchase cannot be dated in the future",
+            )
+        opened_at = (
+            datetime.combine(body.date, time.min, tzinfo=client_tz)
+            .astimezone(UTC)
+            .replace(tzinfo=None)
+        )
+        tears_off_at = trips.tears_off_at_for(opened_at, client_tz)
+        # closed_at is the reconciliation instant, but NEVER in the future.
+        # A same-day close's tear-off is tonight's midnight (ahead of now), so
+        # stamping closed_at there would leave the just-closed trip reading as
+        # «still open» (is_open compares ends_at = closed_at ?? tears_off_at
+        # against now). min() lands a same-day close at `now` and keeps a
+        # back-dated one at its covered day's tear-off (already past), so it
+        # still sorts under that day.
+        closed_at = min(tears_off_at, now)
+        dating = (opened_at, tears_off_at, closed_at)
+
     try:
         purchase = trips.close(
             session,
@@ -321,6 +352,7 @@ def close_purchase(
             body.total,
             now,
             purchase_id=body.purchase_id,
+            dating=dating,
         )
     except trips.NotInTheCart:
         raise HTTPException(
@@ -350,6 +382,12 @@ def close_purchase(
             item.price_store = None
         if line.quantity is not None:
             item.purchased_quantity = line.quantity
+        # A correction from the adjust-product editor (10d): overwrite only what
+        # the caller actually sent, leaving the rest of the product as it was.
+        if line.name is not None:
+            item.name = line.name
+        if line.brand is not None:
+            item.brand = line.brand
         # updated_at deliberately untouched: pricing is not the fresh write
         # the un-purchase grace window exists for, and stamping it here
         # would reopen that window on the purchase being filed.

@@ -1,7 +1,7 @@
 import { ChevronDown, Stamp } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
-import { tripDateLabel } from '../lib/itemCost'
+import { tripDateInput, tripDateLabel } from '../lib/itemCost'
 import type { ListItem, PurchaseSummary } from '../types'
 import { ItemCard } from './ItemCard'
 import './TripCard.css'
@@ -16,8 +16,9 @@ interface Props {
   onRebuy?: (purchaseId: string, itemId: string) => void
   /** Open a line's product ficha (22a) — wired in Lane 3 (JAV-162). */
   onOpenLine?: (itemId: string) => void
-  /** Close the proto-ticket (10b) — wired in Lane 2 (JAV-160). */
-  onCloseTrip?: (purchaseId: string) => void
+  /** Close this proto-trip (10b). The second arg back-dates the close to the day
+   *  the trip covered, so it stays filed there instead of jumping to today. */
+  onCloseTrip?: (purchaseId: string, initialDate?: string) => void
 }
 
 const noop = () => {}
@@ -99,14 +100,16 @@ export function TripCard({
             )}
             {/* A proto has no confirmed total; when its lines are priced we show
                 a provisional one, «≈», summed server-side from price × factor so
-                it matches the rows. With nothing priced, the compact seal badge
-                stands in — «this one carries a seal, not a figure». */}
+                it matches the rows. */}
             {proto && !expanded && trip.items_total != null && (
               <span className="trip-card__total trip-card__total--provisional">
                 ≈ € {formatRowAmount(trip.items_total)}
               </span>
             )}
-            {proto && !expanded && trip.items_total == null && (
+            {/* The seal badge marks EVERY open purchase «sin cerrar», priced or
+                not — so an open trip always reads as one to close at a glance,
+                alongside its provisional total when it has one. */}
+            {proto && !expanded && (
               <span className="trip-card__seal-mark" aria-label="Sin cerrar">
                 <Stamp size={13} strokeWidth={1.8} aria-hidden />
               </span>
@@ -125,7 +128,9 @@ export function TripCard({
           <button
             type="button"
             className="trip-card__seal talon__seal"
-            onClick={() => onCloseTrip?.(trip.id)}
+            onClick={() =>
+              onCloseTrip?.(trip.id, tripDateInput(trip.opened_at))
+            }
           >
             <span className="stamp">Cerrar compra</span>
           </button>

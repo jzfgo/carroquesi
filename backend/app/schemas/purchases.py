@@ -1,4 +1,8 @@
-from datetime import date, datetime
+# `date` is aliased because two schemas below carry a field literally named
+# `date`; a field named the same as its own type shadows the type when a
+# defaulted annotation (`date | None = None`) is evaluated at class-definition.
+from datetime import date as date_cls
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -19,6 +23,10 @@ class PurchaseLine(BaseModel):
     # The quantity actually bought. Writes purchased_quantity; the planned
     # quantity the household typed is left alone.
     quantity: str | None = None
+    # A correction to the product made in the adjust-product editor (10d) at
+    # close time. None leaves the stored value untouched; a value overwrites it.
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    brand: str | None = None
 
 
 class PurchaseNewItem(BaseModel):
@@ -58,6 +66,11 @@ class PurchaseCloseBody(BaseModel):
     # fields that can carry an unbounded payload.
     lines: list[PurchaseLine] = Field(min_length=1, max_length=200)
     new_items: list[PurchaseNewItem] = Field(default_factory=list, max_length=200)
+    # The day the shop happened. Absent files the trip under the close instant
+    # (today); given, the trip is filed under that day — its boundaries derive
+    # from the date in the request's client timezone, the same mapping a manual
+    # purchase uses (ADR-012), so a back-dated close sorts under its covered day.
+    date: date_cls | None = None
 
 
 class PurchaseManualBody(BaseModel):
@@ -74,7 +87,7 @@ class PurchaseManualBody(BaseModel):
     store: str | None = Field(default=None, max_length=100)
     # The calendar day the shop happened on. Required — there is no cart to
     # derive dates from, so the day is the whole point of the request.
-    date: date
+    date: date_cls
     # Deliberately unconstrained — no ge=0, no allow_inf_nan=False. Range and
     # finiteness are checked in the handler instead, for the reason spelled out
     # on PurchaseCloseBody.total: a Pydantic constraint able to reject a NaN

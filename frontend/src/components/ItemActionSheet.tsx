@@ -7,10 +7,10 @@ import {
   Tag,
   Trash2,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { useState } from 'react'
 import type { ListItem, TagField } from '../types'
 import './ItemActionSheet.css'
+import { Sheet } from './Sheet'
 
 type SubState = 'actions' | 'rename' | 'confirm-delete'
 
@@ -38,33 +38,29 @@ export function ItemActionSheet({
 }: Props) {
   const [subState, setSubState] = useState<SubState>('actions')
   const [renameValue, setRenameValue] = useState(item.name)
-  const sheetRef = useRef<HTMLDivElement>(null)
-  const swipe = useSwipeToDismiss(sheetRef, onClose)
+  const trimmed = renameValue.trim()
 
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
+  const label =
+    subState === 'rename'
+      ? 'Renombrar producto'
+      : subState === 'confirm-delete'
+        ? 'Confirmar eliminación'
+        : 'Opciones del producto'
 
-  const overlay = (
-    <div className="item-action-sheet__overlay" onClick={onClose} />
-  )
-
-  if (subState === 'actions') {
-    return (
-      <>
-        {overlay}
-        <div
-          className="item-action-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Opciones del producto"
-          ref={subState === 'actions' ? sheetRef : undefined}
-        >
-          <div className="item-action-sheet__handle" {...swipe} />
+  // ONE sheet on the shared primitive — so it slides in and out like every
+  // other. Its sub-states swap as content (the app-wide sheet↔sub-sheet rule);
+  // a dismiss gesture on a sub-state steps back to the actions, not away.
+  return (
+    <Sheet
+      className="item-action-sheet"
+      label={label}
+      onClose={onClose}
+      onDismiss={
+        subState === 'actions' ? undefined : () => setSubState('actions')
+      }
+    >
+      {subState === 'actions' && (
+        <div className="item-action-sheet__view">
           <p className="item-action-sheet__item-name">{item.name}</p>
           {!purchased && (
             <button
@@ -116,23 +112,10 @@ export function ItemActionSheet({
             <Trash2 size={18} /> Eliminar producto
           </button>
         </div>
-      </>
-    )
-  }
+      )}
 
-  if (subState === 'rename') {
-    const trimmed = renameValue.trim()
-    return (
-      <>
-        {overlay}
-        <div
-          className="item-action-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Renombrar producto"
-          ref={sheetRef}
-        >
-          <div className="item-action-sheet__handle" {...swipe} />
+      {subState === 'rename' && (
+        <div className="item-action-sheet__view">
           <p className="item-action-sheet__item-name">
             <Pencil size={16} /> Renombrar producto
           </p>
@@ -165,41 +148,30 @@ export function ItemActionSheet({
             Cancelar
           </button>
         </div>
-      </>
-    )
-  }
+      )}
 
-  // subState === 'confirm-delete'
-  return (
-    <>
-      {overlay}
-      <div
-        className="item-action-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Confirmar eliminación"
-        ref={sheetRef}
-      >
-        <div className="item-action-sheet__handle" {...swipe} />
-        <p className="item-action-sheet__item-name">{item.name}</p>
-        <p className="item-action-sheet__warning">
-          Esta acción no se puede deshacer.
-        </p>
-        <button
-          className="item-action-sheet__confirm-btn"
-          onClick={onDelete}
-          aria-label="Sí, eliminar"
-        >
-          Sí, eliminar
-        </button>
-        <button
-          className="item-action-sheet__cancel-btn"
-          onClick={() => setSubState('actions')}
-          aria-label="Cancelar"
-        >
-          Cancelar
-        </button>
-      </div>
-    </>
+      {subState === 'confirm-delete' && (
+        <div className="item-action-sheet__view">
+          <p className="item-action-sheet__item-name">{item.name}</p>
+          <p className="item-action-sheet__warning">
+            Esta acción no se puede deshacer.
+          </p>
+          <button
+            className="item-action-sheet__confirm-btn"
+            onClick={onDelete}
+            aria-label="Sí, eliminar"
+          >
+            Sí, eliminar
+          </button>
+          <button
+            className="item-action-sheet__cancel-btn"
+            onClick={() => setSubState('actions')}
+            aria-label="Cancelar"
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+    </Sheet>
   )
 }
