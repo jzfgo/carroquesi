@@ -2,7 +2,7 @@ import { ChevronRight, RotateCcw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getPriceHistory } from '../lib/api'
 import { formatRowAmount } from '../lib/formatPrice'
-import { formatChartDate, Sparkline } from '../lib/priceChart'
+import { formatChartDate, PriceBand } from '../lib/priceChart'
 import { normalizeEntries } from '../lib/priceNormalization'
 import { buildRastroSegments } from '../lib/rastro'
 import type { ListItem, Member, PriceEntry, TagField } from '../types'
@@ -94,9 +94,9 @@ function LastPriceBlock({
     .filter(Boolean)
     .join(' · ')
 
-  const curve = normalizeEntries(entries).entries.sort((a, b) =>
-    (b.purchased_at ?? '').localeCompare(a.purchased_at ?? ''),
-  )
+  // The glance is an average line with a min–max band across stores — never one
+  // line threaded through several shops, whose slope would mean nothing.
+  const curve = normalizeEntries(entries).entries
 
   return (
     <div className="ficha__last">
@@ -108,16 +108,14 @@ function LastPriceBlock({
         </span>
         {sub && <span className="ficha__last-sub">{sub}</span>}
       </span>
-      {curve.length > 0 && (
-        <Sparkline
-          records={curve}
-          width={200}
-          height={42}
-          pad={6}
-          strokeWidth={1.5}
-          className="ficha__last-curve"
-        />
-      )}
+      <PriceBand
+        records={curve}
+        width={120}
+        height={42}
+        pad={6}
+        strokeWidth={1.5}
+        className="ficha__last-curve"
+      />
     </div>
   )
 }
