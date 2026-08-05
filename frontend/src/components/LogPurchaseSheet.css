@@ -1,23 +1,10 @@
-.lps {
-  background: var(--paper-0);
-  border-radius: 20px 20px 0 0;
-  padding-bottom: max(env(safe-area-inset-bottom), 16px);
-}
-
-.lps__handle {
-  width: 36px;
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  margin: 10px auto 12px;
-  touch-action: none;
-}
-
+/* Panel chrome (position, scrim, grabber, slide) comes from the shared Sheet
+   primitive. This file styles only the content. */
 .lps__title {
   font-size: 16px;
   font-weight: 700;
   color: var(--ink-0);
-  padding: 0 16px 4px;
+  padding: 6px 16px 4px;
 }
 
 .lps__subtitle {
@@ -72,28 +59,13 @@
   appearance: none;
 }
 
-.lps__unit-toggle {
-  display: flex;
+/* Derived unit, not a toggle: shows «/ud» or «/kg» as read-only text next to
+   the price, following what is typed in the quantity field (rule 10a). */
+.lps__unit-suffix {
   flex-shrink: 0;
-  background: var(--paper-1);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.lps__unit-btn {
-  padding: 8px 12px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink-2);
-  border: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-.lps__unit-btn--active {
-  background: var(--accent);
-  color: var(--accent-fg);
-  border-radius: 8px;
 }
 
 .lps__legend {

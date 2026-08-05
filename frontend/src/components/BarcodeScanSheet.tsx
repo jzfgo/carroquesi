@@ -1,9 +1,9 @@
 import { Pencil, Store, Tag } from 'lucide-react'
-import { useRef, useState } from 'react'
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { useState } from 'react'
 import { storeKey } from '../lib/storeKey'
 import type { BarcodeRead } from '../types'
 import './BarcodeScanSheet.css'
+import { Sheet } from './Sheet'
 
 interface Props {
   product: BarcodeRead
@@ -52,9 +52,6 @@ export function BarcodeScanSheet({
       new Set((initialStores ?? []).map((s) => byKey.get(storeKey(s)) ?? s)),
   )
 
-  const sheetRef = useRef<HTMLDivElement>(null)
-  const swipe = useSwipeToDismiss(sheetRef, onClose)
-
   const displayBrand = initialBrand !== undefined ? initialBrand : product.brand
 
   function toggleStore(store: string) {
@@ -67,70 +64,66 @@ export function BarcodeScanSheet({
   }
 
   return (
-    <>
-      <div className="bss__overlay" onClick={onClose} />
-      <div className="bss" ref={sheetRef}>
-        <div className="bss__handle" {...swipe} />
-        <div className="bss__header">Producto encontrado</div>
+    <Sheet className="bss" label="Producto encontrado" onClose={onClose}>
+      <div className="bss__header">Producto encontrado</div>
 
-        <div className="bss__product-row">
-          <div className="bss__product-info">
-            <div className="bss__name">{product.name}</div>
-            {(displayBrand || allStores.length > 0) && (
-              <div className="bss__tags">
-                {displayBrand && (
-                  <span className="bss__tag">
-                    <Tag size={13} /> {displayBrand}
-                  </span>
-                )}
-                {allStores.length > 0 && (
-                  <div className="bss__store-chips" data-testid="store-chips">
-                    {allStores.map((s) => (
-                      <button
-                        key={s}
-                        className={`bss__tag bss__tag--store${selectedStores.has(s) ? ' bss__tag--store-selected' : ''}`}
-                        onClick={() => toggleStore(s)}
-                        aria-pressed={selectedStores.has(s)}
-                        aria-label={s}
-                      >
-                        <span aria-hidden="true">
-                          <Store size={13} />
-                        </span>{' '}
-                        <span>{s}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          <button
-            className="bss__edit"
-            onClick={() => onEdit(buildPrefill(product, displayBrand))}
-            aria-label="Editar"
-          >
-            <Pencil size={16} />
-          </button>
+      <div className="bss__product-row">
+        <div className="bss__product-info">
+          <div className="bss__name">{product.name}</div>
+          {(displayBrand || allStores.length > 0) && (
+            <div className="bss__tags">
+              {displayBrand && (
+                <span className="bss__tag">
+                  <Tag size={13} /> {displayBrand}
+                </span>
+              )}
+              {allStores.length > 0 && (
+                <div className="bss__store-chips" data-testid="store-chips">
+                  {allStores.map((s) => (
+                    <button
+                      key={s}
+                      className={`bss__tag bss__tag--store${selectedStores.has(s) ? ' bss__tag--store-selected' : ''}`}
+                      onClick={() => toggleStore(s)}
+                      aria-pressed={selectedStores.has(s)}
+                      aria-label={s}
+                    >
+                      <span aria-hidden="true">
+                        <Store size={13} />
+                      </span>{' '}
+                      <span>{s}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
-
-        <div className="bss__actions">
-          <button className="bss__cancel" onClick={onClose}>
-            Cancelar
-          </button>
-          <button
-            className="bss__add"
-            onClick={() =>
-              onAdd({
-                name: product.name,
-                brand: displayBrand,
-                stores: allStores.filter((s) => selectedStores.has(s)),
-              })
-            }
-          >
-            Añadir a la lista
-          </button>
-        </div>
+        <button
+          className="bss__edit"
+          onClick={() => onEdit(buildPrefill(product, displayBrand))}
+          aria-label="Editar"
+        >
+          <Pencil size={16} />
+        </button>
       </div>
-    </>
+
+      <div className="bss__actions">
+        <button className="bss__cancel" onClick={onClose}>
+          Cancelar
+        </button>
+        <button
+          className="bss__add"
+          onClick={() =>
+            onAdd({
+              name: product.name,
+              brand: displayBrand,
+              stores: allStores.filter((s) => selectedStores.has(s)),
+            })
+          }
+        >
+          Añadir a la lista
+        </button>
+      </div>
+    </Sheet>
   )
 }

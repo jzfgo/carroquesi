@@ -1,29 +1,7 @@
-.bss__overlay {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 40%);
-  z-index: 200;
-}
-
+/* Panel chrome (position, scrim, grabber, slide) comes from the shared Sheet
+   primitive. This file styles only the content. */
 .bss {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 201;
-  background: var(--paper-0);
-  border-radius: 20px 20px 0 0;
-  padding: 0 20px 36px;
-  border-top: 1px solid var(--border);
-}
-
-.bss__handle {
-  width: 36px;
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  margin: 10px auto 12px;
-  touch-action: none;
+  padding-inline: 20px;
 }
 
 .bss__header {

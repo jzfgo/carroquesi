@@ -2,31 +2,9 @@
    the only editing door (→ 10d). Confirmed amounts print solid, inherited ones
    dashed, and a line left without a price saves «sin precio». All printed type. */
 
-/* Sheet↔sub-sheet: the surface never re-presents; only its contents swap (the
-   app-wide rule). A quick fade sells it as «the sheet's page turned», not «a new
-   sheet slid in». Covers 10b's table view and 10d's editor view alike. */
-.close-sheet__view,
-.adjust-sheet__view {
-  animation: sheet-view-in 140ms ease;
-}
-
-@keyframes sheet-view-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .close-sheet__view,
-  .adjust-sheet__view {
-    animation: none;
-  }
-}
-
+/* Sheet↔sub-sheet swaps only the contents (the app-wide rule); the surface
+   never re-presents, and the swap itself carries no animation — the shared
+   Sheet primitive owns all sheet motion. */
 .close-sheet__head {
   padding: 0 20px 12px;
   border-bottom: 1px solid var(--paper-edge);

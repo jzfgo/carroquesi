@@ -205,6 +205,8 @@ beforeEach(() => {
   // The list now mounts the stack (18a), which fetches purchases on render.
   vi.mocked(api.getPurchases).mockResolvedValue({ purchases: [], total: 0 })
   vi.mocked(api.getPurchaseItems).mockResolvedValue([])
+  // The product ficha fetches its price history on open.
+  vi.mocked(api.getPriceHistory).mockResolvedValue({ entries: [] })
 })
 
 afterEach(() => {
@@ -333,7 +335,7 @@ describe('ListScreen', () => {
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
     fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Marca' }))
+    fireEvent.click(screen.getByRole('button', { name: /marca/i }))
 
     expect(document.querySelector('.tag-edit-sheet')).toBeInTheDocument()
 
@@ -355,7 +357,7 @@ describe('ListScreen', () => {
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
     fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Tiendas' }))
+    fireEvent.click(screen.getByRole('button', { name: /tiendas/i }))
 
     expect(document.querySelector('.store-edit-sheet')).toBeInTheDocument()
 
@@ -420,7 +422,7 @@ describe('ListScreen', () => {
     expect(document.querySelector('.item-card__meta')).not.toBeInTheDocument()
   })
 
-  it('opens ItemActionSheet when the row is tapped and handles rename', async () => {
+  it('opens the product ficha when the row is tapped and handles rename', async () => {
     const renameItemMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -432,11 +434,11 @@ describe('ListScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
 
-    expect(
-      screen.getByRole('dialog', { name: /Opciones del producto/i }),
-    ).toBeInTheDocument()
+    // The ficha's dialog is named for the product itself.
+    expect(screen.getByRole('dialog', { name: 'Manzanas' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
+    // The Nombre field opens the rename editor in place.
+    fireEvent.click(screen.getByRole('button', { name: /nombre/i }))
     const input = screen.getByRole('textbox', { name: 'Nombre del producto' })
     fireEvent.change(input, { target: { value: 'Manzanas Rojas' } })
     fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
@@ -444,7 +446,7 @@ describe('ListScreen', () => {
     expect(renameItemMock).toHaveBeenCalledWith('i1', 'Manzanas Rojas')
   })
 
-  it('opens ItemActionSheet when the row is tapped and handles delete', async () => {
+  it('opens the product ficha when the row is tapped and handles delete', async () => {
     const removeItemMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -456,9 +458,7 @@ describe('ListScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
 
-    expect(
-      screen.getByRole('dialog', { name: /Opciones del producto/i }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Manzanas' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /eliminar producto/i }))
     fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
@@ -607,7 +607,7 @@ describe('ListScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
 
-    fireEvent.click(screen.getByRole('button', { name: /comprar de nuevo/i }))
+    fireEvent.click(screen.getByRole('button', { name: /volver a comprar/i }))
 
     expect(addItemMock).toHaveBeenCalledWith({
       name: 'Manzanas',

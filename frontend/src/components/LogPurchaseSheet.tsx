@@ -1,17 +1,16 @@
 import { ShoppingCart, Store } from 'lucide-react'
-import { useRef, useState } from 'react'
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { useState } from 'react'
 import { formatPrice } from '../lib/formatPrice'
 import { isTripOpen } from '../lib/isTripOpen'
-import { parseQuantityFactor } from '../lib/itemCost'
+import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
 import { storeKey } from '../lib/storeKey'
 import type { ListItem } from '../types'
 import './LogPurchaseSheet.css'
+import { Sheet } from './Sheet'
 
 interface Props {
   item: ListItem
   initialAmount: number | null
-  initialPricePer: 'KILOGRAM' | null
   initialStore: string | null
   initialPurchasedQuantity: string | null
   suggestedStore?: string | null
@@ -30,7 +29,6 @@ interface Props {
 export default function LogPurchaseSheet({
   item,
   initialAmount,
-  initialPricePer,
   initialStore,
   initialPurchasedQuantity,
   suggestedStore,
@@ -39,9 +37,6 @@ export default function LogPurchaseSheet({
   onClose,
   displayStore = (raw) => raw,
 }: Props) {
-  const sheetRef = useRef<HTMLDivElement>(null)
-  const swipe = useSwipeToDismiss(sheetRef, onClose)
-
   // One chip per store: dedupe spelling variants by key and label with the
   // registry's canonical name.
   const storesByKey = new Map<string, string>()
@@ -58,7 +53,6 @@ export default function LogPurchaseSheet({
   const [amountStr, setAmountStr] = useState(
     initialAmount !== null ? String(initialAmount) : '',
   )
-  const [pricePer, setPricePer] = useState<'KILOGRAM' | null>(initialPricePer)
   const [selectedStore, setSelectedStore] = useState<string | null>(
     initialStore ?? effectiveSuggestion,
   )
@@ -68,6 +62,10 @@ export default function LogPurchaseSheet({
   const [addingStore, setAddingStore] = useState(false)
   const [newStore, setNewStore] = useState('')
   const [deleting, setDeleting] = useState(false)
+
+  // The unit is derived from the quantity, never a toggle (rule 10a): a weight
+  // typed there prices per kilo, anything else per unit.
+  const { pricePer, suffix } = deriveUnit(purchasedQtyStr)
 
   const amount = parseFloat(amountStr)
   const canSave = !isNaN(amount) && amount > 0
@@ -115,8 +113,7 @@ export default function LogPurchaseSheet({
   }
 
   return (
-    <div className="lps" ref={sheetRef}>
-      <div className="lps__handle" {...swipe} />
+    <Sheet className="lps" label="Registrar compra" onClose={onClose}>
       <div className="lps__title">
         <ShoppingCart size={18} /> Registrar compra
       </div>
@@ -151,22 +148,7 @@ export default function LogPurchaseSheet({
             min="0"
             step="0.01"
           />
-          <div className="lps__unit-toggle">
-            <button
-              className={`lps__unit-btn${pricePer === null ? ' lps__unit-btn--active' : ''}`}
-              onClick={() => setPricePer(null)}
-              type="button"
-            >
-              /ud
-            </button>
-            <button
-              className={`lps__unit-btn${pricePer === 'KILOGRAM' ? ' lps__unit-btn--active' : ''}`}
-              onClick={() => setPricePer('KILOGRAM')}
-              type="button"
-            >
-              /kg
-            </button>
-          </div>
+          <span className="lps__unit-suffix">{suffix}</span>
         </div>
         <div className="lps__qp-footer">
           <span className="lps__legend">
@@ -243,6 +225,6 @@ export default function LogPurchaseSheet({
       <button className="lps__cancel" onClick={onClose} type="button">
         Cancelar
       </button>
-    </div>
+    </Sheet>
   )
 }

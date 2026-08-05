@@ -51,6 +51,23 @@ export function parseKgFactor(quantity: string | null): number | null {
   return parseQuantityFactor(quantity, 'KILOGRAM')
 }
 
+/**
+ * The `/ud`·`/kg` unit and its `price_per` are DERIVED from what is typed in the
+ * quantity — a weight («500 ml», «1,12 kg») prices per kilo, anything else per
+ * unit. This is rule 10a: no segmented toggle anywhere, the same rule everywhere
+ * a price is entered.
+ */
+export function deriveUnit(quantity: string | null): {
+  pricePer: 'KILOGRAM' | null
+  suffix: string
+} {
+  const isWeight = !!quantity && parseKgFactor(quantity) !== null
+  return {
+    pricePer: isWeight ? 'KILOGRAM' : null,
+    suffix: isWeight ? '/kg' : '/ud',
+  }
+}
+
 export interface CostSummary {
   total: number
   partial: boolean

@@ -194,9 +194,9 @@ test('ESC calls onClose even when input is not focused', () => {
   expect(onClose).toHaveBeenCalled()
 })
 
-test('tapping the overlay calls onClose', () => {
+test('tapping the scrim calls onClose', () => {
   const onClose = vi.fn()
-  const { container } = render(
+  render(
     <TagEditSheet
       item={BASE_ITEM}
       field="brand"
@@ -205,7 +205,7 @@ test('tapping the overlay calls onClose', () => {
       onClose={onClose}
     />,
   )
-  fireEvent.click(container.querySelector('.tag-edit-sheet__overlay')!)
+  fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
   expect(onClose).toHaveBeenCalled()
 })
 

@@ -40,6 +40,15 @@
   --shadow: var(--shadow-md);
 }
 
+/* Border-box everywhere: an element's declared width includes its padding and
+   border. Without this, width:100% plus side padding overflows its container —
+   a footgun that had been patched per-component in dozens of places. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 /* Align all lucide-react icons with surrounding text */
 .lucide {
   vertical-align: middle;

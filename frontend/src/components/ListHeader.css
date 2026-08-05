@@ -36,7 +36,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 62%;
+
+  /* Reserve fixed room for the side clusters (back link, search + menu) so the
+     centred title truncates before it reaches them. A percentage cannot: the
+     icons are fixed-width, so on a narrow phone a percentage still overlaps. */
+  max-width: calc(100% - 180px);
   margin: 0;
   letter-spacing: normal;
 }
