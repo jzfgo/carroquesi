@@ -61,6 +61,15 @@ function itemCard(page: Page, name: string) {
   return page.locator('.item-card').filter({ hasText: name })
 }
 
+// A record inside an expanded trip in the stack — where settled, closed-trip
+// purchases live, rather than the pending list.
+function stackRecord(page: Page, name: string) {
+  return page
+    .locator('.stack .trip-card__lines')
+    .locator('.item-card')
+    .filter({ hasText: name })
+}
+
 function receiptRow(page: Page, receiptName: string) {
   return page.locator('.rss-row').filter({ hasText: receiptName })
 }
@@ -131,7 +140,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await uploadReceipt(page)
 
       const sheet = page
-        .locator('.sheet')
+        .locator('.modal-sheet')
         .filter({ has: page.locator('.rss-toolbar') })
       await expect(sheet).toBeVisible()
       await expect(page.locator('.rss-row')).toHaveCount(3)
@@ -174,7 +183,7 @@ test.describe('functional', () => {
 
     await uploadReceipt(page)
     const sheet = page
-      .locator('.sheet')
+      .locator('.modal-sheet')
       .filter({ has: page.locator('.rss-toolbar') })
     await expect(sheet).toBeVisible()
 
@@ -216,7 +225,7 @@ test.describe('functional', () => {
 
     await uploadReceipt(page)
     const sheet = page
-      .locator('.sheet')
+      .locator('.modal-sheet')
       .filter({ has: page.locator('.rss-toolbar') })
     await expect(sheet).toBeVisible()
 
@@ -253,12 +262,66 @@ test.describe('functional', () => {
       price: 1.0,
     })
 
-    // The round trip that matters: it comes back from the API already
-    // purchased, carrying the sigil brand and the receipt's price.
-    const created = itemCard(page, 'Pan integral')
+    // The created record is a settled purchase on a closed trip, so it lands in
+    // the trip stack, not the pending list — and the stack is a separate read
+    // that a receipt apply does not refresh in place. Surface that trip and
+    // reload, then the record reads back exactly as the API returns it.
+    await page.route(/\/purchases(\?|$)/, (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          purchases: [
+            {
+              id: 'trip-receipt-0710',
+              list_id: LIST_ID,
+              opened_at: '2026-07-10T00:00:00',
+              tears_off_at: '2026-07-11T00:00:00',
+              closed_at: '2026-07-11T00:00:00',
+              store: 'Mercadona',
+              total: 1.0,
+              line_count: 1,
+              has_receipt: true,
+              items_total: 1.0,
+            },
+          ],
+          total: 1,
+        }),
+      }),
+    )
+    await page.route(/\/purchases\/[^/]+\/items(\?|$)/, (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: 'created-pan-integral',
+            list_id: LIST_ID,
+            name: 'Pan integral',
+            quantity: null,
+            purchased_quantity: '1',
+            brand: 'Bimbo',
+            stores: ['Mercadona'],
+            purchased: true,
+            purchased_at: '2026-07-10T00:00:00',
+            purchase_id: 'trip-receipt-0710',
+            purchase_ends_at: '2026-07-11T00:00:00',
+            ean: null,
+            price: 1.0,
+            price_per: null,
+            price_store: 'Mercadona',
+            added_by: 'seed-user-alice',
+            created_at: '2026-07-10T00:00:00',
+            updated_at: '2026-07-10T00:00:00',
+          },
+        ]),
+      }),
+    )
+    await page.goto(`/lists/${LIST_ID}`)
+
+    // It comes back already purchased, carrying the sigil brand and the
+    // receipt's price; being a day before the pinned clock, the check yields
+    // its slot to the re-buy control.
+    const created = stackRecord(page, 'Pan integral')
     await expect(created).toBeVisible()
-    // A record from a day before the (pinned) clock: the check yields its
-    // slot to the re-buy control.
     await expect(
       created.getByRole('button', { name: 'Volver a comprar' }),
     ).toBeVisible()
@@ -331,7 +394,7 @@ test.describe('functional', () => {
     await uploadReceipt(page)
 
     const sheet = page
-      .locator('.sheet')
+      .locator('.modal-sheet')
       .filter({ has: page.locator('.rss-toolbar') })
     await expect(sheet).toBeVisible()
     await expect(sheet.locator('.rss-toolbar-count')).toHaveText(

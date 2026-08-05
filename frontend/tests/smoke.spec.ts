@@ -24,8 +24,12 @@ async function assertListScreenLoaded(page: Page) {
 
 async function addItemManzanas(page: Page) {
   await page.goto(`/lists/${SEED_LISTS[0].id}`)
-  await page.getByLabel('Añadir producto').fill('Manzanas')
-  await page.getByRole('button', { name: 'Añadir', exact: true }).click()
+  // While the field is focused the trailing control is «Borrar», not the send
+  // button — the up-arrow «Añadir» only appears once the field blurs. So the
+  // way to submit with the keyboard up is Enter, which is how a user does it.
+  const input = page.getByLabel('Añadir producto')
+  await input.fill('Manzanas')
+  await input.press('Enter')
   await expect(page.getByText('Manzanas')).toBeVisible()
   await awaitPrimingCard(page)
 }
