@@ -4,6 +4,7 @@
    warm here. */
 import { formatPrice } from './formatPrice'
 import type { ChartEntry } from './priceNormalization'
+import { storeKey } from './storeKey'
 
 /**
  * Pure chart helpers shared by the price-history sheet and the product ficha's
@@ -276,4 +277,257 @@ export function recordAmountLabel(r: ChartEntry): string {
   return r.displayAmount !== null
     ? formatPrice(r.displayAmount, r.displayPricePer)
     : formatPrice(r.originalAmount, r.originalPricePer as 'KILOGRAM' | null)
+}
+
+export interface BandGeometry {
+  /** Filled min–max ribbons, one per run of stores that overlap in time. */
+  bandPaths: string[]
+  /** The average line, broken into one M…L… run per continuous stretch. */
+  avgPathD: string
+  /** A dot per store seen only once — an observation, not a trend. */
+  dots: { x: number; y: number }[]
+  /** True when any moment had two or more stores, so the band has width. */
+  hasWidth: boolean
+  /** Count of priced, dated points that reached the geometry. */
+  validCount: number
+}
+
+interface StoreSeries {
+  first: number
+  last: number
+  ts: number[]
+  vs: number[]
+}
+
+/**
+ * Builds the combined price glance: one average line with a min–max band across
+ * the stores tracked over time, plus a dot for any store seen only once.
+ *
+ * The rule that keeps it honest: a line is only ever drawn along a single
+ * store's own points. At each moment the band and the average read across the
+ * stores that genuinely overlap there — never joining two different stores into
+ * one slope, which is a change of shop, not a change of price. A store seen once
+ * cannot form a line, so it stays a dot; two stores that never shared a moment
+ * leave a break in the average rather than a bridge between them.
+ */
+export function bandGeometry(
+  records: ChartEntry[],
+  w: number,
+  h: number,
+  pad: number,
+): BandGeometry {
+  // The glance plots priced, dated points only; gap records live in the
+  // per-store detail, not here.
+  const priced = records
+    .filter(
+      (r): r is ChartEntry & { displayAmount: number; purchased_at: string } =>
+        r.displayAmount !== null && r.purchased_at !== null,
+    )
+    .map((r) => ({
+      key: r.store ? storeKey(r.store) : '__none__',
+      t: new Date(r.purchased_at).getTime(),
+      v: r.displayAmount,
+    }))
+
+  const validCount = priced.length
+
+  // Time spans the X axis; price spans the Y axis over every point, so a lone
+  // high or low observation still lands inside the frame.
+  const allT = priced.map((p) => p.t)
+  const allV = priced.map((p) => p.v)
+  const minT = allT.length ? Math.min(...allT) : 0
+  const maxT = allT.length ? Math.max(...allT) : 0
+  const tRange = maxT - minT
+  const minV = allV.length ? Math.min(...allV) : 0
+  const maxV = allV.length ? Math.max(...allV) : 0
+  const vRange = maxV - minV || 1
+  const getX = (t: number) =>
+    tRange === 0 ? w / 2 : pad + ((t - minT) / tRange) * (w - 2 * pad)
+  const getY = (v: number) =>
+    minV === maxV ? h / 2 : pad + ((maxV - v) / vRange) * (h - 2 * pad)
+
+  // Group by store, averaging any points that share a timestamp so each store
+  // reads as a strictly increasing series.
+  const groups = new Map<string, Map<number, number[]>>()
+  for (const p of priced) {
+    let g = groups.get(p.key)
+    if (!g) {
+      g = new Map()
+      groups.set(p.key, g)
+    }
+    const bucket = g.get(p.t)
+    if (bucket) bucket.push(p.v)
+    else g.set(p.t, [p.v])
+  }
+
+  const lineStores: StoreSeries[] = []
+  const dots: { x: number; y: number }[] = []
+  for (const g of groups.values()) {
+    const ts = [...g.keys()].sort((a, b) => a - b)
+    const vs = ts.map((t) => {
+      const arr = g.get(t)!
+      return arr.reduce((s, x) => s + x, 0) / arr.length
+    })
+    if (ts.length >= 2 && ts[ts.length - 1] > ts[0]) {
+      lineStores.push({ first: ts[0], last: ts[ts.length - 1], ts, vs })
+    } else {
+      // One moment, however many receipts: a dot, never a line.
+      for (let i = 0; i < ts.length; i++)
+        dots.push({ x: getX(ts[i]), y: getY(vs[i]) })
+    }
+  }
+
+  // A store's price at time t, but only inside its own observed span — never
+  // extrapolated past the first or last time we actually saw it.
+  const valueAt = (s: StoreSeries, t: number): number | null => {
+    if (t < s.first || t > s.last) return null
+    for (let i = 1; i < s.ts.length; i++) {
+      if (t <= s.ts[i]) {
+        const t0 = s.ts[i - 1]
+        const t1 = s.ts[i]
+        if (t1 === t0) return s.vs[i]
+        return s.vs[i - 1] + ((s.vs[i] - s.vs[i - 1]) * (t - t0)) / (t1 - t0)
+      }
+    }
+    return s.vs[s.vs.length - 1]
+  }
+
+  // Sample at every line-store vertex. Store membership changes only at a
+  // vertex, and a mean of the present stores is linear between vertices, so the
+  // average line is exact. The band edges are only sampled here, so where two
+  // stores cross between vertices the ribbon cuts that corner and reads a touch
+  // narrow. That is cosmetic — it never bridges stores that do not overlap.
+  const sampleTs = [...new Set(lineStores.flatMap((s) => s.ts))].sort(
+    (a, b) => a - b,
+  )
+  const samples = sampleTs.map((t) => {
+    const vals: number[] = []
+    for (const s of lineStores) {
+      const v = valueAt(s, t)
+      if (v !== null) vals.push(v)
+    }
+    return {
+      t,
+      lo: Math.min(...vals),
+      hi: Math.max(...vals),
+      avg: vals.reduce((a, b) => a + b, 0) / vals.length,
+    }
+  })
+
+  // Join two adjacent samples only when one store spans the whole gap between
+  // them. Otherwise they belong to stores that never shared a moment, and a
+  // line across them is the cross-store slope this chart exists to avoid.
+  const runs: (typeof samples)[] = []
+  let run: typeof samples = []
+  for (let i = 0; i < samples.length; i++) {
+    const connected =
+      run.length > 0 &&
+      lineStores.some(
+        (s) => s.first <= samples[i - 1].t && s.last >= samples[i].t,
+      )
+    if (connected) {
+      run.push(samples[i])
+    } else {
+      if (run.length) runs.push(run)
+      run = [samples[i]]
+    }
+  }
+  if (run.length) runs.push(run)
+
+  const bandPaths: string[] = []
+  const avgSegments: string[] = []
+  let hasWidth = false
+  const pt = (x: number, y: number) => `${x.toFixed(1)},${y.toFixed(1)}`
+  for (const r of runs) {
+    avgSegments.push(
+      r
+        .map((s, j) => `${j === 0 ? 'M' : 'L'}${pt(getX(s.t), getY(s.avg))}`)
+        .join(' '),
+    )
+    // A ribbon needs two samples and some spread; a run that is one point or a
+    // lone store (hi === lo throughout) has no visible area.
+    if (r.length >= 2 && r.some((s) => s.hi > s.lo)) {
+      hasWidth = true
+      const top = r
+        .map((s, j) => `${j === 0 ? 'M' : 'L'}${pt(getX(s.t), getY(s.hi))}`)
+        .join(' ')
+      const bottom = [...r]
+        .reverse()
+        .map((s) => `L${pt(getX(s.t), getY(s.lo))}`)
+        .join(' ')
+      bandPaths.push(`${top} ${bottom} Z`)
+    }
+  }
+
+  return {
+    bandPaths,
+    avgPathD: avgSegments.join(' '),
+    dots,
+    hasWidth,
+    validCount,
+  }
+}
+
+interface PriceBandProps {
+  records: ChartEntry[]
+  width?: number
+  height?: number
+  pad?: number
+  strokeWidth?: number
+  className?: string
+}
+
+/**
+ * The ficha's combined price glance. Unlike the per-store Sparkline it never
+ * joins two different stores into one line: it shows the average across the
+ * stores tracked over time, a min–max band where they overlap, and a dot for
+ * any store seen only once. Renders nothing when there is no priced history.
+ */
+export function PriceBand({
+  records,
+  width = 120,
+  height = 42,
+  pad = 6,
+  strokeWidth = 1.5,
+  className = 'phs__sparkline',
+}: PriceBandProps) {
+  const { bandPaths, avgPathD, dots, validCount } = bandGeometry(
+    records,
+    width,
+    height,
+    pad,
+  )
+
+  if (validCount === 0) return null
+
+  return (
+    <svg className={className} viewBox={`0 0 ${width} ${height}`}>
+      {bandPaths.map((d, i) => (
+        <path
+          key={i}
+          d={d}
+          fill="var(--color-primary-bg, rgba(10,132,255,0.15))"
+        />
+      ))}
+      {avgPathD && (
+        <path
+          d={avgPathD}
+          stroke="var(--color-primary, #0a84ff)"
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      )}
+      {dots.map((d, i) => (
+        <circle
+          key={i}
+          cx={d.x.toFixed(1)}
+          cy={d.y.toFixed(1)}
+          r="2"
+          fill="var(--color-primary, #0a84ff)"
+        />
+      ))}
+    </svg>
+  )
 }
