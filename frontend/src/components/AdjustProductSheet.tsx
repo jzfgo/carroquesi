@@ -1,7 +1,7 @@
 import { Check, ChevronLeft, X } from 'lucide-react'
 import { useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
-import { parseKgFactor, parseQuantityFactor } from '../lib/itemCost'
+import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
 import './AdjustProductSheet.css'
 
 /** One line of the close draft — the shape 10b holds and 10d edits. */
@@ -32,20 +32,6 @@ interface Props {
   onRemove: () => void
   /** Back-galón — return to the 10b table without committing. */
   onBack: () => void
-}
-
-// The `/ud`·`/kg` suffix and price_per are DERIVED from what's typed in the
-// quantity — a weight («500 ml», «1,12 kg») prices per kilo, anything else per
-// unit. This is the whole point of 10d (rule 10a): no segmented toggle.
-function deriveUnit(quantity: string | null): {
-  pricePer: 'KILOGRAM' | null
-  suffix: string
-} {
-  const isWeight = !!quantity && parseKgFactor(quantity) !== null
-  return {
-    pricePer: isWeight ? 'KILOGRAM' : null,
-    suffix: isWeight ? '/kg' : '/ud',
-  }
 }
 
 function parsePrice(text: string): number | null {

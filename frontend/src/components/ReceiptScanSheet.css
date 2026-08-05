@@ -609,29 +609,13 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-.rss-unit-toggle {
-  display: flex;
-  background: var(--paper-0);
-  border-radius: 8px;
-  overflow: hidden;
+/* Derived unit, not a toggle: «/ud» or «/kg» as read-only text following the
+   quantity field (rule 10a). */
+.rss-unit-suffix {
   flex-shrink: 0;
-}
-
-.rss-unit-btn {
-  padding: 7px 9px;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  color: var(--accent);
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.rss-unit-btn--active {
-  background: var(--accent);
-  color: var(--accent-fg);
-  border-radius: 8px;
+  color: var(--ink-2);
 }
 
 .rss-link-select {

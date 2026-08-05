@@ -10,7 +10,11 @@ import {
 import { useRef, useState } from 'react'
 import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
 import { formatPrice } from '../lib/formatPrice'
-import { parseQuantityFactor, purchasedDateLabel } from '../lib/itemCost'
+import {
+  deriveUnit,
+  parseQuantityFactor,
+  purchasedDateLabel,
+} from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
 import {
   isReceiptDateWorthConfirming,
@@ -51,7 +55,6 @@ interface LineState {
   createEan: string | null
   quantity: string
   unitPrice: number
-  pricePer: 'KILOGRAM' | null
 }
 
 type PendingScan = { index: number; product: BarcodeRead } | null
@@ -115,7 +118,6 @@ function initState(result: ReceiptScanResult): LineState[] {
       createEan: null,
       quantity: initialQuantity(m),
       unitPrice: m.unit_price,
-      pricePer: m.price_type === 'KILOGRAM' ? ('KILOGRAM' as const) : null,
     })),
     ...result.unmatched.map((u) => ({
       included: false,
@@ -125,9 +127,14 @@ function initState(result: ReceiptScanResult): LineState[] {
       createEan: null,
       quantity: initialQuantity(u),
       unitPrice: u.unit_price,
-      pricePer: u.price_type === 'KILOGRAM' ? ('KILOGRAM' as const) : null,
     })),
   ]
+}
+
+// The unit is derived from the line's quantity, never a toggle (rule 10a): a
+// weight there prices per kilo, anything else per unit.
+function linePricePer(ls: LineState): 'KILOGRAM' | null {
+  return deriveUnit(ls.quantity).pricePer
 }
 
 function formatQtySummary(ls: LineState): string {
@@ -135,13 +142,14 @@ function formatQtySummary(ls: LineState): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
-  const unit = ls.pricePer === 'KILOGRAM' ? '€/kg' : '€/ud'
-  const sep = ls.pricePer === 'KILOGRAM' ? ' × ' : '× '
+  const isKg = linePricePer(ls) === 'KILOGRAM'
+  const unit = isKg ? '€/kg' : '€/ud'
+  const sep = isKg ? ' × ' : '× '
   return `${ls.quantity}${sep}${price} ${unit}`
 }
 
 function computeLineTotal(ls: LineState): number {
-  const factor = parseQuantityFactor(ls.quantity, ls.pricePer)
+  const factor = parseQuantityFactor(ls.quantity, linePricePer(ls))
   return factor !== null ? ls.unitPrice * factor : ls.unitPrice
 }
 
@@ -296,7 +304,7 @@ export default function ReceiptScanSheet({
         {
           item_id: ls.itemId,
           price: ls.unitPrice,
-          price_per: ls.pricePer,
+          price_per: linePricePer(ls),
           store,
           quantity: ls.quantity,
         },
@@ -316,7 +324,7 @@ export default function ReceiptScanSheet({
           // quantity field and the receipt header already own those values.
           ean: parsed.ean ?? ls.createEan,
           price: ls.unitPrice,
-          price_per: ls.pricePer,
+          price_per: linePricePer(ls),
           store,
           quantity: ls.quantity,
         },
@@ -693,22 +701,9 @@ export default function ReceiptScanSheet({
                         })
                       }
                     />
-                    <div className="rss-unit-toggle">
-                      <button
-                        type="button"
-                        className={`rss-unit-btn${ls.pricePer === null ? ' rss-unit-btn--active' : ''}`}
-                        onClick={() => updateLine(i, { pricePer: null })}
-                      >
-                        /ud
-                      </button>
-                      <button
-                        type="button"
-                        className={`rss-unit-btn${ls.pricePer === 'KILOGRAM' ? ' rss-unit-btn--active' : ''}`}
-                        onClick={() => updateLine(i, { pricePer: 'KILOGRAM' })}
-                      >
-                        /kg
-                      </button>
-                    </div>
+                    <span className="rss-unit-suffix">
+                      {deriveUnit(ls.quantity).suffix}
+                    </span>
                   </div>
                 </div>
               </div>

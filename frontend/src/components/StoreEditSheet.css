@@ -1,30 +1,7 @@
-.store-edit-sheet__overlay {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 40%);
-  z-index: 200;
-}
-
+/* Panel chrome (position, scrim, grabber, slide) comes from the shared Sheet
+   primitive. This file styles only the content. */
 .store-edit-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--paper-0);
-  border-radius: 16px 16px 0 0;
-  border-top: 1px solid var(--border);
-  padding: 0 16px 32px;
-  z-index: 201;
-  box-shadow: 0 -4px 24px rgb(0 0 0 / 12%);
-}
-
-.store-edit-sheet__handle {
-  width: 36px;
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  margin: 10px auto 12px;
-  touch-action: none;
+  padding-inline: 16px;
 }
 
 .store-edit-sheet__header {

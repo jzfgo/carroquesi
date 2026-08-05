@@ -177,9 +177,9 @@ describe('StoreEditSheet', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  it('tapping overlay calls onClose', () => {
+  it('tapping the scrim calls onClose', () => {
     const onClose = vi.fn()
-    const { container } = render(
+    render(
       <StoreEditSheet
         item={BASE_ITEM}
         items={[]}
@@ -187,7 +187,7 @@ describe('StoreEditSheet', () => {
         onClose={onClose}
       />,
     )
-    fireEvent.click(container.querySelector('.store-edit-sheet__overlay')!)
+    fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
     expect(onClose).toHaveBeenCalled()
   })
 })

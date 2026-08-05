@@ -51,14 +51,13 @@ import { BarcodeScanner } from './BarcodeScanner'
 import { BarcodeScanSheet } from './BarcodeScanSheet'
 import { CloseTripSheet } from './CloseTripSheet'
 import { FilterBar } from './FilterBar'
-import { ItemActionSheet } from './ItemActionSheet'
+import { ItemFichaSheet } from './ItemFichaSheet'
 import { ItemList } from './ItemList'
 import { ListActionSheet } from './ListActionSheet'
 import { ListHeader } from './ListHeader'
 import './ListScreen.css'
 import LogPurchaseSheet from './LogPurchaseSheet'
 import { NotificationPrimingCard } from './NotificationPrimingCard'
-import PriceHistorySheet from './PriceHistorySheet'
 import { ProgressBar } from './ProgressBar'
 import ReceiptScanSheet from './ReceiptScanSheet'
 import { SmartInputBar } from './SmartInputBar'
@@ -159,11 +158,9 @@ export function ListScreen({
   } | null>(null)
   const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(null)
   const [dueSuggestions, setDueSuggestions] = useState<DueSuggestion[]>([])
-  const [priceItemId, setPriceItemId] = useState<string | null>(null)
   const [logPriceFor, setLogPriceFor] = useState<{
     itemId: string
     initialAmount: number | null
-    initialPricePer: 'KILOGRAM' | null
     initialStore: string | null
     suggestedStore: string | null
   } | null>(null)
@@ -663,7 +660,6 @@ export function ListScreen({
       setLogPriceFor({
         itemId,
         initialAmount: item?.price ?? null,
-        initialPricePer: (item?.price_per as 'KILOGRAM' | null) ?? null,
         initialStore: item?.price_store ?? item?.stores?.[0] ?? null,
         suggestedStore: item?.stores?.length ? null : getLastPriceStore(),
       })
@@ -697,7 +693,6 @@ export function ListScreen({
       }
       if (store) setLastPriceStore(store)
       setLogPriceFor(null)
-      setPriceItemId(null)
     },
     [logPriceFor, savePrice, isOffline],
   )
@@ -711,12 +706,10 @@ export function ListScreen({
     try {
       await clearItemPrice(logPriceFor.itemId)
       setLogPriceFor(null)
-      setPriceItemId(null)
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         // price already gone — treat as success, close sheet
         setLogPriceFor(null)
-        setPriceItemId(null)
       } else if (err instanceof ApiError && err.status === 422) {
         setToast(
           'No se puede eliminar el precio de un artículo comprado en otro día',
@@ -1077,8 +1070,12 @@ export function ListScreen({
           const isRecord =
             activeItem.purchased && !isTripOpen(activeItem.purchase_ends_at)
           return (
-            <ItemActionSheet
+            <ItemFichaSheet
               item={activeItem}
+              members={members}
+              displayStore={displayStore}
+              getToken={getToken}
+              listId={listId}
               purchased={activeItem.purchased}
               onRename={(name) => {
                 void renameItem(activeItemId, name)
@@ -1088,10 +1085,10 @@ export function ListScreen({
                 handleTagClick(activeItemId, field)
                 setActiveItemId(null)
               }}
-              onPrice={
+              onLogPrice={
                 isRecord
                   ? () => {
-                      setPriceItemId(activeItemId)
+                      handleOpenLogPrice(activeItemId)
                       setActiveItemId(null)
                     }
                   : undefined
@@ -1189,56 +1186,22 @@ export function ListScreen({
         />
       )}
 
-      {priceItemId &&
-        (() => {
-          const priceItem = items.find((i) => i.id === priceItemId)
-          if (!priceItem) return null
-          return (
-            <>
-              <div
-                className="sheet-overlay"
-                onClick={() => setPriceItemId(null)}
-              />
-              <div className="sheet-container">
-                <PriceHistorySheet
-                  item={priceItem}
-                  listId={listId}
-                  displayStore={displayStore}
-                  getToken={getToken}
-                  onLogPrice={() => handleOpenLogPrice(priceItemId)}
-                  onClose={() => setPriceItemId(null)}
-                  readOnly={!priceItem.purchased}
-                />
-              </div>
-            </>
-          )
-        })()}
-
       {logPriceFor &&
         (() => {
           const logItem = items.find((i) => i.id === logPriceFor.itemId)
           if (!logItem) return null
           return (
-            <>
-              <div
-                className="sheet-overlay"
-                onClick={() => setLogPriceFor(null)}
-              />
-              <div className="sheet-container">
-                <LogPurchaseSheet
-                  item={logItem}
-                  displayStore={displayStore}
-                  initialAmount={logPriceFor.initialAmount}
-                  initialPricePer={logPriceFor.initialPricePer}
-                  initialStore={logPriceFor.initialStore}
-                  initialPurchasedQuantity={logItem.purchased_quantity ?? null}
-                  suggestedStore={logPriceFor.suggestedStore}
-                  onSave={handleSavePrice}
-                  onDelete={handleDeletePrice}
-                  onClose={() => setLogPriceFor(null)}
-                />
-              </div>
-            </>
+            <LogPurchaseSheet
+              item={logItem}
+              displayStore={displayStore}
+              initialAmount={logPriceFor.initialAmount}
+              initialStore={logPriceFor.initialStore}
+              initialPurchasedQuantity={logItem.purchased_quantity ?? null}
+              suggestedStore={logPriceFor.suggestedStore}
+              onSave={handleSavePrice}
+              onDelete={handleDeletePrice}
+              onClose={() => setLogPriceFor(null)}
+            />
           )
         })()}
 

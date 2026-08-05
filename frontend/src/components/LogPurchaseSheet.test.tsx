@@ -27,7 +27,6 @@ const BASE_ITEM: ListItem = {
 describe('LogPurchaseSheet delete button', () => {
   const baseProps = {
     initialAmount: null,
-    initialPricePer: null as null,
     initialStore: null,
     initialPurchasedQuantity: null,
     onSave: vi.fn(),
@@ -90,7 +89,6 @@ describe('LogPurchaseSheet delete button', () => {
     render(
       <LogPurchaseSheet
         initialAmount={1.99}
-        initialPricePer={null}
         initialStore={null}
         initialPurchasedQuantity={null}
         onSave={vi.fn()}
@@ -114,7 +112,6 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
       <LogPurchaseSheet
         item={item}
         initialAmount={1.5}
-        initialPricePer={null}
         initialStore="Lidl"
         initialPurchasedQuantity="3"
         onSave={onSave}
@@ -144,7 +141,6 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
       <LogPurchaseSheet
         item={item}
         initialAmount={null}
-        initialPricePer={null}
         initialStore={null}
         initialPurchasedQuantity={null}
         onSave={vi.fn()}
@@ -167,7 +163,6 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
       <LogPurchaseSheet
         item={item}
         initialAmount={2}
-        initialPricePer={null}
         initialStore={null}
         initialPurchasedQuantity={null}
         onSave={onSave}
@@ -188,7 +183,6 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
       <LogPurchaseSheet
         item={BASE_ITEM}
         initialAmount={2.0}
-        initialPricePer="KILOGRAM"
         initialStore="Lidl"
         initialPurchasedQuantity="500g"
         onSave={vi.fn()}
