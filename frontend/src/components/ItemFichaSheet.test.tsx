@@ -166,10 +166,17 @@ test('a purchased record renders its fields read-only', () => {
   expect(screen.getByText('Tiendas').closest('button')).toBeNull()
 })
 
-test('the footer clone action calls onClone', () => {
-  const { onClone } = renderSheet()
+test('the footer clone action calls onClone on a purchased record', () => {
+  const { onClone } = renderSheet({ purchased: true })
   fireEvent.click(screen.getByRole('button', { name: /volver a comprar/i }))
   expect(onClone).toHaveBeenCalled()
+})
+
+test('«Volver a comprar» is hidden on a pending item', () => {
+  renderSheet({ purchased: false })
+  expect(
+    screen.queryByRole('button', { name: /volver a comprar/i }),
+  ).not.toBeInTheDocument()
 })
 
 test('deleting confirms in a sub-state before calling onDelete', () => {

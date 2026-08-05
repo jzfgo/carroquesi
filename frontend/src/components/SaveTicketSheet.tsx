@@ -1,6 +1,7 @@
 import { Calendar, ChevronLeft, Receipt } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { manualPurchase } from '../lib/api'
+import { isOnline } from '../lib/connectivity'
 import { storeKey } from '../lib/storeKey'
 import type { PurchaseManualBody } from '../types'
 import './SaveTicketSheet.css'
@@ -16,6 +17,8 @@ interface Props {
   onClose: () => void
   /** After a saved record — the parent refreshes the list + stack. */
   onDone: () => void
+  /** Surfaces a refusal or failure as a toast (offline, or a lost save). */
+  showToast: (msg: string) => void
   /** «Escanear el ticket» — hand off to the receipt flow. Present only when
    *  receipt scanning is on; absent hides the branch. */
   onScanReceipt?: () => void
@@ -52,6 +55,7 @@ export function SaveTicketSheet({
   displayStore,
   onClose,
   onDone,
+  showToast,
   onScanReceipt,
 }: Props) {
   const [store, setStore] = useState('')
@@ -91,6 +95,12 @@ export function SaveTicketSheet({
   }
 
   const save = async () => {
+    // Offline is read-only: refuse before the write, with a toast, like every
+    // other mutation — a silent no-op reads as nothing happened.
+    if (!isOnline()) {
+      showToast('Sin conexión')
+      return
+    }
     setSaving(true)
     try {
       const body: PurchaseManualBody = {
@@ -102,7 +112,9 @@ export function SaveTicketSheet({
       await manualPurchase(getToken, listId, body)
       onDone()
     } catch {
-      // Leave the sheet open so the entry is not lost to a transient failure.
+      // Leave the sheet open so the entry is not lost to a transient failure,
+      // and say so — the spinner resetting alone looks like nothing happened.
+      showToast('No se pudo guardar la compra')
     } finally {
       setSaving(false)
     }

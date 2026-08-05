@@ -1226,6 +1226,7 @@ export function ListScreen({
           storeOptions={items.flatMap((i) => i.stores)}
           displayStore={displayStore}
           onClose={() => setSaveTicketOpen(false)}
+          showToast={setToast}
           onDone={() => {
             setSaveTicketOpen(false)
             retry()
