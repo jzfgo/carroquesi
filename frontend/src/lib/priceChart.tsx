@@ -392,8 +392,11 @@ export function bandGeometry(
     return s.vs[s.vs.length - 1]
   }
 
-  // Between two adjacent vertices every store is linear, so the min/max/mean
-  // envelope only bends at a vertex. Sampling the union of vertices is exact.
+  // Sample at every line-store vertex. Store membership changes only at a
+  // vertex, and a mean of the present stores is linear between vertices, so the
+  // average line is exact. The band edges are only sampled here, so where two
+  // stores cross between vertices the ribbon cuts that corner and reads a touch
+  // narrow. That is cosmetic — it never bridges stores that do not overlap.
   const sampleTs = [...new Set(lineStores.flatMap((s) => s.ts))].sort(
     (a, b) => a - b,
   )
