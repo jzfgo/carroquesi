@@ -59,7 +59,10 @@ import './ListScreen.css'
 import LogPurchaseSheet from './LogPurchaseSheet'
 import { NotificationPrimingCard } from './NotificationPrimingCard'
 import { ProgressBar } from './ProgressBar'
-import { ReceiptConsentSheet } from './ReceiptConsentSheet'
+import {
+  ReceiptConsentSheet,
+  type ReceiptConsentSheetHandle,
+} from './ReceiptConsentSheet'
 import ReceiptScanSheet from './ReceiptScanSheet'
 import { SaveTicketSheet } from './SaveTicketSheet'
 import { SmartInputBar } from './SmartInputBar'
@@ -307,7 +310,9 @@ export function ListScreen({
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [receiptSourcePickerOpen, setReceiptSourcePickerOpen] = useState(false)
   const [consentSheetOpen, setConsentSheetOpen] = useState(false)
-  // Set when a first-attempt consent is granted, so the scan the user came
+  const [consentBusy, setConsentBusy] = useState(false)
+  const consentSheetRef = useRef<ReceiptConsentSheetHandle>(null)
+  // Set when a granted consent has been persisted, so the scan the user came
   // for continues once the disclosure sheet has finished its exit.
   const scanAfterConsentRef = useRef(false)
   const currentUserId = user!.id
@@ -395,20 +400,29 @@ export function ListScreen({
 
   const handleConsentDecision = useCallback(
     (consent: 'granted' | 'declined') => {
-      // Honor the intent that opened the sheet: a grant flows straight into
-      // the scan once the sheet closes. A failed write cancels that and keeps
-      // the user undecided, so the next attempt asks again.
-      scanAfterConsentRef.current = consent === 'granted'
-      void recordReceiptConsent(consent).catch(() => {
-        scanAfterConsentRef.current = false
-        setToast('No se pudo guardar tu preferencia. Inténtalo de nuevo.')
-      })
+      // Continue into the scan only once the write persists — never on the
+      // sheet's exit animation, which can outrun a slow or failed PUT and open
+      // the source picker (firing the Gemini parse) with consent never saved.
+      // So: disable the actions, await the write, and only on success play the
+      // exit; the picker then opens in handleConsentClose. A failure re-enables
+      // the actions and keeps the sheet open to retry.
+      setConsentBusy(true)
+      recordReceiptConsent(consent)
+        .then(() => {
+          scanAfterConsentRef.current = consent === 'granted'
+          consentSheetRef.current?.close()
+        })
+        .catch(() => {
+          setConsentBusy(false)
+          setToast('No se pudo guardar tu preferencia. Inténtalo de nuevo.')
+        })
     },
     [recordReceiptConsent],
   )
 
   const handleConsentClose = useCallback(() => {
     setConsentSheetOpen(false)
+    setConsentBusy(false)
     if (scanAfterConsentRef.current) {
       scanAfterConsentRef.current = false
       setReceiptSourcePickerOpen(true)
@@ -1297,6 +1311,8 @@ export function ListScreen({
 
       {consentSheetOpen && (
         <ReceiptConsentSheet
+          ref={consentSheetRef}
+          busy={consentBusy}
           onDecision={handleConsentDecision}
           onClose={handleConsentClose}
         />

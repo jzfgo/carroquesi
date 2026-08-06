@@ -1,22 +1,43 @@
-import { useRef } from 'react'
+import { useImperativeHandle, useRef } from 'react'
 import { ReceiptConsentBody } from './ReceiptConsentBody'
 import { Sheet, type SheetHandle } from './Sheet'
 
+export interface ReceiptConsentSheetHandle {
+  /** Plays the exit animation, then unmounts via onClose. */
+  close: () => void
+}
+
 interface Props {
-  /** Records the decision; called just before the exit animation. */
+  /** Records the decision. The parent plays the exit once the write resolves. */
   onDecision: (consent: 'granted' | 'declined') => void
   /** Unmount point — the parent drops the sheet here, once the exit ends. */
   onClose: () => void
+  /** Disables the actions while the decision is being written. */
+  busy?: boolean
+  ref?: React.Ref<ReceiptConsentSheetHandle>
 }
 
 /**
  * The consent disclosure as a standalone bottom sheet, shown on the first
- * scan attempt (consent === null). A choice records the decision and plays
- * the sheet's exit; the parent decides what happens next in onClose (e.g.
- * continuing straight into the scan after a grant).
+ * scan attempt (consent === null) or after a prior decline. A choice is
+ * reported up but the sheet stays put until the parent has persisted it: the
+ * parent disables the actions (busy) during the write and calls close() only
+ * once it succeeds. So a failed write leaves the sheet open to retry, and the
+ * source picker can never open on the exit animation ahead of a consent that
+ * was never saved.
  */
-export function ReceiptConsentSheet({ onDecision, onClose }: Props) {
+export function ReceiptConsentSheet({
+  onDecision,
+  onClose,
+  busy = false,
+  ref,
+}: Props) {
   const sheetRef = useRef<SheetHandle>(null)
+  useImperativeHandle(
+    ref,
+    () => ({ close: () => sheetRef.current?.close() }),
+    [],
+  )
   return (
     <Sheet
       ref={sheetRef}
@@ -24,12 +45,7 @@ export function ReceiptConsentSheet({ onDecision, onClose }: Props) {
       label="Escaneo de tickets"
       onClose={onClose}
     >
-      <ReceiptConsentBody
-        onDecision={(consent) => {
-          onDecision(consent)
-          sheetRef.current?.close()
-        }}
-      />
+      <ReceiptConsentBody busy={busy} onDecision={onDecision} />
     </Sheet>
   )
 }
