@@ -67,7 +67,7 @@ import ReceiptScanSheet, { type ReceiptConfirmMeta } from './ReceiptScanSheet'
 import { SaveTicketSheet } from './SaveTicketSheet'
 import { SmartInputBar } from './SmartInputBar'
 import { SmartSearchPill } from './SmartSearchPill'
-import { Stack } from './Stack'
+import { Stack, type StackHandle } from './Stack'
 import { StoreEditSheet } from './StoreEditSheet'
 import { TagEditSheet } from './TagEditSheet'
 import { Toast } from './Toast'
@@ -340,6 +340,18 @@ export function ListScreen({
     retry,
   } = useListItems(listId, getToken, setToast, confirmListGone)
 
+  // The pending list (items) and the trip stack are two independent reads with
+  // their own refresh handles. A mutation that closes, settles, or re-buys a
+  // trip changes BOTH, so every such site invalidates them together through
+  // this one call — updating only one leaves a trip reading as open until a
+  // manual refresh. `stackRef.refetch` is imperative because the stack hook
+  // lives inside <Stack>, not here.
+  const stackRef = useRef<StackHandle>(null)
+  const invalidateAfterTripChange = useCallback(() => {
+    retry()
+    void stackRef.current?.refetch()
+  }, [retry])
+
   const handleRenameStore = useCallback(
     async (renamedKey: string, displayName: string) => {
       if (isOffline) {
@@ -500,6 +512,10 @@ export function ListScreen({
         const data = await submitReceiptPrices(getToken, listId, {
           scan_id: receiptScanResult.scan_id,
           receipt_date: meta.receiptDate,
+          // Store and paper total close the trip these lines settle onto. The
+          // review UI requires a store; the total rides from the parsed receipt.
+          store: meta.store,
+          receipt_total: receiptScanResult.receipt_total,
           patches,
           new_items: newItems,
           mappings,
@@ -521,7 +537,7 @@ export function ListScreen({
           )
         }
         setToast(parts.length > 0 ? parts.join(' · ') : 'No se guardó nada')
-        retry()
+        invalidateAfterTripChange()
         return true
       } catch {
         // The sheet stays mounted and awaits our return value — signalling
@@ -531,7 +547,13 @@ export function ListScreen({
         return false
       }
     },
-    [getToken, listId, receiptScanResult, retry, setReceiptImage],
+    [
+      getToken,
+      listId,
+      receiptScanResult,
+      invalidateAfterTripChange,
+      setReceiptImage,
+    ],
   )
 
   const handleTogglePurchased = useCallback(
@@ -580,12 +602,12 @@ export function ListScreen({
       }
       try {
         await rebuyPurchaseItem(getToken, listId, purchaseId, itemId)
-        retry()
+        invalidateAfterTripChange()
       } catch {
         setToast('No se pudo volver a comprar')
       }
     },
-    [getToken, listId, isOffline, retry, setToast],
+    [getToken, listId, isOffline, invalidateAfterTripChange, setToast],
   )
 
   const handleMenuToggle = useCallback(() => {
@@ -827,9 +849,6 @@ export function ListScreen({
     purchaseId?: string
     initialDate?: string
   } | null>(null)
-  // Bumped after a close so the stack remounts and refetches — the newly closed
-  // trip has to appear without a manual refresh. useStack only loads on mount.
-  const [stackVersion, setStackVersion] = useState(0)
   const handleCloseTrip = useCallback(
     (purchaseId?: string, initialDate?: string) => {
       setCloseTrip({ purchaseId, initialDate })
@@ -1017,7 +1036,7 @@ export function ListScreen({
         pendingCost={pendingCost}
         stack={
           <Stack
-            key={stackVersion}
+            ref={stackRef}
             listId={listId}
             getToken={getToken}
             onRebuy={handleStackRebuy}
@@ -1235,9 +1254,7 @@ export function ListScreen({
           onClose={() => setCloseTrip(null)}
           onDone={() => {
             setCloseTrip(null)
-            retry()
-            // Remount the stack so the just-closed trip shows immediately.
-            setStackVersion((v) => v + 1)
+            invalidateAfterTripChange()
           }}
           onScanReceipt={() => {
             setCloseTrip(null)
@@ -1256,9 +1273,7 @@ export function ListScreen({
           showToast={setToast}
           onDone={() => {
             setSaveTicketOpen(false)
-            retry()
-            // Remount the stack so the just-saved record shows immediately.
-            setStackVersion((v) => v + 1)
+            invalidateAfterTripChange()
           }}
           onScanReceipt={
             isEnabled(FLAGS.AI_RECEIPT_SCANNING)
@@ -1353,15 +1368,20 @@ export function ListScreen({
           // sheet remounts rather than reconciling edits against new lines.
           key={receiptScanResult.scan_id}
           result={receiptScanResult}
-          candidateItems={items.map((i) => ({
-            id: i.id,
-            name: i.name,
-            purchased: i.purchased,
-            purchased_at: i.purchased_at,
-            brand: i.brand,
-            stores: i.stores,
-            quantity: i.quantity,
-          }))}
+          // Link targets mirror the backend matcher's pool: items still in play
+          // — pending, or purchased but still in the open cart — never ones
+          // already settled on a closed trip, which a receipt does not re-file.
+          candidateItems={items
+            .filter((i) => !i.purchased || isTripOpen(i.purchase_ends_at))
+            .map((i) => ({
+              id: i.id,
+              name: i.name,
+              purchased: i.purchased,
+              purchased_at: i.purchased_at,
+              brand: i.brand,
+              stores: i.stores,
+              quantity: i.quantity,
+            }))}
           store={receiptScanResult.store}
           imageUrl={receiptImageUrl}
           isPdf={receiptIsPdf}

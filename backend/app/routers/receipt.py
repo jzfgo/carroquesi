@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, datetime, time, tzinfo
 
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlmodel import select
@@ -15,22 +15,14 @@ from app.schemas.receipt import (
     ReceiptUploadUrlRequest,
     ReceiptUploadUrlResult,
 )
-from app.services import feature_flags, receipt_storage
+from app.services import feature_flags, receipt_storage, trips
 from app.services.client_day import resolve_timezone
 from app.services.receipt_matcher import match_lines, normalise
 from app.services.store_key import store_key
 from app.services.store_registry import ensure_stores
-from app.services.trips import open_trip_for
+from app.services.trips import in_scope_predicate, open_trip_for
 
 router = APIRouter(tags=["receipt"])
-
-# Purchases are matched against a window centered on the receipt date, since
-# items can be marked purchased a few days after the physical receipt date.
-#
-# Mirrored by RECEIPT_DATE_TOLERANCE_DAYS in frontend/src/lib/receiptDate.ts,
-# which asks the user to confirm any scanned date this window would not cover.
-# Widening one without the other lets a misread date through unquestioned.
-RECEIPT_MATCH_WINDOW_DAYS = 3
 
 
 def _require_receipt_processing_allowed(session, current_user: User) -> None:
@@ -77,6 +69,25 @@ def _parse_receipt_at(raw: str | None) -> datetime | None:
     return dt.replace(tzinfo=None)
 
 
+def _receipt_dating(
+    receipt_at: datetime | None, now: datetime, tz: tzinfo
+) -> tuple[datetime, datetime, datetime] | None:
+    """Back-date the closed trip to the receipt's day, mapped in the client tz.
+
+    Mirrors the manual close/purchase dating (routers/purchases.py): the day's
+    local midnight opens the trip, its tear-off ends it, and closed_at is that
+    tear-off but never past `now` (so a same-day close reads as closed rather
+    than still-open). None when the receipt carried no date — the ticket then
+    files under `now`.
+    """
+    if receipt_at is None:
+        return None
+    local_date = receipt_at.replace(tzinfo=UTC).astimezone(tz).date()
+    opened = datetime.combine(local_date, time.min, tzinfo=tz).astimezone(UTC).replace(tzinfo=None)
+    tears_off = trips.tears_off_at_for(opened, tz)
+    return (opened, tears_off, min(tears_off, now))
+
+
 @router.post("/lists/{list_id}/receipt", response_model=ReceiptScanResult)
 def scan_receipt(
     list_id: str,
@@ -87,41 +98,31 @@ def scan_receipt(
     _, current_user = list_and_user
     _require_receipt_processing_allowed(session, current_user)
 
-    # _parse_receipt_at normalises to naive UTC, so a receipt printed just
-    # after local midnight can yield a UTC date one day earlier than the
-    # wall-clock date. That skew is at most a few hours and is absorbed by
-    # the +-3 day window below; don't narrow the window without accounting
-    # for it.
+    # A receipt records a shop as it closes it, so it matches against what is
+    # still in play: pending items and whatever sits in the open cart. Items
+    # already settled on a closed or torn-off trip are out of the pool — a
+    # closed ticket is not re-priced by a later scan. receipt_at is still
+    # parsed here so the apply step can back-date the trip it closes.
     receipt_at = _parse_receipt_at(body.receipt_date)
-    receipt_date = receipt_at.date() if receipt_at else None
 
-    stmt = (
-        select(ListItem)
-        .where(
-            ListItem.list_id == list_id,
-            ListItem.purchased_at.isnot(None),
-        )
-        .order_by(ListItem.purchased_at.desc())
+    now = datetime.now(UTC).replace(tzinfo=None)
+    candidates = list(
+        session.exec(
+            select(ListItem)
+            .outerjoin(Purchase, ListItem.purchase_id == Purchase.id)
+            .where(ListItem.list_id == list_id, in_scope_predicate(now))
+            # match_lines keeps the first candidate per normalised name, so the
+            # order is the tiebreak: a pending list item — the likeliest target
+            # for a printed line — wins over an open-cart one, recency breaking
+            # ties within each group.
+            .order_by(
+                ListItem.purchased_at.is_(None).desc(),
+                ListItem.updated_at.desc(),
+            )
+        ).all()
     )
-    if receipt_date:
-        window_start = datetime.combine(
-            receipt_date - timedelta(days=RECEIPT_MATCH_WINDOW_DAYS), time.min
-        )
-        window_end = datetime.combine(
-            receipt_date + timedelta(days=RECEIPT_MATCH_WINDOW_DAYS + 1), time.min
-        )
-        stmt = stmt.where(
-            ListItem.purchased_at >= window_start,
-            ListItem.purchased_at < window_end,
-        )
-    purchased_items = list(session.exec(stmt).all())
-    if receipt_date:
-        # Prefer the purchase closest to the receipt date over the most
-        # recent one, so scanning an older receipt after a newer purchase of
-        # the same item doesn't steal the match.
-        purchased_items.sort(key=lambda item: abs(item.purchased_at.date() - receipt_date))
 
-    matched, unmatched = match_lines(body.lines, body.store, purchased_items, session)
+    matched, unmatched = match_lines(body.lines, body.store, candidates, session)
 
     store = body.store
     if store is None and matched:
@@ -129,7 +130,7 @@ def scan_receipt(
         # infer; keep the first-seen raw form as the displayed value.
         stores: dict[str, str] = {}
         for m in matched:
-            for item in purchased_items:
+            for item in candidates:
                 if item.id == m.item_id and item.price_store:
                     stores.setdefault(store_key(item.price_store), item.price_store)
         if len(stores) == 1:
@@ -180,22 +181,31 @@ def apply_receipt_prices(
     _require_receipt_processing_allowed(session, current_user)
 
     now = datetime.now(UTC).replace(tzinfo=None)
-    purchase_ts = _parse_receipt_at(body.receipt_date) or now
+    receipt_at = _parse_receipt_at(body.receipt_date)
+    purchase_ts = receipt_at or now
+
+    # A receipt closes a trip. Matched/linked items (pending -> purchased) and
+    # any impulse buys all settle onto the list's open cart, which this apply
+    # then closes below, back-dated to the receipt's day. The cart is resolved
+    # up front WITHOUT creating one, so an item already in it can be recognised;
+    # settle_trip() only opens a new cart when something genuinely needs filing
+    # (a pending item or an impulse buy). A body that settles nothing opens and
+    # closes nothing.
+    open_trip: Purchase | None = trips.find_open_trip(session, list_id, now)
+
+    def settle_trip() -> Purchase:
+        nonlocal open_trip
+        if open_trip is None:
+            open_trip = open_trip_for(session, list_id, now, client_tz)
+        return open_trip
+
+    # Ids of the items that will sit on the trip being closed: matched/linked
+    # lines settled here, plus the impulse buys created below. close() claims
+    # exactly these — anything else already in the cart splits off and stays
+    # open.
+    to_close: list[str] = []
+
     updated = 0
-
-    # Items a receipt marks purchased join the *current* open trip, even
-    # though their purchased_at is backdated to the shopping trip: purchased
-    # implies a trip, and guessing a past trip from a parsed date would be a
-    # claim nobody made. Reconciliation re-files them later. Created lazily so
-    # a price-only apply opens no trip.
-    trip: Purchase | None = None
-
-    def current_trip() -> Purchase:
-        nonlocal trip
-        if trip is None:
-            trip = open_trip_for(session, list_id, now, client_tz)
-        return trip
-
     for patch in body.patches:
         item = session.get(ListItem, patch.item_id)
         if not item or item.list_id != list_id:
@@ -207,38 +217,46 @@ def apply_receipt_prices(
         if patch.quantity is not None:
             item.purchased_quantity = patch.quantity  # actual receipt qty → new field
             # item.quantity (planned qty) is intentionally left untouched
-        # Infer the unpurchased -> purchased transition from server state. A
-        # client-sent flag could rewrite a timestamp set by another member.
         if item.purchased_at is None:
+            # A pending line the receipt confirms: mark it purchased, open the
+            # cart if the shop had none, and file it onto the close. (A client
+            # flag could rewrite a timestamp another member set, so the
+            # transition is inferred from server state, not sent.)
             item.purchased_at = purchase_ts
-            item.purchase_id = current_trip().id
-            # The unpurchase grace window keys off the write time. Without
-            # this stamp, a backdated purchase could never be reverted, even
-            # seconds after a wrong link. Price-only patches stay out: logging
-            # a price must not reopen the window on a days-old purchase.
+            item.purchase_id = settle_trip().id
+            # The unpurchase grace window keys off the write time; without this
+            # stamp a backdated purchase could never be reverted.
             item.updated_at = now
+            to_close.append(item.id)
+        elif open_trip is not None and item.purchase_id == open_trip.id:
+            # Already sitting in the open cart — settle it onto the same close.
+            # An item already on a *closed* ticket (a stale client) still gets
+            # its price, but is neither re-filed here nor pulled off its trip.
+            to_close.append(item.id)
         session.add(item)
         updated += 1
 
     created = 0
     for new in body.new_items:
-        session.add(
-            ListItem(
-                list_id=list_id,
-                added_by=current_user.id,
-                name=new.name,
-                brand=new.brand,
-                ean=new.ean,
-                stores=[new.store] if new.store else [],
-                quantity=None,  # planned qty — an impulse buy was never planned
-                purchased_quantity=new.quantity,
-                price=new.price,
-                price_per=new.price_per,
-                price_store=new.store,
-                purchased_at=purchase_ts,
-                purchase_id=current_trip().id,
-            )
+        line = ListItem(
+            list_id=list_id,
+            added_by=current_user.id,
+            name=new.name,
+            brand=new.brand,
+            ean=new.ean,
+            stores=[new.store] if new.store else [],
+            quantity=None,  # planned qty — an impulse buy was never planned
+            purchased_quantity=new.quantity,
+            price=new.price,
+            price_per=new.price_per,
+            price_store=new.store,
+            purchased_at=purchase_ts,
+            purchase_id=settle_trip().id,
         )
+        session.add(line)
+        # Flush so the row has an id for close()'s selection below.
+        session.flush()
+        to_close.append(line.id)
         created += 1
 
     ensure_stores(
@@ -279,15 +297,31 @@ def apply_receipt_prices(
                 )
             )
 
+    # Close the trip: a receipt is the record of a finished shop, so its lines
+    # settle onto a ticket rather than lingering in the open cart. A subset of
+    # the cart splits onto its own ticket and leaves the rest open; a body with
+    # nothing to settle closes nothing.
+    closed_trip: Purchase | None = None
+    if to_close:
+        closed_trip = trips.close(
+            session,
+            list_id,
+            to_close,
+            body.store,
+            body.receipt_total,
+            now,
+            purchase_id=settle_trip().id,
+            dating=_receipt_dating(receipt_at, now, client_tz),
+        )
+
     if body.scan_id:
         scan = session.get(ReceiptScan, body.scan_id)
         if scan:
             scan.items_updated = updated + created
-            if trip is not None:
-                # The one trip this apply filed lines onto. A price-only
-                # apply opens no trip and leaves the link NULL — the scan
-                # reconciled nothing.
-                scan.purchase_id = trip.id
+            if closed_trip is not None:
+                # The trip this apply closed. A body that settled nothing (only
+                # mappings) closes none and leaves the link NULL.
+                scan.purchase_id = closed_trip.id
             session.add(scan)
 
     lst = session.get(List, list_id)

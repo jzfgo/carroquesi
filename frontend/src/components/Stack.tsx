@@ -1,14 +1,24 @@
 import { ChevronRight, Receipt } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { useStack } from '../hooks/useStack'
 import { searchPurchases } from '../lib/api'
 import type { PurchaseSearchTrip } from '../types'
 import './Stack.css'
 import { TripCard } from './TripCard'
 
+export interface StackHandle {
+  /**
+   * Re-read the first page. The parent calls this after a mutation that closed
+   * or settled a trip, so the stack picks up the newly-closed trip without a
+   * remount (the items list is a separate read with its own refresh).
+   */
+  refetch: () => void
+}
+
 interface Props {
   listId: string
   getToken: () => Promise<string>
+  ref?: React.Ref<StackHandle>
   /** Re-buy a line back onto the pending list (wired: JAV-128). */
   onRebuy?: (purchaseId: string, itemId: string) => void
   /** Tap a line to act on it. For now this opens the item action sheet — the
@@ -42,6 +52,7 @@ const PREVIEW = 2
 export function Stack({
   listId,
   getToken,
+  ref,
   onRebuy,
   onOpenLine,
   onCloseTrip,
@@ -49,10 +60,9 @@ export function Stack({
   query = '',
   searching = false,
 }: Props) {
-  const { trips, total, loading, hasMore, loadMore, loadItems } = useStack(
-    listId,
-    getToken,
-  )
+  const { trips, total, loading, hasMore, loadMore, refetch, loadItems } =
+    useStack(listId, getToken)
+  useImperativeHandle(ref, () => ({ refetch }), [refetch])
   const [unfolded, setUnfolded] = useState(false)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
 

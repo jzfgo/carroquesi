@@ -78,6 +78,11 @@ class NewPurchasedItem(BaseModel):
 class ReceiptPriceBatch(BaseModel):
     scan_id: str | None = None
     receipt_date: str | None = None
+    # Store and paper total close the trip this apply settles its lines onto,
+    # the same way manual close carries them. Store is required by the review
+    # UI; total may be absent when the receipt's own total was unreadable.
+    store: str | None = None
+    receipt_total: float | None = None
     patches: list[PricePatch] = []
     new_items: list[NewPurchasedItem] = []
     mappings: list[NameMappingCreate] = []
