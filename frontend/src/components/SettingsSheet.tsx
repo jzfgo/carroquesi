@@ -19,6 +19,7 @@ import {
   setPreference,
   type ThemePreference,
 } from '../lib/theme'
+import { ReceiptConsentBody } from './ReceiptConsentBody'
 import './SettingsSheet.css'
 import { Sheet, type SheetHandle } from './Sheet'
 
@@ -52,7 +53,7 @@ export function SettingsSheet({
   onToast,
   onClose,
 }: Props) {
-  const { user, getToken, signOut } = useAuth()
+  const { user, getToken, signOut, recordReceiptConsent } = useAuth()
   const { isEnabled } = useFeatureFlags()
   const isApplePlatform = useApplePlatform()
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
@@ -109,6 +110,29 @@ export function SettingsSheet({
   const [confirming, setConfirming] = useState(false)
   const [regenerating, setRegenerating] = useState(false)
 
+  // Enabling from settings routes through the same disclosure as the first
+  // scan — a plain switch must not grant AI processing without saying what it
+  // does. Turning it off is immediate. See handleConsentToggle.
+  const [consentPrompt, setConsentPrompt] = useState(false)
+  const receiptConsent = user?.receiptConsent ?? null
+
+  const writeConsent = (consent: 'granted' | 'declined') => {
+    void recordReceiptConsent(consent).catch(() => {
+      onToast('No se pudo guardar tu preferencia. Inténtalo de nuevo.')
+    })
+  }
+
+  const handleConsentToggle = () => {
+    // Turning off is immediate; turning on shows the disclosure first.
+    if (receiptConsent === 'granted') writeConsent('declined')
+    else setConsentPrompt(true)
+  }
+
+  const handleConsentDecision = (consent: 'granted' | 'declined') => {
+    writeConsent(consent)
+    setConsentPrompt(false)
+  }
+
   useEffect(() => {
     // Without a default list the shortcut's list_id="default" would only 404
     // (mirrors the backend guard on POST /account/api-key), so the block shows
@@ -161,16 +185,32 @@ export function SettingsSheet({
     isEnabled(FLAGS.PUSH_NOTIFICATIONS) &&
     (canReceivePush({ isIOS, isInstalled }) || (isIOS && !isInstalled))
   const showInstallRow = (isInstallable || isIOS) && !isInstalled
+  // The consent toggle only makes sense where scanning is actually available;
+  // the backend gate checks the same flag before consent.
+  const showReceiptScanning = isEnabled(FLAGS.AI_RECEIPT_SCANNING)
 
   return (
     <Sheet
       ref={sheetRef}
       className="settings-sheet"
-      label={confirming ? 'Regenerar clave' : 'Ajustes'}
+      label={
+        confirming
+          ? 'Regenerar clave'
+          : consentPrompt
+            ? 'Escaneo de tickets'
+            : 'Ajustes'
+      }
       onClose={onClose}
-      // In the confirm sub-state, dismissing (swipe / scrim / Escape) goes
-      // back to the settings view rather than closing the whole sheet.
-      onDismiss={confirming ? cancelConfirm : undefined}
+      // In a sub-state (confirm regenerate, consent disclosure), dismissing
+      // (swipe / scrim / Escape) goes back to the settings view rather than
+      // closing the whole sheet.
+      onDismiss={
+        confirming
+          ? cancelConfirm
+          : consentPrompt
+            ? () => setConsentPrompt(false)
+            : undefined
+      }
     >
       {confirming ? (
         <div className="settings-sheet__confirm">
@@ -196,6 +236,8 @@ export function SettingsSheet({
             Cancelar
           </button>
         </div>
+      ) : consentPrompt ? (
+        <ReceiptConsentBody onDecision={handleConsentDecision} />
       ) : (
         <>
           <header className="settings-sheet__identity">
@@ -483,8 +525,32 @@ export function SettingsSheet({
             </button>
           </section>
 
-          {/* A per-user «Escaneo de tickets» toggle is planned to sit here,
-              as its own block above the footer. */}
+          {showReceiptScanning && (
+            <section className="settings-sheet__block">
+              <h3 className="settings-sheet__eyebrow">Escaneo de tickets</h3>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={receiptConsent === 'granted'}
+                className="settings-sheet__row settings-sheet__row--action"
+                onClick={handleConsentToggle}
+              >
+                <span className="settings-sheet__row-text">
+                  <span className="settings-sheet__row-title">
+                    Leer tickets con IA
+                  </span>
+                  <span className="settings-sheet__row-subtitle">
+                    {receiptConsent === 'granted'
+                      ? 'Leemos tus tickets con IA y los guardamos'
+                      : 'Actívalo para leer un ticket desde una foto o un PDF'}
+                  </span>
+                </span>
+                <span className="settings-sheet__switch" aria-hidden="true">
+                  <span className="settings-sheet__knob" />
+                </span>
+              </button>
+            </section>
+          )}
 
           <footer className="settings-sheet__footer">
             <button

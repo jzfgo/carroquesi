@@ -40,12 +40,14 @@ beforeEach(() => {
       photoUrl: null,
       email: 'alice@example.com',
       features: [],
+      receiptConsent: null,
     },
     getToken: mockGetToken,
     signIn: vi.fn(),
     signOut: mockSignOut,
     loading: false,
     isWaitlisted: false,
+    recordReceiptConsent: vi.fn(),
   })
   vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
     isEnabled: () => false,
@@ -625,5 +627,89 @@ describe('SettingsSheet — La app', () => {
       screen.getByRole('button', { name: /contar algo al equipo/i }),
     )
     expect(onFeedback).toHaveBeenCalledOnce()
+  })
+})
+
+describe('SettingsSheet — Escaneo de tickets', () => {
+  function enableScanFlag() {
+    vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
+      isEnabled: (flag: string) => flag === 'ai_receipt_scanning',
+    })
+  }
+
+  function setConsent(
+    consent: 'granted' | 'declined' | null,
+    recordReceiptConsent = vi.fn(async () => undefined),
+  ) {
+    vi.mocked(AuthContext.useAuth).mockReturnValue({
+      user: {
+        id: 'u1',
+        displayName: 'Alice',
+        photoUrl: null,
+        email: 'alice@example.com',
+        features: [],
+        receiptConsent: consent,
+      },
+      getToken: mockGetToken,
+      signIn: vi.fn(),
+      signOut: mockSignOut,
+      loading: false,
+      isWaitlisted: false,
+      recordReceiptConsent,
+    })
+    return recordReceiptConsent
+  }
+
+  it('hides the block when receipt scanning is not enabled', () => {
+    renderSheet()
+    expect(screen.queryByText('Leer tickets con IA')).not.toBeInTheDocument()
+  })
+
+  it('shows the switch off when consent is undecided', () => {
+    setConsent(null)
+    enableScanFlag()
+    renderSheet()
+    expect(
+      screen.getByRole('switch', { name: /leer tickets con ia/i }),
+    ).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('shows the switch on when consent is granted', () => {
+    setConsent('granted')
+    enableScanFlag()
+    renderSheet()
+    expect(
+      screen.getByRole('switch', { name: /leer tickets con ia/i }),
+    ).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('declines immediately when turned off, without a disclosure', () => {
+    const record = setConsent('granted')
+    enableScanFlag()
+    renderSheet()
+    fireEvent.click(
+      screen.getByRole('switch', { name: /leer tickets con ia/i }),
+    )
+    expect(record).toHaveBeenCalledWith('declined')
+    expect(
+      screen.queryByRole('button', { name: 'Activar escaneo' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows the disclosure before granting from the toggle', () => {
+    const record = setConsent(null)
+    enableScanFlag()
+    renderSheet()
+    fireEvent.click(
+      screen.getByRole('switch', { name: /leer tickets con ia/i }),
+    )
+    // The switch is swapped out for the disclosure — nothing is recorded yet.
+    expect(record).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Activar escaneo' }))
+    expect(record).toHaveBeenCalledWith('granted')
+    // Back to the settings view.
+    expect(
+      screen.queryByRole('button', { name: 'Activar escaneo' }),
+    ).not.toBeInTheDocument()
   })
 })

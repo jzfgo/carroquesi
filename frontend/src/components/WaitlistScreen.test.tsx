@@ -25,6 +25,7 @@ beforeEach(() => {
     signOut: vi.fn(async () => undefined),
     loading: false,
     isWaitlisted: true,
+    recordReceiptConsent: vi.fn(),
   })
 })
 
@@ -127,6 +128,7 @@ describe('WaitlistScreen', () => {
       signOut: vi.fn(),
       loading: false,
       isWaitlisted: true,
+      recordReceiptConsent: vi.fn(),
     })
 
     render(<WaitlistScreen />)

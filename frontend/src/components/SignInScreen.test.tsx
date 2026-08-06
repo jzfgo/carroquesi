@@ -15,6 +15,7 @@ beforeEach(() => {
     signOut: vi.fn(),
     loading: false,
     isWaitlisted: false,
+    recordReceiptConsent: vi.fn(),
   })
 })
 
@@ -38,6 +39,7 @@ describe('SignInScreen', () => {
       signOut: vi.fn(),
       loading: false,
       isWaitlisted: false,
+      recordReceiptConsent: vi.fn(),
     })
     render(<SignInScreen />)
     fireEvent.click(screen.getByRole('button', { name: /google/i }))

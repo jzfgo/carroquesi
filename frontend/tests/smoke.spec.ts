@@ -1,5 +1,6 @@
-import type { Page } from '@playwright/test'
+import type { Page, Route } from '@playwright/test'
 import {
+  ALICE,
   awaitPrimingCard,
   expect,
   expectScreenshot,
@@ -64,6 +65,29 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await expect(page.getByRole('dialog', { name: 'Ajustes' })).toBeVisible()
       await expect(page.getByText('Salir de la cuenta')).toBeVisible()
       await expectScreenshot(page, `settings-sheet-${themeName}.png`)
+    })
+
+    test('the first scan attempt asks for consent', async ({ page }) => {
+      // An undecided user (receipt_consent: null) is what triggers the
+      // disclosure — the seed fixture has already granted, so override the
+      // user payload for this one screen.
+      const undecided = JSON.stringify({ ...ALICE, receipt_consent: null })
+      const fulfillUndecided = (route: Route) =>
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: undecided,
+        })
+      await page.route('**/auth/sync', fulfillUndecided)
+      await page.route('**/users/me', fulfillUndecided)
+
+      await assertListScreenLoaded(page)
+      await page.getByRole('button', { name: /abrir menú/i }).click()
+      await page.getByRole('button', { name: 'Escanear ticket' }).click()
+      await expect(
+        page.getByRole('button', { name: 'Activar escaneo' }),
+      ).toBeVisible()
+      await expectScreenshot(page, `receipt-consent-${themeName}.png`)
     })
   })
 }

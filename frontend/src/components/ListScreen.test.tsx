@@ -189,12 +189,14 @@ beforeEach(() => {
       photoUrl: null,
       email: 'alice@example.com',
       features: [],
+      receiptConsent: null,
     },
     getToken: mockGetToken,
     signIn: vi.fn(),
     signOut: vi.fn(),
     loading: false,
     isWaitlisted: false,
+    recordReceiptConsent: vi.fn(),
   })
   vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({
     isEnabled: () => true,
@@ -1473,5 +1475,103 @@ describe('the board under the paper', () => {
       'data-board',
       'kraft',
     )
+  })
+})
+
+describe('receipt-scanning consent gate', () => {
+  function setConsent(
+    consent: 'granted' | 'declined' | null,
+    recordReceiptConsent = vi.fn(async () => undefined),
+  ) {
+    vi.mocked(AuthContext.useAuth).mockReturnValue({
+      user: {
+        id: 'u1',
+        displayName: 'Alice',
+        photoUrl: null,
+        email: 'alice@example.com',
+        features: [],
+        receiptConsent: consent,
+      },
+      getToken: mockGetToken,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      loading: false,
+      isWaitlisted: false,
+      recordReceiptConsent,
+    })
+    return recordReceiptConsent
+  }
+
+  async function tapScanFromOptions() {
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    await screen.findByRole('dialog', { name: /Opciones de lista/i })
+    fireEvent.click(screen.getByRole('button', { name: 'Escanear ticket' }))
+  }
+
+  it('asks for consent on the first scan attempt, before any source picker', async () => {
+    setConsent(null)
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    await tapScanFromOptions()
+    expect(
+      await screen.findByRole('button', { name: 'Activar escaneo' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Tomar foto')).not.toBeInTheDocument()
+  })
+
+  it('records the grant and continues straight into the scan', async () => {
+    const record = setConsent(null)
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    await tapScanFromOptions()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Activar escaneo' }),
+    )
+    expect(record).toHaveBeenCalledWith('granted')
+    expect(await screen.findByText('Tomar foto')).toBeInTheDocument()
+  })
+
+  it('does not open the source picker when saving the grant fails', async () => {
+    setConsent(
+      null,
+      vi.fn(async () => {
+        throw new Error('network')
+      }),
+    )
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    await tapScanFromOptions()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Activar escaneo' }),
+    )
+    // The write drives the scan, not the exit animation: a failed PUT surfaces
+    // the toast, keeps the disclosure open to retry, and never opens the picker
+    // (which would fire the Gemini parse with consent unsaved).
+    expect(
+      await screen.findByText(
+        'No se pudo guardar tu preferencia. Inténtalo de nuevo.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Tomar foto')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Activar escaneo' }),
+    ).toBeInTheDocument()
+  })
+
+  it('re-shows the disclosure when consent was previously declined', async () => {
+    setConsent('declined')
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    await tapScanFromOptions()
+    expect(
+      await screen.findByRole('button', { name: 'Activar escaneo' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Tomar foto')).not.toBeInTheDocument()
+  })
+
+  it('goes straight to the source picker when consent was already granted', async () => {
+    setConsent('granted')
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    await tapScanFromOptions()
+    expect(await screen.findByText('Tomar foto')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Activar escaneo' }),
+    ).not.toBeInTheDocument()
   })
 })

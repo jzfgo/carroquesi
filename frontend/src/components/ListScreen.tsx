@@ -59,6 +59,10 @@ import './ListScreen.css'
 import LogPurchaseSheet from './LogPurchaseSheet'
 import { NotificationPrimingCard } from './NotificationPrimingCard'
 import { ProgressBar } from './ProgressBar'
+import {
+  ReceiptConsentSheet,
+  type ReceiptConsentSheetHandle,
+} from './ReceiptConsentSheet'
 import ReceiptScanSheet from './ReceiptScanSheet'
 import { SaveTicketSheet } from './SaveTicketSheet'
 import { SmartInputBar } from './SmartInputBar'
@@ -101,7 +105,7 @@ export function ListScreen({
   onBack,
   onListGone,
 }: Props) {
-  const { getToken, user } = useAuth()
+  const { getToken, user, recordReceiptConsent } = useAuth()
   const [localBoard, setLocalBoard] = useState(asBoardName(board))
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: resets optimistic board when the route's list data refreshes
@@ -305,6 +309,12 @@ export function ListScreen({
   const [receiptDateConfirmed, setReceiptDateConfirmed] = useState(false)
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [receiptSourcePickerOpen, setReceiptSourcePickerOpen] = useState(false)
+  const [consentSheetOpen, setConsentSheetOpen] = useState(false)
+  const [consentBusy, setConsentBusy] = useState(false)
+  const consentSheetRef = useRef<ReceiptConsentSheetHandle>(null)
+  // Set when a granted consent has been persisted, so the scan the user came
+  // for continues once the disclosure sheet has finished its exit.
+  const scanAfterConsentRef = useRef(false)
   const currentUserId = user!.id
 
   const parsed = useMemo(() => parseInput(inputValue), [inputValue])
@@ -376,8 +386,47 @@ export function ListScreen({
       })
   }, [listId, getToken])
 
+  // The single choke point for every scan entry point (list options, the
+  // save-ticket door, close-trip). Only a granted account scans; otherwise —
+  // undecided or previously declined — the disclosure is shown, so a declined
+  // user can reconsider in place rather than being sent to Ajustes.
   const handleReceiptScan = useCallback(() => {
-    setReceiptSourcePickerOpen(true)
+    if (user?.receiptConsent === 'granted') {
+      setReceiptSourcePickerOpen(true)
+    } else {
+      setConsentSheetOpen(true)
+    }
+  }, [user])
+
+  const handleConsentDecision = useCallback(
+    (consent: 'granted' | 'declined') => {
+      // Continue into the scan only once the write persists — never on the
+      // sheet's exit animation, which can outrun a slow or failed PUT and open
+      // the source picker (firing the Gemini parse) with consent never saved.
+      // So: disable the actions, await the write, and only on success play the
+      // exit; the picker then opens in handleConsentClose. A failure re-enables
+      // the actions and keeps the sheet open to retry.
+      setConsentBusy(true)
+      recordReceiptConsent(consent)
+        .then(() => {
+          scanAfterConsentRef.current = consent === 'granted'
+          consentSheetRef.current?.close()
+        })
+        .catch(() => {
+          setConsentBusy(false)
+          setToast('No se pudo guardar tu preferencia. Inténtalo de nuevo.')
+        })
+    },
+    [recordReceiptConsent],
+  )
+
+  const handleConsentClose = useCallback(() => {
+    setConsentSheetOpen(false)
+    setConsentBusy(false)
+    if (scanAfterConsentRef.current) {
+      scanAfterConsentRef.current = false
+      setReceiptSourcePickerOpen(true)
+    }
   }, [])
 
   const handleFileChange = useCallback(
@@ -1259,6 +1308,15 @@ export function ListScreen({
         style={{ display: 'none' }}
         onChange={handleFileChange}
       />
+
+      {consentSheetOpen && (
+        <ReceiptConsentSheet
+          ref={consentSheetRef}
+          busy={consentBusy}
+          onDecision={handleConsentDecision}
+          onClose={handleConsentClose}
+        />
+      )}
 
       {receiptSourcePickerOpen && (
         <>
