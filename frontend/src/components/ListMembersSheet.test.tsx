@@ -70,12 +70,14 @@ beforeEach(() => {
       photoUrl: null,
       email: 'alice@example.com',
       features: [],
+      receiptConsent: null,
     },
     getToken: mockGetToken,
     signIn: vi.fn(),
     signOut: vi.fn(),
     loading: false,
     isWaitlisted: false,
+    recordReceiptConsent: vi.fn(),
   })
 })
 

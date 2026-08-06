@@ -48,6 +48,7 @@ const authedUser = {
   photoUrl: null,
   email: 'alice@example.com',
   features: [],
+  receiptConsent: null,
 }
 
 function mockAuth(user: typeof authedUser | null = authedUser) {
@@ -58,6 +59,7 @@ function mockAuth(user: typeof authedUser | null = authedUser) {
     signOut: mockSignOut,
     loading: false,
     isWaitlisted: false,
+    recordReceiptConsent: vi.fn(),
   })
 }
 
@@ -132,6 +134,7 @@ test('calls signIn when not authenticated and button clicked', async () => {
     signOut: vi.fn(),
     loading: false,
     isWaitlisted: false,
+    recordReceiptConsent: vi.fn(),
   })
   vi.mocked(api.getInvitePreview).mockResolvedValue(previewData)
   render(<InviteScreen />)
@@ -277,6 +280,7 @@ test('renders WaitlistScreen with invite context when isWaitlisted is true', asy
     signOut: vi.fn(),
     loading: false,
     isWaitlisted: true,
+    recordReceiptConsent: vi.fn(),
   })
   vi.mocked(api.getInvitePreview).mockResolvedValue(previewData)
   render(<InviteScreen />)

@@ -110,6 +110,16 @@ export function getMe(getToken: () => Promise<string>) {
   return apiFetch(getToken, '/users/me')
 }
 
+export function setReceiptConsent(
+  getToken: () => Promise<string>,
+  consent: 'granted' | 'declined',
+) {
+  return apiFetch(getToken, '/users/me/receipt-consent', {
+    method: 'PUT',
+    body: JSON.stringify({ consent }),
+  })
+}
+
 export function getLists(getToken: () => Promise<string>) {
   return apiFetch(getToken, '/lists')
 }

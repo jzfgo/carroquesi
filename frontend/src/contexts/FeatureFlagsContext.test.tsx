@@ -21,6 +21,7 @@ function makeUser(features: string[] = []) {
     photoUrl: null,
     email: 'alice@example.com',
     features,
+    receiptConsent: null,
   }
 }
 
@@ -35,6 +36,7 @@ describe('FeatureFlagsContext', () => {
       signOut: vi.fn(),
       loading: false,
       isWaitlisted: false,
+      recordReceiptConsent: vi.fn(),
     })
   })
 
@@ -50,6 +52,7 @@ describe('FeatureFlagsContext', () => {
       signOut: vi.fn(),
       loading: false,
       isWaitlisted: false,
+      recordReceiptConsent: vi.fn(),
     })
     render(
       <FeatureFlagsProvider>
@@ -76,6 +79,7 @@ describe('FeatureFlagsContext', () => {
       signOut: vi.fn(),
       loading: false,
       isWaitlisted: false,
+      recordReceiptConsent: vi.fn(),
     })
     render(
       <FeatureFlagsProvider>
@@ -123,6 +127,7 @@ describe('FeatureFlagsContext', () => {
       signOut: vi.fn(),
       loading: false,
       isWaitlisted: false,
+      recordReceiptConsent: vi.fn(),
     })
 
     rerender(
