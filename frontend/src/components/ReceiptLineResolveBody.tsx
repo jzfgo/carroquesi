@@ -22,9 +22,11 @@ interface Props {
 }
 
 function itemSubLabel(item: ItemRef): string {
-  const state = item.purchased ? 'en el carro' : 'pendiente'
+  // An in-cart item's store isn't settled until the receipt closes the trip, so
+  // it reads bare — only a still-pending item names the store it's tagged for.
+  if (item.purchased) return 'en el carro'
   const store = item.stores[0]
-  return store ? `${state} · ${store}` : state
+  return store ? `pendiente · ${store}` : 'pendiente'
 }
 
 export function ReceiptLineResolveBody({
@@ -41,12 +43,19 @@ export function ReceiptLineResolveBody({
   const parsed = parseInput(createText)
   const previewName = parsed.name.trim()
   const canAssign = radioId != null || previewName.length > 0
+  // The preview is "lo que se va a crear", so it only appears once the parser
+  // has actually recognised structure — a #marca/+cant/quote sigil that shifts
+  // the cleaned name off the raw text — not while the bar still holds the
+  // prefilled OCR line verbatim.
+  const showPreview =
+    previewName.length > 0 &&
+    (parsed.brand != null || previewName !== createText.trim())
 
   return (
     <>
       <div className="rss-resolve-head">
         <button type="button" className="rss-back" onClick={onBack}>
-          <ChevronLeft size={20} /> Revisar ticket
+          <ChevronLeft size={22} /> Revisar ticket
         </button>
       </div>
 
@@ -85,7 +94,7 @@ export function ReceiptLineResolveBody({
 
         <div className="rss-create">
           <span className="rss-eyebrow">Si no estaba en la lista</span>
-          {previewName && (
+          {showPreview && (
             <div className="rss-create__preview">
               <span className="rss-create__preview-name">{previewName}</span>
               {parsed.brand && (

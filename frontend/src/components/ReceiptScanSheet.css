@@ -591,7 +591,10 @@
 .rss-resolve-body {
   flex: 1;
   overflow-y: auto;
-  padding: 14px 20px 0;
+
+  /* Bottom padding keeps the smart bar off the Asignar foot — the breathing
+     room the (deferred, JAV-177) helper link would otherwise have provided. */
+  padding: 14px 20px 16px;
 }
 
 .rss-pending {
@@ -600,7 +603,7 @@
 }
 
 .rss-pending .rss-eyebrow {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .rss-pending__row {
@@ -646,7 +649,7 @@
 .rss-pending__name {
   font-family: var(--font-sans);
   font-size: 0.95rem;
-  color: var(--ink-0);
+  color: var(--ink-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -660,8 +663,12 @@
 
 .rss-create {
   margin-top: 8px;
-  padding-top: 16px;
+  padding-top: 18px;
   border-top: 1px solid var(--rule-dashed);
+}
+
+.rss-create .rss-eyebrow {
+  margin-bottom: 10px;
 }
 
 .rss-create__preview {
@@ -693,14 +700,25 @@
   padding: 1px 7px;
 }
 
+/* The paper-0 fill sits on a paper-0 sheet, so a hairline plus a tight contact
+   shadow — not a diffuse cast — is what lifts the bar off the sheet. The accent
+   ring on :focus-within mirrors the add bar (SmartInputBar). */
 .rss-create__bar {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 8px;
-  padding: 4px 4px 4px 14px;
+  padding: 5px 5px 5px 16px;
   border-radius: 999px;
-  background: var(--paper-1);
+  background: var(--paper-0);
+  border: 1px solid var(--rule-dashed);
+  box-shadow: var(--shadow-sm);
+}
+
+.rss-create__bar:focus-within {
+  box-shadow:
+    var(--shadow-sm),
+    0 0 0 1.5px var(--accent);
 }
 
 .rss-create__input {
@@ -717,11 +735,10 @@
 
 .rss-create__scan {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: none;
-  border-radius: 50%;
-  background: var(--paper-0);
+  background: none;
   color: var(--ink-1);
   display: flex;
   align-items: center;
