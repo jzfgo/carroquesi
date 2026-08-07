@@ -700,6 +700,9 @@
   padding: 1px 7px;
 }
 
+/* The paper-0 fill sits on a paper-0 sheet, so a hairline plus a tight contact
+   shadow — not a diffuse cast — is what lifts the bar off the sheet. The accent
+   ring on :focus-within mirrors the add bar (SmartInputBar). */
 .rss-create__bar {
   display: flex;
   align-items: center;
@@ -708,14 +711,13 @@
   padding: 5px 5px 5px 16px;
   border-radius: 999px;
   background: var(--paper-0);
-  box-shadow: var(--shadow-md);
+  border: 1px solid var(--rule-dashed);
+  box-shadow: var(--shadow-sm);
 }
 
-/* Accent ring on focus, mirroring the add bar (SmartInputBar :focus-within):
-   the pill has no border to recolour, so the ring rides atop the cast. */
 .rss-create__bar:focus-within {
   box-shadow:
-    var(--shadow-md),
+    var(--shadow-sm),
     0 0 0 1.5px var(--accent);
 }
 
