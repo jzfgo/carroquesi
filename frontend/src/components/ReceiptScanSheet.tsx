@@ -1,38 +1,30 @@
-import {
-  Calendar,
-  Check,
-  Coins,
-  Pencil,
-  ScanBarcode,
-  TriangleAlert,
-  X,
-} from 'lucide-react'
 import { useState } from 'react'
-import { formatPrice } from '../lib/formatPrice'
-import {
-  deriveUnit,
-  parseQuantityFactor,
-  purchasedDateLabel,
-} from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
 import {
-  isReceiptDateWorthConfirming,
-  toDateInputValue,
-  todayInputValue,
-  withDatePart,
-} from '../lib/receiptDate'
+  formatReceiptDate,
+  isNamed,
+  linePricePer,
+  lineTotal,
+  quantityString,
+  resolutionItemId,
+  resolutionName,
+  type LineResolution,
+  type LineState,
+  type ReceiptLine,
+} from '../lib/receiptReview'
 import type {
   BarcodeRead,
-  MatchedLine,
   NameMapping,
   NewPurchasedItem,
   PricePatch,
   ReceiptScanResult,
-  UnmatchedLine,
 } from '../types'
+import { ReceiptLineResolveBody } from './ReceiptLineResolveBody'
+import { ReceiptReviewBody } from './ReceiptReviewBody'
 import './ReceiptScanSheet.css'
 import { Sheet } from './Sheet'
 
+/** A subset of the list's items, offered as link targets in the resolve sheet. */
 export interface ItemRef {
   id: string
   name: string
@@ -43,18 +35,9 @@ export interface ItemRef {
   quantity: string | null
 }
 
-type LineMode = 'ignore' | 'link' | 'create'
-
-const CREATE_OPTION = '__create__'
-
-interface LineState {
-  included: boolean
-  mode: LineMode
-  itemId: string | null
-  createText: string
-  createEan: string | null
-  quantity: string
-  unitPrice: number
+export type ReceiptConfirmMeta = {
+  receiptDate: string | null
+  store: string | null
 }
 
 type PendingScan = { index: number; product: BarcodeRead } | null
@@ -62,687 +45,315 @@ type PendingScan = { index: number; product: BarcodeRead } | null
 interface Props {
   result: ReceiptScanResult
   candidateItems: ItemRef[]
+  /** The store read from the ticket (or list), seeding the editable control. */
   store: string | null
-  /** Resolves to whether the submit succeeded; false (or a throw) re-enables the confirm button. */
+  /** In-memory object URL of the captured image, for the header thumbnail. */
+  imageUrl?: string | null
+  /** The source was a PDF: show a generic badge instead of an image thumbnail. */
+  isPdf?: boolean
+  /** Resolves to whether the submit succeeded; false (or a throw) re-enables save. */
   onConfirm: (
     patches: PricePatch[],
     mappings: NameMapping[],
     newItems: NewPurchasedItem[],
+    meta: ReceiptConfirmMeta,
   ) => Promise<boolean>
   onClose: () => void
+  /** "Volver a leer el ticket" — reopen the source picker for a fresh read. */
+  onReReadReceipt: () => void
   pendingScan?: PendingScan
   onRequestScan?: (index: number) => void
-  /**
-   * Re-run the match with a user-corrected receipt date. The parent replaces
-   * `result`, which remounts this sheet — matched/unmatched change wholesale,
-   * so any line edits made against the old result are no longer meaningful.
-   */
-  onDateCorrected?: (receiptDate: string) => void
-  /** A re-match is in flight; the date editor stays open and disabled. */
-  rematching?: boolean
-  /**
-   * The user has already set this date by hand, so stop asking about it. Held
-   * by the parent because a correction remounts this sheet.
-   */
-  dateConfirmed?: boolean
 }
 
-/** Name a create row will produce, after sigils are stripped. */
-function createdName(ls: LineState): string {
-  return parseInput(ls.createText).name.trim()
-}
-
-function isInvalidCreate(ls: LineState): boolean {
-  return ls.included && ls.mode === 'create' && createdName(ls) === ''
-}
-
-function initialQuantity(line: MatchedLine | UnmatchedLine): string {
-  if (line.price_type === 'KILOGRAM' && line.quantity != null) {
-    return line.quantity < 1
-      ? `${Math.round(line.quantity * 1000)}g`
-      : `${line.quantity}kg`
-  }
-  if (line.price_type === 'MULTI' && line.quantity != null) {
-    return String(Math.round(line.quantity))
-  }
-  return '1'
-}
-
-function initState(result: ReceiptScanResult): LineState[] {
+function initStates(result: ReceiptScanResult): LineState[] {
   return [
-    ...result.matched.map((m) => ({
+    ...result.matched.map((m): LineState => ({
       included: true,
-      mode: 'link' as const,
-      itemId: m.item_id,
-      createText: '',
-      createEan: null,
-      quantity: initialQuantity(m),
-      unitPrice: m.unit_price,
+      resolution: {
+        kind: 'matched',
+        itemId: m.item_id,
+        itemName: m.item_name,
+        brand: null,
+      },
     })),
-    ...result.unmatched.map((u) => ({
-      included: false,
-      mode: 'ignore' as const,
-      itemId: null,
-      createText: '',
-      createEan: null,
-      quantity: initialQuantity(u),
-      unitPrice: u.unit_price,
+    ...result.unmatched.map((): LineState => ({
+      included: true,
+      resolution: { kind: 'unassigned' },
     })),
-  ]
-}
-
-// The unit is derived from the line's quantity, never a toggle (rule 10a): a
-// weight there prices per kilo, anything else per unit.
-function linePricePer(ls: LineState): 'KILOGRAM' | null {
-  return deriveUnit(ls.quantity).pricePer
-}
-
-function formatQtySummary(ls: LineState): string {
-  const price = ls.unitPrice.toLocaleString('es-ES', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-  const isKg = linePricePer(ls) === 'KILOGRAM'
-  const unit = isKg ? '€/kg' : '€/ud'
-  const sep = isKg ? ' × ' : '× '
-  return `${ls.quantity}${sep}${price} ${unit}`
-}
-
-function computeLineTotal(ls: LineState): number {
-  const factor = parseQuantityFactor(ls.quantity, linePricePer(ls))
-  return factor !== null ? ls.unitPrice * factor : ls.unitPrice
-}
-
-function groupItemsByDate(
-  items: ItemRef[],
-): { label: string; items: ItemRef[] }[] {
-  const sorted = [...items].sort((a, b) => {
-    if (!a.purchased_at) return 1
-    if (!b.purchased_at) return -1
-    return b.purchased_at.localeCompare(a.purchased_at)
-  })
-  const groups: { label: string; items: ItemRef[] }[] = []
-  for (const item of sorted) {
-    const label = purchasedDateLabel(item.purchased_at)
-    const last = groups[groups.length - 1]
-    if (last && last.label === label) {
-      last.items.push(item)
-    } else {
-      groups.push({ label, items: [item] })
-    }
-  }
-  return groups
-}
-
-/**
- * Unpurchased items must be split out before date grouping —
- * `purchasedDateLabel(null)` returns "Fecha desconocida", which is wrong for an
- * item that simply hasn't been bought yet.
- */
-function groupItems(items: ItemRef[]): { label: string; items: ItemRef[] }[] {
-  const unpurchased = items.filter((i) => !i.purchased)
-  const purchased = items.filter((i) => i.purchased)
-  return [
-    ...(unpurchased.length
-      ? [{ label: 'Sin comprar', items: unpurchased }]
-      : []),
-    ...groupItemsByDate(purchased),
   ]
 }
 
 export default function ReceiptScanSheet({
   result,
   candidateItems,
-  store,
+  store: initialStore,
+  imageUrl,
+  isPdf = false,
   onConfirm,
   onClose,
+  onReReadReceipt,
   pendingScan,
   onRequestScan,
-  onDateCorrected,
-  rematching = false,
-  dateConfirmed = false,
 }: Props) {
-  const allLines: (MatchedLine | UnmatchedLine)[] = [
-    ...result.matched,
-    ...result.unmatched,
-  ]
-  const [lineStates, setLineStates] = useState<LineState[]>(() =>
-    initState(result),
-  )
-  const [expanded, setExpanded] = useState<Set<number>>(new Set())
-  const [submitted, setSubmitted] = useState(false)
-  const [editingDate, setEditingDate] = useState(false)
-  const [dateCheckDismissed, setDateCheckDismissed] = useState(false)
-  const [dateDraft, setDateDraft] = useState(() =>
-    toDateInputValue(result.receipt_date),
-  )
+  const allLines: ReceiptLine[] = [...result.matched, ...result.unmatched]
 
-  // Adjusts state in response to a prop change, per React's "you might not
-  // need an effect" guidance — a scan result is an event the parent hands
-  // down, not an external system to synchronize with. Tracking the last
-  // applied scan by identity lets the same row be scanned again (the parent
-  // always hands down a fresh object) without re-applying on every render.
+  const [lineStates, setLineStates] = useState<LineState[]>(() =>
+    initStates(result),
+  )
+  const [submitted, setSubmitted] = useState(false)
+  const [receiptDate, setReceiptDate] = useState<string | null>(
+    result.receipt_date ?? null,
+  )
+  const [store, setStore] = useState<string | null>(initialStore ?? null)
+
+  // The resolve sheet (13b) is a sub-view, not a second Sheet: `resolvingIndex`
+  // swaps the body inside the same panel. Its draft (radio pick XOR create text)
+  // lives here so a barcode scan — which round-trips through the parent — can
+  // land in the create bar.
+  const [resolvingIndex, setResolvingIndex] = useState<number | null>(null)
+  const [resolveRadioId, setResolveRadioId] = useState<string | null>(null)
+  const [resolveText, setResolveText] = useState('')
+  const [resolveEan, setResolveEan] = useState<string | null>(null)
+
+  // Apply a barcode scan handed down by the parent, tracked by identity so the
+  // same row can be scanned twice without re-applying on unrelated re-renders
+  // (React's "you might not need an effect").
   const [appliedScan, setAppliedScan] = useState<PendingScan>(null)
   if (pendingScan && pendingScan !== appliedScan) {
     setAppliedScan(pendingScan)
     const { index, product } = pendingScan
-    const text = product.brand
-      ? `${product.name} #${product.brand}`
-      : product.name
-    setLineStates((prev) =>
-      prev.map((ls, i) =>
-        i === index
-          ? {
-              ...ls,
-              mode: 'create' as const,
-              itemId: null,
-              included: true,
-              createText: text,
-              createEan: product.ean,
-            }
-          : ls,
-      ),
+    setResolveRadioId(null)
+    setResolveText(
+      product.brand ? `${product.name} #${product.brand}` : product.name,
     )
-    setExpanded((prev) => new Set(prev).add(index))
+    setResolveEan(product.ean)
+    setResolvingIndex(index)
   }
 
-  const checkedCount = lineStates.filter((ls) => ls.included).length
-  const allChecked = checkedCount === lineStates.length
-  const hasInvalidCreate = lineStates.some(isInvalidCreate)
+  const includedCount = lineStates.filter((ls) => ls.included).length
+  const unnamedCount = lineStates.filter((ls) => !isNamed(ls.resolution)).length
+  const namedMissing = lineStates.some(
+    (ls) => ls.included && !isNamed(ls.resolution),
+  )
 
-  function updateLine(index: number, patch: Partial<LineState>) {
-    setLineStates((prev) =>
-      prev.map((ls, i) => (i === index ? { ...ls, ...patch } : ls)),
-    )
-  }
+  const lineSum = allLines.reduce((sum, line) => sum + lineTotal(line), 0)
+  const savedSum = lineStates.reduce(
+    (sum, ls, i) => (ls.included ? sum + lineTotal(allLines[i]) : sum),
+    0,
+  )
+  const receiptTotal = result.receipt_total ?? null
+  // Positive → the lines overshoot the paper (sobran); negative → they fall
+  // short (faltan). Never auto-adjusted; the paper is the arbiter.
+  const cuadreDiff = receiptTotal != null ? lineSum - receiptTotal : null
 
-  function toggleExpanded(index: number) {
-    setExpanded((prev) => {
-      const next = new Set(prev)
-      if (next.has(index)) {
-        next.delete(index)
-      } else {
-        next.add(index)
-      }
-      return next
-    })
-  }
+  const canSave =
+    includedCount > 0 &&
+    receiptDate != null &&
+    store != null &&
+    !namedMissing &&
+    !submitted
 
-  function toggleAll() {
-    const include = !allChecked
-    setLineStates((prev) => prev.map((ls) => ({ ...ls, included: include })))
-  }
-
-  // Prevent the same item from being linked to multiple rows
+  // A given item may be linked to at most one row; hide it from the others.
   const linkedItemIds = new Set(
-    lineStates.map((ls) => ls.itemId).filter(Boolean) as string[],
+    lineStates.map((ls) => resolutionItemId(ls.resolution)).filter(Boolean),
   )
   function availableItems(currentIndex: number): ItemRef[] {
+    const current = resolutionItemId(lineStates[currentIndex]?.resolution)
     return candidateItems.filter(
-      (item) =>
-        !linkedItemIds.has(item.id) ||
-        lineStates[currentIndex].itemId === item.id,
+      (item) => !linkedItemIds.has(item.id) || item.id === current,
     )
   }
 
-  // Footer totals
-  const selectedTotal = lineStates
-    .filter((ls) => ls.included)
-    .reduce((sum, ls) => sum + computeLineTotal(ls), 0)
-  const receiptTotal = result.receipt_total
-  const diff = receiptTotal != null ? selectedTotal - receiptTotal : null
+  function setResolution(index: number, resolution: LineResolution) {
+    setLineStates((prev) =>
+      prev.map((ls, i) => (i === index ? { ...ls, resolution } : ls)),
+    )
+  }
+
+  function toggleInclude(index: number) {
+    setLineStates((prev) =>
+      prev.map((ls, i) =>
+        i === index ? { ...ls, included: !ls.included } : ls,
+      ),
+    )
+  }
+
+  function setAll(included: boolean) {
+    setLineStates((prev) => prev.map((ls) => ({ ...ls, included })))
+  }
+
+  function openResolve(index: number) {
+    const r = lineStates[index].resolution
+    if (r.kind === 'linked' || r.kind === 'matched') {
+      setResolveRadioId(r.itemId)
+      setResolveText('')
+      setResolveEan(null)
+    } else if (r.kind === 'created') {
+      setResolveRadioId(null)
+      setResolveText(r.brand ? `${r.name} #${r.brand}` : r.name)
+      setResolveEan(r.ean)
+    } else {
+      setResolveRadioId(null)
+      // Prefill the create bar with the raw line — the best name we have until
+      // the user cleans it up.
+      setResolveText(allLines[index].receipt_name)
+      setResolveEan(null)
+    }
+    setResolvingIndex(index)
+  }
+
+  function assign() {
+    if (resolvingIndex == null) return
+    if (resolveRadioId) {
+      const item = candidateItems.find((it) => it.id === resolveRadioId)
+      if (item) {
+        setResolution(resolvingIndex, {
+          kind: 'linked',
+          itemId: item.id,
+          itemName: item.name,
+          brand: item.brand,
+        })
+      }
+    } else {
+      const parsed = parseInput(resolveText)
+      const name = parsed.name.trim()
+      if (!name) return
+      setResolution(resolvingIndex, {
+        kind: 'created',
+        name,
+        brand: parsed.brand,
+        ean: parsed.ean ?? resolveEan,
+      })
+    }
+    setResolvingIndex(null)
+  }
 
   async function handleConfirm() {
-    if (submitted) return
+    if (!canSave) return
     setSubmitted(true)
 
-    const patches: PricePatch[] = lineStates.flatMap((ls) => {
-      if (!ls.included || ls.mode !== 'link' || !ls.itemId) return []
-      return [
-        {
-          item_id: ls.itemId,
-          price: ls.unitPrice,
-          price_per: linePricePer(ls),
-          store,
-          quantity: ls.quantity,
-        },
-      ]
-    })
+    const patches: PricePatch[] = []
+    const newItems: NewPurchasedItem[] = []
+    const mappings: NameMapping[] = []
 
-    const newItems: NewPurchasedItem[] = lineStates.flatMap((ls) => {
-      if (!ls.included || ls.mode !== 'create') return []
-      const parsed = parseInput(ls.createText)
-      const name = parsed.name.trim()
-      if (!name) return []
-      return [
-        {
-          name,
-          brand: parsed.brand,
-          // +qty and @store are parsed out of the name but discarded: the row's
-          // quantity field and the receipt header already own those values.
-          ean: parsed.ean ?? ls.createEan,
-          price: ls.unitPrice,
-          price_per: linePricePer(ls),
+    lineStates.forEach((ls, i) => {
+      if (!ls.included) return
+      const line = allLines[i]
+      const quantity = quantityString(line)
+      const pricePer = linePricePer(line)
+      const r = ls.resolution
+      if (r.kind === 'matched' || r.kind === 'linked') {
+        patches.push({
+          item_id: r.itemId,
+          price: line.unit_price,
+          price_per: pricePer,
           store,
-          quantity: ls.quantity,
-        },
-      ]
-    })
-
-    const mappings: NameMapping[] = lineStates.flatMap((ls, i) => {
-      if (!ls.included || !store) return []
-      let itemName: string | null = null
-      if (ls.mode === 'link' && ls.itemId) {
-        itemName = candidateItems.find((p) => p.id === ls.itemId)?.name ?? null
-      } else if (ls.mode === 'create') {
-        itemName = createdName(ls) || null
+          quantity,
+        })
+      } else if (r.kind === 'created') {
+        newItems.push({
+          name: r.name,
+          brand: r.brand,
+          ean: r.ean,
+          price: line.unit_price,
+          price_per: pricePer,
+          store,
+          quantity,
+        })
       }
-      if (!itemName) return []
-      // Raw strings on the wire: the backend derives the lookup keys, and a
-      // half-normalisation here would diverge from its rule.
-      return [
-        {
+      const itemName = resolutionName(r)
+      // Raw receipt text on the wire; the backend derives the lookup keys. Store
+      // is required to save, so the mapping always has one.
+      if (itemName && store) {
+        mappings.push({
           store,
-          receipt_name: allLines[i].receipt_name,
+          receipt_name: line.receipt_name,
           item_name: itemName,
           item_brand: null,
-        },
-      ]
+        })
+      }
     })
 
-    // onConfirm resolves to whether the submit succeeded. On success the
-    // parent unmounts this sheet; on failure (or an unexpected throw) we
-    // re-enable the button so a flaky-connection user can retry without
-    // losing their edits and re-scanning.
     try {
-      const ok = await onConfirm(patches, mappings, newItems)
+      const ok = await onConfirm(patches, mappings, newItems, {
+        receiptDate,
+        store,
+      })
       if (!ok) setSubmitted(false)
     } catch {
       setSubmitted(false)
     }
   }
 
-  const formattedDate = result.receipt_date
-    ? new Date(result.receipt_date).toLocaleDateString('es-ES', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })
-    : null
-
-  const canCorrectDate = Boolean(onDateCorrected)
-  // Only worth querying a date the user can actually act on -- without a
-  // correction handler the prompt would be a dead end.
-  //
-  // `dateConfirmed` outlives the remount a correction causes. Without it the
-  // user who fixes a genuinely old receipt gets asked about the very date they
-  // just typed: the new result carries a new scan_id, the sheet remounts, and
-  // `dateCheckDismissed` resets with it.
-  const askAboutDate =
-    canCorrectDate &&
-    !dateConfirmed &&
-    !dateCheckDismissed &&
-    isReceiptDateWorthConfirming(result.receipt_date)
-  // A receipt cannot be printed in the future (see the scanning prompt in
-  // lib/receiptAi.ts), so the native picker refuses those outright.
-  const todayIso = todayInputValue()
-
-  function applyDateCorrection() {
-    if (!dateDraft || !onDateCorrected) return
-    onDateCorrected(withDatePart(result.receipt_date, dateDraft))
-  }
-
-  function cancelDateCorrection() {
-    setDateDraft(toDateInputValue(result.receipt_date))
-    setEditingDate(false)
-  }
+  const resolving = resolvingIndex != null
 
   return (
-    <Sheet className="rss" label="Ticket escaneado" onClose={onClose}>
-      <div className="sheet-header">
-        <div className="sheet-title-row">
-          <div className="sheet-title">
-            Ticket escaneado
-            {store && <span className="store-badge">{store}</span>}
-          </div>
-          <button
-            className="sheet-close-btn"
-            onClick={onClose}
-            aria-label="Cerrar"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <div className="sheet-meta">
-          {formattedDate &&
-            (canCorrectDate ? (
-              <button
-                type="button"
-                className={`rss-date-btn${askAboutDate ? ' rss-date-btn--flagged' : ''}`}
-                onClick={() => setEditingDate((open) => !open)}
-                aria-expanded={editingDate}
-                aria-label={`Cambiar la fecha del ticket (${formattedDate})`}
-              >
-                <Calendar size={13} /> {formattedDate}
-                <Pencil size={11} className="rss-date-btn__pencil" />
-              </button>
-            ) : (
-              <span>
-                <Calendar size={13} /> {formattedDate}
-              </span>
-            ))}
-          {receiptTotal != null && (
-            <span>
-              <Coins size={13} /> {formatPrice(receiptTotal)}
-            </span>
-          )}
-        </div>
-
-        {askAboutDate && !editingDate && (
-          <div className="rss-date-check" role="status">
-            <TriangleAlert size={15} className="rss-date-check__icon" />
-            <div className="rss-date-check__body">
-              <p className="rss-date-check__title">¿Es correcta la fecha?</p>
-              <p className="rss-date-check__text">
-                Una fecha exacta nos ayuda a emparejar tus compras.
-              </p>
-              <button
-                type="button"
-                className="rss-date-check__action"
-                onClick={() => setEditingDate(true)}
-              >
-                Corregir fecha
-              </button>
-            </div>
-            <button
-              type="button"
-              className="rss-date-dismiss"
-              onClick={() => setDateCheckDismissed(true)}
-              aria-label="La fecha es correcta"
-            >
-              <X size={15} />
-            </button>
-          </div>
-        )}
-
-        {editingDate && (
-          <div className="rss-date-edit">
-            <div className="rss-date-edit__head">
-              <label className="rss-date-edit__label" htmlFor="rss-date-input">
-                Fecha del ticket
-              </label>
-              <button
-                type="button"
-                className="rss-date-dismiss"
-                onClick={cancelDateCorrection}
-                disabled={rematching}
-                aria-label="Cancelar"
-              >
-                <X size={15} />
-              </button>
-            </div>
-            <div className="rss-date-edit__row">
-              <input
-                id="rss-date-input"
-                type="date"
-                className="rss-date-edit__input"
-                value={dateDraft}
-                max={todayIso}
-                disabled={rematching}
-                onChange={(e) => setDateDraft(e.target.value)}
-              />
-              <button
-                type="button"
-                className="rss-date-edit__apply"
-                onClick={applyDateCorrection}
-                disabled={
-                  rematching ||
-                  !dateDraft ||
-                  dateDraft === toDateInputValue(result.receipt_date)
-                }
-              >
-                {rematching ? 'Buscando…' : 'Volver a buscar'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="rss-toolbar">
-        <span className="rss-toolbar-count">
-          {checkedCount} de {lineStates.length} seleccionados
-        </span>
-        <button className="rss-toolbar-toggle" onClick={toggleAll}>
-          {allChecked ? 'Deseleccionar todo' : 'Seleccionar todo'}
-        </button>
-      </div>
-
-      <div className="sheet-body">
-        {lineStates.map((ls, i) => {
-          const line = allLines[i]
-          const isExpanded = expanded.has(i)
-          const itemGroups = groupItems(availableItems(i))
-          const linkedItem = candidateItems.find((p) => p.id === ls.itemId)
-
-          return (
-            <div
-              key={i}
-              className={`rss-row${ls.included ? ' checked' : ''}${isExpanded ? ' expanded' : ''}`}
-            >
-              <div className="rss-summary" onClick={() => toggleExpanded(i)}>
-                <input
-                  type="checkbox"
-                  className="rss-check"
-                  checked={ls.included}
-                  onChange={(e) => {
-                    e.stopPropagation()
-                    updateLine(i, { included: e.target.checked })
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <div className="rss-text">
-                  <div className="rss-ocr">{line.receipt_name}</div>
-                  <div className={`rss-item${ls.itemId ? '' : ' unlinked'}`}>
-                    {ls.mode === 'create'
-                      ? `✚ ${createdName(ls) || 'artículo nuevo'}`
-                      : linkedItem
-                        ? linkedItem.name
-                        : 'sin vincular'}
-                  </div>
-                  <div className="rss-qty-summary">{formatQtySummary(ls)}</div>
-                </div>
-                <div className="rss-right">
-                  <div className="rss-total">
-                    {formatPrice(computeLineTotal(ls))}
-                  </div>
-                  <div className="rss-edit-icon">
-                    <Pencil size={14} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="rss-form">
-                <div className="rss-field">
-                  <div className="rss-field-label">Vincular a</div>
-                  <select
-                    className="rss-link-select"
-                    value={
-                      ls.mode === 'create' ? CREATE_OPTION : (ls.itemId ?? '')
-                    }
-                    onChange={(e) => {
-                      const v = e.target.value
-                      if (v === CREATE_OPTION) {
-                        updateLine(i, {
-                          mode: 'create',
-                          itemId: null,
-                          included: true,
-                        })
-                      } else if (v === '') {
-                        updateLine(i, {
-                          mode: 'ignore',
-                          itemId: null,
-                          included: false,
-                        })
-                      } else {
-                        updateLine(i, {
-                          mode: 'link',
-                          itemId: v,
-                          included: true,
-                        })
-                      }
-                    }}
-                  >
-                    <option value="">— No vincular —</option>
-                    <option value={CREATE_OPTION}>
-                      ✚ Crear artículo nuevo
-                    </option>
-                    {itemGroups.map((group) => (
-                      <optgroup key={group.label} label={group.label}>
-                        {group.items.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                </div>
-
-                {ls.mode === 'create' && (
-                  <div className="rss-field">
-                    <div className="rss-field-label">Artículo nuevo</div>
-                    <div className="rss-create-row">
-                      <input
-                        className="rss-create-input"
-                        type="text"
-                        value={ls.createText}
-                        placeholder="ej. Leche semi #Hacendado"
-                        aria-describedby={
-                          [
-                            `rss-create-hint-${i}`,
-                            isInvalidCreate(ls)
-                              ? `rss-create-error-${i}`
-                              : null,
-                            ls.included && ls.unitPrice <= 0
-                              ? `rss-create-warning-${i}`
-                              : null,
-                          ]
-                            .filter(Boolean)
-                            .join(' ') || undefined
-                        }
-                        onChange={(e) =>
-                          updateLine(i, { createText: e.target.value })
-                        }
-                      />
-                      {onRequestScan && (
-                        <button
-                          type="button"
-                          className="rss-scan-btn"
-                          onClick={() => onRequestScan(i)}
-                          aria-label="Escanear código de barras"
-                        >
-                          <ScanBarcode size={16} />
-                        </button>
-                      )}
-                    </div>
-                    <div
-                      className="rss-create-hint"
-                      id={`rss-create-hint-${i}`}
-                    >
-                      #marca · usa comillas si hay espacios
-                    </div>
-                    {isInvalidCreate(ls) && (
-                      <div
-                        className="rss-create-error"
-                        id={`rss-create-error-${i}`}
-                        role="alert"
-                      >
-                        Escribe un nombre
-                      </div>
-                    )}
-                    {ls.included && ls.unitPrice <= 0 && (
-                      <div
-                        className="rss-create-warning"
-                        id={`rss-create-warning-${i}`}
-                      >
-                        Precio cero o negativo — ¿es un descuento?
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="rss-field">
-                  <div className="rss-field-label">Cantidad · Precio</div>
-                  <div className="rss-qp-row">
-                    <input
-                      className="rss-qty-input"
-                      type="text"
-                      value={ls.quantity}
-                      placeholder="ej. 500g"
-                      onChange={(e) =>
-                        updateLine(i, { quantity: e.target.value })
-                      }
-                    />
-                    <span className="rss-sep">×</span>
-                    <span className="rss-euro">€</span>
-                    <input
-                      className="rss-price-input"
-                      type="number"
-                      value={ls.unitPrice}
-                      step="0.01"
-                      min="0"
-                      onChange={(e) =>
-                        updateLine(i, {
-                          unitPrice: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                    />
-                    <span className="rss-unit-suffix">
-                      {deriveUnit(ls.quantity).suffix}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="sheet-footer">
-        <div className="rss-footer-totals">
-          <div>
-            <span>Seleccionado </span>
-            <span className="rss-footer-selected">
-              {formatPrice(selectedTotal)}
-            </span>
-            {diff !== null &&
-              checkedCount > 0 &&
-              (Math.abs(diff) < 0.02 ? (
-                <span className="rss-footer-match">
-                  <Check size={12} /> coincide
-                </span>
-              ) : (
-                <span className="rss-footer-diff">
-                  ({diff > 0 ? '+' : '−'}
-                  {formatPrice(Math.abs(diff)).replace(' ', '')})
-                </span>
-              ))}
-          </div>
-          {receiptTotal != null && (
-            <span>Ticket {formatPrice(receiptTotal)}</span>
-          )}
-        </div>
-        <button
-          className="confirm-btn"
-          disabled={checkedCount === 0 || hasInvalidCreate || submitted}
-          onClick={handleConfirm}
-        >
-          Guardar precios
-          <span className="confirm-count">
-            {checkedCount} {checkedCount === 1 ? 'elemento' : 'elementos'}
-          </span>
-        </button>
-      </div>
+    <Sheet
+      className="rss"
+      label={resolving ? 'Resolver una línea' : 'Revisar ticket'}
+      onClose={onClose}
+      // On the resolve sub-view, Escape / scrim / swipe go back to the list —
+      // the back galón is the exit, not a dismissal of the whole sheet.
+      onDismiss={resolving ? () => setResolvingIndex(null) : undefined}
+    >
+      {resolving ? (
+        <ReceiptLineResolveBody
+          line={allLines[resolvingIndex]}
+          candidateItems={availableItems(resolvingIndex)}
+          radioId={resolveRadioId}
+          createText={resolveText}
+          onSelectRadio={(id) => {
+            setResolveRadioId(id)
+          }}
+          onChangeCreateText={(text) => {
+            setResolveRadioId(null)
+            setResolveText(text)
+          }}
+          onRequestScan={
+            onRequestScan ? () => onRequestScan(resolvingIndex) : undefined
+          }
+          onAssign={assign}
+          onBack={() => setResolvingIndex(null)}
+        />
+      ) : (
+        <ReceiptReviewBody
+          lines={allLines}
+          lineStates={lineStates}
+          store={store}
+          receiptDate={receiptDate}
+          receiptDateLabel={formatReceiptDate(receiptDate)}
+          imageUrl={imageUrl}
+          isPdf={isPdf}
+          knownStores={knownStores(candidateItems, initialStore)}
+          lineSum={lineSum}
+          savedSum={savedSum}
+          receiptTotal={receiptTotal}
+          cuadreDiff={cuadreDiff}
+          includedCount={includedCount}
+          unnamedCount={unnamedCount}
+          canSave={canSave}
+          onToggleInclude={toggleInclude}
+          onSetAll={setAll}
+          onOpenResolve={openResolve}
+          onChangeDate={setReceiptDate}
+          onChangeStore={setStore}
+          onReReadReceipt={onReReadReceipt}
+          onConfirm={handleConfirm}
+        />
+      )}
     </Sheet>
   )
+}
+
+/** Distinct store names already known to the list, for the store control's list. */
+function knownStores(
+  candidateItems: ItemRef[],
+  initialStore: string | null,
+): string[] {
+  const set = new Set<string>()
+  if (initialStore) set.add(initialStore)
+  for (const item of candidateItems) {
+    for (const s of item.stores) if (s) set.add(s)
+  }
+  return [...set]
 }

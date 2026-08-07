@@ -63,7 +63,7 @@ import {
   ReceiptConsentSheet,
   type ReceiptConsentSheetHandle,
 } from './ReceiptConsentSheet'
-import ReceiptScanSheet from './ReceiptScanSheet'
+import ReceiptScanSheet, { type ReceiptConfirmMeta } from './ReceiptScanSheet'
 import { SaveTicketSheet } from './SaveTicketSheet'
 import { SmartInputBar } from './SmartInputBar'
 import { SmartSearchPill } from './SmartSearchPill'
@@ -301,12 +301,11 @@ export function ListScreen({
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const [receiptScanResult, setReceiptScanResult] =
     useState<ReceiptScanResult | null>(null)
-  const [receiptParsed, setReceiptParsed] = useState<ReceiptScanRequest | null>(
-    null,
-  )
-  const [receiptRematching, setReceiptRematching] = useState(false)
-  // Survives the remount a date correction causes; reset with the scan session.
-  const [receiptDateConfirmed, setReceiptDateConfirmed] = useState(false)
+  // The captured image, kept in memory only for the review thumbnail; the file
+  // itself is never stored. Revoked when the session ends (see setReceiptImage).
+  const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(null)
+  const [receiptIsPdf, setReceiptIsPdf] = useState(false)
+  const receiptImageUrlRef = useRef<string | null>(null)
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [receiptSourcePickerOpen, setReceiptSourcePickerOpen] = useState(false)
   const [consentSheetOpen, setConsentSheetOpen] = useState(false)
@@ -429,6 +428,25 @@ export function ListScreen({
     }
   }, [])
 
+  // Swaps the in-memory receipt image, revoking the previous object URL so a
+  // re-read or a finished session never leaks one.
+  const setReceiptImage = useCallback((url: string | null, isPdf: boolean) => {
+    if (receiptImageUrlRef.current) {
+      URL.revokeObjectURL(receiptImageUrlRef.current)
+    }
+    receiptImageUrlRef.current = url
+    setReceiptImageUrl(url)
+    setReceiptIsPdf(isPdf)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (receiptImageUrlRef.current) {
+        URL.revokeObjectURL(receiptImageUrlRef.current)
+      }
+    }
+  }, [])
+
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
@@ -452,16 +470,14 @@ export function ListScreen({
         }
 
         const result = await submitParsedReceipt(getToken, listId, parsed)
-        // Kept so a corrected date can be re-matched against the same lines
-        // without re-reading the image (another Gemini call, another chance
-        // for a transient error).
-        setReceiptParsed(parsed)
         setReceiptScanResult(result)
-        // Belt-and-suspenders alongside the exit-path clears below: guarantees
-        // a fresh session never starts primed with a scan from a stale one,
-        // without depending on every exit path having been enumerated.
+        // Hold the image in memory for the review thumbnail (PDFs get a badge
+        // instead of a preview). Clearing pendingScan is belt-and-suspenders
+        // alongside the exit-path clears: a fresh session never starts primed
+        // with a scan from a stale one.
+        const isPdf = file.type === 'application/pdf'
+        setReceiptImage(isPdf ? null : URL.createObjectURL(file), isPdf)
         setPendingScan(null)
-        setReceiptDateConfirmed(false)
       } catch (e) {
         console.error('Receipt scan submit failed:', e)
         setToast('No se pudo procesar el ticket')
@@ -469,50 +485,7 @@ export function ListScreen({
         setReceiptUploading(false)
       }
     },
-    [getToken, listId],
-  )
-
-  // Re-runs the backend match against the same parsed lines with a date the
-  // user corrected. A wrong year puts the +-3 day match window years off the
-  // real purchases, so the first pass legitimately matched nothing; this is
-  // what lets them recover without re-scanning the receipt.
-  const handleReceiptDateCorrected = useCallback(
-    async (receiptDate: string) => {
-      if (!receiptParsed) return
-      setReceiptRematching(true)
-      try {
-        const result = await submitParsedReceipt(getToken, listId, {
-          ...receiptParsed,
-          receipt_date: receiptDate,
-        })
-        setReceiptParsed((prev) =>
-          prev ? { ...prev, receipt_date: receiptDate } : prev,
-        )
-        // Both of these belong on the success path, and for the same reason:
-        // nothing on screen changes when the re-match fails, so anything reset
-        // up front is lost for no gain. `dateConfirmed` set early would drop
-        // the prompt and the date button's flagged styling, stranding the
-        // misread date with nothing pointing at it; `pendingScan` cleared
-        // early would discard a barcode the user had already scanned in, and
-        // make them scan it again after a transient failure.
-        //
-        // On the success path pendingScan must still go, for the reason
-        // handleReceiptSheetClose clears it: the corrected match replaces
-        // matched/unmatched wholesale and remounts the sheet, where
-        // `appliedScan` starts at null again, so a surviving scan would
-        // reapply its product to whatever line now sits at that index. These
-        // batch with setReceiptScanResult, so the remount already sees null.
-        setReceiptDateConfirmed(true)
-        setPendingScan(null)
-        setReceiptScanResult(result)
-      } catch (e) {
-        console.error('Receipt re-match failed:', e)
-        setToast('No se pudo volver a buscar')
-      } finally {
-        setReceiptRematching(false)
-      }
-    },
-    [getToken, listId, receiptParsed],
+    [getToken, listId, setReceiptImage],
   )
 
   const handleReceiptConfirm = useCallback(
@@ -520,20 +493,20 @@ export function ListScreen({
       patches: PricePatch[],
       mappings: NameMapping[],
       newItems: NewPurchasedItem[],
+      meta: ReceiptConfirmMeta,
     ): Promise<boolean> => {
       if (!receiptScanResult) return false
       try {
         const data = await submitReceiptPrices(getToken, listId, {
           scan_id: receiptScanResult.scan_id,
-          receipt_date: receiptScanResult.receipt_date,
+          receipt_date: meta.receiptDate,
           patches,
           new_items: newItems,
           mappings,
         })
         setReceiptScanResult(null)
-        setReceiptParsed(null)
+        setReceiptImage(null, false)
         setPendingScan(null)
-        setReceiptDateConfirmed(false)
         const n = data.items_updated
         const c = data.items_created
         const parts: string[] = []
@@ -558,7 +531,7 @@ export function ListScreen({
         return false
       }
     },
-    [getToken, listId, receiptScanResult, retry],
+    [getToken, listId, receiptScanResult, retry, setReceiptImage],
   )
 
   const handleTogglePurchased = useCallback(
@@ -684,9 +657,14 @@ export function ListScreen({
   // ReceiptScanSheet mounts, since the sheet only compares by identity.
   const handleReceiptSheetClose = useCallback(() => {
     setReceiptScanResult(null)
-    setReceiptParsed(null)
+    setReceiptImage(null, false)
     setPendingScan(null)
-    setReceiptDateConfirmed(false)
+  }, [setReceiptImage])
+
+  // "Volver a leer el ticket" — reopen the source picker for a fresh read; a
+  // new file yields a new scan_id, remounting the keyed sheet.
+  const handleReReadReceipt = useCallback(() => {
+    setReceiptSourcePickerOpen(true)
   }, [])
 
   const handleScanAdd = useCallback(
@@ -1371,9 +1349,8 @@ export function ListScreen({
 
       {receiptScanResult && (
         <ReceiptScanSheet
-          // A re-match replaces matched/unmatched wholesale, so line edits
-          // made against the old result are no longer meaningful. Remount
-          // rather than trying to reconcile them.
+          // A fresh read (re-read the ticket) yields a new scan_id, so the
+          // sheet remounts rather than reconciling edits against new lines.
           key={receiptScanResult.scan_id}
           result={receiptScanResult}
           candidateItems={items.map((i) => ({
@@ -1386,13 +1363,13 @@ export function ListScreen({
             quantity: i.quantity,
           }))}
           store={receiptScanResult.store}
+          imageUrl={receiptImageUrl}
+          isPdf={receiptIsPdf}
           onConfirm={handleReceiptConfirm}
           onClose={handleReceiptSheetClose}
+          onReReadReceipt={handleReReadReceipt}
           pendingScan={pendingScan}
           onRequestScan={handleReceiptScanRequest}
-          onDateCorrected={handleReceiptDateCorrected}
-          rematching={receiptRematching}
-          dateConfirmed={receiptDateConfirmed}
         />
       )}
     </div>

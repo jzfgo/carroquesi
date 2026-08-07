@@ -114,47 +114,50 @@ vi.mock('./BarcodeScanner', () => ({
 }))
 vi.mock('./ReceiptScanSheet', () => ({
   default: ({
+    result,
+    store,
     onConfirm,
+    onReReadReceipt,
     onRequestScan,
     pendingScan,
-    onDateCorrected,
-    dateConfirmed,
   }: {
+    result: ReceiptScanResult
+    store: string | null
     onConfirm: (
       patches: PricePatch[],
       mappings: NameMapping[],
       newItems: NewPurchasedItem[],
+      meta: { receiptDate: string | null; store: string | null },
     ) => Promise<boolean>
+    onReReadReceipt: () => void
     onRequestScan?: (index: number) => void
     pendingScan?: { index: number; product: BarcodeRead } | null
-    onDateCorrected?: (receiptDate: string) => void
-    dateConfirmed?: boolean
-  }) => (
-    <div>
-      {/* Surfaces the pendingScan this instance was mounted with, so tests
-          can prove a stale scan from a prior session doesn't leak in. */}
-      <div data-testid="mock-pending-scan">
-        {pendingScan ? pendingScan.product.ean : 'null'}
-      </div>
-      {/* Same idea for the date prompt's suppression flag: it has to survive
-          the remount a correction causes, but only when one actually took. */}
-      <div data-testid="mock-date-confirmed">{String(dateConfirmed)}</div>
-      {onDateCorrected && (
-        <button onClick={() => onDateCorrected('2026-07-21')}>
-          Corregir fecha (mock)
+  }) => {
+    // The sheet now owns the editable date/store and hands them back as meta;
+    // the real one seeds them from result/store, so the mock mirrors that.
+    const meta = { receiptDate: result.receipt_date ?? null, store }
+    return (
+      <div>
+        {/* Surfaces the pendingScan this instance was mounted with, so tests
+            can prove a stale scan from a prior session doesn't leak in. */}
+        <div data-testid="mock-pending-scan">
+          {pendingScan ? pendingScan.product.ean : 'null'}
+        </div>
+        <button onClick={() => void onConfirm([], [], [], meta)}>
+          Confirmar (mock)
         </button>
-      )}
-      <button onClick={() => void onConfirm([], [], [])}>
-        Confirmar (mock)
-      </button>
-      <button onClick={() => void onConfirm([], [], [mockNewItem])}>
-        Confirmar con artículo nuevo (mock)
-      </button>
-      {onRequestScan && (
-        <button onClick={() => onRequestScan(0)}>Escanear línea (mock)</button>
-      )}
-    </div>
-  ),
+        <button onClick={() => void onConfirm([], [], [mockNewItem], meta)}>
+          Confirmar con artículo nuevo (mock)
+        </button>
+        <button onClick={() => onReReadReceipt()}>Volver a leer (mock)</button>
+        {onRequestScan && (
+          <button onClick={() => onRequestScan(0)}>
+            Escanear línea (mock)
+          </button>
+        )}
+      </div>
+    )
+  },
 }))
 
 const mockGetToken = vi.fn(async () => 'token')
@@ -993,120 +996,6 @@ describe('pendingScan session isolation', () => {
     expect(await screen.findByTestId('mock-pending-scan')).toHaveTextContent(
       'null',
     )
-  })
-})
-
-describe('receipt date correction', () => {
-  const mockScanResult: ReceiptScanResult = {
-    scan_id: 'scan-1',
-    store: 'Mercadona',
-    receipt_date: '2026-07-20',
-    receipt_total: 10,
-    matched: [],
-    unmatched: [],
-  }
-
-  beforeEach(() => {
-    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
-      store: 'Mercadona',
-      receipt_date: '2026-07-20',
-      receipt_total: 10,
-      inference_source: 'in_cloud',
-      lines: [],
-    })
-    vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
-  })
-
-  async function openSheet() {
-    const { container } = render(
-      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
-    )
-    const fileInput = container.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement
-    fireEvent.change(fileInput, {
-      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
-    })
-    return screen.findByText('Corregir fecha (mock)')
-  }
-
-  it('drops a pending scan when a correction re-matches', async () => {
-    // The corrected match replaces matched/unmatched wholesale and remounts
-    // the sheet, where appliedScan starts at null again — so a surviving
-    // pendingScan would reapply its product to whatever line now sits at
-    // that index. Same hazard the close path already guards against.
-    await openSheet()
-    fireEvent.click(await screen.findByText('Escanear línea (mock)'))
-    fireEvent.click(await screen.findByText('Escanear producto (mock)'))
-    expect(await screen.findByTestId('mock-pending-scan')).toHaveTextContent(
-      mockScannedProduct.ean,
-    )
-
-    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
-
-    await waitFor(() =>
-      expect(screen.getByTestId('mock-pending-scan')).toHaveTextContent('null'),
-    )
-  })
-
-  it('stops asking about a date the user corrected', async () => {
-    // The remount resets the sheet's own dismissal state, so without a flag
-    // held up here the user gets asked about the date they just typed.
-    const corrected = { ...mockScanResult, scan_id: 'scan-2' }
-    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(mockScanResult)
-    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(corrected)
-
-    await openSheet()
-    expect(screen.getByTestId('mock-date-confirmed')).toHaveTextContent('false')
-
-    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
-
-    await waitFor(() =>
-      expect(screen.getByTestId('mock-date-confirmed')).toHaveTextContent(
-        'true',
-      ),
-    )
-  })
-
-  it('keeps a pending scan when the re-match failed', async () => {
-    // The sheet never remounts on this path — no new scan_id — so the reapply
-    // hazard that motivates clearing it never arises. Dropping it anyway would
-    // make a transient failure cost the user a barcode they already scanned.
-    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(mockScanResult)
-    vi.mocked(api.submitParsedReceipt).mockRejectedValueOnce(
-      new Error('network'),
-    )
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    await openSheet()
-    fireEvent.click(await screen.findByText('Escanear línea (mock)'))
-    fireEvent.click(await screen.findByText('Escanear producto (mock)'))
-    expect(await screen.findByTestId('mock-pending-scan')).toHaveTextContent(
-      mockScannedProduct.ean,
-    )
-
-    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
-
-    await screen.findByRole('alert')
-    expect(screen.getByTestId('mock-pending-scan')).toHaveTextContent(
-      mockScannedProduct.ean,
-    )
-  })
-
-  it('keeps asking when the re-match failed', async () => {
-    // Nothing changed on screen, so suppressing the prompt would strand the
-    // misread date with nothing left pointing at it.
-    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(mockScanResult)
-    vi.mocked(api.submitParsedReceipt).mockRejectedValueOnce(
-      new Error('network'),
-    )
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    await openSheet()
-    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
-
-    await screen.findByRole('alert')
-    expect(screen.getByTestId('mock-date-confirmed')).toHaveTextContent('false')
   })
 })
 
