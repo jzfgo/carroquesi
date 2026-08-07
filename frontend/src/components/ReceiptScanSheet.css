@@ -591,7 +591,10 @@
 .rss-resolve-body {
   flex: 1;
   overflow-y: auto;
-  padding: 14px 20px 0;
+
+  /* Bottom padding keeps the smart bar off the Asignar foot — the breathing
+     room the (deferred, JAV-177) helper link would otherwise have provided. */
+  padding: 14px 20px 16px;
 }
 
 .rss-pending {
