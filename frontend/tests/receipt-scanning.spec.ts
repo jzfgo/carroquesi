@@ -51,6 +51,15 @@ const PARSED_RECEIPT = {
   ],
 }
 
+// An unreadable ticket: the parse rescues store/date/total but reads no lines,
+// which is the 18c illegible threshold.
+const ILLEGIBLE_RECEIPT = {
+  store: 'Carrefour',
+  receipt_date: '2026-07-10',
+  receipt_total: 41.6,
+  lines: [],
+}
+
 function itemCard(page: Page, name: string) {
   return page.locator('.item-card').filter({ hasText: name })
 }
@@ -167,6 +176,30 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await expect(page.getByRole('alert')).toContainText(
         '2 precios actualizados',
       )
+    })
+
+    test('an unreadable ticket offers the 18c partial save', async ({
+      page,
+    }) => {
+      await gotoList(page)
+      await mockGeminiReceiptParse(page, ILLEGIBLE_RECEIPT)
+
+      await uploadReceipt(page)
+
+      // A zero-line parse routes to the illegible sheet, not the review sheet.
+      const sheet = page.locator('.modal-sheet.rill')
+      await expect(sheet).toBeVisible()
+      await expect(reviewSheet(page)).toBeHidden()
+      await expect(sheet.locator('.rill-head__title')).toHaveText(
+        'No se lee el ticket',
+      )
+      // The rescued store and total are seeded and editable.
+      await expect(
+        sheet.getByRole('button', { name: /Carrefour/ }),
+      ).toBeVisible()
+      await expect(sheet.getByRole('button', { name: /41,60/ })).toBeVisible()
+
+      await expectScreenshot(page, `receipt-illegible-${themeName}.png`)
     })
   })
 }

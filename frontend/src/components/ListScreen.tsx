@@ -63,6 +63,7 @@ import {
   ReceiptConsentSheet,
   type ReceiptConsentSheetHandle,
 } from './ReceiptConsentSheet'
+import { ReceiptIllegibleSheet } from './ReceiptIllegibleSheet'
 import ReceiptScanSheet, { type ReceiptConfirmMeta } from './ReceiptScanSheet'
 import { SaveTicketSheet } from './SaveTicketSheet'
 import { SmartInputBar } from './SmartInputBar'
@@ -305,6 +306,14 @@ export function ListScreen({
   // itself is never stored. Revoked when the session ends (see setReceiptImage).
   const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(null)
   const [receiptIsPdf, setReceiptIsPdf] = useState(false)
+  // Rescued store/date/total from a scan that read zero lines — the 18c
+  // illegible path. Non-null mounts <ReceiptIllegibleSheet>; the review sheet
+  // never opens for these.
+  const [illegibleRescue, setIllegibleRescue] = useState<{
+    store: string | null
+    date: string | null
+    total: number | null
+  } | null>(null)
   const receiptImageUrlRef = useRef<string | null>(null)
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [receiptSourcePickerOpen, setReceiptSourcePickerOpen] = useState(false)
@@ -481,13 +490,29 @@ export function ListScreen({
           return
         }
 
+        // A PDF has no preview thumbnail — the sheet shows a badge instead.
+        const isPdf = file.type === 'application/pdf'
+
+        // Zero lines is the "illegible" signal: the parse prompt omits unreadable
+        // lines rather than throwing, so an empty list means the photo couldn't
+        // be read. There is nothing to match — skip the matcher and offer 18c,
+        // where what was rescued (store/date/total) saves as a manual purchase.
+        if (parsed.lines.length === 0) {
+          setIllegibleRescue({
+            store: parsed.store ?? null,
+            date: parsed.receipt_date ?? null,
+            total: parsed.receipt_total ?? null,
+          })
+          setReceiptImage(isPdf ? null : URL.createObjectURL(file), isPdf)
+          setPendingScan(null)
+          return
+        }
+
         const result = await submitParsedReceipt(getToken, listId, parsed)
         setReceiptScanResult(result)
-        // Hold the image in memory for the review thumbnail (PDFs get a badge
-        // instead of a preview). Clearing pendingScan is belt-and-suspenders
-        // alongside the exit-path clears: a fresh session never starts primed
-        // with a scan from a stale one.
-        const isPdf = file.type === 'application/pdf'
+        // Hold the image in memory for the review thumbnail. Clearing pendingScan
+        // is belt-and-suspenders alongside the exit-path clears: a fresh session
+        // never starts primed with a scan from a stale one.
         setReceiptImage(isPdf ? null : URL.createObjectURL(file), isPdf)
         setPendingScan(null)
       } catch (e) {
@@ -1390,6 +1415,37 @@ export function ListScreen({
           onReReadReceipt={handleReReadReceipt}
           pendingScan={pendingScan}
           onRequestScan={handleReceiptScanRequest}
+        />
+      )}
+
+      {illegibleRescue && (
+        <ReceiptIllegibleSheet
+          listId={listId}
+          getToken={getToken}
+          rescuedStore={illegibleRescue.store}
+          rescuedDate={illegibleRescue.date}
+          rescuedTotal={illegibleRescue.total}
+          storeOptions={items.flatMap((i) => i.stores)}
+          displayStore={displayStore}
+          showToast={setToast}
+          onClose={() => {
+            setIllegibleRescue(null)
+            setReceiptImage(null, false)
+          }}
+          onDiscard={() => {
+            setIllegibleRescue(null)
+            setReceiptImage(null, false)
+          }}
+          onDone={() => {
+            setIllegibleRescue(null)
+            setReceiptImage(null, false)
+            invalidateAfterTripChange()
+            setToast('Compra guardada')
+          }}
+          onRetakePhoto={() => {
+            setIllegibleRescue(null)
+            handleReReadReceipt()
+          }}
         />
       )}
     </div>

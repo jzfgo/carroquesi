@@ -7,11 +7,18 @@ const PAGE = 20
 
 // The stack shows the list's past shops — closed trips and torn-off unwritten
 // proto-tickets — newest first. The still-open cart is NOT the stack's: its
-// lines live in the pending sheet's talón, so it is filtered out here. A trip
-// is the open cart iff its boundary (closed_at ?? tears_off_at) is still in the
-// future, which is exactly what isTripOpen answers.
+// lines live in the pending sheet's talón, so it is filtered out here.
+//
+// The open cart is the single row a list keeps un-closed (closed_at === null,
+// the uq_purchases_open_per_list row), and then only while its tear-off is
+// still ahead. A trip that HAS been closed is never the open cart, even when
+// its closed_at is itself in the future: a manual/back-dated purchase carries
+// closed_at = tears_off_at so it sorts under the day it covered (see
+// create_manual_purchase), and for one dated today that boundary is tonight —
+// future, but closed, so it belongs in the stack. Keying off closed_at ??
+// tears_off_at instead would misread that record as the open cart and drop it.
 function notOpenCart(trip: PurchaseSummary): boolean {
-  return !isTripOpen(trip.closed_at ?? trip.tears_off_at)
+  return trip.closed_at != null || !isTripOpen(trip.tears_off_at)
 }
 
 export interface UseStack {
