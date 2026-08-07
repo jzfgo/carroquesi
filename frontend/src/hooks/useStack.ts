@@ -21,6 +21,13 @@ export interface UseStack {
   loadingMore: boolean
   hasMore: boolean
   loadMore: () => void
+  /**
+   * Re-read the first page in place, collapsing back to it. The stack is a
+   * separate read from the item list, so a mutation that closes or settles a
+   * trip must call this (alongside the items' `retry`) or the freshly-closed
+   * trip never migrates from the open cart into the stack until a remount.
+   */
+  refetch: () => Promise<void>
   /** Lazily fetch one trip's lines, for an expanded / unfolded card. */
   loadItems: (purchaseId: string) => Promise<ListItem[]>
 }
@@ -44,6 +51,17 @@ export function useStack(
     [getToken, listId],
   )
 
+  // Apply a first-page result: reset the view to page 0 and re-align the paging
+  // offset. Shared by the mount effect and the manual `refetch`.
+  const applyFirstPage = useCallback(
+    (page: { purchases: PurchaseSummary[]; total: number }) => {
+      setTrips(page.purchases.filter(notOpenCart))
+      setTotal(page.total)
+      setOffset(page.purchases.length)
+    },
+    [],
+  )
+
   // First page on mount / when the list changes. Only the async callbacks touch
   // state — the effect body stays side-effect-free — so `loading` simply rides
   // its initial `true` until the fetch settles.
@@ -51,10 +69,7 @@ export function useStack(
     let cancelled = false
     fetchPage(0)
       .then((page) => {
-        if (cancelled) return
-        setTrips(page.purchases.filter(notOpenCart))
-        setTotal(page.total)
-        setOffset(page.purchases.length)
+        if (!cancelled) applyFirstPage(page)
       })
       .catch(() => {
         if (!cancelled) setTrips([])
@@ -65,7 +80,19 @@ export function useStack(
     return () => {
       cancelled = true
     }
-  }, [fetchPage])
+  }, [fetchPage, applyFirstPage])
+
+  // Re-read page 0 after a trip-changing mutation. No `loading` toggle: the
+  // stack stays populated and refreshes under the caller's own pending UI,
+  // rather than flashing the skeleton over content that is already on screen.
+  // A failed refresh keeps the current view — the next mutation retries.
+  const refetch = useCallback(
+    () =>
+      fetchPage(0)
+        .then(applyFirstPage)
+        .catch(() => {}),
+    [fetchPage, applyFirstPage],
+  )
 
   const hasMore = offset < total
 
@@ -93,5 +120,14 @@ export function useStack(
     [getToken, listId],
   )
 
-  return { trips, total, loading, loadingMore, hasMore, loadMore, loadItems }
+  return {
+    trips,
+    total,
+    loading,
+    loadingMore,
+    hasMore,
+    loadMore,
+    refetch,
+    loadItems,
+  }
 }

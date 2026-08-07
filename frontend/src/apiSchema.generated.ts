@@ -1576,8 +1576,12 @@ export interface components {
             patches: components["schemas"]["PricePatch"][];
             /** Receipt Date */
             receipt_date?: string | null;
+            /** Receipt Total */
+            receipt_total?: number | null;
             /** Scan Id */
             scan_id?: string | null;
+            /** Store */
+            store?: string | null;
         };
         /** ReceiptScanRequest */
         ReceiptScanRequest: {

@@ -9,7 +9,7 @@ here hardcodes a zone.
 
 from datetime import UTC, datetime, timedelta, tzinfo
 
-from sqlalchemy import update
+from sqlalchemy import and_, func, or_, update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
@@ -41,23 +41,41 @@ def is_open(trip: Purchase, now: datetime) -> bool:
     return ends_at(trip) > now
 
 
-def open_trip_for(session: Session, list_id: str, now: datetime, tz: tzinfo) -> Purchase:
-    """The list's open trip — the cart — created if there is none.
+def in_cart_predicate(now: datetime):
+    """SQLAlchemy predicate: the item sits in a still-open cart.
+
+    Assumes the query outer-joins Purchase on ListItem.purchase_id. A purchased
+    item on a closed or torn-off trip — coalesce(closed_at, tears_off_at) <= now,
+    or no trip row at all (NULL) — fails this, mirroring is_open's rule.
+    """
+    return and_(
+        ListItem.purchased_at.is_not(None),
+        func.coalesce(Purchase.closed_at, Purchase.tears_off_at) > now,
+    )
+
+
+def in_scope_predicate(now: datetime):
+    """SQLAlchemy predicate: pending OR in the open cart — i.e. not yet settled.
+
+    The complement of "sits on a closed/torn-off purchase". One definition
+    serves both the pending sheet's counting rule (routers/lists.py) and the
+    receipt matcher's candidate pool (routers/receipt.py). Requires the same
+    Purchase outer-join as in_cart_predicate.
+    """
+    return or_(ListItem.purchased_at.is_(None), in_cart_predicate(now))
+
+
+def find_open_trip(session: Session, list_id: str, now: datetime) -> Purchase | None:
+    """The list's open cart if it has one — the trip-open lookup without the create.
 
     A trip is open while it is unreconciled and its tear-off is still ahead.
     More than one can qualify: a fast clock, or a timezone change between two
-    taps, can leave an open trip with a boundary further out than the one
-    `now` would compute. Ordering by the earliest boundary keeps the choice
-    deterministic and stops such a stale future boundary from shadowing the
-    trip that tears off first.
-
-    Two members tapping at the same instant can both miss the SELECT and both
-    attempt the INSERT. The real guarantee of "one open trip" is the partial
-    unique index uq_purchases_open_per_list, not this function's lookup; the
-    `except IntegrityError` hands the loser the winner's row instead of
-    failing the tap.
+    taps, can leave an open trip with a boundary further out than the one `now`
+    would compute. Ordering by the earliest boundary keeps the choice
+    deterministic and stops such a stale future boundary from shadowing the trip
+    that tears off first.
     """
-    lookup = (
+    return session.exec(
         select(Purchase)
         .where(
             Purchase.list_id == list_id,
@@ -65,8 +83,19 @@ def open_trip_for(session: Session, list_id: str, now: datetime, tz: tzinfo) -> 
             Purchase.tears_off_at > now,
         )
         .order_by(Purchase.tears_off_at.asc())
-    )
-    trip = session.exec(lookup).first()
+    ).first()
+
+
+def open_trip_for(session: Session, list_id: str, now: datetime, tz: tzinfo) -> Purchase:
+    """The list's open trip — the cart — created if there is none.
+
+    Two members tapping at the same instant can both miss the SELECT and both
+    attempt the INSERT. The real guarantee of "one open trip" is the partial
+    unique index uq_purchases_open_per_list, not this function's lookup; the
+    `except IntegrityError` hands the loser the winner's row instead of
+    failing the tap.
+    """
+    trip = find_open_trip(session, list_id, now)
     if trip is not None:
         return trip
     trip = Purchase(list_id=list_id, opened_at=now, tears_off_at=tears_off_at_for(now, tz))
@@ -99,7 +128,7 @@ def open_trip_for(session: Session, list_id: str, now: datetime, tz: tzinfo) -> 
         # re-select finds nothing, re-raising surfaces an unrelated failure
         # (a FK violation, say) as itself instead of a confusing empty
         # result.
-        winner = session.exec(lookup).first()
+        winner = find_open_trip(session, list_id, now)
         if winner is None:
             raise
         return winner
@@ -125,7 +154,7 @@ def close(
     session: Session,
     list_id: str,
     item_ids: list[str],
-    store: str,
+    store: str | None,
     total: float | None,
     now: datetime,
     purchase_id: str | None = None,

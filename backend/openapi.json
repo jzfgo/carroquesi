@@ -1918,6 +1918,17 @@
             ],
             "title": "Receipt Date"
           },
+          "receipt_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt Total"
+          },
           "scan_id": {
             "anyOf": [
               {
@@ -1928,6 +1939,17 @@
               }
             ],
             "title": "Scan Id"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
           }
         },
         "title": "ReceiptPriceBatch",

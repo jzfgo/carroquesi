@@ -931,6 +931,9 @@ describe('receipt price confirmation toast', () => {
       {
         scan_id: 'scan-1',
         receipt_date: '2026-07-20',
+        // Store and paper total ride along to close the trip these lines settle.
+        store: 'Mercadona',
+        receipt_total: 10,
         patches: [],
         new_items: [mockNewItem],
         mappings: [],

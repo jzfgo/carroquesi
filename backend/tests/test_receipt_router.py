@@ -31,12 +31,15 @@ def enable_receipt_flag(session, user):
 def seed_list(session, user):
     lst = List(id=LIST_ID, name="Test List", owner_id=user.id)
     member = ListMember(list_id=LIST_ID, user_id=user.id)
+    # Pending, not purchased: the receipt matcher draws from what is still in
+    # play — pending items and the open cart — so the canonical candidate is a
+    # list item awaiting a shop. Scanning it is what marks it purchased and
+    # closes the trip.
     item = ListItem(
         id="item-almendras",
         list_id=LIST_ID,
         name="Bebida de almendra 0% azúcares",
         added_by=user.id,
-        purchased_at=datetime(2026, 4, 11, 15, 57, 0),
     )
     session.add_all([lst, member, item])
     session.commit()
@@ -110,7 +113,6 @@ def test_post_receipt_store_stays_null_when_items_have_mixed_stores(client, sess
         list_id=LIST_ID,
         name="Bacon lonchas",
         added_by=session.get(ListItem, "item-almendras").added_by,
-        purchased_at=datetime(2026, 4, 11, 15, 57, 0),
         price_store="Lidl",
     )
     item = session.get(ListItem, "item-almendras")
@@ -154,7 +156,6 @@ def test_post_receipt_infers_store_across_spelling_variants(client, session):
         list_id=LIST_ID,
         name="Bacon lonchas",
         added_by=session.get(ListItem, "item-almendras").added_by,
-        purchased_at=datetime(2026, 4, 11, 15, 57, 0),
         price_store="ahorra más",
     )
     item = session.get(ListItem, "item-almendras")
@@ -196,7 +197,6 @@ def test_post_receipt_returns_kilogram_price_type(client, session):
         list_id=LIST_ID,
         name="Bacon lonchas",
         added_by=session.get(ListItem, "item-almendras").added_by,
-        purchased_at=datetime(2026, 4, 11, 15, 57, 0),
     )
     session.add(item)
     session.commit()
@@ -236,7 +236,6 @@ def test_post_receipt_infers_store_when_one_item_has_no_store(client, session):
         list_id=LIST_ID,
         name="Leche entera",
         added_by=session.get(ListItem, "item-almendras").added_by,
-        purchased_at=datetime(2026, 4, 11, 15, 57, 0),
         price_store=None,
     )
     item = session.get(ListItem, "item-almendras")
@@ -406,14 +405,13 @@ def test_receipt_prices_purchased_quantity_null_when_patch_quantity_null(client,
     assert session.get(ListItem, "item-almendras").purchased_quantity is None
 
 
-def test_post_receipt_matches_most_recently_purchased_duplicate(client, session):
-    """Re-buying an item creates a second row with the same name; the scan
-    must match the recent purchase, not an older one. Both purchases are kept
-    inside the +-3 day match window so this exercises match_lines' recency
-    preference, not the window filter itself."""
+def test_post_receipt_matches_the_most_recently_updated_duplicate(client, session):
+    """Two rows can share a name (a re-buy, say). Both are in the candidate pool,
+    so the tiebreak is recency: match_lines keeps the first per name from a pool
+    ordered pending-first then most-recently-updated, so the recent row wins."""
     old_item = session.get(ListItem, "item-almendras")
     old_item.name = "Leche entera"
-    old_item.purchased_at = datetime(2026, 4, 9, 9, 0, 0)
+    old_item.updated_at = datetime(2026, 4, 9, 9, 0, 0)
     session.add(old_item)
 
     recent_item = ListItem(
@@ -421,7 +419,7 @@ def test_post_receipt_matches_most_recently_purchased_duplicate(client, session)
         list_id=LIST_ID,
         name="Leche entera",
         added_by=old_item.added_by,
-        purchased_at=datetime(2026, 4, 11, 15, 57, 0),
+        updated_at=datetime(2026, 4, 11, 15, 57, 0),
     )
     session.add(recent_item)
     session.commit()
@@ -449,57 +447,22 @@ def test_post_receipt_matches_most_recently_purchased_duplicate(client, session)
     assert body["matched"][0]["item_id"] == "item-leche-recent"
 
 
-def test_post_receipt_prefers_purchase_closest_to_receipt_date_over_more_recent_one(
-    client, session
-):
-    """Scanning an older receipt after already buying the same item again more
-    recently must still match the purchase closest to the receipt date, not
-    the newer unrelated purchase."""
-    close_item = session.get(ListItem, "item-almendras")
-    close_item.name = "Leche entera"
-    close_item.purchased_at = datetime(2026, 4, 9, 9, 0, 0)  # same day as receipt
-    session.add(close_item)
+def test_post_receipt_excludes_items_settled_on_a_closed_purchase(client, session):
+    """An item already filed on a closed (or torn-off) trip is out of the pool:
+    a receipt records a new shop, it does not re-price a settled one."""
+    from app.db.models import Purchase
 
-    newer_item = ListItem(
-        id="item-leche-newer",
+    trip = Purchase(
+        id="trip-closed",
         list_id=LIST_ID,
-        name="Leche entera",
-        added_by=close_item.added_by,
-        purchased_at=datetime(2026, 4, 11, 15, 57, 0),  # 2 days after receipt, more recent
+        opened_at=datetime(2026, 4, 1, 9, 0, 0),
+        tears_off_at=datetime(2026, 4, 2, 0, 0, 0),
+        closed_at=datetime(2026, 4, 2, 0, 0, 0),
     )
-    session.add(newer_item)
-    session.commit()
-
-    response = client.post(
-        f"/lists/{LIST_ID}/receipt",
-        json={
-            "store": "Mercadona",
-            "receipt_date": "2026-04-09",
-            "receipt_total": 0.89,
-            "lines": [
-                {
-                    "name": "LECHE ENTERA",
-                    "price_type": "UNIT",
-                    "unit_price": 0.89,
-                    "quantity": None,
-                    "line_total": 0.89,
-                }
-            ],
-        },
-    )
-    assert response.status_code == 200
-    body = response.json()
-    assert len(body["matched"]) == 1
-    assert body["matched"][0]["item_id"] == "item-almendras"
-
-
-def test_post_receipt_ignores_items_purchased_outside_match_window(client, session):
-    """Items purchased more than 3 days from the receipt date are excluded
-    from the candidate pool entirely, so an unrelated old purchase can't be
-    fuzzy-matched even when no closer candidate exists."""
     item = session.get(ListItem, "item-almendras")
-    item.purchased_at = datetime(2026, 3, 1, 9, 0, 0)  # 41 days before receipt
-    session.add(item)
+    item.purchased_at = datetime(2026, 4, 1, 10, 0, 0)
+    item.purchase_id = "trip-closed"
+    session.add_all([trip, item])
     session.commit()
 
     response = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body())
@@ -509,12 +472,22 @@ def test_post_receipt_ignores_items_purchased_outside_match_window(client, sessi
     assert len(body["unmatched"]) == 1
 
 
-def test_post_receipt_includes_items_purchased_within_window_after_receipt_date(client, session):
-    """Items marked purchased a few days after the printed receipt date
-    (e.g. the user scans late) are still matchable."""
+def test_post_receipt_includes_items_in_the_open_cart(client, session):
+    """Items already in the open cart (purchased this trip, not yet closed) stay
+    matchable — the receipt is what closes that cart."""
+    from app.db.models import Purchase
+
+    trip = Purchase(
+        id="trip-open",
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 11, 9, 0, 0),
+        # Far-future tear-off so the cart reads as open whenever the suite runs.
+        tears_off_at=datetime(2099, 1, 1, 0, 0, 0),
+    )
     item = session.get(ListItem, "item-almendras")
-    item.purchased_at = datetime(2026, 4, 14, 9, 0, 0)  # 3 days after receipt_date
-    session.add(item)
+    item.purchased_at = datetime(2026, 4, 11, 10, 0, 0)
+    item.purchase_id = "trip-open"
+    session.add_all([trip, item])
     session.commit()
 
     response = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body())
@@ -719,10 +692,25 @@ def test_receipt_prices_marks_unpurchased_item_as_purchased(client, session, use
 
 
 def test_receipt_prices_does_not_rewrite_an_existing_purchase_timestamp(client, session):
-    """A co-shopper may have purchased it days ago; only prices should change.
-    updated_at must not move either: a price-only patch reopening the
-    unpurchase grace window would let the co-shopper's purchase be reverted."""
+    """A co-shopper may already have this line in the open cart; applying the
+    receipt closes the trip but must not rewrite its purchased_at. updated_at
+    must not move either: bumping it would reopen the unpurchase grace window
+    and let the co-shopper's purchase be reverted."""
+    from app.db.models import Purchase
+
+    # Already in the open cart, purchased by someone earlier in the trip.
+    trip = Purchase(
+        id="trip-open-ts",
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 8, 9, 0, 0),
+        tears_off_at=datetime(2099, 1, 1, 0, 0, 0),
+    )
     original_item = session.get(ListItem, "item-almendras")
+    original_item.purchased_at = datetime(2026, 4, 8, 10, 0, 0)
+    original_item.purchase_id = "trip-open-ts"
+    session.add_all([trip, original_item])
+    session.commit()
+
     original = original_item.purchased_at
     original_updated_at = original_item.updated_at
 
@@ -1059,7 +1047,6 @@ def test_mapping_written_by_apply_is_found_by_the_next_scan(client, session, use
             list_id=LIST_ID,
             name="Bombones surtidos",
             added_by=user.id,
-            purchased_at=datetime(2026, 4, 11, 15, 57, 0),
         )
     )
     session.commit()
@@ -1092,11 +1079,11 @@ def test_mapping_written_by_apply_is_found_by_the_next_scan(client, session, use
     assert body["matched"][0]["item_id"] == "item-bombones"
 
 
-def test_receipt_apply_files_a_new_purchase_into_the_current_open_trip(client, session, user):
-    """The receipt backdates purchased_at to the shopping trip, but the trip
-    link points at the *current* open cart — purchased implies a trip, and
-    guessing a past trip from a parsed date would be a claim nobody made.
-    Reconciliation re-files it later."""
+def test_receipt_apply_closes_the_trip_back_dated_to_the_receipt(client, session, user):
+    """A receipt records a finished shop, so applying it settles the line onto a
+    CLOSED trip filed under the receipt's day — not a lingering open cart. The
+    line's purchased_at is the receipt instant; the trip's boundaries are that
+    day's midnight and tear-off (client tz defaults to UTC here)."""
     from app.db.models import Purchase
 
     session.add(
@@ -1115,6 +1102,8 @@ def test_receipt_apply_files_a_new_purchase_into_the_current_open_trip(client, s
         json={
             "scan_id": None,
             "receipt_date": "2026-04-11T17:42:00Z",
+            "store": "Mercadona",
+            "receipt_total": 1.25,
             "patches": [
                 {
                     "item_id": "item-pan-trip",
@@ -1136,9 +1125,11 @@ def test_receipt_apply_files_a_new_purchase_into_the_current_open_trip(client, s
     assert item.purchase_id is not None
     trip = session.get(Purchase, item.purchase_id)
     assert trip.list_id == LIST_ID
-    assert trip.closed_at is None
-    # The trip is the current cart, not one invented for the receipt's date.
-    assert trip.tears_off_at > datetime.now(UTC).replace(tzinfo=None)
+    assert trip.closed_at is not None
+    assert trip.opened_at == datetime(2026, 4, 11, 0, 0)
+    assert trip.tears_off_at == datetime(2026, 4, 12, 0, 0)
+    assert trip.store == "Mercadona"
+    assert trip.total == pytest.approx(1.25)
 
 
 def test_receipt_apply_created_items_join_the_same_open_trip(client, session, user):
@@ -1222,30 +1213,16 @@ def test_receipt_apply_stamps_the_trip_boundary_in_the_clients_zone(client, sess
     assert trip.tears_off_at == tears_off_at_for(trip.opened_at, ZoneInfo("Etc/GMT+12"))
 
 
-def test_price_only_receipt_apply_opens_no_trip(client, session):
-    """Logging a price on an already-purchased item claims nothing about a
-    shop happening now, so no cart may appear as a side effect."""
+def test_apply_with_nothing_to_settle_closes_no_trip(client, session):
+    """A body that settles no line — only a mapping to learn — claims nothing
+    about a shop, so no cart is opened or closed as a side effect."""
     from sqlmodel import select as sql_select
 
     from app.db.models import Purchase
 
     response = client.post(
         f"/lists/{LIST_ID}/receipt-prices",
-        json={
-            "scan_id": None,
-            "receipt_date": "2026-04-11T17:42:00Z",
-            "patches": [
-                {
-                    "item_id": "item-almendras",
-                    "price": 1.15,
-                    "price_per": None,
-                    "store": "Mercadona",
-                    "quantity": None,
-                }
-            ],
-            "new_items": [],
-            "mappings": [],
-        },
+        json=_mapping_batch("Mercadona", "BEBIDA ALMENDRAS 0%", "Bebida de almendra 0% azúcares"),
     )
     assert response.status_code == 200
     assert session.exec(sql_select(Purchase)).all() == []
@@ -1292,27 +1269,16 @@ def test_receipt_apply_links_the_scan_to_the_trip_it_filed(client, session, user
     assert scan.purchase_id == item.purchase_id
 
 
-def test_price_only_receipt_apply_leaves_the_scan_unlinked(client, session):
-    """No trip was filed, so the scan reconciled nothing — the link stays
-    NULL rather than pointing at a trip this apply never touched."""
+def test_apply_with_nothing_to_settle_leaves_the_scan_unlinked(client, session):
+    """No trip was closed, so the scan reconciled nothing — the link stays NULL
+    rather than pointing at a trip this apply never touched."""
     scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body()).json()["scan_id"]
 
     response = client.post(
         f"/lists/{LIST_ID}/receipt-prices",
         json={
+            **_mapping_batch("Mercadona", "BEBIDA ALMENDRAS 0%", "Bebida de almendra 0% azúcares"),
             "scan_id": scan_id,
-            "receipt_date": "2026-04-11T17:42:00Z",
-            "patches": [
-                {
-                    "item_id": "item-almendras",
-                    "price": 1.15,
-                    "price_per": None,
-                    "store": "Mercadona",
-                    "quantity": None,
-                }
-            ],
-            "new_items": [],
-            "mappings": [],
         },
     )
     assert response.status_code == 200
