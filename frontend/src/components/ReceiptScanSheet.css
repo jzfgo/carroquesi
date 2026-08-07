@@ -600,7 +600,7 @@
 }
 
 .rss-pending .rss-eyebrow {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .rss-pending__row {
@@ -646,7 +646,7 @@
 .rss-pending__name {
   font-family: var(--font-sans);
   font-size: 0.95rem;
-  color: var(--ink-0);
+  color: var(--ink-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -660,8 +660,12 @@
 
 .rss-create {
   margin-top: 8px;
-  padding-top: 16px;
+  padding-top: 18px;
   border-top: 1px solid var(--rule-dashed);
+}
+
+.rss-create .rss-eyebrow {
+  margin-bottom: 10px;
 }
 
 .rss-create__preview {
@@ -698,9 +702,18 @@
   align-items: center;
   gap: 8px;
   margin-top: 8px;
-  padding: 4px 4px 4px 14px;
+  padding: 5px 5px 5px 16px;
   border-radius: 999px;
-  background: var(--paper-1);
+  background: var(--paper-0);
+  box-shadow: var(--shadow-md);
+}
+
+/* Accent ring on focus, mirroring the add bar (SmartInputBar :focus-within):
+   the pill has no border to recolour, so the ring rides atop the cast. */
+.rss-create__bar:focus-within {
+  box-shadow:
+    var(--shadow-md),
+    0 0 0 1.5px var(--accent);
 }
 
 .rss-create__input {
@@ -717,11 +730,10 @@
 
 .rss-create__scan {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: none;
-  border-radius: 50%;
-  background: var(--paper-0);
+  background: none;
   color: var(--ink-1);
   display: flex;
   align-items: center;
