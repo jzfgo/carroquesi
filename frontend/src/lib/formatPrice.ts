@@ -17,3 +17,15 @@ export function formatRowAmount(amount: number): string {
     maximumFractionDigits: 2,
   }).format(amount)
 }
+
+/**
+ * A hand-typed money amount as a number, or null when it is blank or invalid.
+ * Accepts the comma decimal people actually type («8,15»); a negative or
+ * non-finite figure is rejected as no amount rather than a bad one.
+ */
+export function parseAmount(text: string): number | null {
+  const trimmed = text.trim()
+  if (trimmed === '') return null
+  const n = parseFloat(trimmed.replace(',', '.'))
+  return Number.isFinite(n) && n >= 0 ? n : null
+}

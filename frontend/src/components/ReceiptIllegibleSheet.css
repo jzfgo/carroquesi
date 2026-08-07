@@ -1,0 +1,242 @@
+/* Panel chrome (surface, corners, shadow, grabber, slide) comes from the shared
+   Sheet primitive. This file styles only the 18c content: the failure header,
+   the rescued store/date/total card, the three actions, and the photo tips.
+   Every colour maps to a token, so light matches the handoff frame and dark
+   renders correctly for free. */
+.rill {
+  max-height: 92dvh;
+}
+
+/* ── header: unreadable-thumb + title + subtitle ── */
+.rill-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px 14px;
+  border-bottom: 1px solid var(--paper-edge);
+  flex-shrink: 0;
+}
+
+.rill-head__thumb {
+  flex-shrink: 0;
+  width: 44px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: var(--paper-1);
+  border: 1px solid var(--paper-edge);
+  box-shadow: var(--shadow-sm);
+
+  /* Amber as iconography, never as a text colour (per the token's own note). */
+  color: var(--miel-0);
+}
+
+.rill-head__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rill-head__title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--ink-0);
+}
+
+.rill-head__sub {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+/* ── rescued data: store / date / total, all editable ── */
+.rill-card {
+  margin: 16px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 12px;
+}
+
+.rill-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 32px;
+}
+
+.rill-field__label {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--ink-1);
+  flex-shrink: 0;
+}
+
+.rill-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--paper-edge);
+  background: none;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--ink-0);
+  cursor: pointer;
+}
+
+.rill-pill svg {
+  color: var(--ink-1);
+}
+
+.rill-pill--total {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Inline editors reuse the pill's footprint so the row doesn't jump on tap. */
+.rill-field__input {
+  height: 32px;
+  min-width: 0;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--paper-edge);
+  background: var(--paper-1);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--ink-0);
+}
+
+.rill-field__input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+
+.rill-total-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rill-total-edit__euro {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ink-0);
+}
+
+.rill-field__input--total {
+  width: 88px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ── the three actions ── */
+.rill-actions {
+  margin: 16px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rill-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  background: none;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.rill-btn--primary {
+  min-height: 48px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.rill-btn--secondary {
+  min-height: 48px;
+  border-radius: 10px;
+  border: 1px solid var(--paper-edge);
+  color: var(--accent);
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.rill-btn--secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.rill-btn--tertiary {
+  min-height: 44px;
+  color: var(--ink-1);
+  font-weight: 500;
+  font-size: 13.5px;
+  line-height: 1;
+}
+
+/* ── failure-time photo tips ── */
+.rill-tips {
+  margin: 6px 20px 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+}
+
+.rill-tips__eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 10px;
+}
+
+.rill-tips__list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.rill-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-1);
+}
+
+.rill-tip svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--ink-1);
+}

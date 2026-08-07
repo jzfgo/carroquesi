@@ -55,6 +55,11 @@ export function TripCard({
   const proto = trip.closed_at == null
   // Search mode shows the matched lines directly — no toggle, no lazy fetch.
   const search = matchingLines != null
+  // A closed record with no lines — a manual/total-only purchase (26a, or 18c's
+  // «guardar solo la tienda y el total»). There is nothing to unfold, so it
+  // reads as a static header (store · date · total) rather than an expandable
+  // card that opens onto emptiness.
+  const emptyClosed = !proto && !search && trip.line_count === 0
   const [expanded, setExpanded] = useState(defaultExpanded)
   // null = not fetched yet; an array (possibly empty) = loaded. «Loading» is
   // simply `expanded && lines === null`, so no separate loading state (and no
@@ -62,7 +67,7 @@ export function TripCard({
   const [lines, setLines] = useState<ListItem[] | null>(null)
 
   useEffect(() => {
-    if (search || !expanded || lines !== null) return
+    if (search || emptyClosed || !expanded || lines !== null) return
     let cancelled = false
     loadItems(trip.id)
       .then((items) => {
@@ -74,14 +79,15 @@ export function TripCard({
     return () => {
       cancelled = true
     }
-  }, [search, expanded, lines, loadItems, trip.id])
+  }, [search, emptyClosed, expanded, lines, loadItems, trip.id])
 
   const store = trip.store ?? 'Sin tienda'
   const date = tripDateLabel(trip.opened_at, proto)
 
   // A search card is always open and draws its own lines; otherwise the state
-  // above governs expansion and the fetched lines.
-  const isExpanded = search || expanded
+  // above governs expansion and the fetched lines. An empty closed record never
+  // expands — it has nothing to show.
+  const isExpanded = !emptyClosed && (search || expanded)
   const shownLines = search ? matchingLines : lines
 
   // A trip with no matching line does not appear at all (21b).
@@ -104,6 +110,19 @@ export function TripCard({
             <span className="trip-card__count">
               {matchingLines.length} de {trip.line_count}
             </span>
+          </div>
+        </div>
+      ) : emptyClosed ? (
+        <div className="trip-card__header">
+          <div className="trip-card__header-static">
+            <span className="trip-card__label">
+              {store} · {date}
+            </span>
+            {trip.total != null && (
+              <span className="trip-card__total">
+                € {formatRowAmount(trip.total)}
+              </span>
+            )}
           </div>
         </div>
       ) : (
@@ -181,7 +200,7 @@ export function TripCard({
           ))}
         </div>
       )}
-      {!search && expanded && lines == null && (
+      {!search && !emptyClosed && expanded && lines == null && (
         <div className="trip-card__loading" aria-hidden />
       )}
     </article>

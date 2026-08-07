@@ -58,6 +58,19 @@ test('folded closed trip shows store · date, the total and a down-chevron', () 
   expect(container.querySelector('.item-card')).not.toBeInTheDocument()
 })
 
+test('an empty closed record (no lines) shows the total but no chevron — nothing to unfold', () => {
+  const loadItems = vi.fn(() => Promise.resolve([] as ListItem[]))
+  const trip = makeTrip({ line_count: 0, total: 41.6 })
+  const { container } = render(
+    <TripCard trip={trip} defaultExpanded loadItems={loadItems} />,
+  )
+  expect(screen.getByText('€ 41,60')).toBeInTheDocument()
+  // Total-only: no expand affordance and no fetch, even opened as the latest.
+  expect(container.querySelector('.trip-card__chevron')).not.toBeInTheDocument()
+  expect(container.querySelector('.trip-card__toggle')).not.toBeInTheDocument()
+  expect(loadItems).not.toHaveBeenCalled()
+})
+
 test('a proto-ticket (closed_at null) shows «Sin tienda», the date, and the seal — no total', () => {
   const trip = makeTrip({ closed_at: null, store: null, total: null })
   render(<TripCard trip={trip} defaultExpanded loadItems={noItems} />)

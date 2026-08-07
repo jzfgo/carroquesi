@@ -804,7 +804,17 @@ describe('receipt price confirmation toast', () => {
       receipt_date: '2026-07-20',
       receipt_total: 10,
       inference_source: 'in_cloud',
-      lines: [],
+      // A read line routes to the review sheet; a zero-line parse would divert
+      // to the illegible (18c) sheet, which these review-flow tests don't drive.
+      lines: [
+        {
+          name: 'LECHE ENTERA',
+          price_type: 'UNIT',
+          unit_price: 1,
+          line_total: 1,
+          quantity: null,
+        },
+      ],
     })
     vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
   })
@@ -855,7 +865,17 @@ describe('receipt price confirmation toast', () => {
       receipt_date: '2026-07-20',
       receipt_total: 10,
       inference_source: 'in_cloud',
-      lines: [],
+      // A read line routes to the review sheet; a zero-line parse would divert
+      // to the illegible (18c) sheet, which these review-flow tests don't drive.
+      lines: [
+        {
+          name: 'LECHE ENTERA',
+          price_type: 'UNIT',
+          unit_price: 1,
+          line_total: 1,
+          quantity: null,
+        },
+      ],
     })
     vi.mocked(api.submitParsedReceipt).mockRejectedValue(
       new Error('Backend failed'),
@@ -958,7 +978,17 @@ describe('pendingScan session isolation', () => {
       receipt_date: '2026-07-20',
       receipt_total: 10,
       inference_source: 'in_cloud',
-      lines: [],
+      // A read line routes to the review sheet; a zero-line parse would divert
+      // to the illegible (18c) sheet, which these review-flow tests don't drive.
+      lines: [
+        {
+          name: 'LECHE ENTERA',
+          price_type: 'UNIT',
+          unit_price: 1,
+          line_total: 1,
+          quantity: null,
+        },
+      ],
     })
     vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({

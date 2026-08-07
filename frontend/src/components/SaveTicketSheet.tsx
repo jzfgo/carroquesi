@@ -2,6 +2,7 @@ import { Calendar, ChevronLeft, Receipt } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { manualPurchase } from '../lib/api'
 import { isOnline } from '../lib/connectivity'
+import { parseAmount } from '../lib/formatPrice'
 import { storeKey } from '../lib/storeKey'
 import type { PurchaseManualBody } from '../types'
 import './SaveTicketSheet.css'
@@ -29,13 +30,6 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
     d.getDate(),
   ).padStart(2, '0')}`
-}
-
-function parseTotal(text: string): number | null {
-  const trimmed = text.trim()
-  if (trimmed === '') return null
-  const n = parseFloat(trimmed.replace(',', '.'))
-  return Number.isFinite(n) && n >= 0 ? n : null
 }
 
 /**
@@ -107,7 +101,7 @@ export function SaveTicketSheet({
         date,
         // A store is optional; a blank one is a bare record, not a shop named "".
         store: store.trim() || null,
-        total: parseTotal(totalText),
+        total: parseAmount(totalText),
       }
       await manualPurchase(getToken, listId, body)
       onDone()

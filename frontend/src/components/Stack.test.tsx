@@ -135,6 +135,29 @@ test('the still-open cart is excluded from the stack', async () => {
   expect(screen.queryByText(/Store open/)).not.toBeInTheDocument()
 })
 
+test('a manual purchase dated today (future closed_at) still shows', async () => {
+  // create_manual_purchase sets closed_at = tears_off_at, which for a purchase
+  // dated today is tonight — future, but closed. The open cart is marked by
+  // closed_at === null, so this closed record must not be mistaken for it and
+  // dropped (the bug behind 18c's "saved but nowhere to be seen").
+  vi.mocked(getPurchases).mockResolvedValue(
+    page(
+      [
+        trip('manual', {
+          closed_at: '2099-01-01T00:00:00',
+          tears_off_at: '2099-01-01T00:00:00',
+          line_count: 0,
+        }),
+      ],
+      1,
+    ),
+  )
+  renderStack()
+  await waitFor(() =>
+    expect(screen.getByText(/Store manual/)).toBeInTheDocument(),
+  )
+})
+
 test('no phantom archive door when an open cart pads the count', async () => {
   // total counts the open cart the view filters out. With 3 real trips —
   // latest + the two-trip preview — nothing is left behind, so the door must
