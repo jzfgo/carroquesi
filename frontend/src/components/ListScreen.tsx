@@ -503,7 +503,9 @@ export function ListScreen({
             date: parsed.receipt_date ?? null,
             total: parsed.receipt_total ?? null,
           })
-          setReceiptImage(isPdf ? null : URL.createObjectURL(file), isPdf)
+          // The illegible sheet renders a static «no se lee» thumbnail, never the
+          // capture — so create no blob here; just clear any prior one.
+          setReceiptImage(null, isPdf)
           setPendingScan(null)
           return
         }

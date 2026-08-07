@@ -93,6 +93,19 @@ test('«Guardar solo la tienda y el total» posts {date, store, total} with edit
   await waitFor(() => expect(onDone).toHaveBeenCalled())
 })
 
+test('a four-figure rescued total round-trips whole (no thousands separator)', async () => {
+  const { onDone } = renderSheet({ rescuedTotal: 1234.5 })
+  // Seeded ungrouped so parseAmount reads it whole rather than truncating at a
+  // grouping dot («1.234,50» → 1.234).
+  expect(screen.getByRole('button', { name: /1234,50/ })).toBeInTheDocument()
+  fireEvent.click(screen.getByText('Guardar solo la tienda y el total'))
+
+  await waitFor(() => expect(manualPurchase).toHaveBeenCalled())
+  const body = vi.mocked(manualPurchase).mock.calls.at(-1)![2]
+  expect(body.total).toBe(1234.5)
+  await waitFor(() => expect(onDone).toHaveBeenCalled())
+})
+
 test('a null rescue posts a null store and null total, dated today', async () => {
   const { onDone } = renderSheet({
     rescuedStore: null,

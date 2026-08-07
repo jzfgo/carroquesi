@@ -9,7 +9,7 @@ import {
 import { useMemo, useState } from 'react'
 import { manualPurchase } from '../lib/api'
 import { isOnline } from '../lib/connectivity'
-import { formatRowAmount, parseAmount } from '../lib/formatPrice'
+import { parseAmount } from '../lib/formatPrice'
 import { toDateInputValue, todayInputValue } from '../lib/receiptDate'
 import { storeKey } from '../lib/storeKey'
 import type { PurchaseManualBody } from '../types'
@@ -81,7 +81,11 @@ export function ReceiptIllegibleSheet({
     () => toDateInputValue(rescuedDate) || todayInputValue(),
   )
   const [totalText, setTotalText] = useState(() =>
-    rescuedTotal != null ? formatRowAmount(rescuedTotal) : '',
+    // Ungrouped on purpose: this value round-trips through parseAmount, whose
+    // comma→dot swap would read a grouped «1.234,50» as 1.234. Seed the plain
+    // «1234,50» the field parses cleanly; a thousands separator here would
+    // silently truncate a four-figure total on save.
+    rescuedTotal != null ? rescuedTotal.toFixed(2).replace('.', ',') : '',
   )
   const [editing, setEditing] = useState<Editing>(null)
   const [saving, setSaving] = useState(false)
