@@ -23,6 +23,10 @@ export default defineConfig({
         // self-hosted fonts must render offline. Anything broader
         // triples the precache — diff the manifest before changing.
         globPatterns: ['**/*.{js,css,html,woff2}'],
+        // The pdf.js chunk loads on demand when a PDF receipt is opened.
+        // Offline receipt viewing is not promised, so keep it out of the
+        // precache rather than grow every install by its weight.
+        globIgnores: ['**/pdfjs-*.js'],
       },
       manifest: {
         name: 'CarroQueSí',
@@ -55,6 +59,16 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // One named chunk so the precache globIgnores above can address it.
+        advancedChunks: {
+          groups: [{ name: 'pdfjs', test: /node_modules\/pdfjs-dist\// }],
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/vitest.setup.ts'],
