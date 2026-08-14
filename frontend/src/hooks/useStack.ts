@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getPurchaseItems, getPurchases } from '../lib/api'
+import {
+  getPurchaseItems,
+  getPurchases,
+  getReceiptFileUrl,
+  getReceiptScans,
+} from '../lib/api'
 import { isTripOpen } from '../lib/isTripOpen'
-import type { ListItem, PurchaseSummary } from '../types'
+import type {
+  ListItem,
+  PurchaseSummary,
+  ReceiptFileUrlResult,
+  ReceiptScanSummary,
+} from '../types'
 
 const PAGE = 20
 
@@ -37,6 +47,10 @@ export interface UseStack {
   refetch: () => Promise<void>
   /** Lazily fetch one trip's lines, for an expanded / unfolded card. */
   loadItems: (purchaseId: string) => Promise<ListItem[]>
+  /** Lazily fetch one trip's scans, for the header thumbnail (25b). */
+  loadReceiptScans: (purchaseId: string) => Promise<ReceiptScanSummary[]>
+  /** Mint a short-lived signed URL for one scan's stored file. */
+  loadReceiptFileUrl: (scanId: string) => Promise<ReceiptFileUrlResult>
 }
 
 export function useStack(
@@ -127,6 +141,16 @@ export function useStack(
     [getToken, listId],
   )
 
+  const loadReceiptScans = useCallback(
+    (purchaseId: string) => getReceiptScans(getToken, listId, purchaseId),
+    [getToken, listId],
+  )
+
+  const loadReceiptFileUrl = useCallback(
+    (scanId: string) => getReceiptFileUrl(getToken, listId, scanId),
+    [getToken, listId],
+  )
+
   return {
     trips,
     total,
@@ -136,5 +160,7 @@ export function useStack(
     loadMore,
     refetch,
     loadItems,
+    loadReceiptScans,
+    loadReceiptFileUrl,
   }
 }

@@ -42,6 +42,14 @@
   border-bottom: 1px dashed var(--rule-dashed);
 }
 
+/* 25b: beside the thumb the toggle joins the row and yields its left
+   padding to it. */
+.trip-card__header--thumbed .trip-card__toggle {
+  flex: 1;
+  min-width: 0;
+  padding-left: 0;
+}
+
 /* An EXPANDED proto reserves the right end for the absolutely-placed full seal,
    so the serif label never runs under it. Folded, the seal is a compact badge
    that flows in the meta row, so no reserve is needed — and the store·date gets
@@ -145,6 +153,129 @@
   line-height: 1;
   color: var(--ink-2);
   white-space: nowrap;
+}
+
+/* 25b: with the cuadrito the header becomes a flex row — thumb, then the
+   original tap target. The dashed rule moves up onto the row so it spans
+   under the thumbnail too. */
+.trip-card__header--thumbed {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 20px;
+}
+
+.trip-card__header--thumbed .trip-card__header-static {
+  flex: 1;
+  min-width: 0;
+  padding-left: 0;
+  border-bottom: none;
+}
+
+.trip-card--open .trip-card__header--thumbed {
+  border-bottom: 1px dashed var(--rule-dashed);
+}
+
+.trip-card--open .trip-card__header--thumbed .trip-card__toggle {
+  border-bottom: none;
+}
+
+/* A line-less record keeps its rule; it just moves up onto the row. */
+.trip-card__header--thumbed-static {
+  border-bottom: 1px dashed var(--rule-dashed);
+}
+
+/* Title with the ticket line beneath it. */
+.trip-card__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* «Ticket guardado» / «Sin ticket · escanéalo» — printed record voice, not
+   a control: the thumb and the chevron are the row's affordances. */
+.trip-card__ticket-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--ink-2);
+}
+
+/* The cuadrito (25b): one hole, two states, one footprint — the header must
+   not jump when a purchase gains its paper. */
+.trip-thumb {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 44px;
+  padding: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Solid: the paper exists. The miniature is the real photo, top-aligned so
+   the ticket's own header always shows. */
+.trip-thumb--solid {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--paper-1);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink-1);
+}
+
+.trip-thumb__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+/* Dashed: no paper yet — the same «por confirmar» language as inherited
+   prices. The camera says the hole can be filled. */
+.trip-thumb--empty {
+  border: 1.5px dashed var(--border-strong);
+  background: none;
+  color: var(--ink-2);
+}
+
+/* The 34px box cannot give a 44px touch target on its own. */
+.trip-thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0 -5px;
+}
+
+/* A PDF miniature carries its page count (18c). */
+.trip-thumb__pages {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--paper-0);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink-1);
 }
 
 .trip-card__lines {

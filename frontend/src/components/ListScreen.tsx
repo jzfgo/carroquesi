@@ -1080,6 +1080,11 @@ export function ListScreen({
             onSaveTicket={handleSaveTicket}
             query={filterQuery}
             searching={searching}
+            receiptThumbs={
+              isEnabled(FLAGS.AI_RECEIPT_SCANNING) &&
+              user?.receiptConsent === 'granted'
+            }
+            onScanReceipt={handleReceiptScan}
           />
         }
         displayStore={displayStore}
