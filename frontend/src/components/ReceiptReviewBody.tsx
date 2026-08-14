@@ -23,6 +23,7 @@ import {
   type LineState,
   type ReceiptLine,
 } from '../lib/receiptReview'
+import { ReceiptFileViewer } from './ReceiptFileViewer'
 
 const CUADRE_TOLERANCE = 0.02
 
@@ -329,14 +330,13 @@ export function ReceiptReviewBody({
       </div>
 
       {lightbox && imageUrl && (
-        <div
-          className="rss-lightbox"
-          role="dialog"
-          aria-label="Foto del ticket"
-          onClick={() => setLightbox(false)}
-        >
-          <img src={imageUrl} alt="Ticket" className="rss-lightbox__img" />
-        </div>
+        <ReceiptFileViewer
+          url={imageUrl}
+          // The lightbox only opens for the in-memory capture, never a PDF.
+          contentType="image/jpeg"
+          pages={null}
+          onClose={() => setLightbox(false)}
+        />
       )}
     </>
   )

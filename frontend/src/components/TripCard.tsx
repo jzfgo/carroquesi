@@ -10,6 +10,7 @@ import type {
   ReceiptScanSummary,
 } from '../types'
 import { ItemCard } from './ItemCard'
+import { ReceiptFileViewer } from './ReceiptFileViewer'
 import './TripCard.css'
 import { TripReceiptThumb } from './TripReceiptThumb'
 
@@ -122,11 +123,28 @@ export function TripCard({
       : receipt.status === 'image' || receipt.status === 'pdf'
         ? 'Ticket guardado'
         : null
+  // The viewer mints its own URL on open: the miniature's may be near its
+  // expiry by the time somebody taps, and a stale link would 403 fullscreen.
+  const [viewer, setViewer] = useState<{
+    url: string
+    contentType: string
+    pages: number | null
+  } | null>(null)
+  const openViewer = () => {
+    if (receipt.status !== 'image' && receipt.status !== 'pdf') return
+    loadReceiptFileUrl?.(receipt.scanId)
+      .then((r) =>
+        setViewer({ url: r.url, contentType: r.content_type, pages: r.pages }),
+      )
+      .catch(() => {
+        /* an unanswered mint leaves the tap inert; the next tap retries */
+      })
+  }
   const thumb = showThumb && receipt.status !== 'off' && (
     <TripReceiptThumb
       state={receipt}
       onScan={() => onScanReceipt?.()}
-      onView={noop}
+      onView={openViewer}
     />
   )
   const titles = (sub: string | null) => (
@@ -264,6 +282,9 @@ export function TripCard({
       )}
       {!search && !emptyClosed && expanded && lines == null && (
         <div className="trip-card__loading" aria-hidden />
+      )}
+      {viewer && (
+        <ReceiptFileViewer {...viewer} onClose={() => setViewer(null)} />
       )}
     </article>
   )
