@@ -11,10 +11,14 @@ import type {
   PurchasePage,
   PurchaseRead,
   PurchaseSearchResults,
+  ReceiptFileUrlResult,
   ReceiptPriceApplyResult,
   ReceiptPriceBatch,
   ReceiptScanRequest,
   ReceiptScanResult,
+  ReceiptScanSummary,
+  ReceiptUploadUrlRequest,
+  ReceiptUploadUrlResult,
   Suggestion,
 } from '../types'
 import type { BoardName } from './boards'
@@ -527,6 +531,40 @@ export function submitReceiptPrices(
     method: 'POST',
     body: JSON.stringify(batch),
   }) as Promise<ReceiptPriceApplyResult>
+}
+
+export function createReceiptUploadUrl(
+  getToken: () => Promise<string>,
+  listId: string,
+  scanId: string,
+  body: ReceiptUploadUrlRequest,
+): Promise<ReceiptUploadUrlResult> {
+  return apiFetch(getToken, `/lists/${listId}/receipts/${scanId}/upload-url`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }) as Promise<ReceiptUploadUrlResult>
+}
+
+export function getReceiptFileUrl(
+  getToken: () => Promise<string>,
+  listId: string,
+  scanId: string,
+): Promise<ReceiptFileUrlResult> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/receipts/${scanId}/file-url`,
+  ) as Promise<ReceiptFileUrlResult>
+}
+
+export function getReceiptScans(
+  getToken: () => Promise<string>,
+  listId: string,
+  purchaseId: string,
+): Promise<ReceiptScanSummary[]> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/purchases/${purchaseId}/receipt-scans`,
+  ) as Promise<ReceiptScanSummary[]>
 }
 
 /**

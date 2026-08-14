@@ -33,6 +33,7 @@ import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
 import { parseReceiptWithAi } from '../lib/receiptAi'
+import { uploadReceiptFile } from '../lib/receiptUpload'
 import { storeKey } from '../lib/storeKey'
 import type {
   BarcodeRead,
@@ -511,6 +512,13 @@ export function ListScreen({
         }
 
         const result = await submitParsedReceipt(getToken, listId, parsed)
+        // Store the paper itself, best-effort: a failed upload must never
+        // take down the review that is about to open.
+        void uploadReceiptFile(getToken, listId, result.scan_id, file).catch(
+          (e: unknown) => {
+            console.error('Receipt file upload failed:', e)
+          },
+        )
         setReceiptScanResult(result)
         // Hold the image in memory for the review thumbnail. Clearing pendingScan
         // is belt-and-suspenders alongside the exit-path clears: a fresh session

@@ -53,6 +53,10 @@ export type ReceiptScanResult = Required<
   Omit<S['ReceiptScanResult'], 'matched' | 'unmatched'>
 > & { matched: MatchedLine[]; unmatched: UnmatchedLine[] }
 export type ReceiptPriceApplyResult = S['ReceiptPriceApplyResult']
+// Stored receipt files (25b): per-trip scan summaries and signed URLs.
+export type ReceiptScanSummary = S['ReceiptScanSummary']
+export type ReceiptFileUrlResult = S['ReceiptFileUrlResult']
+export type ReceiptUploadUrlResult = S['ReceiptUploadUrlResult']
 
 // Requests
 export type ParsedLine = S['ParsedLine']
@@ -61,6 +65,7 @@ export type PricePatch = S['PricePatch']
 export type NameMapping = S['NameMappingCreate']
 export type NewPurchasedItem = S['NewPurchasedItem']
 export type ReceiptPriceBatch = S['ReceiptPriceBatch']
+export type ReceiptUploadUrlRequest = S['ReceiptUploadUrlRequest']
 // Close-trip (10b) and manual/back-dated (26a) purchase bodies.
 export type PurchaseLine = S['PurchaseLine']
 export type PurchaseNewItem = S['PurchaseNewItem']
