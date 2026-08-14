@@ -72,10 +72,27 @@ test('a PDF lays its pages on the snap track with the counter', async () => {
       onClose={() => {}}
     />,
   )
+  // Until the document resolves, the overlay says it is working.
+  expect(screen.getByText('Cargando…')).toBeInTheDocument()
   await waitFor(() =>
     expect(container.querySelectorAll('.rfv__page')).toHaveLength(3),
   )
   expect(screen.getByText('1 / 3')).toBeInTheDocument()
+  expect(screen.queryByText('Cargando…')).not.toBeInTheDocument()
+})
+
+test('an image the bucket cannot serve says so instead of a broken img', () => {
+  const { container } = render(
+    <ReceiptFileViewer
+      url={URL}
+      contentType="image/jpeg"
+      pages={null}
+      onClose={() => {}}
+    />,
+  )
+  fireEvent.error(container.querySelector('.rfv__img')!)
+  expect(screen.getByText('No se pudo cargar el ticket')).toBeInTheDocument()
+  expect(container.querySelector('.rfv__img')).not.toBeInTheDocument()
 })
 
 test('a PDF that cannot load says so instead of crashing', async () => {

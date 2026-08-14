@@ -85,11 +85,22 @@ export function ReceiptFileViewer({ url, contentType, pages, onClose }: Props) {
         <X size={22} strokeWidth={2} aria-hidden />
       </button>
 
-      {!pdf && <img src={url} alt="Ticket" className="rfv__img" />}
-
-      {pdf && failed && (
-        <p className="rfv__error">No se pudo cargar el ticket</p>
+      {!pdf && !failed && (
+        <img
+          src={url}
+          alt="Ticket"
+          className="rfv__img"
+          // A mint-recorded file the bucket cannot serve (the PUT failed or
+          // never finished) must say so, not sit as a silent broken image.
+          onError={() => setFailed(true)}
+        />
       )}
+
+      {failed && <p className="rfv__error">No se pudo cargar el ticket</p>}
+
+      {/* pdf.js and the document arrive over the network; on a slow link an
+          empty black overlay reads as a hang, so say what is happening. */}
+      {pdf && !doc && !failed && <p className="rfv__loading">Cargando…</p>}
 
       {pdf && doc && (
         <>
@@ -144,11 +155,14 @@ function PdfPage({
         const viewport = page.getViewport({ scale })
         canvas.width = viewport.width
         canvas.height = viewport.height
-        rendered.current = true
-        return page.render({ canvas, viewport }).promise
+        // Marked drawn only once the render resolves, so a failed attempt
+        // is retried the next time the page comes back into reach.
+        return page.render({ canvas, viewport }).promise.then(() => {
+          rendered.current = true
+        })
       })
       .catch(() => {
-        /* a page that fails to draw stays a blank slot */
+        /* a page that fails to draw stays blank until it is revisited */
       })
     return () => {
       cancelled = true

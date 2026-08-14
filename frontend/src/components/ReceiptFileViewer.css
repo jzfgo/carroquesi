@@ -85,3 +85,10 @@
   font-size: 0.95rem;
   color: #fff;
 }
+
+.rfv__loading {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  color: rgb(255 255 255 / 65%);
+}
