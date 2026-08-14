@@ -1,4 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import type {
   ApiList,
   BackendMember,
@@ -9,8 +11,12 @@ import type {
   PriceEntry,
   PriceHistoryResponse,
   PriceType,
+  PurchasePage,
+  ReceiptFileUrlResult,
   ReceiptPriceApplyResult,
   ReceiptScanResult,
+  ReceiptScanSummary,
+  ReceiptUploadUrlResult,
   UserMe,
 } from '../src/types'
 import data from './fixtures.json' with { type: 'json' }
@@ -46,6 +52,23 @@ const SEED_PRICE_HISTORY: PriceHistoryResponse = data.SEED_PRICE_HISTORY
 const SEED_RECEIPT_APPLY_RESULT: ReceiptPriceApplyResult =
   data.SEED_RECEIPT_APPLY_RESULT
 const SEED_UPDATED_AT: ListUpdatedAt = data.SEED_UPDATED_AT
+
+// Receipt files (25b). The stack page stays empty in the shared mock — a spec
+// that wants trips on screen serves SEED_TRIPS itself, so a populated stack
+// never drifts the other specs' screenshots. The scan/file handlers ARE
+// shared: every scan now mints an upload URL, so every receipt spec hits them.
+export const SEED_TRIPS: PurchasePage = data.SEED_TRIPS
+export const SEED_RECEIPT_SCANS: ReceiptScanSummary[] = data.SEED_RECEIPT_SCANS
+const SEED_FILE_URL_RESULT: ReceiptFileUrlResult = data.SEED_FILE_URL_RESULT
+const SEED_UPLOAD_URL_RESULT: ReceiptUploadUrlResult =
+  data.SEED_UPLOAD_URL_RESULT
+
+// What the pretend bucket serves back: a committed 240x300 PNG drawn as a
+// ticket (header band, lined paper), so the miniature and the viewer both
+// visibly show a picture.
+const RECEIPT_FILE_BYTES = readFileSync(
+  path.join(import.meta.dirname, 'receipt-file.png'),
+)
 
 // A ReceiptScanSheet review, matching item-leche (existing price, gets updated)
 // and item-cafe (no price yet), plus one unmatched line — mirrors the shape
@@ -90,6 +113,19 @@ export async function installApiMocks(page: Page): Promise<void> {
         contentType: 'application/json',
         body: JSON.stringify(body),
       })
+
+    // The pretend bucket. The signed URLs in the fixtures point under the
+    // mocked backend origin, so both halves of the storage flow — the upload
+    // PUT and the miniature/viewer GET — resolve without a real GCS.
+    if (path.startsWith('/__gcs__/')) {
+      if (method === 'PUT') return route.fulfill({ status: 200, body: '' })
+      if (method === 'GET')
+        return route.fulfill({
+          status: 200,
+          contentType: 'image/png',
+          body: RECEIPT_FILE_BYTES,
+        })
+    }
 
     // Auth
     if (method === 'POST' && path === '/auth/sync') return json(ALICE)
@@ -184,6 +220,23 @@ export async function installApiMocks(page: Page): Promise<void> {
       if (sub === '/purchases' && method === 'GET') {
         return json({ purchases: [], total: 0 })
       }
+
+      // /lists/:id/purchases/:pid/receipt-scans — the 25b thumbnail lookup.
+      // Only the seeded con-ticket trip has a stored file.
+      const scansMatch = sub.match(/^\/purchases\/([^/]+)\/receipt-scans$/)
+      if (scansMatch && method === 'GET')
+        return json(
+          scansMatch[1] === 'trip-con-ticket' ? SEED_RECEIPT_SCANS : [],
+        )
+
+      // /lists/:id/receipts/:scanId/upload-url — minted after every scan
+      // submit; the PUT then lands on the /__gcs__/ echo above.
+      if (/^\/receipts\/[^/]+\/upload-url$/.test(sub) && method === 'POST')
+        return json(SEED_UPLOAD_URL_RESULT)
+
+      // /lists/:id/receipts/:scanId/file-url — the viewer's fresh mint.
+      if (/^\/receipts\/[^/]+\/file-url$/.test(sub) && method === 'GET')
+        return json(SEED_FILE_URL_RESULT)
 
       // /lists/:id/stores — the store registry; fetched with every list read.
       if (sub === '/stores') {

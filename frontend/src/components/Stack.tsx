@@ -35,6 +35,10 @@ interface Props {
    *  search — no separate state here. */
   query?: string
   searching?: boolean
+  /** Show the 25b header thumbnails — the caller settles flag + consent. */
+  receiptThumbs?: boolean
+  /** Launch a scan from a card's dashed hole. */
+  onScanReceipt?: () => void
 }
 
 // How many trips fold open below the latest before the rest slip behind the
@@ -59,9 +63,20 @@ export function Stack({
   onSaveTicket,
   query = '',
   searching = false,
+  receiptThumbs = false,
+  onScanReceipt,
 }: Props) {
-  const { trips, total, loading, hasMore, loadMore, refetch, loadItems } =
-    useStack(listId, getToken)
+  const {
+    trips,
+    total,
+    loading,
+    hasMore,
+    loadMore,
+    refetch,
+    loadItems,
+    loadReceiptScans,
+    loadReceiptFileUrl,
+  } = useStack(listId, getToken)
   useImperativeHandle(ref, () => ({ refetch }), [refetch])
   const [unfolded, setUnfolded] = useState(false)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
@@ -130,7 +145,16 @@ export function Stack({
     )
   }
 
-  const cardProps = { loadItems, onRebuy, onOpenLine, onCloseTrip }
+  const cardProps = {
+    loadItems,
+    onRebuy,
+    onOpenLine,
+    onCloseTrip,
+    receiptThumbs,
+    onScanReceipt,
+    loadReceiptScans,
+    loadReceiptFileUrl,
+  }
 
   // The save-a-ticket door is always last and always present — even on a list
   // with no shops yet (JAV-158). The archive door only appears when trips sit

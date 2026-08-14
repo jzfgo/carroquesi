@@ -181,3 +181,173 @@ test('search mode keeps the re-buy disc on a matched line', async () => {
   fireEvent.click(disc)
   expect(onRebuy).toHaveBeenCalledWith('p1', 'milk')
 })
+
+// ————— 25b: the header thumbnail —————
+
+const scan = (over = {}) => ({
+  id: 's1',
+  store: 'Mercadona',
+  receipt_at: '2026-07-21',
+  receipt_total: 8.13,
+  has_file: true,
+  file_pages: null,
+  created_at: '2026-07-21T20:00:00',
+  ...over,
+})
+
+const fileUrl = (over = {}) => ({
+  url: 'https://storage.example/signed-get',
+  content_type: 'image/jpeg',
+  pages: null,
+  ...over,
+})
+
+test('no thumbnail hole at all when the affordance is off', () => {
+  const loadScans = vi.fn(async () => [scan()])
+  const { container } = render(
+    <TripCard
+      trip={makeTrip({ has_receipt: true })}
+      loadItems={noItems}
+      loadReceiptScans={loadScans}
+    />,
+  )
+  expect(container.querySelector('.trip-thumb')).not.toBeInTheDocument()
+  expect(loadScans).not.toHaveBeenCalled()
+})
+
+test('has_receipt=false renders the dashed hole with zero fetches', () => {
+  const loadScans = vi.fn(async () => [scan()])
+  const { container } = render(
+    <TripCard
+      trip={makeTrip()}
+      loadItems={noItems}
+      receiptThumbs
+      loadReceiptScans={loadScans}
+    />,
+  )
+  expect(container.querySelector('.trip-thumb--empty')).toBeInTheDocument()
+  expect(screen.getByText('Sin ticket · escanéalo')).toBeInTheDocument()
+  expect(loadScans).not.toHaveBeenCalled()
+})
+
+test('the dashed hole launches a scan', () => {
+  const onScanReceipt = vi.fn()
+  render(
+    <TripCard
+      trip={makeTrip()}
+      loadItems={noItems}
+      receiptThumbs
+      onScanReceipt={onScanReceipt}
+    />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Escanear el ticket' }))
+  expect(onScanReceipt).toHaveBeenCalled()
+})
+
+test('a stored image renders the real miniature from the signed URL', async () => {
+  const loadScans = vi.fn(async () => [scan()])
+  const loadFileUrl = vi.fn(async () => fileUrl())
+  const { container } = render(
+    <TripCard
+      trip={makeTrip({ has_receipt: true })}
+      loadItems={noItems}
+      receiptThumbs
+      loadReceiptScans={loadScans}
+      loadReceiptFileUrl={loadFileUrl}
+    />,
+  )
+  await waitFor(() =>
+    expect(container.querySelector('.trip-thumb__img')).toBeInTheDocument(),
+  )
+  expect(container.querySelector('.trip-thumb__img')).toHaveAttribute(
+    'src',
+    'https://storage.example/signed-get',
+  )
+  expect(screen.getByText('Ticket guardado')).toBeInTheDocument()
+  expect(loadFileUrl).toHaveBeenCalledWith('s1')
+})
+
+test('several scans with files: the latest wins', async () => {
+  const loadScans = vi.fn(async () => [
+    scan({ id: 'old' }),
+    scan({ id: 'newest' }),
+  ])
+  const loadFileUrl = vi.fn(async () => fileUrl())
+  render(
+    <TripCard
+      trip={makeTrip({ has_receipt: true })}
+      loadItems={noItems}
+      receiptThumbs
+      loadReceiptScans={loadScans}
+      loadReceiptFileUrl={loadFileUrl}
+    />,
+  )
+  await waitFor(() => expect(loadFileUrl).toHaveBeenCalledWith('newest'))
+})
+
+test('a PDF renders the icon box with its page count, no URL fetch', async () => {
+  const loadScans = vi.fn(async () => [scan({ file_pages: 3 })])
+  const loadFileUrl = vi.fn(async () => fileUrl())
+  const { container } = render(
+    <TripCard
+      trip={makeTrip({ has_receipt: true })}
+      loadItems={noItems}
+      receiptThumbs
+      loadReceiptScans={loadScans}
+      loadReceiptFileUrl={loadFileUrl}
+    />,
+  )
+  await waitFor(() =>
+    expect(container.querySelector('.trip-thumb__pages')).toHaveTextContent(
+      '3',
+    ),
+  )
+  expect(container.querySelector('.trip-thumb--solid')).toBeInTheDocument()
+  expect(loadFileUrl).not.toHaveBeenCalled()
+})
+
+test('a reconciled scan without a file settles to the dashed hole', async () => {
+  const loadScans = vi.fn(async () => [scan({ has_file: false })])
+  const { container } = render(
+    <TripCard
+      trip={makeTrip({ has_receipt: true })}
+      loadItems={noItems}
+      receiptThumbs
+      loadReceiptScans={loadScans}
+    />,
+  )
+  await waitFor(() =>
+    expect(container.querySelector('.trip-thumb--empty')).toBeInTheDocument(),
+  )
+})
+
+test('a proto card never shows the hole', () => {
+  const { container } = render(
+    <TripCard
+      trip={makeTrip({ closed_at: null })}
+      loadItems={noItems}
+      receiptThumbs
+    />,
+  )
+  expect(container.querySelector('.trip-thumb')).not.toBeInTheDocument()
+})
+
+test('a broken miniature falls back to the icon box', async () => {
+  const loadScans = vi.fn(async () => [scan()])
+  const loadFileUrl = vi.fn(async () => fileUrl())
+  const { container } = render(
+    <TripCard
+      trip={makeTrip({ has_receipt: true })}
+      loadItems={noItems}
+      receiptThumbs
+      loadReceiptScans={loadScans}
+      loadReceiptFileUrl={loadFileUrl}
+    />,
+  )
+  await waitFor(() =>
+    expect(container.querySelector('.trip-thumb__img')).toBeInTheDocument(),
+  )
+  fireEvent.error(container.querySelector('.trip-thumb__img')!)
+  expect(container.querySelector('.trip-thumb__img')).not.toBeInTheDocument()
+  expect(container.querySelector('.trip-thumb--solid')).toBeInTheDocument()
+})

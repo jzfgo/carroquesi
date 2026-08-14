@@ -1,10 +1,18 @@
 import { ChevronDown, Stamp } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTripReceipt } from '../hooks/useTripReceipt'
 import { formatRowAmount } from '../lib/formatPrice'
 import { tripDateInput, tripDateLabel } from '../lib/itemCost'
-import type { ListItem, PurchaseSummary } from '../types'
+import type {
+  ListItem,
+  PurchaseSummary,
+  ReceiptFileUrlResult,
+  ReceiptScanSummary,
+} from '../types'
 import { ItemCard } from './ItemCard'
+import { ReceiptFileViewer } from './ReceiptFileViewer'
 import './TripCard.css'
+import { TripReceiptThumb } from './TripReceiptThumb'
 
 interface Props {
   trip: PurchaseSummary
@@ -24,6 +32,14 @@ interface Props {
    *  count, M the trip's whole line_count) and the chevron is dropped. An empty
    *  array renders nothing — a trip with no match does not appear. */
   matchingLines?: ListItem[]
+  /** The 25b header thumbnail. On only when receipt scanning is available to
+   *  this account — the caller settles flag + consent; the card only skips
+   *  its proto and search states, which have no closed paper to show. */
+  receiptThumbs?: boolean
+  loadReceiptScans?: (purchaseId: string) => Promise<ReceiptScanSummary[]>
+  loadReceiptFileUrl?: (scanId: string) => Promise<ReceiptFileUrlResult>
+  /** Launch a scan from the dashed hole — the shared consent-aware funnel. */
+  onScanReceipt?: () => void
 }
 
 const noop = () => {}
@@ -51,6 +67,10 @@ export function TripCard({
   onOpenLine,
   onCloseTrip,
   matchingLines,
+  receiptThumbs = false,
+  loadReceiptScans,
+  loadReceiptFileUrl,
+  onScanReceipt,
 }: Props) {
   const proto = trip.closed_at == null
   // Search mode shows the matched lines directly — no toggle, no lazy fetch.
@@ -84,6 +104,58 @@ export function TripCard({
   const store = trip.store ?? 'Sin tienda'
   const date = tripDateLabel(trip.opened_at, proto)
 
+  // The cuadrito (25b) belongs to closed records only: a proto has no paper
+  // yet and a search card's header belongs to the «N de M» count.
+  const showThumb = receiptThumbs && !proto && !search
+  const receipt = useTripReceipt(
+    trip.id,
+    trip.has_receipt,
+    showThumb,
+    loadReceiptScans,
+    loadReceiptFileUrl,
+  )
+  // The second line is text, not a button — inside the sheet there is only
+  // ink; the thumb and the chevron are the affordances. Silent while the
+  // lookup is still in flight, so it never flips from one claim to another.
+  const ticketLine =
+    receipt.status === 'empty'
+      ? 'Sin ticket · escanéalo'
+      : receipt.status === 'image' || receipt.status === 'pdf'
+        ? 'Ticket guardado'
+        : null
+  // The viewer mints its own URL on open: the miniature's may be near its
+  // expiry by the time somebody taps, and a stale link would 403 fullscreen.
+  const [viewer, setViewer] = useState<{
+    url: string
+    contentType: string
+    pages: number | null
+  } | null>(null)
+  const openViewer = () => {
+    if (receipt.status !== 'image' && receipt.status !== 'pdf') return
+    loadReceiptFileUrl?.(receipt.scanId)
+      .then((r) =>
+        setViewer({ url: r.url, contentType: r.content_type, pages: r.pages }),
+      )
+      .catch(() => {
+        /* an unanswered mint leaves the tap inert; the next tap retries */
+      })
+  }
+  const thumb = showThumb && receipt.status !== 'off' && (
+    <TripReceiptThumb
+      state={receipt}
+      onScan={() => onScanReceipt?.()}
+      onView={openViewer}
+    />
+  )
+  const titles = (sub: string | null) => (
+    <span className="trip-card__titles">
+      <span className="trip-card__label">
+        {store} · {date}
+      </span>
+      {sub != null && <span className="trip-card__ticket-line">{sub}</span>}
+    </span>
+  )
+
   // A search card is always open and draws its own lines; otherwise the state
   // above governs expansion and the fetched lines. An empty closed record never
   // expands — it has nothing to show.
@@ -113,11 +185,16 @@ export function TripCard({
           </div>
         </div>
       ) : emptyClosed ? (
-        <div className="trip-card__header">
+        <div
+          className={`trip-card__header${
+            showThumb
+              ? ' trip-card__header--thumbed trip-card__header--thumbed-static'
+              : ''
+          }`}
+        >
+          {thumb}
           <div className="trip-card__header-static">
-            <span className="trip-card__label">
-              {store} · {date}
-            </span>
+            {titles(ticketLine)}
             {trip.total != null && (
               <span className="trip-card__total">
                 € {formatRowAmount(trip.total)}
@@ -126,16 +203,19 @@ export function TripCard({
           </div>
         </div>
       ) : (
-        <div className="trip-card__header">
+        <div
+          className={`trip-card__header${
+            showThumb ? ' trip-card__header--thumbed' : ''
+          }`}
+        >
+          {thumb}
           <button
             type="button"
             className="trip-card__toggle"
             aria-expanded={expanded}
             onClick={() => setExpanded((e) => !e)}
           >
-            <span className="trip-card__label">
-              {store} · {date}
-            </span>
+            {titles(ticketLine)}
             <span className="trip-card__meta">
               {/* Closed → the printed total. Proto → a seal in the total's slot:
                 folded, a compact stamp badge (the at-a-glance «has a seal, not
@@ -202,6 +282,9 @@ export function TripCard({
       )}
       {!search && !emptyClosed && expanded && lines == null && (
         <div className="trip-card__loading" aria-hidden />
+      )}
+      {viewer && (
+        <ReceiptFileViewer {...viewer} onClose={() => setViewer(null)} />
       )}
     </article>
   )

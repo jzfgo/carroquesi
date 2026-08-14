@@ -18,6 +18,7 @@ import {
 } from '../lib/dismissedSuggestions'
 import * as push from '../lib/push'
 import * as receiptAi from '../lib/receiptAi'
+import { uploadReceiptFile } from '../lib/receiptUpload'
 import type {
   BarcodeRead,
   ListItem,
@@ -81,6 +82,9 @@ vi.mock('../lib/push', async (importOriginal) => ({
 }))
 vi.mock('../lib/api')
 vi.mock('../lib/receiptAi', () => ({ parseReceiptWithAi: vi.fn() }))
+vi.mock('../lib/receiptUpload', () => ({
+  uploadReceiptFile: vi.fn(async () => undefined),
+}))
 // Exposes the two report callbacks as buttons so tests can prove they arrive
 // through the real ListActionSheet, not just that ListScreen defines them.
 vi.mock('./ListMembersSheet', () => ({
@@ -891,6 +895,41 @@ describe('receipt price confirmation toast', () => {
 
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('No se pudo procesar el ticket')
+  })
+
+  it('stores the scanned file against the new scan, fire-and-forget', async () => {
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    const fileInput = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    await screen.findByText('Confirmar (mock)')
+    expect(uploadReceiptFile).toHaveBeenCalledWith(
+      expect.any(Function),
+      'list1',
+      'scan-1',
+      file,
+    )
+  })
+
+  it('opens the review even when storing the file fails', async () => {
+    vi.mocked(uploadReceiptFile).mockRejectedValueOnce(new Error('bucket down'))
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    const fileInput = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    // The review sheet still opens; the upload failure surfaces nowhere.
+    await screen.findByText('Confirmar (mock)')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('reports only the created-items clause when no prices changed', async () => {
