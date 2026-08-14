@@ -309,5 +309,54 @@
   },
   "SEED_UPDATED_AT": {
     "updated_at": "2026-06-23T10:00:00"
+  },
+  "SEED_TRIPS": {
+    "purchases": [
+      {
+        "id": "trip-con-ticket",
+        "list_id": "seed-list-compra",
+        "opened_at": "2026-07-10T09:00:00",
+        "tears_off_at": "2026-07-11T00:00:00",
+        "closed_at": "2026-07-11T00:00:00",
+        "store": "Mercadona",
+        "total": 8.13,
+        "line_count": 2,
+        "has_receipt": true,
+        "items_total": 8.13
+      },
+      {
+        "id": "trip-sin-ticket",
+        "list_id": "seed-list-compra",
+        "opened_at": "2026-07-08T18:30:00",
+        "tears_off_at": "2026-07-09T00:00:00",
+        "closed_at": "2026-07-09T00:00:00",
+        "store": "Lidl",
+        "total": 23.44,
+        "line_count": 1,
+        "has_receipt": false,
+        "items_total": null
+      }
+    ],
+    "total": 2
+  },
+  "SEED_RECEIPT_SCANS": [
+    {
+      "id": "scan-e2e-1",
+      "store": "Mercadona",
+      "receipt_at": "2026-07-10T00:00:00",
+      "receipt_total": 8.13,
+      "has_file": true,
+      "file_pages": null,
+      "created_at": "2026-07-10T20:15:00"
+    }
+  ],
+  "SEED_FILE_URL_RESULT": {
+    "url": "http://localhost:8000/__gcs__/receipts/seed-list-compra/scan-e2e-1.png",
+    "content_type": "image/png",
+    "pages": null
+  },
+  "SEED_UPLOAD_URL_RESULT": {
+    "upload_url": "http://localhost:8000/__gcs__/receipts/seed-list-compra/scan-e2e-1.png",
+    "expires_in": 900
   }
 }
