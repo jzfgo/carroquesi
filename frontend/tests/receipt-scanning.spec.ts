@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import path from 'node:path'
 import {
+  ALICE,
   awaitPrimingCard,
   expect,
   expectScreenshot,
@@ -8,6 +9,7 @@ import {
   mockGeminiReceiptParse,
   SEED_ITEMS,
   SEED_LISTS,
+  SEED_RECEIPT_RESULT,
   test,
 } from './fixtures'
 
@@ -403,6 +405,242 @@ test.describe('functional', () => {
     }
     expect(saveBody.scan_id).toBe(scan_id)
     await expect(page.getByRole('alert')).toContainText('Compra guardada')
+  })
+
+  // The save guard: a store AND a date, deliberately stricter than the 13a
+  // handoff caption. Neither alone unlocks the button; both are entered
+  // through the header pills when the parse read none.
+  test('saving requires both a date and a store, entered via the header pills', async ({
+    page,
+  }) => {
+    await gotoList(page)
+    await mockGeminiReceiptParse(page, {
+      ...PARSED_RECEIPT,
+      store: null,
+      receipt_date: null,
+    })
+    // The match step echoes what the parse read: no store, no date.
+    await page.route(new RegExp(`/lists/${LIST_ID}/receipt$`), (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...SEED_RECEIPT_RESULT,
+          store: null,
+          receipt_date: null,
+        }),
+      }),
+    )
+
+    await uploadReceipt(page)
+    const sheet = reviewSheet(page)
+    await expect(sheet).toBeVisible()
+
+    // Both pills open empty, and the unnamed pan line is dropped so only the
+    // date+store guard holds the button.
+    await expect(
+      sheet.getByRole('button', { name: 'Poner tienda' }),
+    ).toBeVisible()
+    await expect(
+      sheet.getByRole('button', { name: 'Poner fecha' }),
+    ).toBeVisible()
+    await receiptRow(page, 'PAN INTEGRAL').locator('.rss-row__check').click()
+
+    const save = sheet.getByRole('button', { name: /Guardar compra/ })
+    await expect(save).toBeDisabled()
+
+    // A date alone is not enough.
+    await sheet.getByRole('button', { name: 'Poner fecha' }).click()
+    await sheet.locator('input[type="date"]').fill('2026-07-10')
+    await expect(save).toBeDisabled()
+
+    // The store completes the pair.
+    await sheet.getByRole('button', { name: 'Poner tienda' }).click()
+    await sheet.getByPlaceholder('Nombre de la tienda').fill('Mercadona')
+    await sheet.getByRole('button', { name: 'Listo' }).click()
+    await expect(save).toBeEnabled()
+
+    // A store alone is not enough either: clearing the date locks the save
+    // again, so each half of the pair carries the guard. The date pill now
+    // prints the date itself, so it is reached by position, not label.
+    await sheet.locator('button.rss-pill').nth(1).click()
+    await sheet.locator('input[type="date"]').fill('')
+    await expect(save).toBeDisabled()
+
+    // Re-entering the date restores the pair.
+    await sheet.getByRole('button', { name: 'Poner fecha' }).click()
+    await sheet.locator('input[type="date"]').fill('2026-07-10')
+    await expect(save).toBeEnabled()
+
+    // And the entered pair is what the apply carries.
+    const responsePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/lists/${LIST_ID}/receipt-prices`) &&
+        resp.status() === 200,
+    )
+    await save.click()
+    const response = await responsePromise
+    await expect(sheet).toBeHidden()
+
+    const body = response.request().postDataJSON() as {
+      receipt_date: string | null
+      store: string | null
+    }
+    expect(body.receipt_date).toBe('2026-07-10')
+    expect(body.store).toBe('Mercadona')
+  })
+
+  // The other resolve-sheet outcome: instead of creating a new product, the
+  // line is linked to an item still pending on the list, completing that
+  // record rather than adding one.
+  test('an unmatched line can be linked to a pending item in the resolve sub-view', async ({
+    page,
+  }) => {
+    await gotoList(page)
+    await mockGeminiReceiptParse(page, PARSED_RECEIPT)
+    // A match result that leaves Leche unlinked, so it shows up as a
+    // candidate in the resolve list.
+    await page.route(new RegExp(`/lists/${LIST_ID}/receipt$`), (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...SEED_RECEIPT_RESULT,
+          matched: [SEED_RECEIPT_RESULT.matched[1]],
+        }),
+      }),
+    )
+
+    await uploadReceipt(page)
+    const sheet = reviewSheet(page)
+    await expect(sheet).toBeVisible()
+    await expect(page.locator('.rss-row')).toHaveCount(2)
+
+    // Open the unmatched row → the still-pending Leche is offered as a link
+    // target, named with its pending state and store.
+    await receiptRow(page, 'PAN INTEGRAL').locator('.rss-row__open').click()
+    await expect(sheet.getByText('Línea del ticket')).toBeVisible()
+    const radio = sheet.getByRole('radio', { name: /Leche Hacendado/ })
+    await expect(radio).toContainText('pendiente · Mercadona')
+    await radio.click()
+    await sheet.getByRole('button', { name: 'Asignar' }).click()
+
+    // Back on the list, the line is solid with the linked item's name.
+    await expect(
+      receiptRow(page, 'PAN INTEGRAL').locator('.rss-annot--solid'),
+    ).toContainText('Leche Hacendado')
+
+    const responsePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/lists/${LIST_ID}/receipt-prices`) &&
+        resp.status() === 200,
+    )
+    await sheet.getByRole('button', { name: /Guardar compra/ }).click()
+    const response = await responsePromise
+    await expect(sheet).toBeHidden()
+
+    // The linked line patches the existing item with the receipt's price;
+    // nothing is created.
+    const body = response.request().postDataJSON() as {
+      patches: { item_id: string; price: number }[]
+      new_items: unknown[]
+    }
+    expect(body.new_items).toHaveLength(0)
+    expect(body.patches).toHaveLength(2)
+    const lechePatch = body.patches.find((p) => p.item_id === ITEM_LECHE.id)
+    expect(lechePatch).toMatchObject({ price: 1.0 })
+  })
+
+  test('a first scan asks for consent, and granting flows straight into the scan', async ({
+    page,
+  }) => {
+    // An account that has never been asked: the shared mock's granted ALICE is
+    // overridden before the app boots.
+    const undecided = { ...ALICE, receipt_consent: null }
+    await page.route('**/users/me', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(undecided),
+      }),
+    )
+    await page.route('**/auth/sync', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(undecided),
+      }),
+    )
+    await gotoList(page)
+    await mockGeminiReceiptParse(page, PARSED_RECEIPT)
+
+    // The scan entry opens the disclosure, not the source picker.
+    await page.getByRole('button', { name: 'Abrir menú' }).click()
+    await page
+      .locator('.list-action-sheet')
+      .getByRole('button', { name: 'Escanear ticket' })
+      .click()
+    const consent = page.locator('.modal-sheet.receipt-consent-sheet')
+    await expect(consent).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Elegir de galería' }),
+    ).toHaveCount(0)
+
+    // Granting records the decision, and only then continues into the picker.
+    const putPromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/users/me/receipt-consent') &&
+        resp.request().method() === 'PUT',
+    )
+    await consent.getByRole('button', { name: 'Activar escaneo' }).click()
+    const put = await putPromise
+    expect(put.request().postDataJSON()).toEqual({ consent: 'granted' })
+
+    const fileChooserPromise = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Elegir de galería' }).click()
+    const fileChooser = await fileChooserPromise
+    await fileChooser.setFiles(RECEIPT_IMAGE)
+
+    // The scan proceeds with no second ask.
+    await expect(reviewSheet(page)).toBeVisible()
+  })
+
+  test('declining consent records the decision and never opens the scan', async ({
+    page,
+  }) => {
+    const undecided = { ...ALICE, receipt_consent: null }
+    await page.route('**/users/me', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(undecided),
+      }),
+    )
+    await page.route('**/auth/sync', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(undecided),
+      }),
+    )
+    await gotoList(page)
+
+    await page.getByRole('button', { name: 'Abrir menú' }).click()
+    await page
+      .locator('.list-action-sheet')
+      .getByRole('button', { name: 'Escanear ticket' })
+      .click()
+    const consent = page.locator('.modal-sheet.receipt-consent-sheet')
+    await expect(consent).toBeVisible()
+
+    const putPromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/users/me/receipt-consent') &&
+        resp.request().method() === 'PUT',
+    )
+    await consent.getByRole('button', { name: 'Ahora no' }).click()
+    const put = await putPromise
+    expect(put.request().postDataJSON()).toEqual({ consent: 'declined' })
+
+    // The sheet closes and the flow stops there: no source picker.
+    await expect(consent).toBeHidden()
+    await expect(
+      page.getByRole('button', { name: 'Elegir de galería' }),
+    ).toHaveCount(0)
   })
 
   test('a failed AI parse surfaces an error toast without opening the review sheet', async ({

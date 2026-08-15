@@ -131,6 +131,13 @@ export async function installApiMocks(page: Page): Promise<void> {
     if (method === 'POST' && path === '/auth/sync') return json(ALICE)
     if (method === 'GET' && path === '/users/me') return json(ALICE)
 
+    // Receipt-scanning consent decision. Echoes the decision over the
+    // validated ALICE payload, like the other write templates.
+    if (method === 'PUT' && path === '/users/me/receipt-consent') {
+      const body = (req.postDataJSON() ?? {}) as { consent?: string }
+      return json({ ...ALICE, receipt_consent: body.consent ?? null })
+    }
+
     // Settings sheet key issuance — fired on open under Apple UAs (the two
     // iPhone projects). Steady state: the key exists, no plaintext returned.
     if (method === 'POST' && path === '/account/api-key')
