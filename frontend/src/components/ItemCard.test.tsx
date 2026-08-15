@@ -22,6 +22,7 @@ const BASE_ITEM: ListItem = {
   stores: ['Mercadona'],
   purchased: false,
   purchased_at: null,
+  purchase_has_receipt: false,
   purchase_ends_at: null,
   ean: null,
   price: null,

@@ -30,6 +30,7 @@ const makeLine = (over: Partial<ListItem> = {}): ListItem => ({
   stores: [],
   purchased: true,
   purchased_at: PAST,
+  purchase_has_receipt: false,
   purchase_ends_at: '2026-07-21T20:00:00',
   ean: null,
   price: 1.9,

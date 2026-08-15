@@ -14,6 +14,7 @@ const BASE_ITEM: ListItem = {
   stores: [],
   purchased: false,
   purchased_at: null,
+  purchase_has_receipt: false,
   purchase_ends_at: null,
   ean: null,
   price: null,

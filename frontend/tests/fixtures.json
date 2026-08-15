@@ -67,6 +67,7 @@
         "purchased_at": null,
         "purchase_id": null,
         "purchase_ends_at": null,
+        "purchase_has_receipt": false,
         "ean": null,
         "price": 0.65,
         "price_per": null,
@@ -87,6 +88,7 @@
         "purchased_at": null,
         "purchase_id": null,
         "purchase_ends_at": null,
+        "purchase_has_receipt": false,
         "ean": null,
         "price": null,
         "price_per": null,
@@ -107,6 +109,7 @@
         "purchased_at": "2026-07-10T09:00:00",
         "purchase_id": "trip-compra-0710",
         "purchase_ends_at": "2026-07-11T00:00:00",
+        "purchase_has_receipt": false,
         "ean": null,
         "price": null,
         "price_per": null,
@@ -127,6 +130,7 @@
         "purchased_at": "2026-07-10T09:00:00",
         "purchase_id": "trip-compra-0710",
         "purchase_ends_at": "2026-07-11T00:00:00",
+        "purchase_has_receipt": false,
         "ean": null,
         "price": 2.1,
         "price_per": null,
@@ -149,6 +153,7 @@
         "purchased_at": null,
         "purchase_id": null,
         "purchase_ends_at": null,
+        "purchase_has_receipt": false,
         "ean": null,
         "price": null,
         "price_per": null,
@@ -264,6 +269,7 @@
     "purchased_at": null,
     "purchase_id": null,
     "purchase_ends_at": null,
+    "purchase_has_receipt": false,
     "ean": null,
     "price": null,
     "price_per": null,
@@ -284,6 +290,7 @@
     "purchased_at": "2026-07-10T00:00:00",
     "purchase_id": null,
     "purchase_ends_at": "2026-07-11T00:00:00",
+    "purchase_has_receipt": false,
     "ean": null,
     "price": 1.0,
     "price_per": null,
@@ -305,7 +312,8 @@
   },
   "SEED_RECEIPT_APPLY_RESULT": {
     "items_updated": 2,
-    "items_created": 1
+    "items_created": 1,
+    "items_skipped": 0
   },
   "SEED_UPDATED_AT": {
     "updated_at": "2026-06-23T10:00:00"

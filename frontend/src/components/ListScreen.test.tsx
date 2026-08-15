@@ -246,6 +246,7 @@ function makeItem(overrides: Partial<ListItem>): ListItem {
     stores: [],
     purchased: false,
     purchased_at: null,
+    purchase_has_receipt: false,
     ean: null,
     price: null,
     price_per: null,
@@ -999,11 +1000,23 @@ describe('receipt price confirmation toast', () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 2,
       items_created: 0,
+      items_skipped: 0,
     })
     await openReceiptSheetAndConfirm()
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('2 precios actualizados')
     expect(alert).not.toHaveTextContent('artículo')
+  })
+
+  it('says out loud when the backend refused lines already under a ticket', async () => {
+    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
+      items_updated: 1,
+      items_created: 0,
+      items_skipped: 2,
+    })
+    await openReceiptSheetAndConfirm()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('2 líneas ya en otro ticket')
   })
 
   it('shows "No se pudo leer el ticket" when AI receipt parsing fails', async () => {
@@ -1096,6 +1109,7 @@ describe('receipt price confirmation toast', () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 0,
       items_created: 3,
+      items_skipped: 0,
     })
     await openReceiptSheetAndConfirm()
     const alert = await screen.findByRole('alert')
@@ -1107,6 +1121,7 @@ describe('receipt price confirmation toast', () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 1,
       items_created: 1,
+      items_skipped: 0,
     })
     await openReceiptSheetAndConfirm()
     const alert = await screen.findByRole('alert')
@@ -1117,6 +1132,7 @@ describe('receipt price confirmation toast', () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 0,
       items_created: 0,
+      items_skipped: 0,
     })
     await openReceiptSheetAndConfirm()
     const alert = await screen.findByRole('alert')
@@ -1127,6 +1143,7 @@ describe('receipt price confirmation toast', () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 0,
       items_created: 1,
+      items_skipped: 0,
     })
     const { container } = render(
       <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
@@ -1225,6 +1242,7 @@ describe('targeted receipt attach (25b)', () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 1,
       items_created: 0,
+      items_skipped: 0,
     })
   })
 
@@ -1434,6 +1452,7 @@ describe('pendingScan session isolation', () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 1,
       items_created: 0,
+      items_skipped: 0,
     })
   })
 

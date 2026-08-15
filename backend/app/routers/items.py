@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import case, func, nulls_last, or_
 from sqlmodel import Session, select
 
-from app.db.models import List, ListItem, Purchase, User
+from app.db.models import List, ListItem, Purchase, ReceiptScan, User
 from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 from app.services import trips
@@ -60,11 +60,11 @@ def get_items(
 
 
 def _attach_purchase_ends_at(session: Session, items: list[ListItem]) -> None:
-    """Stamp each item with its trip's end instant, in one query for the page.
+    """Stamp each item with its trip's facts, in two queries for the page.
 
-    The value rides on the ORM object as a transient attribute (the way
-    User.is_admin does) and ItemRead picks it up; items without a trip keep
-    the schema's None default.
+    The end instant and whether a scan claimed the trip ride on the ORM object
+    as transient attributes (the way User.is_admin does) and ItemRead picks
+    them up; items without a trip keep the schema's defaults.
     """
     trip_ids = {item.purchase_id for item in items if item.purchase_id is not None}
     if not trip_ids:
@@ -73,11 +73,17 @@ def _attach_purchase_ends_at(session: Session, items: list[ListItem]) -> None:
         trip.id: trip
         for trip in session.exec(select(Purchase).where(Purchase.id.in_(trip_ids))).all()
     }
+    scanned = set(
+        session.exec(
+            select(ReceiptScan.purchase_id).where(ReceiptScan.purchase_id.in_(trip_ids)).distinct()
+        ).all()
+    )
     for item in items:
         trip = trips_by_id.get(item.purchase_id) if item.purchase_id else None
         if trip is not None:
             # object.__setattr__ because pydantic rejects undeclared fields.
             object.__setattr__(item, "purchase_ends_at", trips.ends_at(trip))
+            object.__setattr__(item, "purchase_has_receipt", trip.id in scanned)
 
 
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)

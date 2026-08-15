@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, time, tzinfo
 
 from fastapi import APIRouter, HTTPException, Request, status
+from sqlalchemy import and_
 from sqlmodel import select
 
 from app.db.models import List, ListItem, Purchase, ReceiptNameMapping, ReceiptScan, User
@@ -49,6 +50,20 @@ def _require_receipt_processing_allowed(session, current_user: User) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="receipt_consent_required",
         )
+
+
+def _receipt_pool_predicate(now: datetime):
+    """SQLAlchemy predicate: the item can still take a receipt line.
+
+    In play (pending, or in the open cart — trips.in_scope_predicate), and its
+    trip not already claimed by a scan: a ticketed trip is settled paper even
+    while its boundary is ahead, so re-pricing it needs the targeted flow.
+    Requires the same Purchase outer-join as in_scope_predicate.
+    """
+    return and_(
+        in_scope_predicate(now),
+        ~select(ReceiptScan.id).where(ReceiptScan.purchase_id == ListItem.purchase_id).exists(),
+    )
 
 
 def _parse_receipt_at(raw: str | None) -> datetime | None:
@@ -138,7 +153,7 @@ def scan_receipt(
             session.exec(
                 select(ListItem)
                 .outerjoin(Purchase, ListItem.purchase_id == Purchase.id)
-                .where(ListItem.list_id == list_id, in_scope_predicate(now))
+                .where(ListItem.list_id == list_id, _receipt_pool_predicate(now))
                 # match_lines keeps the first candidate per normalised name, so the
                 # order is the tiebreak: a pending list item — the likeliest target
                 # for a printed line — wins over an open-cart one, recency breaking
@@ -245,13 +260,34 @@ def apply_receipt_prices(
     # open.
     to_close: list[str] = []
 
+    # The same pool the scan matched against, re-read at apply time: an
+    # ordinary apply must not touch an item that has settled under a ticket
+    # in the meantime — that record's figures are confirmed, and rewriting
+    # them here would be silent. Refused patches are counted, not dropped,
+    # so the client can say why a line did not land.
+    eligible_ids: set[str] = set()
+    if target is None:
+        eligible_ids = set(
+            session.exec(
+                select(ListItem.id)
+                .outerjoin(Purchase, ListItem.purchase_id == Purchase.id)
+                .where(ListItem.list_id == list_id, _receipt_pool_predicate(now))
+            ).all()
+        )
+
     updated = 0
+    skipped = 0
     for patch in body.patches:
         item = session.get(ListItem, patch.item_id)
         if not item or item.list_id != list_id:
+            skipped += 1
             continue
         if target is not None and item.purchase_id != target.id:
             # A targeted apply re-prices only the named ticket's own lines.
+            skipped += 1
+            continue
+        if target is None and item.id not in eligible_ids:
+            skipped += 1
             continue
         item.price = patch.price
         item.price_per = patch.price_per
@@ -277,8 +313,8 @@ def apply_receipt_prices(
             to_close.append(item.id)
         elif target is None and open_trip is not None and item.purchase_id == open_trip.id:
             # Already sitting in the open cart — settle it onto the same close.
-            # An item already on a *closed* ticket (a stale client) still gets
-            # its price, but is neither re-filed here nor pulled off its trip.
+            # An item on a closed ticket never reaches here: the pool check
+            # above already refused its patch.
             to_close.append(item.id)
         session.add(item)
         updated += 1
@@ -395,7 +431,7 @@ def apply_receipt_prices(
 
     session.commit()
 
-    return {"items_updated": updated, "items_created": created}
+    return {"items_updated": updated, "items_created": created, "items_skipped": skipped}
 
 
 @router.post(

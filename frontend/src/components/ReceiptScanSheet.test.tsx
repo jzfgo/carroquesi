@@ -487,6 +487,52 @@ describe('ReceiptScanSheet — resolve sheet (13b)', () => {
     expect(screen.queryByText('Línea del ticket')).not.toBeInTheDocument()
   })
 
+  it('typing fetches catalogue suggestions and a tap prefills the bar', async () => {
+    const onFetchSuggestions = vi.fn(async () => [
+      { name: 'Cacahuetes fritos', brand: 'El Corte Inglés', stores: [] },
+    ])
+    renderSheet({ onFetchSuggestions })
+    fireEvent.click(openRow('MANI DULCE'))
+    // The prefilled OCR line alone never searches.
+    expect(onFetchSuggestions).not.toHaveBeenCalled()
+
+    const input = screen.getByPlaceholderText(/Nombre del producto/)
+    fireEvent.change(input, { target: { value: 'Cacahu' } })
+    const chip = await screen.findByRole('button', {
+      name: /Cacahuetes fritos/,
+    })
+    expect(onFetchSuggestions).toHaveBeenCalledWith('Cacahu')
+
+    // The pick is a prefill: the bar takes name + quoted #marca and the
+    // strip retires until the user types again.
+    fireEvent.click(chip)
+    expect(
+      screen.getByDisplayValue('Cacahuetes fritos #"El Corte Inglés"'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Cacahuetes fritos/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('typing filters the link list in place and a filtered item still links', () => {
+    renderSheet()
+    fireEvent.click(openRow('MANI DULCE'))
+    // Only item-4 is free; the prefilled raw line does not hide it.
+    expect(
+      screen.getByRole('radio', { name: /Maní dulce/ }),
+    ).toBeInTheDocument()
+
+    const input = screen.getByPlaceholderText(/Nombre del producto/)
+    fireEvent.change(input, { target: { value: 'chocolate' } })
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+
+    // Accent-insensitive: «mani» finds «Maní dulce», and the row still links.
+    fireEvent.change(input, { target: { value: 'mani' } })
+    fireEvent.click(screen.getByRole('radio', { name: /Maní dulce/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+    expect(screen.getAllByText('Maní dulce').length).toBeGreaterThan(0)
+  })
+
   it('a barcode scan fills the create bar for its row', () => {
     renderSheet({
       pendingScan: {

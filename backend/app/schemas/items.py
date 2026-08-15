@@ -49,6 +49,10 @@ class ItemRead(BaseModel):
     # at its stamped local midnight. None while unpurchased. Clients read it
     # to mirror the trip-open guards without re-deriving the boundary.
     purchase_ends_at: datetime | None = None
+    # Whether a receipt scan is attached to this item's trip. A ticketed trip
+    # is settled paper, so its lines leave the receipt-linking pool even if
+    # the boundary is still ahead. False while unpurchased.
+    purchase_has_receipt: bool = False
     added_by: str
     created_at: datetime
     updated_at: datetime

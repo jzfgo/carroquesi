@@ -13,6 +13,7 @@ function item(over: Partial<ListItem> = {}): ListItem {
     stores: ['Mercadona'],
     purchased: false,
     purchased_at: null,
+    purchase_has_receipt: false,
     ean: null,
     price: null,
     price_per: null,
