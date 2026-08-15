@@ -587,6 +587,10 @@ export function ListScreen({
           return
         }
 
+        // Count the PDF's pages while the match request is on the wire. The
+        // read is header-only and never throws, so by the time the server
+        // answers the count is ready and the review opens with no extra wait.
+        const pdfPagesPromise = isPdf ? countPdfPages(file) : null
         const result = await submitParsedReceipt(getToken, listId, {
           ...parsed,
           purchase_id: receiptScanTarget?.purchaseId ?? null,
@@ -598,9 +602,9 @@ export function ListScreen({
             console.error('Receipt file upload failed:', e)
           },
         )
-        // The count reads only the PDF header and never throws; pdf.js is
-        // already warm from the upload's own count just above.
-        const pdfPages = isPdf ? ((await countPdfPages(file)) ?? null) : null
+        const pdfPages = pdfPagesPromise
+          ? ((await pdfPagesPromise) ?? null)
+          : null
         setReceiptScanResult(result)
         // Hold the file in memory for the review thumbnail and its lightbox.
         // Clearing pendingScan is belt-and-suspenders alongside the exit-path

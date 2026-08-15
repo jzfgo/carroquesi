@@ -324,6 +324,12 @@ describe('ReceiptScanSheet — thumbnail', () => {
     expect(screen.queryByText(/pág\./)).not.toBeInTheDocument()
   })
 
+  it('omits the count when the PDF has exactly one page', () => {
+    renderSheet({ imageUrl: 'blob:fake', isPdf: true, pdfPages: 1 })
+    expect(screen.getByText('PDF')).toBeInTheDocument()
+    expect(screen.queryByText(/pág\./)).not.toBeInTheDocument()
+  })
+
   it('tapping the PDF thumb opens the pager on the file', async () => {
     renderSheet({ imageUrl: 'blob:fake-pdf', isPdf: true, pdfPages: 3 })
     fireEvent.click(screen.getByRole('button', { name: 'Ampliar el ticket' }))
