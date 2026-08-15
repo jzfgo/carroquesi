@@ -82,8 +82,11 @@ test('store chips select one store', () => {
   ])
   const lidl = screen.getByText('Lidl')
   expect(lidl.className).not.toContain('close-chip--on')
+  expect(lidl).toHaveAttribute('aria-pressed', 'false')
   fireEvent.click(lidl)
   expect(lidl.className).toContain('close-chip--on')
+  // The fill is the visual voice of selection; aria-pressed is the spoken one.
+  expect(lidl).toHaveAttribute('aria-pressed', 'true')
 })
 
 test('a store-less cart still offers registry stores and «+ otra»', async () => {
@@ -184,9 +187,12 @@ test('«Confirmar los precios sugeridos» applies the inherited price', async ()
       screen.getByText(/Confirmar el precio sugerido/),
     ).toBeInTheDocument(),
   )
+  // While suggested, the dashed badge also says its state for screen readers.
+  expect(screen.getByText('(precio sugerido)')).toBeInTheDocument()
   fireEvent.click(screen.getByText(/Confirmar el precio sugerido/))
-  // Confirmed → it now counts toward the total.
+  // Confirmed → it now counts toward the total and drops the suggested voice.
   await waitFor(() => expect(screen.getByText('€ 2,50')).toBeInTheDocument())
+  expect(screen.queryByText('(precio sugerido)')).not.toBeInTheDocument()
 })
 
 test('the pencil opens the adjust-product editor (10d)', () => {

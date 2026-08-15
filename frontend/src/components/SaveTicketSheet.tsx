@@ -185,6 +185,7 @@ export function SaveTicketSheet({
                   key={s}
                   type="button"
                   className={`save-chip${storeKey(s) === storeKey(store) ? ' save-chip--on' : ''}`}
+                  aria-pressed={storeKey(s) === storeKey(store)}
                   // Tap toggles: a store is optional, so a second tap clears it.
                   onClick={() => setStore((cur) => (cur === s ? '' : s))}
                 >
@@ -194,6 +195,7 @@ export function SaveTicketSheet({
               <button
                 type="button"
                 className="save-chip save-chip--add"
+                aria-label="Añadir otra tienda"
                 onClick={() => {
                   setNewStoreText('')
                   setStoreSubsheet(true)

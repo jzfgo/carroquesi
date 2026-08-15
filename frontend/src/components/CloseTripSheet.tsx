@@ -400,6 +400,7 @@ export function CloseTripSheet({
                   key={s}
                   type="button"
                   className={`close-chip${storeKey(s) === storeKey(selectedStore) ? ' close-chip--on' : ''}`}
+                  aria-pressed={storeKey(s) === storeKey(selectedStore)}
                   onClick={() => setStore(s)}
                 >
                   {s}
@@ -408,6 +409,7 @@ export function CloseTripSheet({
               <button
                 type="button"
                 className="close-chip close-chip--add"
+                aria-label="Añadir otra tienda"
                 onClick={() => {
                   setNewStoreText('')
                   setStoreSubsheet(true)
@@ -461,6 +463,9 @@ export function CloseTripSheet({
                         return (
                           <span className="close-amount close-amount--suggested">
                             {formatRowAmount(t.value)}
+                            {/* The dashed border says "suggested, not yet
+                                real"; say it for screen readers too. */}
+                            <span className="sr-only"> (precio sugerido)</span>
                           </span>
                         )
                       return (

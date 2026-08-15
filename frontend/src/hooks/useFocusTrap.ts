@@ -25,6 +25,13 @@ export function useFocusTrap(ref: React.RefObject<HTMLElement | null>) {
       const first = items[0]
       const last = items[items.length - 1]
       const active = document.activeElement
+      // A content swap can unmount the focused element; focus then falls to
+      // <body> and Tab would walk the page behind the trap. Pull it back in.
+      if (!(active instanceof HTMLElement) || !el.contains(active)) {
+        e.preventDefault()
+        ;(e.shiftKey ? last : first).focus()
+        return
+      }
       if (e.shiftKey && (active === first || active === el)) {
         e.preventDefault()
         last.focus()

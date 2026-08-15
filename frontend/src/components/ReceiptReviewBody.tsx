@@ -299,7 +299,18 @@ export function ReceiptReviewBody({
                     <span
                       className={`rss-annot ${named ? 'rss-annot--solid' : 'rss-annot--dashed'}`}
                     >
-                      <CornerDownRight size={12} className="rss-annot__elbow" />
+                      <CornerDownRight
+                        size={12}
+                        className="rss-annot__elbow"
+                        aria-hidden
+                      />
+                      {/* The elbow and the solid/dashed stroke carry the
+                          mapping visually; say it for screen readers too.
+                          The unresolved state already says «Asignar
+                          producto» in text. */}
+                      {named && (
+                        <span className="sr-only">se guarda como </span>
+                      )}
                       <span className="rss-annot__name">
                         {annotationText(ls)}
                       </span>
@@ -341,9 +352,12 @@ export function ReceiptReviewBody({
           )}
         {receiptTotal != null ? (
           matches ? (
-            <div className="rss-cuadre rss-cuadre--ok">
+            <div className="rss-cuadre rss-cuadre--ok" role="status">
               <span className="rss-cuadre__label">Total</span>
               <span className="rss-cuadre__disc rss-cuadre__disc--ok" />
+              {/* The green disc is the only visible sign that the sum
+                  matches the paper total. */}
+              <span className="sr-only">cuadra con la suma de líneas</span>
               <span className="rss-cuadre__total">
                 {formatRowAmount(receiptTotal)}
               </span>
