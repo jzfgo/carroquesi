@@ -21,6 +21,9 @@ class ReceiptScanRequest(BaseModel):
     # rejected with a 422.
     inference_source: str | None = None
     lines: list[ParsedLine]
+    # Targeted attach: match against the named settled purchase's own lines
+    # instead of the in-play pool. None is the ordinary scan-closes-a-trip flow.
+    purchase_id: str | None = None
 
 
 class MatchedLine(BaseModel):
@@ -86,6 +89,9 @@ class ReceiptPriceBatch(BaseModel):
     patches: list[PricePatch] = []
     new_items: list[NewPurchasedItem] = []
     mappings: list[NameMappingCreate] = []
+    # Targeted attach: file prices, new lines, and the paper onto this settled
+    # purchase instead of closing a trip. None is the ordinary flow.
+    purchase_id: str | None = None
 
 
 class ReceiptPriceApplyResult(BaseModel):
