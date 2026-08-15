@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import type { ReceiptLine } from '../lib/receiptReview'
 import { ReceiptLineResolveBody } from './ReceiptLineResolveBody'
@@ -91,4 +92,28 @@ test('the create preview appears once a #marca sigil is recognised', () => {
   renderBody({ createText: 'Chocolate negro #Valor' })
   expect(screen.getByText('Chocolate negro')).toBeInTheDocument()
   expect(screen.getByText('Valor')).toBeInTheDocument()
+})
+
+test('the helper link toggles the sigil legend in place', async () => {
+  const user = userEvent.setup()
+  renderBody({})
+
+  // Collapsed by default: the link is there, the legend is not.
+  const link = screen.getByRole('button', {
+    name: '¿Cómo escribir más rápido?',
+  })
+  expect(link).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.queryByText('#marca')).not.toBeInTheDocument()
+
+  // One tap reveals the three sigils this bar understands.
+  await user.click(link)
+  expect(link).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByText('#marca')).toBeInTheDocument()
+  expect(screen.getByText('+cantidad')).toBeInTheDocument()
+  expect(screen.getByText('"comillas"')).toBeInTheDocument()
+
+  // A second tap folds it back.
+  await user.click(link)
+  expect(link).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.queryByText('#marca')).not.toBeInTheDocument()
 })

@@ -1,4 +1,5 @@
 import { ChevronLeft, ScanBarcode } from 'lucide-react'
+import { useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
 import { parseInput } from '../lib/parseInput'
 import {
@@ -44,6 +45,11 @@ export function ReceiptLineResolveBody({
   onBack,
   backLabel = 'Revisar ticket',
 }: Props) {
+  // The main add bar keeps its sigils silent, but this bar arrives prefilled
+  // with raw OCR text the user has to clean by hand — so it earns a short,
+  // collapsed reminder of the syntax that helps. Only the sigils this path
+  // uses: brand, quantity, quotes.
+  const [helpOpen, setHelpOpen] = useState(false)
   const parsed = parseInput(createText)
   const previewName = parsed.name.trim()
   const canAssign = radioId != null || previewName.length > 0
@@ -127,6 +133,32 @@ export function ReceiptLineResolveBody({
               </button>
             )}
           </div>
+          <div className="rss-create__help">
+            <button
+              type="button"
+              className="rss-create__help-link"
+              aria-expanded={helpOpen}
+              onClick={() => setHelpOpen((open) => !open)}
+            >
+              ¿Cómo escribir más rápido?
+            </button>
+          </div>
+          {helpOpen && (
+            <ul className="rss-create__legend">
+              <li>
+                <code>#marca</code>
+                <span>añade la marca</span>
+              </li>
+              <li>
+                <code>+cantidad</code>
+                <span>añade la cantidad</span>
+              </li>
+              <li>
+                <code>"comillas"</code>
+                <span>para valores con espacios</span>
+              </li>
+            </ul>
+          )}
         </div>
       </div>
 
