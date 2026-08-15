@@ -459,6 +459,18 @@ test.describe('functional', () => {
     await sheet.getByRole('button', { name: 'Listo' }).click()
     await expect(save).toBeEnabled()
 
+    // A store alone is not enough either: clearing the date locks the save
+    // again, so each half of the pair carries the guard. The date pill now
+    // prints the date itself, so it is reached by position, not label.
+    await sheet.locator('button.rss-pill').nth(1).click()
+    await sheet.locator('input[type="date"]').fill('')
+    await expect(save).toBeDisabled()
+
+    // Re-entering the date restores the pair.
+    await sheet.getByRole('button', { name: 'Poner fecha' }).click()
+    await sheet.locator('input[type="date"]').fill('2026-07-10')
+    await expect(save).toBeEnabled()
+
     // And the entered pair is what the apply carries.
     const responsePromise = page.waitForResponse(
       (resp) =>
