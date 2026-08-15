@@ -35,8 +35,10 @@ interface Props {
    *  search — no separate state here. */
   query?: string
   searching?: boolean
-  /** Show the 25b header thumbnails — the caller settles flag + consent. */
-  receiptThumbs?: boolean
+  /** Whether this account can scan — the caller settles flag + consent.
+   *  Gates only the dashed state of the 25b thumbnails; stored paper shows
+   *  to every member. */
+  receiptScan?: boolean
   /** Launch a scan from a card's dashed hole. */
   onScanReceipt?: () => void
 }
@@ -63,7 +65,7 @@ export function Stack({
   onSaveTicket,
   query = '',
   searching = false,
-  receiptThumbs = false,
+  receiptScan = false,
   onScanReceipt,
 }: Props) {
   const {
@@ -150,7 +152,7 @@ export function Stack({
     onRebuy,
     onOpenLine,
     onCloseTrip,
-    receiptThumbs,
+    receiptScan,
     onScanReceipt,
     loadReceiptScans,
     loadReceiptFileUrl,
