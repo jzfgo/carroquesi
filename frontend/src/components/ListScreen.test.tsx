@@ -563,6 +563,41 @@ describe('ListScreen', () => {
     })
   })
 
+  it('a typed own brand carries its inferred store through the search add', async () => {
+    const addItemMock = vi.fn(async () => null)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      addItem: addItemMock,
+    })
+
+    vi.mocked(api.getBarcode).mockResolvedValueOnce({
+      ean: '8412345678901',
+      name: 'Tomates',
+      brand: 'Carrefour',
+      stores: ['Carrefour'],
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.change(
+      screen.getByRole('textbox', { name: /añadir producto/i }),
+      {
+        target: { value: '#Hacendado |8412345678901' },
+      },
+    )
+    fireEvent.click(screen.getByRole('button', { name: /buscar producto/i }))
+
+    await waitFor(() => {
+      expect(addItemMock).toHaveBeenCalledWith({
+        name: 'Tomates',
+        brand: 'Hacendado',
+        stores: ['Mercadona'],
+        quantity: null,
+        ean: '8412345678901',
+      })
+    })
+  })
+
   it('a camera read adds the product, closes the scanner, and Ajustar opens the ficha', async () => {
     const created = makeItem({
       id: 'i-scan',

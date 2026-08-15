@@ -947,10 +947,15 @@ export function ListScreen({
         setEanLookup({ status: 'idle' })
         setInputValue('')
         // Sigils typed next to the code are the user's word over the lookup's.
+        // A typed own brand carries its inferred store here too, the same as
+        // a plain save.
+        const stores = storeToAdd
+          ? [...new Set([...parsed.stores, storeToAdd])]
+          : parsed.stores
         void addScanned({
           name: product.name,
           brand: parsed.brand ?? product.brand,
-          stores: parsed.stores,
+          stores,
           quantity: null,
           ean: product.ean,
         })
@@ -963,7 +968,7 @@ export function ListScreen({
         }
       }
     },
-    [getToken, addScanned, parsed],
+    [getToken, addScanned, parsed, storeToAdd],
   )
 
   const handleClear = useCallback(() => {
