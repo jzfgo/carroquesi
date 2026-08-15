@@ -60,6 +60,7 @@ describe('BarcodeScanner', () => {
       <BarcodeScanner
         getToken={mockGetToken}
         onResult={vi.fn()}
+        onNotFound={vi.fn()}
         onError={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -73,6 +74,7 @@ describe('BarcodeScanner', () => {
       <BarcodeScanner
         getToken={mockGetToken}
         onResult={vi.fn()}
+        onNotFound={vi.fn()}
         onError={vi.fn()}
         onClose={onClose}
       />,
@@ -96,6 +98,7 @@ describe('BarcodeScanner', () => {
       <BarcodeScanner
         getToken={mockGetToken}
         onResult={onResult}
+        onNotFound={vi.fn()}
         onError={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -103,7 +106,7 @@ describe('BarcodeScanner', () => {
     await waitFor(() => expect(onResult).toHaveBeenCalledWith(product))
   })
 
-  it('calls onError with "Producto no encontrado" when backend returns 404', async () => {
+  it('calls onNotFound with the read code when backend returns 404', async () => {
     vi.stubGlobal(
       'BarcodeDetector',
       class {
@@ -112,18 +115,21 @@ describe('BarcodeScanner', () => {
     )
     ;(api.getBarcode as Mock).mockRejectedValue(new ApiError(404, 'not found'))
 
+    const onNotFound = vi.fn()
     const onError = vi.fn()
     render(
       <BarcodeScanner
         getToken={mockGetToken}
         onResult={vi.fn()}
+        onNotFound={onNotFound}
         onError={onError}
         onClose={vi.fn()}
       />,
     )
     await waitFor(() =>
-      expect(onError).toHaveBeenCalledWith('Producto no encontrado'),
+      expect(onNotFound).toHaveBeenCalledWith('8411327122016'),
     )
+    expect(onError).not.toHaveBeenCalled()
   })
 
   it('calls onError with service unavailable message when backend returns 503', async () => {
@@ -142,6 +148,7 @@ describe('BarcodeScanner', () => {
       <BarcodeScanner
         getToken={mockGetToken}
         onResult={vi.fn()}
+        onNotFound={vi.fn()}
         onError={onError}
         onClose={vi.fn()}
       />,
@@ -167,6 +174,7 @@ describe('BarcodeScanner', () => {
       <BarcodeScanner
         getToken={mockGetToken}
         onResult={vi.fn()}
+        onNotFound={vi.fn()}
         onError={onError}
         onClose={vi.fn()}
       />,

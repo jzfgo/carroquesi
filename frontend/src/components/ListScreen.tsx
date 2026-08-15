@@ -42,6 +42,7 @@ import type {
   ElsewhereMatch,
   NameMapping,
   NewPurchasedItem,
+  ParsedInput,
   PricePatch,
   ReceiptScanRequest,
   ReceiptScanResult,
@@ -49,7 +50,6 @@ import type {
   TagField,
 } from '../types'
 import { BarcodeScanner } from './BarcodeScanner'
-import { BarcodeScanSheet } from './BarcodeScanSheet'
 import { CloseTripSheet } from './CloseTripSheet'
 import { FilterBar } from './FilterBar'
 import { ItemFichaSheet } from './ItemFichaSheet'
@@ -95,8 +95,13 @@ interface Props {
 type EanLookupState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'found'; product: BarcodeRead }
   | { status: 'error'; message: string }
+
+interface ToastState {
+  message: string
+  strong?: string
+  action?: { label: string; onClick: () => void }
+}
 
 export function ListScreen({
   listId,
@@ -139,7 +144,12 @@ export function ListScreen({
   const isOffline = !useOnline()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToastState] = useState<ToastState | null>(null)
+  // Plain string entry point — almost every notice is text-only, and the
+  // hooks and child sheets take a (msg: string) => void.
+  const setToast = useCallback((msg: string | null) => {
+    setToastState(msg === null ? null : { message: msg })
+  }, [])
   // Held in state, not read inline in JSX: the priming card gates on this, and
   // only a state change after enablePush settles re-renders it away. Otherwise
   // the card keeps offering «Activar avisos» after a grant — or after a denial,
@@ -166,7 +176,6 @@ export function ListScreen({
     index: number
     product: BarcodeRead
   } | null>(null)
-  const [scannedProduct, setScannedProduct] = useState<BarcodeRead | null>(null)
   const [dueSuggestions, setDueSuggestions] = useState<DueSuggestion[]>([])
   const [logPriceFor, setLogPriceFor] = useState<{
     itemId: string
@@ -215,7 +224,7 @@ export function ListScreen({
         setToast('No se pudo renombrar la lista')
       }
     },
-    [getToken, isOffline, localListName, onRename],
+    [getToken, isOffline, localListName, onRename, setToast],
   )
 
   const handleSetDefault = useCallback(async () => {
@@ -231,7 +240,7 @@ export function ListScreen({
       setLocalIsDefault(false)
       setToast('No se pudo marcar como predeterminada')
     }
-  }, [getToken, isOffline, listId, onSetDefault])
+  }, [getToken, isOffline, listId, onSetDefault, setToast])
 
   const handleEmojiChange = useCallback(
     async (emoji: string | null) => {
@@ -248,7 +257,7 @@ export function ListScreen({
         setToast('No se pudo cambiar el emoji')
       }
     },
-    [getToken, isOffline, listId, localEmoji],
+    [getToken, isOffline, listId, localEmoji, setToast],
   )
 
   const handleBoardChange = useCallback(
@@ -266,7 +275,7 @@ export function ListScreen({
         setToast('No se pudo cambiar el tablero')
       }
     },
-    [getToken, isOffline, listId, localBoard],
+    [getToken, isOffline, listId, localBoard, setToast],
   )
 
   const handleDelete = useCallback(
@@ -295,7 +304,7 @@ export function ListScreen({
         setToast('No se pudo eliminar la lista')
       }
     },
-    [getToken, onBack, isOffline, confirmListGone],
+    [getToken, onBack, isOffline, confirmListGone, setToast],
   )
 
   const [eanLookup, setEanLookup] = useState<EanLookupState>({
@@ -386,7 +395,7 @@ export function ListScreen({
         setToast('No se pudo renombrar la tienda')
       }
     },
-    [applyStoreRename, getToken, isOffline, listId],
+    [applyStoreRename, getToken, isOffline, listId, setToast],
   )
 
   // Debounced suggestions — only when name has 2+ chars
@@ -457,7 +466,7 @@ export function ListScreen({
           setToast('No se pudo guardar tu preferencia. Inténtalo de nuevo.')
         })
     },
-    [recordReceiptConsent],
+    [recordReceiptConsent, setToast],
   )
 
   const handleConsentClose = useCallback(() => {
@@ -609,6 +618,7 @@ export function ListScreen({
       setReceiptImage,
       receiptScanTarget,
       invalidateAfterTripChange,
+      setToast,
     ],
   )
 
@@ -669,6 +679,7 @@ export function ListScreen({
       receiptScanTarget,
       invalidateAfterTripChange,
       setReceiptImage,
+      setToast,
     ],
   )
 
@@ -746,8 +757,12 @@ export function ListScreen({
       ? [...new Set([...parsed.stores, storeToAdd])]
       : parsed.stores
     void addItem({ ...parsed, stores })
+    // A save in EAN mode may leave a lookup error behind; the next typed
+    // code must not inherit it.
+    eanRequestIdRef.current++
+    setEanLookup({ status: 'idle' })
     setInputValue('')
-  }, [parsed, addItem, storeToAdd, isOffline])
+  }, [parsed, addItem, storeToAdd, isOffline, setToast])
 
   const handleInputSuggestionAdd = useCallback(
     (suggestion: Suggestion) => {
@@ -767,6 +782,29 @@ export function ListScreen({
     setScanTarget({ kind: 'add' })
   }, [])
 
+  // A found product goes straight onto the list (20a) — no confirmation
+  // sheet. Storeless on purpose, so it lands in «Sin tienda» at the tail,
+  // where its position says it is new. The toast's one CTA opens the ficha;
+  // undo lives there, so a second action would be the same door twice.
+  const addScanned = useCallback(
+    async (input: ParsedInput) => {
+      const created = await addItem(input)
+      if (!created) return
+      setToastState({
+        message: 'Añadido',
+        strong: created.name,
+        action: {
+          label: 'Ajustar',
+          onClick: () => {
+            setToastState(null)
+            setActiveItemId(created.id)
+          },
+        },
+      })
+    },
+    [addItem],
+  )
+
   const handleScanResult = useCallback(
     (product: BarcodeRead) => {
       const target = scanTarget
@@ -775,15 +813,40 @@ export function ListScreen({
         setPendingScan({ index: target.index, product })
         return
       }
-      setScannedProduct(product)
+      void addScanned({
+        name: product.name,
+        brand: product.brand,
+        stores: [],
+        quantity: null,
+        ean: product.ean,
+      })
     },
-    [scanTarget],
+    [scanTarget, addScanned],
   )
 
-  const handleScanError = useCallback((message: string) => {
-    setScanTarget(null)
-    setToast(message)
-  }, [])
+  // The code was read but nobody knows the product: hand the EAN to the
+  // input bar as its sigil, so naming it there creates the association. A
+  // receipt-line scan has its own naming flow, so it keeps the plain notice.
+  const handleScanNotFound = useCallback(
+    (ean: string) => {
+      const target = scanTarget
+      setScanTarget(null)
+      if (target?.kind === 'receipt-line') {
+        setToast('Producto no encontrado')
+        return
+      }
+      setInputValue(`|${ean}`)
+    },
+    [scanTarget, setToast],
+  )
+
+  const handleScanError = useCallback(
+    (message: string) => {
+      setScanTarget(null)
+      setToast(message)
+    },
+    [setToast],
+  )
 
   const handleReceiptScanRequest = useCallback((index: number) => {
     setScanTarget({ kind: 'receipt-line', index })
@@ -805,21 +868,6 @@ export function ListScreen({
   const handleReReadReceipt = useCallback(() => {
     setReceiptSourcePickerOpen(true)
   }, [])
-
-  const handleScanAdd = useCallback(
-    (item: { name: string; brand: string | null; stores: string[] }) => {
-      const ean = scannedProduct?.ean ?? null
-      setScannedProduct(null)
-      void addItem({
-        name: item.name,
-        brand: item.brand,
-        stores: item.stores,
-        quantity: null,
-        ean,
-      })
-    },
-    [addItem, scannedProduct],
-  )
 
   const handleOpenLogPrice = useCallback(
     (itemId: string) => {
@@ -861,7 +909,7 @@ export function ListScreen({
       if (store) setLastPriceStore(store)
       setLogPriceFor(null)
     },
-    [logPriceFor, savePrice, isOffline],
+    [logPriceFor, savePrice, isOffline, setToast],
   )
 
   const handleDeletePrice = useCallback(async () => {
@@ -887,12 +935,7 @@ export function ListScreen({
         throw err
       }
     }
-  }, [logPriceFor, clearItemPrice, isOffline])
-
-  const handleScanEdit = useCallback((prefill: string) => {
-    setScannedProduct(null)
-    setInputValue(prefill)
-  }, [])
+  }, [logPriceFor, clearItemPrice, isOffline, setToast])
 
   const handleEanSearch = useCallback(
     async (ean: string) => {
@@ -901,7 +944,16 @@ export function ListScreen({
       try {
         const product = await getBarcode(getToken, ean)
         if (requestId !== eanRequestIdRef.current) return
-        setEanLookup({ status: 'found', product })
+        setEanLookup({ status: 'idle' })
+        setInputValue('')
+        // Sigils typed next to the code are the user's word over the lookup's.
+        void addScanned({
+          name: product.name,
+          brand: parsed.brand ?? product.brand,
+          stores: parsed.stores,
+          quantity: null,
+          ean: product.ean,
+        })
       } catch (err) {
         if (requestId !== eanRequestIdRef.current) return
         if (err instanceof ApiError && err.status === 404) {
@@ -911,34 +963,13 @@ export function ListScreen({
         }
       }
     },
-    [getToken],
+    [getToken, addScanned, parsed],
   )
 
   const handleClear = useCallback(() => {
     eanRequestIdRef.current++
     setEanLookup({ status: 'idle' })
     setInputValue('')
-  }, [])
-
-  const handleEanAdd = useCallback(
-    (item: { name: string; brand: string | null; stores: string[] }) => {
-      const ean = eanLookup.status === 'found' ? eanLookup.product.ean : null
-      setEanLookup({ status: 'idle' })
-      setInputValue('')
-      void addItem({
-        name: item.name,
-        brand: item.brand,
-        stores: item.stores,
-        quantity: null,
-        ean,
-      })
-    },
-    [addItem, eanLookup],
-  )
-
-  const handleEanEdit = useCallback((prefill: string) => {
-    setEanLookup({ status: 'idle' })
-    setInputValue(prefill)
   }, [])
 
   const handleSuggestionAdd = useCallback(
@@ -1308,34 +1339,21 @@ export function ListScreen({
           />
         </div>
       )}
-      {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast.message}
+          strong={toast.strong}
+          action={toast.action}
+          onDismiss={() => setToast(null)}
+        />
+      )}
       {scanTarget && (
         <BarcodeScanner
           getToken={getToken}
           onResult={handleScanResult}
+          onNotFound={handleScanNotFound}
           onError={handleScanError}
           onClose={() => setScanTarget(null)}
-        />
-      )}
-      {scannedProduct && (
-        <BarcodeScanSheet
-          product={scannedProduct}
-          displayStore={displayStore}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onAdd={handleScanAdd as any}
-          onEdit={handleScanEdit}
-          onClose={() => setScannedProduct(null)}
-        />
-      )}
-      {eanLookup.status === 'found' && (
-        <BarcodeScanSheet
-          product={eanLookup.product}
-          displayStore={displayStore}
-          initialBrand={parsed.brand ?? undefined}
-          initialStores={parsed.stores}
-          onAdd={handleEanAdd}
-          onEdit={handleEanEdit}
-          onClose={handleClear}
         />
       )}
 

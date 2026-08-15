@@ -202,7 +202,7 @@ export function SmartInputBar({
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && hasName && !inEanMode) onSubmit()
+            if (e.key === 'Enter' && hasName) onSubmit()
           }}
           placeholder="Añadir producto…"
           aria-label="Añadir producto"
@@ -241,12 +241,13 @@ export function SmartInputBar({
           </button>
         ) : (
           // Text, keyboard down: Enter is out of reach, so a single accent
-          // send button — an up-arrow, not a "+".
+          // send button — an up-arrow, not a "+". A named EAN saves too: the
+          // code rides along and gets associated on create.
           <button
             className="smart-input__add"
             onClick={onSubmit}
             onMouseDown={(e) => e.preventDefault()}
-            disabled={!hasName || inEanMode}
+            disabled={!hasName}
             aria-label="Añadir"
             type="button"
           >

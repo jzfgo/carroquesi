@@ -312,11 +312,13 @@ export function useListItems(
     [getToken, listId, showToast, markWritten, suspectListGone],
   )
 
+  // Answers with the created item so a caller can point at it (the scan-to-add
+  // toast opens its ficha), or null when nothing was added.
   const addItem = useCallback(
-    async (parsed: ParsedInput) => {
+    async (parsed: ParsedInput): Promise<ListItem | null> => {
       if (!isOnline()) {
         showToast(OFFLINE_TOAST)
-        return
+        return null
       }
       const nameLower = parsed.name.trim().toLowerCase()
       const isDuplicate = itemsRef.current.some(
@@ -327,7 +329,7 @@ export function useListItems(
       )
       if (isDuplicate) {
         showToast(DUPLICATE_TOAST)
-        return
+        return null
       }
       const tempId = `tmp-${Date.now()}`
       const temp: ListItem = {
@@ -341,7 +343,7 @@ export function useListItems(
         purchased: false,
         purchased_at: null,
         purchase_ends_at: null,
-        ean: null,
+        ean: parsed.ean ?? null,
         price: null,
         price_per: null,
         price_store: null,
@@ -380,6 +382,7 @@ export function useListItems(
         // The item carries a new id from here on, so stamp both: a read that
         // predates the swap knows it only by the temporary one.
         markWritten(tempId, created.id)
+        return created
       } catch (err) {
         setItems((prev) => prev.filter((i) => i.id !== tempId))
         if (err instanceof ApiError && err.status === 409) {
@@ -390,6 +393,7 @@ export function useListItems(
         // A 404 here can only be about the list — the item does not exist yet.
         suspectListGone(err)
         markWritten(tempId)
+        return null
       }
     },
     [getToken, listId, showToast, markWritten, suspectListGone],

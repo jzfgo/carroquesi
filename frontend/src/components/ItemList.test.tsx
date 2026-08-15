@@ -219,8 +219,9 @@ test('pending items group under a hand-written store header', () => {
   ]
   const { container } = renderList({ items })
   const labels = container.querySelectorAll('.item-list__store-label')
-  expect(labels).toHaveLength(1)
+  expect(labels).toHaveLength(2)
   expect(labels[0]).toHaveTextContent('Mercadona')
+  expect(labels[1]).toHaveTextContent('Sin tienda')
   // Both Mercadona items live in the group under the header.
   const group = labels[0].parentElement as HTMLElement
   expect(within(group).getByText('Item a')).toBeInTheDocument()
@@ -228,16 +229,25 @@ test('pending items group under a hand-written store header', () => {
   expect(within(group).queryByText('Item b')).not.toBeInTheDocument()
 })
 
-test('items without a store lead the sheet under no header', () => {
+test('items without a store close the sheet under «Sin tienda»', () => {
   const items = [
-    { ...makeItem('a'), stores: ['Lidl'], created_at: '1' },
-    { ...makeItem('b'), stores: [], created_at: '2' },
+    { ...makeItem('b'), stores: [], created_at: '1' },
+    { ...makeItem('a'), stores: ['Lidl'], created_at: '2' },
   ]
   const { container } = renderList({ items })
   const texts = [
     ...container.querySelectorAll('.item-card__name, .item-list__store-label'),
   ].map((n) => n.textContent)
-  expect(texts).toEqual(['Item b', 'Lidl', 'Item a'])
+  expect(texts).toEqual(['Lidl', 'Item a', 'Sin tienda', 'Item b'])
+})
+
+test('no «Sin tienda» header when nothing names a store', () => {
+  const items = [
+    { ...makeItem('a'), stores: [], created_at: '1' },
+    { ...makeItem('b'), stores: [], created_at: '2' },
+  ]
+  const { container } = renderList({ items })
+  expect(container.querySelectorAll('.item-list__store-label')).toHaveLength(0)
 })
 
 test('spelling variants group by storeKey and label with the registry name', () => {
