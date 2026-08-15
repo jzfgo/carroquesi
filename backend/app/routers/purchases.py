@@ -659,6 +659,11 @@ def create_manual_purchase(
     if scan is not None:
         # Consent gated the scan's creation; linking what it stored to the
         # record it rescued is not the processing act, so membership suffices.
+        # The write is a blind overwrite: today's only caller sends a scan it
+        # minted moments ago, still unlinked, and the 404 above keeps any
+        # handcrafted id inside the caller's own list. If scan ids ever become
+        # reusable across sessions, guard here against stealing a paper that
+        # is already linked to another purchase.
         scan.purchase_id = purchase.id
         session.add(scan)
     if store is not None:
