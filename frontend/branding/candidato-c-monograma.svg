@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Candidate C: "La C con visto". Hand-crafted SVG for JAV-122; not generated.
+       A monogram: the C drawn in one ballpoint stroke, with the grocer-green
+       check crossing its mouth - the letter itself getting ticked off.
+       Palette: tinta-0 #1a3fa0, paper-0 #eef1f5, verde-0 #2f7a4a.
+       Full-bleed square; all content sits inside the maskable safe zone
+       (circle r=205 around 256,256). -->
+  <rect width="512" height="512" fill="#eef1f5"/>
+  <!-- the C: hand arc, slightly open and uneven like a quick pen pass -->
+  <path d="M348 148
+           c-46 -44 -132 -48 -184 4
+           c-52 52 -54 144 -2 196
+           c50 50 138 50 188 4"
+        fill="none" stroke="#1a3fa0" stroke-width="62"
+        stroke-linecap="round"/>
+  <!-- the check, hooked into the C's opening -->
+  <path d="M290 272 c13 12 26 30 34 50 c20 -56 46 -100 74 -132"
+        fill="none" stroke="#2f7a4a" stroke-width="42"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

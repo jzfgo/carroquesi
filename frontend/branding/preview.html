@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CarroQueSí — candidatos de icono (JAV-122)</title>
+    <!-- Static review page for the three icon candidates. Open from disk;
+         it loads only the sibling SVG files. Not part of the app build. -->
+    <style>
+      :root {
+        --paper-light: #eef1f5;
+        --paper-dark: #252731;
+        --ink: #15161b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 32px 24px 64px;
+        font:
+          15px/1.5 system-ui,
+          sans-serif;
+        background: #f7f8fa;
+        color: var(--ink);
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+      }
+      .sub {
+        color: #6a6d7a;
+        margin: 0 0 32px;
+      }
+      section {
+        margin-bottom: 48px;
+      }
+      h2 {
+        font-size: 17px;
+        margin: 0 0 2px;
+      }
+      .concept {
+        color: #6a6d7a;
+        font-size: 13px;
+        margin: 0 0 14px;
+        max-width: 60ch;
+      }
+      .strip {
+        display: flex;
+        align-items: flex-end;
+        gap: 20px;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+      .strip.light {
+        background: var(--paper-light);
+        border: 1px solid #d5dae2;
+      }
+      .strip.dark {
+        background: var(--paper-dark);
+      }
+      .cell {
+        text-align: center;
+      }
+      .cell img {
+        display: block;
+        margin: 0 auto;
+        image-rendering: auto;
+      }
+      .cell .label {
+        font-size: 11px;
+        color: #6a6d7a;
+        margin-top: 6px;
+      }
+      .strip.dark .label {
+        color: #9ea1ac;
+      }
+      img.px16 {
+        width: 16px;
+        height: 16px;
+      }
+      img.px32 {
+        width: 32px;
+        height: 32px;
+      }
+      img.px48 {
+        width: 48px;
+        height: 48px;
+      }
+      img.px192 {
+        width: 192px;
+        height: 192px;
+      }
+      img.px512 {
+        width: 256px;
+        height: 256px;
+      } /* 512 shown at half to fit */
+      img.mask {
+        width: 96px;
+        height: 96px;
+      }
+      .round {
+        border-radius: 50%;
+        overflow: hidden;
+      }
+      .squircle {
+        border-radius: 22.5%;
+        overflow: hidden;
+      }
+      .maskbox {
+        display: inline-block;
+        line-height: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Candidatos de icono — CarroQueSí</h1>
+    <p class="sub">
+      JAV-122 · Cada candidato en 16 / 32 / 48 / 192 / 512 px, sobre papel claro
+      y oscuro, y bajo máscara redonda y squircle (lo que hace un launcher
+      Android con la variante maskable: recorta el sangrado, el contenido vive
+      en la zona segura). El 512 se muestra a mitad de tamaño.
+    </p>
+
+    <!-- Candidate A -->
+    <section>
+      <h2>A · El papelito</h2>
+      <p class="concept">
+        La lista misma: una hoja ladeada sobre el azul BIC del acento, dos
+        líneas manuscritas y el visto verde del tendero. «El papel se queda
+        dentro de la lista» — aquí el papel es el icono.
+      </p>
+      <div class="strip light">
+        <div class="cell">
+          <img class="px16" src="./candidato-a-papelito.svg" alt="" />
+          <div class="label">16</div>
+        </div>
+        <div class="cell">
+          <img class="px32" src="./candidato-a-papelito.svg" alt="" />
+          <div class="label">32</div>
+        </div>
+        <div class="cell">
+          <img class="px48" src="./candidato-a-papelito.svg" alt="" />
+          <div class="label">48</div>
+        </div>
+        <div class="cell">
+          <img class="px192" src="./candidato-a-papelito.svg" alt="" />
+          <div class="label">192</div>
+        </div>
+        <div class="cell">
+          <img class="px512" src="./candidato-a-papelito.svg" alt="" />
+          <div class="label">512</div>
+        </div>
+        <div class="cell">
+          <span class="maskbox round"
+            ><img class="mask" src="./candidato-a-papelito.svg" alt=""
+          /></span>
+          <div class="label">redonda</div>
+        </div>
+        <div class="cell">
+          <span class="maskbox squircle"
+            ><img class="mask" src="./candidato-a-papelito.svg" alt=""
+          /></span>
+          <div class="label">squircle</div>
+        </div>
+      </div>
+      <div class="strip dark">
+        <div class="cell">
+          <img class="px16" src="./candidato-a-papelito.svg" alt="" />
+          <div class="label">16</div>
+        </div>
+        <div class="cell">
+          <img class="px32" src="./candidato-a-papelito.svg" alt="" />
+          <div class="label">32</div>
+        </div>
+        <div class="cell">
+          <img class="px48" src="./candidato-a-papelito.svg" alt="" />
+          <div class="label">48</div>
+        </div>
+        <div class="cell">
+          <img class="px192" src="./candidato-a-papelito.svg" alt="" />
+          <div class="label">192</div>
+        </div>
+        <div class="cell">
+          <span class="maskbox round"
+            ><img class="mask" src="./candidato-a-papelito.svg" alt=""
+          /></span>
+          <div class="label">redonda</div>
+        </div>
+        <div class="cell">
+          <span class="maskbox squircle"
+            ><img class="mask" src="./candidato-a-papelito.svg" alt=""
+          /></span>
+          <div class="label">squircle</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Candidate B -->
+    <section>
+      <h2>B · El carro que sí</h2>
+      <p class="concept">
+        El nombre en literal: un carro cuyo cesto dice que sí — cesto macizo en
+        azul BIC con el visto recortado en papel, ruedas de bolígrafo. La
+        silueta más reconocible de las tres a 16 px.
+      </p>
+      <div class="strip light">
+        <div class="cell">
+          <img class="px16" src="./candidato-b-carro.svg" alt="" />
+          <div class="label">16</div>
+        </div>
+        <div class="cell">
+          <img class="px32" src="./candidato-b-carro.svg" alt="" />
+          <div class="label">32</div>
+        </div>
+        <div class="cell">
+          <img class="px48" src="./candidato-b-carro.svg" alt="" />
+          <div class="label">48</div>
+        </div>
+        <div class="cell">
+          <img class="px192" src="./candidato-b-carro.svg" alt="" />
+          <div class="label">192</div>
+        </div>
+        <div class="cell">
+          <img class="px512" src="./candidato-b-carro.svg" alt="" />
+          <div class="label">512</div>
+        </div>
+        <div class="cell">
+          <span class="maskbox round"
+            ><img class="mask" src="./candidato-b-carro.svg" alt=""
+          /></span>
+          <div class="label">redonda</div>
+        </div>
+        <div class="cell">
+          <span class="maskbox squircle"
+            ><img class="mask" src="./candidato-b-carro.svg" alt=""
+          /></span>
+          <div class="label">squircle</div>
+        </div>
+      </div>
+      <div class="strip dark">
+        <div class="cell">
+          <img class="px16" src="./candidato-b-carro.svg" alt="" />
+          <div class="label">16</div>
+        </div>
+        <div class="cell">
+          <img class="px32" src="./candidato-b-carro.svg" alt="" />
+          <div class="label">32</div>
+        </div>
+        <div class="cell">
+          <img class="px48" src="./candidato-b-carro.svg" alt="" />
+          <div class="label">48</div>
+        </div>
+        <div class="cell">
+          <img class="px192" src="./candidato-b-carro.svg" alt="" />
+          <div class="label">192</div>
+        </div>
+        <div class="cell">
+          <span class="maskbox round"
+            ><img class="mask" src="./candidato-b-carro.svg" alt=""
+          /></span>
+          <div class="label">redonda</div>
+        </div>
+        <div class="cell">
+          <span class="maskbox squircle"
+            ><img class="mask" src="./candidato-b-carro.svg" alt=""
+          /></span>
+          <div class="label">squircle</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Candidate C -->
+    <section>
+      <h2>C · La C con visto</h2>
+      <p class="concept">
+        Monograma: la C trazada de una pasada de bolígrafo y el visto verde
+        enganchado en su boca — la letra tachándose a sí misma. La opción más
+        abstracta y la más «marca».
+      </p>
+      <div class="strip light">
+        <div class="cell">
+          <img class="px16" src="./candidato-c-monograma.svg" alt="" />
+          <div class="label">16</div>
+        </div>
+        <div class="cell">
+          <img class="px32" src="./candidato-c-monograma.svg" alt="" />
+          <div class="label">32</div>
+        </div>
+        <div class="cell">
+          <img class="px48" src="./candidato-c-monograma.svg" alt="" />
+          <div class="label">48</div>
+        </div>
+        <div class="cell">
+          <img class="px192" src="./candidato-c-monograma.svg" alt="" />
+          <div class="label">192</div>
+        </div>
+        <div class="cell">
+          <img class="px512" src="./candidato-c-monograma.svg" alt="" />
+          <div class="label">512</div>
+        </div>
+        <div class="cell">
+          <span class="maskbox round"
+            ><img class="mask" src="./candidato-c-monograma.svg" alt=""
+          /></span>
+          <div class="label">redonda</div>
+        </div>
+        <div class="cell">
+          <span class="maskbox squircle"
+            ><img class="mask" src="./candidato-c-monograma.svg" alt=""
+          /></span>
+          <div class="label">squircle</div>
+        </div>
+      </div>
+      <div class="strip dark">
+        <div class="cell">
+          <img class="px16" src="./candidato-c-monograma.svg" alt="" />
+          <div class="label">16</div>
+        </div>
+        <div class="cell">
+          <img class="px32" src="./candidato-c-monograma.svg" alt="" />
+          <div class="label">32</div>
+        </div>
+        <div class="cell">
+          <img class="px48" src="./candidato-c-monograma.svg" alt="" />
+          <div class="label">48</div>
+        </div>
+        <div class="cell">
+          <img class="px192" src="./candidato-c-monograma.svg" alt="" />
+          <div class="label">192</div>
+        </div>
+        <div class="cell">
+          <span class="maskbox round"
+            ><img class="mask" src="./candidato-c-monograma.svg" alt=""
+          /></span>
+          <div class="label">redonda</div>
+        </div>
+        <div class="cell">
+          <span class="maskbox squircle"
+            ><img class="mask" src="./candidato-c-monograma.svg" alt=""
+          /></span>
+          <div class="label">squircle</div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>
