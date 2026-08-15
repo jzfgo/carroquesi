@@ -170,7 +170,9 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
         onClose={vi.fn()}
       />,
     )
-    await userEvent.click(screen.getByRole('button', { name: /\+ otra/ }))
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Añadir otra tienda' }),
+    )
     await userEvent.type(
       screen.getByPlaceholderText(/nombre de la tienda/i),
       'ahorra mas',

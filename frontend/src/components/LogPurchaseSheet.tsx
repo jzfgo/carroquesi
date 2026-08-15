@@ -167,6 +167,7 @@ export default function LogPurchaseSheet({
             <button
               key={store}
               className={`lps__chip${selectedStore === store && !addingStore ? ' lps__chip--selected' : ''}`}
+              aria-pressed={selectedStore === store && !addingStore}
               onClick={() => handleStoreChip(store)}
               type="button"
             >
@@ -176,6 +177,9 @@ export default function LogPurchaseSheet({
           {effectiveSuggestion && (
             <button
               className={`lps__chip${selectedStore === effectiveSuggestion && !addingStore ? ' lps__chip--selected' : ''}`}
+              aria-pressed={
+                selectedStore === effectiveSuggestion && !addingStore
+              }
               onClick={() => handleStoreChip(effectiveSuggestion)}
               type="button"
             >
@@ -184,6 +188,7 @@ export default function LogPurchaseSheet({
           )}
           <button
             className="lps__chip lps__chip--add"
+            aria-label="Añadir otra tienda"
             onClick={() => {
               setSelectedStore(null)
               setAddingStore(true)

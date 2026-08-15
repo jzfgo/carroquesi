@@ -243,6 +243,27 @@ describe('focus management', () => {
     )
   })
 
+  it('Tab pulls focus back in after the focused element was unmounted', () => {
+    render(
+      <Sheet label="x" onClose={vi.fn()}>
+        <button>uno</button>
+        <button>dos</button>
+      </Sheet>,
+    )
+    // A content swap unmounts the focused element; focus falls to <body>.
+    ;(document.activeElement as HTMLElement).blur()
+    expect(document.activeElement).toBe(document.body)
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'uno' }),
+    )
+    ;(document.activeElement as HTMLElement).blur()
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'dos' }),
+    )
+  })
+
   it('restores focus to the previously focused element on unmount', () => {
     const outside = document.createElement('button')
     document.body.append(outside)

@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { getPdfjs } from '../lib/pdfjs'
 import './ReceiptFileViewer.css'
 
@@ -26,13 +27,19 @@ export function ReceiptFileViewer({ url, contentType, pages, onClose }: Props) {
   const [failed, setFailed] = useState(false)
   const [current, setCurrent] = useState(1)
   const trackRef = useRef<HTMLDivElement | null>(null)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  useFocusTrap(rootRef)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      // A sheet under the viewer also listens for Escape; capture phase plus
+      // stopPropagation keeps one press from closing both layers.
+      e.stopPropagation()
+      onClose()
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    document.addEventListener('keydown', onKey, true)
+    return () => document.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
   useEffect(() => {
@@ -71,7 +78,10 @@ export function ReceiptFileViewer({ url, contentType, pages, onClose }: Props) {
     <div
       className="rfv"
       role="dialog"
+      aria-modal="true"
       aria-label="Ticket"
+      tabIndex={-1}
+      ref={rootRef}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}

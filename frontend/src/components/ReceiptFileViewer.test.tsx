@@ -43,10 +43,51 @@ test('Escape, the scrim and the close button all dismiss', () => {
       onClose={onClose}
     />,
   )
-  fireEvent.keyDown(window, { key: 'Escape' })
+  fireEvent.keyDown(document.body, { key: 'Escape' })
   fireEvent.click(container.querySelector('.rfv')!)
   fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
   expect(onClose).toHaveBeenCalledTimes(3)
+})
+
+test('Escape stops before a sheet listening under the viewer', () => {
+  // The review sheet dismisses on a document-level Escape; one press over
+  // the lightbox must close only the lightbox.
+  const sheetEscape = vi.fn()
+  const underneath = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') sheetEscape()
+  }
+  document.addEventListener('keydown', underneath)
+  const onClose = vi.fn()
+  render(
+    <ReceiptFileViewer
+      url={URL}
+      contentType="image/jpeg"
+      pages={null}
+      onClose={onClose}
+    />,
+  )
+  fireEvent.keyDown(document.body, { key: 'Escape' })
+  document.removeEventListener('keydown', underneath)
+  expect(onClose).toHaveBeenCalledOnce()
+  expect(sheetEscape).not.toHaveBeenCalled()
+})
+
+test('focuses the dialog on open and restores focus on close', () => {
+  const outside = document.createElement('button')
+  document.body.append(outside)
+  outside.focus()
+  const { container, unmount } = render(
+    <ReceiptFileViewer
+      url={URL}
+      contentType="image/jpeg"
+      pages={null}
+      onClose={() => {}}
+    />,
+  )
+  expect(document.activeElement).toBe(container.querySelector('.rfv'))
+  unmount()
+  expect(document.activeElement).toBe(outside)
+  outside.remove()
 })
 
 test('a click on the photo itself does not dismiss', () => {
