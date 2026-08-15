@@ -241,15 +241,19 @@ export function ItemList({
 
   // Group pending items under a header per target shop. Comparison goes by
   // storeKey() and the label through the registry's display name (the JAV-82
-  // rule); an item with several shops files under its first one, and items
-  // with no shop lead the sheet under no header. Groups keep the order of
-  // first appearance — the order the household wrote them in.
+  // rule); an item with several shops files under its first one. Items with
+  // no shop close the sheet under «Sin tienda» (20a) — a scanned add lands
+  // there, and its place at the tail is what says it is new — unless nothing
+  // has a shop, in which case a header would announce the obvious. Groups
+  // keep the order of first appearance — the order the household wrote them
+  // in.
   const activeByStore: {
     key: string
     label: string | null
     items: ListItem[]
   }[] = []
   const groupIndex = new Map<string, (typeof activeByStore)[number]>()
+  let storelessGroup: (typeof activeByStore)[number] | null = null
   for (const item of active) {
     const raw = item.stores[0]
     const key = raw ? storeKey(raw) : ''
@@ -258,12 +262,16 @@ export function ItemList({
       group = { key, label: raw ? displayStore(raw) : null, items: [] }
       groupIndex.set(key, group)
       if (key === '') {
-        activeByStore.unshift(group)
+        storelessGroup = group
       } else {
         activeByStore.push(group)
       }
     }
     group.items.push(item)
+  }
+  if (storelessGroup) {
+    if (activeByStore.length > 0) storelessGroup.label = 'Sin tienda'
+    activeByStore.push(storelessGroup)
   }
 
   return (

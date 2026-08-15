@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { Toast } from './Toast'
 
@@ -27,4 +27,25 @@ test('does not call onDismiss before 3 seconds', () => {
     vi.advanceTimersByTime(2999)
   })
   expect(dismiss).not.toHaveBeenCalled()
+})
+
+test('renders the strong tail and the single CTA', () => {
+  const onAction = vi.fn()
+  render(
+    <Toast
+      message="Añadido"
+      strong="Ekologisk havredryck"
+      action={{ label: 'Ajustar', onClick: onAction }}
+      onDismiss={() => {}}
+    />,
+  )
+  const strong = screen.getByText('Ekologisk havredryck')
+  expect(strong.tagName).toBe('STRONG')
+  fireEvent.click(screen.getByRole('button', { name: 'Ajustar' }))
+  expect(onAction).toHaveBeenCalledTimes(1)
+})
+
+test('renders no CTA without an action', () => {
+  render(<Toast message="Sin conexión" onDismiss={() => {}} />)
+  expect(screen.queryByRole('button', { name: 'Ajustar' })).toBeNull()
 })

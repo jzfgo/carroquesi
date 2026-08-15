@@ -108,12 +108,19 @@ vi.mock('./ListMembersSheet', () => ({
 vi.mock('./BarcodeScanner', () => ({
   BarcodeScanner: ({
     onResult,
+    onNotFound,
   }: {
     onResult: (product: BarcodeRead) => void
+    onNotFound: (ean: string) => void
   }) => (
-    <button onClick={() => onResult(mockScannedProduct)}>
-      Escanear producto (mock)
-    </button>
+    <div>
+      <button onClick={() => onResult(mockScannedProduct)}>
+        Escanear producto (mock)
+      </button>
+      <button onClick={() => onNotFound('8410188012374')}>
+        Escanear desconocido (mock)
+      </button>
+    </div>
   ),
 }))
 vi.mock('./ReceiptScanSheet', () => ({
@@ -478,8 +485,10 @@ describe('ListScreen', () => {
     expect(removeItemMock).toHaveBeenCalledWith('i1')
   })
 
-  it('handles EanSearch finding a product and adding it', async () => {
-    const addItemMock = vi.fn()
+  it('a found EAN search adds the product directly and clears the bar', async () => {
+    const addItemMock = vi.fn(async () =>
+      makeItem({ id: 'i-ean', name: 'Tomates', ean: '8412345678901' }),
+    )
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
       addItem: addItemMock,
@@ -503,25 +512,173 @@ describe('ListScreen', () => {
     fireEvent.click(searchButton)
 
     await waitFor(() => {
-      expect(api.getBarcode).toHaveBeenCalledWith(
-        expect.any(Function),
-        '8412345678901',
-      )
+      expect(addItemMock).toHaveBeenCalledWith({
+        name: 'Tomates',
+        brand: 'Carrefour',
+        stores: [],
+        quantity: null,
+        ean: '8412345678901',
+      })
+    })
+    expect(input).toHaveValue('')
+    // The toast names what landed and offers the one CTA.
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Añadido Tomates',
+    )
+    expect(screen.getByRole('button', { name: 'Ajustar' })).toBeInTheDocument()
+  })
+
+  it('a typed sigil next to the code wins over the lookup', async () => {
+    const addItemMock = vi.fn(async () => null)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      addItem: addItemMock,
     })
 
-    await waitFor(() => {
-      expect(screen.getByText('Tomates')).toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: /añadir a la lista/i }))
-
-    expect(addItemMock).toHaveBeenCalledWith({
+    vi.mocked(api.getBarcode).mockResolvedValueOnce({
+      ean: '8412345678901',
       name: 'Tomates',
       brand: 'Carrefour',
-      stores: [],
-      quantity: null,
+      stores: ['Carrefour'],
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.change(
+      screen.getByRole('textbox', { name: /añadir producto/i }),
+      {
+        target: { value: '#Hacendado @Mercadona |8412345678901' },
+      },
+    )
+    fireEvent.click(screen.getByRole('button', { name: /buscar producto/i }))
+
+    await waitFor(() => {
+      expect(addItemMock).toHaveBeenCalledWith({
+        name: 'Tomates',
+        brand: 'Hacendado',
+        stores: ['Mercadona'],
+        quantity: null,
+        ean: '8412345678901',
+      })
+    })
+  })
+
+  it('a typed own brand carries its inferred store through the search add', async () => {
+    const addItemMock = vi.fn(async () => null)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      addItem: addItemMock,
+    })
+
+    vi.mocked(api.getBarcode).mockResolvedValueOnce({
+      ean: '8412345678901',
+      name: 'Tomates',
+      brand: 'Carrefour',
+      stores: ['Carrefour'],
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.change(
+      screen.getByRole('textbox', { name: /añadir producto/i }),
+      {
+        target: { value: '#Hacendado |8412345678901' },
+      },
+    )
+    fireEvent.click(screen.getByRole('button', { name: /buscar producto/i }))
+
+    await waitFor(() => {
+      expect(addItemMock).toHaveBeenCalledWith({
+        name: 'Tomates',
+        brand: 'Hacendado',
+        stores: ['Mercadona'],
+        quantity: null,
+        ean: '8412345678901',
+      })
+    })
+  })
+
+  it('a camera read adds the product, closes the scanner, and Ajustar opens the ficha', async () => {
+    const created = makeItem({
+      id: 'i-scan',
+      name: 'Cacahuetes dulces',
       ean: '8412345678901',
     })
+    const addItemMock = vi.fn(async () => created)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [created],
+      addItem: addItemMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /escanear código de barras/i }),
+    )
+    fireEvent.click(screen.getByText('Escanear producto (mock)'))
+
+    await waitFor(() => {
+      expect(addItemMock).toHaveBeenCalledWith({
+        name: 'Cacahuetes dulces',
+        brand: 'Hacendado',
+        stores: [],
+        quantity: null,
+        ean: '8412345678901',
+      })
+    })
+    // The camera is gone — no confirmation sheet follows the read.
+    expect(
+      screen.queryByText('Escanear producto (mock)'),
+    ).not.toBeInTheDocument()
+
+    const toast = await screen.findByRole('alert')
+    expect(toast).toHaveTextContent('Añadido Cacahuetes dulces')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustar' }))
+    expect(
+      screen.getByRole('dialog', { name: 'Cacahuetes dulces' }),
+    ).toBeInTheDocument()
+    // The CTA consumed the toast.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('a duplicate camera read shows no «Añadido» toast', async () => {
+    // addItem answers null when it refused (duplicate, offline, error).
+    const addItemMock = vi.fn(async () => null)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      addItem: addItemMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /escanear código de barras/i }),
+    )
+    fireEvent.click(screen.getByText('Escanear producto (mock)'))
+
+    await waitFor(() => expect(addItemMock).toHaveBeenCalled())
+    expect(
+      screen.queryByRole('button', { name: 'Ajustar' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('an unknown code opens the bar pre-filled with its sigil', async () => {
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /escanear código de barras/i }),
+    )
+    fireEvent.click(screen.getByText('Escanear desconocido (mock)'))
+
+    // Scanner closed, bar holds the code as its sigil, ready for a name.
+    expect(
+      screen.queryByText('Escanear desconocido (mock)'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('textbox', { name: /añadir producto/i }),
+    ).toHaveValue('|8410188012374')
   })
 
   it('accepts an inline suggestion, adding it with its average quantity', async () => {

@@ -374,7 +374,7 @@ test('eanError shown in EAN preview', () => {
   ).not.toBeInTheDocument()
 })
 
-test('add button is disabled in EAN mode', () => {
+test('add button is disabled in EAN mode while the code has no name', () => {
   render(
     <SmartInputBar
       value="|4011200296908"
@@ -389,6 +389,27 @@ test('add button is disabled in EAN mode', () => {
     />,
   )
   expect(screen.getByRole('button', { name: /^añadir$/i })).toBeDisabled()
+})
+
+test('a named EAN can be saved — the code rides along', () => {
+  const onSubmit = vi.fn()
+  render(
+    <SmartInputBar
+      value="Leche |4011200296908"
+      parsed={parseInput('Leche |4011200296908')}
+      items={NO_ITEMS}
+      suggestions={[]}
+      onChange={noop}
+      onSubmit={onSubmit}
+      onClear={noop}
+      onScanRequest={noop}
+      onEanSearch={noop}
+    />,
+  )
+  const add = screen.getByRole('button', { name: /^añadir$/i })
+  expect(add).not.toBeDisabled()
+  fireEvent.click(add)
+  expect(onSubmit).toHaveBeenCalledTimes(1)
 })
 
 test('regular parse preview not shown when in EAN mode', () => {
