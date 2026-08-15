@@ -33,7 +33,7 @@ import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
 import { parseReceiptWithAi } from '../lib/receiptAi'
-import { uploadReceiptFile } from '../lib/receiptUpload'
+import { countPdfPages, uploadReceiptFile } from '../lib/receiptUpload'
 import { storeKey } from '../lib/storeKey'
 import type {
   BarcodeRead,
@@ -311,10 +311,14 @@ export function ListScreen({
   // the next generic scan cannot inherit a stale target.
   const [receiptScanTarget, setReceiptScanTarget] =
     useState<ReceiptScanTarget | null>(null)
-  // The captured image, kept in memory only for the review thumbnail; the file
-  // itself is never stored. Revoked when the session ends (see setReceiptImage).
+  // The captured file, kept in memory only for the review thumbnail and its
+  // lightbox; the file itself is never stored. Revoked when the session ends
+  // (see setReceiptImage).
   const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(null)
   const [receiptIsPdf, setReceiptIsPdf] = useState(false)
+  // Page count of a PDF capture, printed on the review thumb. Null when the
+  // count could not be read; the pager still opens and counts for itself.
+  const [receiptPdfPages, setReceiptPdfPages] = useState<number | null>(null)
   // Rescued store/date/total from a scan that read zero lines — the 18c
   // illegible path. Non-null mounts <ReceiptIllegibleSheet>; the review sheet
   // never opens for these.
@@ -473,16 +477,20 @@ export function ListScreen({
     }
   }, [])
 
-  // Swaps the in-memory receipt image, revoking the previous object URL so a
+  // Swaps the in-memory receipt file, revoking the previous object URL so a
   // re-read or a finished session never leaks one.
-  const setReceiptImage = useCallback((url: string | null, isPdf: boolean) => {
-    if (receiptImageUrlRef.current) {
-      URL.revokeObjectURL(receiptImageUrlRef.current)
-    }
-    receiptImageUrlRef.current = url
-    setReceiptImageUrl(url)
-    setReceiptIsPdf(isPdf)
-  }, [])
+  const setReceiptImage = useCallback(
+    (url: string | null, isPdf: boolean, pdfPages: number | null = null) => {
+      if (receiptImageUrlRef.current) {
+        URL.revokeObjectURL(receiptImageUrlRef.current)
+      }
+      receiptImageUrlRef.current = url
+      setReceiptImageUrl(url)
+      setReceiptIsPdf(isPdf)
+      setReceiptPdfPages(pdfPages)
+    },
+    [],
+  )
 
   useEffect(() => {
     return () => {
@@ -516,7 +524,8 @@ export function ListScreen({
           return
         }
 
-        // A PDF has no preview thumbnail — the sheet shows a badge instead.
+        // A PDF gets no image preview — its thumb is a badge with the page
+        // count, and tapping it pages through the file in the viewer.
         const isPdf = file.type === 'application/pdf'
 
         // Zero lines is the "illegible" signal: the parse prompt omits unreadable
@@ -578,6 +587,10 @@ export function ListScreen({
           return
         }
 
+        // Count the PDF's pages while the match request is on the wire. The
+        // read is header-only and never throws, so by the time the server
+        // answers the count is ready and the review opens with no extra wait.
+        const pdfPagesPromise = isPdf ? countPdfPages(file) : null
         const result = await submitParsedReceipt(getToken, listId, {
           ...parsed,
           purchase_id: receiptScanTarget?.purchaseId ?? null,
@@ -589,11 +602,15 @@ export function ListScreen({
             console.error('Receipt file upload failed:', e)
           },
         )
+        const pdfPages = pdfPagesPromise
+          ? ((await pdfPagesPromise) ?? null)
+          : null
         setReceiptScanResult(result)
-        // Hold the image in memory for the review thumbnail. Clearing pendingScan
-        // is belt-and-suspenders alongside the exit-path clears: a fresh session
-        // never starts primed with a scan from a stale one.
-        setReceiptImage(isPdf ? null : URL.createObjectURL(file), isPdf)
+        // Hold the file in memory for the review thumbnail and its lightbox.
+        // Clearing pendingScan is belt-and-suspenders alongside the exit-path
+        // clears: a fresh session never starts primed with a scan from a stale
+        // one.
+        setReceiptImage(URL.createObjectURL(file), isPdf, pdfPages)
         setPendingScan(null)
       } catch (e) {
         console.error('Receipt scan submit failed:', e)
@@ -1523,6 +1540,7 @@ export function ListScreen({
           target={receiptScanTarget}
           imageUrl={receiptImageUrl}
           isPdf={receiptIsPdf}
+          pdfPages={receiptPdfPages}
           onConfirm={handleReceiptConfirm}
           onClose={handleReceiptSheetClose}
           onReReadReceipt={handleReReadReceipt}

@@ -3,6 +3,22 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ReceiptScanResult } from '../types'
 import ReceiptScanSheet, { type ItemRef } from './ReceiptScanSheet'
 
+// The PDF thumb opens ReceiptFileViewer, which loads pdf.js lazily.
+vi.mock('../lib/pdfjs', () => ({
+  getPdfjs: vi.fn(async () => ({
+    getDocument: () => ({
+      promise: Promise.resolve({
+        numPages: 3,
+        getPage: async () => ({
+          getViewport: () => ({ width: 100, height: 140 }),
+          render: () => ({ promise: Promise.resolve() }),
+        }),
+      }),
+      destroy: () => undefined,
+    }),
+  })),
+}))
+
 // matched line_totals 1.15 + 2.30 + 2.85 = 6.30; unmatched 3.15 → all-lines 9.45.
 function makeResult(
   overrides: Partial<ReceiptScanResult> = {},
@@ -288,12 +304,41 @@ describe('ReceiptScanSheet — thumbnail', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows a PDF badge instead of a thumbnail for PDFs', () => {
+  it('shows a static PDF badge when the file URL is missing', () => {
     renderSheet({ imageUrl: null, isPdf: true })
     expect(screen.getByText('PDF')).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Ampliar la foto del ticket' }),
+      screen.queryByRole('button', { name: 'Ampliar el ticket' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('prints the page count on the PDF badge when it has several', () => {
+    renderSheet({ imageUrl: 'blob:fake', isPdf: true, pdfPages: 3 })
+    expect(screen.getByText('PDF')).toBeInTheDocument()
+    expect(screen.getByText('3 pág.')).toBeInTheDocument()
+  })
+
+  it('omits the count on a single-page or uncounted PDF', () => {
+    renderSheet({ imageUrl: 'blob:fake', isPdf: true, pdfPages: null })
+    expect(screen.getByText('PDF')).toBeInTheDocument()
+    expect(screen.queryByText(/pág\./)).not.toBeInTheDocument()
+  })
+
+  it('omits the count when the PDF has exactly one page', () => {
+    renderSheet({ imageUrl: 'blob:fake', isPdf: true, pdfPages: 1 })
+    expect(screen.getByText('PDF')).toBeInTheDocument()
+    expect(screen.queryByText(/pág\./)).not.toBeInTheDocument()
+  })
+
+  it('tapping the PDF thumb opens the pager on the file', async () => {
+    renderSheet({ imageUrl: 'blob:fake-pdf', isPdf: true, pdfPages: 3 })
+    fireEvent.click(screen.getByRole('button', { name: 'Ampliar el ticket' }))
+    // The shared viewer opens as a dialog and lays the pages on the track.
+    const dialog = await screen.findByRole('dialog', { name: 'Ticket' })
+    await waitFor(() =>
+      expect(dialog.querySelectorAll('.rfv__page')).toHaveLength(3),
+    )
+    expect(screen.getByText('1 / 3')).toBeInTheDocument()
   })
 })
 

@@ -67,10 +67,12 @@ interface Props {
   store: string | null
   /** Set when the scan completes a settled purchase instead of closing a trip. */
   target?: ReceiptScanTarget | null
-  /** In-memory object URL of the captured image, for the header thumbnail. */
+  /** In-memory object URL of the captured file, for the header thumbnail. */
   imageUrl?: string | null
-  /** The source was a PDF: show a generic badge instead of an image thumbnail. */
+  /** The source was a PDF: the thumb is a badge and the lightbox pages. */
   isPdf?: boolean
+  /** Page count printed on the PDF badge; null when it could not be read. */
+  pdfPages?: number | null
   /** Resolves to whether the submit succeeded; false (or a throw) re-enables save. */
   onConfirm: (
     patches: PricePatch[],
@@ -135,6 +137,7 @@ export default function ReceiptScanSheet({
   target = null,
   imageUrl,
   isPdf = false,
+  pdfPages = null,
   onConfirm,
   onClose,
   onReReadReceipt,
@@ -404,6 +407,7 @@ export default function ReceiptScanSheet({
           priorTotal={target?.total ?? null}
           imageUrl={imageUrl}
           isPdf={isPdf}
+          pdfPages={pdfPages}
           knownStores={knownStores(candidateItems, initialStore)}
           lineSum={lineSum}
           savedSum={savedSum}
