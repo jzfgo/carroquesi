@@ -52,6 +52,11 @@ const pendingNoStore: ItemRef = {
 function renderBody(overrides: {
   candidateItems?: ItemRef[]
   createText?: string
+  userEdited?: boolean
+  suggestions?: Parameters<typeof ReceiptLineResolveBody>[0]['suggestions']
+  onPickSuggestion?: Parameters<
+    typeof ReceiptLineResolveBody
+  >[0]['onPickSuggestion']
 }) {
   return render(
     <ReceiptLineResolveBody
@@ -59,6 +64,9 @@ function renderBody(overrides: {
       candidateItems={overrides.candidateItems ?? []}
       radioId={null}
       createText={overrides.createText ?? ''}
+      userEdited={overrides.userEdited}
+      suggestions={overrides.suggestions}
+      onPickSuggestion={overrides.onPickSuggestion}
       onSelectRadio={vi.fn()}
       onChangeCreateText={vi.fn()}
       onAssign={vi.fn()}
@@ -92,6 +100,54 @@ test('the create preview appears once a #marca sigil is recognised', () => {
   renderBody({ createText: 'Chocolate negro #Valor' })
   expect(screen.getByText('Chocolate negro')).toBeInTheDocument()
   expect(screen.getByText('Valor')).toBeInTheDocument()
+})
+
+test('a prefill never filters the link list; typed text does', () => {
+  // Prefilled OCR text matches nothing on the list, but the pool stays whole
+  // until the user actually types.
+  const { rerender } = renderBody({
+    candidateItems: [inCart, pendingWithStore, pendingNoStore],
+    createText: 'ZZZZ',
+    userEdited: false,
+  })
+  expect(screen.getAllByRole('radio')).toHaveLength(3)
+
+  // Typed text narrows in place, accents folded («leche» finds «Leche»).
+  rerender(
+    <ReceiptLineResolveBody
+      line={line}
+      candidateItems={[inCart, pendingWithStore, pendingNoStore]}
+      radioId={null}
+      createText="léche"
+      userEdited
+      onSelectRadio={vi.fn()}
+      onChangeCreateText={vi.fn()}
+      onAssign={vi.fn()}
+      onBack={vi.fn()}
+    />,
+  )
+  expect(screen.getAllByRole('radio')).toHaveLength(1)
+  expect(screen.getByText('Leche')).toBeInTheDocument()
+})
+
+test('catalogue suggestions render above the bar and hand back the pick', async () => {
+  const user = userEvent.setup()
+  const onPickSuggestion = vi.fn()
+  renderBody({
+    createText: 'cacahu',
+    userEdited: true,
+    suggestions: [{ name: 'Cacahuetes fritos', brand: 'Frit', stores: [] }],
+    onPickSuggestion,
+  })
+
+  const chip = screen.getByRole('button', { name: /Cacahuetes fritos/ })
+  expect(chip).toHaveTextContent('Frit')
+  await user.click(chip)
+  expect(onPickSuggestion).toHaveBeenCalledWith({
+    name: 'Cacahuetes fritos',
+    brand: 'Frit',
+    stores: [],
+  })
 })
 
 test('the helper link toggles the sigil legend in place', async () => {

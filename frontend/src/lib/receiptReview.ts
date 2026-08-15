@@ -42,6 +42,16 @@ export function resolutionName(resolution: LineResolution): string | null {
 }
 
 /**
+ * Spell a name and brand back into the create bar's sigil syntax. A brand
+ * with spaces takes the quotes parseInput needs to read it back whole.
+ */
+export function withBrandSigil(name: string, brand: string | null): string {
+  if (!brand) return name
+  const value = /\s/.test(brand) ? `"${brand}"` : brand
+  return `${name} #${value}`
+}
+
+/**
  * Machine quantity string for the save payload — «202g», «1.12kg», «2», «1».
  * The backend derives the price_per key from it, so its shape must match what
  * the manual-entry path produces (a weight prices per kilo, a count per unit).

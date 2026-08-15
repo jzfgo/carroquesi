@@ -13,6 +13,7 @@ function item(id: string, overrides: Partial<ListItem> = {}): ListItem {
     stores: [],
     purchased: false,
     purchased_at: null,
+    purchase_has_receipt: false,
     ean: null,
     price: null,
     price_per: null,

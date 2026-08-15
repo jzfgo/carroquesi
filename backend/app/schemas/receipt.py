@@ -97,6 +97,10 @@ class ReceiptPriceBatch(BaseModel):
 class ReceiptPriceApplyResult(BaseModel):
     items_updated: int
     items_created: int
+    # Patches that named an item this apply refused to touch — unknown,
+    # another list's, or already settled under a ticket. The client tells the
+    # user instead of silently dropping their lines.
+    items_skipped: int = 0
 
 
 class ReceiptUploadUrlRequest(BaseModel):

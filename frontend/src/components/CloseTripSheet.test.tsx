@@ -29,6 +29,7 @@ function item(over: Partial<ListItem> = {}): ListItem {
     stores: ['Mercadona'],
     purchased: true,
     purchased_at: '2026-08-04T09:00:00',
+    purchase_has_receipt: false,
     purchase_ends_at: '2099-01-01T00:00:00',
     ean: null,
     price: null,

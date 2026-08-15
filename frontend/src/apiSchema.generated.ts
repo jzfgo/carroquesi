@@ -1117,6 +1117,11 @@ export interface components {
             price_store: string | null;
             /** Purchase Ends At */
             purchase_ends_at?: string | null;
+            /**
+             * Purchase Has Receipt
+             * @default false
+             */
+            purchase_has_receipt: boolean;
             /** Purchase Id */
             purchase_id?: string | null;
             /** Purchased */
@@ -1556,6 +1561,11 @@ export interface components {
         ReceiptPriceApplyResult: {
             /** Items Created */
             items_created: number;
+            /**
+             * Items Skipped
+             * @default 0
+             */
+            items_skipped: number;
             /** Items Updated */
             items_updated: number;
         };

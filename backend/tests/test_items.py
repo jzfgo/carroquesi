@@ -582,6 +582,29 @@ def test_item_read_carries_the_trips_end_instant(client: TestClient, session: Se
     assert listed[0]["purchase_ends_at"] == closed.isoformat()
 
 
+def test_item_read_says_whether_a_scan_claimed_the_trip(client: TestClient, session: Session):
+    from app.db.models import ListItem, ReceiptScan
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    assert item["purchase_has_receipt"] is False
+
+    patched = client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True}
+    ).json()
+    assert patched["purchase_has_receipt"] is False
+
+    db_item = session.get(ListItem, item["id"])
+    session.refresh(db_item)
+    session.add(
+        ReceiptScan(list_id=lst["id"], scanned_by=db_item.added_by, purchase_id=db_item.purchase_id)
+    )
+    session.commit()
+
+    listed = client.get(f"/lists/{lst['id']}/items").json()
+    assert listed[0]["purchase_has_receipt"] is True
+
+
 def test_item_read_carries_the_trip_it_was_bought_on(client: TestClient, session: Session):
     from app.db.models import ListItem
 

@@ -629,6 +629,13 @@ export function ListScreen({
     ],
   )
 
+  // The resolve bar's catalogue lookup — the same machinery as the add bar's
+  // suggestions, handed down so the sheet never touches auth itself.
+  const fetchResolveSuggestions = useCallback(
+    (q: string) => getSuggestions(getToken, q),
+    [getToken],
+  )
+
   const handleReceiptConfirm = useCallback(
     async (
       patches: PricePatch[],
@@ -667,6 +674,13 @@ export function ListScreen({
           parts.push(
             `${c} artículo${c !== 1 ? 's' : ''} añadido${c !== 1 ? 's' : ''}`,
           )
+        }
+        // Refused patches (the item settled under a ticket in the meantime)
+        // are said out loud — a line the user reviewed must not vanish
+        // silently.
+        const s = data.items_skipped
+        if (s > 0) {
+          parts.push(`${s} línea${s !== 1 ? 's' : ''} ya en otro ticket`)
         }
         setToast(parts.length > 0 ? parts.join(' · ') : 'No se guardó nada')
         invalidateAfterTripChange()
@@ -1514,16 +1528,17 @@ export function ListScreen({
           key={receiptScanResult.scan_id}
           result={receiptScanResult}
           // Link targets mirror the backend matcher's pool: items still in play
-          // — pending, or purchased but still in the open cart — never ones
-          // already settled on a closed trip, which a receipt does not re-file.
-          // A targeted scan inverts that: its pool is exactly the named
-          // purchase's own lines, current prices included so the review can
-          // tell a fill from a correction.
+          // — pending, or purchased but still in an open cart no scan has
+          // claimed — never ones already settled under a ticket, which a
+          // receipt does not re-file. A targeted scan inverts that: its pool
+          // is exactly the named purchase's own lines, current prices included
+          // so the review can tell a fill from a correction.
           candidateItems={items
             .filter((i) =>
               receiptScanTarget
                 ? i.purchase_id === receiptScanTarget.purchaseId
-                : !i.purchased || isTripOpen(i.purchase_ends_at),
+                : !i.purchased ||
+                  (isTripOpen(i.purchase_ends_at) && !i.purchase_has_receipt),
             )
             .map((i) => ({
               id: i.id,
@@ -1546,6 +1561,7 @@ export function ListScreen({
           onReReadReceipt={handleReReadReceipt}
           pendingScan={pendingScan}
           onRequestScan={handleReceiptScanRequest}
+          onFetchSuggestions={fetchResolveSuggestions}
         />
       )}
 

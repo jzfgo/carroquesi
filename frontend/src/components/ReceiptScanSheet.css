@@ -765,6 +765,44 @@
   cursor: pointer;
 }
 
+/* Catalogue matches for the typed text — the canonical add bar's dropdown,
+   sitting above the bar like it does in 2d. */
+.rss-create__suggestions {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 8px 0;
+  background: var(--paper-0);
+  box-shadow: var(--shadow-sm);
+}
+
+.rss-create__suggestion {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 16px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--paper-0);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--ink-0);
+}
+
+.rss-create__suggestion:last-child {
+  border-bottom: none;
+}
+
+.rss-create__suggestion-brand {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
 .rss-create__help {
   display: flex;
   align-items: center;

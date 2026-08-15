@@ -14,6 +14,7 @@ const makeItem = (id: string, purchased = false): ListItem => ({
   stores: [],
   purchased,
   purchased_at: null,
+  purchase_has_receipt: false,
   purchase_ends_at: null,
   ean: null,
   price: null,

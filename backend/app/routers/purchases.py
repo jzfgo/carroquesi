@@ -312,12 +312,17 @@ def get_purchase_items(
         .where(ListItem.purchase_id == trip.id)
         .order_by(ListItem.purchased_at.asc(), ListItem.created_at.asc())
     ).all()
-    # One trip, so its boundary is computed once — no need for the grouped
+    # One trip, so its facts are computed once — no need for the grouped
     # lookup the items feed does.
     ends_at = trips.ends_at(trip)
+    has_receipt = (
+        session.exec(select(ReceiptScan.id).where(ReceiptScan.purchase_id == trip.id)).first()
+        is not None
+    )
     for item in items:
         # object.__setattr__ because pydantic rejects undeclared fields.
         object.__setattr__(item, "purchase_ends_at", ends_at)
+        object.__setattr__(item, "purchase_has_receipt", has_receipt)
     return items
 
 

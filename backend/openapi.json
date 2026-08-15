@@ -565,6 +565,11 @@
             ],
             "title": "Purchase Ends At"
           },
+          "purchase_has_receipt": {
+            "default": false,
+            "title": "Purchase Has Receipt",
+            "type": "boolean"
+          },
           "purchase_id": {
             "anyOf": [
               {
@@ -1878,6 +1883,11 @@
         "properties": {
           "items_created": {
             "title": "Items Created",
+            "type": "integer"
+          },
+          "items_skipped": {
+            "default": 0,
+            "title": "Items Skipped",
             "type": "integer"
           },
           "items_updated": {

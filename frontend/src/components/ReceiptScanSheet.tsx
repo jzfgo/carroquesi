@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
 import { parseInput } from '../lib/parseInput'
 import {
@@ -9,6 +9,7 @@ import {
   quantityString,
   resolutionItemId,
   resolutionName,
+  withBrandSigil,
   type LineResolution,
   type LineState,
   type ReceiptLine,
@@ -19,6 +20,7 @@ import type {
   NewPurchasedItem,
   PricePatch,
   ReceiptScanResult,
+  Suggestion,
 } from '../types'
 import { ReceiptLineResolveBody } from './ReceiptLineResolveBody'
 import { ReceiptReviewBody } from './ReceiptReviewBody'
@@ -85,6 +87,9 @@ interface Props {
   onReReadReceipt: () => void
   pendingScan?: PendingScan
   onRequestScan?: (index: number) => void
+  /** Catalogue lookup behind the resolve bar's suggestions (the canonical add
+   *  bar's machinery, owned by the parent). Absent = no suggestions. */
+  onFetchSuggestions?: (q: string) => Promise<Suggestion[]>
 }
 
 /** Prices that print differently are different; below a céntimo they are not. */
@@ -143,6 +148,7 @@ export default function ReceiptScanSheet({
   onReReadReceipt,
   pendingScan,
   onRequestScan,
+  onFetchSuggestions,
 }: Props) {
   const allLines: ReceiptLine[] = [...result.matched, ...result.unmatched]
   const targeted = target != null
@@ -168,6 +174,10 @@ export default function ReceiptScanSheet({
   const [resolveRadioId, setResolveRadioId] = useState<string | null>(null)
   const [resolveText, setResolveText] = useState('')
   const [resolveEan, setResolveEan] = useState<string | null>(null)
+  // The bar opens prefilled (raw OCR text, a barcode's product, a pick), and
+  // prefills never search or filter — only what the user actually typed does.
+  const [resolveDirty, setResolveDirty] = useState(false)
+  const [resolveSuggestions, setResolveSuggestions] = useState<Suggestion[]>([])
 
   // Apply a barcode scan handed down by the parent, tracked by identity so the
   // same row can be scanned twice without re-applying on unrelated re-renders
@@ -177,12 +187,34 @@ export default function ReceiptScanSheet({
     setAppliedScan(pendingScan)
     const { index, product } = pendingScan
     setResolveRadioId(null)
-    setResolveText(
-      product.brand ? `${product.name} #${product.brand}` : product.name,
-    )
+    setResolveText(withBrandSigil(product.name, product.brand))
     setResolveEan(product.ean)
+    setResolveDirty(false)
+    setResolveSuggestions([])
     setResolvingIndex(index)
   }
+
+  // Debounced catalogue lookup for the resolve bar, mirroring the canonical
+  // add bar's rhythm: two typed characters and a 300ms pause.
+  useEffect(() => {
+    if (resolvingIndex == null || !resolveDirty || !onFetchSuggestions) return
+    const q = parseInput(resolveText).name.trim()
+    const timer = setTimeout(
+      async () => {
+        if (q.length < 2) {
+          setResolveSuggestions([])
+          return
+        }
+        try {
+          setResolveSuggestions(await onFetchSuggestions(q))
+        } catch {
+          // suggestion errors are non-critical
+        }
+      },
+      q.length < 2 ? 0 : 300,
+    )
+    return () => clearTimeout(timer)
+  }, [resolveText, resolveDirty, resolvingIndex, onFetchSuggestions])
 
   const includedCount = lineStates.filter((ls) => ls.included).length
   const unnamedCount = lineStates.filter((ls) => !isNamed(ls.resolution)).length
@@ -244,7 +276,7 @@ export default function ReceiptScanSheet({
       setResolveEan(null)
     } else if (r.kind === 'created') {
       setResolveRadioId(null)
-      setResolveText(r.brand ? `${r.name} #${r.brand}` : r.name)
+      setResolveText(withBrandSigil(r.name, r.brand))
       setResolveEan(r.ean)
     } else {
       setResolveRadioId(null)
@@ -253,7 +285,19 @@ export default function ReceiptScanSheet({
       setResolveText(allLines[index].receipt_name)
       setResolveEan(null)
     }
+    setResolveDirty(false)
+    setResolveSuggestions([])
     setResolvingIndex(index)
+  }
+
+  // A picked suggestion is a prefill, not typing: the bar takes the
+  // catalogue's spelling and the strip retires until the user types again.
+  function pickSuggestion(suggestion: Suggestion) {
+    setResolveRadioId(null)
+    setResolveText(withBrandSigil(suggestion.name, suggestion.brand))
+    setResolveEan(null)
+    setResolveDirty(false)
+    setResolveSuggestions([])
   }
 
   function assign() {
@@ -380,12 +424,16 @@ export default function ReceiptScanSheet({
           backLabel={targeted ? 'Añadir ticket a esta compra' : undefined}
           radioId={resolveRadioId}
           createText={resolveText}
+          userEdited={resolveDirty}
+          suggestions={resolveSuggestions}
+          onPickSuggestion={onFetchSuggestions ? pickSuggestion : undefined}
           onSelectRadio={(id) => {
             setResolveRadioId(id)
           }}
           onChangeCreateText={(text) => {
             setResolveRadioId(null)
             setResolveText(text)
+            setResolveDirty(true)
           }}
           onRequestScan={
             onRequestScan ? () => onRequestScan(resolvingIndex) : undefined

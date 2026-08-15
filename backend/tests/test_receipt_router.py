@@ -497,6 +497,72 @@ def test_post_receipt_includes_items_in_the_open_cart(client, session):
     assert body["matched"][0]["item_id"] == "item-almendras"
 
 
+def test_post_receipt_excludes_open_cart_items_whose_trip_has_a_scan(client, session, user):
+    """A scan attached to a trip means the paper already claimed it: its lines
+    leave the pool even while the trip's boundary is still ahead."""
+    trip = Purchase(
+        id="trip-open-scanned",
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 11, 9, 0, 0),
+        tears_off_at=datetime(2099, 1, 1, 0, 0, 0),
+    )
+    item = session.get(ListItem, "item-almendras")
+    item.purchased_at = datetime(2026, 4, 11, 10, 0, 0)
+    item.purchase_id = "trip-open-scanned"
+    scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, purchase_id="trip-open-scanned")
+    session.add_all([trip, item, scan])
+    session.commit()
+
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body())
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["matched"]) == 0
+    assert len(body["unmatched"]) == 1
+
+
+def test_receipt_prices_skips_an_item_settled_under_a_ticket(client, session):
+    """An ordinary apply never rewrites figures a closed ticket already
+    confirmed — the patch is refused and reported, not applied."""
+    trip = Purchase(
+        id="trip-ticketed",
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 1, 9, 0, 0),
+        tears_off_at=datetime(2026, 4, 2, 0, 0, 0),
+        closed_at=datetime(2026, 4, 2, 0, 0, 0),
+    )
+    item = session.get(ListItem, "item-almendras")
+    item.purchased_at = datetime(2026, 4, 1, 10, 0, 0)
+    item.purchase_id = "trip-ticketed"
+    item.price = 1.05
+    session.add_all([trip, item])
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "patches": [
+                {
+                    "item_id": "item-almendras",
+                    "price": 9.99,
+                    "price_per": None,
+                    "store": "Lidl",
+                    "quantity": "2 UD",
+                }
+            ]
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["items_updated"] == 0
+    assert body["items_skipped"] == 1
+
+    session.expire_all()
+    item = session.get(ListItem, "item-almendras")
+    assert item.price == pytest.approx(1.05)
+    assert item.price_store is None
+    assert item.purchased_quantity is None
+
+
 def test_post_receipt_returns_403_when_flag_disabled(session, other_user, other_client):
     from app.db.models import List, ListMember
 
@@ -894,7 +960,7 @@ def test_receipt_prices_reports_updated_and_created_counts(client, session, user
         }
     ]
     response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
-    assert response.json() == {"items_updated": 1, "items_created": 1}
+    assert response.json() == {"items_updated": 1, "items_created": 1, "items_skipped": 0}
 
 
 def test_new_item_rejects_an_empty_name(client):
@@ -1481,6 +1547,7 @@ def test_targeted_apply_skips_a_patch_for_an_item_not_on_the_purchase(
     )
     assert response.status_code == 200
     assert response.json()["items_updated"] == 0
+    assert response.json()["items_skipped"] == 1
 
     session.expire_all()
     lookalike = session.get(ListItem, "item-lookalike")

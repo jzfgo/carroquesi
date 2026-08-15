@@ -7,6 +7,7 @@ import {
   quantityDisplay,
   type ReceiptLine,
 } from '../lib/receiptReview'
+import type { Suggestion } from '../types'
 import type { ItemRef } from './ReceiptScanSheet'
 
 interface Props {
@@ -15,6 +16,11 @@ interface Props {
   candidateItems: ItemRef[]
   radioId: string | null
   createText: string
+  /** True once the user typed in the bar; a prefill never filters the list. */
+  userEdited?: boolean
+  /** Catalogue matches for the typed text, offered above the bar. */
+  suggestions?: Suggestion[]
+  onPickSuggestion?: (suggestion: Suggestion) => void
   onSelectRadio: (id: string | null) => void
   onChangeCreateText: (text: string) => void
   onRequestScan?: () => void
@@ -23,6 +29,16 @@ interface Props {
   /** The back galón names the review it returns to; the targeted review has
    *  its own title. */
   backLabel?: string
+}
+
+/** Case- and accent-insensitive "name contains the typed text". */
+function matchesQuery(name: string, query: string): boolean {
+  const fold = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+  return fold(name).includes(fold(query))
 }
 
 function itemSubLabel(item: ItemRef): string {
@@ -38,6 +54,9 @@ export function ReceiptLineResolveBody({
   candidateItems,
   radioId,
   createText,
+  userEdited = false,
+  suggestions = [],
+  onPickSuggestion,
   onSelectRadio,
   onChangeCreateText,
   onRequestScan,
@@ -60,6 +79,13 @@ export function ReceiptLineResolveBody({
   const showPreview =
     previewName.length > 0 &&
     (parsed.brand != null || previewName !== createText.trim())
+  // «Escribe y filtra»: typed text narrows the link list in place, so the
+  // answer is one tap whether the product was on the list or not. Prefills
+  // never filter — the raw OCR line would hide the items worth linking.
+  const visibleItems =
+    userEdited && previewName.length > 0
+      ? candidateItems.filter((item) => matchesQuery(item.name, previewName))
+      : candidateItems
 
   return (
     <>
@@ -82,9 +108,9 @@ export function ReceiptLineResolveBody({
       <div className="rss-resolve-body">
         <div className="rss-pending">
           <span className="rss-eyebrow">
-            Pendientes de asignar · {candidateItems.length}
+            Pendientes de asignar · {visibleItems.length}
           </span>
-          {candidateItems.map((item) => (
+          {visibleItems.map((item) => (
             <button
               type="button"
               key={item.id}
@@ -112,6 +138,25 @@ export function ReceiptLineResolveBody({
                   {parsed.brand}
                 </span>
               )}
+            </div>
+          )}
+          {onPickSuggestion && suggestions.length > 0 && (
+            <div className="rss-create__suggestions">
+              {suggestions.slice(0, 5).map((suggestion) => (
+                <button
+                  type="button"
+                  key={`${suggestion.name}#${suggestion.brand ?? ''}`}
+                  className="rss-create__suggestion"
+                  onClick={() => onPickSuggestion(suggestion)}
+                >
+                  {suggestion.name}
+                  {suggestion.brand && (
+                    <span className="rss-create__suggestion-brand">
+                      {suggestion.brand}
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           )}
           <div className="rss-create__bar">
