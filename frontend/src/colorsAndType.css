@@ -265,10 +265,10 @@
     --ink-1: #c2c4cc;
     --ink-2: #92959f;
     --ink-3: #6f727c;
-    --tinta-0: #91a8ff;
+    --tinta-0: #93aaff;
     --tinta-1: #b0c0ff;
-    --tinta-bg: rgb(145 168 255 / 10%);
-    --tinta-border: rgb(145 168 255 / 30%);
+    --tinta-bg: rgb(147 170 255 / 10%);
+    --tinta-border: rgb(147 170 255 / 30%);
     --verde-0: #7bc68b;
     --verde-1: #9bdab0;
     --verde-bg: rgb(123 198 139 / 12%);
@@ -288,7 +288,7 @@
     --shadow-lg: 0 2px 4px rgb(0 0 0 / 40%), 0 18px 36px -8px rgb(0 0 0 / 65%);
     --shadow-sheet:
       0 -2px 4px rgb(0 0 0 / 30%), 0 -18px 40px -6px rgb(0 0 0 / 55%);
-    --focus-ring: 0 0 0 3px rgb(145 168 255 / 40%);
+    --focus-ring: 0 0 0 3px rgb(147 170 255 / 40%);
     --accent-fg: #252731;
     --border-strong: #52555f;
     --rule: #33363f;
@@ -299,12 +299,16 @@
     --board-niebla: #0f1e33;
     --board-barro: #331409;
     --board-pizarra: #1b1c24;
-    --board-ink-kraft: #e4ded3;
-    --board-ink-lino: #e4ded3;
-    --board-ink-salvia: #d9dbe1;
-    --board-ink-niebla: #d9dbe1;
-    --board-ink-barro: #e4ded3;
-    --board-ink-pizarra: #d9dbe1;
+
+    /* Each ink leans toward its own board's hue: the cardboard tints
+       what is written on it. A shared cool ink read blue on the warm
+       boards. */
+    --board-ink-kraft: #e9e3d6;
+    --board-ink-lino: #e9e3d6;
+    --board-ink-salvia: #dfe8d9;
+    --board-ink-niebla: #d9e0ea;
+    --board-ink-barro: #eddcd6;
+    --board-ink-pizarra: #dcdee4;
     --edge-lit-1: rgb(255 255 255 / 15%);
     --edge-lit-2: rgb(255 255 255 / 8%);
     --edge-lit-3: rgb(255 255 255 / 4%);
@@ -428,10 +432,10 @@
   --ink-1: #c2c4cc;
   --ink-2: #92959f;
   --ink-3: #6f727c;
-  --tinta-0: #91a8ff;
+  --tinta-0: #93aaff;
   --tinta-1: #b0c0ff;
-  --tinta-bg: rgb(145 168 255 / 10%);
-  --tinta-border: rgb(145 168 255 / 30%);
+  --tinta-bg: rgb(147 170 255 / 10%);
+  --tinta-border: rgb(147 170 255 / 30%);
   --verde-0: #7bc68b;
   --verde-1: #9bdab0;
   --verde-bg: rgb(123 198 139 / 12%);
@@ -451,7 +455,7 @@
   --shadow-lg: 0 2px 4px rgb(0 0 0 / 40%), 0 18px 36px -8px rgb(0 0 0 / 65%);
   --shadow-sheet:
     0 -2px 4px rgb(0 0 0 / 30%), 0 -18px 40px -6px rgb(0 0 0 / 55%);
-  --focus-ring: 0 0 0 3px rgb(145 168 255 / 40%);
+  --focus-ring: 0 0 0 3px rgb(147 170 255 / 40%);
   --bg: var(--paper-0);
   --bg-sunken: var(--paper-1);
   --bg-raised: var(--paper-0);
@@ -478,12 +482,12 @@
   --board-niebla: #0f1e33;
   --board-barro: #331409;
   --board-pizarra: #1b1c24;
-  --board-ink-kraft: #e4ded3;
-  --board-ink-lino: #e4ded3;
-  --board-ink-salvia: #d9dbe1;
-  --board-ink-niebla: #d9dbe1;
-  --board-ink-barro: #e4ded3;
-  --board-ink-pizarra: #d9dbe1;
+  --board-ink-kraft: #e9e3d6;
+  --board-ink-lino: #e9e3d6;
+  --board-ink-salvia: #dfe8d9;
+  --board-ink-niebla: #d9e0ea;
+  --board-ink-barro: #eddcd6;
+  --board-ink-pizarra: #dcdee4;
   --edge-lit-1: rgb(255 255 255 / 15%);
   --edge-lit-2: rgb(255 255 255 / 8%);
   --edge-lit-3: rgb(255 255 255 / 4%);
