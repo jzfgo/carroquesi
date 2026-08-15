@@ -33,6 +33,16 @@ interface Props {
   store: string | null
   receiptDate: string | null
   receiptDateLabel: string | null
+  /** Targeted attach (25b): the review completes a settled purchase. */
+  targeted?: boolean
+  /** Render the date/store pill as ink, not a control — the record's own value. */
+  dateLocked?: boolean
+  storeLocked?: boolean
+  /** Per-line note in a targeted review: fill / correction / no-op / new line. */
+  changeNotes?: (string | null)[]
+  /** The purchase's recorded total, so a differing paper total shows as a
+   *  reviewed change rather than a silent overwrite. */
+  priorTotal?: number | null
   imageUrl?: string | null
   isPdf?: boolean
   knownStores: string[]
@@ -73,6 +83,11 @@ export function ReceiptReviewBody({
   store,
   receiptDate,
   receiptDateLabel,
+  targeted = false,
+  dateLocked = false,
+  storeLocked = false,
+  changeNotes,
+  priorTotal = null,
   imageUrl,
   isPdf = false,
   knownStores,
@@ -127,28 +142,44 @@ export function ReceiptReviewBody({
         )}
 
         <div className="rss-head__main">
-          <h2 className="rss-title">Revisar ticket</h2>
+          <h2 className="rss-title">
+            {targeted ? 'Añadir ticket a esta compra' : 'Revisar ticket'}
+          </h2>
           <div className="rss-controls">
-            <button
-              type="button"
-              className={`rss-pill ${store ? 'rss-pill--set' : 'rss-pill--empty'}`}
-              onClick={() => setEditing(editing === 'store' ? null : 'store')}
-              aria-expanded={editing === 'store'}
-            >
-              <Store size={13} />
-              {store ?? 'Poner tienda'}
-              <ChevronDown size={13} className="rss-pill__chevron" />
-            </button>
-            <button
-              type="button"
-              className={`rss-pill ${receiptDate ? 'rss-pill--set' : 'rss-pill--empty'}`}
-              onClick={() => setEditing(editing === 'date' ? null : 'date')}
-              aria-expanded={editing === 'date'}
-            >
-              <Calendar size={13} />
-              {receiptDateLabel ?? 'Poner fecha'}
-              <ChevronDown size={13} className="rss-pill__chevron" />
-            </button>
+            {storeLocked ? (
+              <span className="rss-pill rss-pill--set rss-pill--locked">
+                <Store size={13} />
+                {store}
+              </span>
+            ) : (
+              <button
+                type="button"
+                className={`rss-pill ${store ? 'rss-pill--set' : 'rss-pill--empty'}`}
+                onClick={() => setEditing(editing === 'store' ? null : 'store')}
+                aria-expanded={editing === 'store'}
+              >
+                <Store size={13} />
+                {store ?? 'Poner tienda'}
+                <ChevronDown size={13} className="rss-pill__chevron" />
+              </button>
+            )}
+            {dateLocked ? (
+              <span className="rss-pill rss-pill--set rss-pill--locked">
+                <Calendar size={13} />
+                {receiptDateLabel}
+              </span>
+            ) : (
+              <button
+                type="button"
+                className={`rss-pill ${receiptDate ? 'rss-pill--set' : 'rss-pill--empty'}`}
+                onClick={() => setEditing(editing === 'date' ? null : 'date')}
+                aria-expanded={editing === 'date'}
+              >
+                <Calendar size={13} />
+                {receiptDateLabel ?? 'Poner fecha'}
+                <ChevronDown size={13} className="rss-pill__chevron" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -260,6 +291,11 @@ export function ReceiptReviewBody({
                       {brand && (
                         <span className="rss-annot__brand">{brand}</span>
                       )}
+                      {changeNotes?.[i] && (
+                        <span className="rss-annot__change">
+                          {changeNotes[i]}
+                        </span>
+                      )}
                     </span>
                   ) : (
                     <span className="rss-annot rss-annot--off">
@@ -279,6 +315,15 @@ export function ReceiptReviewBody({
       </div>
 
       <div className="rss-foot">
+        {targeted &&
+          priorTotal != null &&
+          receiptTotal != null &&
+          Math.abs(priorTotal - receiptTotal) >= 0.005 && (
+            <div className="rss-totalchange" role="status">
+              El total guardado pasa de € {formatRowAmount(priorTotal)} a €{' '}
+              {formatRowAmount(receiptTotal)}
+            </div>
+          )}
         {receiptTotal != null ? (
           matches ? (
             <div className="rss-cuadre rss-cuadre--ok">

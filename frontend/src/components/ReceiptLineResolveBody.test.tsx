@@ -20,6 +20,8 @@ const inCart: ItemRef = {
   brand: null,
   stores: ['Mercadona'],
   quantity: null,
+  price: null,
+  price_per: null,
 }
 
 const pendingWithStore: ItemRef = {
@@ -30,6 +32,8 @@ const pendingWithStore: ItemRef = {
   brand: null,
   stores: ['Mercadona'],
   quantity: null,
+  price: null,
+  price_per: null,
 }
 
 const pendingNoStore: ItemRef = {
@@ -40,6 +44,8 @@ const pendingNoStore: ItemRef = {
   brand: null,
   stores: [],
   quantity: null,
+  price: null,
+  price_per: null,
 }
 
 function renderBody(overrides: {

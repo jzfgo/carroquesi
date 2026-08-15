@@ -1907,6 +1907,17 @@
             "title": "Patches",
             "type": "array"
           },
+          "purchase_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Id"
+          },
           "receipt_date": {
             "anyOf": [
               {
@@ -1974,6 +1985,17 @@
             },
             "title": "Lines",
             "type": "array"
+          },
+          "purchase_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Id"
           },
           "receipt_date": {
             "anyOf": [

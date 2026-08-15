@@ -266,7 +266,7 @@ test('has_receipt=false renders the dashed hole with zero fetches', () => {
   expect(loadScans).not.toHaveBeenCalled()
 })
 
-test('the dashed hole launches a scan', () => {
+test('the dashed hole launches a scan aimed at this purchase', () => {
   const onScanReceipt = vi.fn()
   render(
     <TripCard
@@ -277,7 +277,30 @@ test('the dashed hole launches a scan', () => {
     />,
   )
   fireEvent.click(screen.getByRole('button', { name: 'Escanear el ticket' }))
-  expect(onScanReceipt).toHaveBeenCalled()
+  expect(onScanReceipt).toHaveBeenCalledWith({
+    purchaseId: 'p1',
+    store: 'Mercadona',
+    date: '2026-07-21',
+    total: 8.13,
+  })
+})
+
+test('a fresh trip object for the same card drops the cached lines and re-reads', async () => {
+  const loadItems = vi.fn<(id: string) => Promise<ListItem[]>>()
+  loadItems.mockResolvedValueOnce([makeLine()])
+  loadItems.mockResolvedValueOnce([
+    makeLine(),
+    makeLine({ id: 'i2', name: 'Chicles' }),
+  ])
+  const { rerender } = render(
+    <TripCard trip={makeTrip()} defaultExpanded loadItems={loadItems} />,
+  )
+  await screen.findByText('Yogur natural')
+  // The stack refetch after a targeted receipt apply hands down a new object
+  // for the same purchase; the expanded card must show the filled/added lines.
+  rerender(<TripCard trip={makeTrip()} defaultExpanded loadItems={loadItems} />)
+  await screen.findByText('Chicles')
+  expect(loadItems).toHaveBeenCalledTimes(2)
 })
 
 test('a stored image renders the real miniature from the signed URL', async () => {

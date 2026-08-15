@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { formatRowAmount } from '../lib/formatPrice'
 import { parseInput } from '../lib/parseInput'
 import {
   formatReceiptDate,
@@ -33,11 +34,28 @@ export interface ItemRef {
   brand: string | null
   stores: string[]
   quantity: string | null
+  /** Current price on the line, so a targeted review can tell a fill from a
+   *  correction from a no-op. */
+  price: number | null
+  price_per: 'KILOGRAM' | null
 }
 
 export type ReceiptConfirmMeta = {
   receiptDate: string | null
   store: string | null
+}
+
+/**
+ * The settled purchase a scan completes (25b targeted attach). Carried from
+ * the tapped card's header into the review, where it locks the record's own
+ * store and date and turns the line list into fill/correct offers.
+ */
+export type ReceiptScanTarget = {
+  purchaseId: string
+  store: string | null
+  /** yyyy-mm-dd of the day the trip covered, for the locked date pill. */
+  date: string | null
+  total: number | null
 }
 
 type PendingScan = { index: number; product: BarcodeRead } | null
@@ -47,6 +65,8 @@ interface Props {
   candidateItems: ItemRef[]
   /** The store read from the ticket (or list), seeding the editable control. */
   store: string | null
+  /** Set when the scan completes a settled purchase instead of closing a trip. */
+  target?: ReceiptScanTarget | null
   /** In-memory object URL of the captured image, for the header thumbnail. */
   imageUrl?: string | null
   /** The source was a PDF: show a generic badge instead of an image thumbnail. */
@@ -65,10 +85,35 @@ interface Props {
   onRequestScan?: (index: number) => void
 }
 
-function initStates(result: ReceiptScanResult): LineState[] {
+/** Prices that print differently are different; below a céntimo they are not. */
+const PRICE_EPSILON = 0.005
+
+/** Whether a receipt line fills, corrects, or merely repeats the current price. */
+function targetChange(
+  line: ReceiptLine,
+  item: ItemRef | undefined,
+): 'fill' | 'correct' | 'equal' {
+  if (!item || item.price == null) return 'fill'
+  const samePrice = Math.abs(item.price - line.unit_price) < PRICE_EPSILON
+  const samePer = (item.price_per ?? null) === linePricePer(line)
+  return samePrice && samePer ? 'equal' : 'correct'
+}
+
+function initStates(
+  result: ReceiptScanResult,
+  target: ReceiptScanTarget | null,
+  candidateItems: ItemRef[],
+): LineState[] {
   return [
     ...result.matched.map((m): LineState => ({
-      included: true,
+      // In a targeted review a line that repeats the recorded price writes
+      // nothing, so it starts unchecked and the save counts stay honest.
+      included:
+        target == null ||
+        targetChange(
+          m,
+          candidateItems.find((it) => it.id === m.item_id),
+        ) !== 'equal',
       resolution: {
         kind: 'matched',
         itemId: m.item_id,
@@ -87,6 +132,7 @@ export default function ReceiptScanSheet({
   result,
   candidateItems,
   store: initialStore,
+  target = null,
   imageUrl,
   isPdf = false,
   onConfirm,
@@ -96,15 +142,20 @@ export default function ReceiptScanSheet({
   onRequestScan,
 }: Props) {
   const allLines: ReceiptLine[] = [...result.matched, ...result.unmatched]
+  const targeted = target != null
 
   const [lineStates, setLineStates] = useState<LineState[]>(() =>
-    initStates(result),
+    initStates(result, target, candidateItems),
   )
   const [submitted, setSubmitted] = useState(false)
+  // A targeted review speaks for a written record: its day and store are the
+  // record's own, not the parse's, and stay locked below.
   const [receiptDate, setReceiptDate] = useState<string | null>(
-    result.receipt_date ?? null,
+    target?.date ?? result.receipt_date ?? null,
   )
-  const [store, setStore] = useState<string | null>(initialStore ?? null)
+  const [store, setStore] = useState<string | null>(
+    target?.store ?? initialStore ?? null,
+  )
 
   // The resolve sheet (13b) is a sub-view, not a second Sheet: `resolvingIndex`
   // swaps the body inside the same panel. Its draft (radio pick XOR create text)
@@ -287,10 +338,33 @@ export default function ReceiptScanSheet({
 
   const resolving = resolvingIndex != null
 
+  // What each saved line does to the record, told next to the product name:
+  // fill a hole, correct a figure (with the old one), or repeat it (no-op).
+  const changeNotes = targeted
+    ? allLines.map((line, i) => {
+        const r = lineStates[i].resolution
+        if (r.kind === 'matched' || r.kind === 'linked') {
+          const item = candidateItems.find((it) => it.id === r.itemId)
+          if (!item || item.price == null) return 'completa el precio'
+          return targetChange(line, item) === 'equal'
+            ? 'sin cambios'
+            : `era € ${formatRowAmount(item.price)}`
+        }
+        if (r.kind === 'created') return 'línea nueva en esta compra'
+        return null
+      })
+    : undefined
+
   return (
     <Sheet
       className="rss"
-      label={resolving ? 'Resolver una línea' : 'Revisar ticket'}
+      label={
+        resolving
+          ? 'Resolver una línea'
+          : targeted
+            ? 'Añadir ticket a esta compra'
+            : 'Revisar ticket'
+      }
       onClose={onClose}
       // On the resolve sub-view, Escape / scrim / swipe go back to the list —
       // the back galón is the exit, not a dismissal of the whole sheet.
@@ -300,6 +374,7 @@ export default function ReceiptScanSheet({
         <ReceiptLineResolveBody
           line={allLines[resolvingIndex]}
           candidateItems={availableItems(resolvingIndex)}
+          backLabel={targeted ? 'Añadir ticket a esta compra' : undefined}
           radioId={resolveRadioId}
           createText={resolveText}
           onSelectRadio={(id) => {
@@ -322,6 +397,11 @@ export default function ReceiptScanSheet({
           store={store}
           receiptDate={receiptDate}
           receiptDateLabel={formatReceiptDate(receiptDate)}
+          targeted={targeted}
+          dateLocked={targeted}
+          storeLocked={target?.store != null}
+          changeNotes={changeNotes}
+          priorTotal={target?.total ?? null}
           imageUrl={imageUrl}
           isPdf={isPdf}
           knownStores={knownStores(candidateItems, initialStore)}

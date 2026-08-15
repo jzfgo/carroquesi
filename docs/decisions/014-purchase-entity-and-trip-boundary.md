@@ -84,7 +84,10 @@ with *purchased ⇒ `purchase_id` set* enforced in-app the way
 "at most one open trip per list and boundary" is a partial unique index
 (`uq_purchases_open_per_list`) rather than application discipline; and
 `receipt_scans.purchase_id` links a scan to the one trip it reconciled, NULL
-when it reconciled none or several.
+when it reconciled none or several. Reconciling is either the close the
+scan's apply performed, or — since the targeted attach (JAV-180) — the
+settled purchase the scan was explicitly aimed at from that purchase's own
+header.
 
 ## Alternatives considered
 
@@ -121,6 +124,14 @@ when it reconciled none or several.
 - A scan spanning several trips reconciles none of them — ergonomics traded
   for truth. Closing that cart by hand is recoverable; a total attached to
   lines it does not describe is not.
+- "A closed ticket is not re-priced by a later scan" governs the *generic*
+  match pool. The targeted attach (JAV-180) is the deliberate carve-out: a
+  scan launched from a settled purchase's own header re-prices exactly that
+  ticket — filling missing prices, correcting differing ones, adding missing
+  lines, and filling or correcting the total. The no-silent-overwrite
+  concern that motivated the entity split is honored by the review sheet:
+  every fill, correction, added line, and total change is user-confirmed
+  before the write, and the record's dating and store stay untouched.
 - Backfilled history is honest about what nobody recorded: synthetic trips
   carry no `closed_at`, no `total`, and a `store` only when the day's items
   named exactly one.

@@ -19,6 +19,9 @@ interface Props {
   onRequestScan?: () => void
   onAssign: () => void
   onBack: () => void
+  /** The back galón names the review it returns to; the targeted review has
+   *  its own title. */
+  backLabel?: string
 }
 
 function itemSubLabel(item: ItemRef): string {
@@ -39,6 +42,7 @@ export function ReceiptLineResolveBody({
   onRequestScan,
   onAssign,
   onBack,
+  backLabel = 'Revisar ticket',
 }: Props) {
   const parsed = parseInput(createText)
   const previewName = parsed.name.trim()
@@ -55,7 +59,7 @@ export function ReceiptLineResolveBody({
     <>
       <div className="rss-resolve-head">
         <button type="button" className="rss-back" onClick={onBack}>
-          <ChevronLeft size={22} /> Revisar ticket
+          <ChevronLeft size={22} /> {backLabel}
         </button>
       </div>
 

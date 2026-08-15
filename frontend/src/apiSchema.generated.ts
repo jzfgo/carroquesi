@@ -1574,6 +1574,8 @@ export interface components {
              * @default []
              */
             patches: components["schemas"]["PricePatch"][];
+            /** Purchase Id */
+            purchase_id?: string | null;
             /** Receipt Date */
             receipt_date?: string | null;
             /** Receipt Total */
@@ -1589,6 +1591,8 @@ export interface components {
             inference_source?: string | null;
             /** Lines */
             lines: components["schemas"]["ParsedLine"][];
+            /** Purchase Id */
+            purchase_id?: string | null;
             /** Receipt Date */
             receipt_date?: string | null;
             /** Receipt Total */

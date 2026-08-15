@@ -63,6 +63,8 @@ const candidateItems: ItemRef[] = [
     brand: null,
     stores: ['Mercadona'],
     quantity: null,
+    price: null,
+    price_per: null,
   },
   {
     id: 'item-2',
@@ -72,6 +74,8 @@ const candidateItems: ItemRef[] = [
     brand: null,
     stores: ['Mercadona'],
     quantity: null,
+    price: null,
+    price_per: null,
   },
   {
     id: 'item-3',
@@ -81,6 +85,8 @@ const candidateItems: ItemRef[] = [
     brand: null,
     stores: [],
     quantity: null,
+    price: null,
+    price_per: null,
   },
   {
     id: 'item-4',
@@ -90,6 +96,8 @@ const candidateItems: ItemRef[] = [
     brand: null,
     stores: [],
     quantity: null,
+    price: null,
+    price_per: null,
   },
 ]
 
@@ -286,6 +294,96 @@ describe('ReceiptScanSheet — thumbnail', () => {
     expect(
       screen.queryByRole('button', { name: 'Ampliar la foto del ticket' }),
     ).not.toBeInTheDocument()
+  })
+})
+
+// The named purchase's own lines, prices included: item-1 unpriced (fill),
+// item-2 already at the paper's price (no-op), item-3 priced differently
+// (correction). MANI DULCE stays unmatched → a new line if resolved.
+const targetItems: ItemRef[] = [
+  { ...candidateItems[0], price: null, price_per: null },
+  { ...candidateItems[1], price: 11.4, price_per: 'KILOGRAM' },
+  { ...candidateItems[2], price: 1.2, price_per: null },
+]
+
+const target = {
+  purchaseId: 'trip-1',
+  store: 'Mercadona',
+  date: '2026-04-11',
+  total: 9.45,
+}
+
+function renderTargeted(overrides: Partial<SheetProps> = {}) {
+  return renderSheet({
+    candidateItems: targetItems,
+    target,
+    ...overrides,
+  })
+}
+
+describe('ReceiptScanSheet — targeted attach (25b)', () => {
+  it('titles the review as completing the purchase', () => {
+    renderTargeted()
+    expect(
+      screen.getByRole('heading', { name: 'Añadir ticket a esta compra' }),
+    ).toBeInTheDocument()
+  })
+
+  it('locks the store and date pills to the record', () => {
+    renderTargeted()
+    // Locked pills are ink, not controls: neither sits inside a button.
+    expect(screen.getByText('Mercadona').closest('button')).toBeNull()
+    const dateEl = document.querySelectorAll('.rss-pill--locked')[1]
+    expect(dateEl?.closest('button')).toBeNull()
+    expect(document.querySelectorAll('.rss-pill--locked')).toHaveLength(2)
+  })
+
+  it('keeps the store pill editable when the purchase has none', () => {
+    renderTargeted({ target: { ...target, store: null }, store: 'Lidl' })
+    // Seeded from the parse/list and still a control.
+    expect(screen.getByText('Lidl').closest('button')).not.toBeNull()
+  })
+
+  it('annotates each line as fill, correction, or no-op', () => {
+    renderTargeted()
+    expect(screen.getByText('completa el precio')).toBeInTheDocument()
+    expect(screen.getByText('era € 1,20')).toBeInTheDocument()
+    // The no-op line starts unchecked, so it reads «no se guarda»; checking
+    // it back on surfaces the reason a save would change nothing.
+    fireEvent.click(screen.getByRole('checkbox', { name: /BACON LONCHAS/ }))
+    expect(screen.getByText('sin cambios')).toBeInTheDocument()
+  })
+
+  it('starts a no-op line unchecked so the save counts stay honest', () => {
+    renderTargeted()
+    expect(
+      screen.getByRole('checkbox', { name: /BACON LONCHAS/ }),
+    ).not.toBeChecked()
+    expect(
+      screen.getByRole('checkbox', { name: /BEBIDA ALMENDRAS/ }),
+    ).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /YOGUR/ })).toBeChecked()
+  })
+
+  it('announces a differing paper total before it replaces the recorded one', () => {
+    renderTargeted({ target: { ...target, total: 10 } })
+    expect(
+      screen.getByText(/El total guardado pasa de € 10,00 a € 9,45/),
+    ).toBeInTheDocument()
+  })
+
+  it('says nothing about the total when the paper agrees', () => {
+    renderTargeted()
+    expect(screen.queryByText(/El total guardado/)).not.toBeInTheDocument()
+  })
+
+  it('confirm meta carries the locked store and date', async () => {
+    const { onConfirm } = renderTargeted()
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [, , , meta] = onConfirm.mock.calls[0]
+    expect(meta).toEqual({ receiptDate: '2026-04-11', store: 'Mercadona' })
   })
 })
 
