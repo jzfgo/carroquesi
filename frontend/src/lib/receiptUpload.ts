@@ -51,8 +51,9 @@ export async function uploadReceiptFile(
 }
 
 // The count rides on the upload so PDF thumbnails can print it without
-// opening the file. Unknown is fine — omit it rather than guess.
-async function countPdfPages(file: File): Promise<number | undefined> {
+// opening the file; the review sheet counts the same way for its own thumb.
+// Unknown is fine — omit it rather than guess.
+export async function countPdfPages(file: File): Promise<number | undefined> {
   try {
     const pdfjs = await getPdfjs()
     const task = pdfjs.getDocument({ data: await file.arrayBuffer() })

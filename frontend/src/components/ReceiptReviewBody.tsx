@@ -45,6 +45,8 @@ interface Props {
   priorTotal?: number | null
   imageUrl?: string | null
   isPdf?: boolean
+  /** Page count printed on the PDF badge; null when it could not be read. */
+  pdfPages?: number | null
   knownStores: string[]
   lineSum: number
   savedSum: number
@@ -90,6 +92,7 @@ export function ReceiptReviewBody({
   priorTotal = null,
   imageUrl,
   isPdf = false,
+  pdfPages = null,
   knownStores,
   lineSum,
   savedSum,
@@ -122,14 +125,26 @@ export function ReceiptReviewBody({
   return (
     <>
       <div className="rss-head">
-        {imageUrl && !isPdf ? (
+        {imageUrl ? (
           <button
             type="button"
-            className="rss-thumb"
+            className={`rss-thumb ${isPdf ? 'rss-thumb--pdfdoc' : ''}`}
             onClick={() => setLightbox(true)}
-            aria-label="Ampliar la foto del ticket"
+            aria-label={
+              isPdf ? 'Ampliar el ticket' : 'Ampliar la foto del ticket'
+            }
           >
-            <img src={imageUrl} alt="" className="rss-thumb__img" />
+            {isPdf ? (
+              <>
+                <Receipt size={20} />
+                <span className="rss-thumb__pdf">PDF</span>
+                {pdfPages != null && pdfPages > 1 && (
+                  <span className="rss-thumb__pages">{pdfPages} pág.</span>
+                )}
+              </>
+            ) : (
+              <img src={imageUrl} alt="" className="rss-thumb__img" />
+            )}
             <span className="rss-thumb__badge">
               <Maximize2 size={12} />
             </span>
@@ -377,9 +392,10 @@ export function ReceiptReviewBody({
       {lightbox && imageUrl && (
         <ReceiptFileViewer
           url={imageUrl}
-          // The lightbox only opens for the in-memory capture, never a PDF.
-          contentType="image/jpeg"
-          pages={null}
+          // The in-memory capture: an image fills the screen, a PDF pages
+          // through the same viewer the stored paper uses.
+          contentType={isPdf ? 'application/pdf' : 'image/jpeg'}
+          pages={isPdf ? pdfPages : null}
           onClose={() => setLightbox(false)}
         />
       )}

@@ -44,6 +44,19 @@
   gap: 1px;
 }
 
+/* The tappable PDF thumb: same column stack as the placeholder, with the
+   page count under the badge and the enlarge disc signalling the pager. */
+.rss-thumb--pdfdoc {
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rss-thumb__pages {
+  font-size: 0.58rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
 .rss-thumb__img {
   width: 100%;
   height: 100%;
