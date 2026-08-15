@@ -65,7 +65,10 @@ import {
   type ReceiptConsentSheetHandle,
 } from './ReceiptConsentSheet'
 import { ReceiptIllegibleSheet } from './ReceiptIllegibleSheet'
-import ReceiptScanSheet, { type ReceiptConfirmMeta } from './ReceiptScanSheet'
+import ReceiptScanSheet, {
+  type ReceiptConfirmMeta,
+  type ReceiptScanTarget,
+} from './ReceiptScanSheet'
 import { SaveTicketSheet } from './SaveTicketSheet'
 import { SmartInputBar } from './SmartInputBar'
 import { SmartSearchPill } from './SmartSearchPill'
@@ -303,6 +306,11 @@ export function ListScreen({
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const [receiptScanResult, setReceiptScanResult] =
     useState<ReceiptScanResult | null>(null)
+  // The settled purchase a dashed-thumb scan completes (25b targeted attach).
+  // Null for the generic funnel; every exit from a scan session clears it so
+  // the next generic scan cannot inherit a stale target.
+  const [receiptScanTarget, setReceiptScanTarget] =
+    useState<ReceiptScanTarget | null>(null)
   // The captured image, kept in memory only for the review thumbnail; the file
   // itself is never stored. Revoked when the session ends (see setReceiptImage).
   const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(null)
@@ -411,13 +419,21 @@ export function ListScreen({
   // save-ticket door, close-trip). Only a granted account scans; otherwise —
   // undecided or previously declined — the disclosure is shown, so a declined
   // user can reconsider in place rather than being sent to Ajustes.
-  const handleReceiptScan = useCallback(() => {
-    if (user?.receiptConsent === 'granted') {
-      setReceiptSourcePickerOpen(true)
-    } else {
-      setConsentSheetOpen(true)
-    }
-  }, [user])
+  const handleReceiptScan = useCallback(
+    (target?: ReceiptScanTarget) => {
+      // Generic entries pass no target, which doubles as the reset: a scan
+      // launched from the list options can never land on a purchase a
+      // previous session aimed at. The target rides in state, so it survives
+      // the consent-sheet detour below.
+      setReceiptScanTarget(target ?? null)
+      if (user?.receiptConsent === 'granted') {
+        setReceiptSourcePickerOpen(true)
+      } else {
+        setConsentSheetOpen(true)
+      }
+    },
+    [user],
+  )
 
   const handleConsentDecision = useCallback(
     (consent: 'granted' | 'declined') => {
@@ -447,6 +463,10 @@ export function ListScreen({
     if (scanAfterConsentRef.current) {
       scanAfterConsentRef.current = false
       setReceiptSourcePickerOpen(true)
+    } else {
+      // Declined or dismissed: the scan this target was riding on never
+      // happens, so the aim must not survive into a later session.
+      setReceiptScanTarget(null)
     }
   }, [])
 
@@ -498,7 +518,16 @@ export function ListScreen({
         // lines rather than throwing, so an empty list means the photo couldn't
         // be read. There is nothing to match — skip the matcher and offer 18c,
         // where what was rescued (store/date/total) saves as a manual purchase.
+        // Not in a targeted scan, though: its purchase already exists, and the
+        // 18c rescue would write a duplicate — an unreadable paper just says so.
         if (parsed.lines.length === 0) {
+          if (receiptScanTarget) {
+            setToast('No se pudo leer el ticket')
+            setReceiptImage(null, isPdf)
+            setPendingScan(null)
+            setReceiptScanTarget(null)
+            return
+          }
           setIllegibleRescue({
             store: parsed.store ?? null,
             date: parsed.receipt_date ?? null,
@@ -511,7 +540,10 @@ export function ListScreen({
           return
         }
 
-        const result = await submitParsedReceipt(getToken, listId, parsed)
+        const result = await submitParsedReceipt(getToken, listId, {
+          ...parsed,
+          purchase_id: receiptScanTarget?.purchaseId ?? null,
+        })
         // Store the paper itself, best-effort: a failed upload must never
         // take down the review that is about to open.
         void uploadReceiptFile(getToken, listId, result.scan_id, file).catch(
@@ -532,7 +564,7 @@ export function ListScreen({
         setReceiptUploading(false)
       }
     },
-    [getToken, listId, setReceiptImage],
+    [getToken, listId, setReceiptImage, receiptScanTarget],
   )
 
   const handleReceiptConfirm = useCallback(
@@ -554,8 +586,11 @@ export function ListScreen({
           patches,
           new_items: newItems,
           mappings,
+          // A targeted apply completes this settled purchase instead.
+          purchase_id: receiptScanTarget?.purchaseId ?? null,
         })
         setReceiptScanResult(null)
+        setReceiptScanTarget(null)
         setReceiptImage(null, false)
         setPendingScan(null)
         const n = data.items_updated
@@ -586,6 +621,7 @@ export function ListScreen({
       getToken,
       listId,
       receiptScanResult,
+      receiptScanTarget,
       invalidateAfterTripChange,
       setReceiptImage,
     ],
@@ -714,6 +750,7 @@ export function ListScreen({
   // ReceiptScanSheet mounts, since the sheet only compares by identity.
   const handleReceiptSheetClose = useCallback(() => {
     setReceiptScanResult(null)
+    setReceiptScanTarget(null)
     setReceiptImage(null, false)
     setPendingScan(null)
   }, [setReceiptImage])
@@ -1355,7 +1392,10 @@ export function ListScreen({
         <>
           <div
             className="sheet-overlay"
-            onClick={() => setReceiptSourcePickerOpen(false)}
+            onClick={() => {
+              setReceiptSourcePickerOpen(false)
+              setReceiptScanTarget(null)
+            }}
           />
           <div className="sheet-container">
             <div className="receipt-source-picker">
@@ -1379,7 +1419,10 @@ export function ListScreen({
               </button>
               <button
                 className="receipt-source-picker__cancel"
-                onClick={() => setReceiptSourcePickerOpen(false)}
+                onClick={() => {
+                  setReceiptSourcePickerOpen(false)
+                  setReceiptScanTarget(null)
+                }}
               >
                 Cancelar
               </button>
@@ -1411,8 +1454,15 @@ export function ListScreen({
           // Link targets mirror the backend matcher's pool: items still in play
           // — pending, or purchased but still in the open cart — never ones
           // already settled on a closed trip, which a receipt does not re-file.
+          // A targeted scan inverts that: its pool is exactly the named
+          // purchase's own lines, current prices included so the review can
+          // tell a fill from a correction.
           candidateItems={items
-            .filter((i) => !i.purchased || isTripOpen(i.purchase_ends_at))
+            .filter((i) =>
+              receiptScanTarget
+                ? i.purchase_id === receiptScanTarget.purchaseId
+                : !i.purchased || isTripOpen(i.purchase_ends_at),
+            )
             .map((i) => ({
               id: i.id,
               name: i.name,
@@ -1421,8 +1471,11 @@ export function ListScreen({
               brand: i.brand,
               stores: i.stores,
               quantity: i.quantity,
+              price: i.price,
+              price_per: i.price_per,
             }))}
-          store={receiptScanResult.store}
+          store={receiptScanTarget?.store ?? receiptScanResult.store}
+          target={receiptScanTarget}
           imageUrl={receiptImageUrl}
           isPdf={receiptIsPdf}
           onConfirm={handleReceiptConfirm}

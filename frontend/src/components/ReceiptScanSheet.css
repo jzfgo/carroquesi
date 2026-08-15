@@ -124,6 +124,11 @@
   opacity: 0.7;
 }
 
+/* The record's own store/date in a targeted review: printed ink, not a control. */
+.rss-pill--locked {
+  cursor: default;
+}
+
 .rss-control-editor {
   display: flex;
   gap: 8px;
@@ -305,6 +310,15 @@
   color: var(--ink-2);
 }
 
+/* Targeted review: what saving the line does to the record (fill / correction /
+   no-op / new line). Quiet ink — the offer, not the product, is the aside. */
+.rss-annot__change {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--ink-2);
+}
+
 /* Confirmed (matched / user-resolved): solid ink, no underline */
 .rss-annot--solid .rss-annot__name {
   color: var(--ink-0);
@@ -365,6 +379,14 @@
   padding: 12px 20px 8px;
   border-top: 1px solid var(--rule-dashed);
   flex-shrink: 0;
+}
+
+/* Targeted review: the paper's total will replace the recorded one — said in
+   words above the cuadre so the overwrite is reviewed, never silent. */
+.rss-totalchange {
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+  color: var(--ink-1);
 }
 
 .rss-cuadre {

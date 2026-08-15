@@ -11,6 +11,7 @@ import type {
 } from '../types'
 import { ItemCard } from './ItemCard'
 import { ReceiptFileViewer } from './ReceiptFileViewer'
+import type { ReceiptScanTarget } from './ReceiptScanSheet'
 import './TripCard.css'
 import { TripReceiptThumb } from './TripReceiptThumb'
 
@@ -38,8 +39,9 @@ interface Props {
   receiptScan?: boolean
   loadReceiptScans?: (purchaseId: string) => Promise<ReceiptScanSummary[]>
   loadReceiptFileUrl?: (scanId: string) => Promise<ReceiptFileUrlResult>
-  /** Launch a scan from the dashed hole — the shared consent-aware funnel. */
-  onScanReceipt?: () => void
+  /** Launch a scan from the dashed hole — the shared consent-aware funnel,
+   *  aimed at this card's purchase so the paper completes it (JAV-180). */
+  onScanReceipt?: (target: ReceiptScanTarget) => void
 }
 
 const noop = () => {}
@@ -85,6 +87,15 @@ export function TripCard({
   // simply `expanded && lines === null`, so no separate loading state (and no
   // synchronous setState in the effect) is needed.
   const [lines, setLines] = useState<ListItem[] | null>(null)
+
+  // The stack refetch hands down a fresh trip object for the same card; the
+  // cached lines belong to the old one (a targeted receipt apply may have
+  // filled or added some), so drop them and let the effect below re-read.
+  const [prevTrip, setPrevTrip] = useState(trip)
+  if (trip !== prevTrip) {
+    setPrevTrip(trip)
+    setLines(null)
+  }
 
   useEffect(() => {
     if (search || emptyClosed || !expanded || lines !== null) return
@@ -151,7 +162,14 @@ export function TripCard({
   const thumb = showThumb && (
     <TripReceiptThumb
       state={receipt}
-      onScan={() => onScanReceipt?.()}
+      onScan={() =>
+        onScanReceipt?.({
+          purchaseId: trip.id,
+          store: trip.store,
+          date: tripDateInput(trip.opened_at),
+          total: trip.total,
+        })
+      }
       onView={openViewer}
     />
   )

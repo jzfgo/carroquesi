@@ -3,6 +3,7 @@ import { useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { useStack } from '../hooks/useStack'
 import { searchPurchases } from '../lib/api'
 import type { PurchaseSearchTrip } from '../types'
+import type { ReceiptScanTarget } from './ReceiptScanSheet'
 import './Stack.css'
 import { TripCard } from './TripCard'
 
@@ -39,8 +40,8 @@ interface Props {
    *  Gates only the dashed state of the 25b thumbnails; stored paper shows
    *  to every member. */
   receiptScan?: boolean
-  /** Launch a scan from a card's dashed hole. */
-  onScanReceipt?: () => void
+  /** Launch a scan from a card's dashed hole, aimed at that card's purchase. */
+  onScanReceipt?: (target: ReceiptScanTarget) => void
 }
 
 // How many trips fold open below the latest before the rest slip behind the

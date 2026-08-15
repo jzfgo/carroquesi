@@ -121,6 +121,7 @@ vi.mock('./ReceiptScanSheet', () => ({
     result,
     store,
     onConfirm,
+    onClose,
     onReReadReceipt,
     onRequestScan,
     pendingScan,
@@ -133,6 +134,7 @@ vi.mock('./ReceiptScanSheet', () => ({
       newItems: NewPurchasedItem[],
       meta: { receiptDate: string | null; store: string | null },
     ) => Promise<boolean>
+    onClose: () => void
     onReReadReceipt: () => void
     onRequestScan?: (index: number) => void
     pendingScan?: { index: number; product: BarcodeRead } | null
@@ -154,6 +156,7 @@ vi.mock('./ReceiptScanSheet', () => ({
           Confirmar con artículo nuevo (mock)
         </button>
         <button onClick={() => onReReadReceipt()}>Volver a leer (mock)</button>
+        <button onClick={() => onClose()}>Cerrar (mock)</button>
         {onRequestScan && (
           <button onClick={() => onRequestScan(0)}>
             Escanear línea (mock)
@@ -996,8 +999,178 @@ describe('receipt price confirmation toast', () => {
         patches: [],
         new_items: [mockNewItem],
         mappings: [],
+        // A generic scan aims at no purchase.
+        purchase_id: null,
       },
     )
+  })
+})
+
+describe('targeted receipt attach (25b)', () => {
+  const closedTrip = {
+    id: 'p1',
+    list_id: 'list1',
+    opened_at: '2026-07-21T09:00:00',
+    tears_off_at: '2026-07-22T00:00:00',
+    closed_at: '2026-07-21T20:00:00',
+    store: 'Mercadona',
+    total: 8.13,
+    line_count: 2,
+    has_receipt: false,
+    items_total: null,
+  }
+
+  beforeEach(() => {
+    // The dashed thumb renders only under flag + granted consent.
+    vi.mocked(AuthContext.useAuth).mockReturnValue({
+      user: {
+        id: 'u1',
+        displayName: 'Alice',
+        photoUrl: null,
+        email: 'alice@example.com',
+        features: [],
+        receiptConsent: 'granted',
+      },
+      getToken: mockGetToken,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      loading: false,
+      isWaitlisted: false,
+      recordReceiptConsent: vi.fn(),
+    })
+    vi.mocked(api.getPurchases).mockResolvedValue({
+      purchases: [closedTrip],
+      total: 1,
+    })
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
+      store: 'Mercadona',
+      receipt_date: '2026-07-21',
+      receipt_total: 8.13,
+      inference_source: 'in_cloud',
+      lines: [
+        {
+          name: 'LECHE ENTERA',
+          price_type: 'UNIT',
+          unit_price: 1,
+          line_total: 1,
+          quantity: null,
+        },
+      ],
+    })
+    vi.mocked(api.submitParsedReceipt).mockResolvedValue({
+      scan_id: 'scan-t1',
+      store: 'Mercadona',
+      receipt_date: '2026-07-21',
+      receipt_total: 8.13,
+      matched: [],
+      unmatched: [],
+    })
+    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
+      items_updated: 1,
+      items_created: 0,
+    })
+  })
+
+  function pickFile(container: HTMLElement) {
+    const fileInput = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })],
+      },
+    })
+  }
+
+  async function tapDashedThumb() {
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Escanear el ticket' }),
+    )
+    await screen.findByText('Tomar foto')
+  }
+
+  it('sends the tapped purchase through the match and the apply', async () => {
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    await tapDashedThumb()
+    pickFile(container)
+    await waitFor(() =>
+      expect(api.submitParsedReceipt).toHaveBeenCalledTimes(1),
+    )
+    expect(api.submitParsedReceipt).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      expect.objectContaining({ purchase_id: 'p1' }),
+    )
+    fireEvent.click(await screen.findByText('Confirmar (mock)'))
+    await waitFor(() =>
+      expect(api.submitReceiptPrices).toHaveBeenCalledTimes(1),
+    )
+    expect(api.submitReceiptPrices).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      expect.objectContaining({ purchase_id: 'p1' }),
+    )
+  })
+
+  it('cancelling the source picker clears the aim for the next scan', async () => {
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    await tapDashedThumb()
+    fireEvent.click(screen.getByText('Cancelar'))
+    // A scan driven straight from the file input — the generic funnel.
+    pickFile(container)
+    await waitFor(() =>
+      expect(api.submitParsedReceipt).toHaveBeenCalledTimes(1),
+    )
+    expect(api.submitParsedReceipt).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      expect.objectContaining({ purchase_id: null }),
+    )
+  })
+
+  it('closing the review clears the aim for the next scan', async () => {
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    await tapDashedThumb()
+    pickFile(container)
+    fireEvent.click(await screen.findByText('Cerrar (mock)'))
+    pickFile(container)
+    await waitFor(() =>
+      expect(api.submitParsedReceipt).toHaveBeenCalledTimes(2),
+    )
+    expect(api.submitParsedReceipt).toHaveBeenLastCalledWith(
+      mockGetToken,
+      'list1',
+      expect.objectContaining({ purchase_id: null }),
+    )
+  })
+
+  it('a targeted illegible read toasts instead of opening the 18c rescue', async () => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
+      store: 'Mercadona',
+      receipt_date: null,
+      receipt_total: null,
+      inference_source: 'in_cloud',
+      lines: [],
+    })
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    await tapDashedThumb()
+    pickFile(container)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('No se pudo leer el ticket')
+    // The 18c sheet would write a duplicate manual purchase — never for a
+    // targeted scan, whose purchase already exists.
+    expect(
+      screen.queryByRole('dialog', { name: 'No se lee el ticket' }),
+    ).not.toBeInTheDocument()
+    expect(api.submitParsedReceipt).not.toHaveBeenCalled()
   })
 })
 
