@@ -1,5 +1,6 @@
-import type { Page } from '@playwright/test'
+import type { Page, Route } from '@playwright/test'
 import {
+  ALICE,
   expect,
   expectScreenshot,
   SEED_ITEMS,
@@ -110,6 +111,35 @@ for (const { name: themeName, colorScheme } of THEMES) {
     })
   })
 }
+
+test('a consent-declined member sees stored paper but no dashed hole', async ({
+  page,
+}) => {
+  // Viewing what the household stored is membership-gated; only scanning
+  // needs consent. The seed fixture has granted, so override the user.
+  const declined = JSON.stringify({ ...ALICE, receipt_consent: 'declined' })
+  const fulfillDeclined = (route: Route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: declined,
+    })
+  await page.route('**/auth/sync', fulfillDeclined)
+  await page.route('**/users/me', fulfillDeclined)
+  await page.goto(`/lists/${LIST_ID}`)
+
+  const withFile = tripCard(page, TRIP_WITH_FILE.store ?? '')
+  const without = tripCard(page, TRIP_WITHOUT.store ?? '')
+  await expect(withFile.locator('.trip-thumb--solid')).toBeVisible()
+  await expect(withFile.getByText('Ticket guardado')).toBeVisible()
+  await expect(without).toBeVisible()
+  await expect(without.locator('.trip-thumb')).toHaveCount(0)
+  await expect(without.getByText('Sin ticket · escanéalo')).toHaveCount(0)
+
+  // The solid thumb still opens the viewer for them.
+  await withFile.getByRole('button', { name: 'Ver el ticket' }).click()
+  await expect(page.getByRole('dialog', { name: 'Ticket' })).toBeVisible()
+})
 
 test('the dashed thumb launches the scan flow', async ({ page }) => {
   await tripCard(page, TRIP_WITHOUT.store ?? '')

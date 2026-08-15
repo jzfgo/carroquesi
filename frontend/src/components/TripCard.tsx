@@ -32,10 +32,10 @@ interface Props {
    *  count, M the trip's whole line_count) and the chevron is dropped. An empty
    *  array renders nothing — a trip with no match does not appear. */
   matchingLines?: ListItem[]
-  /** The 25b header thumbnail. On only when receipt scanning is available to
-   *  this account — the caller settles flag + consent; the card only skips
-   *  its proto and search states, which have no closed paper to show. */
-  receiptThumbs?: boolean
+  /** Whether this account can scan — the caller settles flag + consent. It
+   *  gates only the dashed «escanéalo» state of the 25b thumbnail: stored
+   *  paper is the household's and shows to every member regardless. */
+  receiptScan?: boolean
   loadReceiptScans?: (purchaseId: string) => Promise<ReceiptScanSummary[]>
   loadReceiptFileUrl?: (scanId: string) => Promise<ReceiptFileUrlResult>
   /** Launch a scan from the dashed hole — the shared consent-aware funnel. */
@@ -67,7 +67,7 @@ export function TripCard({
   onOpenLine,
   onCloseTrip,
   matchingLines,
-  receiptThumbs = false,
+  receiptScan = false,
   loadReceiptScans,
   loadReceiptFileUrl,
   onScanReceipt,
@@ -106,20 +106,28 @@ export function TripCard({
 
   // The cuadrito (25b) belongs to closed records only: a proto has no paper
   // yet and a search card's header belongs to the «N de M» count.
-  const showThumb = receiptThumbs && !proto && !search
+  const closedRecord = !proto && !search
   const receipt = useTripReceipt(
     trip.id,
     trip.has_receipt,
-    showThumb,
+    closedRecord,
     loadReceiptScans,
     loadReceiptFileUrl,
   )
+  // Stored paper belongs to the household, so the solid states show to every
+  // member — the server reads files on membership alone. Only the dashed
+  // hole is the scanning act, so it alone needs the scan capability; without
+  // it an empty record simply has no cuadrito.
+  const showThumb =
+    receipt.status !== 'off' && (receipt.status !== 'empty' || receiptScan)
   // The second line is text, not a button — inside the sheet there is only
   // ink; the thumb and the chevron are the affordances. Silent while the
   // lookup is still in flight, so it never flips from one claim to another.
   const ticketLine =
     receipt.status === 'empty'
-      ? 'Sin ticket · escanéalo'
+      ? receiptScan
+        ? 'Sin ticket · escanéalo'
+        : null
       : receipt.status === 'image' || receipt.status === 'pdf'
         ? 'Ticket guardado'
         : null
@@ -140,7 +148,7 @@ export function TripCard({
         /* an unanswered mint leaves the tap inert; the next tap retries */
       })
   }
-  const thumb = showThumb && receipt.status !== 'off' && (
+  const thumb = showThumb && (
     <TripReceiptThumb
       state={receipt}
       onScan={() => onScanReceipt?.()}

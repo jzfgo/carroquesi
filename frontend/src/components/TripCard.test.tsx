@@ -202,8 +202,39 @@ const fileUrl = (over = {}) => ({
   ...over,
 })
 
-test('no thumbnail hole at all when the affordance is off', () => {
+test('stored paper shows to a member without the scan capability', async () => {
   const loadScans = vi.fn(async () => [scan()])
+  const loadFileUrl = vi.fn(async () => fileUrl())
+  const { container } = render(
+    <TripCard
+      trip={makeTrip({ has_receipt: true })}
+      loadItems={noItems}
+      loadReceiptScans={loadScans}
+      loadReceiptFileUrl={loadFileUrl}
+    />,
+  )
+  await waitFor(() =>
+    expect(container.querySelector('.trip-thumb--solid')).toBeInTheDocument(),
+  )
+  expect(screen.getByText('Ticket guardado')).toBeInTheDocument()
+})
+
+test('without the scan capability an empty record draws no hole', () => {
+  const loadScans = vi.fn(async () => [scan()])
+  const { container } = render(
+    <TripCard
+      trip={makeTrip()}
+      loadItems={noItems}
+      loadReceiptScans={loadScans}
+    />,
+  )
+  expect(container.querySelector('.trip-thumb')).not.toBeInTheDocument()
+  expect(screen.queryByText('Sin ticket · escanéalo')).not.toBeInTheDocument()
+  expect(loadScans).not.toHaveBeenCalled()
+})
+
+test('a file-less scan settles to no hole without the scan capability', async () => {
+  const loadScans = vi.fn(async () => [scan({ has_file: false })])
   const { container } = render(
     <TripCard
       trip={makeTrip({ has_receipt: true })}
@@ -211,8 +242,13 @@ test('no thumbnail hole at all when the affordance is off', () => {
       loadReceiptScans={loadScans}
     />,
   )
-  expect(container.querySelector('.trip-thumb')).not.toBeInTheDocument()
-  expect(loadScans).not.toHaveBeenCalled()
+  // The loading box shows while the lookup answers; the file-less settle
+  // then removes the affordance entirely instead of leaving a dashed hole.
+  await waitFor(() =>
+    expect(container.querySelector('.trip-thumb')).not.toBeInTheDocument(),
+  )
+  expect(loadScans).toHaveBeenCalled()
+  expect(screen.queryByText('Sin ticket · escanéalo')).not.toBeInTheDocument()
 })
 
 test('has_receipt=false renders the dashed hole with zero fetches', () => {
@@ -221,7 +257,7 @@ test('has_receipt=false renders the dashed hole with zero fetches', () => {
     <TripCard
       trip={makeTrip()}
       loadItems={noItems}
-      receiptThumbs
+      receiptScan
       loadReceiptScans={loadScans}
     />,
   )
@@ -236,7 +272,7 @@ test('the dashed hole launches a scan', () => {
     <TripCard
       trip={makeTrip()}
       loadItems={noItems}
-      receiptThumbs
+      receiptScan
       onScanReceipt={onScanReceipt}
     />,
   )
@@ -251,7 +287,7 @@ test('a stored image renders the real miniature from the signed URL', async () =
     <TripCard
       trip={makeTrip({ has_receipt: true })}
       loadItems={noItems}
-      receiptThumbs
+      receiptScan
       loadReceiptScans={loadScans}
       loadReceiptFileUrl={loadFileUrl}
     />,
@@ -277,7 +313,7 @@ test('several scans with files: the latest wins', async () => {
     <TripCard
       trip={makeTrip({ has_receipt: true })}
       loadItems={noItems}
-      receiptThumbs
+      receiptScan
       loadReceiptScans={loadScans}
       loadReceiptFileUrl={loadFileUrl}
     />,
@@ -292,7 +328,7 @@ test('a PDF renders the icon box with its page count, no URL fetch', async () =>
     <TripCard
       trip={makeTrip({ has_receipt: true })}
       loadItems={noItems}
-      receiptThumbs
+      receiptScan
       loadReceiptScans={loadScans}
       loadReceiptFileUrl={loadFileUrl}
     />,
@@ -312,7 +348,7 @@ test('a reconciled scan without a file settles to the dashed hole', async () => 
     <TripCard
       trip={makeTrip({ has_receipt: true })}
       loadItems={noItems}
-      receiptThumbs
+      receiptScan
       loadReceiptScans={loadScans}
     />,
   )
@@ -326,7 +362,7 @@ test('a proto card never shows the hole', () => {
     <TripCard
       trip={makeTrip({ closed_at: null })}
       loadItems={noItems}
-      receiptThumbs
+      receiptScan
     />,
   )
   expect(container.querySelector('.trip-thumb')).not.toBeInTheDocument()
@@ -339,7 +375,7 @@ test('a broken miniature falls back to the icon box', async () => {
     <TripCard
       trip={makeTrip({ has_receipt: true })}
       loadItems={noItems}
-      receiptThumbs
+      receiptScan
       loadReceiptScans={loadScans}
       loadReceiptFileUrl={loadFileUrl}
     />,

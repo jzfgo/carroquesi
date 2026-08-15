@@ -4,11 +4,12 @@ import type { ReceiptFileUrlResult, ReceiptScanSummary } from '../types'
 /**
  * What the header thumbnail (25b) knows about a trip's stored paper.
  *
- * - `off`: the affordance is hidden (flag or consent missing, or the card
- *   is a proto / search result).
+ * - `off`: the affordance is hidden (the card is a proto / search result —
+ *   shapes that have no closed paper to show).
  * - `loading`: a scan reconciled this trip; whether it left a file is still
  *   being answered.
- * - `empty`: no stored file — the dashed hole, tap to scan.
+ * - `empty`: no stored file — the dashed hole, tap to scan (the card draws
+ *   nothing here when the account cannot scan).
  * - `image` / `pdf`: the paper exists — the solid hole, tap to view.
  */
 export type TripReceiptState =

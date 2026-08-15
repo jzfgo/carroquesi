@@ -1080,7 +1080,7 @@ export function ListScreen({
             onSaveTicket={handleSaveTicket}
             query={filterQuery}
             searching={searching}
-            receiptThumbs={
+            receiptScan={
               isEnabled(FLAGS.AI_RECEIPT_SCANNING) &&
               user?.receiptConsent === 'granted'
             }
