@@ -123,6 +123,7 @@ def scan_receipt(
     receipt_at = _parse_receipt_at(body.receipt_date)
 
     now = datetime.now(UTC).replace(tzinfo=None)
+    target: Purchase | None = None
     if body.purchase_id is not None:
         target = _resolve_target_purchase(session, list_id, body.purchase_id)
         candidates = list(
@@ -172,6 +173,11 @@ def scan_receipt(
         parsed_lines=[line.model_dump() for line in body.lines],
         match_result=[m.model_dump() for m in matched],
         inference_source=body.inference_source,
+        # A targeted read of an unreadable paper links here, at creation: zero
+        # lines means no review opens, so no apply will ever write the link,
+        # and this is the one chance to give the named record its capture. A
+        # readable targeted scan still links at apply time, once confirmed.
+        purchase_id=target.id if target is not None and not body.lines else None,
     )
     session.add(scan)
     session.commit()

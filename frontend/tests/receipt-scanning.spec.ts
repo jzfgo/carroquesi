@@ -360,6 +360,51 @@ test.describe('functional', () => {
     await expect(created.locator('.item-card__amount')).toContainText(/1[.,]00/)
   })
 
+  // JAV-182: an unreadable ticket still stores its capture — a lineless scan
+  // is written before the 18c sheet opens, and the save hands that scan to
+  // the manual record so the purchase carries its paper from day one.
+  test('an illegible save hands the stored capture to the manual record', async ({
+    page,
+  }) => {
+    await gotoList(page)
+    await mockGeminiReceiptParse(page, ILLEGIBLE_RECEIPT)
+
+    const scanPromise = page.waitForResponse(
+      (resp) =>
+        resp.url().endsWith(`/lists/${LIST_ID}/receipt`) &&
+        resp.request().method() === 'POST',
+    )
+    await uploadReceipt(page)
+
+    const sheet = page.locator('.modal-sheet.rill')
+    await expect(sheet).toBeVisible()
+    // The capture found a home before the sheet opened, and the sheet says so.
+    await expect(sheet.locator('.rill-head__sub')).toHaveText(
+      'Se distinguen la tienda y el total; la foto se guarda con la compra',
+    )
+
+    const scanResponse = await scanPromise
+    const scanBody = scanResponse.request().postDataJSON() as {
+      lines: unknown[]
+    }
+    expect(scanBody.lines).toEqual([])
+    const { scan_id } = (await scanResponse.json()) as { scan_id: string }
+
+    const savePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/purchases/manual') && resp.status() === 200,
+    )
+    await sheet
+      .getByRole('button', { name: 'Guardar solo la tienda y el total' })
+      .click()
+    const saveResponse = await savePromise
+    const saveBody = saveResponse.request().postDataJSON() as {
+      scan_id: string | null
+    }
+    expect(saveBody.scan_id).toBe(scan_id)
+    await expect(page.getByRole('alert')).toContainText('Compra guardada')
+  })
+
   test('a failed AI parse surfaces an error toast without opening the review sheet', async ({
     page,
   }) => {

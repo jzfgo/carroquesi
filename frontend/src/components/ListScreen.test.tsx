@@ -1150,27 +1150,98 @@ describe('targeted receipt attach (25b)', () => {
     )
   })
 
-  it('a targeted illegible read toasts instead of opening the 18c rescue', async () => {
-    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
-      store: 'Mercadona',
-      receipt_date: null,
-      receipt_total: null,
-      inference_source: 'in_cloud',
-      lines: [],
-    })
+  const illegibleParse = {
+    store: 'Mercadona',
+    receipt_date: null,
+    receipt_total: null,
+    inference_source: 'in_cloud',
+    lines: [],
+  }
+
+  it('a targeted illegible read stores the capture on the purchase and toasts', async () => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue(illegibleParse)
     const { container } = render(
       <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
     )
     await tapDashedThumb()
     pickFile(container)
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('No se pudo leer el ticket')
+    expect(alert).toHaveTextContent(
+      'No se pudo leer el ticket, pero la foto queda guardada en la compra',
+    )
     // The 18c sheet would write a duplicate manual purchase — never for a
     // targeted scan, whose purchase already exists.
     expect(
       screen.queryByRole('dialog', { name: 'No se lee el ticket' }),
     ).not.toBeInTheDocument()
-    expect(api.submitParsedReceipt).not.toHaveBeenCalled()
+    // The lineless scan reached the server aimed at the purchase, and the
+    // capture followed it into the bucket.
+    expect(api.submitParsedReceipt).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      expect.objectContaining({ purchase_id: 'p1', lines: [] }),
+    )
+    expect(uploadReceiptFile).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      'scan-t1',
+      expect.any(File),
+    )
+  })
+
+  it('a targeted illegible read falls back to the plain toast when the store fails', async () => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue(illegibleParse)
+    vi.mocked(api.submitParsedReceipt).mockRejectedValue(new Error('down'))
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    await tapDashedThumb()
+    pickFile(container)
+    const alert = await screen.findByRole('alert')
+    // The photo was NOT kept — the toast must not claim it was.
+    expect(alert).toHaveTextContent(/No se pudo leer el ticket$/)
+    expect(uploadReceiptFile).not.toHaveBeenCalled()
+  })
+
+  it('an untargeted illegible read stores the capture and opens the rescue', async () => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue(illegibleParse)
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    pickFile(container)
+    await screen.findByRole('dialog', { name: 'No se lee el ticket' })
+    // The sheet promises the photo because the scan write landed.
+    expect(
+      screen.getByText(
+        'Se distinguen la tienda y el total; la foto se guarda con la compra',
+      ),
+    ).toBeInTheDocument()
+    expect(api.submitParsedReceipt).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      expect.objectContaining({ purchase_id: null, lines: [] }),
+    )
+    expect(uploadReceiptFile).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      'scan-t1',
+      expect.any(File),
+    )
+  })
+
+  it('a failed capture store still opens the rescue, promising no photo', async () => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue(illegibleParse)
+    vi.mocked(api.submitParsedReceipt).mockRejectedValue(new Error('down'))
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    pickFile(container)
+    // Storing the paper is a bonus — its failure must never cost the rescue.
+    await screen.findByRole('dialog', { name: 'No se lee el ticket' })
+    expect(
+      screen.getByText('Se distinguen la tienda y el total, nada más'),
+    ).toBeInTheDocument()
+    expect(uploadReceiptFile).not.toHaveBeenCalled()
   })
 })
 

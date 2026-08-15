@@ -1641,3 +1641,39 @@ def test_targeted_apply_returns_409_for_the_open_cart(client, session):
 def test_receipt_price_batch_defaults_purchase_id_none():
     batch = ReceiptPriceBatch(patches=[], new_items=[], mappings=[])
     assert batch.purchase_id is None
+
+
+# --- Illegible captures: a zero-line scan still leaves a record (18c) ---
+
+
+def test_zero_line_scan_persists_a_lineless_record(client, session):
+    """An unreadable ticket is still a scan: the row exists so the capture has
+    somewhere to live, and the 18c save can later name it."""
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body() | {"lines": []})
+    assert response.status_code == 200
+    result = response.json()
+    assert result["matched"] == []
+    assert result["unmatched"] == []
+
+    scan = session.get(ReceiptScan, result["scan_id"])
+    assert scan.parsed_lines == []
+    assert scan.purchase_id is None
+
+
+def test_zero_line_scan_survives_store_inference_with_no_store(client, session):
+    """No store and no lines: the inference pass has nothing to work with and
+    must pass through rather than crash."""
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body(store=None) | {"lines": []})
+    assert response.status_code == 200
+    assert response.json()["store"] is None
+
+
+def test_targeted_zero_line_scan_links_at_creation(client, session, settled_trip):
+    """Zero lines means no review opens, so no apply will ever write the link —
+    creation is the one chance to give the named record its capture."""
+    response = client.post(f"/lists/{LIST_ID}/receipt", json=_targeted_scan_body(lines=[]))
+    assert response.status_code == 200
+    scan_id = response.json()["scan_id"]
+
+    session.expire_all()
+    assert session.get(ReceiptScan, scan_id).purchase_id == SETTLED_ID

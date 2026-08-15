@@ -221,6 +221,26 @@ export async function installApiMocks(page: Page): Promise<void> {
         return json({ purchases: [], total: 0 })
       }
 
+      // /lists/:id/purchases/manual — the 18c partial save. Echoes the
+      // submitted figures back as the born-closed record the backend writes;
+      // the sheet only awaits success, so the boundary instants can be flat.
+      if (sub === '/purchases/manual' && method === 'POST') {
+        const body = (req.postDataJSON() ?? {}) as {
+          date?: string
+          store?: string | null
+          total?: number | null
+        }
+        return json({
+          id: 'manual-purchase-1',
+          list_id: listId,
+          opened_at: `${body.date}T00:00:00`,
+          tears_off_at: `${body.date}T23:59:59`,
+          closed_at: `${body.date}T23:59:59`,
+          store: body.store ?? null,
+          total: body.total ?? null,
+        })
+      }
+
       // /lists/:id/purchases/:pid/receipt-scans — the 25b thumbnail lookup.
       // Only the seeded con-ticket trip has a stored file.
       const scansMatch = sub.match(/^\/purchases\/([^/]+)\/receipt-scans$/)
