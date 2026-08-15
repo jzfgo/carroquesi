@@ -1089,6 +1089,55 @@ def test_a_future_dated_manual_purchase_is_rejected(client: TestClient):
     assert response.status_code == 422
 
 
+def test_a_manual_save_with_a_scan_id_links_the_scan(client: TestClient, session: Session, user):
+    """The 18c rescue: an unreadable ticket's lineless scan hangs its stored
+    capture on the record the user saves, so it shows paper from day one."""
+    from app.db.models import ReceiptScan
+
+    lst = _create_list(client)
+    scan = ReceiptScan(list_id=lst["id"], scanned_by=user.id, parsed_lines=[])
+    session.add(scan)
+    session.commit()
+
+    response = _manual(
+        client, lst["id"], store="Lidl", date=_client_today(), total=23.40, scan_id=scan.id
+    )
+
+    assert response.status_code == 200
+    session.expire_all()
+    assert session.get(ReceiptScan, scan.id).purchase_id == response.json()["id"]
+    (row,) = _page(client, lst["id"]).json()["purchases"]
+    assert row["has_receipt"] is True
+
+
+def test_a_manual_save_with_an_unknown_scan_id_is_404(client: TestClient, session: Session):
+    lst = _create_list(client)
+
+    response = _manual(client, lst["id"], date=_client_today(), scan_id="no-such-scan")
+
+    assert response.status_code == 404
+    # Nothing half-saved: the purchase was refused along with the link.
+    assert session.exec(select(Purchase).where(Purchase.list_id == lst["id"])).all() == []
+
+
+def test_a_manual_save_cannot_link_another_lists_scan(client: TestClient, session: Session, user):
+    """A cross-list link would surface another household's paper through the
+    per-trip scan read, which trusts purchase_id alone."""
+    from app.db.models import ReceiptScan
+
+    lst = _create_list(client)
+    other = _create_list(client)
+    scan = ReceiptScan(list_id=other["id"], scanned_by=user.id, parsed_lines=[])
+    session.add(scan)
+    session.commit()
+
+    response = _manual(client, lst["id"], date=_client_today(), scan_id=scan.id)
+
+    assert response.status_code == 404
+    session.expire_all()
+    assert session.get(ReceiptScan, scan.id).purchase_id is None
+
+
 def test_a_blank_manual_store_reads_back_as_none(client: TestClient, session: Session):
     """An empty-string store is a bare record, not a store named ""."""
     lst = _create_list(client)

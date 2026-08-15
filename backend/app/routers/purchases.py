@@ -616,6 +616,17 @@ def create_manual_purchase(
             detail="A manual purchase cannot be dated in the future",
         )
 
+    # The paper an unreadable ticket left behind (18c): a lineless scan the
+    # client asks this record to carry. Resolved up front so a bad reference
+    # fails the request whole. The list check is load-bearing — the per-trip
+    # scan read filters the trip by list but returns scans by purchase_id
+    # alone, so a cross-list link would surface another household's paper.
+    scan: ReceiptScan | None = None
+    if body.scan_id is not None:
+        scan = session.get(ReceiptScan, body.scan_id)
+        if scan is None or scan.list_id != lst.id:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scan not found")
+
     # An empty store is not a store: coerce blank to None so a bare record reads
     # back the same whether the caller omitted store or sent "". ensure_stores
     # already skips blanks; this keeps the Purchase.store column consistent too.
@@ -645,6 +656,16 @@ def create_manual_purchase(
         total=body.total,
     )
     session.add(purchase)
+    if scan is not None:
+        # Consent gated the scan's creation; linking what it stored to the
+        # record it rescued is not the processing act, so membership suffices.
+        # The write is a blind overwrite: today's only caller sends a scan it
+        # minted moments ago, still unlinked, and the 404 above keeps any
+        # handcrafted id inside the caller's own list. If scan ids ever become
+        # reusable across sessions, guard here against stealing a paper that
+        # is already linked to another purchase.
+        scan.purchase_id = purchase.id
+        session.add(scan)
     if store is not None:
         ensure_stores(session, lst.id, [store])
     lst.updated_at = now

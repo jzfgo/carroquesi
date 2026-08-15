@@ -322,6 +322,9 @@ export function ListScreen({
     store: string | null
     date: string | null
     total: number | null
+    // The lineless scan holding the stored capture; the 18c save links it to
+    // the record it writes. Null when storing the paper failed.
+    scanId: string | null
   } | null>(null)
   const receiptImageUrlRef = useRef<string | null>(null)
   const [receiptUploading, setReceiptUploading] = useState(false)
@@ -523,8 +526,40 @@ export function ListScreen({
         // Not in a targeted scan, though: its purchase already exists, and the
         // 18c rescue would write a duplicate — an unreadable paper just says so.
         if (parsed.lines.length === 0) {
+          // Store the paper anyway: an unreadable ticket is exactly the paper
+          // worth keeping. Best-effort — losing this bonus must never cost the
+          // rescue, so the catch is local (the outer one would toast a
+          // processing error and never mount the 18c sheet).
+          let scanId: string | null = null
+          try {
+            const result = await submitParsedReceipt(getToken, listId, {
+              ...parsed,
+              purchase_id: receiptScanTarget?.purchaseId ?? null,
+            })
+            scanId = result.scan_id
+            void uploadReceiptFile(
+              getToken,
+              listId,
+              result.scan_id,
+              file,
+            ).catch((e: unknown) => {
+              console.error('Receipt file upload failed:', e)
+            })
+          } catch (e) {
+            console.error('Illegible receipt store failed:', e)
+          }
           if (receiptScanTarget) {
-            setToast('No se pudo leer el ticket')
+            // The server attached the capture to the named purchase when it
+            // wrote the scan row, so the card's thumb turns solid on refresh —
+            // but only promise the photo when that write actually landed.
+            if (scanId) {
+              setToast(
+                'No se pudo leer el ticket, pero la foto queda guardada en la compra',
+              )
+              invalidateAfterTripChange()
+            } else {
+              setToast('No se pudo leer el ticket')
+            }
             setReceiptImage(null, isPdf)
             setPendingScan(null)
             setReceiptScanTarget(null)
@@ -534,6 +569,7 @@ export function ListScreen({
             store: parsed.store ?? null,
             date: parsed.receipt_date ?? null,
             total: parsed.receipt_total ?? null,
+            scanId,
           })
           // The illegible sheet renders a static «no se lee» thumbnail, never the
           // capture — so create no blob here; just clear any prior one.
@@ -567,7 +603,13 @@ export function ListScreen({
         setReceiptUploading(false)
       }
     },
-    [getToken, listId, setReceiptImage, receiptScanTarget],
+    [
+      getToken,
+      listId,
+      setReceiptImage,
+      receiptScanTarget,
+      invalidateAfterTripChange,
+    ],
   )
 
   const handleReceiptConfirm = useCallback(
@@ -1493,6 +1535,7 @@ export function ListScreen({
         <ReceiptIllegibleSheet
           listId={listId}
           getToken={getToken}
+          scanId={illegibleRescue.scanId}
           rescuedStore={illegibleRescue.store}
           rescuedDate={illegibleRescue.date}
           rescuedTotal={illegibleRescue.total}

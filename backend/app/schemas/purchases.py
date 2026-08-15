@@ -95,6 +95,10 @@ class PurchaseManualBody(BaseModel):
     # on PurchaseCloseBody.total: a Pydantic constraint able to reject a NaN
     # total crashes FastAPI's own 422 handler when it echoes the value back.
     total: float | None = None
+    # The lineless scan whose paper this record should carry (the 18c rescue:
+    # an unreadable ticket still saves its capture). The handler links the
+    # scan to the purchase it creates, so the record shows its paper.
+    scan_id: str | None = None
 
 
 class PurchaseRead(BaseModel):

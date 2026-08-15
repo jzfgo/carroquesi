@@ -24,6 +24,7 @@ function renderSheet(
     <ReceiptIllegibleSheet
       listId="l1"
       getToken={getToken}
+      scanId="scan-1"
       rescuedStore="Carrefour"
       rescuedDate="2026-07-26"
       rescuedTotal={41.6}
@@ -90,7 +91,29 @@ test('«Guardar solo la tienda y el total» posts {date, store, total} with edit
   expect(body.store).toBe('Lidl')
   expect(body.total).toBe(9.99)
   expect(body.date).toBe('2026-07-26')
+  expect(body.scan_id).toBe('scan-1')
   await waitFor(() => expect(onDone).toHaveBeenCalled())
+})
+
+test('the subtitle promises the photo only when a scan holds it', () => {
+  renderSheet()
+  expect(
+    screen.getByText(
+      'Se distinguen la tienda y el total; la foto se guarda con la compra',
+    ),
+  ).toBeInTheDocument()
+})
+
+test('without a stored scan the save carries no scan_id and promises no photo', async () => {
+  renderSheet({ scanId: null })
+  expect(
+    screen.getByText('Se distinguen la tienda y el total, nada más'),
+  ).toBeInTheDocument()
+
+  fireEvent.click(screen.getByText('Guardar solo la tienda y el total'))
+
+  await waitFor(() => expect(manualPurchase).toHaveBeenCalled())
+  expect(vi.mocked(manualPurchase).mock.calls.at(-1)![2].scan_id).toBeNull()
 })
 
 test('a four-figure rescued total round-trips whole (no thousands separator)', async () => {

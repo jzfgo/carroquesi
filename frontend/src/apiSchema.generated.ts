@@ -1418,6 +1418,8 @@ export interface components {
              * Format: date
              */
             date: string;
+            /** Scan Id */
+            scan_id?: string | null;
             /** Store */
             store?: string | null;
             /** Total */

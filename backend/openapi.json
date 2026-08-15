@@ -1486,6 +1486,17 @@
             "title": "Date",
             "type": "string"
           },
+          "scan_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Id"
+          },
           "store": {
             "anyOf": [
               {

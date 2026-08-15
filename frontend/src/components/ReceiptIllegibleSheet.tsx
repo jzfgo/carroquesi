@@ -21,6 +21,10 @@ type Editing = 'store' | 'date' | 'total' | null
 interface Props {
   listId: string
   getToken: () => Promise<string>
+  /** The lineless scan holding the stored capture; the save links it to the
+   *  record it writes, so the purchase shows its paper from day one. Null when
+   *  storing the paper failed — the sheet then promises no photo. */
+  scanId: string | null
   /** What the parse rescued when it read no lines — each may be null. */
   rescuedStore: string | null
   /** A UTC instant from the parse, or null; reduced to a calendar day here. */
@@ -55,7 +59,9 @@ function formatDayLabel(iso: string): string {
  * *did* rescue — store, date, total, all three editable — and offers to save
  * just that as a manual purchase (the merged JAV-129 endpoint). Store + date +
  * total keep the month's spending square; only per-product prices are lost, and
- * that beats forcing a retake. «Descartar» goes last, in plain ink, no confirm —
+ * that beats forcing a retake. The capture itself is already stored against a
+ * lineless scan by then, and the save hands that scan to the record — the
+ * unreadable paper survives with the purchase it documents. «Descartar» goes last, in plain ink, no confirm —
  * an exit, not a button pressed by inertia. The three photo tips live here, at
  * failure time, because that's the one moment anyone reads how to take the photo.
  *
@@ -65,6 +71,7 @@ function formatDayLabel(iso: string): string {
 export function ReceiptIllegibleSheet({
   listId,
   getToken,
+  scanId,
   rescuedStore,
   rescuedDate,
   rescuedTotal,
@@ -118,6 +125,9 @@ export function ReceiptIllegibleSheet({
         // A store is optional; a blank one is a bare record, not a shop named "".
         store: store.trim() || null,
         total: parseAmount(totalText),
+        // The stored capture rides along: the backend links the scan to the
+        // record it is about to write.
+        scan_id: scanId,
       }
       await manualPurchase(getToken, listId, body)
       onDone()
@@ -139,7 +149,9 @@ export function ReceiptIllegibleSheet({
         <span className="rill-head__text">
           <span className="rill-head__title">No se lee el ticket</span>
           <span className="rill-head__sub">
-            Se distinguen la tienda y el total, nada más
+            {scanId
+              ? 'Se distinguen la tienda y el total; la foto se guarda con la compra'
+              : 'Se distinguen la tienda y el total, nada más'}
           </span>
         </span>
       </div>
