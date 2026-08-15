@@ -508,6 +508,8 @@ export function ListScreen({
         } catch (e) {
           console.error('Receipt scan AI read failed:', e)
           setToast('No se pudo leer el ticket')
+          // The session ended without a review; the aim ends with it.
+          setReceiptScanTarget(null)
           return
         }
 
@@ -560,6 +562,7 @@ export function ListScreen({
       } catch (e) {
         console.error('Receipt scan submit failed:', e)
         setToast('No se pudo procesar el ticket')
+        setReceiptScanTarget(null)
       } finally {
         setReceiptUploading(false)
       }

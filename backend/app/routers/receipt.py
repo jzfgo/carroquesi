@@ -294,8 +294,8 @@ def apply_receipt_prices(
             # A targeted line files onto the named ticket at its opening —
             # opened_at is the floor of its lines' purchased_at, and a
             # receipt-midnight timestamp could precede it. The fresh
-            # updated_at default keeps the new line un-purchasable within
-            # the grace window, like any other just-written record.
+            # updated_at default opens the grace window, so the new line
+            # can still be un-purchased like any other just-written record.
             purchased_at=target.opened_at if target is not None else purchase_ts,
             purchase_id=target.id if target is not None else settle_trip().id,
         )
