@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Candidate B: "El carro que sí". Hand-crafted SVG for JAV-122; not generated.
+       The name made literal: a cart whose basket answers yes - a solid
+       BIC-pen-blue basket with the check knocked out in paper. Palette:
+       tinta-0 #1a3fa0, paper-0 #eef1f5. Full-bleed square; all content sits
+       inside the maskable safe zone (circle r=205 around 256,256). -->
+  <rect width="512" height="512" fill="#eef1f5"/>
+  <!-- handle, one loose pen stroke -->
+  <path d="M100 136 c16 -7 33 -7 48 -2 l24 52"
+        fill="none" stroke="#1a3fa0" stroke-width="30"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- basket: wobbly trapezoid, drawn slightly off-square on purpose -->
+  <path d="M152 178
+           c80 -10 166 -9 244 -6
+           c-10 56 -22 108 -38 158
+           c-3 10 -11 16 -22 16
+           l-124 4
+           c-11 0 -19 -6 -22 -16
+           c-14 -52 -26 -104 -38 -156
+           z" fill="#1a3fa0"/>
+  <!-- the yes, knocked out of the basket -->
+  <path d="M212 240 c11 8 25 24 33 40 c17 -37 40 -60 62 -76"
+        fill="none" stroke="#eef1f5" stroke-width="30"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- wheels -->
+  <circle cx="220" cy="396" r="27" fill="#1a3fa0"/>
+  <circle cx="332" cy="394" r="27" fill="#1a3fa0"/>
+</svg>
