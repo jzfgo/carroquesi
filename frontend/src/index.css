@@ -153,3 +153,19 @@ code {
     transition: none;
   }
 }
+
+/* Same overlay trick as the offline band: fixed, never in flow. Lower
+   z-index so the offline state paints over the environment label. */
+.environment-band {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 140;
+  background: #9a3412;
+  color: #fff;
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 4px 8px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 4px);
+}

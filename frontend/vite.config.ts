@@ -2,6 +2,9 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
 
+// Read at build time so the two deployments install as distinct PWAs.
+const environmentLabel = process.env.VITE_ENVIRONMENT_LABEL
+
 export default defineConfig({
   plugins: [
     react(),
@@ -15,8 +18,10 @@ export default defineConfig({
         type: 'module',
       },
       manifest: {
-        name: 'CarroQueSí',
-        short_name: 'Carroquesí',
+        name: environmentLabel
+          ? `CarroQueSí (${environmentLabel})`
+          : 'CarroQueSí',
+        short_name: environmentLabel ? `CQS ${environmentLabel}` : 'Carroquesí',
         description: 'Lista de compra colaborativa',
         // The manifest is its own document and does not inherit the page's
         // lang. Left unset, the plugin fills in "en" over Spanish strings.

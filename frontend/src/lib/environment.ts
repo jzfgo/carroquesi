@@ -31,3 +31,7 @@ export const DEV_USER_ID = import.meta.env.VITE_DEV_USER_ID as
 
 export const IS_WAITLIST_ENABLED =
   import.meta.env.VITE_WAITLIST_ENABLED === 'true'
+
+/** Names the deployment ("staging"); unset in production and local dev. */
+export const ENVIRONMENT_LABEL = import.meta.env.VITE_ENVIRONMENT_LABEL as
+  string | undefined

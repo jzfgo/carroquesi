@@ -1,6 +1,7 @@
 import React from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { DashboardScreen } from './components/DashboardScreen'
+import { EnvironmentBand } from './components/EnvironmentBand'
 import { InviteScreen } from './components/InviteScreen'
 import { ListRoute } from './components/ListRoute'
 import { Loading } from './components/Loading'
@@ -57,6 +58,7 @@ export default function App() {
         <FeatureFlagsProvider>
           <ThemeManager>
             <OfflineBand />
+            <EnvironmentBand />
             <PushNavigation />
             <Routes>
               <Route path="/invite/:id" element={<InviteScreen />} />
