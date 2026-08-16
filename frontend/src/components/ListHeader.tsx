@@ -1,4 +1,4 @@
-import { Menu } from 'lucide-react'
+import { Menu, Search } from 'lucide-react'
 import './ListHeader.css'
 
 interface Props {
@@ -6,9 +6,16 @@ interface Props {
   emoji: string | null
   onMenuOpen: () => void
   onBack?: () => void
+  onSearch?: () => void
 }
 
-export function ListHeader({ title, emoji, onMenuOpen, onBack }: Props) {
+export function ListHeader({
+  title,
+  emoji,
+  onMenuOpen,
+  onBack,
+  onSearch,
+}: Props) {
   return (
     <header className="list-header">
       {onBack ? (
@@ -30,13 +37,24 @@ export function ListHeader({ title, emoji, onMenuOpen, onBack }: Props) {
         )}
         {title}
       </h1>
-      <button
-        className="list-header__menu"
-        onClick={onMenuOpen}
-        aria-label="Abrir menú"
-      >
-        <Menu size={20} />
-      </button>
+      <div className="list-header__actions">
+        {onSearch && (
+          <button
+            className="list-header__action"
+            onClick={onSearch}
+            aria-label="Buscar en la lista"
+          >
+            <Search size={20} />
+          </button>
+        )}
+        <button
+          className="list-header__menu"
+          onClick={onMenuOpen}
+          aria-label="Abrir menú"
+        >
+          <Menu size={20} />
+        </button>
+      </div>
     </header>
   )
 }

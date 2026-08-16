@@ -1,5 +1,6 @@
-import type { Page } from '@playwright/test'
+import type { Page, Route } from '@playwright/test'
 import {
+  ALICE,
   awaitPrimingCard,
   expect,
   expectScreenshot,
@@ -24,24 +25,13 @@ async function assertListScreenLoaded(page: Page) {
 
 async function addItemManzanas(page: Page) {
   await page.goto(`/lists/${SEED_LISTS[0].id}`)
-  await page.getByLabel('Añadir producto').fill('Manzanas')
-  await page.getByRole('button', { name: 'Añadir', exact: true }).click()
+  // While the field is focused the trailing control is «Borrar», not the send
+  // button — the up-arrow «Añadir» only appears once the field blurs. So the
+  // way to submit with the keyboard up is Enter, which is how a user does it.
+  const input = page.getByLabel('Añadir producto')
+  await input.fill('Manzanas')
+  await input.press('Enter')
   await expect(page.getByText('Manzanas')).toBeVisible()
-  // The name arrives with the optimistic item, which carries no author yet, so
-  // its avatar reads "?" until the created item comes back and replaces it.
-  // Both states are on screen for real, and the screenshot below settles for
-  // whichever one it finds first — so wait for the one the baseline depicts.
-  //
-  // Assert the initial rather than the absence of "?". A negated matcher is
-  // satisfied by an element that is not there at all, so renaming the class
-  // would delete this wait without failing anything, and the race would come
-  // back unannounced. The author is seeded, so "A" is a fixture, not a guess.
-  await expect(
-    page
-      .locator('.item-card')
-      .filter({ hasText: 'Manzanas' })
-      .locator('.item-card__avatar'),
-  ).toHaveText('A')
   await awaitPrimingCard(page)
 }
 
@@ -68,8 +58,89 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await addItemManzanas(page)
       await expectScreenshot(page, `add-item-${themeName}.png`)
     })
+
+    test('avatar opens the settings sheet', async ({ page }) => {
+      await assertDashboardLoaded(page)
+      await page.getByRole('button', { name: 'Ajustes' }).click()
+      await expect(page.getByRole('dialog', { name: 'Ajustes' })).toBeVisible()
+      await expect(page.getByText('Salir de la cuenta')).toBeVisible()
+      await expectScreenshot(page, `settings-sheet-${themeName}.png`)
+    })
+
+    test('the first scan attempt asks for consent', async ({ page }) => {
+      // An undecided user (receipt_consent: null) is what triggers the
+      // disclosure — the seed fixture has already granted, so override the
+      // user payload for this one screen.
+      const undecided = JSON.stringify({ ...ALICE, receipt_consent: null })
+      const fulfillUndecided = (route: Route) =>
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: undecided,
+        })
+      await page.route('**/auth/sync', fulfillUndecided)
+      await page.route('**/users/me', fulfillUndecided)
+
+      await assertListScreenLoaded(page)
+      await page.getByRole('button', { name: /abrir menú/i }).click()
+      await page.getByRole('button', { name: 'Escanear ticket' }).click()
+      await expect(
+        page.getByRole('button', { name: 'Activar escaneo' }),
+      ).toBeVisible()
+      await expectScreenshot(page, `receipt-consent-${themeName}.png`)
+    })
   })
 }
+
+// The 34a override: an explicit preference beats the OS scheme, and the
+// pre-paint script in index.html restores it before first paint on the next
+// load. The dark baselines above stay on pure OS dark — no stored preference —
+// so they keep exercising the media-query path this test deliberately leaves.
+test.describe('appearance override', () => {
+  test.use({ colorScheme: 'dark' })
+
+  test('picking Claro overrides OS dark and survives a reload', async ({
+    page,
+  }) => {
+    await assertDashboardLoaded(page)
+    await page.getByRole('button', { name: 'Ajustes' }).click()
+    await expect(page.getByRole('dialog', { name: 'Ajustes' })).toBeVisible()
+    await page.getByRole('radio', { name: 'Claro' }).click()
+
+    const html = page.locator('html')
+    await expect(html).toHaveClass(/theme-light/)
+    // The light --paper-0, painted from :root — the class must beat the
+    // media query, not merely be present.
+    await expect(html).toHaveCSS('background-color', 'rgb(238, 241, 245)')
+
+    await page.reload()
+    await expect(page.getByLabel(SEED_LISTS[0].name)).toBeVisible()
+    await expect(html).toHaveClass(/theme-light/)
+    await expect(html).toHaveCSS('background-color', 'rgb(238, 241, 245)')
+  })
+})
+
+// The 38a panel geometry is a style rule, and a drift smaller than the
+// screenshot pixel budget would vanish silently — so the load-bearing numbers
+// are asserted as computed styles too: 36px emoji column, 28px glyph, and the
+// 56/50px row heights (with and without a subtitle).
+test('panel rows keep the 38a geometry', async ({ page }) => {
+  await page.goto('/')
+  const rows = page.locator('.list-card')
+  await expect(rows).toHaveCount(SEED_LISTS.length)
+
+  await expect(rows.first()).toHaveCSS('grid-template-columns', /^36px /)
+
+  await expect(page.locator('.list-card__emoji').first()).toHaveCSS(
+    'font-size',
+    '28px',
+  )
+
+  // Compra semanal is shared with a cart running, so its row carries a
+  // subtitle; Fiesta de cumple is solo with an empty cart and stays compact.
+  expect((await rows.nth(0).boundingBox())?.height).toBe(56)
+  expect((await rows.nth(1).boundingBox())?.height).toBe(50)
+})
 
 // A screen reader picks its pronunciation engine from `lang`. Nothing on
 // screen changes when it is wrong, so no screenshot can catch this. The

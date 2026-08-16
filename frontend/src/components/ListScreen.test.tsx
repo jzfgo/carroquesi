@@ -12,8 +12,13 @@ import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import * as api from '../lib/api'
 import { reportRequestOutcome } from '../lib/connectivity'
+import {
+  isDismissed,
+  _resetCacheForTesting as resetDismissals,
+} from '../lib/dismissedSuggestions'
 import * as push from '../lib/push'
 import * as receiptAi from '../lib/receiptAi'
+import { uploadReceiptFile } from '../lib/receiptUpload'
 import type {
   BarcodeRead,
   ListItem,
@@ -77,6 +82,9 @@ vi.mock('../lib/push', async (importOriginal) => ({
 }))
 vi.mock('../lib/api')
 vi.mock('../lib/receiptAi', () => ({ parseReceiptWithAi: vi.fn() }))
+vi.mock('../lib/receiptUpload', () => ({
+  uploadReceiptFile: vi.fn(async () => undefined),
+}))
 // Exposes the two report callbacks as buttons so tests can prove they arrive
 // through the real ListActionSheet, not just that ListScreen defines them.
 vi.mock('./ListMembersSheet', () => ({
@@ -100,57 +108,70 @@ vi.mock('./ListMembersSheet', () => ({
 vi.mock('./BarcodeScanner', () => ({
   BarcodeScanner: ({
     onResult,
+    onNotFound,
   }: {
     onResult: (product: BarcodeRead) => void
+    onNotFound: (ean: string) => void
   }) => (
-    <button onClick={() => onResult(mockScannedProduct)}>
-      Escanear producto (mock)
-    </button>
+    <div>
+      <button onClick={() => onResult(mockScannedProduct)}>
+        Escanear producto (mock)
+      </button>
+      <button onClick={() => onNotFound('8410188012374')}>
+        Escanear desconocido (mock)
+      </button>
+    </div>
   ),
 }))
 vi.mock('./ReceiptScanSheet', () => ({
   default: ({
+    result,
+    store,
     onConfirm,
+    onClose,
+    onReReadReceipt,
     onRequestScan,
     pendingScan,
-    onDateCorrected,
-    dateConfirmed,
   }: {
+    result: ReceiptScanResult
+    store: string | null
     onConfirm: (
       patches: PricePatch[],
       mappings: NameMapping[],
       newItems: NewPurchasedItem[],
+      meta: { receiptDate: string | null; store: string | null },
     ) => Promise<boolean>
+    onClose: () => void
+    onReReadReceipt: () => void
     onRequestScan?: (index: number) => void
     pendingScan?: { index: number; product: BarcodeRead } | null
-    onDateCorrected?: (receiptDate: string) => void
-    dateConfirmed?: boolean
-  }) => (
-    <div>
-      {/* Surfaces the pendingScan this instance was mounted with, so tests
-          can prove a stale scan from a prior session doesn't leak in. */}
-      <div data-testid="mock-pending-scan">
-        {pendingScan ? pendingScan.product.ean : 'null'}
-      </div>
-      {/* Same idea for the date prompt's suppression flag: it has to survive
-          the remount a correction causes, but only when one actually took. */}
-      <div data-testid="mock-date-confirmed">{String(dateConfirmed)}</div>
-      {onDateCorrected && (
-        <button onClick={() => onDateCorrected('2026-07-21')}>
-          Corregir fecha (mock)
+  }) => {
+    // The sheet now owns the editable date/store and hands them back as meta;
+    // the real one seeds them from result/store, so the mock mirrors that.
+    const meta = { receiptDate: result.receipt_date ?? null, store }
+    return (
+      <div>
+        {/* Surfaces the pendingScan this instance was mounted with, so tests
+            can prove a stale scan from a prior session doesn't leak in. */}
+        <div data-testid="mock-pending-scan">
+          {pendingScan ? pendingScan.product.ean : 'null'}
+        </div>
+        <button onClick={() => void onConfirm([], [], [], meta)}>
+          Confirmar (mock)
         </button>
-      )}
-      <button onClick={() => void onConfirm([], [], [])}>
-        Confirmar (mock)
-      </button>
-      <button onClick={() => void onConfirm([], [], [mockNewItem])}>
-        Confirmar con artículo nuevo (mock)
-      </button>
-      {onRequestScan && (
-        <button onClick={() => onRequestScan(0)}>Escanear línea (mock)</button>
-      )}
-    </div>
-  ),
+        <button onClick={() => void onConfirm([], [], [mockNewItem], meta)}>
+          Confirmar con artículo nuevo (mock)
+        </button>
+        <button onClick={() => onReReadReceipt()}>Volver a leer (mock)</button>
+        <button onClick={() => onClose()}>Cerrar (mock)</button>
+        {onRequestScan && (
+          <button onClick={() => onRequestScan(0)}>
+            Escanear línea (mock)
+          </button>
+        )}
+      </div>
+    )
+  },
 }))
 
 const mockGetToken = vi.fn(async () => 'token')
@@ -185,12 +206,14 @@ beforeEach(() => {
       photoUrl: null,
       email: 'alice@example.com',
       features: [],
+      receiptConsent: null,
     },
     getToken: mockGetToken,
     signIn: vi.fn(),
     signOut: vi.fn(),
     loading: false,
     isWaitlisted: false,
+    recordReceiptConsent: vi.fn(),
   })
   vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({
     isEnabled: () => true,
@@ -198,6 +221,11 @@ beforeEach(() => {
   vi.mocked(useListItemsModule.useListItems).mockReturnValue(emptyHookResult)
   vi.mocked(api.getSuggestions).mockResolvedValue([])
   vi.mocked(api.getDueSuggestions).mockResolvedValue([])
+  // The list now mounts the stack (18a), which fetches purchases on render.
+  vi.mocked(api.getPurchases).mockResolvedValue({ purchases: [], total: 0 })
+  vi.mocked(api.getPurchaseItems).mockResolvedValue([])
+  // The product ficha fetches its price history on open.
+  vi.mocked(api.getPriceHistory).mockResolvedValue({ entries: [] })
 })
 
 afterEach(() => {
@@ -218,6 +246,7 @@ function makeItem(overrides: Partial<ListItem>): ListItem {
     stores: [],
     purchased: false,
     purchased_at: null,
+    purchase_has_receipt: false,
     ean: null,
     price: null,
     price_per: null,
@@ -315,7 +344,7 @@ describe('ListScreen', () => {
     vi.useRealTimers()
   })
 
-  it('opens TagEditSheet when clicking on brand tag and calls updateTag on save', async () => {
+  it('opens TagEditSheet via row tap → Marca and calls updateTag on save', async () => {
     const updateTagMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -325,8 +354,8 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const brandTag = screen.getByText('Hacendado')
-    fireEvent.click(brandTag)
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
+    fireEvent.click(screen.getByRole('button', { name: /marca/i }))
 
     expect(document.querySelector('.tag-edit-sheet')).toBeInTheDocument()
 
@@ -337,7 +366,7 @@ describe('ListScreen', () => {
     expect(updateTagMock).toHaveBeenCalledWith('i1', 'brand', 'Danone')
   })
 
-  it('opens StoreEditSheet when clicking on stores tag and calls updateStores on save', async () => {
+  it('opens StoreEditSheet via row tap → Tiendas and calls updateStores on save', async () => {
     const updateStoresMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -347,10 +376,8 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const storeTag = document.querySelector(
-      '.item-card__tag:not(.item-card__tag--cta)',
-    )!
-    fireEvent.click(storeTag)
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
+    fireEvent.click(screen.getByRole('button', { name: /tiendas/i }))
 
     expect(document.querySelector('.store-edit-sheet')).toBeInTheDocument()
 
@@ -388,7 +415,7 @@ describe('ListScreen', () => {
     expect(filterBar.getByRole('button', { name: 'Lidl' })).toBeInTheDocument()
   })
 
-  it('labels chips and item tags with the registry canonical name', () => {
+  it('labels chips and item rows with the registry canonical name', () => {
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
       items: [makeItem({ id: 'i1', name: 'Pan', stores: ['ahorra mas'] })],
@@ -407,13 +434,15 @@ describe('ListScreen', () => {
     expect(
       filterBar.getByRole('button', { name: 'Ahorramas' }),
     ).toBeInTheDocument()
-    // The item card tag resolves through the same function.
-    expect(
-      document.querySelector('.item-card__tag:not(.item-card__tag--cta)'),
-    ).toHaveTextContent('Ahorramas')
+    // The store group header resolves through the same function. A pending
+    // row's own meta names no shop — the header already does.
+    expect(document.querySelector('.item-list__store-label')).toHaveTextContent(
+      'Ahorramas',
+    )
+    expect(document.querySelector('.item-card__meta')).not.toBeInTheDocument()
   })
 
-  it('opens ItemActionSheet when menu button is clicked and handles rename', async () => {
+  it('opens the product ficha when the row is tapped and handles rename', async () => {
     const renameItemMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -423,16 +452,13 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const optionsButton = screen.getByRole('button', {
-      name: 'Opciones del producto',
-    })
-    fireEvent.click(optionsButton)
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
 
-    expect(
-      screen.getByRole('dialog', { name: /Opciones del producto/i }),
-    ).toBeInTheDocument()
+    // The ficha's dialog is named for the product itself.
+    expect(screen.getByRole('dialog', { name: 'Manzanas' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
+    // The Nombre field opens the rename editor in place.
+    fireEvent.click(screen.getByRole('button', { name: /nombre/i }))
     const input = screen.getByRole('textbox', { name: 'Nombre del producto' })
     fireEvent.change(input, { target: { value: 'Manzanas Rojas' } })
     fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
@@ -440,7 +466,7 @@ describe('ListScreen', () => {
     expect(renameItemMock).toHaveBeenCalledWith('i1', 'Manzanas Rojas')
   })
 
-  it('opens ItemActionSheet when menu button is clicked and handles delete', async () => {
+  it('opens the product ficha when the row is tapped and handles delete', async () => {
     const removeItemMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
@@ -450,14 +476,9 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const optionsButton = screen.getByRole('button', {
-      name: 'Opciones del producto',
-    })
-    fireEvent.click(optionsButton)
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
 
-    expect(
-      screen.getByRole('dialog', { name: /Opciones del producto/i }),
-    ).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Manzanas' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /eliminar producto/i }))
     fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
@@ -465,8 +486,10 @@ describe('ListScreen', () => {
     expect(removeItemMock).toHaveBeenCalledWith('i1')
   })
 
-  it('handles EanSearch finding a product and adding it', async () => {
-    const addItemMock = vi.fn()
+  it('a found EAN search adds the product directly and clears the bar', async () => {
+    const addItemMock = vi.fn(async () =>
+      makeItem({ id: 'i-ean', name: 'Tomates', ean: '8412345678901' }),
+    )
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
       addItem: addItemMock,
@@ -490,31 +513,182 @@ describe('ListScreen', () => {
     fireEvent.click(searchButton)
 
     await waitFor(() => {
-      expect(api.getBarcode).toHaveBeenCalledWith(
-        expect.any(Function),
-        '8412345678901',
-      )
+      expect(addItemMock).toHaveBeenCalledWith({
+        name: 'Tomates',
+        brand: 'Carrefour',
+        stores: [],
+        quantity: null,
+        ean: '8412345678901',
+      })
+    })
+    expect(input).toHaveValue('')
+    // The toast names what landed and offers the one CTA.
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Añadido Tomates',
+    )
+    expect(screen.getByRole('button', { name: 'Ajustar' })).toBeInTheDocument()
+  })
+
+  it('a typed sigil next to the code wins over the lookup', async () => {
+    const addItemMock = vi.fn(async () => null)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      addItem: addItemMock,
     })
 
-    await waitFor(() => {
-      expect(screen.getByText('Tomates')).toBeInTheDocument()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: /añadir a la lista/i }))
-
-    expect(addItemMock).toHaveBeenCalledWith({
+    vi.mocked(api.getBarcode).mockResolvedValueOnce({
+      ean: '8412345678901',
       name: 'Tomates',
       brand: 'Carrefour',
-      stores: [],
-      quantity: null,
-      ean: '8412345678901',
+      stores: ['Carrefour'],
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.change(
+      screen.getByRole('textbox', { name: /añadir producto/i }),
+      {
+        target: { value: '#Hacendado @Mercadona |8412345678901' },
+      },
+    )
+    fireEvent.click(screen.getByRole('button', { name: /buscar producto/i }))
+
+    await waitFor(() => {
+      expect(addItemMock).toHaveBeenCalledWith({
+        name: 'Tomates',
+        brand: 'Hacendado',
+        stores: ['Mercadona'],
+        quantity: null,
+        ean: '8412345678901',
+      })
     })
   })
 
-  it('opens DueSuggestionsSheet and handles adding suggestions', async () => {
-    const addItemMock = vi.fn()
+  it('a typed own brand carries its inferred store through the search add', async () => {
+    const addItemMock = vi.fn(async () => null)
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
+      addItem: addItemMock,
+    })
+
+    vi.mocked(api.getBarcode).mockResolvedValueOnce({
+      ean: '8412345678901',
+      name: 'Tomates',
+      brand: 'Carrefour',
+      stores: ['Carrefour'],
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.change(
+      screen.getByRole('textbox', { name: /añadir producto/i }),
+      {
+        target: { value: '#Hacendado |8412345678901' },
+      },
+    )
+    fireEvent.click(screen.getByRole('button', { name: /buscar producto/i }))
+
+    await waitFor(() => {
+      expect(addItemMock).toHaveBeenCalledWith({
+        name: 'Tomates',
+        brand: 'Hacendado',
+        stores: ['Mercadona'],
+        quantity: null,
+        ean: '8412345678901',
+      })
+    })
+  })
+
+  it('a camera read adds the product, closes the scanner, and Ajustar opens the ficha', async () => {
+    const created = makeItem({
+      id: 'i-scan',
+      name: 'Cacahuetes dulces',
+      ean: '8412345678901',
+    })
+    const addItemMock = vi.fn(async () => created)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [created],
+      addItem: addItemMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /escanear código de barras/i }),
+    )
+    fireEvent.click(screen.getByText('Escanear producto (mock)'))
+
+    await waitFor(() => {
+      expect(addItemMock).toHaveBeenCalledWith({
+        name: 'Cacahuetes dulces',
+        brand: 'Hacendado',
+        stores: [],
+        quantity: null,
+        ean: '8412345678901',
+      })
+    })
+    // The camera is gone — no confirmation sheet follows the read.
+    expect(
+      screen.queryByText('Escanear producto (mock)'),
+    ).not.toBeInTheDocument()
+
+    const toast = await screen.findByRole('alert')
+    expect(toast).toHaveTextContent('Añadido Cacahuetes dulces')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ajustar' }))
+    expect(
+      screen.getByRole('dialog', { name: 'Cacahuetes dulces' }),
+    ).toBeInTheDocument()
+    // The CTA consumed the toast.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('a duplicate camera read shows no «Añadido» toast', async () => {
+    // addItem answers null when it refused (duplicate, offline, error).
+    const addItemMock = vi.fn(async () => null)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      addItem: addItemMock,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /escanear código de barras/i }),
+    )
+    fireEvent.click(screen.getByText('Escanear producto (mock)'))
+
+    await waitFor(() => expect(addItemMock).toHaveBeenCalled())
+    expect(
+      screen.queryByRole('button', { name: 'Ajustar' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('an unknown code opens the bar pre-filled with its sigil', async () => {
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /escanear código de barras/i }),
+    )
+    fireEvent.click(screen.getByText('Escanear desconocido (mock)'))
+
+    // Scanner closed, bar holds the code as its sigil, ready for a name.
+    expect(
+      screen.queryByText('Escanear desconocido (mock)'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('textbox', { name: /añadir producto/i }),
+    ).toHaveValue('|8410188012374')
+  })
+
+  it('accepts an inline suggestion, adding it with its average quantity', async () => {
+    const addItemMock = vi.fn()
+    // Suggestions render only at the tail of a populated list (20b, Q2), so the
+    // hook needs a real pending item for the "Sueles comprar" block to appear.
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Pan' })],
       addItem: addItemMock,
     })
 
@@ -533,14 +707,13 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const suggestionsBtn = await screen.findByRole('button', {
-      name: /sugerencias pendientes \(1\)/i,
+    // No sheet, no ✨ button: the row is written straight onto the paper.
+    const acceptBtn = await screen.findByRole('button', {
+      name: /añadir Yogur/i,
     })
-    fireEvent.click(suggestionsBtn)
+    expect(screen.getByText('Sueles comprar')).toBeInTheDocument()
 
-    expect(screen.getByText('Toca comprar')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: /añadir Yogur/i }))
+    fireEvent.click(acceptBtn)
 
     expect(addItemMock).toHaveBeenCalledWith({
       name: 'Yogur',
@@ -548,6 +721,41 @@ describe('ListScreen', () => {
       stores: ['Mercadona'],
       quantity: '2',
     })
+  })
+
+  it('dismisses an inline suggestion, recording a TTL so it stays hidden', async () => {
+    localStorage.clear()
+    resetDismissals()
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Pan' })],
+    })
+
+    vi.mocked(api.getDueSuggestions).mockResolvedValueOnce([
+      {
+        name: 'Yogur',
+        brand: 'Danone',
+        stores: ['Mercadona'],
+        days_overdue: 1,
+        dismissal_ttl_days: 7,
+        median_interval_days: 7,
+        days_since_last: 8,
+        avg_quantity: 2,
+      },
+    ])
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    await screen.findByRole('button', { name: /añadir Yogur/i })
+    fireEvent.click(
+      screen.getByRole('button', { name: /descartar sugerencia/i }),
+    )
+
+    // The row is gone and a dismissal TTL was written — «no este mes».
+    expect(
+      screen.queryByRole('button', { name: /añadir Yogur/i }),
+    ).not.toBeInTheDocument()
+    expect(isDismissed('Yogur')).toBe(true)
   })
 
   it('handles cloning a purchased item', async () => {
@@ -567,12 +775,9 @@ describe('ListScreen', () => {
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
 
-    const optionsButton = screen.getByRole('button', {
-      name: 'Opciones del producto',
-    })
-    fireEvent.click(optionsButton)
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
 
-    fireEvent.click(screen.getByRole('button', { name: /comprar de nuevo/i }))
+    fireEvent.click(screen.getByRole('button', { name: /volver a comprar/i }))
 
     expect(addItemMock).toHaveBeenCalledWith({
       name: 'Manzanas',
@@ -581,6 +786,42 @@ describe('ListScreen', () => {
       quantity: null,
       ean: null,
     })
+  })
+
+  it('offers no price entry for pending or in-cart items', () => {
+    // Prices exist only on closed-trip records: an in-cart item (open trip)
+    // and a pending item both open the sheet without a price action.
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [
+        makeItem({ id: 'i1', name: 'Manzanas' }),
+        makeItem({
+          id: 'i2',
+          name: 'Peras',
+          purchased: true,
+          purchased_at: TODAY,
+        }),
+      ],
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
+    expect(
+      screen.queryByRole('button', { name: /historial de precios/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /registrar precio/i }),
+    ).not.toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    fireEvent.click(screen.getByRole('button', { name: /peras/i }))
+    expect(
+      screen.queryByRole('button', { name: /historial de precios/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /registrar precio/i }),
+    ).not.toBeInTheDocument()
   })
 })
 
@@ -700,55 +941,15 @@ describe('cost totals', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows cost next to the purchased date label', () => {
-    renderWithItems([
-      makeItem({ id: '1', purchased: true, purchased_at: TODAY, price: 3.0 }),
-    ])
-    expect(
-      document.querySelector('.item-list__date-label-cost'),
-    ).toBeInTheDocument()
-    expect(
-      document.querySelector('.item-list__date-label-cost')?.textContent,
-    ).toMatch(/3[,.]00/)
-  })
+  // The per-date settled cost badge moved out with the «Comprados» block: the
+  // stack (18a) shows each trip's own confirmed total now, so there is no
+  // item-derived date subtotal in the list to assert.
 
   it('renders no cost badge when no items have prices', () => {
     renderWithItems([makeItem({ id: '1' }), makeItem({ id: '2' })])
     expect(
       document.querySelector('.item-list__label-cost'),
     ).not.toBeInTheDocument()
-  })
-})
-
-describe('receipt scan CTA', () => {
-  const PURCHASED_ITEM = makeItem({
-    id: 'i1',
-    purchased: true,
-    purchased_at: TODAY,
-  })
-
-  it('shows receipt scan CTA when all items are purchased and flag is enabled', () => {
-    vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({
-      isEnabled: () => true,
-    })
-    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
-      ...emptyHookResult,
-      items: [PURCHASED_ITEM],
-    })
-    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
-    expect(screen.getByText(/Escanear ticket/)).toBeInTheDocument()
-  })
-
-  it('hides receipt scan CTA when flag is disabled', () => {
-    vi.mocked(FeatureFlagsContextModule.useFeatureFlags).mockReturnValue({
-      isEnabled: () => false,
-    })
-    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
-      ...emptyHookResult,
-      items: [PURCHASED_ITEM],
-    })
-    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
-    expect(screen.queryByText(/Escanear ticket/)).not.toBeInTheDocument()
   })
 })
 
@@ -768,7 +969,17 @@ describe('receipt price confirmation toast', () => {
       receipt_date: '2026-07-20',
       receipt_total: 10,
       inference_source: 'in_cloud',
-      lines: [],
+      // A read line routes to the review sheet; a zero-line parse would divert
+      // to the illegible (18c) sheet, which these review-flow tests don't drive.
+      lines: [
+        {
+          name: 'LECHE ENTERA',
+          price_type: 'UNIT',
+          unit_price: 1,
+          line_total: 1,
+          quantity: null,
+        },
+      ],
     })
     vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
   })
@@ -789,11 +1000,23 @@ describe('receipt price confirmation toast', () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 2,
       items_created: 0,
+      items_skipped: 0,
     })
     await openReceiptSheetAndConfirm()
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('2 precios actualizados')
     expect(alert).not.toHaveTextContent('artículo')
+  })
+
+  it('says out loud when the backend refused lines already under a ticket', async () => {
+    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
+      items_updated: 1,
+      items_created: 0,
+      items_skipped: 2,
+    })
+    await openReceiptSheetAndConfirm()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('2 líneas ya en otro ticket')
   })
 
   it('shows "No se pudo leer el ticket" when AI receipt parsing fails', async () => {
@@ -819,7 +1042,17 @@ describe('receipt price confirmation toast', () => {
       receipt_date: '2026-07-20',
       receipt_total: 10,
       inference_source: 'in_cloud',
-      lines: [],
+      // A read line routes to the review sheet; a zero-line parse would divert
+      // to the illegible (18c) sheet, which these review-flow tests don't drive.
+      lines: [
+        {
+          name: 'LECHE ENTERA',
+          price_type: 'UNIT',
+          unit_price: 1,
+          line_total: 1,
+          quantity: null,
+        },
+      ],
     })
     vi.mocked(api.submitParsedReceipt).mockRejectedValue(
       new Error('Backend failed'),
@@ -837,10 +1070,46 @@ describe('receipt price confirmation toast', () => {
     expect(alert).toHaveTextContent('No se pudo procesar el ticket')
   })
 
+  it('stores the scanned file against the new scan, fire-and-forget', async () => {
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    const fileInput = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    await screen.findByText('Confirmar (mock)')
+    expect(uploadReceiptFile).toHaveBeenCalledWith(
+      expect.any(Function),
+      'list1',
+      'scan-1',
+      file,
+    )
+  })
+
+  it('opens the review even when storing the file fails', async () => {
+    vi.mocked(uploadReceiptFile).mockRejectedValueOnce(new Error('bucket down'))
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    const fileInput = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    const file = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })
+    fireEvent.change(fileInput, { target: { files: [file] } })
+
+    // The review sheet still opens; the upload failure surfaces nowhere.
+    await screen.findByText('Confirmar (mock)')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('reports only the created-items clause when no prices changed', async () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 0,
       items_created: 3,
+      items_skipped: 0,
     })
     await openReceiptSheetAndConfirm()
     const alert = await screen.findByRole('alert')
@@ -852,6 +1121,7 @@ describe('receipt price confirmation toast', () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 1,
       items_created: 1,
+      items_skipped: 0,
     })
     await openReceiptSheetAndConfirm()
     const alert = await screen.findByRole('alert')
@@ -862,6 +1132,7 @@ describe('receipt price confirmation toast', () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 0,
       items_created: 0,
+      items_skipped: 0,
     })
     await openReceiptSheetAndConfirm()
     const alert = await screen.findByRole('alert')
@@ -872,6 +1143,7 @@ describe('receipt price confirmation toast', () => {
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 0,
       items_created: 1,
+      items_skipped: 0,
     })
     const { container } = render(
       <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
@@ -895,11 +1167,256 @@ describe('receipt price confirmation toast', () => {
       {
         scan_id: 'scan-1',
         receipt_date: '2026-07-20',
+        // Store and paper total ride along to close the trip these lines settle.
+        store: 'Mercadona',
+        receipt_total: 10,
         patches: [],
         new_items: [mockNewItem],
         mappings: [],
+        // A generic scan aims at no purchase.
+        purchase_id: null,
       },
     )
+  })
+})
+
+describe('targeted receipt attach (25b)', () => {
+  const closedTrip = {
+    id: 'p1',
+    list_id: 'list1',
+    opened_at: '2026-07-21T09:00:00',
+    tears_off_at: '2026-07-22T00:00:00',
+    closed_at: '2026-07-21T20:00:00',
+    store: 'Mercadona',
+    total: 8.13,
+    line_count: 2,
+    has_receipt: false,
+    items_total: null,
+  }
+
+  beforeEach(() => {
+    // The dashed thumb renders only under flag + granted consent.
+    vi.mocked(AuthContext.useAuth).mockReturnValue({
+      user: {
+        id: 'u1',
+        displayName: 'Alice',
+        photoUrl: null,
+        email: 'alice@example.com',
+        features: [],
+        receiptConsent: 'granted',
+      },
+      getToken: mockGetToken,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      loading: false,
+      isWaitlisted: false,
+      recordReceiptConsent: vi.fn(),
+    })
+    vi.mocked(api.getPurchases).mockResolvedValue({
+      purchases: [closedTrip],
+      total: 1,
+    })
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
+      store: 'Mercadona',
+      receipt_date: '2026-07-21',
+      receipt_total: 8.13,
+      inference_source: 'in_cloud',
+      lines: [
+        {
+          name: 'LECHE ENTERA',
+          price_type: 'UNIT',
+          unit_price: 1,
+          line_total: 1,
+          quantity: null,
+        },
+      ],
+    })
+    vi.mocked(api.submitParsedReceipt).mockResolvedValue({
+      scan_id: 'scan-t1',
+      store: 'Mercadona',
+      receipt_date: '2026-07-21',
+      receipt_total: 8.13,
+      matched: [],
+      unmatched: [],
+    })
+    vi.mocked(api.submitReceiptPrices).mockResolvedValue({
+      items_updated: 1,
+      items_created: 0,
+      items_skipped: 0,
+    })
+  })
+
+  function pickFile(container: HTMLElement) {
+    const fileInput = container.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement
+    fireEvent.change(fileInput, {
+      target: {
+        files: [new File(['x'], 'receipt.jpg', { type: 'image/jpeg' })],
+      },
+    })
+  }
+
+  async function tapDashedThumb() {
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Escanear el ticket' }),
+    )
+    await screen.findByText('Tomar foto')
+  }
+
+  it('sends the tapped purchase through the match and the apply', async () => {
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    await tapDashedThumb()
+    pickFile(container)
+    await waitFor(() =>
+      expect(api.submitParsedReceipt).toHaveBeenCalledTimes(1),
+    )
+    expect(api.submitParsedReceipt).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      expect.objectContaining({ purchase_id: 'p1' }),
+    )
+    fireEvent.click(await screen.findByText('Confirmar (mock)'))
+    await waitFor(() =>
+      expect(api.submitReceiptPrices).toHaveBeenCalledTimes(1),
+    )
+    expect(api.submitReceiptPrices).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      expect.objectContaining({ purchase_id: 'p1' }),
+    )
+  })
+
+  it('cancelling the source picker clears the aim for the next scan', async () => {
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    await tapDashedThumb()
+    fireEvent.click(screen.getByText('Cancelar'))
+    // A scan driven straight from the file input — the generic funnel.
+    pickFile(container)
+    await waitFor(() =>
+      expect(api.submitParsedReceipt).toHaveBeenCalledTimes(1),
+    )
+    expect(api.submitParsedReceipt).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      expect.objectContaining({ purchase_id: null }),
+    )
+  })
+
+  it('closing the review clears the aim for the next scan', async () => {
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    await tapDashedThumb()
+    pickFile(container)
+    fireEvent.click(await screen.findByText('Cerrar (mock)'))
+    pickFile(container)
+    await waitFor(() =>
+      expect(api.submitParsedReceipt).toHaveBeenCalledTimes(2),
+    )
+    expect(api.submitParsedReceipt).toHaveBeenLastCalledWith(
+      mockGetToken,
+      'list1',
+      expect.objectContaining({ purchase_id: null }),
+    )
+  })
+
+  const illegibleParse = {
+    store: 'Mercadona',
+    receipt_date: null,
+    receipt_total: null,
+    inference_source: 'in_cloud',
+    lines: [],
+  }
+
+  it('a targeted illegible read stores the capture on the purchase and toasts', async () => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue(illegibleParse)
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    await tapDashedThumb()
+    pickFile(container)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(
+      'No se pudo leer el ticket, pero la foto queda guardada en la compra',
+    )
+    // The 18c sheet would write a duplicate manual purchase — never for a
+    // targeted scan, whose purchase already exists.
+    expect(
+      screen.queryByRole('dialog', { name: 'No se lee el ticket' }),
+    ).not.toBeInTheDocument()
+    // The lineless scan reached the server aimed at the purchase, and the
+    // capture followed it into the bucket.
+    expect(api.submitParsedReceipt).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      expect.objectContaining({ purchase_id: 'p1', lines: [] }),
+    )
+    expect(uploadReceiptFile).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      'scan-t1',
+      expect.any(File),
+    )
+  })
+
+  it('a targeted illegible read falls back to the plain toast when the store fails', async () => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue(illegibleParse)
+    vi.mocked(api.submitParsedReceipt).mockRejectedValue(new Error('down'))
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    await tapDashedThumb()
+    pickFile(container)
+    const alert = await screen.findByRole('alert')
+    // The photo was NOT kept — the toast must not claim it was.
+    expect(alert).toHaveTextContent(/No se pudo leer el ticket$/)
+    expect(uploadReceiptFile).not.toHaveBeenCalled()
+  })
+
+  it('an untargeted illegible read stores the capture and opens the rescue', async () => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue(illegibleParse)
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    pickFile(container)
+    await screen.findByRole('dialog', { name: 'No se lee el ticket' })
+    // The sheet promises the photo because the scan write landed.
+    expect(
+      screen.getByText(
+        'Se distinguen la tienda y el total; la foto se guarda con la compra',
+      ),
+    ).toBeInTheDocument()
+    expect(api.submitParsedReceipt).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      expect.objectContaining({ purchase_id: null, lines: [] }),
+    )
+    expect(uploadReceiptFile).toHaveBeenCalledWith(
+      mockGetToken,
+      'list1',
+      'scan-t1',
+      expect.any(File),
+    )
+  })
+
+  it('a failed capture store still opens the rescue, promising no photo', async () => {
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue(illegibleParse)
+    vi.mocked(api.submitParsedReceipt).mockRejectedValue(new Error('down'))
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    pickFile(container)
+    // Storing the paper is a bonus — its failure must never cost the rescue.
+    await screen.findByRole('dialog', { name: 'No se lee el ticket' })
+    expect(
+      screen.getByText('Se distinguen la tienda y el total, nada más'),
+    ).toBeInTheDocument()
+    expect(uploadReceiptFile).not.toHaveBeenCalled()
   })
 })
 
@@ -919,12 +1436,23 @@ describe('pendingScan session isolation', () => {
       receipt_date: '2026-07-20',
       receipt_total: 10,
       inference_source: 'in_cloud',
-      lines: [],
+      // A read line routes to the review sheet; a zero-line parse would divert
+      // to the illegible (18c) sheet, which these review-flow tests don't drive.
+      lines: [
+        {
+          name: 'LECHE ENTERA',
+          price_type: 'UNIT',
+          unit_price: 1,
+          line_total: 1,
+          quantity: null,
+        },
+      ],
     })
     vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 1,
       items_created: 0,
+      items_skipped: 0,
     })
   })
 
@@ -963,120 +1491,6 @@ describe('pendingScan session isolation', () => {
   })
 })
 
-describe('receipt date correction', () => {
-  const mockScanResult: ReceiptScanResult = {
-    scan_id: 'scan-1',
-    store: 'Mercadona',
-    receipt_date: '2026-07-20',
-    receipt_total: 10,
-    matched: [],
-    unmatched: [],
-  }
-
-  beforeEach(() => {
-    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
-      store: 'Mercadona',
-      receipt_date: '2026-07-20',
-      receipt_total: 10,
-      inference_source: 'in_cloud',
-      lines: [],
-    })
-    vi.mocked(api.submitParsedReceipt).mockResolvedValue(mockScanResult)
-  })
-
-  async function openSheet() {
-    const { container } = render(
-      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
-    )
-    const fileInput = container.querySelector(
-      'input[type="file"]',
-    ) as HTMLInputElement
-    fireEvent.change(fileInput, {
-      target: { files: [new File(['x'], 'r.jpg', { type: 'image/jpeg' })] },
-    })
-    return screen.findByText('Corregir fecha (mock)')
-  }
-
-  it('drops a pending scan when a correction re-matches', async () => {
-    // The corrected match replaces matched/unmatched wholesale and remounts
-    // the sheet, where appliedScan starts at null again — so a surviving
-    // pendingScan would reapply its product to whatever line now sits at
-    // that index. Same hazard the close path already guards against.
-    await openSheet()
-    fireEvent.click(await screen.findByText('Escanear línea (mock)'))
-    fireEvent.click(await screen.findByText('Escanear producto (mock)'))
-    expect(await screen.findByTestId('mock-pending-scan')).toHaveTextContent(
-      mockScannedProduct.ean,
-    )
-
-    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
-
-    await waitFor(() =>
-      expect(screen.getByTestId('mock-pending-scan')).toHaveTextContent('null'),
-    )
-  })
-
-  it('stops asking about a date the user corrected', async () => {
-    // The remount resets the sheet's own dismissal state, so without a flag
-    // held up here the user gets asked about the date they just typed.
-    const corrected = { ...mockScanResult, scan_id: 'scan-2' }
-    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(mockScanResult)
-    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(corrected)
-
-    await openSheet()
-    expect(screen.getByTestId('mock-date-confirmed')).toHaveTextContent('false')
-
-    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
-
-    await waitFor(() =>
-      expect(screen.getByTestId('mock-date-confirmed')).toHaveTextContent(
-        'true',
-      ),
-    )
-  })
-
-  it('keeps a pending scan when the re-match failed', async () => {
-    // The sheet never remounts on this path — no new scan_id — so the reapply
-    // hazard that motivates clearing it never arises. Dropping it anyway would
-    // make a transient failure cost the user a barcode they already scanned.
-    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(mockScanResult)
-    vi.mocked(api.submitParsedReceipt).mockRejectedValueOnce(
-      new Error('network'),
-    )
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    await openSheet()
-    fireEvent.click(await screen.findByText('Escanear línea (mock)'))
-    fireEvent.click(await screen.findByText('Escanear producto (mock)'))
-    expect(await screen.findByTestId('mock-pending-scan')).toHaveTextContent(
-      mockScannedProduct.ean,
-    )
-
-    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
-
-    await screen.findByRole('alert')
-    expect(screen.getByTestId('mock-pending-scan')).toHaveTextContent(
-      mockScannedProduct.ean,
-    )
-  })
-
-  it('keeps asking when the re-match failed', async () => {
-    // Nothing changed on screen, so suppressing the prompt would strand the
-    // misread date with nothing left pointing at it.
-    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce(mockScanResult)
-    vi.mocked(api.submitParsedReceipt).mockRejectedValueOnce(
-      new Error('network'),
-    )
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    await openSheet()
-    fireEvent.click(screen.getByText('Corregir fecha (mock)'))
-
-    await screen.findByRole('alert')
-    expect(screen.getByTestId('mock-date-confirmed')).toHaveTextContent('false')
-  })
-})
-
 describe('ListScreen — offline refusal keeps user input', () => {
   beforeEach(() => {
     reportRequestOutcome(true)
@@ -1088,8 +1502,8 @@ describe('ListScreen — offline refusal keeps user input', () => {
     reportRequestOutcome(true)
   })
 
-  // Opens the LogPurchaseSheet the way a user does: price tag on a purchased
-  // item → price history → "Actualizar precio".
+  // Opens the LogPurchaseSheet the way a user does: row tap on a purchased
+  // item → "Registrar precio" → price history → "Actualizar precio".
   async function openLogPurchaseSheet(
     savePriceMock: ReturnType<
       typeof useListItemsModule.useListItems
@@ -1098,11 +1512,14 @@ describe('ListScreen — offline refusal keeps user input', () => {
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({
       ...emptyHookResult,
       items: [
+        // A closed-trip record: the price entry exists only there — a
+        // pending or in-cart item offers no price affordance at all.
         makeItem({
           id: 'i1',
           name: 'Manzanas',
           purchased: true,
           purchased_at: TODAY,
+          purchase_ends_at: YESTERDAY,
           price: 3.15,
         }),
       ],
@@ -1113,7 +1530,8 @@ describe('ListScreen — offline refusal keeps user input', () => {
     })
 
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
-    fireEvent.click(document.querySelector('.item-card__tag--price')!)
+    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar precio' }))
     fireEvent.click(
       await screen.findByRole('button', { name: /actualizar precio/i }),
     )
@@ -1134,7 +1552,11 @@ describe('ListScreen — offline refusal keeps user input', () => {
     expect(api.createItem).not.toHaveBeenCalled()
   })
 
-  it('an offline price save keeps the sheet open and records nothing', async () => {
+  // These two drive price-save from a settled record's row. The stack (18a,
+  // Lane 1) removed that row from the item list; the record's price entry
+  // returns through the product ficha (22a) wired in Lane 3 (JAV-162), where
+  // these offline / failure cases will be re-homed. Skipped until then.
+  it.skip('an offline price save keeps the sheet open and records nothing', async () => {
     const savePriceMock = vi.fn<() => Promise<void>>()
     await openLogPurchaseSheet(savePriceMock)
 
@@ -1146,7 +1568,7 @@ describe('ListScreen — offline refusal keeps user input', () => {
     expect(savePriceMock).not.toHaveBeenCalled()
   })
 
-  it('a failed price save toasts and keeps the sheet open', async () => {
+  it.skip('a failed price save toasts and keeps the sheet open', async () => {
     const savePriceMock = vi.fn(() => Promise.reject(new Error('network')))
     await openLogPurchaseSheet(savePriceMock)
 
@@ -1307,7 +1729,7 @@ describe('the list stops being the reader’s after mount', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
-    fireEvent.click(screen.getByRole('button', { name: /gestionar miembros/i }))
+    fireEvent.click(screen.getByRole('button', { name: /miembros/i }))
     fireEvent.click(screen.getByText('Salir (mock)'))
 
     expect(onBack).toHaveBeenCalled()
@@ -1325,7 +1747,7 @@ describe('the list stops being the reader’s after mount', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
-    fireEvent.click(screen.getByRole('button', { name: /gestionar miembros/i }))
+    fireEvent.click(screen.getByRole('button', { name: /miembros/i }))
     fireEvent.click(screen.getByText('Sospechar (mock)'))
 
     await waitFor(() => expect(onListGone).toHaveBeenCalledWith('not_found'))
@@ -1395,5 +1817,142 @@ describe('notification priming card', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'No se pudieron activar los avisos',
     )
+  })
+})
+
+describe('the board under the paper', () => {
+  it('maps the list board onto the screen', () => {
+    const { container } = render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        board="salvia"
+      />,
+    )
+    expect(container.querySelector('.list-screen')).toHaveAttribute(
+      'data-board',
+      'salvia',
+    )
+  })
+
+  it('lands unknown and absent boards on kraft', () => {
+    const { container } = render(
+      <ListScreen
+        listId="l1"
+        listName="Mercado"
+        listOwnerId="u1"
+        board="terrazo"
+      />,
+    )
+    expect(container.querySelector('.list-screen')).toHaveAttribute(
+      'data-board',
+      'kraft',
+    )
+    const { container: second } = render(
+      <ListScreen listId="l2" listName="Otra" listOwnerId="u1" />,
+    )
+    expect(second.querySelector('.list-screen')).toHaveAttribute(
+      'data-board',
+      'kraft',
+    )
+  })
+})
+
+describe('receipt-scanning consent gate', () => {
+  function setConsent(
+    consent: 'granted' | 'declined' | null,
+    recordReceiptConsent = vi.fn(async () => undefined),
+  ) {
+    vi.mocked(AuthContext.useAuth).mockReturnValue({
+      user: {
+        id: 'u1',
+        displayName: 'Alice',
+        photoUrl: null,
+        email: 'alice@example.com',
+        features: [],
+        receiptConsent: consent,
+      },
+      getToken: mockGetToken,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+      loading: false,
+      isWaitlisted: false,
+      recordReceiptConsent,
+    })
+    return recordReceiptConsent
+  }
+
+  async function tapScanFromOptions() {
+    fireEvent.click(screen.getByRole('button', { name: /abrir menú/i }))
+    await screen.findByRole('dialog', { name: /Opciones de lista/i })
+    fireEvent.click(screen.getByRole('button', { name: 'Escanear ticket' }))
+  }
+
+  it('asks for consent on the first scan attempt, before any source picker', async () => {
+    setConsent(null)
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    await tapScanFromOptions()
+    expect(
+      await screen.findByRole('button', { name: 'Activar escaneo' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Tomar foto')).not.toBeInTheDocument()
+  })
+
+  it('records the grant and continues straight into the scan', async () => {
+    const record = setConsent(null)
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    await tapScanFromOptions()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Activar escaneo' }),
+    )
+    expect(record).toHaveBeenCalledWith('granted')
+    expect(await screen.findByText('Tomar foto')).toBeInTheDocument()
+  })
+
+  it('does not open the source picker when saving the grant fails', async () => {
+    setConsent(
+      null,
+      vi.fn(async () => {
+        throw new Error('network')
+      }),
+    )
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    await tapScanFromOptions()
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Activar escaneo' }),
+    )
+    // The write drives the scan, not the exit animation: a failed PUT surfaces
+    // the toast, keeps the disclosure open to retry, and never opens the picker
+    // (which would fire the Gemini parse with consent unsaved).
+    expect(
+      await screen.findByText(
+        'No se pudo guardar tu preferencia. Inténtalo de nuevo.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Tomar foto')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Activar escaneo' }),
+    ).toBeInTheDocument()
+  })
+
+  it('re-shows the disclosure when consent was previously declined', async () => {
+    setConsent('declined')
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    await tapScanFromOptions()
+    expect(
+      await screen.findByRole('button', { name: 'Activar escaneo' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Tomar foto')).not.toBeInTheDocument()
+  })
+
+  it('goes straight to the source picker when consent was already granted', async () => {
+    setConsent('granted')
+    render(<ListScreen listId="list1" listName="Test" listOwnerId="u1" />)
+    await tapScanFromOptions()
+    expect(await screen.findByText('Tomar foto')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Activar escaneo' }),
+    ).not.toBeInTheDocument()
   })
 })

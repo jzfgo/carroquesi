@@ -30,10 +30,13 @@ export function useSwipeToDismiss(
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (startY.current === null || !sheetRef.current) return
     const dy = e.changedTouches[0].clientY - startY.current
-    sheetRef.current.style.transition = ''
     if (dy > threshold) {
+      sheetRef.current.style.transition = ''
       onClose()
     } else {
+      // Ride back up instead of snapping — the same spring the sheet enters on.
+      sheetRef.current.style.transition =
+        'transform var(--dur-slow) var(--ease-spring)'
       sheetRef.current.style.transform = ''
     }
     startY.current = null

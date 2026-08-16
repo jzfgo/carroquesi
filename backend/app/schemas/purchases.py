@@ -1,7 +1,13 @@
+# `date` is aliased because two schemas below carry a field literally named
+# `date`; a field named the same as its own type shadows the type when a
+# defaulted annotation (`date | None = None`) is evaluated at class-definition.
+from datetime import date as date_cls
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
+
+from app.schemas.items import ItemRead
 
 
 class PurchaseLine(BaseModel):
@@ -19,6 +25,10 @@ class PurchaseLine(BaseModel):
     # The quantity actually bought. Writes purchased_quantity; the planned
     # quantity the household typed is left alone.
     quantity: str | None = None
+    # A correction to the product made in the adjust-product editor (10d) at
+    # close time. None leaves the stored value untouched; a value overwrites it.
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    brand: str | None = None
 
 
 class PurchaseNewItem(BaseModel):
@@ -58,6 +68,37 @@ class PurchaseCloseBody(BaseModel):
     # fields that can carry an unbounded payload.
     lines: list[PurchaseLine] = Field(min_length=1, max_length=200)
     new_items: list[PurchaseNewItem] = Field(default_factory=list, max_length=200)
+    # The day the shop happened. Absent files the trip under the close instant
+    # (today); given, the trip is filed under that day — its boundaries derive
+    # from the date in the request's client timezone, the same mapping a manual
+    # purchase uses (ADR-012), so a back-dated close sorts under its covered day.
+    date: date_cls | None = None
+
+
+class PurchaseManualBody(BaseModel):
+    """A shop entered by hand — a trip born closed, holding no lines.
+
+    Unlike a close, this names no items: it records that a shop happened on a
+    given calendar day, optionally where and for how much, without touching the
+    cart. `date` is the day the household lived through; the handler maps it to
+    the trip's boundaries in the request's client timezone (ADR-012).
+    """
+
+    # Optional, unlike the close: someone writing a shop down days later may no
+    # longer recall the shop, and a bare date is still a legitimate record.
+    store: str | None = Field(default=None, max_length=100)
+    # The calendar day the shop happened on. Required — there is no cart to
+    # derive dates from, so the day is the whole point of the request.
+    date: date_cls
+    # Deliberately unconstrained — no ge=0, no allow_inf_nan=False. Range and
+    # finiteness are checked in the handler instead, for the reason spelled out
+    # on PurchaseCloseBody.total: a Pydantic constraint able to reject a NaN
+    # total crashes FastAPI's own 422 handler when it echoes the value back.
+    total: float | None = None
+    # The lineless scan whose paper this record should carry (the 18c rescue:
+    # an unreadable ticket still saves its capture). The handler links the
+    # scan to the purchase it creates, so the record shows its paper.
+    scan_id: str | None = None
 
 
 class PurchaseRead(BaseModel):
@@ -82,6 +123,11 @@ class PurchaseSummary(PurchaseRead):
     # sets. Scans that predate the link stay NULL, so old tickets read
     # False even when a receipt was scanned for them.
     has_receipt: bool
+    # A provisional total summed from the lines' `price * quantity_factor`, for
+    # a proto-ticket whose own `total` was never confirmed (a close sets that).
+    # None when no line carries a price. The stack shows it as «≈ total»; a
+    # closed trip ignores it and shows its confirmed `total`.
+    items_total: float | None = None
 
 
 class PurchasePage(BaseModel):
@@ -89,3 +135,22 @@ class PurchasePage(BaseModel):
     # Every trip the list has, not the page's share of them — the client
     # needs it to know whether to ask for another page.
     total: int
+
+
+class PurchaseSearchTrip(BaseModel):
+    """One trip in a stack search (21b).
+
+    Carries the trip's summary and only the lines whose name, brand or store
+    matched the query. How many lines the trip holds in all rides in the
+    summary's line_count, so the client can print «N de M» — N being the
+    number of matched lines here, M the trip's whole line count.
+    """
+
+    trip: PurchaseSummary
+    lines: list[ItemRead]
+
+
+class PurchaseSearchResults(BaseModel):
+    """Every settled trip that matched a stack search, newest shop first."""
+
+    results: list[PurchaseSearchTrip]

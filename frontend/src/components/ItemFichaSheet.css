@@ -1,0 +1,436 @@
+/* The panel, scrim, grabber and slide come from the shared Sheet primitive
+   (.modal-sheet). This file styles only what sits inside it. */
+
+/* The curve borrows the row's own ink rather than a blue accent: inside a sheet
+   only a status mark keeps colour. Setting these variables here retargets the
+   shared Sparkline for the ficha without touching the price-history sheet. */
+.item-ficha-sheet {
+  --color-primary: var(--ink-1);
+  --color-primary-bg: color-mix(in srgb, var(--ink-1) 10%, transparent);
+}
+
+.ficha {
+  display: flex;
+  flex-direction: column;
+  max-height: 78vh;
+  overflow-y: auto;
+}
+
+.ficha--sub {
+  padding-bottom: 12px;
+}
+
+.ficha__eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.ficha__header {
+  padding: 0 20px 16px;
+  border-bottom: 1px solid var(--paper-edge);
+}
+
+.ficha__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-24);
+  line-height: 1.2;
+  color: var(--ink-0);
+}
+
+.ficha__subtitle {
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-top: 3px;
+}
+
+/* ── Block 1 · Último precio ────────────────────────────── */
+.ficha__last {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 6px;
+}
+
+.ficha__last-figures {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ficha__last-amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-28);
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink-0);
+}
+
+.ficha__last-sub {
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.ficha__last-unit {
+  margin-left: 3px;
+  font-size: var(--fs-13);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.ficha__last-curve {
+  width: 120px;
+  height: 42px;
+  flex-shrink: 0;
+  padding-bottom: 4px;
+}
+
+/* ── Block 2 · Per-store price history ──────────────────── */
+.phb {
+  padding: 6px 20px 0;
+}
+
+.phb__store-row {
+  display: grid;
+  grid-template-columns: 1fr auto 14px;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--rule);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.phb__store-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.phb__store-name {
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--ink-0);
+}
+
+.phb__store-meta {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+
+.phb__store-price {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+.phb__chevron {
+  color: var(--ink-3);
+}
+
+.phb__expand {
+  padding: 6px 0 10px;
+}
+
+.phb__curve {
+  width: 100%;
+  height: 48px;
+  display: block;
+}
+
+.phb__figures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 10px 0 6px;
+}
+
+.phb__figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.phb__figure-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+.phb__figure-label {
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.phb__record {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 40px;
+  border-top: 1px solid var(--rule);
+}
+
+.phb__record-date {
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--ink-1);
+}
+
+.phb__record-date--muted {
+  color: var(--ink-2);
+}
+
+.phb__record-amount {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.phb__record-figure {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+.phb__record-approx {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.phb__record-sin {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--ink-2);
+}
+
+.phb__log-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--rule);
+  text-align: left;
+  cursor: pointer;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 500;
+}
+
+/* ── Block 3 · Producto ─────────────────────────────────── */
+.ficha__section {
+  padding: 22px 0 0;
+}
+
+.ficha__section-eyebrow {
+  padding: 0 20px 4px;
+}
+
+.ficha__field {
+  display: grid;
+  grid-template-columns: 1fr auto 14px;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 4px 20px;
+  border-top: 1px solid var(--rule);
+  background: none;
+  text-align: left;
+  font-family: inherit;
+}
+
+.ficha__field--tappable {
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  cursor: pointer;
+}
+
+.ficha__field-label {
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--ink-1);
+}
+
+.ficha__field-value {
+  font-size: 15px;
+  line-height: 1.3;
+  font-weight: 500;
+  color: var(--ink-0);
+  text-align: right;
+}
+
+.ficha__field-value--mono {
+  font-family: var(--font-mono);
+}
+
+.ficha__field-chevron {
+  color: var(--ink-3);
+}
+
+/* ── Block 4 · Rastro ───────────────────────────────────── */
+.ficha__rastro {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-1);
+  padding: 0 20px;
+  margin: 8px 0 0;
+}
+
+.ficha__rastro b {
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+/* ── Footer ─────────────────────────────────────────────── */
+.ficha__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px 20px 0;
+}
+
+.ficha__rebuy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 48px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ficha__delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: none;
+  background: none;
+  color: var(--danger);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* ── Sub-states · rename & confirm delete ───────────────── */
+.ficha__input-row {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 8px;
+}
+
+.ficha__input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1.5px solid var(--accent);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: var(--paper-0);
+  color: var(--ink-0);
+  outline: none;
+  font-family: inherit;
+}
+
+.ficha__save-btn {
+  padding: 9px 16px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ficha__save-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ficha__cancel-link {
+  background: none;
+  border: none;
+  color: var(--ink-2);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px 20px;
+  text-align: left;
+  font-family: inherit;
+}
+
+.ficha__confirm-name {
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  font-weight: 500;
+  padding: 0 20px 8px;
+  margin: 0;
+}
+
+.ficha__warning {
+  font-size: 0.85rem;
+  color: var(--ink-2);
+  padding: 0 20px 16px;
+  margin: 0;
+}
+
+.ficha__confirm-btn {
+  margin: 0 16px 8px;
+  padding: 13px;
+  background: var(--danger);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ficha__cancel-btn {
+  margin: 0 16px;
+  padding: 13px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 1rem;
+  color: var(--ink-2);
+  cursor: pointer;
+  font-family: inherit;
+}

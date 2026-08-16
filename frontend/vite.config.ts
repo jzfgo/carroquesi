@@ -1,11 +1,15 @@
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vitest/config'
+import pkg from './package.json'
 
 // Read at build time so the two deployments install as distinct PWAs.
 const environmentLabel = process.env.VITE_ENVIRONMENT_LABEL
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
   plugins: [
     react(),
     VitePWA({
@@ -16,6 +20,16 @@ export default defineConfig({
       devOptions: {
         enabled: true,
         type: 'module',
+      },
+      injectManifest: {
+        // The workbox default ({js,css,html}) plus woff2 only: the
+        // self-hosted fonts must render offline. Anything broader
+        // triples the precache — diff the manifest before changing.
+        globPatterns: ['**/*.{js,css,html,woff2}'],
+        // The pdf.js chunk loads on demand when a PDF receipt is opened.
+        // Offline receipt viewing is not promised, so keep it out of the
+        // precache rather than grow every install by its weight.
+        globIgnores: ['**/pdfjs-*.js'],
       },
       manifest: {
         name: environmentLabel
@@ -50,6 +64,16 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // One named chunk so the precache globIgnores above can address it.
+        advancedChunks: {
+          groups: [{ name: 'pdfjs', test: /node_modules\/pdfjs-dist\// }],
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/vitest.setup.ts'],

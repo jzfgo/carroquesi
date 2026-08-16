@@ -15,10 +15,12 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { ApiError, syncUser } from '../lib/api'
+import { ApiError, setReceiptConsent, syncUser } from '../lib/api'
 import { DEV_USER_ID } from '../lib/environment'
 import { getFirebaseAuth } from '../lib/firebase'
 import { disablePush, syncPushToken } from '../lib/push'
+
+export type ReceiptConsent = 'granted' | 'declined' | null
 
 export interface AuthUser {
   id: string
@@ -26,6 +28,9 @@ export interface AuthUser {
   photoUrl: string | null
   email: string
   features: string[]
+  // null means the user was never asked; the consent sheet reads this to
+  // decide whether to intercept the first scan. See recordReceiptConsent.
+  receiptConsent: ReceiptConsent
 }
 
 interface AuthContextValue {
@@ -35,6 +40,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>
   loading: boolean
   isWaitlisted: boolean
+  recordReceiptConsent: (consent: 'granted' | 'declined') => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -64,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             photo_url: string | null
             email: string
             features?: string[]
+            receipt_consent?: ReceiptConsent
           }
           setUser({
             id: d.id,
@@ -71,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             photoUrl: d.photo_url,
             email: d.email,
             features: d.features ?? [],
+            receiptConsent: d.receipt_consent ?? null,
           })
         })
         .catch(() => {})
@@ -92,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               photo_url: string | null
               email: string
               features?: string[]
+              receipt_consent?: ReceiptConsent
             }
             setUser({
               id: data.id,
@@ -99,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               photoUrl: data.photo_url,
               email: data.email,
               features: data.features ?? [],
+              receiptConsent: data.receipt_consent ?? null,
             })
             setIsWaitlisted(false)
           } catch (err) {
@@ -157,6 +167,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void syncPushToken(getToken)
   }, [userId, getToken])
 
+  // Records the receipt-scanning decision and reflects it locally so the gate
+  // and the settings toggle update without waiting for the next user sync. The
+  // PUT is idempotent server-side, so re-sending the same decision is fine.
+  const recordReceiptConsent = useCallback(
+    async (consent: 'granted' | 'declined') => {
+      await setReceiptConsent(getToken, consent)
+      setUser((prev) => (prev ? { ...prev, receiptConsent: consent } : prev))
+    },
+    [getToken],
+  )
+
   const signIn = async () => {
     await signInWithPopup(getFirebaseAuth(), new GoogleAuthProvider())
   }
@@ -171,7 +192,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, getToken, signIn, signOut, loading, isWaitlisted }}
+      value={{
+        user,
+        getToken,
+        signIn,
+        signOut,
+        loading,
+        isWaitlisted,
+        recordReceiptConsent,
+      }}
     >
       {children}
     </AuthContext.Provider>

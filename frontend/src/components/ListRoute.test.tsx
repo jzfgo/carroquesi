@@ -10,9 +10,20 @@ vi.mock('../lib/api', async (importOriginal) => {
   return { ...actual, getList: vi.fn() }
 })
 vi.mock('./ListScreen', () => ({
-  ListScreen: ({ listId, listName }: { listId: string; listName: string }) => (
+  ListScreen: ({
+    listId,
+    listName,
+    board,
+  }: {
+    listId: string
+    listName: string
+    board?: string | null
+  }) => (
     <div>
-      ListScreen:{listId}:{listName}
+      <div>
+        ListScreen:{listId}:{listName}
+      </div>
+      <div>board:{board ?? 'null'}</div>
     </div>
   ),
 }))
@@ -42,12 +53,14 @@ beforeEach(() => {
       photoUrl: null,
       email: 'alice@example.com',
       features: [],
+      receiptConsent: null,
     },
     getToken: mockGetToken,
     signIn: vi.fn(),
     signOut: vi.fn(),
     loading: false,
     isWaitlisted: false,
+    recordReceiptConsent: vi.fn(),
   })
 })
 
@@ -77,6 +90,14 @@ describe('ListRoute', () => {
     render(<ListRoute />)
     await waitFor(() =>
       expect(screen.getByText('ListScreen:l1:Mercado')).toBeInTheDocument(),
+    )
+  })
+
+  it('hands the caller board down to the screen', async () => {
+    vi.mocked(api.getList).mockResolvedValue({ ...listData, board: 'niebla' })
+    render(<ListRoute />)
+    await waitFor(() =>
+      expect(screen.getByText('board:niebla')).toBeInTheDocument(),
     )
   })
 

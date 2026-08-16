@@ -1,5 +1,5 @@
-import { ScanBarcode, Sparkles, Store, Tag, X } from 'lucide-react'
-import { useRef } from 'react'
+import { ArrowUp, ScanBarcode, Store, Tag, X } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem, ParsedInput, Suggestion } from '../types'
 import './SmartInputBar.css'
@@ -30,37 +30,6 @@ function hasSigil(parsed: ParsedInput): boolean {
   )
 }
 
-const ALL_SIGILS = new Set(['+', '#', '@', '|'])
-
-/**
- * Returns the new input value after a chip tap, or null if no change is needed.
- * - If the input ends with a bare sigil (e.g. "Leche #"), replace it with the new sigil.
- * - Otherwise append the sigil if not already present anywhere in the input.
- */
-function sigilChipAction(currentValue: string, sigil: string): string | null {
-  const trimmed = currentValue.trimEnd()
-  const words = trimmed ? trimmed.split(/\s+/) : []
-  const lastWord = words[words.length - 1] ?? ''
-  const endsWithBareSigil = lastWord.length === 1 && ALL_SIGILS.has(lastWord)
-
-  if (endsWithBareSigil) {
-    if (lastWord === sigil) return null // same chip tapped again, just refocus
-    words[words.length - 1] = sigil
-    return words.join(' ')
-  }
-
-  if (sigil !== '@' && currentValue.includes(sigil)) return null
-  const sep = currentValue === '' || currentValue.endsWith(' ') ? '' : ' '
-  return currentValue + sep + sigil
-}
-
-const LEGEND_CHIPS: { sigil: string; label: string }[] = [
-  { sigil: '+', label: 'cant.' },
-  { sigil: '#', label: 'marca' },
-  { sigil: '@', label: 'tienda' },
-  { sigil: '|', label: 'cod. barras' },
-]
-
 interface Props {
   value: string
   parsed: ParsedInput
@@ -76,8 +45,6 @@ interface Props {
   eanError?: string | null
   inferredStoreChip?: string | null
   onDismissInferredStore?: () => void
-  dueSuggestionsCount?: number
-  onDueSuggestionsOpen?: () => void
 }
 
 export function SmartInputBar({
@@ -95,10 +62,14 @@ export function SmartInputBar({
   eanError,
   inferredStoreChip,
   onDismissInferredStore,
-  dueSuggestionsCount,
-  onDueSuggestionsOpen,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
+  // The input's focus proxies "keyboard open": on a touch device the soft
+  // keyboard is up exactly while the field is focused. The pill shows only the
+  // action you can't take another way right now, so this decides which trailing
+  // control appears (5d) — while focused, Enter submits and the send button and
+  // scanner both retire.
+  const [focused, setFocused] = useState(false)
   const activeSigil = getActiveSigil(value)
   const fieldSigil =
     activeSigil && SIGIL_FIELDS[activeSigil.sigil]
@@ -221,79 +192,68 @@ export function SmartInputBar({
         </div>
       )}
 
-      <div className="smart-input__legend">
-        {LEGEND_CHIPS.map(({ sigil, label }) => (
-          <button
-            key={sigil}
-            className={`smart-input__chip${sigil === '|' && inEanMode ? ' smart-input__chip--active' : ''}`}
-            aria-label={`Añadir ${label}`}
-            onClick={() => {
-              const newValue = sigilChipAction(value, sigil)
-              if (newValue !== null) onChange(newValue)
-              inputRef.current?.focus()
-            }}
-          >
-            <b>{sigil}</b> {label}
-          </button>
-        ))}
-      </div>
-
       <div className="smart-input__row">
-        {(dueSuggestionsCount ?? 0) > 0 && (
-          <button
-            className="smart-input__due-btn"
-            onClick={onDueSuggestionsOpen}
-            aria-label={`Sugerencias pendientes (${dueSuggestionsCount})`}
-            type="button"
-          >
-            <Sparkles size={18} />
-            <span className="smart-input__due-badge">
-              {dueSuggestionsCount}
-            </span>
-          </button>
-        )}
         <input
           className="smart-input__field"
           type="text"
           ref={inputRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && hasName && !inEanMode) onSubmit()
+            if (e.key === 'Enter' && hasName) onSubmit()
           }}
           placeholder="Añadir producto…"
           aria-label="Añadir producto"
         />
-        {value ? (
+        {/* One trailing control, chosen by what you can't do another way right
+            now. mousedown is swallowed so tapping never blurs the field first
+            (which would swap the button out from under the tap). */}
+        {value === '' ? (
+          // Empty: the scanner is the alternate way in — and only while the
+          // keyboard is down, because once it's up, typing is the mode.
+          !focused && (
+            <button
+              className="smart-input__scan"
+              onClick={onScanRequest}
+              onMouseDown={(e) => e.preventDefault()}
+              aria-label="Escanear código de barras"
+              type="button"
+            >
+              <ScanBarcode size={20} />
+            </button>
+          )
+        ) : focused ? (
+          // Text, keyboard up: Enter sends, so the one thing you can't do
+          // another way is wipe the field.
           <button
             className="smart-input__clear"
             onClick={() => {
               onClear()
               inputRef.current?.focus()
             }}
+            onMouseDown={(e) => e.preventDefault()}
             aria-label="Borrar"
             type="button"
           >
             <span className="smart-input__clear-icon" aria-hidden="true" />
           </button>
         ) : (
+          // Text, keyboard down: Enter is out of reach, so a single accent
+          // send button — an up-arrow, not a "+". A named EAN saves too: the
+          // code rides along and gets associated on create.
           <button
-            className="smart-input__scan"
-            onClick={onScanRequest}
-            aria-label="Escanear código de barras"
+            className="smart-input__add"
+            onClick={onSubmit}
+            onMouseDown={(e) => e.preventDefault()}
+            disabled={!hasName}
+            aria-label="Añadir"
             type="button"
           >
-            <ScanBarcode size={20} />
+            <ArrowUp size={20} strokeWidth={2.5} aria-hidden="true" />
           </button>
         )}
-        <button
-          className="smart-input__add"
-          onClick={onSubmit}
-          disabled={!hasName || inEanMode}
-          aria-label="Añadir"
-        >
-          <span aria-hidden="true" className="smart-input__add-icon" />
-        </button>
       </div>
     </div>
   )

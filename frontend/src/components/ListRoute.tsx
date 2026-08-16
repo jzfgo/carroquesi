@@ -109,6 +109,7 @@ export function ListRoute() {
       listName={list.name}
       listEmoji={list.emoji}
       listOwnerId={list.owner_id}
+      board={list.board}
       isDefault={list.is_default}
       onRename={(newName) =>
         setList((prev) => (prev ? { ...prev, name: newName } : null))

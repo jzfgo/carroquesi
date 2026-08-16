@@ -12,45 +12,27 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { Bell, BellOff } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
-import { useApplePlatform } from '../hooks/useApplePlatform'
 import { useOnline } from '../hooks/useOnline'
 import { usePageTitle } from '../hooks/usePageTitle'
-import { usePWAInstall } from '../hooks/usePWAInstall'
 import type { FeedbackPayload } from '../lib/api'
 import {
   createList,
   deleteList,
   getLists,
-  issueApiKey,
-  openShortcutImport,
-  regenerateApiKey,
   setDefaultList,
   submitFeedback,
   updateList,
 } from '../lib/api'
-import { copyToClipboard } from '../lib/clipboard'
-import { CURATED_EMOJIS } from '../lib/curatedEmojis'
-import { FLAGS } from '../lib/featureFlags'
-import {
-  canReceivePush,
-  disablePush,
-  enablePush,
-  isPushEnabled,
-  permissionState,
-} from '../lib/push'
 import type { ApiList } from '../types'
-import { ApiKeySheet } from './ApiKeySheet'
 import { CreateListCard } from './CreateListCard'
 import './DashboardScreen.css'
 import { EmojiPickerSheet } from './EmojiPickerSheet'
 import { FeedbackSheet } from './FeedbackSheet'
-import { InstallBanner } from './InstallBanner'
 import { ListActionSheet } from './ListActionSheet'
+import { SettingsSheet } from './SettingsSheet'
 import { SortableListCard } from './SortableListCard'
 import { Toast } from './Toast'
 import { Wordmark } from './Wordmark'
@@ -93,12 +75,8 @@ function saveDashboardCache(userId: string, lists: ApiList[]) {
   }
 }
 
-function randomEmoji(): string {
-  return CURATED_EMOJIS[Math.floor(Math.random() * CURATED_EMOJIS.length)]
-}
-
 export function DashboardScreen() {
-  const { user, getToken, signOut } = useAuth()
+  const { user, getToken } = useAuth()
   const navigate = useNavigate()
   const [lists, setLists] = useState<ApiList[] | null>(null)
   const [fetchError, setFetchError] = useState(false)
@@ -107,83 +85,17 @@ export function DashboardScreen() {
   const [activeList, setActiveList] = useState<ApiList | null>(null)
   const [emojiList, setEmojiList] = useState<ApiList | null>(null)
   const [toast, setToast] = useState<string | null>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall()
-  const { isEnabled } = useFeatureFlags()
-  const [pushOn, setPushOn] = useState(() => isPushEnabled())
-  // Permission is held in state rather than read inline in JSX. A denial does
-  // not change isPushEnabled() -- it is false before and after -- so
-  // setPushOn alone is a same-value update, and React may skip the re-render
-  // that would reveal the blocked message. This value genuinely changes
-  // ('default' -> 'denied'), so it cannot hit that bailout.
-  const [permission, setPermission] = useState(() => permissionState())
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
-  const isApplePlatform = useApplePlatform()
-  const [siriSheetOpen, setSiriSheetOpen] = useState(false)
-  const [shownKey, setShownKey] = useState<string | null>(null)
 
   const defaultList = lists?.find((l) => l.is_default) ?? null
-
-  const handleOpenSiriSheet = async () => {
-    // The shortcut sends list_id="default"; without a default it would only 404.
-    // Gate the setup here so the user marks a default first (mirrors the backend
-    // guard on POST /account/api-key).
-    if (!defaultList) {
-      setToast('Marca una lista como predeterminada para usar el atajo de Siri')
-      return
-    }
-    try {
-      // Idempotent: returns a plaintext key only on first issuance (created=true);
-      // a returning user gets null, since the stored hash can't be re-displayed.
-      // Either way the sheet opens and walks the user through adding the shortcut.
-      const { key } = await issueApiKey(getToken)
-      setShownKey(key)
-      setSiriSheetOpen(true)
-    } catch {
-      setToast('No se pudo preparar el atajo de Siri. Inténtalo de nuevo.')
-    }
-  }
-
-  const handleRegenerateKey = async () => {
-    try {
-      const { key } = await regenerateApiKey(getToken)
-      setShownKey(key)
-    } catch {
-      setToast('No se pudo regenerar la clave. Inténtalo de nuevo.')
-    }
-  }
-
-  async function handleCopyKey() {
-    if (!shownKey) return
-    const ok = await copyToClipboard(shownKey)
-    setToast(ok ? 'Clave copiada' : 'No se pudo copiar la clave')
-  }
 
   useEffect(() => {
     if (!toast) return
     const id = setTimeout(() => setToast(null), 3000)
     return () => clearTimeout(id)
   }, [toast])
-
-  useEffect(() => {
-    if (!menuOpen) return
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    document.addEventListener('keydown', handleKey)
-    return () => {
-      document.removeEventListener('mousedown', handleClick)
-      document.removeEventListener('keydown', handleKey)
-    }
-  }, [menuOpen])
 
   const fetchLists = useCallback(
     async (silent = false) => {
@@ -259,12 +171,12 @@ export function DashboardScreen() {
   }, [fetchLists])
 
   const handleCreate = useCallback(
-    async (name: string) => {
+    async (name: string, emoji: string) => {
       if (isOffline) {
         setToast('No disponible sin conexión')
         return
       }
-      await createList(getToken, { name, emoji: randomEmoji() })
+      await createList(getToken, { name, emoji })
       await fetchLists()
     },
     [getToken, fetchLists, isOffline],
@@ -283,7 +195,6 @@ export function DashboardScreen() {
           ? prev.map((l) => (l.id === list.id ? { ...l, name: newName } : l))
           : prev
       })
-      setActiveList(null)
       try {
         await updateList(getToken, list.id, { name: newName })
       } catch {
@@ -332,7 +243,6 @@ export function DashboardScreen() {
           ? prev.map((l) => ({ ...l, is_default: l.id === list.id }))
           : prev
       })
-      setActiveList(null)
       try {
         await setDefaultList(getToken, list.id)
       } catch {
@@ -388,163 +298,94 @@ export function DashboardScreen() {
     )
   }
 
-  const showInstallEntry = (isInstallable || isIOS) && !isInstalled
-
   return (
     <div className="dashboard-screen">
       <header className="dashboard-screen__header">
         <h1 className="dashboard-screen__title">
           <Wordmark size={26} />
         </h1>
-        <div className="dashboard-screen__avatar-wrapper" ref={menuRef}>
-          <button
-            className="dashboard-screen__avatar"
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-label="Menú de usuario"
-            aria-expanded={menuOpen}
-            aria-haspopup="menu"
-          >
-            {user?.photoUrl ? (
-              <img src={user.photoUrl} alt={user.displayName} />
-            ) : (
-              <span>{user?.displayName?.[0] ?? '?'}</span>
-            )}
-          </button>
-          {menuOpen && (
-            <div className="dashboard-screen__avatar-menu" role="menu">
-              {showInstallEntry && (
-                <button
-                  className="dashboard-screen__avatar-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    void promptInstall()
-                    setMenuOpen(false)
-                  }}
-                >
-                  Instalar app
-                </button>
-              )}
-              <button
-                className="dashboard-screen__avatar-menu-item"
-                role="menuitem"
-                onClick={() => {
-                  setFeedbackOpen(true)
-                  setMenuOpen(false)
-                }}
-              >
-                Enviar feedback
-              </button>
-              {isApplePlatform && (
-                <button
-                  className="dashboard-screen__avatar-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    void handleOpenSiriSheet()
-                    setMenuOpen(false)
-                  }}
-                >
-                  Añadir atajo a Siri
-                </button>
-              )}
-              <button
-                className="dashboard-screen__avatar-menu-item"
-                role="menuitem"
-                onClick={() => {
-                  void signOut()
-                  setMenuOpen(false)
-                }}
-              >
-                Cerrar sesión
-              </button>
-            </div>
+        <button
+          className="dashboard-screen__avatar"
+          onClick={() => setSettingsOpen(true)}
+          aria-label="Ajustes"
+          aria-haspopup="dialog"
+        >
+          {user?.photoUrl ? (
+            <img src={user.photoUrl} alt={user.displayName} />
+          ) : (
+            <span>{user?.displayName?.[0] ?? '?'}</span>
           )}
-        </div>
+        </button>
       </header>
       <main className="dashboard-screen__lists">
-        <InstallBanner
-          isInstallable={isInstallable}
-          isInstalled={isInstalled}
-          isIOS={isIOS}
-          promptInstall={promptInstall}
-        />
-        {isEnabled(FLAGS.PUSH_NOTIFICATIONS) &&
-          canReceivePush({ isIOS, isInstalled }) &&
-          // Once permission is denied the browser will not re-prompt, so a
-          // button here would call requestPermission(), return immediately and
-          // change nothing — a control that looks broken. Explain the way out
-          // instead of offering a dead action.
-          (permission === 'denied' ? (
-            <p className="notifications-toggle notifications-toggle--blocked">
-              <span className="notifications-toggle__icon" aria-hidden="true">
-                <BellOff size={18} />
+        {lists.length === 0 ? (
+          <div className="dashboard-screen__empty">
+            <CreateListCard isFirst onCreate={handleCreate} />
+          </div>
+        ) : (
+          <section className="dashboard-screen__panel">
+            <div className="dashboard-screen__eyebrow">
+              <h2 className="dashboard-screen__eyebrow-label">Tus listas</h2>
+              <span className="dashboard-screen__eyebrow-count">
+                {lists.length}
               </span>
-              Has bloqueado los avisos. Actívalos en los ajustes de tu navegador
-              para volver a recibirlos.
-            </p>
-          ) : (
-            <button
-              className="notifications-toggle"
-              onClick={async () => {
-                // Reads back the real state rather than assuming success: the
-                // OS prompt can be denied, and on iOS that denial is permanent.
-                if (pushOn) await disablePush(getToken).catch(() => undefined)
-                else await enablePush(getToken).catch(() => undefined)
-                setPushOn(isPushEnabled())
-
-                setPermission(permissionState())
-              }}
+            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
             >
-              <span className="notifications-toggle__icon" aria-hidden="true">
-                {pushOn ? <BellOff size={18} /> : <Bell size={18} />}
-              </span>
-              {pushOn
-                ? 'Desactivar avisos'
-                : 'Avisarme de cambios en mis listas'}
-            </button>
-          ))}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={lists.map((l) => l.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {lists.map((list) => (
-              <SortableListCard
-                key={list.id}
-                list={list}
-                isOwner={list.owner_id === (user?.id ?? '')}
-                onClick={() => {
-                  navigate(`/lists/${list.id}`)
-                  setActiveList(null)
-                }}
-                onMenuOpen={() => {
-                  setActiveList(list)
-                }}
-                onEmojiTap={() => {
-                  setEmojiList(list)
-                }}
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
-        <CreateListCard isFirst={lists.length === 0} onCreate={handleCreate} />
+              <SortableContext
+                items={lists.map((l) => l.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {lists.map((list) => (
+                  <SortableListCard
+                    key={list.id}
+                    list={list}
+                    currentUserId={user?.id ?? ''}
+                    isOwner={list.owner_id === (user?.id ?? '')}
+                    onClick={() => {
+                      navigate(`/lists/${list.id}`)
+                      setActiveList(null)
+                    }}
+                    onMenuOpen={() => {
+                      setActiveList(list)
+                    }}
+                    onEmojiTap={() => {
+                      setEmojiList(list)
+                    }}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+            <CreateListCard onCreate={handleCreate} />
+          </section>
+        )}
       </main>
-      {activeList && (
-        <ListActionSheet
-          listId={activeList.id}
-          listName={activeList.name}
-          currentUserId={user?.id ?? ''}
-          isOwner={activeList.owner_id === (user?.id ?? '')}
-          isDefault={activeList.is_default}
-          onRename={(newName) => void handleRename(activeList, newName)}
-          onDelete={() => void handleDelete(activeList)}
-          onSetDefault={() => void handleSetDefault(activeList)}
-          onClose={() => setActiveList(null)}
-        />
-      )}
+      {activeList &&
+        (() => {
+          // The sheet stays open across emoji/default edits, which land in
+          // `lists`, not the one-time `activeList` snapshot — so read the live
+          // list from `lists` or the emoji tile and switch would show stale.
+          const active =
+            lists?.find((l) => l.id === activeList.id) ?? activeList
+          return (
+            <ListActionSheet
+              listId={active.id}
+              listName={active.name}
+              listEmoji={active.emoji}
+              currentUserId={user?.id ?? ''}
+              ownerId={active.owner_id}
+              isDefault={active.is_default}
+              onRename={(newName) => void handleRename(active, newName)}
+              onEmojiChange={(emoji) => void handleEmojiChange(active, emoji)}
+              onDelete={() => void handleDelete(active)}
+              onSetDefault={() => void handleSetDefault(active)}
+              onClose={() => setActiveList(null)}
+            />
+          )
+        })()}
       {emojiList && (
         <EmojiPickerSheet
           current={emojiList.emoji}
@@ -560,17 +401,16 @@ export function DashboardScreen() {
           onClose={() => setFeedbackOpen(false)}
         />
       )}
-      {siriSheetOpen && (
-        <ApiKeySheet
-          apiKey={shownKey}
+      {settingsOpen && (
+        <SettingsSheet
           defaultListName={defaultList?.name ?? null}
-          onCopy={() => void handleCopyKey()}
-          onImport={() => openShortcutImport()}
-          onRegenerate={handleRegenerateKey}
-          onClose={() => {
-            setSiriSheetOpen(false)
-            setShownKey(null)
+          onFeedback={() => {
+            // One sheet at a time: settings hands over to the feedback sheet.
+            setSettingsOpen(false)
+            setFeedbackOpen(true)
           }}
+          onToast={setToast}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
       {toast && <Toast message={toast} onDismiss={() => setToast(null)} />}

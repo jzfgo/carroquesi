@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Candidate A: "El papelito". Hand-crafted SVG for JAV-122; not generated.
+       A tilted paper sheet on the BIC-pen-blue field, two handwritten lines,
+       one grocer-green check. Palette: tinta-0 #1a3fa0, paper-0 #eef1f5,
+       ink-1 #353742, verde-0 #2f7a4a. Full-bleed square; all content sits
+       inside the maskable safe zone (circle r=205 around 256,256). -->
+  <rect width="512" height="512" fill="#1a3fa0"/>
+  <g transform="rotate(-5 256 256)">
+    <path d="M148 130
+             c-2 -14 8 -24 22 -24
+             l178 -4
+             c14 0 24 8 24 22
+             l4 254
+             c0 14 -10 24 -24 24
+             l-180 4
+             c-14 0 -22 -10 -22 -24
+             z" fill="#eef1f5"/>
+    <path d="M186 178 c28 -7 56 3 84 -2 s44 5 60 1"
+          fill="none" stroke="#353742" stroke-width="15" stroke-linecap="round"/>
+    <path d="M184 234 c24 5 54 -6 82 -1 s42 -3 62 2"
+          fill="none" stroke="#353742" stroke-width="15" stroke-linecap="round"/>
+    <path d="M196 322 c15 9 34 30 44 50 c20 -50 54 -84 86 -106"
+          fill="none" stroke="#2f7a4a" stroke-width="32"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

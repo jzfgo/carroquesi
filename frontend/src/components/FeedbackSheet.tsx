@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSwipeToDismiss } from '../hooks/useSwipeToDismiss'
+import { useMemo, useRef, useState } from 'react'
 import type { FeedbackPayload } from '../lib/api'
 import './FeedbackSheet.css'
+import { Sheet, type SheetHandle } from './Sheet'
 
 interface Props {
   defaultEmail: string | null | undefined
@@ -20,16 +20,7 @@ export function FeedbackSheet({
   const [email, setEmail] = useState(defaultEmail ?? '')
   const trimmedMessage = useMemo(() => message.trim(), [message])
   const canSubmit = trimmedMessage.length > 0 && !isSubmitting
-  const sheetRef = useRef<HTMLFormElement>(null)
-  const swipe = useSwipeToDismiss(sheetRef, onClose)
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
+  const sheetRef = useRef<SheetHandle>(null)
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -43,17 +34,13 @@ export function FeedbackSheet({
   }
 
   return (
-    <>
-      <div className="feedback-sheet__overlay" onClick={onClose} />
-      <form
-        className="feedback-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Enviar feedback"
-        onSubmit={handleSubmit}
-        ref={sheetRef}
-      >
-        <div className="feedback-sheet__handle" {...swipe} />
+    <Sheet
+      ref={sheetRef}
+      className="feedback-sheet"
+      label="Enviar feedback"
+      onClose={onClose}
+    >
+      <form className="feedback-sheet__form" onSubmit={handleSubmit}>
         <h2 className="feedback-sheet__title">Enviar feedback</h2>
         <label className="feedback-sheet__field">
           <span>Mensaje</span>
@@ -77,7 +64,7 @@ export function FeedbackSheet({
           <button
             type="button"
             className="feedback-sheet__secondary"
-            onClick={onClose}
+            onClick={() => sheetRef.current?.close()}
           >
             Cancelar
           </button>
@@ -90,6 +77,6 @@ export function FeedbackSheet({
           </button>
         </div>
       </form>
-    </>
+    </Sheet>
   )
 }

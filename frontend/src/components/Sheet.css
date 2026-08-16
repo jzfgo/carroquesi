@@ -1,0 +1,81 @@
+.modal-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: color-mix(in srgb, var(--ink-0) 10%, transparent);
+}
+
+/* A modal sheet always carries border-top (edge-lit), border-bottom
+   (edge-cast) AND box-shadow (sheet-cast); the theme zeroes the ones it
+   does not draw. */
+.modal-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+
+  /* The spring entrance overshoots past its resting point, briefly lifting the
+     panel above the screen's edge. Sink the panel a hair below the edge and pay
+     it back in padding, so the overshoot reveals more of the sheet's own back,
+     never the wall behind it. Content lands in exactly the same place. */
+  bottom: -48px;
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper-lift);
+  border-top: 1px solid var(--edge-lit-1);
+  border-bottom: 1px solid var(--edge-cast-1);
+  border-radius: 16px 16px 0 0;
+  box-shadow: var(--sheet-cast-list);
+  padding-bottom: calc(max(env(safe-area-inset-bottom), 16px) + 48px);
+  outline: none;
+  animation: modal-sheet-enter var(--dur-slow) var(--ease-spring);
+}
+
+@keyframes modal-sheet-enter {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+/* Exit is a transition, not an animation, so a dismiss mid-entrance slides
+   down from wherever the sheet currently is. The component reads this
+   transition's duration to schedule the unmount. */
+.modal-sheet--closing {
+  animation: none;
+  transform: translateY(100%);
+  transition: transform var(--dur-slow) var(--ease-spring);
+  pointer-events: none;
+}
+
+/* The grip is the whole drag target — a full-width, thumb-sized strip — so a
+   drag can start anywhere near the grabber, not only on the 4px bar itself. */
+.modal-sheet__grip {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 28px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.modal-sheet__grip:active {
+  cursor: grabbing;
+}
+
+.modal-sheet__handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-sheet {
+    animation: none;
+  }
+
+  .modal-sheet--closing {
+    transition: none;
+  }
+}

@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ListItem } from '../types'
-import { computeCostSummary } from './itemCost'
+import { computeCostSummary, tripDateLabel } from './itemCost'
 
 function makeItem(overrides: Partial<ListItem> = {}): ListItem {
   return {
@@ -13,6 +13,7 @@ function makeItem(overrides: Partial<ListItem> = {}): ListItem {
     stores: [],
     purchased: false,
     purchased_at: null,
+    purchase_has_receipt: false,
     ean: null,
     price: null,
     price_per: null,
@@ -68,5 +69,43 @@ describe('computeCostSummary — purchased_quantity', () => {
     })
     const result = computeCostSummary([item])
     expect(result).toBeNull() // total is 0 → null
+  })
+})
+
+describe('tripDateLabel', () => {
+  afterEach(() => vi.useRealTimers())
+
+  // Pin "now" to 15 Aug 2026 so the month boundary is deterministic. Dates are
+  // parsed as naive-UTC; run at UTC to keep the local-day mapping stable.
+  function pinNow() {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-15T12:00:00Z'))
+  }
+
+  it('a trip dated today reads «hoy» — closed or proto', () => {
+    pinNow()
+    expect(tripDateLabel('2026-08-15T09:00:00', false)).toBe('hoy')
+    expect(tripDateLabel('2026-08-15T09:00:00', true)).toBe('hoy')
+  })
+
+  it('a proto in the current month is weekday + day, no month', () => {
+    pinNow()
+    expect(tripDateLabel('2026-08-03T10:00:00', true)).toBe('lunes 3')
+  })
+
+  it('a proto outside the current month drops the weekday for day + month', () => {
+    pinNow()
+    expect(tripDateLabel('2026-07-21T10:00:00', true)).toBe('21 jul')
+  })
+
+  it('a date in an earlier year carries the year', () => {
+    pinNow()
+    expect(tripDateLabel('2025-07-21T10:00:00', true)).toBe('21 jul 2025')
+    expect(tripDateLabel('2025-07-22T10:00:00', false)).toBe('22 jul 2025')
+  })
+
+  it('a closed trip always prints day + short month', () => {
+    pinNow()
+    expect(tripDateLabel('2026-07-22T10:00:00', false)).toBe('22 jul')
   })
 })

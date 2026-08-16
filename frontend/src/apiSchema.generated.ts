@@ -488,9 +488,13 @@ export interface paths {
          *
          *     Claiming every item in the cart closes the trip in place; claiming fewer
          *     splits the selection onto its own ticket and leaves the rest in the
-         *     cart. There is no date control: the ticket's dates derive from the
-         *     claimed lines' purchased_at and the close instant, which covers every
-         *     shop the current write paths can produce.
+         *     cart. Absent a `date`, the ticket's dates derive from the claimed lines'
+         *     purchased_at and the close instant. A `date` back-dates it to a stated
+         *     day — its boundaries are mapped in the client timezone (ADR-012), the same
+         *     mapping a manual purchase uses, so it sorts under the day it covered.
+         *
+         *     A line may also carry a corrected name/brand (the adjust-product editor):
+         *     applied to the claimed item alongside its price and quantity.
          *
          *     No push fires here. Like the receipt apply, a close records a shop that
          *     already happened — nothing joins the list unpurchased, and the impulse
@@ -498,6 +502,58 @@ export interface paths {
          *     silently.
          */
         post: operations["close_purchase_lists__list_id__purchases_close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lists/{list_id}/purchases/manual": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Manual Purchase
+         * @description Write down a shop by hand — a trip born closed, holding no lines.
+         *
+         *     Unlike a close, this claims nothing from the cart: it records that a shop
+         *     happened on a stated calendar day, optionally where and for how much. The
+         *     day is mapped to the trip's boundaries in the request's client timezone
+         *     (ADR-012), so a back-dated entry files under the day it covered rather than
+         *     under now.
+         */
+        post: operations["create_manual_purchase_lists__list_id__purchases_manual_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lists/{list_id}/purchases/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Purchases
+         * @description Search the list's whole purchase history (21b).
+         *
+         *     Every settled trip holding at least one line that matches the query, newest
+         *     shop first, each carrying only its matching lines and — through the summary's
+         *     line_count — how many it holds in all. The open cart is left out: its lines
+         *     live in the pending sheet, not the history, so showing them here would double
+         *     them. The query speaks the same sigils as the in-list search.
+         */
+        get: operations["search_purchases_lists__list_id__purchases_search_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -518,6 +574,43 @@ export interface paths {
         get: operations["get_purchase_items_lists__list_id__purchases__purchase_id__items_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lists/{list_id}/purchases/{purchase_id}/items/{item_id}/rebuy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rebuy Item
+         * @description Put a settled purchase's line back onto the pending list.
+         *
+         *     Re-buy takes one line of a past trip — a ListItem filed under it — and
+         *     creates a fresh pending row carrying the product's identity, the quantity
+         *     last bought, and the store it was bought at. The source line stays where
+         *     it is: this reorders the product, it does not un-file the shop.
+         *
+         *     An open cart is off limits. Its lines wear the green undo disc, and taking
+         *     one back onto the list is undo territory, not re-buy — so a line still in
+         *     the open trip is refused with a nudge to undo instead. A trip that closed
+         *     earlier today is already closed, so is_open is False and the re-buy goes
+         *     through; that is the same-day ficha exception, falling out of the open
+         *     rule rather than needing a rule of its own.
+         *
+         *     Idempotent against the add-item duplicate guard: if the product is already
+         *     on the pending list (same trimmed-lower name, or same ean), that existing
+         *     row is returned with 200 rather than a second copy created. A genuine
+         *     create answers 201.
+         */
+        post: operations["rebuy_item_lists__list_id__purchases__purchase_id__items__item_id__rebuy_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1024,6 +1117,11 @@ export interface components {
             price_store: string | null;
             /** Purchase Ends At */
             purchase_ends_at?: string | null;
+            /**
+             * Purchase Has Receipt
+             * @default false
+             */
+            purchase_has_receipt: boolean;
             /** Purchase Id */
             purchase_id?: string | null;
             /** Purchased */
@@ -1239,7 +1337,12 @@ export interface components {
         /** PriceEntry */
         PriceEntry: {
             /** Amount */
-            amount: number;
+            amount: number | null;
+            /**
+             * Is Sin Precio
+             * @default false
+             */
+            is_sin_precio: boolean;
             /** Price Per */
             price_per: "KILOGRAM" | null;
             /** Purchased At */
@@ -1269,6 +1372,8 @@ export interface components {
         };
         /** PurchaseCloseBody */
         PurchaseCloseBody: {
+            /** Date */
+            date?: string | null;
             /** Lines */
             lines: components["schemas"]["PurchaseLine"][];
             /** New Items */
@@ -1290,14 +1395,40 @@ export interface components {
          *     stated once on the close.
          */
         PurchaseLine: {
+            /** Brand */
+            brand?: string | null;
             /** Item Id */
             item_id: string;
+            /** Name */
+            name?: string | null;
             /** Price */
             price?: number | null;
             /** Price Per */
             price_per?: "KILOGRAM" | null;
             /** Quantity */
             quantity?: string | null;
+        };
+        /**
+         * PurchaseManualBody
+         * @description A shop entered by hand — a trip born closed, holding no lines.
+         *
+         *     Unlike a close, this names no items: it records that a shop happened on a
+         *     given calendar day, optionally where and for how much, without touching the
+         *     cart. `date` is the day the household lived through; the handler maps it to
+         *     the trip's boundaries in the request's client timezone (ADR-012).
+         */
+        PurchaseManualBody: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Scan Id */
+            scan_id?: string | null;
+            /** Store */
+            store?: string | null;
+            /** Total */
+            total?: number | null;
         };
         /**
          * PurchaseNewItem
@@ -1348,6 +1479,28 @@ export interface components {
             total: number | null;
         };
         /**
+         * PurchaseSearchResults
+         * @description Every settled trip that matched a stack search, newest shop first.
+         */
+        PurchaseSearchResults: {
+            /** Results */
+            results: components["schemas"]["PurchaseSearchTrip"][];
+        };
+        /**
+         * PurchaseSearchTrip
+         * @description One trip in a stack search (21b).
+         *
+         *     Carries the trip's summary and only the lines whose name, brand or store
+         *     matched the query. How many lines the trip holds in all rides in the
+         *     summary's line_count, so the client can print «N de M» — N being the
+         *     number of matched lines here, M the trip's whole line count.
+         */
+        PurchaseSearchTrip: {
+            /** Lines */
+            lines: components["schemas"]["ItemRead"][];
+            trip: components["schemas"]["PurchaseSummary"];
+        };
+        /**
          * PurchaseSummary
          * @description One row of the purchase history page.
          *
@@ -1361,6 +1514,8 @@ export interface components {
             has_receipt: boolean;
             /** Id */
             id: string;
+            /** Items Total */
+            items_total?: number | null;
             /** Line Count */
             line_count: number;
             /** List Id */
@@ -1406,6 +1561,11 @@ export interface components {
         ReceiptPriceApplyResult: {
             /** Items Created */
             items_created: number;
+            /**
+             * Items Skipped
+             * @default 0
+             */
+            items_skipped: number;
             /** Items Updated */
             items_updated: number;
         };
@@ -1426,10 +1586,16 @@ export interface components {
              * @default []
              */
             patches: components["schemas"]["PricePatch"][];
+            /** Purchase Id */
+            purchase_id?: string | null;
             /** Receipt Date */
             receipt_date?: string | null;
+            /** Receipt Total */
+            receipt_total?: number | null;
             /** Scan Id */
             scan_id?: string | null;
+            /** Store */
+            store?: string | null;
         };
         /** ReceiptScanRequest */
         ReceiptScanRequest: {
@@ -1437,6 +1603,8 @@ export interface components {
             inference_source?: string | null;
             /** Lines */
             lines: components["schemas"]["ParsedLine"][];
+            /** Purchase Id */
+            purchase_id?: string | null;
             /** Receipt Date */
             receipt_date?: string | null;
             /** Receipt Total */
@@ -2825,6 +2993,7 @@ export interface operations {
                 "x-dev-user-id"?: string | null;
                 "x-dev-is-admin"?: string | null;
                 "x-api-key"?: string | null;
+                "x-client-timezone"?: string | null;
             };
             path: {
                 list_id: string;
@@ -2844,6 +3013,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PurchaseRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_manual_purchase_lists__list_id__purchases_manual_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+                "x-client-timezone"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseManualBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_purchases_lists__list_id__purchases_search_get: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PurchaseSearchResults"];
                 };
             };
             /** @description Validation Error */
@@ -2880,6 +3126,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ItemRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rebuy_item_lists__list_id__purchases__purchase_id__items__item_id__rebuy_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                purchase_id: string;
+                item_id: string;
+                list_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemRead"];
                 };
             };
             /** @description Validation Error */

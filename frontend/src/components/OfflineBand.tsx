@@ -1,5 +1,7 @@
+import { Cloud, CloudOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useOnline } from '../hooks/useOnline'
+import './OfflineBand.css'
 
 const RECONNECTED_MS = 2000
 const EXIT_MS = 300
@@ -48,6 +50,11 @@ export function OfflineBand() {
     .join(' ')
   return (
     <div className={classes} role="status">
+      {backOnline ? (
+        <Cloud size={14} strokeWidth={1.8} aria-hidden />
+      ) : (
+        <CloudOff size={14} strokeWidth={1.8} aria-hidden />
+      )}
       {backOnline ? 'De nuevo en línea' : 'Sin conexión — solo lectura'}
     </div>
   )

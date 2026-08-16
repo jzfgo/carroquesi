@@ -565,6 +565,11 @@
             ],
             "title": "Purchase Ends At"
           },
+          "purchase_has_receipt": {
+            "default": false,
+            "title": "Purchase Has Receipt",
+            "type": "boolean"
+          },
           "purchase_id": {
             "anyOf": [
               {
@@ -1202,8 +1207,20 @@
       "PriceEntry": {
         "properties": {
           "amount": {
-            "title": "Amount",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "is_sin_precio": {
+            "default": false,
+            "title": "Is Sin Precio",
+            "type": "boolean"
           },
           "price_per": {
             "anyOf": [
@@ -1329,6 +1346,18 @@
       },
       "PurchaseCloseBody": {
         "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
           "lines": {
             "items": {
               "$ref": "#/components/schemas/PurchaseLine"
@@ -1385,9 +1414,33 @@
       "PurchaseLine": {
         "description": "One claimed line of the close sheet.\n\nUnlike a receipt's PricePatch, `price` is optional: a line without an\namount is a legitimate outcome — bought, nobody kept the figure — and no\namount is invented for it. No store either: a ticket belongs to one shop,\nstated once on the close.",
         "properties": {
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
           "item_id": {
             "title": "Item Id",
             "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
           "price": {
             "anyOf": [
@@ -1428,6 +1481,55 @@
           "item_id"
         ],
         "title": "PurchaseLine",
+        "type": "object"
+      },
+      "PurchaseManualBody": {
+        "description": "A shop entered by hand — a trip born closed, holding no lines.\n\nUnlike a close, this names no items: it records that a shop happened on a\ngiven calendar day, optionally where and for how much, without touching the\ncart. `date` is the day the household lived through; the handler maps it to\nthe trip's boundaries in the request's client timezone (ADR-012).",
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "scan_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Id"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "title": "PurchaseManualBody",
         "type": "object"
       },
       "PurchaseNewItem": {
@@ -1590,6 +1692,44 @@
         "title": "PurchaseRead",
         "type": "object"
       },
+      "PurchaseSearchResults": {
+        "description": "Every settled trip that matched a stack search, newest shop first.",
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/PurchaseSearchTrip"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "results"
+        ],
+        "title": "PurchaseSearchResults",
+        "type": "object"
+      },
+      "PurchaseSearchTrip": {
+        "description": "One trip in a stack search (21b).\n\nCarries the trip's summary and only the lines whose name, brand or store\nmatched the query. How many lines the trip holds in all rides in the\nsummary's line_count, so the client can print «N de M» — N being the\nnumber of matched lines here, M the trip's whole line count.",
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ItemRead"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "trip": {
+            "$ref": "#/components/schemas/PurchaseSummary"
+          }
+        },
+        "required": [
+          "trip",
+          "lines"
+        ],
+        "title": "PurchaseSearchTrip",
+        "type": "object"
+      },
       "PurchaseSummary": {
         "description": "One row of the purchase history page.\n\nCarries what the page renders per ticket without fetching its lines:\nhow many lines it holds, and whether a receipt scan reconciled it.",
         "properties": {
@@ -1612,6 +1752,17 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "items_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items Total"
           },
           "line_count": {
             "title": "Line Count",
@@ -1734,6 +1885,11 @@
             "title": "Items Created",
             "type": "integer"
           },
+          "items_skipped": {
+            "default": 0,
+            "title": "Items Skipped",
+            "type": "integer"
+          },
           "items_updated": {
             "title": "Items Updated",
             "type": "integer"
@@ -1772,6 +1928,17 @@
             "title": "Patches",
             "type": "array"
           },
+          "purchase_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Id"
+          },
           "receipt_date": {
             "anyOf": [
               {
@@ -1783,6 +1950,17 @@
             ],
             "title": "Receipt Date"
           },
+          "receipt_total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt Total"
+          },
           "scan_id": {
             "anyOf": [
               {
@@ -1793,6 +1971,17 @@
               }
             ],
             "title": "Scan Id"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
           }
         },
         "title": "ReceiptPriceBatch",
@@ -1817,6 +2006,17 @@
             },
             "title": "Lines",
             "type": "array"
+          },
+          "purchase_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Id"
           },
           "receipt_date": {
             "anyOf": [
@@ -5621,7 +5821,7 @@
     },
     "/lists/{list_id}/purchases/close": {
       "post": {
-        "description": "Declare what a shop was — claim lines out of a trip and file them.\n\nClaiming every item in the cart closes the trip in place; claiming fewer\nsplits the selection onto its own ticket and leaves the rest in the\ncart. There is no date control: the ticket's dates derive from the\nclaimed lines' purchased_at and the close instant, which covers every\nshop the current write paths can produce.\n\nNo push fires here. Like the receipt apply, a close records a shop that\nalready happened — nothing joins the list unpurchased, and the impulse\nbuys it creates are born bought, the same shape that path creates\nsilently.",
+        "description": "Declare what a shop was — claim lines out of a trip and file them.\n\nClaiming every item in the cart closes the trip in place; claiming fewer\nsplits the selection onto its own ticket and leaves the rest in the\ncart. Absent a `date`, the ticket's dates derive from the claimed lines'\npurchased_at and the close instant. A `date` back-dates it to a stated\nday — its boundaries are mapped in the client timezone (ADR-012), the same\nmapping a manual purchase uses, so it sorts under the day it covered.\n\nA line may also carry a corrected name/brand (the adjust-product editor):\napplied to the claimed item alongside its price and quantity.\n\nNo push fires here. Like the receipt apply, a close records a shop that\nalready happened — nothing joins the list unpurchased, and the impulse\nbuys it creates are born bought, the same shape that path creates\nsilently.",
         "operationId": "close_purchase_lists__list_id__purchases_close_post",
         "parameters": [
           {
@@ -5680,6 +5880,22 @@
               ],
               "title": "X-Api-Key"
             }
+          },
+          {
+            "in": "header",
+            "name": "x-client-timezone",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Client-Timezone"
+            }
           }
         ],
         "requestBody": {
@@ -5720,6 +5936,234 @@
           }
         ],
         "summary": "Close Purchase",
+        "tags": [
+          "purchases"
+        ]
+      }
+    },
+    "/lists/{list_id}/purchases/manual": {
+      "post": {
+        "description": "Write down a shop by hand — a trip born closed, holding no lines.\n\nUnlike a close, this claims nothing from the cart: it records that a shop\nhappened on a stated calendar day, optionally where and for how much. The\nday is mapped to the trip's boundaries in the request's client timezone\n(ADR-012), so a back-dated entry files under the day it covered rather than\nunder now.",
+        "operationId": "create_manual_purchase_lists__list_id__purchases_manual_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-client-timezone",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Client-Timezone"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PurchaseManualBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Manual Purchase",
+        "tags": [
+          "purchases"
+        ]
+      }
+    },
+    "/lists/{list_id}/purchases/search": {
+      "get": {
+        "description": "Search the list's whole purchase history (21b).\n\nEvery settled trip holding at least one line that matches the query, newest\nshop first, each carrying only its matching lines and — through the summary's\nline_count — how many it holds in all. The open cart is left out: its lines\nlive in the pending sheet, not the history, so showing them here would double\nthem. The query speaks the same sigils as the in-list search.",
+        "operationId": "search_purchases_lists__list_id__purchases_search_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurchaseSearchResults"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Search Purchases",
         "tags": [
           "purchases"
         ]
@@ -5829,6 +6273,120 @@
           }
         ],
         "summary": "Get Purchase Items",
+        "tags": [
+          "purchases"
+        ]
+      }
+    },
+    "/lists/{list_id}/purchases/{purchase_id}/items/{item_id}/rebuy": {
+      "post": {
+        "description": "Put a settled purchase's line back onto the pending list.\n\nRe-buy takes one line of a past trip — a ListItem filed under it — and\ncreates a fresh pending row carrying the product's identity, the quantity\nlast bought, and the store it was bought at. The source line stays where\nit is: this reorders the product, it does not un-file the shop.\n\nAn open cart is off limits. Its lines wear the green undo disc, and taking\none back onto the list is undo territory, not re-buy — so a line still in\nthe open trip is refused with a nudge to undo instead. A trip that closed\nearlier today is already closed, so is_open is False and the re-buy goes\nthrough; that is the same-day ficha exception, falling out of the open\nrule rather than needing a rule of its own.\n\nIdempotent against the add-item duplicate guard: if the product is already\non the pending list (same trimmed-lower name, or same ean), that existing\nrow is returned with 200 rather than a second copy created. A genuine\ncreate answers 201.",
+        "operationId": "rebuy_item_lists__list_id__purchases__purchase_id__items__item_id__rebuy_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "purchase_id",
+            "required": true,
+            "schema": {
+              "title": "Purchase Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rebuy Item",
         "tags": [
           "purchases"
         ]

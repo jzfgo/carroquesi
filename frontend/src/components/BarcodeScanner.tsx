@@ -10,6 +10,8 @@ type DetectorConstructor = typeof BarcodeDetectorPolyfill
 interface Props {
   getToken: () => Promise<string>
   onResult: (product: BarcodeRead) => void
+  /** The code was read but no product answers to it. */
+  onNotFound: (ean: string) => void
   onError: (message: string) => void
   onClose: () => void
 }
@@ -17,6 +19,7 @@ interface Props {
 export function BarcodeScanner({
   getToken,
   onResult,
+  onNotFound,
   onError,
   onClose,
 }: Props) {
@@ -54,7 +57,7 @@ export function BarcodeScanner({
             onResult(product)
           } catch (err) {
             if (err instanceof ApiError && err.status === 404) {
-              onError('Producto no encontrado')
+              onNotFound(barcodes[0].rawValue)
             } else if (err instanceof ApiError && err.status === 503) {
               onError('Servicio no disponible, inténtalo más tarde')
             } else {

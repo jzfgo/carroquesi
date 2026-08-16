@@ -93,9 +93,12 @@ remains the right tool in the *page*, where it manages token lifecycle and rotat
   `transparent.png`, `apple-touch-icon-180x180.png` and the 228 KB mascot. That is a
   3.4× payload regression dressed as a precaution.
 
-  So: leave `globPatterns` unset, and treat the before/after precache diff as the gate
+  So: keep `globPatterns` minimal, and treat the before/after precache diff as the gate
   for any future worker configuration change. Checking that the build succeeds proves
-  nothing here — every variant above builds cleanly.
+  nothing here — every variant above builds cleanly. The pattern was unset (workbox
+  default `**/*.{js,css,html}`) until JAV-140 self-hosted the five font families; it
+  is now that default plus `woff2`, verified by this same diff procedure to add
+  exactly the 12 font files and nothing else.
 
   When diffing, extract entries with `"?url"?:"[^"]+"` and **assert the entry count**.
   The two strategies serialize the manifest differently — `generateSW` emitted

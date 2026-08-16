@@ -150,3 +150,20 @@ def test_e2e_fixtures_match_backend_schemas():
         response_model("GET", "/lists/{list_id}/updated-at"),
         data["SEED_UPDATED_AT"],
     )
+
+    # 8. Receipt files (25b): the trip-stack page a spec serves when it wants
+    # trips on screen, the per-trip scan summaries behind the thumbnail, and
+    # both signed-URL mints.
+    assert_exact(response_model("GET", "/lists/{list_id}/purchases"), data["SEED_TRIPS"])
+    assert_exact(
+        response_model("GET", "/lists/{list_id}/purchases/{purchase_id}/receipt-scans"),
+        data["SEED_RECEIPT_SCANS"],
+    )
+    assert_exact(
+        response_model("GET", "/lists/{list_id}/receipts/{scan_id}/file-url"),
+        data["SEED_FILE_URL_RESULT"],
+    )
+    assert_exact(
+        response_model("POST", "/lists/{list_id}/receipts/{scan_id}/upload-url"),
+        data["SEED_UPLOAD_URL_RESULT"],
+    )

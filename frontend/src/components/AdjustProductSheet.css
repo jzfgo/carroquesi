@@ -1,0 +1,272 @@
+/* 10d — «Ajustar producto». A sub-sheet of the close sheet (10b): its header is
+   a back-galón, not a title, and dismissing it returns to 10b. Four fields, only
+   the name required; the /ud·/kg suffix is derived from the quantity, never a
+   toggle (rule 10a). All values printed type — no handwriting. */
+
+.adjust-sheet__back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 20px;
+  border: none;
+  border-bottom: 1px solid var(--paper-edge);
+  background: none;
+  color: var(--tinta-0);
+  font-family: var(--font-sans);
+  font-size: var(--fs-15);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.adjust-sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 14px 20px 0;
+}
+
+.adjust-field {
+  display: block;
+}
+
+.adjust-field__label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.adjust-field__opt {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The shared field box. `input.adjust-field__box` is a text field; the price box
+   is a div wrapping its own input, so it can hold the € and the unit suffix. */
+.adjust-field__box {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  background: var(--paper-1);
+  border: 1.5px solid var(--paper-edge);
+  border-radius: var(--r-md);
+  font-family: var(--font-sans);
+  font-size: var(--fs-16);
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--ink-0);
+  outline: none;
+}
+
+/* Focus is the accent ring the design system already defines — border + halo. */
+input.adjust-field__box:focus {
+  box-shadow: var(--focus-ring);
+  border-color: var(--tinta-0);
+}
+
+.adjust-field__box::placeholder {
+  color: var(--ink-3);
+}
+
+.adjust-qtyprice {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.adjust-qtyprice__qty {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.adjust-qtyprice__x {
+  align-self: center;
+  font-family: var(--font-sans);
+  font-size: var(--fs-15);
+  color: var(--ink-2);
+}
+
+.adjust-qtyprice__price {
+  flex: 1;
+  min-width: 0;
+  gap: 6px;
+}
+
+.adjust-qtyprice__price:focus-within {
+  box-shadow: var(--focus-ring);
+  border-color: var(--tinta-0);
+}
+
+.adjust-qtyprice__euro {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+.adjust-qtyprice__amount {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-0);
+}
+
+.adjust-qtyprice__suffix {
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  color: var(--ink-1);
+}
+
+/* Dashed/tinta while a suggestion waits: «esto aún no es real». Declared after
+   the base fields so the compound overrides don't descend in specificity. */
+.adjust-qtyprice__price--suggested {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--tinta-0);
+}
+
+.adjust-qtyprice__price--suggested .adjust-qtyprice__euro,
+.adjust-qtyprice__price--suggested .adjust-qtyprice__amount,
+.adjust-qtyprice__price--suggested .adjust-qtyprice__suffix {
+  color: var(--tinta-0);
+}
+
+.adjust-qtyprice__price--suggested .adjust-qtyprice__amount::placeholder {
+  color: var(--tinta-0);
+  opacity: 0.7;
+}
+
+.adjust-help {
+  margin: 8px 0 0;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.adjust-help code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-1);
+}
+
+/* The derived line total, on the verde ground the frame uses. */
+.adjust-linetotal {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 9px 12px;
+  background: var(--verde-bg);
+  border-radius: 8px;
+}
+
+.adjust-linetotal__label {
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  color: var(--ink-1);
+}
+
+.adjust-linetotal__value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-15);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-0);
+}
+
+/* The inherited-price opt-in (6c): a question and two discs, on the tinta tint. */
+.adjust-suggest {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--tinta-bg);
+  border-radius: 8px;
+}
+
+.adjust-suggest__q {
+  flex: 1;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-1);
+}
+
+.adjust-suggest__disc {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  color: var(--accent-fg);
+  cursor: pointer;
+}
+
+.adjust-suggest__disc--yes {
+  background: var(--verde-0);
+}
+
+.adjust-suggest__disc--no {
+  background: var(--tomate-0);
+}
+
+.adjust-sheet__footer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 20px 0;
+}
+
+.adjust-sheet__done {
+  min-height: 48px;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--tinta-0);
+  color: var(--accent-fg);
+  font-family: var(--font-sans);
+  font-size: var(--fs-15);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.adjust-sheet__done:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adjust-sheet__remove {
+  min-height: 44px;
+  border: none;
+  background: none;
+  color: var(--tomate-0);
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  cursor: pointer;
+}

@@ -5,11 +5,13 @@ import {
   createItem,
   createList,
   deleteList,
+  getElsewhereMatch,
   getInvitePreview,
   getLists,
   getListUpdatedAt,
   issueApiKey,
   regenerateApiKey,
+  setBoardPref,
   shortcutFileUrl,
   submitFeedback,
   submitWaitlistSignup,
@@ -154,6 +156,44 @@ describe('updateList', () => {
         body: JSON.stringify({ name: 'Nuevo nombre' }),
       }),
     )
+  })
+})
+
+describe('setBoardPref', () => {
+  it('PUT /lists/{id}/prefs/board with the board body', async () => {
+    mockFetch.mockReturnValue(mockResponse(null, 204))
+    await setBoardPref(mockGetToken, 'l1', 'salvia')
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/lists/l1/prefs/board'),
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ board: 'salvia' }),
+      }),
+    )
+  })
+})
+
+describe('getElsewhereMatch', () => {
+  it('GET /lists/{id}/items/elsewhere with the url-encoded name', async () => {
+    mockFetch.mockReturnValue(
+      mockResponse({
+        list_id: 'l2',
+        list_name: 'Casa',
+        last_purchased_at: '2026-07-12T10:00:00',
+      }),
+    )
+    const match = await getElsewhereMatch(mockGetToken, 'l1', 'pan integral')
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/lists/l1/items/elsewhere?name=pan%20integral'),
+      expect.anything(),
+    )
+    expect(match?.list_name).toBe('Casa')
+  })
+
+  it('passes a null (no match) response straight through', async () => {
+    mockFetch.mockReturnValue(mockResponse(null))
+    const match = await getElsewhereMatch(mockGetToken, 'l1', 'nada')
+    expect(match).toBeNull()
   })
 })
 

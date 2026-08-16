@@ -21,6 +21,7 @@ const item1: ListItem = {
   stores: [],
   purchased: false,
   purchased_at: null,
+  purchase_has_receipt: false,
   purchase_ends_at: null,
   ean: null,
   price: null,
@@ -191,8 +192,9 @@ describe('useListItems — addItem', () => {
     )
     await waitFor(() => expect(result.current.status).toBe('success'))
 
+    let created: ListItem | null = null
     await act(async () => {
-      await result.current.addItem({
+      created = await result.current.addItem({
         name: 'Leche Real',
         quantity: null,
         brand: null,
@@ -203,6 +205,8 @@ describe('useListItems — addItem', () => {
     const newItem = result.current.items.find((i) => i.id === 'item-real')
     expect(newItem?.id).toBe('item-real')
     expect(newItem?.name).toBe('Leche Real')
+    // The caller gets the created item back, so it can point at it.
+    expect(created).toEqual(realItem)
   })
 
   it('removes temp item and shows toast on error', async () => {
@@ -232,8 +236,9 @@ describe('useListItems — addItem', () => {
     )
     await waitFor(() => expect(result.current.status).toBe('success'))
 
+    let created: ListItem | null = item1
     await act(async () => {
-      await result.current.addItem({
+      created = await result.current.addItem({
         name: 'LECHE',
         quantity: null,
         brand: null,
@@ -243,6 +248,8 @@ describe('useListItems — addItem', () => {
 
     expect(api.createItem).not.toHaveBeenCalled()
     expect(mockShowToast).toHaveBeenCalledWith('Ya está en la lista')
+    // A refused add answers null — nothing to point at.
+    expect(created).toBeNull()
   })
 
   it('blocks duplicate EAN and shows toast without calling API', async () => {
@@ -1133,7 +1140,7 @@ describe('useListItems — a read that lands after a write', () => {
     )
     await waitFor(() => expect(result.current.items).toHaveLength(1))
 
-    let add!: Promise<void>
+    let add!: Promise<ListItem | null>
     await act(async () => {
       add = result.current.addItem({
         name: 'Pan',

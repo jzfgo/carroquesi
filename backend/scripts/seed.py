@@ -76,6 +76,23 @@ def days_ago(n: float) -> datetime:
     return (datetime.now(UTC) - timedelta(days=n)).replace(tzinfo=None)
 
 
+def today_fraction(f: float) -> datetime:
+    """A naive-UTC instant f of the way from the last local midnight to now.
+
+    "Purchased today" fixtures must land inside the current local day whatever
+    hour the seed runs: a fixed now-minus-hours offset crosses midnight when
+    seeding in the small hours, and — the same failure aged rather than born —
+    any instant before today's midnight belongs to a trip that already tore
+    off, so the fixture renders as a settled record instead of an in-cart row.
+    Fractions of the elapsed day can never leave it. The zone is the machine's,
+    matching the trip grouping in build_seed_trips.
+    """
+    local_now = datetime.now(UTC).astimezone()
+    midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    instant = midnight + (local_now - midnight) * f
+    return instant.astimezone(UTC).replace(tzinfo=None)
+
+
 ALICE_ID = "seed-user-alice"
 BOB_ID = "seed-user-bob"
 CAROL_ID = "seed-user-carol"
@@ -198,7 +215,7 @@ SEED_ITEMS = [
         brand="Nescafe",
         stores=["Mercadona"],
         added_by=ALICE_ID,
-        purchased_at=days_ago(0.1),
+        purchased_at=today_fraction(0.9),
         price=3.45,
         price_store="Mercadona",
     ),
@@ -210,7 +227,7 @@ SEED_ITEMS = [
         brand="Danone",
         stores=[],
         added_by=BOB_ID,
-        purchased_at=days_ago(0.2),
+        purchased_at=today_fraction(0.75),
     ),
     # ════════════════════════════════════════════════════════════════════════
     # COMPRA SEMANAL — purchased on past days (read-only)

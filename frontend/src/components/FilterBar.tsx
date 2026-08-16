@@ -1,5 +1,3 @@
-import { Search, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
 import { storeKey } from '../lib/storeKey'
 import './FilterBar.css'
 
@@ -7,97 +5,42 @@ interface Props {
   stores: string[]
   query: string
   onChange: (q: string) => void
-  onModeChange?: (mode: 'chips' | 'search') => void
 }
 
-export function FilterBar({ stores, query, onChange, onModeChange }: Props) {
-  const [mode, setMode] = useState<'chips' | 'search'>('chips')
-  const inputRef = useRef<HTMLInputElement>(null)
+/**
+ * The store-filter chips — their own row, no magnifier (search lives in the
+ * header now, handoff 21b). A chip is "I'm here": tapping one filters to that
+ * shop while storeless items still pass (chip mode → strictStore off, handled
+ * by the caller). Comparison is by `storeKey` so a chip label and a typed
+ * spelling of the same shop still match.
+ */
+export function FilterBar({ stores, query, onChange }: Props) {
+  if (stores.length === 0) return null
 
-  useEffect(() => {
-    if (mode === 'search') {
-      const id = setTimeout(() => inputRef.current?.focus(), 320)
-      return () => clearTimeout(id)
-    }
-  }, [mode])
-
-  // The query carries a typed store name; the chip label may be a different
-  // spelling of the same shop. Compare by key, keep emitting display strings.
   const activeChip = query.startsWith('@')
     ? (stores.find((s) => storeKey(query.slice(1)) === storeKey(s)) ?? null)
     : null
 
   return (
-    <div
-      className={`filter-bar${mode === 'search' ? ' filter-bar--search-active' : ''}`}
-      role="group"
-      aria-label="Filtrar"
-    >
-      <div
-        className="filter-bar__chips"
-        aria-hidden={mode === 'search'}
-        inert={mode === 'search' ? true : undefined}
-      >
+    <div className="filter-bar" role="group" aria-label="Filtrar por tienda">
+      <div className="filter-bar__chips">
         <button
-          className="filter-bar__search-btn"
-          onClick={() => {
-            setMode('search')
-            onChange('')
-            onModeChange?.('search')
-          }}
-          aria-label="Buscar"
+          className={`filter-bar__chip${activeChip === null ? ' filter-bar__chip--active' : ''}`}
+          onClick={() => onChange('')}
+          aria-pressed={activeChip === null}
         >
-          <Search size={16} />
+          Todas
         </button>
-        {stores.length > 0 && (
-          <>
-            <button
-              className={`filter-bar__chip${activeChip === null ? ' filter-bar__chip--active' : ''}`}
-              onClick={() => onChange('')}
-              aria-pressed={activeChip === null}
-            >
-              Todas
-            </button>
-            {stores.map((store) => (
-              <button
-                key={store}
-                className={`filter-bar__chip${activeChip === store ? ' filter-bar__chip--active' : ''}`}
-                onClick={() => onChange(`@${store}`)}
-                aria-pressed={activeChip === store}
-              >
-                {store}
-              </button>
-            ))}
-          </>
-        )}
-      </div>
-      <div
-        className="filter-bar__search"
-        aria-hidden={mode === 'chips'}
-        inert={mode === 'chips' ? true : undefined}
-      >
-        <button
-          className="filter-bar__close-btn"
-          onClick={() => {
-            setMode('chips')
-            onChange('')
-            onModeChange?.('chips')
-          }}
-          aria-label="Cerrar búsqueda"
-        >
-          <X size={16} />
-        </button>
-        {mode === 'search' && (
-          <input
-            ref={inputRef}
-            className="filter-bar__input"
-            type="text"
-            value={query}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="@tienda #marca nombre…"
-            aria-label="Buscar productos"
-          />
-        )}
+        {stores.map((store) => (
+          <button
+            key={store}
+            className={`filter-bar__chip${activeChip === store ? ' filter-bar__chip--active' : ''}`}
+            onClick={() => onChange(`@${store}`)}
+            aria-pressed={activeChip === store}
+          >
+            {store}
+          </button>
+        ))}
       </div>
     </div>
   )

@@ -1,4 +1,6 @@
 import { test as base, expect, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import type {
   ApiList,
   BackendMember,
@@ -9,8 +11,12 @@ import type {
   PriceEntry,
   PriceHistoryResponse,
   PriceType,
+  PurchasePage,
+  ReceiptFileUrlResult,
   ReceiptPriceApplyResult,
   ReceiptScanResult,
+  ReceiptScanSummary,
+  ReceiptUploadUrlResult,
   UserMe,
 } from '../src/types'
 import data from './fixtures.json' with { type: 'json' }
@@ -46,6 +52,23 @@ const SEED_PRICE_HISTORY: PriceHistoryResponse = data.SEED_PRICE_HISTORY
 const SEED_RECEIPT_APPLY_RESULT: ReceiptPriceApplyResult =
   data.SEED_RECEIPT_APPLY_RESULT
 const SEED_UPDATED_AT: ListUpdatedAt = data.SEED_UPDATED_AT
+
+// Receipt files (25b). The stack page stays empty in the shared mock — a spec
+// that wants trips on screen serves SEED_TRIPS itself, so a populated stack
+// never drifts the other specs' screenshots. The scan/file handlers ARE
+// shared: every scan now mints an upload URL, so every receipt spec hits them.
+export const SEED_TRIPS: PurchasePage = data.SEED_TRIPS
+export const SEED_RECEIPT_SCANS: ReceiptScanSummary[] = data.SEED_RECEIPT_SCANS
+const SEED_FILE_URL_RESULT: ReceiptFileUrlResult = data.SEED_FILE_URL_RESULT
+const SEED_UPLOAD_URL_RESULT: ReceiptUploadUrlResult =
+  data.SEED_UPLOAD_URL_RESULT
+
+// What the pretend bucket serves back: a committed 240x300 PNG drawn as a
+// ticket (header band, lined paper), so the miniature and the viewer both
+// visibly show a picture.
+const RECEIPT_FILE_BYTES = readFileSync(
+  path.join(import.meta.dirname, 'receipt-file.png'),
+)
 
 // A ReceiptScanSheet review, matching item-leche (existing price, gets updated)
 // and item-cafe (no price yet), plus one unmatched line — mirrors the shape
@@ -91,9 +114,34 @@ export async function installApiMocks(page: Page): Promise<void> {
         body: JSON.stringify(body),
       })
 
+    // The pretend bucket. The signed URLs in the fixtures point under the
+    // mocked backend origin, so both halves of the storage flow — the upload
+    // PUT and the miniature/viewer GET — resolve without a real GCS.
+    if (path.startsWith('/__gcs__/')) {
+      if (method === 'PUT') return route.fulfill({ status: 200, body: '' })
+      if (method === 'GET')
+        return route.fulfill({
+          status: 200,
+          contentType: 'image/png',
+          body: RECEIPT_FILE_BYTES,
+        })
+    }
+
     // Auth
     if (method === 'POST' && path === '/auth/sync') return json(ALICE)
     if (method === 'GET' && path === '/users/me') return json(ALICE)
+
+    // Receipt-scanning consent decision. Echoes the decision over the
+    // validated ALICE payload, like the other write templates.
+    if (method === 'PUT' && path === '/users/me/receipt-consent') {
+      const body = (req.postDataJSON() ?? {}) as { consent?: string }
+      return json({ ...ALICE, receipt_consent: body.consent ?? null })
+    }
+
+    // Settings sheet key issuance — fired on open under Apple UAs (the two
+    // iPhone projects). Steady state: the key exists, no plaintext returned.
+    if (method === 'POST' && path === '/account/api-key')
+      return json({ key: null, created: false })
 
     // Lists collection
     if (path === '/lists') {
@@ -173,6 +221,50 @@ export async function installApiMocks(page: Page): Promise<void> {
         if (method === 'GET') return json(SEED_MEMBERS[listId] ?? [])
       }
 
+      // /lists/:id/purchases — the trip stack fetches page 0 on every list
+      // open. No seed trips, so an empty page; the mock only spares the app the
+      // 404 fallback it otherwise swallows on mount.
+      if (sub === '/purchases' && method === 'GET') {
+        return json({ purchases: [], total: 0 })
+      }
+
+      // /lists/:id/purchases/manual — the 18c partial save. Echoes the
+      // submitted figures back as the born-closed record the backend writes;
+      // the sheet only awaits success, so the boundary instants can be flat.
+      if (sub === '/purchases/manual' && method === 'POST') {
+        const body = (req.postDataJSON() ?? {}) as {
+          date?: string
+          store?: string | null
+          total?: number | null
+        }
+        return json({
+          id: 'manual-purchase-1',
+          list_id: listId,
+          opened_at: `${body.date}T00:00:00`,
+          tears_off_at: `${body.date}T23:59:59`,
+          closed_at: `${body.date}T23:59:59`,
+          store: body.store ?? null,
+          total: body.total ?? null,
+        })
+      }
+
+      // /lists/:id/purchases/:pid/receipt-scans — the 25b thumbnail lookup.
+      // Only the seeded con-ticket trip has a stored file.
+      const scansMatch = sub.match(/^\/purchases\/([^/]+)\/receipt-scans$/)
+      if (scansMatch && method === 'GET')
+        return json(
+          scansMatch[1] === 'trip-con-ticket' ? SEED_RECEIPT_SCANS : [],
+        )
+
+      // /lists/:id/receipts/:scanId/upload-url — minted after every scan
+      // submit; the PUT then lands on the /__gcs__/ echo above.
+      if (/^\/receipts\/[^/]+\/upload-url$/.test(sub) && method === 'POST')
+        return json(SEED_UPLOAD_URL_RESULT)
+
+      // /lists/:id/receipts/:scanId/file-url — the viewer's fresh mint.
+      if (/^\/receipts\/[^/]+\/file-url$/.test(sub) && method === 'GET')
+        return json(SEED_FILE_URL_RESULT)
+
       // /lists/:id/stores — the store registry; fetched with every list read.
       if (sub === '/stores') {
         if (method === 'GET') return json(SEED_STORES[listId] ?? [])
@@ -210,11 +302,15 @@ export async function installApiMocks(page: Page): Promise<void> {
           new_items?: NewPurchasedItem[]
         }
         const now = new Date().toISOString()
-        // An impulse buy is born purchased. On the real backend its purchase
-        // instant comes from parsing the submitted receipt date — a rule that
-        // lives there and only there. Deriving it here again would be a second
-        // copy of that rule, drifting on its own, so the mock stamps the
-        // request's arrival instead; no spec reads the value.
+        // An impulse buy is a purchase that already happened — you scan the
+        // receipt after the fact — so it lands as a settled record on a
+        // *closed* trip, not an in-cart line. Its purchase instant and trip
+        // boundary come from the SEED_IMPULSE_ITEM template (a prior day,
+        // torn off): on the real backend those are parsed from the submitted
+        // receipt date, and a mock re-deriving that rule would drift on its
+        // own. The template's closed trip is what makes the created card
+        // render as a bought record (price + re-buy), which the impulse test
+        // asserts.
         const created = (body.new_items ?? []).map((n, idx) => ({
           ...SEED_IMPULSE_ITEM,
           id: `created-item-${idx}-${now}`,
@@ -224,7 +320,6 @@ export async function installApiMocks(page: Page): Promise<void> {
           purchased_quantity: n.quantity ?? null,
           brand: n.brand ?? null,
           stores: n.store ? [n.store] : [],
-          purchased_at: naiveUtc(now),
           ean: n.ean ?? null,
           price: n.price,
           price_per: n.price_per ?? null,

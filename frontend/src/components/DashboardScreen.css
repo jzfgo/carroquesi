@@ -54,8 +54,48 @@
 .dashboard-screen__lists {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding: 1.25rem;
+  flex: 1;
+}
+
+.dashboard-screen__panel {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 38a eyebrow: label row over the flat list group, mono count right. */
+.dashboard-screen__eyebrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 14px 20px 8px;
+}
+
+.dashboard-screen__eyebrow-label {
+  margin: 0;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.dashboard-screen__eyebrow-count {
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 16c first-run empty: centred on the flat surface below the notices. */
+.dashboard-screen__empty {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: center;
+  padding: 0 1.25rem 3rem;
 }
 
 .dashboard-screen__spinner {
@@ -76,81 +116,4 @@
   border: none;
   cursor: pointer;
   font-size: var(--fs-16);
-}
-
-.dashboard-screen__avatar-wrapper {
-  position: relative;
-}
-
-.dashboard-screen__avatar-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  background: var(--paper-0);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-md);
-  min-width: 160px;
-  overflow: hidden;
-  z-index: 100;
-}
-
-.dashboard-screen__avatar-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.625rem 0.875rem;
-  border: none;
-  background: none;
-  font-size: var(--fs-14);
-  color: var(--ink-0);
-  cursor: pointer;
-  text-align: left;
-}
-
-.dashboard-screen__avatar-menu-item:hover {
-  background: var(--paper-1);
-}
-
-.dashboard-screen__avatar-menu-item + .dashboard-screen__avatar-menu-item {
-  border-top: 1px solid var(--border);
-}
-
-/* Reads as a control, not a text field: accent-tinted like InstallBanner, with
-   a leading icon. A pale left-aligned box with a hairline border was being
-   mistaken for a disabled input, which is fatal for an opt-in affordance. */
-.notifications-toggle {
-  display: flex;
-  gap: 0.625rem;
-  align-items: center;
-  width: 100%;
-  min-height: var(--hit-min, 44px);
-  padding: 0.625rem 0.75rem;
-  font-family: inherit;
-  font-size: var(--fs-14);
-  font-weight: 600;
-  color: var(--accent, #1a3fa0);
-  text-align: left;
-  cursor: pointer;
-  background: var(--accent-bg, rgb(26 63 160 / 8%));
-  border: 1px solid var(--accent-border, rgb(26 63 160 / 28%));
-  border-radius: 12px;
-}
-
-.notifications-toggle__icon {
-  display: flex;
-  flex-shrink: 0;
-}
-
-/* Blocked state: informational, not actionable — muted so it does not invite a
-   tap that the browser would ignore. */
-.notifications-toggle--blocked {
-  margin: 0;
-  font-weight: 400;
-  line-height: 1.35;
-  color: var(--fg-muted, #353742);
-  cursor: default;
-  background: var(--bg-raised, #fff);
-  border-color: var(--border, #e2e6ee);
 }

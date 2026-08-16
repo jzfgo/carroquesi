@@ -1,0 +1,55 @@
+/* Handoff 21b: search occupies the title-area slot as an accent-bordered sheet
+   of paper, sitting on the board one board-gutter in from the edge (matching the
+   sheets' 12px). Solid paper-0 so the list can't read through it; the accent
+   border is the only thing that marks it live. */
+.search-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  margin: 0 12px 14px;
+  padding: 0 8px 0 14px;
+  box-sizing: border-box;
+  background: var(--paper-0);
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r-pill);
+}
+
+.search-pill__icon {
+  flex-shrink: 0;
+  color: var(--ink-1);
+}
+
+.search-pill__input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--ink-0);
+}
+
+/* --ink-2 (muted), not --ink-3: the same WCAG placeholder fix as the input pill. */
+.search-pill__input::placeholder {
+  color: var(--ink-2);
+}
+
+/* The clear/close mark (21b): a soft paper-1 disc, no accent — it is the way
+   out, not the emphasis. */
+.search-pill__clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  background: var(--paper-1);
+  border: none;
+  border-radius: 50%;
+  color: var(--ink-1);
+  cursor: pointer;
+  font-family: inherit;
+}

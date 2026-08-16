@@ -3,7 +3,7 @@
    Paper-and-ink palette inspired by a real hand-written grocery
    list. Native light + dark. Mobile/touch first.
 
-   Fonts (via Google Fonts — see fonts/README.md for self-host):
+   Fonts (self-hosted, imported in index.css):
      Geist           — body & UI (clean neutral grotesque)
      Bree Serif      — display, screen titles, pre-printed sheet titles
      Caveat          — sparing hand-written accent (wordmark, annotations,
@@ -14,24 +14,20 @@
      JetBrains Mono  — prices, totals, EAN codes, purchased (printed) content
    ───────────────────────────────────────────────────────────── */
 
-@import 'https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Bree+Serif&family=Caveat:wght@500;600;700&family=Patrick+Hand+SC&family=JetBrains+Mono:wght@400;500;600&display=swap';
-
 /* ── 1. CORE PALETTE — light (default) ────────────────────── */
 :root {
   /* Off-white school-paper greys. Cool blue-grey — like a Mead
      composition notebook page, not a cream stationery card. */
-  --paper-0: #eef1f5; /* page background */
+  --paper-0: #eef1f5; /* the sheet / page background */
   --paper-1: #e3e7ed; /* recessed surface (input bg) */
   --paper-2: #d5dae2; /* hover surface */
-  --paper-edge: #b4bac4; /* dividers / borders / ruled lines */
-  --paper-line: #c7d2e1; /* faint blue notebook ruling */
+  --paper-edge: #b4bac4; /* dividers / borders */
 
   /* Ink — cool near-black. Reads like pencil/print on paper. */
   --ink-0: #15161b; /* primary text, headings */
   --ink-1: #353742; /* secondary text */
   --ink-2: #6a6d7a; /* tertiary / muted */
-  --ink-3: #94969f; /* placeholder / disabled */
-  --ink-strike: #b0b2b9; /* purchased / line-through */
+  --ink-3: #94969f; /* borders / inactive marks — never text */
 
   /* Brand accents — pulled from the school desk:
      - "tinta" BIC ballpoint blue: signature accent (ticks, links, brand)
@@ -50,7 +46,7 @@
   --tomate-1: #d14538;
   --tomate-bg: rgb(192 57 43 / 9%);
   --tomate-border: rgb(192 57 43 / 30%);
-  --miel-0: #c9941f; /* highlighter / promo */
+  --miel-0: #c9941f; /* highlighter / promo — never a text colour */
   --miel-1: #e0a92d;
   --miel-bg: rgb(201 148 31 / 14%);
   --miel-border: rgb(201 148 31 / 38%);
@@ -73,27 +69,60 @@
   /* Focus ring — accessible, brand-colored */
   --focus-ring: 0 0 0 3px rgb(26 63 160 / 30%);
 
-  /* ── SHEET MODEL — the two-paper world (see DESIGN.md "El Ticket") ──
-     The surface the sheets lie on. Warm on purpose: it is the only colour in
-     the product that is not paper or ink, and it survives the grayscale rule
-     because that rule governs content, not surfaces. */
-  --table: #c2a982;
-  --table-edge: #a08a6a;
+  /* ── SHEET MODEL — paper on cardboard ─────────────────────
+     A list is a sheet (--paper-0) on a board (--board-*). The board is
+     per person and per list; its six hues are material, confined to an
+     open list. Each hue pairs with its own ink, and every pair holds
+     4.5:1 in both lights. */
+  --board-kraft: #c2a982;
+  --board-lino: #c8c2b3;
+  --board-salvia: #a9b8a5;
+  --board-niebla: #a9b6c6;
+  --board-barro: #c59a8a;
+  --board-pizarra: #a8a8ad;
+  --board-ink-kraft: #15161b;
+  --board-ink-lino: #15161b;
+  --board-ink-salvia: #15161b;
+  --board-ink-niebla: #15161b;
+  --board-ink-barro: #15161b;
+  --board-ink-pizarra: #15161b;
 
-  /* Each sheet casts onto the TABLE, never onto the other sheet: they lie at
-     the same elevation. Thicker list stock casts deeper than the till roll. */
-  --cast-1: rgb(22 27 45 / 16%);
-  --cast-2: rgb(22 27 45 / 30%);
+  /* Relief never changes with the light; only how it is drawn does. A
+     sheet always carries border-top (edge-lit), border-bottom (edge-cast)
+     AND box-shadow (sheet-cast). Light paints the shadow and turns the
+     edges transparent; dark paints the edges and a hard cast instead.
+     Rungs 1/2/3 go from the list sheet down to inline paper scraps. */
+  --edge-lit-1: transparent;
+  --edge-lit-2: transparent;
+  --edge-lit-3: transparent;
+  --edge-cast-1: transparent;
+  --edge-cast-2: transparent;
+  --edge-cast-3: transparent;
+  --sheet-cast-list:
+    0 1px 1.5px rgb(22 27 45 / 16%), 0 4px 9px -4px rgb(22 27 45 / 30%);
+  --sheet-cast-receipt:
+    0 1px 1px rgb(22 27 45 / 16%), 0 2px 5px -3px rgb(22 27 45 / 30%);
 
-  /* Rim light on the receipt's cut edge. Must be painted ABOVE the paper
-     texture and the veil — an inset box-shadow renders beneath an element's
-     children and is covered by them. */
-  --lip: rgb(255 255 255 / 58%);
-  --lip-soft: rgb(255 255 255 / 22%);
+  /* Rim light on the receipt's cut edge — a 1.5px background layer, not a
+     border: it must paint ABOVE the veil and the paper texture. */
+  --sheet-rim: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 58%) 0 1px,
+    rgb(255 255 255 / 22%) 1px 1.5px
+  );
 
-  /* Absolute RGB delta, not a multiplier: multiplying a near-black paper
-     yields no usable range, which is why light and dark differ so much. */
-  --paper-amp: 10;
+  /* Multiply veil that dims a settled (receipt) sheet against the live one. */
+  --veil: rgb(21 22 27 / 4%);
+
+  /* The die-cut hole between pending and cart. In light the hole simply
+     shows the board through; in dark it is deeper than any board. */
+  --void: transparent;
+
+  /* A modal sheet lifted above the page, and the secondary chart series.
+     Both equal existing paper rungs in light and step UP in dark: there
+     is no room below the sheet at night. */
+  --paper-lift: var(--paper-0);
+  --series: var(--paper-2);
 
   /* Crease geometry, shared by both themes. Lower grammage creases finer AND
      harder, so relief is not constant across the two stocks. Deterministic
@@ -103,7 +132,10 @@
   --paper-relief-list: 0.55;
   --paper-relief-receipt: 0.8;
   --paper-seed: 62;
-  --paper-veil: rgb(230 230 230); /* multiply => 90% brightness */
+
+  /* Absolute RGB delta, not a multiplier: multiplying a near-black paper
+     yields no usable range, which is why light and dark differ so much. */
+  --paper-amp: 10;
 
   /* ── 2. SEMANTIC ALIASES ────────────────────────────────── */
   --bg: var(--paper-0);
@@ -114,10 +146,13 @@
   --fg-muted: var(--ink-1);
   --fg-subtle: var(--ink-2);
   --fg-placeholder: var(--ink-3);
-  --fg-strike: var(--ink-strike);
   --border: var(--paper-edge);
   --border-strong: #9ca3ae;
-  --rule: var(--paper-line);
+
+  /* Row dividers. Solid hairline for stacked rows; the dashed stroke is
+     a step stronger because dashes have half the pixels (rule 19). */
+  --rule: #e3e7ed;
+  --rule-dashed: #b4bac4;
   --accent: var(--tinta-0);
   --accent-hover: var(--tinta-1);
   --accent-bg: var(--tinta-bg);
@@ -219,21 +254,21 @@
 /* ── 9. DARK MODE ─────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Late-night study session. Cool graphite paper, cool cream ink. */
-    --paper-0: #131419;
-    --paper-1: #1b1c22;
-    --paper-2: #25262d;
-    --paper-edge: #3a3c44;
-    --paper-line: #242833;
-    --ink-0: #edeef2;
-    --ink-1: #c6c8cf;
-    --ink-2: #8e919a;
-    --ink-3: #6a6d75;
-    --ink-strike: #4f525a;
-    --tinta-0: #91a8ff;
+    /* The same table at night. The sheet keeps its rank above the board;
+       relief moves from shadows to edges (rule 17). Material colours keep
+       their hue and gain saturation as they drop a band (rule 18). */
+    --paper-0: #252731;
+    --paper-1: #2e313b;
+    --paper-2: #3c4050;
+    --paper-edge: #4c4f5a;
+    --ink-0: #f0f1f5;
+    --ink-1: #c9cbd3;
+    --ink-2: #92959f;
+    --ink-3: #7b7e88;
+    --tinta-0: #93aaff;
     --tinta-1: #b0c0ff;
-    --tinta-bg: rgb(145 168 255 / 10%);
-    --tinta-border: rgb(145 168 255 / 30%);
+    --tinta-bg: rgb(147 170 255 / 10%);
+    --tinta-border: rgb(147 170 255 / 30%);
     --verde-0: #7bc68b;
     --verde-1: #9bdab0;
     --verde-bg: rgb(123 198 139 / 12%);
@@ -253,21 +288,47 @@
     --shadow-lg: 0 2px 4px rgb(0 0 0 / 40%), 0 18px 36px -8px rgb(0 0 0 / 65%);
     --shadow-sheet:
       0 -2px 4px rgb(0 0 0 / 30%), 0 -18px 40px -6px rgb(0 0 0 / 55%);
-    --focus-ring: 0 0 0 3px rgb(145 168 255 / 40%);
-    --accent-fg: #131419;
-    --border-strong: #4a4c55;
-    --table: #3b2f22;
-    --table-edge: #3a2f24;
-    --cast-1: rgb(0 0 0 / 45%);
-    --cast-2: rgb(0 0 0 / 65%);
-    --lip: rgb(255 255 255 / 19%);
-    --lip-soft: rgb(255 255 255 / 7%);
+    --focus-ring: 0 0 0 3px rgb(147 170 255 / 40%);
+    --accent-fg: #252731;
+    --border-strong: #52555f;
+    --rule: #33363f;
+    --rule-dashed: #414450;
+    --board-kraft: #2a1d0a;
+    --board-lino: #232014;
+    --board-salvia: #12240f;
+    --board-niebla: #0f1e33;
+    --board-barro: #331409;
+    --board-pizarra: #1b1c24;
+
+    /* Each ink leans toward its own board's hue: the cardboard tints
+       what is written on it. A shared cool ink read blue on the warm
+       boards. */
+    --board-ink-kraft: #e9e3d6;
+    --board-ink-lino: #e9e3d6;
+    --board-ink-salvia: #dfe8d9;
+    --board-ink-niebla: #d9e0ea;
+    --board-ink-barro: #eddcd6;
+    --board-ink-pizarra: #dcdee4;
+    --edge-lit-1: rgb(255 255 255 / 15%);
+    --edge-lit-2: rgb(255 255 255 / 8%);
+    --edge-lit-3: rgb(255 255 255 / 4%);
+    --edge-cast-1: rgb(0 0 0 / 55%);
+    --edge-cast-2: rgb(0 0 0 / 45%);
+    --edge-cast-3: rgb(0 0 0 / 30%);
+    --sheet-cast-list:
+      0 3px 0 -1px rgb(0 0 0 / 60%), 0 8px 16px -7px rgb(0 0 0 / 80%);
+    --sheet-cast-receipt: 0 3px 0 -1px rgb(0 0 0 / 60%);
+    --sheet-rim: none;
+    --veil: rgb(0 0 0 / 20%);
+    --void: #08080b;
+    --paper-lift: #2e313b;
+    --series: #3c4050;
     --paper-amp: 20;
   }
 }
 
-/* Explicit override classes so docs/preview cards can demo both
-   modes side by side regardless of OS setting. */
+/* Explicit override classes so the appearance switcher (and docs/preview
+   cards) can force either mode regardless of OS setting. */
 .theme-light {
   color-scheme: light;
 
@@ -275,26 +336,28 @@
   --paper-1: #e3e7ed;
   --paper-2: #d5dae2;
   --paper-edge: #b4bac4;
-  --paper-line: #c7d2e1;
   --ink-0: #15161b;
   --ink-1: #353742;
   --ink-2: #6a6d7a;
   --ink-3: #94969f;
-  --ink-strike: #b0b2b9;
   --tinta-0: #1a3fa0;
   --tinta-1: #2c56c1;
   --tinta-bg: rgb(26 63 160 / 8%);
   --tinta-border: rgb(26 63 160 / 28%);
   --verde-0: #2f7a4a;
+  --verde-1: #459362;
   --verde-bg: rgb(47 122 74 / 10%);
   --verde-border: rgb(47 122 74 / 32%);
   --tomate-0: #c0392b;
+  --tomate-1: #d14538;
   --tomate-bg: rgb(192 57 43 / 9%);
   --tomate-border: rgb(192 57 43 / 30%);
   --miel-0: #c9941f;
+  --miel-1: #e0a92d;
   --miel-bg: rgb(201 148 31 / 14%);
   --miel-border: rgb(201 148 31 / 38%);
   --highlight-yellow: rgb(245 213 71 / 55%);
+  --highlight-green: rgb(123 198 139 / 40%);
   --shadow-sm:
     0 1px 1px rgb(30 35 55 / 10%), 0 2px 4px -2px rgb(30 35 55 / 14%);
   --shadow-md:
@@ -306,15 +369,16 @@
   --focus-ring: 0 0 0 3px rgb(26 63 160 / 30%);
   --bg: var(--paper-0);
   --bg-sunken: var(--paper-1);
+  --bg-raised: var(--paper-0);
   --bg-hover: var(--paper-2);
   --fg: var(--ink-0);
   --fg-muted: var(--ink-1);
   --fg-subtle: var(--ink-2);
   --fg-placeholder: var(--ink-3);
-  --fg-strike: var(--ink-strike);
   --border: var(--paper-edge);
   --border-strong: #9ca3ae;
-  --rule: var(--paper-line);
+  --rule: #e3e7ed;
+  --rule-dashed: #b4bac4;
   --accent: var(--tinta-0);
   --accent-hover: var(--tinta-1);
   --accent-bg: var(--tinta-bg);
@@ -323,88 +387,121 @@
   --success: var(--verde-0);
   --danger: var(--tomate-0);
   --warn: var(--miel-0);
-
-  /* ── SHEET MODEL — the two-paper world (see DESIGN.md "El Ticket") ──
-     The surface the sheets lie on. Warm on purpose: it is the only colour in
-     the product that is not paper or ink, and it survives the grayscale rule
-     because that rule governs content, not surfaces. */
-  --table: #c2a982;
-  --table-edge: #a08a6a;
-
-  /* Each sheet casts onto the TABLE, never onto the other sheet: they lie at
-     the same elevation. Thicker list stock casts deeper than the till roll. */
-  --cast-1: rgb(22 27 45 / 16%);
-  --cast-2: rgb(22 27 45 / 30%);
-
-  /* Rim light on the receipt's cut edge. Must be painted ABOVE the paper
-     texture and the veil — an inset box-shadow renders beneath an element's
-     children and is covered by them. */
-  --lip: rgb(255 255 255 / 58%);
-  --lip-soft: rgb(255 255 255 / 22%);
-
-  /* Absolute RGB delta, not a multiplier: multiplying a near-black paper
-     yields no usable range, which is why light and dark differ so much. */
+  --board-kraft: #c2a982;
+  --board-lino: #c8c2b3;
+  --board-salvia: #a9b8a5;
+  --board-niebla: #a9b6c6;
+  --board-barro: #c59a8a;
+  --board-pizarra: #a8a8ad;
+  --board-ink-kraft: #15161b;
+  --board-ink-lino: #15161b;
+  --board-ink-salvia: #15161b;
+  --board-ink-niebla: #15161b;
+  --board-ink-barro: #15161b;
+  --board-ink-pizarra: #15161b;
+  --edge-lit-1: transparent;
+  --edge-lit-2: transparent;
+  --edge-lit-3: transparent;
+  --edge-cast-1: transparent;
+  --edge-cast-2: transparent;
+  --edge-cast-3: transparent;
+  --sheet-cast-list:
+    0 1px 1.5px rgb(22 27 45 / 16%), 0 4px 9px -4px rgb(22 27 45 / 30%);
+  --sheet-cast-receipt:
+    0 1px 1px rgb(22 27 45 / 16%), 0 2px 5px -3px rgb(22 27 45 / 30%);
+  --sheet-rim: linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 58%) 0 1px,
+    rgb(255 255 255 / 22%) 1px 1.5px
+  );
+  --veil: rgb(21 22 27 / 4%);
+  --void: transparent;
+  --paper-lift: var(--paper-0);
+  --series: var(--paper-2);
   --paper-amp: 10;
 }
 
 .theme-dark {
   color-scheme: dark;
 
-  --paper-0: #131419;
-  --paper-1: #1b1c22;
-  --paper-2: #25262d;
-  --paper-edge: #3a3c44;
-  --paper-line: #242833;
-  --ink-0: #edeef2;
-  --ink-1: #c6c8cf;
-  --ink-2: #8e919a;
-  --ink-3: #6a6d75;
-  --ink-strike: #4f525a;
-  --tinta-0: #91a8ff;
+  --paper-0: #252731;
+  --paper-1: #2e313b;
+  --paper-2: #3c4050;
+  --paper-edge: #4c4f5a;
+  --ink-0: #f0f1f5;
+  --ink-1: #c9cbd3;
+  --ink-2: #92959f;
+  --ink-3: #7b7e88;
+  --tinta-0: #93aaff;
   --tinta-1: #b0c0ff;
-  --tinta-bg: rgb(145 168 255 / 10%);
-  --tinta-border: rgb(145 168 255 / 30%);
+  --tinta-bg: rgb(147 170 255 / 10%);
+  --tinta-border: rgb(147 170 255 / 30%);
   --verde-0: #7bc68b;
+  --verde-1: #9bdab0;
   --verde-bg: rgb(123 198 139 / 12%);
   --verde-border: rgb(123 198 139 / 32%);
   --tomate-0: #e68a82;
+  --tomate-1: #ee9d96;
   --tomate-bg: rgb(230 138 130 / 12%);
   --tomate-border: rgb(230 138 130 / 32%);
   --miel-0: #e6c56a;
+  --miel-1: #f0d585;
   --miel-bg: rgb(230 197 106 / 14%);
   --miel-border: rgb(230 197 106 / 36%);
   --highlight-yellow: rgb(230 197 106 / 28%);
+  --highlight-green: rgb(123 198 139 / 22%);
   --shadow-sm: 0 1px 1px rgb(0 0 0 / 30%), 0 2px 6px -2px rgb(0 0 0 / 45%);
   --shadow-md: 0 1px 2px rgb(0 0 0 / 35%), 0 8px 18px -4px rgb(0 0 0 / 55%);
   --shadow-lg: 0 2px 4px rgb(0 0 0 / 40%), 0 18px 36px -8px rgb(0 0 0 / 65%);
   --shadow-sheet:
     0 -2px 4px rgb(0 0 0 / 30%), 0 -18px 40px -6px rgb(0 0 0 / 55%);
-  --focus-ring: 0 0 0 3px rgb(145 168 255 / 40%);
+  --focus-ring: 0 0 0 3px rgb(147 170 255 / 40%);
   --bg: var(--paper-0);
   --bg-sunken: var(--paper-1);
+  --bg-raised: var(--paper-0);
   --bg-hover: var(--paper-2);
   --fg: var(--ink-0);
   --fg-muted: var(--ink-1);
   --fg-subtle: var(--ink-2);
   --fg-placeholder: var(--ink-3);
-  --fg-strike: var(--ink-strike);
   --border: var(--paper-edge);
-  --border-strong: #4a4c55;
-  --rule: var(--paper-line);
+  --border-strong: #52555f;
+  --rule: #33363f;
+  --rule-dashed: #414450;
   --accent: var(--tinta-0);
   --accent-hover: var(--tinta-1);
   --accent-bg: var(--tinta-bg);
   --accent-border: var(--tinta-border);
-  --accent-fg: #131419;
+  --accent-fg: #252731;
   --success: var(--verde-0);
   --danger: var(--tomate-0);
   --warn: var(--miel-0);
-  --table: #3b2f22;
-  --table-edge: #3a2f24;
-  --cast-1: rgb(0 0 0 / 45%);
-  --cast-2: rgb(0 0 0 / 65%);
-  --lip: rgb(255 255 255 / 19%);
-  --lip-soft: rgb(255 255 255 / 7%);
+  --board-kraft: #2a1d0a;
+  --board-lino: #232014;
+  --board-salvia: #12240f;
+  --board-niebla: #0f1e33;
+  --board-barro: #331409;
+  --board-pizarra: #1b1c24;
+  --board-ink-kraft: #e9e3d6;
+  --board-ink-lino: #e9e3d6;
+  --board-ink-salvia: #dfe8d9;
+  --board-ink-niebla: #d9e0ea;
+  --board-ink-barro: #eddcd6;
+  --board-ink-pizarra: #dcdee4;
+  --edge-lit-1: rgb(255 255 255 / 15%);
+  --edge-lit-2: rgb(255 255 255 / 8%);
+  --edge-lit-3: rgb(255 255 255 / 4%);
+  --edge-cast-1: rgb(0 0 0 / 55%);
+  --edge-cast-2: rgb(0 0 0 / 45%);
+  --edge-cast-3: rgb(0 0 0 / 30%);
+  --sheet-cast-list:
+    0 3px 0 -1px rgb(0 0 0 / 60%), 0 8px 16px -7px rgb(0 0 0 / 80%);
+  --sheet-cast-receipt: 0 3px 0 -1px rgb(0 0 0 / 60%);
+  --sheet-rim: none;
+  --veil: rgb(0 0 0 / 20%);
+  --void: #08080b;
+  --paper-lift: #2e313b;
+  --series: #3c4050;
   --paper-amp: 20;
 }
 
@@ -494,6 +591,19 @@
   font-weight: 600;
 }
 
+/* The stamp: the one sanctioned exception to the 15px content floor — 11px
+   uppercase, because the stamp is a mark and the row containing it is the
+   target (DESIGN.md, Hierarchy). Printed, so mono; the colour comes from
+   whatever mark it sits in. */
+.stamp {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
 .t-hand {
   font-family: var(--font-hand);
   font-size: 28px;
@@ -504,13 +614,6 @@
   /* a little tilt — like a real annotation */
   transform: rotate(-2deg);
   display: inline-block;
-}
-
-.t-strike {
-  text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
-  text-decoration-color: var(--fg-strike);
-  color: var(--fg-strike);
 }
 
 /* ── 11. PAPER BACKGROUND UTILITIES ───────────────────────── */

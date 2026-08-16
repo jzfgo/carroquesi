@@ -1,0 +1,307 @@
+.settings-sheet {
+  /* The shared sheet sits 48px below the screen edge to hide its entrance
+     overshoot; a panel that caps its own height must add that back, or it
+     shows 48px less at once. */
+  max-height: calc(92dvh + 48px);
+  overflow-y: auto;
+}
+
+.settings-sheet__identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-sheet__avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--tinta-0);
+  color: var(--accent-fg);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.settings-sheet__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.settings-sheet__who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-sheet__name {
+  font-family: var(--font-display);
+  font-size: var(--fs-20);
+  line-height: 1.2;
+  color: var(--ink-0);
+}
+
+.settings-sheet__email {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-sheet__block {
+  padding-top: 18px;
+}
+
+.settings-sheet__eyebrow {
+  margin: 0;
+  padding: 0 20px 4px;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* The 34a appearance segment: a recessed 3-up track, outer radius 11 over
+   inner 8 through the 3px gap/padding. */
+.settings-sheet__segment {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  box-sizing: border-box;
+  margin: 6px 20px 2px;
+  padding: 3px;
+  border-radius: 11px;
+  background: var(--bg-sunken);
+}
+
+.settings-sheet__segment-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: var(--hit-min);
+  padding: 0;
+  border: none;
+  border-top: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
+/* The selected segment is lifted, and the lift follows rule 17: it always
+   carries the lit edge and the cast, and the token layer zeroes whichever
+   one the light does not use. */
+.settings-sheet__segment-btn[aria-checked='true'] {
+  border-top-color: var(--edge-lit-2);
+  background: var(--paper-lift);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+/* 23a row: 52px minimum, text column left, control/chevron right. */
+.settings-sheet__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 52px;
+  padding: 6px 20px;
+  border: none;
+  border-top: 1px solid var(--rule);
+  text-align: left;
+}
+
+.settings-sheet__row--action {
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.settings-sheet__row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-sheet__row-title {
+  font-size: var(--fs-15);
+  font-weight: 500;
+  line-height: var(--lh-snug);
+  color: var(--ink-0);
+}
+
+.settings-sheet__row-subtitle {
+  font-size: var(--fs-12);
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.settings-sheet__row-subtitle--mono {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.settings-sheet__switch {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 44px;
+  height: 26px;
+  padding: 0 3px;
+  border-radius: var(--r-pill);
+  background: var(--border);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.settings-sheet__row[aria-checked='true'] .settings-sheet__switch {
+  justify-content: flex-end;
+  background: var(--accent);
+}
+
+.settings-sheet__knob {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--paper-0);
+}
+
+.settings-sheet__row-actions {
+  display: flex;
+  align-items: center;
+}
+
+/* Inline row actions keep a 44px+ hit area via transparent padding that the
+   negative margin takes back out of the layout. */
+.settings-sheet__inline-action {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--accent);
+  padding: 15px 7px;
+  margin: -15px 0;
+}
+
+/* Regenerate is destructive but recoverable in a minute and already carries a
+   confirmation — neutral ink, not red. */
+.settings-sheet__inline-action--neutral {
+  color: var(--ink-1);
+}
+
+/* The denied state's «Cómo» answer: plain text under the row, not a row of
+   its own — it belongs to the row above and carries no control. */
+.settings-sheet__how-text {
+  margin: 0;
+  padding: 2px 20px 10px;
+  font-size: var(--fs-12);
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.settings-sheet__chevron {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+.settings-sheet__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding: 18px 20px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.settings-sheet__signout {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--fs-14);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--danger);
+  padding: 14px 8px;
+  margin: -14px -8px;
+}
+
+.settings-sheet__version {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1;
+  color: var(--ink-3);
+}
+
+/* Regenerate confirm sub-state */
+.settings-sheet__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 20px;
+}
+
+.settings-sheet__confirm-title {
+  margin: 0;
+  color: var(--ink-0);
+  font-size: var(--fs-20);
+}
+
+.settings-sheet__confirm-warning {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
+}
+
+.settings-sheet__confirm-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--tomate-0);
+  color: var(--accent-fg);
+  font-size: var(--fs-14);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-sheet__cancel-btn {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: none;
+  color: var(--ink-1);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-sheet__confirm-btn:disabled,
+.settings-sheet__cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

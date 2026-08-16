@@ -1,0 +1,79 @@
+/* Nueva lista sheet (handoff 21a): serif title over a rule, a filled emoji
+   tile beside an accent name field, and one full-width action. */
+
+.create-list-sheet__title {
+  margin: 0;
+  padding: 0 20px 14px;
+  border-bottom: 1px solid var(--border-strong);
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--ink-0);
+}
+
+.create-list-sheet__identity {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 18px 20px 0;
+}
+
+/* The emoji arrives set, so the tile is a filled surface (no empty outline). */
+.create-list-sheet__emoji-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 56px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--paper-1);
+  font-size: 24px;
+  line-height: 1;
+}
+
+/* Autofocused, so the accent border is its resting state (21a). */
+.create-list-sheet__name {
+  flex: 1;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid var(--accent);
+  border-radius: 12px;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink-0);
+  background: var(--paper-0);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.create-list-sheet__name::placeholder {
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.create-list-sheet__submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: calc(100% - 40px);
+  min-height: var(--hit-tap);
+  margin: 16px 20px 0;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.create-list-sheet__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

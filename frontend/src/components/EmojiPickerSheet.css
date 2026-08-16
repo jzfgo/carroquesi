@@ -1,30 +1,10 @@
-.emoji-picker-sheet__overlay {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 40%);
-  z-index: 100;
-}
-
 .emoji-picker-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--paper-0);
-  border-radius: 1rem 1rem 0 0;
-  padding: 0.5rem 1.25rem 2rem;
-  z-index: 101;
-  max-height: 60vh;
-  overflow-y: auto;
-}
+  padding-inline: 1.25rem;
 
-.emoji-picker-sheet__handle {
-  width: 2.5rem;
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  margin: 0.5rem auto 1rem;
-  touch-action: none;
+  /* Add back the 48px the shared sheet sinks below the edge for its entrance
+     overshoot, so this self-capped panel shows the same height as before. */
+  max-height: calc(60vh + 48px);
+  overflow-y: auto;
 }
 
 .emoji-picker-sheet__title {

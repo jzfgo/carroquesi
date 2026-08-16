@@ -1,3 +1,18 @@
+/* Self-hosted fonts (Fontsource, latin subset only) — one file per family
+   and weight in use, so the service worker can precache exactly these faces
+   and no request leaves the origin. */
+@import '@fontsource/geist/latin-400.css';
+@import '@fontsource/geist/latin-500.css';
+@import '@fontsource/geist/latin-600.css';
+@import '@fontsource/geist/latin-700.css';
+@import '@fontsource/bree-serif/latin-400.css';
+@import '@fontsource/caveat/latin-500.css';
+@import '@fontsource/caveat/latin-600.css';
+@import '@fontsource/caveat/latin-700.css';
+@import '@fontsource/patrick-hand-sc/latin-400.css';
+@import '@fontsource/jetbrains-mono/latin-400.css';
+@import '@fontsource/jetbrains-mono/latin-500.css';
+@import '@fontsource/jetbrains-mono/latin-600.css';
 @import './colorsAndType.css';
 
 /* Compat aliases — map legacy component token names onto new canonical names.
@@ -18,12 +33,35 @@
   --accent: var(--tinta-0);
   --accent-bg: var(--tinta-bg);
   --accent-border: var(--tinta-border);
-  --purchased: var(--ink-strike);
+  --purchased: var(--ink-3);
   --sans: var(--font-sans);
   --heading: var(--font-display);
   --mono: var(--font-mono);
   --shadow: var(--shadow-md);
   --environment-band-height: 0px;
+}
+
+/* Border-box everywhere: an element's declared width includes its padding and
+   border. Without this, width:100% plus side padding overflows its container —
+   a footgun that had been patched per-component in dozens of places. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Visually hidden, still read by screen readers — for state that the eye
+   gets from style alone (a dashed border, a colored disc). */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Align all lucide-react icons with surrounding text */
@@ -89,69 +127,6 @@ code {
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-
-.offline-banner {
-  background: var(--color-text-secondary);
-  color: #fff;
-  font-size: 0.75rem;
-  text-align: center;
-  padding: 4px 8px;
-}
-
-/* Overlays instead of sitting in flow: spotty connectivity would otherwise
-   shift the whole layout on every flip. */
-.offline-banner--overlay {
-  position: fixed;
-  top: 0;
-  right: 0;
-  left: 0;
-  z-index: 150;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 4px);
-  animation: band-drop-in 0.3s ease-out;
-  transition: background-color 0.3s ease;
-}
-
-.offline-banner--back-online {
-  background: var(--success);
-}
-
-.offline-banner--leaving {
-  animation: band-lift-out 0.3s ease-in forwards;
-}
-
-@keyframes band-drop-in {
-  from {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes band-lift-out {
-  from {
-    transform: translateY(0);
-    opacity: 1;
-  }
-
-  to {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-}
-
-/* Unmounting is timer-driven, not animation-driven, so stripping the
-   animations here cannot strand the band on screen. */
-@media (prefers-reduced-motion: reduce) {
-  .offline-banner--overlay,
-  .offline-banner--leaving {
-    animation: none;
-    transition: none;
   }
 }
 
