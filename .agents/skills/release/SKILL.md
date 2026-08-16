@@ -34,7 +34,7 @@ grep '"version"' frontend/package.json | head -1
 
 ## 1. Create a worktree
 
-Edits on the default branch (`develop`) are blocked. Always start by creating a worktree:
+Edits on the protected branches (`main` and `develop`) are blocked. Always start by creating a worktree:
 
 ```bash
 wt switch --create chore/release-X.Y.Z --no-cd --format=json --yes
