@@ -66,6 +66,21 @@ changelog:
     python3 scripts/strip-unreleased.py
     git cliff --unreleased --prepend CHANGELOG.md
 
+# Reset the staging DB from production and scrub device tokens. The copy
+# holds real FCM tokens and staging shares the prod sender — without the
+# DELETE, staging tests could notify real phones. The next staging deploy
+# re-runs alembic against the fresh branch (the migration rehearsal).
+staging-db-reset:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${NEON_PROJECT_ID:?set NEON_PROJECT_ID (Neon console → project settings)}"
+    neonctl branches reset staging --project-id "$NEON_PROJECT_ID" --parent
+    # The URL comes from the branch just reset — guaranteed staging, so the
+    # DELETE cannot be pointed at production by a mistyped variable. A failed
+    # run leaves staging unscrubbed: re-run before using staging.
+    staging_url="$(neonctl connection-string staging --project-id "$NEON_PROJECT_ID")"
+    psql "$staging_url" -c 'DELETE FROM push_tokens;'
+
 alias ss := servers-status
 alias sk := servers-kill
 

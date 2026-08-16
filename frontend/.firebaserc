@@ -1,5 +1,13 @@
 {
   "projects": {
     "default": "carroquesi"
+  },
+  "targets": {
+    "carroquesi": {
+      "hosting": {
+        "production": ["carroquesi"],
+        "staging": ["cqs-stg"]
+      }
+    }
   }
 }

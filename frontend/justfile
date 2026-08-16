@@ -87,5 +87,5 @@ pwa-icons:
     {{ nvm-exec }} pnpm generate-pwa-assets
 
 # Deploy to Firebase Hosting
-deploy:
-    {{ nvm-exec }} pnpm deploy
+deploy target="production":
+    {{ nvm-exec }} pnpm deploy:{{ target }}

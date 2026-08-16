@@ -14,8 +14,10 @@ feedback, and loop until done (or until the iteration cap, then report back).
 If a PR number was passed as an argument, use it. Otherwise find the PR for the current branch:
 
 ```bash
-gh pr view --json number,title,url,state,reviewDecision
+gh pr view --json number,title,url,state,reviewDecision,baseRefName
 ```
+
+Record `baseRefName` — call it `<BASE>` below; substitute it wherever it appears. Feature PRs base `develop`; release PRs base `main`. Every branch-protection and rebase lookup below is against `<BASE>`; the review-workflow lookups stay on the default branch, as those sections explain.
 
 Confirm it exists and is open.
 
@@ -138,17 +140,17 @@ which may be a CI run rather than the review action.
 > **Do not scope the review lookup with `--branch <feature-branch>` — it matches nothing.**
 > `claude.yml` triggers on `issue_comment`, and GitHub runs `issue_comment` workflows in the
 > **default-branch** context: an issue comment carries no ref, so the workflow is read from
-> and attributed to `main`. Every review run reports `headBranch: main` even when the
+> and attributed to the default branch (`develop`). Every review run reports `headBranch: develop` (the default branch) even when the
 > comment is on a PR whose head is a feature branch. Scoping by the PR's branch returns an
 > empty list, the run id you carry forward matches nothing, and this step stalls for the
 > full timeout even though the review already finished. Confirm for yourself with:
 >
 > ```bash
 > gh run list --workflow=claude.yml --limit 5 --json databaseId,headBranch,event
-> # → every row is headBranch=main, event=issue_comment
+> # → every row is headBranch=develop (the default branch), event=issue_comment
 > ```
 >
-> `--branch main` is no better: it sweeps in reviews for *other* PRs running concurrently,
+> `--branch develop` is no better: it sweeps in reviews for *other* PRs running concurrently,
 > which is the ambiguity the `[View job]` link exists to remove.
 >
 > `claude.yml` sets `run-name: "Claude — #<number>"`, which restores a PR-scoped handle for
@@ -235,7 +237,7 @@ loop, not an appendix — Steps 2–3 are scoped to comment threads and will nev
 
 **One red check is deliberate and cannot be fixed:** on a PR that touches
 `.github/workflows/claude.yml`, the `Claude Code` check fails itself on purpose.
-claude-code-action refuses to run a workflow file that differs from the copy on `main` —
+claude-code-action refuses to run a workflow file that differs from the copy on the default branch (`develop`) —
 a security property — and used to exit **green** having reviewed nothing; the workflow
 now fails that run loudly instead, so the red check *is* the "this PR edits the reviewer,
 review it by hand" marker. Do not treat it as a CI failure, do not push commits trying to
@@ -252,7 +254,7 @@ If `statusCheckRollup` has failing checks:
 
    `--branch` **is** correct here, unlike in Step 5. CI runs fire on `pull_request`, which
    carries the PR's head ref, so they report `headBranch: <feature-branch>`. Only the
-   `issue_comment`-triggered review workflow is attributed to `main`. Do not "harmonize"
+   `issue_comment`-triggered review workflow is attributed to the default branch (`develop`). Do not "harmonize"
    these two lookups — they need opposite treatment.
 2. Read the error. Fix the root cause in the code.
 3. Commit and push. Wait for CI to re-run before the next loop iteration.
@@ -291,7 +293,7 @@ If HEAD is newer than the clean review, that review is stale → go back to **St
 red **by design** (see *Handling CI Failures*) and can never pass, so exclude that one
 check from condition #3 rather than looping on it. Conditions #1 and #2 still apply in
 full: the refusal is about the workflow definition a run *executes*, and `@claude`
-comment runs execute `main`'s copy, so comment-triggered re-reviews of the PR's code
+comment runs execute the default branch's (`develop`'s) copy, so comment-triggered re-reviews of the PR's code
 still work normally. Note the limit, though — that re-review runs the *old* reviewer
 over the diff; nothing can exercise the edited workflow before merge. At exit, report
 the red check for what it is: the workflow change itself is unreviewed by machinery,
@@ -311,7 +313,7 @@ comment does not count.
 gains a reviewer that submits real reviews), you are done early regardless of #2.
 
 **Report, don't claim.** Meeting all three conditions means *your* work is done — it does
-not mean the PR can merge. `main` requires a human approval (see below), and
+not mean the PR can merge. the base branch may require more than the loop can produce (see below), and
 `dismiss_stale_reviews_on_push: true` means any later push drops an approval that already
 exists. State the merge-blocking status as you found it; do not describe the PR as
 merge-ready on the strength of the loop's own exit.
@@ -324,7 +326,7 @@ ran — #111 (gemini), #115 and #116 (claude) — `reviews` was empty and `revie
 stayed `REVIEW_REQUIRED`, including on PRs that merged. Nothing the loop does changes that,
 and the PR author cannot approve their own PR.
 
-**`main` *is* protected, but not by an approval requirement.** The `default` ruleset
+**The base branch *is* protected, but not by an approval requirement.** The `default` ruleset
 (active) sets **`required_approving_review_count: 0`**. No human approval is required, and
 an unapproved PR is *not* blocked on that account. What the ruleset actually enforces:
 
@@ -363,9 +365,9 @@ mean "ran" — read the `Detect changed areas` job's log if you need to know whi
 executed.
 
 **`strict_required_status_checks_policy: true`, so the branch DOES need to be up to date with
-`main` before merging.** When `main` moves under an open PR — a dependabot merge is enough —
+its base branch before merging.** When the base branch moves under an open PR — a dependabot merge is enough —
 `mergeStateStatus` flips to `BEHIND`, and that one is a genuinely unsatisfied requirement
-rather than the noise `BLOCKED` usually is. Rebase onto `origin/main` and force-push with
+rather than the noise `BLOCKED` usually is. Rebase onto `origin/<BASE>` and force-push with
 `--force-with-lease`; `required_linear_history` rules out a merge commit.
 
 Two consequences that bite in this loop:
@@ -375,7 +377,7 @@ Two consequences that bite in this loop:
   re-review, or you will do the review twice.
 - **The rebase re-runs CI**, so budget for another full cycle before exiting.
 
-Verify with `gh api repos/:owner/:repo/rules/branches/main` rather than trusting this line —
+Verify with `gh api repos/:owner/:repo/rules/branches/<BASE>` rather than trusting this line —
 it said `false` until 2026-07-28, which is exactly how long it took for a `BEHIND` PR to
 prove otherwise.
 
@@ -384,10 +386,10 @@ checked and their state — not a bare `BLOCKED`, and never "awaiting approval".
 them are satisfied, say that plainly and hand the merge to the user. **Do not self-merge:**
 finishing the loop authorises no outward-facing action.
 
-> Verifying this yourself: `gh api repos/:owner/:repo/branches/main/protection` returns
-> **404 "Branch not protected"** even though `main` is protected — classic branch protection
+> Verifying this yourself: `gh api repos/:owner/:repo/branches/<BASE>/protection` returns
+> **404 "Branch not protected"** even though the base branch is protected — classic branch protection
 > and rulesets are different APIs. Use
-> `gh api repos/:owner/:repo/rules/branches/main` instead. Concluding "unprotected" from the
+> `gh api repos/:owner/:repo/rules/branches/<BASE>` instead. Concluding "unprotected" from the
 > 404 is wrong, and this file previously did exactly that.
 
 ### Iteration cap
