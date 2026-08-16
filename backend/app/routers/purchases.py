@@ -1,5 +1,4 @@
 import logging
-import math
 import re
 from datetime import UTC, datetime, time
 from typing import Annotated
@@ -22,6 +21,7 @@ from app.schemas.purchases import (
 )
 from app.services import trips
 from app.services.client_day import ClientTimezone
+from app.services.money import reject_bad_amount, reject_bad_price
 from app.services.push import notify_list_change
 from app.services.quantity import parse_quantity_factor
 from app.services.store_key import store_key
@@ -413,46 +413,6 @@ def rebuy_item(
     return pending
 
 
-def _reject_bad_amount(value: float | None, what: str) -> None:
-    """Range and finiteness for one money field, in plain Python.
-
-    Not a Pydantic constraint: any constraint able to reject NaN crashes
-    FastAPI's own 422 handler when it echoes the rejected value back — see
-    PurchaseCloseBody.total. Finiteness is worth more than a tidy error:
-    Postgres stores NaN happily, and the items feed then fails to serialize
-    for everyone on the list.
-    """
-    if value is None:
-        return
-    if not math.isfinite(value):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"{what} must be a finite number",
-        )
-    if value < 0:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"{what} must not be negative",
-        )
-
-
-def _reject_bad_price(price: float | None, price_per: str | None, where: str) -> None:
-    """The rules ItemCreate states about a price, restated in plain Python.
-
-    A close prices items, so it can break them the same way creating one
-    can: an amount that is negative or not finite, or a unit with no amount
-    to apply it to. One endpoint must not store what its neighbour refuses.
-    Plain Python rather than a model validator, for the reason in
-    _reject_bad_amount.
-    """
-    _reject_bad_amount(price, f"{where}.price")
-    if price_per is not None and price is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"{where}.price_per requires {where}.price",
-        )
-
-
 @router.post("/close", response_model=PurchaseRead)
 def close_purchase(
     body: PurchaseCloseBody,
@@ -480,11 +440,11 @@ def close_purchase(
     lst, current_user = list_and_user
     # Every amount the request carries, checked before anything is written,
     # so a bad one cannot leave half a sheet applied.
-    _reject_bad_amount(body.total, "total")
+    reject_bad_amount(body.total, "total")
     for index, line in enumerate(body.lines):
-        _reject_bad_price(line.price, line.price_per, f"lines[{index}]")
+        reject_bad_price(line.price, line.price_per, f"lines[{index}]")
     for index, new in enumerate(body.new_items):
-        _reject_bad_price(new.price, new.price_per, f"new_items[{index}]")
+        reject_bad_price(new.price, new.price_per, f"new_items[{index}]")
 
     now = datetime.now(UTC).replace(tzinfo=None)
 
@@ -608,7 +568,7 @@ def create_manual_purchase(
     under now.
     """
     lst, _ = list_and_user
-    _reject_bad_amount(body.total, "total")
+    reject_bad_amount(body.total, "total")
 
     # This feature back-dates a shop that already happened. A future date has no
     # such shop, and because the trip's boundary is date-derived, a future one

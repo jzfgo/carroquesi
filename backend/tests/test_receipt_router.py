@@ -3,7 +3,15 @@ from datetime import UTC, datetime
 import pytest
 from sqlmodel import select
 
-from app.db.models import List, ListItem, ListMember, Purchase, ReceiptNameMapping, ReceiptScan
+from app.db.models import (
+    List,
+    ListItem,
+    ListMember,
+    ListStore,
+    Purchase,
+    ReceiptNameMapping,
+    ReceiptScan,
+)
 from app.db.models import UserFeature as _UserFeature
 from app.routers.receipt import _parse_receipt_at
 from app.schemas.receipt import ReceiptPriceBatch
@@ -1744,3 +1752,85 @@ def test_targeted_zero_line_scan_links_at_creation(client, session, settled_trip
 
     session.expire_all()
     assert session.get(ReceiptScan, scan_id).purchase_id == SETTLED_ID
+
+
+def _post_raw_json(client, url: str, body: str):
+    # httpx's `json=` kwarg serialises with allow_nan=False and refuses to
+    # build a request containing inf/nan at all — which is exactly why the
+    # *server* needs its own rejection: a client not built on httpx (or on
+    # Python's stdlib json, which emits Infinity/NaN by default) can still
+    # send one. Raw bytes let this test reach the server instead of failing
+    # client-side before the request is built.
+    return client.post(url, content=body.encode(), headers={"content-type": "application/json"})
+
+
+def test_a_nan_or_infinite_receipt_total_is_rejected(client):
+    """Both receipt endpoints store the paper's total and later serialize it
+    back out, so they refuse the same money the manual close refuses."""
+    for endpoint, template in (
+        ("receipt", '{"lines": [], "receipt_total": BAD}'),
+        ("receipt-prices", '{"store": "Mercadona", "receipt_total": BAD}'),
+    ):
+        for bad in ("NaN", "Infinity"):
+            body = template.replace("BAD", bad)
+            response = _post_raw_json(client, f"/lists/{LIST_ID}/{endpoint}", body)
+            assert response.status_code == 422, (endpoint, bad)
+
+
+def test_a_patch_with_a_nan_price_is_rejected(client, session):
+    """Not merely an untidy error: Postgres stores NaN, and the items feed
+    then fails to serialize for everyone on the list."""
+    body = '{"store": "Mercadona", "patches": [{"item_id": "item-almendras", "price": NaN}]}'
+    response = _post_raw_json(client, f"/lists/{LIST_ID}/receipt-prices", body)
+
+    assert response.status_code == 422
+    session.expire_all()
+    item = session.get(ListItem, "item-almendras")
+    assert item.price is None
+    assert item.purchased_at is None
+
+
+def test_a_negative_price_or_total_is_rejected(client, session):
+    for body in (
+        {"store": "Mercadona", "receipt_total": -1.0},
+        {"store": "Mercadona", "patches": [{"item_id": "item-almendras", "price": -5.0}]},
+        {"store": "Mercadona", "new_items": [{"name": "Choc", "price": -3.0}]},
+    ):
+        response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+        assert response.status_code == 422, body
+    # Refused before anything was written: no half-applied sheet.
+    session.expire_all()
+    assert session.get(ListItem, "item-almendras").price is None
+    assert session.exec(select(ListItem).where(ListItem.name == "Choc")).first() is None
+
+
+def test_the_header_store_lands_in_the_registry_when_a_close_writes_it(client, session):
+    body = {
+        "store": "Alcampo",
+        "patches": [{"item_id": "item-almendras", "price": 1.15}],
+    }
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+
+    assert response.status_code == 200
+    keys = session.exec(select(ListStore.store_key).where(ListStore.list_id == LIST_ID)).all()
+    assert "alcampo" in keys
+
+
+def test_a_mappings_only_apply_registers_no_header_store(client, session):
+    """A body that settles nothing closes nothing, so the header store is
+    written nowhere — the registry must not carry a phantom entry for it."""
+    body = {
+        "store": "Eroski",
+        "mappings": [
+            {
+                "store": "Eroski",
+                "receipt_name": "algo",
+                "item_name": "Algo",
+            }
+        ],
+    }
+    response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+
+    assert response.status_code == 200
+    keys = session.exec(select(ListStore.store_key).where(ListStore.list_id == LIST_ID)).all()
+    assert "eroski" not in keys

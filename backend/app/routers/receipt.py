@@ -18,6 +18,7 @@ from app.schemas.receipt import (
 )
 from app.services import feature_flags, receipt_storage, trips
 from app.services.client_day import resolve_timezone
+from app.services.money import reject_bad_amount, reject_bad_price
 from app.services.receipt_matcher import match_lines, normalise
 from app.services.store_key import store_key
 from app.services.store_registry import ensure_stores
@@ -128,6 +129,10 @@ def scan_receipt(
     _, current_user = list_and_user
     _require_receipt_processing_allowed(session, current_user)
 
+    # The paper's total is stored and later surfaced on the trip's thumbnails,
+    # so it obeys the same money rules a manual close enforces.
+    reject_bad_amount(body.receipt_total, "receipt_total")
+
     # A receipt records a shop as it closes it, so it matches against what is
     # still in play: pending items and whatever sits in the open cart. Items
     # already settled on a closed or torn-off trip are out of the pool — a
@@ -227,6 +232,15 @@ def apply_receipt_prices(
     # this endpoint writes prices and creates impulse buys, and must not be
     # reachable by a direct call that skips the scan.
     _require_receipt_processing_allowed(session, current_user)
+
+    # This apply prices items and totals the ticket it closes — the very
+    # fields the manual close guards — so it refuses the same money before
+    # any write: a stored NaN breaks every member's feed on the next read.
+    reject_bad_amount(body.receipt_total, "receipt_total")
+    for index, patch in enumerate(body.patches):
+        reject_bad_price(patch.price, patch.price_per, f"patches[{index}]")
+    for index, new in enumerate(body.new_items):
+        reject_bad_price(new.price, new.price_per, f"new_items[{index}]")
 
     now = datetime.now(UTC).replace(tzinfo=None)
     receipt_at = _parse_receipt_at(body.receipt_date)
@@ -348,10 +362,14 @@ def apply_receipt_prices(
             to_close.append(line.id)
         created += 1
 
+    # The header store is registered only when the close below writes it onto
+    # a ticket — a targeted apply never writes it, and registering a string
+    # that lands nowhere would put phantom entries in the list's registry.
     ensure_stores(
         session,
         list_id,
         [
+            *([body.store] if body.store and to_close else []),
             *(patch.store for patch in body.patches if patch.store),
             *(new.store for new in body.new_items if new.store),
         ],
