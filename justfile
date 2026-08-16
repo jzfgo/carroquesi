@@ -74,9 +74,12 @@ staging-db-reset:
     #!/usr/bin/env bash
     set -euo pipefail
     : "${NEON_PROJECT_ID:?set NEON_PROJECT_ID (Neon console → project settings)}"
-    : "${STAGING_DATABASE_URL:?set STAGING_DATABASE_URL (Staging env DATABASE_URL)}"
     neonctl branches reset staging --project-id "$NEON_PROJECT_ID" --parent
-    psql "$STAGING_DATABASE_URL" -c 'DELETE FROM push_tokens;'
+    # The URL comes from the branch just reset — guaranteed staging, so the
+    # DELETE cannot be pointed at production by a mistyped variable. A failed
+    # run leaves staging unscrubbed: re-run before using staging.
+    staging_url="$(neonctl connection-string staging --project-id "$NEON_PROJECT_ID")"
+    psql "$staging_url" -c 'DELETE FROM push_tokens;'
 
 alias ss := servers-status
 alias sk := servers-kill
