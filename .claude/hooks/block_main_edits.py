@@ -6,6 +6,9 @@ rule from advisory text to an enforced boundary. The rule already said "no
 exceptions"; a rule the agent can skim and reinterpret isn't actually that,
 per the Skills/Rules/Hooks taxonomy — 100%-compliance requirements belong
 in a hook, not a markdown bullet the agent re-reads each session.
+`develop` is protected the same way: it is a long-lived branch that only
+takes squash-merged PRs, so a direct edit there is the same mistake as one
+on `main`.
 
 The branch is resolved from the *target file's* directory, not the hook's
 cwd. Both are the repo root in the common case, but they diverge whenever a
