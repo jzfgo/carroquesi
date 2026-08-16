@@ -15,11 +15,13 @@ describe('EnvironmentBand', () => {
     mocks.label = undefined
     const { container } = render(<EnvironmentBand />)
     expect(container).toBeEmptyDOMElement()
+    expect(document.body).not.toHaveClass('has-environment-band')
   })
 
   it('names the environment when a label is set', () => {
     mocks.label = 'staging'
     render(<EnvironmentBand />)
     expect(screen.getByRole('note')).toHaveTextContent('staging')
+    expect(document.body).toHaveClass('has-environment-band')
   })
 })
