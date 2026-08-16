@@ -19,7 +19,7 @@ Requires `git-cliff` on `PATH` (`brew install git-cliff`); step 2 fails without 
 
 ## 0. Determine the next version
 
-Read the `## [Unreleased]` section at the top of `CHANGELOG.md`.
+Run `git cliff --unreleased` (prints to stdout and leaves `CHANGELOG.md` alone) to see the entries the release will contain.
 
 - Any `feat:` entry → **minor** bump (0.X.0)
 - Only `fix:` entries → **patch** bump (0.Y.Z)
@@ -55,7 +55,7 @@ This runs `scripts/strip-unreleased.py` (strips the old `[Unreleased]` block) th
 section containing only commits that `cliff.toml` includes (feat, fix, refactor/perf —
 chore/docs/test/ci are excluded).
 
-This is the **only** place `just changelog` is run. It is safe here, and not on a feature branch, because the release branch is based on `develop` and adds nothing but a `chore:` commit — after every release `develop` is reset onto the tagged `main` commit, so `git cliff` sees exactly the squashed PR commits since the last tag: the history `main` will gain when this PR squash-merges. A feature branch does not: its `feat`/`fix` commits are collapsed by the squash merge, so anything generated there describes commits that will not exist.
+This is the **only** place `just changelog` is run. It is safe here, and not on a feature branch, because the release branch is based on `develop` and adds nothing but a `chore:` commit — after every release `develop` is reset onto the tagged `main` commit, so `git cliff` sees exactly the squashed PR commits since the last tag. That is the history `main` will gain when this PR squash-merges. A feature branch does not: its `feat`/`fix` commits are collapsed by the squash merge, so anything generated there describes commits that will not exist.
 
 ## 3. Rename [Unreleased] → versioned header
 

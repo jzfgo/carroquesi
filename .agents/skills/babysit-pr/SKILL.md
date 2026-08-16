@@ -17,7 +17,7 @@ If a PR number was passed as an argument, use it. Otherwise find the PR for the 
 gh pr view --json number,title,url,state,reviewDecision,baseRefName
 ```
 
-Record `baseRefName` — call it **BASE** below. Feature PRs base `develop`; release PRs base `main`. Every merge-requirement lookup below is against BASE.
+Record `baseRefName` — call it `<BASE>` below; substitute it wherever it appears. Feature PRs base `develop`; release PRs base `main`. Every branch-protection and rebase lookup below is against `<BASE>`; the review-workflow lookups stay on the default branch, as those sections explain.
 
 Confirm it exists and is open.
 
