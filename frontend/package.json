@@ -20,7 +20,8 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.test.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "typecheck:watch": "tsc -p tsconfig.app.json --noEmit --watch",
     "generate-pwa-assets": "pwa-assets-generator -c pwa-assets.config.ts && pwa-assets-generator -c pwa-assets.maskable.config.ts",
-    "deploy": "firebase deploy --only hosting --non-interactive"
+    "deploy:production": "firebase deploy --only hosting:production --non-interactive",
+    "deploy:staging": "firebase deploy --only hosting:staging --non-interactive"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
