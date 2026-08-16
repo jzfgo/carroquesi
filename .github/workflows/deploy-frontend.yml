@@ -2,15 +2,18 @@ name: Deploy Frontend
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - "frontend/**"
       - ".github/workflows/deploy-frontend.yml"
+  # Manual deploys (first staging deploy, re-deploys without a code change).
+  # Pick the branch in the dispatch UI; the environment follows the ref.
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: Production
+    environment: ${{ github.ref_name == 'main' && 'Production' || 'Staging' }}
 
     steps:
       - uses: actions/checkout@v7
@@ -45,11 +48,13 @@ jobs:
           VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL }}
           VITE_RECAPTCHA_SITE_KEY: ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
           VITE_WAITLIST_ENABLED: ${{ vars.VITE_WAITLIST_ENABLED }}
+          # Names the deployment ("staging"). Production leaves it unset.
+          VITE_ENVIRONMENT_LABEL: ${{ vars.VITE_ENVIRONMENT_LABEL }}
 
       - uses: google-github-actions/auth@v3
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Deploy to Firebase Hosting
-        run: pnpm run deploy
+        run: pnpm run deploy:${{ github.ref_name == 'main' && 'production' || 'staging' }}
         working-directory: frontend

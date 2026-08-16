@@ -8,18 +8,22 @@ name: Deploy Backend
 #   ALLOWED_ORIGINS         e.g. ["https://your-app.web.app"]
 #   FRONTEND_URL            e.g. https://your-app.web.app
 #   RECEIPT_STORAGE_BUCKET  e.g. your-app.firebasestorage.app
+#   (the same names exist in both the Production and Staging environments)
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'backend/**'
       - '.github/workflows/deploy-backend.yml'
+  # Manual deploys (first staging deploy, re-deploys without a code change).
+  # Pick the branch in the dispatch UI; the environment follows the ref.
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: Production
+    environment: ${{ github.ref_name == 'main' && 'Production' || 'Staging' }}
 
     steps:
       - uses: actions/checkout@v7
