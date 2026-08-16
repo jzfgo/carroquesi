@@ -34,13 +34,15 @@ grep '"version"' frontend/package.json | head -1
 
 ## 1. Create a worktree
 
-Edits on `main` are blocked. Always start by creating a worktree:
+Edits on the default branch (`develop`) are blocked. Always start by creating a worktree:
 
 ```bash
 wt switch --create chore/release-X.Y.Z --no-cd --format=json --yes
 ```
 
 Then call `EnterWorktree` with the `path` from the JSON output.
+
+The worktree branches from the repo default branch, which is `develop` — exactly the base a release needs. Confirm the reported `base_branch` says `develop` before continuing.
 
 ## 2. Regenerate the changelog
 
@@ -53,11 +55,7 @@ This runs `scripts/strip-unreleased.py` (strips the old `[Unreleased]` block) th
 section containing only commits that `cliff.toml` includes (feat, fix, refactor/perf —
 chore/docs/test/ci are excluded).
 
-This is the **only** place `just changelog` is run. It is safe here, and not on a
-feature branch, because the release branch is based on `main` and adds nothing but
-a `chore:` commit — so `git cliff` sees exactly the squashed history it will see on
-`main`. A feature branch does not: its `feat`/`fix` commits are collapsed by the
-squash merge, so anything generated there describes commits that will not exist.
+This is the **only** place `just changelog` is run. It is safe here, and not on a feature branch, because the release branch is based on `develop` and adds nothing but a `chore:` commit — after every release `develop` is reset onto the tagged `main` commit, so `git cliff` sees exactly the squashed PR commits since the last tag: the history `main` will gain when this PR squash-merges. A feature branch does not: its `feat`/`fix` commits are collapsed by the squash merge, so anything generated there describes commits that will not exist.
 
 ## 3. Rename [Unreleased] → versioned header
 
@@ -131,6 +129,8 @@ that squash-merging discards.
 
 ## 8. Open the PR
 
+`--base main` is explicit and required: the repo default branch is `develop`, and a release PR is the one PR that must not target it.
+
 ```bash
 gh pr create \
   --title "chore: release X.Y.Z" \
@@ -162,6 +162,9 @@ After squash merging, tag the merge commit on `main`:
 git fetch origin main
 git tag vX.Y.Z origin/main
 git push origin vX.Y.Z
+# Reset develop onto the released main. Lossless: the trees are identical
+# at this moment. Skipping it is how phantom conflicts start.
+git push --force origin origin/main:develop
 \`\`\`
 ```
 
@@ -186,3 +189,6 @@ behind, and re-running the block stops here. Confirm the existing tag is not the
 real one (`git log -1 vX.Y.Z`), delete it with `git tag -d vX.Y.Z`, then re-run
 the block. Steps 0–8 never create a local tag, so a tag present before the merge
 is always a leftover.
+
+**`git push --force origin origin/main:develop` is rejected**
+The `develop` ruleset is blocking non-fast-forward pushes for your actor. The repo owner's bypass covers this; if you are not bypassing, stop and hand the reset to the maintainer rather than merging anything else into `develop` first — the reset must land before the next feature merge.
