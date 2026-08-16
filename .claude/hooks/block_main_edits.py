@@ -82,7 +82,7 @@ def main() -> None:
         # block on a tooling problem unrelated to this check.
         sys.exit(0)
 
-    if branch != "main":
+    if branch not in ("main", "develop"):
         sys.exit(0)
 
     print(
@@ -92,7 +92,7 @@ def main() -> None:
                     "hookEventName": "PreToolUse",
                     "permissionDecision": "deny",
                     "permissionDecisionReason": (
-                        "That path is on main. Per AGENTS.md: run /worktrunk before "
+                        "That path is on a protected branch (main/develop). Per AGENTS.md: run /worktrunk before "
                         "touching any file — no exceptions for quick fixes, docs, or "
                         "config. Create one with `wt switch --create <branch> --no-cd "
                         "--format=json`, then write to the path it reports."

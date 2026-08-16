@@ -196,6 +196,12 @@ def test_block_main_edits() -> None:
         # The branch of the *target path* decides — not the process's cwd.
         check("path in a checkout on main", at(repo / "a.txt"), "deny")
         check("path in a worktree on a branch", at(tree / "a.txt"), "allow")
+
+        # develop is long-lived like main; direct edits are blocked the same way.
+        run("git", "checkout", "-q", "-b", "develop", cwd=repo)
+        check("path in a checkout on develop", at(repo / "a.txt"), "deny")
+        run("git", "checkout", "-q", "main", cwd=repo)
+
         check("nonexistent nested dir under main", at(repo / "x/y/z.txt"), "deny")
         check("nonexistent nested dir under worktree", at(tree / "x/y/z.txt"), "allow")
         check("path outside any repo", at(root / "loose.txt"), "allow")
