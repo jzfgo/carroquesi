@@ -156,8 +156,9 @@ export function Sheet({
         aria-labelledby={labelledBy}
         tabIndex={-1}
         ref={panelRef}
+        {...swipe}
       >
-        <div className="modal-sheet__grip" {...swipe}>
+        <div className="modal-sheet__grip">
           <div className="modal-sheet__handle" />
         </div>
         {children}

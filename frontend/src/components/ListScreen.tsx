@@ -70,6 +70,7 @@ import ReceiptScanSheet, {
   type ReceiptScanTarget,
 } from './ReceiptScanSheet'
 import { SaveTicketSheet } from './SaveTicketSheet'
+import { Sheet, type SheetHandle } from './Sheet'
 import { SmartInputBar } from './SmartInputBar'
 import { SmartSearchPill } from './SmartSearchPill'
 import { Stack, type StackHandle } from './Stack'
@@ -342,6 +343,10 @@ export function ListScreen({
   const receiptImageUrlRef = useRef<string | null>(null)
   const [receiptUploading, setReceiptUploading] = useState(false)
   const [receiptSourcePickerOpen, setReceiptSourcePickerOpen] = useState(false)
+  const receiptSourceSheetRef = useRef<SheetHandle>(null)
+  // Whether the picker closed because a source was chosen. Only an abandoned
+  // picker drops the scan target — a chosen source still rides on it.
+  const receiptSourcePickedRef = useRef(false)
   const [consentSheetOpen, setConsentSheetOpen] = useState(false)
   const [consentBusy, setConsentBusy] = useState(false)
   const consentSheetRef = useRef<ReceiptConsentSheetHandle>(null)
@@ -898,6 +903,16 @@ export function ListScreen({
   // new file yields a new scan_id, remounting the keyed sheet.
   const handleReReadReceipt = useCallback(() => {
     setReceiptSourcePickerOpen(true)
+  }, [])
+
+  const handleReceiptSourceClose = useCallback(() => {
+    setReceiptSourcePickerOpen(false)
+    if (!receiptSourcePickedRef.current) {
+      // Abandoned: the scan this target was riding on never happens, so the
+      // aim must not survive into a later session.
+      setReceiptScanTarget(null)
+    }
+    receiptSourcePickedRef.current = false
   }, [])
 
   const handleOpenLogPrice = useCallback(
@@ -1488,46 +1503,33 @@ export function ListScreen({
       )}
 
       {receiptSourcePickerOpen && (
-        <>
-          <div
-            className="sheet-overlay"
+        <Sheet
+          ref={receiptSourceSheetRef}
+          label="Escanear ticket"
+          className="receipt-source-picker"
+          onClose={handleReceiptSourceClose}
+        >
+          <button
+            className="receipt-source-picker__btn"
             onClick={() => {
-              setReceiptSourcePickerOpen(false)
-              setReceiptScanTarget(null)
+              receiptSourcePickedRef.current = true
+              cameraInputRef.current?.click()
+              receiptSourceSheetRef.current?.close()
             }}
-          />
-          <div className="sheet-container">
-            <div className="receipt-source-picker">
-              <button
-                className="receipt-source-picker__btn"
-                onClick={() => {
-                  setReceiptSourcePickerOpen(false)
-                  cameraInputRef.current?.click()
-                }}
-              >
-                <Camera size={16} /> Tomar foto
-              </button>
-              <button
-                className="receipt-source-picker__btn"
-                onClick={() => {
-                  setReceiptSourcePickerOpen(false)
-                  fileInputRef.current?.click()
-                }}
-              >
-                <Image size={16} /> Elegir de galería
-              </button>
-              <button
-                className="receipt-source-picker__cancel"
-                onClick={() => {
-                  setReceiptSourcePickerOpen(false)
-                  setReceiptScanTarget(null)
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </>
+          >
+            <Camera size={16} /> Tomar foto
+          </button>
+          <button
+            className="receipt-source-picker__btn"
+            onClick={() => {
+              receiptSourcePickedRef.current = true
+              fileInputRef.current?.click()
+              receiptSourceSheetRef.current?.close()
+            }}
+          >
+            <Image size={16} /> Elegir de galería
+          </button>
+        </Sheet>
       )}
 
       {receiptUploading && (

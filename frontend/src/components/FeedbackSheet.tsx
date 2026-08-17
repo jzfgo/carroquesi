@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { FeedbackPayload } from '../lib/api'
 import './FeedbackSheet.css'
-import { Sheet, type SheetHandle } from './Sheet'
+import { Sheet } from './Sheet'
 
 interface Props {
   defaultEmail: string | null | undefined
@@ -20,7 +20,6 @@ export function FeedbackSheet({
   const [email, setEmail] = useState(defaultEmail ?? '')
   const trimmedMessage = useMemo(() => message.trim(), [message])
   const canSubmit = trimmedMessage.length > 0 && !isSubmitting
-  const sheetRef = useRef<SheetHandle>(null)
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -34,12 +33,7 @@ export function FeedbackSheet({
   }
 
   return (
-    <Sheet
-      ref={sheetRef}
-      className="feedback-sheet"
-      label="Enviar feedback"
-      onClose={onClose}
-    >
+    <Sheet className="feedback-sheet" label="Enviar feedback" onClose={onClose}>
       <form className="feedback-sheet__form" onSubmit={handleSubmit}>
         <h2 className="feedback-sheet__title">Enviar feedback</h2>
         <label className="feedback-sheet__field">
@@ -61,13 +55,6 @@ export function FeedbackSheet({
           />
         </label>
         <div className="feedback-sheet__actions">
-          <button
-            type="button"
-            className="feedback-sheet__secondary"
-            onClick={() => sheetRef.current?.close()}
-          >
-            Cancelar
-          </button>
           <button
             type="submit"
             className="feedback-sheet__primary"
