@@ -144,19 +144,6 @@
   opacity: 0.4;
 }
 
-.lps__cancel {
-  display: block;
-  text-align: center;
-  font-size: 14px;
-  color: var(--ink-2);
-  padding: 8px;
-  cursor: pointer;
-  background: none;
-  border: none;
-  width: 100%;
-  margin-bottom: 4px;
-}
-
 .lps__delete {
   display: block;
   text-align: center;

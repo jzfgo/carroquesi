@@ -227,9 +227,6 @@ export default function LogPurchaseSheet({
           {deleting ? 'Eliminando...' : 'Eliminar precio'}
         </button>
       )}
-      <button className="lps__cancel" onClick={onClose} type="button">
-        Cancelar
-      </button>
     </Sheet>
   )
 }

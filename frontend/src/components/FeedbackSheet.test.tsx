@@ -59,22 +59,6 @@ describe('FeedbackSheet', () => {
     })
   })
 
-  it('calls onClose when cancel is clicked', () => {
-    const onClose = vi.fn()
-    render(
-      <FeedbackSheet
-        defaultEmail={null}
-        isSubmitting={false}
-        onSubmit={vi.fn()}
-        onClose={onClose}
-      />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: /cancelar/i }))
-
-    expect(onClose).toHaveBeenCalledOnce()
-  })
-
   it('calls onClose when Escape key is pressed', () => {
     const onClose = vi.fn()
     render(

@@ -47,8 +47,9 @@
   pointer-events: none;
 }
 
-/* The grip is the whole drag target — a full-width, thumb-sized strip — so a
-   drag can start anywhere near the grabber, not only on the 4px bar itself. */
+/* The whole panel is the drag target; the grip is the visual affordance.
+   touch-action stays here so a drag from the grabber never fights native
+   scrolling — elsewhere the hook arbitrates against inner scroll position. */
 .modal-sheet__grip {
   flex-shrink: 0;
   display: flex;
