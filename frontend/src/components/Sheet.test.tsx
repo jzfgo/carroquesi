@@ -135,6 +135,9 @@ describe('close animation', () => {
     )
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(panel()).toHaveClass('modal-sheet--closing')
+    expect(document.querySelector('.modal-sheet-scrim')).toHaveClass(
+      'modal-sheet-scrim--closing',
+    )
     expect(onClose).not.toHaveBeenCalled()
     fireEvent.transitionEnd(panel())
     expect(onClose).toHaveBeenCalledOnce()

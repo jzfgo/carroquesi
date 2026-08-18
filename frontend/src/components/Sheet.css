@@ -43,7 +43,9 @@
      (the panel's own height), so no fixed sink can cover every sheet: the
      skirt layers paint solid copies of the panel stepped downward, jointly
      covering far more than any possible bounce (~10% of the travel), so the
-     gap shows the sheet's own back and never the wall behind it. A shadow
+     gap shows the sheet's own back and never the wall behind it. The copies
+     stay contiguous while the panel is taller than the 8vh gap between
+     steps, which even the shortest sheet is. A shadow
      neither scrolls nor adds scrollable overflow, which matters for panels
      that scroll themselves; offset copies rather than one spread shadow,
      because spread would inflate the corner radius and paint into the

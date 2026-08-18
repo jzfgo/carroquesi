@@ -88,10 +88,12 @@
   --board-ink-pizarra: #15161b;
 
   /* Relief never changes with the light; only how it is drawn does. A
-     sheet always carries border-top (edge-lit), border-bottom (edge-cast)
-     AND box-shadow (sheet-cast). Light paints the shadow and turns the
-     edges transparent; dark paints the edges and a hard cast instead.
-     Rungs 1/2/3 go from the list sheet down to inline paper scraps. */
+     sheet carries border-top (edge-lit), border-bottom (edge-cast) AND
+     box-shadow (sheet-cast). Light paints the shadow and turns the edges
+     transparent; dark paints the edges and a hard cast instead. The one
+     exception is the modal sheet's bottom edge, undrawn for its own
+     reason where it is declared. Rungs 1/2/3 go from the list sheet down
+     to inline paper scraps. */
   --edge-lit-1: transparent;
   --edge-lit-2: transparent;
   --edge-lit-3: transparent;
