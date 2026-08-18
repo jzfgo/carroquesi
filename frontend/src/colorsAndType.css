@@ -114,6 +114,11 @@
   /* Multiply veil that dims a settled (receipt) sheet against the live one. */
   --veil: rgb(21 22 27 / 4%);
 
+  /* Dimming layer behind a modal sheet. Black-based in both themes: a scrim
+     must always darken, so it cannot ride a token that inverts with the
+     theme. Like the veil, it deepens in dark instead of lightening. */
+  --scrim: rgb(21 22 27 / 10%);
+
   /* The die-cut hole between pending and cart. In light the hole simply
      shows the board through; in dark it is deeper than any board. */
   --void: transparent;
@@ -320,6 +325,7 @@
     --sheet-cast-receipt: 0 3px 0 -1px rgb(0 0 0 / 60%);
     --sheet-rim: none;
     --veil: rgb(0 0 0 / 20%);
+    --scrim: rgb(0 0 0 / 45%);
     --void: #08080b;
     --paper-lift: #2e313b;
     --series: #3c4050;
@@ -415,6 +421,7 @@
     rgb(255 255 255 / 22%) 1px 1.5px
   );
   --veil: rgb(21 22 27 / 4%);
+  --scrim: rgb(21 22 27 / 10%);
   --void: transparent;
   --paper-lift: var(--paper-0);
   --series: var(--paper-2);
@@ -499,6 +506,7 @@
   --sheet-cast-receipt: 0 3px 0 -1px rgb(0 0 0 / 60%);
   --sheet-rim: none;
   --veil: rgb(0 0 0 / 20%);
+  --scrim: rgb(0 0 0 / 45%);
   --void: #08080b;
   --paper-lift: #2e313b;
   --series: #3c4050;
