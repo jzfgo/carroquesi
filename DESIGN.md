@@ -588,6 +588,13 @@ contract, since no stylesheet enforces them.
 - **Tag chip:** `--paper-1`, 5px radius, 11.5px — a data label, not a control.
 - **Dashed chip:** a slot that is empty or an action not yet taken.
 
+**Store choice is a dropdown, not chips** (`StoreSelect`). The store pickers
+in «Cerrar compra», «Registrar compra» and «Guardar un ticket» are a styled
+native `<select>` — chips wrapped to two rows from the third store on and
+broke the row's height against the date control. The «+ otra» entry is the
+last option; where the store is optional, «Sin tienda» is the first. Decided
+2026-08-17 (JAV-196), superseding the chip rows in frames 10b/26a.
+
 ### Cards / Containers
 
 - **Corner:** `--r-lg` for list cards; `--r-sheet` for paper sheets.

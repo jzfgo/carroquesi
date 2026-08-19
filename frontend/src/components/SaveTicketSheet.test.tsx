@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { manualPurchase } from '../lib/api'
 import { SaveTicketSheet } from './SaveTicketSheet'
+import { ADD_STORE } from './StoreSelect'
 
 vi.mock('../lib/api', () => ({
   manualPurchase: vi.fn(() => Promise.resolve({})),
@@ -35,7 +36,9 @@ function renderSheet(
 
 test('the manual submit posts {date, store, total}', async () => {
   const { onDone } = renderSheet()
-  fireEvent.click(screen.getByText('Mercadona'))
+  fireEvent.change(screen.getByLabelText('Tienda'), {
+    target: { value: 'Mercadona' },
+  })
   fireEvent.change(screen.getByPlaceholderText('0,00'), {
     target: { value: '12,40' },
   })
@@ -70,7 +73,9 @@ test('a bare record posts a null store and null total', async () => {
 
 test('«+ otra» swaps content in place — not a second sheet', () => {
   renderSheet()
-  fireEvent.click(screen.getByText('+ otra'))
+  fireEvent.change(screen.getByLabelText('Tienda'), {
+    target: { value: ADD_STORE },
+  })
   // The «Nueva tienda» step replaces the form content; there is still one dialog.
   expect(screen.getByPlaceholderText('Nombre de la tienda')).toBeInTheDocument()
   expect(screen.getAllByRole('dialog')).toHaveLength(1)
@@ -79,8 +84,9 @@ test('«+ otra» swaps content in place — not a second sheet', () => {
     target: { value: 'Ahorramás' },
   })
   fireEvent.click(screen.getByText('Usar esta tienda'))
-  const chip = screen.getByText('Ahorramás')
-  expect(chip.className).toContain('save-chip--on')
+  expect(screen.getByLabelText<HTMLSelectElement>('Tienda').value).toBe(
+    'Ahorramás',
+  )
 })
 
 test('the scan action shows only when onScanReceipt is wired, and calls it', () => {

@@ -75,34 +75,9 @@
   line-height: 1.5;
 }
 
-.lps__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.lps__store {
+  width: 100%;
   margin-top: 4px;
-}
-
-.lps__chip {
-  padding: 6px 14px;
-  border-radius: 16px;
-  font-size: 13px;
-  font-weight: 500;
-  border: 1px solid transparent;
-  cursor: pointer;
-  background: var(--paper-1);
-  color: var(--ink-2);
-}
-
-.lps__chip--selected {
-  background: var(--accent-bg);
-  color: var(--accent);
-  border-color: var(--accent-border);
-}
-
-.lps__chip--add {
-  background: transparent;
-  color: var(--accent);
-  border: 1px dashed var(--accent-border);
 }
 
 .lps__new-store {

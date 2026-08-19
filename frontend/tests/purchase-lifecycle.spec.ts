@@ -234,7 +234,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await expect(sheet).toBeVisible()
       await sheet.locator('.lps__qty-input').fill('2')
       await sheet.locator('.lps__input').fill('3.50')
-      await sheet.getByRole('button', { name: 'Mercadona' }).click()
+      await sheet.getByLabel('Tienda').selectOption('Mercadona')
       await expectScreenshot(page, `log-purchase-sheet-${themeName}.png`)
       await sheet.getByRole('button', { name: 'Guardar' }).click()
 

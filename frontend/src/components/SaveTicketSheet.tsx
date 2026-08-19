@@ -7,12 +7,13 @@ import { storeKey } from '../lib/storeKey'
 import type { PurchaseManualBody } from '../types'
 import './SaveTicketSheet.css'
 import { Sheet } from './Sheet'
+import { StoreSelect } from './StoreSelect'
 
 interface Props {
   listId: string
   getToken: () => Promise<string>
-  /** The list's stores, offered as chips. A store is optional here — a bare
-   *  dated record is a legitimate purchase. */
+  /** The list's stores, offered in the dropdown. A store is optional here —
+   *  a bare dated record is a legitimate purchase. */
   storeOptions?: string[]
   displayStore: (raw: string) => string
   onClose: () => void
@@ -53,7 +54,7 @@ export function SaveTicketSheet({
   onScanReceipt,
 }: Props) {
   const [store, setStore] = useState('')
-  // Stores added by hand through «+ otra», offered as chips beside the registry's.
+  // Stores added by hand through «+ otra», offered beside the registry's.
   const [extraStores, setExtraStores] = useState<string[]>([])
   const [storeSubsheet, setStoreSubsheet] = useState(false)
   const [newStoreText, setNewStoreText] = useState('')
@@ -61,7 +62,7 @@ export function SaveTicketSheet({
   const [totalText, setTotalText] = useState('')
   const [saving, setSaving] = useState(false)
 
-  // One chip per store, deduped by key, labelled with the registry's name.
+  // One offer per store, deduped by key, labelled with the registry's name.
   const stores = useMemo(() => {
     const seen = new Set<string>()
     const out: string[] = []
@@ -76,8 +77,8 @@ export function SaveTicketSheet({
     return out
   }, [storeOptions, extraStores, displayStore])
 
-  // Confirm a hand-typed store from the «Nueva tienda» step: keep it as a chip
-  // and select it, then return to the form.
+  // Confirm a hand-typed store from the «Nueva tienda» step: keep it in the
+  // offer and select it, then return to the form.
   const confirmNewStore = () => {
     const v = newStoreText.trim()
     if (!v) return
@@ -179,31 +180,19 @@ export function SaveTicketSheet({
 
           <div className="save-sheet__field-block">
             <span className="save-field__label">Tienda · opcional</span>
-            <div className="save-sheet__chips">
-              {stores.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={`save-chip${storeKey(s) === storeKey(store) ? ' save-chip--on' : ''}`}
-                  aria-pressed={storeKey(s) === storeKey(store)}
-                  // Tap toggles: a store is optional, so a second tap clears it.
-                  onClick={() => setStore((cur) => (cur === s ? '' : s))}
-                >
-                  {s}
-                </button>
-              ))}
-              <button
-                type="button"
-                className="save-chip save-chip--add"
-                aria-label="Añadir otra tienda"
-                onClick={() => {
-                  setNewStoreText('')
-                  setStoreSubsheet(true)
-                }}
-              >
-                + otra
-              </button>
-            </div>
+            {/* A store is optional: «Sin tienda» is a first-class choice, the
+                dropdown's stand-in for the chips' tap-to-clear. */}
+            <StoreSelect
+              className="save-sheet__store"
+              options={stores}
+              value={store}
+              onSelect={setStore}
+              onAddNew={() => {
+                setNewStoreText('')
+                setStoreSubsheet(true)
+              }}
+              emptyLabel="Sin tienda"
+            />
           </div>
 
           <div className="save-sheet__row">
