@@ -33,7 +33,11 @@ export type ListUpdatedAt = S['ListUpdatedAtRead']
 // Required<> only strips the optionality a pydantic default introduces.
 export type PurchaseRead = Required<S['PurchaseRead']>
 // One row of the stack (18a): a trip plus its line count and receipt flag.
-export type PurchaseSummary = Required<S['PurchaseSummary']>
+// `items` carries the trip's lines when the page was asked for them
+// (include_items); null means «not asked», never «no lines».
+export type PurchaseSummary = Required<Omit<S['PurchaseSummary'], 'items'>> & {
+  items: ListItem[] | null
+}
 export type PurchasePage = Required<Omit<S['PurchasePage'], 'purchases'>> & {
   purchases: PurchaseSummary[]
 }

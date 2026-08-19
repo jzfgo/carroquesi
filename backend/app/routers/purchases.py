@@ -126,6 +126,7 @@ def list_purchases(
     list_and_user: MemberDep,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    include_items: bool = False,
 ):
     """The list's trips, newest shop first.
 
@@ -135,6 +136,10 @@ def list_purchases(
     tore off with nobody writing it down sorts by the day it covered, not
     by whenever someone later looks at it. The id tie-break keeps pages
     stable when two trips share a boundary.
+
+    `include_items` carries each trip's lines in the same answer: the stack
+    renders its first page's trips expanded, so one batched read here beats
+    one lines request per card.
     """
     lst, _ = list_and_user
     stopped_at = func.coalesce(Purchase.closed_at, Purchase.tears_off_at)
@@ -196,6 +201,25 @@ def list_purchases(
             acc[purchase_id] = acc.get(purchase_id, 0.0) + price * factor
         items_totals = {pid: round(amount, 2) for pid, amount in acc.items()}
 
+    # The batched lines, grouped per trip in cart order — the same rows and
+    # order the per-trip items endpoint answers, stamped with the same
+    # trip-level facts (boundary and receipt) its lines carry.
+    lines_by_trip: dict[str, list[ItemRead]] = {}
+    if include_items and page:
+        rows = session.exec(
+            select(ListItem)
+            .where(ListItem.purchase_id.in_([trip.id for trip in page]))
+            .order_by(ListItem.purchased_at.asc(), ListItem.created_at.asc())
+        ).all()
+        ends = {trip.id: trips.ends_at(trip) for trip in page}
+        for item in rows:
+            # object.__setattr__ because pydantic rejects undeclared fields.
+            object.__setattr__(item, "purchase_ends_at", ends[item.purchase_id])
+            object.__setattr__(item, "purchase_has_receipt", item.purchase_id in scanned)
+            lines_by_trip.setdefault(item.purchase_id, []).append(
+                ItemRead.model_validate(item, from_attributes=True)
+            )
+
     return PurchasePage(
         purchases=[
             PurchaseSummary(
@@ -203,6 +227,7 @@ def list_purchases(
                 line_count=line_counts.get(trip.id, 0),
                 has_receipt=trip.id in scanned,
                 items_total=items_totals.get(trip.id),
+                items=lines_by_trip.get(trip.id, []) if include_items else None,
             )
             for trip in page
         ],

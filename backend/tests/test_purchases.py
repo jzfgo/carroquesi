@@ -681,6 +681,34 @@ def test_the_page_leaves_items_total_null_when_no_line_is_priced(
     assert proto["items_total"] is None
 
 
+def test_the_page_carries_each_trips_lines_only_when_asked(client: TestClient, session: Session):
+    """include_items batches the lines the stack's expanded cards render.
+
+    The batched lines must be the same answer the per-trip items endpoint
+    gives — same rows, same order, same stamped trip facts (boundary and
+    receipt) — so the client can treat either source alike. Without the
+    flag, items is null: «not asked», never «no lines»."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    bread = _tap(client, lst["id"], "Pan")
+    ticket = _close(client, lst["id"], store="Lidl", lines=_lines(milk, bread)).json()
+    _backdate_close(session, ticket["id"], days_ago=1)
+    # A lineless manual record: its items must read as the empty list, not null.
+    manual = client.post(
+        f"/lists/{lst['id']}/purchases/manual",
+        json={"date": (_client_today() - timedelta(days=3)).isoformat(), "store": "Bar"},
+    ).json()
+
+    plain = _page(client, lst["id"]).json()
+    assert all(p["items"] is None for p in plain["purchases"])
+
+    body = _page(client, lst["id"], include_items=True).json()
+    by_id = {p["id"]: p for p in body["purchases"]}
+    per_trip = client.get(f"/lists/{lst['id']}/purchases/{ticket['id']}/items").json()
+    assert by_id[ticket["id"]]["items"] == per_trip
+    assert by_id[manual["id"]]["items"] == []
+
+
 def test_trips_sharing_a_boundary_tie_break_on_id(client: TestClient, session: Session):
     lst = _create_list(client)
     instant = datetime(2026, 7, 1, 12, 0, 0)

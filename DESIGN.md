@@ -643,6 +643,13 @@ in the cart detaches along the die-cut and falls into the previous-purchase
 area as a receipt with gaps — a real purchase missing data, not a reminder.
 Nothing is asked of the user, and the date already says how old it is.
 
+**The stack shows its last ten trips expanded** (JAV-187, 2026-08,
+superseding frame `18a`'s one-expanded-two-folded — most shops ended up as
+headers or behind the door). The «Compras anteriores» door keeps everything
+older than the tenth; «Guardar un ticket» is unchanged. The stack's first
+page carries its lines in one batched read (`include_items`), so ten open
+receipts cost one request, not ten.
+
 **No strikethrough — anywhere in the app.** It defaces the one field that did
 _not_ change — the product's identity — while giving no acknowledgement to
 the fields that did, and it makes re-buying feel like undoing something dead,

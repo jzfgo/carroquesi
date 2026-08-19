@@ -1192,6 +1192,7 @@ describe('targeted receipt attach (25b)', () => {
     line_count: 2,
     has_receipt: false,
     items_total: null,
+    items: null,
   }
 
   beforeEach(() => {
