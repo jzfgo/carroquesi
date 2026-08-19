@@ -36,6 +36,10 @@ interface Props {
    *  search — no separate state here. */
   query?: string
   searching?: boolean
+  /** Reports what this read found so the sheet's no-results card can defer to
+   *  it: null while a query's answer is still in flight (and when search is
+   *  off), else the result count. */
+  onSearchResults?: (hits: number | null) => void
   /** Whether this account can scan — the caller settles flag + consent.
    *  Gates only the dashed state of the 25b thumbnails; stored paper shows
    *  to every member. */
@@ -66,6 +70,7 @@ export function Stack({
   onSaveTicket,
   query = '',
   searching = false,
+  onSearchResults,
   receiptScan = false,
   onScanReceipt,
 }: Props) {
@@ -95,23 +100,33 @@ export function Stack({
     if (!searchActive) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale results when leaving search
       setSearchResults([])
+      onSearchResults?.(null)
       return
     }
     let cancelled = false
+    // A new query means the answer below is stale: report the read as open
+    // again so nothing upstream concludes «empty» off the previous answer.
+    onSearchResults?.(null)
     const id = setTimeout(() => {
       void searchPurchases(getToken, listId, trimmed)
         .then((r) => {
-          if (!cancelled) setSearchResults(r.results)
+          if (!cancelled) {
+            setSearchResults(r.results)
+            onSearchResults?.(r.results.length)
+          }
         })
         .catch(() => {
-          if (!cancelled) setSearchResults([])
+          if (!cancelled) {
+            setSearchResults([])
+            onSearchResults?.(0)
+          }
         })
     }, 300)
     return () => {
       cancelled = true
       clearTimeout(id)
     }
-  }, [searchActive, trimmed, getToken, listId])
+  }, [searchActive, trimmed, getToken, listId, onSearchResults])
 
   // Once unfolded, a sentinel at the tail pulls the next page in as it nears
   // the viewport — the infinite scroll. Re-armed whenever the trigger inputs

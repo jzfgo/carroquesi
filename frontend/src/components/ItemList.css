@@ -139,16 +139,11 @@
   color: var(--ink-0);
 }
 
-/* All bought (16c): one hand-written line where the day's ticket closes —
-   Caveat again, set a little apart from the ticket above it. */
-.item-list__done {
-  margin: 10px 0 0;
-  font-family: var(--font-hand);
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.2;
-  text-align: center;
-  color: var(--ink-0);
+/* At zero the title's dashed underline folds into the perforation right
+   below it — one cut, not two rules with nothing between them. */
+.item-list .paper__title--cut {
+  border-bottom: none;
+  padding-bottom: 6px;
 }
 
 /* The inline "Sueles comprar" block (20b): the tail of the pending sheet,

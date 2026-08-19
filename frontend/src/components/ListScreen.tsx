@@ -170,6 +170,11 @@ export function ListScreen({
   const [elsewhereMatch, setElsewhereMatch] = useState<ElsewhereMatch | null>(
     null,
   )
+  // What the stack's search read found (reported by <Stack>): null while a
+  // query's answer is in flight, else its count. The no-results card is
+  // suppressed until this settles at zero — over history results, or before
+  // the read answers, saying «nothing» would be premature.
+  const [stackHits, setStackHits] = useState<number | null>(null)
   const [activeItemId, setActiveItemId] = useState<string | null>(null)
   type ScanTarget = { kind: 'add' } | { kind: 'receipt-line'; index: number }
   const [scanTarget, setScanTarget] = useState<ScanTarget | null>(null)
@@ -1228,6 +1233,7 @@ export function ListScreen({
         query={filterQuery}
         elsewhereMatch={elsewhereMatch}
         onAddFromSearch={handleAddFromSearch}
+        stackHits={stackHits}
         onTogglePurchased={handleTogglePurchased}
         onOpenActions={handleItemMenuOpen}
         onRetry={retry}
@@ -1244,6 +1250,7 @@ export function ListScreen({
             onSaveTicket={handleSaveTicket}
             query={filterQuery}
             searching={searching}
+            onSearchResults={setStackHits}
             receiptScan={
               isEnabled(FLAGS.AI_RECEIPT_SCANNING) &&
               user?.receiptConsent === 'granted'
