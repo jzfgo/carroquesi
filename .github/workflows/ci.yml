@@ -209,6 +209,12 @@ jobs:
           fi
 
       - name: Run Playwright tests
+        env:
+          # The job runs as root but Actions points $HOME at /github/home,
+          # owned by the image's pwuser — Firefox refuses to launch under a
+          # HOME the current user does not own. This is Playwright's own
+          # documented workaround for containerised Actions jobs.
+          HOME: /root
         run: pnpm exec playwright test
 
       - uses: actions/upload-artifact@v7
