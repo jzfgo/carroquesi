@@ -57,6 +57,8 @@ function renderBody(overrides: {
   onPickSuggestion?: Parameters<
     typeof ReceiptLineResolveBody
   >[0]['onPickSuggestion']
+  effectiveTotal?: number
+  onChangePrice?: (value: number | null) => void
 }) {
   return render(
     <ReceiptLineResolveBody
@@ -71,6 +73,8 @@ function renderBody(overrides: {
       onChangeCreateText={vi.fn()}
       onAssign={vi.fn()}
       onBack={vi.fn()}
+      effectiveTotal={overrides.effectiveTotal ?? line.line_total}
+      onChangePrice={overrides.onChangePrice ?? vi.fn()}
     />,
   )
 }
@@ -124,6 +128,8 @@ test('a prefill never filters the link list; typed text does', () => {
       onChangeCreateText={vi.fn()}
       onAssign={vi.fn()}
       onBack={vi.fn()}
+      effectiveTotal={line.line_total}
+      onChangePrice={vi.fn()}
     />,
   )
   expect(screen.getAllByRole('radio')).toHaveLength(1)
@@ -172,4 +178,50 @@ test('the helper link toggles the sigil legend in place', async () => {
   await user.click(link)
   expect(link).toHaveAttribute('aria-expanded', 'false')
   expect(screen.queryByText('#marca')).not.toBeInTheDocument()
+})
+
+// ── The Importe correction (JAV-185) ─────────────────────────────────────────
+
+test('the Importe field prefills the effective total, comma-decimal', () => {
+  renderBody({ effectiveTotal: 4.58 })
+  expect(screen.getByLabelText('Importe')).toHaveValue('4,58')
+})
+
+test('a corrected amount commits on blur, comma accepted', async () => {
+  const user = userEvent.setup()
+  const onChangePrice = vi.fn()
+  renderBody({ onChangePrice })
+
+  const input = screen.getByLabelText('Importe')
+  await user.clear(input)
+  await user.type(input, '3,38')
+  await user.tab()
+  expect(onChangePrice).toHaveBeenCalledWith(3.38)
+  expect(input).toHaveValue('3,38')
+})
+
+test('typing the read figure back clears the correction', async () => {
+  const user = userEvent.setup()
+  const onChangePrice = vi.fn()
+  // A correction is in force (2,00); the paper read 3,18.
+  renderBody({ effectiveTotal: 2, onChangePrice })
+
+  const input = screen.getByLabelText('Importe')
+  await user.clear(input)
+  await user.type(input, '3,18')
+  await user.tab()
+  expect(onChangePrice).toHaveBeenCalledWith(null)
+})
+
+test('an invalid or negative amount reverts instead of committing', async () => {
+  const user = userEvent.setup()
+  const onChangePrice = vi.fn()
+  renderBody({ effectiveTotal: 4.58, onChangePrice })
+
+  const input = screen.getByLabelText('Importe')
+  await user.clear(input)
+  await user.type(input, '-2')
+  await user.tab()
+  expect(onChangePrice).not.toHaveBeenCalled()
+  expect(input).toHaveValue('4,58')
 })

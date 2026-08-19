@@ -550,3 +550,95 @@ describe('ReceiptScanSheet — resolve sheet (13b)', () => {
     expect(screen.getByDisplayValue('Cacahuetes #Frit')).toBeInTheDocument()
   })
 })
+
+describe('ReceiptScanSheet — discount lines (JAV-184)', () => {
+  // A promo Gemini failed to fold: negative, still on the paper. The paper
+  // total already carries the discount (9.45 − 1.20).
+  const withPromo = () =>
+    makeResult({
+      receipt_total: 8.25,
+      unmatched: [
+        ...makeResult().unmatched,
+        {
+          receipt_name: 'PROMOCION',
+          price_type: 'UNIT',
+          unit_price: -1.2,
+          quantity: null,
+          line_total: -1.2,
+        },
+      ],
+    })
+
+  it('renders the promo locked: unchecked, disabled, no door to resolve', () => {
+    renderSheet({ result: withPromo() })
+    const check = screen.getByRole('checkbox', { name: /PROMOCION/ })
+    expect(check).not.toBeChecked()
+    expect(check).toBeDisabled()
+    expect(screen.getByText('descuento · no se guarda')).toBeInTheDocument()
+    expect(openRow('PROMOCION')).toBeDisabled()
+  })
+
+  it('keeps the promo in the cuadre sum, so the paper still squares', () => {
+    renderSheet({ result: withPromo() })
+    expect(screen.getByText('Total')).toBeInTheDocument()
+  })
+
+  it('select-all skips the promo and the payload never carries it', async () => {
+    const { onConfirm } = renderSheet({ result: withPromo() })
+    // Every selectable line starts checked, so the locked promo alone does not
+    // keep the toggle from reading as complete.
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Deseleccionar todo' }),
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Seleccionar todo' }))
+    expect(
+      screen.getByRole('checkbox', { name: /PROMOCION/ }),
+    ).not.toBeChecked()
+    // The promo is unnamed but locked, so it neither blocks the save nor
+    // reaches the payload.
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches, , newItems] = onConfirm.mock.calls[0]
+    expect(patches).toHaveLength(3)
+    expect(newItems).toHaveLength(0)
+  })
+
+  it('leaves the sin-nombre count to real work, not locked discounts', () => {
+    renderSheet({ result: withPromo() })
+    // MANI DULCE is the one truly unnamed line; the promo does not count.
+    expect(screen.getByText(/1 sin nombre/)).toBeInTheDocument()
+  })
+})
+
+describe('ReceiptScanSheet — price correction (JAV-185)', () => {
+  it('a corrected line total flows into the row, the sums, and the payload', async () => {
+    const { onConfirm } = renderSheet()
+    // Open the MULTI line (3 × 0,95 = 2,85) and correct its total to 1,85.
+    fireEvent.click(openRow('YOGUR NATURAL'))
+    const input = screen.getByLabelText('Importe')
+    expect(input).toHaveValue('2,85')
+    fireEvent.change(input, { target: { value: '1,85' } })
+    fireEvent.blur(input)
+    fireEvent.click(screen.getByRole('button', { name: /Revisar ticket/ }))
+
+    // The row prints the corrected figure.
+    expect(screen.getByText('1,85')).toBeInTheDocument()
+    // Save: the recorded unit price re-derives from the corrected total.
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    const yogur = patches.find((p) => p.item_id === 'item-3')
+    expect(yogur?.price).toBeCloseTo(1.85 / 3)
+  })
+
+  it("an uncorrected line keeps the parse's own unit price", async () => {
+    const { onConfirm } = renderSheet()
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    expect(patches.find((p) => p.item_id === 'item-2')?.price).toBe(11.4)
+  })
+})
