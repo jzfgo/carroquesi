@@ -686,6 +686,12 @@ Every bottom sheet builds on the shared `Sheet` primitive
 focus trap, scroll lock and the open/close slide live there once. See
 AGENTS.md for the behavioural contract.
 
+**Set-only switch** (list options sheet, `21a`). The default-list switch has
+no off gesture — the default moves by marking *another* list (ADR-007). While
+on, it renders dimmed (opacity 0.5, `aria-disabled`); the tap still lands and
+is answered with a toast naming the way out. Decided 2026-08-17 (JAV-195),
+superseding the plain switch in frame `21a`.
+
 ## Do's and Don'ts
 
 ### Do:
