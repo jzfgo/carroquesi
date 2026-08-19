@@ -21,10 +21,26 @@ export interface LineState {
   /** Checked = saved to history. Unchecked lines still count toward the cuadre. */
   included: boolean
   resolution: LineResolution
+  /**
+   * A user-corrected line total (13b «Importe»), or null/absent for as-read.
+   * The paper line's own figures stay untouched — this is a correction of the
+   * interpretation, and every derived figure (unit price, cuadre, save sum)
+   * reads through it.
+   */
+  lineTotal?: number | null
 }
 
 export function isNamed(resolution: LineResolution): boolean {
   return resolution.kind !== 'unassigned'
+}
+
+/**
+ * A negative amount is a discount the parse failed to fold into its product's
+ * line, not a product. It stays visible — it still sums toward the cuadre —
+ * but it is locked: never saved, never named.
+ */
+export function isDiscountLine(line: ReceiptLine): boolean {
+  return line.line_total < 0 || line.unit_price < 0
 }
 
 export function resolutionItemId(resolution: LineResolution): string | null {
@@ -91,6 +107,41 @@ export function linePricePer(line: ReceiptLine): 'KILOGRAM' | null {
  */
 export function lineTotal(line: ReceiptLine): number {
   return line.line_total
+}
+
+/**
+ * The line total the review actually works with: the user's correction when
+ * one exists, else the parse's own figure. Every derived number — cuadre,
+ * save sum, the applied unit price — reads through this, so a correction
+ * behaves exactly as if the paper had been read right the first time.
+ */
+export function effectiveLineTotal(
+  line: ReceiptLine,
+  state?: LineState,
+): number {
+  return state?.lineTotal ?? lineTotal(line)
+}
+
+/**
+ * The per-item price the apply records, derived from the effective line
+ * total: a multi-unit or by-weight line divides by its quantity, a single
+ * unit is the total itself. A missing or zero quantity falls back to the
+ * total — recording something recoverable beats dividing by nothing.
+ */
+export function effectiveUnitPrice(
+  line: ReceiptLine,
+  state?: LineState,
+): number {
+  const total = effectiveLineTotal(line, state)
+  if (state?.lineTotal == null) return line.unit_price
+  if (
+    (line.price_type === 'MULTI' || line.price_type === 'KILOGRAM') &&
+    line.quantity != null &&
+    line.quantity > 0
+  ) {
+    return total / line.quantity
+  }
+  return total
 }
 
 /** The receipt date as the header pill prints it — «26 jul» (year only if past). */

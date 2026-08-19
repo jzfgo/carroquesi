@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
 import { parseInput } from '../lib/parseInput'
 import {
+  effectiveLineTotal,
+  effectiveUnitPrice,
   formatReceiptDate,
+  isDiscountLine,
   isNamed,
   linePricePer,
-  lineTotal,
   quantityString,
   resolutionItemId,
   resolutionName,
@@ -99,9 +101,11 @@ const PRICE_EPSILON = 0.005
 function targetChange(
   line: ReceiptLine,
   item: ItemRef | undefined,
+  state?: LineState,
 ): 'fill' | 'correct' | 'equal' {
   if (!item || item.price == null) return 'fill'
-  const samePrice = Math.abs(item.price - line.unit_price) < PRICE_EPSILON
+  const samePrice =
+    Math.abs(item.price - effectiveUnitPrice(line, state)) < PRICE_EPSILON
   const samePer = (item.price_per ?? null) === linePricePer(line)
   return samePrice && samePer ? 'equal' : 'correct'
 }
@@ -116,11 +120,12 @@ function initStates(
       // In a targeted review a line that repeats the recorded price writes
       // nothing, so it starts unchecked and the save counts stay honest.
       included:
-        target == null ||
-        targetChange(
-          m,
-          candidateItems.find((it) => it.id === m.item_id),
-        ) !== 'equal',
+        !isDiscountLine(m) &&
+        (target == null ||
+          targetChange(
+            m,
+            candidateItems.find((it) => it.id === m.item_id),
+          ) !== 'equal'),
       resolution: {
         kind: 'matched',
         itemId: m.item_id,
@@ -128,8 +133,8 @@ function initStates(
         brand: null,
       },
     })),
-    ...result.unmatched.map((): LineState => ({
-      included: true,
+    ...result.unmatched.map((u): LineState => ({
+      included: !isDiscountLine(u),
       resolution: { kind: 'unassigned' },
     })),
   ]
@@ -217,14 +222,22 @@ export default function ReceiptScanSheet({
   }, [resolveText, resolveDirty, resolvingIndex, onFetchSuggestions])
 
   const includedCount = lineStates.filter((ls) => ls.included).length
-  const unnamedCount = lineStates.filter((ls) => !isNamed(ls.resolution)).length
+  // A locked discount line is unnamed by nature but asks for no work, so it
+  // stays out of the «sin nombre» count.
+  const unnamedCount = lineStates.filter(
+    (ls, i) => !isNamed(ls.resolution) && !isDiscountLine(allLines[i]),
+  ).length
   const namedMissing = lineStates.some(
     (ls) => ls.included && !isNamed(ls.resolution),
   )
 
-  const lineSum = allLines.reduce((sum, line) => sum + lineTotal(line), 0)
+  const lineSum = allLines.reduce(
+    (sum, line, i) => sum + effectiveLineTotal(line, lineStates[i]),
+    0,
+  )
   const savedSum = lineStates.reduce(
-    (sum, ls, i) => (ls.included ? sum + lineTotal(allLines[i]) : sum),
+    (sum, ls, i) =>
+      ls.included ? sum + effectiveLineTotal(allLines[i], ls) : sum,
     0,
   )
   const receiptTotal = result.receipt_total ?? null
@@ -257,6 +270,7 @@ export default function ReceiptScanSheet({
   }
 
   function toggleInclude(index: number) {
+    if (isDiscountLine(allLines[index])) return
     setLineStates((prev) =>
       prev.map((ls, i) =>
         i === index ? { ...ls, included: !ls.included } : ls,
@@ -265,10 +279,22 @@ export default function ReceiptScanSheet({
   }
 
   function setAll(included: boolean) {
-    setLineStates((prev) => prev.map((ls) => ({ ...ls, included })))
+    setLineStates((prev) =>
+      prev.map((ls, i) => ({
+        ...ls,
+        included: included && !isDiscountLine(allLines[i]),
+      })),
+    )
+  }
+
+  function setLinePrice(index: number, value: number | null) {
+    setLineStates((prev) =>
+      prev.map((ls, i) => (i === index ? { ...ls, lineTotal: value } : ls)),
+    )
   }
 
   function openResolve(index: number) {
+    if (isDiscountLine(allLines[index])) return
     const r = lineStates[index].resolution
     if (r.kind === 'linked' || r.kind === 'matched') {
       setResolveRadioId(r.itemId)
@@ -343,7 +369,7 @@ export default function ReceiptScanSheet({
       if (r.kind === 'matched' || r.kind === 'linked') {
         patches.push({
           item_id: r.itemId,
-          price: line.unit_price,
+          price: effectiveUnitPrice(line, ls),
           price_per: pricePer,
           store,
           quantity,
@@ -353,7 +379,7 @@ export default function ReceiptScanSheet({
           name: r.name,
           brand: r.brand,
           ean: r.ean,
-          price: line.unit_price,
+          price: effectiveUnitPrice(line, ls),
           price_per: pricePer,
           store,
           quantity,
@@ -393,7 +419,7 @@ export default function ReceiptScanSheet({
         if (r.kind === 'matched' || r.kind === 'linked') {
           const item = candidateItems.find((it) => it.id === r.itemId)
           if (!item || item.price == null) return 'completa el precio'
-          return targetChange(line, item) === 'equal'
+          return targetChange(line, item, lineStates[i]) === 'equal'
             ? 'sin cambios'
             : `era € ${formatRowAmount(item.price)}`
         }
@@ -440,6 +466,11 @@ export default function ReceiptScanSheet({
           }
           onAssign={assign}
           onBack={() => setResolvingIndex(null)}
+          effectiveTotal={effectiveLineTotal(
+            allLines[resolvingIndex],
+            lineStates[resolvingIndex],
+          )}
+          onChangePrice={(value) => setLinePrice(resolvingIndex, value)}
         />
       ) : (
         <ReceiptReviewBody

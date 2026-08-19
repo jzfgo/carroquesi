@@ -1,6 +1,6 @@
 import { ChevronLeft, ScanBarcode } from 'lucide-react'
 import { useState } from 'react'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatRowAmount, parseAmount } from '../lib/formatPrice'
 import { parseInput } from '../lib/parseInput'
 import {
   lineTotal,
@@ -26,6 +26,13 @@ interface Props {
   onRequestScan?: () => void
   onAssign: () => void
   onBack: () => void
+  /** The line total the review is working with — the user's correction when
+   *  one exists, else the read figure. */
+  effectiveTotal: number
+  /** Corrects the line's total («el papel no se discute» — this edits the
+   *  interpretation, never the raw line above). Null clears the correction.
+   *  Commits like the header store/date controls: on leaving the field. */
+  onChangePrice: (value: number | null) => void
   /** The back galón names the review it returns to; the targeted review has
    *  its own title. */
   backLabel?: string
@@ -62,8 +69,26 @@ export function ReceiptLineResolveBody({
   onRequestScan,
   onAssign,
   onBack,
+  effectiveTotal,
+  onChangePrice,
   backLabel = 'Revisar ticket',
 }: Props) {
+  // The amount draft, comma-decimal like every hand-typed price. Committed on
+  // blur: an amount equal to the read figure clears the correction (typing
+  // the paper's own number back is undoing, not overriding), an invalid one
+  // reverts to what the review is working with.
+  const [priceDraft, setPriceDraft] = useState(() =>
+    effectiveTotal.toFixed(2).replace('.', ','),
+  )
+  function commitPrice() {
+    const value = parseAmount(priceDraft)
+    if (value == null) {
+      setPriceDraft(effectiveTotal.toFixed(2).replace('.', ','))
+      return
+    }
+    onChangePrice(value === lineTotal(line) ? null : value)
+    setPriceDraft(value.toFixed(2).replace('.', ','))
+  }
   // The main add bar keeps its sigils silent, but this bar arrives prefilled
   // with raw OCR text the user has to clean by hand — so it earns a short,
   // collapsed reminder of the syntax that helps. Only the sigils this path
@@ -102,6 +127,28 @@ export function ReceiptLineResolveBody({
           <span className="rss-ticketline__num">
             {quantityDisplay(line)} · {formatRowAmount(lineTotal(line))}
           </span>
+        </div>
+      </div>
+
+      {/* The raw line above is the paper and stays as read; this corrects what
+          the app understood — the amount that sums, saves, and prices. */}
+      <div className="rss-resolve-price">
+        <label className="rss-eyebrow" htmlFor="rss-resolve-price-input">
+          Importe
+        </label>
+        <div className="rss-control-editor">
+          <input
+            id="rss-resolve-price-input"
+            className="rss-control-editor__input rss-resolve-price__input"
+            type="text"
+            inputMode="decimal"
+            value={priceDraft}
+            onChange={(e) => setPriceDraft(e.target.value)}
+            onBlur={commitPrice}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+            }}
+          />
         </div>
       </div>
 
