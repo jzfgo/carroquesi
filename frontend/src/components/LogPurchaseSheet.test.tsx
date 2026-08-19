@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ListItem } from '../types'
 import LogPurchaseSheet from './LogPurchaseSheet'
+import { ADD_STORE } from './StoreSelect'
 
 const BASE_ITEM: ListItem = {
   id: 'i1',
@@ -133,7 +134,7 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
     expect(onSave).toHaveBeenCalledWith(2.5, null, 'Lidl', '5')
   })
 
-  it('renders one chip per store across spelling variants', () => {
+  it('offers one option per store across spelling variants', () => {
     const item = {
       ...BASE_ITEM,
       stores: ['Ahorramás', 'AHORRA MAS', 'Lidl'],
@@ -149,15 +150,15 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
       />,
     )
     expect(
-      screen.getByRole('button', { name: /Ahorramás/ }),
+      screen.getByRole('option', { name: 'Ahorramás' }),
     ).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: /AHORRA MAS/ }),
+      screen.queryByRole('option', { name: 'AHORRA MAS' }),
     ).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Lidl/ })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Lidl' })).toBeInTheDocument()
   })
 
-  it('a hand-typed spelling variant reuses the existing chip form', async () => {
+  it('a hand-typed spelling variant reuses the existing offer form', async () => {
     const onSave = vi.fn()
     const item = { ...BASE_ITEM, stores: ['Ahorramás'] }
     render(
@@ -170,9 +171,7 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
         onClose={vi.fn()}
       />,
     )
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Añadir otra tienda' }),
-    )
+    await userEvent.selectOptions(screen.getByLabelText('Tienda'), ADD_STORE)
     await userEvent.type(
       screen.getByPlaceholderText(/nombre de la tienda/i),
       'ahorra mas',

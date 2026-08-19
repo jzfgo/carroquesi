@@ -8,6 +8,7 @@ import {
 } from '../lib/api'
 import type { ListItem } from '../types'
 import { CloseTripSheet } from './CloseTripSheet'
+import { ADD_STORE } from './StoreSelect'
 
 vi.mock('../lib/api', () => ({
   closePurchase: vi.fn(),
@@ -75,18 +76,18 @@ test('renders each line and sums the confirmed total', () => {
   expect(screen.getByText('€ 5,19')).toBeInTheDocument()
 })
 
-test('store chips select one store', () => {
+test('the store dropdown defaults to the first offer and selects another', async () => {
   renderSheet([
     item({ id: 'a', stores: ['Mercadona'] }),
     item({ id: 'b', stores: ['Lidl'] }),
   ])
-  const lidl = screen.getByText('Lidl')
-  expect(lidl.className).not.toContain('close-chip--on')
-  expect(lidl).toHaveAttribute('aria-pressed', 'false')
-  fireEvent.click(lidl)
-  expect(lidl.className).toContain('close-chip--on')
-  // The fill is the visual voice of selection; aria-pressed is the spoken one.
-  expect(lidl).toHaveAttribute('aria-pressed', 'true')
+  const select = screen.getByLabelText<HTMLSelectElement>('Tienda')
+  expect(select.value).toBe('Mercadona')
+  fireEvent.change(select, { target: { value: 'Lidl' } })
+  expect(select.value).toBe('Lidl')
+  fireEvent.click(screen.getByText('Guardar compra'))
+  await waitFor(() => expect(closePurchase).toHaveBeenCalled())
+  expect(vi.mocked(closePurchase).mock.calls.at(-1)![2].store).toBe('Lidl')
 })
 
 test('a store-less cart still offers registry stores and «+ otra»', async () => {
@@ -101,11 +102,13 @@ test('a store-less cart still offers registry stores and «+ otra»', async () =
       onDone={vi.fn()}
     />,
   )
-  // Registry stores appear as chips though the cart names none.
-  expect(screen.getByText('Mercadona')).toBeInTheDocument()
-  // «+ otra» opens the «Nueva tienda» step; the typed store is confirmed there,
-  // becomes a chip, and is what saves.
-  fireEvent.click(screen.getByText('+ otra'))
+  // Registry stores are offered though the cart names none.
+  expect(screen.getByRole('option', { name: 'Mercadona' })).toBeInTheDocument()
+  // «+ otra» opens the «Nueva tienda» step; the typed store is confirmed
+  // there, joins the offer, and is what saves.
+  fireEvent.change(screen.getByLabelText('Tienda'), {
+    target: { value: ADD_STORE },
+  })
   fireEvent.change(screen.getByPlaceholderText('Nombre de la tienda'), {
     target: { value: 'Ahorramás' },
   })

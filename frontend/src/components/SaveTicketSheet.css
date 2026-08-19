@@ -71,37 +71,8 @@
   color: var(--ink-2);
 }
 
-.save-sheet__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.save-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1.5px solid var(--paper-edge);
-  border-radius: var(--r-pill);
-  background: var(--paper-1);
-  color: var(--ink-1);
-  font-family: var(--font-sans);
-  font-size: var(--fs-13);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.save-chip--on {
-  background: var(--tinta-0);
-  border-color: var(--tinta-0);
-  color: var(--accent-fg);
-}
-
-/* «+ otra»: the dashed add affordance the store chips share app-wide. */
-.save-chip--add {
-  border-style: dashed;
-  color: var(--tinta-0);
+.save-sheet__store {
+  width: 100%;
 }
 
 .save-date,

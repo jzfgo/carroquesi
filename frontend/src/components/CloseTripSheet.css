@@ -34,40 +34,15 @@
   border-bottom: 1px solid var(--paper-edge);
 }
 
-.close-sheet__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+/* The store dropdown shares the controls row with the date; matching its
+   36px height is what keeps the row level. */
+.close-sheet__store {
   flex: 1;
   min-width: 0;
 }
 
-.close-chip {
-  display: inline-flex;
-  align-items: center;
+.close-sheet__store .store-select__control {
   min-height: 36px;
-  padding: 0 12px;
-  border: 1.5px solid var(--paper-edge);
-  border-radius: var(--r-pill);
-  background: var(--paper-1);
-  color: var(--ink-1);
-  font-family: var(--font-sans);
-  font-size: var(--fs-13);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.close-chip--on {
-  background: var(--tinta-0);
-  border-color: var(--tinta-0);
-  color: var(--accent-fg);
-}
-
-/* «+ otra»: a dashed chip, the add affordance the store chips share with the
-   rest of the app. It opens the «Nueva tienda» step. */
-.close-chip--add {
-  border-style: dashed;
-  color: var(--tinta-0);
 }
 
 .close-date {

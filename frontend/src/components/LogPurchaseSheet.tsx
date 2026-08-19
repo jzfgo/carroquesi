@@ -1,4 +1,4 @@
-import { ShoppingCart, Store } from 'lucide-react'
+import { ShoppingCart } from 'lucide-react'
 import { useState } from 'react'
 import { formatPrice } from '../lib/formatPrice'
 import { isTripOpen } from '../lib/isTripOpen'
@@ -7,6 +7,7 @@ import { storeKey } from '../lib/storeKey'
 import type { ListItem } from '../types'
 import './LogPurchaseSheet.css'
 import { Sheet } from './Sheet'
+import { ADD_STORE, StoreSelect } from './StoreSelect'
 
 interface Props {
   item: ListItem
@@ -37,7 +38,7 @@ export default function LogPurchaseSheet({
   onClose,
   displayStore = (raw) => raw,
 }: Props) {
-  // One chip per store: dedupe spelling variants by key and label with the
+  // One offer per store: dedupe spelling variants by key and label with the
   // registry's canonical name.
   const storesByKey = new Map<string, string>()
   for (const s of item.stores ?? []) {
@@ -107,11 +108,6 @@ export default function LogPurchaseSheet({
     }
   }
 
-  function handleStoreChip(store: string) {
-    setAddingStore(false)
-    setSelectedStore(store === selectedStore ? null : store)
-  }
-
   return (
     <Sheet className="lps" label="Registrar compra" onClose={onClose}>
       <div className="lps__title">
@@ -162,42 +158,22 @@ export default function LogPurchaseSheet({
 
       <div className="lps__field lps__field--last">
         <div className="lps__field-label">Tienda</div>
-        <div className="lps__chips">
-          {stores.map((store) => (
-            <button
-              key={store}
-              className={`lps__chip${selectedStore === store && !addingStore ? ' lps__chip--selected' : ''}`}
-              aria-pressed={selectedStore === store && !addingStore}
-              onClick={() => handleStoreChip(store)}
-              type="button"
-            >
-              <Store size={13} /> {store}
-            </button>
-          ))}
-          {effectiveSuggestion && (
-            <button
-              className={`lps__chip${selectedStore === effectiveSuggestion && !addingStore ? ' lps__chip--selected' : ''}`}
-              aria-pressed={
-                selectedStore === effectiveSuggestion && !addingStore
-              }
-              onClick={() => handleStoreChip(effectiveSuggestion)}
-              type="button"
-            >
-              <Store size={13} /> {effectiveSuggestion}
-            </button>
-          )}
-          <button
-            className="lps__chip lps__chip--add"
-            aria-label="Añadir otra tienda"
-            onClick={() => {
-              setSelectedStore(null)
-              setAddingStore(true)
-            }}
-            type="button"
-          >
-            + otra
-          </button>
-        </div>
+        {/* «+ otra» reveals the field below (no sub-view here); while it is
+            open the select shows that entry as the current choice. */}
+        <StoreSelect
+          className="lps__store"
+          options={effectiveSuggestion ? [effectiveSuggestion] : stores}
+          value={addingStore ? ADD_STORE : (selectedStore ?? '')}
+          onSelect={(v) => {
+            setAddingStore(false)
+            setSelectedStore(v || null)
+          }}
+          onAddNew={() => {
+            setSelectedStore(null)
+            setAddingStore(true)
+          }}
+          emptyLabel="Sin tienda"
+        />
         {addingStore && (
           <input
             className="lps__new-store"

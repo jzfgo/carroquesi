@@ -20,6 +20,7 @@ import type { ListItem, PurchaseLine } from '../types'
 import { AdjustProductSheet, type DraftLine } from './AdjustProductSheet'
 import './CloseTripSheet.css'
 import { Sheet } from './Sheet'
+import { StoreSelect } from './StoreSelect'
 
 interface Props {
   listId: string
@@ -31,8 +32,8 @@ interface Props {
   initialDate?: string
   /** The open cart's lines, when closing it (not fetched). */
   cartItems?: ListItem[]
-  /** The list's registered stores, offered as chips even when the cart has
-   *  none — so a store-less cart can still pick one. */
+  /** The list's registered stores, offered even when the cart has none — so
+   *  a store-less cart can still pick one. */
   storeOptions?: string[]
   displayStore: (raw: string) => string
   onClose: () => void
@@ -96,8 +97,8 @@ export function CloseTripSheet({
     cartItems ? cartItems.map(toDraft) : [],
   )
   const [store, setStore] = useState('')
-  // Stores added by hand through the «+ otra» sub-view — offered as chips
-  // beside the cart's and the registry's, and selected on confirm.
+  // Stores added by hand through the «+ otra» sub-view — offered beside the
+  // cart's and the registry's, and selected on confirm.
   const [extraStores, setExtraStores] = useState<string[]>([])
   // The «Nueva tienda» step: a content swap of this same sheet (never a second
   // sheet), plus its field.
@@ -135,8 +136,8 @@ export function CloseTripSheet({
     }
   }, [purchaseId, getToken, listId])
 
-  // The stores offered as chips — those the cart's lines mention, plus the
-  // list's registered stores, so a store-less cart still has choices. «+ otra»
+  // The stores offered — those the cart's lines mention, plus the list's
+  // registered stores, so a store-less cart still has choices. «+ otra»
   // covers anything not listed.
   const stores = useMemo(() => {
     const seen = new Set<string>()
@@ -157,13 +158,13 @@ export function CloseTripSheet({
     return out
   }, [cartItems, storeOptions, extraStores, displayStore])
 
-  // The active store: the tapped or hand-added one, or the first chip as a
-  // default. A store-less list with no chips leaves this empty, which keeps
-  // «Guardar compra» disabled until «+ otra» supplies one.
+  // The active store: the picked or hand-added one, or the first offer as a
+  // default. A store-less list with nothing to offer leaves this empty, which
+  // keeps «Guardar compra» disabled until «+ otra» supplies one.
   const selectedStore = store || stores[0] || ''
 
-  // Confirm a hand-typed store from the «Nueva tienda» sub-view: keep it as a
-  // chip and select it, then return to the table.
+  // Confirm a hand-typed store from the «Nueva tienda» sub-view: keep it in
+  // the offer and select it, then return to the table.
   const confirmNewStore = () => {
     const v = newStoreText.trim()
     if (!v) return
@@ -394,30 +395,18 @@ export function CloseTripSheet({
           </div>
 
           <div className="close-sheet__controls">
-            <div className="close-sheet__chips">
-              {stores.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={`close-chip${storeKey(s) === storeKey(selectedStore) ? ' close-chip--on' : ''}`}
-                  aria-pressed={storeKey(s) === storeKey(selectedStore)}
-                  onClick={() => setStore(s)}
-                >
-                  {s}
-                </button>
-              ))}
-              <button
-                type="button"
-                className="close-chip close-chip--add"
-                aria-label="Añadir otra tienda"
-                onClick={() => {
-                  setNewStoreText('')
-                  setStoreSubsheet(true)
-                }}
-              >
-                + otra
-              </button>
-            </div>
+            {/* The «+ otra» entry opens the «Nueva tienda» step, like the
+                dashed chip it replaced. */}
+            <StoreSelect
+              className="close-sheet__store"
+              options={stores}
+              value={selectedStore}
+              onSelect={setStore}
+              onAddNew={() => {
+                setNewStoreText('')
+                setStoreSubsheet(true)
+              }}
+            />
             <label className="close-date">
               <Calendar size={13} aria-hidden />
               <input
