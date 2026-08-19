@@ -247,3 +247,52 @@ test('the non-search stack is unaffected by an inactive search prop', async () =
   expect(screen.getByText('Guardar un ticket')).toBeInTheDocument()
   expect(searchPurchases).not.toHaveBeenCalled()
 })
+
+test('reports the search read to the caller: open while in flight, then the count', async () => {
+  vi.mocked(getPurchases).mockResolvedValue(page([trip('a')], 1))
+  vi.mocked(searchPurchases).mockResolvedValue({
+    results: [searchTrip('a', [line('la', 'Leche entera')])],
+  })
+  const onSearchResults = vi.fn()
+  const { rerender } = render(
+    <Stack
+      listId="l1"
+      getToken={getToken}
+      searching
+      query="leche"
+      onSearchResults={onSearchResults}
+    />,
+  )
+  // A fresh query reads as in-flight before anything answers.
+  expect(onSearchResults).toHaveBeenCalledWith(null)
+  await waitFor(() => expect(onSearchResults).toHaveBeenCalledWith(1))
+
+  // Leaving search clears the report back to null.
+  onSearchResults.mockClear()
+  rerender(
+    <Stack
+      listId="l1"
+      getToken={getToken}
+      query=""
+      onSearchResults={onSearchResults}
+    />,
+  )
+  await waitFor(() => expect(onSearchResults).toHaveBeenCalledWith(null))
+  expect(onSearchResults).not.toHaveBeenCalledWith(expect.any(Number))
+})
+
+test('a failed search read reports zero, not a stuck in-flight', async () => {
+  vi.mocked(getPurchases).mockResolvedValue(page([trip('a')], 1))
+  vi.mocked(searchPurchases).mockRejectedValue(new Error('boom'))
+  const onSearchResults = vi.fn()
+  render(
+    <Stack
+      listId="l1"
+      getToken={getToken}
+      searching
+      query="leche"
+      onSearchResults={onSearchResults}
+    />,
+  )
+  await waitFor(() => expect(onSearchResults).toHaveBeenCalledWith(0))
+})
