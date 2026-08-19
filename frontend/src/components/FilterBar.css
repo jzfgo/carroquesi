@@ -2,6 +2,19 @@
   flex-shrink: 0;
 }
 
+/* The return from search: the chips ease back instead of snapping. Entry
+   only, and only on that mount — a plain screen load stays still. */
+.filter-bar--enter {
+  animation: filter-bar-in var(--dur-base) var(--ease-out);
+}
+
+@keyframes filter-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
 .filter-bar__chips {
   display: flex;
   align-items: center;
