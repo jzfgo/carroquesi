@@ -188,8 +188,35 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The browser download hangs some days (2026-08-19: two runs sat silent
+      # on it, one to the full job cap). The cache skips the download on every
+      # run after a Playwright bump, and the step timeout turns a wedged
+      # download into a fast, visible failure instead of an hour of runner
+      # time — this job is advisory, so failing fast costs nothing.
+      - name: Read Playwright version
+        id: playwright-version
+        run: >
+          echo "version=$(node -p
+          "require('@playwright/test/package.json').version")"
+          >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
       - name: Install Playwright Browsers
-        run: pnpm exec playwright install --with-deps
+        timeout-minutes: 10
+        # A cache hit still needs the system libraries — they live outside the
+        # cached browser directory.
+        run: |
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            pnpm exec playwright install-deps
+          else
+            pnpm exec playwright install --with-deps
+          fi
 
       - name: Run Playwright tests
         run: pnpm exec playwright test
