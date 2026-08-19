@@ -41,8 +41,6 @@
   --paper-lit: var(--edge-lit-2);
   --paper-cast-edge: var(--edge-cast-2);
   --paper-cast: var(--sheet-cast-receipt);
-
-  padding-bottom: 8px;
 }
 
 /* The veil dims the whole settled sheet against the live one, header
