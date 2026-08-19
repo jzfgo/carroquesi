@@ -1,9 +1,6 @@
 .emoji-picker-sheet {
   padding-inline: 1.25rem;
-
-  /* Add back the 48px the shared sheet sinks below the edge for its entrance
-     overshoot, so this self-capped panel shows the same height as before. */
-  max-height: calc(60vh + 48px);
+  max-height: 60vh;
   overflow-y: auto;
 }
 

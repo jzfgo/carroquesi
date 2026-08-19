@@ -325,11 +325,16 @@ test('shows plain count when totalItems is omitted', () => {
 })
 
 // ---------------------------------------------------------------------------
-// No-results search (16c) — a flat surface that covers the sheet
+// No-results search (16c) — a flat surface that covers the sheet, only once
+// the stack's own read has settled empty too (stackHits === 0)
 // ---------------------------------------------------------------------------
 
 test('no-results search covers the sheet with a flat surface, not paper', () => {
-  const { container } = renderList({ searching: true, query: 'pimentón' })
+  const { container } = renderList({
+    searching: true,
+    query: 'pimentón',
+    stackHits: 0,
+  })
   expect(
     container.querySelector('.item-list__search-empty'),
   ).toBeInTheDocument()
@@ -341,13 +346,47 @@ test('no-results search covers the sheet with a flat surface, not paper', () => 
 
 test('the add action fills the list with what was searched', () => {
   const onAddFromSearch = vi.fn()
-  renderList({ searching: true, query: 'pimentón', onAddFromSearch })
+  renderList({
+    searching: true,
+    query: 'pimentón',
+    stackHits: 0,
+    onAddFromSearch,
+  })
   fireEvent.click(screen.getByRole('button', { name: /Añadir «pimentón»/i }))
   expect(onAddFromSearch).toHaveBeenCalledTimes(1)
 })
 
+test('with history hits below, no card claims «no results»', () => {
+  const { container } = renderList({
+    searching: true,
+    query: 'bebida',
+    stackHits: 1,
+    stack: <div data-testid="stack" />,
+  })
+  expect(
+    container.querySelector('.item-list__search-empty'),
+  ).not.toBeInTheDocument()
+  // The results stand alone: nothing above them but the stack itself.
+  expect(screen.getByTestId('stack')).toBeInTheDocument()
+})
+
+test('while the stack search is still answering, the card waits', () => {
+  const { container } = renderList({
+    searching: true,
+    query: 'bebida',
+    stackHits: null,
+  })
+  expect(
+    container.querySelector('.item-list__search-empty'),
+  ).not.toBeInTheDocument()
+})
+
 test('no cross-list line without a match', () => {
-  const { container } = renderList({ searching: true, query: 'pimentón' })
+  const { container } = renderList({
+    searching: true,
+    query: 'pimentón',
+    stackHits: 0,
+  })
   expect(
     container.querySelector('.item-list__search-elsewhere'),
   ).not.toBeInTheDocument()
@@ -357,6 +396,7 @@ test('the cross-list line names the other list and the purchase date', () => {
   const { container } = renderList({
     searching: true,
     query: 'pimentón',
+    stackHits: 0,
     elsewhereMatch: {
       list_id: 'l2',
       list_name: 'Casa',
@@ -372,6 +412,7 @@ test('the cross-list line omits the date when the match was never bought', () =>
   const { container } = renderList({
     searching: true,
     query: 'pimentón',
+    stackHits: 0,
     elsewhereMatch: {
       list_id: 'l2',
       list_name: 'Casa',
@@ -384,41 +425,55 @@ test('the cross-list line omits the date when the match was never bought', () =>
 })
 
 // ---------------------------------------------------------------------------
-// All bought (16c) — the "Por comprar" sheet disappears, the ticket takes over
+// All bought — the sheet never leaves: it stays at zero (16c blank sheet when
+// the cart is empty too, a zero head over the talón when it is not). Maintainer
+// override of the handoff's fourth-state prose: no ¡listo! line, no day total.
 // ---------------------------------------------------------------------------
 
-test('all bought: no "Por comprar" sheet, a ¡listo! line', () => {
-  const { container } = renderList({ items: [makeBought('a')] })
-  expect(screen.queryByText('Por comprar')).not.toBeInTheDocument()
-  expect(container.querySelector('.item-list__done')?.textContent).toMatch(
-    /listo/i,
+test('all bought and settled: the blank sheet returns over the stack', () => {
+  const { container } = renderList({
+    items: [makeBought('a')],
+    stack: <div data-testid="stack" />,
+  })
+  expect(screen.getByText('Por comprar')).toBeInTheDocument()
+  expect(container.querySelector('.paper__title-count')?.textContent).toBe('0')
+  expect(screen.getByText(/la hoja está en blanco/i)).toBeInTheDocument()
+  expect(screen.queryByText(/listo/i)).not.toBeInTheDocument()
+  expect(screen.getByTestId('stack')).toBeInTheDocument()
+})
+
+test('all bought with an open cart: the head stays at zero over one folded cut', () => {
+  const { container } = renderList({ items: [makeCart('a')] })
+  expect(screen.getByText('Por comprar')).toBeInTheDocument()
+  expect(container.querySelector('.paper__title-count')?.textContent).toBe('0')
+  // The title's dashed rule folds into the die-cut right below it — one cut.
+  expect(container.querySelector('.paper__title')).toHaveClass(
+    'paper__title--cut',
+  )
+  expect(container.querySelector('.perf')).toBeInTheDocument()
+  expect(container.querySelector('.talon')).toBeInTheDocument()
+  expect(screen.queryByText(/listo/i)).not.toBeInTheDocument()
+})
+
+test('the title keeps its own rule while items are pending', () => {
+  const { container } = renderList({ items: [makeItem('a'), makeCart('b')] })
+  expect(container.querySelector('.paper__title')).not.toHaveClass(
+    'paper__title--cut',
   )
 })
 
-test('all bought with an open cart: the talón stands alone, no perforation', () => {
-  const { container } = renderList({ items: [makeCart('a')] })
-  expect(screen.queryByText('Por comprar')).not.toBeInTheDocument()
-  expect(container.querySelector('.talon')).toBeInTheDocument()
-  // Nothing above to tear from, so no die-cut.
-  expect(container.querySelector('.perf')).not.toBeInTheDocument()
-  expect(container.querySelector('.item-list__done')).toBeInTheDocument()
-})
-
-test('no ¡listo! line while items are still pending', () => {
-  const { container } = renderList({ items: [makeItem('a'), makeBought('b')] })
-  expect(container.querySelector('.item-list__done')).not.toBeInTheDocument()
-})
-
-test('no ¡listo! line mid-search when only a cart item matches (a view, not done)', () => {
+test('mid-search a cart-only match keeps the zero sheet, not the no-results card', () => {
   const { container } = renderList({
     searching: true,
     query: 'leche',
     items: [makeCart('a')],
   })
-  // The matched cart item still shows as a filtered result...
+  // The matched cart item still shows as a filtered result on the sheet...
   expect(container.querySelector('.talon')).toBeInTheDocument()
-  // ...but the "done" flourish must not — this is a filtered view.
-  expect(container.querySelector('.item-list__done')).not.toBeInTheDocument()
+  // ...and no dead-end card: the sheet itself is the result.
+  expect(
+    container.querySelector('.item-list__search-empty'),
+  ).not.toBeInTheDocument()
 })
 
 // ── Inline "Sueles comprar" suggestions (20b) ─────────────────────────────────

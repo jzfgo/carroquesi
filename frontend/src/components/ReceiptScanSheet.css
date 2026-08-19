@@ -263,6 +263,10 @@
   cursor: pointer;
 }
 
+.rss-row__check:disabled {
+  cursor: default;
+}
+
 .rss-row__open {
   display: grid;
   grid-template-columns: 1fr auto auto 16px;
@@ -275,6 +279,11 @@
   text-align: left;
   cursor: pointer;
   font: inherit;
+}
+
+/* A locked discount row is paper to read, not a door. */
+.rss-row__open:disabled {
+  cursor: default;
 }
 
 .rss-row__product {
@@ -605,6 +614,25 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--ink-0);
+}
+
+/* The Importe correction (JAV-185): the same editor chrome as the header
+   store/date controls, under its own eyebrow. The raw line above keeps the
+   read amount; this holds what the review works with. */
+.rss-resolve-price {
+  padding: 12px 20px 0;
+  flex-shrink: 0;
+}
+
+.rss-resolve-price .rss-control-editor {
+  padding: 6px 0 12px;
+  border-bottom: none;
+}
+
+.rss-resolve-price__input {
+  max-width: 140px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .rss-resolve-body {

@@ -137,8 +137,9 @@
 
   /* Hold the row height across the trailing swap: the scan/send buttons are
      --hit-min, the clear is smaller and some states show none, and the row
-     must not jump as the keyboard opens and closes. */
-  min-height: var(--hit-min);
+     must not jump as the keyboard opens and closes. Border-box, so the guard
+     has to cover the tallest button plus the row's own vertical padding. */
+  min-height: calc(var(--hit-min) + 12px);
   background: var(--paper-0);
   border-radius: var(--r-pill);
 
@@ -164,11 +165,12 @@
 }
 
 .smart-input__row:focus-within {
-  /* Keyboard-open ring (5d state 2): the accent rides on top of the cast as a
-     third shadow layer, since the pill has no border to recolour. */
-  box-shadow:
-    var(--pill-cast),
-    0 0 0 1.5px var(--accent);
+  /* Keyboard-open ring (5d state 2): the accent rides over the cast, since
+     the pill has no border to recolour. An outline, not a shadow layer — a
+     fractional shadow ring antialiases unevenly against the cast's own
+     layers, and an outline follows the pill radius without joining the
+     shadow stack. */
+  outline: 2px solid var(--accent);
 }
 
 /* Round and borderless (5d): the scanner is a bare icon on the pill, not a

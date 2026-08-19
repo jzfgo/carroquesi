@@ -68,6 +68,7 @@ export function Sheet({
   children,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const scrimRef = useRef<HTMLDivElement>(null)
   const closingRef = useRef(false)
   const closedRef = useRef(false)
   const exitTimerRef = useRef<number | null>(null)
@@ -94,6 +95,7 @@ export function Sheet({
     el.style.transform = ''
     el.style.transition = ''
     el.classList.add('modal-sheet--closing')
+    scrimRef.current?.classList.add('modal-sheet-scrim--closing')
     const duration = exitDurationMs(el)
     if (duration <= 0) {
       finishClose()
@@ -147,7 +149,7 @@ export function Sheet({
 
   return createPortal(
     <>
-      <div className="modal-sheet-scrim" onClick={dismiss} />
+      <div className="modal-sheet-scrim" onClick={dismiss} ref={scrimRef} />
       <div
         className={`modal-sheet${className ? ` ${className}` : ''}`}
         role="dialog"
@@ -156,8 +158,9 @@ export function Sheet({
         aria-labelledby={labelledBy}
         tabIndex={-1}
         ref={panelRef}
+        {...swipe}
       >
-        <div className="modal-sheet__grip" {...swipe}>
+        <div className="modal-sheet__grip">
           <div className="modal-sheet__handle" />
         </div>
         {children}
