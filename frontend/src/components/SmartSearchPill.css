@@ -1,18 +1,34 @@
-/* Handoff 21b: search occupies the title-area slot as an accent-bordered sheet
-   of paper, sitting on the board one board-gutter in from the edge (matching the
-   sheets' 12px). Solid paper-0 so the list can't read through it; the accent
-   border is the only thing that marks it live. */
+/* Handoff 21b, placed by 5c: search occupies the title slot inside the 56px
+   header row — back stays as the way out, the action cluster gives way. Solid
+   paper-0 so nothing reads through it; the accent ring is the only thing that
+   marks it live. */
 .search-pill {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
   height: 44px;
-  margin: 0 12px 14px;
+  margin-left: 10px;
   padding: 0 8px 0 14px;
   box-sizing: border-box;
   background: var(--paper-0);
-  border: 1.5px solid var(--accent);
+
+  /* The 1.5px accent as a shadow ring, not a border: a fractional border
+     renders unevenly at hairline scale (the input pill's fix). */
+  box-shadow: 0 0 0 1.5px var(--accent);
   border-radius: var(--r-pill);
+
+  /* Entry only — CSS-side, so the same-tap keyboard focus is never delayed.
+     The exit needs no twin: the returning chips carry that direction. */
+  animation: search-pill-in var(--dur-base) var(--ease-out);
+}
+
+@keyframes search-pill-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
 }
 
 .search-pill__icon {
