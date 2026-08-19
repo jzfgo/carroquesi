@@ -330,7 +330,8 @@
         "total": 8.13,
         "line_count": 2,
         "has_receipt": true,
-        "items_total": 8.13
+        "items_total": 8.13,
+        "items": null
       },
       {
         "id": "trip-sin-ticket",
@@ -342,7 +343,8 @@
         "total": 23.44,
         "line_count": 1,
         "has_receipt": false,
-        "items_total": null
+        "items_total": null,
+        "items": null
       }
     ],
     "total": 2

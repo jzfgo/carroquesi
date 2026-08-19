@@ -199,6 +199,13 @@
   justify-content: flex-end;
 }
 
+/* On means it cannot be turned off (the default is set-only): show it as
+   non-interactive. The tap still lands — it is answered with a toast. */
+.list-options__switch--locked {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Delete: centred danger text on its own rule (21a). */
 .list-options__delete {
   display: flex;
@@ -289,7 +296,12 @@
   color: var(--ink-2);
 }
 
+/* Block-level with an explicit width: the confirm pair stacks one button
+   per row, matching every other confirm sub-state, instead of the two
+   inline-block buttons sharing a line. */
 .list-action-sheet__confirm-btn {
+  display: block;
+  width: calc(100% - 32px);
   margin: 0 16px 8px;
   padding: 13px;
   background: var(--tomate-0);
@@ -302,6 +314,8 @@
 }
 
 .list-action-sheet__cancel-btn {
+  display: block;
+  width: calc(100% - 32px);
   margin: 0 16px;
   padding: 13px;
   background: none;

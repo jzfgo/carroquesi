@@ -17,8 +17,9 @@ import {
   withDatePart,
 } from '../lib/receiptDate'
 import {
+  effectiveLineTotal,
+  isDiscountLine,
   isNamed,
-  lineTotal,
   quantityDisplay,
   type LineState,
   type ReceiptLine,
@@ -113,7 +114,10 @@ export function ReceiptReviewBody({
   const [storeDraft, setStoreDraft] = useState(store ?? '')
   const [lightbox, setLightbox] = useState(false)
 
-  const allIncluded = includedCount === lineStates.length && includedCount > 0
+  // "All" means all selectable: a locked discount line can never be included,
+  // so it does not keep the select-all toggle from reading as complete.
+  const selectableCount = lines.filter((l) => !isDiscountLine(l)).length
+  const allIncluded = includedCount === selectableCount && includedCount > 0
   const matches = cuadreDiff != null && Math.abs(cuadreDiff) < CUADRE_TOLERANCE
 
   function commitStore() {
@@ -276,6 +280,10 @@ export function ReceiptReviewBody({
           const ls = lineStates[i]
           const named = isNamed(ls.resolution)
           const brand = annotationBrand(ls)
+          // A negative amount is a discount the parse failed to fold into its
+          // product: it stays on the paper and in the cuadre's sum, but it is
+          // locked — never saved, never named, no door to resolve it.
+          const discount = isDiscountLine(line)
           return (
             <div
               key={i}
@@ -285,17 +293,23 @@ export function ReceiptReviewBody({
                 type="checkbox"
                 className="rss-row__check"
                 checked={ls.included}
+                disabled={discount}
                 onChange={() => onToggleInclude(i)}
                 aria-label={`Guardar «${line.receipt_name}»`}
               />
               <button
                 type="button"
                 className="rss-row__open"
+                disabled={discount}
                 onClick={() => onOpenResolve(i)}
               >
                 <span className="rss-row__product">
                   <span className="rss-ocr">{line.receipt_name}</span>
-                  {ls.included ? (
+                  {discount ? (
+                    <span className="rss-annot rss-annot--off">
+                      descuento · no se guarda
+                    </span>
+                  ) : ls.included ? (
                     <span
                       className={`rss-annot ${named ? 'rss-annot--solid' : 'rss-annot--dashed'}`}
                     >
@@ -331,9 +345,11 @@ export function ReceiptReviewBody({
                 </span>
                 <span className="rss-qty">{quantityDisplay(line)}</span>
                 <span className="rss-price">
-                  {formatRowAmount(lineTotal(line))}
+                  {formatRowAmount(effectiveLineTotal(line, ls))}
                 </span>
-                <ChevronRight size={16} className="rss-row__chevron" />
+                {!discount && (
+                  <ChevronRight size={16} className="rss-row__chevron" />
+                )}
               </button>
             </div>
           )

@@ -1,32 +1,64 @@
+/* The scrim fades while the panel springs: opacity has no momentum to
+   overshoot, so it gets a plain ease-out over the same duration. */
 .modal-sheet-scrim {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: color-mix(in srgb, var(--ink-0) 10%, transparent);
+  background: var(--scrim);
+  animation: modal-sheet-scrim-enter var(--dur-slow) ease-out;
 }
 
-/* A modal sheet always carries border-top (edge-lit), border-bottom
-   (edge-cast) AND box-shadow (sheet-cast); the theme zeroes the ones it
-   does not draw. */
+@keyframes modal-sheet-scrim-enter {
+  from {
+    opacity: 0;
+  }
+}
+
+.modal-sheet-scrim--closing {
+  animation: none;
+  opacity: 0;
+  transition: opacity var(--dur-slow) ease-out;
+  pointer-events: none;
+}
+
+/* A modal sheet carries border-top (edge-lit) and box-shadow (sheet-cast);
+   the theme zeroes the one it does not draw. The bottom edge stays undrawn
+   on purpose: the panel is anchored to the screen edge, so a cut edge there
+   would only ever show mid-bounce, contradicting the skirt below. */
 .modal-sheet {
   position: fixed;
   left: 0;
   right: 0;
-
-  /* The spring entrance overshoots past its resting point, briefly lifting the
-     panel above the screen's edge. Sink the panel a hair below the edge and pay
-     it back in padding, so the overshoot reveals more of the sheet's own back,
-     never the wall behind it. Content lands in exactly the same place. */
-  bottom: -48px;
+  bottom: 0;
   z-index: 101;
   display: flex;
   flex-direction: column;
   background: var(--paper-lift);
   border-top: 1px solid var(--edge-lit-1);
-  border-bottom: 1px solid var(--edge-cast-1);
+  border-bottom: 1px solid transparent;
   border-radius: 16px 16px 0 0;
-  box-shadow: var(--sheet-cast-list);
-  padding-bottom: calc(max(env(safe-area-inset-bottom), 16px) + 48px);
+
+  /* The spring entrance overshoots past the resting point, briefly lifting
+     the panel above the screen's edge. The overshoot grows with the travel
+     (the panel's own height), so no fixed sink can cover every sheet: the
+     skirt layers paint solid copies of the panel stepped downward, jointly
+     covering far more than any possible bounce (~10% of the travel), so the
+     gap shows the sheet's own back and never the wall behind it. The copies
+     stay contiguous while the panel is taller than the 8vh gap between
+     steps, which even the shortest sheet is. A shadow
+     neither scrolls nor adds scrollable overflow, which matters for panels
+     that scroll themselves; offset copies rather than one spread shadow,
+     because spread would inflate the corner radius and paint into the
+     notches beside the rounded top corners. Skirt layers come first so they
+     paint over the cast: the sheet must not cast onto what pretends to be
+     more of the same sheet. */
+  box-shadow:
+    0 4vh 0 0 var(--paper-lift),
+    0 12vh 0 0 var(--paper-lift),
+    0 20vh 0 0 var(--paper-lift),
+    0 28vh 0 0 var(--paper-lift),
+    var(--sheet-cast-list);
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
   outline: none;
   animation: modal-sheet-enter var(--dur-slow) var(--ease-spring);
 }
@@ -47,8 +79,9 @@
   pointer-events: none;
 }
 
-/* The grip is the whole drag target — a full-width, thumb-sized strip — so a
-   drag can start anywhere near the grabber, not only on the 4px bar itself. */
+/* The whole panel is the drag target; the grip is the visual affordance.
+   touch-action stays here so a drag from the grabber never fights native
+   scrolling — elsewhere the hook arbitrates against inner scroll position. */
 .modal-sheet__grip {
   flex-shrink: 0;
   display: flex;
@@ -71,11 +104,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .modal-sheet {
+  .modal-sheet,
+  .modal-sheet-scrim {
     animation: none;
   }
 
-  .modal-sheet--closing {
+  .modal-sheet--closing,
+  .modal-sheet-scrim--closing {
     transition: none;
   }
 }

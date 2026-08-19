@@ -36,6 +36,10 @@ interface Props {
    *  search — no separate state here. */
   query?: string
   searching?: boolean
+  /** Reports what this read found so the sheet's no-results card can defer to
+   *  it: null while a query's answer is still in flight (and when search is
+   *  off), else the result count. */
+  onSearchResults?: (hits: number | null) => void
   /** Whether this account can scan — the caller settles flag + consent.
    *  Gates only the dashed state of the 25b thumbnails; stored paper shows
    *  to every member. */
@@ -44,17 +48,18 @@ interface Props {
   onScanReceipt?: (target: ReceiptScanTarget) => void
 }
 
-// How many trips fold open below the latest before the rest slip behind the
-// «Compras anteriores» door (matches frame 18a: one expanded, two folded).
-const PREVIEW = 2
+// How many trips stand in the open, expanded, before the rest slip behind the
+// «Compras anteriores» door (JAV-187, superseding frame 18a's one-expanded-
+// two-folded: most shops ended up as headers or behind the door).
+const VISIBLE = 10
 
 /**
- * The stack (18a): the list's past shops below the pending sheet. The latest
- * trip stands expanded — «la única que aún se corrige» — the next two folded,
- * and the older ones behind a board-written door. Tapping the door unfolds them
- * in place and pages more in as you scroll (Javier's call: an in-place infinite
- * scroll, not a separate archive screen). A last always-present door saves a
- * ticket by hand (26a); it is drawn here but wired in Lane 4.
+ * The stack (18a, cut moved by JAV-187): the list's past shops below the
+ * pending sheet. The last ten trips stand expanded with their lines; older
+ * ones wait behind a board-written door. Tapping the door unfolds them in
+ * place (folded) and pages more in as you scroll (Javier's call: an in-place
+ * infinite scroll, not a separate archive screen). A last always-present door
+ * saves a ticket by hand (26a).
  */
 export function Stack({
   listId,
@@ -66,6 +71,7 @@ export function Stack({
   onSaveTicket,
   query = '',
   searching = false,
+  onSearchResults,
   receiptScan = false,
   onScanReceipt,
 }: Props) {
@@ -95,23 +101,33 @@ export function Stack({
     if (!searchActive) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale results when leaving search
       setSearchResults([])
+      onSearchResults?.(null)
       return
     }
     let cancelled = false
+    // A new query means the answer below is stale: report the read as open
+    // again so nothing upstream concludes «empty» off the previous answer.
+    onSearchResults?.(null)
     const id = setTimeout(() => {
       void searchPurchases(getToken, listId, trimmed)
         .then((r) => {
-          if (!cancelled) setSearchResults(r.results)
+          if (!cancelled) {
+            setSearchResults(r.results)
+            onSearchResults?.(r.results.length)
+          }
         })
         .catch(() => {
-          if (!cancelled) setSearchResults([])
+          if (!cancelled) {
+            setSearchResults([])
+            onSearchResults?.(0)
+          }
         })
     }, 300)
     return () => {
       cancelled = true
       clearTimeout(id)
     }
-  }, [searchActive, trimmed, getToken, listId])
+  }, [searchActive, trimmed, getToken, listId, onSearchResults])
 
   // Once unfolded, a sentinel at the tail pulls the next page in as it nears
   // the viewport — the infinite scroll. Re-armed whenever the trigger inputs
@@ -186,27 +202,25 @@ export function Stack({
   if (loading) return null
   if (trips.length === 0) return <section className="stack">{saveDoor}</section>
 
-  const [latest, ...older] = trips
-  const preview = older.slice(0, PREVIEW)
-  const rest = older.slice(PREVIEW)
+  const visible = trips.slice(0, VISIBLE)
+  const rest = trips.slice(VISIBLE)
   // Show the door only when it actually reveals something — the fetched trips
   // still behind it, or more pages to pull. Gating on `total` alone renders a
   // phantom door: `total` counts the open cart that the view filters out, so a
-  // list with an open cart and exactly the preview's worth of trips would show
+  // list with an open cart and exactly the visible trips would show
   // «anteriores · 1» that opens onto nothing.
   const showArchiveDoor = !unfolded && (rest.length > 0 || hasMore)
   // Its count: once every page is in, that is exactly the unshown trips; while
   // pages remain, total minus what's shown is the estimate (it can read one
   // high against an open cart, corrected the moment the last page lands).
   const behind = hasMore
-    ? Math.max(rest.length, total - (1 + preview.length))
+    ? Math.max(rest.length, total - visible.length)
     : rest.length
 
   return (
     <section className="stack" aria-label="Compras">
-      <TripCard trip={latest} defaultExpanded {...cardProps} />
-      {preview.map((trip) => (
-        <TripCard key={trip.id} trip={trip} {...cardProps} />
+      {visible.map((trip) => (
+        <TripCard key={trip.id} trip={trip} defaultExpanded {...cardProps} />
       ))}
       {unfolded &&
         rest.map((trip) => (

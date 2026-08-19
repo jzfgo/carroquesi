@@ -54,6 +54,7 @@ const trip = (
   line_count: 3,
   has_receipt: false,
   items_total: null,
+  items: null,
   ...over,
 })
 
@@ -106,17 +107,50 @@ test('empty stack shows only the always-present save-ticket door', async () => {
   expect(screen.queryByText('Compras anteriores')).not.toBeInTheDocument()
 })
 
-test('renders the latest expanded, two folded, and the archive door with the remaining count', async () => {
+test('renders the fetched trips expanded and the archive door with the remaining count', async () => {
   vi.mocked(getPurchases).mockResolvedValue(
     page([trip('a'), trip('b'), trip('c')], 5),
   )
   renderStack()
   await waitFor(() => expect(screen.getByText(/Store a/)).toBeInTheDocument())
-  // 5 total − (1 expanded + 2 folded) = 2 behind the door.
+  // 5 total − 3 shown = 2 behind the door.
   expect(screen.getByText('Compras anteriores')).toBeInTheDocument()
   expect(screen.getByText('2')).toBeInTheDocument()
-  // The latest expanded card fetched its lines.
-  expect(getPurchaseItems).toHaveBeenCalledWith(getToken, 'l1', 'a')
+  // Every visible card is expanded (JAV-187) — each fetched its lines, since
+  // this page carried none.
+  for (const id of ['a', 'b', 'c']) {
+    expect(getPurchaseItems).toHaveBeenCalledWith(getToken, 'l1', id)
+  }
+})
+
+test('only the first ten stand in the open; the eleventh waits behind the door', async () => {
+  const trips = Array.from({ length: 12 }, (_, i) =>
+    trip(`t${String(i).padStart(2, '0')}`),
+  )
+  vi.mocked(getPurchases).mockResolvedValue(page(trips, 12))
+  renderStack()
+  await waitFor(() => expect(screen.getByText(/Store t00/)).toBeInTheDocument())
+  expect(screen.getByText(/Store t09/)).toBeInTheDocument()
+  expect(screen.queryByText(/Store t10/)).not.toBeInTheDocument()
+  // All pages are in (12 of 12), so the count is exactly the unshown trips.
+  expect(screen.getByText('Compras anteriores')).toBeInTheDocument()
+  expect(screen.getByText('2')).toBeInTheDocument()
+})
+
+test('the first page arrives with lines, so expanded cards skip the per-card fetch', async () => {
+  vi.mocked(getPurchases).mockResolvedValue(
+    page([trip('a', { items: [line('la', 'Leche entera')] })], 1),
+  )
+  renderStack()
+  await waitFor(() =>
+    expect(screen.getByText('Leche entera')).toBeInTheDocument(),
+  )
+  expect(getPurchases).toHaveBeenCalledWith(getToken, 'l1', {
+    offset: 0,
+    limit: 12,
+    includeItems: true,
+  })
+  expect(getPurchaseItems).not.toHaveBeenCalled()
 })
 
 test('the still-open cart is excluded from the stack', async () => {
@@ -246,4 +280,53 @@ test('the non-search stack is unaffected by an inactive search prop', async () =
   // and the search endpoint is never called.
   expect(screen.getByText('Guardar un ticket')).toBeInTheDocument()
   expect(searchPurchases).not.toHaveBeenCalled()
+})
+
+test('reports the search read to the caller: open while in flight, then the count', async () => {
+  vi.mocked(getPurchases).mockResolvedValue(page([trip('a')], 1))
+  vi.mocked(searchPurchases).mockResolvedValue({
+    results: [searchTrip('a', [line('la', 'Leche entera')])],
+  })
+  const onSearchResults = vi.fn()
+  const { rerender } = render(
+    <Stack
+      listId="l1"
+      getToken={getToken}
+      searching
+      query="leche"
+      onSearchResults={onSearchResults}
+    />,
+  )
+  // A fresh query reads as in-flight before anything answers.
+  expect(onSearchResults).toHaveBeenCalledWith(null)
+  await waitFor(() => expect(onSearchResults).toHaveBeenCalledWith(1))
+
+  // Leaving search clears the report back to null.
+  onSearchResults.mockClear()
+  rerender(
+    <Stack
+      listId="l1"
+      getToken={getToken}
+      query=""
+      onSearchResults={onSearchResults}
+    />,
+  )
+  await waitFor(() => expect(onSearchResults).toHaveBeenCalledWith(null))
+  expect(onSearchResults).not.toHaveBeenCalledWith(expect.any(Number))
+})
+
+test('a failed search read reports zero, not a stuck in-flight', async () => {
+  vi.mocked(getPurchases).mockResolvedValue(page([trip('a')], 1))
+  vi.mocked(searchPurchases).mockRejectedValue(new Error('boom'))
+  const onSearchResults = vi.fn()
+  render(
+    <Stack
+      listId="l1"
+      getToken={getToken}
+      searching
+      query="leche"
+      onSearchResults={onSearchResults}
+    />,
+  )
+  await waitFor(() => expect(onSearchResults).toHaveBeenCalledWith(0))
 })

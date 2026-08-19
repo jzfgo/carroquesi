@@ -8,9 +8,13 @@
   margin-bottom: 8px;
 }
 
-/* The latest / any open card sits a touch prouder of the one below it. */
+/* The latest / any open card sits a touch prouder of the one below it. The
+   bottom cushion keeps the last line off the cut edge; it lives on the open
+   state, not the paper, because a folded card has nothing under its header
+   and the header's symmetric padding must be the whole geometry. */
 .trip-card--open {
   margin-bottom: 12px;
+  padding-bottom: 8px;
 }
 
 .trip-card__header {

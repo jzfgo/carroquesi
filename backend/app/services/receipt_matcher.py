@@ -54,6 +54,23 @@ def match_lines(
     purchased_items = list(item_by_name.values())
 
     for line in lines:
+        # A negative amount is not a product — it is a discount the parse
+        # failed to fold into its product's line. It must never claim an item
+        # (a match would write the discount into that product's price
+        # history), so it skips matching entirely and surfaces unmatched for
+        # the review sheet to lock.
+        if line.line_total < 0 or line.unit_price < 0:
+            unmatched.append(
+                UnmatchedLine(
+                    receipt_name=line.name,
+                    price_type=line.price_type,
+                    unit_price=line.unit_price,
+                    quantity=line.quantity,
+                    line_total=line.line_total,
+                )
+            )
+            continue
+
         norm = normalise(line.name)
 
         mapping = _lookup_mapping(store, norm, session)

@@ -213,3 +213,32 @@ def test_multi_line_carries_quantity(session):
     assert matched[0].unit_price == pytest.approx(0.95)
     assert matched[0].quantity == 3
     assert matched[0].line_total == pytest.approx(2.85)
+
+
+def test_negative_line_never_matches(session):
+    # A discount the parse failed to fold. Even with an item it would match by
+    # name, it must not claim one — a match would write the discount into that
+    # product's price history.
+    items = [_item("item-1", "Promocion")]
+    matched, unmatched = match_lines([_unit("PROMOCION", -1.20)], "Mercadona", items, session)
+    assert len(matched) == 0
+    assert len(unmatched) == 1
+    assert unmatched[0].line_total == pytest.approx(-1.20)
+
+
+def test_negative_line_skips_mappings_too(session):
+    # Not even a learned name mapping may attach a negative line to an item.
+    mapping = ReceiptNameMapping(
+        id="map-1",
+        store="mercadona",
+        receipt_name="promocion",
+        item_name="Bebida de coco",
+        confirmed_by="user-1",
+    )
+    session.add(mapping)
+    session.commit()
+
+    items = [_item("item-1", "Bebida de coco")]
+    matched, unmatched = match_lines([_unit("PROMOCION", -1.20)], "Mercadona", items, session)
+    assert len(matched) == 0
+    assert len(unmatched) == 1

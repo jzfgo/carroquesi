@@ -1192,6 +1192,7 @@ describe('targeted receipt attach (25b)', () => {
     line_count: 2,
     has_receipt: false,
     items_total: null,
+    items: null,
   }
 
   beforeEach(() => {
@@ -1289,12 +1290,12 @@ describe('targeted receipt attach (25b)', () => {
     )
   })
 
-  it('cancelling the source picker clears the aim for the next scan', async () => {
+  it('dismissing the source picker clears the aim for the next scan', async () => {
     const { container } = render(
       <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
     )
     await tapDashedThumb()
-    fireEvent.click(screen.getByText('Cancelar'))
+    fireEvent.keyDown(document, { key: 'Escape' })
     // A scan driven straight from the file input — the generic funnel.
     pickFile(container)
     await waitFor(() =>

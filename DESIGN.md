@@ -317,8 +317,9 @@ cursive)
 **Character:** each face has a reason to exist. Bree Serif is the pre-printed
 stationery. Geist is the application talking. Patrick Hand SC is the household
 writing a list. JetBrains Mono is a machine printing a total. Caveat is the
-brand's own hand — the wordmark, "¡listo ✓" — and a different thing from the
-household's writing; don't mix them. A sixth voice would have to justify
+brand's own hand — the wordmark, the blank-sheet message — and a different
+thing from the household's writing; don't mix them. A sixth voice would have
+to justify
 itself against those five.
 
 ### Hierarchy
@@ -543,9 +544,14 @@ save.
 it, in the place where it will be done (_todo vacío ofrece la acción que lo
 llena_). The mascot appears once per session at most, and only where there is
 nothing behind it (_la mascota, una vez por sesión como mucho_). "All bought"
-is not an empty, it is a finish: the pending sheet disappears, the day's
-receipt takes its place with the total, and one Caveat line — "¡listo ✓" —
-says so. No confetti, no button.
+keeps the sheet: the "Por comprar" head stays at zero — over the blank-sheet
+message when the cart is empty too, or over the talón with the title's dashed
+rule folded into the die-cut (one cut, not two). No ¡listo! line, no day
+total. This overrides the handoff's fourth-state prose (maintainer decision,
+2026-08-19), which had the sheet disappear behind the day's ticket. The full
+no-results search card is likewise reserved for when both reads are empty —
+pending sheet _and_ the stack's history search; over history results, nothing
+paints above them.
 
 ### Motion
 
@@ -644,6 +650,13 @@ in the cart detaches along the die-cut and falls into the previous-purchase
 area as a receipt with gaps — a real purchase missing data, not a reminder.
 Nothing is asked of the user, and the date already says how old it is.
 
+**The stack shows its last ten trips expanded** (JAV-187, 2026-08,
+superseding frame `18a`'s one-expanded-two-folded — most shops ended up as
+headers or behind the door). The «Compras anteriores» door keeps everything
+older than the tenth; «Guardar un ticket» is unchanged. The stack's first
+page carries its lines in one batched read (`include_items`), so ten open
+receipts cost one request, not ten.
+
 **No strikethrough — anywhere in the app.** It defaces the one field that did
 _not_ change — the product's identity — while giving no acknowledgement to
 the fields that did, and it makes re-buying feel like undoing something dead,
@@ -672,6 +685,12 @@ Every bottom sheet builds on the shared `Sheet` primitive
 (`frontend/src/components/Sheet.tsx`) — portal, scrim, grabber, dismissal,
 focus trap, scroll lock and the open/close slide live there once. See
 AGENTS.md for the behavioural contract.
+
+**Set-only switch** (list options sheet, `21a`). The default-list switch has
+no off gesture — the default moves by marking *another* list (ADR-007). While
+on, it renders dimmed (opacity 0.5, `aria-disabled`); the tap still lands and
+is answered with a toast naming the way out. Decided 2026-08-17 (JAV-195),
+superseding the plain switch in frame `21a`.
 
 ## Do's and Don'ts
 

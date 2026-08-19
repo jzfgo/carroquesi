@@ -382,6 +382,9 @@ export function DashboardScreen() {
               onEmojiChange={(emoji) => void handleEmojiChange(active, emoji)}
               onDelete={() => void handleDelete(active)}
               onSetDefault={() => void handleSetDefault(active)}
+              onDefaultLocked={() =>
+                setToast('Para cambiarla, marca otra lista como predeterminada')
+              }
               onClose={() => setActiveList(null)}
             />
           )

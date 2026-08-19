@@ -39,6 +39,13 @@ interface Props {
   elsewhereMatch?: ElsewhereMatch | null
   /** Adds the current query as a new item from the no-results state. */
   onAddFromSearch?: () => void
+  /**
+   * What the stack's own search read found: null while it is still answering
+   * (or search is off), else its result count. The full no-results card only
+   * paints over a settled zero — never over history results, never while the
+   * other read is in flight.
+   */
+  stackHits?: number | null
   /** Habit reminders shown inline at the tail of a populated list (20b). */
   suggestions?: DueSuggestion[]
   /** Accept a suggestion — writes it onto the list with its avg quantity. */
@@ -79,6 +86,7 @@ export function ItemList({
   query = '',
   elsewhereMatch = null,
   onAddFromSearch,
+  stackHits = null,
   suggestions = [],
   onSuggestionAdd,
   onSuggestionDismiss,
@@ -131,20 +139,6 @@ export function ItemList({
           : 0
     })
 
-  const bought = items
-    .filter((i) => i.purchased && !isTripOpen(i.purchase_ends_at))
-    .sort((a, b) => {
-      if (!a.purchased_at) return 1
-      if (!b.purchased_at) return -1
-      return b.purchased_at < a.purchased_at
-        ? -1
-        : b.purchased_at > a.purchased_at
-          ? 1
-          : 0
-    })
-
-  const listEmpty =
-    active.length === 0 && cart.length === 0 && bought.length === 0
   // The pending sheet (active + cart) alone. A search dead end keys off this,
   // not the whole list: settled records live in the stack below, so a term that
   // matches only history leaves the pending sheet blank and must still say so.
@@ -164,11 +158,23 @@ export function ItemList({
     .filter((s) => !onList.has(s.name.trim().toLowerCase()))
     .slice(0, 3)
 
-  // No-results search (16c): a search that matched nothing. This covers the
-  // sheet with a flat surface instead of drawing on paper — a blank sheet
-  // would read as an empty list, and there is no list to show mid-search. A
-  // search dead end must still offer the way out: adding what you looked for.
+  // Nothing pending matches the search. Whether this is a dead end depends on
+  // the OTHER read: the stack searches the whole purchase history, and its
+  // results render below this component's output. The full no-results card
+  // (16c) is reserved for when both reads came back empty — over real history
+  // results it would announce «nothing» above the proof there is something.
+  // While the stack search is still answering (stackHits == null), or when it
+  // found records, the results stand alone with nothing above them.
   if (searching && query.trim() !== '' && pendingEmpty) {
+    if (stackHits !== 0) {
+      return <div className="item-list">{stack}</div>
+    }
+
+    // No-results search (16c): a search that matched nothing anywhere. This
+    // covers the sheet with a flat surface instead of drawing on paper — a
+    // blank sheet would read as an empty list, and there is no list to show
+    // mid-search. A search dead end must still offer the way out: adding what
+    // you looked for.
     const term = query.trim()
     const boughtOn = elsewhereMatch?.last_purchased_at
       ? new Date(elsewhereMatch.last_purchased_at + 'Z').toLocaleDateString(
@@ -196,20 +202,19 @@ export function ItemList({
             </p>
           )}
         </div>
-        {/* Nothing pending matches, but the term may still name past shops: the
-            stack searches the whole history, so a price-history result appears
-            below the dead end (21b — «buscar leche es ver lo que has pagado»). */}
         {stack}
       </div>
     )
   }
 
-  // Blank list (16c): genuinely empty, so the paper stays — the blank sheet is
-  // the message. Caveat is the house voice (not a line someone wrote), one
-  // instruction with the bar's real format, and an arrow at the input below.
-  // No mascot: it was earned on the dashboard, and rule 9 keeps it to where
-  // nothing is behind — here the board is.
-  if (listEmpty) {
+  // Blank sheet (16c): nothing pending and nothing in the cart, so the paper
+  // stays — the blank sheet is the message, whether the list is brand new or
+  // everything has settled into the stack below. Caveat is the house voice
+  // (not a line someone wrote), one instruction with the bar's real format,
+  // and an arrow at the input below. No mascot: it was earned on the
+  // dashboard, and rule 9 keeps it to where nothing is behind — here the
+  // board is.
+  if (pendingEmpty) {
     return (
       <div className="item-list">
         <section className="paper paper--pending" aria-label="Por comprar">
@@ -278,114 +283,97 @@ export function ItemList({
     <div className="item-list">
       {/* One solid sheet, perforated across the middle (30a). Above the tear,
           what's still to buy; below it the talón, where the cart lines sit
-          under a printed rubric and the close-trip seal. When nothing is left
-          to buy, the "Por comprar" head disappears (16c) and the talón stands
-          alone as the day's ticket — the perforation goes with the head it
-          tore from. */}
-      {(active.length > 0 || cart.length > 0) && (
-        <section
-          className="paper paper--pending"
-          // Standalone talón carries its name on the inner group already, so
-          // the section stays unnamed to avoid a duplicate accessible name.
-          aria-label={active.length > 0 ? 'Por comprar' : undefined}
+          under a printed rubric and the close-trip seal. The head never
+          leaves: with everything in the cart it stays at zero, and its dashed
+          underline folds into the perforation right below it — one cut, not
+          two rules with nothing between them. */}
+      <section className="paper paper--pending" aria-label="Por comprar">
+        <p
+          className={`paper__title${
+            active.length === 0 ? ' paper__title--cut' : ''
+          }`}
         >
-          {active.length > 0 && (
-            <>
-              <p className="paper__title">
-                <span className="paper__title-text">Por comprar</span>
-                <span className="paper__title-meta">
-                  {pendingCost && (
-                    <CostBadge
-                      cost={pendingCost}
-                      className="item-list__label-cost"
-                    />
-                  )}
-                  <span className="paper__title-count">
-                    {totalItems !== undefined && totalItems !== active.length
-                      ? `${active.length} de ${totalItems}`
-                      : `${active.length}`}
-                  </span>
-                </span>
-              </p>
-              {activeByStore.map((group) => (
-                <div key={group.key}>
-                  {group.label !== null && (
-                    <p className="item-list__store-label">{group.label}</p>
-                  )}
-                  {group.items.map((item) => (
-                    <ItemCard
-                      key={item.id}
-                      item={item}
-                      onTogglePurchased={onTogglePurchased}
-                      onOpenActions={onOpenActions}
-                      onClone={onClone}
-                    />
-                  ))}
-                </div>
-              ))}
+          <span className="paper__title-text">Por comprar</span>
+          <span className="paper__title-meta">
+            {pendingCost && (
+              <CostBadge cost={pendingCost} className="item-list__label-cost" />
+            )}
+            <span className="paper__title-count">
+              {totalItems !== undefined && totalItems !== active.length
+                ? `${active.length} de ${totalItems}`
+                : `${active.length}`}
+            </span>
+          </span>
+        </p>
+        {active.length > 0 && (
+          <>
+            {activeByStore.map((group) => (
+              <div key={group.key}>
+                {group.label !== null && (
+                  <p className="item-list__store-label">{group.label}</p>
+                )}
+                {group.items.map((item) => (
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    onTogglePurchased={onTogglePurchased}
+                    onOpenActions={onOpenActions}
+                    onClone={onClone}
+                  />
+                ))}
+              </div>
+            ))}
 
-              {/* "Sueles comprar" (20b): up to three habit reminders written in
+            {/* "Sueles comprar" (20b): up to three habit reminders written in
                   muted ink under a dashed rule, at the very tail of the pending
                   list. A suggestion is a line the house hasn't written yet, so
                   it sits after everything it has. It never reaches the header
                   count, and nothing renders when there is nothing to suggest —
                   no empty rule announcing the absence. */}
-              {shownSuggestions.length > 0 && (
-                <div className="item-list__suggestions">
-                  <p className="item-list__suggestions-label">Sueles comprar</p>
-                  {shownSuggestions.map((s) => (
-                    <SuggestionRow
-                      key={s.name}
-                      suggestion={s}
-                      onAdd={(x) => onSuggestionAdd?.(x)}
-                      onDismiss={(x) => onSuggestionDismiss?.(x)}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
+            {shownSuggestions.length > 0 && (
+              <div className="item-list__suggestions">
+                <p className="item-list__suggestions-label">Sueles comprar</p>
+                {shownSuggestions.map((s) => (
+                  <SuggestionRow
+                    key={s.name}
+                    suggestion={s}
+                    onAdd={(x) => onSuggestionAdd?.(x)}
+                    onDismiss={(x) => onSuggestionDismiss?.(x)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
-          {cart.length > 0 && (
-            <div className="talon" role="group" aria-label="En el carro">
-              {active.length > 0 && <div className="perf" aria-hidden />}
-              {/* The rubric and the seal share one row: the count on the left,
+        {cart.length > 0 && (
+          <div className="talon" role="group" aria-label="En el carro">
+            <div className="perf" aria-hidden />
+            {/* The rubric and the seal share one row: the count on the left,
                   the close-trip stamp right where a closed ticket shows its
                   total. The stamp opens the close-trip sheet (JAV-160). */}
-              <div className="talon__head">
-                <span className="talon__rubric">
-                  En el carro · {cart.length}
-                </span>
-                <button
-                  type="button"
-                  className="talon__seal"
-                  onClick={() => onCloseTrip?.()}
-                >
-                  <span className="stamp">Cerrar compra</span>
-                </button>
-              </div>
-              {cart.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  onTogglePurchased={onTogglePurchased}
-                  onOpenActions={onOpenActions}
-                  onClone={onClone}
-                />
-              ))}
+            <div className="talon__head">
+              <span className="talon__rubric">En el carro · {cart.length}</span>
+              <button
+                type="button"
+                className="talon__seal"
+                onClick={() => onCloseTrip?.()}
+              >
+                <span className="stamp">Cerrar compra</span>
+              </button>
             </div>
-          )}
-        </section>
-      )}
-
-      {/* All bought (16c): the "Por comprar" sheet is gone, not sitting at
-          zero. One hand-written line closes the trip — no confetti, no button;
-          refilling is just writing in the bar below. Not during a search: a
-          filter that happens to leave only a cart/settled match is a view, not
-          a finished list, so the "done" flourish would misread. */}
-      {active.length === 0 && !searching && (
-        <p className="item-list__done">¡listo ✓!</p>
-      )}
+            {cart.map((item) => (
+              <ItemCard
+                key={item.id}
+                item={item}
+                onTogglePurchased={onTogglePurchased}
+                onOpenActions={onOpenActions}
+                onClone={onClone}
+              />
+            ))}
+          </div>
+        )}
+      </section>
       {footer}
 
       {/* The stack (18a): settled trips + proto-tickets, below the sheet — the

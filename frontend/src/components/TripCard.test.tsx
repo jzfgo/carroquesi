@@ -17,6 +17,7 @@ const makeTrip = (over: Partial<PurchaseSummary> = {}): PurchaseSummary => ({
   line_count: 2,
   has_receipt: false,
   items_total: null,
+  items: null,
   ...over,
 })
 
