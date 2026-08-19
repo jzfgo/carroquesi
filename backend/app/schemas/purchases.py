@@ -128,6 +128,11 @@ class PurchaseSummary(PurchaseRead):
     # None when no line carries a price. The stack shows it as «≈ total»; a
     # closed trip ignores it and shows its confirmed `total`.
     items_total: float | None = None
+    # The trip's lines, carried only when the caller asked for them
+    # (include_items): the stack's first page renders its trips expanded, and
+    # one batched read beats one request per card. None means «not asked»,
+    # never «no lines» — that is the empty list.
+    items: list[ItemRead] | None = None
 
 
 class PurchasePage(BaseModel):

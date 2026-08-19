@@ -17,7 +17,7 @@ import { TripReceiptThumb } from './TripReceiptThumb'
 
 interface Props {
   trip: PurchaseSummary
-  /** The latest trip opens expanded — «la única que aún se corrige». */
+  /** The stack's visible trips open expanded with their lines (JAV-187). */
   defaultExpanded?: boolean
   loadItems: (purchaseId: string) => Promise<ListItem[]>
   /** Re-buy a line back onto the pending list (wired: JAV-128). Carries the
@@ -85,16 +85,19 @@ export function TripCard({
   const [expanded, setExpanded] = useState(defaultExpanded)
   // null = not fetched yet; an array (possibly empty) = loaded. «Loading» is
   // simply `expanded && lines === null`, so no separate loading state (and no
-  // synchronous setState in the effect) is needed.
-  const [lines, setLines] = useState<ListItem[] | null>(null)
+  // synchronous setState in the effect) is needed. A trip from the stack's
+  // first page already carries its lines (the batched read) and skips the
+  // fetch entirely.
+  const [lines, setLines] = useState<ListItem[] | null>(trip.items ?? null)
 
   // The stack refetch hands down a fresh trip object for the same card; the
   // cached lines belong to the old one (a targeted receipt apply may have
-  // filled or added some), so drop them and let the effect below re-read.
+  // filled or added some), so replace them with the fresh trip's — or drop
+  // them and let the effect below re-read when it carried none.
   const [prevTrip, setPrevTrip] = useState(trip)
   if (trip !== prevTrip) {
     setPrevTrip(trip)
-    setLines(null)
+    setLines(trip.items ?? null)
   }
 
   useEffect(() => {

@@ -14,6 +14,11 @@ import type {
 } from '../types'
 
 const PAGE = 20
+// The first page feeds the ten trips the stack shows expanded (JAV-187), so it
+// asks for their lines in the same answer and only needs to cover ten after
+// the open cart is filtered out — 12 leaves that margin without paying for
+// twenty trips' lines up front.
+const FIRST_PAGE = 12
 
 // The stack shows the list's past shops — closed trips and torn-off unwritten
 // proto-tickets — newest first. The still-open cart is NOT the stack's: its
@@ -67,8 +72,17 @@ export function useStack(
   const [loadingMore, setLoadingMore] = useState(false)
   const inFlight = useRef(false)
 
+  // Page 0 is the visible page: its trips render expanded, so it carries
+  // their lines (includeItems) in one read instead of one request per card.
   const fetchPage = useCallback(
-    (at: number) => getPurchases(getToken, listId, { offset: at, limit: PAGE }),
+    (at: number) =>
+      at === 0
+        ? getPurchases(getToken, listId, {
+            offset: 0,
+            limit: FIRST_PAGE,
+            includeItems: true,
+          })
+        : getPurchases(getToken, listId, { offset: at, limit: PAGE }),
     [getToken, listId],
   )
 

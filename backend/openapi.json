@@ -1753,6 +1753,20 @@
             "title": "Id",
             "type": "string"
           },
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ItemRead"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items"
+          },
           "items_total": {
             "anyOf": [
               {
@@ -5702,7 +5716,7 @@
     },
     "/lists/{list_id}/purchases": {
       "get": {
-        "description": "The list's trips, newest shop first.\n\nThe sort key is when each trip stopped (or will stop) taking items —\nthe same instant the trip-open rule compares against. An open cart's\nboundary is in the future, so it naturally sorts first; a trip that\ntore off with nobody writing it down sorts by the day it covered, not\nby whenever someone later looks at it. The id tie-break keeps pages\nstable when two trips share a boundary.",
+        "description": "The list's trips, newest shop first.\n\nThe sort key is when each trip stopped (or will stop) taking items —\nthe same instant the trip-open rule compares against. An open cart's\nboundary is in the future, so it naturally sorts first; a trip that\ntore off with nobody writing it down sorts by the day it covered, not\nby whenever someone later looks at it. The id tie-break keeps pages\nstable when two trips share a boundary.\n\n`include_items` carries each trip's lines in the same answer: the stack\nrenders its first page's trips expanded, so one batched read here beats\none lines request per card.",
         "operationId": "list_purchases_lists__list_id__purchases_get",
         "parameters": [
           {
@@ -5735,6 +5749,16 @@
               "minimum": 1,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_items",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Items",
+              "type": "boolean"
             }
           },
           {

@@ -463,6 +463,10 @@ export interface paths {
          *     tore off with nobody writing it down sorts by the day it covered, not
          *     by whenever someone later looks at it. The id tie-break keeps pages
          *     stable when two trips share a boundary.
+         *
+         *     `include_items` carries each trip's lines in the same answer: the stack
+         *     renders its first page's trips expanded, so one batched read here beats
+         *     one lines request per card.
          */
         get: operations["list_purchases_lists__list_id__purchases_get"];
         put?: never;
@@ -1514,6 +1518,8 @@ export interface components {
             has_receipt: boolean;
             /** Id */
             id: string;
+            /** Items */
+            items?: components["schemas"]["ItemRead"][] | null;
             /** Items Total */
             items_total?: number | null;
             /** Line Count */
@@ -2953,6 +2959,7 @@ export interface operations {
             query?: {
                 offset?: number;
                 limit?: number;
+                include_items?: boolean;
             };
             header?: {
                 "x-dev-user-id"?: string | null;

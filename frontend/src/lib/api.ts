@@ -373,15 +373,23 @@ export function getPriceHistory(
 // --- Purchases (the stack, 18a) ---
 
 // One page of the list's trips, newest shop first (18a). `total` is the whole
-// count so the caller knows whether to ask for another page.
+// count so the caller knows whether to ask for another page. `includeItems`
+// carries each trip's lines in the same answer — the stack's first page
+// renders expanded, and one batched read beats one request per card.
 export function getPurchases(
   getToken: () => Promise<string>,
   listId: string,
-  { offset = 0, limit = 20 }: { offset?: number; limit?: number } = {},
+  {
+    offset = 0,
+    limit = 20,
+    includeItems = false,
+  }: { offset?: number; limit?: number; includeItems?: boolean } = {},
 ): Promise<PurchasePage> {
   return apiFetch(
     getToken,
-    `/lists/${listId}/purchases?offset=${offset}&limit=${limit}`,
+    `/lists/${listId}/purchases?offset=${offset}&limit=${limit}${
+      includeItems ? '&include_items=true' : ''
+    }`,
   ) as Promise<PurchasePage>
 }
 
