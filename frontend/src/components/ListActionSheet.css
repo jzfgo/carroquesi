@@ -199,6 +199,13 @@
   justify-content: flex-end;
 }
 
+/* On means it cannot be turned off (the default is set-only): show it as
+   non-interactive. The tap still lands — it is answered with a toast. */
+.list-options__switch--locked {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Delete: centred danger text on its own rule (21a). */
 .list-options__delete {
   display: flex;

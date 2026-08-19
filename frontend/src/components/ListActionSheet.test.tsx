@@ -21,6 +21,7 @@ const baseProps = {
   onEmojiChange: vi.fn(),
   onDelete: vi.fn(),
   onSetDefault: vi.fn(),
+  onDefaultLocked: vi.fn(),
   onClose: vi.fn(),
 }
 
@@ -86,16 +87,20 @@ test('default switch is off and setting it calls onSetDefault', () => {
   render(<ListActionSheet {...baseProps} isDefault={false} />)
   const sw = screen.getByRole('switch', { name: 'Lista predeterminada' })
   expect(sw).toHaveAttribute('aria-checked', 'false')
+  expect(sw).not.toHaveAttribute('aria-disabled')
   fireEvent.click(sw)
   expect(baseProps.onSetDefault).toHaveBeenCalledOnce()
+  expect(baseProps.onDefaultLocked).not.toHaveBeenCalled()
 })
 
-test('default switch is on and tapping it is a no-op (set-only)', () => {
+test('default switch on is locked: announced non-operable, tap explains instead of unsetting', () => {
   render(<ListActionSheet {...baseProps} isDefault />)
   const sw = screen.getByRole('switch', { name: 'Lista predeterminada' })
   expect(sw).toHaveAttribute('aria-checked', 'true')
+  expect(sw).toHaveAttribute('aria-disabled', 'true')
   fireEvent.click(sw)
   expect(baseProps.onSetDefault).not.toHaveBeenCalled()
+  expect(baseProps.onDefaultLocked).toHaveBeenCalledOnce()
 })
 
 test('members row shows the "N de 5" count and opens the members sheet', () => {

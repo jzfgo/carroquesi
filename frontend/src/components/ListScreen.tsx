@@ -1341,6 +1341,9 @@ export function ListScreen({
           onEmojiChange={(emoji) => void handleEmojiChange(emoji)}
           onDelete={() => void handleDelete(listId)}
           onSetDefault={() => void handleSetDefault()}
+          onDefaultLocked={() =>
+            setToast('Para cambiarla, marca otra lista como predeterminada')
+          }
           // Leaving the list is the person's own act to end the relationship —
           // leaving the screen completes the tap.
           onLeftList={() => onBack?.()}
