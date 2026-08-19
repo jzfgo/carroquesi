@@ -607,6 +607,13 @@ The list header is 56px, sticky, `--paper-0`, with a 1px bottom hairline. Back
 is an accent-coloured text button on the left; the title is Bree Serif at the
 headline size, absolutely centred and truncated; the menu is on the right.
 
+**Searching takes the title slot** (`21b`, placed by `5c`): the pill replaces
+the title and the action cluster inside the same 56px row — back stays as the
+way out, the menu waits until the search closes. The pill is paper-0 with the
+1.5px accent as a shadow ring (a fractional border renders unevenly), with the
+close disc inside it. It eases in over `--dur-base`; closing returns the store
+chips with the same motion. Implemented per JAV-190 (2026-08).
+
 ### Item Row
 
 The signature component. **Three states, not two** — and the third is the one

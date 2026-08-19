@@ -163,6 +163,9 @@ export function ListScreen({
   // while the chips filter loosely — so strictStore is just `searching`, and no
   // separate filterMode state is needed.
   const [searching, setSearching] = useState(false)
+  // Set on the first search and never cleared: it marks the chips' return as
+  // a return (animated) rather than a plain screen load (still).
+  const [everSearched, setEverSearched] = useState(false)
   // A same-name hit in another of the user's lists, shown as the third line of
   // the no-results search state (16c). Null unless a search came back empty and
   // the lookup found something.
@@ -1128,6 +1131,7 @@ export function ListScreen({
 
   const openSearch = () => {
     setSearching(true)
+    setEverSearched(true)
     setFilterQuery('')
   }
   const closeSearch = () => {
@@ -1156,6 +1160,15 @@ export function ListScreen({
         onMenuOpen={handleMenuToggle}
         onBack={onBack}
         onSearch={items.length > 0 && !searching ? openSearch : undefined}
+        searchSlot={
+          searching ? (
+            <SmartSearchPill
+              query={filterQuery}
+              onChange={setFilterQuery}
+              onClose={closeSearch}
+            />
+          ) : undefined
+        }
       />
 
       <ProgressBar purchased={purchasedCount} total={totalCount} />
@@ -1189,20 +1202,13 @@ export function ListScreen({
         />
       )}
 
-      {searching ? (
-        <SmartSearchPill
+      {!searching && items.length > 0 && (
+        <FilterBar
+          stores={stores}
           query={filterQuery}
           onChange={setFilterQuery}
-          onClose={closeSearch}
+          entering={everSearched}
         />
-      ) : (
-        items.length > 0 && (
-          <FilterBar
-            stores={stores}
-            query={filterQuery}
-            onChange={setFilterQuery}
-          />
-        )
       )}
 
       <ItemList
