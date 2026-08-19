@@ -40,6 +40,9 @@ interface Props {
   onEmojiChange: (emoji: string | null) => void
   onDelete: () => void
   onSetDefault: () => void
+  /** Tapping the switch while it is on: the default cannot be unset, so the
+      host answers with a toast pointing at the way out (mark another list). */
+  onDefaultLocked: () => void
   onReceiptScan?: () => void
   onClose: () => void
   /** The member sheet reported a successful self-removal. */
@@ -65,6 +68,7 @@ export function ListActionSheet({
   onEmojiChange,
   onDelete,
   onSetDefault,
+  onDefaultLocked,
   onReceiptScan,
   onClose,
   onLeftList,
@@ -189,7 +193,9 @@ export function ListActionSheet({
           )}
 
           {/* Default is a state, not an action: a switch. Set-only — tapping
-              when off makes this the Siri default; there is no unset. */}
+              when off makes this the Siri default; there is no unset, so on it
+              renders dimmed (aria-disabled, not disabled: the tap must still
+              land so it can be answered with the toast). */}
           <div className="list-options__row">
             <Star size={18} className="list-options__row-icon" aria-hidden />
             <span className="list-options__row-label">
@@ -199,10 +205,9 @@ export function ListActionSheet({
               type="button"
               role="switch"
               aria-checked={isDefault}
-              className={`list-options__switch${isDefault ? ' list-options__switch--on' : ''}`}
-              onClick={() => {
-                if (!isDefault) onSetDefault()
-              }}
+              aria-disabled={isDefault || undefined}
+              className={`list-options__switch${isDefault ? ' list-options__switch--on list-options__switch--locked' : ''}`}
+              onClick={isDefault ? onDefaultLocked : onSetDefault}
               aria-label="Lista predeterminada"
             >
               <span className="list-options__switch-knob" aria-hidden />
