@@ -295,4 +295,41 @@ describe('body scroll lock', () => {
     unmount()
     expect(document.body.style.overflow).toBe('scroll')
   })
+
+  it('keeps the lock while sheets overlap and releases it after the last one', () => {
+    // A second sheet mounts while the first is still playing its exit — the
+    // handoff that happens on every sheet→sheet transition.
+    const first = render(
+      <Sheet label="a" onClose={vi.fn()}>
+        <p>una</p>
+      </Sheet>,
+    )
+    const second = render(
+      <Sheet label="b" onClose={vi.fn()}>
+        <p>otra</p>
+      </Sheet>,
+    )
+    expect(document.body.style.overflow).toBe('hidden')
+    first.unmount()
+    expect(document.body.style.overflow).toBe('hidden')
+    second.unmount()
+    expect(document.body.style.overflow).toBe('')
+  })
+
+  it('releases the lock whichever sheet unmounts last', () => {
+    const first = render(
+      <Sheet label="a" onClose={vi.fn()}>
+        <p>una</p>
+      </Sheet>,
+    )
+    const second = render(
+      <Sheet label="b" onClose={vi.fn()}>
+        <p>otra</p>
+      </Sheet>,
+    )
+    second.unmount()
+    expect(document.body.style.overflow).toBe('hidden')
+    first.unmount()
+    expect(document.body.style.overflow).toBe('')
+  })
 })

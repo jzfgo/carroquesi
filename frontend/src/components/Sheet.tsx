@@ -35,6 +35,32 @@ interface Props {
 const EXIT_MARGIN_MS = 80
 
 /**
+ * Body scroll lock, counted across sheets. Sheets overlap: the exit animation
+ * makes closing asynchronous, so a replacement sheet mounts while the old one
+ * is still leaving. A per-sheet save-and-restore would capture 'hidden' as the
+ * value to put back and leave the body locked after every such handoff. The
+ * counter touches the body only on the 0→1 and 1→0 transitions, so unmount
+ * order cannot matter.
+ */
+let scrollLocks = 0
+let overflowBeforeLock = ''
+
+function acquireScrollLock() {
+  if (scrollLocks === 0) {
+    overflowBeforeLock = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+  }
+  scrollLocks += 1
+}
+
+function releaseScrollLock() {
+  scrollLocks -= 1
+  if (scrollLocks === 0) {
+    document.body.style.overflow = overflowBeforeLock
+  }
+}
+
+/**
  * The exit duration comes from the computed style of the closing panel, so
  * one mechanism serves every environment: normal browsers report --dur-slow,
  * reduced-motion users (whose media query zeroes the transition) and
@@ -131,11 +157,8 @@ export function Sheet({
   }, [dismiss])
 
   useEffect(() => {
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previous
-    }
+    acquireScrollLock()
+    return releaseScrollLock
   }, [])
 
   useEffect(
