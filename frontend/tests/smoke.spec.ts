@@ -4,6 +4,7 @@ import {
   awaitPrimingCard,
   expect,
   expectScreenshot,
+  isVisualProject,
   SEED_ITEMS,
   SEED_LISTS,
   test,
@@ -51,6 +52,16 @@ for (const { name: themeName, colorScheme } of THEMES) {
 
     test('list screen shows items', async ({ page }) => {
       await assertListScreenLoaded(page)
+      // Computed-style asserts, not just pixels: both rules once lost a
+      // same-specificity duel that only the production bundle's rule order
+      // exposed, and this suite runs against the build.
+      await expect(page.locator('#root')).not.toHaveCSS('text-align', 'center')
+      if (isVisualProject()) {
+        await expect(page.locator('.push-priming')).not.toHaveCSS(
+          'background-color',
+          'rgba(0, 0, 0, 0)',
+        )
+      }
       await expectScreenshot(page, `list-screen-${themeName}.png`)
     })
 
