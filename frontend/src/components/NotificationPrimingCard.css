@@ -1,13 +1,16 @@
+/* A solid paper card: it sits on the list board but never fuses with it.
+   Colors come from tokens whose light values are the approved frame's hexes,
+   so dark mode keeps working. */
 .push-priming {
   display: flex;
   align-items: flex-start;
   gap: 0.625rem;
-  background: var(--accent-bg, rgb(26 63 160 / 8%));
-  border: 1px solid var(--accent-border, rgb(26 63 160 / 28%));
-  color: var(--fg, #15161b);
-  border-radius: var(--r-md, 10px);
+  background: var(--paper-0);
+  color: var(--ink-1);
+  border-radius: var(--r-lg, 14px);
   padding: 0.75rem;
-  font-size: var(--fs-14, 14px);
+  font-size: 13.5px;
+  box-shadow: var(--shadow-sm);
 }
 
 .push-priming__icon {
@@ -15,9 +18,11 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  color: var(--accent, #1a3fa0);
+  width: 36px;
+  height: 36px;
+  color: var(--ink-1);
+  background: var(--paper-1);
+  border-radius: 50%;
 }
 
 .push-priming__body {
@@ -30,21 +35,28 @@
 
 .push-priming__text {
   margin: 0;
-  line-height: 1.4;
-  color: var(--fg-muted, #353742);
+  line-height: 1.5;
+  text-align: left;
+  color: var(--ink-1);
+}
+
+.push-priming__text strong {
+  font-weight: 600;
+  color: var(--ink-0);
 }
 
 .push-priming__cta {
-  min-height: var(--hit-min, 44px);
+  min-height: 40px;
   padding: 0.4rem 1rem;
+  align-self: flex-start;
   font-family: inherit;
   font-size: var(--fs-14, 14px);
   font-weight: 700;
   color: var(--accent-fg, #eef1f5);
   cursor: pointer;
-  background: var(--accent, #1a3fa0);
+  background: var(--tinta-0);
   border: none;
-  border-radius: var(--r-sm, 6px);
+  border-radius: var(--r-md, 10px);
 }
 
 .push-priming__dismiss {
@@ -57,7 +69,7 @@
 
   /* Pull the oversized touch target back visually so it hugs the corner. */
   margin: -0.5rem -0.5rem -0.5rem 0;
-  color: var(--fg-subtle, #6b7280);
+  color: var(--ink-2);
   cursor: pointer;
   background: none;
   border: none;

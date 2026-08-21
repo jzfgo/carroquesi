@@ -484,6 +484,11 @@ export async function awaitPrimingCard(page: Page): Promise<void> {
   await expect(page.locator('.push-priming')).toBeVisible()
 }
 
+/** True on the projects that carry baselines — the ones the card shows on. */
+export function isVisualProject(): boolean {
+  return VISUAL_PROJECTS.has(test.info().project.name)
+}
+
 // ── Gemini network-boundary mock ─────────────────────────────────────────────
 // receiptAi.ts calls the Firebase AI SDK, which — regardless of GoogleAIBackend
 // vs VertexAIBackend — issues a real fetch to this proxy domain. Intercepting

@@ -61,17 +61,10 @@
   background: color-mix(in srgb, var(--board-ink) 18%, transparent);
 }
 
+/* The priming card is a card on the board, not board chrome — it keeps its
+   own paper styling; only placement is scoped here. */
 .list-screen .push-priming {
   margin: 10px 12px 0;
-  background: transparent;
-  border: 1px dashed color-mix(in srgb, var(--board-ink) 40%, transparent);
-  color: var(--board-ink);
-}
-
-.list-screen .push-priming__text,
-.list-screen .push-priming__icon,
-.list-screen .push-priming__dismiss {
-  color: var(--board-ink);
 }
 
 .list-screen .filter-bar__chip {
@@ -84,13 +77,6 @@
   background: var(--board-ink);
   border-color: var(--board-ink);
   color: var(--board);
-}
-
-/* Override the desktop-focused root width from index.css */
-#root {
-  width: 100%;
-  border-inline: none;
-  text-align: left;
 }
 
 .bottom-panel {

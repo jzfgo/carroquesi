@@ -45,7 +45,7 @@ export function NotificationPrimingCard({
   return (
     <aside className="push-priming" role="complementary">
       <div className="push-priming__icon" aria-hidden="true">
-        <Bell size={20} />
+        <Bell size={18} strokeWidth={1.8} />
       </div>
       <div className="push-priming__body">
         {canReceive ? (
