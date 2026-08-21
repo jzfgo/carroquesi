@@ -13,8 +13,8 @@
 
 /* Overlays instead of sitting in flow: spotty connectivity would otherwise
    shift the whole layout on every flip. Anchored to the bottom edge; over the
-   input panel it covers only the safe-area strip below the controls, and
-   offline cannot send anything anyway. */
+   input panel it may cover the lowest pixels of the controls, which offline
+   cannot submit anything through anyway. */
 .offline-banner--overlay {
   position: fixed;
   right: 0;
