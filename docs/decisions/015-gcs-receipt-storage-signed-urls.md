@@ -136,3 +136,39 @@ gcloud storage buckets add-iam-policy-binding gs://carroquesi.firebasestorage.ap
 gcloud storage buckets describe gs://carroquesi.firebasestorage.app \
   --format="value(uniform_bucket_level_access,public_access_prevention)"
 ```
+
+### CORS (required since the 25b viewer / upload wiring)
+
+The browser talks to the bucket directly in two ways that trigger CORS:
+
+- the signed **PUT** carries `x-goog-content-length-range`, a non-safelisted
+  header, so the browser preflights it;
+- the PDF viewer fetches the signed **GET** URL with `fetch` (pdf.js), which
+  needs a CORS response header to read the bytes.
+
+Plain `<img>` thumbnails need nothing — image elements are CORS-exempt —
+which is exactly why a missing policy is easy to miss: thumbnails work while
+uploads and PDF viewing fail. Apply the policy once:
+
+```bash
+# cors.json:
+# [
+#   {
+#     "origin": [
+#       "https://carroquesi.web.app",
+#       "http://localhost:5173",
+#       "http://localhost:5174",
+#       "http://localhost:4173"
+#     ],
+#     "method": ["GET", "PUT"],
+#     "responseHeader": ["Content-Type", "x-goog-content-length-range"],
+#     "maxAgeSeconds": 3600
+#   }
+# ]
+gcloud storage buckets update gs://carroquesi.firebasestorage.app \
+  --cors-file=cors.json
+
+# Verify
+gcloud storage buckets describe gs://carroquesi.firebasestorage.app \
+  --format="json(cors_config)"
+```

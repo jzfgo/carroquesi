@@ -1,0 +1,47 @@
+/* The store choice as one compact control. The native picker lists the
+   options, so the control's footprint does not grow with the store count. */
+.store-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.store-select__icon,
+.store-select__chevron {
+  position: absolute;
+  pointer-events: none;
+  color: var(--ink-2);
+}
+
+.store-select__icon {
+  left: 10px;
+}
+
+.store-select__chevron {
+  right: 8px;
+}
+
+.store-select__control {
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 0 28px 0 31px;
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--r-md);
+  background: var(--paper-1);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.store-select__control:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}

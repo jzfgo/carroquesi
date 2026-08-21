@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ListItem } from '../types'
 import LogPurchaseSheet from './LogPurchaseSheet'
+import { ADD_STORE } from './StoreSelect'
 
 const BASE_ITEM: ListItem = {
   id: 'i1',
@@ -14,6 +15,7 @@ const BASE_ITEM: ListItem = {
   stores: [],
   purchased: false,
   purchased_at: null,
+  purchase_has_receipt: false,
   purchase_ends_at: null,
   ean: null,
   price: null,
@@ -27,7 +29,6 @@ const BASE_ITEM: ListItem = {
 describe('LogPurchaseSheet delete button', () => {
   const baseProps = {
     initialAmount: null,
-    initialPricePer: null as null,
     initialStore: null,
     initialPurchasedQuantity: null,
     onSave: vi.fn(),
@@ -90,7 +91,6 @@ describe('LogPurchaseSheet delete button', () => {
     render(
       <LogPurchaseSheet
         initialAmount={1.99}
-        initialPricePer={null}
         initialStore={null}
         initialPurchasedQuantity={null}
         onSave={vi.fn()}
@@ -114,7 +114,6 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
       <LogPurchaseSheet
         item={item}
         initialAmount={1.5}
-        initialPricePer={null}
         initialStore="Lidl"
         initialPurchasedQuantity="3"
         onSave={onSave}
@@ -135,7 +134,7 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
     expect(onSave).toHaveBeenCalledWith(2.5, null, 'Lidl', '5')
   })
 
-  it('renders one chip per store across spelling variants', () => {
+  it('offers one option per store across spelling variants', () => {
     const item = {
       ...BASE_ITEM,
       stores: ['Ahorramás', 'AHORRA MAS', 'Lidl'],
@@ -144,7 +143,6 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
       <LogPurchaseSheet
         item={item}
         initialAmount={null}
-        initialPricePer={null}
         initialStore={null}
         initialPurchasedQuantity={null}
         onSave={vi.fn()}
@@ -152,29 +150,28 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
       />,
     )
     expect(
-      screen.getByRole('button', { name: /Ahorramás/ }),
+      screen.getByRole('option', { name: 'Ahorramás' }),
     ).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: /AHORRA MAS/ }),
+      screen.queryByRole('option', { name: 'AHORRA MAS' }),
     ).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Lidl/ })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Lidl' })).toBeInTheDocument()
   })
 
-  it('a hand-typed spelling variant reuses the existing chip form', async () => {
+  it('a hand-typed spelling variant reuses the existing offer form', async () => {
     const onSave = vi.fn()
     const item = { ...BASE_ITEM, stores: ['Ahorramás'] }
     render(
       <LogPurchaseSheet
         item={item}
         initialAmount={2}
-        initialPricePer={null}
         initialStore={null}
         initialPurchasedQuantity={null}
         onSave={onSave}
         onClose={vi.fn()}
       />,
     )
-    await userEvent.click(screen.getByRole('button', { name: /\+ otra/ }))
+    await userEvent.selectOptions(screen.getByLabelText('Tienda'), ADD_STORE)
     await userEvent.type(
       screen.getByPlaceholderText(/nombre de la tienda/i),
       'ahorra mas',
@@ -188,7 +185,6 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
       <LogPurchaseSheet
         item={BASE_ITEM}
         initialAmount={2.0}
-        initialPricePer="KILOGRAM"
         initialStore="Lidl"
         initialPurchasedQuantity="500g"
         onSave={vi.fn()}

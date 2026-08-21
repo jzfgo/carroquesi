@@ -43,6 +43,7 @@ RULES:
 - receipt_total: final total charged. Return null if not clearly readable.
 - lines: purchased product lines only. Omit any line where name or price is not clearly legible.
 - Skip: subtotals, taxes, VAT, loyalty discounts, cashier info, store address, payment lines.
+- A discount or promotion printed under a product (e.g. "PROMOCION -1,20", "DTO", "2a unidad -50%") is part of that product's line, never a line of its own: subtract it so line_total is the net amount actually charged for that product, and recalculate unit_price from the net (line_total / quantity for MULTI and KILOGRAM, line_total itself for UNIT). Only a receipt-level discount that belongs to no product line is skipped.
 - price_type:
   - "UNIT": single item at fixed price. unit_price = shown price. line_total = unit_price.
   - "KILOGRAM": sold by weight. unit_price = price per kg. quantity = weight in kg. line_total = unit_price x quantity.

@@ -18,8 +18,8 @@
       "created_at": "2026-01-01T00:00:00",
       "updated_at": "2026-06-23T10:00:00",
       "item_count": 2,
-      "purchased_count": 0,
-      "cart_count": 0,
+      "purchased_count": 1,
+      "cart_count": 1,
       "members": [
         {
           "user_id": "seed-user-alice",
@@ -67,6 +67,7 @@
         "purchased_at": null,
         "purchase_id": null,
         "purchase_ends_at": null,
+        "purchase_has_receipt": false,
         "ean": null,
         "price": 0.65,
         "price_per": null,
@@ -87,6 +88,7 @@
         "purchased_at": null,
         "purchase_id": null,
         "purchase_ends_at": null,
+        "purchase_has_receipt": false,
         "ean": null,
         "price": null,
         "price_per": null,
@@ -94,6 +96,48 @@
         "added_by": "seed-user-alice",
         "created_at": "2026-06-01T00:00:00",
         "updated_at": "2026-06-23T10:00:00"
+      },
+      {
+        "id": "item-mantequilla",
+        "list_id": "seed-list-compra",
+        "name": "Mantequilla",
+        "quantity": "1",
+        "purchased_quantity": "1",
+        "brand": "Hacendado",
+        "stores": ["Mercadona"],
+        "purchased": true,
+        "purchased_at": "2026-07-10T09:00:00",
+        "purchase_id": "trip-compra-0710",
+        "purchase_ends_at": "2026-07-11T00:00:00",
+        "purchase_has_receipt": false,
+        "ean": null,
+        "price": null,
+        "price_per": null,
+        "price_store": null,
+        "added_by": "seed-user-alice",
+        "created_at": "2026-07-10T09:00:00",
+        "updated_at": "2026-07-10T09:00:00"
+      },
+      {
+        "id": "item-huevos",
+        "list_id": "seed-list-compra",
+        "name": "Huevos",
+        "quantity": "12",
+        "purchased_quantity": "12",
+        "brand": "Hacendado",
+        "stores": ["Mercadona"],
+        "purchased": true,
+        "purchased_at": "2026-07-10T09:00:00",
+        "purchase_id": "trip-compra-0710",
+        "purchase_ends_at": "2026-07-11T00:00:00",
+        "purchase_has_receipt": false,
+        "ean": null,
+        "price": 2.1,
+        "price_per": null,
+        "price_store": "Mercadona",
+        "added_by": "seed-user-alice",
+        "created_at": "2026-07-10T09:00:00",
+        "updated_at": "2026-07-10T09:00:00"
       }
     ],
     "seed-list-fiesta": [
@@ -109,6 +153,7 @@
         "purchased_at": null,
         "purchase_id": null,
         "purchase_ends_at": null,
+        "purchase_has_receipt": false,
         "ean": null,
         "price": null,
         "price_per": null,
@@ -224,6 +269,7 @@
     "purchased_at": null,
     "purchase_id": null,
     "purchase_ends_at": null,
+    "purchase_has_receipt": false,
     "ean": null,
     "price": null,
     "price_per": null,
@@ -243,7 +289,8 @@
     "purchased": true,
     "purchased_at": "2026-07-10T00:00:00",
     "purchase_id": null,
-    "purchase_ends_at": null,
+    "purchase_ends_at": "2026-07-11T00:00:00",
+    "purchase_has_receipt": false,
     "ean": null,
     "price": 1.0,
     "price_per": null,
@@ -257,16 +304,69 @@
     "price_per": null,
     "store": "Mercadona",
     "purchased_at": null,
-    "quantity": null
+    "quantity": null,
+    "is_sin_precio": false
   },
   "SEED_PRICE_HISTORY": {
     "entries": []
   },
   "SEED_RECEIPT_APPLY_RESULT": {
     "items_updated": 2,
-    "items_created": 1
+    "items_created": 1,
+    "items_skipped": 0
   },
   "SEED_UPDATED_AT": {
     "updated_at": "2026-06-23T10:00:00"
+  },
+  "SEED_TRIPS": {
+    "purchases": [
+      {
+        "id": "trip-con-ticket",
+        "list_id": "seed-list-compra",
+        "opened_at": "2026-07-10T09:00:00",
+        "tears_off_at": "2026-07-11T00:00:00",
+        "closed_at": "2026-07-11T00:00:00",
+        "store": "Mercadona",
+        "total": 8.13,
+        "line_count": 2,
+        "has_receipt": true,
+        "items_total": 8.13,
+        "items": null
+      },
+      {
+        "id": "trip-sin-ticket",
+        "list_id": "seed-list-compra",
+        "opened_at": "2026-07-08T18:30:00",
+        "tears_off_at": "2026-07-09T00:00:00",
+        "closed_at": "2026-07-09T00:00:00",
+        "store": "Lidl",
+        "total": 23.44,
+        "line_count": 1,
+        "has_receipt": false,
+        "items_total": null,
+        "items": null
+      }
+    ],
+    "total": 2
+  },
+  "SEED_RECEIPT_SCANS": [
+    {
+      "id": "scan-e2e-1",
+      "store": "Mercadona",
+      "receipt_at": "2026-07-10T00:00:00",
+      "receipt_total": 8.13,
+      "has_file": true,
+      "file_pages": null,
+      "created_at": "2026-07-10T20:15:00"
+    }
+  ],
+  "SEED_FILE_URL_RESULT": {
+    "url": "http://localhost:8000/__gcs__/receipts/seed-list-compra/scan-e2e-1.png",
+    "content_type": "image/png",
+    "pages": null
+  },
+  "SEED_UPLOAD_URL_RESULT": {
+    "upload_url": "http://localhost:8000/__gcs__/receipts/seed-list-compra/scan-e2e-1.png",
+    "expires_in": 900
   }
 }

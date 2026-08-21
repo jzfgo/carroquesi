@@ -1,180 +1,223 @@
+/* The item row: two voices on one sheet. Instructions are written in the
+   household's hand (--font-written); records are printed in mono. State is
+   carried by the circle, the typeface and the amount column — never by a
+   strikethrough, never by dimming the row.
+
+   Sizes follow the 30a proportions against the 24px circle: the written name
+   at calc(24px * --written-scale) carries a ~14.9px cap (Patrick Hand SC caps
+   measure 0.69 em), standing level with the circle's 15px glyph — the
+   handwriting is the dominant mark on the row. The printed record matches it
+   by cap height, not by px (the Cap-Height Rule — arithmetic at the bought
+   rules below), and everything else steps down from the name. */
+
+/* Rows sit directly on the paper — no rule between them. Rules belong to
+   sections: the sheet title and the store group headers. */
 .item-card {
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
   display: flex;
-  align-items: flex-start;
-  padding: 12px 16px 12px 20px;
+  align-items: center;
   gap: 12px;
+  padding: 0 20px;
 }
 
-.item-card__checkbox {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 2px solid var(--border);
-  background: none;
-  cursor: pointer;
-  flex-shrink: 0;
-  margin-top: 3px;
-  padding: 0;
+/* ── The status circle — first touch target ─────────────────── */
+
+/* Painted at 24px; the ::before overlay stretches the tap to --hit-min
+   without growing the mark (the paint-small hit pattern). */
+.item-card__circle {
   position: relative;
-}
-
-.item-card__checkbox[aria-checked='true'] {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-.item-card__checkbox[aria-checked='true']::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 12px;
-  height: 7px;
-  border-left: 2px solid white;
-  border-bottom: 2px solid white;
-  transform: translate(-50%, -60%) rotate(-45deg);
-}
-
-.item-card__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.item-card__name-row {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 5px;
-}
-
-.item-card__name {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-.item-card__qty {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border-radius: 20px;
-  padding: 1px 7px;
-  white-space: nowrap;
-}
-
-.item-card__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.item-card__tag {
-  background: var(--paper-1);
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 2px 7px;
-  font-size: 11.5px;
-  color: var(--text);
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  white-space: nowrap;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.item-card__tag--cta {
-  background: transparent;
-  border: 1.5px dashed var(--border);
-}
-
-.item-card__tag--cta:hover,
-.item-card__tag--cta:focus {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-bg);
-}
-
-.item-card--purchased .item-card__name {
-  text-decoration: line-through;
-  color: var(--purchased);
-}
-
-.item-card--purchased .item-card__qty {
-  background: var(--paper-1);
-  color: var(--purchased);
-}
-
-.item-card--purchased .item-card__tag {
-  opacity: 0.45;
-}
-
-.item-card__right {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.item-card__avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  font-size: 11px;
-  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  margin-top: 3px;
-}
-
-.item-card__avatar-img {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.item-card__menu {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-  color: var(--ink-2);
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
   padding: 0;
-  line-height: 1;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
 }
 
-.item-card__tag--price {
-  background: var(--verde-bg);
-  color: var(--verde-0);
-  border: 1px solid var(--verde-border);
-  font-family: var(--font-mono);
+.item-card__circle::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
 }
 
-.item-card__tag--buy-again {
-  background: var(--accent-bg);
-  color: var(--accent);
-  border: 1.5px dashed var(--accent);
-  font-weight: 600;
-  transition:
-    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease;
+/* Offline: the mark is a promise, not yet a record (dashed is refillable).
+   The filled states paint border and ground alike, so the dash only ever
+   shows on the empty pending circle. */
+.item-card__circle--offline {
+  border-style: dashed;
 }
 
-.item-card__tag--buy-again:hover,
-.item-card__tag--buy-again:focus {
-  background: var(--accent);
+/* The cart state fills the circle — a solid --tinta-0 disc carrying the
+   white cart glyph, as 30a draws it. Same 24px slot, same hit. */
+.item-card--cart .item-card__circle {
+  border-color: var(--tinta-0);
+  background: var(--tinta-0);
   color: var(--accent-fg);
-  border-style: solid;
-  border-color: var(--accent);
-  transform: scale(1.05);
+}
+
+.item-card--bought .item-card__circle {
+  border-color: var(--verde-0);
+  background: var(--verde-0);
+  color: var(--accent-fg);
+}
+
+/* The re-buy control takes the circle's slot on records from previous days —
+   it replaces the check rather than joining it. A bare ink glyph, no disc:
+   inside the sheet tinta resolves to --ink-1 (the Grayscale Ink Rule) — the
+   status circle is the one control that keeps its colour. Same paint-small
+   hit as the circle. */
+.item-card__rebuy {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-1);
+  cursor: pointer;
+}
+
+.item-card__rebuy::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+}
+
+/* ── The row body — second touch target ─────────────────────── */
+
+.item-card__body {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+  min-height: var(--hit-min);
+  padding: 8px 0;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* Name over meta on the left; the qty or amount column keeps the right
+   edge, centered on the row the way 21b sets it. */
+.item-card__text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 1px;
+  min-width: 0;
+}
+
+.item-card__name {
+  font-family: var(--font-written);
+  font-size: calc(24px * var(--written-scale));
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-0);
+  overflow-wrap: anywhere;
+}
+
+/* The quantity column holds the row's right edge, still in the hand and at
+   the name's own size and ink — 21b's digits measure level with the name
+   caps (68:62 in the crop; Patrick Hand SC draws digits at cap height). The
+   figure is normalized for display (formatQuantity) but the stroke stays
+   the household's. */
+.item-card__qty {
+  flex-shrink: 0;
+  font-family: var(--font-written);
+  font-size: calc(24px * var(--written-scale));
+  line-height: var(--lh-snug);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-0);
+  white-space: nowrap;
+}
+
+.item-card__meta {
+  font-family: var(--font-written);
+  font-size: calc(18px * var(--written-scale));
+  line-height: var(--lh-snug);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-1);
+}
+
+/* The amount column, as 21b prints it: the line total on top — name-sized
+   (mono digits sit at cap height, so --fs-20 matches the record name) but a
+   weight up, in the strongest ink on the row — and the unit price beneath
+   in the quiet figure voice («5,34» over «0,89/UD»). */
+.item-card__amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.item-card__amount-total {
+  font-family: var(--font-mono);
+  font-size: var(--fs-20);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-snug);
+  color: var(--ink-0);
+  white-space: nowrap;
+}
+
+.item-card__amount-unit {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-snug);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* The row-tap chevron: an inactive mark at the row's edge — --ink-3
+   territory, never text ink, never the accent. Decorative — the row body is
+   the control. */
+.item-card__chevron {
+  flex-shrink: 0;
+  margin-left: -4px;
+  color: var(--ink-3);
+}
+
+/* An in-cart row keeps the written voice — you wrote it, and it is still
+   your instruction until the trip closes — but its ink lifts a step: 30a
+   sets TOMATES PERA a clear grey against pending's full black. --ink-2,
+   which holds AA on --paper-0 (the Surface-Relative Ink Rule). */
+.item-card--cart .item-card__name,
+.item-card--cart .item-card__qty,
+.item-card--cart .item-card__meta {
+  color: var(--ink-2);
+}
+
+/* A bought row is a printed record: mono, uppercase — the SAME visual size
+   as the hand, matched by the Cap-Height Rule, never by px: Patrick Hand SC
+   at 18.9px carries a 13.03px cap that JetBrains Mono only reaches at
+   17.5px, so mono = hand × 17.5/18.9. The 21.6px hand name (cap 14.9px)
+   lands mono on 20px; the 16.2px hand meta on 15px — both on the scale. */
+.item-card--bought .item-card__name {
+  font-family: var(--font-mono);
+  font-size: var(--fs-20);
+  font-weight: 500;
+  letter-spacing: var(--tracking-wide);
+  color: var(--ink-1);
+}
+
+.item-card--bought .item-card__meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-15);
+  letter-spacing: var(--tracking-wide);
+  color: var(--ink-2);
 }

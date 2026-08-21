@@ -1,19 +1,82 @@
 .list-screen {
+  /* The board this list's paper lies on. Kraft is the default; data-board
+     picks the caller's hue. The pair is personal and per-list, and it never
+     leaves this screen — the confinement is the point. */
+  --board: var(--board-kraft);
+  --board-ink: var(--board-ink-kraft);
+
+  /* Full width at every viewport — no column cap. The sheets span the screen
+     minus the board gutter, and the board owns everything behind them. */
   width: 100%;
-  max-width: 430px; /* comfortable on large phones / tablet emulation */
-  margin: 0 auto;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--board);
   position: relative;
+  isolation: isolate;
 }
 
-/* Override the desktop-focused root width from index.css */
-#root {
-  width: 100%;
-  border-inline: none;
-  text-align: left;
+/* The board paints edge-to-edge of the viewport: a fixed underlay covers
+   whatever the root would otherwise show (the app's flat ground, overscroll).
+   isolation above keeps the negative z-index inside this screen's stacking
+   context, and the layer unmounts with the list — the board never leaves it. */
+.list-screen::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--board);
+}
+
+.list-screen[data-board='lino'] {
+  --board: var(--board-lino);
+  --board-ink: var(--board-ink-lino);
+}
+
+.list-screen[data-board='salvia'] {
+  --board: var(--board-salvia);
+  --board-ink: var(--board-ink-salvia);
+}
+
+.list-screen[data-board='niebla'] {
+  --board: var(--board-niebla);
+  --board-ink: var(--board-ink-niebla);
+}
+
+.list-screen[data-board='barro'] {
+  --board: var(--board-barro);
+  --board-ink: var(--board-ink-barro);
+}
+
+.list-screen[data-board='pizarra'] {
+  --board: var(--board-pizarra);
+  --board-ink: var(--board-ink-pizarra);
+}
+
+/* Chrome between the header and the sheets sits on the board: transparent
+   grounds, board ink, dashed hairlines where a rule is needed. Scoped to the
+   list screen on purpose — the board never restyles these components
+   anywhere else in the app. */
+.list-screen .progress-bar {
+  background: color-mix(in srgb, var(--board-ink) 18%, transparent);
+}
+
+/* The priming card is a card on the board, not board chrome — it keeps its
+   own paper styling; only placement is scoped here. */
+.list-screen .push-priming {
+  margin: 10px 12px 0;
+}
+
+.list-screen .filter-bar__chip {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--board-ink) 40%, transparent);
+  color: var(--board-ink);
+}
+
+.list-screen .filter-bar__chip--active {
+  background: var(--board-ink);
+  border-color: var(--board-ink);
+  color: var(--board);
 }
 
 .bottom-panel {
@@ -31,58 +94,20 @@
   z-index: 100;
 }
 
-.sheet-container {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 101;
-}
-
-.receipt-scan-cta {
-  padding: 0 16px 8px;
-}
-
-.receipt-scan-cta__btn {
-  width: 100%;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1.5px dashed var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-primary);
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    opacity 0.15s;
-}
-
-.receipt-scan-cta__btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.receipt-scan-cta__btn:hover:not(:disabled) {
-  background: var(--color-surface-hover, var(--color-border));
-}
-
+/* The source picker rides the Sheet primitive: the panel supplies paper,
+   radius, and the safe-area padding — this only lays out the buttons. */
 .receipt-source-picker {
-  background: var(--color-surface);
-  border-radius: 16px 16px 0 0;
-  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
   gap: 8px;
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 .receipt-source-picker__btn {
-  width: 100%;
   padding: 14px 16px;
   border-radius: 12px;
   border: none;
-  background: var(--color-bg, #f5f5f5);
-  color: var(--color-text);
+  background: var(--paper-1);
+  color: var(--ink-0);
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
@@ -91,23 +116,7 @@
 }
 
 .receipt-source-picker__btn:hover {
-  background: var(--color-border);
-}
-
-.receipt-source-picker__cancel {
-  width: 100%;
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: none;
-  background: transparent;
-  color: var(--color-text-secondary, var(--color-text));
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.receipt-source-picker__cancel:hover {
-  background: var(--color-border);
+  background: var(--border);
 }
 
 .receipt-uploading-indicator {

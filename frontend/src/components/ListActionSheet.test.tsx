@@ -13,149 +13,127 @@ vi.mock('./ListMembersSheet', () => ({
 const baseProps = {
   listId: 'l1',
   listName: 'Mercado semanal',
+  listEmoji: null as string | null,
   currentUserId: 'u1',
-  isOwner: true,
+  ownerId: 'u1',
   isDefault: false,
   onRename: vi.fn(),
+  onEmojiChange: vi.fn(),
   onDelete: vi.fn(),
   onSetDefault: vi.fn(),
+  onDefaultLocked: vi.fn(),
   onClose: vi.fn(),
 }
 
 beforeEach(() => vi.clearAllMocks())
 
-test('renders list name in header', () => {
+const nameField = () => screen.getByLabelText('Nombre de la lista')
+
+test('name is a top field pre-filled with the list name', () => {
   render(<ListActionSheet {...baseProps} />)
-  expect(screen.getByText('Mercado semanal')).toBeInTheDocument()
+  expect(nameField()).toHaveValue('Mercado semanal')
 })
 
-test('shows Renombrar button', () => {
+test('editing the name and blurring saves the trimmed value (no Guardar)', () => {
   render(<ListActionSheet {...baseProps} />)
-  expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
-})
-
-test('shows "Marcar como predeterminada" and fires onSetDefault + onClose when not default', () => {
-  render(<ListActionSheet {...baseProps} isDefault={false} />)
-  const btn = screen.getByRole('button', {
-    name: /marcar como predeterminada/i,
-  })
-  fireEvent.click(btn)
-  expect(baseProps.onSetDefault).toHaveBeenCalledOnce()
-  expect(baseProps.onClose).toHaveBeenCalledOnce()
-})
-
-test('shows non-actionable "Lista predeterminada" indicator when already default', () => {
-  render(<ListActionSheet {...baseProps} isDefault />)
-  expect(screen.getByText('Lista predeterminada')).toBeInTheDocument()
+  fireEvent.change(nameField(), { target: { value: '  Nuevo nombre  ' } })
+  fireEvent.blur(nameField())
+  expect(baseProps.onRename).toHaveBeenCalledWith('Nuevo nombre')
+  // No save button in the redesign.
   expect(
-    screen.queryByRole('button', { name: /marcar como predeterminada/i }),
+    screen.queryByRole('button', { name: /guardar/i }),
   ).not.toBeInTheDocument()
 })
 
-test('shows Eliminar lista when isOwner is true', () => {
+test('blurring an unchanged name does not call onRename', () => {
+  render(<ListActionSheet {...baseProps} />)
+  fireEvent.blur(nameField())
+  expect(baseProps.onRename).not.toHaveBeenCalled()
+})
+
+test('emoji grid: picking an emoji calls onEmojiChange, ∅ clears it', () => {
+  render(<ListActionSheet {...baseProps} listEmoji="🥛" />)
+  fireEvent.click(screen.getByRole('button', { name: '🍎' }))
+  expect(baseProps.onEmojiChange).toHaveBeenCalledWith('🍎')
+  fireEvent.click(screen.getByRole('button', { name: 'Ninguno' }))
+  expect(baseProps.onEmojiChange).toHaveBeenCalledWith(null)
+})
+
+test('board picker: swatches render, active is pressed, picking calls onBoardChange', () => {
+  const onBoardChange = vi.fn()
+  render(
+    <ListActionSheet
+      {...baseProps}
+      board="kraft"
+      onBoardChange={onBoardChange}
+    />,
+  )
+  expect(screen.getByRole('button', { name: 'kraft' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'salvia' }))
+  expect(onBoardChange).toHaveBeenCalledWith('salvia')
+})
+
+test('board picker is hidden without board/onBoardChange (dashboard path)', () => {
   render(<ListActionSheet {...baseProps} />)
   expect(
-    screen.getByRole('button', { name: /eliminar lista/i }),
+    screen.queryByRole('button', { name: 'kraft' }),
+  ).not.toBeInTheDocument()
+})
+
+test('default switch is off and setting it calls onSetDefault', () => {
+  render(<ListActionSheet {...baseProps} isDefault={false} />)
+  const sw = screen.getByRole('switch', { name: 'Lista predeterminada' })
+  expect(sw).toHaveAttribute('aria-checked', 'false')
+  expect(sw).not.toHaveAttribute('aria-disabled')
+  fireEvent.click(sw)
+  expect(baseProps.onSetDefault).toHaveBeenCalledOnce()
+  expect(baseProps.onDefaultLocked).not.toHaveBeenCalled()
+})
+
+test('default switch on is locked: announced non-operable, tap explains instead of unsetting', () => {
+  render(<ListActionSheet {...baseProps} isDefault />)
+  const sw = screen.getByRole('switch', { name: 'Lista predeterminada' })
+  expect(sw).toHaveAttribute('aria-checked', 'true')
+  expect(sw).toHaveAttribute('aria-disabled', 'true')
+  fireEvent.click(sw)
+  expect(baseProps.onSetDefault).not.toHaveBeenCalled()
+  expect(baseProps.onDefaultLocked).toHaveBeenCalledOnce()
+})
+
+test('members row shows the "N de 5" count and opens the members sheet', () => {
+  render(<ListActionSheet {...baseProps} memberCount={3} />)
+  expect(screen.getByText('3 de 5')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /miembros/i }))
+  expect(
+    screen.getByRole('dialog', { name: 'Miembros de la lista' }),
   ).toBeInTheDocument()
 })
 
-test('hides Eliminar lista when isOwner is false', () => {
-  render(<ListActionSheet {...baseProps} isOwner={false} />)
+test('shows Eliminar lista for the owner, hides it for others', () => {
+  const { rerender } = render(<ListActionSheet {...baseProps} />)
+  expect(
+    screen.getByRole('button', { name: /eliminar lista/i }),
+  ).toBeInTheDocument()
+  rerender(<ListActionSheet {...baseProps} ownerId="u2" />)
   expect(
     screen.queryByRole('button', { name: /eliminar lista/i }),
   ).not.toBeInTheDocument()
 })
 
-test('ESC calls onClose from actions sub-state', () => {
-  render(<ListActionSheet {...baseProps} />)
-  fireEvent.keyDown(document, { key: 'Escape' })
-  expect(baseProps.onClose).toHaveBeenCalled()
-})
-
-test('tapping Renombrar shows rename input pre-filled with list name', () => {
-  render(<ListActionSheet {...baseProps} />)
-  fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
-  expect(screen.getByRole('textbox')).toHaveValue('Mercado semanal')
-})
-
-test('Guardar button is disabled when input is empty', () => {
-  render(<ListActionSheet {...baseProps} />)
-  fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
-  fireEvent.change(screen.getByRole('textbox'), { target: { value: '' } })
-  expect(screen.getByRole('button', { name: /guardar/i })).toBeDisabled()
-})
-
-test('save calls onRename with trimmed value', () => {
-  render(<ListActionSheet {...baseProps} />)
-  fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
-  fireEvent.change(screen.getByRole('textbox'), {
-    target: { value: '  Nuevo nombre  ' },
-  })
-  fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
-  expect(baseProps.onRename).toHaveBeenCalledWith('Nuevo nombre')
-})
-
-test('Enter key triggers save when input is non-empty', () => {
-  render(<ListActionSheet {...baseProps} />)
-  fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
-  fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' })
-  expect(baseProps.onRename).toHaveBeenCalledWith('Mercado semanal')
-})
-
-test('Cancelar in rename sub-state returns to actions sub-state', () => {
-  render(<ListActionSheet {...baseProps} />)
-  fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
-  fireEvent.click(screen.getByRole('button', { name: /cancelar/i }))
-  expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
-  expect(baseProps.onClose).not.toHaveBeenCalled()
-})
-
-test('ESC from rename sub-state returns to actions, not closing the sheet', () => {
-  render(<ListActionSheet {...baseProps} />)
-  fireEvent.click(screen.getByRole('button', { name: /renombrar/i }))
-  fireEvent.keyDown(document, { key: 'Escape' })
-  expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
-  expect(baseProps.onClose).not.toHaveBeenCalled()
-})
-
-test('tapping Eliminar lista shows confirmation sub-state with warning text', () => {
+test('delete flows through the confirmation and calls onDelete', () => {
   render(<ListActionSheet {...baseProps} />)
   fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
   expect(
     screen.getByText(/esta acción no se puede deshacer/i),
   ).toBeInTheDocument()
-})
-
-test('"Sí, eliminar lista" calls onDelete', () => {
-  render(<ListActionSheet {...baseProps} />)
-  fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
   fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
   expect(baseProps.onDelete).toHaveBeenCalled()
 })
 
-test('Cancelar in confirmation sub-state returns to actions sub-state', () => {
-  render(<ListActionSheet {...baseProps} />)
-  fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
-  fireEvent.click(screen.getByRole('button', { name: /cancelar/i }))
-  expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
-  expect(baseProps.onClose).not.toHaveBeenCalled()
-})
-
-test('tapping the overlay calls onClose from actions sub-state', () => {
-  const { container } = render(<ListActionSheet {...baseProps} />)
-  fireEvent.click(container.querySelector('.list-action-sheet__overlay')!)
-  expect(baseProps.onClose).toHaveBeenCalled()
-})
-
-test('ESC from confirm-delete sub-state returns to actions, not closing the sheet', () => {
-  render(<ListActionSheet {...baseProps} />)
-  fireEvent.click(screen.getByRole('button', { name: /eliminar lista/i }))
-  fireEvent.keyDown(document, { key: 'Escape' })
-  expect(screen.getByRole('button', { name: /renombrar/i })).toBeInTheDocument()
-  expect(baseProps.onClose).not.toHaveBeenCalled()
-})
-
-test('hides Tiendas when the registry is empty or the callback is absent', () => {
+test('Tiendas row is hidden when the registry is empty', () => {
   render(
     <ListActionSheet
       {...baseProps}
@@ -164,11 +142,11 @@ test('hides Tiendas when the registry is empty or the callback is absent', () =>
     />,
   )
   expect(
-    screen.queryByRole('button', { name: 'Tiendas' }),
+    screen.queryByRole('button', { name: /tiendas/i }),
   ).not.toBeInTheDocument()
 })
 
-test('renames a store through the Tiendas sub-state', () => {
+test('renames a store inline (save on blur) in the stores sub-sheet', () => {
   const onRenameStore = vi.fn()
   render(
     <ListActionSheet
@@ -180,15 +158,15 @@ test('renames a store through the Tiendas sub-state', () => {
       onRenameStore={onRenameStore}
     />,
   )
-  fireEvent.click(screen.getByRole('button', { name: 'Tiendas' }))
+  fireEvent.click(screen.getByRole('button', { name: /tiendas/i }))
   fireEvent.click(screen.getByRole('button', { name: /renombrar ahorra más/i }))
   const input = screen.getByRole('textbox', { name: /nombre de ahorra más/i })
   fireEvent.change(input, { target: { value: 'Ahorramas' } })
-  fireEvent.click(screen.getByRole('button', { name: /guardar/i }))
+  fireEvent.blur(input)
   expect(onRenameStore).toHaveBeenCalledWith('ahorramas', 'Ahorramas')
 })
 
-test('Volver returns from Tiendas to the actions menu', () => {
+test('dismissing a sub-sheet goes back to the menu, not closing', () => {
   render(
     <ListActionSheet
       {...baseProps}
@@ -196,7 +174,14 @@ test('Volver returns from Tiendas to the actions menu', () => {
       onRenameStore={vi.fn()}
     />,
   )
-  fireEvent.click(screen.getByRole('button', { name: 'Tiendas' }))
-  fireEvent.click(screen.getByRole('button', { name: /volver/i }))
-  expect(screen.getByRole('button', { name: 'Tiendas' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /tiendas/i }))
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(nameField()).toBeInTheDocument()
+  expect(baseProps.onClose).not.toHaveBeenCalled()
+})
+
+test('ESC from the main menu closes the sheet', () => {
+  render(<ListActionSheet {...baseProps} />)
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(baseProps.onClose).toHaveBeenCalled()
 })

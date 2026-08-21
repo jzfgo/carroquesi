@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.0] — 2026-08-22
+
+### Added
+- **lists:** Add member names and cart count to ListRead (JAV-136) (#232)
+
+- **data:** The Purchase entity — schema, migration, backfill, ADR (JAV-123) (#233)
+
+- **trips:** Assign purchases to the open trip, stamped from the client timezone (JAV-124) (#234)
+
+- **trips:** Close-trip endpoint — subset claim + batch price confirm (JAV-126) (#241)
+
+- **purchases:** Purchase read endpoints — stack summaries, lines, archive (JAV-127) (#242)
+
+- **storage:** GCS receipt storage — ADR-015, signed-URL service, retention hook (JAV-131) (#244)
+
+- **auth:** Receipt-scanning consent — account preference, settings API, enforcement (JAV-132) (#246)
+
+- **receipt:** File endpoints — signed upload, per-purchase reads, PDF support (JAV-133) (#248)
+
+- **lists:** Per-user per-list board with rotation auto-assign (JAV-135) (#249)
+
+- **suggestions:** Cross-list lookup for the empty-search line (JAV-138) (#251)
+
+- **members:** Ownership transfer — hand off before leaving, targeted notices (JAV-137) (#252)
+
+- Staging environment wiring and develop-branch workflow (#308)
+
+- **redesign:** The 2026-08 redesign — lists, purchases, receipts, dark & a11y (JAV-112) (#312)
+
+- **stack:** The last ten trips stand expanded, batched into one read (JAV-187) (#322)
+
+- **lists:** Default-list switch dims when locked and explains itself (JAV-195) (#319)
+
+- **sheets:** Store choice is a dropdown, not chips (JAV-196) (#320)
+
+- **offline:** Anchor the connection band to the bottom edge (JAV-200) (#325)
+
+
+### Changed
+- Remove community price end-to-end (JAV-134) (#235)
+
+- Replace the six same-day rule copies with the trip-open rule (JAV-125) (#237)
+
+
+### Fixed
+- **deps:** Override js-yaml to patched 4.3.0 (#231)
+
+- **sheets:** Drag-anywhere dismissal, drop redundant cancel buttons (#314)
+
+- **sheet:** Dark scrim, scrim fade, and overshoot skirt (JAV-192, JAV-193, JAV-194) (#315)
+
+- **list:** Viewer z-order, input pill height and focus ring, folded trip padding (JAV-183, JAV-188, JAV-189) (#316)
+
+- **list:** The sheet stays at zero, and search defers to the stack's read (JAV-186, JAV-191) (#317)
+
+- **receipts:** Fold promos into their product, lock stray discounts, and let the review correct a line's amount (JAV-184, JAV-185) (#318)
+
+- **search:** The pill takes the header title slot, with entry motion (JAV-190) (#321)
+
+- **sheets:** Count the body scroll lock across overlapping sheets (JAV-199) (#324)
+
+- **list:** Priming card per the approved frame; no inherited centering from #root (JAV-197, JAV-198) (#326)
+
+
+---
 ## [0.22.0] — 2026-08-01
 
 ### Added

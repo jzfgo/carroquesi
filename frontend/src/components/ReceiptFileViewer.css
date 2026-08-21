@@ -1,0 +1,98 @@
+/* The stored paper, fullscreen (25b viewer / 12c lightbox). One dark ground
+   in both themes: the overlay is a projection room, not a surface. */
+
+.rfv {
+  position: fixed;
+  inset: 0;
+
+  /* Fullscreen means over everything below the offline band (150): the
+     viewer mounts in normal flow (no portal), so it must outrank the fixed
+     footer (100) and the sheet panel (101) from the root stacking context. */
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(0 0 0 / 82%);
+}
+
+.rfv__img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 6px;
+}
+
+.rfv__close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* PDF pages ride a horizontal snap track: one page per slot, so a swipe is
+   a page turn without any gesture code. */
+.rfv__track {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+
+.rfv__page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 100%;
+  height: 100%;
+  scroll-snap-align: center;
+}
+
+/* The canvas draws at device resolution; CSS fits it back into the slot.
+   White ground: a PDF page owns its paper even before the ink lands. */
+.rfv__canvas {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.rfv__count {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: rgb(0 0 0 / 45%);
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  color: #fff;
+}
+
+.rfv__error {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.rfv__loading {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  color: rgb(255 255 255 / 65%);
+}

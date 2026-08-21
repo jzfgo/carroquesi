@@ -13,6 +13,7 @@ const BASE_ITEM: ListItem = {
   stores: ['Mercadona', 'Carrefour'],
   purchased: false,
   purchased_at: null,
+  purchase_has_receipt: false,
   ean: null,
   price: null,
   price_per: null,
@@ -177,9 +178,9 @@ describe('StoreEditSheet', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
-  it('tapping overlay calls onClose', () => {
+  it('tapping the scrim calls onClose', () => {
     const onClose = vi.fn()
-    const { container } = render(
+    render(
       <StoreEditSheet
         item={BASE_ITEM}
         items={[]}
@@ -187,7 +188,7 @@ describe('StoreEditSheet', () => {
         onClose={onClose}
       />,
     )
-    fireEvent.click(container.querySelector('.store-edit-sheet__overlay')!)
+    fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
     expect(onClose).toHaveBeenCalled()
   })
 })

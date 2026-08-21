@@ -2,7 +2,7 @@ import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, status
-from sqlalchemy import and_, func, or_
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.db.models import (
@@ -20,6 +20,7 @@ from app.schemas.lists import BoardPrefUpdate, ListCreate, ListMemberBrief, List
 from app.services import receipt_storage
 from app.services.default_list import ensure_default, set_default
 from app.services.list_board import ensure_board, get_board, set_board
+from app.services.trips import in_cart_predicate, in_scope_predicate
 
 logger = logging.getLogger(__name__)
 
@@ -78,11 +79,8 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
     # items (purchase_id NULL) in item_count; a purchased item with no
     # matching trip row joins NULL, compares as NULL, and counts as closed.
     now = datetime.now(UTC).replace(tzinfo=None)
-    in_cart = and_(
-        ListItem.purchased_at.is_not(None),
-        func.coalesce(Purchase.closed_at, Purchase.tears_off_at) > now,
-    )
-    in_scope = or_(ListItem.purchased_at.is_(None), in_cart)
+    in_cart = in_cart_predicate(now)
+    in_scope = in_scope_predicate(now)
 
     count_stmt = (
         select(

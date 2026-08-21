@@ -21,6 +21,9 @@ class ReceiptScanRequest(BaseModel):
     # rejected with a 422.
     inference_source: str | None = None
     lines: list[ParsedLine]
+    # Targeted attach: match against the named settled purchase's own lines
+    # instead of the in-play pool. None is the ordinary scan-closes-a-trip flow.
+    purchase_id: str | None = None
 
 
 class MatchedLine(BaseModel):
@@ -78,14 +81,26 @@ class NewPurchasedItem(BaseModel):
 class ReceiptPriceBatch(BaseModel):
     scan_id: str | None = None
     receipt_date: str | None = None
+    # Store and paper total close the trip this apply settles its lines onto,
+    # the same way manual close carries them. Store is required by the review
+    # UI; total may be absent when the receipt's own total was unreadable.
+    store: str | None = None
+    receipt_total: float | None = None
     patches: list[PricePatch] = []
     new_items: list[NewPurchasedItem] = []
     mappings: list[NameMappingCreate] = []
+    # Targeted attach: file prices, new lines, and the paper onto this settled
+    # purchase instead of closing a trip. None is the ordinary flow.
+    purchase_id: str | None = None
 
 
 class ReceiptPriceApplyResult(BaseModel):
     items_updated: int
     items_created: int
+    # Patches that named an item this apply refused to touch — unknown,
+    # another list's, or already settled under a ticket. The client tells the
+    # user instead of silently dropping their lines.
+    items_skipped: int = 0
 
 
 class ReceiptUploadUrlRequest(BaseModel):

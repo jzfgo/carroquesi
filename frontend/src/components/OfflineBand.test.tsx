@@ -36,6 +36,9 @@ describe('OfflineBand', () => {
 
     // Green confirmation phase
     expect(screen.getByRole('status')).toHaveTextContent('De nuevo en línea')
+    expect(screen.getByRole('status')).toHaveClass(
+      'offline-banner--back-online',
+    )
 
     // Still present during the exit animation window
     act(() => vi.advanceTimersByTime(2000))

@@ -1,48 +1,37 @@
-.list-members-sheet {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: var(--paper-0);
-  border-top: 1px solid var(--border);
-  padding: 0 16px 28px;
+.list-members-sheet__header {
   display: flex;
-  flex-direction: column;
-  gap: 0;
-  z-index: 100;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 20px 12px;
 }
 
-.list-members-sheet__overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99;
-  background: transparent;
-  cursor: default;
+.list-members-sheet__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-20);
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--ink-0);
 }
 
-.list-members-sheet__handle {
-  width: 36px;
-  height: 4px;
-  background: var(--border);
-  border-radius: 2px;
-  margin: 10px auto 16px;
-  touch-action: none;
-}
-
-.list-members-sheet__section-title {
-  font-size: 0.7rem;
+.list-members-sheet__count {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  line-height: 1;
   color: var(--ink-2);
-  margin-bottom: 8px;
+  font-variant-numeric: tabular-nums;
 }
 
 .list-members-sheet__member-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 36px 1fr auto;
+  gap: 12px;
   align-items: center;
-  gap: 10px;
-  padding: 8px 0;
+  min-height: 56px;
+  box-sizing: border-box;
+  padding: 4px 20px;
+  border-top: 1px solid var(--rule);
 }
 
 .list-members-sheet__avatar {
@@ -67,41 +56,64 @@
 }
 
 .list-members-sheet__member-name {
-  flex: 1;
-  font-size: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--fs-15);
+  font-weight: 500;
+  line-height: 1.3;
   color: var(--ink-0);
 }
 
-.list-members-sheet__action-btn {
-  font-size: 0.75rem;
-  padding: 4px 10px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  color: var(--tomate-0);
-  background: color-mix(in srgb, var(--tomate-0) 10%, transparent);
+.list-members-sheet__owner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-12);
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--ink-2);
 }
 
-.list-members-sheet__divider {
-  height: 1px;
-  background: var(--border);
-  margin: 12px 0;
+/* The crown is an insignia, not decoration: the amber goes on the icon
+   only — --miel-0 is never a text colour — and the word stays in ink. */
+.list-members-sheet__owner-badge svg {
+  color: var(--miel-0);
+}
+
+.list-members-sheet__remove-btn {
+  background: none;
+  border: none;
+  padding: 8px 0;
+  cursor: pointer;
+  font-size: var(--fs-13);
+  font-weight: 500;
+  color: var(--tomate-0);
+}
+
+.list-members-sheet__invite {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px 0;
 }
 
 .list-members-sheet__invite-btn {
-  width: 100%;
-  background: var(--accent);
-  color: var(--accent-fg);
-  border: none;
-  border-radius: 14px;
-  padding: 14px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 9px;
+  min-height: 48px;
+  box-sizing: border-box;
+  width: 100%;
+  border: 1.5px solid var(--tinta-0);
+  border-radius: 10px;
+  background: none;
+  color: var(--tinta-0);
+  font-size: var(--fs-15);
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .list-members-sheet__invite-btn:disabled {
@@ -110,10 +122,17 @@
 }
 
 .list-members-sheet__invite-limit {
-  font-size: 0.8rem;
+  margin: 0;
+  font-size: var(--fs-13);
+  line-height: 1.45;
   color: var(--ink-2);
-  text-align: center;
-  margin-top: 6px;
+}
+
+.list-members-sheet__capacity {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
 }
 
 .list-members-sheet__fallback-input {
@@ -125,6 +144,99 @@
   color: var(--ink-0);
   background: var(--paper-0);
   box-sizing: border-box;
+}
+
+.list-members-sheet__leave {
+  margin-top: 8px;
+  border-top: 1px solid var(--rule);
+  padding: 10px 20px 0;
+}
+
+.list-members-sheet__leave-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--tomate-0);
+}
+
+.list-members-sheet__confirm,
+.list-members-sheet__transfer {
+  display: flex;
+  flex-direction: column;
+  padding: 0 20px;
+}
+
+.list-members-sheet__confirm-title {
+  margin: 0 0 16px;
+  font-family: var(--font-display);
+  font-size: var(--fs-20);
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--ink-0);
+}
+
+.list-members-sheet__confirm-btn {
+  min-height: 48px;
+  margin-bottom: 8px;
+  border: none;
+  border-radius: 10px;
+  background: var(--tomate-0);
+  color: var(--accent-fg);
+  font-size: var(--fs-15);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.list-members-sheet__cancel-btn {
+  min-height: 44px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: var(--fs-15);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.list-members-sheet__transfer-hint {
+  margin: 0 0 12px;
+  font-size: var(--fs-14);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.list-members-sheet__transfer-option {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 12px;
+  align-items: center;
+  min-height: 56px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--rule);
+  text-align: left;
+  cursor: pointer;
+  font-size: var(--fs-15);
+  font-weight: 500;
+  color: var(--ink-0);
+}
+
+.list-members-sheet__transfer-option:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.list-members-sheet__transfer .list-members-sheet__cancel-btn {
+  margin-top: 12px;
 }
 
 .list-members-sheet__spinner {
@@ -151,21 +263,6 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-}
-
-.list-members-sheet__owner-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: 6px;
-  padding: 1px 7px;
-  background: var(--tinta-bg);
-  border: 1px solid var(--tinta-border);
-  border-radius: 10px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--tinta-0);
-  vertical-align: middle;
 }
 
 .list-members-sheet__retry-btn {

@@ -45,3 +45,17 @@ export function formatRecency(days: number): string {
   if (days < 60) return `hace ${Math.round(days / 7)} semanas`
   return `hace ${Math.round(days / 30)} meses`
 }
+
+// The recency phrase for an inline suggestion's meta line (handoff 20b). It
+// reads as a caption of the row above it — «la última hace un mes» — so it
+// keeps the days granularity longer than a bare figure would but folds the
+// month into a word, the way the frame writes it («cada 3 semanas · la última
+// hace un mes»). The singular months bucket mirrors formatFrequency's «cada
+// mes» cutoff at 60 days; a caller uppercases it in CSS.
+export function formatLastPurchase(days: number): string {
+  if (days < 2) return 'la última hace un día'
+  if (days < 14) return `la última hace ${Math.round(days)} días`
+  if (days < 28) return `la última hace ${Math.round(days / 7)} semanas`
+  if (days < 60) return 'la última hace un mes'
+  return `la última hace ${Math.round(days / 30)} meses`
+}

@@ -168,6 +168,15 @@ jobs:
     if: needs.changes.outputs.frontend == 'true'
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    # The job runs inside the Playwright image — the same one the committed
+    # baselines are regenerated in — so there is no browser download and no
+    # apt run to hang (2026-08-19: the azure apt mirror crawled and wedged
+    # several runs, one to the full job cap). It also renders screenshots in
+    # the environment the baselines came from, instead of leaning on the
+    # pixel budget to absorb a runner-vs-container difference. The tag must
+    # match the installed @playwright/test; a step below refuses a mismatch.
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
     defaults:
       run:
         working-directory: frontend
@@ -188,10 +197,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright Browsers
-        run: pnpm exec playwright install --with-deps
+      - name: Image must match the installed Playwright
+        # A drifted pair fails loudly here, not as a browser-not-found error
+        # mid-suite (or worse, a subtly different render). The workflow file
+        # is the single place the tag is written; this greps it back out.
+        run: |
+          got="$(node -p "require('@playwright/test/package.json').version")"
+          if ! grep -q "mcr.microsoft.com/playwright:v${got}-noble" ../.github/workflows/ci.yml; then
+            echo "::error::@playwright/test is ${got} but this job's container image is a different version. Update the image tag in ci.yml."
+            exit 1
+          fi
 
       - name: Run Playwright tests
+        env:
+          # The job runs as root but Actions points $HOME at /github/home,
+          # owned by the image's pwuser — Firefox refuses to launch under a
+          # HOME the current user does not own. This is Playwright's own
+          # documented workaround for containerised Actions jobs.
+          HOME: /root
         run: pnpm exec playwright test
 
       - uses: actions/upload-artifact@v7

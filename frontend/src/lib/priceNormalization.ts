@@ -25,13 +25,21 @@ export interface NormalizationResult {
  * ensuring cross-store comparison on a consistent scale.
  */
 export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
-  const shouldNormalize = entries.some(
+  // A sin-precio row (bought, price unconfirmed) has no amount, so it is not a
+  // plottable point — the chart is about prices that exist. The per-store
+  // history list (frame 22b) renders those gaps from the raw response; here we
+  // work on the priced rows only. The predicate narrows amount to number, which
+  // keeps originalAmount non-null and the €/kg arithmetic below safe.
+  const priced = entries.filter(
+    (e): e is PriceEntry & { amount: number } => e.amount !== null,
+  )
+  const shouldNormalize = priced.some(
     (e) => e.price_per === 'KILOGRAM' || parseKgFactor(e.quantity) !== null,
   )
 
   if (!shouldNormalize) {
     return {
-      entries: entries.map((e) => ({
+      entries: priced.map((e) => ({
         displayAmount: e.amount,
         displayPricePer: e.price_per as 'KILOGRAM' | null,
         store: e.store,
@@ -47,7 +55,7 @@ export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
   let isNormalized = false
   let hasGaps = false
 
-  const normalized: ChartEntry[] = entries.map((e) => {
+  const normalized: ChartEntry[] = priced.map((e) => {
     let displayAmount: number | null
 
     if (e.price_per === 'KILOGRAM') {

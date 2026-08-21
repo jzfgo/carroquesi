@@ -1,15 +1,27 @@
 import type {
   BarcodeRead,
   DueSuggestion,
+  ElsewhereMatch,
+  ListItem,
   ListUpdatedAt,
   PriceEntry,
   PriceHistoryResponse,
+  PurchaseCloseBody,
+  PurchaseManualBody,
+  PurchasePage,
+  PurchaseRead,
+  PurchaseSearchResults,
+  ReceiptFileUrlResult,
   ReceiptPriceApplyResult,
   ReceiptPriceBatch,
   ReceiptScanRequest,
   ReceiptScanResult,
+  ReceiptScanSummary,
+  ReceiptUploadUrlRequest,
+  ReceiptUploadUrlResult,
   Suggestion,
 } from '../types'
+import type { BoardName } from './boards'
 import { reportRequestOutcome } from './connectivity'
 import { BACKEND_URL, DEV_USER_ID } from './environment'
 import { isNetworkError } from './networkError'
@@ -102,6 +114,16 @@ export function getMe(getToken: () => Promise<string>) {
   return apiFetch(getToken, '/users/me')
 }
 
+export function setReceiptConsent(
+  getToken: () => Promise<string>,
+  consent: 'granted' | 'declined',
+) {
+  return apiFetch(getToken, '/users/me/receipt-consent', {
+    method: 'PUT',
+    body: JSON.stringify({ consent }),
+  })
+}
+
 export function getLists(getToken: () => Promise<string>) {
   return apiFetch(getToken, '/lists')
 }
@@ -141,6 +163,18 @@ export function setDefaultList(
   listId: string,
 ) {
   return apiFetch(getToken, `/lists/${listId}/default`, { method: 'PUT' })
+}
+
+/** Set the caller's board for this list — per-user, never shared (JAV-135). */
+export function setBoardPref(
+  getToken: () => Promise<string>,
+  listId: string,
+  board: BoardName,
+) {
+  return apiFetch(getToken, `/lists/${listId}/prefs/board`, {
+    method: 'PUT',
+    body: JSON.stringify({ board }),
+  })
 }
 
 export function getListItems(getToken: () => Promise<string>, listId: string) {
@@ -280,6 +314,18 @@ export function removeMember(
   })
 }
 
+/** Hand the list to another current member (owner only); answers 204. */
+export function transferOwnership(
+  getToken: () => Promise<string>,
+  listId: string,
+  userId: string,
+) {
+  return apiFetch(getToken, `/lists/${listId}/owner`, {
+    method: 'PUT',
+    body: JSON.stringify({ user_id: userId }),
+  })
+}
+
 export function createOpenInvite(
   getToken: () => Promise<string>,
   listId: string,
@@ -322,6 +368,113 @@ export function getPriceHistory(
     getToken,
     `/lists/${listId}/items/${itemId}/prices?scope=${scope}`,
   ) as Promise<PriceHistoryResponse>
+}
+
+// --- Purchases (the stack, 18a) ---
+
+// One page of the list's trips, newest shop first (18a). `total` is the whole
+// count so the caller knows whether to ask for another page. `includeItems`
+// carries each trip's lines in the same answer — the stack's first page
+// renders expanded, and one batched read beats one request per card.
+export function getPurchases(
+  getToken: () => Promise<string>,
+  listId: string,
+  {
+    offset = 0,
+    limit = 20,
+    includeItems = false,
+  }: { offset?: number; limit?: number; includeItems?: boolean } = {},
+): Promise<PurchasePage> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/purchases?offset=${offset}&limit=${limit}${
+      includeItems ? '&include_items=true' : ''
+    }`,
+  ) as Promise<PurchasePage>
+}
+
+// Search the whole purchase history (21b). Returns every settled trip with a
+// line matching `q` — its summary and only the matching lines — newest first.
+// The query speaks the input-bar sigils, parsed server-side like the pending
+// search. The open cart is left out, matching the stack.
+export function searchPurchases(
+  getToken: () => Promise<string>,
+  listId: string,
+  q: string,
+): Promise<PurchaseSearchResults> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/purchases/search?q=${encodeURIComponent(q)}`,
+  ) as Promise<PurchaseSearchResults>
+}
+
+// The lines of one ticket, cart order (18a → the ticket's expanded view).
+export function getPurchaseItems(
+  getToken: () => Promise<string>,
+  listId: string,
+  purchaseId: string,
+): Promise<ListItem[]> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/purchases/${purchaseId}/items`,
+  ) as Promise<ListItem[]>
+}
+
+// Declare what a shop was (10b): claim cart lines onto a ticket. Body.store is
+// required; an absent purchase_id closes the open cart, a present one names a
+// torn-off trip.
+export function closePurchase(
+  getToken: () => Promise<string>,
+  listId: string,
+  body: PurchaseCloseBody,
+): Promise<PurchaseRead> {
+  return apiFetch(getToken, `/lists/${listId}/purchases/close`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }) as Promise<PurchaseRead>
+}
+
+// Write a shop down by hand (26a): a trip born closed, no lines. `date` is
+// required and back-dates the trip; the X-Client-Timezone header apiFetch
+// already sends is what files it under the right calendar day.
+export function manualPurchase(
+  getToken: () => Promise<string>,
+  listId: string,
+  body: PurchaseManualBody,
+): Promise<PurchaseRead> {
+  return apiFetch(getToken, `/lists/${listId}/purchases/manual`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }) as Promise<PurchaseRead>
+}
+
+// Re-buy a settled line (18a/22a): re-add the product to the pending list with
+// its last quantity and store. Refused for an open-cart line (that is undo).
+export function rebuyPurchaseItem(
+  getToken: () => Promise<string>,
+  listId: string,
+  purchaseId: string,
+  itemId: string,
+): Promise<ListItem> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/purchases/${purchaseId}/items/${itemId}/rebuy`,
+    { method: 'POST' },
+  ) as Promise<ListItem>
+}
+
+// Looks the name up across the user's OTHER lists (JAV-138). Feeds the
+// no-results search state (16c): the one line that turns a dead end into
+// "you already have this in <list>". Resolves to null when nothing matches.
+export function getElsewhereMatch(
+  getToken: () => Promise<string>,
+  listId: string,
+  name: string,
+): Promise<ElsewhereMatch | null> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/items/elsewhere?name=${encodeURIComponent(name)}`,
+  ) as Promise<ElsewhereMatch | null>
 }
 
 export function logPrice(
@@ -386,6 +539,40 @@ export function submitReceiptPrices(
     method: 'POST',
     body: JSON.stringify(batch),
   }) as Promise<ReceiptPriceApplyResult>
+}
+
+export function createReceiptUploadUrl(
+  getToken: () => Promise<string>,
+  listId: string,
+  scanId: string,
+  body: ReceiptUploadUrlRequest,
+): Promise<ReceiptUploadUrlResult> {
+  return apiFetch(getToken, `/lists/${listId}/receipts/${scanId}/upload-url`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }) as Promise<ReceiptUploadUrlResult>
+}
+
+export function getReceiptFileUrl(
+  getToken: () => Promise<string>,
+  listId: string,
+  scanId: string,
+): Promise<ReceiptFileUrlResult> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/receipts/${scanId}/file-url`,
+  ) as Promise<ReceiptFileUrlResult>
+}
+
+export function getReceiptScans(
+  getToken: () => Promise<string>,
+  listId: string,
+  purchaseId: string,
+): Promise<ReceiptScanSummary[]> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/purchases/${purchaseId}/receipt-scans`,
+  ) as Promise<ReceiptScanSummary[]>
 }
 
 /**

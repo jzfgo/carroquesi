@@ -1,32 +1,191 @@
+/* The scroll container is the board: the gutter around the sheets is the
+   only place the board's colour shows at full bleed. --board and --board-ink
+   resolve from the list screen's data-board mapping. */
 .item-list {
   flex: 1;
   overflow-y: auto;
-  background: var(--paper-1);
-  padding: 8px 0 200px;
+  background: var(--board);
+  padding: 14px 12px 200px;
 }
 
-.item-list--centered {
+/* Stack rhythm on the board: the live sheet sits a step further from what
+   has settled under it. */
+.item-list .paper--pending {
+  margin-bottom: 16px;
+}
+
+.item-list .paper--settled {
+  margin-bottom: 12px;
+}
+
+/* Loading / error content, centered inside the pending sheet. */
+.item-list__sheet-message {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  color: var(--text);
-  font-size: 15px;
   padding: 40px 20px;
+  color: var(--ink-1);
+  font-size: var(--fs-15);
 }
 
-.item-list__label {
+/* Blank list (16c): a genuinely empty list keeps its paper — the blank sheet
+   is the message. Caveat is the house voice (not the household's Patrick Hand
+   used for item names), one hint in the input bar's real format, and an arrow
+   pointing down at that bar. No mascot: rule 9 keeps it to where nothing is
+   behind, and here the board is. */
+.item-list__blank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 180px;
+  padding: 26px 20px 30px;
+}
+
+.item-list__blank-lead {
+  margin: 0;
+  font-family: var(--font-hand);
+  font-size: 27px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  color: var(--ink-1);
+}
+
+.item-list__blank-hint {
+  margin: 0;
+  max-width: 24ch;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--ink-1);
+}
+
+.item-list__blank-arrow {
+  margin-top: 2px;
+  color: var(--ink-3);
+}
+
+/* No-results search (16c): a flat surface that COVERS the sheet instead of
+   drawing on paper — empty paper reads as an empty list, and there is none to
+   show mid-search. Centered on the way out: adding what was searched, and (if
+   it lives in another list) where to find it. */
+.item-list__search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-sizing: border-box;
+  min-height: 260px;
+  padding: 16px;
+  background: var(--paper-0);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  text-align: center;
+}
+
+.item-list__search-none {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-1);
+}
+
+.item-list__search-none b {
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+.item-list__search-add {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--hit-min);
+  padding: 0 14px;
+  border: 1.5px solid var(--accent);
+  border-radius: var(--r-md);
+  background: none;
+  font-family: var(--font-sans);
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text);
-  padding: 12px 20px 6px;
+  line-height: 1;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.item-list__search-add:active {
+  transform: scale(0.98);
+}
+
+.item-list__search-elsewhere {
   margin: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-1);
+}
+
+.item-list__search-elsewhere b {
+  font-weight: 600;
+  color: var(--ink-0);
+}
+
+/* At zero the title's dashed underline folds into the perforation right
+   below it — one cut, not two rules with nothing between them. */
+.item-list .paper__title--cut {
+  border-bottom: none;
+  padding-bottom: 6px;
+}
+
+/* The inline "Sueles comprar" block (20b): the tail of the pending sheet,
+   fenced off from the list above by a dashed rule and titled in the same hand
+   that wrote the list — muted, because none of it is written yet. The rule and
+   label are inset to the 20px gutter; the SuggestionRows below keep their own
+   gutter, so the label sits above the row names without indenting the rows.
+   The label steps a touch above the row names (store-header size) but drops to
+   --ink-2. */
+.item-list__suggestions-label {
+  margin: 10px 20px 2px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--rule-dashed);
+  font-family: var(--font-written);
+  font-size: calc(19px * var(--written-scale));
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--ink-2);
+}
+
+/* Store group header on the pending sheet: the target shop, jotted in the
+   household's hand and underlined by the same pen — a solid stroke hugging
+   the label with a hair of overhang, per the handoff crop. Text-width, so
+   the header shrinks to fit; margins keep the text on the sheet's 20px
+   gutter while the padding lends the stroke its overhang. One ink for word
+   and stroke — the pen doesn't change between them. */
+.item-list__store-label {
+  width: fit-content;
+  margin: 10px 17px 2px;
+  padding: 0 3px 3px;
+  border-bottom: 1.5px solid var(--ink-1);
+  font-family: var(--font-written);
+  font-size: calc(19px * var(--written-scale));
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--ink-1);
 }
 
 .item-list__label-text {
@@ -38,32 +197,41 @@
 
 .item-list__label-cost {
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--fs-12);
   font-weight: 700;
   letter-spacing: 0;
   text-transform: none;
   flex-shrink: 0;
-  margin-left: 8px;
 }
 
-.item-list__label--toggle {
+/* Board chrome: the purchased toggle is written on the board itself — no
+   surface, board ink, a dashed hairline for a rule. */
+.item-list__purchased-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  min-height: 46px;
+  margin: 0;
+  padding: 0 6px;
   background: none;
   border: none;
-  cursor: pointer;
+  border-top: 1px dashed color-mix(in srgb, var(--board-ink) 30%, transparent);
   font-family: inherit;
-  padding-right: 16px;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--board-ink);
+  cursor: pointer;
 }
 
 .item-list__chevron {
   display: inline-block;
   width: 8px;
   height: 8px;
-  border-right: 2px solid var(--text);
-  border-bottom: 2px solid var(--text);
+  border-right: 2px solid var(--board-ink);
+  border-bottom: 2px solid var(--board-ink);
   transform: rotate(45deg);
   transition: transform 0.2s;
   flex-shrink: 0;
@@ -96,11 +264,11 @@
 
 .item-list__retry {
   background: var(--accent);
-  color: white;
+  color: var(--accent-fg);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   padding: 8px 20px;
-  font-size: 14px;
+  font-size: var(--fs-14);
   font-weight: 500;
   cursor: pointer;
 }
@@ -109,9 +277,9 @@
   height: 64px;
   background: linear-gradient(
     90deg,
-    var(--border) 25%,
-    var(--bg) 50%,
-    var(--border) 75%
+    var(--rule) 25%,
+    var(--paper-0) 50%,
+    var(--rule) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
@@ -131,7 +299,7 @@
 @media (prefers-reduced-motion: reduce) {
   .item-list__skeleton {
     animation: none;
-    background: var(--border);
+    background: var(--rule);
   }
 }
 

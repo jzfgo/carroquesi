@@ -36,9 +36,34 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 62%;
+
+  /* Reserve fixed room for the side clusters (back link, search + menu) so the
+     centred title truncates before it reaches them. A percentage cannot: the
+     icons are fixed-width, so on a narrow phone a percentage still overlaps. */
+  max-width: calc(100% - 180px);
   margin: 0;
   letter-spacing: normal;
+}
+
+/* Search + menu ride together on the right; the title stays absolutely centred
+   between them and the back control. */
+.list-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.list-header__action {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--ink-0);
 }
 
 .list-header__menu {
@@ -53,6 +78,7 @@
   border: none;
   cursor: pointer;
   padding: 0;
+  color: var(--ink-0);
 }
 
 .list-header__emoji {

@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import path from 'node:path'
 import {
+  ALICE,
   awaitPrimingCard,
   expect,
   expectScreenshot,
@@ -52,13 +53,33 @@ const PARSED_RECEIPT = {
   ],
 }
 
-// Mirrors the sentinel <option value> in ReceiptScanSheet, which is module-private.
-// Selecting by value rather than by its "✚ Crear artículo nuevo" label keeps the
-// test off a string that carries a decorative glyph.
-const CREATE_OPTION = '__create__'
+// An unreadable ticket: the parse rescues store/date/total but reads no lines,
+// which is the 18c illegible threshold.
+const ILLEGIBLE_RECEIPT = {
+  store: 'Carrefour',
+  receipt_date: '2026-07-10',
+  receipt_total: 41.6,
+  lines: [],
+}
 
 function itemCard(page: Page, name: string) {
   return page.locator('.item-card').filter({ hasText: name })
+}
+
+// A record inside an expanded trip in the stack — where settled, closed-trip
+// purchases live, rather than the pending list.
+function stackRecord(page: Page, name: string) {
+  return page
+    .locator('.stack .trip-card__lines')
+    .locator('.item-card')
+    .filter({ hasText: name })
+}
+
+// The receipt sheet keeps the `rss` class across both sub-views (list ⇄
+// resolve), so this stays valid even while the resolve body is showing —
+// unlike a filter on a body-specific element.
+function reviewSheet(page: Page) {
+  return page.locator('.modal-sheet.rss')
 }
 
 function receiptRow(page: Page, receiptName: string) {
@@ -99,19 +120,11 @@ const THEMES = [
   { name: 'dark', colorScheme: 'dark' as const },
 ]
 
-/**
- * The sheet asks the user to confirm a receipt date that falls outside the
- * match window (see lib/receiptDate.ts). PARSED_RECEIPT carries a fixed date,
- * so without a fixed clock that prompt would appear on its own as real-world
- * time moves on — silently changing the committed screenshots, and quietly
- * putting every other test in this file in front of a banner it was never
- * written for. Pin "now" inside the window so each test starts on the
- * ordinary path; the one test that wants the prompt moves the clock itself.
- */
+// The clock is pinned so the created-item stack test (below) reads a purchase
+// dated the day before "today", which is what yields the re-buy control the
+// impulse assertion depends on.
 const FIXED_NOW = new Date('2026-07-12T10:00:00Z')
 
-// File-level, not per-test: the receipt fixture's date is what makes the
-// prompt appear, and every test in this file uses it.
 test.beforeEach(async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW)
 })
@@ -120,7 +133,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
   test.describe(`${themeName} mode`, () => {
     test.use({ colorScheme })
 
-    test('scanning a receipt reviews matched and unmatched lines, then applies prices', async ({
+    test('reviews the ticket as one list, solid matched and dashed unmatched, then applies prices', async ({
       page,
     }) => {
       await gotoList(page)
@@ -130,39 +143,71 @@ for (const { name: themeName, colorScheme } of THEMES) {
 
       await uploadReceipt(page)
 
-      const sheet = page
-        .locator('.sheet')
-        .filter({ has: page.locator('.rss-toolbar') })
+      const sheet = reviewSheet(page)
       await expect(sheet).toBeVisible()
       await expect(page.locator('.rss-row')).toHaveCount(3)
 
-      // Matched lines are pre-checked, the unmatched line is not
-      await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
-        '2 de 3 seleccionados',
-      )
-      const unmatchedRow = receiptRow(page, 'PAN INTEGRAL')
-      await expect(unmatchedRow.locator('.rss-item')).toHaveClass(/unlinked/)
-      await expect(unmatchedRow.locator('.rss-item')).toHaveText('sin vincular')
-      await expect(unmatchedRow.locator('.rss-check')).not.toBeChecked()
-
+      // Matched lines are confirmed — solid ink, checked by default.
       const lecheRow = receiptRow(page, 'LECHE HACENDADO')
-      await expect(lecheRow.locator('.rss-item')).toHaveText(ITEM_LECHE.name)
-      await expect(lecheRow.locator('.rss-check')).toBeChecked()
+      await expect(lecheRow.locator('.rss-annot--solid')).toContainText(
+        ITEM_LECHE.name,
+      )
+      await expect(lecheRow.locator('.rss-row__check')).toBeChecked()
+
+      // The unmatched line is the dashed "Asignar producto" CTA — still checked,
+      // which is what keeps the save button disabled until it is named.
+      const panRow = receiptRow(page, 'PAN INTEGRAL')
+      await expect(panRow.locator('.rss-annot--dashed')).toHaveText(
+        'Asignar producto',
+      )
+      await expect(panRow.locator('.rss-row__check')).toBeChecked()
+
+      // 0,75 + 2,60 + 1,00 = 4,35 = the paper total → the cuadre is green.
+      await expect(sheet.getByText('Total', { exact: true })).toBeVisible()
+      const save = sheet.getByRole('button', { name: /Guardar compra/ })
+      await expect(save).toBeDisabled()
 
       await expectScreenshot(page, `receipt-scan-sheet-${themeName}.png`)
 
-      await sheet.getByRole('button', { name: 'Guardar precios' }).click()
+      // Drop the unnamed line and the two matched prices apply.
+      await panRow.locator('.rss-row__check').click()
+      await expect(save).toBeEnabled()
+      await save.click()
 
       await expect(sheet).toBeHidden()
       await expect(page.getByRole('alert')).toContainText(
         '2 precios actualizados',
       )
     })
+
+    test('an unreadable ticket offers the 18c partial save', async ({
+      page,
+    }) => {
+      await gotoList(page)
+      await mockGeminiReceiptParse(page, ILLEGIBLE_RECEIPT)
+
+      await uploadReceipt(page)
+
+      // A zero-line parse routes to the illegible sheet, not the review sheet.
+      const sheet = page.locator('.modal-sheet.rill')
+      await expect(sheet).toBeVisible()
+      await expect(reviewSheet(page)).toBeHidden()
+      await expect(sheet.locator('.rill-head__title')).toHaveText(
+        'No se lee el ticket',
+      )
+      // The rescued store and total are seeded and editable.
+      await expect(
+        sheet.getByRole('button', { name: /Carrefour/ }),
+      ).toBeVisible()
+      await expect(sheet.getByRole('button', { name: /41,60/ })).toBeVisible()
+
+      await expectScreenshot(page, `receipt-illegible-${themeName}.png`)
+    })
   })
 }
 
-// Neither test below asserts anything theme-dependent (no expectScreenshot
-// call), so they run once instead of once per THEMES entry.
+// None of the tests below assert anything theme-dependent (no expectScreenshot),
+// so they run once rather than once per THEMES entry.
 test.describe('functional', () => {
   test('deselecting a matched line excludes it from the applied price patch', async ({
     page,
@@ -173,25 +218,23 @@ test.describe('functional', () => {
     await mockGeminiReceiptParse(page, PARSED_RECEIPT)
 
     await uploadReceipt(page)
-    const sheet = page
-      .locator('.sheet')
-      .filter({ has: page.locator('.rss-toolbar') })
+    const sheet = reviewSheet(page)
     await expect(sheet).toBeVisible()
 
-    const lecheRow = receiptRow(page, 'LECHE HACENDADO')
-    await lecheRow.locator('.rss-check').click()
+    // Uncheck the matched leche line, and the unmatched pan line so the unnamed
+    // line stops blocking save. Only cafe is left to apply.
+    await receiptRow(page, 'LECHE HACENDADO').locator('.rss-row__check').click()
+    await receiptRow(page, 'PAN INTEGRAL').locator('.rss-row__check').click()
 
-    await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
-      '1 de 3 seleccionados',
-    )
-    await expect(sheet.locator('.confirm-count')).toHaveText('1 elemento')
+    const save = sheet.getByRole('button', { name: /Guardar compra/ })
+    await expect(save).toBeEnabled()
 
     const responsePromise = page.waitForResponse(
       (resp) =>
         resp.url().includes(`/lists/${LIST_ID}/receipt-prices`) &&
         resp.status() === 200,
     )
-    await sheet.getByRole('button', { name: 'Guardar precios' }).click()
+    await save.click()
     const response = await responsePromise
     await expect(sheet).toBeHidden()
 
@@ -202,10 +245,8 @@ test.describe('functional', () => {
     expect(body.patches[0].item_id).toBe(ITEM_CAFE.id)
   })
 
-  // The impulse-buy path: a receipt line that matches nothing on the list
-  // becomes a new item that is already purchased. Asserts the persisted card
-  // rather than the toast — a toast-only check would still pass if the
-  // new_items payload never reached the database.
+  // The impulse-buy path: a receipt line that matches nothing becomes a new
+  // item that is already purchased. Resolution now happens in the 13b sub-view.
   test('an unmatched line can be created as an already-purchased item', async ({
     page,
   }) => {
@@ -215,31 +256,29 @@ test.describe('functional', () => {
     await mockGeminiReceiptParse(page, PARSED_RECEIPT)
 
     await uploadReceipt(page)
-    const sheet = page
-      .locator('.sheet')
-      .filter({ has: page.locator('.rss-toolbar') })
+    const sheet = reviewSheet(page)
     await expect(sheet).toBeVisible()
 
-    // Switching the unmatched line to "create" also selects it, so the row
-    // needs no separate checkbox tick.
-    const panRow = receiptRow(page, 'PAN INTEGRAL')
-    // The per-row form is collapsed until the summary is tapped.
-    await panRow.locator('.rss-summary').click()
-    await expect(panRow).toHaveClass(/expanded/)
-    await panRow.locator('.rss-link-select').selectOption(CREATE_OPTION)
-    await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
-      '3 de 3 seleccionados',
-    )
+    // Tap the unmatched row → the resolve sub-view (same sheet). Name it via the
+    // smart create-bar; the brand rides in on the sigil grammar.
+    await receiptRow(page, 'PAN INTEGRAL').locator('.rss-row__open').click()
+    await expect(sheet.getByText('Línea del ticket')).toBeVisible()
+    await sheet
+      .getByPlaceholder(/Nombre del producto/)
+      .fill('Pan integral #Bimbo')
+    await sheet.getByRole('button', { name: 'Asignar' }).click()
 
-    // The brand rides in on the sigil grammar rather than a separate field.
-    await panRow.locator('.rss-create-input').fill('Pan integral #Bimbo')
+    // Back on the list, the line is now solid with its assigned name.
+    await expect(
+      receiptRow(page, 'PAN INTEGRAL').locator('.rss-annot--solid'),
+    ).toContainText('Pan integral')
 
     const responsePromise = page.waitForResponse(
       (resp) =>
         resp.url().includes(`/lists/${LIST_ID}/receipt-prices`) &&
         resp.status() === 200,
     )
-    await sheet.getByRole('button', { name: 'Guardar precios' }).click()
+    await sheet.getByRole('button', { name: /Guardar compra/ }).click()
     const response = await responsePromise
     await expect(sheet).toBeHidden()
 
@@ -253,122 +292,355 @@ test.describe('functional', () => {
       price: 1.0,
     })
 
-    // The round trip that matters: it comes back from the API already
-    // purchased, carrying the sigil brand and the receipt's price.
-    const created = itemCard(page, 'Pan integral')
+    // The created record is a settled purchase on a closed trip, so it lands in
+    // the trip stack, not the pending list — and the stack is a separate read
+    // that a receipt apply does not refresh in place. Surface that trip and
+    // reload, then the record reads back exactly as the API returns it.
+    await page.route(/\/purchases(\?|$)/, (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          purchases: [
+            {
+              id: 'trip-receipt-0710',
+              list_id: LIST_ID,
+              opened_at: '2026-07-10T00:00:00',
+              tears_off_at: '2026-07-11T00:00:00',
+              closed_at: '2026-07-11T00:00:00',
+              store: 'Mercadona',
+              total: 1.0,
+              line_count: 1,
+              has_receipt: true,
+              items_total: 1.0,
+            },
+          ],
+          total: 1,
+        }),
+      }),
+    )
+    await page.route(/\/purchases\/[^/]+\/items(\?|$)/, (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: 'created-pan-integral',
+            list_id: LIST_ID,
+            name: 'Pan integral',
+            quantity: null,
+            purchased_quantity: '1',
+            brand: 'Bimbo',
+            stores: ['Mercadona'],
+            purchased: true,
+            purchased_at: '2026-07-10T00:00:00',
+            purchase_id: 'trip-receipt-0710',
+            purchase_ends_at: '2026-07-11T00:00:00',
+            ean: null,
+            price: 1.0,
+            price_per: null,
+            price_store: 'Mercadona',
+            added_by: 'seed-user-alice',
+            created_at: '2026-07-10T00:00:00',
+            updated_at: '2026-07-10T00:00:00',
+          },
+        ]),
+      }),
+    )
+    await page.goto(`/lists/${LIST_ID}`)
+
+    // It comes back already purchased, carrying the sigil brand and the
+    // receipt's price; being a day before the pinned clock, the check yields
+    // its slot to the re-buy control.
+    const created = stackRecord(page, 'Pan integral')
     await expect(created).toBeVisible()
     await expect(
-      created.getByRole('checkbox', { name: 'Marcar como no comprado' }),
+      created.getByRole('button', { name: 'Volver a comprar' }),
     ).toBeVisible()
-    await expect(created.getByText('Bimbo', { exact: true })).toBeVisible()
+    await expect(created.locator('.item-card__meta')).toContainText('Bimbo')
     // formatPrice() uses Intl with the *browser's* locale and the config pins
     // none, so the decimal separator differs between a local run and CI's
     // container. Match either rather than baking in one environment's output.
-    await expect(created.locator('.item-card__tag--price')).toContainText(
-      /1[.,]00/,
-    )
+    await expect(created.locator('.item-card__amount')).toContainText(/1[.,]00/)
   })
 
-  // The seam JAV-54 exists to close, end to end: a misread date empties the
-  // backend's match window, so the sheet asks about it, and correcting it
-  // re-runs the match. The API is mocked here (see installApiMocks), so this
-  // proves the *wiring* — that the correction reaches a second POST carrying
-  // the new date, and that its result replaces the first one on screen. That
-  // the window itself is +-3 days is the backend's own test.
-  test('correcting a flagged receipt date re-runs the match with the new date', async ({
+  // JAV-182: an unreadable ticket still stores its capture — a lineless scan
+  // is written before the 18c sheet opens, and the save hands that scan to
+  // the manual record so the purchase carries its paper from day one.
+  test('an illegible save hands the stored capture to the manual record', async ({
     page,
   }) => {
-    // The production scenario: the user shopped today and the AI misread the
-    // date as 2026-07-10, so the window landed two weeks off. Overrides the
-    // file-level clock, which deliberately sits inside the window.
-    const TODAY = '2026-07-25'
-    await page.clock.setFixedTime(new Date(`${TODAY}T10:00:00Z`))
-
-    const receiptDatesSent: (string | null)[] = []
-    // Registered after installApiMocks, so it wins: Playwright resolves routes
-    // most-recently-registered first.
-    await page.route(
-      (url) => url.pathname.endsWith('/receipt'),
-      async (route) => {
-        const body = route.request().postDataJSON() as {
-          receipt_date: string | null
-        }
-        receiptDatesSent.push(body.receipt_date)
-        // First scan: the window landed on the wrong week, so the matcher had
-        // no candidates to score. Second: the corrected date finds them.
-        const emptyWindow = receiptDatesSent.length === 1
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            ...SEED_RECEIPT_RESULT,
-            // The router echoes the submitted date rather than restating its
-            // own; the sheet re-reads it to decide whether to keep asking.
-            receipt_date: body.receipt_date,
-            scan_id: `scan-e2e-${receiptDatesSent.length}`,
-            matched: emptyWindow ? [] : SEED_RECEIPT_RESULT.matched,
-            unmatched: emptyWindow
-              ? [
-                  // Same lines, minus the item they would have matched: with
-                  // no candidates in the window there is nothing to link to.
-                  ...SEED_RECEIPT_RESULT.matched.map((m) => ({
-                    receipt_name: m.receipt_name,
-                    price_type: m.price_type,
-                    unit_price: m.unit_price,
-                    quantity: m.quantity,
-                    line_total: m.line_total,
-                  })),
-                  ...SEED_RECEIPT_RESULT.unmatched,
-                ]
-              : SEED_RECEIPT_RESULT.unmatched,
-          }),
-        })
-      },
-    )
-
     await gotoList(page)
-    await mockGeminiReceiptParse(page, PARSED_RECEIPT)
+    await mockGeminiReceiptParse(page, ILLEGIBLE_RECEIPT)
+
+    const scanPromise = page.waitForResponse(
+      (resp) =>
+        resp.url().endsWith(`/lists/${LIST_ID}/receipt`) &&
+        resp.request().method() === 'POST',
+    )
     await uploadReceipt(page)
 
-    const sheet = page
-      .locator('.sheet')
-      .filter({ has: page.locator('.rss-toolbar') })
+    const sheet = page.locator('.modal-sheet.rill')
     await expect(sheet).toBeVisible()
-    await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
-      '0 de 3 seleccionados',
+    // The capture found a home before the sheet opened, and the sheet says so.
+    await expect(sheet.locator('.rill-head__sub')).toHaveText(
+      'Se distinguen la tienda y el total; la foto se guarda con la compra',
     )
 
-    // The prompt is a question, not an error — it offers the correction rather
-    // than performing one.
-    const prompt = sheet.locator('.rss-date-check')
-    await expect(prompt).toBeVisible()
-    await prompt.getByRole('button', { name: 'Corregir fecha' }).click()
+    const scanResponse = await scanPromise
+    const scanBody = scanResponse.request().postDataJSON() as {
+      lines: unknown[]
+    }
+    expect(scanBody.lines).toEqual([])
+    const { scan_id } = (await scanResponse.json()) as { scan_id: string }
 
-    await sheet.locator('#rss-date-input').fill(TODAY)
-    await sheet.getByRole('button', { name: 'Volver a buscar' }).click()
-
-    // The corrected day reaches the backend, and no second Gemini call is made
-    // to get there — the parsed receipt is reused verbatim apart from the date.
-    await expect(async () => {
-      expect(receiptDatesSent).toHaveLength(2)
-    }).toPass()
-    // The literal, not `toContain(TODAY)`: what leaves the browser is an
-    // instant, not a calendar day. `withDatePart` rebuilds the corrected day
-    // from local components, so TODAY at Madrid midnight is 22:00 on the day
-    // before in UTC. A substring check on TODAY can therefore only pass where
-    // local midnight *is* UTC midnight, which is CI and nowhere else — it
-    // asserts something a correct value cannot satisfy for any real user.
-    // The config pins the zone and this test pins the day, which together make
-    // this exactly one value — so spell it out rather than recompute it. Do not
-    // derive it here either: the expectation would be built in Node, whose
-    // timezone Playwright does not pin, so it would drift from the browser's.
-    expect(receiptDatesSent[1]).toBe('2026-07-24T22:00:00.000Z')
-
-    // The re-match replaces what is on screen, prompt included.
-    await expect(sheet.locator('.rss-toolbar-count')).toHaveText(
-      '2 de 3 seleccionados',
+    const savePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/purchases/manual') && resp.status() === 200,
     )
-    await expect(sheet.locator('.rss-date-check')).toHaveCount(0)
+    await sheet
+      .getByRole('button', { name: 'Guardar solo la tienda y el total' })
+      .click()
+    const saveResponse = await savePromise
+    const saveBody = saveResponse.request().postDataJSON() as {
+      scan_id: string | null
+    }
+    expect(saveBody.scan_id).toBe(scan_id)
+    await expect(page.getByRole('alert')).toContainText('Compra guardada')
+  })
+
+  // The save guard: a store AND a date, deliberately stricter than the 13a
+  // handoff caption. Neither alone unlocks the button; both are entered
+  // through the header pills when the parse read none.
+  test('saving requires both a date and a store, entered via the header pills', async ({
+    page,
+  }) => {
+    await gotoList(page)
+    await mockGeminiReceiptParse(page, {
+      ...PARSED_RECEIPT,
+      store: null,
+      receipt_date: null,
+    })
+    // The match step echoes what the parse read: no store, no date.
+    await page.route(new RegExp(`/lists/${LIST_ID}/receipt$`), (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...SEED_RECEIPT_RESULT,
+          store: null,
+          receipt_date: null,
+        }),
+      }),
+    )
+
+    await uploadReceipt(page)
+    const sheet = reviewSheet(page)
+    await expect(sheet).toBeVisible()
+
+    // Both pills open empty, and the unnamed pan line is dropped so only the
+    // date+store guard holds the button.
+    await expect(
+      sheet.getByRole('button', { name: 'Poner tienda' }),
+    ).toBeVisible()
+    await expect(
+      sheet.getByRole('button', { name: 'Poner fecha' }),
+    ).toBeVisible()
+    await receiptRow(page, 'PAN INTEGRAL').locator('.rss-row__check').click()
+
+    const save = sheet.getByRole('button', { name: /Guardar compra/ })
+    await expect(save).toBeDisabled()
+
+    // A date alone is not enough.
+    await sheet.getByRole('button', { name: 'Poner fecha' }).click()
+    await sheet.locator('input[type="date"]').fill('2026-07-10')
+    await expect(save).toBeDisabled()
+
+    // The store completes the pair.
+    await sheet.getByRole('button', { name: 'Poner tienda' }).click()
+    await sheet.getByPlaceholder('Nombre de la tienda').fill('Mercadona')
+    await sheet.getByRole('button', { name: 'Listo' }).click()
+    await expect(save).toBeEnabled()
+
+    // A store alone is not enough either: clearing the date locks the save
+    // again, so each half of the pair carries the guard. The date pill now
+    // prints the date itself, so it is reached by position, not label.
+    await sheet.locator('button.rss-pill').nth(1).click()
+    await sheet.locator('input[type="date"]').fill('')
+    await expect(save).toBeDisabled()
+
+    // Re-entering the date restores the pair.
+    await sheet.getByRole('button', { name: 'Poner fecha' }).click()
+    await sheet.locator('input[type="date"]').fill('2026-07-10')
+    await expect(save).toBeEnabled()
+
+    // And the entered pair is what the apply carries.
+    const responsePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/lists/${LIST_ID}/receipt-prices`) &&
+        resp.status() === 200,
+    )
+    await save.click()
+    const response = await responsePromise
+    await expect(sheet).toBeHidden()
+
+    const body = response.request().postDataJSON() as {
+      receipt_date: string | null
+      store: string | null
+    }
+    expect(body.receipt_date).toBe('2026-07-10')
+    expect(body.store).toBe('Mercadona')
+  })
+
+  // The other resolve-sheet outcome: instead of creating a new product, the
+  // line is linked to an item still pending on the list, completing that
+  // record rather than adding one.
+  test('an unmatched line can be linked to a pending item in the resolve sub-view', async ({
+    page,
+  }) => {
+    await gotoList(page)
+    await mockGeminiReceiptParse(page, PARSED_RECEIPT)
+    // A match result that leaves Leche unlinked, so it shows up as a
+    // candidate in the resolve list.
+    await page.route(new RegExp(`/lists/${LIST_ID}/receipt$`), (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ...SEED_RECEIPT_RESULT,
+          matched: [SEED_RECEIPT_RESULT.matched[1]],
+        }),
+      }),
+    )
+
+    await uploadReceipt(page)
+    const sheet = reviewSheet(page)
+    await expect(sheet).toBeVisible()
+    await expect(page.locator('.rss-row')).toHaveCount(2)
+
+    // Open the unmatched row → the still-pending Leche is offered as a link
+    // target, named with its pending state and store.
+    await receiptRow(page, 'PAN INTEGRAL').locator('.rss-row__open').click()
+    await expect(sheet.getByText('Línea del ticket')).toBeVisible()
+    const radio = sheet.getByRole('radio', { name: /Leche Hacendado/ })
+    await expect(radio).toContainText('pendiente · Mercadona')
+    await radio.click()
+    await sheet.getByRole('button', { name: 'Asignar' }).click()
+
+    // Back on the list, the line is solid with the linked item's name.
+    await expect(
+      receiptRow(page, 'PAN INTEGRAL').locator('.rss-annot--solid'),
+    ).toContainText('Leche Hacendado')
+
+    const responsePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/lists/${LIST_ID}/receipt-prices`) &&
+        resp.status() === 200,
+    )
+    await sheet.getByRole('button', { name: /Guardar compra/ }).click()
+    const response = await responsePromise
+    await expect(sheet).toBeHidden()
+
+    // The linked line patches the existing item with the receipt's price;
+    // nothing is created.
+    const body = response.request().postDataJSON() as {
+      patches: { item_id: string; price: number }[]
+      new_items: unknown[]
+    }
+    expect(body.new_items).toHaveLength(0)
+    expect(body.patches).toHaveLength(2)
+    const lechePatch = body.patches.find((p) => p.item_id === ITEM_LECHE.id)
+    expect(lechePatch).toMatchObject({ price: 1.0 })
+  })
+
+  test('a first scan asks for consent, and granting flows straight into the scan', async ({
+    page,
+  }) => {
+    // An account that has never been asked: the shared mock's granted ALICE is
+    // overridden before the app boots.
+    const undecided = { ...ALICE, receipt_consent: null }
+    await page.route('**/users/me', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(undecided),
+      }),
+    )
+    await page.route('**/auth/sync', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(undecided),
+      }),
+    )
+    await gotoList(page)
+    await mockGeminiReceiptParse(page, PARSED_RECEIPT)
+
+    // The scan entry opens the disclosure, not the source picker.
+    await page.getByRole('button', { name: 'Abrir menú' }).click()
+    await page
+      .locator('.list-action-sheet')
+      .getByRole('button', { name: 'Escanear ticket' })
+      .click()
+    const consent = page.locator('.modal-sheet.receipt-consent-sheet')
+    await expect(consent).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Elegir de galería' }),
+    ).toHaveCount(0)
+
+    // Granting records the decision, and only then continues into the picker.
+    const putPromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/users/me/receipt-consent') &&
+        resp.request().method() === 'PUT',
+    )
+    await consent.getByRole('button', { name: 'Activar escaneo' }).click()
+    const put = await putPromise
+    expect(put.request().postDataJSON()).toEqual({ consent: 'granted' })
+
+    const fileChooserPromise = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Elegir de galería' }).click()
+    const fileChooser = await fileChooserPromise
+    await fileChooser.setFiles(RECEIPT_IMAGE)
+
+    // The scan proceeds with no second ask.
+    await expect(reviewSheet(page)).toBeVisible()
+  })
+
+  test('declining consent records the decision and never opens the scan', async ({
+    page,
+  }) => {
+    const undecided = { ...ALICE, receipt_consent: null }
+    await page.route('**/users/me', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(undecided),
+      }),
+    )
+    await page.route('**/auth/sync', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(undecided),
+      }),
+    )
+    await gotoList(page)
+
+    await page.getByRole('button', { name: 'Abrir menú' }).click()
+    await page
+      .locator('.list-action-sheet')
+      .getByRole('button', { name: 'Escanear ticket' })
+      .click()
+    const consent = page.locator('.modal-sheet.receipt-consent-sheet')
+    await expect(consent).toBeVisible()
+
+    const putPromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/users/me/receipt-consent') &&
+        resp.request().method() === 'PUT',
+    )
+    await consent.getByRole('button', { name: 'Ahora no' }).click()
+    const put = await putPromise
+    expect(put.request().postDataJSON()).toEqual({ consent: 'declined' })
+
+    // The sheet closes and the flow stops there: no source picker.
+    await expect(consent).toBeHidden()
+    await expect(
+      page.getByRole('button', { name: 'Elegir de galería' }),
+    ).toHaveCount(0)
   })
 
   test('a failed AI parse surfaces an error toast without opening the review sheet', async ({
@@ -384,6 +656,6 @@ test.describe('functional', () => {
     await expect(page.getByRole('alert')).toContainText(
       'No se pudo leer el ticket',
     )
-    await expect(page.locator('.rss-toolbar')).toHaveCount(0)
+    await expect(page.locator('.rss-listhead')).toHaveCount(0)
   })
 })

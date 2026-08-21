@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlmodel import Session, select
 
 from app.db.models import ListItem, ListMember, Purchase
@@ -104,38 +105,49 @@ def get_price_history(
     scope: Annotated[str, Query(pattern="^(this_list|my_lists|all)$")] = "this_list",
 ):
     item = _get_item_or_404(session, item_id, list_id)
-    items = _query_by_scope(session, item, scope, current_user.id)
+    rows = _query_by_scope(session, item, scope, current_user.id)
     entries = [
         PriceEntry(
             amount=i.price,
             price_per=i.price_per,
-            store=i.price_store,
+            # A sin-precio line has no price_store; its trip carries the store.
+            store=i.price_store if i.price_store is not None else purchase_store,
             purchased_at=i.purchased_at.isoformat() if i.purchased_at else None,
             quantity=i.quantity,
+            is_sin_precio=i.purchase_id is not None and i.price is None,
         )
-        for i in items
+        for i, purchase_store in rows
     ]
+    # Dated rows first, oldest to newest; dateless manual logs trail behind.
+    # purchased_at is ISO 8601, so string order is chronological order.
+    entries.sort(key=lambda e: (e.purchased_at is None, e.purchased_at or ""))
     return PriceHistoryResponse(entries=entries)
 
 
-def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list[ListItem]:
+def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list:
     base = _base_conditions(item)
+    # LEFT OUTER JOIN so priced manual logs (no trip) still come through, while
+    # purchase-linked rows can read their trip's store for attribution.
+    stmt = select(ListItem, Purchase.store).outerjoin(Purchase, ListItem.purchase_id == Purchase.id)
 
     if scope == "this_list":
-        return session.exec(select(ListItem).where(ListItem.list_id == item.list_id, *base)).all()
+        return session.exec(stmt.where(ListItem.list_id == item.list_id, *base)).all()
 
     if scope == "my_lists":
         my_list_ids = session.exec(
             select(ListMember.list_id).where(ListMember.user_id == user_id)
         ).all()
-        return session.exec(select(ListItem).where(ListItem.list_id.in_(my_list_ids), *base)).all()
+        return session.exec(stmt.where(ListItem.list_id.in_(my_list_ids), *base)).all()
 
     # scope == "all"
-    return session.exec(select(ListItem).where(*base)).all()
+    return session.exec(stmt.where(*base)).all()
 
 
 def _base_conditions(item: ListItem):
-    has_price = ListItem.price.isnot(None)
+    # Surface purchase-linked OR priced rows: keeps manually-logged prices,
+    # surfaces sin-precio purchase rows as gaps, and still excludes
+    # pending-never-bought rows (both price and purchase_id null).
+    surfaced = or_(ListItem.price.isnot(None), ListItem.purchase_id.isnot(None))
     if item.ean:
-        return (ListItem.ean == item.ean, has_price)
-    return (ListItem.name == item.name, ListItem.brand == item.brand, has_price)
+        return (ListItem.ean == item.ean, surfaced)
+    return (ListItem.name == item.name, ListItem.brand == item.brand, surfaced)

@@ -1,52 +1,36 @@
 .filter-bar {
-  overflow: hidden;
-  position: relative;
-  height: 38px;
   flex-shrink: 0;
 }
 
+/* The return from search: the chips ease back instead of snapping. Entry
+   only, and only on that mount — a plain screen load stays still. */
+.filter-bar--enter {
+  animation: filter-bar-in var(--dur-base) var(--ease-out);
+}
+
+@keyframes filter-bar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
 .filter-bar__chips {
-  position: absolute;
-  inset: 0;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 16px;
+  padding: 6px 12px 10px;
   overflow-x: auto;
   scrollbar-width: none;
-  transition:
-    transform 320ms ease,
-    opacity 320ms ease;
 }
 
 .filter-bar__chips::-webkit-scrollbar {
   display: none;
 }
 
-.filter-bar__search {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  transform: translateX(-100%);
-  opacity: 0;
-  transition:
-    transform 320ms ease,
-    opacity 320ms ease;
-}
-
-.filter-bar--search-active .filter-bar__chips {
-  transform: translateX(100%);
-  opacity: 0;
-}
-
-.filter-bar--search-active .filter-bar__search {
-  transform: translateX(0);
-  opacity: 1;
-}
-
+/* Paper base; the list screen prints these on the board instead — see the
+   .list-screen .filter-bar__chip override in ListScreen.css (the chosen 21b
+   finish). */
 .filter-bar__chip {
   flex-shrink: 0;
   padding: 4px 12px;
@@ -63,37 +47,4 @@
   background: var(--tinta-0);
   border-color: var(--tinta-0);
   color: var(--accent-fg);
-}
-
-.filter-bar__search-btn,
-.filter-bar__close-btn {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: var(--ink-2);
-  padding: 0;
-  font-family: inherit;
-}
-
-.filter-bar__input {
-  flex: 1;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px 10px;
-  font-size: var(--fs-14);
-  font-family: inherit;
-  background: var(--paper-1);
-  color: var(--ink-0);
-  outline: none;
-}
-
-.filter-bar__input:focus {
-  border-color: var(--accent);
 }

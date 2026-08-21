@@ -1,0 +1,71 @@
+/* Handoff 21b, placed by 5c: search occupies the title slot inside the 56px
+   header row — back stays as the way out, the action cluster gives way. Solid
+   paper-0 so nothing reads through it; the accent ring is the only thing that
+   marks it live. */
+.search-pill {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  margin-left: 10px;
+  padding: 0 8px 0 14px;
+  box-sizing: border-box;
+  background: var(--paper-0);
+
+  /* The 1.5px accent as a shadow ring, not a border: a fractional border
+     renders unevenly at hairline scale (the input pill's fix). */
+  box-shadow: 0 0 0 1.5px var(--accent);
+  border-radius: var(--r-pill);
+
+  /* Entry only — CSS-side, so the same-tap keyboard focus is never delayed.
+     The exit needs no twin: the returning chips carry that direction. */
+  animation: search-pill-in var(--dur-base) var(--ease-out);
+}
+
+@keyframes search-pill-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.search-pill__icon {
+  flex-shrink: 0;
+  color: var(--ink-1);
+}
+
+.search-pill__input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--ink-0);
+}
+
+/* --ink-2 (muted), not --ink-3: the same WCAG placeholder fix as the input pill. */
+.search-pill__input::placeholder {
+  color: var(--ink-2);
+}
+
+/* The clear/close mark (21b): a soft paper-1 disc, no accent — it is the way
+   out, not the emphasis. */
+.search-pill__clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  background: var(--paper-1);
+  border: none;
+  border-radius: 50%;
+  color: var(--ink-1);
+  cursor: pointer;
+  font-family: inherit;
+}

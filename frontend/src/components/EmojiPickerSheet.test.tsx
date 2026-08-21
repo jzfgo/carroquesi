@@ -37,12 +37,12 @@ describe('EmojiPickerSheet', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('calls onClose when overlay is clicked', () => {
+  it('calls onClose when the scrim is clicked', () => {
     const onClose = vi.fn()
-    const { container } = render(
+    render(
       <EmojiPickerSheet current={null} onSelect={vi.fn()} onClose={onClose} />,
     )
-    fireEvent.click(container.querySelector('.emoji-picker-sheet__overlay')!)
+    fireEvent.click(document.querySelector('.modal-sheet-scrim')!)
     expect(onClose).toHaveBeenCalledOnce()
   })
 

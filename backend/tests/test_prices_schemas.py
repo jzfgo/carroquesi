@@ -31,3 +31,14 @@ def test_price_history_response_structure():
 def test_price_history_empty():
     resp = PriceHistoryResponse(entries=[])
     assert resp.entries == []
+
+
+def test_price_entry_defaults_is_sin_precio_false():
+    entry = PriceEntry(amount=1.99, price_per=None, store="Mercadona")
+    assert entry.is_sin_precio is False
+
+
+def test_price_entry_allows_null_amount_for_sin_precio():
+    entry = PriceEntry(amount=None, price_per=None, store="Mercadona", is_sin_precio=True)
+    assert entry.amount is None
+    assert entry.is_sin_precio is True

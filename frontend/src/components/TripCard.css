@@ -1,0 +1,293 @@
+/* One trip in the stack (18a / 29a): a settled paper sheet whose header is a
+   single tap target. Folded shows «store · date · total» + a down chevron;
+   expanded drops the chevron, adds the dashed rule and its lines. A proto-ticket
+   carries the «Cerrar compra» seal where the total would print. */
+
+.trip-card {
+  box-sizing: border-box;
+  margin-bottom: 8px;
+}
+
+/* The latest / any open card sits a touch prouder of the one below it. The
+   bottom cushion keeps the last line off the cut edge; it lives on the open
+   state, not the paper, because a folded card has nothing under its header
+   and the header's symmetric padding must be the whole geometry. */
+.trip-card--open {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+}
+
+.trip-card__header {
+  position: relative;
+}
+
+/* The whole header toggles the card. No surface of its own — it is the paper's
+   own header — so background/border are cleared and the sheet shows through. */
+.trip-card__toggle {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 13px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+/* Expanded: rows follow, so the header takes the sheet's one full-width dashed
+   rule and its baseline geometry, exactly like .paper__title. */
+.trip-card--open .trip-card__toggle {
+  padding: 14px 20px 8px;
+  border-bottom: 1px dashed var(--rule-dashed);
+}
+
+/* 25b: beside the thumb the toggle joins the row and yields its left
+   padding to it. */
+.trip-card__header--thumbed .trip-card__toggle {
+  flex: 1;
+  min-width: 0;
+  padding-left: 0;
+}
+
+/* An EXPANDED proto reserves the right end for the absolutely-placed full seal,
+   so the serif label never runs under it. Folded, the seal is a compact badge
+   that flows in the meta row, so no reserve is needed — and the store·date gets
+   its full width back instead of truncating. */
+.trip-card--proto.trip-card--open .trip-card__toggle {
+  padding-right: 136px;
+}
+
+.trip-card__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  color: var(--ink-0);
+}
+
+.trip-card__meta {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+/* «€ 23,44» — the printed total, mono, tabular so columns of trips align. */
+.trip-card__total {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--ink-1);
+  white-space: nowrap;
+}
+
+/* «≈ € 12,40» — a proto's provisional total. Unconfirmed, so it reads a step
+   quieter than a printed one; the ≈ carries the meaning, the muted ink keeps it
+   from being mistaken for a settled figure. */
+.trip-card__total--provisional {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+/* Down, not right: the card opens in place, it does not lead anywhere. */
+.trip-card__chevron {
+  flex-shrink: 0;
+  color: var(--ink-3);
+}
+
+/* The folded proto's compact seal: a tinta stamp badge in the total's slot.
+   It says «this one carries a seal, not a figure» at a glance (JAV-159) without
+   the full pill's width, so the store·date beside it never truncates. The full
+   «Cerrar compra» seal returns when the card is expanded. */
+.trip-card__seal-mark {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--tinta-0);
+  border-radius: var(--r-pill);
+  color: var(--tinta-0);
+}
+
+/* The seal sits where the total prints, its own tap target (not nested in the
+   toggle). .talon__seal supplies the pill; this only places it. */
+.trip-card__seal {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%);
+}
+
+/* Search mode (21b): the card is force-expanded and its header is a plain,
+   untappable label — nothing to fold — so it takes the expanded geometry and
+   the sheet's dashed rule directly, without a toggle button. */
+.trip-card__header-static {
+  box-sizing: border-box;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 20px 8px;
+  border-bottom: 1px dashed var(--rule-dashed);
+}
+
+/* «N de M» — what you found of what the trip holds. In the total's slot: mono,
+   tabular, one step quieter than a printed total. */
+.trip-card__count {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* 25b: with the cuadrito the header becomes a flex row — thumb, then the
+   original tap target. The dashed rule moves up onto the row so it spans
+   under the thumbnail too. */
+.trip-card__header--thumbed {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 20px;
+}
+
+.trip-card__header--thumbed .trip-card__header-static {
+  flex: 1;
+  min-width: 0;
+  padding-left: 0;
+  border-bottom: none;
+}
+
+.trip-card--open .trip-card__header--thumbed {
+  border-bottom: 1px dashed var(--rule-dashed);
+}
+
+.trip-card--open .trip-card__header--thumbed .trip-card__toggle {
+  border-bottom: none;
+}
+
+/* A line-less record keeps its rule; it just moves up onto the row. */
+.trip-card__header--thumbed-static {
+  border-bottom: 1px dashed var(--rule-dashed);
+}
+
+/* Title with the ticket line beneath it. */
+.trip-card__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* «Ticket guardado» / «Sin ticket · escanéalo» — printed record voice, not
+   a control: the thumb and the chevron are the row's affordances. */
+.trip-card__ticket-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--ink-2);
+}
+
+/* The cuadrito (25b): one hole, two states, one footprint — the header must
+   not jump when a purchase gains its paper. */
+.trip-thumb {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 44px;
+  padding: 0;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Solid: the paper exists. The miniature is the real photo, top-aligned so
+   the ticket's own header always shows. */
+.trip-thumb--solid {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--paper-1);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink-1);
+}
+
+.trip-thumb__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+/* Dashed: no paper yet — the same «por confirmar» language as inherited
+   prices. The camera says the hole can be filled. */
+.trip-thumb--empty {
+  border: 1.5px dashed var(--border-strong);
+  background: none;
+  color: var(--ink-2);
+}
+
+/* The 34px box cannot give a 44px touch target on its own. */
+.trip-thumb::after {
+  content: '';
+  position: absolute;
+  inset: 0 -5px;
+}
+
+/* A PDF miniature carries its page count (18c). */
+.trip-thumb__pages {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--paper-0);
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink-1);
+}
+
+.trip-card__lines {
+  padding: 2px 0 4px;
+}
+
+/* A brief hold while a folded card's lines load — one row's worth of height so
+   the sheet does not jump open on an empty box. */
+.trip-card__loading {
+  height: 46px;
+}
