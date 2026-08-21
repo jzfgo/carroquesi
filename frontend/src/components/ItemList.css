@@ -172,8 +172,7 @@
    the label with a hair of overhang, per the handoff crop. Text-width, so
    the header shrinks to fit; margins keep the text on the sheet's 20px
    gutter while the padding lends the stroke its overhang. One ink for word
-   and stroke — the pen doesn't change between them.
-   text-align is explicit — the root still centers text for legacy screens. */
+   and stroke — the pen doesn't change between them. */
 .item-list__store-label {
   width: fit-content;
   margin: 10px 17px 2px;
