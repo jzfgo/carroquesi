@@ -4,7 +4,7 @@
   gap: 8px;
   padding: 9px 20px;
   background: var(--paper-1);
-  border-bottom: 1px solid var(--paper-2);
+  border-top: 1px solid var(--paper-2);
   color: var(--ink-1);
   font-size: 12.5px;
   font-weight: 500;
@@ -12,15 +12,17 @@
 }
 
 /* Overlays instead of sitting in flow: spotty connectivity would otherwise
-   shift the whole layout on every flip. */
+   shift the whole layout on every flip. Anchored to the bottom edge; over the
+   input panel it covers only the safe-area strip below the controls, and
+   offline cannot send anything anyway. */
 .offline-banner--overlay {
   position: fixed;
-  top: 0;
   right: 0;
+  bottom: 0;
   left: 0;
   z-index: 150;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 9px);
-  animation: band-drop-in 0.3s ease-out;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 9px);
+  animation: band-rise-in 0.3s ease-out;
   transition: color 0.3s ease;
 }
 
@@ -31,12 +33,12 @@
 }
 
 .offline-banner--leaving {
-  animation: band-lift-out 0.3s ease-in forwards;
+  animation: band-sink-out 0.3s ease-in forwards;
 }
 
-@keyframes band-drop-in {
+@keyframes band-rise-in {
   from {
-    transform: translateY(-100%);
+    transform: translateY(100%);
     opacity: 0;
   }
 
@@ -46,14 +48,14 @@
   }
 }
 
-@keyframes band-lift-out {
+@keyframes band-sink-out {
   from {
     transform: translateY(0);
     opacity: 1;
   }
 
   to {
-    transform: translateY(-100%);
+    transform: translateY(100%);
     opacity: 0;
   }
 }
