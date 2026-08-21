@@ -130,8 +130,7 @@ code {
   }
 }
 
-/* Same overlay trick as the offline band: fixed, never in flow. Lower
-   z-index so the offline state paints over the environment label. */
+/* Same overlay trick as the offline band: fixed, never in flow. */
 .environment-band {
   position: fixed;
   top: 0;
