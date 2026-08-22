@@ -16,9 +16,10 @@ editing anything; never "refresh" a doc from memory of what the app does.
 - `AGENTS.md` — the canonical file; `CLAUDE.md` and the other agent files are
   symlinks to it. Edit `AGENTS.md` directly, never a symlink target name.
 - `frontend/AGENTS.md`, `backend/AGENTS.md` — nested guidance.
-- `.claude/rules/*.md` — path-scoped deep detail (loads only when matching
-  files are touched). Content moved out of the root file lives here; keep the
-  root pointer and the rule file consistent with each other.
+- `.claude/rules/*.md`, when present — path-scoped deep detail (Claude Code
+  loads a rule file only when working with files matching its `paths`
+  frontmatter). For each one that exists, keep the root pointer and the rule
+  file consistent with each other.
 - `README.md` — human setup and overview.
 - **Not synced from code**: `DESIGN.md` is a summary derived from the approved
   handoff (`docs/design/handoff/`, canonical); `PRODUCT.md` is product intent;
