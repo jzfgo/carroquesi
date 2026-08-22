@@ -10,6 +10,8 @@ This file provides guidance to coding agents (such as Antigravity CLI, Claude Co
 
 Two documents hold the durable truth this file does not repeat. Read the relevant one before designing anything: [PRODUCT.md](PRODUCT.md) for who the product serves, what it promises, and the principles that settle a trade-off; [DESIGN.md](DESIGN.md) for the visual system.
 
+For the redesign's visuals, the **approved Claude Design handoff in [docs/design/handoff/](docs/design/handoff/) is canonical** — the frame ids cited throughout this file (13a, 21b, 30a, …) live in its `CarroQueSí - Handoff (aprobados).dc.html`. DESIGN.md is a summary derived from the handoff; when the two disagree, the handoff wins. See the directory's README for contents and provenance.
+
 ## Architecture
 
 - `frontend/`: React + TypeScript (Vite), deployed to Firebase Hosting
@@ -250,10 +252,3 @@ A task is complete only when **all** of the following are true:
 - [ ] Lint and relevant tests pass (`just ci` for full check)
 - [ ] Only intentional files changed (no platform-narrowed `pnpm-lock.yaml`)
 - [ ] `CHANGELOG.md` untouched — it is generated during the release flow, on a release branch cut from `develop`. The release PR is the only exception
-
-## Open Action Items (1:1 — 2026-08-13)
-
-**You:**
-- [ ] Commit the Claude Design handoff to the repo and note in this file that it is canonical for the redesign, with DESIGN.md a summary regenerated from it
-
-> When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
