@@ -15,7 +15,7 @@ description: >
 This skill prepares a CarroQueSí release PR. Run every step in order — skipping
 any step is likely to leave the release PR incomplete.
 
-Requires `git-cliff` on `PATH` (`brew install git-cliff`); step 2 fails without it.
+Requires `git-cliff` on `PATH` (install via your package manager, e.g. `pacman -S git-cliff` or `brew install git-cliff`); step 2 fails without it.
 
 ## 0. Determine the next version
 
@@ -34,9 +34,10 @@ grep '"version"' frontend/package.json | head -1
 
 ## 1. Create a worktree
 
-Edits on the protected branches (`main` and `develop`) are blocked. Always start by creating a worktree:
+Edits on the protected branches (`main` and `develop`) are blocked. Always start by creating a worktree — and refresh local `develop` first: `wt` branches from the *local* ref, and a stale one produces a release PR that is born conflicting, with CI that never runs.
 
 ```bash
+git fetch origin develop:develop
 wt switch --create chore/release-X.Y.Z --no-cd --format=json --yes
 ```
 
