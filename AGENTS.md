@@ -255,6 +255,5 @@ A task is complete only when **all** of the following are true:
 
 **You:**
 - [ ] Commit the Claude Design handoff to the repo and note in this file that it is canonical for the redesign, with DESIGN.md a summary regenerated from it
-- [ ] Triage the five Dependabot PRs open since 2026-08-03: merge anything security-relevant, defer the rest until after the redesign
 
 > When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
