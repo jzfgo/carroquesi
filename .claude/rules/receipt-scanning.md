@@ -2,10 +2,10 @@
 paths:
   - "frontend/src/**/*eceipt*"
   - "frontend/src/lib/pdfjs.ts"
-  - "frontend/src/hooks/useTripReceipt*"
   - "backend/app/**/*receipt*"
   - "backend/app/services/trips.py"
   - "backend/app/routers/purchases.py"
+  - "backend/app/schemas/purchases.py"
 ---
 
 # Receipt scanning
