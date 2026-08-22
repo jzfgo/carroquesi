@@ -1,0 +1,54 @@
+/* Shared host for every preview card. The asset name renders
+   OUTSIDE the card, so we just provide a clean, neutral surface
+   and remove default margins/scrollbars. */
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+.card {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100vh;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.card--split {
+  flex-direction: row;
+  align-items: stretch;
+}
+.card--split > * { flex: 1; min-width: 0; }
+
+/* Side-by-side light/dark demo wrappers */
+.demo {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+.demo + .demo { margin-left: 12px; }
+
+/* Hide scrollbars for tidy previews */
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
+
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.muted { color: var(--fg-subtle); }
+.mono { font-family: var(--font-mono); }
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--fg-subtle);
+}
