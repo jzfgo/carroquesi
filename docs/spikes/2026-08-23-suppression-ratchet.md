@@ -24,7 +24,7 @@ Run 2026-08-23 against develop at `29a4065` (code identical to `9ea160e`; the de
 | `as unknown as` | 2 | 9 | nothing — the one open hatch |
 | `eslint-disable` | 15 total | | every one names its rule |
 
-The 15 `eslint-disable` are dominated by `react-hooks/set-state-in-effect` (11) with the rest `react-refresh/only-export-components`; there is no blanket `eslint-disable` without a rule name anywhere. This is already ratchet-shaped discipline, enforced at the PR, not counted after the fact.
+The 15 `eslint-disable` are dominated by `react-hooks/set-state-in-effect` (11), with the rest 3 × `react-refresh/only-export-components` and 1 × `react-hooks/exhaustive-deps`; there is no blanket `eslint-disable` without a rule name anywhere. This is already ratchet-shaped discipline, enforced at the PR, not counted after the fact.
 
 ### Frontend — type-coverage: 99.89%, one root cause
 
