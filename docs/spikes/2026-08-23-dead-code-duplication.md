@@ -47,7 +47,7 @@ With that config, everything left is real:
 - **1 unused devDependency:** `@axe-core/playwright` — nothing imports it. Either the a11y test it was installed for gets written, or it goes.
 - **3 dead exports:** `IS_PROD` (`lib/environment.ts`), `purchasedDateLabel` (`lib/itemCost.ts` — its only remaining reference is a comment), `recordAmountLabel` (`lib/priceChart.tsx`).
 - **15 unused exported types** — mostly types used inside their own module but exported anyway (`UseStack`, `PriceStats`, `SubtitleSource`, …) plus three hand-written aliases in `types.ts` nothing imports (`UserMe`, `PriceType`, `PurchaseNewItem`). Fix is unexport or delete, a mechanical sweep.
-- Two dead Playwright fixture exports (`SEED_RECEIPT_SCANS`, `installApiMocks`).
+- Two unnecessary Playwright fixture exports (`SEED_RECEIPT_SCANS`, `installApiMocks`) — both used inside `fixtures.ts` itself, so the fix is to unexport, not delete.
 
 knip has no threshold knob and needs none: fix the findings once, commit the config, and it gates like the dependency contracts — binary, kept or broken.
 
