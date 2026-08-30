@@ -245,3 +245,11 @@ A task is complete only when **all** of the following are true:
 - [ ] Lint and relevant tests pass (`just ci` for full check)
 - [ ] Only intentional files changed (no platform-narrowed `pnpm-lock.yaml`)
 - [ ] `CHANGELOG.md` untouched — it is generated during the release flow, on a release branch cut from `develop`. The release PR is the only exception
+
+## Open Action Items (1:1 — 2026-08-30)
+
+**You:**
+- [ ] Brain-dump the redesign polish list into Linear (Redesign label) before starting Panopticon — it currently lives only in your head
+- [ ] Siri writeup once Panopticon v1 ships — the material already exists
+
+> When you notice context in a session that relates to one of these items, surface it proactively — don't wait for the next 1:1. Mark items complete or remove them when done.
