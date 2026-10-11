@@ -1630,6 +1630,7 @@ export interface components {
             scan_id: string;
             /** Store */
             store?: string | null;
+            target_purchase?: components["schemas"]["ReceiptScanTargetPurchase"] | null;
             /** Unmatched */
             unmatched: components["schemas"]["UnmatchedLine"][];
         };
@@ -1655,6 +1656,23 @@ export interface components {
             receipt_total: number | null;
             /** Store */
             store: string | null;
+        };
+        /**
+         * ReceiptScanTargetPurchase
+         * @description The settled purchase a past-dated scan was matched against.
+         */
+        ReceiptScanTargetPurchase: {
+            /** Id */
+            id: string;
+            /**
+             * Opened At
+             * Format: date-time
+             */
+            opened_at: string;
+            /** Store */
+            store?: string | null;
+            /** Total */
+            total?: number | null;
         };
         /** ReceiptUploadUrlRequest */
         ReceiptUploadUrlRequest: {

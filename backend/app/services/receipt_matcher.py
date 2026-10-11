@@ -40,18 +40,16 @@ def match_lines(
     matched: list[MatchedLine] = []
     unmatched: list[UnmatchedLine] = []
 
-    # purchased_items is ordered by relevance (most recent, or closest to the
-    # receipt date when known); keep only the first (most relevant) item per
-    # normalised name so duplicate purchases of the same item — even with
-    # minor casing/accent differences — don't resolve to the wrong row. The
-    # dict is keyed by that same normalised name: a mapping's item_name must
-    # find the item even when their casings differ.
-    item_by_name: dict[str, ListItem] = {}
-    for i in purchased_items:
-        norm_name = normalise(i.name)
-        if norm_name not in item_by_name:
-            item_by_name[norm_name] = i
-    purchased_items = list(item_by_name.values())
+    # purchased_items is ordered by relevance, so the first free candidate is
+    # the likeliest one. Each item takes at most one line: a product sold by
+    # the piece prints one line per package, and letting every copy claim the
+    # same row would keep only the last price and drop the rest of the spend.
+    # With N rows of that name the lines pair up with them in order; lines
+    # beyond that come back unmatched for the review to name.
+    assigned: set[str] = set()
+
+    def free(item: ListItem) -> bool:
+        return item.id not in assigned
 
     for line in lines:
         # A negative amount is not a product — it is a discount the parse
@@ -75,8 +73,13 @@ def match_lines(
 
         mapping = _lookup_mapping(store, norm, session)
         if mapping:
-            item = item_by_name.get(normalise(mapping.item_name))
+            mapped_name = normalise(mapping.item_name)
+            item = next(
+                (i for i in purchased_items if free(i) and normalise(i.name) == mapped_name),
+                None,
+            )
             if item:
+                assigned.add(item.id)
                 matched.append(
                     MatchedLine(
                         receipt_name=line.name,
@@ -92,13 +95,14 @@ def match_lines(
 
         best_score = 0
         best_item: ListItem | None = None
-        for item in purchased_items:
+        for item in filter(free, purchased_items):
             score = fuzz.token_sort_ratio(norm, normalise(item.name))
             if score > best_score:
                 best_score = score
                 best_item = item
 
         if best_score >= MATCH_THRESHOLD and best_item:
+            assigned.add(best_item.id)
             matched.append(
                 MatchedLine(
                     receipt_name=line.name,

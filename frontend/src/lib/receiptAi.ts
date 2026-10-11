@@ -38,7 +38,7 @@ const PROMPT = `Extract structured data from this Spanish grocery receipt.
 
 RULES:
 - store: the supermarket name (e.g. "Mercadona", "Carrefour"). Return null if not clearly visible. Do not infer from product names.
-- receipt_date: purchase date as YYYY-MM-DD. Return null if not clearly readable. A receipt is printed at the moment of purchase, so its date is never in the future — if the digits you read would produce a future date you have misread them, so return null rather than a guess.
+- receipt_date: purchase date as YYYY-MM-DD. Spanish receipts print the day first (DD/MM/YYYY, DD-MM-YYYY or DD.MM.YY), so "09-10-2026" is 9 October 2026. Return null if not clearly readable.
 - receipt_time: purchase time as HH:MM in 24-hour form, exactly as printed on the receipt. Return null if not clearly readable. Do not infer or guess.
 - receipt_total: final total charged. Return null if not clearly readable.
 - lines: purchased product lines only. Omit any line where name or price is not clearly legible.
@@ -189,6 +189,7 @@ async function fileToInlinePart(file: File) {
 export function toReceiptInstant(
   date: string | null,
   time: string | null,
+  now: Date = new Date(),
 ): string | null {
   if (!date) return null
   const [y, m, d] = date.split('-').map(Number)
@@ -221,6 +222,12 @@ export function toReceiptInstant(
   ) {
     return null
   }
+  // A receipt is printed at the moment of purchase, so a date after today is
+  // a misread. The check lives here and not in the prompt: the model does not
+  // know today's date, and asking it to judge "future" made it drop real
+  // dates it thought were ahead of its own clock.
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (new Date(y, m - 1, d) > today) return null
   return dt.toISOString()
 }
 
