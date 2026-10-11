@@ -69,7 +69,7 @@ function getModel(): GenerativeModel {
       },
     },
     inCloudParams: {
-      model: 'gemini-3.5-flash',
+      model: 'gemini-3.8-flash',
       generationConfig: {
         responseMimeType: 'application/json',
         responseJsonSchema: RECEIPT_SCHEMA,
