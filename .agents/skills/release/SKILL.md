@@ -34,10 +34,10 @@ grep '"version"' frontend/package.json | head -1
 
 ## 1. Create a worktree
 
-Edits on the protected branches (`main` and `develop`) are blocked. Always start by creating a worktree — and refresh local `develop` first: `wt` branches from the *local* ref, and a stale one produces a release PR that is born conflicting, with CI that never runs.
+Edits on the protected branches (`main` and `develop`) are blocked. Always start by creating a worktree — and refresh local `develop` first: `wt` branches from the *local* ref, and a stale one produces a release PR that is born conflicting, with CI that never runs. The `+` is needed because `develop` is force-reset onto `main` after every release, so the remote ref is usually not a fast-forward of the local one. The fetch refuses while `develop` is checked out in any worktree; move that worktree off it first.
 
 ```bash
-git fetch origin develop:develop
+git fetch origin +develop:develop
 wt switch --create chore/release-X.Y.Z --no-cd --format=json --yes
 ```
 
