@@ -153,6 +153,9 @@ test('the first page arrives with lines, so expanded cards skip the per-card fet
     limit: 12,
     includeItems: true,
   })
+  // Let the cards' effects run first, or a wrong fetch could start after
+  // this check and the test would still pass.
+  await act(async () => {})
   expect(getPurchaseItems).not.toHaveBeenCalled()
 })
 
