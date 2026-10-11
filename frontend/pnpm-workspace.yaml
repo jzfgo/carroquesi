@@ -18,5 +18,6 @@ overrides:
   'js-yaml@>=4.0.0 <4.3.0': ^4.3.0
   # @firebase/firestore pins grpc-js ~1.9 (unauthorized certs reported as
   # authorized). Only Firestore's Node build loads it, and the app never
-  # does, but the fixed 1.x line is API-compatible.
+  # does, but the fixed 1.x line is API-compatible. Drop once firebase ships
+  # a firestore that allows grpc-js 1.13.6+.
   '@grpc/grpc-js@<1.13.6': ^1.13.6
