@@ -179,9 +179,8 @@ def test_mapping_lookup_dedupes_case_and_accent_duplicates(session):
     # Re-adding an already-purchased item doesn't reuse the exact stored
     # casing (see items.py's case-insensitive-but-purchased-excluding dup
     # check), so two purchased rows can differ only in case/accents. A
-    # mapping learned against the stale casing ("leche") resolves through
-    # the normalised item index to the first-seen (most relevant) row, not
-    # to the duplicate that dedup dropped.
+    # mapping learned against the stale casing ("leche") resolves by
+    # normalised name to the first-seen (most relevant) row.
     mapping = ReceiptNameMapping(
         id="map-1",
         store="mercadona",
@@ -241,4 +240,47 @@ def test_negative_line_skips_mappings_too(session):
     items = [_item("item-1", "Bebida de coco")]
     matched, unmatched = match_lines([_unit("PROMOCION", -1.20)], "Mercadona", items, session)
     assert len(matched) == 0
+    assert len(unmatched) == 1
+
+
+def test_repeated_lines_claim_one_item_each(session):
+    # A product sold by the piece prints one line per package. One list row
+    # takes the first line; the rest come back unmatched so no price is lost.
+    items = [_item("item-1", "Filete pechuga certificada")]
+    lines = [
+        _unit("FILETE PECHUGA CERTIFICADA", 6.26),
+        _unit("FILETE PECHUGA CERTIFICADA", 5.72),
+        _unit("FILETE PECHUGA CERTIFICADA", 5.99),
+    ]
+    matched, unmatched = match_lines(lines, "Mercadona", items, session)
+    assert [m.item_id for m in matched] == ["item-1"]
+    assert matched[0].unit_price == pytest.approx(6.26)
+    assert [u.unit_price for u in unmatched] == pytest.approx([5.72, 5.99])
+
+
+def test_repeated_lines_pair_with_same_named_items_in_order(session):
+    items = [_item("item-a", "Filete pechuga"), _item("item-b", "Filete pechuga")]
+    lines = [_unit("FILETE PECHUGA", 6.26), _unit("FILETE PECHUGA", 5.72)]
+    matched, unmatched = match_lines(lines, "Mercadona", items, session)
+    assert [m.item_id for m in matched] == ["item-a", "item-b"]
+    assert unmatched == []
+
+
+def test_mapping_skips_an_item_already_claimed(session):
+    session.add(
+        ReceiptNameMapping(
+            id="map-1",
+            store="mercadona",
+            receipt_name="leche",
+            item_name="Leche",
+            confirmed_by="user-1",
+        )
+    )
+    session.commit()
+
+    items = [_item("item-1", "Leche")]
+    matched, unmatched = match_lines(
+        [_unit("LECHE", 1.10), _unit("LECHE", 1.10)], "Mercadona", items, session
+    )
+    assert [m.item_id for m in matched] == ["item-1"]
     assert len(unmatched) == 1

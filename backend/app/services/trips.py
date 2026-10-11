@@ -31,6 +31,27 @@ def tears_off_at_for(instant: datetime, tz: tzinfo) -> datetime:
     return next_midnight.astimezone(UTC).replace(tzinfo=None)
 
 
+def prune_if_empty(session: Session, trip_id: str | None) -> None:
+    """Delete an unreconciled trip once its last item has left it.
+
+    Left alone, an empty open trip swallows later taps, and once it tears off
+    it shows in the history as a purchase with no lines. A closed trip is a
+    written record and stays, empty or not. Every path that takes an item out
+    of a trip calls this after the move.
+    """
+    if trip_id is None:
+        return
+    trip = session.get(Purchase, trip_id)
+    if trip is None or trip.closed_at is not None:
+        return
+    session.flush()
+    still_used = session.exec(
+        select(ListItem.id).where(ListItem.purchase_id == trip_id).limit(1)
+    ).first()
+    if still_used is None:
+        session.delete(trip)
+
+
 def ends_at(trip: Purchase) -> datetime:
     """When the trip stopped accepting items — closed by hand, or torn off."""
     return trip.closed_at or trip.tears_off_at

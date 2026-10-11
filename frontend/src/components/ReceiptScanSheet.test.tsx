@@ -28,6 +28,7 @@ function makeResult(
     store: 'Mercadona',
     receipt_date: '2026-04-11',
     receipt_total: 9.45,
+    target_purchase: null,
     matched: [
       {
         receipt_name: 'BEBIDA ALMENDRAS 0%',

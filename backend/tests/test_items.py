@@ -622,3 +622,58 @@ def test_item_read_carries_the_trip_it_was_bought_on(client: TestClient, session
 
     listed = client.get(f"/lists/{lst['id']}/items").json()
     assert listed[0]["purchase_id"] == db_item.purchase_id
+
+
+def test_deleting_the_last_item_in_the_cart_deletes_the_open_trip(
+    client: TestClient, session: Session
+):
+    """Left behind, the empty trip would tear off into a history purchase
+    with no lines."""
+    from app.db.models import ListItem, Purchase
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    trip_id = session.get(ListItem, item["id"]).purchase_id
+
+    response = client.delete(f"/lists/{lst['id']}/items/{item['id']}")
+    assert response.status_code == 204
+
+    session.expire_all()
+    assert session.get(Purchase, trip_id) is None
+
+
+def test_deleting_an_item_keeps_an_open_trip_that_still_has_items(
+    client: TestClient, session: Session
+):
+    from app.db.models import ListItem, Purchase
+
+    lst = _create_list(client)
+    first = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    second = client.post(f"/lists/{lst['id']}/items", json={"name": "Milk"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{first['id']}", json={"purchased": True})
+    client.patch(f"/lists/{lst['id']}/items/{second['id']}", json={"purchased": True})
+    trip_id = session.get(ListItem, first["id"]).purchase_id
+
+    client.delete(f"/lists/{lst['id']}/items/{first['id']}")
+
+    session.expire_all()
+    assert session.get(Purchase, trip_id) is not None
+
+
+def test_deleting_the_last_item_never_deletes_a_closed_trip(client: TestClient, session: Session):
+    from app.db.models import ListItem, Purchase
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    trip = session.get(Purchase, session.get(ListItem, item["id"]).purchase_id)
+    trip.closed_at = datetime.now(UTC).replace(tzinfo=None)
+    session.add(trip)
+    session.commit()
+    trip_id = trip.id
+
+    client.delete(f"/lists/{lst['id']}/items/{item['id']}")
+
+    session.expire_all()
+    assert session.get(Purchase, trip_id) is not None
