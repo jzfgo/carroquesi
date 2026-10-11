@@ -94,7 +94,7 @@ updates:
     # example: it removes react-router-dom entirely.
     ignore:
       # @types/node describes the Node runtime, so its major must track .nvmrc
-      # (currently 24.14.1) rather than move on its own. A newer @types/node is
+      # (currently 24.x) rather than move on its own. A newer @types/node is
       # strictly *more* permissive: it declares APIs the installed runtime does
       # not have, so `pnpm typecheck` still passes and the mismatch surfaces at
       # runtime instead. CI going green on such a bump is expected and proves
