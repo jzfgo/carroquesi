@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.3] — 2026-10-11
+
+### Fixed
+- **deps:** Bump urllib3 to 2.8.0 for security advisories (#364)
+
+- **deps:** Patch 15 Dependabot advisories in the frontend lockfile (#366)
+
+
+---
 ## [0.23.2] — 2026-10-11
 
 ### Fixed

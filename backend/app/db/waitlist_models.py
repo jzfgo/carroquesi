@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
+from pydantic import NaiveDatetime
 from sqlmodel import Field, SQLModel
 
 
@@ -17,6 +18,6 @@ class WaitlistSignup(SQLModel, table=True):
 
     id: str = Field(default_factory=_uuid, primary_key=True)
     email: str = Field(unique=True, index=True)
-    created_at: datetime = Field(default_factory=_now)
-    allowed_at: datetime | None = Field(default=None, nullable=True)
+    created_at: NaiveDatetime = Field(default_factory=_now)
+    allowed_at: NaiveDatetime | None = Field(default=None, nullable=True)
     invite_token: str | None = Field(default=None, nullable=True)

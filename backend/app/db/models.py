@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
+from pydantic import NaiveDatetime
 from sqlalchemy import JSON, Boolean, Column, Index, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
@@ -11,6 +12,9 @@ def _uuid() -> str:
     return str(uuid.uuid4())
 
 
+# Timestamps are stored as naive UTC. Type every datetime column as
+# NaiveDatetime: SQLModel maps a bare `datetime` to timestamptz, which
+# rejects naive values.
 def _now() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
 
@@ -23,7 +27,7 @@ class User(SQLModel, table=True):
     display_name: str | None = None
     email: str = Field(unique=True, index=True)
     photo_url: str | None = None
-    created_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
     # Consent to AI processing of this user's receipts. NULL means the user
     # was never asked; "granted" and "declined" are explicit decisions.
     # receipt_consent_at records when the current decision was made — a
@@ -31,7 +35,7 @@ class User(SQLModel, table=True):
     # does not delete earlier scan artifacts: consent gates future
     # processing, not history.
     receipt_consent: str | None = None
-    receipt_consent_at: datetime | None = None
+    receipt_consent_at: NaiveDatetime | None = None
 
 
 class List(SQLModel, table=True):
@@ -41,8 +45,8 @@ class List(SQLModel, table=True):
     name: str
     emoji: str | None = None
     owner_id: str = Field(foreign_key="users.id")
-    created_at: datetime = Field(default_factory=_now)
-    updated_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
+    updated_at: NaiveDatetime = Field(default_factory=_now)
 
 
 class ListMember(SQLModel, table=True):
@@ -51,7 +55,7 @@ class ListMember(SQLModel, table=True):
     id: str = Field(default_factory=_uuid, primary_key=True)
     list_id: str = Field(foreign_key="lists.id")
     user_id: str = Field(foreign_key="users.id")
-    created_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
     # Per-user default list, used to resolve the Siri Shortcut's literal
     # list_id="default". At most one membership per user carries this flag;
     # the invariant is enforced in-app within each mutating transaction
@@ -62,7 +66,7 @@ class ListMember(SQLModel, table=True):
     # Watermark: when this member last actually looked at the list. Drives the
     # unseen count in push notifications. NULL means "never opened since joining";
     # resolved with COALESCE(last_seen_at, created_at). See ADR-010.
-    last_seen_at: datetime | None = Field(default=None)
+    last_seen_at: NaiveDatetime | None = Field(default=None)
 
 
 class ListItem(SQLModel, table=True):
@@ -77,11 +81,11 @@ class ListItem(SQLModel, table=True):
     stores: list[str] = Field(
         default_factory=list, sa_column=Column(JSON, server_default=text("'[]'"))
     )
-    purchased_at: datetime | None = Field(default=None)
+    purchased_at: NaiveDatetime | None = Field(default=None)
     purchased_by: str | None = Field(default=None, foreign_key="users.id")
     added_by: str = Field(foreign_key="users.id")
-    created_at: datetime = Field(default_factory=_now)
-    updated_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
+    updated_at: NaiveDatetime = Field(default_factory=_now)
     ean: str | None = Field(default=None)
     price: float | None = Field(default=None)
     price_per: str | None = Field(default=None)
@@ -125,17 +129,17 @@ class Purchase(SQLModel, table=True):
 
     id: str = Field(default_factory=_uuid, primary_key=True)
     list_id: str = Field(foreign_key="lists.id", index=True)
-    opened_at: datetime = Field(default_factory=_now)
+    opened_at: NaiveDatetime = Field(default_factory=_now)
     # The local midnight that ends the trip's day, in the purchaser's client
     # timezone (ADR-012) — computed by app.services.trips.tears_off_at_for.
     # Stamped at creation so the tear-off is an instant comparison everywhere
     # else, and so revisiting the policy later cannot re-file trips that have
     # already torn off. The one-time backfill stamped it in Europe/Madrid.
-    tears_off_at: datetime
+    tears_off_at: NaiveDatetime
     # Set only by an explicit reconciliation. NULL with tears_off_at in the
     # past means nobody wrote this shop down; the paper simply got torn.
     # Backfilled trips keep NULL for the same reason.
-    closed_at: datetime | None = Field(default=None)
+    closed_at: NaiveDatetime | None = Field(default=None)
     store: str | None = None
     # Confirmed from the receipt — never the sum of the lines. A trip whose
     # total was never confirmed keeps NULL.
@@ -155,8 +159,8 @@ class ListStore(SQLModel, table=True):
     list_id: str = Field(foreign_key="lists.id")
     store_key: str
     display_name: str
-    created_at: datetime = Field(default_factory=_now)
-    updated_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
+    updated_at: NaiveDatetime = Field(default_factory=_now)
 
 
 class ListInvite(SQLModel, table=True):
@@ -166,7 +170,7 @@ class ListInvite(SQLModel, table=True):
     list_id: str = Field(foreign_key="lists.id")
     invited_email: str | None = None
     invited_by: str = Field(foreign_key="users.id")
-    created_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
 
 
 class BarcodeCache(SQLModel, table=True):
@@ -177,7 +181,7 @@ class BarcodeCache(SQLModel, table=True):
     name: str
     brand: str | None = None
     stores: str | None = None  # nullable comma-separated, e.g. "Mercadona,Alcampo"
-    created_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
 
 
 class ReceiptScan(SQLModel, table=True):
@@ -187,7 +191,7 @@ class ReceiptScan(SQLModel, table=True):
     list_id: str = Field(foreign_key="lists.id")
     scanned_by: str = Field(foreign_key="users.id")
     store: str | None = None
-    receipt_at: datetime | None = None
+    receipt_at: NaiveDatetime | None = None
     receipt_total: float | None = None
     parsed_lines: list[dict] | None = Field(default=None, sa_column=Column(JSON))
     match_result: list[dict] | None = Field(default=None, sa_column=Column(JSON))
@@ -195,7 +199,7 @@ class ReceiptScan(SQLModel, table=True):
     # the SDK did not say, or the scan predates the column.
     inference_source: str | None = None
     items_updated: int = 0
-    created_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
     # The trip this scan reconciled, when it reconciled exactly one. A scan is
     # evidence and a purchase is the confirmed fact, so this link is nullable
     # both ways in time: a scan can predate any reconciliation or span
@@ -225,8 +229,8 @@ class ReceiptNameMapping(SQLModel, table=True):
     item_brand: str | None = None
     confirmed_by: str = Field(foreign_key="users.id")
     use_count: int = 1
-    created_at: datetime = Field(default_factory=_now)
-    updated_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
+    updated_at: NaiveDatetime = Field(default_factory=_now)
 
 
 class FeedbackSubmission(SQLModel, table=True):
@@ -238,7 +242,7 @@ class FeedbackSubmission(SQLModel, table=True):
     email: str | None = None
     source: str = Field(default="manual")
     user_agent: str | None = None
-    created_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
 
 
 class UserFeature(SQLModel, table=True):
@@ -250,8 +254,8 @@ class UserFeature(SQLModel, table=True):
     feature: str
     enabled: bool = True
     granted_by: str
-    created_at: datetime = Field(default_factory=_now)
-    updated_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
+    updated_at: NaiveDatetime = Field(default_factory=_now)
 
 
 class UserListPref(SQLModel, table=True):
@@ -276,7 +280,7 @@ class UserListPref(SQLModel, table=True):
     # lives in app/services/list_board.py and the request schema, not in a
     # DB constraint, so extending it never needs a migration.
     board: str
-    created_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
 
 
 class ApiKey(SQLModel, table=True):
@@ -285,8 +289,8 @@ class ApiKey(SQLModel, table=True):
     id: str = Field(default_factory=_uuid, primary_key=True)
     user_id: str = Field(foreign_key="users.id", unique=True)
     key_hash: str = Field(unique=True, index=True)
-    last_used_at: datetime | None = None
-    created_at: datetime = Field(default_factory=_now)
+    last_used_at: NaiveDatetime | None = None
+    created_at: NaiveDatetime = Field(default_factory=_now)
 
 
 class PushToken(SQLModel, table=True):
@@ -297,7 +301,7 @@ class PushToken(SQLModel, table=True):
     # and Postgres does not index FK columns automatically.
     user_id: str = Field(foreign_key="users.id", index=True)
     token: str = Field(unique=True, index=True)
-    created_at: datetime = Field(default_factory=_now)
+    created_at: NaiveDatetime = Field(default_factory=_now)
     # Named last_registered_at, not last_seen_at, to avoid colliding with the
     # ListMember.last_seen_at read watermark — they mean different things.
-    last_registered_at: datetime = Field(default_factory=_now)
+    last_registered_at: NaiveDatetime = Field(default_factory=_now)
