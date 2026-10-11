@@ -1982,3 +1982,22 @@ def test_targeted_apply_writes_down_a_torn_off_trip(client, session, user):
     assert session.exec(
         select(ListStore).where(ListStore.list_id == LIST_ID, ListStore.store_key == "ahorramas")
     ).first()
+
+
+def test_targeted_zero_line_scan_writes_down_a_torn_off_trip(client, session, user):
+    """Paper attached means closed: a lineless read links at creation, so it
+    must close the trip too, or the trip could later be pruned as empty while
+    the scan still points at it."""
+    _past_day_trip(session, user, store=None, closed=False)
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json=_targeted_scan_body(purchase_id=PAST_DAY_ID, store="Ahorramas", lines=[]),
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    trip = session.get(Purchase, PAST_DAY_ID)
+    assert trip.closed_at == trip.tears_off_at
+    assert trip.store == "Ahorramas"
+    assert session.get(ReceiptScan, response.json()["scan_id"]).purchase_id == PAST_DAY_ID

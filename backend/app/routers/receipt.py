@@ -121,6 +121,23 @@ def _resolve_target_purchase(session, list_id: str, purchase_id: str, now: datet
     return trip
 
 
+def _write_down_torn_off(session, list_id: str, trip: Purchase, store: str | None) -> None:
+    """Close a targeted trip that tore off with nobody closing it.
+
+    The paper is what writes it down: it closes at its own boundary and takes
+    the receipt's store if it had none. A record someone already closed keeps
+    its store and dating. Paper attached always means closed, so the trip can
+    never be pruned as an empty unreconciled one while a scan points at it.
+    """
+    if trip.closed_at is not None:
+        return
+    trip.closed_at = trip.tears_off_at
+    if trip.store is None and store:
+        trip.store = store
+        ensure_stores(session, list_id, [store])
+    session.add(trip)
+
+
 def _infer_past_target(
     session,
     list_id: str,
@@ -262,6 +279,8 @@ def scan_receipt(
         # readable targeted scan still links at apply time, once confirmed.
         purchase_id=target.id if target is not None and not body.lines else None,
     )
+    if target is not None and not body.lines:
+        _write_down_torn_off(session, list_id, target, body.store)
     session.add(scan)
     session.commit()
     session.refresh(scan)
@@ -443,24 +462,17 @@ def apply_receipt_prices(
             to_close.append(line.id)
         created += 1
 
-    # A targeted trip that tore off with nobody closing it is written down by
-    # this paper: it closes at its own boundary and takes the receipt's store.
-    # A record someone already closed keeps its store and dating.
-    writes_down_target = target is not None and target.closed_at is None
-    if writes_down_target:
-        target.closed_at = target.tears_off_at
-        if target.store is None:
-            target.store = body.store
-        session.add(target)
+    if target is not None:
+        _write_down_torn_off(session, list_id, target, body.store)
 
-    # The header store is registered only when it lands on a ticket — the
-    # close below, or a torn-off trip written down above. Registering a string
+    # The header store is registered only when the close below writes it onto
+    # a ticket (a written-down target registers its own). Registering a string
     # that lands nowhere would put phantom entries in the list's registry.
     ensure_stores(
         session,
         list_id,
         [
-            *([body.store] if body.store and (to_close or writes_down_target) else []),
+            *([body.store] if body.store and to_close else []),
             *(patch.store for patch in body.patches if patch.store),
             *(new.store for new in body.new_items if new.store),
         ],

@@ -154,7 +154,6 @@ def update_item(
                 )
         item.purchased_at = None
         emptied_trip_id, item.purchase_id = item.purchase_id, None
-        session.add(item)
         trips.prune_if_empty(session, emptied_trip_id)
     item.updated_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(item)
@@ -179,7 +178,8 @@ def delete_item(
     item = session.get(ListItem, item_id)
     if item is None or item.list_id != lst.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+    trip_id = item.purchase_id
     session.delete(item)
-    trips.prune_if_empty(session, item.purchase_id)
+    trips.prune_if_empty(session, trip_id)
     _bump(lst, session)
     session.commit()

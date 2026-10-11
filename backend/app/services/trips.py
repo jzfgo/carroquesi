@@ -13,7 +13,7 @@ from sqlalchemy import and_, func, or_, update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from app.db.models import ListItem, Purchase
+from app.db.models import ListItem, Purchase, ReceiptScan
 
 
 def tears_off_at_for(instant: datetime, tz: tzinfo) -> datetime:
@@ -36,7 +36,8 @@ def prune_if_empty(session: Session, trip_id: str | None) -> None:
 
     Left alone, an empty open trip swallows later taps, and once it tears off
     it shows in the history as a purchase with no lines. A closed trip is a
-    written record and stays, empty or not. Every path that takes an item out
+    written record and stays, empty or not, and so does a trip a receipt scan
+    points at: that paper is a record too. Every path that takes an item out
     of a trip calls this after the move.
     """
     if trip_id is None:
@@ -48,7 +49,10 @@ def prune_if_empty(session: Session, trip_id: str | None) -> None:
     still_used = session.exec(
         select(ListItem.id).where(ListItem.purchase_id == trip_id).limit(1)
     ).first()
-    if still_used is None:
+    has_paper = session.exec(
+        select(ReceiptScan.id).where(ReceiptScan.purchase_id == trip_id).limit(1)
+    ).first()
+    if still_used is None and has_paper is None:
         session.delete(trip)
 
 

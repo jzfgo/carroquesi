@@ -677,3 +677,22 @@ def test_deleting_the_last_item_never_deletes_a_closed_trip(client: TestClient, 
 
     session.expire_all()
     assert session.get(Purchase, trip_id) is not None
+
+
+def test_deleting_the_last_item_keeps_a_trip_a_receipt_scan_points_at(
+    client: TestClient, session: Session, user
+):
+    """The scan is a record too, and deleting its trip would break the link."""
+    from app.db.models import ListItem, Purchase, ReceiptScan
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    trip_id = session.get(ListItem, item["id"]).purchase_id
+    session.add(ReceiptScan(list_id=lst["id"], scanned_by=user.id, purchase_id=trip_id))
+    session.commit()
+
+    client.delete(f"/lists/{lst['id']}/items/{item['id']}")
+
+    session.expire_all()
+    assert session.get(Purchase, trip_id) is not None
