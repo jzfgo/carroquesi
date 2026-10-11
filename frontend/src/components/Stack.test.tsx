@@ -117,10 +117,13 @@ test('renders the fetched trips expanded and the archive door with the remaining
   expect(screen.getByText('Compras anteriores')).toBeInTheDocument()
   expect(screen.getByText('2')).toBeInTheDocument()
   // Every visible card is expanded (JAV-187) — each fetched its lines, since
-  // this page carried none.
-  for (const id of ['a', 'b', 'c']) {
-    expect(getPurchaseItems).toHaveBeenCalledWith(getToken, 'l1', id)
-  }
+  // this page carried none. The fetch starts in an effect after the card
+  // paints, so seeing the card does not mean its fetch has begun yet.
+  await waitFor(() => {
+    for (const id of ['a', 'b', 'c']) {
+      expect(getPurchaseItems).toHaveBeenCalledWith(getToken, 'l1', id)
+    }
+  })
 })
 
 test('only the first ten stand in the open; the eleventh waits behind the door', async () => {
@@ -150,6 +153,9 @@ test('the first page arrives with lines, so expanded cards skip the per-card fet
     limit: 12,
     includeItems: true,
   })
+  // Let the cards' effects run first, or a wrong fetch could start after
+  // this check and the test would still pass.
+  await act(async () => {})
   expect(getPurchaseItems).not.toHaveBeenCalled()
 })
 
