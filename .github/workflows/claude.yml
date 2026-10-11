@@ -117,7 +117,7 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@v1.0.182
+        uses: anthropics/claude-code-action@v1.0.248
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
@@ -200,4 +200,4 @@ jobs:
           # on every PR; the reviewer reads those results through `actions: read`
           # instead of re-running them. Revisit only together with setup steps, and
           # weigh the minutes they add to every review pass.
-          claude_args: '--model claude-opus-4-8 --allowedTools "WebSearch,WebFetch,Bash(gh api:*),Bash(git:*),Bash(bash scripts/:*),Bash(python3 scripts/:*)"'
+          claude_args: '--model claude-opus-5-5 --allowedTools "WebSearch,WebFetch,Bash(gh api:*),Bash(git:*),Bash(bash scripts/:*),Bash(python3 scripts/:*)"'

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.1] — 2026-10-11
+
+### Changed
+- **receipt:** Parse receipts with gemini-3.8-flash, replacing gemini-3.5-flash (#357)
+
+
+---
 ## [0.23.0] — 2026-08-22
 
 ### Added

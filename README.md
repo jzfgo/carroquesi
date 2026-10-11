@@ -28,6 +28,7 @@ Those two artifacts are the deployable output; where they run is a separate choi
 
 - **Auth & AI:** Firebase handles Google Sign-In and AI-powered receipt parsing (Gemini via Firebase AI SDK). The frontend sends a Firebase ID token on every request; the backend validates it via the Firebase Admin SDK.
 - **Data:** All CRUD goes through the FastAPI backend. No Firestore.
+- **Receipt files:** Originals (photo or PDF) live in a private GCS bucket; the backend mints short-lived signed URLs after checking list membership in Postgres ([ADR-015](docs/decisions/015-gcs-receipt-storage-signed-urls.md)). Optional — leave `RECEIPT_STORAGE_BUCKET` unset to disable.
 - **Real-time sync:** Short-polling — the frontend hits `GET /lists/{id}/updated-at` every 5s and re-fetches items when the timestamp changes.
 
 ## Architecture Decisions
@@ -92,7 +93,7 @@ just backend migrate
 Populate the local database with realistic test data (3 users, 4 lists, 128 items with price history across 6 stores):
 
 ```bash
-just seed
+just backend seed
 ```
 
 To log in as a seed user without a real Google account, set in `backend/.env`:
