@@ -46,6 +46,7 @@ Important invariants:
 
 - bump `lists.updated_at` on item writes, member changes, and list rename
 - `list_items.purchased_at = NULL` means unpurchased; first purchase sets timestamp
+- an unreconciled trip (`closed_at` NULL) goes with its last item: every path that takes an item out of a trip (un-purchase, delete) calls `trips.prune_if_empty`, or the empty trip tears off into a line-less purchase in the history. A closed trip is a record and stays, empty or not
 - keep derived `purchased: bool` in API responses for backward compatibility
 - invite acceptance is explicit before access is granted
 - at most one `list_members.is_default=true` per user; the Siri `"default"` resolver is explicit-only (no most-recently-updated fallback) and 404s when unset. Auto-assigned on a user's first list; never auto-promoted when a default list is deleted. Managed via `backend/app/services/default_list.py`. See [ADR-007](docs/decisions/007-per-user-default-list.md)

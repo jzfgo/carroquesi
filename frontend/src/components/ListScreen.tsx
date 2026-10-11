@@ -28,7 +28,7 @@ import { asBoardName, type BoardName } from '../lib/boards'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
 import { isTripOpen } from '../lib/isTripOpen'
-import { computeCostSummary } from '../lib/itemCost'
+import { computeCostSummary, tripDateInput } from '../lib/itemCost'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
@@ -627,6 +627,18 @@ export function ListScreen({
         const pdfPages = pdfPagesPromise
           ? ((await pdfPagesPromise) ?? null)
           : null
+        // A receipt from a past day completes that day's purchase when the
+        // server could tell which one it was: from here on the session runs
+        // as a targeted attach on it, exactly as if its card had been tapped.
+        const inferred = result.target_purchase
+        if (!receiptScanTarget && inferred) {
+          setReceiptScanTarget({
+            purchaseId: inferred.id,
+            store: inferred.store ?? null,
+            date: tripDateInput(inferred.opened_at),
+            total: inferred.total ?? null,
+          })
+        }
         setReceiptScanResult(result)
         // Hold the file in memory for the review thumbnail and its lightbox.
         // Clearing pendingScan is belt-and-suspenders alongside the exit-path

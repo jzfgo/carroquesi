@@ -44,6 +44,15 @@ class UnmatchedLine(BaseModel):
     line_total: float
 
 
+class ReceiptScanTargetPurchase(BaseModel):
+    """The settled purchase a past-dated scan was matched against."""
+
+    id: str
+    store: str | None = None
+    opened_at: datetime
+    total: float | None = None
+
+
 class ReceiptScanResult(BaseModel):
     scan_id: str
     store: str | None = None
@@ -51,6 +60,9 @@ class ReceiptScanResult(BaseModel):
     receipt_total: float | None = None
     matched: list[MatchedLine]
     unmatched: list[UnmatchedLine]
+    # Set when the server picked a purchase for an untargeted scan: the client
+    # then applies it as a targeted attach on this purchase.
+    target_purchase: ReceiptScanTargetPurchase | None = None
 
 
 class PricePatch(BaseModel):

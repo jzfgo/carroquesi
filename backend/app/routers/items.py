@@ -154,16 +154,7 @@ def update_item(
                 )
         item.purchased_at = None
         emptied_trip_id, item.purchase_id = item.purchase_id, None
-        if emptied_trip_id is not None:
-            # An unreconciled trip this emptied would otherwise linger and
-            # silently swallow later taps, so it goes with its last item. A
-            # closed trip is a historical record and stays, empty or not.
-            trip = session.get(Purchase, emptied_trip_id)
-            still_used = session.exec(
-                select(ListItem).where(ListItem.purchase_id == emptied_trip_id).limit(1)
-            ).first()
-            if trip is not None and trip.closed_at is None and still_used is None:
-                session.delete(trip)
+        trips.prune_if_empty(session, emptied_trip_id)
     item.updated_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(item)
     _bump(lst, session)
@@ -187,6 +178,8 @@ def delete_item(
     item = session.get(ListItem, item_id)
     if item is None or item.list_id != lst.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+    trip_id = item.purchase_id
     session.delete(item)
+    trips.prune_if_empty(session, trip_id)
     _bump(lst, session)
     session.commit()

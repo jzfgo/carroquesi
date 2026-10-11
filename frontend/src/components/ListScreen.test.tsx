@@ -961,6 +961,7 @@ describe('receipt price confirmation toast', () => {
     receipt_total: 10,
     matched: [],
     unmatched: [],
+    target_purchase: null,
   }
 
   beforeEach(() => {
@@ -1239,6 +1240,7 @@ describe('targeted receipt attach (25b)', () => {
       receipt_total: 8.13,
       matched: [],
       unmatched: [],
+      target_purchase: null,
     })
     vi.mocked(api.submitReceiptPrices).mockResolvedValue({
       items_updated: 1,
@@ -1287,6 +1289,42 @@ describe('targeted receipt attach (25b)', () => {
       mockGetToken,
       'list1',
       expect.objectContaining({ purchase_id: 'p1' }),
+    )
+  })
+
+  it('applies an untargeted scan onto the purchase the server picked for its day', async () => {
+    vi.mocked(api.submitParsedReceipt).mockResolvedValueOnce({
+      scan_id: 'scan-t2',
+      store: 'Mercadona',
+      receipt_date: '2026-07-21',
+      receipt_total: 8.13,
+      matched: [],
+      unmatched: [],
+      target_purchase: {
+        id: 'p1',
+        store: 'Mercadona',
+        opened_at: '2026-07-21T09:00:00',
+        total: 8.13,
+      },
+    })
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    pickFile(container)
+    await waitFor(() =>
+      expect(api.submitParsedReceipt).toHaveBeenCalledWith(
+        mockGetToken,
+        'list1',
+        expect.objectContaining({ purchase_id: null }),
+      ),
+    )
+    fireEvent.click(await screen.findByText('Confirmar (mock)'))
+    await waitFor(() =>
+      expect(api.submitReceiptPrices).toHaveBeenCalledWith(
+        mockGetToken,
+        'list1',
+        expect.objectContaining({ purchase_id: 'p1' }),
+      ),
     )
   })
 
@@ -1429,6 +1467,7 @@ describe('pendingScan session isolation', () => {
     receipt_total: 10,
     matched: [],
     unmatched: [],
+    target_purchase: null,
   }
 
   beforeEach(() => {

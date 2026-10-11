@@ -227,7 +227,8 @@
         "quantity": null,
         "line_total": 1.0
       }
-    ]
+    ],
+    "target_purchase": null
   },
   "SEED_STORES": {
     "seed-list-compra": [

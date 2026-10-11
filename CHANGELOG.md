@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.2] — 2026-10-11
+
+### Fixed
+- **receipt:** Past-day scans, one line per item, receipt dates, empty trips (JAV-208, JAV-209, JAV-210, JAV-211) (#361)
+
+
+---
 ## [0.23.1] — 2026-10-11
 
 ### Changed

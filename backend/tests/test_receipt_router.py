@@ -1834,3 +1834,170 @@ def test_a_mappings_only_apply_registers_no_header_store(client, session):
     assert response.status_code == 200
     keys = session.exec(select(ListStore.store_key).where(ListStore.list_id == LIST_ID)).all()
     assert "eroski" not in keys
+
+
+def test_receipt_prices_rejects_two_patches_for_one_item(client, session):
+    """Patches apply in order over one row, so a second patch would silently
+    overwrite the first and lose its line's spend."""
+    patch = _price_patch("item-almendras", 1.15)
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={"patches": [patch, {**patch, "price": 2.30}]},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "duplicate_item_patch"
+
+    session.expire_all()
+    assert session.get(ListItem, "item-almendras").price is None
+
+
+PAST_DAY_ID = "trip-past-day"
+
+
+def _past_day_trip(session, user, *, store="Ahorramas", closed=True, trip_id=PAST_DAY_ID):
+    """A purchase from 1 Apr holding a «Pan integral» line, plus a pending
+    look-alike that a past-dated receipt must not claim."""
+    trip = Purchase(
+        id=trip_id,
+        list_id=LIST_ID,
+        opened_at=datetime(2026, 4, 1, 17, 0, 0),
+        tears_off_at=datetime(2026, 4, 2, 0, 0, 0),
+        closed_at=datetime(2026, 4, 2, 0, 0, 0) if closed else None,
+        store=store,
+    )
+    session.add_all(
+        [
+            trip,
+            ListItem(
+                id=f"{trip_id}-pan",
+                list_id=LIST_ID,
+                name="Pan integral",
+                added_by=user.id,
+                purchased_at=datetime(2026, 4, 1, 17, 5, 0),
+                purchase_id=trip_id,
+            ),
+        ]
+    )
+    if session.get(ListItem, "item-pending-pan") is None:
+        session.add(
+            ListItem(id="item-pending-pan", list_id=LIST_ID, name="Pan integral", added_by=user.id)
+        )
+    session.commit()
+    return trip
+
+
+def _past_scan_body(store="Ahorramas", receipt_date="2026-04-01T16:59:00Z"):
+    return _targeted_scan_body(store=store, receipt_date=receipt_date, purchase_id=None)
+
+
+def test_past_dated_scan_matches_that_days_purchase(client, session, user):
+    _past_day_trip(session, user)
+
+    body = client.post(f"/lists/{LIST_ID}/receipt", json=_past_scan_body()).json()
+
+    assert [m["item_id"] for m in body["matched"]] == [f"{PAST_DAY_ID}-pan"]
+    assert body["target_purchase"]["id"] == PAST_DAY_ID
+    assert body["target_purchase"]["store"] == "Ahorramas"
+
+
+def test_past_dated_scan_aims_at_a_torn_off_trip_nobody_closed(client, session, user):
+    _past_day_trip(session, user, store=None, closed=False)
+
+    body = client.post(f"/lists/{LIST_ID}/receipt", json=_past_scan_body()).json()
+
+    assert body["target_purchase"]["id"] == PAST_DAY_ID
+    assert [m["item_id"] for m in body["matched"]] == [f"{PAST_DAY_ID}-pan"]
+
+
+def test_past_dated_scan_skips_a_purchase_from_another_store(client, session, user):
+    _past_day_trip(session, user, store="Mercadona")
+
+    body = client.post(f"/lists/{LIST_ID}/receipt", json=_past_scan_body()).json()
+
+    assert body["target_purchase"] is None
+    assert [m["item_id"] for m in body["matched"]] == ["item-pending-pan"]
+
+
+def test_past_dated_scan_skips_a_purchase_that_has_paper(client, session, user):
+    _past_day_trip(session, user)
+    session.add(ReceiptScan(list_id=LIST_ID, scanned_by=user.id, purchase_id=PAST_DAY_ID))
+    session.commit()
+
+    body = client.post(f"/lists/{LIST_ID}/receipt", json=_past_scan_body()).json()
+
+    assert body["target_purchase"] is None
+
+
+def test_past_dated_scan_falls_back_when_the_day_is_ambiguous(client, session, user):
+    _past_day_trip(session, user, trip_id="trip-a")
+    _past_day_trip(session, user, trip_id="trip-b")
+
+    body = client.post(f"/lists/{LIST_ID}/receipt", json=_past_scan_body()).json()
+
+    assert body["target_purchase"] is None
+
+
+def test_past_dated_scan_reads_the_day_in_the_clients_zone(client, session, user):
+    # 23:30 UTC on 31 Mar is already 1 Apr in Madrid.
+    _past_day_trip(session, user)
+
+    body = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json=_past_scan_body(receipt_date="2026-03-31T23:30:00Z"),
+        headers={"X-Client-Timezone": "Europe/Madrid"},
+    ).json()
+
+    assert body["target_purchase"]["id"] == PAST_DAY_ID
+
+
+def test_undated_scan_aims_at_nothing(client, session, user):
+    _past_day_trip(session, user)
+
+    body = client.post(f"/lists/{LIST_ID}/receipt", json=_past_scan_body(receipt_date=None)).json()
+
+    assert body["target_purchase"] is None
+
+
+def test_targeted_apply_writes_down_a_torn_off_trip(client, session, user):
+    """The paper closes a trip nobody closed: at its own boundary, with the
+    receipt's store and total."""
+    _past_day_trip(session, user, store=None, closed=False)
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_targeted_batch(
+            purchase_id=PAST_DAY_ID,
+            store="Ahorramas",
+            receipt_total=18.09,
+            patches=[_price_patch(f"{PAST_DAY_ID}-pan", 1.10, store="Ahorramas")],
+        ),
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    trip = session.get(Purchase, PAST_DAY_ID)
+    assert trip.closed_at == trip.tears_off_at
+    assert trip.store == "Ahorramas"
+    assert trip.total == pytest.approx(18.09)
+    assert session.exec(
+        select(ListStore).where(ListStore.list_id == LIST_ID, ListStore.store_key == "ahorramas")
+    ).first()
+
+
+def test_targeted_zero_line_scan_writes_down_a_torn_off_trip(client, session, user):
+    """Paper attached means closed: a lineless read links at creation, so it
+    must close the trip too, or the trip could later be pruned as empty while
+    the scan still points at it."""
+    _past_day_trip(session, user, store=None, closed=False)
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json=_targeted_scan_body(purchase_id=PAST_DAY_ID, store="Ahorramas", lines=[]),
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    trip = session.get(Purchase, PAST_DAY_ID)
+    assert trip.closed_at == trip.tears_off_at
+    assert trip.store == "Ahorramas"
+    assert session.get(ReceiptScan, response.json()["scan_id"]).purchase_id == PAST_DAY_ID

@@ -2118,6 +2118,16 @@
             ],
             "title": "Store"
           },
+          "target_purchase": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReceiptScanTargetPurchase"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "unmatched": {
             "items": {
               "$ref": "#/components/schemas/UnmatchedLine"
@@ -2206,6 +2216,48 @@
           "created_at"
         ],
         "title": "ReceiptScanSummary",
+        "type": "object"
+      },
+      "ReceiptScanTargetPurchase": {
+        "description": "The settled purchase a past-dated scan was matched against.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "opened_at": {
+            "format": "date-time",
+            "title": "Opened At",
+            "type": "string"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "required": [
+          "id",
+          "opened_at"
+        ],
+        "title": "ReceiptScanTargetPurchase",
         "type": "object"
       },
       "ReceiptUploadUrlRequest": {

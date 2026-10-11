@@ -13,7 +13,7 @@ from sqlalchemy import and_, func, or_, update
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from app.db.models import ListItem, Purchase
+from app.db.models import ListItem, Purchase, ReceiptScan
 
 
 def tears_off_at_for(instant: datetime, tz: tzinfo) -> datetime:
@@ -29,6 +29,31 @@ def tears_off_at_for(instant: datetime, tz: tzinfo) -> datetime:
         tzinfo=tz,
     )
     return next_midnight.astimezone(UTC).replace(tzinfo=None)
+
+
+def prune_if_empty(session: Session, trip_id: str | None) -> None:
+    """Delete an unreconciled trip once its last item has left it.
+
+    Left alone, an empty open trip swallows later taps, and once it tears off
+    it shows in the history as a purchase with no lines. A closed trip is a
+    written record and stays, empty or not, and so does a trip a receipt scan
+    points at: that paper is a record too. Every path that takes an item out
+    of a trip calls this after the move.
+    """
+    if trip_id is None:
+        return
+    trip = session.get(Purchase, trip_id)
+    if trip is None or trip.closed_at is not None:
+        return
+    session.flush()
+    still_used = session.exec(
+        select(ListItem.id).where(ListItem.purchase_id == trip_id).limit(1)
+    ).first()
+    has_paper = session.exec(
+        select(ReceiptScan.id).where(ReceiptScan.purchase_id == trip_id).limit(1)
+    ).first()
+    if still_used is None and has_paper is None:
+        session.delete(trip)
 
 
 def ends_at(trip: Purchase) -> datetime:
