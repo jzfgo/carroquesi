@@ -16,6 +16,7 @@ prefix delete removes a list's receipts when the list itself is deleted.
 from __future__ import annotations
 
 import io
+import logging
 import threading
 from datetime import timedelta
 from pathlib import Path
@@ -25,6 +26,8 @@ from google.cloud import storage
 from PIL import Image, ImageOps
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Short-lived on purpose: a URL is minted per request and used immediately.
 # The upload window is wider so a slow mobile connection can finish pushing a
@@ -206,6 +209,8 @@ def render_thumbnail(data: bytes) -> bytes | None:
     except Exception:
         # A PDF, a corrupt upload, or broken EXIF. Pillow raises many error
         # types for bad input, and any of them means the same: no miniature.
+        # Logged, so a bug that fails every render shows up somewhere.
+        logger.warning("receipt thumbnail render failed", exc_info=True)
         return None
 
 
