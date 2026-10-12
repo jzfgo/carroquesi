@@ -1,6 +1,6 @@
 # E2E Tests (Playwright)
 
-Run: `just frontend test-e2e` (alias: `pnpm test:e2e`). Runs against the **preview build**, not the dev server — if you've made frontend changes, build first (`pnpm build`) or just let Playwright's `webServer` config do it for you.
+Run: `just frontend test-e2e` (alias: `corepack pnpm test:e2e`). Runs against the **preview build**, not the dev server — if you've made frontend changes, build first (`just frontend build`) or just let Playwright's `webServer` config do it for you.
 
 ## Fixtures
 

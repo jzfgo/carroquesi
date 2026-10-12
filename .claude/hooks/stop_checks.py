@@ -82,7 +82,7 @@ def main() -> None:
         rel = [f[len("frontend/") :] for f in ts_files]
         try:
             result = subprocess.run(
-                ["pnpm", "exec", "eslint", *rel],
+                ["node_modules/.bin/eslint", *rel],
                 cwd="frontend",
                 capture_output=True,
                 text=True,

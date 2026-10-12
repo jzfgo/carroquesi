@@ -31,13 +31,13 @@ pre-commit:
           - name: frontend-lint
             root: "frontend/"
             glob: "**/*.{ts,tsx}"
-            run: pnpm exec eslint --fix {staged_files}
+            run: node_modules/.bin/eslint --fix {staged_files}
             stage_fixed: true
 
           - name: frontend-stylelint
             root: "frontend/"
             glob: "**/*.css"
-            run: pnpm exec stylelint --fix {staged_files}
+            run: node_modules/.bin/stylelint --fix {staged_files}
             stage_fixed: true
 
           # CI runs `prettier --check .` in frontend/, so what Prettier covers
@@ -48,7 +48,7 @@ pre-commit:
           # has no parser for; ignore files still apply to explicit paths.
           - name: frontend-format
             root: "frontend/"
-            run: pnpm exec prettier --write --ignore-unknown {staged_files}
+            run: node_modules/.bin/prettier --write --ignore-unknown {staged_files}
             stage_fixed: true
 
     # Never commit platform-narrowed native bindings to pnpm-lock.yaml.
@@ -86,7 +86,7 @@ pre-commit:
           fi
         done
         if [ "$fail" -eq 1 ]; then
-          echo "  Re-run 'pnpm install' on a clean checkout before committing, per AGENTS.md."
+          echo "  Re-run 'just frontend install' on a clean checkout before committing, per AGENTS.md."
           exit 1
         fi
 

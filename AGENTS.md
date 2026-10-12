@@ -57,7 +57,7 @@ Important invariants:
 
 ## Frontend
 
-Requires **Node.js v24** (pinned in `frontend/.nvmrc`)
+Requires **Node.js v24** (pinned in `frontend/.nvmrc`). pnpm needs no install: the `just` recipes run `corepack pnpm`, and Corepack (bundled with Node 24) fetches the version `packageManager` pins in `frontend/package.json`. A package.json script must not call `pnpm` itself — a machine without a global pnpm has none on PATH — so nested scripts use `npm run`
 
 ### Commands
 
@@ -102,7 +102,7 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 
 ### E2E Testing (Playwright)
 
-Run with `just frontend test-e2e` (alias: `pnpm test:e2e`). It runs against the **preview build**, not the dev server — changes must be built first.
+Run with `just frontend test-e2e` (alias: `corepack pnpm test:e2e`). It runs against the **preview build**, not the dev server — changes must be built first.
 
 Visual regression: key screens are checked via `toHaveScreenshot()` (wrapped in the `expectScreenshot` helper in `fixtures.ts`), baselines committed under `frontend/tests/*-snapshots/`. Only `chromium`/`Mobile Chrome` carry baselines. Regenerate with `just frontend update-snapshots`, which runs the container every committed baseline came out of — not a stand-in for CI, which renders on its own runner and is why there is a pixel budget at all. See `frontend/tests/README.md`. Three rules there are easy to breach by accident: the tolerance is an absolute pixel count, never a ratio; anything a screenshot shows must be deterministic — pin the clock before capturing a screen that prints a date; and the suite's timezone is pinned in `playwright.config.ts`, so every committed baseline is Madrid-rendered. Unpinning it or changing the zone hands the render environment back to the machine, which is how a baseline comes to pass while depicting the wrong day. The pin covers the **browser** only — Playwright does not touch the Node runner's `TZ`, and the vitest suite still runs at the machine's zone, so unit tests that touch dates have to be made zone-less themselves.
 
