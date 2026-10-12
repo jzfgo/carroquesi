@@ -598,8 +598,6 @@ def create_receipt_upload_url(
     path, url = receipt_storage.generate_upload_url(
         list_id, scan_id, body.content_type, max_bytes=receipt_storage.MAX_RECEIPT_BYTES
     )
-    # A miniature of the file being replaced would outlive it.
-    receipt_storage.delete_thumbnail(list_id, scan_id)
     scan.file_path = path
     scan.file_content_type = body.content_type
     # Pages only mean something for a PDF; an image's stays NULL even when a

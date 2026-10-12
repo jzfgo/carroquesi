@@ -56,8 +56,12 @@ membership — and the consent model when it lands — before minting any URL.
   downloads the original once, renders a small JPEG with Pillow, stores it, and
   signs it. This is the one place the backend reads receipt bytes: a
   download from GCS, not an upload from a phone, so the slow-client argument
-  below does not apply. A new upload URL for a scan deletes its miniature, and
-  the list-delete purge covers it through the shared prefix. Making it on the
+  below does not apply. The miniature records the GCS generation of the
+  original it was made from, and a request whose original has a newer
+  generation renders it again. A re-upload can keep the same path, and its
+  bytes land long after the upload URL is minted, so deleting the miniature
+  at mint time would let a request in between store a miniature of the old
+  file. The list-delete purge covers it through the shared prefix. Making it on the
   client at upload time was the alternative; it would leave every receipt
   stored before the change without a miniature.
 - **Retention: list-lifetime, no age cap.** Receipts live as long as their
@@ -114,7 +118,9 @@ knob with no behavior attached.
 - **Watch:** thumbnail memory. The first view of a receipt decodes the
   original inside Cloud Run. A JPEG decodes at reduced scale; a PNG decodes in
   full, so images above 40 MP are refused (the box falls back to its icon).
-  Raise the instance memory before raising that cap.
+  At most two decodes run at once per instance, so a list opening many
+  unviewed trips cannot stack them. Raise the instance memory before raising
+  either limit.
 - **Watch:** URL expiry vs. slow uploads. The PUT expiry must comfortably
   cover a multi-megabyte photo on a bad mobile connection; if uploads start
   failing at the margin, widen the expiry rather than retrying blind.

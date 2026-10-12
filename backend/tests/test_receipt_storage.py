@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
-from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import NotFound, PreconditionFailed
 from PIL import Image
 
 from app.core.config import settings
@@ -181,6 +181,15 @@ def test_render_thumbnail_answers_none_for_non_images(data):
     assert receipt_storage.render_thumbnail(data) is None
 
 
+def test_render_thumbnail_answers_none_for_broken_exif(monkeypatch):
+    def broken(img):
+        raise ValueError("bad EXIF")
+
+    monkeypatch.setattr(receipt_storage.ImageOps, "exif_transpose", broken)
+
+    assert receipt_storage.render_thumbnail(_jpeg((400, 300))) is None
+
+
 def test_render_thumbnail_refuses_an_oversized_image(monkeypatch):
     monkeypatch.setattr(receipt_storage, "_MAX_DECODE_PIXELS", 100)
     out = io.BytesIO()
@@ -189,18 +198,35 @@ def test_render_thumbnail_refuses_an_oversized_image(monkeypatch):
     assert receipt_storage.render_thumbnail(out.getvalue()) is None
 
 
-def test_thumbnail_url_renders_and_stores_on_first_ask(blobs):
-    blobs_original = blobs.setdefault(ORIGINAL, MagicMock())
-    blobs_original.download_as_bytes.return_value = _jpeg((3000, 4000))
+def _original(blobs, path=ORIGINAL, data=None, generation=7) -> MagicMock:
+    original = blobs.setdefault(path, MagicMock())
+    original.generation = generation
+    original.download_as_bytes.return_value = data if data is not None else _jpeg((3000, 4000))
+    return original
+
+
+def _thumb(blobs, source_generation=None) -> MagicMock:
     thumb = blobs.setdefault(THUMB, MagicMock())
-    thumb.exists.return_value = False
+    if source_generation is None:
+        thumb.reload.side_effect = NotFound("none")
+        thumb.metadata = None
+    else:
+        thumb.metadata = {"source_generation": str(source_generation)}
     thumb.generate_signed_url.return_value = "https://signed.example/thumb"
+    return thumb
+
+
+def test_thumbnail_url_renders_and_stores_on_first_ask(blobs):
+    original = _original(blobs)
+    thumb = _thumb(blobs)
 
     url = receipt_storage.thumbnail_download_url("list-1", "scan-1", ORIGINAL)
 
     assert url == "https://signed.example/thumb"
+    original.download_as_bytes.assert_called_once_with(if_generation_match=7)
     data = thumb.upload_from_string.call_args.args[0]
     assert thumb.upload_from_string.call_args.kwargs["content_type"] == "image/jpeg"
+    assert thumb.metadata == {"source_generation": "7"}
     with Image.open(io.BytesIO(data)) as img:
         assert img.width <= receipt_storage.THUMB_SIZE[0]
     kwargs = thumb.generate_signed_url.call_args.kwargs
@@ -208,43 +234,55 @@ def test_thumbnail_url_renders_and_stores_on_first_ask(blobs):
     assert kwargs["expiration"] == receipt_storage.DOWNLOAD_URL_EXPIRY
 
 
-def test_thumbnail_url_only_signs_once_stored(blobs):
-    thumb = blobs.setdefault(THUMB, MagicMock())
-    thumb.exists.return_value = True
-    thumb.generate_signed_url.return_value = "https://signed.example/thumb"
+def test_thumbnail_url_only_signs_while_the_original_is_unchanged(blobs):
+    original = _original(blobs, generation=7)
+    thumb = _thumb(blobs, source_generation=7)
 
     assert receipt_storage.thumbnail_download_url("list-1", "scan-1", ORIGINAL) == (
         "https://signed.example/thumb"
     )
-    assert ORIGINAL not in blobs
+    original.download_as_bytes.assert_not_called()
     thumb.upload_from_string.assert_not_called()
 
 
-def test_thumbnail_url_answers_none_while_the_upload_is_in_flight(blobs):
-    blobs.setdefault(ORIGINAL, MagicMock()).download_as_bytes.side_effect = NotFound("gone")
-    thumb = blobs.setdefault(THUMB, MagicMock())
-    thumb.exists.return_value = False
+def test_thumbnail_url_renders_again_once_the_original_is_replaced(blobs):
+    original = _original(blobs, generation=8)
+    thumb = _thumb(blobs, source_generation=7)
+
+    receipt_storage.thumbnail_download_url("list-1", "scan-1", ORIGINAL)
+
+    original.download_as_bytes.assert_called_once_with(if_generation_match=8)
+    thumb.upload_from_string.assert_called_once()
+    assert thumb.metadata == {"source_generation": "8"}
+
+
+def test_thumbnail_url_stores_nothing_when_the_original_changes_mid_render(blobs):
+    original = _original(blobs)
+    original.download_as_bytes.side_effect = PreconditionFailed("replaced")
+    thumb = _thumb(blobs)
 
     assert receipt_storage.thumbnail_download_url("list-1", "scan-1", ORIGINAL) is None
     thumb.upload_from_string.assert_not_called()
 
 
+def test_thumbnail_url_answers_none_while_the_upload_is_in_flight(blobs):
+    original = _original(blobs)
+    original.reload.side_effect = NotFound("gone")
+    # A miniature of a file at another path must not be served instead.
+    thumb = _thumb(blobs, source_generation=3)
+
+    assert receipt_storage.thumbnail_download_url("list-1", "scan-1", ORIGINAL) is None
+    thumb.upload_from_string.assert_not_called()
+    thumb.generate_signed_url.assert_not_called()
+
+
 def test_thumbnail_url_answers_none_for_a_pdf(blobs):
     pdf = "receipts/list-1/scan-1.pdf"
-    blobs.setdefault(pdf, MagicMock()).download_as_bytes.return_value = b"%PDF-1.7"
-    thumb = blobs.setdefault(THUMB, MagicMock())
-    thumb.exists.return_value = False
+    _original(blobs, path=pdf, data=b"%PDF-1.7")
+    thumb = _thumb(blobs)
 
     assert receipt_storage.thumbnail_download_url("list-1", "scan-1", pdf) is None
     thumb.upload_from_string.assert_not_called()
-
-
-def test_delete_thumbnail_tolerates_a_missing_object(blobs):
-    blobs.setdefault(THUMB, MagicMock()).delete.side_effect = NotFound("none")
-
-    receipt_storage.delete_thumbnail("list-1", "scan-1")
-
-    blobs[THUMB].delete.assert_called_once_with()
 
 
 def test_delete_list_receipts_deletes_the_list_prefix(mock_client):

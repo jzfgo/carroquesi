@@ -16,10 +16,11 @@ prefix delete removes a list's receipts when the list itself is deleted.
 from __future__ import annotations
 
 import io
+import threading
 from datetime import timedelta
 from pathlib import Path
 
-from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import NotFound, PreconditionFailed
 from google.cloud import storage
 from PIL import Image, ImageOps
 
@@ -60,6 +61,15 @@ THUMB_QUALITY = 75
 # far below this; a huge PNG decodes in full and could exhaust the instance's
 # memory.
 _MAX_DECODE_PIXELS = 40_000_000
+
+# How many miniatures may decode at once. One large decode is fine; a list
+# opening many unviewed trips would otherwise run one per request thread.
+_RENDER_SLOTS = threading.BoundedSemaphore(2)
+
+# Metadata key on a miniature: the generation of the original it was made
+# from. A re-upload to the same path gets a new generation, so a mismatch
+# means the miniature shows a file that is gone.
+_SOURCE_GENERATION = "source_generation"
 
 _client: storage.Client | None = None
 
@@ -138,24 +148,39 @@ def thumbnail_path(list_id: str, scan_id: str) -> str:
 
 
 def thumbnail_download_url(list_id: str, scan_id: str, file_path: str) -> str | None:
-    """Mint a signed GET URL for a scan's miniature, making it on first ask.
+    """Mint a signed GET URL for a scan's miniature, making it when needed.
 
     The original can be up to 10 MB, far too heavy for a small box in a list.
-    The first request downloads it once, renders a small JPEG, and stores that
-    beside it; later requests only sign. Returns None when no miniature can
-    be made: the upload has not landed yet, or the bytes are not an image.
-    Nothing is stored then, so a later request tries again.
+    A request downloads it once, renders a small JPEG, and stores that beside
+    it with the original's generation; later requests only sign, until the
+    original is replaced. Returns None when no miniature can be made: the
+    upload has not landed yet, or the bytes are not an image. Nothing is
+    stored then, so a later request tries again.
     """
     bucket = _bucket()
+    original = bucket.blob(file_path)
+    try:
+        original.reload()
+    except NotFound:
+        return None
+    source = str(original.generation)
     thumb = bucket.blob(thumbnail_path(list_id, scan_id))
-    if not thumb.exists():
+    try:
+        thumb.reload()
+        fresh = (thumb.metadata or {}).get(_SOURCE_GENERATION) == source
+    except NotFound:
+        fresh = False
+    if not fresh:
         try:
-            original = bucket.blob(file_path).download_as_bytes()
-        except NotFound:
+            # Pinned to the generation just read: bytes replaced in between
+            # must not be stored under the old generation.
+            data = original.download_as_bytes(if_generation_match=original.generation)
+        except (NotFound, PreconditionFailed):
             return None
-        rendered = render_thumbnail(original)
+        rendered = render_thumbnail(data)
         if rendered is None:
             return None
+        thumb.metadata = {_SOURCE_GENERATION: source}
         thumb.upload_from_string(rendered, content_type="image/jpeg")
     return thumb.generate_signed_url(
         version="v4",
@@ -167,7 +192,7 @@ def thumbnail_download_url(list_id: str, scan_id: str, file_path: str) -> str | 
 def render_thumbnail(data: bytes) -> bytes | None:
     """Shrink an image to a THUMB_SIZE JPEG, or None if it cannot be read."""
     try:
-        with Image.open(io.BytesIO(data)) as img:
+        with _RENDER_SLOTS, Image.open(io.BytesIO(data)) as img:
             # JPEG only: decode at a reduced scale instead of in full.
             img.draft("RGB", THUMB_SIZE)
             if img.width * img.height > _MAX_DECODE_PIXELS:
@@ -178,18 +203,10 @@ def render_thumbnail(data: bytes) -> bytes | None:
             out = io.BytesIO()
             upright.convert("RGB").save(out, "JPEG", quality=THUMB_QUALITY, optimize=True)
             return out.getvalue()
-    except (OSError, Image.DecompressionBombError):
-        # UnidentifiedImageError is an OSError: a PDF, or a corrupt upload.
+    except Exception:
+        # A PDF, a corrupt upload, or broken EXIF. Pillow raises many error
+        # types for bad input, and any of them means the same: no miniature.
         return None
-
-
-def delete_thumbnail(list_id: str, scan_id: str) -> None:
-    """Drop a scan's miniature so the next request renders it again from the
-    current original. Missing is fine."""
-    try:
-        _bucket().blob(thumbnail_path(list_id, scan_id)).delete()
-    except NotFound:
-        pass
 
 
 def delete_list_receipts(list_id: str) -> int:

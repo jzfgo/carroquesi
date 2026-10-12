@@ -270,14 +270,6 @@ def test_file_url_returns_403_for_a_non_member(other_client, session):
     assert other_client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/file-url").status_code == 403
 
 
-def test_remint_drops_the_stale_thumbnail(client, mock_storage):
-    assert _mint(client).status_code == 200
-
-    blob = mock_storage.bucket.return_value.blob
-    assert f"receipts/{LIST_ID}/{SCAN_ID}.thumb.jpg" in [c.args[0] for c in blob.call_args_list]
-    blob.return_value.delete.assert_called_once_with()
-
-
 # --- thumb-url download ---
 
 
