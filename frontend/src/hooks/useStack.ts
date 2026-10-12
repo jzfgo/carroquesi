@@ -4,6 +4,7 @@ import {
   getPurchases,
   getReceiptFileUrl,
   getReceiptScans,
+  getReceiptThumbUrl,
 } from '../lib/api'
 import { isTripOpen } from '../lib/isTripOpen'
 import type {
@@ -11,6 +12,7 @@ import type {
   PurchaseSummary,
   ReceiptFileUrlResult,
   ReceiptScanSummary,
+  ReceiptThumbUrlResult,
 } from '../types'
 
 const PAGE = 20
@@ -56,6 +58,8 @@ export interface UseStack {
   loadReceiptScans: (purchaseId: string) => Promise<ReceiptScanSummary[]>
   /** Mint a short-lived signed URL for one scan's stored file. */
   loadReceiptFileUrl: (scanId: string) => Promise<ReceiptFileUrlResult>
+  /** Mint a short-lived signed URL for one scan's small miniature. */
+  loadReceiptThumbUrl: (scanId: string) => Promise<ReceiptThumbUrlResult>
 }
 
 export function useStack(
@@ -165,6 +169,11 @@ export function useStack(
     [getToken, listId],
   )
 
+  const loadReceiptThumbUrl = useCallback(
+    (scanId: string) => getReceiptThumbUrl(getToken, listId, scanId),
+    [getToken, listId],
+  )
+
   return {
     trips,
     total,
@@ -176,5 +185,6 @@ export function useStack(
     loadItems,
     loadReceiptScans,
     loadReceiptFileUrl,
+    loadReceiptThumbUrl,
   }
 }

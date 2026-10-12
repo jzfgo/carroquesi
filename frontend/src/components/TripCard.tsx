@@ -8,6 +8,7 @@ import type {
   PurchaseSummary,
   ReceiptFileUrlResult,
   ReceiptScanSummary,
+  ReceiptThumbUrlResult,
 } from '../types'
 import { ItemCard } from './ItemCard'
 import { ReceiptFileViewer } from './ReceiptFileViewer'
@@ -39,6 +40,7 @@ interface Props {
   receiptScan?: boolean
   loadReceiptScans?: (purchaseId: string) => Promise<ReceiptScanSummary[]>
   loadReceiptFileUrl?: (scanId: string) => Promise<ReceiptFileUrlResult>
+  loadReceiptThumbUrl?: (scanId: string) => Promise<ReceiptThumbUrlResult>
   /** Launch a scan from the dashed hole — the shared consent-aware funnel,
    *  aimed at this card's purchase so the paper completes it (JAV-180). */
   onScanReceipt?: (target: ReceiptScanTarget) => void
@@ -72,6 +74,7 @@ export function TripCard({
   receiptScan = false,
   loadReceiptScans,
   loadReceiptFileUrl,
+  loadReceiptThumbUrl,
   onScanReceipt,
 }: Props) {
   const proto = trip.closed_at == null
@@ -126,7 +129,7 @@ export function TripCard({
     trip.has_receipt,
     closedRecord,
     loadReceiptScans,
-    loadReceiptFileUrl,
+    loadReceiptThumbUrl,
   )
   // Stored paper belongs to the household, so the solid states show to every
   // member — the server reads files on membership alone. Only the dashed

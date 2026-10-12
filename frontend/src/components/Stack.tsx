@@ -85,6 +85,7 @@ export function Stack({
     loadItems,
     loadReceiptScans,
     loadReceiptFileUrl,
+    loadReceiptThumbUrl,
   } = useStack(listId, getToken)
   useImperativeHandle(ref, () => ({ refetch }), [refetch])
   const [unfolded, setUnfolded] = useState(false)
@@ -173,6 +174,7 @@ export function Stack({
     onScanReceipt,
     loadReceiptScans,
     loadReceiptFileUrl,
+    loadReceiptThumbUrl,
   }
 
   // The save-a-ticket door is always last and always present — even on a list

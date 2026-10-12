@@ -270,6 +270,82 @@ def test_file_url_returns_403_for_a_non_member(other_client, session):
     assert other_client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/file-url").status_code == 403
 
 
+# --- thumb-url download ---
+
+
+def test_thumb_url_answers_the_miniatures_signed_url(client, session, monkeypatch):
+    _stored_scan(session)
+    calls = []
+
+    def fake(list_id, scan_id, file_path):
+        calls.append((list_id, scan_id, file_path))
+        return "https://signed.example/thumb"
+
+    monkeypatch.setattr(receipt_storage, "thumbnail_download_url", fake)
+
+    response = client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/thumb-url")
+
+    assert response.status_code == 200
+    assert response.json() == {"url": "https://signed.example/thumb"}
+    assert calls == [(LIST_ID, SCAN_ID, f"receipts/{LIST_ID}/{SCAN_ID}.jpg")]
+
+
+def test_thumb_url_returns_404_when_no_miniature_can_be_made(client, session, monkeypatch):
+    _stored_scan(session)
+    monkeypatch.setattr(receipt_storage, "thumbnail_download_url", lambda *a: None)
+
+    assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/thumb-url").status_code == 404
+
+
+def test_thumb_url_answers_404_for_a_pdf_without_downloading_it(client, session, monkeypatch):
+    scan = _stored_scan(session)
+    scan.file_path = f"receipts/{LIST_ID}/{SCAN_ID}.pdf"
+    scan.file_content_type = "application/pdf"
+    session.add(scan)
+    session.commit()
+    calls = []
+    monkeypatch.setattr(receipt_storage, "thumbnail_download_url", lambda *a: calls.append(a))
+
+    assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/thumb-url").status_code == 404
+    assert calls == []
+
+
+def test_thumb_url_needs_no_flag_or_consent(client, session, user, monkeypatch):
+    _stored_scan(session)
+    user.receipt_consent = "declined"
+    session.add(user)
+    session.commit()
+    monkeypatch.setattr(receipt_storage, "thumbnail_download_url", lambda *a: "u")
+
+    assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/thumb-url").status_code == 200
+
+
+def test_thumb_url_returns_404_when_no_file_was_ever_minted(client):
+    assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/thumb-url").status_code == 404
+
+
+def test_thumb_url_returns_404_for_another_lists_scan(client, session, other_list_and_scan):
+    scan = session.get(ReceiptScan, "scan-other")
+    scan.file_path = "receipts/list-files-other/scan-other.jpg"
+    scan.file_content_type = "image/jpeg"
+    session.add(scan)
+    session.commit()
+
+    assert client.get(f"/lists/{LIST_ID}/receipts/scan-other/thumb-url").status_code == 404
+
+
+def test_thumb_url_returns_503_when_storage_unconfigured(client, session, monkeypatch):
+    _stored_scan(session)
+    monkeypatch.setattr(settings, "receipt_storage_bucket", "")
+
+    assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/thumb-url").status_code == 503
+
+
+def test_thumb_url_returns_403_for_a_non_member(other_client, session):
+    _stored_scan(session)
+    assert other_client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/thumb-url").status_code == 403
+
+
 # --- purchase receipt-scan listing ---
 
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { ReceiptFileUrlResult, ReceiptScanSummary } from '../types'
+import type { ReceiptScanSummary, ReceiptThumbUrlResult } from '../types'
 
 /**
  * What the header thumbnail (25b) knows about a trip's stored paper.
@@ -28,15 +28,16 @@ const EMPTY: TripReceiptState = { status: 'empty' }
  * without a reconciled scan (`has_receipt` false) can never surface a file,
  * so it settles to `empty` with zero fetches — only `has_receipt` trips ask
  * the server which scans exist and whether the latest left a file. The
- * miniature's signed URL is fetched once here; the viewer mints its own
- * fresh one on open, because this one may have expired by then.
+ * miniature is a small JPEG the server renders from the stored file — never
+ * the original, which can weigh megabytes. Its signed URL is fetched once
+ * here; the viewer mints its own URL for the original on open.
  */
 export function useTripReceipt(
   purchaseId: string,
   hasReceipt: boolean,
   enabled: boolean,
   loadReceiptScans?: (purchaseId: string) => Promise<ReceiptScanSummary[]>,
-  loadReceiptFileUrl?: (scanId: string) => Promise<ReceiptFileUrlResult>,
+  loadReceiptThumbUrl?: (scanId: string) => Promise<ReceiptThumbUrlResult>,
 ): TripReceiptState {
   const [fetched, setFetched] = useState<TripReceiptState | null>(null)
 
@@ -65,7 +66,7 @@ export function useTripReceipt(
           return
         }
         setFetched({ status: 'image', scanId: scan.id, thumbUrl: null })
-        loadReceiptFileUrl?.(scan.id)
+        loadReceiptThumbUrl?.(scan.id)
           .then((r) => {
             if (!cancelled) {
               setFetched({ status: 'image', scanId: scan.id, thumbUrl: r.url })
@@ -82,7 +83,7 @@ export function useTripReceipt(
     return () => {
       cancelled = true
     }
-  }, [enabled, hasReceipt, purchaseId, loadReceiptScans, loadReceiptFileUrl])
+  }, [enabled, hasReceipt, purchaseId, loadReceiptScans, loadReceiptThumbUrl])
 
   if (!enabled) return OFF
   if (!hasReceipt) return EMPTY

@@ -1,6 +1,6 @@
 # ADR-015: Receipt images in Google Cloud Storage via backend-issued signed URLs
 
-**Status:** Accepted, allowed types amended 2026-08-02
+**Status:** Accepted, allowed types amended 2026-08-02, thumbnails amended 2026-10-12
 **Date:** 2026-08-02
 
 ## Context
@@ -47,6 +47,23 @@ membership — and the consent model when it lands — before minting any URL.
   export multi-page receipts as PDF, and a page count carried as scan
   metadata covers the multi-page display need. Same 10 MB cap; a PDF receipt
   is no heavier than a photo.)*
+- **Thumbnails are made by the backend, on first view.** *(Amended
+  2026-10-12.)* The trip header shows a small box per stored receipt. Pointing
+  that box at the original made every list view download multi-megabyte
+  photos, again on each visit, since each mint signs a new URL. `GET
+  …/receipts/{scan_id}/thumb-url` (membership only, like `file-url`) checks
+  for `receipts/{list_id}/{scan_id}.thumb.jpg`; if it is missing, the backend
+  downloads the original once, renders a small JPEG with Pillow, stores it, and
+  signs it. This is the one place the backend reads receipt bytes: a
+  download from GCS, not an upload from a phone, so the slow-client argument
+  below does not apply. The miniature records the GCS generation of the
+  original it was made from, and a request whose original has a newer
+  generation renders it again. A re-upload can keep the same path, and its
+  bytes land long after the upload URL is minted, so deleting the miniature
+  at mint time would let a request in between store a miniature of the old
+  file. The list-delete purge covers it through the shared prefix. Making it on the
+  client at upload time was the alternative; it would leave every receipt
+  stored before the change without a miniature.
 - **Retention: list-lifetime, no age cap.** Receipts live as long as their
   list. Deleting a list deletes its `receipts/{list_id}/` prefix, best
   effort. **Recorded obligation:** when an account-deletion endpoint exists,
@@ -98,6 +115,12 @@ knob with no behavior attached.
   local signing. The escape hatch is IAM-based signing (`signBlob` via
   `roles/iam.serviceAccountTokenCreator`), which the client library supports
   but which adds an IAM call per URL.
+- **Watch:** thumbnail memory. The first view of a receipt decodes the
+  original inside Cloud Run. A JPEG decodes at reduced scale; a PNG decodes in
+  full, so images above 40 MP are refused (the box falls back to its icon).
+  At most two decodes run at once per instance, so a list opening many
+  unviewed trips cannot stack them. Raise the instance memory before raising
+  either limit.
 - **Watch:** URL expiry vs. slow uploads. The PUT expiry must comfortably
   cover a multi-megabyte photo on a bad mobile connection; if uploads start
   failing at the margin, widen the expiry rather than retrying blind.

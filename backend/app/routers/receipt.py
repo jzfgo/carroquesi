@@ -14,6 +14,7 @@ from app.schemas.receipt import (
     ReceiptScanResult,
     ReceiptScanSummary,
     ReceiptScanTargetPurchase,
+    ReceiptThumbUrlResult,
     ReceiptUploadUrlRequest,
     ReceiptUploadUrlResult,
 )
@@ -643,6 +644,46 @@ def get_receipt_file_url(
         content_type=scan.file_content_type,
         pages=scan.file_pages,
     )
+
+
+@router.get(
+    "/lists/{list_id}/receipts/{scan_id}/thumb-url",
+    response_model=ReceiptThumbUrlResult,
+)
+def get_receipt_thumb_url(
+    list_id: str,
+    scan_id: str,
+    session: CurrentSession = None,
+    list_and_user: MemberDep = None,
+):
+    """Mint a signed GET URL for a small JPEG of a stored receipt image.
+
+    Gated like file-url: membership only. The original stays the one the
+    viewer opens; this is for the small box in the trip header. 404 when no
+    miniature can be made — no file recorded, the upload has not landed, or
+    the file is not an image (a PDF shows its page count instead).
+    """
+    if not receipt_storage.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Receipt storage is not configured",
+        )
+
+    scan = session.get(ReceiptScan, scan_id)
+    if scan is None or scan.list_id != list_id or scan.file_path is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receipt file not found")
+    # A PDF with no page count reaches here too. Answer before downloading it.
+    if scan.file_content_type == "application/pdf":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Receipt thumbnail unavailable"
+        )
+
+    url = receipt_storage.thumbnail_download_url(list_id, scan_id, scan.file_path)
+    if url is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Receipt thumbnail unavailable"
+        )
+    return ReceiptThumbUrlResult(url=url)
 
 
 @router.get(
