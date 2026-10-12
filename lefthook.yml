@@ -86,7 +86,7 @@ pre-commit:
           fi
         done
         if [ "$fail" -eq 1 ]; then
-          echo "  Re-run 'pnpm install' on a clean checkout before committing, per AGENTS.md."
+          echo "  Re-run 'just frontend install' on a clean checkout before committing, per AGENTS.md."
           exit 1
         fi
 
