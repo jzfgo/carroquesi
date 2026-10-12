@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint . && stylelint 'src/**/*.css' && pnpm openapi:check",
+    "lint": "eslint . && stylelint 'src/**/*.css' && npm run --silent openapi:check",
     "openapi:types": "openapi-typescript ../backend/openapi.json -o src/apiSchema.generated.ts",
     "openapi:check": "openapi-typescript ../backend/openapi.json | diff -q src/apiSchema.generated.ts - || (echo 'src/apiSchema.generated.ts is out of date with backend/openapi.json - run: just openapi' && false)",
     "preview": "vite preview",

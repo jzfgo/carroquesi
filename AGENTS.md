@@ -57,7 +57,7 @@ Important invariants:
 
 ## Frontend
 
-Requires **Node.js v24** (pinned in `frontend/.nvmrc`)
+Requires **Node.js v24** (pinned in `frontend/.nvmrc`). pnpm needs no install: the `just` recipes run `corepack pnpm`, and Corepack (bundled with Node 24) fetches the version `packageManager` pins in `frontend/package.json`. A package.json script must not call `pnpm` itself — a machine without a global pnpm has none on PATH — so nested scripts use `npm run`
 
 ### Commands
 
