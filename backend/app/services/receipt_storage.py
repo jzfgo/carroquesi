@@ -15,10 +15,13 @@ prefix delete removes a list's receipts when the list itself is deleted.
 
 from __future__ import annotations
 
+import io
 from datetime import timedelta
 from pathlib import Path
 
+from google.api_core.exceptions import NotFound
 from google.cloud import storage
+from PIL import Image, ImageOps
 
 from app.core.config import settings
 
@@ -45,6 +48,18 @@ _EXTENSIONS = {
 
 # What an upload may declare; the API edge answers anything else with 415.
 ALLOWED_CONTENT_TYPES = frozenset(_EXTENSIONS)
+
+# The miniature's bounding box. The trip header draws it as a small portrait
+# box, top-aligned and cropped, so width is what matters: 160px covers that
+# box on a 3x phone screen. The tall height limit keeps a long receipt from
+# being squeezed to a sliver.
+THUMB_SIZE = (160, 640)
+THUMB_QUALITY = 75
+
+# Refuse to decode anything larger. A JPEG decodes at reduced scale and stays
+# far below this; a huge PNG decodes in full and could exhaust the instance's
+# memory.
+_MAX_DECODE_PIXELS = 40_000_000
 
 _client: storage.Client | None = None
 
@@ -113,6 +128,68 @@ def generate_download_url(path: str) -> str:
             method="GET",
         )
     )
+
+
+def thumbnail_path(list_id: str, scan_id: str) -> str:
+    """Where a scan's miniature lives. Keyed by scan, not by the original's
+    extension, so a re-upload in another format still finds it. It sits under
+    the list prefix, so the list-delete purge removes it too."""
+    return f"receipts/{list_id}/{scan_id}.thumb.jpg"
+
+
+def thumbnail_download_url(list_id: str, scan_id: str, file_path: str) -> str | None:
+    """Mint a signed GET URL for a scan's miniature, making it on first ask.
+
+    The original can be up to 10 MB, far too heavy for a small box in a list.
+    The first request downloads it once, renders a small JPEG, and stores that
+    beside it; later requests only sign. Returns None when no miniature can
+    be made: the upload has not landed yet, or the bytes are not an image.
+    Nothing is stored then, so a later request tries again.
+    """
+    bucket = _bucket()
+    thumb = bucket.blob(thumbnail_path(list_id, scan_id))
+    if not thumb.exists():
+        try:
+            original = bucket.blob(file_path).download_as_bytes()
+        except NotFound:
+            return None
+        rendered = render_thumbnail(original)
+        if rendered is None:
+            return None
+        thumb.upload_from_string(rendered, content_type="image/jpeg")
+    return thumb.generate_signed_url(
+        version="v4",
+        expiration=DOWNLOAD_URL_EXPIRY,
+        method="GET",
+    )
+
+
+def render_thumbnail(data: bytes) -> bytes | None:
+    """Shrink an image to a THUMB_SIZE JPEG, or None if it cannot be read."""
+    try:
+        with Image.open(io.BytesIO(data)) as img:
+            # JPEG only: decode at a reduced scale instead of in full.
+            img.draft("RGB", THUMB_SIZE)
+            if img.width * img.height > _MAX_DECODE_PIXELS:
+                return None
+            # Phone photos are often stored sideways with an EXIF rotation.
+            upright = ImageOps.exif_transpose(img)
+            upright.thumbnail(THUMB_SIZE)
+            out = io.BytesIO()
+            upright.convert("RGB").save(out, "JPEG", quality=THUMB_QUALITY, optimize=True)
+            return out.getvalue()
+    except (OSError, Image.DecompressionBombError):
+        # UnidentifiedImageError is an OSError: a PDF, or a corrupt upload.
+        return None
+
+
+def delete_thumbnail(list_id: str, scan_id: str) -> None:
+    """Drop a scan's miniature so the next request renders it again from the
+    current original. Missing is fine."""
+    try:
+        _bucket().blob(thumbnail_path(list_id, scan_id)).delete()
+    except NotFound:
+        pass
 
 
 def delete_list_receipts(list_id: str) -> int:

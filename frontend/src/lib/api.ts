@@ -17,6 +17,7 @@ import type {
   ReceiptScanRequest,
   ReceiptScanResult,
   ReceiptScanSummary,
+  ReceiptThumbUrlResult,
   ReceiptUploadUrlRequest,
   ReceiptUploadUrlResult,
   Suggestion,
@@ -562,6 +563,17 @@ export function getReceiptFileUrl(
     getToken,
     `/lists/${listId}/receipts/${scanId}/file-url`,
   ) as Promise<ReceiptFileUrlResult>
+}
+
+export function getReceiptThumbUrl(
+  getToken: () => Promise<string>,
+  listId: string,
+  scanId: string,
+): Promise<ReceiptThumbUrlResult> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/receipts/${scanId}/thumb-url`,
+  ) as Promise<ReceiptThumbUrlResult>
 }
 
 export function getReceiptScans(

@@ -700,6 +700,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/lists/{list_id}/receipts/{scan_id}/thumb-url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Receipt Thumb Url
+         * @description Mint a signed GET URL for a small JPEG of a stored receipt image.
+         *
+         *     Gated like file-url: membership only. The original stays the one the
+         *     viewer opens; this is for the small box in the trip header. 404 when no
+         *     miniature can be made — no file recorded, the upload has not landed, or
+         *     the file is not an image (a PDF shows its page count instead).
+         */
+        get: operations["get_receipt_thumb_url_lists__list_id__receipts__scan_id__thumb_url_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/lists/{list_id}/receipts/{scan_id}/upload-url": {
         parameters: {
             query?: never;
@@ -1673,6 +1698,11 @@ export interface components {
             store?: string | null;
             /** Total */
             total?: number | null;
+        };
+        /** ReceiptThumbUrlResult */
+        ReceiptThumbUrlResult: {
+            /** Url */
+            url: string;
         };
         /** ReceiptUploadUrlRequest */
         ReceiptUploadUrlRequest: {
@@ -3338,6 +3368,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReceiptFileUrlResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_receipt_thumb_url_lists__list_id__receipts__scan_id__thumb_url_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                list_id: string;
+                scan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptThumbUrlResult"];
                 };
             };
             /** @description Validation Error */

@@ -197,22 +197,17 @@ const scan = (over = {}) => ({
   ...over,
 })
 
-const fileUrl = (over = {}) => ({
-  url: 'https://storage.example/signed-get',
-  content_type: 'image/jpeg',
-  pages: null,
-  ...over,
-})
+const thumbUrl = () => ({ url: 'https://storage.example/signed-thumb' })
 
 test('stored paper shows to a member without the scan capability', async () => {
   const loadScans = vi.fn(async () => [scan()])
-  const loadFileUrl = vi.fn(async () => fileUrl())
+  const loadThumbUrl = vi.fn(async () => thumbUrl())
   const { container } = render(
     <TripCard
       trip={makeTrip({ has_receipt: true })}
       loadItems={noItems}
       loadReceiptScans={loadScans}
-      loadReceiptFileUrl={loadFileUrl}
+      loadReceiptThumbUrl={loadThumbUrl}
     />,
   )
   await waitFor(() =>
@@ -305,15 +300,21 @@ test('a fresh trip object for the same card drops the cached lines and re-reads'
   expect(loadItems).toHaveBeenCalledTimes(2)
 })
 
-test('a stored image renders the real miniature from the signed URL', async () => {
+test('a stored image renders the server-made miniature, never the original', async () => {
   const loadScans = vi.fn(async () => [scan()])
-  const loadFileUrl = vi.fn(async () => fileUrl())
+  const loadThumbUrl = vi.fn(async () => thumbUrl())
+  const loadFileUrl = vi.fn(async () => ({
+    url: 'https://storage.example/signed-original',
+    content_type: 'image/jpeg',
+    pages: null,
+  }))
   const { container } = render(
     <TripCard
       trip={makeTrip({ has_receipt: true })}
       loadItems={noItems}
       receiptScan
       loadReceiptScans={loadScans}
+      loadReceiptThumbUrl={loadThumbUrl}
       loadReceiptFileUrl={loadFileUrl}
     />,
   )
@@ -322,10 +323,12 @@ test('a stored image renders the real miniature from the signed URL', async () =
   )
   expect(container.querySelector('.trip-thumb__img')).toHaveAttribute(
     'src',
-    'https://storage.example/signed-get',
+    'https://storage.example/signed-thumb',
   )
   expect(screen.getByText('Ticket guardado')).toBeInTheDocument()
-  expect(loadFileUrl).toHaveBeenCalledWith('s1')
+  expect(loadThumbUrl).toHaveBeenCalledWith('s1')
+  // The original can weigh megabytes; only the viewer may load it.
+  expect(loadFileUrl).not.toHaveBeenCalled()
 })
 
 test('several scans with files: the latest wins', async () => {
@@ -333,29 +336,29 @@ test('several scans with files: the latest wins', async () => {
     scan({ id: 'old' }),
     scan({ id: 'newest' }),
   ])
-  const loadFileUrl = vi.fn(async () => fileUrl())
+  const loadThumbUrl = vi.fn(async () => thumbUrl())
   render(
     <TripCard
       trip={makeTrip({ has_receipt: true })}
       loadItems={noItems}
       receiptScan
       loadReceiptScans={loadScans}
-      loadReceiptFileUrl={loadFileUrl}
+      loadReceiptThumbUrl={loadThumbUrl}
     />,
   )
-  await waitFor(() => expect(loadFileUrl).toHaveBeenCalledWith('newest'))
+  await waitFor(() => expect(loadThumbUrl).toHaveBeenCalledWith('newest'))
 })
 
 test('a PDF renders the icon box with its page count, no URL fetch', async () => {
   const loadScans = vi.fn(async () => [scan({ file_pages: 3 })])
-  const loadFileUrl = vi.fn(async () => fileUrl())
+  const loadThumbUrl = vi.fn(async () => thumbUrl())
   const { container } = render(
     <TripCard
       trip={makeTrip({ has_receipt: true })}
       loadItems={noItems}
       receiptScan
       loadReceiptScans={loadScans}
-      loadReceiptFileUrl={loadFileUrl}
+      loadReceiptThumbUrl={loadThumbUrl}
     />,
   )
   await waitFor(() =>
@@ -364,7 +367,7 @@ test('a PDF renders the icon box with its page count, no URL fetch', async () =>
     ),
   )
   expect(container.querySelector('.trip-thumb--solid')).toBeInTheDocument()
-  expect(loadFileUrl).not.toHaveBeenCalled()
+  expect(loadThumbUrl).not.toHaveBeenCalled()
 })
 
 test('a reconciled scan without a file settles to the dashed hole', async () => {
@@ -395,14 +398,14 @@ test('a proto card never shows the hole', () => {
 
 test('a broken miniature falls back to the icon box', async () => {
   const loadScans = vi.fn(async () => [scan()])
-  const loadFileUrl = vi.fn(async () => fileUrl())
+  const loadThumbUrl = vi.fn(async () => thumbUrl())
   const { container } = render(
     <TripCard
       trip={makeTrip({ has_receipt: true })}
       loadItems={noItems}
       receiptScan
       loadReceiptScans={loadScans}
-      loadReceiptFileUrl={loadFileUrl}
+      loadReceiptThumbUrl={loadThumbUrl}
     />,
   )
   await waitFor(() =>
