@@ -672,6 +672,11 @@ def get_receipt_thumb_url(
     scan = session.get(ReceiptScan, scan_id)
     if scan is None or scan.list_id != list_id or scan.file_path is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receipt file not found")
+    # A PDF with no page count reaches here too. Answer before downloading it.
+    if scan.file_content_type == "application/pdf":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Receipt thumbnail unavailable"
+        )
 
     url = receipt_storage.thumbnail_download_url(list_id, scan_id, scan.file_path)
     if url is None:

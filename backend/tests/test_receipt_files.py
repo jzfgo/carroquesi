@@ -297,6 +297,19 @@ def test_thumb_url_returns_404_when_no_miniature_can_be_made(client, session, mo
     assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/thumb-url").status_code == 404
 
 
+def test_thumb_url_answers_404_for_a_pdf_without_downloading_it(client, session, monkeypatch):
+    scan = _stored_scan(session)
+    scan.file_path = f"receipts/{LIST_ID}/{SCAN_ID}.pdf"
+    scan.file_content_type = "application/pdf"
+    session.add(scan)
+    session.commit()
+    calls = []
+    monkeypatch.setattr(receipt_storage, "thumbnail_download_url", lambda *a: calls.append(a))
+
+    assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/thumb-url").status_code == 404
+    assert calls == []
+
+
 def test_thumb_url_needs_no_flag_or_consent(client, session, user, monkeypatch):
     _stored_scan(session)
     user.receipt_consent = "declined"
