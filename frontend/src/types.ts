@@ -60,6 +60,7 @@ export type ReceiptPriceApplyResult = S['ReceiptPriceApplyResult']
 // Stored receipt files (25b): per-trip scan summaries and signed URLs.
 export type ReceiptScanSummary = S['ReceiptScanSummary']
 export type ReceiptFileUrlResult = S['ReceiptFileUrlResult']
+export type ReceiptThumbUrlResult = S['ReceiptThumbUrlResult']
 export type ReceiptUploadUrlResult = S['ReceiptUploadUrlResult']
 
 // Requests

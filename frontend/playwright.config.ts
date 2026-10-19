@@ -120,7 +120,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: `pnpm build && pnpm preview -- --port ${FRONTEND_PORT}`,
+    command: `npm run build && npm run preview -- --port ${FRONTEND_PORT}`,
     url: FRONTEND_URL,
     reuseExistingServer: !IS_CI,
     env: {

@@ -138,6 +138,10 @@ class ReceiptFileUrlResult(BaseModel):
     pages: int | None
 
 
+class ReceiptThumbUrlResult(BaseModel):
+    url: str
+
+
 class ReceiptScanSummary(BaseModel):
     """One scan of a trip, as the purchase page's thumbnails need it."""
 

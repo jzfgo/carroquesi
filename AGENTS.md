@@ -57,7 +57,7 @@ Important invariants:
 
 ## Frontend
 
-Requires **Node.js v24** (pinned in `frontend/.nvmrc`)
+Requires **Node.js v24** (pinned in `frontend/.nvmrc`). pnpm needs no install: the `just` recipes run `corepack pnpm`, and Corepack (bundled with Node 24) fetches the version `packageManager` pins in `frontend/package.json`. A package.json script must not call `pnpm` itself — a machine without a global pnpm has none on PATH — so nested scripts use `npm run`
 
 ### Commands
 
@@ -102,7 +102,7 @@ Set `DEV_AUTH_BYPASS=true` in `backend/.env` and `VITE_DEV_USER_ID=seed-alice|se
 
 ### E2E Testing (Playwright)
 
-Run with `just frontend test-e2e` (alias: `pnpm test:e2e`). It runs against the **preview build**, not the dev server — changes must be built first.
+Run with `just frontend test-e2e` (alias: `corepack pnpm test:e2e`). It runs against the **preview build**, not the dev server — changes must be built first.
 
 Visual regression: key screens are checked via `toHaveScreenshot()` (wrapped in the `expectScreenshot` helper in `fixtures.ts`), baselines committed under `frontend/tests/*-snapshots/`. Only `chromium`/`Mobile Chrome` carry baselines. Regenerate with `just frontend update-snapshots`, which runs the container every committed baseline came out of — not a stand-in for CI, which renders on its own runner and is why there is a pixel budget at all. See `frontend/tests/README.md`. Three rules there are easy to breach by accident: the tolerance is an absolute pixel count, never a ratio; anything a screenshot shows must be deterministic — pin the clock before capturing a screen that prints a date; and the suite's timezone is pinned in `playwright.config.ts`, so every committed baseline is Madrid-rendered. Unpinning it or changing the zone hands the render environment back to the machine, which is how a baseline comes to pass while depicting the wrong day. The pin covers the **browser** only — Playwright does not touch the Node runner's `TZ`, and the vitest suite still runs at the machine's zone, so unit tests that touch dates have to be made zone-less themselves.
 
@@ -154,7 +154,7 @@ All known flags and defaults live in the registry in `backend/app/services/featu
 ## Infrastructure
 
 - Firebase project config lives in `frontend/src/lib/firebase.ts` (Auth only — no Firestore, no Storage)
-- Receipt files (photos or PDFs, 10 MB cap) live in a private GCS bucket (`RECEIPT_STORAGE_BUCKET`; empty = storage disabled). Clients never touch the bucket directly: the backend checks membership in Postgres and mints short-lived V4 signed URLs (`app/services/receipt_storage.py`), and `frontend/storage.rules` stays fully locked. Uploading gates on the flag + consent like scanning; downloading gates on membership only. Retention is list-lifetime — deleting a list purges its `receipts/{list_id}/` prefix best-effort. See [ADR-015](docs/decisions/015-gcs-receipt-storage-signed-urls.md)
+- Receipt files (photos or PDFs, 10 MB cap) live in a private GCS bucket (`RECEIPT_STORAGE_BUCKET`; empty = storage disabled). Clients never touch the bucket directly: the backend checks membership in Postgres and mints short-lived V4 signed URLs (`app/services/receipt_storage.py`), and `frontend/storage.rules` stays fully locked. Uploading gates on the flag + consent like scanning; downloading gates on membership only. The trip header's miniature is a small JPEG the backend renders from the original on first view and stores beside it (`thumb-url`), never the original itself. Retention is list-lifetime — deleting a list purges its `receipts/{list_id}/` prefix best-effort. See [ADR-015](docs/decisions/015-gcs-receipt-storage-signed-urls.md)
 - Cloud Run service URL stored as an env var in the frontend for API calls
 - **Staging**: `develop` auto-deploys to a parallel stack — Hosting site `cqs-stg` (cqs-stg.web.app), Cloud Run `carroquesi-backend-staging`, a Neon branch of the production DB (reset with `just staging-db-reset`, which also scrubs `push_tokens`), and its own receipts bucket. Same Firebase project: shared auth pool, FCM sender, App Check key. Access is gated by the waitlist (`WAITLIST_ENABLED=true`, nobody granted): existing users sign in normally, new sign-ups hit the wall. See [ADR-016](docs/decisions/016-staging-environment-and-develop-branch.md)
 - **The app is Postgres-host-agnostic** — the backend's entire contract with the database is `DATABASE_URL`, and no code path assumes a particular provider. Keep it that way: don't introduce host-specific assumptions without an ADR

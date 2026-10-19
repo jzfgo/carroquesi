@@ -2260,6 +2260,19 @@
         "title": "ReceiptScanTargetPurchase",
         "type": "object"
       },
+      "ReceiptThumbUrlResult": {
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "ReceiptThumbUrlResult",
+        "type": "object"
+      },
       "ReceiptUploadUrlRequest": {
         "properties": {
           "content_type": {
@@ -6887,6 +6900,111 @@
           }
         ],
         "summary": "Get Receipt File Url",
+        "tags": [
+          "receipt"
+        ]
+      }
+    },
+    "/lists/{list_id}/receipts/{scan_id}/thumb-url": {
+      "get": {
+        "description": "Mint a signed GET URL for a small JPEG of a stored receipt image.\n\nGated like file-url: membership only. The original stays the one the\nviewer opens; this is for the small box in the trip header. 404 when no\nminiature can be made — no file recorded, the upload has not landed, or\nthe file is not an image (a PDF shows its page count instead).",
+        "operationId": "get_receipt_thumb_url_lists__list_id__receipts__scan_id__thumb_url_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "scan_id",
+            "required": true,
+            "schema": {
+              "title": "Scan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptThumbUrlResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Receipt Thumb Url",
         "tags": [
           "receipt"
         ]

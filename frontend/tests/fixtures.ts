@@ -265,6 +265,11 @@ export async function installApiMocks(page: Page): Promise<void> {
       if (/^\/receipts\/[^/]+\/file-url$/.test(sub) && method === 'GET')
         return json(SEED_FILE_URL_RESULT)
 
+      // /lists/:id/receipts/:scanId/thumb-url — the 25b miniature. The
+      // backend renders a small JPEG; the seed serves the same image.
+      if (/^\/receipts\/[^/]+\/thumb-url$/.test(sub) && method === 'GET')
+        return json({ url: SEED_FILE_URL_RESULT.url })
+
       // /lists/:id/stores — the store registry; fetched with every list read.
       if (sub === '/stores') {
         if (method === 'GET') return json(SEED_STORES[listId] ?? [])

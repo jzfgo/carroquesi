@@ -5,6 +5,7 @@ import {
   getGenerativeModel,
   InferenceMode,
   type GenerativeModel,
+  type InlineDataPart,
 } from 'firebase/ai'
 import type { ParsedLine, ReceiptScanRequest } from '../types'
 import { getFirebaseAi } from './firebase'
@@ -149,7 +150,7 @@ function resizeImageFile(file: File): Promise<string | null> {
   })
 }
 
-async function fileToInlinePart(file: File) {
+async function fileToInlinePart(file: File): Promise<InlineDataPart> {
   if (file.type.startsWith('image/')) {
     const resizedDataUrl = await resizeImageFile(file)
     const base64 = resizedDataUrl?.split(',')[1]
@@ -157,23 +158,25 @@ async function fileToInlinePart(file: File) {
     // re-encode can come out larger than the photo it came from, in which case
     // sending it would defeat the point of resizing at all.
     if (base64 && base64.length <= (file.size * 4) / 3) {
-      return { inlineData: { data: base64, mimeType: RESIZED_MIME_TYPE } }
+      return {
+        type: 'inlineData',
+        inlineData: { data: base64, mimeType: RESIZED_MIME_TYPE },
+      }
     }
   }
 
-  return new Promise<{ inlineData: { data: string; mimeType: string } }>(
-    (resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const result = reader.result as string
-        resolve({
-          inlineData: { data: result.split(',')[1], mimeType: file.type },
-        })
-      }
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    },
-  )
+  return new Promise<InlineDataPart>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const result = reader.result as string
+      resolve({
+        type: 'inlineData',
+        inlineData: { data: result.split(',')[1], mimeType: file.type },
+      })
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 /**
@@ -291,7 +294,7 @@ function isRetryable(error: unknown): boolean {
 }
 
 async function generateContentWithRetry(
-  filePart: { inlineData: { data: string; mimeType: string } },
+  filePart: InlineDataPart,
   options?: ParseReceiptOptions,
 ) {
   const initialDelay = options?.delayMs ?? INITIAL_RETRY_DELAY_MS
