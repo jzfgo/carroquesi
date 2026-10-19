@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.4] — 2026-10-19
+
+### Fixed
+- Serve server-made receipt thumbnails instead of the original (#375)
+
+
+---
 ## [0.23.3] — 2026-10-11
 
 ### Fixed
