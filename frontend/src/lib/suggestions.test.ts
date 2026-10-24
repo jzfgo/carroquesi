@@ -188,3 +188,16 @@ describe('formatLastPurchase', () => {
   test('90 days → la última hace 3 meses', () =>
     expect(formatLastPurchase(90)).toBe('la última hace 3 meses'))
 })
+
+test('stores: excluded values are skipped by key and free their slot', () => {
+  const many: ListItem[] = ['Mercadona', 'A', 'B', 'C', 'D', 'E'].map(
+    (store, i) => ({ ...items[0], id: `e${i}`, stores: [store] }),
+  )
+  expect(clientSideSuggestions(many, 'stores', '', ['MERCADONA '])).toEqual([
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+  ])
+})

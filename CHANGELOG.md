@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.6] — 2026-10-24
+
+### Fixed
+- **smart-input:** Quote multi-word sigil suggestions and skip values already added (#384)
+
+
+---
 ## [0.23.5] — 2026-10-24
 
 ### Fixed
