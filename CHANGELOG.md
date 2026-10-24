@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.5] — 2026-10-24
+
+### Fixed
+- **deps:** Bump Pillow to 13.0.0 for TIFF security fixes (#382)
+
+
+---
 ## [0.23.4] — 2026-10-19
 
 ### Fixed
