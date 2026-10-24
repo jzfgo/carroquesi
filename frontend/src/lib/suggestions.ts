@@ -5,6 +5,7 @@ export function clientSideSuggestions(
   items: ListItem[],
   field: 'brand' | 'stores',
   partial: string,
+  exclude: string[] = [],
 ): string[] {
   // Stores match and dedupe by key so a spelling variant is offered
   // instead of silently birthing a new one ("ahorram" must suggest
@@ -15,7 +16,7 @@ export function clientSideSuggestions(
       ? (val: string) => storeKey(val).startsWith(storeKey(partial))
       : (val: string) => val.toLowerCase().startsWith(partial.toLowerCase())
   const dedupeKey = field === 'stores' ? storeKey : (val: string) => val
-  const seen = new Set<string>()
+  const seen = new Set(exclude.map(dedupeKey))
   const results: string[] = []
   for (const item of items) {
     const vals: (string | null)[] =

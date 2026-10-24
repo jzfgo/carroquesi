@@ -1,5 +1,6 @@
 import { ArrowUp, ScanBarcode, Store, Tag, X } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { parseInput } from '../lib/parseInput'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem, ParsedInput, Suggestion } from '../types'
 import './SmartInputBar.css'
@@ -9,17 +10,30 @@ const SIGIL_FIELDS: Record<string, 'brand' | 'stores'> = {
   '@': 'stores',
 }
 
+// The sigil token the caret is still inside: from the last sigil to the end
+// of the input, unless a closed quote has already finished it. Positions are
+// kept by masking complete quoted values, so a sigil character inside one
+// never counts.
 function getActiveSigil(
   raw: string,
-): { sigil: string; partial: string } | null {
-  const words = raw.split(/\s+/)
-  for (let i = words.length - 1; i >= 0; i--) {
-    const w = words[i]
-    if (w && '#@+'.includes(w[0])) {
-      return { sigil: w[0], partial: w.slice(1) }
-    }
+): { sigil: string; partial: string; start: number } | null {
+  const masked = raw.replace(/"[^"]*"|'[^']*'/g, (m) => 'x'.repeat(m.length))
+  const match = /(?:^|\s)([#@+|])(?!.*\s[#@+|])/s.exec(masked)
+  if (!match) return null
+  const start = match.index + match[0].length - 1
+  if (masked.slice(start) !== raw.slice(start)) return null
+  return {
+    sigil: raw[start],
+    partial: raw.slice(start + 1).replace(/^["']/, ''),
+    start,
   }
-  return null
+}
+
+// A value with spaces only survives the parser when quoted.
+function sigilValue(label: string): string {
+  if (!/\s/.test(label)) return label
+  const quote = label.includes('"') ? "'" : '"'
+  return quote + label + quote
 }
 
 function hasSigil(parsed: ParsedInput): boolean {
@@ -76,12 +90,28 @@ export function SmartInputBar({
       ? (activeSigil.sigil as '#' | '@')
       : null
 
+  // What the input already carries, without the token being typed. The parser
+  // keeps only the first brand, so once one is set a second offers nothing.
+  const committed = fieldSigil
+    ? parseInput(value.slice(0, activeSigil!.start))
+    : null
+
   const displaySuggestions = fieldSigil
-    ? clientSideSuggestions(
-        items,
-        SIGIL_FIELDS[fieldSigil],
-        activeSigil!.partial,
-      )
+    ? fieldSigil === '#' && committed!.brand
+      ? []
+      : clientSideSuggestions(
+          items,
+          SIGIL_FIELDS[fieldSigil],
+          activeSigil!.partial,
+          // A store followed by a space is finished too. The store key ignores
+          // spaces, so without this it would still offer itself. Brands skip
+          // this: a store's own label (Dia) shares its name.
+          fieldSigil === '#'
+            ? []
+            : /\s$/.test(activeSigil!.partial)
+              ? [...committed!.stores, activeSigil!.partial]
+              : committed!.stores,
+        )
     : suggestions.slice(0, 5)
 
   const inEanMode = parsed.ean != null
@@ -94,7 +124,7 @@ export function SmartInputBar({
   }
 
   function applySuggestion(suggestion: string | Suggestion) {
-    if (!activeSigil) {
+    if (!fieldSigil) {
       if (typeof suggestion === 'string') {
         onChange(suggestion)
       } else {
@@ -102,10 +132,12 @@ export function SmartInputBar({
       }
       return
     }
-    const words = value.split(/\s+/)
-    words[words.length - 1] =
-      activeSigil.sigil + suggestionLabel(suggestion) + ' '
-    onChange(words.join(' '))
+    onChange(
+      value.slice(0, activeSigil!.start) +
+        fieldSigil +
+        sigilValue(suggestionLabel(suggestion)) +
+        ' ',
+    )
   }
 
   return (
