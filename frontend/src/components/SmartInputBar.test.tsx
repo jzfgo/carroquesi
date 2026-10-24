@@ -657,6 +657,7 @@ function itemWith(brand: string | null, stores: string[]): ListItem {
 const SIGIL_ITEMS = [
   itemWith('Estrella Galicia', ['Ahorra Más']),
   itemWith('Hacendado', ['Mercadona']),
+  itemWith('Dia', ['Dia']),
 ]
 
 function renderSigilBar(value: string, onChange = noop) {
@@ -726,7 +727,7 @@ test('a second brand sigil offers nothing once a brand is set', () => {
 
 test('stores already added are not offered again', () => {
   renderSigilBar('Pan @Mercadona @')
-  expect(suggestionButtons()).toEqual(['Ahorra Más'])
+  expect(suggestionButtons()).toEqual(['Ahorra Más', 'Dia'])
 })
 
 test('a finished store does not offer itself', () => {
@@ -737,4 +738,25 @@ test('a finished store does not offer itself', () => {
 test('a quantity sigil after a brand ends the brand token', () => {
   renderSigilBar('Cerveza #Hacendado +2')
   expect(suggestionButtons()).toEqual([])
+})
+
+test('a store already added does not hide a brand of the same name', () => {
+  renderSigilBar('Leche @Dia #D')
+  expect(suggestionButtons()).toEqual(['Dia'])
+})
+
+test('a product tap after a quantity adds the product, not +Leche', async () => {
+  const onChange = vi.fn()
+  const onSuggestionAdd = vi.fn()
+  const suggestion = { name: 'Leche', brand: null, stores: [] }
+  renderBar({
+    value: 'Leche +2',
+    parsed: parseInput('Leche +2'),
+    suggestions: [suggestion],
+    onChange,
+    onSuggestionAdd,
+  })
+  await userEvent.click(screen.getByRole('button', { name: 'Leche' }))
+  expect(onSuggestionAdd).toHaveBeenCalledWith(suggestion)
+  expect(onChange).not.toHaveBeenCalled()
 })

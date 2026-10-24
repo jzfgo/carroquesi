@@ -104,10 +104,13 @@ export function SmartInputBar({
           SIGIL_FIELDS[fieldSigil],
           activeSigil!.partial,
           // A store followed by a space is finished too. The store key ignores
-          // spaces, so without this it would still offer itself.
-          /\s$/.test(activeSigil!.partial)
-            ? [...committed!.stores, activeSigil!.partial]
-            : committed!.stores,
+          // spaces, so without this it would still offer itself. Brands skip
+          // this: a store's own label (Dia) shares its name.
+          fieldSigil === '#'
+            ? []
+            : /\s$/.test(activeSigil!.partial)
+              ? [...committed!.stores, activeSigil!.partial]
+              : committed!.stores,
         )
     : suggestions.slice(0, 5)
 
