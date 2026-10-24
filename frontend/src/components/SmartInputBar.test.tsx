@@ -629,3 +629,112 @@ test('inferredStoreChip=null — no extra chip rendered', () => {
   )
   expect(screen.queryByTestId('inferred-store-chip')).not.toBeInTheDocument()
 })
+
+// ── Sigil suggestions ─────────────────────────────────────────────────────────
+
+function itemWith(brand: string | null, stores: string[]): ListItem {
+  return {
+    id: `${brand}-${stores.join()}`,
+    list_id: 'l1',
+    name: 'X',
+    quantity: null,
+    purchased_quantity: null,
+    brand,
+    stores,
+    purchased: false,
+    purchased_at: null,
+    purchase_has_receipt: false,
+    ean: null,
+    price: null,
+    price_per: null,
+    price_store: null,
+    added_by: 'u1',
+    created_at: '',
+    updated_at: '',
+  }
+}
+
+const SIGIL_ITEMS = [
+  itemWith('Estrella Galicia', ['Ahorra Más']),
+  itemWith('Hacendado', ['Mercadona']),
+]
+
+function renderSigilBar(value: string, onChange = noop) {
+  renderBar({
+    value,
+    parsed: parseInput(value),
+    items: SIGIL_ITEMS,
+    onChange,
+  })
+}
+
+const suggestionButtons = () =>
+  screen
+    .queryAllByRole('button')
+    .filter((b) => b.classList.contains('smart-input__suggestion'))
+    .map((b) => b.textContent)
+
+test('a brand with spaces is inserted quoted, so the parser keeps it whole', async () => {
+  const onChange = vi.fn()
+  renderSigilBar('Cerveza #Est', onChange)
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Estrella Galicia' }),
+  )
+  expect(onChange).toHaveBeenCalledWith('Cerveza #"Estrella Galicia" ')
+  expect(parseInput('Cerveza #"Estrella Galicia" @Mercadona').brand).toBe(
+    'Estrella Galicia',
+  )
+})
+
+test('a store with spaces is inserted quoted', async () => {
+  const onChange = vi.fn()
+  renderSigilBar('Pan @Ahor', onChange)
+  await userEvent.click(screen.getByRole('button', { name: 'Ahorra Más' }))
+  expect(onChange).toHaveBeenCalledWith('Pan @"Ahorra Más" ')
+})
+
+test('a one-word value is inserted bare', async () => {
+  const onChange = vi.fn()
+  renderSigilBar('Leche #Hac', onChange)
+  await userEvent.click(screen.getByRole('button', { name: 'Hacendado' }))
+  expect(onChange).toHaveBeenCalledWith('Leche #Hacendado ')
+})
+
+test('an unquoted multi-word partial is replaced whole', async () => {
+  const onChange = vi.fn()
+  renderSigilBar('Cerveza #Estrella Ga', onChange)
+  await userEvent.click(
+    screen.getByRole('button', { name: 'Estrella Galicia' }),
+  )
+  expect(onChange).toHaveBeenCalledWith('Cerveza #"Estrella Galicia" ')
+})
+
+test('an open quote keeps suggesting', () => {
+  renderSigilBar('Cerveza #"Estrella G')
+  expect(suggestionButtons()).toEqual(['Estrella Galicia'])
+})
+
+test('a closed quote ends the sigil token', () => {
+  renderSigilBar('Cerveza #"Estrella Galicia" ')
+  expect(suggestionButtons()).toEqual([])
+})
+
+test('a second brand sigil offers nothing once a brand is set', () => {
+  renderSigilBar('Cerveza #"Estrella Galicia" #')
+  expect(suggestionButtons()).toEqual([])
+})
+
+test('stores already added are not offered again', () => {
+  renderSigilBar('Pan @Mercadona @')
+  expect(suggestionButtons()).toEqual(['Ahorra Más'])
+})
+
+test('a finished store does not offer itself', () => {
+  renderSigilBar('Pan @Mercadona ')
+  expect(suggestionButtons()).not.toContain('Mercadona')
+})
+
+test('a quantity sigil after a brand ends the brand token', () => {
+  renderSigilBar('Cerveza #Hacendado +2')
+  expect(suggestionButtons()).toEqual([])
+})
