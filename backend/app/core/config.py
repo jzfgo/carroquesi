@@ -1,9 +1,13 @@
-from pydantic_settings import BaseSettings
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/carroquesi"
 
 
 class Settings(BaseSettings):
     allowed_origins: list[str] = ["http://localhost:5173"]
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/carroquesi"
+    database_url: str = DEFAULT_DATABASE_URL
     firebase_credentials_path: str = "firebase-credentials.json"
     # Set to true in local .env only — never in production
     dev_auth_bypass: bool = False
@@ -12,7 +16,9 @@ class Settings(BaseSettings):
     receipt_storage_bucket: str = ""
     waitlist_enabled: bool = False
 
-    model_config = {"env_file": ".env"}
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 
-settings = Settings()
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

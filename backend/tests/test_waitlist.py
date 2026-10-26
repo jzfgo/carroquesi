@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
+from app.core.config import get_settings
 from app.db.models import User
 from app.db.session import get_session
 from app.db.waitlist_models import WaitlistSignup
@@ -121,7 +122,7 @@ def test_get_current_user_gate_blocked(session: Session, monkeypatch):
     from app.dependencies import CurrentUser
 
     # Enable waitlist
-    monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
+    monkeypatch.setattr(get_settings(), "waitlist_enabled", True)
 
     # Build a test app that runs the real dependency
     gate_app = FastAPI()
@@ -152,7 +153,7 @@ def test_get_current_user_gate_allowed_for_existing(session: Session, monkeypatc
     from app.dependencies import CurrentUser
 
     # Enable waitlist
-    monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
+    monkeypatch.setattr(get_settings(), "waitlist_enabled", True)
 
     # Seed an existing user
     existing_user = User(
@@ -190,7 +191,7 @@ def test_get_current_user_gate_allowed_for_new_admin(session: Session, monkeypat
     from app.dependencies import CurrentUser
 
     # Enable waitlist
-    monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
+    monkeypatch.setattr(get_settings(), "waitlist_enabled", True)
 
     # Do NOT seed user in DB. We test if a new user with is_admin claim is allowed.
     gate_app = FastAPI()
@@ -228,7 +229,7 @@ def test_get_current_user_gate_allowed_for_approved_waitlist_user(session: Sessi
     from app.dependencies import CurrentUser
 
     # Enable waitlist
-    monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
+    monkeypatch.setattr(get_settings(), "waitlist_enabled", True)
 
     # Seed an approved waitlist signup
     signup = WaitlistSignup(
@@ -270,7 +271,7 @@ def test_get_current_user_gate_blocked_for_unapproved_waitlist_user(session: Ses
     from app.dependencies import CurrentUser
 
     # Enable waitlist
-    monkeypatch.setattr("app.dependencies.settings.waitlist_enabled", True)
+    monkeypatch.setattr(get_settings(), "waitlist_enabled", True)
 
     # Seed an unapproved waitlist signup
     signup = WaitlistSignup(email="unapproved-waitlist@example.com", allowed_at=None)

@@ -53,7 +53,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlmodel import Session, select
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.db.models import (
     BarcodeCache,
     List,
@@ -64,7 +64,7 @@ from app.db.models import (
     User,
     UserFeature,
 )
-from app.db.session import engine
+from app.db.session import get_engine
 from app.services.trips import tears_off_at_for
 
 
@@ -1843,8 +1843,8 @@ def main() -> None:
     price_items = [i for i in SEED_ITEMS if i.price is not None]
     stores = {i.price_store for i in price_items if i.price_store}
 
-    print(f"\nSeeding: {settings.database_url}\n")
-    with Session(engine) as session:
+    print(f"\nSeeding: {get_settings().database_url}\n")
+    with Session(get_engine()) as session:
         _delete_seed_rows(session)
         _insert(session, SEED_USERS)
         print(f"  +{len(SEED_USERS)} users")
