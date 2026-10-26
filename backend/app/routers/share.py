@@ -4,7 +4,7 @@ import json as _json
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.db.models import List, ListInvite, User
 from app.dependencies import CurrentSession
 
@@ -44,7 +44,7 @@ def invite_share_page(invite_id: str, session: CurrentSession):
     redirect_url_js = (
         _json.dumps(f"/invite/{invite_id}").replace("<", "\\u003c").replace(">", "\\u003e")
     )
-    og_image = f"{settings.frontend_url}/og-image.png"
+    og_image = f"{get_settings().frontend_url}/og-image.png"
 
     html = f"""<!DOCTYPE html>
 <html lang="es">

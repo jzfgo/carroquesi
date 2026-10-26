@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 from sqlmodel import Session
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.db.models import List, ListMember, Purchase, ReceiptScan
 from app.db.models import UserFeature as _UserFeature
 from app.services import receipt_storage
@@ -47,13 +47,11 @@ def seed_list(session, user):
 def mock_storage(monkeypatch) -> MagicMock:
     """Configure the bucket and swap the GCS client for a mock. Unconfigured
     tests blank receipt_storage_bucket on top of this."""
-    monkeypatch.setattr(settings, "receipt_storage_bucket", "test-bucket")
-    receipt_storage._client = None
+    monkeypatch.setattr(get_settings(), "receipt_storage_bucket", "test-bucket")
     client = MagicMock()
     client.bucket.return_value.blob.return_value.generate_signed_url.return_value = SIGNED_URL
     monkeypatch.setattr(receipt_storage, "_get_client", lambda: client)
     yield client
-    receipt_storage._client = None
 
 
 def _mint(client, content_type="image/jpeg", pages=None, list_id=LIST_ID, scan_id=SCAN_ID):
@@ -155,7 +153,7 @@ def test_mint_returns_403_without_consent(client, session, user, consent):
 def test_mint_consent_answers_before_the_storage_check(client, session, user, monkeypatch):
     """Gate order: an unconsented user is told about consent, not about a
     storage outage that is none of their business yet."""
-    monkeypatch.setattr(settings, "receipt_storage_bucket", "")
+    monkeypatch.setattr(get_settings(), "receipt_storage_bucket", "")
     user.receipt_consent = None
     session.add(user)
     session.commit()
@@ -166,7 +164,7 @@ def test_mint_consent_answers_before_the_storage_check(client, session, user, mo
 
 
 def test_mint_returns_503_when_storage_unconfigured(client, monkeypatch):
-    monkeypatch.setattr(settings, "receipt_storage_bucket", "")
+    monkeypatch.setattr(get_settings(), "receipt_storage_bucket", "")
     assert _mint(client).status_code == 503
 
 
@@ -260,7 +258,7 @@ def test_file_url_returns_404_for_an_unknown_scan(client):
 
 def test_file_url_returns_503_when_storage_unconfigured(client, session, monkeypatch):
     _stored_scan(session)
-    monkeypatch.setattr(settings, "receipt_storage_bucket", "")
+    monkeypatch.setattr(get_settings(), "receipt_storage_bucket", "")
 
     assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/file-url").status_code == 503
 
@@ -336,7 +334,7 @@ def test_thumb_url_returns_404_for_another_lists_scan(client, session, other_lis
 
 def test_thumb_url_returns_503_when_storage_unconfigured(client, session, monkeypatch):
     _stored_scan(session)
-    monkeypatch.setattr(settings, "receipt_storage_bucket", "")
+    monkeypatch.setattr(get_settings(), "receipt_storage_bucket", "")
 
     assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/thumb-url").status_code == 503
 

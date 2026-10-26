@@ -5,7 +5,7 @@ from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session, select
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.core.firebase import verify_id_token
 from app.db.models import ApiKey, List, ListMember, User
 from app.db.session import get_session
@@ -22,7 +22,7 @@ def get_current_user(
     x_api_key: Annotated[str | None, Header()] = None,
     session: Annotated[Session, Depends(get_session)] = None,
 ) -> User:
-    if settings.dev_auth_bypass and x_dev_user_id:
+    if get_settings().dev_auth_bypass and x_dev_user_id:
         user = session.exec(select(User).where(User.firebase_uid == x_dev_user_id)).first()
         if user is None:
             raise HTTPException(
@@ -43,7 +43,7 @@ def get_current_user(
         user = session.exec(select(User).where(User.firebase_uid == decoded["uid"])).first()
         if user is None:
             # First login — create the user record
-            if settings.waitlist_enabled and not decoded.get("is_admin", False):
+            if get_settings().waitlist_enabled and not decoded.get("is_admin", False):
                 # Check if their email has a waitlist signup that was allowed access
                 email_clean = decoded.get("email", "").strip().lower()
                 is_waitlist_approved = False

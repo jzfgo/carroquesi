@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
+from app.core.config import get_settings
 from app.db.models import User
 from app.db.session import get_session
 
@@ -59,7 +60,7 @@ def seed_user_fixture(bypass_session: Session) -> User:
 
 
 def test_dev_bypass_resolves_known_user(bypass_session, seed_user, monkeypatch):
-    monkeypatch.setattr("app.dependencies.settings.dev_auth_bypass", True)
+    monkeypatch.setattr(get_settings(), "dev_auth_bypass", True)
     app = _make_bypass_app(bypass_session)
     with TestClient(app, raise_server_exceptions=True) as client:
         resp = client.get(
@@ -71,7 +72,7 @@ def test_dev_bypass_resolves_known_user(bypass_session, seed_user, monkeypatch):
 
 
 def test_dev_bypass_unknown_uid_returns_401(bypass_session, seed_user, monkeypatch):
-    monkeypatch.setattr("app.dependencies.settings.dev_auth_bypass", True)
+    monkeypatch.setattr(get_settings(), "dev_auth_bypass", True)
     app = _make_bypass_app(bypass_session)
     with TestClient(app, raise_server_exceptions=False) as client:
         resp = client.get(
@@ -82,7 +83,7 @@ def test_dev_bypass_unknown_uid_returns_401(bypass_session, seed_user, monkeypat
 
 
 def test_dev_bypass_disabled_header_is_ignored(bypass_session, seed_user, monkeypatch):
-    monkeypatch.setattr("app.dependencies.settings.dev_auth_bypass", False)
+    monkeypatch.setattr(get_settings(), "dev_auth_bypass", False)
     app = _make_bypass_app(bypass_session)
     with TestClient(app, raise_server_exceptions=False) as client:
         # Header present but bypass is off — should fall through to normal Firebase
