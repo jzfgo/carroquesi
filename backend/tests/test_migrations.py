@@ -27,7 +27,7 @@ from alembic.config import Config
 from sqlmodel import SQLModel
 
 from alembic import command
-from app.core.config import settings
+from app.core.config import get_settings
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 ALEMBIC_INI = BACKEND_DIR / "alembic.ini"
@@ -46,11 +46,11 @@ def db_url(tmp_path: Path) -> str:
 
 @pytest.fixture
 def alembic_config(db_url: str, monkeypatch: pytest.MonkeyPatch) -> Config:
-    # env.py's `config.set_main_option("sqlalchemy.url", settings.database_url)`
-    # reads the *settings singleton*, not whatever is set on the Config object
+    # env.py's `config.set_main_option("sqlalchemy.url", get_settings().database_url)`
+    # reads the *cached settings object*, not whatever is set on the Config object
     # here — setting it on the Config alone is silently ignored. Patch the
-    # singleton instead.
-    monkeypatch.setattr(settings, "database_url", db_url)
+    # cached object instead.
+    monkeypatch.setattr(get_settings(), "database_url", db_url)
     # Config(str(ALEMBIC_INI)) resolves script_location via alembic.ini's
     # `%(here)s` token relative to the ini file's own absolute path, so this
     # works regardless of the pytest invocation's cwd.
