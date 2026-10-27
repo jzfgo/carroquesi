@@ -42,12 +42,17 @@ def get_suggestions(
     if not list_ids:
         return []
 
+    # A query of only spaces or accent marks folds to nothing, and an empty
+    # prefix would match every name. That is not a search; answer empty.
+    prefix = fold_name(q)
+    if not prefix:
+        return []
+
     # Fold names in Python, newest first, keeping the first spelling of each
     # name. Accent folding defeats a plain SQL LIKE, and SQLite has no
     # unaccent. This reads the user's whole history on every call, which a
     # household's few thousand rows allow. If the bar ever feels slow, store a
     # folded name column and filter on it in SQL.
-    prefix = fold_name(q)
     items = session.exec(
         select(ListItem.name, ListItem.brand, ListItem.stores)
         .where(ListItem.list_id.in_(list_ids))

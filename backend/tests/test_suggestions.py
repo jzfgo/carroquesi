@@ -26,6 +26,17 @@ def test_suggestions_ignore_accents_both_ways(client: TestClient):
     assert [s["name"] for s in client.get("/suggestions?q=plá").json()] == ["Platano"]
 
 
+def test_suggestions_of_only_accent_marks_or_spaces_answer_empty(client: TestClient):
+    """A query that folds to nothing names nothing, so it must not list every name."""
+    lst = client.post("/lists", json={"name": "List"}).json()
+    client.post(f"/lists/{lst['id']}/items", json={"name": "Pimentón"})
+
+    for q in ("́", "   ", " ́ "):
+        response = client.get("/suggestions", params={"q": q})
+        assert response.status_code == 200
+        assert response.json() == [], repr(q)
+
+
 def test_suggestions_merge_accent_variants_newest_wins(client: TestClient):
     # Two lists: on one list the second spelling would be refused as a duplicate.
     home = client.post("/lists", json={"name": "Home"}).json()
