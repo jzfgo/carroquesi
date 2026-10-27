@@ -230,7 +230,7 @@ describe('useListItems — addItem', () => {
     expect(mockShowToast).toHaveBeenCalledWith('No se pudo añadir el producto')
   })
 
-  it('blocks duplicate name (case-insensitive) and shows toast without calling API', async () => {
+  it('blocks duplicate name (case- and accent-insensitive) and shows toast without calling API', async () => {
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
     )
@@ -239,7 +239,7 @@ describe('useListItems — addItem', () => {
     let created: ListItem | null = item1
     await act(async () => {
       created = await result.current.addItem({
-        name: 'LECHE',
+        name: 'LÉCHE',
         quantity: null,
         brand: null,
         stores: [],
@@ -250,6 +250,28 @@ describe('useListItems — addItem', () => {
     expect(mockShowToast).toHaveBeenCalledWith('Ya está en la lista')
     // A refused add answers null — nothing to point at.
     expect(created).toBeNull()
+  })
+
+  it('blocks a duplicate name that differs only in inner spaces', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([
+      { ...item1, name: 'Pan integral' },
+    ] as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.addItem({
+        name: 'pan   integral',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
+    })
+
+    expect(api.createItem).not.toHaveBeenCalled()
+    expect(mockShowToast).toHaveBeenCalledWith('Ya está en la lista')
   })
 
   it('blocks duplicate EAN and shows toast without calling API', async () => {
@@ -354,6 +376,47 @@ describe('useListItems — updateTag', () => {
     })
 
     expect(result.current.items[0].brand).toBeNull()
+  })
+
+  it('adds the store of an own brand in the same write', async () => {
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.updateTag('item-1', 'brand', 'Hacendado')
+    })
+
+    expect(result.current.items[0].stores).toEqual(['Mercadona'])
+    expect(api.updateItem).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { brand: 'Hacendado', stores: ['Mercadona'] },
+    )
+  })
+
+  it('leaves stores alone when the own brand store is already there', async () => {
+    const itemInStore: ListItem = { ...item1, stores: ['mercadona'] }
+    vi.mocked(api.getListItems).mockResolvedValue([itemInStore] as never)
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.updateTag('item-1', 'brand', 'Hacendado')
+    })
+
+    expect(api.updateItem).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { brand: 'Hacendado' },
+    )
   })
 
   it('reverts and shows toast on API failure', async () => {

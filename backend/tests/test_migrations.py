@@ -24,6 +24,7 @@ from zoneinfo import ZoneInfo
 import pytest
 import sqlalchemy as sa
 from alembic.config import Config
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import SQLModel
 
 from alembic import command
@@ -272,7 +273,7 @@ def test_open_per_list_index_is_unique_and_partial(alembic_config: Config, db_ur
 
     _insert_trip(closed_at=None)
 
-    with pytest.raises(sa.exc.IntegrityError):
+    with pytest.raises(IntegrityError):
         _insert_trip(closed_at=None)
 
     # A *closed* trip sharing the same (list_id, tears_off_at) must be

@@ -1,3 +1,4 @@
+import { foldText } from '../lib/foldText'
 import { parseInput } from '../lib/parseInput'
 import { storeKey } from '../lib/storeKey'
 import type { ListItem } from '../types'
@@ -10,13 +11,13 @@ export function filterItems(
   if (!query.trim()) return items
 
   const parsed = parseInput(query)
-  const text = parsed.name.trim().toLowerCase()
+  const text = foldText(parsed.name.trim())
   const stores = parsed.stores.map((s) => storeKey(s))
-  const brand = parsed.brand?.toLowerCase() ?? null
+  const brand = parsed.brand != null ? foldText(parsed.brand) : null
   const strictStore = options?.strictStore ?? false
 
   return items.filter((item) => {
-    if (text && !item.name.toLowerCase().includes(text)) return false
+    if (text && !foldText(item.name).includes(text)) return false
 
     if (stores.length > 0) {
       const itemStores = item.stores.map((s) => storeKey(s))
@@ -30,7 +31,10 @@ export function filterItems(
         return false
     }
 
-    if (brand !== null && !item.brand?.toLowerCase().includes(brand))
+    if (
+      brand !== null &&
+      !(item.brand != null && foldText(item.brand).includes(brand))
+    )
       return false
 
     return true

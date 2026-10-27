@@ -1,4 +1,4 @@
-import { lookupOwnBrandStore } from './ownBrands'
+import { lookupOwnBrandStore, withOwnBrandStore } from './ownBrands'
 
 describe('lookupOwnBrandStore', () => {
   test('null input returns null', () => {
@@ -83,5 +83,25 @@ describe('lookupOwnBrandStore', () => {
 
   test('leading/trailing whitespace is ignored', () => {
     expect(lookupOwnBrandStore('  Hacendado  ')).toBe('Mercadona')
+  })
+})
+
+describe('withOwnBrandStore', () => {
+  test('adds the store of an own brand', () => {
+    expect(withOwnBrandStore('Hacendado', ['Lidl'])).toEqual([
+      'Lidl',
+      'Mercadona',
+    ])
+  })
+
+  test('returns the same array when the store is already there by key', () => {
+    const stores = ['mercadona ']
+    expect(withOwnBrandStore('Hacendado', stores)).toBe(stores)
+  })
+
+  test('returns the same array for an unknown or missing brand', () => {
+    const stores: string[] = []
+    expect(withOwnBrandStore('Danone', stores)).toBe(stores)
+    expect(withOwnBrandStore(null, stores)).toBe(stores)
   })
 })

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.db.waitlist_models import WaitlistSignup
 from app.dependencies import AdminUser, CurrentSession
@@ -48,4 +48,6 @@ def list_signups(
     current_admin: AdminUser,
     session: CurrentSession,
 ):
-    return session.exec(select(WaitlistSignup).order_by(WaitlistSignup.created_at.desc())).all()
+    return session.exec(
+        select(WaitlistSignup).order_by(col(WaitlistSignup.created_at).desc())
+    ).all()

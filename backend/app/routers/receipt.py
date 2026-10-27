@@ -2,7 +2,7 @@ from datetime import UTC, datetime, time, tzinfo
 
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import and_
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.db.models import List, ListItem, Purchase, ReceiptNameMapping, ReceiptScan, User
 from app.dependencies import CurrentSession, MemberDep
@@ -177,7 +177,7 @@ def _infer_past_target(
                 Purchase.opened_at < day_end,
                 ~select(ReceiptScan.id).where(ReceiptScan.purchase_id == Purchase.id).exists(),
             )
-            .order_by(Purchase.opened_at)
+            .order_by(col(Purchase.opened_at))
         ).all()
         if trip.closed_at is not None or not trips.is_open(trip, now)
     ]
@@ -195,8 +195,8 @@ def scan_receipt(
     list_id: str,
     body: ReceiptScanRequest,
     request: Request,
-    session: CurrentSession = None,
-    list_and_user: MemberDep = None,
+    session: CurrentSession,
+    list_and_user: MemberDep,
 ):
     _, current_user = list_and_user
     # Read raw for the same reason as the apply below: a declared Header would
@@ -231,22 +231,22 @@ def scan_receipt(
             session.exec(
                 select(ListItem)
                 .where(ListItem.list_id == list_id, ListItem.purchase_id == pool_target.id)
-                .order_by(ListItem.updated_at.desc())
+                .order_by(col(ListItem.updated_at).desc())
             ).all()
         )
     else:
         candidates = list(
             session.exec(
                 select(ListItem)
-                .outerjoin(Purchase, ListItem.purchase_id == Purchase.id)
+                .outerjoin(Purchase, col(ListItem.purchase_id) == Purchase.id)
                 .where(ListItem.list_id == list_id, _receipt_pool_predicate(now))
                 # match_lines hands each line the first free candidate, so the
                 # order is the tiebreak: a pending list item — the likeliest target
                 # for a printed line — wins over an open-cart one, recency breaking
                 # ties within each group.
                 .order_by(
-                    ListItem.purchased_at.is_(None).desc(),
-                    ListItem.updated_at.desc(),
+                    col(ListItem.purchased_at).is_(None).desc(),
+                    col(ListItem.updated_at).desc(),
                 )
             ).all()
         )
@@ -311,8 +311,8 @@ def apply_receipt_prices(
     list_id: str,
     body: ReceiptPriceBatch,
     request: Request,
-    session: CurrentSession = None,
-    list_and_user: MemberDep = None,
+    session: CurrentSession,
+    list_and_user: MemberDep,
 ):
     _, current_user = list_and_user
     # Read raw rather than through the ClientTimezone dependency: a declared
@@ -385,7 +385,7 @@ def apply_receipt_prices(
         eligible_ids = set(
             session.exec(
                 select(ListItem.id)
-                .outerjoin(Purchase, ListItem.purchase_id == Purchase.id)
+                .outerjoin(Purchase, col(ListItem.purchase_id) == Purchase.id)
                 .where(ListItem.list_id == list_id, _receipt_pool_predicate(now))
             ).all()
         )
@@ -564,8 +564,8 @@ def create_receipt_upload_url(
     list_id: str,
     scan_id: str,
     body: ReceiptUploadUrlRequest,
-    session: CurrentSession = None,
-    list_and_user: MemberDep = None,
+    session: CurrentSession,
+    list_and_user: MemberDep,
 ):
     """Mint a signed PUT URL so the client can store the original receipt.
 
@@ -619,8 +619,8 @@ def create_receipt_upload_url(
 def get_receipt_file_url(
     list_id: str,
     scan_id: str,
-    session: CurrentSession = None,
-    list_and_user: MemberDep = None,
+    session: CurrentSession,
+    list_and_user: MemberDep,
 ):
     """Mint a signed GET URL for a stored receipt file.
 
@@ -636,7 +636,12 @@ def get_receipt_file_url(
         )
 
     scan = session.get(ReceiptScan, scan_id)
-    if scan is None or scan.list_id != list_id or scan.file_path is None:
+    if (
+        scan is None
+        or scan.list_id != list_id
+        or scan.file_path is None
+        or scan.file_content_type is None
+    ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Receipt file not found")
 
     return ReceiptFileUrlResult(
@@ -653,8 +658,8 @@ def get_receipt_file_url(
 def get_receipt_thumb_url(
     list_id: str,
     scan_id: str,
-    session: CurrentSession = None,
-    list_and_user: MemberDep = None,
+    session: CurrentSession,
+    list_and_user: MemberDep,
 ):
     """Mint a signed GET URL for a small JPEG of a stored receipt image.
 
@@ -693,8 +698,8 @@ def get_receipt_thumb_url(
 def list_purchase_receipt_scans(
     list_id: str,
     purchase_id: str,
-    session: CurrentSession = None,
-    list_and_user: MemberDep = None,
+    session: CurrentSession,
+    list_and_user: MemberDep,
 ):
     """The scans that reconciled one trip, oldest first. Membership only."""
     lst, _ = list_and_user
@@ -705,7 +710,7 @@ def list_purchase_receipt_scans(
     scans = session.exec(
         select(ReceiptScan)
         .where(ReceiptScan.purchase_id == purchase_id)
-        .order_by(ReceiptScan.created_at.asc())
+        .order_by(col(ReceiptScan.created_at).asc())
     ).all()
     return [
         ReceiptScanSummary(

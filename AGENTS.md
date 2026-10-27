@@ -139,6 +139,7 @@ Prefer `just` from repo root (`just backend` lists recipes).
 ### Key conventions
 
 - FastAPI app entrypoint: `backend/app/main.py`
+- Type-checked with **ty** (`just backend typecheck`); warnings fail too. SQLModel types a model's class attributes as plain values, so a column used as an expression (`.in_()`, `.desc()`, `.is_(None)`, a join's `==`) goes through `col()`: `col(ListItem.name).in_(names)`. Tests read rows with `session.get_one()`, which raises on a missing row, and keep `session.get()` for checking that a row is gone
 - ORM: **SQLModel** (canonical FastAPI approach). Migrations via **Alembic**. Local dev runs on SQLite, which cannot alter a column or add and drop constraints in place — wrap those in `op.batch_alter_table()`. The test suite builds its schema from the models and never runs migrations, so a green suite proves nothing here. Batch mode rebuilds the table with a `CAST`, which can corrupt a type change; migration `465041cfdecb` branches on the dialect instead, and explains when to do that.
 - Settings via `pydantic_settings` in `backend/app/core/config.py`, loaded from `backend/.env`
 - Firebase Admin SDK init in `backend/app/core/firebase.py` — singleton pattern
@@ -233,7 +234,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 ## Validation Checklist
 
 - Frontend changes: run lint, relevant tests, and `just frontend typecheck`
-- Backend changes: run relevant `just backend test-file {file}` tests (full suite when feasible `just backend test`)
+- Backend changes: run `just backend typecheck`, lint, and relevant `just backend test-file {file}` tests (full suite when feasible `just backend test`)
 - Before push: verify only intentional files are changed, and that `pnpm-lock.yaml` was not platform-narrowed (a full per-platform matrix from a dependency upgrade is fine; only _your_ platform appearing is not)
 - Shortcut: `just ci` runs format-check + typecheck + lint + tests (frontend and backend) in one shot
 - **Do not run `just changelog` on a feature branch** — it belongs to the release flow (release branch cut from `develop`)

@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import or_
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.db.models import ListItem, ListMember, Purchase
 from app.dependencies import CurrentSession, CurrentUser, MemberDep
@@ -128,7 +128,9 @@ def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list:
     base = _base_conditions(item)
     # LEFT OUTER JOIN so priced manual logs (no trip) still come through, while
     # purchase-linked rows can read their trip's store for attribution.
-    stmt = select(ListItem, Purchase.store).outerjoin(Purchase, ListItem.purchase_id == Purchase.id)
+    stmt = select(ListItem, Purchase.store).outerjoin(
+        Purchase, col(ListItem.purchase_id) == Purchase.id
+    )
 
     if scope == "this_list":
         return session.exec(stmt.where(ListItem.list_id == item.list_id, *base)).all()
@@ -137,7 +139,7 @@ def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list:
         my_list_ids = session.exec(
             select(ListMember.list_id).where(ListMember.user_id == user_id)
         ).all()
-        return session.exec(stmt.where(ListItem.list_id.in_(my_list_ids), *base)).all()
+        return session.exec(stmt.where(col(ListItem.list_id).in_(my_list_ids), *base)).all()
 
     # scope == "all"
     return session.exec(stmt.where(*base)).all()
@@ -147,7 +149,7 @@ def _base_conditions(item: ListItem):
     # Surface purchase-linked OR priced rows: keeps manually-logged prices,
     # surfaces sin-precio purchase rows as gaps, and still excludes
     # pending-never-bought rows (both price and purchase_id null).
-    surfaced = or_(ListItem.price.isnot(None), ListItem.purchase_id.isnot(None))
+    surfaced = or_(col(ListItem.price).isnot(None), col(ListItem.purchase_id).isnot(None))
     if item.ean:
         return (ListItem.ean == item.ean, surfaced)
     return (ListItem.name == item.name, ListItem.brand == item.brand, surfaced)

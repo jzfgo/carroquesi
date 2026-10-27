@@ -1,4 +1,5 @@
 import type { ListItem } from '../types'
+import { foldText } from './foldText'
 import { storeKey } from './storeKey'
 
 export function clientSideSuggestions(
@@ -9,12 +10,12 @@ export function clientSideSuggestions(
 ): string[] {
   // Stores match and dedupe by key so a spelling variant is offered
   // instead of silently birthing a new one ("ahorram" must suggest
-  // "Ahorra Más" even though the space breaks startsWith). Brands keep
-  // plain lowercase matching.
+  // "Ahorra Más" even though the space breaks startsWith). Brands ignore
+  // case and accents only.
   const matches =
     field === 'stores'
       ? (val: string) => storeKey(val).startsWith(storeKey(partial))
-      : (val: string) => val.toLowerCase().startsWith(partial.toLowerCase())
+      : (val: string) => foldText(val).startsWith(foldText(partial))
   const dedupeKey = field === 'stores' ? storeKey : (val: string) => val
   const seen = new Set(exclude.map(dedupeKey))
   const results: string[] = []

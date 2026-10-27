@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, status
 from sqlalchemy import func
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.db.models import (
     List,
@@ -63,7 +63,7 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
         return []
 
     lists = session.exec(
-        select(List).where(List.id.in_(list_ids)).order_by(List.updated_at.desc())
+        select(List).where(col(List.id).in_(list_ids)).order_by(col(List.updated_at).desc())
     ).all()
 
     # Single aggregation query — counts for all lists at once.
@@ -91,28 +91,29 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
             # counts toward progress exactly while it sits in the open trip.
             func.count(ListItem.id).filter(in_cart).label("cart_count"),
         )
-        .outerjoin(Purchase, ListItem.purchase_id == Purchase.id)
-        .where(ListItem.list_id.in_(list_ids))
+        .outerjoin(Purchase, col(ListItem.purchase_id) == Purchase.id)
+        .where(col(ListItem.list_id).in_(list_ids))
         .group_by(ListItem.list_id)
     )
-    count_rows = session.execute(count_stmt).all()
+    count_rows = session.exec(count_stmt).all()
     counts = {
-        row.list_id: (row.item_count, row.purchased_count, row.cart_count) for row in count_rows
+        list_id: (item_count, purchased_count, cart_count)
+        for list_id, item_count, purchased_count, cart_count in count_rows
     }
 
     # Member names for all lists in one query. Same display-name fallback as
     # the members endpoint: the email's local part.
-    member_rows = session.execute(
+    member_rows = session.exec(
         select(ListMember.list_id, ListMember.user_id, User.display_name, User.email)
-        .join(User, User.id == ListMember.user_id)
-        .where(ListMember.list_id.in_(list_ids))
+        .join(User, col(User.id) == ListMember.user_id)
+        .where(col(ListMember.list_id).in_(list_ids))
     ).all()
     members_by_list: dict[str, list[ListMemberBrief]] = {}
-    for row in member_rows:
-        members_by_list.setdefault(row.list_id, []).append(
+    for list_id, user_id, display_name, email in member_rows:
+        members_by_list.setdefault(list_id, []).append(
             ListMemberBrief(
-                user_id=row.user_id,
-                display_name=row.display_name or row.email.split("@")[0],
+                user_id=user_id,
+                display_name=display_name or email.split("@")[0],
             )
         )
 

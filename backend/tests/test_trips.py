@@ -184,7 +184,7 @@ def test_an_unrelated_integrity_error_surfaces_as_itself(session: Session):
     with pytest.raises(IntegrityError):
         trips.open_trip_for(
             session,
-            None,  # type: ignore[arg-type]
+            None,  # ty: ignore[invalid-argument-type]
             datetime(2026, 7, 28, 16, 0),
             MADRID,
         )
@@ -285,7 +285,7 @@ def test_close_claiming_a_subset_splits_off_a_new_closed_trip(
     assert milk.purchase_id == source_id
     assert closed.closed_at == now
     assert closed.opened_at == datetime(2026, 7, 28, 17, 0)
-    remainder = session.get(Purchase, source_id)
+    remainder = session.get_one(Purchase, source_id)
     assert remainder.closed_at is None
     # The split inherits the source's boundary: same day, same tear-off.
     assert closed.tears_off_at == remainder.tears_off_at
@@ -301,7 +301,7 @@ def test_a_split_recomputes_the_remainders_opened_at(session: Session, lst: List
     trips.close(session, lst.id, [milk.id], "Lidl", None, now)
     session.commit()
 
-    remainder = session.get(Purchase, bread.purchase_id)
+    remainder = session.get_one(Purchase, bread.purchase_id)
     assert remainder.opened_at == datetime(2026, 7, 28, 17, 0)
 
 
@@ -313,7 +313,7 @@ def test_close_refuses_an_unknown_item(session: Session, lst: List, user: User):
         trips.close(session, lst.id, [milk.id, "no-such-item"], "Lidl", None, now)
 
     session.rollback()
-    assert session.get(Purchase, milk.purchase_id).closed_at is None
+    assert session.get_one(Purchase, milk.purchase_id).closed_at is None
 
 
 def test_close_refuses_an_item_already_on_another_ticket(session: Session, lst: List, user: User):
@@ -388,7 +388,7 @@ def test_close_by_name_refuses_an_already_closed_trip(session: Session, lst: Lis
         )
 
     session.rollback()
-    trip = session.get(Purchase, milk.purchase_id)
+    trip = session.get_one(Purchase, milk.purchase_id)
     assert trip.store == "Lidl"
     assert trip.total == 14.60
 
@@ -408,14 +408,14 @@ def test_a_close_that_lost_the_race_hits_the_conditional_update(
     """
     milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
     now = datetime(2026, 7, 28, 18, 0)
-    trip = session.get(Purchase, milk.purchase_id)
+    trip = session.get_one(Purchase, milk.purchase_id)
     trips.close(session, lst.id, [milk.id], "Lidl", 14.60, now)
     session.commit()
 
     real_exec = session.exec
 
     def stale_resolve(statement, *args, **kwargs):
-        if "purchases.closed_at IS NULL" in str(statement):
+        if statement.is_select and "purchases.closed_at IS NULL" in str(statement):
 
             class _Stale:
                 def first(self):

@@ -80,6 +80,22 @@ describe('useItemFilter', () => {
     expect(filterItems(items, '#danone').map((i) => i.id)).toEqual(['b'])
   })
 
+  test('name filter ignores accents on either side', () => {
+    const accented = [
+      { ...base, id: 'p', name: 'Pimentón dulce' },
+      { ...base, id: 'q', name: 'Platano' },
+    ]
+    expect(filterItems(accented, 'pimenton').map((i) => i.id)).toEqual(['p'])
+    expect(filterItems(accented, 'PIMENTÓN').map((i) => i.id)).toEqual(['p'])
+    expect(filterItems(accented, 'plátano').map((i) => i.id)).toEqual(['q'])
+  })
+
+  test('#brand filter ignores accents', () => {
+    const accented = [{ ...base, id: 'y', name: 'Café', brand: 'Saimaza Café' }]
+    expect(filterItems(accented, '#cafe').map((i) => i.id)).toEqual(['y'])
+    expect(filterItems(accented, '#SAIMAZA').map((i) => i.id)).toEqual(['y'])
+  })
+
   test('#brand filter hides items with no brand', () => {
     expect(filterItems(items, '#Danone').map((i) => i.id)).not.toContain('a')
   })

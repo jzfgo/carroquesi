@@ -32,10 +32,11 @@ format-check:
     just backend format-check
     just frontend format-check
 
-# Type-check frontend, lint (frontend + backend)
+# Type-check and lint (frontend + backend)
 lint:
     just frontend typecheck
     just frontend lint
+    just backend typecheck
     just backend lint
 
 # Run all tests (frontend + backend)

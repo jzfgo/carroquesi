@@ -1,18 +1,18 @@
 import re
-import unicodedata
 from collections import defaultdict
 from datetime import UTC, datetime
 from statistics import mean, median
 from typing import Annotated
 
 from fastapi import APIRouter, Query
-from sqlmodel import func, select
+from sqlmodel import col, select
 
 from app.db.models import List, ListItem, ListMember
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, MemberOrDefaultDep
 from app.schemas.due_suggestions import DueSuggestionRead
 from app.schemas.lists import ListUpdatedAtRead
 from app.schemas.suggestions import ElsewhereMatchRead, SuggestionRead
+from app.services.fold import fold_name
 
 router = APIRouter(tags=["suggestions"])
 
@@ -42,60 +42,32 @@ def get_suggestions(
     if not list_ids:
         return []
 
-    escaped_q = q.lower().replace("%", "\\%").replace("_", "\\_")
+    # A query of only spaces or accent marks folds to nothing, and an empty
+    # prefix would match every name. That is not a search; answer empty.
+    prefix = fold_name(q)
+    if not prefix:
+        return []
 
-    subq = (
-        select(
-            ListItem.name,
-            ListItem.brand,
-            ListItem.stores,
-            func.row_number()
-            .over(
-                partition_by=func.lower(ListItem.name),
-                order_by=ListItem.created_at.desc(),
-            )
-            .label("rn"),
-        )
-        .where(
-            ListItem.list_id.in_(list_ids),
-            func.lower(ListItem.name).like(
-                f"{escaped_q}%",
-                escape="\\",
-            ),
-        )
-        .subquery()
-    )
-
-    rows = session.execute(
-        select(subq.c.name, subq.c.brand, subq.c.stores)
-        .where(subq.c.rn == 1)
-        .order_by(subq.c.name.asc())
-        .limit(10)
+    # Fold names in Python, newest first, keeping the first spelling of each
+    # name. Accent folding defeats a plain SQL LIKE, and SQLite has no
+    # unaccent. This reads the user's whole history on every call, which a
+    # household's few thousand rows allow. If the bar ever feels slow, store a
+    # folded name column and filter on it in SQL.
+    items = session.exec(
+        select(ListItem.name, ListItem.brand, ListItem.stores)
+        .where(col(ListItem.list_id).in_(list_ids))
+        .order_by(col(ListItem.created_at).desc())
     ).all()
-
-    return [
-        SuggestionRead(
-            name=r.name,
-            brand=r.brand,
-            stores=r.stores if r.stores is not None else [],
-        )
-        for r in rows
-    ]
-
-
-def _fold_name(text: str) -> str:
-    """Fold an item name for equality: lowercase, strip accents (NFD, drop
-    combining marks), collapse whitespace runs, trim.
-
-    Exact match after folding, on purpose. Fuzzy matching silently declares
-    two different products the same — the reason store auto-merge was
-    rejected (ADR-013) — so "pimenton" finds "Pimentón" but "pimento" finds
-    nothing. Distinct from receipt_matcher.normalise, which also strips a
-    leading quantity because receipt lines carry one; item names don't.
-    """
-    text = text.lower()
-    text = "".join(c for c in unicodedata.normalize("NFD", text) if unicodedata.category(c) != "Mn")
-    return re.sub(r"\s+", " ", text).strip()
+    latest: dict[str, SuggestionRead] = {}
+    for name, brand, stores in items:
+        key = fold_name(name)
+        if key.startswith(prefix) and key not in latest:
+            latest[key] = SuggestionRead(
+                name=name,
+                brand=brand,
+                stores=stores if stores is not None else [],
+            )
+    return [latest[key] for key in sorted(latest)][:10]
 
 
 @router.get("/lists/{list_id}/items/elsewhere", response_model=ElsewhereMatchRead | None)
@@ -123,12 +95,12 @@ def get_elsewhere_match(
     # items — don't optimise this.
     rows = session.exec(
         select(ListItem, List)
-        .join(List, List.id == ListItem.list_id)
-        .where(ListItem.list_id.in_(other_list_ids))
+        .join(List, col(List.id) == ListItem.list_id)
+        .where(col(ListItem.list_id).in_(other_list_ids))
     ).all()
 
-    target = _fold_name(name)
-    matches = [(item, item_list) for item, item_list in rows if _fold_name(item.name) == target]
+    target = fold_name(name)
+    matches = [(item, item_list) for item, item_list in rows if fold_name(item.name) == target]
     if not matches:
         return None
 
@@ -155,7 +127,7 @@ def get_due_suggestions(
     purchased_items = session.exec(
         select(ListItem).where(
             ListItem.list_id == lst.id,
-            ListItem.purchased_at.is_not(None),
+            col(ListItem.purchased_at).is_not(None),
         )
     ).all()
 
@@ -168,7 +140,7 @@ def get_due_suggestions(
         for row in session.exec(
             select(ListItem.name).where(
                 ListItem.list_id == lst.id,
-                ListItem.purchased_at.is_(None),
+                col(ListItem.purchased_at).is_(None),
             )
         ).all()
     }
@@ -180,8 +152,7 @@ def get_due_suggestions(
         if name_key in unpurchased_names:
             continue
 
-        sorted_items = sorted(items, key=lambda i: i.purchased_at)
-        timestamps = [i.purchased_at for i in sorted_items]
+        timestamps = sorted(i.purchased_at for i in items if i.purchased_at is not None)
 
         gaps = [
             (timestamps[i + 1] - timestamps[i]).total_seconds() / 86400
@@ -191,7 +162,7 @@ def get_due_suggestions(
         if median_interval <= 0:
             continue
 
-        last_purchased_at = sorted_items[-1].purchased_at
+        last_purchased_at = timestamps[-1]
         days_since_last = (now - last_purchased_at).total_seconds() / 86400
         lower = 0.9 * median_interval
         upper = 1.5 * median_interval

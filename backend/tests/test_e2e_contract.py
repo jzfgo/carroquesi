@@ -27,7 +27,9 @@ def _api_routes(routes: list[Any]) -> Iterator[APIRoute]:
 
 
 ROUTES = {
-    (method, route.path): route for route in _api_routes(app.routes) for method in route.methods
+    (method, route.path): route
+    for route in _api_routes(app.routes)
+    for method in route.methods or ()
 }
 
 # The walk above reaches into an undocumented attribute, so a FastAPI upgrade

@@ -15,7 +15,7 @@ These helpers stage changes on the session but never commit; the caller owns the
 transaction boundary.
 """
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.db.models import List, ListMember
 
@@ -25,7 +25,7 @@ def has_default(session: Session, user_id: str) -> bool:
     return (
         session.exec(
             select(ListMember.id).where(
-                ListMember.user_id == user_id, ListMember.is_default.is_(True)
+                ListMember.user_id == user_id, col(ListMember.is_default).is_(True)
             )
         ).first()
         is not None
@@ -75,8 +75,8 @@ def resolve_default(session: Session, user_id: str) -> List | None:
     """
     return session.exec(
         select(List)
-        .join(ListMember, ListMember.list_id == List.id)
-        .where(ListMember.user_id == user_id, ListMember.is_default.is_(True))
+        .join(ListMember, col(ListMember.list_id) == List.id)
+        .where(ListMember.user_id == user_id, col(ListMember.is_default).is_(True))
     ).first()
 
 
@@ -105,9 +105,9 @@ def backfill_all_defaults(session: Session) -> int:
             continue
         lst = session.exec(
             select(List)
-            .join(ListMember, ListMember.list_id == List.id)
+            .join(ListMember, col(ListMember.list_id) == List.id)
             .where(ListMember.user_id == user_id)
-            .order_by(List.updated_at.desc(), List.id.desc())
+            .order_by(col(List.updated_at).desc(), col(List.id).desc())
         ).first()
         if lst is None:
             continue

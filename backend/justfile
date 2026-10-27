@@ -21,6 +21,10 @@ serve scope="local":
 lint:
     uv run ruff check
 
+# Type-check (ty)
+typecheck:
+    uv run ty check
+
 # Format (ruff format)
 format:
     uv run ruff format

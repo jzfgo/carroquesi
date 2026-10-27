@@ -384,7 +384,7 @@ def test_purchasing_notifies_and_records_purchaser(client, session, user):
 
     assert notify.call_args.args[3] == "purchased"
     session.expire_all()
-    assert session.get(ListItem, item["id"]).purchased_by == user.id
+    assert session.get_one(ListItem, item["id"]).purchased_by == user.id
 
 
 def test_unpurchasing_does_not_notify(client, session, user):
