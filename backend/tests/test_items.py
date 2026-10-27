@@ -530,6 +530,13 @@ def test_add_duplicate_name_rejected(client: TestClient):
     assert response.json()["detail"] == "Item already in list"
 
 
+def test_add_duplicate_name_ignores_accents(client: TestClient):
+    lst = _create_list(client)
+    client.post(f"/lists/{lst['id']}/items", json={"name": "pimenton"})
+    response = client.post(f"/lists/{lst['id']}/items", json={"name": "Pimentón"})
+    assert response.status_code == 409
+
+
 def test_add_duplicate_ean_rejected(client: TestClient):
     lst = _create_list(client)
     client.post(f"/lists/{lst['id']}/items", json={"name": "Yogur", "ean": "1234567890123"})

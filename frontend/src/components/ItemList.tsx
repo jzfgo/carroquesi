@@ -1,5 +1,6 @@
 import { ArrowDown, Plus } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { foldText } from '../lib/foldText'
 import { formatPrice } from '../lib/formatPrice'
 import { isTripOpen } from '../lib/isTripOpen'
 import type { CostSummary } from '../lib/itemCost'
@@ -152,10 +153,10 @@ export function ItemList({
   // server usually filters those too, but a name typed by hand in the meantime
   // could still collide.
   const onList = new Set(
-    [...active, ...cart].map((i) => i.name.trim().toLowerCase()),
+    [...active, ...cart].map((i) => foldText(i.name.trim())),
   )
   const shownSuggestions = suggestions
-    .filter((s) => !onList.has(s.name.trim().toLowerCase()))
+    .filter((s) => !onList.has(foldText(s.name.trim())))
     .slice(0, 3)
 
   // Nothing pending matches the search. Whether this is a dead end depends on

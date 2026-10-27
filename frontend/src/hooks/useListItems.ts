@@ -14,6 +14,7 @@ import {
 } from '../lib/api'
 import { AVATAR_COLORS } from '../lib/avatarColors'
 import { isOnline } from '../lib/connectivity'
+import { foldText } from '../lib/foldText'
 import { isTripOpen } from '../lib/isTripOpen'
 import { reconcileItems } from '../lib/reconcileItems'
 import { storeKey } from '../lib/storeKey'
@@ -320,11 +321,15 @@ export function useListItems(
         showToast(OFFLINE_TOAST)
         return null
       }
-      const nameLower = parsed.name.trim().toLowerCase()
+      // Accent-blind, like search: «Pimentón» is already «pimenton». Spaces
+      // collapse too, so this agrees with the server's duplicate check.
+      const dupKey = (name: string) =>
+        foldText(name).replace(/\s+/g, ' ').trim()
+      const nameKey = dupKey(parsed.name)
       const isDuplicate = itemsRef.current.some(
         (i) =>
           !i.purchased &&
-          (i.name.trim().toLowerCase() === nameLower ||
+          (dupKey(i.name) === nameKey ||
             (parsed.ean != null && i.ean === parsed.ean)),
       )
       if (isDuplicate) {

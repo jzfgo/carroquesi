@@ -4,7 +4,7 @@ from datetime import UTC, datetime, time
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
-from sqlalchemy import func, or_
+from sqlalchemy import func
 from sqlmodel import select
 
 from app.db.models import List, ListItem, Purchase, ReceiptScan, User
@@ -21,7 +21,9 @@ from app.schemas.purchases import (
 )
 from app.services import trips
 from app.services.client_day import ClientTimezone
+from app.services.fold import fold_name
 from app.services.money import reject_bad_amount, reject_bad_price
+from app.services.pending_duplicate import find_pending_duplicate
 from app.services.push import notify_list_change
 from app.services.quantity import parse_quantity_factor
 from app.services.store_key import store_key
@@ -251,9 +253,12 @@ def search_purchases(
     """
     lst, _ = list_and_user
     name, brand, store_keys = _parse_search(q)
+    # Fold before the guard: a term made only of accent marks folds to nothing.
+    name_l = fold_name(name)
+    brand_l = (fold_name(brand) or None) if brand else None
     # A query that named nothing selectable would match every line of every trip
     # — the whole history dumped out. That is not a search; answer empty.
-    if not name and brand is None and not store_keys:
+    if not name_l and brand_l is None and not store_keys:
         return PurchaseSearchResults(results=[])
 
     now = datetime.now(UTC).replace(tzinfo=None)
@@ -287,13 +292,11 @@ def search_purchases(
         .where(ListItem.purchase_id.in_(trip_ids))
         .order_by(ListItem.purchased_at.asc(), ListItem.created_at.asc())
     ).all()
-    name_l = name.lower()
-    brand_l = brand.lower() if brand else None
     matched: dict[str, list[ListItem]] = {}
     for item in rows:
-        if name_l and name_l not in item.name.lower():
+        if name_l and name_l not in fold_name(item.name):
             continue
-        if brand_l is not None and (item.brand is None or brand_l not in item.brand.lower()):
+        if brand_l is not None and (item.brand is None or brand_l not in fold_name(item.brand)):
             continue
         matched.setdefault(item.purchase_id, []).append(item)
 
@@ -402,15 +405,7 @@ def rebuy_item(
     # The same guard add_item enforces: a product already pending on the list
     # is not re-added. Returning that row keeps re-buy idempotent — tapping it
     # twice reorders the product once.
-    conditions = [func.trim(func.lower(ListItem.name)) == line.name.strip().lower()]
-    if line.ean is not None:
-        conditions.append(ListItem.ean == line.ean)
-    existing = session.exec(
-        select(ListItem)
-        .where(ListItem.list_id == lst.id, ListItem.purchased_at.is_(None))
-        .where(or_(*conditions))
-        .limit(1)
-    ).first()
+    existing = find_pending_duplicate(session, lst.id, line.name, line.ean)
     if existing is not None:
         response.status_code = status.HTTP_200_OK
         return existing

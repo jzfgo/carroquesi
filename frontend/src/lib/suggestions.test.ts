@@ -123,10 +123,12 @@ test('stores: dedupes spelling variants, first typed form wins', () => {
   ])
 })
 
-test('brands: keep plain lowercase matching, no accent folding', () => {
+test('brands: match ignoring case and accents, both ways', () => {
   const branded: ListItem[] = [{ ...items[0], id: 'b1', brand: 'Días' }]
-  expect(clientSideSuggestions(branded, 'brand', 'dia')).toEqual([])
-  expect(clientSideSuggestions(branded, 'brand', 'día')).toEqual(['Días'])
+  expect(clientSideSuggestions(branded, 'brand', 'dia')).toEqual(['Días'])
+  expect(clientSideSuggestions(branded, 'brand', 'DÍA')).toEqual(['Días'])
+  const plain: ListItem[] = [{ ...items[0], id: 'b2', brand: 'Dia' }]
+  expect(clientSideSuggestions(plain, 'brand', 'día')).toEqual(['Dia'])
 })
 
 describe('formatFrequency', () => {

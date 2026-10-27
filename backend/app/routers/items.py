@@ -2,7 +2,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import case, func, nulls_last, or_
+from sqlalchemy import case, nulls_last
 from sqlmodel import Session, select
 
 from app.db.models import List, ListItem, Purchase, ReceiptScan, User
@@ -10,6 +10,7 @@ from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 from app.services import trips
 from app.services.client_day import ClientTimezone
+from app.services.pending_duplicate import find_pending_duplicate
 from app.services.push import notify_list_change
 from app.services.store_registry import ensure_stores
 
@@ -93,16 +94,7 @@ def add_item(
     session: CurrentSession,
 ):
     lst, current_user = list_and_user
-    conditions = [func.trim(func.lower(ListItem.name)) == body.name.strip().lower()]
-    if body.ean is not None:
-        conditions.append(ListItem.ean == body.ean)
-    duplicate = session.exec(
-        select(ListItem)
-        .where(ListItem.list_id == lst.id, ListItem.purchased_at.is_(None))
-        .where(or_(*conditions))
-        .limit(1)
-    ).first()
-    if duplicate is not None:
+    if find_pending_duplicate(session, lst.id, body.name, body.ean) is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Item already in list")
     item = ListItem(list_id=lst.id, added_by=current_user.id, **body.model_dump())
     session.add(item)
