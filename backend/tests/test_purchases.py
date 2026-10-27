@@ -1234,6 +1234,16 @@ def test_search_returns_only_matching_lines_with_the_trips_line_count(
     assert lidl["trip"]["line_count"] == 1
 
 
+def test_search_ignores_accents(client: TestClient, session: Session):
+    lst = _create_list(client)
+    paprika = _tap(client, lst["id"], "Pimentón")
+    _close(client, lst["id"], store="Mercadona", total=1.5, lines=_lines(paprika))
+
+    for q in ("pimenton", "PIMENTÓN", "piméntón"):
+        results = _search(client, lst["id"], q).json()["results"]
+        assert [line["name"] for r in results for line in r["lines"]] == ["Pimentón"], q
+
+
 def test_search_is_newest_first(client: TestClient, session: Session):
     lst = _create_list(client)
     first = _tap(client, lst["id"], "Leche")

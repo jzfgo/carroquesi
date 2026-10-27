@@ -21,6 +21,7 @@ from app.schemas.purchases import (
 )
 from app.services import trips
 from app.services.client_day import ClientTimezone
+from app.services.fold import fold_name
 from app.services.money import reject_bad_amount, reject_bad_price
 from app.services.push import notify_list_change
 from app.services.quantity import parse_quantity_factor
@@ -287,13 +288,13 @@ def search_purchases(
         .where(ListItem.purchase_id.in_(trip_ids))
         .order_by(ListItem.purchased_at.asc(), ListItem.created_at.asc())
     ).all()
-    name_l = name.lower()
-    brand_l = brand.lower() if brand else None
+    name_l = fold_name(name)
+    brand_l = fold_name(brand) if brand else None
     matched: dict[str, list[ListItem]] = {}
     for item in rows:
-        if name_l and name_l not in item.name.lower():
+        if name_l and name_l not in fold_name(item.name):
             continue
-        if brand_l is not None and (item.brand is None or brand_l not in item.brand.lower()):
+        if brand_l is not None and (item.brand is None or brand_l not in fold_name(item.brand)):
             continue
         matched.setdefault(item.purchase_id, []).append(item)
 

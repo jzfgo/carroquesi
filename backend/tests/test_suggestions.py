@@ -16,6 +16,25 @@ def test_suggestions_returns_matching_names(client: TestClient):
     assert "Bread" not in names
 
 
+def test_suggestions_ignore_accents_both_ways(client: TestClient):
+    lst = client.post("/lists", json={"name": "List"}).json()
+    client.post(f"/lists/{lst['id']}/items", json={"name": "Pimentón"})
+    client.post(f"/lists/{lst['id']}/items", json={"name": "Platano"})
+
+    assert [s["name"] for s in client.get("/suggestions?q=pimen").json()] == ["Pimentón"]
+    assert [s["name"] for s in client.get("/suggestions?q=PIMENTÓ").json()] == ["Pimentón"]
+    assert [s["name"] for s in client.get("/suggestions?q=plá").json()] == ["Platano"]
+
+
+def test_suggestions_merge_accent_variants_newest_wins(client: TestClient):
+    lst = client.post("/lists", json={"name": "List"}).json()
+    client.post(f"/lists/{lst['id']}/items", json={"name": "pimenton"})
+    client.post(f"/lists/{lst['id']}/items", json={"name": "Pimentón", "brand": "La Vera"})
+
+    suggestions = client.get("/suggestions?q=pim").json()
+    assert [(s["name"], s["brand"]) for s in suggestions] == [("Pimentón", "La Vera")]
+
+
 def test_suggestions_includes_hints(client: TestClient):
     lst = client.post("/lists", json={"name": "List"}).json()
     client.post(

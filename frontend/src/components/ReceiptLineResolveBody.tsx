@@ -1,5 +1,6 @@
 import { ChevronLeft, ScanBarcode } from 'lucide-react'
 import { useState } from 'react'
+import { foldText } from '../lib/foldText'
 import { formatRowAmount, parseAmount } from '../lib/formatPrice'
 import { parseInput } from '../lib/parseInput'
 import {
@@ -40,12 +41,7 @@ interface Props {
 
 /** Case- and accent-insensitive "name contains the typed text". */
 function matchesQuery(name: string, query: string): boolean {
-  const fold = (s: string) =>
-    s
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-  return fold(name).includes(fold(query))
+  return foldText(name).includes(foldText(query))
 }
 
 function itemSubLabel(item: ItemRef): string {
