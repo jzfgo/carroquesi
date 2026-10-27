@@ -22,7 +22,7 @@ function PushNavigation() {
 
 function AuthRoute({ element }: { element: React.ReactElement }) {
   const { user, loading, isWaitlisted } = useAuth()
-  if (loading) return null
+  if (loading) return <Loading />
   if (isWaitlisted) return <WaitlistScreen />
   if (!user) {
     if (IS_WAITLIST_ENABLED) {
