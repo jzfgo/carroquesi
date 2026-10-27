@@ -253,6 +253,17 @@ def test_file_url_returns_404_when_no_file_was_ever_minted(client):
     assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/file-url").status_code == 404
 
 
+def test_file_url_returns_404_when_the_content_type_is_missing(client, session):
+    """The mint records path and type together, so this row should not exist.
+    If it does, answer 404 rather than fail response validation."""
+    scan = _stored_scan(session)
+    scan.file_content_type = None
+    session.add(scan)
+    session.commit()
+
+    assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/file-url").status_code == 404
+
+
 def test_file_url_returns_404_for_an_unknown_scan(client):
     assert client.get(f"/lists/{LIST_ID}/receipts/no-such-scan/file-url").status_code == 404
 
