@@ -16,6 +16,7 @@ import { AVATAR_COLORS } from '../lib/avatarColors'
 import { isOnline } from '../lib/connectivity'
 import { foldText } from '../lib/foldText'
 import { isTripOpen } from '../lib/isTripOpen'
+import { withOwnBrandStore } from '../lib/ownBrands'
 import { reconcileItems } from '../lib/reconcileItems'
 import { storeKey } from '../lib/storeKey'
 import type {
@@ -412,12 +413,18 @@ export function useListItems(
         return
       }
       const snapshot = itemsRef.current
+      const current = snapshot.find((i) => i.id === itemId)
+      const changes: Partial<ListItem> = { [field]: value }
+      if (field === 'brand' && current) {
+        const stores = withOwnBrandStore(value, current.stores)
+        if (stores !== current.stores) changes.stores = stores
+      }
       setItems(
-        snapshot.map((i) => (i.id === itemId ? { ...i, [field]: value } : i)),
+        snapshot.map((i) => (i.id === itemId ? { ...i, ...changes } : i)),
       )
       markWritten(itemId)
       try {
-        await updateItem(getToken, listId, itemId, { [field]: value })
+        await updateItem(getToken, listId, itemId, changes)
       } catch (err) {
         setItems(snapshot)
         showToast('No se pudo actualizar el producto')

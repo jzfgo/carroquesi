@@ -366,6 +366,36 @@ describe('ListScreen', () => {
     expect(updateTagMock).toHaveBeenCalledWith('i1', 'brand', 'Danone')
   })
 
+  it('adding a missing search term with an own brand carries its store', async () => {
+    const addItemMock = vi.fn(async () => null)
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [makeItem({ id: 'i1', name: 'Manzanas' })],
+      addItem: addItemMock,
+    })
+    vi.mocked(api.getElsewhereMatch).mockResolvedValue(null)
+    vi.mocked(api.searchPurchases).mockResolvedValue({ results: [] } as never)
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Buscar en la lista' }))
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Buscar en la lista' }),
+      {
+        target: { value: 'leche #Hacendado' },
+      },
+    )
+    fireEvent.click(await screen.findByRole('button', { name: /Añadir «/ }))
+
+    expect(addItemMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'leche',
+        brand: 'Hacendado',
+        stores: ['Mercadona'],
+      }),
+    )
+  })
+
   it('opens StoreEditSheet via row tap → Tiendas and calls updateStores on save', async () => {
     const updateStoresMock = vi.fn()
     vi.mocked(useListItemsModule.useListItems).mockReturnValue({

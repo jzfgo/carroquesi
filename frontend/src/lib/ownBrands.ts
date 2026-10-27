@@ -1,3 +1,5 @@
+import { storeKey } from './storeKey'
+
 const OWN_BRAND_MAP: Record<string, string> = {
   // Mercadona
   hacendado: 'Mercadona',
@@ -80,4 +82,17 @@ const OWN_BRAND_MAP: Record<string, string> = {
 export function lookupOwnBrandStore(brand: string | null): string | null {
   if (!brand) return null
   return OWN_BRAND_MAP[brand.toLowerCase().trim()] ?? null
+}
+
+// An own brand is only sold at its supermarket, so every path that sets a
+// brand adds that store. Returns the same array when there is nothing to add.
+export function withOwnBrandStore(
+  brand: string | null,
+  stores: string[],
+): string[] {
+  const store = lookupOwnBrandStore(brand)
+  if (!store || stores.some((s) => storeKey(s) === storeKey(store))) {
+    return stores
+  }
+  return [...stores, store]
 }
