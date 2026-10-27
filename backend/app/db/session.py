@@ -1,12 +1,17 @@
 from collections.abc import Generator
+from functools import lru_cache
 
+from sqlalchemy import Engine
 from sqlmodel import Session, create_engine
 
-from app.core.config import settings
+from app.core.config import get_settings
 
-engine = create_engine(settings.database_url)
+
+@lru_cache
+def get_engine() -> Engine:
+    return create_engine(get_settings().database_url)
 
 
 def get_session() -> Generator[Session]:
-    with Session(engine) as session:
+    with Session(get_engine()) as session:
         yield session

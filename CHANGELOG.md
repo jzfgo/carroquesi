@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.7] — 2026-10-27
+
+### Changed
+- **backend:** Build settings, engine, and GCS client lazily via lru_cache (#390)
+
+
+### Fixed
+- **deps:** Bump transitive undici past the content-encoding DoS (#386)
+
+- **deps:** Bump fast-uri to 3.1.9 (#391)
+
+- **frontend:** Keep a signed-in user out of the waitlist on an offline cold start (#394)
+
+
+---
 ## [0.23.6] — 2026-10-24
 
 ### Fixed

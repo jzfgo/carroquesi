@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from sqlmodel import Session, select
 
 from app.db.models import User, UserFeature
-from app.db.session import engine
+from app.db.session import get_engine
 from app.services.feature_flags import REGISTRY
 
 
@@ -43,7 +43,7 @@ def main():
         print(f"Unknown action {action!r}. Must be one of: on, off, reset")
         sys.exit(1)
 
-    with Session(engine) as session:
+    with Session(get_engine()) as session:
         user = session.exec(select(User).where(User.firebase_uid == firebase_uid)).first()
         if user is None:
             print(f"No user with firebase_uid={firebase_uid!r}")

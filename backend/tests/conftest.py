@@ -1,7 +1,7 @@
 import os
 
 # Set env vars before any app modules are imported so pydantic-settings picks
-# them up and the module-level engine creation in app.db.session uses SQLite.
+# them up and the cached engine in app.db.session uses SQLite.
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("FIREBASE_CREDENTIALS_PATH", "firebase-credentials.json")
 
@@ -59,7 +59,7 @@ def _make_client(session: Session, user: User) -> TestClient:
     # dependency_overrides dict, so two clients in the same test don't conflict.
     from fastapi.middleware.cors import CORSMiddleware
 
-    from app.core.config import settings
+    from app.core.config import get_settings
     from app.routers import (
         admin,
         auth,
@@ -82,7 +82,7 @@ def _make_client(session: Session, user: User) -> TestClient:
     test_app = FastAPI()
     test_app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.allowed_origins,
+        allow_origins=get_settings().allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

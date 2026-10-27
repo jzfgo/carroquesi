@@ -19,13 +19,14 @@ import io
 import logging
 import threading
 from datetime import timedelta
+from functools import lru_cache
 from pathlib import Path
 
 from google.api_core.exceptions import NotFound, PreconditionFailed
 from google.cloud import storage
 from PIL import Image, ImageOps
 
-from app.core.config import settings
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +75,8 @@ _RENDER_SLOTS = threading.BoundedSemaphore(2)
 # means the miniature shows a file that is gone.
 _SOURCE_GENERATION = "source_generation"
 
-_client: storage.Client | None = None
 
-
+@lru_cache
 def _get_client() -> storage.Client:
     """Memoised GCS client built from the service-account key file.
 
@@ -84,23 +84,20 @@ def _get_client() -> storage.Client:
     credentials: V4 signing needs the private key locally, and only the key
     file carries one.
     """
-    global _client
-    if _client is None:
-        _client = storage.Client.from_service_account_json(
-            str(Path(settings.firebase_credentials_path).expanduser())
-        )
-    return _client
+    return storage.Client.from_service_account_json(
+        str(Path(get_settings().firebase_credentials_path).expanduser())
+    )
 
 
 def is_configured() -> bool:
     """Whether receipt storage is enabled. Callers must gate on this."""
-    return bool(settings.receipt_storage_bucket)
+    return bool(get_settings().receipt_storage_bucket)
 
 
 def _bucket() -> storage.Bucket:
     if not is_configured():
         raise RuntimeError("Receipt storage is not configured (RECEIPT_STORAGE_BUCKET is empty)")
-    return _get_client().bucket(settings.receipt_storage_bucket)
+    return _get_client().bucket(get_settings().receipt_storage_bucket)
 
 
 def generate_upload_url(

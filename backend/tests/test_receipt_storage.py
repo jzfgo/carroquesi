@@ -10,25 +10,25 @@ from fastapi.testclient import TestClient
 from google.api_core.exceptions import NotFound, PreconditionFailed
 from PIL import Image
 
-from app.core.config import settings
+from app.core.config import get_settings
 from app.services import receipt_storage
 
 
 @pytest.fixture(autouse=True)
 def reset_memoised_client():
-    receipt_storage._client = None
+    receipt_storage._get_client.cache_clear()
     yield
-    receipt_storage._client = None
+    receipt_storage._get_client.cache_clear()
 
 
 @pytest.fixture(name="configured")
 def configured_fixture(monkeypatch):
-    monkeypatch.setattr(settings, "receipt_storage_bucket", "test-bucket")
+    monkeypatch.setattr(get_settings(), "receipt_storage_bucket", "test-bucket")
 
 
 @pytest.fixture(name="unconfigured")
 def unconfigured_fixture(monkeypatch):
-    monkeypatch.setattr(settings, "receipt_storage_bucket", "")
+    monkeypatch.setattr(get_settings(), "receipt_storage_bucket", "")
 
 
 @pytest.fixture(name="mock_client")
@@ -39,9 +39,9 @@ def mock_client_fixture(monkeypatch, configured) -> MagicMock:
 
 
 def test_is_configured_follows_the_bucket_setting(monkeypatch):
-    monkeypatch.setattr(settings, "receipt_storage_bucket", "")
+    monkeypatch.setattr(get_settings(), "receipt_storage_bucket", "")
     assert receipt_storage.is_configured() is False
-    monkeypatch.setattr(settings, "receipt_storage_bucket", "some-bucket")
+    monkeypatch.setattr(get_settings(), "receipt_storage_bucket", "some-bucket")
     assert receipt_storage.is_configured() is True
 
 
