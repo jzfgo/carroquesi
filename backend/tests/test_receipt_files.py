@@ -2,6 +2,7 @@
 the per-trip scan listing. GCS is always mocked — the suite never talks to
 GCP."""
 
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
@@ -44,7 +45,7 @@ def seed_list(session, user):
 
 
 @pytest.fixture(autouse=True)
-def mock_storage(monkeypatch) -> MagicMock:
+def mock_storage(monkeypatch) -> Iterator[MagicMock]:
     """Configure the bucket and swap the GCS client for a mock. Unconfigured
     tests blank receipt_storage_bucket on top of this."""
     monkeypatch.setattr(get_settings(), "receipt_storage_bucket", "test-bucket")
@@ -87,7 +88,7 @@ def test_mint_records_the_file_metadata_on_the_scan(client, session, mock_storag
     assert response.status_code == 200
 
     session.expire_all()
-    scan = session.get(ReceiptScan, SCAN_ID)
+    scan = session.get_one(ReceiptScan, SCAN_ID)
     assert scan.file_path == f"receipts/{LIST_ID}/{SCAN_ID}.jpg"
     assert scan.file_content_type == "image/jpeg"
     assert scan.file_pages is None
@@ -104,7 +105,7 @@ def test_mint_accepts_a_pdf_and_records_its_pages(client, session):
     assert response.status_code == 200
 
     session.expire_all()
-    scan = session.get(ReceiptScan, SCAN_ID)
+    scan = session.get_one(ReceiptScan, SCAN_ID)
     assert scan.file_path == f"receipts/{LIST_ID}/{SCAN_ID}.pdf"
     assert scan.file_content_type == "application/pdf"
     assert scan.file_pages == 3
@@ -117,7 +118,7 @@ def test_mint_ignores_pages_on_an_image(client, session):
     assert response.status_code == 200
 
     session.expire_all()
-    assert session.get(ReceiptScan, SCAN_ID).file_pages is None
+    assert session.get_one(ReceiptScan, SCAN_ID).file_pages is None
 
 
 def test_remint_overwrites_the_recorded_file_idempotently(client, session):
@@ -127,7 +128,7 @@ def test_remint_overwrites_the_recorded_file_idempotently(client, session):
     assert _mint(client, content_type="application/pdf", pages=2).status_code == 200
 
     session.expire_all()
-    scan = session.get(ReceiptScan, SCAN_ID)
+    scan = session.get_one(ReceiptScan, SCAN_ID)
     assert scan.file_path == f"receipts/{LIST_ID}/{SCAN_ID}.pdf"
     assert scan.file_content_type == "application/pdf"
     assert scan.file_pages == 2
@@ -189,7 +190,7 @@ def test_mint_returns_415_for_an_unsupported_type(client, session):
     assert response.status_code == 415
 
     session.expire_all()
-    assert session.get(ReceiptScan, SCAN_ID).file_path is None
+    assert session.get_one(ReceiptScan, SCAN_ID).file_path is None
 
 
 def test_mint_rejects_a_non_positive_page_count(client):
@@ -205,7 +206,7 @@ def test_mint_returns_403_for_a_non_member(other_client):
 
 
 def _stored_scan(session: Session) -> ReceiptScan:
-    scan = session.get(ReceiptScan, SCAN_ID)
+    scan = session.get_one(ReceiptScan, SCAN_ID)
     scan.file_path = f"receipts/{LIST_ID}/{SCAN_ID}.jpg"
     scan.file_content_type = "image/jpeg"
     session.add(scan)
@@ -249,6 +250,17 @@ def test_file_url_needs_no_flag_or_consent(client, session, user):
 
 
 def test_file_url_returns_404_when_no_file_was_ever_minted(client):
+    assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/file-url").status_code == 404
+
+
+def test_file_url_returns_404_when_the_content_type_is_missing(client, session):
+    """The mint records path and type together, so this row should not exist.
+    If it does, answer 404 rather than fail response validation."""
+    scan = _stored_scan(session)
+    scan.file_content_type = None
+    session.add(scan)
+    session.commit()
+
     assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/file-url").status_code == 404
 
 
@@ -323,7 +335,7 @@ def test_thumb_url_returns_404_when_no_file_was_ever_minted(client):
 
 
 def test_thumb_url_returns_404_for_another_lists_scan(client, session, other_list_and_scan):
-    scan = session.get(ReceiptScan, "scan-other")
+    scan = session.get_one(ReceiptScan, "scan-other")
     scan.file_path = "receipts/list-files-other/scan-other.jpg"
     scan.file_content_type = "image/jpeg"
     session.add(scan)

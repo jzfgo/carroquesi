@@ -1,6 +1,6 @@
 """The "already on the list" rule shared by adding an item and re-buying one."""
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.db.models import ListItem
 from app.services.fold import fold_name
@@ -17,7 +17,7 @@ def find_pending_duplicate(
     """
     target = fold_name(name)
     pending = session.exec(
-        select(ListItem).where(ListItem.list_id == list_id, ListItem.purchased_at.is_(None))
+        select(ListItem).where(ListItem.list_id == list_id, col(ListItem.purchased_at).is_(None))
     ).all()
     for item in pending:
         if fold_name(item.name) == target or (ean is not None and item.ean == ean):

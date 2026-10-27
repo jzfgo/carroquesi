@@ -102,7 +102,7 @@ jobs:
         run: pnpm test
 
   backend:
-    name: Backend (lint + format + tests)
+    name: Backend (typecheck + lint + format + tests)
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
@@ -120,6 +120,9 @@ jobs:
 
       - name: Install dependencies
         run: uv sync
+
+      - name: Typecheck
+        run: uv run ty check
 
       - name: Lint
         run: uv run ruff check

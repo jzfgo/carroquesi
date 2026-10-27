@@ -4,7 +4,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.db.models import List, ListItem, ListStore, Purchase
 
@@ -48,7 +48,7 @@ def _pid(session: Session, item: dict) -> str | None:
     """The trip an item is filed under, read fresh from the row. ItemRead
     carries purchase_id too, but the dicts these tests hold were captured
     before the writes under test."""
-    row = session.get(ListItem, item["id"])
+    row = session.get_one(ListItem, item["id"])
     session.refresh(row)
     return row.purchase_id
 
@@ -61,8 +61,8 @@ def _tear_off(session: Session, item: dict, days_ago: int) -> str:
     nobody wrote down. Returns the trip's id.
     """
     now = datetime.now(UTC).replace(tzinfo=None)
-    row = session.get(ListItem, item["id"])
-    trip = session.get(Purchase, row.purchase_id)
+    row = session.get_one(ListItem, item["id"])
+    trip = session.get_one(Purchase, row.purchase_id)
     trip.opened_at = now - timedelta(days=days_ago)
     trip.tears_off_at = now - timedelta(days=days_ago - 1)
     session.add(trip)
@@ -103,7 +103,7 @@ def test_a_close_line_corrects_the_products_name_and_brand(client: TestClient, s
     )
 
     assert response.status_code == 200
-    row = session.get(ListItem, milk["id"])
+    row = session.get_one(ListItem, milk["id"])
     session.refresh(row)
     assert row.name == "Leche entera"
     assert row.brand == "Hacendado"
@@ -188,7 +188,7 @@ def test_closing_a_subset_splits_a_new_ticket_and_leaves_the_rest_open(
     assert closed["id"] != cart_id
     assert _pid(session, milk) == closed["id"]
     assert _pid(session, bread) == cart_id
-    assert session.get(Purchase, cart_id).closed_at is None
+    assert session.get_one(Purchase, cart_id).closed_at is None
 
 
 def test_the_two_shop_evening_ends_with_two_tickets_and_no_open_trip(
@@ -208,7 +208,7 @@ def test_the_two_shop_evening_ends_with_two_tickets_and_no_open_trip(
     assert _pid(session, oil) == _pid(session, rice) == mercadona["id"]
     # No close ever leaves an empty open trip behind.
     open_trips = session.exec(
-        select(Purchase).where(Purchase.list_id == lst["id"], Purchase.closed_at.is_(None))
+        select(Purchase).where(Purchase.list_id == lst["id"], col(Purchase.closed_at).is_(None))
     ).all()
     assert open_trips == []
 
@@ -268,12 +268,12 @@ def test_a_concurrent_close_is_refused_not_overwritten(
     milk = _tap(client, lst["id"], "Leche")
     winner = _close(client, lst["id"], store="Lidl", total=14.60, lines=_lines(milk))
     assert winner.status_code == 200
-    trip = session.get(Purchase, winner.json()["id"])
+    trip = session.get_one(Purchase, winner.json()["id"])
 
     real_exec = session.exec
 
     def stale_resolve(statement, *args, **kwargs):
-        if "purchases.closed_at IS NULL" in str(statement):
+        if statement.is_select and "purchases.closed_at IS NULL" in str(statement):
 
             class _Stale:
                 def first(self):
@@ -315,7 +315,7 @@ def test_naming_an_unknown_item_returns_400_and_files_nothing(client: TestClient
 
     assert response.status_code == 400
     assert _pid(session, milk) == cart_id
-    assert session.get(Purchase, cart_id).closed_at is None
+    assert session.get_one(Purchase, cart_id).closed_at is None
 
 
 def test_naming_another_lists_item_returns_400_and_does_not_touch_it(
@@ -339,7 +339,7 @@ def test_naming_another_lists_item_returns_400_and_does_not_touch_it(
     fetched = other_client.get(f"/lists/{theirs['id']}/items").json()[0]
     assert fetched["price"] is None
     assert _pid(session, their_bread) == their_cart
-    assert session.get(Purchase, their_cart).closed_at is None
+    assert session.get_one(Purchase, their_cart).closed_at is None
 
 
 def test_an_item_already_on_another_ticket_returns_400(client: TestClient):
@@ -461,7 +461,7 @@ def test_closing_registers_the_store_for_the_list(client: TestClient, session: S
 def test_closing_bumps_the_lists_updated_at(client: TestClient, session: Session):
     lst = _create_list(client)
     milk = _tap(client, lst["id"], "Leche")
-    row = session.get(List, lst["id"])
+    row = session.get_one(List, lst["id"])
     row.updated_at = datetime(2026, 1, 1)
     session.add(row)
     session.commit()
@@ -470,7 +470,7 @@ def test_closing_bumps_the_lists_updated_at(client: TestClient, session: Session
 
     assert response.status_code == 200
     session.expire_all()
-    assert session.get(List, lst["id"]).updated_at > datetime(2026, 1, 1)
+    assert session.get_one(List, lst["id"]).updated_at > datetime(2026, 1, 1)
 
 
 def test_closing_makes_purchase_ends_at_the_close_time_not_the_tear_off(client: TestClient):
@@ -606,7 +606,7 @@ def _page(client: TestClient, list_id: str, **params):
 
 
 def _backdate_close(session: Session, trip_id: str, days_ago: int) -> None:
-    trip = session.get(Purchase, trip_id)
+    trip = session.get_one(Purchase, trip_id)
     trip.closed_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days_ago)
     session.add(trip)
     session.commit()
@@ -653,7 +653,7 @@ def test_the_page_sums_a_provisional_items_total_from_priced_proto_lines(
     coffee = _tap(client, lst["id"], "Cafe", quantity="1 ud")
     torn_id = _tear_off(session, milk, days_ago=2)
     for item, price in ((milk, 1.90), (coffee, 3.29)):
-        row = session.get(ListItem, item["id"])
+        row = session.get_one(ListItem, item["id"])
         row.price = price
         row.price_per = None
         session.add(row)
@@ -807,8 +807,8 @@ def test_a_tickets_lines_come_in_tap_order_with_the_boundary_stamped(
     # Taps land microseconds apart; set the order beyond doubt. The bread
     # went into the cart first, so created_at alone would order it wrong.
     now = datetime.now(UTC).replace(tzinfo=None)
-    session.get(ListItem, bread["id"]).purchased_at = now - timedelta(hours=2)
-    session.get(ListItem, milk["id"]).purchased_at = now - timedelta(hours=1)
+    session.get_one(ListItem, bread["id"]).purchased_at = now - timedelta(hours=2)
+    session.get_one(ListItem, milk["id"]).purchased_at = now - timedelta(hours=1)
     session.commit()
     ticket = _close(client, lst["id"], store="Lidl", lines=_lines(milk, bread)).json()
 
@@ -904,6 +904,7 @@ def test_rebuy_from_the_open_cart_is_refused(client: TestClient, session: Sessio
     lst = _create_list(client)
     milk = _tap(client, lst["id"], "Leche")
     cart_id = _pid(session, milk)
+    assert cart_id is not None
 
     response = _rebuy(client, lst["id"], cart_id, milk["id"])
 
@@ -975,7 +976,7 @@ def test_rebuy_prefers_the_lines_own_store_over_the_trips(client: TestClient, se
     ).json()
     # close() writes price_store from the close's store, so force a line store
     # that differs from the trip store to prove the precedence.
-    row = session.get(ListItem, milk["id"])
+    row = session.get_one(ListItem, milk["id"])
     row.price_store = "Dia"
     session.add(row)
     session.commit()
@@ -991,7 +992,7 @@ def test_rebuy_falls_back_to_the_trip_store(client: TestClient, session: Session
     # No confirmed price, so the line carries no price_store; only the trip
     # knows where the shop was.
     ticket = _close(client, lst["id"], store="Mercadona", lines=_lines(milk)).json()
-    assert session.get(ListItem, milk["id"]).price_store is None
+    assert session.get_one(ListItem, milk["id"]).price_store is None
 
     fresh = _rebuy(client, lst["id"], ticket["id"], milk["id"]).json()
 
@@ -1043,7 +1044,7 @@ def test_a_manual_purchase_is_born_closed_with_no_lines(client: TestClient, sess
     assert body["closed_at"] is not None
     assert body["store"] == "Lidl"
     assert body["total"] == 23.40
-    trip = session.get(Purchase, body["id"])
+    trip = session.get_one(Purchase, body["id"])
     assert trip.list_id == lst["id"]
     lines = client.get(f"/lists/{lst['id']}/purchases/{body['id']}/items").json()
     assert lines == []
@@ -1145,7 +1146,7 @@ def test_a_manual_save_with_a_scan_id_links_the_scan(client: TestClient, session
 
     assert response.status_code == 200
     session.expire_all()
-    assert session.get(ReceiptScan, scan.id).purchase_id == response.json()["id"]
+    assert session.get_one(ReceiptScan, scan.id).purchase_id == response.json()["id"]
     (row,) = _page(client, lst["id"]).json()["purchases"]
     assert row["has_receipt"] is True
 
@@ -1175,7 +1176,7 @@ def test_a_manual_save_cannot_link_another_lists_scan(client: TestClient, sessio
 
     assert response.status_code == 404
     session.expire_all()
-    assert session.get(ReceiptScan, scan.id).purchase_id is None
+    assert session.get_one(ReceiptScan, scan.id).purchase_id is None
 
 
 def test_a_blank_manual_store_reads_back_as_none(client: TestClient, session: Session):
@@ -1203,7 +1204,7 @@ def test_a_manual_purchases_boundary_lands_on_the_clients_day(client: TestClient
     )
 
     assert response.status_code == 200
-    trip = session.get(Purchase, response.json()["id"])
+    trip = session.get_one(Purchase, response.json()["id"])
     # opened_at is the local midnight that STARTS the day, as naive UTC.
     expected_open = (
         datetime.combine(day, datetime.min.time(), tzinfo=tz).astimezone(UTC).replace(tzinfo=None)

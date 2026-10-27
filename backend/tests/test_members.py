@@ -121,7 +121,7 @@ def test_get_members_display_name_falls_back_to_email_prefix(
 
     from app.db.models import User as UserModel
 
-    db_user = session.exec(sql_select(UserModel).where(UserModel.id == user.id)).first()
+    db_user = session.exec(sql_select(UserModel).where(UserModel.id == user.id)).one()
     db_user.display_name = None
     session.add(db_user)
     session.commit()
@@ -143,13 +143,13 @@ def test_transfer_ownership(client: TestClient, other_user, user, session: Sessi
 
     lst = _create_list(client)
     _add_member(session, lst["id"], other_user.id)
-    before = session.get(List, lst["id"]).updated_at
+    before = session.get_one(List, lst["id"]).updated_at
 
     response = client.put(f"/lists/{lst['id']}/owner", json={"user_id": other_user.id})
 
     assert response.status_code == 204
     session.expire_all()
-    row = session.get(List, lst["id"])
+    row = session.get_one(List, lst["id"])
     assert row.owner_id == other_user.id
     # Co-members poll updated_at, so the transfer must bump it.
     assert row.updated_at > before

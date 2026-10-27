@@ -14,7 +14,7 @@ from datetime import datetime
 
 from firebase_admin import messaging
 from sqlalchemy import and_, func, or_
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.db.models import List, ListItem, ListMember, PushToken, User
 
@@ -57,7 +57,7 @@ def recipients_for(session: Session, list_id: str, actor_id: str) -> dict[str, R
     """
     rows = session.exec(
         select(ListMember, PushToken)
-        .join(PushToken, PushToken.user_id == ListMember.user_id)
+        .join(PushToken, col(PushToken.user_id) == ListMember.user_id)
         .where(ListMember.list_id == list_id, ListMember.user_id != actor_id)
     ).all()
 
@@ -85,12 +85,12 @@ def unseen_count_for(session: Session, list_id: str, recipient_id: str, watermar
         .where(
             ListItem.list_id == list_id,
             or_(
-                and_(ListItem.created_at > watermark, ListItem.added_by != recipient_id),
+                and_(col(ListItem.created_at) > watermark, col(ListItem.added_by) != recipient_id),
                 and_(
-                    ListItem.purchased_at > watermark,
+                    col(ListItem.purchased_at) > watermark,
                     # is_distinct_from, not !=: NULL != 'x' is NULL in SQL, which
                     # would silently drop rows predating the purchased_by column.
-                    ListItem.purchased_by.is_distinct_from(recipient_id),
+                    col(ListItem.purchased_by).is_distinct_from(recipient_id),
                 ),
             ),
         )
@@ -196,7 +196,7 @@ def _send_and_prune(
         pool.shutdown(wait=False, cancel_futures=True)
 
     if dead:
-        for row in session.exec(select(PushToken).where(PushToken.token.in_(dead))).all():
+        for row in session.exec(select(PushToken).where(col(PushToken.token).in_(dead))).all():
             session.delete(row)
         session.commit()
 

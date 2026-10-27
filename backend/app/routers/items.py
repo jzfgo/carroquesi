@@ -1,9 +1,10 @@
 import logging
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import case, nulls_last
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.db.models import List, ListItem, Purchase, ReceiptScan, User
 from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
@@ -45,14 +46,14 @@ def get_items(
     session: CurrentSession,
 ):
     lst, _ = list_and_user
-    purchased_group = case((ListItem.purchased_at.is_(None), 0), else_=1)
+    purchased_group = case((col(ListItem.purchased_at).is_(None), 0), else_=1)
     query = (
         select(ListItem)
         .where(ListItem.list_id == lst.id)
         .order_by(
             purchased_group,
-            nulls_last(ListItem.purchased_at.desc()),
-            ListItem.created_at.asc(),
+            nulls_last(col(ListItem.purchased_at).desc()),
+            col(ListItem.created_at).asc(),
         )
     )
     items = session.exec(query).all()
@@ -60,7 +61,7 @@ def get_items(
     return items
 
 
-def _attach_purchase_ends_at(session: Session, items: list[ListItem]) -> None:
+def _attach_purchase_ends_at(session: Session, items: Sequence[ListItem]) -> None:
     """Stamp each item with its trip's facts, in two queries for the page.
 
     The end instant and whether a scan claimed the trip ride on the ORM object
@@ -72,11 +73,13 @@ def _attach_purchase_ends_at(session: Session, items: list[ListItem]) -> None:
         return
     trips_by_id = {
         trip.id: trip
-        for trip in session.exec(select(Purchase).where(Purchase.id.in_(trip_ids))).all()
+        for trip in session.exec(select(Purchase).where(col(Purchase.id).in_(trip_ids))).all()
     }
     scanned = set(
         session.exec(
-            select(ReceiptScan.purchase_id).where(ReceiptScan.purchase_id.in_(trip_ids)).distinct()
+            select(ReceiptScan.purchase_id)
+            .where(col(ReceiptScan.purchase_id).in_(trip_ids))
+            .distinct()
         ).all()
     )
     for item in items:

@@ -312,9 +312,9 @@ def _tear_off_trip(session, item_id, *, tear_off=None, closed_at=None):
     """Reshape the boundary of the trip the item was purchased on."""
     from app.db.models import Purchase
 
-    db_item = session.get(DBListItem, item_id)
+    db_item = session.get_one(DBListItem, item_id)
     session.refresh(db_item)
-    trip = session.get(Purchase, db_item.purchase_id)
+    trip = session.get_one(Purchase, db_item.purchase_id)
     if tear_off is not None:
         trip.tears_off_at = tear_off
     if closed_at is not None:
@@ -361,7 +361,7 @@ def test_delete_price_422_when_the_purchased_items_trip_is_missing(client: TestC
     _set_price(client, lst["id"], item["id"], 1.99)
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
 
-    db_item = session.get(DBListItem, item["id"])
+    db_item = session.get_one(DBListItem, item["id"])
     session.refresh(db_item)
     db_item.purchase_id = None
     session.add(db_item)
@@ -385,9 +385,9 @@ def _set_trip_store(session, item_id, store):
     """Set the store on the trip the item was purchased on."""
     from app.db.models import Purchase
 
-    db_item = session.get(DBListItem, item_id)
+    db_item = session.get_one(DBListItem, item_id)
     session.refresh(db_item)
-    trip = session.get(Purchase, db_item.purchase_id)
+    trip = session.get_one(Purchase, db_item.purchase_id)
     trip.store = store
     session.add(trip)
     session.commit()

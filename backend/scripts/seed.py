@@ -1737,6 +1737,7 @@ def build_seed_trips(items: list[ListItem]) -> list[Purchase]:
     the production backfill did: nobody wrote those shops down.
     """
     tz = datetime.now(UTC).astimezone().tzinfo
+    assert tz is not None  # astimezone() always sets one
     trips: dict[tuple[str, datetime], Purchase] = {}
     for item in items:
         if item.purchased_at is None:

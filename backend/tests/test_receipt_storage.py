@@ -141,6 +141,7 @@ THUMB = "receipts/list-1/scan-1.thumb.jpg"
 
 def test_render_thumbnail_fits_the_box_as_a_jpeg():
     rendered = receipt_storage.render_thumbnail(_jpeg((3000, 4000)))
+    assert rendered is not None
 
     with Image.open(io.BytesIO(rendered)) as img:
         assert img.format == "JPEG"
@@ -153,6 +154,7 @@ def test_render_thumbnail_keeps_a_long_receipt_wide_enough():
     """The box is cropped from the top, so a tall receipt is bounded by
     width, not squeezed to fit a square."""
     rendered = receipt_storage.render_thumbnail(_jpeg((1000, 4000)))
+    assert rendered is not None
 
     with Image.open(io.BytesIO(rendered)) as img:
         assert img.size == (160, 640)
@@ -161,6 +163,7 @@ def test_render_thumbnail_keeps_a_long_receipt_wide_enough():
 def test_render_thumbnail_applies_the_exif_rotation():
     # Orientation 6: stored landscape, shown portrait.
     rendered = receipt_storage.render_thumbnail(_jpeg((4000, 3000), exif_orientation=6))
+    assert rendered is not None
 
     with Image.open(io.BytesIO(rendered)) as img:
         assert img.height > img.width
@@ -171,6 +174,8 @@ def test_render_thumbnail_reads_png_with_alpha():
     Image.new("RGBA", (800, 1200), (255, 255, 255, 128)).save(out, "PNG")
 
     rendered = receipt_storage.render_thumbnail(out.getvalue())
+
+    assert rendered is not None
 
     with Image.open(io.BytesIO(rendered)) as img:
         assert img.format == "JPEG"

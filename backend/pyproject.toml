@@ -36,6 +36,7 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "pytest-httpx>=0.36.2",
     "ruff>=0.15.22",
+    "ty>=0.0.89",
 ]
 scripts = [
     "playwright>=1.61.0",
@@ -55,3 +56,8 @@ select = ["E", "F", "I", "UP", "B"]
 "alembic/versions/*.py" = ["E501"]
 "tests/*.py" = ["E501"]
 "app/dependencies.py" = ["UP040"]
+
+# ty exits 0 on warnings by default. Fail on them too, so a deprecated call or
+# an unimported submodule cannot slip through CI.
+[tool.ty.terminal]
+error-on-warning = true

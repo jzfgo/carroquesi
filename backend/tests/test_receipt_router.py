@@ -89,7 +89,7 @@ def test_post_receipt_persists_inference_source(client, session):
     )
     assert response.status_code == 200
 
-    scan = session.get(ReceiptScan, response.json()["scan_id"])
+    scan = session.get_one(ReceiptScan, response.json()["scan_id"])
     assert scan.inference_source == "on_device"
 
 
@@ -97,12 +97,12 @@ def test_post_receipt_inference_source_null_when_client_omits_it(client, session
     response = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body())
     assert response.status_code == 200
 
-    scan = session.get(ReceiptScan, response.json()["scan_id"])
+    scan = session.get_one(ReceiptScan, response.json()["scan_id"])
     assert scan.inference_source is None
 
 
 def test_post_receipt_infers_store_when_null(client, session):
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     item.price_store = "Mercadona"
     session.add(item)
     session.commit()
@@ -120,10 +120,10 @@ def test_post_receipt_store_stays_null_when_items_have_mixed_stores(client, sess
         id="item-bacon",
         list_id=LIST_ID,
         name="Bacon lonchas",
-        added_by=session.get(ListItem, "item-almendras").added_by,
+        added_by=session.get_one(ListItem, "item-almendras").added_by,
         price_store="Lidl",
     )
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     item.price_store = "Mercadona"
     session.add_all([item, item2])
     session.commit()
@@ -163,10 +163,10 @@ def test_post_receipt_infers_store_across_spelling_variants(client, session):
         id="item-bacon",
         list_id=LIST_ID,
         name="Bacon lonchas",
-        added_by=session.get(ListItem, "item-almendras").added_by,
+        added_by=session.get_one(ListItem, "item-almendras").added_by,
         price_store="ahorra más",
     )
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     item.price_store = "Ahorramás"
     session.add_all([item, item2])
     session.commit()
@@ -204,7 +204,7 @@ def test_post_receipt_returns_kilogram_price_type(client, session):
         id="item-bacon",
         list_id=LIST_ID,
         name="Bacon lonchas",
-        added_by=session.get(ListItem, "item-almendras").added_by,
+        added_by=session.get_one(ListItem, "item-almendras").added_by,
     )
     session.add(item)
     session.commit()
@@ -243,10 +243,10 @@ def test_post_receipt_infers_store_when_one_item_has_no_store(client, session):
         id="item-leche",
         list_id=LIST_ID,
         name="Leche entera",
-        added_by=session.get(ListItem, "item-almendras").added_by,
+        added_by=session.get_one(ListItem, "item-almendras").added_by,
         price_store=None,
     )
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     item.price_store = "Mercadona"
     session.add_all([item, item2])
     session.commit()
@@ -309,7 +309,7 @@ def test_post_receipt_prices_writes_unit_price(client, session):
     assert response.json()["items_updated"] == 1
 
     session.expire_all()
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     assert item.price == pytest.approx(1.15)
     assert item.price_store == "Mercadona"
 
@@ -332,14 +332,14 @@ def test_receipt_prices_updates_quantity(client, session):
     response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
     assert response.status_code == 200
     session.expire_all()
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     assert item.purchased_quantity == "2"
     assert item.quantity is None  # was never set on this item in seed
 
 
 def test_receipt_prices_preserves_quantity_when_null(client, session):
     """When patch.quantity is None, quantity (planned) is left untouched."""
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     item.quantity = "500g"
     session.add(item)
     session.commit()
@@ -360,14 +360,14 @@ def test_receipt_prices_preserves_quantity_when_null(client, session):
     response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
     assert response.status_code == 200
     session.expire_all()
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     assert item.quantity == "500g"  # planning qty untouched
     assert item.purchased_quantity is None  # no receipt qty provided
 
 
 def test_receipt_prices_writes_purchased_quantity_not_quantity(client, session):
     """patch.quantity should go to purchased_quantity, leaving quantity unchanged."""
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     item.quantity = "2"  # planned qty — must survive the receipt apply
     session.add(item)
     session.commit()
@@ -388,7 +388,7 @@ def test_receipt_prices_writes_purchased_quantity_not_quantity(client, session):
     response = client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
     assert response.status_code == 200
     session.expire_all()
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     assert item.purchased_quantity == "487g"  # written to new field
     assert item.quantity == "2"  # planning qty preserved
 
@@ -410,14 +410,14 @@ def test_receipt_prices_purchased_quantity_null_when_patch_quantity_null(client,
     }
     client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
     session.expire_all()
-    assert session.get(ListItem, "item-almendras").purchased_quantity is None
+    assert session.get_one(ListItem, "item-almendras").purchased_quantity is None
 
 
 def test_post_receipt_matches_the_most_recently_updated_duplicate(client, session):
     """Two rows can share a name (a re-buy, say). Both are in the candidate pool,
     so the tiebreak is recency: match_lines keeps the first per name from a pool
     ordered pending-first then most-recently-updated, so the recent row wins."""
-    old_item = session.get(ListItem, "item-almendras")
+    old_item = session.get_one(ListItem, "item-almendras")
     old_item.name = "Leche entera"
     old_item.updated_at = datetime(2026, 4, 9, 9, 0, 0)
     session.add(old_item)
@@ -467,7 +467,7 @@ def test_post_receipt_excludes_items_settled_on_a_closed_purchase(client, sessio
         tears_off_at=datetime(2026, 4, 2, 0, 0, 0),
         closed_at=datetime(2026, 4, 2, 0, 0, 0),
     )
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     item.purchased_at = datetime(2026, 4, 1, 10, 0, 0)
     item.purchase_id = "trip-closed"
     session.add_all([trip, item])
@@ -492,7 +492,7 @@ def test_post_receipt_includes_items_in_the_open_cart(client, session):
         # Far-future tear-off so the cart reads as open whenever the suite runs.
         tears_off_at=datetime(2099, 1, 1, 0, 0, 0),
     )
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     item.purchased_at = datetime(2026, 4, 11, 10, 0, 0)
     item.purchase_id = "trip-open"
     session.add_all([trip, item])
@@ -514,7 +514,7 @@ def test_post_receipt_excludes_open_cart_items_whose_trip_has_a_scan(client, ses
         opened_at=datetime(2026, 4, 11, 9, 0, 0),
         tears_off_at=datetime(2099, 1, 1, 0, 0, 0),
     )
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     item.purchased_at = datetime(2026, 4, 11, 10, 0, 0)
     item.purchase_id = "trip-open-scanned"
     scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, purchase_id="trip-open-scanned")
@@ -538,7 +538,7 @@ def test_receipt_prices_skips_an_item_settled_under_a_ticket(client, session):
         tears_off_at=datetime(2026, 4, 2, 0, 0, 0),
         closed_at=datetime(2026, 4, 2, 0, 0, 0),
     )
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     item.purchased_at = datetime(2026, 4, 1, 10, 0, 0)
     item.purchase_id = "trip-ticketed"
     item.price = 1.05
@@ -565,7 +565,7 @@ def test_receipt_prices_skips_an_item_settled_under_a_ticket(client, session):
     assert body["items_skipped"] == 1
 
     session.expire_all()
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     assert item.price == pytest.approx(1.05)
     assert item.price_store is None
     assert item.purchased_quantity is None
@@ -724,7 +724,9 @@ def test_parse_receipt_at(raw, expected):
 
 def test_parse_receipt_at_returns_naive_datetimes():
     """Stored timestamps are naive UTC throughout the codebase."""
-    assert _parse_receipt_at("2026-04-11T17:42:00Z").tzinfo is None
+    parsed = _parse_receipt_at("2026-04-11T17:42:00Z")
+    assert parsed is not None
+    assert parsed.tzinfo is None
 
 
 def test_receipt_prices_marks_unpurchased_item_as_purchased(client, session, user):
@@ -760,7 +762,7 @@ def test_receipt_prices_marks_unpurchased_item_as_purchased(client, session, use
     assert response.status_code == 200
 
     session.expire_all()
-    item = session.get(ListItem, "item-pan")
+    item = session.get_one(ListItem, "item-pan")
     assert item.purchased_at == datetime(2026, 4, 11, 17, 42)
     assert item.price == pytest.approx(1.25)
 
@@ -779,7 +781,7 @@ def test_receipt_prices_does_not_rewrite_an_existing_purchase_timestamp(client, 
         opened_at=datetime(2026, 4, 8, 9, 0, 0),
         tears_off_at=datetime(2099, 1, 1, 0, 0, 0),
     )
-    original_item = session.get(ListItem, "item-almendras")
+    original_item = session.get_one(ListItem, "item-almendras")
     original_item.purchased_at = datetime(2026, 4, 8, 10, 0, 0)
     original_item.purchase_id = "trip-open-ts"
     session.add_all([trip, original_item])
@@ -809,7 +811,7 @@ def test_receipt_prices_does_not_rewrite_an_existing_purchase_timestamp(client, 
     assert response.status_code == 200
 
     session.expire_all()
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     assert item.purchased_at == original
     assert item.updated_at == original_updated_at
 
@@ -850,7 +852,7 @@ def test_receipt_prices_stamps_updated_at(client, session, user):
     assert response.status_code == 200
 
     session.expire_all()
-    item = session.get(ListItem, "item-queso")
+    item = session.get_one(ListItem, "item-queso")
     assert item.purchased_at == datetime(2026, 4, 11, 17, 42)
     assert item.updated_at > datetime(2026, 4, 11, 17, 42)
 
@@ -888,7 +890,7 @@ def test_receipt_prices_falls_back_to_now_without_a_receipt_date(client, session
     assert response.status_code == 200
 
     session.expire_all()
-    item = session.get(ListItem, "item-leche")
+    item = session.get_one(ListItem, "item-leche")
     assert item.purchased_at is not None
     assert item.purchased_at >= before
 
@@ -1004,7 +1006,7 @@ def test_scan_audit_counts_created_and_updated_items(client, session, user):
     client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
 
     session.expire_all()
-    assert session.get(ReceiptScan, scan_id).items_updated == 2
+    assert session.get_one(ReceiptScan, scan_id).items_updated == 2
 
 
 def test_post_receipt_matches_when_the_date_is_a_full_instant(client):
@@ -1037,7 +1039,7 @@ def test_post_receipt_full_instant_excludes_items_outside_match_window(client, s
     as an instant instead of a bare date so it actually exercises the parser
     used by the bug fix.
     """
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     item.purchased_at = datetime(2026, 3, 1, 9, 0, 0)  # 41 days before receipt
     session.add(item)
     session.commit()
@@ -1057,13 +1059,13 @@ def test_scan_record_keeps_the_receipt_time(client, session):
     body["receipt_date"] = "2026-04-11T17:42:00Z"
     scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=body).json()["scan_id"]
 
-    scan = session.get(ReceiptScan, scan_id)
+    scan = session.get_one(ReceiptScan, scan_id)
     assert scan.receipt_at == datetime(2026, 4, 11, 17, 42)
 
 
 def test_scan_record_stores_midnight_for_a_bare_date(client, session):
     scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body()).json()["scan_id"]
-    scan = session.get(ReceiptScan, scan_id)
+    scan = session.get_one(ReceiptScan, scan_id)
     assert scan.receipt_at == datetime(2026, 4, 11, 0, 0)
 
 
@@ -1194,10 +1196,10 @@ def test_receipt_apply_closes_the_trip_back_dated_to_the_receipt(client, session
     assert response.status_code == 200
 
     session.expire_all()
-    item = session.get(ListItem, "item-pan-trip")
+    item = session.get_one(ListItem, "item-pan-trip")
     assert item.purchased_at == datetime(2026, 4, 11, 17, 42)
     assert item.purchase_id is not None
-    trip = session.get(Purchase, item.purchase_id)
+    trip = session.get_one(Purchase, item.purchase_id)
     assert trip.list_id == LIST_ID
     assert trip.closed_at is not None
     assert trip.opened_at == datetime(2026, 4, 11, 0, 0)
@@ -1236,7 +1238,7 @@ def test_receipt_apply_created_items_join_the_same_open_trip(client, session, us
     assert response.status_code == 200
 
     session.expire_all()
-    patched = session.get(ListItem, "item-pan-trip2")
+    patched = session.get_one(ListItem, "item-pan-trip2")
     created = session.exec(sql_select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
     assert patched.purchase_id is not None
     assert created.purchase_id == patched.purchase_id
@@ -1282,8 +1284,8 @@ def test_receipt_apply_stamps_the_trip_boundary_in_the_clients_zone(client, sess
     assert response.status_code == 200
 
     session.expire_all()
-    item = session.get(ListItem, "item-pan-trip3")
-    trip = session.get(Purchase, item.purchase_id)
+    item = session.get_one(ListItem, "item-pan-trip3")
+    trip = session.get_one(Purchase, item.purchase_id)
     assert trip.tears_off_at == tears_off_at_for(trip.opened_at, ZoneInfo("Etc/GMT+12"))
 
 
@@ -1337,8 +1339,8 @@ def test_receipt_apply_links_the_scan_to_the_trip_it_filed(client, session, user
     assert response.status_code == 200
 
     session.expire_all()
-    scan = session.get(ReceiptScan, scan_id)
-    item = session.get(ListItem, "item-pan-link")
+    scan = session.get_one(ReceiptScan, scan_id)
+    item = session.get_one(ListItem, "item-pan-link")
     assert scan.purchase_id is not None
     assert scan.purchase_id == item.purchase_id
 
@@ -1358,7 +1360,7 @@ def test_apply_with_nothing_to_settle_leaves_the_scan_unlinked(client, session):
     assert response.status_code == 200
 
     session.expire_all()
-    assert session.get(ReceiptScan, scan_id).purchase_id is None
+    assert session.get_one(ReceiptScan, scan_id).purchase_id is None
 
 
 # --- Targeted attach: a scan completes a settled purchase (25b) ---
@@ -1514,7 +1516,7 @@ def test_targeted_scan_does_not_link_the_scan_before_apply(client, session, sett
     scan_id = response.json()["scan_id"]
 
     session.expire_all()
-    assert session.get(ReceiptScan, scan_id).purchase_id is None
+    assert session.get_one(ReceiptScan, scan_id).purchase_id is None
 
 
 def test_targeted_apply_fills_and_updates_prices_without_stamping_updated_at(
@@ -1536,8 +1538,8 @@ def test_targeted_apply_fills_and_updates_prices_without_stamping_updated_at(
     assert response.json()["items_updated"] == 2
 
     session.expire_all()
-    filled = session.get(ListItem, "item-settled-unpriced")
-    corrected = session.get(ListItem, "item-settled-priced")
+    filled = session.get_one(ListItem, "item-settled-unpriced")
+    corrected = session.get_one(ListItem, "item-settled-priced")
     assert filled.price == pytest.approx(1.10)
     assert corrected.price == pytest.approx(2.75)
     for item in (filled, corrected):
@@ -1558,7 +1560,7 @@ def test_targeted_apply_skips_a_patch_for_an_item_not_on_the_purchase(
     assert response.json()["items_skipped"] == 1
 
     session.expire_all()
-    lookalike = session.get(ListItem, "item-lookalike")
+    lookalike = session.get_one(ListItem, "item-lookalike")
     assert lookalike.price is None
     assert lookalike.purchased_at is None
 
@@ -1600,7 +1602,7 @@ def test_targeted_apply_fills_a_null_total(client, session, settled_trip):
     assert response.status_code == 200
 
     session.expire_all()
-    assert session.get(Purchase, SETTLED_ID).total == pytest.approx(12.30)
+    assert session.get_one(Purchase, SETTLED_ID).total == pytest.approx(12.30)
 
 
 def test_targeted_apply_updates_a_differing_total(client, session, settled_trip):
@@ -1611,7 +1613,7 @@ def test_targeted_apply_updates_a_differing_total(client, session, settled_trip)
     client.post(f"/lists/{LIST_ID}/receipt-prices", json=_targeted_batch(receipt_total=12.30))
 
     session.expire_all()
-    assert session.get(Purchase, SETTLED_ID).total == pytest.approx(12.30)
+    assert session.get_one(Purchase, SETTLED_ID).total == pytest.approx(12.30)
 
 
 def test_targeted_apply_keeps_the_total_when_the_paper_had_none(client, session, settled_trip):
@@ -1623,7 +1625,7 @@ def test_targeted_apply_keeps_the_total_when_the_paper_had_none(client, session,
     client.post(f"/lists/{LIST_ID}/receipt-prices", json=_targeted_batch(receipt_total=None))
 
     session.expire_all()
-    assert session.get(Purchase, SETTLED_ID).total == pytest.approx(10.00)
+    assert session.get_one(Purchase, SETTLED_ID).total == pytest.approx(10.00)
 
 
 def test_targeted_apply_leaves_store_and_dating_untouched(client, session, settled_trip):
@@ -1639,13 +1641,13 @@ def test_targeted_apply_leaves_store_and_dating_untouched(client, session, settl
     assert response.status_code == 200
 
     session.expire_all()
-    trip = session.get(Purchase, SETTLED_ID)
+    trip = session.get_one(Purchase, SETTLED_ID)
     assert trip.store == "Mercadona"
     assert trip.opened_at == datetime(2026, 4, 1, 9, 0, 0)
     assert trip.tears_off_at == datetime(2026, 4, 2, 0, 0, 0)
     assert trip.closed_at == datetime(2026, 4, 2, 0, 0, 0)
     # The line's own store note does take the paper's word.
-    assert session.get(ListItem, "item-settled-unpriced").price_store == "Lidl"
+    assert session.get_one(ListItem, "item-settled-unpriced").price_store == "Lidl"
 
 
 def test_targeted_apply_closes_no_trip(client, session, settled_trip, user):
@@ -1675,8 +1677,8 @@ def test_targeted_apply_closes_no_trip(client, session, settled_trip, user):
     assert response.status_code == 200
 
     session.expire_all()
-    assert session.get(Purchase, "trip-cart").closed_at is None
-    assert session.get(ListItem, "item-in-cart").purchase_id == "trip-cart"
+    assert session.get_one(Purchase, "trip-cart").closed_at is None
+    assert session.get_one(ListItem, "item-in-cart").purchase_id == "trip-cart"
     assert len(session.exec(select(Purchase)).all()) == 2
 
 
@@ -1692,7 +1694,7 @@ def test_targeted_apply_links_the_scan_to_the_purchase(client, session, settled_
     assert response.status_code == 200
 
     session.expire_all()
-    scan = session.get(ReceiptScan, scan_id)
+    scan = session.get_one(ReceiptScan, scan_id)
     assert scan.purchase_id == SETTLED_ID
     assert scan.items_updated == 1
 
@@ -1730,7 +1732,7 @@ def test_zero_line_scan_persists_a_lineless_record(client, session):
     assert result["matched"] == []
     assert result["unmatched"] == []
 
-    scan = session.get(ReceiptScan, result["scan_id"])
+    scan = session.get_one(ReceiptScan, result["scan_id"])
     assert scan.parsed_lines == []
     assert scan.purchase_id is None
 
@@ -1751,7 +1753,7 @@ def test_targeted_zero_line_scan_links_at_creation(client, session, settled_trip
     scan_id = response.json()["scan_id"]
 
     session.expire_all()
-    assert session.get(ReceiptScan, scan_id).purchase_id == SETTLED_ID
+    assert session.get_one(ReceiptScan, scan_id).purchase_id == SETTLED_ID
 
 
 def _post_raw_json(client, url: str, body: str):
@@ -1785,7 +1787,7 @@ def test_a_patch_with_a_nan_price_is_rejected(client, session):
 
     assert response.status_code == 422
     session.expire_all()
-    item = session.get(ListItem, "item-almendras")
+    item = session.get_one(ListItem, "item-almendras")
     assert item.price is None
     assert item.purchased_at is None
 
@@ -1800,7 +1802,7 @@ def test_a_negative_price_or_total_is_rejected(client, session):
         assert response.status_code == 422, body
     # Refused before anything was written: no half-applied sheet.
     session.expire_all()
-    assert session.get(ListItem, "item-almendras").price is None
+    assert session.get_one(ListItem, "item-almendras").price is None
     assert session.exec(select(ListItem).where(ListItem.name == "Choc")).first() is None
 
 
@@ -1848,7 +1850,7 @@ def test_receipt_prices_rejects_two_patches_for_one_item(client, session):
     assert response.json()["detail"] == "duplicate_item_patch"
 
     session.expire_all()
-    assert session.get(ListItem, "item-almendras").price is None
+    assert session.get_one(ListItem, "item-almendras").price is None
 
 
 PAST_DAY_ID = "trip-past-day"
@@ -1975,7 +1977,7 @@ def test_targeted_apply_writes_down_a_torn_off_trip(client, session, user):
     assert response.status_code == 200
 
     session.expire_all()
-    trip = session.get(Purchase, PAST_DAY_ID)
+    trip = session.get_one(Purchase, PAST_DAY_ID)
     assert trip.closed_at == trip.tears_off_at
     assert trip.store == "Ahorramas"
     assert trip.total == pytest.approx(18.09)
@@ -1997,7 +1999,7 @@ def test_targeted_zero_line_scan_writes_down_a_torn_off_trip(client, session, us
     assert response.status_code == 200
 
     session.expire_all()
-    trip = session.get(Purchase, PAST_DAY_ID)
+    trip = session.get_one(Purchase, PAST_DAY_ID)
     assert trip.closed_at == trip.tears_off_at
     assert trip.store == "Ahorramas"
-    assert session.get(ReceiptScan, response.json()["scan_id"]).purchase_id == PAST_DAY_ID
+    assert session.get_one(ReceiptScan, response.json()["scan_id"]).purchase_id == PAST_DAY_ID

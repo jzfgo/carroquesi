@@ -7,7 +7,7 @@ from app.db.models import ListMember, User
 def _clear_default(session: Session, list_id: str) -> None:
     """Force a list_members row's is_default flag off, to construct the
     no-default-set state deliberately (auto-assign otherwise guarantees one)."""
-    member = session.exec(select(ListMember).where(ListMember.list_id == list_id)).first()
+    member = session.exec(select(ListMember).where(ListMember.list_id == list_id)).one()
     member.is_default = False
     session.add(member)
     session.commit()
