@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.8] — 2026-10-27
+
+### Fixed
+- **search:** Ignore accents in filters and suggestions (#396)
+
+- **frontend:** Infer an own brand's store on every path that sets a brand (#398)
+
+
+---
 ## [0.23.7] — 2026-10-27
 
 ### Changed
