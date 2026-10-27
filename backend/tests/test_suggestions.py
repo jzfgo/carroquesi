@@ -27,9 +27,11 @@ def test_suggestions_ignore_accents_both_ways(client: TestClient):
 
 
 def test_suggestions_merge_accent_variants_newest_wins(client: TestClient):
-    lst = client.post("/lists", json={"name": "List"}).json()
-    client.post(f"/lists/{lst['id']}/items", json={"name": "pimenton"})
-    client.post(f"/lists/{lst['id']}/items", json={"name": "Pimentón", "brand": "La Vera"})
+    # Two lists: on one list the second spelling would be refused as a duplicate.
+    home = client.post("/lists", json={"name": "Home"}).json()
+    away = client.post("/lists", json={"name": "Away"}).json()
+    client.post(f"/lists/{home['id']}/items", json={"name": "pimenton"})
+    client.post(f"/lists/{away['id']}/items", json={"name": "Pimentón", "brand": "La Vera"})
 
     suggestions = client.get("/suggestions?q=pim").json()
     assert [(s["name"], s["brand"]) for s in suggestions] == [("Pimentón", "La Vera")]

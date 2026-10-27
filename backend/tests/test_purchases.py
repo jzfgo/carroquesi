@@ -951,6 +951,18 @@ def test_rebuy_is_idempotent_against_the_pending_list(client: TestClient, sessio
     assert len([i for i in pending if i["name"] == "Leche"]) == 1
 
 
+def test_rebuy_matches_a_pending_accent_variant(client: TestClient, session: Session):
+    lst = _create_list(client)
+    paprika = _tap(client, lst["id"], "Pimentón")
+    ticket = _close(client, lst["id"], store="Lidl", lines=_lines(paprika)).json()
+    pending = client.post(f"/lists/{lst['id']}/items", json={"name": "pimenton"}).json()
+
+    response = _rebuy(client, lst["id"], ticket["id"], paprika["id"])
+
+    assert response.status_code == 200
+    assert response.json()["id"] == pending["id"]
+
+
 def test_rebuy_prefers_the_lines_own_store_over_the_trips(client: TestClient, session: Session):
     lst = _create_list(client)
     # The line was priced at Dia; the trip as a whole is a Lidl shop.
@@ -1242,6 +1254,16 @@ def test_search_ignores_accents(client: TestClient, session: Session):
     for q in ("pimenton", "PIMENTÓN", "piméntón"):
         results = _search(client, lst["id"], q).json()["results"]
         assert [line["name"] for r in results for line in r["lines"]] == ["Pimentón"], q
+
+
+def test_search_of_only_accent_marks_answers_empty(client: TestClient, session: Session):
+    """A term that folds to nothing names nothing, so it must not dump the history."""
+    lst = _create_list(client)
+    paprika = _tap(client, lst["id"], "Pimentón")
+    _close(client, lst["id"], store="Mercadona", total=1.5, lines=_lines(paprika))
+
+    for q in ("́", "#́", "́ #́"):
+        assert _search(client, lst["id"], q).json()["results"] == [], repr(q)
 
 
 def test_search_is_newest_first(client: TestClient, session: Session):

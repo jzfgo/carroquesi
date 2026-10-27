@@ -230,7 +230,7 @@ describe('useListItems — addItem', () => {
     expect(mockShowToast).toHaveBeenCalledWith('No se pudo añadir el producto')
   })
 
-  it('blocks duplicate name (case-insensitive) and shows toast without calling API', async () => {
+  it('blocks duplicate name (case- and accent-insensitive) and shows toast without calling API', async () => {
     const { result } = renderHook(() =>
       useListItems('list-1', mockGetToken, mockShowToast),
     )
@@ -239,7 +239,7 @@ describe('useListItems — addItem', () => {
     let created: ListItem | null = item1
     await act(async () => {
       created = await result.current.addItem({
-        name: 'LECHE',
+        name: 'LÉCHE',
         quantity: null,
         brand: null,
         stores: [],
