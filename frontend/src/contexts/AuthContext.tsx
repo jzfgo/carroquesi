@@ -16,6 +16,11 @@ import {
   type ReactNode,
 } from 'react'
 import { ApiError, setReceiptConsent, syncUser } from '../lib/api'
+import {
+  clearCachedUser,
+  loadCachedUser,
+  saveCachedUser,
+} from '../lib/cachedUser'
 import { DEV_USER_ID } from '../lib/environment'
 import { getFirebaseAuth } from '../lib/firebase'
 import { disablePush, syncPushToken } from '../lib/push'
@@ -44,6 +49,20 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+// Same cadence as the list poll.
+const SYNC_RETRY_MS = 5000
+
+function isWaitlistAnswer(err: ApiError): boolean {
+  if (err.status !== 403) return false
+  try {
+    return (
+      (JSON.parse(err.message) as { detail?: unknown }).detail === 'waitlist'
+    )
+  } catch {
+    return false
+  }
+}
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextValue {
@@ -86,65 +105,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const unsubscribe = onAuthStateChanged(
-      getFirebaseAuth(),
-      async (fbUser) => {
-        firebaseUserRef.current = fbUser
-        if (fbUser) {
-          setLoading(true)
-          try {
-            const getToken = () => getIdToken(fbUser, false)
-            const data = (await syncUser(getToken)) as {
-              id: string
-              display_name: string
-              photo_url: string | null
-              email: string
-              features?: string[]
-              receipt_consent?: ReceiptConsent
-            }
-            setUser({
-              id: data.id,
-              displayName: data.display_name,
-              photoUrl: data.photo_url,
-              email: data.email,
-              features: data.features ?? [],
-              receiptConsent: data.receipt_consent ?? null,
-            })
-            setIsWaitlisted(false)
-          } catch (err) {
-            if (err instanceof ApiError && err.status === 403) {
-              try {
-                const body = JSON.parse(err.message)
-                if (body.detail === 'waitlist') {
-                  setUser(null)
-                  setIsWaitlisted(true)
-                  setLoading(false)
-                  return
-                }
-              } catch {
-                // Ignore JSON parse errors
-              }
-            }
-            if (
-              err instanceof ApiError &&
-              (err.status === 401 || err.status === 403)
-            ) {
-              setUser(null)
-              setLoading(false)
-              return
-            }
-            // A network error from syncUser should not sign the user out.
-            // Keep existing session state; only clear on explicit Firebase sign-out.
-            setUser((prev) => prev)
-          }
-        } else {
-          setUser(null)
-          setIsWaitlisted(false)
+    let retryTimer: ReturnType<typeof setTimeout> | undefined
+
+    const sync = async (fbUser: FirebaseUser) => {
+      clearTimeout(retryTimer)
+      try {
+        const data = (await syncUser(() => getIdToken(fbUser, false))) as {
+          id: string
+          display_name: string
+          photo_url: string | null
+          email: string
+          features?: string[]
+          receipt_consent?: ReceiptConsent
         }
+        if (firebaseUserRef.current !== fbUser) return
+        const synced: AuthUser = {
+          id: data.id,
+          displayName: data.display_name,
+          photoUrl: data.photo_url,
+          email: data.email,
+          features: data.features ?? [],
+          receiptConsent: data.receipt_consent ?? null,
+        }
+        saveCachedUser(fbUser.uid, synced)
+        setUser(synced)
+        setIsWaitlisted(false)
         setLoading(false)
-      },
-    )
-    return unsubscribe
+      } catch (err) {
+        if (firebaseUserRef.current !== fbUser) return
+        // Only an answer from the server can say the user has no access.
+        if (
+          err instanceof ApiError &&
+          (err.status === 401 || err.status === 403)
+        ) {
+          clearCachedUser()
+          setUser(null)
+          setIsWaitlisted(isWaitlistAnswer(err))
+          setLoading(false)
+          return
+        }
+        // The server was not reached. Firebase says the user is signed in,
+        // so never fall through to the waitlist: paint the last confirmed
+        // profile, or keep loading if there is none, and try again later.
+        const cached = loadCachedUser(fbUser.uid)
+        if (cached) {
+          setUser((prev) => prev ?? cached)
+          setLoading(false)
+        }
+        retryTimer = setTimeout(() => void sync(fbUser), SYNC_RETRY_MS)
+      }
+    }
+
+    const unsubscribe = onAuthStateChanged(getFirebaseAuth(), (fbUser) => {
+      firebaseUserRef.current = fbUser
+      clearTimeout(retryTimer)
+      if (fbUser) {
+        setLoading(true)
+        void sync(fbUser)
+      } else {
+        clearCachedUser()
+        setUser(null)
+        setIsWaitlisted(false)
+        setLoading(false)
+      }
+    })
+    return () => {
+      clearTimeout(retryTimer)
+      unsubscribe()
+    }
   }, [])
 
   // useCallback so the identity is stable: getToken is handed to consumers
@@ -173,7 +201,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const recordReceiptConsent = useCallback(
     async (consent: 'granted' | 'declined') => {
       await setReceiptConsent(getToken, consent)
-      setUser((prev) => (prev ? { ...prev, receiptConsent: consent } : prev))
+      setUser((prev) => {
+        if (!prev) return prev
+        const next = { ...prev, receiptConsent: consent }
+        const uid = firebaseUserRef.current?.uid
+        if (uid) saveCachedUser(uid, next)
+        return next
+      })
     },
     [getToken],
   )
