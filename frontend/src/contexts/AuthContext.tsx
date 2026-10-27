@@ -106,6 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     let retryTimer: ReturnType<typeof setTimeout> | undefined
+    // A sync still in flight at unmount must not arm another retry.
+    let disposed = false
 
     const sync = async (fbUser: FirebaseUser) => {
       clearTimeout(retryTimer)
@@ -118,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           features?: string[]
           receipt_consent?: ReceiptConsent
         }
-        if (firebaseUserRef.current !== fbUser) return
+        if (disposed || firebaseUserRef.current !== fbUser) return
         const synced: AuthUser = {
           id: data.id,
           displayName: data.display_name,
@@ -132,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsWaitlisted(false)
         setLoading(false)
       } catch (err) {
-        if (firebaseUserRef.current !== fbUser) return
+        if (disposed || firebaseUserRef.current !== fbUser) return
         // Only an answer from the server can say the user has no access.
         if (
           err instanceof ApiError &&
@@ -174,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     })
     return () => {
+      disposed = true
       clearTimeout(retryTimer)
       unsubscribe()
     }

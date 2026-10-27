@@ -118,6 +118,24 @@ describe('AuthProvider', () => {
     expect(await screen.findByText('user:Alice')).toBeInTheDocument()
   })
 
+  it('stops retrying once unmounted, even if a sync was in flight', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    let fail!: (err: unknown) => void
+    vi.mocked(Api.syncUser).mockReturnValueOnce(
+      new Promise((_, reject) => {
+        fail = reject
+      }),
+    )
+    const view = renderSignedIn()
+    await waitFor(() => expect(Api.syncUser).toHaveBeenCalledTimes(1))
+
+    view.unmount()
+    await act(async () => fail(new TypeError('Failed to fetch')))
+    await act(() => vi.advanceTimersByTimeAsync(5000))
+
+    expect(Api.syncUser).toHaveBeenCalledTimes(1)
+  })
+
   it('ignores a cached profile that belongs to another account', async () => {
     vi.mocked(Api.syncUser).mockResolvedValueOnce(SYNCED)
     renderSignedIn()
