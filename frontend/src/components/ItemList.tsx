@@ -167,10 +167,6 @@ export function ItemList({
   // While the stack search is still answering (stackHits == null), or when it
   // found records, the results stand alone with nothing above them.
   if (searching && query.trim() !== '' && pendingEmpty) {
-    if (stackHits !== 0) {
-      return <div className="item-list">{stack}</div>
-    }
-
     // No-results search (16c): a search that matched nothing anywhere. This
     // covers the sheet with a flat surface instead of drawing on paper — a
     // blank sheet would read as an empty list, and there is no list to show
@@ -183,26 +179,31 @@ export function ItemList({
           { day: 'numeric', month: 'short' },
         )
       : null
+    // The stack keeps its slot whether or not the card shows. If it moved,
+    // React would remount it, the remount would reset its search to
+    // «answering», the card would hide, and the stack would move back: a loop.
     return (
       <div className="item-list">
-        <div className="item-list__search-empty">
-          <p className="item-list__search-none">
-            Nada con <b>{term}</b> en esta lista.
-          </p>
-          <button
-            type="button"
-            className="item-list__search-add"
-            onClick={onAddFromSearch}
-          >
-            <Plus size={15} strokeWidth={2.2} aria-hidden /> Añadir «{term}»
-          </button>
-          {elsewhereMatch && (
-            <p className="item-list__search-elsewhere">
-              Sí está en <b>{elsewhereMatch.list_name}</b>
-              {boughtOn ? `, comprado el ${boughtOn}` : ''}.
+        {stackHits === 0 && (
+          <div className="item-list__search-empty">
+            <p className="item-list__search-none">
+              Nada con <b>{term}</b> en esta lista.
             </p>
-          )}
-        </div>
+            <button
+              type="button"
+              className="item-list__search-add"
+              onClick={onAddFromSearch}
+            >
+              <Plus size={15} strokeWidth={2.2} aria-hidden /> Añadir «{term}»
+            </button>
+            {elsewhereMatch && (
+              <p className="item-list__search-elsewhere">
+                Sí está en <b>{elsewhereMatch.list_name}</b>
+                {boughtOn ? `, comprado el ${boughtOn}` : ''}.
+              </p>
+            )}
+          </div>
+        )}
         {stack}
       </div>
     )

@@ -378,6 +378,47 @@ describe('useListItems — updateTag', () => {
     expect(result.current.items[0].brand).toBeNull()
   })
 
+  it('adds the store of an own brand in the same write', async () => {
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.updateTag('item-1', 'brand', 'Hacendado')
+    })
+
+    expect(result.current.items[0].stores).toEqual(['Mercadona'])
+    expect(api.updateItem).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { brand: 'Hacendado', stores: ['Mercadona'] },
+    )
+  })
+
+  it('leaves stores alone when the own brand store is already there', async () => {
+    const itemInStore: ListItem = { ...item1, stores: ['mercadona'] }
+    vi.mocked(api.getListItems).mockResolvedValue([itemInStore] as never)
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.updateTag('item-1', 'brand', 'Hacendado')
+    })
+
+    expect(api.updateItem).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { brand: 'Hacendado' },
+    )
+  })
+
   it('reverts and shows toast on API failure', async () => {
     vi.mocked(api.updateItem).mockRejectedValue(new Error('Network'))
     const { result } = renderHook(() =>

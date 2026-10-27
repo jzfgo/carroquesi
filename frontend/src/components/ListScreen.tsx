@@ -30,6 +30,7 @@ import { FLAGS } from '../lib/featureFlags'
 import { isTripOpen } from '../lib/isTripOpen'
 import { computeCostSummary, tripDateInput } from '../lib/itemCost'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
+import { withOwnBrandStore } from '../lib/ownBrands'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
 import { parseReceiptWithAi } from '../lib/receiptAi'
@@ -1180,7 +1181,10 @@ export function ListScreen({
       setToast('Sin conexión')
       return
     }
-    void addItem(parsedSearch)
+    void addItem({
+      ...parsedSearch,
+      stores: withOwnBrandStore(parsedSearch.brand, parsedSearch.stores),
+    })
     closeSearch()
   }
 
