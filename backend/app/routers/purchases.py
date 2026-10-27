@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.db.models import List, ListItem, Purchase, ReceiptScan, User
 from app.dependencies import CurrentSession, MemberDep
@@ -149,7 +149,7 @@ def list_purchases(
         session.exec(
             select(Purchase)
             .where(Purchase.list_id == lst.id)
-            .order_by(stopped_at.desc(), Purchase.id.desc())
+            .order_by(stopped_at.desc(), col(Purchase.id).desc())
             .offset(offset)
             .limit(limit)
         ).all()
@@ -167,14 +167,14 @@ def list_purchases(
         line_counts = dict(
             session.exec(
                 select(ListItem.purchase_id, func.count())
-                .where(ListItem.purchase_id.in_(page_ids))
+                .where(col(ListItem.purchase_id).in_(page_ids))
                 .group_by(ListItem.purchase_id)
             ).all()
         )
         scanned = set(
             session.exec(
                 select(ReceiptScan.purchase_id)
-                .where(ReceiptScan.purchase_id.in_(page_ids))
+                .where(col(ReceiptScan.purchase_id).in_(page_ids))
                 .distinct()
             ).all()
         )
@@ -192,8 +192,8 @@ def list_purchases(
                 ListItem.price_per,
                 ListItem.quantity,
             ).where(
-                ListItem.purchase_id.in_(page_ids),
-                ListItem.price.isnot(None),
+                col(ListItem.purchase_id).in_(page_ids),
+                col(ListItem.price).isnot(None),
             )
         ).all()
         for purchase_id, price, price_per, quantity in priced_lines:
@@ -210,11 +210,13 @@ def list_purchases(
     if include_items and page:
         rows = session.exec(
             select(ListItem)
-            .where(ListItem.purchase_id.in_([trip.id for trip in page]))
-            .order_by(ListItem.purchased_at.asc(), ListItem.created_at.asc())
+            .where(col(ListItem.purchase_id).in_([trip.id for trip in page]))
+            .order_by(col(ListItem.purchased_at).asc(), col(ListItem.created_at).asc())
         ).all()
         ends = {trip.id: trips.ends_at(trip) for trip in page}
         for item in rows:
+            # The query selected these rows by trip, so every one has a trip.
+            assert item.purchase_id is not None
             # object.__setattr__ because pydantic rejects undeclared fields.
             object.__setattr__(item, "purchase_ends_at", ends[item.purchase_id])
             object.__setattr__(item, "purchase_has_receipt", item.purchase_id in scanned)
@@ -269,7 +271,7 @@ def search_purchases(
         session.exec(
             select(Purchase)
             .where(Purchase.list_id == lst.id, stopped_at <= now)
-            .order_by(stopped_at.desc(), Purchase.id.desc())
+            .order_by(stopped_at.desc(), col(Purchase.id).desc())
         ).all()
     )
     # @store is strict, like the in-list search: a trip whose shop does not match
@@ -283,14 +285,14 @@ def search_purchases(
     line_counts = dict(
         session.exec(
             select(ListItem.purchase_id, func.count())
-            .where(ListItem.purchase_id.in_(trip_ids))
+            .where(col(ListItem.purchase_id).in_(trip_ids))
             .group_by(ListItem.purchase_id)
         ).all()
     )
     rows = session.exec(
         select(ListItem)
-        .where(ListItem.purchase_id.in_(trip_ids))
-        .order_by(ListItem.purchased_at.asc(), ListItem.created_at.asc())
+        .where(col(ListItem.purchase_id).in_(trip_ids))
+        .order_by(col(ListItem.purchased_at).asc(), col(ListItem.created_at).asc())
     ).all()
     matched: dict[str, list[ListItem]] = {}
     for item in rows:
@@ -298,6 +300,7 @@ def search_purchases(
             continue
         if brand_l is not None and (item.brand is None or brand_l not in fold_name(item.brand)):
             continue
+        assert item.purchase_id is not None  # selected by trip
         matched.setdefault(item.purchase_id, []).append(item)
 
     results: list[PurchaseSearchTrip] = []
@@ -338,7 +341,7 @@ def get_purchase_items(
     items = session.exec(
         select(ListItem)
         .where(ListItem.purchase_id == trip.id)
-        .order_by(ListItem.purchased_at.asc(), ListItem.created_at.asc())
+        .order_by(col(ListItem.purchased_at).asc(), col(ListItem.created_at).asc())
     ).all()
     # One trip, so its facts are computed once — no need for the grouped
     # lookup the items feed does.
@@ -519,6 +522,7 @@ def close_purchase(
         # From the identity map: close() already loaded the cart and proved
         # every claimed id is in it.
         item = session.get(ListItem, line.item_id)
+        assert item is not None
         if line.price is not None:
             item.price = line.price
             item.price_per = line.price_per

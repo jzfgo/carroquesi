@@ -52,7 +52,7 @@ def test_issue_creates_a_key_when_none_exists(client: TestClient, session: Sessi
 
     from app.services.api_keys import hash_key
 
-    api_key = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first()
+    api_key = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).one()
     assert api_key.key_hash == hash_key(body["key"])
 
 
@@ -61,7 +61,7 @@ def test_issue_is_idempotent_and_never_rotates_an_existing_key(
 ):
     client.post("/lists", json={"name": "Compra"})  # first list → auto-default
     first = client.post("/account/api-key").json()
-    stored_hash = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first().key_hash
+    stored_hash = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).one().key_hash
 
     second = client.post("/account/api-key").json()
 
@@ -70,8 +70,7 @@ def test_issue_is_idempotent_and_never_rotates_an_existing_key(
     # the existing key's hash is untouched — no rotation happened
     session.expire_all()
     assert (
-        session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first().key_hash
-        == stored_hash
+        session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).one().key_hash == stored_hash
     )
     assert first["key"].startswith("cqs_")
 
@@ -86,7 +85,7 @@ def test_regenerate_returns_the_plaintext_key_once(
     assert "key" in body
     assert body["key"].startswith("cqs_")
 
-    api_key = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first()
+    api_key = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).one()
     from app.services.api_keys import hash_key
 
     assert api_key.key_hash == hash_key(body["key"])
@@ -97,7 +96,7 @@ def test_regenerate_rotates_an_existing_key(client: TestClient, session: Session
     second = client.post("/account/api-key/regenerate").json()
 
     assert first["key"] != second["key"]
-    api_key = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).first()
+    api_key = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).one()
     from app.services.api_keys import hash_key
 
     assert api_key.key_hash == hash_key(second["key"])

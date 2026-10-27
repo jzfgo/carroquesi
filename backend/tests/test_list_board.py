@@ -285,4 +285,4 @@ def test_an_unrelated_integrity_error_surfaces_as_itself(session: Session, lst: 
     from sqlalchemy.exc import IntegrityError
 
     with pytest.raises(IntegrityError):
-        ensure_board(session, None, lst.id)  # type: ignore[arg-type]
+        ensure_board(session, None, lst.id)  # ty: ignore[invalid-argument-type]

@@ -59,5 +59,7 @@ def downgrade() -> None:
             )
         )
     else:
-        conn.execute("UPDATE list_items SET store = stores->>0 WHERE json_array_length(stores) > 0")
+        conn.execute(
+            sa.text("UPDATE list_items SET store = stores->>0 WHERE json_array_length(stores) > 0")
+        )
     op.drop_column("list_items", "stores")

@@ -8,7 +8,7 @@ surface follows — item rows keep their raw strings untouched.
 
 from collections.abc import Iterable
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.db.models import ListItem, ListStore
 from app.services.store_key import store_key
@@ -49,17 +49,17 @@ def backfill_list_stores(session: Session) -> None:
     # *current* model has — so a list_items column added by any later
     # migration would break the upgrade path from scratch.
     items = session.exec(
-        select(ListItem.list_id, ListItem.stores, ListItem.price_store).order_by(
-            ListItem.created_at
+        select(col(ListItem.list_id), col(ListItem.stores), col(ListItem.price_store)).order_by(
+            col(ListItem.created_at)
         )
     ).all()
     seq = 0
-    for item in items:
-        for raw in [*item.stores, *([item.price_store] if item.price_store else [])]:
+    for list_id, stores, price_store in items:
+        for raw in [*stores, *([price_store] if price_store else [])]:
             raw = raw.strip()
             if not raw:
                 continue
-            group = (item.list_id, store_key(raw))
+            group = (list_id, store_key(raw))
             counts.setdefault(group, {})
             order.setdefault(group, {})
             counts[group][raw] = counts[group].get(raw, 0) + 1
@@ -68,8 +68,10 @@ def backfill_list_stores(session: Session) -> None:
                 seq += 1
 
     existing = {
-        (row.list_id, row.store_key)
-        for row in session.exec(select(ListStore.list_id, ListStore.store_key)).all()
+        (list_id, key)
+        for list_id, key in session.exec(
+            select(col(ListStore.list_id), col(ListStore.store_key))
+        ).all()
     }
     for (list_id, key), variants in counts.items():
         if (list_id, key) in existing:

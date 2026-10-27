@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta, tzinfo
 
 from sqlalchemy import and_, func, or_, update
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.db.models import ListItem, Purchase, ReceiptScan
 
@@ -74,7 +74,7 @@ def in_cart_predicate(now: datetime):
     or no trip row at all (NULL) — fails this, mirroring is_open's rule.
     """
     return and_(
-        ListItem.purchased_at.is_not(None),
+        col(ListItem.purchased_at).is_not(None),
         func.coalesce(Purchase.closed_at, Purchase.tears_off_at) > now,
     )
 
@@ -87,7 +87,7 @@ def in_scope_predicate(now: datetime):
     receipt matcher's candidate pool (routers/receipt.py). Requires the same
     Purchase outer-join as in_cart_predicate.
     """
-    return or_(ListItem.purchased_at.is_(None), in_cart_predicate(now))
+    return or_(col(ListItem.purchased_at).is_(None), in_cart_predicate(now))
 
 
 def find_open_trip(session: Session, list_id: str, now: datetime) -> Purchase | None:
@@ -104,10 +104,10 @@ def find_open_trip(session: Session, list_id: str, now: datetime) -> Purchase | 
         select(Purchase)
         .where(
             Purchase.list_id == list_id,
-            Purchase.closed_at.is_(None),
+            col(Purchase.closed_at).is_(None),
             Purchase.tears_off_at > now,
         )
-        .order_by(Purchase.tears_off_at.asc())
+        .order_by(col(Purchase.tears_off_at).asc())
     ).first()
 
 
@@ -223,7 +223,7 @@ def close(
             select(Purchase).where(
                 Purchase.id == purchase_id,
                 Purchase.list_id == list_id,
-                Purchase.closed_at.is_(None),
+                col(Purchase.closed_at).is_(None),
             )
         ).first()
     else:
@@ -233,10 +233,10 @@ def close(
             select(Purchase)
             .where(
                 Purchase.list_id == list_id,
-                Purchase.closed_at.is_(None),
+                col(Purchase.closed_at).is_(None),
                 Purchase.tears_off_at > now,
             )
-            .order_by(Purchase.tears_off_at.asc())
+            .order_by(col(Purchase.tears_off_at).asc())
         ).first()
     if trip is None:
         raise NothingToClose()
@@ -282,9 +282,9 @@ def close(
         # stated one; a same-day close leaves tears_off_at as it was.
         if dating:
             values["tears_off_at"] = dating[1]
-        claimed = session.execute(
+        claimed = session.exec(
             update(Purchase)
-            .where(Purchase.id == trip.id, Purchase.closed_at.is_(None))
+            .where(col(Purchase.id) == trip.id, col(Purchase.closed_at).is_(None))
             .values(**values)
         )
         if claimed.rowcount == 0:

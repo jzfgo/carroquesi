@@ -8,7 +8,7 @@ for all current users") — would ship uncovered.
 
 from datetime import datetime
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.db.models import List, ListMember, User
 from app.services.default_list import (
@@ -50,7 +50,9 @@ def test_backfill_pins_most_recently_updated_list(session: Session):
 
     assert assigned == 1
     defaults = session.exec(
-        select(ListMember).where(ListMember.user_id == user.id, ListMember.is_default.is_(True))
+        select(ListMember).where(
+            ListMember.user_id == user.id, col(ListMember.is_default).is_(True)
+        )
     ).all()
     assert len(defaults) == 1
     assert defaults[0].list_id == newer.id
@@ -69,7 +71,9 @@ def test_backfill_tiebreaker_is_deterministic(session: Session):
     backfill_all_defaults(session)
 
     defaults = session.exec(
-        select(ListMember).where(ListMember.user_id == user.id, ListMember.is_default.is_(True))
+        select(ListMember).where(
+            ListMember.user_id == user.id, col(ListMember.is_default).is_(True)
+        )
     ).all()
     assert len(defaults) == 1
     assert defaults[0].list_id == max(a.id, b.id)
@@ -87,7 +91,9 @@ def test_backfill_skips_users_already_flagged(session: Session):
 
     assert assigned == 0  # already had a default; must not be moved to MRU
     defaults = session.exec(
-        select(ListMember).where(ListMember.user_id == user.id, ListMember.is_default.is_(True))
+        select(ListMember).where(
+            ListMember.user_id == user.id, col(ListMember.is_default).is_(True)
+        )
     ).all()
     assert [d.list_id for d in defaults] == [keep.id]
 

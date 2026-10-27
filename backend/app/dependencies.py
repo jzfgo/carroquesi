@@ -3,7 +3,7 @@ from typing import Annotated, Any, TypeAlias
 
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.core.config import get_settings
 from app.core.firebase import verify_id_token
@@ -17,10 +17,10 @@ bearer = HTTPBearer(auto_error=False)
 
 def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+    session: Annotated[Session, Depends(get_session)],
     x_dev_user_id: Annotated[str | None, Header()] = None,
     x_dev_is_admin: Annotated[str | None, Header()] = None,
     x_api_key: Annotated[str | None, Header()] = None,
-    session: Annotated[Session, Depends(get_session)] = None,
 ) -> User:
     if get_settings().dev_auth_bypass and x_dev_user_id:
         user = session.exec(select(User).where(User.firebase_uid == x_dev_user_id)).first()
@@ -53,7 +53,7 @@ def get_current_user(
                     signup = session.exec(
                         select(WaitlistSignup).where(
                             WaitlistSignup.email == email_clean,
-                            WaitlistSignup.allowed_at.is_not(None),
+                            col(WaitlistSignup.allowed_at).is_not(None),
                         )
                     ).first()
                     if signup:

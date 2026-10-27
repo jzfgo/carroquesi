@@ -160,7 +160,7 @@ def test_create_open_invite(client, session, user):
     assert response.status_code == 201
     data = response.json()
     assert "id" in data
-    invite = session.get(ListInvite, data["id"])
+    invite = session.get_one(ListInvite, data["id"])
     assert invite is not None
     assert invite.invited_email is None
 

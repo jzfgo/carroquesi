@@ -5,7 +5,7 @@ from statistics import mean, median
 from typing import Annotated
 
 from fastapi import APIRouter, Query
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.db.models import List, ListItem, ListMember
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, MemberOrDefaultDep
@@ -55,8 +55,8 @@ def get_suggestions(
     # folded name column and filter on it in SQL.
     items = session.exec(
         select(ListItem.name, ListItem.brand, ListItem.stores)
-        .where(ListItem.list_id.in_(list_ids))
-        .order_by(ListItem.created_at.desc())
+        .where(col(ListItem.list_id).in_(list_ids))
+        .order_by(col(ListItem.created_at).desc())
     ).all()
     latest: dict[str, SuggestionRead] = {}
     for name, brand, stores in items:
@@ -95,8 +95,8 @@ def get_elsewhere_match(
     # items — don't optimise this.
     rows = session.exec(
         select(ListItem, List)
-        .join(List, List.id == ListItem.list_id)
-        .where(ListItem.list_id.in_(other_list_ids))
+        .join(List, col(List.id) == ListItem.list_id)
+        .where(col(ListItem.list_id).in_(other_list_ids))
     ).all()
 
     target = fold_name(name)
@@ -127,7 +127,7 @@ def get_due_suggestions(
     purchased_items = session.exec(
         select(ListItem).where(
             ListItem.list_id == lst.id,
-            ListItem.purchased_at.is_not(None),
+            col(ListItem.purchased_at).is_not(None),
         )
     ).all()
 
@@ -140,7 +140,7 @@ def get_due_suggestions(
         for row in session.exec(
             select(ListItem.name).where(
                 ListItem.list_id == lst.id,
-                ListItem.purchased_at.is_(None),
+                col(ListItem.purchased_at).is_(None),
             )
         ).all()
     }
@@ -152,8 +152,7 @@ def get_due_suggestions(
         if name_key in unpurchased_names:
             continue
 
-        sorted_items = sorted(items, key=lambda i: i.purchased_at)
-        timestamps = [i.purchased_at for i in sorted_items]
+        timestamps = sorted(i.purchased_at for i in items if i.purchased_at is not None)
 
         gaps = [
             (timestamps[i + 1] - timestamps[i]).total_seconds() / 86400
@@ -163,7 +162,7 @@ def get_due_suggestions(
         if median_interval <= 0:
             continue
 
-        last_purchased_at = sorted_items[-1].purchased_at
+        last_purchased_at = timestamps[-1]
         days_since_last = (now - last_purchased_at).total_seconds() / 86400
         lower = 0.9 * median_interval
         upper = 1.5 * median_interval

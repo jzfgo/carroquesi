@@ -2,7 +2,7 @@ import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, status
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app.db.models import List, ListInvite, ListMember, User, UserListPref
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
@@ -44,7 +44,7 @@ def get_members(
     lst, _ = list_and_user
     results = session.exec(
         select(ListMember, User)
-        .join(User, User.id == ListMember.user_id)
+        .join(User, col(User.id) == ListMember.user_id)
         .where(ListMember.list_id == lst.id)
     ).all()
     return [

@@ -8,9 +8,9 @@ from app.db.models import List, ListItem, ListMember, Purchase, ReceiptScan, Use
 
 def _reshape_trip(session: Session, item_id: str, *, tear_off=None, closed_at=None) -> Purchase:
     """Move the boundary of the trip an item was purchased on."""
-    db_item = session.get(ListItem, item_id)
+    db_item = session.get_one(ListItem, item_id)
     session.refresh(db_item)
-    trip = session.get(Purchase, db_item.purchase_id)
+    trip = session.get_one(Purchase, db_item.purchase_id)
     if tear_off is not None:
         trip.tears_off_at = tear_off
     if closed_at is not None:

@@ -54,10 +54,10 @@ def test_add_item_bumps_updated_at(client: TestClient, session: Session):
     from app.db.models import List
 
     lst = _create_list(client)
-    old_updated_at = session.get(List, lst["id"]).updated_at
+    old_updated_at = session.get_one(List, lst["id"]).updated_at
     client.post(f"/lists/{lst['id']}/items", json={"name": "Tomato"})
     session.expire_all()
-    new_updated_at = session.get(List, lst["id"]).updated_at
+    new_updated_at = session.get_one(List, lst["id"]).updated_at
     assert new_updated_at >= old_updated_at
 
 
@@ -107,7 +107,7 @@ def test_update_item_sets_purchased_at(client: TestClient, session: Session):
     assert response.status_code == 200
     assert response.json()["purchased"] is True
 
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
     assert db_item.purchased_at is not None
 
@@ -123,7 +123,7 @@ def test_update_item_clears_purchased_at(client: TestClient, session: Session):
     assert response.status_code == 200
     assert response.json()["purchased"] is False
 
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
     assert db_item.purchased_at is None
 
@@ -135,7 +135,7 @@ def test_repurchase_does_not_overwrite_purchased_at(client: TestClient, session:
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
 
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
     original_purchased_at = db_item.purchased_at
 
@@ -156,9 +156,9 @@ def _purchase_and_age(
     from app.db.models import ListItem, Purchase
 
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
-    trip = session.get(Purchase, db_item.purchase_id)
+    trip = session.get_one(Purchase, db_item.purchase_id)
     now = datetime.now(UTC).replace(tzinfo=None)
     if tear_off is not None:
         trip.tears_off_at = tear_off
@@ -236,7 +236,7 @@ def test_unpurchase_backdated_item_within_write_grace(client: TestClient, sessio
     now = datetime.now(UTC).replace(tzinfo=None)
     _purchase_and_age(client, session, lst, item, tear_off=now - timedelta(days=2))
 
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     db_item.purchased_at = now - timedelta(days=2)
     session.add(db_item)
     session.commit()
@@ -281,7 +281,7 @@ def test_unpurchase_treats_a_dangling_trip_as_closed_but_grace_rescues(
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
 
     now = datetime.now(UTC).replace(tzinfo=None)
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
     db_item.purchase_id = "no-such-trip"
     db_item.updated_at = now - UNPURCHASE_GRACE - timedelta(minutes=1)
@@ -313,13 +313,14 @@ def test_purchase_assigns_the_open_trip(client: TestClient, session: Session):
     response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
     assert response.status_code == 200
 
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
     assert db_item.purchase_id is not None
-    trip = session.get(Purchase, db_item.purchase_id)
+    trip = session.get_one(Purchase, db_item.purchase_id)
     assert trip.list_id == lst["id"]
     assert trip.opened_at == db_item.purchased_at
     assert trip.closed_at is None
+    assert db_item.purchased_at is not None
     assert trip.tears_off_at > db_item.purchased_at
     assert len(session.exec(select(Purchase)).all()) == 1
 
@@ -337,8 +338,8 @@ def test_two_purchases_share_one_trip(client: TestClient, session: Session):
 
     session.expire_all()
     ids = {
-        session.get(ListItem, first["id"]).purchase_id,
-        session.get(ListItem, second["id"]).purchase_id,
+        session.get_one(ListItem, first["id"]).purchase_id,
+        session.get_one(ListItem, second["id"]).purchase_id,
     }
     assert None not in ids
     assert len(ids) == 1
@@ -357,9 +358,10 @@ def test_purchase_without_timezone_header_stamps_a_utc_boundary(
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
 
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
-    trip = session.get(Purchase, db_item.purchase_id)
+    trip = session.get_one(Purchase, db_item.purchase_id)
+    assert db_item.purchased_at is not None
     assert trip.tears_off_at == tears_off_at_for(db_item.purchased_at, UTC)
 
 
@@ -377,9 +379,10 @@ def test_purchase_stamps_the_boundary_in_the_clients_zone(client: TestClient, se
         headers={"X-Client-Timezone": "Etc/GMT+12"},
     )
 
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
-    trip = session.get(Purchase, db_item.purchase_id)
+    trip = session.get_one(Purchase, db_item.purchase_id)
+    assert db_item.purchased_at is not None
     assert trip.tears_off_at == tears_off_at_for(db_item.purchased_at, ZoneInfo("Etc/GMT+12"))
 
 
@@ -397,7 +400,7 @@ def test_unpurchase_clears_the_trip_link_and_deletes_the_emptied_open_trip(
     response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
     assert response.status_code == 200
 
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
     assert db_item.purchase_id is None
     assert session.exec(select(Purchase)).all() == []
@@ -412,13 +415,13 @@ def test_unpurchase_keeps_an_open_trip_that_still_has_items(client: TestClient, 
     client.patch(f"/lists/{lst['id']}/items/{first['id']}", json={"purchased": True})
     client.patch(f"/lists/{lst['id']}/items/{second['id']}", json={"purchased": True})
 
-    trip_id = session.get(ListItem, first["id"]).purchase_id
+    trip_id = session.get_one(ListItem, first["id"]).purchase_id
     client.patch(f"/lists/{lst['id']}/items/{first['id']}", json={"purchased": False})
 
     session.expire_all()
     assert session.get(Purchase, trip_id) is not None
-    assert session.get(ListItem, second["id"]).purchase_id == trip_id
-    assert session.get(ListItem, first["id"]).purchase_id is None
+    assert session.get_one(ListItem, second["id"]).purchase_id == trip_id
+    assert session.get_one(ListItem, first["id"]).purchase_id is None
 
 
 def test_unpurchase_never_deletes_a_closed_trip(client: TestClient, session: Session):
@@ -430,9 +433,9 @@ def test_unpurchase_never_deletes_a_closed_trip(client: TestClient, session: Ses
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
 
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
-    trip = session.get(Purchase, db_item.purchase_id)
+    trip = session.get_one(Purchase, db_item.purchase_id)
     trip.closed_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(trip)
     session.commit()
@@ -571,9 +574,9 @@ def test_item_read_carries_the_trips_end_instant(client: TestClient, session: Se
     patched = client.patch(
         f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True}
     ).json()
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
-    trip = session.get(Purchase, db_item.purchase_id)
+    trip = session.get_one(Purchase, db_item.purchase_id)
     assert patched["purchase_ends_at"] == trip.tears_off_at.isoformat()
 
     listed = client.get(f"/lists/{lst['id']}/items").json()
@@ -601,7 +604,7 @@ def test_item_read_says_whether_a_scan_claimed_the_trip(client: TestClient, sess
     ).json()
     assert patched["purchase_has_receipt"] is False
 
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
     session.add(
         ReceiptScan(list_id=lst["id"], scanned_by=db_item.added_by, purchase_id=db_item.purchase_id)
@@ -622,7 +625,7 @@ def test_item_read_carries_the_trip_it_was_bought_on(client: TestClient, session
     patched = client.patch(
         f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True}
     ).json()
-    db_item = session.get(ListItem, item["id"])
+    db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
     assert db_item.purchase_id is not None
     assert patched["purchase_id"] == db_item.purchase_id
@@ -641,7 +644,7 @@ def test_deleting_the_last_item_in_the_cart_deletes_the_open_trip(
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
-    trip_id = session.get(ListItem, item["id"]).purchase_id
+    trip_id = session.get_one(ListItem, item["id"]).purchase_id
 
     response = client.delete(f"/lists/{lst['id']}/items/{item['id']}")
     assert response.status_code == 204
@@ -660,7 +663,7 @@ def test_deleting_an_item_keeps_an_open_trip_that_still_has_items(
     second = client.post(f"/lists/{lst['id']}/items", json={"name": "Milk"}).json()
     client.patch(f"/lists/{lst['id']}/items/{first['id']}", json={"purchased": True})
     client.patch(f"/lists/{lst['id']}/items/{second['id']}", json={"purchased": True})
-    trip_id = session.get(ListItem, first["id"]).purchase_id
+    trip_id = session.get_one(ListItem, first["id"]).purchase_id
 
     client.delete(f"/lists/{lst['id']}/items/{first['id']}")
 
@@ -674,7 +677,7 @@ def test_deleting_the_last_item_never_deletes_a_closed_trip(client: TestClient, 
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
-    trip = session.get(Purchase, session.get(ListItem, item["id"]).purchase_id)
+    trip = session.get_one(Purchase, session.get_one(ListItem, item["id"]).purchase_id)
     trip.closed_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(trip)
     session.commit()
@@ -695,7 +698,7 @@ def test_deleting_the_last_item_keeps_a_trip_a_receipt_scan_points_at(
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
-    trip_id = session.get(ListItem, item["id"]).purchase_id
+    trip_id = session.get_one(ListItem, item["id"]).purchase_id
     session.add(ReceiptScan(list_id=lst["id"], scanned_by=user.id, purchase_id=trip_id))
     session.commit()
 
