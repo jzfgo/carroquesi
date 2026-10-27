@@ -144,14 +144,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setLoading(false)
           return
         }
-        // The server was not reached. Firebase says the user is signed in,
-        // so never fall through to the waitlist: paint the last confirmed
-        // profile, or keep loading if there is none, and try again later.
+        // Any other failure: the server was not reached, or it answered
+        // without saying the user has no access (5xx, 404, 429). Firebase
+        // says the user is signed in, so never fall through to the waitlist:
+        // paint the last confirmed profile, or keep loading if there is none,
+        // and try again later.
         const cached = loadCachedUser(fbUser.uid)
         if (cached) {
           setUser((prev) => prev ?? cached)
           setLoading(false)
         }
+        // Two failed syncs can overlap; keep only one retry armed.
+        clearTimeout(retryTimer)
         retryTimer = setTimeout(() => void sync(fbUser), SYNC_RETRY_MS)
       }
     }

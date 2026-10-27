@@ -1,7 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import type { User as FirebaseUser } from 'firebase/auth'
 import * as FirebaseAuth from 'firebase/auth'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as Api from '../lib/api'
 import { AuthProvider, useAuth } from './AuthContext'
 
@@ -74,6 +74,11 @@ beforeEach(() => {
   vi.mocked(FirebaseAuth.getIdToken).mockResolvedValue('token')
 })
 
+// A failed assertion must not leave fake timers on for the next test.
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 describe('AuthProvider', () => {
   it('paints the last confirmed profile when a cold start cannot reach the server', async () => {
     vi.mocked(Api.syncUser).mockResolvedValueOnce(SYNCED)
@@ -90,10 +95,13 @@ describe('AuthProvider', () => {
   })
 
   it('keeps loading rather than dropping to signed-out when offline with no cached profile', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.mocked(Api.syncUser).mockRejectedValue(new TypeError('Failed to fetch'))
     renderSignedIn()
 
-    await waitFor(() => expect(Api.syncUser).toHaveBeenCalled())
+    await waitFor(() => expect(Api.syncUser).toHaveBeenCalledTimes(1))
+    await act(() => vi.advanceTimersByTimeAsync(5000))
+    await waitFor(() => expect(Api.syncUser).toHaveBeenCalledTimes(2))
     expect(screen.getByText('loading')).toBeInTheDocument()
   })
 
@@ -108,7 +116,6 @@ describe('AuthProvider', () => {
     await act(() => vi.advanceTimersByTimeAsync(5000))
 
     expect(await screen.findByText('user:Alice')).toBeInTheDocument()
-    vi.useRealTimers()
   })
 
   it('ignores a cached profile that belongs to another account', async () => {
