@@ -321,12 +321,15 @@ export function useListItems(
         showToast(OFFLINE_TOAST)
         return null
       }
-      // Accent-blind, like search: «Pimentón» is already «pimenton».
-      const nameKey = foldText(parsed.name.trim())
+      // Accent-blind, like search: «Pimentón» is already «pimenton». Spaces
+      // collapse too, so this agrees with the server's duplicate check.
+      const dupKey = (name: string) =>
+        foldText(name).replace(/\s+/g, ' ').trim()
+      const nameKey = dupKey(parsed.name)
       const isDuplicate = itemsRef.current.some(
         (i) =>
           !i.purchased &&
-          (foldText(i.name.trim()) === nameKey ||
+          (dupKey(i.name) === nameKey ||
             (parsed.ean != null && i.ean === parsed.ean)),
       )
       if (isDuplicate) {

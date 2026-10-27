@@ -252,6 +252,28 @@ describe('useListItems — addItem', () => {
     expect(created).toBeNull()
   })
 
+  it('blocks a duplicate name that differs only in inner spaces', async () => {
+    vi.mocked(api.getListItems).mockResolvedValue([
+      { ...item1, name: 'Pan integral' },
+    ] as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.addItem({
+        name: 'pan   integral',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
+    })
+
+    expect(api.createItem).not.toHaveBeenCalled()
+    expect(mockShowToast).toHaveBeenCalledWith('Ya está en la lista')
+  })
+
   it('blocks duplicate EAN and shows toast without calling API', async () => {
     const itemWithEan: ListItem = { ...item1, ean: '1234567890123' }
     vi.mocked(api.getListItems).mockResolvedValue([itemWithEan] as never)
