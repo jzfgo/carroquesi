@@ -1,4 +1,4 @@
-# Worktrees
+# Worktrees (.claude/worktrees/ is Claude Code's default location)
 .worktrees/
 .claude/worktrees/
 

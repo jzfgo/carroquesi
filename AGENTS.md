@@ -220,7 +220,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 
 ### Local Dev Environment
 
-- Third-party skills are tracked in `skills-lock.json`. Add one with `npx skills add <repo> -s <skill> -a claude-code`; refresh them all with `npx skills update -p`. An update may move a skill into `.agents/skills/` behind a symlink in `.claude/skills/` — commit both. The project's own skills (`release`, `ship`, …) live directly in `.claude/skills/` and are not in the lock
+- Third-party skills are tracked in `skills-lock.json`. Add one with `npx skills add <repo> -s <skill> -a claude-code`; refresh them all with `npx skills update -p`. An update may move a skill into `.agents/skills/` behind a symlink in `.claude/skills/`. That is expected, and the only reason `.agents/` should exist: Claude Code follows the symlink, so commit both. The project's own skills (`release`, `ship`, …) live directly in `.claude/skills/` and are not in the lock
 - Backend uses FastAPI with Firebase; ensure `.env` and Firebase config are present before running
 - Frontend typecheck must use `tsconfig.app.json` (root tsconfig.json has files:[] and silently passes)
 - Never commit a **platform-narrowed** `pnpm-lock.yaml` — one where a native binding resolved for your platform only, so installs break everywhere else. Note this is about _completeness, not presence_: packages like `sharp` and `@rollup/rollup` legitimately ship a full per-platform matrix, and every version bump of them adds new per-platform entries. That is expected and fine. The `lockfile-guard` pre-commit hook enforces exactly this — for each native binding family added, the lockfile must name it for more than one OS
