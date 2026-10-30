@@ -1,0 +1,12 @@
+# Allowlist: the build context holds only what the Dockerfile copies.
+# Keeps .env and the local .venv out of the build, and anything new out by
+# default. A new COPY source must be listed here too, or the build fails.
+*
+!pyproject.toml
+!uv.lock
+!alembic.ini
+!app/
+!alembic/
+
+# Local bytecode; the image compiles its own.
+**/__pycache__
