@@ -1,5 +1,6 @@
 # Worktrees
 .worktrees/
+.claude/worktrees/
 
 # Claude Code cache
 cache/
@@ -7,12 +8,10 @@ cache/
 # Agents
 .claude/settings.local.json
 .playwright-mcp/
-.pi-lens/
 .remember/
 .superpowers/
 /superpowers/
 docs/superpowers/plans/
-skills-lock.json
 
 # Impeccable: per-developer hook state. The shared .impeccable/config.json
 # (detector rules, ignores, hook settings) is meant to be committed.
