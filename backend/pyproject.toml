@@ -1,6 +1,6 @@
 [project]
 name = "carroquesi-backend"
-version = "0.23.8"
+version = "0.23.9"
 description = "CarroQueSí API – grocery list and receipt analysis service"
 requires-python = ">=3.14"
 dependencies = [

@@ -65,7 +65,7 @@ wheels = [
 
 [[package]]
 name = "carroquesi-backend"
-version = "0.23.8"
+version = "0.23.9"
 source = { virtual = "." }
 dependencies = [
     { name = "alembic" },
