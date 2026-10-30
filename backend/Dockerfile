@@ -1,9 +1,13 @@
-FROM python:3.14-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Install uv. Pinned so a fresh release cannot enter the image unreviewed.
+COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /usr/local/bin/uv
+
+# Compile bytecode at install time, so cold starts skip it.
+# uv reads this during sync, so it must be set before.
+ENV UV_COMPILE_BYTECODE=1
 
 # Copy dependency files and install (cached layer)
 COPY pyproject.toml uv.lock ./
