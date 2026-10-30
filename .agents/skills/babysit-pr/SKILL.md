@@ -333,8 +333,9 @@ an unapproved PR is *not* blocked on that account. What the ruleset actually enf
 | Rule | Effect |
 |---|---|
 | `required_status_checks` | **`CI gate`** must pass. That single context is the real merge gate. It aggregates the per-area jobs in `ci.yml` (`if: always()`, fails if any upstream job failed), so the individual job names are not required and can be renamed freely. |
-| `pull_request` | `required_approving_review_count: 0`, `required_review_thread_resolution: false` — neither approvals nor resolved threads block merge. |
+| `pull_request` | `required_approving_review_count: 0`, `required_review_thread_resolution: false` — neither approvals nor resolved threads block merge. It also sets `require_extra_approval_for_unattributed_changes: true`, which may ask for an approval on agent-written commits. The `update` rule blocks the merge anyway, so the owner's bypass covers both. |
 | `required_linear_history` | Squash or rebase only; no merge commits. |
+| `update` | Nobody outside the bypass list may write to `main` or `develop` — a merge included. This is why every merge needs the bypass, even a PR that meets every other rule. |
 | bypass actor | `RepositoryRole` with `bypass_mode: always` — the repo owner can merge regardless. |
 
 So when `mergeStateStatus` reads `BLOCKED`, **do not report it as "awaiting human approval"** —
@@ -343,17 +344,25 @@ common real cause is a required status check that is failing, still running, or 
 Absent is the trap: if GitHub drops a `synchronize` event, the PR head advances with **no
 checks reported at all**, which is neither passing nor failing and blocks the merge silently.
 
-**"None" is a valid answer, and it is the usual one here.** `BLOCKED` is not authoritative
-under rulesets: GraphQL tends to report it whenever a ruleset with a `pull_request` rule
-applies, satisfied or not. Observed on #121, and again on #164 with every requirement
-verified one by one — `mergeable: MERGEABLE`, `CI gate` green, branch up to date with `main`,
-zero approvals required, thread resolution not required, linear history, not a draft — and
-still `BLOCKED`. Do not keep querying for the missing rule; there isn't one, and the
-`bypass_mode: always` actor means the owner can merge regardless. Confirm the requirements
-individually, then say so.
+**On a PR that meets every other rule, `BLOCKED` is the `update` rule, and it is expected.**
+That rule fails for anyone outside the bypass list, so a ready PR stays `BLOCKED` for good.
+Do not treat it as something to fix. Confirm the other requirements one by one, then say so.
+The owner merges with `gh pr merge <number> --squash --admin`. Without `--admin`, `gh` refuses
+once it sees `BLOCKED` ("the base branch policy prohibits the merge"). It goes through only
+while the status still reads `UNKNOWN`, and then the server applies the bypass silently.
 
-The one status worth taking literally is **`BEHIND`** — see the `strict` note below. Unlike
-`BLOCKED`, it names a real requirement and it has a real fix.
+To see which rule a past push failed or bypassed, read the rule-suite log. `mergeStateStatus`
+never names the rule. The log needs the owner's own `gh` login; an Actions token gets 403:
+
+```bash
+gh api "repos/:owner/:repo/rulesets/rule-suites?ref=<BASE>&time_period=day" \
+  --jq '.[] | "\(.id) \(.pushed_at) \(.result)"'
+gh api repos/:owner/:repo/rulesets/rule-suites/<id> \
+  --jq '.rule_evaluations[] | "\(.rule_type) \(.result) \(.details // "")"'
+```
+
+The one status the loop can fix is **`BEHIND`** — see the `strict` note below. Unlike
+`BLOCKED`, it names a requirement the PR itself can meet.
 
 Note that only `CI gate` gates. `Playwright Tests` is deliberately **not** in its `needs:`,
 so a pending or failing Playwright run does not block merging — though exit condition #3 is
@@ -367,7 +376,7 @@ executed.
 **`strict_required_status_checks_policy: true`, so the branch DOES need to be up to date with
 its base branch before merging.** When the base branch moves under an open PR — a dependabot merge is enough —
 `mergeStateStatus` flips to `BEHIND`, and that one is a genuinely unsatisfied requirement
-rather than the noise `BLOCKED` usually is. Rebase onto `origin/<BASE>` and force-push with
+rather than the expected `update`-rule `BLOCKED`. Rebase onto `origin/<BASE>` and force-push with
 `--force-with-lease`; `required_linear_history` rules out a merge commit.
 
 Two consequences that bite in this loop:

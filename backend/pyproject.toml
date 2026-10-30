@@ -1,8 +1,8 @@
 [project]
 name = "carroquesi-backend"
-version = "0.23.8"
+version = "0.23.9"
 description = "CarroQueSí API – grocery list and receipt analysis service"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.18.5",
     "email-validator>=2.3.0",
@@ -45,7 +45,7 @@ scripts = [
 ]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py314"
 line-length = 100
 
 [tool.ruff.lint]

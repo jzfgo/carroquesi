@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.9] — 2026-10-30
+
+### Fixed
+- **deps:** Bump serialize-javascript to 7.1.3 (#402)
+
+- **deps:** Pin serialize-javascript to 7.1.3 via override (#410)
+
+
+---
 ## [0.23.8] — 2026-10-27
 
 ### Fixed
