@@ -130,7 +130,7 @@ Un-purchasing is allowed only while the trip is open, **plus a write grace windo
 
 ## Backend
 
-Requires **Python 3.13** (pinned in `backend/.python-version`).
+Requires **Python 3.14** (pinned in `backend/.python-version`).
 
 ### Commands
 

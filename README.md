@@ -10,7 +10,7 @@
   <a href="https://github.com/jzfgo/carroquesi/releases"><img src="https://img.shields.io/github/v/tag/jzfgo/carroquesi?sort=semver&label=version&color=blue" alt="Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
   <a href="https://github.com/jzfgo/carroquesi/actions"><img src="https://github.com/jzfgo/carroquesi/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/python-3.13-blue" alt="Python">
+  <img src="https://img.shields.io/badge/python-3.14-blue" alt="Python">
   <img src="https://img.shields.io/badge/node-24-green" alt="Node">
 </p>
 
@@ -47,7 +47,7 @@ Significant tradeoffs are documented in [`docs/decisions/`](docs/decisions/) (e.
 | [nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm) | Node version manager — project pins Node via `.nvmrc`                | `brew install fnm`                                          |
 | pnpm                                                                         | Frontend package manager — pinned in `frontend/package.json`         | none: Corepack (bundled with Node 24) fetches the pinned version |
 | [uv](https://docs.astral.sh/uv/)                                             | Python package manager                                               | `brew install uv`                                           |
-| Python 3.13                                                                  | Backend                                                              | managed by `uv` automatically                               |
+| Python 3.14                                                                  | Backend                                                              | managed by `uv` automatically                               |
 | [git-cliff](https://git-cliff.org)                                           | Changelog generation (`just changelog`)                              | `brew install git-cliff`                                    |
 | Firebase project                                                             | Auth                                                                 | see [Firebase console](https://console.firebase.google.com) |
 

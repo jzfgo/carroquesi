@@ -175,7 +175,7 @@ def thumbnail_download_url(list_id: str, scan_id: str, file_path: str) -> str | 
             # Pinned to the generation just read: bytes replaced in between
             # must not be stored under the old generation.
             data = original.download_as_bytes(if_generation_match=original.generation)
-        except (NotFound, PreconditionFailed):
+        except NotFound, PreconditionFailed:
             return None
         rendered = render_thumbnail(data)
         if rendered is None:
