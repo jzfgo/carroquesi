@@ -333,7 +333,7 @@ an unapproved PR is *not* blocked on that account. What the ruleset actually enf
 | Rule | Effect |
 |---|---|
 | `required_status_checks` | **`CI gate`** must pass. That single context is the real merge gate. It aggregates the per-area jobs in `ci.yml` (`if: always()`, fails if any upstream job failed), so the individual job names are not required and can be renamed freely. |
-| `pull_request` | `required_approving_review_count: 0`, `required_review_thread_resolution: false` — neither approvals nor resolved threads block merge. |
+| `pull_request` | `required_approving_review_count: 0`, `required_review_thread_resolution: false` — neither approvals nor resolved threads block merge. It also sets `require_extra_approval_for_unattributed_changes: true`, which may ask for an approval on agent-written commits. The `update` rule blocks the merge anyway, so the owner's bypass covers both. |
 | `required_linear_history` | Squash or rebase only; no merge commits. |
 | `update` | Nobody outside the bypass list may write to `main` or `develop` — a merge included. This is why every merge needs the bypass, even a PR that meets every other rule. |
 | bypass actor | `RepositoryRole` with `bypass_mode: always` — the repo owner can merge regardless. |
@@ -352,7 +352,7 @@ once it sees `BLOCKED` ("the base branch policy prohibits the merge"). It goes t
 while the status still reads `UNKNOWN`, and then the server applies the bypass silently.
 
 To see which rule a past push failed or bypassed, read the rule-suite log. `mergeStateStatus`
-never names the rule:
+never names the rule. The log needs the owner's own `gh` login; an Actions token gets 403:
 
 ```bash
 gh api "repos/:owner/:repo/rulesets/rule-suites?ref=<BASE>&time_period=day" \
