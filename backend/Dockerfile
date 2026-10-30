@@ -21,6 +21,9 @@ COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
 
+# uv only compiles the packages it installs; compile our own code as well.
+RUN python -m compileall -q app alembic
+
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
