@@ -15,7 +15,7 @@ class ItemCreate(BaseModel):
     price_store: str | None = None
 
     @model_validator(mode="after")
-    def price_per_requires_price(self) -> "ItemCreate":
+    def price_per_requires_price(self) -> ItemCreate:
         if self.price_per is not None and self.price is None:
             raise ValueError("price_per requires price to be set")
         return self

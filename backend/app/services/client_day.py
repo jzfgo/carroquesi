@@ -23,7 +23,7 @@ def resolve_timezone(
         return UTC
     try:
         return ZoneInfo(x_client_timezone)
-    except (ZoneInfoNotFoundError, ValueError):
+    except ZoneInfoNotFoundError, ValueError:
         return UTC
 
 
