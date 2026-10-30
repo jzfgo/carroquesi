@@ -1,9 +1,12 @@
+# Pinned so a fresh release cannot enter the image unreviewed. A FROM line,
+# not an inline COPY --from, so Dependabot sees the pin and proposes bumps.
+FROM ghcr.io/astral-sh/uv:0.13.5 AS uv
+
 FROM python:3.14-slim
 
 WORKDIR /app
 
-# Install uv. Pinned so a fresh release cannot enter the image unreviewed.
-COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /usr/local/bin/uv
+COPY --from=uv /uv /usr/local/bin/uv
 
 # Compile bytecode at install time, so cold starts skip it.
 # uv reads this during sync, so it must be set before.
