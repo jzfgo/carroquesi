@@ -75,6 +75,12 @@ for (const { name: themeName, colorScheme } of THEMES) {
       await page.getByRole('button', { name: 'Ajustes' }).click()
       await expect(page.getByRole('dialog', { name: 'Ajustes' })).toBeVisible()
       await expect(page.getByText('Salir de la cuenta')).toBeVisible()
+      // The footer prints the app version, which every release changes.
+      // Pin it so the baseline does not depend on the version. The unit
+      // test checks the real value.
+      await page
+        .locator('.settings-sheet__version')
+        .evaluate((el) => (el.textContent = 'v0.0.0'))
       await expectScreenshot(page, `settings-sheet-${themeName}.png`)
     })
 
