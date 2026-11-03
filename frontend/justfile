@@ -59,8 +59,9 @@ update-snapshots:
     # host shell expands it before the container can disagree, so the id can
     # name someone the mount never reports.
     # The Playwright image's Node no longer bundles corepack, so install a
-    # pinned one before enabling it. --force lets it replace the image's own
-    # yarn shim; the container is thrown away after the run.
+    # pinned one before enabling it. The pin matches the corepack that the
+    # Node in .nvmrc bundles; update both together. --force lets it replace
+    # the image's own yarn shim; the container is thrown away after the run.
     docker run --rm --platform linux/amd64 \
       -v "$(pwd):/work" \
       -v carroquesi-playwright-node-modules:/work/node_modules \
