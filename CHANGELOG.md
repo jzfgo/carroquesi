@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.23.10] — 2026-11-03
+
+### Fixed
+- **deps:** Bump pyasn1 to 0.6.5 (#417)
+
+
+---
 ## [0.23.9] — 2026-10-30
 
 ### Fixed
