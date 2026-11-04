@@ -58,6 +58,12 @@ def parse_quantity_factor(quantity: str | None, price_per: str | None) -> float 
     return 1.0 if kg_factor is not None else value
 
 
+def effective_quantity(quantity: str | None, purchased_quantity: str | None) -> str | None:
+    """What was bought wins over what was asked for. `is not None`, not
+    truthiness: the frontend row makes the same test."""
+    return purchased_quantity if purchased_quantity is not None else quantity
+
+
 def line_amount(
     price: float | None,
     quantity: str | None,
@@ -69,9 +75,7 @@ def line_amount(
     «1 kg» and weighed at 0,636 kg costs the 0,636 kg."""
     if price is None:
         return None
-    # `is not None`, not truthiness: the frontend row makes the same test.
-    effective = purchased_quantity if purchased_quantity is not None else quantity
-    factor = parse_quantity_factor(effective, price_per)
+    factor = parse_quantity_factor(effective_quantity(quantity, purchased_quantity), price_per)
     return None if factor is None else price * factor
 
 
