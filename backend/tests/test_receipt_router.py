@@ -2057,8 +2057,8 @@ def test_scan_drops_a_date_it_cannot_repair(client, session):
 
 
 def test_scan_repairs_the_day_in_the_clients_zone(client):
-    """23:30 UTC on 31 Mar 2020 is 1 Apr in Madrid; the repair keeps that day
-    and its local time."""
+    """22:30 UTC on 31 Mar 2020 is 00:30 on 1 Apr in Madrid (CEST); the repair
+    keeps that day and its local time."""
     body = _unit_body()
     body["receipt_date"] = "2020-03-31T22:30:00Z"
     result = client.post(
