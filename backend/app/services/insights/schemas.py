@@ -4,6 +4,8 @@ Amounts are euros rounded to cents; deltas are fractions (0.65 is +65 %)
 and None when there is nothing to compare with.
 """
 
+from dataclasses import dataclass
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel
@@ -80,3 +82,42 @@ class Cadence(_Record):
     type: Literal["cadence"] = "cadence"
     trips: int
     mean_days_between: float | None
+
+
+@dataclass(frozen=True)
+class SavingsThresholds:
+    """When a cheaper price elsewhere is worth saying. Defaults agreed on
+    real data: they leave 0–3 suggestions a month."""
+
+    min_saving_pct: float = 0.10
+    min_monthly_eur: float = 1.0
+    min_observations: int = 1
+    window_days: int = 90
+    # Per-unit prices that move more than this at the cheaper store may hide
+    # a size difference (trays, packs), so they are not trusted.
+    max_spread_pct: float = 0.15
+    max_suggestions: int = 5
+
+
+DEFAULT_THRESHOLDS = SavingsThresholds()
+
+
+class Suggestion(BaseModel):
+    name: str
+    brand: str | None
+    basis: Literal["kg", "unit"]
+    paid_store_key: str
+    paid_store: str
+    paid_price: float
+    cheaper_store_key: str
+    cheaper_store: str
+    cheaper_price: float
+    cheaper_seen_at: date
+    saving_pct: float
+    monthly_eur: float
+
+
+class CheaperElsewhere(_Record):
+    type: Literal["cheaper_elsewhere"] = "cheaper_elsewhere"
+    suggestions: list[Suggestion]
+    thresholds: SavingsThresholds

@@ -18,6 +18,8 @@ from app.services.public_name import public_name
 from app.services.quantity import effective_quantity, line_amount, unit_price
 from app.services.store_key import store_key
 
+NO_STORE = "Sin tienda"
+
 
 def month_bounds(month: str, tz: tzinfo) -> tuple[datetime, datetime]:
     """`[start, end)` of a "YYYY-MM" month in `tz`, as naive UTC like the DB."""
@@ -89,6 +91,12 @@ class Window:
     store_names: dict[str, str]
     user_names: dict[str, str]
     tripless_lines: int
+
+    def store_name(self, key: str | None, raw: str | None) -> str:
+        """The registry's name for a store, else the typed one (ADR-013)."""
+        if key is None:
+            return NO_STORE
+        return self.store_names.get(key) or raw or key
 
 
 def load_window(

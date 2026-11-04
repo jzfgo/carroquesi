@@ -20,7 +20,6 @@ from app.services.insights.schemas import (
 SERIES_MONTHS = 5
 AVERAGE_MONTHS = 3
 TOP_PRODUCTS = 10
-NO_STORE = "Sin tienda"
 
 
 def totals(w: Window, month: str) -> Totals:
@@ -60,7 +59,7 @@ def by_store(w: Window, month: str) -> ByStore:
     stores: list[StoreSpend] = [
         StoreSpend(
             store_key=key,
-            name=_store_name(w, key, raw.get(key)),
+            name=w.store_name(key, raw.get(key)),
             amount=round(money[key], 2),
             trips=counts[key],
         )
@@ -181,12 +180,6 @@ def _delta(current: float, base: float | None) -> float | None:
     if not base:
         return None
     return round((current - base) / base, 4)
-
-
-def _store_name(w: Window, key: str | None, raw: str | None) -> str:
-    if key is None:
-        return NO_STORE
-    return w.store_names.get(key) or raw or key
 
 
 def _priced(lines: list[Line]) -> int:
