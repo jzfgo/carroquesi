@@ -5,7 +5,7 @@ import pytest
 from sqlmodel import Session
 
 from app.db.models import List, ListItem, ListStore, Purchase, User
-from app.services.insights.data import load_window, month_bounds, shift_month
+from app.services.insights.data import count_tripless, load_window, month_bounds, shift_month
 from app.services.store_key import store_key
 
 MADRID = ZoneInfo("Europe/Madrid")
@@ -159,7 +159,7 @@ def test_purchased_lines_without_a_trip_are_only_counted(session: Session, user:
     w = load_window(session, lst.id, start, end, MADRID)
 
     assert w.lines == []
-    assert w.tripless_lines == 1
+    assert count_tripless(session, lst.id, start, end) == 1
 
 
 def test_a_per_kg_line_without_a_weight_adds_no_money(session: Session, user: User):

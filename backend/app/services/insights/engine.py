@@ -8,7 +8,7 @@ from datetime import timedelta, tzinfo
 
 from sqlmodel import Session
 
-from app.services.insights.data import load_window, month_bounds, shift_month
+from app.services.insights.data import count_tripless, load_window, month_bounds, shift_month
 from app.services.insights.descriptive import (
     SERIES_MONTHS,
     by_requester,
@@ -32,7 +32,7 @@ def compute_report(
 ) -> SpendReport:
     """`month` is "YYYY-MM", cut at local midnights in `tz` (the caller
     decides whose zone: the owner's for an email, the viewer's in the app)."""
-    _, end = month_bounds(month, tz)
+    month_start, end = month_bounds(month, tz)
     series_start, _ = month_bounds(shift_month(month, -(SERIES_MONTHS - 1)), tz)
     # One load covers both the five-month trend and the savings window.
     start = min(series_start, end - timedelta(days=th.window_days))
@@ -49,5 +49,5 @@ def compute_report(
             cadence(w, month),
             cheaper_elsewhere(w, month, end, th),
         ],
-        tripless_lines=w.tripless_lines,
+        tripless_lines=count_tripless(session, list_id, month_start, end),
     )

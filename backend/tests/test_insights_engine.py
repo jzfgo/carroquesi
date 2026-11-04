@@ -73,3 +73,16 @@ def test_computing_a_report_writes_nothing(session: Session, user: User):
     compute_report(session, lst.id, "2026-10", MADRID)
 
     assert not session.new and not session.dirty and not session.deleted
+
+
+def test_lines_without_a_trip_are_counted_for_the_report_month_only(session: Session, user: User):
+    lst = _seed(session, user)
+    for day in (datetime(2026, 8, 5, 10), datetime(2026, 10, 5, 10)):
+        session.add(
+            ListItem(list_id=lst.id, name="Pan", added_by=user.id, purchased_at=day, price=1.0)
+        )
+    session.commit()
+
+    report = compute_report(session, lst.id, "2026-10", MADRID)
+
+    assert report.tripless_lines == 1

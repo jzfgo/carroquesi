@@ -71,5 +71,4 @@ def window(trips: list[Trip], lines: list[Line], **fields) -> Window:
         first_trip_month=fields.pop("first_trip_month", months[0] if months else None),
         store_names=fields.pop("store_names", {}),
         user_names=fields.pop("user_names", {"u-alice": "Alice", "u-bob": "Bob"}),
-        tripless_lines=fields.pop("tripless_lines", 0),
     )

@@ -48,6 +48,9 @@ def totals(w: Window, month: str) -> Totals:
 
 
 def by_store(w: Window, month: str) -> ByStore:
+    # Grouped by the trip's store, not each line's: a trip's money is its
+    # confirmed total, which belongs to one shop. Savings compare line prices,
+    # so they read each line's own store instead.
     money: dict[str | None, float] = defaultdict(float)
     counts: dict[str | None, int] = defaultdict(int)
     raw: dict[str | None, str] = {}

@@ -92,7 +92,6 @@ class Window:
     first_trip_month: str | None
     store_names: dict[str, str]
     user_names: dict[str, str]
-    tripless_lines: int
 
     def store_name(self, key: str | None, raw: str | None) -> str:
         """The registry's name for a store, else the typed one (ADR-013)."""
@@ -104,11 +103,7 @@ class Window:
 def load_window(
     session: Session, list_id: str, start: datetime, end: datetime, tz: tzinfo
 ) -> Window:
-    """Trips opened in `[start, end)` and their lines.
-
-    Purchased lines with no trip predate trips; their day and store cannot be
-    trusted, so they are only counted, for coverage.
-    """
+    """Trips opened in `[start, end)` and their lines."""
     purchases = session.exec(
         select(Purchase).where(
             Purchase.list_id == list_id,
@@ -138,16 +133,6 @@ def load_window(
     first = session.exec(
         select(func.min(Purchase.opened_at)).where(Purchase.list_id == list_id)
     ).one()
-    tripless = session.exec(
-        select(func.count())
-        .select_from(ListItem)
-        .where(
-            ListItem.list_id == list_id,
-            col(ListItem.purchase_id).is_(None),
-            col(ListItem.purchased_at) >= start,
-            col(ListItem.purchased_at) < end,
-        )
-    ).one()
     stores = session.exec(select(ListStore).where(ListStore.list_id == list_id)).all()
 
     return Window(
@@ -158,8 +143,25 @@ def load_window(
         first_trip_month=local_month(first, tz) if first else None,
         store_names={s.store_key: s.display_name for s in stores},
         user_names=_user_names(session, {line.added_by for line in lines}),
-        tripless_lines=tripless,
     )
+
+
+def count_tripless(session: Session, list_id: str, start: datetime, end: datetime) -> int:
+    """Purchased lines with no trip, bought in `[start, end)`.
+
+    They predate trips; their day and store cannot be trusted, so no figure
+    uses them. They are only counted, for coverage.
+    """
+    return session.exec(
+        select(func.count())
+        .select_from(ListItem)
+        .where(
+            ListItem.list_id == list_id,
+            col(ListItem.purchase_id).is_(None),
+            col(ListItem.purchased_at) >= start,
+            col(ListItem.purchased_at) < end,
+        )
+    ).one()
 
 
 def _line(item: ListItem, trip: Trip, tz: tzinfo) -> Line:
