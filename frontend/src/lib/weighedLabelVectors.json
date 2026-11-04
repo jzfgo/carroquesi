@@ -248,8 +248,8 @@
     "expected": null
   },
   {
-    "input": "23003505032060015500497",
-    "note": "Wrong length (23 digits)",
+    "input": "23003505032060015500495",
+    "note": "Wrong length (23 digits); its check digit is valid, so only the length rule rejects it",
     "expected": null
   },
   {
