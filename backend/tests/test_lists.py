@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.db.models import List, ListItem, ListMember, Purchase, ReceiptScan, User
+from app.db.models import List, ListItem, ListMember, ListStore, Purchase, ReceiptScan, User
 
 
 def _reshape_trip(session: Session, item_id: str, *, tear_off=None, closed_at=None) -> Purchase:
@@ -96,6 +96,28 @@ def test_delete_list_with_receipt_scans(client: TestClient, session: Session, us
     response = client.delete(f"/lists/{created['id']}")
     assert response.status_code == 204
     assert session.get(List, created["id"]) is None
+
+
+def test_delete_list_with_trips_and_stores(client: TestClient, session: Session, engine, user):
+    # SQLite skips foreign key checks unless asked. Postgres always runs them.
+    with engine.connect() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+    created = client.post("/lists", json={"name": "Con Viajes"}).json()
+    list_id = created["id"]
+    item = client.post(f"/lists/{list_id}/items", json={"name": "Leche", "stores": ["Mercadona"]})
+    client.patch(f"/lists/{list_id}/items/{item.json()['id']}", json={"purchased": True})
+    trip_id = session.get_one(ListItem, item.json()["id"]).purchase_id
+    assert trip_id is not None
+    session.add(
+        ReceiptScan(list_id=list_id, scanned_by=user.id, items_updated=0, purchase_id=trip_id)
+    )
+    session.commit()
+    assert session.exec(select(ListStore).where(ListStore.list_id == list_id)).first() is not None
+
+    assert client.delete(f"/lists/{list_id}").status_code == 204
+    assert session.get(List, list_id) is None
+    assert session.exec(select(Purchase).where(Purchase.list_id == list_id)).all() == []
+    assert session.exec(select(ListStore).where(ListStore.list_id == list_id)).all() == []
 
 
 def test_get_lists_includes_zero_counts_when_no_items(client: TestClient):

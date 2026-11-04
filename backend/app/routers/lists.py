@@ -10,6 +10,7 @@ from app.db.models import (
     ListInvite,
     ListItem,
     ListMember,
+    ListStore,
     Purchase,
     ReceiptScan,
     User,
@@ -233,6 +234,15 @@ def delete_list(
         session.delete(pref)
     for scan in session.exec(select(ReceiptScan).where(ReceiptScan.list_id == lst.id)).all():
         session.delete(scan)
+    # The models declare no relationships, so a flush does not order these
+    # deletes by foreign key. Each flush below forces one layer out first:
+    # items and scans point at trips, and everything points at the list.
+    session.flush()
+    for trip in session.exec(select(Purchase).where(Purchase.list_id == lst.id)).all():
+        session.delete(trip)
+    for store in session.exec(select(ListStore).where(ListStore.list_id == lst.id)).all():
+        session.delete(store)
+    session.flush()
     session.delete(lst)
     session.commit()
     # After the commit and best effort: a storage hiccup must not block list
