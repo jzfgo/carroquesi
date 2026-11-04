@@ -4,6 +4,7 @@
    warm here. */
 import { formatPrice } from './formatPrice'
 import type { ChartEntry } from './priceNormalization'
+import { parseServerInstant } from './serverInstant'
 import { storeKey } from './storeKey'
 
 /**
@@ -67,7 +68,7 @@ function curveGeometry(
     .filter((a): a is number => a !== null)
 
   const timestamps = reversed.map((r) =>
-    r.purchased_at ? new Date(r.purchased_at).getTime() : null,
+    r.purchased_at ? parseServerInstant(r.purchased_at).getTime() : null,
   )
   const validTs = timestamps.filter((t): t is number => t !== null)
   const minMs = validTs.length > 0 ? Math.min(...validTs) : 0
@@ -223,7 +224,7 @@ function pointsForDots(
 ): { x: number; valid: boolean }[] {
   const reversed = [...records].reverse()
   const timestamps = reversed.map((r) =>
-    r.purchased_at ? new Date(r.purchased_at).getTime() : null,
+    r.purchased_at ? parseServerInstant(r.purchased_at).getTime() : null,
   )
   const validTs = timestamps.filter((t): t is number => t !== null)
   const minMs = validTs.length > 0 ? Math.min(...validTs) : 0
@@ -325,7 +326,7 @@ export function bandGeometry(
     )
     .map((r) => ({
       key: r.store ? storeKey(r.store) : '__none__',
-      t: new Date(r.purchased_at).getTime(),
+      t: parseServerInstant(r.purchased_at).getTime(),
       v: r.displayAmount,
     }))
 

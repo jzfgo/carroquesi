@@ -1,4 +1,5 @@
 import type { ListItem } from '../types'
+import { parseServerInstant } from './serverInstant'
 
 // SI units → kg equivalent (volume treated as water: 1 L = 1 kg)
 const UNIT_TO_KG: Record<string, number> = {
@@ -123,7 +124,7 @@ export function computeCostSummary(items: ListItem[]): CostSummary | null {
  */
 export function purchasedDateLabel(purchased_at: string | null): string {
   if (!purchased_at) return 'Fecha desconocida'
-  return new Date(purchased_at + 'Z').toLocaleDateString('es', {
+  return parseServerInstant(purchased_at).toLocaleDateString('es', {
     dateStyle: 'medium',
   })
 }
@@ -152,7 +153,7 @@ export function purchasedDateLabel(purchased_at: string | null): string {
  * not in the frame.
  */
 export function tripDateLabel(openedAt: string, proto: boolean): string {
-  const d = new Date(openedAt.endsWith('Z') ? openedAt : openedAt + 'Z')
+  const d = parseServerInstant(openedAt)
   const now = new Date()
   const sameYearMonth =
     d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
@@ -175,7 +176,7 @@ export function tripDateLabel(openedAt: string, proto: boolean): string {
  * under the day it covered instead of jumping to today.
  */
 export function tripDateInput(openedAt: string): string {
-  const d = new Date(openedAt.endsWith('Z') ? openedAt : openedAt + 'Z')
+  const d = parseServerInstant(openedAt)
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }

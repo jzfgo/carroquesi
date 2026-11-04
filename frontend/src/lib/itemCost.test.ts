@@ -3,6 +3,7 @@ import type { ListItem } from '../types'
 import {
   computeCostSummary,
   parseQuantityFactor,
+  purchasedDateLabel,
   tripDateLabel,
   unitPrice,
 } from './itemCost'
@@ -135,4 +136,12 @@ describe('shared quantity vectors', () => {
       expect(result.basis).toBe(basis)
     },
   )
+})
+
+describe('purchasedDateLabel', () => {
+  it('labels an instant the same with or without its zone suffix', () => {
+    const naive = purchasedDateLabel('2026-11-04T10:00:00')
+    expect(naive).not.toMatch(/invalid/i)
+    expect(purchasedDateLabel('2026-11-04T10:00:00Z')).toBe(naive)
+  })
 })

@@ -4,6 +4,7 @@ import { foldText } from '../lib/foldText'
 import { formatPrice } from '../lib/formatPrice'
 import { isTripOpen } from '../lib/isTripOpen'
 import type { CostSummary } from '../lib/itemCost'
+import { parseServerInstant } from '../lib/serverInstant'
 import { storeKey } from '../lib/storeKey'
 import type { DueSuggestion, ElsewhereMatch, ListItem } from '../types'
 import { ItemCard } from './ItemCard'
@@ -174,7 +175,7 @@ export function ItemList({
     // you looked for.
     const term = query.trim()
     const boughtOn = elsewhereMatch?.last_purchased_at
-      ? new Date(elsewhereMatch.last_purchased_at + 'Z').toLocaleDateString(
+      ? parseServerInstant(elsewhereMatch.last_purchased_at).toLocaleDateString(
           'es',
           { day: 'numeric', month: 'short' },
         )
