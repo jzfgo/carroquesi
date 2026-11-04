@@ -52,6 +52,23 @@ export function parseKgFactor(quantity: string | null): number | null {
 }
 
 /**
+ * A line's price on a scale that compares across purchases: €/kg when the
+ * line is weighed or names its weight («500 g» at 1,20 → 2,40 €/kg),
+ * otherwise €/unit. Compare two prices only when their bases match. The
+ * backend's spend insights run the same rule, pinned to quantityVectors.json.
+ */
+export function unitPrice(
+  price: number,
+  quantity: string | null,
+  pricePer: string | null,
+): { value: number; basis: 'kg' | 'unit' } {
+  if (pricePer === 'KILOGRAM') return { value: price, basis: 'kg' }
+  const kgFactor = parseKgFactor(quantity)
+  if (kgFactor) return { value: price / kgFactor, basis: 'kg' }
+  return { value: price, basis: 'unit' }
+}
+
+/**
  * The `/ud`·`/kg` unit and its `price_per` are DERIVED from what is typed in the
  * quantity — a weight («500 ml», «1,12 kg») prices per kilo, anything else per
  * unit. This is rule 10a: no segmented toggle anywhere, the same rule everywhere

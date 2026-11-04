@@ -25,7 +25,7 @@ from app.services.fold import fold_name
 from app.services.money import reject_bad_amount, reject_bad_price
 from app.services.pending_duplicate import find_pending_duplicate
 from app.services.push import notify_list_change
-from app.services.quantity import parse_quantity_factor
+from app.services.quantity import line_amount
 from app.services.store_key import store_key
 from app.services.store_registry import ensure_stores
 
@@ -178,29 +178,24 @@ def list_purchases(
                 .distinct()
             ).all()
         )
-        # The provisional total per trip: sum each priced line's `price *
-        # factor` (the line's real amount, matching the row the app draws), not
-        # the raw price. The factor needs the quantity string parsed, so it is
-        # computed in Python rather than SQL. A line whose factor cannot apply
-        # (a per-kg price with no SI unit) contributes nothing; a trip with no
-        # contributing line stays absent, so its items_total serializes as None.
+        # The provisional total per trip: sum each priced line's real amount
+        # (matching the row the app draws), not the raw price. The amount needs
+        # the quantity string parsed, so it is computed in Python rather than
+        # SQL. A line whose amount cannot apply (a per-kg price with no SI
+        # unit) contributes nothing; a trip with no contributing line stays
+        # absent, so its items_total serializes as None.
         acc: dict[str, float] = {}
         priced_lines = session.exec(
-            select(
-                ListItem.purchase_id,
-                ListItem.price,
-                ListItem.price_per,
-                ListItem.quantity,
-            ).where(
+            select(ListItem).where(
                 col(ListItem.purchase_id).in_(page_ids),
                 col(ListItem.price).isnot(None),
             )
         ).all()
-        for purchase_id, price, price_per, quantity in priced_lines:
-            factor = parse_quantity_factor(quantity, price_per)
-            if factor is None:
+        for line in priced_lines:
+            amount = line_amount(line.price, line.quantity, line.purchased_quantity, line.price_per)
+            if amount is None or line.purchase_id is None:
                 continue
-            acc[purchase_id] = acc.get(purchase_id, 0.0) + price * factor
+            acc[line.purchase_id] = acc.get(line.purchase_id, 0.0) + amount
         items_totals = {pid: round(amount, 2) for pid, amount in acc.items()}
 
     # The batched lines, grouped per trip in cart order — the same rows and

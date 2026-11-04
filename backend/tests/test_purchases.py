@@ -668,6 +668,26 @@ def test_the_page_sums_a_provisional_items_total_from_priced_proto_lines(
     assert proto["items_total"] == 26.09
 
 
+def test_items_total_uses_the_purchased_quantity_when_set(client: TestClient, session: Session):
+    """A weighed tray asked for as «1 kg» but bought at 0,636 kg costs what
+    was bought. The row the app draws uses the purchased quantity, so the
+    provisional total must too, or «≈ total» disagrees with the rows."""
+    lst = _create_list(client)
+    tray = _tap(client, lst["id"], "Solomillo", quantity="1 kg")
+    torn_id = _tear_off(session, tray, days_ago=2)
+    row = session.get_one(ListItem, tray["id"])
+    row.purchased_quantity = "0.636 kg"
+    row.price = 12.50
+    row.price_per = "KILOGRAM"
+    session.add(row)
+    session.commit()
+
+    body = _page(client, lst["id"]).json()
+
+    (proto,) = [p for p in body["purchases"] if p["id"] == torn_id]
+    assert proto["items_total"] == 7.95
+
+
 def test_the_page_leaves_items_total_null_when_no_line_is_priced(
     client: TestClient, session: Session
 ):
