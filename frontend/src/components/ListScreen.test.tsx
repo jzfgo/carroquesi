@@ -11,6 +11,7 @@ import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import * as api from '../lib/api'
+import chainsSnapshot from '../lib/chains.generated.json'
 import { reportRequestOutcome } from '../lib/connectivity'
 import {
   isDismissed,
@@ -199,6 +200,8 @@ beforeEach(() => {
   // useListSeen fires on mount and chains .catch on the result; the api
   // automock would otherwise return undefined.
   vi.mocked(api.markListSeen).mockResolvedValue(null)
+  // Own-brand tests below read this table once it lands.
+  vi.mocked(api.getChains).mockResolvedValue(chainsSnapshot)
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: {
       id: 'u1',

@@ -79,9 +79,11 @@ is tied to: the store of the trip being reconciled, or the store group the
 user scanned from. When there is no such store, or more than one, there is no
 hint. With a hint, only that chain's decoders run; if they reject the code,
 it is rejected, with no fallback to other chains. A wrong decode records a
-wrong price, so a refusal is the safer answer. Without a hint, a code is
-accepted only when exactly one decoder validates it, including its check
-digit and its arithmetic.
+wrong price, so a refusal is the safer answer. A store no profile claims
+(«Mercadona Plaza», a local shop) says nothing about the format, so it counts
+as no hint; otherwise one oddly named store would block every scan. Without a
+hint, a code is accepted only when exactly one decoder validates it, including
+its check digit and its arithmetic. The answer names the chain that read it.
 
 **Profiles do not merge stores.** A profile may list several store keys
 (`bm`, `bmsupermercados`) so chain features apply to both. That grouping is

@@ -1,4 +1,10 @@
+import { getChains } from './api'
 import { lookupOwnBrandStore, withOwnBrandStore } from './ownBrands'
+
+vi.mock('./api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./api')>()),
+  getChains: vi.fn(),
+}))
 
 describe('lookupOwnBrandStore', () => {
   test('null input returns null', () => {
@@ -103,5 +109,45 @@ describe('withOwnBrandStore', () => {
     const stores: string[] = []
     expect(withOwnBrandStore('Danone', stores)).toBe(stores)
     expect(withOwnBrandStore(null, stores)).toBe(stores)
+  })
+})
+
+describe('loadChains', () => {
+  const getToken = () => Promise.resolve('t')
+
+  // Module state is the point under test, so each case gets a fresh copy.
+  async function freshModule() {
+    vi.resetModules()
+    return import('./ownBrands')
+  }
+
+  test('the served table replaces the snapshot', async () => {
+    vi.mocked(getChains).mockResolvedValue([
+      { name: 'Nueva', store_keys: ['nueva'], own_brands: ['marca nueva'] },
+    ])
+    const m = await freshModule()
+    expect(m.lookupOwnBrandStore('Marca Nueva')).toBeNull()
+    await m.loadChains(getToken)
+    expect(m.lookupOwnBrandStore('Marca Nueva')).toBe('Nueva')
+    expect(m.lookupOwnBrandStore('Hacendado')).toBeNull()
+  })
+
+  test('fetches once per page load', async () => {
+    vi.mocked(getChains).mockResolvedValue([])
+    const m = await freshModule()
+    await m.loadChains(getToken)
+    await m.loadChains(getToken)
+    expect(getChains).toHaveBeenCalledTimes(1)
+  })
+
+  test('a failed fetch keeps the snapshot and the next call retries', async () => {
+    vi.mocked(getChains).mockRejectedValueOnce(new TypeError('offline'))
+    const m = await freshModule()
+    await m.loadChains(getToken)
+    expect(m.lookupOwnBrandStore('Hacendado')).toBe('Mercadona')
+    vi.mocked(getChains).mockResolvedValueOnce([])
+    await m.loadChains(getToken)
+    expect(getChains).toHaveBeenCalledTimes(2)
+    expect(m.lookupOwnBrandStore('Hacendado')).toBeNull()
   })
 })

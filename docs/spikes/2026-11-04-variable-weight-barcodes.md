@@ -92,15 +92,15 @@ These carry the price only. The weight is on the printed text, so it needs OCR.
 
 ## Test vectors
 
-`frontend/src/lib/weighedLabelVectors.json` holds all 19 decoded barcodes
-plus four negative cases, each expecting `null`:
+The 19 decoded barcodes live with the decoders, one file per chain:
+`backend/app/chains/mercadona/vectors.json` and
+`backend/app/chains/ahorramas/vectors.json`
+([ADR-017](../decisions/017-chain-profiles-in-the-backend.md)). The Mercadona
+file also holds four negative cases, each expecting `null`:
 
 - a bad check digit;
 - a valid check digit with a total that disagrees with weight × €/kg;
 - a wrong length (23 digits);
 - an ordinary EAN-13 outside the in-store prefix range.
 
-Real entries carry `store` and `label`; negative entries carry `note`
-instead, so a typed loader must treat all three as optional. Like
-`storeKeyVectors.json`, the file is meant to pin the frontend and backend
-decoders to the same cases.
+Real entries carry `label`; negative entries carry `note` instead.
