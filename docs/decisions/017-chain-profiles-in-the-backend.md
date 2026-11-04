@@ -8,8 +8,8 @@
 Some features need to know one supermarket chain's rules, and the list keeps
 growing:
 
-- **Own brands.** `frontend/src/lib/ownBrands.ts` maps 63 own brands across
-  13 chains to their chain ("Hacendado" → Mercadona), so setting the brand adds the store.
+- **Own brands.** `frontend/src/lib/ownBrands.ts` maps 63 own brands to
+  their chain, across 13 chains ("Hacendado" → Mercadona), so setting the brand adds the store.
   It lives only in the frontend, and names the chain as display text rather
   than by `store_key`.
 - **In-store barcodes.** Weighed-goods labels encode weight, price per kg and
@@ -47,8 +47,9 @@ backend/app/chains/
 ```
 
 A profile carries data where it can (store keys, store name, own brands)
-and code where it must (barcode decoders), each decoder pinned to its own
-vector file. Adding a chain means adding a folder.
+and code where it must (barcode decoders). One `vectors.json` per chain holds
+the test cases for all of that chain's decoders. Adding a chain means adding a
+folder.
 
 The profile's store name is only the raw string a chain feature writes onto
 an item, such as the store the own-brand rule adds. It goes through
@@ -76,8 +77,11 @@ on the client would reopen this decision.
 Mercadona and may mean another elsewhere. The hint is the one store the scan
 is tied to: the store of the trip being reconciled, or the store group the
 user scanned from. When there is no such store, or more than one, there is no
-hint. Without a hint, a code is accepted only when exactly one decoder
-validates it, including its check digit and its arithmetic.
+hint. With a hint, only that chain's decoders run; if they reject the code,
+it is rejected, with no fallback to other chains. A wrong decode records a
+wrong price, so a refusal is the safer answer. Without a hint, a code is
+accepted only when exactly one decoder validates it, including its check
+digit and its arithmetic.
 
 **Profiles do not merge stores.** A profile may list several store keys
 (`bm`, `bmsupermercados`) so chain features apply to both. That grouping is
@@ -106,7 +110,10 @@ Implementation is tracked in JAV-223; the first decoder user is JAV-222.
 - `ownBrands.ts` moves into the profiles; the frontend fetches the table and
   caches it. So the chip works on a cold start, before the first fetch
   answers, the frontend ships a generated snapshot of the table as a fallback.
-  It is regenerated from the backend like the API types, never edited by hand.
+  It is generated from the backend, never edited by hand, and refreshed when
+  convenient. Unlike the API types, no CI check fails when it is stale: the
+  fetch replaces it, so a stale snapshot is harmless and an own-brand change
+  still deploys only the backend.
 - In-store labels need a new scan path. Today `|EAN` accepts only 8 or 13
   digits and `GET /barcode/{ean}` is the only scan endpoint, so a 24-digit
   label needs its own input path and a decode endpoint, not just a decoder.
