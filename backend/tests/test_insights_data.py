@@ -160,3 +160,15 @@ def test_purchased_lines_without_a_trip_are_only_counted(session: Session, user:
 
     assert w.lines == []
     assert w.tripless_lines == 1
+
+
+def test_a_per_kg_line_without_a_weight_adds_no_money(session: Session, user: User):
+    lst = _list(session, user)
+    trip = _trip(session, lst, datetime(2026, 10, 10, 10))
+    _line(session, lst, trip, user, quantity="1 ud", price=9.90, price_per="KILOGRAM")
+    start, end = month_bounds("2026-10", MADRID)
+
+    (line,) = load_window(session, lst.id, start, end, MADRID).lines
+
+    assert line.amount is None
+    assert line.unit_price is None
