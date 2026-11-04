@@ -151,7 +151,10 @@ stores is evaluated once per store:
    units) is `line money ÷ unit price`; the monthly mean is the window's sum ×
    30 / 90. Keep if ≥ 1 €.
 5. Tray/pack rule: on the €/unit basis, skip unless the product's unit prices
-   at B vary by ≤ 15 % across the window. €/kg lines always pass.
+   vary by ≤ 15 % across the window **at both A and B**. One price at B
+   cannot spread, so the check at A, where the list buys most often, is what
+   catches a fixed-price tray. €/kg lines always pass. Accepted gap: a tray
+   bought once at each store still passes until JAV-222 records its weight.
 
 Thresholds live in a frozen dataclass with these defaults; the script can
 override each one by flag.

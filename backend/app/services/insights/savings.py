@@ -76,6 +76,16 @@ def cheaper_elsewhere(
     )
 
 
+def _spreads(seen: list[_Seen], th: SavingsThresholds) -> bool:
+    """A per-unit price that moves a lot at one store may be a different
+    size (a tray, a pack), not a different price. Weighed prices already
+    account for size, so they may move freely."""
+    if seen[0].basis != "unit":
+        return False
+    prices = [o.price for o in seen]
+    return (max(prices) - min(prices)) / min(prices) > th.max_spread_pct
+
+
 def _best_elsewhere(
     w: Window,
     th: SavingsThresholds,
@@ -85,22 +95,17 @@ def _best_elsewhere(
 ) -> Suggestion | None:
     here = paid[0].store_key
     paid_price = mean(o.price for o in paid)
-    elsewhere: dict[str, list[_Seen]] = defaultdict(list)
+    by_store: dict[str, list[_Seen]] = defaultdict(list)
     for o in observations:
-        if o.store_key != here:
-            elsewhere[o.store_key].append(o)
+        by_store[o.store_key].append(o)
+    # Checked at the paid store too: the other store often has a single
+    # price, which cannot spread, while the usual store has several.
+    if _spreads(by_store.pop(here), th):
+        return None
 
     best: _Seen | None = None
-    for seen in elsewhere.values():
-        if len(seen) < th.min_observations:
-            continue
-        prices = [o.price for o in seen]
-        # A per-unit price that moves a lot may be a different size, not a
-        # different store. Weighed prices already account for size.
-        if (
-            seen[0].basis == "unit"
-            and (max(prices) - min(prices)) / min(prices) > th.max_spread_pct
-        ):
+    for seen in by_store.values():
+        if len(seen) < th.min_observations or _spreads(seen, th):
             continue
         latest = max(seen, key=lambda o: o.line.purchased_at)
         if (paid_price - latest.price) / paid_price < th.min_saving_pct:

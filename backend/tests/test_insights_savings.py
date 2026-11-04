@@ -67,6 +67,21 @@ def test_per_unit_prices_that_spread_at_the_cheaper_store_are_not_trusted():
     assert _report(paid, seen, seen2).suggestions == []
 
 
+def test_a_tray_whose_price_spreads_where_it_is_bought_is_not_trusted():
+    # A fixed-price tray varies with its weight. One price at the other store
+    # has nothing to spread against, so the paid store's prices decide.
+    paid = (
+        _bought("Filete", 6.00, 1, ["2026-08-10"])[0]
+        + _bought("Filete", 7.20, 1, ["2026-09-10"])[0],
+        _bought("Filete", 6.00, 1, ["2026-08-10"])[1]
+        + _bought("Filete", 7.20, 1, ["2026-09-10"])[1],
+    )
+    this_month = _bought("Filete", 5.10, 10, ["2026-10-10"])
+    seen = _bought("Filete", 4.00, 1, ["2026-10-11"], store="Ahorramas")
+
+    assert _report(paid, this_month, seen).suggestions == []
+
+
 def test_per_kg_prices_may_spread():
     paid = _bought("Solomillo", 15.0, 1, THREE_MONTHS, basis="kg")
     seen = _bought("Solomillo", 13.0, 1, ["2026-09-01"], store="Ahorramas", basis="kg")
