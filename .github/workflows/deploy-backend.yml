@@ -59,5 +59,7 @@ jobs:
             FRONTEND_URL=${{ vars.FRONTEND_URL }}
             RECEIPT_STORAGE_BUCKET=${{ vars.RECEIPT_STORAGE_BUCKET }}
             WAITLIST_ENABLED=${{ vars.WAITLIST_ENABLED }}
+            REPORT_TRIGGER_TOKEN=${{ secrets.REPORT_TRIGGER_TOKEN }}
+            REPORT_DEFAULT_TIMEZONE=${{ vars.REPORT_DEFAULT_TIMEZONE || 'UTC' }}
           secrets: |
             /secrets/firebase-credentials=firebase-credentials:latest

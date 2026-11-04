@@ -3,7 +3,16 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.db.models import List, ListItem, ListMember, ListStore, Purchase, ReceiptScan, User
+from app.db.models import (
+    List,
+    ListItem,
+    ListMember,
+    ListStore,
+    Purchase,
+    ReceiptScan,
+    ReportRun,
+    User,
+)
 
 
 def _reshape_trip(session: Session, item_id: str, *, tear_off=None, closed_at=None) -> Purchase:
@@ -118,6 +127,19 @@ def test_delete_list_with_trips_and_stores(client: TestClient, session: Session,
     assert session.get(List, list_id) is None
     assert session.exec(select(Purchase).where(Purchase.list_id == list_id)).all() == []
     assert session.exec(select(ListStore).where(ListStore.list_id == list_id)).all() == []
+
+
+def test_delete_list_removes_its_report_runs(client: TestClient, session: Session, engine):
+    with engine.connect() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+    created = client.post("/lists", json={"name": "Con Informe"}).json()
+    run = ReportRun(list_id=created["id"], period="2026-10", timezone="UTC", status="sent")
+    session.add(run)
+    session.commit()
+    run_id = run.id
+
+    assert client.delete(f"/lists/{created['id']}").status_code == 204
+    assert session.get(ReportRun, run_id) is None
 
 
 def test_get_lists_includes_zero_counts_when_no_items(client: TestClient):

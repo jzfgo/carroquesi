@@ -36,6 +36,10 @@ class User(SQLModel, table=True):
     # processing, not history.
     receipt_consent: str | None = None
     receipt_consent_at: NaiveDatetime | None = None
+    # The IANA timezone the user's browser last declared (X-Client-Timezone).
+    # A scheduled job has no request to read a zone from, so the monthly
+    # report cuts the owner's month with this one. NULL until first seen.
+    timezone: str | None = None
 
 
 class List(SQLModel, table=True):
@@ -305,3 +309,29 @@ class PushToken(SQLModel, table=True):
     # Named last_registered_at, not last_seen_at, to avoid colliding with the
     # ListMember.last_seen_at read watermark — they mean different things.
     last_registered_at: NaiveDatetime = Field(default_factory=_now)
+
+
+class ReportRun(SQLModel, table=True):
+    """One monthly report for one list and one period: the send ledger.
+
+    The (list_id, period) key is what makes the trigger safe to repeat. A
+    run claims its row before it sends, so a retry or a second trigger finds
+    the row and stops. Status is "running", "sent" or "failed". Only
+    "failed" is tried again: a "running" row may have sent already before
+    the process died, and sending twice is the worse mistake. The trigger
+    reports such a row as stuck, for a person to check.
+    """
+
+    __tablename__ = "report_runs"
+    __table_args__ = (UniqueConstraint("list_id", "period"),)
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    list_id: str = Field(foreign_key="lists.id")
+    # "YYYY-MM", cut in the owner's timezone, which is kept beside it.
+    period: str
+    timezone: str
+    status: str
+    error: str | None = None
+    attempts: int = 1
+    started_at: NaiveDatetime = Field(default_factory=_now)
+    finished_at: NaiveDatetime | None = None

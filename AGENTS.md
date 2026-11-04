@@ -23,7 +23,7 @@ For the redesign's visuals, the **approved Claude Design handoff in [docs/design
 
 ## Core Data Model
 
-- `users`: user profile, Firebase identity (`firebase_uid`), and receipt-scanning consent (`receipt_consent`: NULL = never asked, else "granted"/"declined"; both receipt endpoints require "granted" on top of the `ai_receipt_scanning` flag, answering 403 `receipt_consent_required`)
+- `users`: user profile, Firebase identity (`firebase_uid`), and receipt-scanning consent (`receipt_consent`: NULL = never asked, else "granted"/"declined"; both receipt endpoints require "granted" on top of the `ai_receipt_scanning` flag, answering 403 `receipt_consent_required`), and the IANA `timezone` the browser last declared (`X-Client-Timezone`, stored on auth when it changes; scheduled jobs cut the owner's calendar with it)
 - `lists`: list metadata and ownership (`owner_id`)
 - `list_members`: list membership links; `is_default` flags the member's default list (the Siri `list_id="default"` target)
 - `list_items`: item data, purchase state (`purchased_at`), actual purchased quantity (`purchased_quantity`), pricing (`price`, `price_per`, `price_store`), and the trip it was bought on (`purchase_id`, nullable)
@@ -35,6 +35,7 @@ For the redesign's visuals, the **approved Claude Design handoff in [docs/design
 - `list_stores`: per-list store registry — `store_key` → canonical `display_name`, renameable by members. See [ADR-013](docs/decisions/013-store-registry.md)
 - `feedback_submissions`: in-app user feedback (message, email, source, user_agent)
 - `waitlist_signups`: early-access waitlist (email, allowed_at, invite_token)
+- `report_runs`: the monthly spend report's send ledger, unique on `(list_id, period)` so a repeated trigger never sends twice. Only `failed` is retried; a `running` row may already have sent, so it is reported as stuck instead. See [ADR-018](docs/decisions/018-scheduled-jobs-via-a-token-guarded-endpoint.md)
 - `user_features`: per-user feature flag overrides; `feature` must match a key in the flag registry in `backend/app/services/feature_flags.py`
 - `user_list_prefs`: per-user, per-list presentation preferences — currently the **board**, the paper backdrop a member sees behind a list. Personal, never shared: identity (name, emoji) belongs to the list, orientation belongs to the member, which is why this is its own table and not a `list_members` column. Assigned lazily on first single-list read, walking the palette in `backend/app/services/list_board.py` before repeating; writes never bump `lists.updated_at`
 - `push_tokens`: FCM device tokens per user. **Token presence is the on/off state** — disabling notifications deletes the row, there is no `enabled` column
@@ -159,6 +160,7 @@ All known flags and defaults live in the registry in `backend/app/services/featu
 
 - Firebase project config lives in `frontend/src/lib/firebase.ts` (Auth only — no Firestore, no Storage)
 - Receipt files (photos or PDFs, 10 MB cap) live in a private GCS bucket (`RECEIPT_STORAGE_BUCKET`; empty = storage disabled). Clients never touch the bucket directly: the backend checks membership in Postgres and mints short-lived V4 signed URLs (`app/services/receipt_storage.py`), and `frontend/storage.rules` stays fully locked. Uploading gates on the flag + consent like scanning; downloading gates on membership only. The trip header's miniature is a small JPEG the backend renders from the original on first view and stores beside it (`thumb-url`), never the original itself. Retention is list-lifetime — deleting a list purges its `receipts/{list_id}/` prefix best-effort. See [ADR-015](docs/decisions/015-gcs-receipt-storage-signed-urls.md)
+- **Scheduled jobs** go through `POST /internal/reports/monthly`, guarded by `X-Trigger-Token` (`REPORT_TRIGGER_TOKEN`; empty = endpoint off). Cloud Scheduler calls it on Cloud Run, cron on an always-on host; it is safe to fire daily or more often. There is no in-process scheduler. See [ADR-018](docs/decisions/018-scheduled-jobs-via-a-token-guarded-endpoint.md)
 - Cloud Run service URL stored as an env var in the frontend for API calls
 - **Staging**: `develop` auto-deploys to a parallel stack — Hosting site `cqs-stg` (cqs-stg.web.app), Cloud Run `carroquesi-backend-staging`, a Neon branch of the production DB (reset with `just staging-db-reset`, which also scrubs `push_tokens`), and its own receipts bucket. Same Firebase project: shared auth pool, FCM sender, App Check key. Access is gated by the waitlist (`WAITLIST_ENABLED=true`, nobody granted): existing users sign in normally, new sign-ups hit the wall. See [ADR-016](docs/decisions/016-staging-environment-and-develop-branch.md)
 - **The app is Postgres-host-agnostic** — the backend's entire contract with the database is `DATABASE_URL`, and no code path assumes a particular provider. Keep it that way: don't introduce host-specific assumptions without an ADR

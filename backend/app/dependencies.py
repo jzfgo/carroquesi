@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Annotated, Any, TypeAlias
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlmodel import Session, col, select
 
@@ -10,17 +10,47 @@ from app.core.firebase import verify_id_token
 from app.db.models import ApiKey, List, ListMember, User
 from app.db.session import get_session
 from app.services.api_keys import hash_key
+from app.services.client_day import parse_timezone
 from app.services.default_list import resolve_default
 
 bearer = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     session: Annotated[Session, Depends(get_session)],
     x_dev_user_id: Annotated[str | None, Header()] = None,
     x_dev_is_admin: Annotated[str | None, Header()] = None,
     x_api_key: Annotated[str | None, Header()] = None,
+) -> User:
+    user = _authenticate(session, credentials, x_dev_user_id, x_dev_is_admin, x_api_key)
+    # Read off the request, not declared as a Header parameter: declared, it
+    # would add itself to every authenticated operation in the API schema.
+    _remember_timezone(session, user, request.headers.get("x-client-timezone"))
+    return user
+
+
+def _remember_timezone(session: Session, user: User, header: str | None) -> None:
+    """Keep the zone the user's browser declares, for jobs that have no request.
+
+    Writes only when the zone changes, so a normal request costs no write.
+    A missing or unknown zone never overwrites a good one.
+    """
+    zone = parse_timezone(header)
+    if zone is None or user.timezone == zone.key:
+        return
+    user.timezone = zone.key
+    session.add(user)
+    session.commit()
+
+
+def _authenticate(
+    session: Session,
+    credentials: HTTPAuthorizationCredentials | None,
+    x_dev_user_id: str | None,
+    x_dev_is_admin: str | None,
+    x_api_key: str | None,
 ) -> User:
     if get_settings().dev_auth_bypass and x_dev_user_id:
         user = session.exec(select(User).where(User.firebase_uid == x_dev_user_id)).first()
