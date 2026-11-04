@@ -14,6 +14,7 @@ from sqlmodel import Session, col, func, select
 
 from app.db.models import ListItem, ListStore, Purchase, User
 from app.services.fold import fold_name
+from app.services.public_name import public_name
 from app.services.quantity import effective_quantity, line_amount, unit_price
 from app.services.store_key import store_key
 
@@ -181,4 +182,4 @@ def _user_names(session: Session, ids: Iterable[str]) -> dict[str, str]:
     if not ids:
         return {}
     users = session.exec(select(User).where(col(User.id).in_(ids))).all()
-    return {u.id: u.display_name or u.email for u in users}
+    return {u.id: public_name(u.display_name, u.email) for u in users}

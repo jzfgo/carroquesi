@@ -20,6 +20,7 @@ from app.schemas.lists import BoardPrefUpdate, ListCreate, ListMemberBrief, List
 from app.services import receipt_storage
 from app.services.default_list import ensure_default, set_default
 from app.services.list_board import ensure_board, get_board, set_board
+from app.services.public_name import public_name
 from app.services.trips import in_cart_predicate, in_scope_predicate
 
 logger = logging.getLogger(__name__)
@@ -113,7 +114,7 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
         members_by_list.setdefault(list_id, []).append(
             ListMemberBrief(
                 user_id=user_id,
-                display_name=display_name or email.split("@")[0],
+                display_name=public_name(display_name, email),
             )
         )
 
