@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlmodel import select
@@ -13,6 +13,7 @@ from app.db.models import (
     ReceiptScan,
 )
 from app.db.models import UserFeature as _UserFeature
+from app.routers import receipt as receipt_router
 from app.routers.receipt import _parse_receipt_at
 from app.schemas.receipt import ReceiptPriceBatch
 
@@ -33,6 +34,16 @@ def enable_receipt_flag(session, user):
     user.receipt_consent_at = datetime.now(UTC).replace(tzinfo=None)
     session.add_all([row, user])
     session.commit()
+
+
+# The fixtures below date their receipts in April 2026. The date check judges a
+# receipt against today, so it is pinned here, a few days after them.
+PINNED_TODAY = date(2026, 4, 15)
+
+
+@pytest.fixture(autouse=True)
+def pin_receipt_today(monkeypatch):
+    monkeypatch.setattr(receipt_router, "_today", lambda tz: PINNED_TODAY)
 
 
 @pytest.fixture(autouse=True)
@@ -2003,3 +2014,106 @@ def test_targeted_zero_line_scan_writes_down_a_torn_off_trip(client, session, us
     assert trip.closed_at == trip.tears_off_at
     assert trip.store == "Ahorramas"
     assert session.get_one(ReceiptScan, response.json()["scan_id"]).purchase_id == PAST_DAY_ID
+
+
+# --- Receipt date plausibility (JAV-218) ---
+
+
+def test_scan_repairs_a_misread_year(client, session):
+    """«26» read as «20»: the same day this year is plausible, so it is used."""
+    body = _unit_body()
+    body["receipt_date"] = "2020-04-11T17:42:00Z"
+    result = client.post(f"/lists/{LIST_ID}/receipt", json=body).json()
+
+    assert result["receipt_date"] == "2026-04-11T17:42:00+00:00"
+    scan = session.get_one(ReceiptScan, result["scan_id"])
+    assert scan.receipt_at == datetime(2026, 4, 11, 17, 42)
+
+
+def test_scan_repair_keeps_a_bare_date_bare(client):
+    body = _unit_body()
+    body["receipt_date"] = "2062-04-11"
+    result = client.post(f"/lists/{LIST_ID}/receipt", json=body).json()
+
+    assert result["receipt_date"] == "2026-04-11"
+
+
+def test_scan_echoes_a_plausible_date_as_sent(client):
+    body = _unit_body()
+    body["receipt_date"] = "2026-04-11T17:42:00.000Z"
+    result = client.post(f"/lists/{LIST_ID}/receipt", json=body).json()
+
+    assert result["receipt_date"] == "2026-04-11T17:42:00.000Z"
+
+
+def test_scan_drops_a_date_it_cannot_repair(client, session):
+    """No plausible year for 30 Dec on 15 Apr: the review asks for the date."""
+    body = _unit_body()
+    body["receipt_date"] = "2020-12-30T10:00:00Z"
+    result = client.post(f"/lists/{LIST_ID}/receipt", json=body).json()
+
+    assert result["receipt_date"] is None
+    assert session.get_one(ReceiptScan, result["scan_id"]).receipt_at is None
+
+
+def test_scan_repairs_the_day_in_the_clients_zone(client):
+    """23:30 UTC on 31 Mar 2020 is 1 Apr in Madrid; the repair keeps that day
+    and its local time."""
+    body = _unit_body()
+    body["receipt_date"] = "2020-03-31T22:30:00Z"
+    result = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json=body,
+        headers={"X-Client-Timezone": "Europe/Madrid"},
+    ).json()
+
+    # 1 Apr 00:30 Madrid in 2026 is CEST (UTC+2).
+    assert result["receipt_date"] == "2026-03-31T22:30:00+00:00"
+
+
+def test_misread_year_still_aims_at_that_days_purchase(client, session, user):
+    _past_day_trip(session, user)
+
+    body = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json=_past_scan_body(receipt_date="2020-04-01T16:59:00Z"),
+    ).json()
+
+    assert body["target_purchase"]["id"] == PAST_DAY_ID
+
+
+def test_dropped_date_aims_at_nothing(client, session, user):
+    _past_day_trip(session, user)
+
+    body = client.post(
+        f"/lists/{LIST_ID}/receipt",
+        json=_past_scan_body(receipt_date="2019-01-01T10:00:00Z"),
+    ).json()
+
+    assert body["target_purchase"] is None
+
+
+def test_apply_refuses_a_future_receipt_date(client, session):
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "receipt_date": "2026-04-16T10:00:00Z",
+            "patches": [_price_patch("item-almendras", 1.15)],
+        },
+    )
+
+    assert response.status_code == 422
+    session.expire_all()
+    assert session.get_one(ListItem, "item-almendras").purchased_at is None
+
+
+def test_apply_accepts_an_old_date_the_review_confirmed(client):
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={
+            "receipt_date": "2025-06-01T10:00:00Z",
+            "patches": [_price_patch("item-almendras", 1.15)],
+        },
+    )
+
+    assert response.status_code == 200

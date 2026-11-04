@@ -568,12 +568,16 @@ export function ListScreen({
           // rescue, so the catch is local (the outer one would toast a
           // processing error and never mount the 18c sheet).
           let scanId: string | null = null
+          // The server's checked date, never the raw read: a misread year
+          // comes back repaired, or null when it cannot be trusted.
+          let checkedDate: string | null = null
           try {
             const result = await submitParsedReceipt(getToken, listId, {
               ...parsed,
               purchase_id: receiptScanTarget?.purchaseId ?? null,
             })
             scanId = result.scan_id
+            checkedDate = result.receipt_date ?? null
             void uploadReceiptFile(
               getToken,
               listId,
@@ -604,7 +608,7 @@ export function ListScreen({
           }
           setIllegibleRescue({
             store: parsed.store ?? null,
-            date: parsed.receipt_date ?? null,
+            date: checkedDate,
             total: parsed.receipt_total ?? null,
             scanId,
           })
