@@ -4,6 +4,8 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlmodel import Session, select
 
 from app.core.config import get_settings
@@ -158,6 +160,54 @@ def test_a_running_row_is_never_sent_again_and_is_reported_once_stale(session, u
     assert sent == []
     assert fresh.already_done == [lst.id] and fresh.stuck == []
     assert stale.stuck == [_run(session, lst).id]
+
+
+def test_losing_the_insert_race_claims_nothing(session, user, sent, monkeypatch):
+    """Another trigger inserts the row between our read and our write."""
+    user.timezone = "Europe/Madrid"
+    lst = _list(session, user)
+
+    def find_then_lose_the_race(session, list_id, period):
+        session.add(ReportRun(list_id=list_id, period=period, timezone="UTC", status="running"))
+        session.commit()
+        return None
+
+    monkeypatch.setattr(monthly_report, "_find", find_then_lose_the_race)
+    summary = run_monthly_reports(session, NOV_1_MADRID)
+
+    assert sent == []
+    assert summary.already_done == [lst.id]
+    assert _run(session, lst).status == "running"
+
+
+def test_losing_the_retry_race_claims_nothing(session, user, sent, monkeypatch):
+    """Another trigger takes the failed row back between our read and our update."""
+    user.timezone = "Europe/Madrid"
+    lst = _list(session, user)
+    session.add(ReportRun(list_id=lst.id, period="2026-10", timezone="UTC", status="failed"))
+    session.commit()
+    real_find = monthly_report._find
+
+    def find_then_lose_the_race(session, list_id, period):
+        found = real_find(session, list_id, period)
+        assert found is not None
+        session.execute(
+            text("UPDATE report_runs SET status = 'running' WHERE id = :id"), {"id": found.id}
+        )
+        session.commit()
+        # Our read still holds the old "failed". Set it without marking the
+        # row dirty, or autoflush would write it back before the update.
+        set_committed_value(found, "status", "failed")
+        return found
+
+    monkeypatch.setattr(monthly_report, "_find", find_then_lose_the_race)
+    summary = run_monthly_reports(session, NOV_1_MADRID)
+
+    assert sent == []
+    assert summary.already_done == [lst.id]
+    run = _run(session, lst)
+    session.refresh(run)
+    assert (run.status, run.attempts) == ("running", 1)
 
 
 def test_without_a_mailer_nothing_is_claimed(session, user):

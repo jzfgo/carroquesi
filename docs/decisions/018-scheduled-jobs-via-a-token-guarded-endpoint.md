@@ -67,6 +67,9 @@ default), until the email and its opt-out ship.
 
 - Deployments that want reports set `REPORT_TRIGGER_TOKEN` and create a
   scheduler job that POSTs to the endpoint with that header.
+- Only last month is ever sent. If the trigger is down for more than a
+  whole month, the month it missed is never sent. A daily trigger makes that
+  unlikely, and catching up would only send old news.
 - A report for a month that has passed is never recomputed or resent. Late
   receipts still change what the app shows for that month (the engine reads
   live), just not the email already sent.

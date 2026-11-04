@@ -22,12 +22,16 @@ from app.db.session import get_session
 # A minimal endpoint that returns the resolved user's email, used to confirm
 # which user get_current_user returned.
 def _make_bypass_app(session: Session) -> FastAPI:
-    from app.dependencies import CurrentUser
+    from app.dependencies import AdminUser, CurrentUser
 
     bypass_app = FastAPI()
 
     @bypass_app.get("/whoami")
     def whoami(current_user: CurrentUser):
+        return {"email": current_user.email}
+
+    @bypass_app.get("/admin-only")
+    def admin_only(current_user: AdminUser):
         return {"email": current_user.email}
 
     def _get_session():
@@ -110,6 +114,20 @@ def _whoami(session: Session, monkeypatch, tz: str | None) -> None:
 
 def test_auth_records_the_declared_timezone(bypass_session, seed_user, monkeypatch):
     _whoami(bypass_session, monkeypatch, "Europe/Madrid")
+    bypass_session.refresh(seed_user)
+    assert seed_user.timezone == "Europe/Madrid"
+
+
+def test_admin_flag_survives_the_timezone_write(bypass_session, seed_user, monkeypatch):
+    # is_admin is not a column, so the commit that stores the zone must not drop it.
+    monkeypatch.setattr(get_settings(), "dev_auth_bypass", True)
+    headers = {
+        "X-Dev-User-Id": "seed-alice",
+        "X-Dev-Is-Admin": "true",
+        "X-Client-Timezone": "Europe/Madrid",
+    }
+    with TestClient(_make_bypass_app(bypass_session)) as client:
+        assert client.get("/admin-only", headers=headers).status_code == 200
     bypass_session.refresh(seed_user)
     assert seed_user.timezone == "Europe/Madrid"
 
