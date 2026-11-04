@@ -243,6 +243,16 @@
     "expected": null
   },
   {
+    "input": "230035050320600155005009",
+    "note": "Valid check digit, but total disagrees with weight × €/kg (3,206 kg × 1,55 = 4,97, not 5,00)",
+    "expected": null
+  },
+  {
+    "input": "23003505032060015500497",
+    "note": "Wrong length (23 digits)",
+    "expected": null
+  },
+  {
     "input": "5449000000996",
     "note": "Ordinary EAN-13 (not in-store), not a weighed label",
     "expected": null
