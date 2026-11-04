@@ -186,22 +186,16 @@ def list_purchases(
         # absent, so its items_total serializes as None.
         acc: dict[str, float] = {}
         priced_lines = session.exec(
-            select(
-                ListItem.purchase_id,
-                ListItem.price,
-                ListItem.price_per,
-                ListItem.quantity,
-                ListItem.purchased_quantity,
-            ).where(
+            select(ListItem).where(
                 col(ListItem.purchase_id).in_(page_ids),
                 col(ListItem.price).isnot(None),
             )
         ).all()
-        for purchase_id, price, price_per, quantity, purchased_quantity in priced_lines:
-            amount = line_amount(price, quantity, purchased_quantity, price_per)
-            if amount is None:
+        for line in priced_lines:
+            amount = line_amount(line.price, line.quantity, line.purchased_quantity, line.price_per)
+            if amount is None or line.purchase_id is None:
                 continue
-            acc[purchase_id] = acc.get(purchase_id, 0.0) + amount
+            acc[line.purchase_id] = acc.get(line.purchase_id, 0.0) + amount
         items_totals = {pid: round(amount, 2) for pid, amount in acc.items()}
 
     # The batched lines, grouped per trip in cart order — the same rows and
