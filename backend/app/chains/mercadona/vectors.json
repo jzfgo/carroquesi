@@ -1,7 +1,6 @@
 [
   {
     "input": "230035050320600155004972",
-    "store": "Mercadona",
     "label": "Sandía partida B/S",
     "expected": {
       "format": "mercadona-24",
@@ -14,7 +13,6 @@
   },
   {
     "input": "230035050186400125002339",
-    "store": "Mercadona",
     "label": "Sandía partida B/S",
     "expected": {
       "format": "mercadona-24",
@@ -27,7 +25,6 @@
   },
   {
     "input": "230035050272800120003274",
-    "store": "Mercadona",
     "label": "Sandía partida B/S",
     "expected": {
       "format": "mercadona-24",
@@ -40,7 +37,6 @@
   },
   {
     "input": "230035150165000180002974",
-    "store": "Mercadona",
     "label": "Melón sapo partido",
     "expected": {
       "format": "mercadona-24",
@@ -53,7 +49,6 @@
   },
   {
     "input": "231034600031202313007227",
-    "store": "Mercadona",
     "label": "Entrecot grueso",
     "expected": {
       "format": "mercadona-24",
@@ -66,7 +61,6 @@
   },
   {
     "input": "231027120052201440007526",
-    "store": "Mercadona",
     "label": "F. plancha/guisar",
     "expected": {
       "format": "mercadona-24",
@@ -79,7 +73,6 @@
   },
   {
     "input": "231027830087000376003275",
-    "store": "Mercadona",
     "label": "Cuarto certificado",
     "expected": {
       "format": "mercadona-24",
@@ -92,7 +85,6 @@
   },
   {
     "input": "231029000051401456007488",
-    "store": "Mercadona",
     "label": "Filete plancha",
     "expected": {
       "format": "mercadona-24",
@@ -105,7 +97,6 @@
   },
   {
     "input": "231027890065900553003642",
-    "store": "Mercadona",
     "label": "Contramuslo deshuesado",
     "expected": {
       "format": "mercadona-24",
@@ -118,7 +109,6 @@
   },
   {
     "input": "231027910063600900005721",
-    "store": "Mercadona",
     "label": "Filete pechuga cert",
     "expected": {
       "format": "mercadona-24",
@@ -131,7 +121,6 @@
   },
   {
     "input": "231027910069600900006265",
-    "store": "Mercadona",
     "label": "Filete pechuga cert",
     "expected": {
       "format": "mercadona-24",
@@ -144,7 +133,6 @@
   },
   {
     "input": "231027910066600900005995",
-    "store": "Mercadona",
     "label": "Filete pechuga cert",
     "expected": {
       "format": "mercadona-24",
@@ -157,7 +145,6 @@
   },
   {
     "input": "231252580034600882003057",
-    "store": "Mercadona",
     "label": "Contra des certifica",
     "expected": {
       "format": "mercadona-24",
@@ -170,7 +157,6 @@
   },
   {
     "input": "231218370035602475008816",
-    "store": "Mercadona",
     "label": "Ch palo riñonada M",
     "expected": {
       "format": "mercadona-24",
@@ -183,7 +169,6 @@
   },
   {
     "input": "231218370029602475007337",
-    "store": "Mercadona",
     "label": "Ch palo riñonada M",
     "expected": {
       "format": "mercadona-24",
@@ -196,7 +181,6 @@
   },
   {
     "input": "231218370030402475007520",
-    "store": "Mercadona",
     "label": "Ch palo riñonada M",
     "expected": {
       "format": "mercadona-24",
@@ -209,7 +193,6 @@
   },
   {
     "input": "2302712009400",
-    "store": "Mercadona",
     "label": "Filete plancha",
     "expected": {
       "format": "ean13-price",
@@ -219,22 +202,11 @@
   },
   {
     "input": "2325258002810",
-    "store": "Mercadona",
     "label": "Contramuslo deshuesado certificado",
     "expected": {
       "format": "ean13-price",
       "article": "25258",
       "total_cents": 281
-    }
-  },
-  {
-    "input": "2125178003856",
-    "store": "Ahorramas",
-    "label": "Sandía",
-    "expected": {
-      "format": "ean13-price",
-      "article": "25178",
-      "total_cents": 385
     }
   },
   {

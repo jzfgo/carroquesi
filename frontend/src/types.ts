@@ -24,6 +24,7 @@ export type ListStoreEntry = S['StoreRead']
 export type Suggestion = S['SuggestionRead']
 export type DueSuggestion = S['DueSuggestionRead']
 export type BarcodeRead = Required<S['BarcodeRead']>
+export type ChainRead = S['ChainRead']
 export type PriceEntry = Required<S['PriceEntry']>
 export type PriceHistoryResponse = Required<
   Omit<S['PriceHistoryResponse'], 'entries'>

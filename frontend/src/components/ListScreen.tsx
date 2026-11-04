@@ -30,7 +30,7 @@ import { FLAGS } from '../lib/featureFlags'
 import { isTripOpen } from '../lib/isTripOpen'
 import { computeCostSummary, tripDateInput } from '../lib/itemCost'
 import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
-import { withOwnBrandStore } from '../lib/ownBrands'
+import { loadChains, withOwnBrandStore } from '../lib/ownBrands'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
 import { parseReceiptWithAi } from '../lib/receiptAi'
@@ -143,6 +143,11 @@ export function ListScreen({
   // Resets the push unseen watermark and clears this list's tray notifications
   // whenever the list is actually on screen.
   useListSeen(listId, getToken)
+  // Own-brand lookups read the served chain table once it lands; until then
+  // they read the bundled snapshot.
+  useEffect(() => {
+    void loadChains(getToken)
+  }, [getToken])
   const isOffline = !useOnline()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])

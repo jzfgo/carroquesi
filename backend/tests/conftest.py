@@ -64,6 +64,7 @@ def _make_client(session: Session, user: User) -> TestClient:
         admin,
         auth,
         barcode,
+        chains,
         feedback,
         invites,
         items,
@@ -98,6 +99,7 @@ def _make_client(session: Session, user: User) -> TestClient:
     test_app.include_router(invites.list_invites_router)
     test_app.include_router(suggestions.router)
     test_app.include_router(barcode.router)
+    test_app.include_router(chains.router)
     test_app.include_router(prices.router)
     test_app.include_router(purchases.router)
     test_app.include_router(receipt.router)

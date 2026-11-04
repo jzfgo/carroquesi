@@ -1,5 +1,6 @@
 import type {
   BarcodeRead,
+  ChainRead,
   DueSuggestion,
   ElsewhereMatch,
   ListItem,
@@ -303,6 +304,12 @@ export async function getBarcode(
   ean: string,
 ): Promise<BarcodeRead> {
   return apiFetch(getToken, `/barcode/${ean}`) as Promise<BarcodeRead>
+}
+
+export function getChains(
+  getToken: () => Promise<string>,
+): Promise<ChainRead[]> {
+  return apiFetch(getToken, '/chains') as Promise<ChainRead[]>
 }
 
 export function removeMember(

@@ -65,6 +65,10 @@ migration-rollback:
 openapi:
     uv run python scripts/export_openapi.py
 
+# Refresh the frontend's cold-start copy of the chain table (GET /chains)
+chains-snapshot:
+    uv run python scripts/export_chains.py
+
 # Seed the local database with test data
 seed:
     uv run python scripts/seed.py

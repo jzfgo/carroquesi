@@ -108,6 +108,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/chains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chains */
+        get: operations["get_chains_chains_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chains/labels/{digits}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Label
+         * @description Decode an in-store label's barcode. `store` is the one store the scan
+         *     is tied to, if any; with it, only that chain's decoders run.
+         */
+        get: operations["get_label_chains_labels__digits__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/feedback": {
         parameters: {
             query?: never;
@@ -994,6 +1032,15 @@ export interface components {
              */
             board: "kraft" | "lino" | "salvia" | "niebla" | "barro" | "pizarra";
         };
+        /** ChainRead */
+        ChainRead: {
+            /** Name */
+            name: string;
+            /** Own Brands */
+            own_brands: string[];
+            /** Store Keys */
+            store_keys: string[];
+        };
         /** DueSuggestionRead */
         DueSuggestionRead: {
             /** Avg Quantity */
@@ -1183,6 +1230,23 @@ export interface components {
             quantity?: string | null;
             /** Stores */
             stores?: string[] | null;
+        };
+        /** LabelRead */
+        LabelRead: {
+            /** Article */
+            article: string;
+            /** Chain */
+            chain: string;
+            /** Format */
+            format: string;
+            /** Price Per Kg Cents */
+            price_per_kg_cents?: number | null;
+            /** Reduced */
+            reduced?: boolean | null;
+            /** Total Cents */
+            total_cents: number;
+            /** Weight G */
+            weight_g?: number | null;
         };
         /** ListCreate */
         ListCreate: {
@@ -1998,6 +2062,83 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BarcodeRead"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chains_chains_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChainRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_label_chains_labels__digits__get: {
+        parameters: {
+            query?: {
+                store?: string | null;
+            };
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                digits: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabelRead"];
+                };
+            };
+            /** @description label_not_decoded */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

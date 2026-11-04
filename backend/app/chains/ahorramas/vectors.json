@@ -1,0 +1,21 @@
+[
+  {
+    "input": "2125178003856",
+    "label": "Sandía",
+    "expected": {
+      "format": "ean13-price",
+      "article": "25178",
+      "total_cents": 385
+    }
+  },
+  {
+    "input": "2125178003857",
+    "note": "Bad check digit",
+    "expected": null
+  },
+  {
+    "input": "2302712009400",
+    "note": "Mercadona's EAN-13 price prefix (23), not Ahorramas' (21)",
+    "expected": null
+  }
+]
