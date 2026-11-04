@@ -118,18 +118,6 @@ export function computeCostSummary(items: ListItem[]): CostSummary | null {
 }
 
 /**
- * Canonical date label for a purchased item.
- * Used by both ListScreen (cost grouping) and ItemList (rendering) so the
- * keys always match.
- */
-export function purchasedDateLabel(purchased_at: string | null): string {
-  if (!purchased_at) return 'Fecha desconocida'
-  return parseServerInstant(purchased_at).toLocaleDateString('es', {
-    dateStyle: 'medium',
-  })
-}
-
-/**
  * The date a trip prints in the stack (18a / 29a). A trip whose day is the
  * viewer's today reads «hoy» — the nearest voice there is. A closed trip
  * otherwise settles to «22 jul» (day + short month). A proto-ticket — torn off,
