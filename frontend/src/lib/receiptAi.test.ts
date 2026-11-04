@@ -54,23 +54,12 @@ describe('toReceiptInstant', () => {
   })
 
   it('still accepts a real leap day', () => {
-    expect(
-      toReceiptInstant('2028-02-29', null, new Date(2028, 2, 1)),
-    ).not.toBeNull()
+    expect(toReceiptInstant('2028-02-29', null)).not.toBeNull()
   })
 
-  it('accepts a receipt dated today, whatever the time', () => {
-    const now = new Date(2026, 9, 9, 8, 0)
-    expect(toReceiptInstant('2026-10-09', '23:59', now)).not.toBeNull()
-  })
-
-  it('rejects a date after today as a misread', () => {
-    const now = new Date(2026, 9, 9, 23, 59)
-    expect(toReceiptInstant('2026-10-10', null, now)).toBeNull()
-  })
-
-  it('accepts a past date', () => {
-    const now = new Date(2026, 9, 11)
-    expect(toReceiptInstant('2026-10-01', '16:59', now)).not.toBeNull()
+  it('passes a future date through for the server to judge', () => {
+    // A misread year like 2062 is repaired server-side; dropping it here
+    // would throw away the day and month the repair keeps.
+    expect(toReceiptInstant('2062-10-30', null)).not.toBeNull()
   })
 })

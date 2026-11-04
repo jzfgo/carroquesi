@@ -192,7 +192,6 @@ async function fileToInlinePart(file: File): Promise<InlineDataPart> {
 export function toReceiptInstant(
   date: string | null,
   time: string | null,
-  now: Date = new Date(),
 ): string | null {
   if (!date) return null
   const [y, m, d] = date.split('-').map(Number)
@@ -225,12 +224,9 @@ export function toReceiptInstant(
   ) {
     return null
   }
-  // A receipt is printed at the moment of purchase, so a date after today is
-  // a misread. The check lives here and not in the prompt: the model does not
-  // know today's date, and asking it to judge "future" made it drop real
-  // dates it thought were ahead of its own clock.
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  if (new Date(y, m - 1, d) > today) return null
+  // Whether the date is plausible is the server's call, not this one's: it
+  // repairs a misread year when it safely can, and only it sees every scan.
+  // The prompt does not judge either: the model does not know today's date.
   return dt.toISOString()
 }
 

@@ -1,25 +1,9 @@
 /**
- * Sanity-checking the date the AI read off a receipt.
+ * Calendar-day helpers for the date read off a receipt.
  *
- * The backend matches purchases against a +-3 day window centred on the
- * receipt date. A misread digit therefore puts the window away from the real
- * purchases: the candidate set comes back empty and a receipt that scanned
- * perfectly matches none of its items. The same value is then stamped onto
- * `purchased_at`, so a wrong date is persisted with the prices.
- *
- * We do not try to decide whether the date is wrong -- an old receipt is a
- * legitimate thing to scan, and guessing would break that flow. We only decide
- * whether it is worth *asking* about, which is a much cheaper judgement: a
- * false prompt costs the user one glance.
- *
- * That is why the threshold is the match window itself rather than something
- * looser. A misread can land in any component of the date, not just the year,
- * and "2026-07-14" for "2026-07-11" is as fatal to matching as "2020-07-11" --
- * it empties the same window. Any date the window would not already cover is
- * worth a question. Receipts dated in the future are handled upstream, in the
- * scanning prompt (lib/receiptAi.ts): a receipt is printed at the moment of
- * purchase, so a future date means a misread and the model returns null. The
- * check here is symmetric anyway, so one slipping through is still caught.
+ * The date is checked server-side when the scan is matched: a misread year is
+ * repaired, and a date that cannot be trusted comes back null, so the review
+ * asks for it. Nothing here judges the date; it only renders and edits it.
  *
  * ## Everything here works in the *viewer's* calendar, not UTC
  *
@@ -39,12 +23,6 @@
  * already a zone-less calendar day, and parsing it would pin it to UTC
  * midnight and shift it a day backwards for every viewer west of Greenwich.
  */
-
-/**
- * Mirrors RECEIPT_MATCH_WINDOW_DAYS in backend/app/routers/receipt.py. Widening
- * one without the other reintroduces the gap this prompt exists to close.
- */
-export const RECEIPT_DATE_TOLERANCE_DAYS = 3
 
 /** A zone-less calendar day, as the AI is asked to emit it. */
 const BARE_DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -74,35 +52,6 @@ function calendarDay(raw: string | null): string | null {
   if (BARE_DATE.test(raw)) return raw
   const parsed = parse(raw)
   return parsed ? localDayIso(parsed) : null
-}
-
-/**
- * Whole days since the epoch for a `YYYY-MM-DD`.
- *
- * Fed through `Date.UTC` purely as a stable numbering of calendar days -- the
- * inputs are already zone-less by this point, so no offset is involved.
- */
-function dayIndex(isoDay: string): number {
-  const [y, m, d] = isoDay.split('-').map(Number)
-  return Math.floor(Date.UTC(y, m - 1, d) / 86_400_000)
-}
-
-/**
- * Whether the date is far enough from today to be worth querying.
- *
- * A missing or unparseable date is not: there is nothing to correct, and the
- * backend already treats it as "match against everything".
- */
-export function isReceiptDateWorthConfirming(
-  raw: string | null,
-  now: Date = new Date(),
-): boolean {
-  const day = calendarDay(raw)
-  if (!day) return false
-  return (
-    Math.abs(dayIndex(day) - dayIndex(localDayIso(now))) >
-    RECEIPT_DATE_TOLERANCE_DAYS
-  )
 }
 
 /** `YYYY-MM-DD` for an `<input type="date">`, or '' when there is no date. */

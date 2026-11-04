@@ -1476,6 +1476,34 @@ describe('targeted receipt attach (25b)', () => {
     )
   })
 
+  it('the rescue offers the date the server checked, not the raw read', async () => {
+    // The label prints no year, so a misread «2020» would pass unseen.
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
+      ...illegibleParse,
+      receipt_date: '2020-07-20',
+    })
+    vi.mocked(api.submitParsedReceipt).mockResolvedValue({
+      scan_id: 'scan-t1',
+      store: 'Mercadona',
+      receipt_date: '2026-07-20',
+      receipt_total: null,
+      matched: [],
+      unmatched: [],
+      target_purchase: null,
+    })
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    pickFile(container)
+    const sheet = await screen.findByRole('dialog', {
+      name: 'No se lee el ticket',
+    })
+    fireEvent.click(within(sheet).getByRole('button', { name: /jul/ }))
+    expect(
+      container.ownerDocument.querySelector('input[type="date"]'),
+    ).toHaveValue('2026-07-20')
+  })
+
   it('a failed capture store still opens the rescue, promising no photo', async () => {
     vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue(illegibleParse)
     vi.mocked(api.submitParsedReceipt).mockRejectedValue(new Error('down'))
