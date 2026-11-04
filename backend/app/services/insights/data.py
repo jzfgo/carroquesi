@@ -36,6 +36,9 @@ def shift_month(month: str, delta: int) -> str:
 
 def local_month(instant: datetime, tz: tzinfo) -> str:
     """The "YYYY-MM" an instant falls in, seen from `tz`."""
+    # A naive value would be read in the server's own zone, silently.
+    if instant.tzinfo is None:
+        raise ValueError("local_month needs an aware instant")
     return instant.astimezone(tz).strftime("%Y-%m")
 
 

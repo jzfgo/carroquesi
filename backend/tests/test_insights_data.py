@@ -5,7 +5,13 @@ import pytest
 from sqlmodel import Session
 
 from app.db.models import List, ListItem, ListStore, Purchase, User
-from app.services.insights.data import count_tripless, load_window, month_bounds, shift_month
+from app.services.insights.data import (
+    count_tripless,
+    load_window,
+    local_month,
+    month_bounds,
+    shift_month,
+)
 from app.services.store_key import store_key
 
 MADRID = ZoneInfo("Europe/Madrid")
@@ -57,6 +63,18 @@ def test_shift_month_crosses_years():
     assert shift_month("2026-01", -1) == "2025-12"
     assert shift_month("2026-10", -4) == "2026-06"
     assert shift_month("2026-12", 1) == "2027-01"
+
+
+def test_local_month_reads_an_aware_instant_in_the_given_zone():
+    # 23:30Z on 31 July is already 1 August in Madrid.
+    instant = datetime(2026, 7, 31, 23, 30, tzinfo=UTC)
+    assert local_month(instant, ZoneInfo("Europe/Madrid")) == "2026-08"
+    assert local_month(instant, UTC) == "2026-07"
+
+
+def test_local_month_refuses_a_naive_instant():
+    with pytest.raises(ValueError):
+        local_month(datetime(2026, 7, 31, 23, 30), UTC)
 
 
 def test_a_late_night_trip_belongs_to_its_local_month(session: Session, user: User):
