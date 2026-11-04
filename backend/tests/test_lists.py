@@ -112,6 +112,7 @@ def test_delete_list_with_trips_and_stores(client: TestClient, session: Session,
         ReceiptScan(list_id=list_id, scanned_by=user.id, items_updated=0, purchase_id=trip_id)
     )
     session.commit()
+    assert session.exec(select(ListStore).where(ListStore.list_id == list_id)).first() is not None
 
     assert client.delete(f"/lists/{list_id}").status_code == 204
     assert session.get(List, list_id) is None
