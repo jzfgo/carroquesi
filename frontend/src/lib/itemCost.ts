@@ -145,8 +145,7 @@ export function purchasedDateLabel(purchased_at: string | null): string {
  * Always reads `opened_at`, the day the shopping started: it is the trip's
  * real day for every write path (a same-day close, a torn-off cart, or a
  * back-dated manual purchase whose `closed_at`/`tears_off_at` sit on the
- * following local midnight). Naive-UTC strings get their Z restored first, the
- * same guard `purchasedDateLabel`/`isTripOpen` use.
+ * following local midnight).
  *
  * The weekday form is built from two parts rather than one Intl call because
  * `{ weekday:'long', day:'numeric' }` yields «martes, 21» in es — the comma is
