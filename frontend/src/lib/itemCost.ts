@@ -1,4 +1,5 @@
 import type { ListItem } from '../types'
+import { parseServerInstant } from './serverInstant'
 
 // SI units → kg equivalent (volume treated as water: 1 L = 1 kg)
 const UNIT_TO_KG: Record<string, number> = {
@@ -117,18 +118,6 @@ export function computeCostSummary(items: ListItem[]): CostSummary | null {
 }
 
 /**
- * Canonical date label for a purchased item.
- * Used by both ListScreen (cost grouping) and ItemList (rendering) so the
- * keys always match.
- */
-export function purchasedDateLabel(purchased_at: string | null): string {
-  if (!purchased_at) return 'Fecha desconocida'
-  return new Date(purchased_at + 'Z').toLocaleDateString('es', {
-    dateStyle: 'medium',
-  })
-}
-
-/**
  * The date a trip prints in the stack (18a / 29a). A trip whose day is the
  * viewer's today reads «hoy» — the nearest voice there is. A closed trip
  * otherwise settles to «22 jul» (day + short month). A proto-ticket — torn off,
@@ -144,15 +133,14 @@ export function purchasedDateLabel(purchased_at: string | null): string {
  * Always reads `opened_at`, the day the shopping started: it is the trip's
  * real day for every write path (a same-day close, a torn-off cart, or a
  * back-dated manual purchase whose `closed_at`/`tears_off_at` sit on the
- * following local midnight). Naive-UTC strings get their Z restored first, the
- * same guard `purchasedDateLabel`/`isTripOpen` use.
+ * following local midnight).
  *
  * The weekday form is built from two parts rather than one Intl call because
  * `{ weekday:'long', day:'numeric' }` yields «martes, 21» in es — the comma is
  * not in the frame.
  */
 export function tripDateLabel(openedAt: string, proto: boolean): string {
-  const d = new Date(openedAt.endsWith('Z') ? openedAt : openedAt + 'Z')
+  const d = parseServerInstant(openedAt)
   const now = new Date()
   const sameYearMonth =
     d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
@@ -175,7 +163,7 @@ export function tripDateLabel(openedAt: string, proto: boolean): string {
  * under the day it covered instead of jumping to today.
  */
 export function tripDateInput(openedAt: string): string {
-  const d = new Date(openedAt.endsWith('Z') ? openedAt : openedAt + 'Z')
+  const d = parseServerInstant(openedAt)
   const p = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }

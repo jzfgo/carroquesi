@@ -146,6 +146,34 @@ describe('useListItems — togglePurchased', () => {
     )
   })
 
+  it('reads the write grace from timestamps that carry a zone suffix', async () => {
+    // The same backdated record as below, serialized with a 'Z'. Adding a
+    // second 'Z' would make the grace NaN and refuse the un-purchase.
+    const awareUtc = (msAgo: number) =>
+      new Date(Date.now() - msAgo).toISOString()
+    const backdated: ListItem = {
+      ...item1,
+      purchased: true,
+      purchased_at: awareUtc(TWO_DAYS),
+      purchase_ends_at: awareUtc(TWO_DAYS - 60 * 60 * 1000),
+      updated_at: awareUtc(60 * 1000),
+    }
+    vi.mocked(api.getListItems).mockResolvedValue([backdated] as never)
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.togglePurchased('item-1')
+    })
+
+    expect(mockShowToast).not.toHaveBeenCalled()
+    expect(api.updateItem).toHaveBeenCalled()
+    expect(result.current.items[0].purchased).toBe(false)
+  })
+
   it('allows unpurchasing a backdated purchase while the write grace holds', async () => {
     // A receipt scanned days after shopping: purchased_at is backdated onto
     // a trip that has ended, but the record was written a minute ago.
