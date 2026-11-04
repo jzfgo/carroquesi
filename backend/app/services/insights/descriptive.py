@@ -81,7 +81,7 @@ def top_products(w: Window, month: str) -> TopProducts:
         if line.amount is None:
             continue
         money[line.product] += line.amount
-        if line.product not in latest or line.purchased_at > latest[line.product].purchased_at:
+        if line.product not in latest or line.day > latest[line.product].day:
             latest[line.product] = line
 
     def average(product: tuple[str, str]) -> float | None:

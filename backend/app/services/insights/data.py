@@ -68,7 +68,9 @@ class Trip:
 class Line:
     id: str
     trip_id: str
-    purchased_at: datetime
+    # The trip's day, not the tap time: a back-dated close moves the trip and
+    # leaves each tap alone, and every insight must file a line the same way.
+    day: datetime
     month: str
     product: tuple[str, str]
     name: str
@@ -167,12 +169,11 @@ def _line(item: ListItem, trip: Trip, tz: tzinfo) -> Line:
     if item.price is not None and amount is not None:
         quantity = effective_quantity(item.quantity, item.purchased_quantity)
         unit, basis = unit_price(item.price, quantity, item.price_per)
-    purchased_at = item.purchased_at or trip.opened_at
     return Line(
         id=item.id,
         trip_id=trip.id,
-        purchased_at=purchased_at,
-        month=local_month(purchased_at, tz),
+        day=trip.opened_at,
+        month=trip.month,
         product=(fold_name(item.name), fold_name(item.brand or "")),
         name=item.name,
         brand=item.brand,

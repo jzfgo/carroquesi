@@ -172,3 +172,21 @@ def test_a_per_kg_line_without_a_weight_adds_no_money(session: Session, user: Us
 
     assert line.amount is None
     assert line.unit_price is None
+
+
+def test_a_line_takes_its_trips_day_not_its_tap(session: Session, user: User):
+    # A back-dated close moves the trip's day and leaves the tap time alone.
+    # The trip's day is the real one, so every insight must file the line there.
+    lst = _list(session, user)
+    trip = _trip(session, lst, datetime(2026, 10, 30, 10))
+    item = _line(session, lst, trip, user, price=1.0)
+    item.purchased_at = datetime(2026, 11, 2, 10)
+    session.add(item)
+    session.commit()
+    start, _ = month_bounds("2026-10", MADRID)
+    _, end = month_bounds("2026-11", MADRID)
+
+    (line,) = load_window(session, lst.id, start, end, MADRID).lines
+
+    assert line.month == "2026-10"
+    assert line.day == trip.opened_at

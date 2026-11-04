@@ -41,16 +41,14 @@ def line(
     basis: Literal["kg", "unit"] | None = "unit",
     store: str | None = None,
     added_by: str = "u-alice",
-    day: str | None = None,
 ) -> Line:
-    purchased = at(day) if day else t.opened_at
     raw = store if store is not None else t.store_raw
     priced = amount is not None
     return Line(
         id=f"l{next(_ids)}",
         trip_id=t.id,
-        purchased_at=purchased,
-        month=local_month(purchased, MADRID),
+        day=t.opened_at,
+        month=t.month,
         product=(fold_name(name), fold_name(brand or "")),
         name=name,
         brand=brand,

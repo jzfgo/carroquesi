@@ -46,12 +46,7 @@ def cheaper_elsewhere(
     # Prices are compared only on the same scale: €/kg with €/kg, €/unit with €/unit.
     by_product: dict[tuple, list[_Seen]] = defaultdict(list)
     for line in w.lines:
-        if (
-            line.unit_price
-            and line.basis
-            and line.store_key
-            and start <= line.purchased_at < month_end
-        ):
+        if line.unit_price and line.basis and line.store_key and start <= line.day < month_end:
             seen = _Seen(line, line.unit_price, line.basis, line.store_key)
             by_product[(line.product, line.basis)].append(seen)
 
@@ -107,7 +102,7 @@ def _best_elsewhere(
     for seen in by_store.values():
         if len(seen) < th.min_observations or _spreads(seen, th):
             continue
-        latest = max(seen, key=lambda o: o.line.purchased_at)
+        latest = max(seen, key=lambda o: o.line.day)
         if (paid_price - latest.price) / paid_price < th.min_saving_pct:
             continue
         if best is None or latest.price < best.price:
@@ -119,7 +114,7 @@ def _best_elsewhere(
     if monthly < th.min_monthly_eur:
         return None
 
-    sample = max(paid, key=lambda o: o.line.purchased_at).line
+    sample = max(paid, key=lambda o: o.line.day).line
     return Suggestion(
         name=sample.name,
         brand=sample.brand,
@@ -130,7 +125,7 @@ def _best_elsewhere(
         cheaper_store_key=best.store_key,
         cheaper_store=w.store_name(best.store_key, best.line.store_raw),
         cheaper_price=round(best.price, 2),
-        cheaper_seen_at=best.line.purchased_at.replace(tzinfo=UTC).astimezone(w.tz).date(),
+        cheaper_seen_at=best.line.day.replace(tzinfo=UTC).astimezone(w.tz).date(),
         saving_pct=round((paid_price - best.price) / paid_price, 4),
         monthly_eur=round(monthly, 2),
     )

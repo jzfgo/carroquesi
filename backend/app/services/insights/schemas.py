@@ -93,7 +93,7 @@ class SavingsThresholds:
     min_monthly_eur: float = 1.0
     min_observations: int = 1
     window_days: int = 90
-    # Per-unit prices that move more than this at the cheaper store may hide
+    # Per-unit prices that move more than this at either store may hide
     # a size difference (trays, packs), so they are not trusted.
     max_spread_pct: float = 0.15
     max_suggestions: int = 5

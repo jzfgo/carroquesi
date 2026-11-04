@@ -1,11 +1,11 @@
-"""How much of a line one price covers — the backend twin of the frontend's
-`parseQuantityFactor` (frontend/src/lib/itemCost.ts).
+"""How much money a line is, and its price on a comparable scale — the
+backend twin of the frontend's `parseQuantityFactor` and `unitPrice`
+(frontend/src/lib/itemCost.ts).
 
 A line's displayed amount is `price * factor`, so a provisional trip total (the
-stack's «≈ total» on an unclosed proto-ticket) must sum `price * factor`, not
-raw prices, or the folded figure would disagree with the expanded rows. This
-logic is kept byte-for-byte equivalent to the frontend so the two never drift;
-`test_quantity.py` pins the shared cases.
+stack's «≈ total» on an unclosed proto-ticket) and every spend insight must sum
+`price * factor`, not raw prices, or the figures would disagree with the rows.
+Both sides assert frontend/src/lib/quantityVectors.json, so neither can drift.
 """
 
 import re
