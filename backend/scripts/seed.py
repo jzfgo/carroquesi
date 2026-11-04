@@ -1812,6 +1812,14 @@ SEED_FEATURES = [
         enabled=False,
         granted_by="admin",
     ),
+    # Alice's lists get the monthly report, so a local trigger has work to do.
+    UserFeature(
+        id="seed-feat-alice-monthly-report",
+        user_id=ALICE_ID,
+        feature="monthly_report",
+        enabled=True,
+        granted_by="admin",
+    ),
 ]
 
 

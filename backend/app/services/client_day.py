@@ -16,15 +16,20 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import Depends, Header
 
 
+def parse_timezone(name: str | None) -> ZoneInfo | None:
+    """The zone `name` names, or None when it is missing or unknown."""
+    if not name:
+        return None
+    try:
+        return ZoneInfo(name)
+    except ZoneInfoNotFoundError, ValueError:
+        return None
+
+
 def resolve_timezone(
     x_client_timezone: Annotated[str | None, Header()] = None,
 ) -> tzinfo:
-    if not x_client_timezone:
-        return UTC
-    try:
-        return ZoneInfo(x_client_timezone)
-    except ZoneInfoNotFoundError, ValueError:
-        return UTC
+    return parse_timezone(x_client_timezone) or UTC
 
 
 ClientTimezone = Annotated[tzinfo, Depends(resolve_timezone)]

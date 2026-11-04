@@ -11,6 +11,7 @@ from app.routers import (
     barcode,
     chains,
     feedback,
+    internal,
     invites,
     items,
     lists,
@@ -68,6 +69,7 @@ app.include_router(waitlist.router)
 app.include_router(shortcuts.router)
 app.include_router(notifications.router)
 app.include_router(notifications.list_seen_router)
+app.include_router(internal.router)
 
 
 @app.get("/health")
