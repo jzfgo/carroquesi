@@ -1,7 +1,7 @@
 """store timestamps as timestamptz
 
 Revision ID: 6cb2db34df07
-Revises: b7d3a91e4c20
+Revises: 3f8a2c61d9e4
 Create Date: 2026-11-04 20:07:15.069513
 
 """
@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "6cb2db34df07"
-down_revision: str | None = "b7d3a91e4c20"
+down_revision: str | None = "3f8a2c61d9e4"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -29,6 +29,7 @@ COLUMNS: dict[str, tuple[str, ...]] = {
     "push_tokens": ("created_at", "last_registered_at"),
     "receipt_name_mappings": ("created_at", "updated_at"),
     "receipt_scans": ("created_at", "receipt_at"),
+    "report_runs": ("started_at", "finished_at"),
     "user_features": ("created_at", "updated_at"),
     "user_list_prefs": ("created_at",),
     "users": ("created_at", "receipt_consent_at"),
