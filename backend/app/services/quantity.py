@@ -58,6 +58,23 @@ def parse_quantity_factor(quantity: str | None, price_per: str | None) -> float 
     return 1.0 if kg_factor is not None else value
 
 
+def line_amount(
+    price: float | None,
+    quantity: str | None,
+    purchased_quantity: str | None,
+    price_per: str | None,
+) -> float | None:
+    """The money a line is, or None when it is unpriced or the price cannot
+    apply. What was bought wins over what was asked for: a tray asked as
+    «1 kg» and weighed at 0,636 kg costs the 0,636 kg."""
+    if price is None:
+        return None
+    # `is not None`, not truthiness: the frontend row makes the same test.
+    effective = purchased_quantity if purchased_quantity is not None else quantity
+    factor = parse_quantity_factor(effective, price_per)
+    return None if factor is None else price * factor
+
+
 def unit_price(
     price: float, quantity: str | None, price_per: str | None
 ) -> tuple[float, Literal["kg", "unit"]]:
