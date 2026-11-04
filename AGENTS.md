@@ -142,6 +142,7 @@ Prefer `just` from repo root (`just backend` lists recipes).
 - Settings via `pydantic_settings` in `backend/app/core/config.py`, loaded from `backend/.env`
 - Firebase Admin SDK init in `backend/app/core/firebase.py` — singleton pattern
 - Auth dependency in `backend/app/dependencies.py`: `get_current_user`, `require_member`, `require_owner`, `require_admin`
+- Spend insights come only from `app/services/insights` (`compute_report`): one list, one month, computed live and read-only. Surfaces render its records and never recompute money; a line's amount and unit price come from `services/quantity.py`, pinned to `frontend/src/lib/quantityVectors.json` with the frontend's `itemCost.ts`. `scripts/spend_report.py` prints a report from any `DATABASE_URL` in a read-only session
 - `is_admin` is a transient Python attribute on `User`, read from Firebase JWT custom claim `decoded.get("is_admin", False)` — never stored in the DB
 - Tests use SQLite in-memory (via `StaticPool`) — no Postgres needed to run the test suite
 - Dockerized: `backend/Dockerfile` → deployed to Cloud Run; runs `alembic upgrade head` on startup

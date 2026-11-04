@@ -6,9 +6,9 @@ and None when there is nothing to compare with.
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class _Record(BaseModel):
@@ -121,3 +121,18 @@ class CheaperElsewhere(_Record):
     type: Literal["cheaper_elsewhere"] = "cheaper_elsewhere"
     suggestions: list[Suggestion]
     thresholds: SavingsThresholds
+
+
+Insight = Annotated[
+    Totals | ByStore | TopProducts | ByRequester | Cadence | CheaperElsewhere,
+    Field(discriminator="type"),
+]
+
+
+class SpendReport(BaseModel):
+    list_id: str
+    period: str
+    tz: str
+    insights: list[Insight]
+    # Purchased lines with no trip: left out of every figure, counted here.
+    tripless_lines: int
