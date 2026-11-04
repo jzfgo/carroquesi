@@ -252,7 +252,7 @@ def test_items_on_torn_off_trips_excluded_from_counts(client: TestClient, sessio
     # Purchase the first item and tear its trip off before purchasing the
     # second, so the second purchase opens a fresh trip of its own.
     client.patch(f"/lists/{list_id}/items/{item_old['id']}", json={"purchased": True})
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     _reshape_trip(session, item_old["id"], tear_off=now - timedelta(hours=1))
     client.patch(f"/lists/{list_id}/items/{item_today['id']}", json={"purchased": True})
 
@@ -317,7 +317,7 @@ def test_cart_count_counts_open_trip_purchases_and_excludes_torn_off_trips(
     # Same trick as the counts test above: tear off the first purchase's
     # trip so the second purchase lands on a fresh open trip.
     client.patch(f"/lists/{list_id}/items/{item_old['id']}", json={"purchased": True})
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     _reshape_trip(session, item_old["id"], tear_off=now - timedelta(hours=1))
     client.patch(f"/lists/{list_id}/items/{item_today['id']}", json={"purchased": True})
 
@@ -335,7 +335,7 @@ def test_counts_exclude_a_trip_closed_before_its_tear_off(client: TestClient, se
     item = client.post(f"/lists/{list_id}/items", json={"name": "Cerrado"}).json()
     client.post(f"/lists/{list_id}/items", json={"name": "Pendiente"})
     client.patch(f"/lists/{list_id}/items/{item['id']}", json={"purchased": True})
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     trip = _reshape_trip(session, item["id"], closed_at=now - timedelta(minutes=5))
     assert trip.tears_off_at > now
 

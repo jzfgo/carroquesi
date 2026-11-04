@@ -122,7 +122,7 @@ def get_due_suggestions(
     session: CurrentSession,
 ):
     lst, _ = list_and_user
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
 
     purchased_items = session.exec(
         select(ListItem).where(

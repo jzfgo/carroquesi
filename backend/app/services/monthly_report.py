@@ -177,6 +177,6 @@ def _find(session: Session, list_id: str, period: str) -> ReportRun | None:
 def _finish(session: Session, run: ReportRun, status: str, error: str | None) -> None:
     run.status = status
     run.error = error
-    run.finished_at = datetime.now(UTC).replace(tzinfo=None)
+    run.finished_at = datetime.now(UTC)
     session.add(run)
     session.commit()

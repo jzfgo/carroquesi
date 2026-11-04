@@ -1,6 +1,6 @@
 import threading
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from firebase_admin import messaging
@@ -88,18 +88,31 @@ def test_recipients_skip_members_without_tokens(session, user, other_user):
 
 def test_count_includes_others_adds_and_purchases_only(session, user, other_user):
     lst = _make_shared_list(session, user, other_user)
-    watermark = datetime(2026, 1, 1)
+    watermark = datetime(2026, 1, 1, tzinfo=UTC)
 
     session.add(
         ListItem(
-            list_id=lst.id, name="mine", added_by=other_user.id, created_at=datetime(2026, 1, 2)
+            list_id=lst.id,
+            name="mine",
+            added_by=other_user.id,
+            created_at=datetime(2026, 1, 2, tzinfo=UTC),
         )
     )
     session.add(
-        ListItem(list_id=lst.id, name="theirs", added_by=user.id, created_at=datetime(2026, 1, 2))
+        ListItem(
+            list_id=lst.id,
+            name="theirs",
+            added_by=user.id,
+            created_at=datetime(2026, 1, 2, tzinfo=UTC),
+        )
     )
     session.add(
-        ListItem(list_id=lst.id, name="old", added_by=user.id, created_at=datetime(2025, 12, 1))
+        ListItem(
+            list_id=lst.id,
+            name="old",
+            added_by=user.id,
+            created_at=datetime(2025, 12, 1, tzinfo=UTC),
+        )
     )
     session.commit()
 
@@ -111,14 +124,14 @@ def test_count_treats_unknown_purchaser_as_someone_else(session, user, other_use
     """Rows predating purchased_by have NULL. SQL `!=` on NULL yields NULL, which
     would silently drop them; is_distinct_from treats NULL as 'not me'."""
     lst = _make_shared_list(session, user, other_user)
-    watermark = datetime(2026, 1, 1)
+    watermark = datetime(2026, 1, 1, tzinfo=UTC)
     session.add(
         ListItem(
             list_id=lst.id,
             name="legacy",
             added_by=other_user.id,
-            created_at=datetime(2025, 12, 1),
-            purchased_at=datetime(2026, 1, 2),
+            created_at=datetime(2025, 12, 1, tzinfo=UTC),
+            purchased_at=datetime(2026, 1, 2, tzinfo=UTC),
             purchased_by=None,
         )
     )
@@ -133,22 +146,28 @@ def test_count_uses_join_time_when_never_seen(session, user, other_user):
         select(ListMember).where(ListMember.list_id == lst.id, ListMember.user_id == other_user.id)
     ).one()
     member.last_seen_at = None
-    member.created_at = datetime(2026, 1, 10)
+    member.created_at = datetime(2026, 1, 10, tzinfo=UTC)
     session.add(
         ListItem(
-            list_id=lst.id, name="before-join", added_by=user.id, created_at=datetime(2026, 1, 5)
+            list_id=lst.id,
+            name="before-join",
+            added_by=user.id,
+            created_at=datetime(2026, 1, 5, tzinfo=UTC),
         )
     )
     session.add(
         ListItem(
-            list_id=lst.id, name="after-join", added_by=user.id, created_at=datetime(2026, 1, 15)
+            list_id=lst.id,
+            name="after-join",
+            added_by=user.id,
+            created_at=datetime(2026, 1, 15, tzinfo=UTC),
         )
     )
     session.commit()
 
     # Assert the watermark helper directly: this member holds no token, so
     # recipients_for would return {} and tell us nothing about the fallback.
-    assert watermark_for(member) == datetime(2026, 1, 10)
+    assert watermark_for(member) == datetime(2026, 1, 10, tzinfo=UTC)
     assert unseen_count_for(session, lst.id, other_user.id, watermark_for(member)) == 1
 
 
@@ -183,17 +202,25 @@ def test_send_is_one_multicast_per_recipient_user(session, user, other_user):
     session.add(third_member)
     # Deterministic watermarks so the counts are stable and genuinely differ.
     for m in session.exec(select(ListMember).where(ListMember.list_id == lst.id)).all():
-        m.last_seen_at = datetime(2026, 1, 1)
+        m.last_seen_at = datetime(2026, 1, 1, tzinfo=UTC)
     session.add(PushToken(user_id=other_user.id, token="bob-phone"))
     session.add(PushToken(user_id=other_user.id, token="bob-laptop"))
     session.add(PushToken(user_id=third.id, token="carol-phone"))
     # Actor's item counts for both; Bob's item counts for Carol but not Bob.
     session.add(
-        ListItem(list_id=lst.id, name="por-user", added_by=user.id, created_at=datetime(2026, 1, 2))
+        ListItem(
+            list_id=lst.id,
+            name="por-user",
+            added_by=user.id,
+            created_at=datetime(2026, 1, 2, tzinfo=UTC),
+        )
     )
     session.add(
         ListItem(
-            list_id=lst.id, name="por-bob", added_by=other_user.id, created_at=datetime(2026, 1, 2)
+            list_id=lst.id,
+            name="por-bob",
+            added_by=other_user.id,
+            created_at=datetime(2026, 1, 2, tzinfo=UTC),
         )
     )
     session.commit()

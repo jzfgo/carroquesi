@@ -31,7 +31,7 @@ router = APIRouter(prefix="/lists", tags=["lists"])
 
 
 def _bump(lst: List, session: Session) -> None:
-    lst.updated_at = datetime.now(UTC).replace(tzinfo=None)
+    lst.updated_at = datetime.now(UTC)
     session.add(lst)
 
 
@@ -77,11 +77,11 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
     # closed or torn-off trips are excluded from both the denominator and
     # the numerator so the progress bar reflects only the current trip.
     #
-    # `now` is a bound naive-UTC instant, the same convention the trips
+    # `now` is a bound UTC instant, the same convention the trips
     # service compares tears_off_at with. The LEFT JOIN keeps unpurchased
     # items (purchase_id NULL) in item_count; a purchased item with no
     # matching trip row joins NULL, compares as NULL, and counts as closed.
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     in_cart = in_cart_predicate(now)
     in_scope = in_scope_predicate(now)
 

@@ -28,10 +28,8 @@ const item1: ListItem = {
   price_per: null,
   price_store: null,
   added_by: 'user-1',
-  // Naive, no zone suffix: the API serializes timestamps that way, and the
-  // hook appends 'Z' before parsing. A 'Z' here would parse as Invalid Date.
-  created_at: '2026-01-01T00:00:00',
-  updated_at: '2026-01-01T00:00:00',
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
 }
 
 const mockRawMembers = [
@@ -116,18 +114,16 @@ describe('useListItems — togglePurchased', () => {
     )
   })
 
-  // The API serializes timestamps without a zone suffix; mimic that.
-  const naiveUtc = (msAgo: number) =>
-    new Date(Date.now() - msAgo).toISOString().slice(0, -1)
+  const utcAgo = (msAgo: number) => new Date(Date.now() - msAgo).toISOString()
   const TWO_DAYS = 48 * 60 * 60 * 1000
 
   it('refuses to unpurchase from an ended trip once the write grace expired', async () => {
     const stale: ListItem = {
       ...item1,
       purchased: true,
-      purchased_at: naiveUtc(TWO_DAYS),
-      purchase_ends_at: naiveUtc(TWO_DAYS - 60 * 60 * 1000),
-      updated_at: naiveUtc(TWO_DAYS),
+      purchased_at: utcAgo(TWO_DAYS),
+      purchase_ends_at: utcAgo(TWO_DAYS - 60 * 60 * 1000),
+      updated_at: utcAgo(TWO_DAYS),
     }
     vi.mocked(api.getListItems).mockResolvedValue([stale] as never)
     const { result } = renderHook(() =>
@@ -180,9 +176,9 @@ describe('useListItems — togglePurchased', () => {
     const backdated: ListItem = {
       ...item1,
       purchased: true,
-      purchased_at: naiveUtc(TWO_DAYS),
-      purchase_ends_at: naiveUtc(TWO_DAYS - 60 * 60 * 1000),
-      updated_at: naiveUtc(60 * 1000),
+      purchased_at: utcAgo(TWO_DAYS),
+      purchase_ends_at: utcAgo(TWO_DAYS - 60 * 60 * 1000),
+      updated_at: utcAgo(60 * 1000),
     }
     vi.mocked(api.getListItems).mockResolvedValue([backdated] as never)
     vi.mocked(api.updateItem).mockResolvedValue({} as never)

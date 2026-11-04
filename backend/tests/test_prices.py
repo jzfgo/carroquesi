@@ -329,7 +329,7 @@ def test_delete_price_422_after_the_trip_tore_off(client: TestClient, session):
     item = _make_item(client, lst["id"])
     _set_price(client, lst["id"], item["id"], 1.99)
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     _tear_off_trip(session, item["id"], tear_off=now - timedelta(hours=1))
 
     resp = client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices")
@@ -345,7 +345,7 @@ def test_delete_price_422_when_the_trip_closed_before_a_future_tear_off(
     item = _make_item(client, lst["id"])
     _set_price(client, lst["id"], item["id"], 1.99)
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     trip = _tear_off_trip(session, item["id"], closed_at=now - timedelta(hours=1))
     assert trip.tears_off_at > now
 
@@ -409,7 +409,7 @@ def _insert_trip(session, list_id, store):
 
     trip = Purchase(
         list_id=list_id,
-        tears_off_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(days=1),
+        tears_off_at=datetime.now(UTC) + timedelta(days=1),
         store=store,
     )
     session.add(trip)
@@ -487,7 +487,7 @@ def test_sin_precio_store_comes_from_the_trip(client: TestClient, session, user)
         name="Aceite oliva",
         ean=ean,
         purchase_id=trip.id,
-        purchased_at=datetime.now(UTC).replace(tzinfo=None),
+        purchased_at=datetime.now(UTC),
     )
 
     resp = client.get(f"/lists/{lst['id']}/items/{priced['id']}/prices?scope=this_list")

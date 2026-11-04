@@ -13,7 +13,7 @@ list_seen_router = APIRouter(prefix="/lists", tags=["notifications"])
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return datetime.now(UTC)
 
 
 def _claim(token_row: PushToken, user_id: str) -> None:

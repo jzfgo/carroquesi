@@ -87,13 +87,14 @@ def test_e2e_fixtures_match_backend_schemas():
         content = f.read()
         data = json.loads(content)
 
-    # The fixtures carry no zone suffix because the stored timestamps have no
-    # zone either, and the client re-attaches the 'Z' when it parses. Read that
-    # fact off the column default rather than restating it, so the day the
-    # backend starts storing aware datetimes this fails instead of agreeing.
-    assert _now().tzinfo is None, "timestamps are now aware: the fixtures need a zone suffix"
+    # The API sends UTC instants with a 'Z' suffix, so the fixtures must too.
+    # Read that fact off the column default rather than restating it, so a
+    # return to naive timestamps fails here instead of agreeing.
+    assert _now().utcoffset() is not None, "timestamps are naive: the fixtures must drop the 'Z'"
     for dt in re.findall(r'"\d{4}-\d{2}-\d{2}T[\d:.]+[^"]*"', content):
-        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T[\d:.]+", dt.strip('"')), f"naive UTC only: {dt}"
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T[\d:.]+Z", dt.strip('"')), (
+            f"UTC with 'Z' only: {dt}"
+        )
 
     # 1. /users/me -> UserRead
     assert_exact(response_model("GET", "/users/me"), data["ALICE"])

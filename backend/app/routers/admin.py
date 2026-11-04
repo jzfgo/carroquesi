@@ -12,7 +12,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 def _now():
-    return datetime.now(UTC).replace(tzinfo=None)
+    return datetime.now(UTC)
 
 
 class FeatureToggleRequest(BaseModel):

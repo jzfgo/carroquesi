@@ -232,9 +232,7 @@ def test_get_current_user_gate_allowed_for_approved_waitlist_user(session: Sessi
     monkeypatch.setattr(get_settings(), "waitlist_enabled", True)
 
     # Seed an approved waitlist signup
-    signup = WaitlistSignup(
-        email="approved-waitlist@example.com", allowed_at=datetime.now(UTC).replace(tzinfo=None)
-    )
+    signup = WaitlistSignup(email="approved-waitlist@example.com", allowed_at=datetime.now(UTC))
     session.add(signup)
     session.commit()
 

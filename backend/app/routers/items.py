@@ -27,7 +27,7 @@ UNPURCHASE_GRACE = timedelta(minutes=15)
 
 
 def _bump(lst: List, session: Session) -> None:
-    lst.updated_at = datetime.now(UTC).replace(tzinfo=None)
+    lst.updated_at = datetime.now(UTC)
     session.add(lst)
 
 
@@ -129,13 +129,13 @@ def update_item(
     if data.get("stores"):
         ensure_stores(session, lst.id, data["stores"])
     if purchased is True and item.purchased_at is None:
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = datetime.now(UTC)
         item.purchased_at = now
         item.purchased_by = current_user.id
         item.purchase_id = trips.open_trip_for(session, lst.id, now, client_tz).id
     elif purchased is False:
         if item.purchased_at is not None:
-            now = datetime.now(UTC).replace(tzinfo=None)
+            now = datetime.now(UTC)
             # A purchased item whose trip row is missing counts as closed:
             # better to refuse an undo than to reopen spend nobody can date.
             # The grace window below still rescues a fresh write.
@@ -150,7 +150,7 @@ def update_item(
         item.purchased_at = None
         emptied_trip_id, item.purchase_id = item.purchase_id, None
         trips.prune_if_empty(session, emptied_trip_id)
-    item.updated_at = datetime.now(UTC).replace(tzinfo=None)
+    item.updated_at = datetime.now(UTC)
     session.add(item)
     _bump(lst, session)
     session.commit()

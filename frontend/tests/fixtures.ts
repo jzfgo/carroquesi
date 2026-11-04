@@ -97,10 +97,6 @@ export async function installApiMocks(page: Page): Promise<void> {
   // straight after applying prices, and would otherwise never see it at all.
   const createdItems: Record<string, ListItem[]> = {}
 
-  // The backend stores naive UTC and the client re-attaches the 'Z' when
-  // parsing (itemCost.ts), so timestamps here must carry no zone suffix.
-  const naiveUtc = (iso: string) => iso.replace(/Z$/, '')
-
   await page.route(`${BACKEND}/**`, async (route) => {
     const req = route.request()
     const url = new URL(req.url())
@@ -148,7 +144,7 @@ export async function installApiMocks(page: Page): Promise<void> {
       if (method === 'GET') return json(SEED_LISTS)
       if (method === 'POST') {
         const body = (req.postDataJSON() ?? {}) as Record<string, unknown>
-        const now = naiveUtc(new Date().toISOString())
+        const now = new Date().toISOString()
         return json({
           ...SEED_CREATED_LIST,
           ...body,
@@ -179,7 +175,7 @@ export async function installApiMocks(page: Page): Promise<void> {
             ? json({
                 ...list,
                 ...patch,
-                updated_at: naiveUtc(new Date().toISOString()),
+                updated_at: new Date().toISOString(),
               })
             : json({ detail: 'Not found' }, 404)
         }
@@ -190,7 +186,7 @@ export async function installApiMocks(page: Page): Promise<void> {
       if (sub === '/updated-at' && method === 'GET') {
         return json({
           ...SEED_UPDATED_AT,
-          updated_at: list?.updated_at ?? naiveUtc(new Date().toISOString()),
+          updated_at: list?.updated_at ?? new Date().toISOString(),
         })
       }
 
@@ -203,7 +199,7 @@ export async function installApiMocks(page: Page): Promise<void> {
           ])
         if (method === 'POST') {
           const body = (req.postDataJSON() ?? {}) as Partial<ListItem>
-          const now = naiveUtc(new Date().toISOString())
+          const now = new Date().toISOString()
           return json({
             ...SEED_CREATED_ITEM,
             id: `new-item-${Date.now()}`,
@@ -329,8 +325,8 @@ export async function installApiMocks(page: Page): Promise<void> {
           price: n.price,
           price_per: n.price_per ?? null,
           price_store: n.store ?? null,
-          created_at: naiveUtc(now),
-          updated_at: naiveUtc(now),
+          created_at: now,
+          updated_at: now,
         }))
         createdItems[listId] = [...(createdItems[listId] ?? []), ...created]
         return json({
@@ -352,7 +348,7 @@ export async function installApiMocks(page: Page): Promise<void> {
             ? json({
                 ...item,
                 ...patch,
-                updated_at: naiveUtc(new Date().toISOString()),
+                updated_at: new Date().toISOString(),
               })
             : json({ detail: 'Not found' }, 404)
         }

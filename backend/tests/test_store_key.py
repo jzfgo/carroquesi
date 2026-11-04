@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -56,7 +56,7 @@ def _mapping(
         item_name=item_name,
         confirmed_by="user-1",
         use_count=use_count,
-        updated_at=updated_at or datetime(2026, 1, 1),
+        updated_at=updated_at or datetime(2026, 1, 1, tzinfo=UTC),
     )
 
 
@@ -77,8 +77,12 @@ def test_merge_collapses_variant_rows(session: Session):
 
 
 def test_merge_tie_breaks_on_most_recent_update(session: Session):
-    session.add(_mapping("Lidl", "pan", item_name="Old", updated_at=datetime(2026, 1, 1)))
-    session.add(_mapping("LIDL", "pan", item_name="New", updated_at=datetime(2026, 6, 1)))
+    session.add(
+        _mapping("Lidl", "pan", item_name="Old", updated_at=datetime(2026, 1, 1, tzinfo=UTC))
+    )
+    session.add(
+        _mapping("LIDL", "pan", item_name="New", updated_at=datetime(2026, 6, 1, tzinfo=UTC))
+    )
     session.commit()
 
     merge_receipt_name_mapping_keys(session)

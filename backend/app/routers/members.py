@@ -25,7 +25,7 @@ owner_router = APIRouter(prefix="/lists/{list_id}", tags=["members"])
 
 
 def _bump(lst: List, session: Session) -> None:
-    lst.updated_at = datetime.now(UTC).replace(tzinfo=None)
+    lst.updated_at = datetime.now(UTC)
     session.add(lst)
 
 

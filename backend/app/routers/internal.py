@@ -42,7 +42,7 @@ def trigger_monthly_reports(
     x_trigger_token: Annotated[str | None, Header()] = None,
 ) -> MonthlyReportRun:
     _require_trigger_token(x_trigger_token)
-    summary = run_monthly_reports(session, datetime.now(UTC).replace(tzinfo=None))
+    summary = run_monthly_reports(session, datetime.now(UTC))
     return MonthlyReportRun(
         sent=summary.sent,
         failed=summary.failed,

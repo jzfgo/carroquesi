@@ -17,18 +17,21 @@ from app.db.models import ListItem, Purchase, ReceiptScan
 
 
 def tears_off_at_for(instant: datetime, tz: tzinfo) -> datetime:
-    """Naive-UTC instant of the local midnight after `instant`'s day in `tz`.
+    """UTC instant of the local midnight after `instant`'s day in `tz`.
 
-    `instant` is naive UTC, the way the database stores timestamps, and the
-    result is too, so it compares directly against stored columns.
+    `instant` must be aware. The result is in UTC, so it compares directly
+    against stored columns.
     """
-    local = instant.replace(tzinfo=UTC).astimezone(tz)
+    # A naive value would be read in the server's own zone, silently.
+    if instant.tzinfo is None:
+        raise ValueError("tears_off_at_for needs an aware instant")
+    local = instant.astimezone(tz)
     next_midnight = datetime.combine(
         local.date() + timedelta(days=1),
         datetime.min.time(),
         tzinfo=tz,
     )
-    return next_midnight.astimezone(UTC).replace(tzinfo=None)
+    return next_midnight.astimezone(UTC)
 
 
 def prune_if_empty(session: Session, trip_id: str | None) -> None:
@@ -200,7 +203,7 @@ def close(
     saying what it was gets written down the next morning.
 
     `dating` back-dates the ticket to a day the caller states: an
-    (opened_at, tears_off_at, closed_at) triple, all naive UTC, derived from
+    (opened_at, tears_off_at, closed_at) triple, all in UTC, derived from
     a date in the client's timezone (the same mapping a manual purchase uses).
     Without it the ticket files under `now` — opened_at from the claimed taps,
     closed_at at the close instant. With it the ticket sorts under its covered

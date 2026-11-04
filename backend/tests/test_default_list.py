@@ -6,7 +6,7 @@ backfill — the piece the JAV-43 caveat calls out ("correctly sets the default
 for all current users") — would ship uncovered.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlmodel import Session, col, select
 
@@ -41,8 +41,8 @@ def _member(session: Session, list_id: str, user_id: str) -> ListMember:
 
 def test_backfill_pins_most_recently_updated_list(session: Session):
     user = _user(session, "u1")
-    older = _list(session, user.id, "Older", datetime(2026, 1, 1))
-    newer = _list(session, user.id, "Newer", datetime(2026, 6, 1))
+    older = _list(session, user.id, "Older", datetime(2026, 1, 1, tzinfo=UTC))
+    newer = _list(session, user.id, "Newer", datetime(2026, 6, 1, tzinfo=UTC))
     _member(session, older.id, user.id)
     _member(session, newer.id, user.id)
 
@@ -62,7 +62,7 @@ def test_backfill_tiebreaker_is_deterministic(session: Session):
     """Two lists sharing an updated_at must not both be flagged; id DESC breaks
     the tie so exactly one default results."""
     user = _user(session, "u1")
-    same = datetime(2026, 3, 1)
+    same = datetime(2026, 3, 1, tzinfo=UTC)
     a = _list(session, user.id, "A", same)
     b = _list(session, user.id, "B", same)
     _member(session, a.id, user.id)
@@ -81,8 +81,8 @@ def test_backfill_tiebreaker_is_deterministic(session: Session):
 
 def test_backfill_skips_users_already_flagged(session: Session):
     user = _user(session, "u1")
-    keep = _list(session, user.id, "Keep", datetime(2026, 1, 1))
-    other = _list(session, user.id, "Other", datetime(2026, 6, 1))
+    keep = _list(session, user.id, "Keep", datetime(2026, 1, 1, tzinfo=UTC))
+    other = _list(session, user.id, "Other", datetime(2026, 6, 1, tzinfo=UTC))
     _member(session, keep.id, user.id).is_default = True
     _member(session, other.id, user.id)
     session.flush()
@@ -100,7 +100,7 @@ def test_backfill_skips_users_already_flagged(session: Session):
 
 def test_backfill_is_idempotent(session: Session):
     user = _user(session, "u1")
-    lst = _list(session, user.id, "L", datetime(2026, 1, 1))
+    lst = _list(session, user.id, "L", datetime(2026, 1, 1, tzinfo=UTC))
     _member(session, lst.id, user.id)
 
     assert backfill_all_defaults(session) == 1
@@ -111,7 +111,7 @@ def test_backfill_covers_join_only_users(session: Session):
     """A user who never owns a list but is a member of one still gets a default."""
     owner = _user(session, "owner")
     joiner = _user(session, "joiner")
-    shared = _list(session, owner.id, "Shared", datetime(2026, 1, 1))
+    shared = _list(session, owner.id, "Shared", datetime(2026, 1, 1, tzinfo=UTC))
     _member(session, shared.id, owner.id)
     _member(session, shared.id, joiner.id)
 
@@ -122,8 +122,8 @@ def test_backfill_covers_join_only_users(session: Session):
 
 def test_ensure_default_is_noop_when_already_set(session: Session):
     user = _user(session, "u1")
-    first = _list(session, user.id, "First", datetime(2026, 1, 1))
-    second = _list(session, user.id, "Second", datetime(2026, 2, 1))
+    first = _list(session, user.id, "First", datetime(2026, 1, 1, tzinfo=UTC))
+    second = _list(session, user.id, "Second", datetime(2026, 2, 1, tzinfo=UTC))
     m1 = _member(session, first.id, user.id)
     m1.is_default = True
     session.flush()

@@ -14,9 +14,9 @@ _ids = count()
 
 
 def at(day: str, hour: int = 10) -> datetime:
-    """A naive-UTC instant at `hour` local time on a "YYYY-MM-DD" day."""
+    """A UTC instant at `hour` local time on a "YYYY-MM-DD" day."""
     local = datetime.fromisoformat(day).replace(hour=hour, tzinfo=MADRID)
-    return local.astimezone(UTC).replace(tzinfo=None)
+    return local.astimezone(UTC)
 
 
 def trip(day: str, store: str | None = "Mercadona", total: float | None = None) -> Trip:

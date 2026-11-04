@@ -71,7 +71,7 @@ def _receipt_pool_predicate(now: datetime):
 
 
 def _parse_receipt_at(raw: str | None) -> datetime | None:
-    """Parse a receipt date or instant into a naive UTC datetime.
+    """Parse a receipt date or instant into an aware UTC datetime.
 
     Accepts a bare date ("2026-04-11" -> midnight) or a full ISO 8601 instant
     ("2026-04-11T17:42:00Z"). `date.fromisoformat` rejects the latter, so this
@@ -83,9 +83,10 @@ def _parse_receipt_at(raw: str | None) -> datetime | None:
         dt = datetime.fromisoformat(raw)
     except ValueError:
         return None
-    if dt.tzinfo is not None:
-        dt = dt.astimezone(UTC)
-    return dt.replace(tzinfo=None)
+    # A value with no offset is read as UTC, the zone the client sends.
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def _today(tz: tzinfo) -> date:
@@ -103,13 +104,13 @@ def _plausible_receipt_at(receipt_at: datetime | None, tz: tzinfo) -> datetime |
     """
     if receipt_at is None:
         return None
-    local = receipt_at.replace(tzinfo=UTC).astimezone(tz)
+    local = receipt_at.astimezone(tz)
     day = plausible_day(local.date(), _today(tz))
     if day is None:
         return None
     if day == local.date():
         return receipt_at
-    return local.replace(year=day.year).astimezone(UTC).replace(tzinfo=None)
+    return local.replace(year=day.year).astimezone(UTC)
 
 
 def _receipt_date_out(raw: str | None, checked: datetime | None) -> str | None:
@@ -120,7 +121,7 @@ def _receipt_date_out(raw: str | None, checked: datetime | None) -> str | None:
         return raw
     if "T" not in raw:
         return checked.date().isoformat()
-    return checked.replace(tzinfo=UTC).isoformat()
+    return checked.isoformat()
 
 
 def _receipt_dating(
@@ -136,8 +137,8 @@ def _receipt_dating(
     """
     if receipt_at is None:
         return None
-    local_date = receipt_at.replace(tzinfo=UTC).astimezone(tz).date()
-    opened = datetime.combine(local_date, time.min, tzinfo=tz).astimezone(UTC).replace(tzinfo=None)
+    local_date = receipt_at.astimezone(tz).date()
+    opened = datetime.combine(local_date, time.min, tzinfo=tz).astimezone(UTC)
     tears_off = trips.tears_off_at_for(opened, tz)
     return (opened, tears_off, min(tears_off, now))
 
@@ -196,12 +197,10 @@ def _infer_past_target(
     """
     if receipt_at is None:
         return None
-    local_day = receipt_at.replace(tzinfo=UTC).astimezone(tz).date()
-    if local_day >= now.replace(tzinfo=UTC).astimezone(tz).date():
+    local_day = receipt_at.astimezone(tz).date()
+    if local_day >= now.astimezone(tz).date():
         return None
-    day_start = (
-        datetime.combine(local_day, time.min, tzinfo=tz).astimezone(UTC).replace(tzinfo=None)
-    )
+    day_start = datetime.combine(local_day, time.min, tzinfo=tz).astimezone(UTC)
     day_end = trips.tears_off_at_for(day_start, tz)
     candidates = [
         trip
@@ -255,7 +254,7 @@ def scan_receipt(
     # aim the scan at the wrong day and back-date the trip the apply closes.
     receipt_at = _plausible_receipt_at(_parse_receipt_at(body.receipt_date), client_tz)
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     target: Purchase | None = None
     inferred: Purchase | None = None
     if body.purchase_id is not None:
@@ -381,14 +380,12 @@ def apply_receipt_prices(
             detail="duplicate_item_patch",
         )
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     receipt_at = _parse_receipt_at(body.receipt_date)
     # The date here is the one the review showed, so an old one is the user's
     # call. A future one is not: no shop has happened there yet, and the trip
     # it closes would date itself ahead. The manual close refuses it the same way.
-    if receipt_at is not None and (
-        receipt_at.replace(tzinfo=UTC).astimezone(client_tz).date() > _today(client_tz)
-    ):
+    if receipt_at is not None and (receipt_at.astimezone(client_tz).date() > _today(client_tz)):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="A receipt cannot be dated in the future",

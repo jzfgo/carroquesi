@@ -159,7 +159,7 @@ def _purchase_and_age(
     db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
     trip = session.get_one(Purchase, db_item.purchase_id)
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     if tear_off is not None:
         trip.tears_off_at = tear_off
     if closed_at is not None:
@@ -187,7 +187,7 @@ def test_cannot_unpurchase_after_the_trip_tore_off(client: TestClient, session: 
 
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     _purchase_and_age(
         client,
         session,
@@ -210,7 +210,7 @@ def test_unpurchase_blocked_when_the_trip_closed_before_a_future_tear_off(
 
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     trip = _purchase_and_age(
         client,
         session,
@@ -233,7 +233,7 @@ def test_unpurchase_backdated_item_within_write_grace(client: TestClient, sessio
 
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     _purchase_and_age(client, session, lst, item, tear_off=now - timedelta(days=2))
 
     db_item = session.get_one(ListItem, item["id"])
@@ -254,7 +254,7 @@ def test_cannot_unpurchase_when_write_grace_expired(client: TestClient, session:
 
     lst = _create_list(client)
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     _purchase_and_age(
         client,
         session,
@@ -280,7 +280,7 @@ def test_unpurchase_treats_a_dangling_trip_as_closed_but_grace_rescues(
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
     db_item.purchase_id = "no-such-trip"
@@ -436,7 +436,7 @@ def test_unpurchase_never_deletes_a_closed_trip(client: TestClient, session: Ses
     db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
     trip = session.get_one(Purchase, db_item.purchase_id)
-    trip.closed_at = datetime.now(UTC).replace(tzinfo=None)
+    trip.closed_at = datetime.now(UTC)
     session.add(trip)
     session.commit()
 
@@ -577,19 +577,19 @@ def test_item_read_carries_the_trips_end_instant(client: TestClient, session: Se
     db_item = session.get_one(ListItem, item["id"])
     session.refresh(db_item)
     trip = session.get_one(Purchase, db_item.purchase_id)
-    assert patched["purchase_ends_at"] == trip.tears_off_at.isoformat()
+    assert datetime.fromisoformat(patched["purchase_ends_at"]) == trip.tears_off_at
 
     listed = client.get(f"/lists/{lst['id']}/items").json()
-    assert listed[0]["purchase_ends_at"] == trip.tears_off_at.isoformat()
+    assert datetime.fromisoformat(listed[0]["purchase_ends_at"]) == trip.tears_off_at
 
     # Closing early moves the end instant: closed_at wins over the tear-off.
-    closed = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=5)
+    closed = datetime.now(UTC) - timedelta(minutes=5)
     trip.closed_at = closed
     session.add(trip)
     session.commit()
 
     listed = client.get(f"/lists/{lst['id']}/items").json()
-    assert listed[0]["purchase_ends_at"] == closed.isoformat()
+    assert datetime.fromisoformat(listed[0]["purchase_ends_at"]) == closed
 
 
 def test_item_read_says_whether_a_scan_claimed_the_trip(client: TestClient, session: Session):
@@ -678,7 +678,7 @@ def test_deleting_the_last_item_never_deletes_a_closed_trip(client: TestClient, 
     item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
     client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
     trip = session.get_one(Purchase, session.get_one(ListItem, item["id"]).purchase_id)
-    trip.closed_at = datetime.now(UTC).replace(tzinfo=None)
+    trip.closed_at = datetime.now(UTC)
     session.add(trip)
     session.commit()
     trip_id = trip.id
