@@ -48,7 +48,8 @@ SHARED='^(\.github/workflows/|justfile|lefthook\.yml|scripts/|\.config/|\.envrc)
 # must trigger a frontend run (the lint job checks the generated types are fresh).
 FRONTEND='^(frontend/|backend/openapi\.json)'
 # The backend e2e contract test reads the frontend fixtures.json, so changes to it must trigger a backend test run.
-BACKEND='^(backend/|frontend/tests/fixtures\.json)'
+# The shared *Vectors.json files pin one rule in both suites, so they run the backend too.
+BACKEND='^(backend/|frontend/tests/fixtures\.json|frontend/src/lib/[A-Za-z]+Vectors\.json)'
 TOOLING='^(\.claude/hooks/|scripts/)'
 
 emit() {

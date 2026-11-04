@@ -115,6 +115,9 @@ check("agents doc only", ["AGENTS.md"], (False, False, False))
 check("nested agents doc", ["frontend/AGENTS.md"], (True, False, False))
 check("nested agents doc (backend)", ["backend/AGENTS.md"], (False, True, False))
 check("fixtures JSON", ["frontend/tests/fixtures.json"], (True, True, False))
+# Shared vector files pin one rule in both suites, so either side can break.
+check("store key vectors", ["frontend/src/lib/storeKeyVectors.json"], (True, True, False))
+check("quantity vectors", ["frontend/src/lib/quantityVectors.json"], (True, True, False))
 # The OpenAPI snapshot feeds the generated frontend types: a change to it must
 # run the frontend job, whose lint step fails when the types are stale.
 check("openapi snapshot", ["backend/openapi.json"], (True, True, False))

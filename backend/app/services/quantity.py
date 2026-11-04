@@ -9,6 +9,7 @@ logic is kept byte-for-byte equivalent to the frontend so the two never drift;
 """
 
 import re
+from typing import Literal
 
 # SI units → kg equivalent (volume treated as water: 1 L = 1 kg).
 UNIT_TO_KG: dict[str, float] = {
@@ -55,3 +56,21 @@ def parse_quantity_factor(quantity: str | None, price_per: str | None) -> float 
 
     # Non-per-unit: an SI unit is a pack descriptor (×1), otherwise the count.
     return 1.0 if kg_factor is not None else value
+
+
+def unit_price(
+    price: float, quantity: str | None, price_per: str | None
+) -> tuple[float, Literal["kg", "unit"]]:
+    """A line's price on a scale that compares across purchases: €/kg when
+    the line is weighed or names its weight, otherwise €/unit.
+
+    A pack that names its content («500 g» at 1,20) becomes 2,40 €/kg, the
+    same step the price history chart takes. Callers compare two prices only
+    when their bases match.
+    """
+    if price_per == "KILOGRAM":
+        return price, "kg"
+    kg_factor = parse_quantity_factor(quantity, "KILOGRAM")
+    if kg_factor:
+        return price / kg_factor, "kg"
+    return price, "unit"

@@ -1,35 +1,32 @@
+import json
+from pathlib import Path
+
 import pytest
 
-from app.services.quantity import parse_quantity_factor
+from app.services.quantity import parse_quantity_factor, unit_price
+
+VECTORS_PATH = (
+    Path(__file__).parent.parent.parent / "frontend" / "src" / "lib" / "quantityVectors.json"
+)
+VECTORS = json.loads(VECTORS_PATH.read_text())
 
 
 @pytest.mark.parametrize(
-    ("quantity", "price_per", "expected"),
-    [
-        # Non-per-unit: a plain count multiplies the price.
-        ("12 ud", None, 12.0),
-        ("3", None, 3.0),
-        # Non-per-unit: an SI unit is a pack descriptor → ×1.
-        ("1 kg", None, 1.0),
-        ("500 g", None, 1.0),
-        # No / unmatched quantity, non-per-unit → 1.
-        (None, None, 1.0),
-        ("", None, 1.0),
-        ("granel", None, 1.0),
-        # Per-kg: convert the quantity to kg.
-        ("2 kg", "KILOGRAM", 2.0),
-        ("500 g", "KILOGRAM", 0.5),
-        ("750 ml", "KILOGRAM", 0.75),
-        # Per-kg without a recognised SI unit → None (no computable amount).
-        ("1 ud", "KILOGRAM", None),
-        (None, "KILOGRAM", None),
-        # Comma decimal + trailing-dot unit abbreviation.
-        ("1,5 kg.", "KILOGRAM", 1.5),
-    ],
+    "vector", VECTORS["factor"], ids=lambda v: f"{v['quantity']}-{v['price_per']}"
 )
-def test_parse_quantity_factor(quantity, price_per, expected):
-    result = parse_quantity_factor(quantity, price_per)
-    if expected is None:
+def test_parse_quantity_factor_matches_shared_vectors(vector):
+    """The frontend asserts the same file; either side drifting fails its suite."""
+    result = parse_quantity_factor(vector["quantity"], vector["price_per"])
+    if vector["expected"] is None:
         assert result is None
     else:
-        assert result == pytest.approx(expected)
+        assert result == pytest.approx(vector["expected"])
+
+
+@pytest.mark.parametrize(
+    "vector", VECTORS["unit_price"], ids=lambda v: f"{v['price']}-{v['quantity']}-{v['price_per']}"
+)
+def test_unit_price_matches_shared_vectors(vector):
+    value, basis = unit_price(vector["price"], vector["quantity"], vector["price_per"])
+    assert value == pytest.approx(vector["value"])
+    assert basis == vector["basis"]
