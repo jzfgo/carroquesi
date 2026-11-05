@@ -113,8 +113,9 @@ def coverage_clauses(cov: Coverage) -> list[str]:
     if cov.unattributed >= 0:
         clauses.append(f"{eur(cov.unattributed)} del total sin asignar a un producto")
     else:
-        the_ticket = _plural(cov.trips, "el ticket", "los tickets")
-        details = _plural(cov.trips, "no detalla", "no detallan")
+        # Only confirmed tickets were measured, so only they are named.
+        the_ticket = _plural(cov.trips_confirmed, "el ticket", "los tickets")
+        details = _plural(cov.trips_confirmed, "no detalla", "no detallan")
         clauses.append(
             f"los productos suman {eur(-cov.unattributed)} más que {the_ticket}, "
             f"seguramente por descuentos que {the_ticket} {details}"

@@ -149,7 +149,8 @@ class Coverage(_LineCoverage):
     trips_confirmed: int
     # Confirmed totals minus the money their trips' lines add up to. Unpriced
     # lines leave it above zero; discounts a receipt does not itemise can take
-    # it below. A trip with no confirmed total cannot tell, so it is left out,
+    # it below. It is one net figure, so gaps on different trips can offset
+    # each other. A trip with no confirmed total cannot tell, so it is left out,
     # and with no confirmed trip at all this is None: zero would claim a match.
     unattributed: float | None
     # Purchased lines with no trip: left out of every figure, counted here.

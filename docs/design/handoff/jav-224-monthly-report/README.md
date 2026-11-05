@@ -56,8 +56,11 @@ compraste"). Templates:
   when lines exceed the total, "los productos suman {x €} más que el ticket,
   seguramente por descuentos que el ticket no detalla". Decided in JAV-217:
   "producto" and "ticket" agree with their count ("1 de 1 ticket", where
-  `Quiet` reads "1 de 1 tickets"); with several tickets the tail reads "más
-  que los tickets… que los tickets no detallan"; the products clause drops
+  `Quiet` reads "1 de 1 tickets"); with several confirmed tickets the tail
+  reads "más que los tickets… que los tickets no detallan" (only confirmed
+  tickets are measured, so only they count); the figure is the net gap over
+  all confirmed tickets, as the metric is defined, so one ticket's unpriced
+  lines and another's discounts can offset each other; the products clause drops
   when the month has no lines; the unattributed clause drops when no ticket
   has a confirmed total, since a line sum standing in for the total always
   reads as 0 €; and a month with no purchases has no coverage

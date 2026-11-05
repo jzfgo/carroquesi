@@ -210,6 +210,13 @@ def test_the_coverage_footer_speaks_of_tickets_in_the_plural_when_there_are_seve
     )
 
 
+def test_the_coverage_footer_names_only_the_tickets_it_measured():
+    # Three tickets, one confirmed: only that one was compared with its lines.
+    (*_, last) = coverage_clauses(_coverage(trips=3, trips_confirmed=1, unattributed=-2.0))
+
+    assert last.endswith("más que el ticket, seguramente por descuentos que el ticket no detalla")
+
+
 def test_the_coverage_footer_skips_what_says_nothing():
     assert coverage_clauses(_coverage(trips=0, trips_confirmed=0, lines_total=0)) == []
     # A ticket with a total and no lines: "0 de 0 productos" would say nothing.
