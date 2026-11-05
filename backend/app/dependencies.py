@@ -113,7 +113,7 @@ def _authenticate(
         user = session.get(User, api_key.user_id)
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
-        api_key.last_used_at = datetime.now(UTC).replace(tzinfo=None)
+        api_key.last_used_at = datetime.now(UTC)
         session.commit()
         object.__setattr__(user, "is_admin", False)
         return user

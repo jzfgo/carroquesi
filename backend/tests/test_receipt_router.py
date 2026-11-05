@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from sqlmodel import select
@@ -31,7 +31,7 @@ def enable_receipt_flag(session, user):
         granted_by="admin",
     )
     user.receipt_consent = "granted"
-    user.receipt_consent_at = datetime.now(UTC).replace(tzinfo=None)
+    user.receipt_consent_at = datetime.now(UTC)
     session.add_all([row, user])
     session.commit()
 
@@ -430,7 +430,7 @@ def test_post_receipt_matches_the_most_recently_updated_duplicate(client, sessio
     ordered pending-first then most-recently-updated, so the recent row wins."""
     old_item = session.get_one(ListItem, "item-almendras")
     old_item.name = "Leche entera"
-    old_item.updated_at = datetime(2026, 4, 9, 9, 0, 0)
+    old_item.updated_at = datetime(2026, 4, 9, 9, 0, 0, tzinfo=UTC)
     session.add(old_item)
 
     recent_item = ListItem(
@@ -438,7 +438,7 @@ def test_post_receipt_matches_the_most_recently_updated_duplicate(client, sessio
         list_id=LIST_ID,
         name="Leche entera",
         added_by=old_item.added_by,
-        updated_at=datetime(2026, 4, 11, 15, 57, 0),
+        updated_at=datetime(2026, 4, 11, 15, 57, 0, tzinfo=UTC),
     )
     session.add(recent_item)
     session.commit()
@@ -474,12 +474,12 @@ def test_post_receipt_excludes_items_settled_on_a_closed_purchase(client, sessio
     trip = Purchase(
         id="trip-closed",
         list_id=LIST_ID,
-        opened_at=datetime(2026, 4, 1, 9, 0, 0),
-        tears_off_at=datetime(2026, 4, 2, 0, 0, 0),
-        closed_at=datetime(2026, 4, 2, 0, 0, 0),
+        opened_at=datetime(2026, 4, 1, 9, 0, 0, tzinfo=UTC),
+        tears_off_at=datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC),
+        closed_at=datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC),
     )
     item = session.get_one(ListItem, "item-almendras")
-    item.purchased_at = datetime(2026, 4, 1, 10, 0, 0)
+    item.purchased_at = datetime(2026, 4, 1, 10, 0, 0, tzinfo=UTC)
     item.purchase_id = "trip-closed"
     session.add_all([trip, item])
     session.commit()
@@ -499,12 +499,12 @@ def test_post_receipt_includes_items_in_the_open_cart(client, session):
     trip = Purchase(
         id="trip-open",
         list_id=LIST_ID,
-        opened_at=datetime(2026, 4, 11, 9, 0, 0),
+        opened_at=datetime(2026, 4, 11, 9, 0, 0, tzinfo=UTC),
         # Far-future tear-off so the cart reads as open whenever the suite runs.
-        tears_off_at=datetime(2099, 1, 1, 0, 0, 0),
+        tears_off_at=datetime(2099, 1, 1, 0, 0, 0, tzinfo=UTC),
     )
     item = session.get_one(ListItem, "item-almendras")
-    item.purchased_at = datetime(2026, 4, 11, 10, 0, 0)
+    item.purchased_at = datetime(2026, 4, 11, 10, 0, 0, tzinfo=UTC)
     item.purchase_id = "trip-open"
     session.add_all([trip, item])
     session.commit()
@@ -522,11 +522,11 @@ def test_post_receipt_excludes_open_cart_items_whose_trip_has_a_scan(client, ses
     trip = Purchase(
         id="trip-open-scanned",
         list_id=LIST_ID,
-        opened_at=datetime(2026, 4, 11, 9, 0, 0),
-        tears_off_at=datetime(2099, 1, 1, 0, 0, 0),
+        opened_at=datetime(2026, 4, 11, 9, 0, 0, tzinfo=UTC),
+        tears_off_at=datetime(2099, 1, 1, 0, 0, 0, tzinfo=UTC),
     )
     item = session.get_one(ListItem, "item-almendras")
-    item.purchased_at = datetime(2026, 4, 11, 10, 0, 0)
+    item.purchased_at = datetime(2026, 4, 11, 10, 0, 0, tzinfo=UTC)
     item.purchase_id = "trip-open-scanned"
     scan = ReceiptScan(list_id=LIST_ID, scanned_by=user.id, purchase_id="trip-open-scanned")
     session.add_all([trip, item, scan])
@@ -545,12 +545,12 @@ def test_receipt_prices_skips_an_item_settled_under_a_ticket(client, session):
     trip = Purchase(
         id="trip-ticketed",
         list_id=LIST_ID,
-        opened_at=datetime(2026, 4, 1, 9, 0, 0),
-        tears_off_at=datetime(2026, 4, 2, 0, 0, 0),
-        closed_at=datetime(2026, 4, 2, 0, 0, 0),
+        opened_at=datetime(2026, 4, 1, 9, 0, 0, tzinfo=UTC),
+        tears_off_at=datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC),
+        closed_at=datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC),
     )
     item = session.get_one(ListItem, "item-almendras")
-    item.purchased_at = datetime(2026, 4, 1, 10, 0, 0)
+    item.purchased_at = datetime(2026, 4, 1, 10, 0, 0, tzinfo=UTC)
     item.purchase_id = "trip-ticketed"
     item.price = 1.05
     session.add_all([trip, item])
@@ -721,9 +721,9 @@ def test_receipt_price_batch_defaults_new_fields():
 @pytest.mark.parametrize(
     "raw,expected",
     [
-        ("2026-04-11", datetime(2026, 4, 11, 0, 0)),
-        ("2026-04-11T17:42:00Z", datetime(2026, 4, 11, 17, 42)),
-        ("2026-04-11T17:42:00+02:00", datetime(2026, 4, 11, 15, 42)),
+        ("2026-04-11", datetime(2026, 4, 11, 0, 0, tzinfo=UTC)),
+        ("2026-04-11T17:42:00Z", datetime(2026, 4, 11, 17, 42, tzinfo=UTC)),
+        ("2026-04-11T17:42:00+02:00", datetime(2026, 4, 11, 15, 42, tzinfo=UTC)),
         (None, None),
         ("", None),
         ("not-a-date", None),
@@ -733,11 +733,12 @@ def test_parse_receipt_at(raw, expected):
     assert _parse_receipt_at(raw) == expected
 
 
-def test_parse_receipt_at_returns_naive_datetimes():
-    """Stored timestamps are naive UTC throughout the codebase."""
-    parsed = _parse_receipt_at("2026-04-11T17:42:00Z")
+def test_parse_receipt_at_returns_utc_datetimes():
+    """Stored timestamps are aware UTC throughout the codebase."""
+    parsed = _parse_receipt_at("2026-04-11T19:42:00+02:00")
     assert parsed is not None
-    assert parsed.tzinfo is None
+    assert parsed.utcoffset() == timedelta(0)
+    assert parsed == datetime(2026, 4, 11, 17, 42, tzinfo=UTC)
 
 
 def test_receipt_prices_marks_unpurchased_item_as_purchased(client, session, user):
@@ -774,7 +775,7 @@ def test_receipt_prices_marks_unpurchased_item_as_purchased(client, session, use
 
     session.expire_all()
     item = session.get_one(ListItem, "item-pan")
-    assert item.purchased_at == datetime(2026, 4, 11, 17, 42)
+    assert item.purchased_at == datetime(2026, 4, 11, 17, 42, tzinfo=UTC)
     assert item.price == pytest.approx(1.25)
 
 
@@ -789,11 +790,11 @@ def test_receipt_prices_does_not_rewrite_an_existing_purchase_timestamp(client, 
     trip = Purchase(
         id="trip-open-ts",
         list_id=LIST_ID,
-        opened_at=datetime(2026, 4, 8, 9, 0, 0),
-        tears_off_at=datetime(2099, 1, 1, 0, 0, 0),
+        opened_at=datetime(2026, 4, 8, 9, 0, 0, tzinfo=UTC),
+        tears_off_at=datetime(2099, 1, 1, 0, 0, 0, tzinfo=UTC),
     )
     original_item = session.get_one(ListItem, "item-almendras")
-    original_item.purchased_at = datetime(2026, 4, 8, 10, 0, 0)
+    original_item.purchased_at = datetime(2026, 4, 8, 10, 0, 0, tzinfo=UTC)
     original_item.purchase_id = "trip-open-ts"
     session.add_all([trip, original_item])
     session.commit()
@@ -837,7 +838,7 @@ def test_receipt_prices_stamps_updated_at(client, session, user):
             name="Queso curado",
             added_by=user.id,
             purchased_at=None,
-            updated_at=datetime(2026, 1, 1),
+            updated_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
     )
     session.commit()
@@ -864,8 +865,8 @@ def test_receipt_prices_stamps_updated_at(client, session, user):
 
     session.expire_all()
     item = session.get_one(ListItem, "item-queso")
-    assert item.purchased_at == datetime(2026, 4, 11, 17, 42)
-    assert item.updated_at > datetime(2026, 4, 11, 17, 42)
+    assert item.purchased_at == datetime(2026, 4, 11, 17, 42, tzinfo=UTC)
+    assert item.updated_at > datetime(2026, 4, 11, 17, 42, tzinfo=UTC)
 
 
 def test_receipt_prices_falls_back_to_now_without_a_receipt_date(client, session, user):
@@ -880,7 +881,7 @@ def test_receipt_prices_falls_back_to_now_without_a_receipt_date(client, session
         )
     )
     session.commit()
-    before = datetime.now(UTC).replace(tzinfo=None)
+    before = datetime.now(UTC)
 
     response = client.post(
         f"/lists/{LIST_ID}/receipt-prices",
@@ -939,7 +940,7 @@ def test_receipt_prices_creates_a_purchased_item(client, session, user):
     assert created.price == pytest.approx(1.8)
     assert created.price_store == "Mercadona"
     assert created.stores == ["Mercadona"]
-    assert created.purchased_at == datetime(2026, 4, 11, 17, 42)
+    assert created.purchased_at == datetime(2026, 4, 11, 17, 42, tzinfo=UTC)
 
 
 def test_created_item_uses_purchased_quantity_not_planned_quantity(client, session):
@@ -950,7 +951,7 @@ def test_created_item_uses_purchased_quantity_not_planned_quantity(client, sessi
 
 
 def test_created_item_falls_back_to_now_without_a_receipt_date(client, session):
-    before = datetime.now(UTC).replace(tzinfo=None)
+    before = datetime.now(UTC)
     body = _new_item_body()
     body["receipt_date"] = None
     client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
@@ -1051,7 +1052,7 @@ def test_post_receipt_full_instant_excludes_items_outside_match_window(client, s
     used by the bug fix.
     """
     item = session.get_one(ListItem, "item-almendras")
-    item.purchased_at = datetime(2026, 3, 1, 9, 0, 0)  # 41 days before receipt
+    item.purchased_at = datetime(2026, 3, 1, 9, 0, 0, tzinfo=UTC)  # 41 days before receipt
     session.add(item)
     session.commit()
 
@@ -1071,13 +1072,13 @@ def test_scan_record_keeps_the_receipt_time(client, session):
     scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=body).json()["scan_id"]
 
     scan = session.get_one(ReceiptScan, scan_id)
-    assert scan.receipt_at == datetime(2026, 4, 11, 17, 42)
+    assert scan.receipt_at == datetime(2026, 4, 11, 17, 42, tzinfo=UTC)
 
 
 def test_scan_record_stores_midnight_for_a_bare_date(client, session):
     scan_id = client.post(f"/lists/{LIST_ID}/receipt", json=_unit_body()).json()["scan_id"]
     scan = session.get_one(ReceiptScan, scan_id)
-    assert scan.receipt_at == datetime(2026, 4, 11, 0, 0)
+    assert scan.receipt_at == datetime(2026, 4, 11, 0, 0, tzinfo=UTC)
 
 
 def _mapping_batch(store: str, receipt_name: str, item_name: str) -> dict:
@@ -1208,13 +1209,13 @@ def test_receipt_apply_closes_the_trip_back_dated_to_the_receipt(client, session
 
     session.expire_all()
     item = session.get_one(ListItem, "item-pan-trip")
-    assert item.purchased_at == datetime(2026, 4, 11, 17, 42)
+    assert item.purchased_at == datetime(2026, 4, 11, 17, 42, tzinfo=UTC)
     assert item.purchase_id is not None
     trip = session.get_one(Purchase, item.purchase_id)
     assert trip.list_id == LIST_ID
     assert trip.closed_at is not None
-    assert trip.opened_at == datetime(2026, 4, 11, 0, 0)
-    assert trip.tears_off_at == datetime(2026, 4, 12, 0, 0)
+    assert trip.opened_at == datetime(2026, 4, 11, 0, 0, tzinfo=UTC)
+    assert trip.tears_off_at == datetime(2026, 4, 12, 0, 0, tzinfo=UTC)
     assert trip.store == "Mercadona"
     assert trip.total == pytest.approx(1.25)
 
@@ -1377,7 +1378,7 @@ def test_apply_with_nothing_to_settle_leaves_the_scan_unlinked(client, session):
 # --- Targeted attach: a scan completes a settled purchase (25b) ---
 
 SETTLED_ID = "trip-settled"
-SETTLED_WRITE = datetime(2026, 4, 1, 10, 0, 0)
+SETTLED_WRITE = datetime(2026, 4, 1, 10, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture
@@ -1387,9 +1388,9 @@ def settled_trip(session, user):
     trip = Purchase(
         id=SETTLED_ID,
         list_id=LIST_ID,
-        opened_at=datetime(2026, 4, 1, 9, 0, 0),
-        tears_off_at=datetime(2026, 4, 2, 0, 0, 0),
-        closed_at=datetime(2026, 4, 2, 0, 0, 0),
+        opened_at=datetime(2026, 4, 1, 9, 0, 0, tzinfo=UTC),
+        tears_off_at=datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC),
+        closed_at=datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC),
         store="Mercadona",
         total=None,
     )
@@ -1491,9 +1492,9 @@ def test_targeted_scan_returns_404_for_another_lists_purchase(client, session, u
     trip = Purchase(
         id="trip-elsewhere",
         list_id="list-other",
-        opened_at=datetime(2026, 4, 1, 9, 0, 0),
-        tears_off_at=datetime(2026, 4, 2, 0, 0, 0),
-        closed_at=datetime(2026, 4, 2, 0, 0, 0),
+        opened_at=datetime(2026, 4, 1, 9, 0, 0, tzinfo=UTC),
+        tears_off_at=datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC),
+        closed_at=datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC),
     )
     session.add_all([other, trip])
     session.commit()
@@ -1508,8 +1509,8 @@ def test_targeted_scan_returns_409_for_the_open_cart(client, session):
     cart = Purchase(
         id="trip-cart",
         list_id=LIST_ID,
-        opened_at=datetime(2026, 4, 11, 9, 0, 0),
-        tears_off_at=datetime(2099, 1, 1, 0, 0, 0),
+        opened_at=datetime(2026, 4, 11, 9, 0, 0, tzinfo=UTC),
+        tears_off_at=datetime(2099, 1, 1, 0, 0, 0, tzinfo=UTC),
     )
     session.add(cart)
     session.commit()
@@ -1579,7 +1580,7 @@ def test_targeted_apply_skips_a_patch_for_an_item_not_on_the_purchase(
 def test_targeted_apply_files_new_lines_on_the_purchase(client, session, settled_trip):
     """A line the record never had files onto the named ticket at its opening,
     with a fresh updated_at so the just-written line stays revertible."""
-    before = datetime.now(UTC).replace(tzinfo=None)
+    before = datetime.now(UTC)
     response = client.post(
         f"/lists/{LIST_ID}/receipt-prices",
         json=_targeted_batch(
@@ -1654,9 +1655,9 @@ def test_targeted_apply_leaves_store_and_dating_untouched(client, session, settl
     session.expire_all()
     trip = session.get_one(Purchase, SETTLED_ID)
     assert trip.store == "Mercadona"
-    assert trip.opened_at == datetime(2026, 4, 1, 9, 0, 0)
-    assert trip.tears_off_at == datetime(2026, 4, 2, 0, 0, 0)
-    assert trip.closed_at == datetime(2026, 4, 2, 0, 0, 0)
+    assert trip.opened_at == datetime(2026, 4, 1, 9, 0, 0, tzinfo=UTC)
+    assert trip.tears_off_at == datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC)
+    assert trip.closed_at == datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC)
     # The line's own store note does take the paper's word.
     assert session.get_one(ListItem, "item-settled-unpriced").price_store == "Lidl"
 
@@ -1667,15 +1668,15 @@ def test_targeted_apply_closes_no_trip(client, session, settled_trip, user):
     cart = Purchase(
         id="trip-cart",
         list_id=LIST_ID,
-        opened_at=datetime(2026, 4, 11, 9, 0, 0),
-        tears_off_at=datetime(2099, 1, 1, 0, 0, 0),
+        opened_at=datetime(2026, 4, 11, 9, 0, 0, tzinfo=UTC),
+        tears_off_at=datetime(2099, 1, 1, 0, 0, 0, tzinfo=UTC),
     )
     in_cart = ListItem(
         id="item-in-cart",
         list_id=LIST_ID,
         name="Leche entera",
         added_by=user.id,
-        purchased_at=datetime(2026, 4, 11, 10, 0, 0),
+        purchased_at=datetime(2026, 4, 11, 10, 0, 0, tzinfo=UTC),
         purchase_id="trip-cart",
     )
     session.add_all([cart, in_cart])
@@ -1714,8 +1715,8 @@ def test_targeted_apply_returns_409_for_the_open_cart(client, session):
     cart = Purchase(
         id="trip-cart",
         list_id=LIST_ID,
-        opened_at=datetime(2026, 4, 11, 9, 0, 0),
-        tears_off_at=datetime(2099, 1, 1, 0, 0, 0),
+        opened_at=datetime(2026, 4, 11, 9, 0, 0, tzinfo=UTC),
+        tears_off_at=datetime(2099, 1, 1, 0, 0, 0, tzinfo=UTC),
     )
     session.add(cart)
     session.commit()
@@ -1873,9 +1874,9 @@ def _past_day_trip(session, user, *, store="Ahorramas", closed=True, trip_id=PAS
     trip = Purchase(
         id=trip_id,
         list_id=LIST_ID,
-        opened_at=datetime(2026, 4, 1, 17, 0, 0),
-        tears_off_at=datetime(2026, 4, 2, 0, 0, 0),
-        closed_at=datetime(2026, 4, 2, 0, 0, 0) if closed else None,
+        opened_at=datetime(2026, 4, 1, 17, 0, 0, tzinfo=UTC),
+        tears_off_at=datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC),
+        closed_at=datetime(2026, 4, 2, 0, 0, 0, tzinfo=UTC) if closed else None,
         store=store,
     )
     session.add_all(
@@ -1886,7 +1887,7 @@ def _past_day_trip(session, user, *, store="Ahorramas", closed=True, trip_id=PAS
                 list_id=LIST_ID,
                 name="Pan integral",
                 added_by=user.id,
-                purchased_at=datetime(2026, 4, 1, 17, 5, 0),
+                purchased_at=datetime(2026, 4, 1, 17, 5, 0, tzinfo=UTC),
                 purchase_id=trip_id,
             ),
         ]
@@ -2027,7 +2028,7 @@ def test_scan_repairs_a_misread_year(client, session):
 
     assert result["receipt_date"] == "2026-04-11T17:42:00+00:00"
     scan = session.get_one(ReceiptScan, result["scan_id"])
-    assert scan.receipt_at == datetime(2026, 4, 11, 17, 42)
+    assert scan.receipt_at == datetime(2026, 4, 11, 17, 42, tzinfo=UTC)
 
 
 def test_scan_repair_keeps_a_bare_date_bare(client):

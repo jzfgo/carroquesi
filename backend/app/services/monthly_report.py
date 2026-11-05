@@ -66,7 +66,7 @@ def report_period(now: datetime, tz: tzinfo) -> str:
 
 
 def run_monthly_reports(session: Session, now: datetime) -> RunSummary:
-    """`now` is naive UTC, like every stored timestamp."""
+    """`now` is an aware UTC instant, like every stored timestamp."""
     summary = RunSummary()
     summary.stuck = _stuck_runs(session, now)
     if not mailer_ready():
@@ -177,6 +177,6 @@ def _find(session: Session, list_id: str, period: str) -> ReportRun | None:
 def _finish(session: Session, run: ReportRun, status: str, error: str | None) -> None:
     run.status = status
     run.error = error
-    run.finished_at = datetime.now(UTC).replace(tzinfo=None)
+    run.finished_at = datetime.now(UTC)
     session.add(run)
     session.commit()

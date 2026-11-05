@@ -7,7 +7,7 @@ suggestion costs more trust than a missing one.
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from statistics import mean
 from typing import Literal
 
@@ -125,7 +125,7 @@ def _best_elsewhere(
         cheaper_store_key=best.store_key,
         cheaper_store=w.store_name(best.store_key, best.line.store_raw),
         cheaper_price=round(best.price, 2),
-        cheaper_seen_at=best.line.day.replace(tzinfo=UTC).astimezone(w.tz).date(),
+        cheaper_seen_at=best.line.day.astimezone(w.tz).date(),
         saving_pct=round((paid_price - best.price) / paid_price, 4),
         monthly_eur=round(monthly, 2),
     )

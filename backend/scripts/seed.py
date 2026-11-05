@@ -69,15 +69,15 @@ from app.services.trips import tears_off_at_for
 
 
 def now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return datetime.now(UTC)
 
 
 def days_ago(n: float) -> datetime:
-    return (datetime.now(UTC) - timedelta(days=n)).replace(tzinfo=None)
+    return datetime.now(UTC) - timedelta(days=n)
 
 
 def today_fraction(f: float) -> datetime:
-    """A naive-UTC instant f of the way from the last local midnight to now.
+    """A UTC instant f of the way from the last local midnight to now.
 
     "Purchased today" fixtures must land inside the current local day whatever
     hour the seed runs: a fixed now-minus-hours offset crosses midnight when
@@ -90,7 +90,7 @@ def today_fraction(f: float) -> datetime:
     local_now = datetime.now(UTC).astimezone()
     midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
     instant = midnight + (local_now - midnight) * f
-    return instant.astimezone(UTC).replace(tzinfo=None)
+    return instant.astimezone(UTC)
 
 
 ALICE_ID = "seed-user-alice"

@@ -48,7 +48,7 @@ def set_receipt_consent(
     most recent time the user stated it.
     """
     current_user.receipt_consent = body.consent
-    current_user.receipt_consent_at = datetime.now(UTC).replace(tzinfo=None)
+    current_user.receipt_consent_at = datetime.now(UTC)
     session.add(current_user)
     session.commit()
     session.refresh(current_user)

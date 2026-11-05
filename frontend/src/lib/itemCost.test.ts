@@ -82,7 +82,7 @@ describe('tripDateLabel', () => {
   afterEach(() => vi.useRealTimers())
 
   // Pin "now" to 15 Aug 2026 so the month boundary is deterministic. Dates are
-  // parsed as naive-UTC; run at UTC to keep the local-day mapping stable.
+  // UTC instants; run at UTC to keep the local-day mapping stable.
   function pinNow() {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-15T12:00:00Z'))

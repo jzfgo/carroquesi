@@ -61,9 +61,7 @@ describe('LogPurchaseSheet delete button', () => {
       price: 1.99,
       purchased: true,
       purchased_at: new Date().toISOString(),
-      purchase_ends_at: new Date(Date.now() + 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, -1),
+      purchase_ends_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     }
     render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
     expect(

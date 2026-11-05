@@ -30,7 +30,7 @@ def enable_receipt_flag(session, user):
         granted_by="admin",
     )
     user.receipt_consent = "granted"
-    user.receipt_consent_at = datetime.now(UTC).replace(tzinfo=None)
+    user.receipt_consent_at = datetime.now(UTC)
     session.add_all([row, user])
     session.commit()
 
@@ -367,8 +367,8 @@ def trip_with_scans_fixture(session: Session, user):
     trip = Purchase(
         id=PURCHASE_ID,
         list_id=LIST_ID,
-        tears_off_at=datetime(2026, 4, 12, 0, 0),
-        closed_at=datetime(2026, 4, 11, 19, 0),
+        tears_off_at=datetime(2026, 4, 12, 0, 0, tzinfo=UTC),
+        closed_at=datetime(2026, 4, 11, 19, 0, tzinfo=UTC),
         store="Mercadona",
         total=42.5,
     )
@@ -377,20 +377,20 @@ def trip_with_scans_fixture(session: Session, user):
         list_id=LIST_ID,
         scanned_by=user.id,
         store="Mercadona",
-        receipt_at=datetime(2026, 4, 11, 17, 42),
+        receipt_at=datetime(2026, 4, 11, 17, 42, tzinfo=UTC),
         receipt_total=42.5,
         purchase_id=PURCHASE_ID,
         file_path=f"receipts/{LIST_ID}/scan-with-file.pdf",
         file_content_type="application/pdf",
         file_pages=2,
-        created_at=datetime(2026, 4, 11, 18, 0),
+        created_at=datetime(2026, 4, 11, 18, 0, tzinfo=UTC),
     )
     without_file = ReceiptScan(
         id="scan-without-file",
         list_id=LIST_ID,
         scanned_by=user.id,
         purchase_id=PURCHASE_ID,
-        created_at=datetime(2026, 4, 11, 18, 5),
+        created_at=datetime(2026, 4, 11, 18, 5, tzinfo=UTC),
     )
     session.add_all([trip, with_file, without_file])
     session.commit()
@@ -404,11 +404,11 @@ def test_purchase_scans_lists_the_trips_scans_oldest_first(client, trip_with_sca
 
     first = body[0]
     assert first["store"] == "Mercadona"
-    assert first["receipt_at"] == "2026-04-11T17:42:00"
+    assert first["receipt_at"] == "2026-04-11T17:42:00Z"
     assert first["receipt_total"] == pytest.approx(42.5)
     assert first["has_file"] is True
     assert first["file_pages"] == 2
-    assert first["created_at"] == "2026-04-11T18:00:00"
+    assert first["created_at"] == "2026-04-11T18:00:00Z"
     # The listing points at files, it never signs URLs itself.
     assert "file_path" not in first
     assert "url" not in first
@@ -426,7 +426,9 @@ def test_purchase_scans_excludes_unlinked_scans(client, trip_with_scans):
 
 
 def test_purchase_scans_answers_an_empty_list_for_a_scanless_trip(client, session):
-    trip = Purchase(id="purchase-bare", list_id=LIST_ID, tears_off_at=datetime(2026, 4, 12))
+    trip = Purchase(
+        id="purchase-bare", list_id=LIST_ID, tears_off_at=datetime(2026, 4, 12, tzinfo=UTC)
+    )
     session.add(trip)
     session.commit()
 
@@ -456,7 +458,7 @@ def test_purchase_scans_returns_404_for_another_lists_purchase(
     trip = Purchase(
         id="purchase-foreign",
         list_id=second_list["id"],
-        tears_off_at=datetime(2026, 4, 12),
+        tears_off_at=datetime(2026, 4, 12, tzinfo=UTC),
     )
     session.add(trip)
     session.commit()

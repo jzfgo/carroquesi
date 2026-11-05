@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -17,7 +17,7 @@ from app.services.monthly_report import report_period, run_monthly_reports
 from tests.insights_factory import MADRID
 
 # 1 Nov 2026, 00:30 in Madrid — still 31 Oct in UTC and in New York.
-NOV_1_MADRID = datetime(2026, 10, 31, 23, 30)
+NOV_1_MADRID = datetime(2026, 10, 31, 23, 30, tzinfo=UTC)
 
 
 @pytest.fixture(name="sent")
@@ -32,7 +32,9 @@ def sent_fixture(monkeypatch) -> list[tuple[str, str]]:
 
 
 def _list(session: Session, owner: User, *, flag: bool = True, created: datetime | None = None):
-    lst = List(name="Casa", owner_id=owner.id, created_at=created or datetime(2026, 1, 1))
+    lst = List(
+        name="Casa", owner_id=owner.id, created_at=created or datetime(2026, 1, 1, tzinfo=UTC)
+    )
     session.add(lst)
     if flag:
         session.add(UserFeature(user_id=owner.id, feature="monthly_report", granted_by="test"))
@@ -93,7 +95,7 @@ def test_only_owners_with_the_flag_get_a_report(session, user, other_user, sent)
 
 def test_a_list_made_after_the_month_has_no_report(session, user, sent):
     user.timezone = "Europe/Madrid"
-    _list(session, user, created=datetime(2026, 10, 31, 23, 10))
+    _list(session, user, created=datetime(2026, 10, 31, 23, 10, tzinfo=UTC))
 
     run_monthly_reports(session, NOV_1_MADRID)
 

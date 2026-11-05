@@ -1,7 +1,7 @@
 """What happened in the month: totals, stores, products, requesters, cadence."""
 
 from collections import defaultdict
-from datetime import UTC, date
+from datetime import date
 from statistics import mean
 
 from app.services.insights.data import Line, Trip, Window, shift_month
@@ -190,4 +190,4 @@ def _priced(lines: list[Line]) -> int:
 
 
 def _local_day(w: Window, t: Trip) -> date:
-    return t.opened_at.replace(tzinfo=UTC).astimezone(w.tz).date()
+    return t.opened_at.astimezone(w.tz).date()

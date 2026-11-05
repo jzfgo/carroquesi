@@ -49,7 +49,7 @@ def test_users_me_reflects_api_key_state(client: TestClient, session: Session, u
     assert data["has_api_key"] is False
     assert data["api_key_last_used_at"] is None
 
-    last_used = datetime.now(UTC).replace(tzinfo=None)
+    last_used = datetime.now(UTC)
     session.add(
         ApiKey(
             user_id=user.id,
@@ -108,7 +108,7 @@ def test_put_receipt_consent_retoggle_restamps_timestamp(
     session.refresh(user)
 
     # Backdate the stamp so the second decision provably rewrites it.
-    user.receipt_consent_at = datetime(2020, 1, 1, 0, 0, 0)
+    user.receipt_consent_at = datetime(2020, 1, 1, 0, 0, 0, tzinfo=UTC)
     session.add(user)
     session.commit()
 
@@ -118,7 +118,7 @@ def test_put_receipt_consent_retoggle_restamps_timestamp(
 
     session.refresh(user)
     assert user.receipt_consent == "declined"
-    assert user.receipt_consent_at > datetime(2020, 1, 1, 0, 0, 0)
+    assert user.receipt_consent_at > datetime(2020, 1, 1, 0, 0, 0, tzinfo=UTC)
 
 
 def test_put_receipt_consent_rejects_unknown_values(client: TestClient):

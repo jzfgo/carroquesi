@@ -22,12 +22,10 @@ NO_STORE = "Sin tienda"
 
 
 def month_bounds(month: str, tz: tzinfo) -> tuple[datetime, datetime]:
-    """`[start, end)` of a "YYYY-MM" month in `tz`, as naive UTC like the DB."""
+    """`[start, end)` of a "YYYY-MM" month in `tz`, in UTC."""
     year, mon = _parse_month(month)
     nxt_year, nxt_mon = _parse_month(shift_month(month, 1))
-    return _naive_utc(datetime(year, mon, 1, tzinfo=tz)), _naive_utc(
-        datetime(nxt_year, nxt_mon, 1, tzinfo=tz)
-    )
+    return _utc(datetime(year, mon, 1, tzinfo=tz)), _utc(datetime(nxt_year, nxt_mon, 1, tzinfo=tz))
 
 
 def shift_month(month: str, delta: int) -> str:
@@ -37,8 +35,11 @@ def shift_month(month: str, delta: int) -> str:
 
 
 def local_month(instant: datetime, tz: tzinfo) -> str:
-    """The "YYYY-MM" a naive-UTC instant falls in, seen from `tz`."""
-    return instant.replace(tzinfo=UTC).astimezone(tz).strftime("%Y-%m")
+    """The "YYYY-MM" an instant falls in, seen from `tz`."""
+    # A naive value would be read in the server's own zone, silently.
+    if instant.tzinfo is None:
+        raise ValueError("local_month needs an aware instant")
+    return instant.astimezone(tz).strftime("%Y-%m")
 
 
 def _parse_month(month: str) -> tuple[int, int]:
@@ -46,8 +47,8 @@ def _parse_month(month: str) -> tuple[int, int]:
     return parsed.year, parsed.month
 
 
-def _naive_utc(aware: datetime) -> datetime:
-    return aware.astimezone(UTC).replace(tzinfo=None)
+def _utc(aware: datetime) -> datetime:
+    return aware.astimezone(UTC)
 
 
 def _key(raw: str | None) -> str | None:

@@ -6,10 +6,9 @@ import { isTripOpen } from './isTripOpen'
 // in: both sides of the comparison are UTC instants, never calendar days.
 const NOW = Date.UTC(2026, 6, 25, 10, 30, 0)
 
-// The API serializes naive UTC, so fixtures shed the Z the same way the
-// backend does.
-function naiveUtc(ms: number): string {
-  return new Date(ms).toISOString().slice(0, -1)
+// The API serializes UTC instants with a Z suffix.
+function utc(ms: number): string {
+  return new Date(ms).toISOString()
 }
 
 describe('isTripOpen', () => {
@@ -22,15 +21,15 @@ describe('isTripOpen', () => {
   })
 
   it('a trip whose end is still ahead is open', () => {
-    expect(isTripOpen(naiveUtc(NOW + 60_000))).toBe(true)
+    expect(isTripOpen(utc(NOW + 60_000))).toBe(true)
   })
 
   it('a trip whose end has passed is closed, however recently', () => {
-    expect(isTripOpen(naiveUtc(NOW - 60_000))).toBe(false)
+    expect(isTripOpen(utc(NOW - 60_000))).toBe(false)
   })
 
   it('the exact boundary instant is closed', () => {
-    expect(isTripOpen(naiveUtc(NOW))).toBe(false)
+    expect(isTripOpen(utc(NOW))).toBe(false)
   })
 
   it('an item without a trip is never blocked', () => {

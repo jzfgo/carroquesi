@@ -285,9 +285,7 @@ export function useListItems(
         }
       }
 
-      const nowStr = !prevPurchased
-        ? new Date().toISOString().slice(0, -1)
-        : null
+      const nowStr = !prevPurchased ? new Date().toISOString() : null
       setItems(
         snapshot.map((i) =>
           i.id === itemId

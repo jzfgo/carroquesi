@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlmodel import Session
@@ -16,10 +16,10 @@ def _seed(session: Session, user: User) -> List:
     session.add(lst)
     session.commit()
     for day, store, price in [
-        (datetime(2026, 8, 10, 10), "Mercadona", 1.20),
-        (datetime(2026, 9, 10, 10), "Mercadona", 1.20),
-        (datetime(2026, 10, 10, 10), "Mercadona", 1.20),
-        (datetime(2026, 10, 20, 10), "Ahorramas", 1.05),
+        (datetime(2026, 8, 10, 10, tzinfo=UTC), "Mercadona", 1.20),
+        (datetime(2026, 9, 10, 10, tzinfo=UTC), "Mercadona", 1.20),
+        (datetime(2026, 10, 10, 10, tzinfo=UTC), "Mercadona", 1.20),
+        (datetime(2026, 10, 20, 10, tzinfo=UTC), "Ahorramas", 1.05),
     ]:
         trip = Purchase(
             list_id=lst.id, opened_at=day, tears_off_at=day + timedelta(days=1), store=store
@@ -77,7 +77,7 @@ def test_computing_a_report_writes_nothing(session: Session, user: User):
 
 def test_lines_without_a_trip_are_counted_for_the_report_month_only(session: Session, user: User):
     lst = _seed(session, user)
-    for day in (datetime(2026, 8, 5, 10), datetime(2026, 10, 5, 10)):
+    for day in (datetime(2026, 8, 5, 10, tzinfo=UTC), datetime(2026, 10, 5, 10, tzinfo=UTC)):
         session.add(
             ListItem(list_id=lst.id, name="Pan", added_by=user.id, purchased_at=day, price=1.0)
         )

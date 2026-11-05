@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseServerInstant } from './serverInstant'
+import { compareServerInstants, parseServerInstant } from './serverInstant'
 
 const INSTANT = Date.UTC(2026, 10, 4, 10, 0, 0)
 
@@ -28,5 +28,22 @@ describe('parseServerInstant', () => {
     expect(parseServerInstant('2026-11-04T10:00:00.250Z').getTime()).toBe(
       INSTANT + 250,
     )
+  })
+})
+
+describe('compareServerInstants', () => {
+  it('orders a whole second before a fraction of it', () => {
+    // As strings, '.' sorts before 'Z', which would put 10:00:00.5 first.
+    const sorted = ['2026-11-04T10:00:00.500Z', '2026-11-04T10:00:00Z'].sort(
+      compareServerInstants,
+    )
+    expect(sorted).toEqual(['2026-11-04T10:00:00Z', '2026-11-04T10:00:00.500Z'])
+  })
+
+  it('orders values with and without a zone suffix together', () => {
+    const sorted = ['2026-11-04T10:00:01', '2026-11-04T10:00:00Z'].sort(
+      compareServerInstants,
+    )
+    expect(sorted).toEqual(['2026-11-04T10:00:00Z', '2026-11-04T10:00:01'])
   })
 })

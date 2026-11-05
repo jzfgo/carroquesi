@@ -183,7 +183,7 @@ async function fileToInlinePart(file: File): Promise<InlineDataPart> {
  * Combine the receipt's printed date and time — which are LOCAL wall-clock — into
  * a UTC instant.
  *
- * `purchased_at` is stored naive-UTC and rendered by appending 'Z', so sending
+ * `purchased_at` is stored and rendered as a UTC instant, so sending
  * local time unconverted would shift an evening receipt onto the following day.
  * Using the Date constructor (rather than string concatenation) applies the
  * browser's offset rules for that specific date, which keeps receipts from the

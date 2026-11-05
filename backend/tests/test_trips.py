@@ -20,81 +20,85 @@ def list_fixture(session: Session, user: User) -> List:
     return lst
 
 
-def test_tear_off_is_the_next_local_midnight_in_naive_utc():
+def test_tear_off_is_the_next_local_midnight_in_utc():
     # Summer: Madrid is UTC+2, so local midnight on the 29th is 22:00Z on the 28th.
-    assert trips.tears_off_at_for(datetime(2026, 7, 28, 16, 0), MADRID) == datetime(
-        2026, 7, 28, 22, 0
+    assert trips.tears_off_at_for(datetime(2026, 7, 28, 16, 0, tzinfo=UTC), MADRID) == datetime(
+        2026, 7, 28, 22, 0, tzinfo=UTC
     )
 
 
 def test_tear_off_follows_the_callers_zone():
-    instant = datetime(2026, 7, 28, 16, 0)
-    assert trips.tears_off_at_for(instant, UTC) == datetime(2026, 7, 29, 0, 0)
-    assert trips.tears_off_at_for(instant, ZoneInfo("Etc/GMT+12")) == datetime(2026, 7, 29, 12, 0)
+    instant = datetime(2026, 7, 28, 16, 0, tzinfo=UTC)
+    assert trips.tears_off_at_for(instant, UTC) == datetime(2026, 7, 29, 0, 0, tzinfo=UTC)
+    assert trips.tears_off_at_for(instant, ZoneInfo("Etc/GMT+12")) == datetime(
+        2026, 7, 29, 12, 0, tzinfo=UTC
+    )
 
 
 def test_closed_trip_is_not_open_even_with_a_future_tear_off():
     # Closing by hand must win over the tear-off, not the other way round.
-    now = datetime(2026, 7, 28, 18, 0)
+    now = datetime(2026, 7, 28, 18, 0, tzinfo=UTC)
     trip = Purchase(
         list_id="list-1",
-        opened_at=datetime(2026, 7, 28, 10, 0),
-        tears_off_at=datetime(2026, 7, 28, 22, 0),
-        closed_at=datetime(2026, 7, 28, 17, 0),
+        opened_at=datetime(2026, 7, 28, 10, 0, tzinfo=UTC),
+        tears_off_at=datetime(2026, 7, 28, 22, 0, tzinfo=UTC),
+        closed_at=datetime(2026, 7, 28, 17, 0, tzinfo=UTC),
     )
-    assert trips.ends_at(trip) == datetime(2026, 7, 28, 17, 0)
+    assert trips.ends_at(trip) == datetime(2026, 7, 28, 17, 0, tzinfo=UTC)
     assert trips.is_open(trip, now) is False
 
 
 def test_unclosed_trip_past_its_tear_off_is_not_open():
     trip = Purchase(
         list_id="list-1",
-        opened_at=datetime(2026, 7, 28, 10, 0),
-        tears_off_at=datetime(2026, 7, 28, 22, 0),
+        opened_at=datetime(2026, 7, 28, 10, 0, tzinfo=UTC),
+        tears_off_at=datetime(2026, 7, 28, 22, 0, tzinfo=UTC),
     )
-    assert trips.ends_at(trip) == datetime(2026, 7, 28, 22, 0)
-    assert trips.is_open(trip, datetime(2026, 7, 29, 8, 0)) is False
-    assert trips.is_open(trip, datetime(2026, 7, 28, 18, 0)) is True
+    assert trips.ends_at(trip) == datetime(2026, 7, 28, 22, 0, tzinfo=UTC)
+    assert trips.is_open(trip, datetime(2026, 7, 29, 8, 0, tzinfo=UTC)) is False
+    assert trips.is_open(trip, datetime(2026, 7, 28, 18, 0, tzinfo=UTC)) is True
 
 
 def test_open_trip_for_creates_when_there_is_none(session: Session, lst: List):
-    now = datetime(2026, 7, 28, 16, 0)
+    now = datetime(2026, 7, 28, 16, 0, tzinfo=UTC)
     trip = trips.open_trip_for(session, lst.id, now, MADRID)
     assert trip.list_id == lst.id
     assert trip.opened_at == now
-    assert trip.tears_off_at == datetime(2026, 7, 28, 22, 0)
+    assert trip.tears_off_at == datetime(2026, 7, 28, 22, 0, tzinfo=UTC)
     assert trip.closed_at is None
 
 
 def test_two_taps_find_one_trip(session: Session, lst: List):
-    first = trips.open_trip_for(session, lst.id, datetime(2026, 7, 28, 16, 0), MADRID)
-    second = trips.open_trip_for(session, lst.id, datetime(2026, 7, 28, 18, 0), MADRID)
+    first = trips.open_trip_for(session, lst.id, datetime(2026, 7, 28, 16, 0, tzinfo=UTC), MADRID)
+    second = trips.open_trip_for(session, lst.id, datetime(2026, 7, 28, 18, 0, tzinfo=UTC), MADRID)
     assert first.id == second.id
     # The later tap must not move opened_at: the trip started when it started.
-    assert second.opened_at == datetime(2026, 7, 28, 16, 0)
+    assert second.opened_at == datetime(2026, 7, 28, 16, 0, tzinfo=UTC)
     assert len(session.exec(select(Purchase)).all()) == 1
 
 
 def test_a_closed_trip_is_never_reused(session: Session, lst: List):
-    closed = trips.open_trip_for(session, lst.id, datetime(2026, 7, 28, 16, 0), MADRID)
-    closed.closed_at = datetime(2026, 7, 28, 17, 0)
+    closed = trips.open_trip_for(session, lst.id, datetime(2026, 7, 28, 16, 0, tzinfo=UTC), MADRID)
+    closed.closed_at = datetime(2026, 7, 28, 17, 0, tzinfo=UTC)
     session.add(closed)
     session.commit()
 
-    later = trips.open_trip_for(session, lst.id, datetime(2026, 7, 28, 18, 0), MADRID)
+    later = trips.open_trip_for(session, lst.id, datetime(2026, 7, 28, 18, 0, tzinfo=UTC), MADRID)
     assert later.id != closed.id
 
 
 def test_a_torn_off_trip_is_never_reused(session: Session, lst: List):
-    yesterday = trips.open_trip_for(session, lst.id, datetime(2026, 7, 27, 16, 0), MADRID)
+    yesterday = trips.open_trip_for(
+        session, lst.id, datetime(2026, 7, 27, 16, 0, tzinfo=UTC), MADRID
+    )
     session.commit()
 
-    today = trips.open_trip_for(session, lst.id, datetime(2026, 7, 28, 16, 0), MADRID)
+    today = trips.open_trip_for(session, lst.id, datetime(2026, 7, 28, 16, 0, tzinfo=UTC), MADRID)
     assert today.id != yesterday.id
 
 
 def test_different_lists_never_share_a_trip(session: Session, user: User):
-    now = datetime(2026, 7, 28, 16, 0)
+    now = datetime(2026, 7, 28, 16, 0, tzinfo=UTC)
     list_a = List(name="Casa", owner_id=user.id)
     list_b = List(name="Oficina", owner_id=user.id)
     session.add(list_a)
@@ -116,11 +120,11 @@ def test_the_earliest_open_boundary_wins(session: Session, lst: List):
     one with a boundary further out. The selection must be deterministic and
     must pick the earlier boundary, whatever order the rows were written in.
     """
-    now = datetime(2026, 7, 28, 16, 0)
+    now = datetime(2026, 7, 28, 16, 0, tzinfo=UTC)
     stale = Purchase(
         list_id=lst.id,
         opened_at=now - timedelta(hours=2),
-        tears_off_at=datetime(2026, 7, 29, 22, 0),
+        tears_off_at=datetime(2026, 7, 29, 22, 0, tzinfo=UTC),
     )
     session.add(stale)
     session.commit()
@@ -128,7 +132,7 @@ def test_the_earliest_open_boundary_wins(session: Session, lst: List):
     near = Purchase(
         list_id=lst.id,
         opened_at=now - timedelta(hours=1),
-        tears_off_at=datetime(2026, 7, 28, 22, 0),
+        tears_off_at=datetime(2026, 7, 28, 22, 0, tzinfo=UTC),
     )
     session.add(near)
     session.commit()
@@ -165,7 +169,7 @@ def test_the_race_loser_receives_the_winners_row(
     simulates the effect: the winner's row is committed, and the loser's own
     lookup is forced to miss it exactly once.
     """
-    now = datetime(2026, 7, 28, 16, 0)
+    now = datetime(2026, 7, 28, 16, 0, tzinfo=UTC)
     winner = trips.open_trip_for(session, lst.id, now, MADRID)
     session.commit()
 
@@ -185,7 +189,7 @@ def test_an_unrelated_integrity_error_surfaces_as_itself(session: Session):
         trips.open_trip_for(
             session,
             None,  # ty: ignore[invalid-argument-type]
-            datetime(2026, 7, 28, 16, 0),
+            datetime(2026, 7, 28, 16, 0, tzinfo=UTC),
             MADRID,
         )
 
@@ -205,7 +209,7 @@ def test_losing_the_race_does_not_revert_the_callers_pending_item(
     session.add(item)
     session.commit()
 
-    now = datetime(2026, 7, 28, 18, 0)
+    now = datetime(2026, 7, 28, 18, 0, tzinfo=UTC)
     winner = Purchase(
         list_id=lst.id, opened_at=now, tears_off_at=trips.tears_off_at_for(now, MADRID)
     )
@@ -251,9 +255,9 @@ def _purchased_item(session: Session, lst: List, user: User, name: str, when: da
 def test_close_claiming_every_item_closes_the_trip_in_place(
     session: Session, lst: List, user: User
 ):
-    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
-    bread = _purchased_item(session, lst, user, "Pan", datetime(2026, 7, 28, 17, 0))
-    now = datetime(2026, 7, 28, 18, 0)
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0, tzinfo=UTC))
+    bread = _purchased_item(session, lst, user, "Pan", datetime(2026, 7, 28, 17, 0, tzinfo=UTC))
+    now = datetime(2026, 7, 28, 18, 0, tzinfo=UTC)
 
     closed = trips.close(session, lst.id, [milk.id, bread.id], "Lidl", 14.60, now)
     session.commit()
@@ -263,17 +267,17 @@ def test_close_claiming_every_item_closes_the_trip_in_place(
     assert closed.store == "Lidl"
     assert closed.total == 14.60
     # opened_at is the earliest claimed tap, not whenever the row was made.
-    assert closed.opened_at == datetime(2026, 7, 28, 16, 0)
+    assert closed.opened_at == datetime(2026, 7, 28, 16, 0, tzinfo=UTC)
     assert len(session.exec(select(Purchase)).all()) == 1
 
 
 def test_close_claiming_a_subset_splits_off_a_new_closed_trip(
     session: Session, lst: List, user: User
 ):
-    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
-    bread = _purchased_item(session, lst, user, "Pan", datetime(2026, 7, 28, 17, 0))
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0, tzinfo=UTC))
+    bread = _purchased_item(session, lst, user, "Pan", datetime(2026, 7, 28, 17, 0, tzinfo=UTC))
     source_id = milk.purchase_id
-    now = datetime(2026, 7, 28, 18, 0)
+    now = datetime(2026, 7, 28, 18, 0, tzinfo=UTC)
 
     closed = trips.close(session, lst.id, [bread.id], "Lidl", 5.0, now)
     session.commit()
@@ -284,7 +288,7 @@ def test_close_claiming_a_subset_splits_off_a_new_closed_trip(
     assert bread.purchase_id == closed.id
     assert milk.purchase_id == source_id
     assert closed.closed_at == now
-    assert closed.opened_at == datetime(2026, 7, 28, 17, 0)
+    assert closed.opened_at == datetime(2026, 7, 28, 17, 0, tzinfo=UTC)
     remainder = session.get_one(Purchase, source_id)
     assert remainder.closed_at is None
     # The split inherits the source's boundary: same day, same tear-off.
@@ -294,20 +298,20 @@ def test_close_claiming_a_subset_splits_off_a_new_closed_trip(
 def test_a_split_recomputes_the_remainders_opened_at(session: Session, lst: List, user: User):
     """The earliest tap leaves for the new ticket; the remainder must not
     keep claiming a start time that now belongs to it."""
-    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
-    bread = _purchased_item(session, lst, user, "Pan", datetime(2026, 7, 28, 17, 0))
-    now = datetime(2026, 7, 28, 18, 0)
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0, tzinfo=UTC))
+    bread = _purchased_item(session, lst, user, "Pan", datetime(2026, 7, 28, 17, 0, tzinfo=UTC))
+    now = datetime(2026, 7, 28, 18, 0, tzinfo=UTC)
 
     trips.close(session, lst.id, [milk.id], "Lidl", None, now)
     session.commit()
 
     remainder = session.get_one(Purchase, bread.purchase_id)
-    assert remainder.opened_at == datetime(2026, 7, 28, 17, 0)
+    assert remainder.opened_at == datetime(2026, 7, 28, 17, 0, tzinfo=UTC)
 
 
 def test_close_refuses_an_unknown_item(session: Session, lst: List, user: User):
-    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
-    now = datetime(2026, 7, 28, 18, 0)
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0, tzinfo=UTC))
+    now = datetime(2026, 7, 28, 18, 0, tzinfo=UTC)
 
     with pytest.raises(trips.NotInTheCart):
         trips.close(session, lst.id, [milk.id, "no-such-item"], "Lidl", None, now)
@@ -317,9 +321,9 @@ def test_close_refuses_an_unknown_item(session: Session, lst: List, user: User):
 
 
 def test_close_refuses_an_item_already_on_another_ticket(session: Session, lst: List, user: User):
-    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
-    bread = _purchased_item(session, lst, user, "Pan", datetime(2026, 7, 28, 17, 0))
-    now = datetime(2026, 7, 28, 18, 0)
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0, tzinfo=UTC))
+    bread = _purchased_item(session, lst, user, "Pan", datetime(2026, 7, 28, 17, 0, tzinfo=UTC))
+    now = datetime(2026, 7, 28, 18, 0, tzinfo=UTC)
     trips.close(session, lst.id, [milk.id], "Lidl", None, now)
     session.commit()
 
@@ -329,15 +333,17 @@ def test_close_refuses_an_item_already_on_another_ticket(session: Session, lst: 
 
 def test_close_with_no_open_trip_raises(session: Session, lst: List):
     with pytest.raises(trips.NothingToClose):
-        trips.close(session, lst.id, ["anything"], "Lidl", None, datetime(2026, 7, 28, 18, 0))
+        trips.close(
+            session, lst.id, ["anything"], "Lidl", None, datetime(2026, 7, 28, 18, 0, tzinfo=UTC)
+        )
 
 
 def test_close_by_name_reaches_a_torn_off_trip(session: Session, lst: List, user: User):
     """A trip that tore off with nobody saying what it was, written down
     later. Invisible to the open-cart lookup; naming it is the only way in."""
-    tapped = datetime(2026, 7, 25, 19, 0)
+    tapped = datetime(2026, 7, 25, 19, 0, tzinfo=UTC)
     milk = _purchased_item(session, lst, user, "Leche", tapped)
-    now = datetime(2026, 7, 28, 9, 0)
+    now = datetime(2026, 7, 28, 9, 0, tzinfo=UTC)
 
     closed = trips.close(
         session, lst.id, [milk.id], "Mercadona", 8.30, now, purchase_id=milk.purchase_id
@@ -356,7 +362,7 @@ def test_close_by_name_refuses_a_trip_on_another_list(session: Session, user: Us
     session.add(list_a)
     session.add(list_b)
     session.commit()
-    milk = _purchased_item(session, list_a, user, "Leche", datetime(2026, 7, 28, 16, 0))
+    milk = _purchased_item(session, list_a, user, "Leche", datetime(2026, 7, 28, 16, 0, tzinfo=UTC))
 
     with pytest.raises(trips.NothingToClose):
         trips.close(
@@ -365,14 +371,14 @@ def test_close_by_name_refuses_a_trip_on_another_list(session: Session, user: Us
             [milk.id],
             "Lidl",
             None,
-            datetime(2026, 7, 28, 18, 0),
+            datetime(2026, 7, 28, 18, 0, tzinfo=UTC),
             purchase_id=milk.purchase_id,
         )
 
 
 def test_close_by_name_refuses_an_already_closed_trip(session: Session, lst: List, user: User):
-    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
-    now = datetime(2026, 7, 28, 18, 0)
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0, tzinfo=UTC))
+    now = datetime(2026, 7, 28, 18, 0, tzinfo=UTC)
     trips.close(session, lst.id, [milk.id], "Lidl", 14.60, now)
     session.commit()
 
@@ -406,8 +412,8 @@ def test_a_close_that_lost_the_race_hits_the_conditional_update(
     real, and the loser's resolving SELECT is forced to return the trip as
     if it were still open.
     """
-    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0))
-    now = datetime(2026, 7, 28, 18, 0)
+    milk = _purchased_item(session, lst, user, "Leche", datetime(2026, 7, 28, 16, 0, tzinfo=UTC))
+    now = datetime(2026, 7, 28, 18, 0, tzinfo=UTC)
     trip = session.get_one(Purchase, milk.purchase_id)
     trips.close(session, lst.id, [milk.id], "Lidl", 14.60, now)
     session.commit()

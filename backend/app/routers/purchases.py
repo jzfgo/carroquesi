@@ -258,7 +258,7 @@ def search_purchases(
     if not name_l and brand_l is None and not store_keys:
         return PurchaseSearchResults(results=[])
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     stopped_at = func.coalesce(Purchase.closed_at, Purchase.tears_off_at)
     # A boundary at or before now is a settled trip; the one still ahead is the
     # open cart, which the stack filters out too.
@@ -384,7 +384,7 @@ def rebuy_item(
     if trip is None or trip.list_id != lst.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase not found")
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     if trips.is_open(trip, now):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -464,7 +464,7 @@ def close_purchase(
     for index, new in enumerate(body.new_items):
         reject_bad_price(new.price, new.price_per, f"new_items[{index}]")
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
 
     # A back-dated close maps its day to the trip's boundaries the same way a
     # manual purchase does; a future day has no shop to file, so it is refused.
@@ -475,11 +475,7 @@ def close_purchase(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="A purchase cannot be dated in the future",
             )
-        opened_at = (
-            datetime.combine(body.date, time.min, tzinfo=client_tz)
-            .astimezone(UTC)
-            .replace(tzinfo=None)
-        )
+        opened_at = datetime.combine(body.date, time.min, tzinfo=client_tz).astimezone(UTC)
         tears_off_at = trips.tears_off_at_for(opened_at, client_tz)
         # closed_at is the reconciliation instant, but NEVER in the future.
         # A same-day close's tear-off is tonight's midnight (ahead of now), so
@@ -616,12 +612,10 @@ def create_manual_purchase(
     # already skips blanks; this keeps the Purchase.store column consistent too.
     store = body.store if (body.store and body.store.strip()) else None
 
-    # The local midnight that STARTS the submitted day, as naive UTC — the same
+    # The local midnight that STARTS the submitted day, in UTC — the same
     # shape tears_off_at_for produces, but for the day's opening rather than its
     # close.
-    opened_at = (
-        datetime.combine(body.date, time.min, tzinfo=client_tz).astimezone(UTC).replace(tzinfo=None)
-    )
+    opened_at = datetime.combine(body.date, time.min, tzinfo=client_tz).astimezone(UTC)
     tears_off_at = trips.tears_off_at_for(opened_at, client_tz)
 
     # closed_at is set to the tear-off, not now, deliberately: the history stack
@@ -630,7 +624,7 @@ def create_manual_purchase(
     # day it covered. A future reader should NOT "fix" this to now. Being
     # non-null also exempts the row from uq_purchases_open_per_list, so it never
     # collides with the open cart or another closed trip sharing a tears_off_at.
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     purchase = Purchase(
         list_id=lst.id,
         opened_at=opened_at,

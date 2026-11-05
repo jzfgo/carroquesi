@@ -7,7 +7,7 @@ from app.db.models import ListItem
 
 
 def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+    return datetime.now(UTC)
 
 
 def _add_item(
@@ -43,7 +43,7 @@ def test_found_with_purchase_date(client: TestClient, session: Session, user):
     body = resp.json()
     assert body["list_id"] == other["id"]
     assert body["list_name"] == "Beach house"
-    assert body["last_purchased_at"] == when.isoformat()
+    assert datetime.fromisoformat(body["last_purchased_at"]) == when
 
 
 def test_found_never_purchased(client: TestClient, session: Session, user):
@@ -68,7 +68,7 @@ def test_picks_most_recent_purchase_across_lists(client: TestClient, session: Se
 
     body = _lookup(client, current["id"], "Milk").json()
     assert body["list_id"] == newer["id"]
-    assert body["last_purchased_at"] == newest.isoformat()
+    assert datetime.fromisoformat(body["last_purchased_at"]) == newest
 
 
 def test_purchased_wins_over_unpurchased(client: TestClient, session: Session, user):

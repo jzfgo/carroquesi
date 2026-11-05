@@ -5,6 +5,7 @@ import { formatRowAmount } from '../lib/formatPrice'
 import { formatChartDate, PriceBand } from '../lib/priceChart'
 import { normalizeEntries } from '../lib/priceNormalization'
 import { buildRastroSegments } from '../lib/rastro'
+import { compareServerInstants } from '../lib/serverInstant'
 import type { ListItem, Member, PriceEntry, TagField } from '../types'
 import './ItemFichaSheet.css'
 import { PriceHistoryBlock } from './PriceHistoryBlock'
@@ -49,7 +50,12 @@ function latestPrice(
 ): LatestPrice | null {
   const priced = entries
     .filter((e): e is PriceEntry & { amount: number } => e.amount !== null)
-    .sort((a, b) => (b.purchased_at ?? '').localeCompare(a.purchased_at ?? ''))
+    .sort((a, b) => {
+      if (!a.purchased_at && !b.purchased_at) return 0
+      if (!a.purchased_at) return 1
+      if (!b.purchased_at) return -1
+      return compareServerInstants(b.purchased_at, a.purchased_at)
+    })
   const top = priced[0]
   if (top) {
     return {
