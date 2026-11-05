@@ -21,6 +21,9 @@ disagree, the frames here win.
 - `assets/`, `frontend/src/assets/` — images the frames reference (paths are
   load-bearing; don't move them).
 - `support.js` — the export's viewer script.
+- `jav-224-monthly-report/` — approved frames for the monthly spend report
+  email, its opt-out pages and the in-app setting (2026-11-05). Its own
+  README restates the copy templates and the rules the frames encode.
 - `BUNDLE-README.md` — the exporter's own README, kept as shipped.
 
 ## Provenance and pruning
