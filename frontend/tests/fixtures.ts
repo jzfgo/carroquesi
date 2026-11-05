@@ -1,9 +1,11 @@
 import { test as base, expect, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import chains from '../src/lib/chains.generated.json' with { type: 'json' }
 import type {
   ApiList,
   BackendMember,
+  ChainRead,
   ListItem,
   ListStoreEntry,
   ListUpdatedAt,
@@ -36,6 +38,7 @@ export const ALICE: UserMe = {
 }
 export const SEED_LISTS: ApiList[] = data.SEED_LISTS
 export const SEED_ITEMS: Record<string, ListItem[]> = data.SEED_ITEMS
+const SEED_CHAINS: ChainRead[] = chains
 
 const SEED_MEMBERS: Record<string, BackendMember[]> = data.SEED_MEMBERS
 
@@ -126,6 +129,10 @@ export async function installApiMocks(page: Page): Promise<void> {
     // Auth
     if (method === 'POST' && path === '/auth/sync') return json(ALICE)
     if (method === 'GET' && path === '/users/me') return json(ALICE)
+
+    // Chain profiles. The app falls back to this same snapshot until the
+    // read answers, so serving it changes nothing a test can see.
+    if (method === 'GET' && path === '/chains') return json(SEED_CHAINS)
 
     // Receipt-scanning consent decision. Echoes the decision over the
     // validated ALICE payload, like the other write templates.
