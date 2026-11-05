@@ -1,10 +1,13 @@
 import { ChevronRight, Pencil, Receipt, Star, Store, Users } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { useFeatureFlags } from '../contexts/FeatureFlagsContext'
 import { BOARD_NAMES, type BoardName } from '../lib/boards'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
+import { FLAGS } from '../lib/featureFlags'
 import type { ListStoreEntry } from '../types'
 import './ListActionSheet.css'
 import { ListMembersSheet } from './ListMembersSheet'
+import { ReportSwitchRow } from './ReportSwitchRow'
 import { Sheet, type SheetHandle } from './Sheet'
 
 type SubState = 'actions' | 'members' | 'stores' | 'confirm-delete'
@@ -83,6 +86,7 @@ export function ListActionSheet({
   const [storeNameValue, setStoreNameValue] = useState('')
   const sheetRef = useRef<SheetHandle>(null)
   const isOwner = ownerId === currentUserId
+  const { isEnabled } = useFeatureFlags()
 
   if (subState === 'members') {
     return (
@@ -213,6 +217,11 @@ export function ListActionSheet({
               <span className="list-options__switch-knob" aria-hidden />
             </button>
           </div>
+
+          {/* The report goes to the owner, so only the owner has a switch. */}
+          {isOwner && isEnabled(FLAGS.MONTHLY_REPORT) && (
+            <ReportSwitchRow listId={listId} onListSuspect={onListSuspect} />
+          )}
 
           <button
             type="button"

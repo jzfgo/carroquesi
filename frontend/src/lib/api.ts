@@ -21,6 +21,7 @@ import type {
   ReceiptThumbUrlResult,
   ReceiptUploadUrlRequest,
   ReceiptUploadUrlResult,
+  ReportPref,
   Suggestion,
 } from '../types'
 import type { BoardName } from './boards'
@@ -176,6 +177,29 @@ export function setBoardPref(
   return apiFetch(getToken, `/lists/${listId}/prefs/board`, {
     method: 'PUT',
     body: JSON.stringify({ board }),
+  })
+}
+
+/** Whether the owner gets this list's monthly report. Owner only. */
+export function getReportPref(
+  getToken: () => Promise<string>,
+  listId: string,
+): Promise<ReportPref> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/prefs/report`,
+  ) as Promise<ReportPref>
+}
+
+/** Turn the monthly report on or off; undoes the email's unsubscribe too. */
+export function setReportPref(
+  getToken: () => Promise<string>,
+  listId: string,
+  enabled: boolean,
+) {
+  return apiFetch(getToken, `/lists/${listId}/prefs/report`, {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
   })
 }
 
