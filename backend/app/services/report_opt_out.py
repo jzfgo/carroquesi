@@ -59,7 +59,9 @@ def read_token(token: str) -> tuple[str, str] | None:
 
 
 def opt_out_url(user_id: str, list_id: str) -> str:
-    return f"{get_settings().frontend_url}/u/{make_token(user_id, list_id)}"
+    # A trailing slash would make the link "//u/…", which fails without an error.
+    base = get_settings().frontend_url.rstrip("/")
+    return f"{base}/u/{make_token(user_id, list_id)}"
 
 
 def is_opted_out(session: Session, user_id: str, list_id: str) -> bool:

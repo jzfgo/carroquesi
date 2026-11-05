@@ -24,12 +24,6 @@ class FakeSMTP:
         self.closed = False
         FakeSMTP.instances.append(self)
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc):
-        return False
-
     def quit(self):
         self.closed = True
         if FakeSMTP.quit_fails:

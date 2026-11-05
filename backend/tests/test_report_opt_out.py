@@ -62,6 +62,11 @@ def test_the_url_points_at_the_frontend_domain():
     assert read_token(url.removeprefix("https://app.example.com/u/")) == ("user-1", "list-1")
 
 
+def test_a_trailing_slash_on_the_frontend_url_is_dropped(monkeypatch):
+    monkeypatch.setattr(get_settings(), "frontend_url", "https://app.example.com/")
+    assert opt_out_url("user-1", "list-1").startswith("https://app.example.com/u/")
+
+
 def test_a_tampered_token_is_refused():
     token = make_token("user-1", "list-1")
     other_payload = make_token("user-2", "list-1").split(".")[0]
