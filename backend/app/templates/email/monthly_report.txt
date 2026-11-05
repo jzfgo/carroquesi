@@ -1,0 +1,34 @@
+{{ list_name }} · {{ month }}
+
+Gastasteis {{ totals.total | eur }}{% if totals.approximate %} (aprox.){% endif %} en {{ totals.trips }} {{ "compra" if totals.trips == 1 else "compras" }}.
+{% if totals.vs_previous is not none %}
+{{ totals.vs_previous | pct }} frente al mes anterior.
+{% endif %}
+{% if totals.vs_average is not none %}
+{{ totals.vs_average | pct }} frente a la media de los tres meses anteriores.
+{% endif %}
+{% if stores %}
+
+Por tienda
+{% for store in stores %}
+- {{ store.name }}: {{ store.amount | eur }}
+{% endfor %}
+{% endif %}
+{% if products %}
+
+Lo que más pesó
+{% for product in products %}
+- {{ product.name }}{% if product.brand %} ({{ product.brand }}){% endif %}: {{ product.amount | eur }}
+{% endfor %}
+{% endif %}
+{% if suggestions %}
+
+Para ahorrar
+{% for s in suggestions %}
+- {{ s.name }}: {{ s.paid_price | eur }} en {{ s.paid_store }}, {{ s.cheaper_price | eur }} en {{ s.cheaper_store }} (el {{ s.cheaper_seen_at.strftime("%d/%m") }}). Unos {{ s.monthly_eur | eur }} al mes.
+{% endfor %}
+{% endif %}
+
+--
+Recibes este informe porque gestionas la lista {{ list_name }} en CarroQueSí.
+Para dejar de recibirlo: {{ unsubscribe_url }}

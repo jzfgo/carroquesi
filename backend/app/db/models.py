@@ -331,3 +331,20 @@ class ReportRun(SQLModel, table=True):
     attempts: int = 1
     started_at: datetime = Field(default_factory=_now)
     finished_at: datetime | None = None
+
+
+class ReportOptOut(SQLModel, table=True):
+    """A user who asked to stop the monthly report for one list.
+
+    The row's presence is the opt-out. It is keyed by user, not by list
+    alone: the report goes to the owner, and a new owner after a transfer
+    has not opted out of anything.
+    """
+
+    __tablename__ = "report_opt_outs"
+    __table_args__ = (UniqueConstraint("user_id", "list_id"),)
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    user_id: str = Field(foreign_key="users.id")
+    list_id: str = Field(foreign_key="lists.id")
+    created_at: datetime = Field(default_factory=_now)

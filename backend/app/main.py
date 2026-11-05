@@ -20,6 +20,7 @@ from app.routers import (
     prices,
     purchases,
     receipt,
+    report_opt_out,
     share,
     shortcuts,
     stores,
@@ -70,6 +71,7 @@ app.include_router(shortcuts.router)
 app.include_router(notifications.router)
 app.include_router(notifications.list_seen_router)
 app.include_router(internal.router)
+app.include_router(report_opt_out.router)
 
 
 @app.get("/health")

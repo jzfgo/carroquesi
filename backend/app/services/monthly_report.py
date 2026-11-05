@@ -17,10 +17,13 @@ from sqlmodel import Session, col, select
 
 from app.core.config import get_settings
 from app.db.models import List, ReportRun, User
+from app.services import mailer
 from app.services.client_day import parse_timezone
 from app.services.feature_flags import is_enabled
 from app.services.insights.data import local_month, month_bounds, shift_month
 from app.services.insights.engine import SpendReport, compute_report
+from app.services.report_email import build_report_email
+from app.services.report_opt_out import is_opted_out
 
 logger = logging.getLogger(__name__)
 
@@ -31,17 +34,19 @@ STUCK_AFTER = timedelta(hours=1)
 
 
 def mailer_ready() -> bool:
-    """Can this deployment send email? Not yet: email sending comes next.
+    """Can this deployment send the report, opt-out link included?
 
     While it cannot, a trigger claims nothing. A month is then sent late,
     once email works, instead of being marked done without a send.
     """
-    return False
+    return mailer.is_configured() and bool(get_settings().email_token_secret)
 
 
 def deliver(report: SpendReport, lst: List, owner: User) -> None:
-    """Send one report to the list's owner."""
-    raise NotImplementedError
+    """Send one report to the list's owner. Raises when the send failed,
+    so the run is recorded as failed and the next trigger retries it."""
+    if not mailer.send(build_report_email(report, lst, owner)):
+        raise RuntimeError("email not sent")
 
 
 @dataclass
@@ -74,6 +79,8 @@ def run_monthly_reports(session: Session, now: datetime) -> RunSummary:
     rows = session.exec(select(List, User).join(User, col(List.owner_id) == User.id)).all()
     for lst, owner in rows:
         if not is_enabled(owner.id, FLAG, session):
+            continue
+        if is_opted_out(session, owner.id, lst.id):
             continue
         tz = owner_timezone(owner)
         period = report_period(now, tz)
