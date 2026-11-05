@@ -15,7 +15,12 @@ from sqlmodel import Session, col, func, select
 from app.db.models import ListItem, ListStore, Purchase, User
 from app.services.fold import fold_name
 from app.services.public_name import public_name
-from app.services.quantity import effective_quantity, line_amount, unit_price
+from app.services.quantity import (
+    effective_quantity,
+    line_amount,
+    parse_quantity_factor,
+    unit_price,
+)
 from app.services.store_key import store_key
 
 NO_STORE = "Sin tienda"
@@ -82,6 +87,10 @@ class Line:
     amount: float | None
     unit_price: float | None
     basis: Literal["kg", "unit"] | None
+    # How much was bought: units, or kilograms on a weighed line. None when a
+    # weighed line names no weight.
+    quantity: float | None = 1.0
+    measure: Literal["ud", "kg"] = "ud"
 
 
 @dataclass
@@ -168,10 +177,13 @@ def count_tripless(session: Session, list_id: str, start: datetime, end: datetim
 def _line(item: ListItem, trip: Trip, tz: tzinfo) -> Line:
     store_raw = item.price_store or trip.store_raw
     amount = line_amount(item.price, item.quantity, item.purchased_quantity, item.price_per)
+    quantity = effective_quantity(item.quantity, item.purchased_quantity)
     unit, basis = (None, None)
     if item.price is not None and amount is not None:
-        quantity = effective_quantity(item.quantity, item.purchased_quantity)
         unit, basis = unit_price(item.price, quantity, item.price_per)
+    # The same factor the money uses: a count, or kilograms when weighed.
+    weighed = item.price_per == "KILOGRAM"
+    bought = parse_quantity_factor(quantity, "KILOGRAM" if weighed else None)
     return Line(
         id=item.id,
         trip_id=trip.id,
@@ -186,6 +198,8 @@ def _line(item: ListItem, trip: Trip, tz: tzinfo) -> Line:
         amount=amount,
         unit_price=unit,
         basis=basis,
+        quantity=bought,
+        measure="kg" if weighed else "ud",
     )
 
 

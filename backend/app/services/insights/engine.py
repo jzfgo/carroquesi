@@ -16,6 +16,7 @@ from app.services.insights.descriptive import (
     by_store,
     cadence,
     coverage,
+    product_moves,
     top_products,
     totals,
 )
@@ -48,6 +49,7 @@ def compute_report(
             totals(w, month),
             by_store(w, month),
             top_products(w, month),
+            product_moves(w, month),
             by_requester(w, month),
             cadence(w, month),
             cheaper_elsewhere(w, month, end, th),

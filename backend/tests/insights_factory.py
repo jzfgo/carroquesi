@@ -41,6 +41,8 @@ def line(
     basis: Literal["kg", "unit"] | None = "unit",
     store: str | None = None,
     added_by: str = "u-alice",
+    quantity: float | None = 1.0,
+    measure: Literal["ud", "kg"] = "ud",
 ) -> Line:
     raw = store if store is not None else t.store_raw
     priced = amount is not None
@@ -58,6 +60,8 @@ def line(
         amount=amount,
         unit_price=(unit_price if unit_price is not None else amount) if priced else None,
         basis=basis if priced else None,
+        quantity=quantity,
+        measure=measure,
     )
 
 
