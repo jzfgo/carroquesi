@@ -72,6 +72,16 @@ def _month_name(period: str) -> str:
     return MONTHS[int(period.split("-")[1]) - 1]
 
 
+def _baseline_line(totals: Totals, period: str) -> str | None:
+    """The baseline's label, or None when another line already says it: a
+    baseline of only last month, or only the same month last year."""
+    if totals.baseline is None:
+        return None
+    if totals.baseline.months in ([shift_month(period, -1)], [shift_month(period, -12)]):
+        return None
+    return baseline_label(totals.baseline)
+
+
 def build_report_email(report: SpendReport, lst: List, owner: User) -> Email:
     insights = {insight.type: insight for insight in report.insights}
     totals = insights["totals"]
@@ -87,7 +97,7 @@ def build_report_email(report: SpendReport, lst: List, owner: User) -> Email:
         "list_name": f"{lst.emoji} {lst.name}" if lst.emoji else lst.name,
         "month": month_label(report.period),
         "totals": totals,
-        "baseline": baseline_label(totals.baseline) if totals.baseline else None,
+        "baseline": _baseline_line(totals, report.period),
         "last_year": month_label(shift_month(report.period, -12)),
         "stores": by_store.stores,
         "products": top.products[:TOP_PRODUCTS],

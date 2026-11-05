@@ -135,3 +135,28 @@ def test_the_email_names_the_baseline_and_the_same_month_last_year(session: Sess
 )
 def test_the_baseline_is_named_by_its_months(months: list[str], label: str):
     assert baseline_label(Baseline(months=months, mean=10.0)) == label
+
+
+def test_a_baseline_another_line_already_states_is_not_repeated(session: Session, user: User):
+    lst = List(name="Casa", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+    for day, total in [
+        (datetime(2026, 9, 10, 10, tzinfo=UTC), 100.0),
+        (datetime(2026, 10, 10, 10, tzinfo=UTC), 150.0),
+    ]:
+        session.add(
+            Purchase(
+                list_id=lst.id,
+                opened_at=day,
+                tears_off_at=day + timedelta(days=1),
+                closed_at=day,
+                total=total,
+            )
+        )
+    session.commit()
+
+    email = build_report_email(compute_report(session, lst.id, "2026-10", MADRID), lst, user)
+
+    assert "+50 % frente al mes anterior." in email.text
+    assert "septiembre de 2026" not in email.text

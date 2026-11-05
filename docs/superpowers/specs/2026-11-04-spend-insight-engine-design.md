@@ -124,8 +124,8 @@ line/trip counts behind it.
 - **by_store** — money and trip count per store key.
 - **top_products** — products by money in the month, each with its delta vs
   its own average over the baseline months, and a `new` flag when not bought
-  in any of the twelve months before. This is what explains a change ("94 € from 5 meat/fish products, 3
-  new").
+  in any of the twelve months before. This is what explains a change ("94 €
+  from 5 meat/fish products, 3 new").
 - **by_requester** — line money per `added_by` user, named from `users` even
   when they have since left the list.
 - **cadence** — trips in the month and mean days between them.
@@ -136,6 +136,9 @@ line/trip counts behind it.
   Fewer than twelve: use what there is; none: no comparison. Empty months are
   left out, so a summer away does not drag the baseline down (JAV-230: a
   three-month mean over July–September made a normal October read +56 %).
+  The cost is on purpose: one trip without a confirmed total drops its whole
+  month, so a list that confirms few totals may get no baseline at all. That
+  is better than a mean built from line sums, which read too low.
 
 ### Cheaper at another chain
 

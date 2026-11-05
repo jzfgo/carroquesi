@@ -60,9 +60,12 @@ def _print(report: SpendReport, list_name: str) -> None:
                     f"Total: {mark}{_eur(insight.total)}  ·  {insight.trips} compras "
                     f"({insight.trips_confirmed} con total confirmado)"
                 )
+                base = insight.baseline
+                over = f"{base.months[0]}..{base.months[-1]}, {len(base.months)}" if base else "—"
                 print(
                     f"  vs mes anterior {_pct(insight.vs_previous)}  ·  "
-                    f"vs media 3 meses {_pct(insight.vs_average)}"
+                    f"vs base ({over}) {_pct(insight.vs_average)}  ·  "
+                    f"vs hace un año {_pct(insight.vs_last_year)}"
                 )
                 trend = "  ".join(
                     f"{p.month}: {'≈' if p.approximate else ''}{_eur(p.total)}"
