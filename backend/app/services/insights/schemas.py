@@ -47,6 +47,8 @@ class Totals(_Record):
     trips: int
     trips_confirmed: int
     vs_previous: float | None
+    # Last month's trip count; None before the list's first month.
+    trips_previous: int | None
     baseline: Baseline | None
     vs_average: float | None
     # Against the same month a year before, when that month is complete.
@@ -70,19 +72,50 @@ class ProductSpend(BaseModel):
     name: str
     brand: str | None
     amount: float
+    # The mean over the baseline months, zero where it was not bought.
+    # None when there is no baseline.
+    average: float | None
     vs_average: float | None
     new: bool
+    # How much was bought, in `measure`. None when a line cannot say, or
+    # when the product was bought both by weight and by unit.
+    quantity: float | None
+    measure: Literal["ud", "kg"]
+    # How many of the month's trips include it.
+    trips: int
 
 
 class TopProducts(_Record, _LineCoverage):
     type: Literal["top_products"] = "top_products"
     products: list[ProductSpend]
+    # The product in the most trips, priced or not; ties go to the one that
+    # cost more. None in a month with no lines.
+    most_frequent: ProductSpend | None
+
+
+class ProductMove(BaseModel):
+    name: str
+    brand: str | None
+    amount: float
+    average: float
+    delta: float
+
+
+class ProductMoves(_Record):
+    """What explains the change: each product's money against its own mean
+    over the baseline months. Empty without a baseline."""
+
+    type: Literal["product_moves"] = "product_moves"
+    rises: list[ProductMove]
+    falls: list[ProductMove]
 
 
 class RequesterSpend(BaseModel):
     user_id: str
     name: str
     amount: float
+    # Every line they asked for, priced or not.
+    lines: int
 
 
 class ByRequester(_Record, _LineCoverage):
@@ -136,7 +169,7 @@ class CheaperElsewhere(_Record):
 
 
 Insight = Annotated[
-    Totals | ByStore | TopProducts | ByRequester | Cadence | CheaperElsewhere,
+    Totals | ByStore | TopProducts | ProductMoves | ByRequester | Cadence | CheaperElsewhere,
     Field(discriminator="type"),
 ]
 

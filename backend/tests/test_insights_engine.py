@@ -8,7 +8,15 @@ from app.services.insights.engine import SpendReport, compute_report
 from app.services.insights.schemas import Cadence, Totals
 
 MADRID = ZoneInfo("Europe/Madrid")
-TYPES = ["totals", "by_store", "top_products", "by_requester", "cadence", "cheaper_elsewhere"]
+TYPES = [
+    "totals",
+    "by_store",
+    "top_products",
+    "product_moves",
+    "by_requester",
+    "cadence",
+    "cheaper_elsewhere",
+]
 
 
 def _seed(session: Session, user: User) -> List:

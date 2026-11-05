@@ -190,6 +190,35 @@ def test_a_per_kg_line_without_a_weight_adds_no_money(session: Session, user: Us
 
     assert line.amount is None
     assert line.unit_price is None
+    assert (line.quantity, line.measure) == (None, "kg")
+
+
+def test_a_line_carries_what_was_bought(session: Session, user: User):
+    lst = _list(session, user)
+    trip = _trip(session, lst, datetime(2026, 10, 10, 10, tzinfo=UTC))
+    _line(session, lst, trip, user, name="Huevos", quantity="12 ud", purchased_quantity="6 ud")
+    _line(session, lst, trip, user, name="Arroz", quantity="500 g")
+    _line(
+        session,
+        lst,
+        trip,
+        user,
+        name="Plátano",
+        quantity="1 kg",
+        purchased_quantity="0.8 kg",
+        price=2.25,
+        price_per="KILOGRAM",
+    )
+    start, end = month_bounds("2026-10", MADRID)
+
+    lines = {line.name: line for line in load_window(session, lst.id, start, end, MADRID).lines}
+
+    # What was bought wins over what was asked for, as it does for money.
+    assert (lines["Huevos"].quantity, lines["Huevos"].measure) == (6, "ud")
+    # A pack size is one unit, not 500 of them.
+    assert (lines["Arroz"].quantity, lines["Arroz"].measure) == (1, "ud")
+    assert lines["Plátano"].quantity == pytest.approx(0.8)
+    assert lines["Plátano"].measure == "kg"
 
 
 def test_a_line_takes_its_trips_day_not_its_tap(session: Session, user: User):

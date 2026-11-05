@@ -5,6 +5,7 @@ from app.services.insights.descriptive import (
     by_store,
     cadence,
     coverage,
+    product_moves,
     top_products,
     totals,
 )
@@ -245,7 +246,18 @@ def test_by_requester_sums_line_money_and_reports_coverage():
     r = by_requester(w, "2026-10")
 
     assert [(x.name, x.amount) for x in r.requesters] == [("Bob", 6.0), ("Alice", 3.0)]
+    # Lines count priced or not: the unpriced Fruta is still Alice's.
+    assert [x.lines for x in r.requesters] == [2, 2]
     assert (r.lines_priced, r.lines_total) == (3, 4)
+
+
+def test_a_requester_with_only_unpriced_lines_is_listed():
+    t = trip("2026-10-10")
+    w = window([t], [line(t, "Fruta", None, added_by="u-bob")])
+
+    (bob,) = by_requester(w, "2026-10").requesters
+
+    assert (bob.name, bob.amount, bob.lines) == ("Bob", 0.0, 1)
 
 
 def test_cadence_is_the_mean_gap_between_trip_days():
@@ -259,3 +271,157 @@ def test_cadence_is_the_mean_gap_between_trip_days():
 
 def test_one_trip_has_no_cadence():
     assert cadence(window([trip("2026-10-01")], []), "2026-10").mean_days_between is None
+
+
+def test_top_products_add_up_what_was_bought_and_in_how_many_trips():
+    a, b = trip("2026-10-03"), trip("2026-10-17")
+    w = window(
+        [a, b],
+        [
+            line(a, "Salmón", 10.0, quantity=2),
+            line(b, "Salmón", 16.0, quantity=3),
+            line(a, "Plátano", 2.0, quantity=0.8, measure="kg"),
+            line(b, "Plátano", 1.5, quantity=0.6, measure="kg"),
+            line(a, "Queso", 4.0, quantity=None, measure="kg"),
+        ],
+    )
+
+    products = {p.name: p for p in top_products(w, "2026-10").products}
+
+    assert (products["Salmón"].quantity, products["Salmón"].measure) == (5, "ud")
+    assert products["Salmón"].trips == 2
+    assert products["Plátano"].quantity == pytest.approx(1.4)
+    assert products["Plátano"].measure == "kg"
+    # A weighed line with no weight cannot say how much was bought.
+    assert products["Queso"].quantity is None
+
+
+def test_a_product_bought_by_weight_and_by_unit_has_no_quantity():
+    t = trip("2026-10-03")
+    w = window(
+        [t],
+        [line(t, "Pollo", 5.0, quantity=1), line(t, "Pollo", 4.0, quantity=0.5, measure="kg")],
+    )
+
+    (pollo,) = top_products(w, "2026-10").products
+
+    assert pollo.quantity is None
+
+
+def test_the_most_frequent_product_counts_trips_priced_or_not():
+    a, b, c = trip("2026-10-03"), trip("2026-10-10"), trip("2026-10-17")
+    w = window(
+        [a, b, c],
+        [
+            line(a, "Pan", None),
+            line(b, "Pan", None),
+            line(c, "Pan", None),
+            line(a, "Solomillo", 30.0),
+            line(b, "Leche", 1.0),
+            line(c, "Leche", 1.0),
+        ],
+    )
+
+    top = top_products(w, "2026-10")
+
+    assert top.most_frequent is not None
+    assert (top.most_frequent.name, top.most_frequent.trips) == ("Pan", 3)
+    # A product with no price stays out of the ranking by money.
+    assert "Pan" not in {p.name for p in top.products}
+
+
+def test_the_most_frequent_tie_goes_to_the_one_that_cost_more():
+    a, b = trip("2026-10-03"), trip("2026-10-10")
+    w = window(
+        [a, b],
+        [line(a, "Pan", 1.0), line(b, "Pan", 1.0), line(a, "Vino", 9.0), line(b, "Vino", 9.0)],
+    )
+
+    top = top_products(w, "2026-10")
+
+    assert top.most_frequent is not None and top.most_frequent.name == "Vino"
+
+
+def test_a_month_with_no_lines_has_no_most_frequent_product():
+    t = trip("2026-10-03", total=5.0)
+
+    assert top_products(window([t], []), "2026-10").most_frequent is None
+
+
+def test_product_averages_count_missing_months_as_zero():
+    aug, sep, oct_ = (
+        trip("2026-08-10", total=6.0),
+        trip("2026-09-10", total=1.0),
+        trip("2026-10-10"),
+    )
+    w = window(
+        [aug, sep, oct_],
+        [line(aug, "Leche", 6.0), line(sep, "Pan", 1.0), line(oct_, "Leche", 9.0)],
+    )
+
+    products = {p.name: p for p in top_products(w, "2026-10").products}
+
+    assert products["Leche"].average == 3.0
+
+
+def test_product_moves_rank_rises_and_falls_against_the_baseline_mean():
+    aug, sep, oct_ = (
+        trip("2026-08-10", total=30.0),
+        trip("2026-09-10", total=30.0),
+        trip("2026-10-10"),
+    )
+    w = window(
+        [aug, sep, oct_],
+        [
+            line(aug, "Salmón", 10.0),
+            line(sep, "Salmón", 10.0),
+            line(oct_, "Salmón", 40.0),
+            line(aug, "Vino", 20.0),
+            line(sep, "Vino", 20.0),
+            line(oct_, "Vino", 5.0),
+            # Bought only before: falls by its whole mean.
+            line(aug, "Turrón", 4.0),
+            # New this month: rises by all of it.
+            line(oct_, "Cordero", 12.0),
+            # Unchanged: not a move.
+            line(sep, "Pan", 2.0),
+            line(aug, "Pan", 2.0),
+            line(oct_, "Pan", 2.0),
+        ],
+    )
+
+    moves = product_moves(w, "2026-10")
+
+    assert [(m.name, m.delta) for m in moves.rises] == [("Salmón", 30.0), ("Cordero", 12.0)]
+    assert [(m.name, m.delta) for m in moves.falls] == [("Vino", -15.0), ("Turrón", -2.0)]
+    assert (moves.rises[0].amount, moves.rises[0].average) == (40.0, 10.0)
+
+
+def test_product_moves_keep_the_five_largest_each_way():
+    sep, oct_ = trip("2026-09-10", total=1.0), trip("2026-10-10")
+    w = window([sep, oct_], [line(oct_, f"P{k}", float(k)) for k in range(1, 8)])
+
+    rises = product_moves(w, "2026-10").rises
+
+    assert [m.name for m in rises] == ["P7", "P6", "P5", "P4", "P3"]
+
+
+def test_product_moves_need_a_baseline():
+    t = trip("2026-10-10")
+    moves = product_moves(window([t], [line(t, "Leche", 3.0)]), "2026-10")
+
+    assert (moves.rises, moves.falls) == ([], [])
+
+
+def test_totals_carry_last_months_trip_count():
+    sep, oct_a, oct_b = trip("2026-09-10"), trip("2026-10-03"), trip("2026-10-10")
+
+    t = totals(window([sep, oct_a, oct_b], []), "2026-10")
+
+    assert (t.trips, t.trips_previous) == (2, 1)
+
+
+def test_a_first_month_has_no_previous_trip_count():
+    t = trip("2026-10-10")
+
+    assert totals(window([t], []), "2026-10").trips_previous is None

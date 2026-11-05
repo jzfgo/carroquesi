@@ -12,6 +12,8 @@ from app.services.insights.schemas import (
     Cadence,
     Coverage,
     MonthPoint,
+    ProductMove,
+    ProductMoves,
     ProductSpend,
     RequesterSpend,
     StoreSpend,
@@ -22,6 +24,9 @@ from app.services.insights.schemas import (
 SERIES_MONTHS = 5
 BASELINE_MONTHS = 12
 TOP_PRODUCTS = 10
+MOVES = 5
+
+Product = tuple[str, str]
 
 
 def totals(w: Window, month: str) -> Totals:
@@ -42,6 +47,7 @@ def totals(w: Window, month: str) -> Totals:
         trips=len(trips),
         trips_confirmed=sum(1 for t in trips if t.total is not None),
         vs_previous=_delta(current, prev_total),
+        trips_previous=len(_trips_in(w, previous)) if prev_total is not None else None,
         baseline=Baseline(months=months, mean=round(average, 2)) if average is not None else None,
         vs_average=_delta(current, average),
         vs_last_year=_delta(current, last_year),
@@ -81,59 +87,115 @@ def by_store(w: Window, month: str) -> ByStore:
 def top_products(w: Window, month: str) -> TopProducts:
     lines = _lines_in(w, month)
     months = _baseline_months(w, month)
-    past = [line for line in w.lines if line.month in months]
+    averages = _product_averages(w, months)
     # "New" looks at every earlier month in reach, complete or not: a
     # product bought in a month with an unconfirmed trip is not new.
     lookback = {shift_month(month, -k) for k in range(1, BASELINE_MONTHS + 1)}
     seen_before = {line.product for line in w.lines if line.month in lookback}
     has_past = _has_history(w, shift_month(month, -1))
 
-    money: dict[tuple[str, str], float] = defaultdict(float)
-    latest: dict[tuple[str, str], Line] = {}
+    by_product: dict[Product, list[Line]] = defaultdict(list)
     for line in lines:
-        if line.amount is None:
-            continue
-        money[line.product] += line.amount
-        if line.product not in latest or line.day > latest[line.product].day:
-            latest[line.product] = line
+        by_product[line.product].append(line)
 
-    def average(product: tuple[str, str]) -> float | None:
-        if not months:
-            return None
-        return sum(x.amount or 0.0 for x in past if x.product == product) / len(months)
-
-    products = [
-        ProductSpend(
-            name=latest[p].name,
-            brand=latest[p].brand,
+    def spend(p: Product) -> ProductSpend:
+        group = by_product[p]
+        latest = max(group, key=lambda x: x.day)
+        amount = sum(x.amount or 0.0 for x in group)
+        average = averages.get(p, 0.0) if months else None
+        measures = {x.measure for x in group}
+        known = all(x.quantity is not None for x in group) and len(measures) == 1
+        return ProductSpend(
+            name=latest.name,
+            brand=latest.brand,
             amount=round(amount, 2),
-            vs_average=_delta(amount, average(p)),
+            average=round(average, 2) if average is not None else None,
+            vs_average=_delta(amount, average),
             # With no earlier month to look at, nothing can be called new.
             new=has_past and p not in seen_before,
+            quantity=round(sum(x.quantity or 0.0 for x in group), 3) if known else None,
+            measure=measures.pop() if len(measures) == 1 else "ud",
+            trips=len({x.trip_id for x in group}),
         )
-        for p, amount in money.items()
-    ]
-    products.sort(key=lambda p: -p.amount)
+
+    priced = [p for p, group in by_product.items() if any(x.amount is not None for x in group)]
+    products = sorted((spend(p) for p in priced), key=lambda s: -s.amount)
+    frequent = sorted((spend(p) for p in by_product), key=lambda s: (-s.trips, -s.amount))
     return TopProducts(
         list_id=w.list_id,
         period=month,
         products=products[:TOP_PRODUCTS],
+        most_frequent=frequent[0] if frequent else None,
         lines_total=len(lines),
         lines_priced=_priced(lines),
     )
 
 
+def product_moves(w: Window, month: str) -> ProductMoves:
+    """Each product's money this month against its mean over the same
+    months the total is compared with, so the movers explain that figure."""
+    months = _baseline_months(w, month)
+    if not months:
+        return ProductMoves(list_id=w.list_id, period=month, rises=[], falls=[])
+    averages = _product_averages(w, months)
+    current: dict[Product, float] = defaultdict(float)
+    for line in _lines_in(w, month):
+        if line.amount is not None:
+            current[line.product] += line.amount
+    # The name as last written, from this month or else the baseline.
+    names: dict[Product, Line] = {}
+    for line in sorted(w.lines, key=lambda x: x.day):
+        if line.month == month or line.month in months:
+            names[line.product] = line
+    moves = []
+    for p in current.keys() | averages.keys():
+        amount, average = current.get(p, 0.0), averages.get(p, 0.0)
+        delta = round(amount - average, 2)
+        if delta:
+            moves.append(
+                ProductMove(
+                    name=names[p].name,
+                    brand=names[p].brand,
+                    amount=round(amount, 2),
+                    average=round(average, 2),
+                    delta=delta,
+                )
+            )
+    rises = sorted((m for m in moves if m.delta > 0), key=lambda m: -m.delta)
+    falls = sorted((m for m in moves if m.delta < 0), key=lambda m: m.delta)
+    return ProductMoves(list_id=w.list_id, period=month, rises=rises[:MOVES], falls=falls[:MOVES])
+
+
+def _product_averages(w: Window, months: list[str]) -> dict[Product, float]:
+    """Each product's money per baseline month, absent months counting as 0."""
+    if not months:
+        return {}
+    picked = set(months)
+    money: dict[Product, float] = defaultdict(float)
+    for line in w.lines:
+        if line.month in picked and line.amount is not None:
+            money[line.product] += line.amount
+    return {p: amount / len(months) for p, amount in money.items()}
+
+
 def by_requester(w: Window, month: str) -> ByRequester:
     lines = _lines_in(w, month)
     money: dict[str, float] = defaultdict(float)
+    counts: dict[str, int] = defaultdict(int)
     for line in lines:
+        counts[line.added_by] += 1
         if line.amount is not None:
             money[line.added_by] += line.amount
     requesters: list[RequesterSpend] = [
-        RequesterSpend(user_id=uid, name=w.user_names.get(uid, uid), amount=round(amount, 2))
-        for uid, amount in money.items()
+        RequesterSpend(
+            user_id=uid,
+            name=w.user_names.get(uid, uid),
+            amount=round(money[uid], 2),
+            lines=n,
+        )
+        for uid, n in counts.items()
     ]
-    requesters.sort(key=lambda r: -r.amount)
+    requesters.sort(key=lambda r: (-r.amount, -r.lines))
     return ByRequester(
         list_id=w.list_id,
         period=month,
