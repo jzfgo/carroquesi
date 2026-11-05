@@ -1,53 +1,239 @@
+{#- Tables and inline styles: most mail clients drop flexbox, grid and CSS
+    variables. Web fonts load only in some clients, so every face names a
+    safe fallback. Dark mode overrides the inline colours by class, with
+    !important, in clients that honour prefers-color-scheme. -#}
+{% set sans = "Geist, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" %}
+{% set serif = "'Bree Serif', Georgia, serif" %}
+{% set mono = "'JetBrains Mono', Menlo, Consolas, monospace" %}
+{% set hand = "'Patrick Hand SC', 'Bradley Hand', cursive" %}
+{% set share_bg = {"accent": "#1a3fa0", "mid": "#94969f", "low": "#d5dae2"} %}
+{% macro h2(title) -%}
+<h2 class="ink0" style="margin:0 0 8px;font-family:{{ serif }};font-weight:400;font-size:19px;line-height:1.3;color:#15161b;">{{ title }}</h2>
+{%- endmacro %}
+{% macro rows(items, bold_value=false, pad="6px") %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+  {% for r in items %}
+  <tr>
+    <td class="rule" style="padding:{{ pad }} 12px {{ pad }} 0;{% if not loop.last %}border-bottom:1px dashed #b4bac4;{% endif %}vertical-align:top;font-size:16px;line-height:1.4;">
+      <span class="ink0" style="color:#15161b;">{{ r.name }}</span>
+      {% if r.detail %}<br><span class="ink2" style="font-size:13px;color:#6a6d7a;">{{ r.detail }}</span>{% endif %}
+    </td>
+    <td class="rule ink0" align="right" style="padding:{{ pad }} 0;{% if not loop.last %}border-bottom:1px dashed #b4bac4;{% endif %}vertical-align:top;white-space:nowrap;font-family:{{ mono }};font-size:15px;line-height:1.5;{% if bold_value %}font-weight:600;{% endif %}color:#15161b;">{{ r.value }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{%- endmacro %}
+{% macro share_bar(items) %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 4px;">
+  <tr>
+    {% for r in items if r.share > 0 %}
+    <td class="share-{{ r.colour }}" width="{{ r.share }}%" height="10" style="height:10px;line-height:10px;font-size:0;background:{{ share_bg[r.colour] }};{% if not loop.first %}border-left:2px solid #eef1f5;{% endif %}">&nbsp;</td>
+    {% endfor %}
+  </tr>
+</table>
+{%- endmacro %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ list_name }} · {{ month }}</title>
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>{{ title_name }} · {{ period_label }}</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;600&amp;family=JetBrains+Mono:wght@400;600&amp;family=Patrick+Hand+SC&amp;display=swap">
+  <style>
+    a { color: #1a3fa0; }
+    @media (max-width: 520px) {
+      .card { padding: 24px 20px !important; }
+      .shell { padding: 16px 8px !important; }
+      .col { display: block !important; width: 100% !important; max-width: 100% !important; padding: 0 0 28px !important; }
+      .tile-value { font-size: 17px !important; }
+      .h1 { font-size: 24px !important; }
+    }
+    @media (prefers-color-scheme: dark) {
+      .canvas { background: #0b0c10 !important; }
+      .card { background: #131419 !important; border-color: #3a3c44 !important; }
+      .tile { background: #1b1c22 !important; }
+      .ink0 { color: #edeef2 !important; }
+      .ink1 { color: #c6c8cf !important; }
+      .ink2 { color: #8e919a !important; }
+      .rule { border-color: #3a3c44 !important; }
+      .accent, a { color: #91a8ff !important; }
+      .green { color: #7bc68b !important; }
+      .bar { background: #4f525a !important; }
+      .bar-now, .share-accent { background: #91a8ff !important; }
+      .share-mid { background: #6a6d75 !important; }
+      .share-low { background: #3a3c44 !important; }
+      .share-mid, .share-low { border-color: #131419 !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:24px 16px;font-family:Georgia,serif;color:#222;background:#fff;">
-  <div style="max-width:560px;margin:0 auto;">
-    <p style="margin:0 0 4px;color:#666;">{{ list_name }} · {{ month }}</p>
-    <h1 style="margin:0 0 8px;font-size:28px;">{{ totals.total | eur }}{% if totals.approximate %} <small>(aprox.)</small>{% endif %}</h1>
-    <p style="margin:0 0 4px;">En {{ totals.trips }} {{ "compra" if totals.trips == 1 else "compras" }}.</p>
-    {% if totals.vs_previous is not none %}
-    <p style="margin:0 0 4px;">{{ totals.vs_previous | pct }} frente al mes anterior.</p>
-    {% endif %}
-    {% if totals.vs_average is not none and baseline %}
-    <p style="margin:0 0 4px;">{{ totals.vs_average | pct }} frente a {{ baseline }}.</p>
-    {% endif %}
-    {% if totals.vs_last_year is not none %}
-    <p style="margin:0 0 4px;">{{ totals.vs_last_year | pct }} frente a {{ last_year }}.</p>
-    {% endif %}
-    {% if stores %}
-    <h2 style="margin:24px 0 8px;font-size:18px;">Por tienda</h2>
-    <table role="presentation" style="width:100%;border-collapse:collapse;">
-      {% for store in stores %}
-      <tr><td style="padding:4px 0;">{{ store.name }}</td><td style="padding:4px 0;text-align:right;">{{ store.amount | eur }}</td></tr>
-      {% endfor %}
-    </table>
-    {% endif %}
-    {% if products %}
-    <h2 style="margin:24px 0 8px;font-size:18px;">Lo que más pesó</h2>
-    <table role="presentation" style="width:100%;border-collapse:collapse;">
-      {% for product in products %}
-      <tr><td style="padding:4px 0;">{{ product.name }}{% if product.brand %} <span style="color:#666;">{{ product.brand }}</span>{% endif %}</td><td style="padding:4px 0;text-align:right;">{{ product.amount | eur }}</td></tr>
-      {% endfor %}
-    </table>
-    {% endif %}
-    {% if suggestions %}
-    <h2 style="margin:24px 0 8px;font-size:18px;">Para ahorrar</h2>
-    {% for s in suggestions %}
-    <p style="margin:0 0 8px;"><strong>{{ s.name }}</strong>: {{ s.paid_price | eur }} en {{ s.paid_store }}, {{ s.cheaper_price | eur }} en {{ s.cheaper_store }} (el {{ s.cheaper_seen_at.strftime("%d/%m") }}). Unos {{ s.monthly_eur | eur }} al mes.</p>
-    {% endfor %}
-    {% endif %}
-    {% if coverage %}
-    <p style="margin:32px 0 0;font-size:13px;color:#666;">{{ coverage | join(" · ") }}.</p>
-    {% endif %}
-    <p style="margin:{{ "8px" if coverage else "32px" }} 0 0;font-size:13px;color:#666;">
-      Recibes este informe porque gestionas la lista {{ list_name }} en CarroQueSí.
-      <a href="{{ unsubscribe_url }}" style="color:#666;">Dejar de recibirlo</a>.
-    </p>
-  </div>
+<body class="canvas" style="margin:0;padding:0;background:#d5dae2;">
+  <table role="presentation" class="canvas" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#d5dae2;">
+    <tr>
+      <td class="shell" align="center" style="padding:32px 16px 40px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;font-family:{{ sans }};color:#15161b;">
+          {#- The first text in the body: inboxes show it beside the subject. #}
+          <tr>
+            <td class="ink1" style="padding:0 0 12px;font-size:12px;line-height:1.4;color:#353742;">{{ preheader }}</td>
+          </tr>
+          <tr>
+            <td class="card rule" style="background:#eef1f5;border:1px solid #b4bac4;border-radius:4px;padding:32px 36px;">
+
+              {#- Masthead -#}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="rule" style="padding:0 0 14px;border-bottom:1px dashed #b4bac4;">
+                    <span class="accent" style="font-family:{{ hand }};font-weight:700;font-size:24px;letter-spacing:0.04em;color:#1a3fa0;">CarroQueSí</span>
+                  </td>
+                  <td class="rule ink1" align="right" style="padding:0 0 14px;border-bottom:1px dashed #b4bac4;font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#353742;">{{ list_name }} · {{ period_label }}</td>
+                </tr>
+              </table>
+
+              {#- Headline and lede -#}
+              <h1 class="h1 ink0" style="margin:32px 0 10px;font-family:{{ serif }};font-weight:400;font-size:28px;line-height:1.2;color:#15161b;">{{ headline }}</h1>
+              <p class="ink1" style="margin:0;font-size:16px;line-height:1.55;color:#353742;">{{ lede }}</p>
+
+              {% if tiles %}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0;">
+                <tr>
+                  {% for label, value in tiles %}
+                  <td width="33%" style="{% if not loop.first %}padding-left:10px;{% endif %}vertical-align:top;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td class="tile" style="background:#e3e7ed;border-radius:4px;padding:12px 14px;">
+                          <span class="ink1" style="font-size:12px;color:#353742;">{{ label }}</span><br>
+                          <span class="tile-value ink0" style="font-family:{{ mono }};font-weight:600;font-size:20px;line-height:1.5;color:#15161b;white-space:nowrap;">{{ value }}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                  {% endfor %}
+                </tr>
+              </table>
+              {% endif %}
+
+              {% if chart_title %}
+              <div style="margin:32px 0 0;">
+                {{ h2(chart_title) }}
+                <table role="img" aria-label="{{ chart_alt }}" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    {% for b in chart %}
+                    <td align="center" valign="bottom" width="{{ (100 / chart | length) | round(0) | int }}%" style="padding:0 7px;vertical-align:bottom;">
+                      <span class="{{ 'ink0' if b.current else 'ink1' }}" style="font-family:{{ mono }};font-size:12px;{% if b.current %}font-weight:600;color:#15161b;{% else %}color:#353742;{% endif %}">{{ b.value }}</span>
+                      {% if b.height %}
+                      <div class="{{ 'bar-now' if b.current else 'bar' }}" style="margin:6px auto 0;max-width:56px;height:{{ b.height }}px;line-height:{{ b.height }}px;font-size:0;background:{{ '#1a3fa0' if b.current else '#b4bac4' }};border-radius:2px 2px 0 0;">&nbsp;</div>
+                      {% endif %}
+                      <div class="{{ 'ink0' if b.current else 'ink1' }}" style="padding-top:6px;font-size:12px;{% if b.current %}font-weight:600;color:#15161b;{% else %}color:#353742;{% endif %}">{{ b.label }}</div>
+                    </td>
+                    {% endfor %}
+                  </tr>
+                </table>
+                <p class="ink1" style="margin:12px 0 0;font-size:12px;line-height:1.5;color:#353742;">{{ chart_caption }}</p>
+              </div>
+              {% endif %}
+
+              {% if explain %}
+              <div style="margin:32px 0 0;">
+                {{ h2(explain.title) }}
+                {{ rows(explain.rows, bold_value=true, pad="8px") }}
+              </div>
+              {% endif %}
+
+              {% if stores %}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0;">
+                <tr>
+                  <td class="col" width="{{ '50%' if people else '100%' }}" style="vertical-align:top;{% if people %}padding-right:14px;{% endif %}">
+                    {{ h2("Dónde") }}
+                    {{ share_bar(stores) }}
+                    {{ rows(stores) }}
+                  </td>
+                  {% if people %}
+                  <td class="col" width="50%" style="vertical-align:top;padding-left:14px;">
+                    {{ h2("Quién lo pidió") }}
+                    {{ share_bar(people) }}
+                    {{ rows(people) }}
+                  </td>
+                  {% endif %}
+                </tr>
+              </table>
+              {% endif %}
+
+              {% if top %}
+              <div style="margin:32px 0 0;">
+                {{ h2("Lo que más pesó") }}
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  {% for r in top %}
+                  <tr>
+                    <td class="rule ink0" style="padding:6px 12px 6px 0;{% if not loop.last %}border-bottom:1px dashed #b4bac4;{% endif %}font-size:16px;line-height:1.4;color:#15161b;">{{ r.name }}{% if r.detail %} <span class="ink2" style="font-size:13px;color:#6a6d7a;white-space:nowrap;">· {{ r.detail }}</span>{% endif %}</td>
+                    <td class="rule ink0" align="right" style="padding:6px 0;{% if not loop.last %}border-bottom:1px dashed #b4bac4;{% endif %}white-space:nowrap;font-family:{{ mono }};font-size:15px;line-height:1.5;color:#15161b;">{{ r.value }}</td>
+                  </tr>
+                  {% endfor %}
+                </table>
+              </div>
+              {% endif %}
+
+              {% if habit %}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0;">
+                <tr>
+                  <td class="tile" style="background:#e3e7ed;border-radius:4px;padding:16px 18px;">
+                    <span class="ink1" style="font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#353742;">Un hábito</span>
+                    <p class="ink0" style="margin:4px 0 0;font-size:16px;line-height:1.5;color:#15161b;">{{ habit }}</p>
+                  </td>
+                </tr>
+              </table>
+              {% endif %}
+
+              {% if not empty %}
+              <div style="margin:32px 0 0;">
+                {{ h2("Para ahorrar") }}
+                {% for s in savings %}
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:{{ '2px' if loop.first else '10px' }} 0 0;">
+                  <tr>
+                    <td class="rule" style="border:1px solid #b4bac4;border-radius:4px;padding:14px 16px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td class="ink0" style="font-weight:600;font-size:16px;line-height:1.4;color:#15161b;">{{ s.name }}</td>
+                          <td class="green" align="right" style="padding-left:12px;white-space:nowrap;font-family:{{ mono }};font-weight:600;font-size:15px;color:#2f7a4a;">{{ s.monthly }}</td>
+                        </tr>
+                      </table>
+                      <p class="ink1" style="margin:6px 0 0;font-size:14px;line-height:1.5;color:#353742;">{{ s.text }}</p>
+                    </td>
+                  </tr>
+                </table>
+                {% else %}
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:2px 0 0;">
+                  <tr>
+                    <td class="rule ink1" style="border:1px dashed #b4bac4;border-radius:4px;padding:14px 16px;font-size:14px;line-height:1.5;color:#353742;">{{ savings_empty }}</td>
+                  </tr>
+                </table>
+                {% endfor %}
+                {% if savings %}
+                <p class="ink2" style="margin:10px 0 0;font-size:13px;line-height:1.5;color:#6a6d7a;">{{ savings_rule }}</p>
+                {% endif %}
+              </div>
+              {% endif %}
+
+              {#- Footer -#}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0;">
+                <tr>
+                  <td class="rule ink1" style="padding:16px 0 0;border-top:1px dashed #b4bac4;font-size:12px;line-height:1.5;color:#353742;">
+                    {% if coverage %}
+                    <p style="margin:0 0 6px;">{{ coverage | join(" · ") }}.</p>
+                    {% endif %}
+                    {% if not empty %}
+                    <p style="margin:0 0 6px;">Precios por unidad, por envase o por kilo, tal como se registraron.</p>
+                    {% endif %}
+                    <p style="margin:0;">Recibes este informe porque gestionas la lista {{ list_name }} en CarroQueSí. <a href="{{ unsubscribe_url }}" style="color:#1a3fa0;">Dejar de recibirlo</a></p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>

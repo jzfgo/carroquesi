@@ -1,42 +1,80 @@
-{{ list_name }} · {{ month }}
+{{ list_name }} · {{ period_label }}
 
-Gastasteis {{ totals.total | eur }}{% if totals.approximate %} (aprox.){% endif %} en {{ totals.trips }} {{ "compra" if totals.trips == 1 else "compras" }}.
-{% if totals.vs_previous is not none %}
-{{ totals.vs_previous | pct }} frente al mes anterior.
+{{ (headline ~ ".") | wrap }}
+{{ lede | wrap }}
+{% if text_tiles %}
+
+{% for label, value in text_tiles %}
+{{ label | leader(value) }}
+{% endfor %}
 {% endif %}
-{% if totals.vs_average is not none and baseline %}
-{{ totals.vs_average | pct }} frente a {{ baseline }}.
+{% if chart_title %}
+
+{{ chart_title }}
+{% for b in chart %}
+  {{ b.label }}  {{ "%8s" | format(b.value ~ " €") }}
+{% endfor %}
+
+{{ chart_caption | wrap("  ") }}
 {% endif %}
-{% if totals.vs_last_year is not none %}
-{{ totals.vs_last_year | pct }} frente a {{ last_year }}.
+{% if explain %}
+
+{{ explain.title }}
+{% for r in explain.rows %}
+{{ r.name | leader(r.value) }}
+{% endfor %}
 {% endif %}
 {% if stores %}
 
-Por tienda
-{% for store in stores %}
-- {{ store.name }}: {{ store.amount | eur }}
+Dónde
+{% for r in stores %}
+{{ r.name | leader(r.value, " (" ~ r.detail ~ ")") }}
 {% endfor %}
 {% endif %}
-{% if products %}
+{% if people %}
+
+Quién lo pidió
+{% for r in people %}
+{{ r.name | leader(r.value, " (" ~ r.detail ~ ")") }}
+{% endfor %}
+{% endif %}
+{% if top %}
 
 Lo que más pesó
-{% for product in products %}
-- {{ product.name }}{% if product.brand %} ({{ product.brand }}){% endif %}: {{ product.amount | eur }}
+{% for r in top %}
+{{ r.name | leader(r.value, ", " ~ r.detail if r.detail else "") }}
 {% endfor %}
 {% endif %}
-{% if suggestions %}
+{% if habit %}
+
+Un hábito
+{{ habit | wrap("  ") }}
+{% endif %}
+{% if not empty %}
 
 Para ahorrar
-{% for s in suggestions %}
-- {{ s.name }}: {{ s.paid_price | eur }} en {{ s.paid_store }}, {{ s.cheaper_price | eur }} en {{ s.cheaper_store }} (el {{ s.cheaper_seen_at.strftime("%d/%m") }}). Unos {{ s.monthly_eur | eur }} al mes.
-{% endfor %}
-{% endif %}
+{% for s in savings %}
+{{ (s.name ~ ": unos " ~ s.monthly | replace("/mes", " al mes") ~ ".") | wrap("  ") }}
+{{ s.text | wrap("  ") }}
 
+{% else %}
+{{ savings_empty | wrap("  ") }}
+
+{% endfor %}
+{% if savings %}
+{{ savings_rule | wrap("  ") }}
+
+{% endif %}
+{% else %}
+
+{% endif %}
 --
 {% if coverage %}
-{% for clause in coverage %}{{ clause | sentence }}.{{ " " if not loop.last }}{% endfor %}
-
-
+{{ coverage | map("sentence") | join(". ") | wrap }}.
 {% endif %}
-Recibes este informe porque gestionas la lista {{ list_name }} en CarroQueSí.
-Para dejar de recibirlo: {{ unsubscribe_url }}
+{% if not empty %}
+Precios por unidad, por envase o por kilo, tal como se registraron.
+{% endif %}
+
+{{ ("Recibes este informe porque gestionas la lista " ~ list_name ~ " en CarroQueSí. Para dejar de recibirlo:") | wrap }}
+{{ unsubscribe_url }}
