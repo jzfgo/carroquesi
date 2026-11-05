@@ -51,6 +51,7 @@ function latestPrice(
   const priced = entries
     .filter((e): e is PriceEntry & { amount: number } => e.amount !== null)
     .sort((a, b) => {
+      if (!a.purchased_at && !b.purchased_at) return 0
       if (!a.purchased_at) return 1
       if (!b.purchased_at) return -1
       return compareServerInstants(b.purchased_at, a.purchased_at)

@@ -130,6 +130,7 @@ export function ItemList({
   const cart = items
     .filter((i) => i.purchased && isTripOpen(i.purchase_ends_at))
     .sort((a, b) => {
+      if (!a.purchased_at && !b.purchased_at) return 0
       if (!a.purchased_at) return 1
       if (!b.purchased_at) return -1
       return compareServerInstants(a.purchased_at, b.purchased_at)
