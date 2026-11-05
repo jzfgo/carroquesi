@@ -113,13 +113,18 @@ def test_posting_opts_out_and_a_second_post_changes_nothing(client, session, use
     second = client.post(f"/u/{token}")
 
     assert first.status_code == second.status_code == 200
-    assert "Ya no recibirás" in first.text
+    assert "Ya no recibirás el informe mensual de Casa &lt;b&gt;" in first.text
+    # The done page leads back into the app, with no form left to post.
+    assert 'href="https://app.example.com/"' in first.text
+    assert "<form" not in first.text
     rows = session.exec(select(ReportOptOut)).all()
     assert [(r.user_id, r.list_id) for r in rows] == [(user.id, lst.id)]
 
 
 def test_a_bad_link_is_a_404_and_records_nothing(client, session):
-    assert client.get("/u/nope").status_code == 404
+    page = client.get("/u/nope")
+    assert page.status_code == 404
+    assert "Este enlace no es válido" in page.text and "<form" not in page.text
     assert client.post("/u/nope").status_code == 404
     assert session.exec(select(ReportOptOut)).all() == []
 

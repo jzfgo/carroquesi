@@ -83,31 +83,48 @@ keeps only the headline, the lede, "Lo que más pesó", "Para ahorrar" and the
 footer: the Gasto/Compras tiles, the chart, "Qué explica…" and "Dónde" all
 hide. With a baseline, "Dónde" shows one line when there is one store.
 
-## Open for JAV-229
+## Decided in JAV-229
 
-The frames do not settle these. Decide them in the implementation, and update
-this list when they are decided.
+The frames did not settle these. JAV-229 decided them as follows.
 
-- **Lede and section in the "en línea" band** (between −5 % and +5 %): the
-  headline has a template, but the lede's "subieron/bajaron" and "Qué explica
-  la subida/bajada" do not.
-- **Units in the habit template:** "{uds} uds" has no rule for weighed lines
-  (the suggestion template uses €/kg) or for the singular "ud".
-- **Plain text body:** `Plain` drops the "Solo mostramos ahorros…" and
-  "Precios por unidad…" lines, writes store counts as "(1)" instead of
-  "1 compra", and loses the dot leader on long names. It needs a rule for
-  truncating names and for which lines it keeps.
-- **"Dónde" totals:** the frame sums line prices per store (681,92 €), not the
-  confirmed ticket totals (681,95 €). Pick one; ticket totals keep the section
-  in step with the headline.
-- **Gender:** the disclaimer in `Main` and `Dark` says "con precios que tú
-  mismo has pagado", which breaks the no-gender rule above. The approved copy
-  stays as is here; the build should use "…con precios que ya has pagado en
-  los últimos 90 días" unless design says otherwise.
-- **Turning the report back on (launch blocker):** `Unsub`, `UnsubDone` and
-  `Setting` promise the report can be re-enabled from the list. The backend has
-  no way to do that today: an opt-out row goes away only when the list is
-  deleted. Ship the switch with the pages, or change that copy before launch.
+- **The "en línea" band** (between −5 % and +5 %): the lede keeps only its
+  first sentence ("26 compras, 2 más que en septiembre.") and "Qué explica…"
+  hides. There is no change to explain.
+- **Units:** "9 uds", "1 ud", "1,4 kg" (up to two decimals). A single unit
+  prints nothing in "Lo que más pesó", as in `Quiet`. A product bought both by
+  weight and by unit, or weighed with no weight, prints no quantity. A habit
+  with no price drops the money: "Pan aparece en 4 de las 26 compras."
+- **A month with no purchases:** headline "{Mes}: sin compras", lede "Este mes
+  no se registró ninguna compra en esta lista.", then only the footer's
+  unsubscribe line.
+- **History but no complete month yet:** the lede says why there is no
+  comparison: "Todavía no hay un mes completo con el que compararlo: un mes
+  cuenta cuando todos sus tickets tienen el total confirmado." The first-month
+  sentence is only for a list's first month.
+- **One-month baseline:** named by its month, not "los últimos 1 meses":
+  "Octubre costó 50 € más que septiembre". The chart caption: "Media de
+  septiembre, el único mes completo disponible: …". With gaps between the
+  months, the caption gives the count, not a range.
+- **Same month last year:** a sentence at the end of the chart caption:
+  "Frente a octubre de 2025: +12 %."
+- **The chart** drops leading empty months (before the list, or nothing to
+  draw yet) and titles itself by what is left ("Últimos tres meses"). A month
+  with a line sum standing in for a ticket prints "≈", and the caption says so.
+- **"Quién lo pidió"** hides when the month has fewer than two requesters. That
+  covers single-member lists, and shared lists where one person filled the
+  month.
+- **Plain text body:** keeps every line the HTML has, including "Solo
+  mostramos ahorros…" and "Precios por unidad…". Counts are written out ("1
+  compra"). Leaders end at column 46; a long name is cut with "…" so at least
+  three dots stay, and its quantity or count is never cut.
+- **"Dónde" totals:** confirmed ticket totals, in step with the headline.
+- **Gender:** the disclaimer reads "…con precios que ya has pagado en los
+  últimos 90 días".
+- **Turning the report back on:** the switch ships in its own PR, before the
+  report reaches anyone (the `monthly_report` flag is off by default). Until
+  then the pages' promise has nothing behind it.
+- **An invalid opt-out link:** "Este enlace no es válido", in the same layout
+  as `UnsubDone`, with "Abrir CarroQueSí".
 
 **Email constraints:** the build is table-based with inline styles. Web fonts
 load only in some clients (not Gmail), so every face has a safe fallback:
