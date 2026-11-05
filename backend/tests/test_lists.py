@@ -10,6 +10,7 @@ from app.db.models import (
     ListStore,
     Purchase,
     ReceiptScan,
+    ReportOptOut,
     ReportRun,
     User,
 )
@@ -129,17 +130,22 @@ def test_delete_list_with_trips_and_stores(client: TestClient, session: Session,
     assert session.exec(select(ListStore).where(ListStore.list_id == list_id)).all() == []
 
 
-def test_delete_list_removes_its_report_runs(client: TestClient, session: Session, engine):
+def test_delete_list_removes_its_report_runs_and_opt_outs(
+    client: TestClient, session: Session, engine, user: User
+):
     with engine.connect() as conn:
         conn.exec_driver_sql("PRAGMA foreign_keys=ON")
     created = client.post("/lists", json={"name": "Con Informe"}).json()
     run = ReportRun(list_id=created["id"], period="2026-10", timezone="UTC", status="sent")
+    opt_out = ReportOptOut(user_id=user.id, list_id=created["id"])
     session.add(run)
+    session.add(opt_out)
     session.commit()
-    run_id = run.id
+    run_id, opt_out_id = run.id, opt_out.id
 
     assert client.delete(f"/lists/{created['id']}").status_code == 204
     assert session.get(ReportRun, run_id) is None
+    assert session.get(ReportOptOut, opt_out_id) is None
 
 
 def test_get_lists_includes_zero_counts_when_no_items(client: TestClient):

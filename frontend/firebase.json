@@ -16,6 +16,13 @@
           }
         },
         {
+          "source": "/u/**",
+          "run": {
+            "serviceId": "carroquesi-backend",
+            "region": "europe-west1"
+          }
+        },
+        {
           "source": "**",
           "destination": "/index.html"
         }
@@ -28,6 +35,13 @@
       "rewrites": [
         {
           "source": "/i/**",
+          "run": {
+            "serviceId": "carroquesi-backend-staging",
+            "region": "europe-west1"
+          }
+        },
+        {
+          "source": "/u/**",
           "run": {
             "serviceId": "carroquesi-backend-staging",
             "region": "europe-west1"

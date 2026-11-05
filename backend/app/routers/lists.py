@@ -13,6 +13,7 @@ from app.db.models import (
     ListStore,
     Purchase,
     ReceiptScan,
+    ReportOptOut,
     ReportRun,
     User,
     UserListPref,
@@ -237,6 +238,8 @@ def delete_list(
         session.delete(scan)
     for run in session.exec(select(ReportRun).where(ReportRun.list_id == lst.id)).all():
         session.delete(run)
+    for opt_out in session.exec(select(ReportOptOut).where(ReportOptOut.list_id == lst.id)).all():
+        session.delete(opt_out)
     # The models declare no relationships, so a flush does not order these
     # deletes by foreign key. Each flush below forces one layer out first:
     # items and scans point at trips, and everything points at the list.

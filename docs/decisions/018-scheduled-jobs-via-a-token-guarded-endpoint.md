@@ -41,15 +41,17 @@ sends. Statuses are `running`, `sent` and `failed`.
   `running` an hour after it started (Cloud Run's request limit) comes back
   in the response's `stuck` list and is logged at ERROR. A person checks it
   and sets it to `failed` to retry.
-- Until email sending exists, the trigger claims nothing, so the month that
-  is pending when email arrives is still sent.
+- While a deployment cannot send email (no SMTP host, sender or
+  `EMAIL_TOKEN_SECRET`), the trigger claims nothing, so the month that is
+  pending when email is set up is still sent.
 
 **The owner's zone is the one their browser last declared.** Authentication
 stores `X-Client-Timezone` in `users.timezone` when it changes. An owner never
 seen with a valid zone falls back to `REPORT_DEFAULT_TIMEZONE`, then UTC.
 
 **Who gets a report is a feature flag on the owner** (`monthly_report`, off by
-default), until the email and its opt-out ship.
+default), until the email's final design ships. An owner who followed the
+unsubscribe link for a list is skipped before anything is claimed.
 
 ## Alternatives considered
 
