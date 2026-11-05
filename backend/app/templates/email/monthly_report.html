@@ -41,7 +41,10 @@
     <p style="margin:0 0 8px;"><strong>{{ s.name }}</strong>: {{ s.paid_price | eur }} en {{ s.paid_store }}, {{ s.cheaper_price | eur }} en {{ s.cheaper_store }} (el {{ s.cheaper_seen_at.strftime("%d/%m") }}). Unos {{ s.monthly_eur | eur }} al mes.</p>
     {% endfor %}
     {% endif %}
-    <p style="margin:32px 0 0;font-size:13px;color:#666;">
+    {% if coverage %}
+    <p style="margin:32px 0 0;font-size:13px;color:#666;">{{ coverage | join(" · ") }}.</p>
+    {% endif %}
+    <p style="margin:{{ "8px" if coverage else "32px" }} 0 0;font-size:13px;color:#666;">
       Recibes este informe porque gestionas la lista {{ list_name }} en CarroQueSí.
       <a href="{{ unsubscribe_url }}" style="color:#666;">Dejar de recibirlo</a>.
     </p>

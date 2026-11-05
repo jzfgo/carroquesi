@@ -33,5 +33,10 @@ Para ahorrar
 {% endif %}
 
 --
+{% if coverage %}
+{% for clause in coverage %}{{ clause | sentence }}.{{ " " if not loop.last }}{% endfor %}
+
+
+{% endif %}
 Recibes este informe porque gestionas la lista {{ list_name }} en CarroQueSí.
 Para dejar de recibirlo: {{ unsubscribe_url }}

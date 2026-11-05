@@ -85,4 +85,15 @@ def test_lines_without_a_trip_are_counted_for_the_report_month_only(session: Ses
 
     report = compute_report(session, lst.id, "2026-10", MADRID)
 
-    assert report.tripless_lines == 1
+    assert report.coverage.tripless_lines == 1
+
+
+def test_a_report_carries_its_coverage(session: Session, user: User):
+    lst = _seed(session, user)
+
+    report = compute_report(session, lst.id, "2026-10", MADRID)
+
+    c = report.coverage
+    assert (c.lines_priced, c.lines_total, c.trips_confirmed, c.trips) == (2, 2, 0, 2)
+    # No trip has a confirmed total, so nothing measures the lines.
+    assert c.unattributed is None

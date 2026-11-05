@@ -35,6 +35,7 @@ from app.services.insights.schemas import (
     TopProducts,
     Totals,
 )
+from app.services.report_email import coverage_clauses
 
 
 def _eur(amount: float) -> str:
@@ -103,8 +104,10 @@ def _print(report: SpendReport, list_name: str) -> None:
                         f"el {s.cheaper_seen_at:%d/%m}  →  {_eur(s.monthly_eur)}/mes"
                         f" ({s.saving_pct:.0%})"
                     )
-    if report.tripless_lines:
-        print(f"\n{report.tripless_lines} líneas compradas sin ticket quedan fuera.")
+    if clauses := coverage_clauses(report.coverage):
+        print(f"\nCobertura: {' · '.join(clauses)}.")
+    if report.coverage.tripless_lines:
+        print(f"{report.coverage.tripless_lines} líneas compradas sin ticket quedan fuera.")
 
 
 def _read_only(session: Session) -> None:

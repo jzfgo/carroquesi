@@ -8,8 +8,15 @@ from app.core.config import get_settings
 from app.db.models import List, ListItem, Purchase, User
 from app.services import mailer, monthly_report
 from app.services.insights.engine import compute_report
-from app.services.insights.schemas import Baseline
-from app.services.report_email import baseline_label, build_report_email, eur, month_label, pct
+from app.services.insights.schemas import Baseline, Coverage
+from app.services.report_email import (
+    baseline_label,
+    build_report_email,
+    coverage_clauses,
+    eur,
+    month_label,
+    pct,
+)
 from app.services.report_opt_out import read_token
 
 MADRID = ZoneInfo("Europe/Madrid")
@@ -160,3 +167,74 @@ def test_a_baseline_another_line_already_states_is_not_repeated(session: Session
 
     assert "+50 % frente al mes anterior." in email.text
     assert "septiembre de 2026" not in email.text
+
+
+def _coverage(**fields) -> Coverage:
+    base = {
+        "lines_total": 202,
+        "lines_priced": 199,
+        "trips": 26,
+        "trips_confirmed": 26,
+        "unattributed": 0.03,
+        "tripless_lines": 0,
+    }
+    return Coverage(**(base | fields))
+
+
+def test_the_coverage_footer_names_the_unattributed_spend():
+    assert coverage_clauses(_coverage()) == [
+        "199 de 202 productos con precio",
+        "26 de 26 tickets con total confirmado",
+        "0,03 € del total sin asignar a un producto",
+    ]
+
+
+def test_the_coverage_footer_explains_lines_that_exceed_the_ticket():
+    clauses = coverage_clauses(
+        _coverage(lines_total=9, lines_priced=9, trips=1, trips_confirmed=1, unattributed=-4.96)
+    )
+
+    assert clauses == [
+        "9 de 9 productos con precio",
+        "1 de 1 ticket con total confirmado",
+        "los productos suman 4,96 € más que el ticket, "
+        "seguramente por descuentos que el ticket no detalla",
+    ]
+
+
+def test_the_coverage_footer_speaks_of_tickets_in_the_plural_when_there_are_several():
+    (*_, last) = coverage_clauses(_coverage(unattributed=-1.0))
+
+    assert last.endswith(
+        "más que los tickets, seguramente por descuentos que los tickets no detallan"
+    )
+
+
+def test_the_coverage_footer_skips_what_says_nothing():
+    assert coverage_clauses(_coverage(trips=0, trips_confirmed=0, lines_total=0)) == []
+    # A ticket with a total and no lines: "0 de 0 productos" would say nothing.
+    assert coverage_clauses(_coverage(lines_total=0, lines_priced=0))[0].startswith("26 de 26")
+
+
+def test_the_email_prints_the_coverage_footer(session: Session, user: User):
+    lst = _seed(session, user)
+    report = compute_report(session, lst.id, "2026-10", MADRID)
+
+    email = build_report_email(report, lst, user)
+
+    # No confirmed total: the footer cannot say how much is unattributed,
+    # so it says nothing rather than "0,00 €".
+    assert "1 de 1 producto con precio · 0 de 1 ticket con total confirmado." in email.html
+    assert (
+        "1 de 1 producto con precio. 0 de 1 ticket con total confirmado.\n\nRecibes"
+    ) in email.text
+    assert "sin asignar" not in email.text and "sin asignar" not in email.html
+
+
+def test_a_month_without_purchases_has_no_coverage_footer(session: Session, user: User):
+    lst = _seed(session, user)
+    report = compute_report(session, lst.id, "2026-11", MADRID)
+
+    email = build_report_email(report, lst, user)
+
+    assert "con precio" not in email.text and "con precio" not in email.html

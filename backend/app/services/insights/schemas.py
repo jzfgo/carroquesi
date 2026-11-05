@@ -141,10 +141,24 @@ Insight = Annotated[
 ]
 
 
+class Coverage(_LineCoverage):
+    """How much of the month the figures can see. Rankings by product only
+    count priced lines, so every surface that shows one shows this too."""
+
+    trips: int
+    trips_confirmed: int
+    # Confirmed totals minus the money their trips' lines add up to. Unpriced
+    # lines leave it above zero; discounts a receipt does not itemise can take
+    # it below. A trip with no confirmed total cannot tell, so it is left out,
+    # and with no confirmed trip at all this is None: zero would claim a match.
+    unattributed: float | None
+    # Purchased lines with no trip: left out of every figure, counted here.
+    tripless_lines: int
+
+
 class SpendReport(BaseModel):
     list_id: str
     period: str
     tz: str
     insights: list[Insight]
-    # Purchased lines with no trip: left out of every figure, counted here.
-    tripless_lines: int
+    coverage: Coverage

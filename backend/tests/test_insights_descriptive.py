@@ -1,7 +1,59 @@
 import pytest
 
-from app.services.insights.descriptive import by_requester, by_store, cadence, top_products, totals
+from app.services.insights.descriptive import (
+    by_requester,
+    by_store,
+    cadence,
+    coverage,
+    top_products,
+    totals,
+)
 from tests.insights_factory import line, trip, window
+
+
+def test_coverage_counts_priced_lines_confirmed_trips_and_unattributed_spend():
+    confirmed = trip("2026-10-05", total=50.0)
+    open_ = trip("2026-10-12")
+    other_month = trip("2026-09-05", total=99.0)
+    w = window(
+        [confirmed, open_, other_month],
+        [
+            line(confirmed, amount=40.0),
+            line(confirmed, amount=None),
+            line(open_, amount=10.0),
+            line(other_month, amount=1.0),
+        ],
+    )
+
+    c = coverage(w, "2026-10", tripless_lines=2)
+
+    assert (c.lines_priced, c.lines_total) == (2, 3)
+    assert (c.trips_confirmed, c.trips) == (1, 2)
+    # Measured on the confirmed trip only: the open one has no total to
+    # measure its lines against.
+    assert c.unattributed == 10.0
+    assert c.tripless_lines == 2
+
+
+def test_coverage_cannot_tell_the_unattributed_spend_without_a_confirmed_total():
+    t = trip("2026-10-05")
+    w = window([t], [line(t, amount=5.0), line(t, amount=None)])
+
+    assert coverage(w, "2026-10", tripless_lines=0).unattributed is None
+
+
+def test_coverage_goes_negative_when_lines_exceed_the_ticket():
+    t = trip("2026-10-05", total=20.0)
+    w = window([t], [line(t, amount=15.0), line(t, amount=9.96)])
+
+    assert coverage(w, "2026-10", tripless_lines=0).unattributed == -4.96
+
+
+def test_coverage_never_carries_a_negative_zero():
+    t = trip("2026-10-05", total=0.3)
+    w = window([t], [line(t, amount=0.1), line(t, amount=0.2)])
+
+    assert str(coverage(w, "2026-10", tripless_lines=0).unattributed) == "0.0"
 
 
 def test_totals_prefer_the_confirmed_total_and_flag_line_sums():

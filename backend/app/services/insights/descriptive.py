@@ -10,6 +10,7 @@ from app.services.insights.schemas import (
     ByRequester,
     ByStore,
     Cadence,
+    Coverage,
     MonthPoint,
     ProductSpend,
     RequesterSpend,
@@ -139,6 +140,25 @@ def by_requester(w: Window, month: str) -> ByRequester:
         requesters=requesters,
         lines_total=len(lines),
         lines_priced=_priced(lines),
+    )
+
+
+def coverage(w: Window, month: str, tripless_lines: int) -> Coverage:
+    trips = _trips_in(w, month)
+    lines = _lines_in(w, month)
+    confirmed = {t.id: t.total for t in trips if t.total is not None}
+    unattributed = None
+    if confirmed:
+        attributed = sum(line.amount or 0.0 for line in lines if line.trip_id in confirmed)
+        # Adding 0.0 turns a rounded -0.0 into 0.0, so it never prints a sign.
+        unattributed = round(sum(confirmed.values()) - attributed, 2) + 0.0
+    return Coverage(
+        lines_total=len(lines),
+        lines_priced=_priced(lines),
+        trips=len(trips),
+        trips_confirmed=len(confirmed),
+        unattributed=unattributed,
+        tripless_lines=tripless_lines,
     )
 
 
