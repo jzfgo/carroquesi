@@ -1,7 +1,79 @@
 import pytest
 
-from app.services.insights.descriptive import by_requester, by_store, cadence, top_products, totals
+from app.services.insights.descriptive import (
+    by_requester,
+    by_store,
+    cadence,
+    coverage,
+    top_products,
+    totals,
+)
 from tests.insights_factory import line, trip, window
+
+
+def test_coverage_counts_priced_lines_confirmed_trips_and_unattributed_spend():
+    confirmed = trip("2026-10-05", total=50.0)
+    open_ = trip("2026-10-12")
+    other_month = trip("2026-09-05", total=99.0)
+    w = window(
+        [confirmed, open_, other_month],
+        [
+            line(confirmed, amount=40.0),
+            line(confirmed, amount=None),
+            line(open_, amount=10.0),
+            line(other_month, amount=1.0),
+        ],
+    )
+
+    c = coverage(w, "2026-10", tripless_lines=2)
+
+    assert (c.lines_priced, c.lines_total) == (2, 3)
+    assert (c.trips_confirmed, c.trips) == (1, 2)
+    # Measured on the confirmed trip only: the open one has no total to
+    # measure its lines against.
+    assert (c.unattributed, c.lines_over, c.trips_lines_over) == (10.0, 0.0, 0)
+    assert c.tripless_lines == 2
+
+
+def test_coverage_cannot_tell_the_gaps_without_a_confirmed_total():
+    t = trip("2026-10-05")
+    w = window([t], [line(t, amount=5.0), line(t, amount=None)])
+
+    c = coverage(w, "2026-10", tripless_lines=0)
+
+    assert (c.unattributed, c.lines_over) == (None, None)
+
+
+def test_coverage_counts_lines_that_exceed_the_ticket_apart():
+    t = trip("2026-10-05", total=20.0)
+    w = window([t], [line(t, amount=15.0), line(t, amount=9.96)])
+
+    c = coverage(w, "2026-10", tripless_lines=0)
+
+    assert (c.unattributed, c.lines_over, c.trips_lines_over) == (0.0, 4.96, 1)
+
+
+def test_coverage_keeps_gaps_on_different_trips_from_cancelling():
+    short = trip("2026-10-05", total=20.0)  # 5 € of unpriced lines
+    over = trip("2026-10-12", total=10.0)  # 5 € of discounts the receipt hides
+    w = window(
+        [short, over],
+        [line(short, amount=15.0), line(short, amount=None), line(over, amount=15.0)],
+    )
+
+    c = coverage(w, "2026-10", tripless_lines=0)
+
+    assert (c.unattributed, c.lines_over, c.trips_lines_over) == (5.0, 5.0, 1)
+
+
+def test_coverage_ignores_float_noise_on_a_trip_that_matches():
+    t = trip("2026-10-05", total=0.3)
+    w = window([t], [line(t, amount=0.1), line(t, amount=0.2)])
+
+    c = coverage(w, "2026-10", tripless_lines=0)
+
+    assert (c.unattributed, c.lines_over, c.trips_lines_over) == (0.0, 0.0, 0)
+    assert str(c.lines_over) == "0.0"
 
 
 def test_totals_prefer_the_confirmed_total_and_flag_line_sums():

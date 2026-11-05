@@ -10,6 +10,7 @@ from app.services.insights.schemas import (
     ByRequester,
     ByStore,
     Cadence,
+    Coverage,
     MonthPoint,
     ProductSpend,
     RequesterSpend,
@@ -142,6 +143,26 @@ def by_requester(w: Window, month: str) -> ByRequester:
     )
 
 
+def coverage(w: Window, month: str, tripless_lines: int) -> Coverage:
+    trips = _trips_in(w, month)
+    lines = _lines_in(w, month)
+    confirmed = [t for t in trips if t.total is not None]
+    # Rounded per trip, so float noise on a trip that matches is not a gap.
+    gaps = [round(_trip_money(w, t)[0] - _lines_money(w, t), 2) for t in confirmed]
+    under = round(sum(g for g in gaps if g > 0), 2) if confirmed else None
+    over = round(-sum(g for g in gaps if g < 0), 2) if confirmed else None
+    return Coverage(
+        lines_total=len(lines),
+        lines_priced=_priced(lines),
+        trips=len(trips),
+        trips_confirmed=len(confirmed),
+        unattributed=under,
+        lines_over=over,
+        trips_lines_over=sum(1 for g in gaps if g < 0),
+        tripless_lines=tripless_lines,
+    )
+
+
 def cadence(w: Window, month: str) -> Cadence:
     days = sorted(_local_day(w, t) for t in _trips_in(w, month))
     gaps = [(b - a).days for a, b in zip(days, days[1:], strict=False)]
@@ -165,11 +186,15 @@ def _lines_in(w: Window, month: str) -> list[Line]:
     return [line for line in w.lines if line.trip_id in trip_ids]
 
 
+def _lines_money(w: Window, t: Trip) -> float:
+    return sum(line.amount or 0.0 for line in w.lines if line.trip_id == t.id)
+
+
 def _trip_money(w: Window, t: Trip) -> tuple[float, bool]:
     """A trip's confirmed total, or its line sum flagged approximate."""
     if t.total is not None:
         return t.total, False
-    return sum(line.amount or 0.0 for line in w.lines if line.trip_id == t.id), True
+    return _lines_money(w, t), True
 
 
 def _month_money(w: Window, month: str) -> tuple[float, bool]:

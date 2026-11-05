@@ -15,6 +15,7 @@ from app.services.insights.descriptive import (
     by_requester,
     by_store,
     cadence,
+    coverage,
     top_products,
     totals,
 )
@@ -51,5 +52,5 @@ def compute_report(
             cadence(w, month),
             cheaper_elsewhere(w, month, end, th),
         ],
-        tripless_lines=count_tripless(session, list_id, month_start, end),
+        coverage=coverage(w, month, count_tripless(session, list_id, month_start, end)),
     )

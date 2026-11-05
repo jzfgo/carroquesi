@@ -54,7 +54,23 @@ compraste"). Templates:
 - **Footer:** "{a} de {b} productos con precio · {c} de {d} tickets con total
   confirmado · " then either "{x €} del total sin asignar a un producto" or,
   when lines exceed the total, "los productos suman {x €} más que el ticket,
-  seguramente por descuentos que el ticket no detalla".
+  seguramente por descuentos que el ticket no detalla". Decided in JAV-217:
+  - "producto" and "ticket" agree with their count ("1 de 1 ticket", where
+    `Quiet` reads "1 de 1 tickets").
+  - Each confirmed ticket is compared with its own lines. Money missing from
+    the lines and money the lines add above the ticket are kept apart, so one
+    ticket's gap cannot hide another's. When some tickets fall short and
+    others run over, both clauses print: "… · 5,00 € del total sin asignar a
+    un producto · en otro ticket los productos suman 5,00 € más que el
+    ticket, seguramente por descuentos que el ticket no detalla". «en otros
+    tickets… que los tickets no detallan» when several run over.
+  - The over clause names only the tickets that run over, so its singular
+    or plural follows their count.
+  - The products clause drops when the month has no lines.
+  - The gap clauses drop when no ticket has a confirmed total: a line sum
+    standing in for the total always reads as 0 €.
+  - A month with no purchases has no coverage line at all.
+  - The plain-text body writes the clauses as sentences, as `Plain` does.
 
 **Baseline (JAV-230):** the mean of up to the 12 previous complete months
 (every purchase's total confirmed), named in the copy ("tu media de los
@@ -77,8 +93,6 @@ this list when they are decided.
   la subida/bajada" do not.
 - **Units in the habit template:** "{uds} uds" has no rule for weighed lines
   (the suggestion template uses €/kg) or for the singular "ud".
-- **"{c} de {d} tickets"** in the footer needs the same singular rule as
-  "compra(s)" (`Quiet` reads "1 de 1 tickets").
 - **Plain text body:** `Plain` drops the "Solo mostramos ahorros…" and
   "Precios por unidad…" lines, writes store counts as "(1)" instead of
   "1 compra", and loses the dot leader on long names. It needs a rule for

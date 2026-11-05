@@ -14,6 +14,7 @@ from app.services.insights.schemas import (
     Baseline,
     ByStore,
     CheaperElsewhere,
+    Coverage,
     SpendReport,
     TopProducts,
     Totals,
@@ -45,8 +46,14 @@ def pct(fraction: float) -> str:
     return f"{fraction * 100:+.0f} %".replace("-", "−")
 
 
+def sentence(clause: str) -> str:
+    """Capitalise the first letter only; Jinja's `capitalize` lowers the rest."""
+    return clause[:1].upper() + clause[1:]
+
+
 _env.filters["eur"] = eur
 _env.filters["pct"] = pct
+_env.filters["sentence"] = sentence
 
 
 def month_label(period: str) -> str:
@@ -82,6 +89,44 @@ def _baseline_line(totals: Totals, period: str) -> str | None:
     return baseline_label(totals.baseline)
 
 
+def _plural(n: int, one: str, many: str) -> str:
+    return one if n == 1 else many
+
+
+def coverage_clauses(cov: Coverage) -> list[str]:
+    """The footer's honesty line, as clauses each surface joins its own way.
+
+    Empty for a month with no trips: there is nothing to qualify.
+    """
+    if cov.trips == 0:
+        return []
+    clauses = []
+    # A trip can carry a total and no lines; "0 de 0 productos" says nothing.
+    if cov.lines_total:
+        product = _plural(cov.lines_total, "producto", "productos")
+        clauses.append(f"{cov.lines_priced} de {cov.lines_total} {product} con precio")
+    ticket = _plural(cov.trips, "ticket", "tickets")
+    clauses.append(f"{cov.trips_confirmed} de {cov.trips} {ticket} con total confirmado")
+    if cov.unattributed is None or cov.lines_over is None:
+        # No confirmed total to measure against; the ticket clause says so.
+        return clauses
+    # The approved copy has one clause. Both appear only when some tickets
+    # fall short and others run over, so neither gap hides the other.
+    if cov.unattributed > 0 or not cov.lines_over:
+        clauses.append(f"{eur(cov.unattributed)} del total sin asignar a un producto")
+    if cov.lines_over:
+        n = cov.trips_lines_over
+        the_ticket = _plural(n, "el ticket", "los tickets")
+        over = (
+            f"los productos suman {eur(cov.lines_over)} más que {the_ticket}, "
+            f"seguramente por descuentos que {the_ticket} {_plural(n, 'no detalla', 'no detallan')}"
+        )
+        if cov.unattributed > 0:
+            over = f"{_plural(n, 'en otro ticket', 'en otros tickets')} {over}"
+        clauses.append(over)
+    return clauses
+
+
 def build_report_email(report: SpendReport, lst: List, owner: User) -> Email:
     insights = {insight.type: insight for insight in report.insights}
     totals = insights["totals"]
@@ -102,6 +147,7 @@ def build_report_email(report: SpendReport, lst: List, owner: User) -> Email:
         "stores": by_store.stores,
         "products": top.products[:TOP_PRODUCTS],
         "suggestions": savings.suggestions,
+        "coverage": coverage_clauses(report.coverage),
         "unsubscribe_url": unsubscribe,
     }
     return Email(
