@@ -168,3 +168,11 @@ def test_mailer_ready_needs_smtp_and_a_token_secret(monkeypatch):
     assert monthly_report.mailer_ready() is True
     monkeypatch.setattr(settings, "email_token_secret", "")
     assert monthly_report.mailer_ready() is False
+
+
+def test_mailer_ready_needs_an_https_frontend_url(monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "smtp_host", "smtp.example.com")
+    monkeypatch.setattr(settings, "email_from", "informes@example.com")
+    monkeypatch.setattr(settings, "frontend_url", "http://localhost:5173")
+    assert monthly_report.mailer_ready() is False

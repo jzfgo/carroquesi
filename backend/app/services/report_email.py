@@ -74,7 +74,8 @@ def build_report_email(report: SpendReport, lst: List, owner: User) -> Email:
     }
     return Email(
         to=owner.email,
-        subject=f"{context['list_name']}: tu gasto de {context['month']}",
+        # A header cannot hold a line break, and a list name can.
+        subject=" ".join(f"{context['list_name']}: tu gasto de {context['month']}".split()),
         text=_env.get_template("monthly_report.txt").render(context),
         html=_env.get_template("monthly_report.html").render(context),
         # RFC 8058: mail clients show their own unsubscribe button and POST

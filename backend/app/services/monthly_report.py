@@ -36,10 +36,18 @@ STUCK_AFTER = timedelta(hours=1)
 def mailer_ready() -> bool:
     """Can this deployment send the report, opt-out link included?
 
+    The link is built on FRONTEND_URL. Its default points at a dev server,
+    and mail clients only offer one-click unsubscribe over https.
+
     While it cannot, a trigger claims nothing. A month is then sent late,
     once email works, instead of being marked done without a send.
     """
-    return mailer.is_configured() and bool(get_settings().email_token_secret)
+    settings = get_settings()
+    return (
+        mailer.is_configured()
+        and bool(settings.email_token_secret)
+        and settings.frontend_url.startswith("https://")
+    )
 
 
 def deliver(report: SpendReport, lst: List, owner: User) -> None:

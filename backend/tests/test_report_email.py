@@ -82,3 +82,13 @@ def test_a_failed_send_fails_the_delivery(session: Session, user: User, monkeypa
 
     with pytest.raises(RuntimeError):
         monthly_report.deliver(report, lst, user)
+
+
+def test_a_line_break_in_the_list_name_stays_out_of_the_subject(session: Session, user: User):
+    lst = _seed(session, user)
+    lst.name = "Casa\r\nBcc: x@example.com"
+    report = compute_report(session, lst.id, "2026-10", MADRID)
+
+    email = build_report_email(report, lst, user)
+
+    assert "\n" not in email.subject and "\r" not in email.subject

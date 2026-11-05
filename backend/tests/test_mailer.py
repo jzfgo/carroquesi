@@ -14,12 +14,14 @@ class FakeSMTP:
     instances: list[FakeSMTP] = []
     offers_starttls = True
     fail_with: Exception | None = None
+    quit_fails = False
 
     def __init__(self, host, port, timeout=None, context=None):
         self.host, self.port = host, port
         self.started_tls = False
         self.logged_in: tuple[str, str] | None = None
         self.sent: list[EmailMessage] = []
+        self.closed = False
         FakeSMTP.instances.append(self)
 
     def __enter__(self):
@@ -27,6 +29,14 @@ class FakeSMTP:
 
     def __exit__(self, *exc):
         return False
+
+    def quit(self):
+        self.closed = True
+        if FakeSMTP.quit_fails:
+            raise smtplib.SMTPServerDisconnected("gone")
+
+    def close(self):
+        self.closed = True
 
     def ehlo(self):
         pass
@@ -54,6 +64,7 @@ class FakeSMTPSSL(FakeSMTP):
 def smtp(monkeypatch):
     FakeSMTP.instances = []
     FakeSMTP.fail_with = None
+    FakeSMTP.quit_fails = False
     monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
     monkeypatch.setattr(smtplib, "SMTP_SSL", FakeSMTPSSL)
     settings = get_settings()
@@ -177,4 +188,26 @@ def test_without_a_host_or_sender_email_is_off(smtp, field):
 
     assert mailer.is_configured() is False
     assert mailer.send(EMAIL) is False
+    assert FakeSMTP.instances == []
+
+
+def test_an_error_at_quit_after_the_send_still_counts_as_sent():
+    FakeSMTP.quit_fails = True
+
+    assert mailer.send(EMAIL) is True
+    assert _sent() is not None
+
+
+def test_the_connection_is_closed_after_a_failed_send():
+    FakeSMTP.fail_with = smtplib.SMTPDataError(554, b"no")
+
+    assert mailer.send(EMAIL) is False
+    (server,) = FakeSMTP.instances
+    assert server.closed
+
+
+def test_a_subject_with_a_line_break_fails_the_send_instead_of_raising():
+    bad = Email(to="alice@example.com", subject="Casa\nBcc: x@example.com", text="", html="")
+
+    assert mailer.send(bad) is False
     assert FakeSMTP.instances == []

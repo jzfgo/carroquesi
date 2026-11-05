@@ -43,7 +43,7 @@ def read_token(token: str) -> tuple[str, str] | None:
     """(user_id, list_id), or None for a token this deployment did not sign."""
     if not get_settings().email_token_secret:
         return None
-    # Bad base64 and bad UTF-8 are both ValueErrors.
+    # A malformed token, bad base64 and bad UTF-8 are all ValueErrors.
     try:
         payload_part, mac_part = token.split(".")
         payload = _unb64(payload_part)

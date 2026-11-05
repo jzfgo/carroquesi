@@ -43,10 +43,10 @@ def send(email: Email) -> bool:
     if not is_configured():
         logger.warning("Email not sent: SMTP is not configured")
         return False
-    msg = _build(email)
     try:
-        _deliver(msg)
-    except smtplib.SMTPException, OSError:
+        # A header value with a line break is a ValueError.
+        _deliver(_build(email))
+    except smtplib.SMTPException, OSError, ValueError:
         logger.exception("Email failed: %s", email.subject)
         return False
     return True
@@ -84,7 +84,7 @@ def _deliver(msg: EmailMessage) -> None:
         )
     else:
         server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=TIMEOUT_SECONDS)
-    with server:
+    try:
         server.ehlo()
         encrypted = settings.smtp_port == IMPLICIT_TLS_PORT
         # A local test server (Mailpit) offers no TLS; a real provider does.
@@ -99,3 +99,14 @@ def _deliver(msg: EmailMessage) -> None:
                 raise smtplib.SMTPNotSupportedError("no TLS: refusing to send the password")
             server.login(settings.smtp_user, settings.smtp_password)
         server.send_message(msg)
+    finally:
+        _close(server)
+
+
+def _close(server: smtplib.SMTP) -> None:
+    """Hang up without raising. Once the message is accepted, an error at
+    QUIT must not count as a failed send: the retry would send it twice."""
+    try:
+        server.quit()
+    except smtplib.SMTPException, OSError:
+        server.close()
