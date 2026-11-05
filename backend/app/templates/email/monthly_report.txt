@@ -4,8 +4,11 @@ Gastasteis {{ totals.total | eur }}{% if totals.approximate %} (aprox.){% endif 
 {% if totals.vs_previous is not none %}
 {{ totals.vs_previous | pct }} frente al mes anterior.
 {% endif %}
-{% if totals.vs_average is not none %}
-{{ totals.vs_average | pct }} frente a la media de los tres meses anteriores.
+{% if totals.vs_average is not none and baseline %}
+{{ totals.vs_average | pct }} frente a {{ baseline }}.
+{% endif %}
+{% if totals.vs_last_year is not none %}
+{{ totals.vs_last_year | pct }} frente a {{ last_year }}.
 {% endif %}
 {% if stores %}
 

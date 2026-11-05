@@ -9,7 +9,9 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
 from app.db.models import List, User
+from app.services.insights.data import shift_month
 from app.services.insights.schemas import (
+    Baseline,
     ByStore,
     CheaperElsewhere,
     SpendReport,
@@ -52,6 +54,34 @@ def month_label(period: str) -> str:
     return f"{MONTHS[int(month) - 1]} de {year}"
 
 
+def baseline_label(baseline: Baseline) -> str:
+    """What the average is over, in words the reader can check."""
+    months = baseline.months
+    if len(months) == 1:
+        return month_label(months[0])
+    if shift_month(months[0], len(months) - 1) == months[-1]:
+        first, last = months[0], months[-1]
+        # "de mayo a julio de 2026", but both years when the range crosses one.
+        start = _month_name(first) if first[:4] == last[:4] else month_label(first)
+        return f"tu media de {start} a {month_label(last)}"
+    # With gaps a range would claim months it left out.
+    return f"tu media de {len(months)} meses"
+
+
+def _month_name(period: str) -> str:
+    return MONTHS[int(period.split("-")[1]) - 1]
+
+
+def _baseline_line(totals: Totals, period: str) -> str | None:
+    """The baseline's label, or None when another line already says it: a
+    baseline of only last month, or only the same month last year."""
+    if totals.baseline is None:
+        return None
+    if totals.baseline.months in ([shift_month(period, -1)], [shift_month(period, -12)]):
+        return None
+    return baseline_label(totals.baseline)
+
+
 def build_report_email(report: SpendReport, lst: List, owner: User) -> Email:
     insights = {insight.type: insight for insight in report.insights}
     totals = insights["totals"]
@@ -67,6 +97,8 @@ def build_report_email(report: SpendReport, lst: List, owner: User) -> Email:
         "list_name": f"{lst.emoji} {lst.name}" if lst.emoji else lst.name,
         "month": month_label(report.period),
         "totals": totals,
+        "baseline": _baseline_line(totals, report.period),
+        "last_year": month_label(shift_month(report.period, -12)),
         "stores": by_store.stores,
         "products": top.products[:TOP_PRODUCTS],
         "suggestions": savings.suggestions,

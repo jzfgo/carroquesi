@@ -6,6 +6,7 @@ from statistics import mean
 
 from app.services.insights.data import Line, Trip, Window, shift_month
 from app.services.insights.schemas import (
+    Baseline,
     ByRequester,
     ByStore,
     Cadence,
@@ -18,7 +19,7 @@ from app.services.insights.schemas import (
 )
 
 SERIES_MONTHS = 5
-AVERAGE_MONTHS = 3
+BASELINE_MONTHS = 12
 TOP_PRODUCTS = 10
 
 
@@ -27,8 +28,10 @@ def totals(w: Window, month: str) -> Totals:
     current, approximate = _month_money(w, month)
     previous = shift_month(month, -1)
     prev_total = _month_money(w, previous)[0] if _has_history(w, previous) else None
-    history = _history_months(w, month)
-    average = mean(_month_money(w, m)[0] for m in history) if history else None
+    months = _baseline_months(w, month)
+    average = mean(_month_money(w, m)[0] for m in months) if months else None
+    year_ago = shift_month(month, -12)
+    last_year = _month_money(w, year_ago)[0] if _complete(w, year_ago) else None
     series = [shift_month(month, -k) for k in range(SERIES_MONTHS - 1, -1, -1)]
     return Totals(
         list_id=w.list_id,
@@ -38,7 +41,9 @@ def totals(w: Window, month: str) -> Totals:
         trips=len(trips),
         trips_confirmed=sum(1 for t in trips if t.total is not None),
         vs_previous=_delta(current, prev_total),
+        baseline=Baseline(months=months, mean=round(average, 2)) if average is not None else None,
         vs_average=_delta(current, average),
+        vs_last_year=_delta(current, last_year),
         series=[
             MonthPoint(month=m, total=round(money, 2), approximate=approx)
             for m in series
@@ -74,9 +79,13 @@ def by_store(w: Window, month: str) -> ByStore:
 
 def top_products(w: Window, month: str) -> TopProducts:
     lines = _lines_in(w, month)
-    history = _history_months(w, month)
-    past = [line for line in w.lines if line.month in history]
-    seen_before = {line.product for line in past}
+    months = _baseline_months(w, month)
+    past = [line for line in w.lines if line.month in months]
+    # "New" looks at every earlier month in reach, complete or not: a
+    # product bought in a month with an unconfirmed trip is not new.
+    lookback = {shift_month(month, -k) for k in range(1, BASELINE_MONTHS + 1)}
+    seen_before = {line.product for line in w.lines if line.month in lookback}
+    has_past = _has_history(w, shift_month(month, -1))
 
     money: dict[tuple[str, str], float] = defaultdict(float)
     latest: dict[tuple[str, str], Line] = {}
@@ -88,9 +97,9 @@ def top_products(w: Window, month: str) -> TopProducts:
             latest[line.product] = line
 
     def average(product: tuple[str, str]) -> float | None:
-        if not history:
+        if not months:
             return None
-        return sum(x.amount or 0.0 for x in past if x.product == product) / len(history)
+        return sum(x.amount or 0.0 for x in past if x.product == product) / len(months)
 
     products = [
         ProductSpend(
@@ -99,7 +108,7 @@ def top_products(w: Window, month: str) -> TopProducts:
             amount=round(amount, 2),
             vs_average=_delta(amount, average(p)),
             # With no earlier month to look at, nothing can be called new.
-            new=bool(history) and p not in seen_before,
+            new=has_past and p not in seen_before,
         )
         for p, amount in money.items()
     ]
@@ -172,11 +181,17 @@ def _has_history(w: Window, month: str) -> bool:
     return w.first_trip_month is not None and month >= w.first_trip_month
 
 
-def _history_months(w: Window, month: str) -> list[str]:
-    """The months before `month` an average may use: only those since the
-    list's first trip, so a new list is not compared against empty months."""
-    candidates = [shift_month(month, -k) for k in range(1, AVERAGE_MONTHS + 1)]
-    return [m for m in candidates if _has_history(w, m)]
+def _complete(w: Window, month: str) -> bool:
+    """A month a comparison can trust: it has trips, all with a confirmed
+    total. Empty months are left out too: a summer away is not a normal month."""
+    trips = _trips_in(w, month)
+    return bool(trips) and all(t.total is not None for t in trips)
+
+
+def _baseline_months(w: Window, month: str) -> list[str]:
+    """The complete months among the twelve before `month`, oldest first."""
+    candidates = [shift_month(month, -k) for k in range(BASELINE_MONTHS, 0, -1)]
+    return [m for m in candidates if _complete(w, m)]
 
 
 def _delta(current: float, base: float | None) -> float | None:

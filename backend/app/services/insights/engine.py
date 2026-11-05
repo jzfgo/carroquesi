@@ -10,6 +10,7 @@ from sqlmodel import Session
 
 from app.services.insights.data import count_tripless, load_window, month_bounds, shift_month
 from app.services.insights.descriptive import (
+    BASELINE_MONTHS,
     SERIES_MONTHS,
     by_requester,
     by_store,
@@ -33,9 +34,10 @@ def compute_report(
     """`month` is "YYYY-MM", cut at local midnights in `tz` (the caller
     decides whose zone: the owner's for an email, the viewer's in the app)."""
     month_start, end = month_bounds(month, tz)
-    series_start, _ = month_bounds(shift_month(month, -(SERIES_MONTHS - 1)), tz)
-    # One load covers both the five-month trend and the savings window.
-    start = min(series_start, end - timedelta(days=th.window_days))
+    lookback = max(BASELINE_MONTHS, SERIES_MONTHS - 1)
+    history_start, _ = month_bounds(shift_month(month, -lookback), tz)
+    # One load covers the baseline, the trend and the savings window.
+    start = min(history_start, end - timedelta(days=th.window_days))
     w = load_window(session, list_id, start, end, tz)
     return SpendReport(
         list_id=list_id,
