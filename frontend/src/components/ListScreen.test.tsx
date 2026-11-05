@@ -104,6 +104,8 @@ vi.mock('./ListMembersSheet', () => ({
     </div>
   ),
 }))
+// The report switch reads the API on mount; its own suite covers that.
+vi.mock('./ReportSwitchRow', () => ({ ReportSwitchRow: () => null }))
 // Simulates the real scanner resolving a single fixed product, so tests can
 // drive the receipt-line-scan flow without a camera or barcode API.
 vi.mock('./BarcodeScanner', () => ({

@@ -84,3 +84,13 @@ def opt_out(session: Session, user_id: str, list_id: str) -> None:
         # A concurrent click inserted it first.
         pass
     session.commit()
+
+
+def opt_in(session: Session, user_id: str, list_id: str) -> None:
+    """Undo an opt-out. Idempotent: with no row there is nothing to undo."""
+    row = session.exec(
+        select(ReportOptOut).where(ReportOptOut.user_id == user_id, ReportOptOut.list_id == list_id)
+    ).first()
+    if row is not None:
+        session.delete(row)
+    session.commit()

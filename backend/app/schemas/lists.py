@@ -12,6 +12,12 @@ class BoardPrefUpdate(BaseModel):
     board: Board
 
 
+class ReportPref(BaseModel):
+    """Whether the list's owner gets the monthly report for it."""
+
+    enabled: bool
+
+
 class ListCreate(BaseModel):
     name: str
     emoji: str | None = None

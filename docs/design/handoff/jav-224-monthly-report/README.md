@@ -126,9 +126,9 @@ The frames did not settle these. JAV-229 decided them as follows.
 - **"Dónde" totals:** confirmed ticket totals, in step with the headline.
 - **Gender:** the disclaimer reads "…con precios que ya has pagado en los
   últimos 90 días".
-- **Turning the report back on:** the switch ships in its own PR, before the
-  report reaches anyone (the `monthly_report` flag is off by default). Until
-  then the pages' promise has nothing behind it.
+- **Turning the report back on:** the owner's «Informe mensual» switch in the
+  list options sheet (`Setting`). It writes the same opt-out row as the
+  unsubscribe link, so it undoes an unsubscribe.
 - **An invalid opt-out link:** "Este enlace no es válido", in the same layout
   as `UnsubDone`, with "Abrir CarroQueSí".
 

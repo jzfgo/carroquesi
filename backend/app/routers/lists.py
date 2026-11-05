@@ -1,7 +1,7 @@
 import logging
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
@@ -19,11 +19,19 @@ from app.db.models import (
     UserListPref,
 )
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
-from app.schemas.lists import BoardPrefUpdate, ListCreate, ListMemberBrief, ListRead, ListUpdate
-from app.services import receipt_storage
+from app.schemas.lists import (
+    BoardPrefUpdate,
+    ListCreate,
+    ListMemberBrief,
+    ListRead,
+    ListUpdate,
+    ReportPref,
+)
+from app.services import feature_flags, receipt_storage
 from app.services.default_list import ensure_default, set_default
 from app.services.list_board import ensure_board, get_board, set_board
 from app.services.public_name import public_name
+from app.services.report_opt_out import is_opted_out, opt_in, opt_out
 from app.services.trips import in_cart_predicate, in_scope_predicate
 
 logger = logging.getLogger(__name__)
@@ -219,6 +227,36 @@ def set_board_pref(
     session.commit()
 
 
+@router.get("/{list_id}/prefs/report", response_model=ReportPref)
+def get_report_pref(list_and_user: OwnerDep, session: CurrentSession):
+    """Whether the monthly report for this list is on. Owner only: the
+    report goes to the owner, so nobody else has a setting to see."""
+    lst, current_user = list_and_user
+    _require_report_flag(current_user.id, session)
+    return ReportPref(enabled=not is_opted_out(session, current_user.id, lst.id))
+
+
+@router.put("/{list_id}/prefs/report", status_code=status.HTTP_204_NO_CONTENT)
+def set_report_pref(body: ReportPref, list_and_user: OwnerDep, session: CurrentSession):
+    """Turn the monthly report on or off: the same opt-out row the email's
+    unsubscribe link writes. Personal, so it does not bump lists.updated_at."""
+    lst, current_user = list_and_user
+    _require_report_flag(current_user.id, session)
+    if body.enabled:
+        opt_in(session, current_user.id, lst.id)
+    else:
+        opt_out(session, current_user.id, lst.id)
+
+
+def _require_report_flag(user_id: str, session: Session) -> None:
+    """Without the flag no report is sent, so there is no setting to show."""
+    if not feature_flags.is_enabled(user_id, "monthly_report", session):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="monthly_report feature not enabled",
+        )
+
+
 @router.delete("/{list_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_list(
     list_and_user: OwnerDep,
@@ -238,8 +276,8 @@ def delete_list(
         session.delete(scan)
     for run in session.exec(select(ReportRun).where(ReportRun.list_id == lst.id)).all():
         session.delete(run)
-    for opt_out in session.exec(select(ReportOptOut).where(ReportOptOut.list_id == lst.id)).all():
-        session.delete(opt_out)
+    for row in session.exec(select(ReportOptOut).where(ReportOptOut.list_id == lst.id)).all():
+        session.delete(row)
     # The models declare no relationships, so a flush does not order these
     # deletes by foreign key. Each flush below forces one layer out first:
     # items and scans point at trips, and everything points at the list.
