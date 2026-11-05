@@ -34,7 +34,10 @@ export function ReportSwitchRow({ listId, onListSuspect }: Props) {
         if (live) setEnabled(pref.enabled)
       })
       .catch((err: unknown) => {
-        if (live && isGone(err)) suspectRef.current?.()
+        if (!live) return
+        if (isGone(err)) suspectRef.current?.()
+        // Say why the switch stays dimmed. Reopening the sheet reads again.
+        else setToast('No se pudo cargar el informe mensual')
       })
     return () => {
       live = false

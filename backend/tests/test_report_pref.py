@@ -4,11 +4,21 @@ The email's unsubscribe link and this switch write the same row, so turning
 the report back on here undoes an unsubscribe.
 """
 
+import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from app.db.models import List, ListMember, User
+from app.db.models import List, ListMember, User, UserFeature
 from app.services.report_opt_out import is_opted_out, opt_out
+
+
+@pytest.fixture(autouse=True)
+def enable_report_flag(session: Session, user: User):
+    """The tests below exercise the switch, not the flag gate in front of it."""
+    session.add(
+        UserFeature(user_id=user.id, feature="monthly_report", enabled=True, granted_by="admin")
+    )
+    session.commit()
 
 
 def _make_list(client: TestClient) -> str:
@@ -81,3 +91,15 @@ def test_a_member_who_is_not_the_owner_has_no_switch(
 def test_an_unknown_list_is_a_404(client: TestClient):
     assert client.get("/lists/nope/prefs/report").status_code == 404
     assert client.put("/lists/nope/prefs/report", json={"enabled": True}).status_code == 404
+
+
+def test_without_the_flag_there_is_no_switch(client: TestClient, session: Session, user: User):
+    list_id = _make_list(client)
+    for row in session.exec(select(UserFeature).where(UserFeature.user_id == user.id)).all():
+        session.delete(row)
+    session.commit()
+
+    assert client.get(f"/lists/{list_id}/prefs/report").status_code == 403
+    put = client.put(f"/lists/{list_id}/prefs/report", json={"enabled": False})
+    assert put.status_code == 403
+    assert not is_opted_out(session, user.id, list_id)

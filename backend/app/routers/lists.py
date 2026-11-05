@@ -1,7 +1,7 @@
 import logging
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
@@ -27,7 +27,7 @@ from app.schemas.lists import (
     ListUpdate,
     ReportPref,
 )
-from app.services import receipt_storage
+from app.services import feature_flags, receipt_storage
 from app.services.default_list import ensure_default, set_default
 from app.services.list_board import ensure_board, get_board, set_board
 from app.services.public_name import public_name
@@ -232,6 +232,7 @@ def get_report_pref(list_and_user: OwnerDep, session: CurrentSession):
     """Whether the monthly report for this list is on. Owner only: the
     report goes to the owner, so nobody else has a setting to see."""
     lst, current_user = list_and_user
+    _require_report_flag(current_user.id, session)
     return ReportPref(enabled=not is_opted_out(session, current_user.id, lst.id))
 
 
@@ -240,10 +241,20 @@ def set_report_pref(body: ReportPref, list_and_user: OwnerDep, session: CurrentS
     """Turn the monthly report on or off: the same opt-out row the email's
     unsubscribe link writes. Personal, so it does not bump lists.updated_at."""
     lst, current_user = list_and_user
+    _require_report_flag(current_user.id, session)
     if body.enabled:
         opt_in(session, current_user.id, lst.id)
     else:
         opt_out(session, current_user.id, lst.id)
+
+
+def _require_report_flag(user_id: str, session: Session) -> None:
+    """Without the flag no report is sent, so there is no setting to show."""
+    if not feature_flags.is_enabled(user_id, "monthly_report", session):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="monthly_report feature not enabled",
+        )
 
 
 @router.delete("/{list_id}", status_code=status.HTTP_204_NO_CONTENT)

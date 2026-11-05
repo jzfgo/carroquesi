@@ -111,6 +111,19 @@ test('a 403 on the read reports the list as suspect and leaves the switch off', 
   expect(theSwitch()).toBeDisabled()
 })
 
+test('a failed read says so and leaves the switch off', async () => {
+  vi.mocked(api.getReportPref).mockRejectedValue(new api.ApiError(500, ''))
+  const onListSuspect = vi.fn()
+
+  render(<ReportSwitchRow listId="l1" onListSuspect={onListSuspect} />)
+
+  expect(
+    await screen.findByText('No se pudo cargar el informe mensual'),
+  ).toBeInTheDocument()
+  expect(theSwitch()).toBeDisabled()
+  expect(onListSuspect).not.toHaveBeenCalled()
+})
+
 test('a new callback each render does not read again', async () => {
   vi.mocked(api.getReportPref).mockResolvedValue({ enabled: true })
   const { rerender } = render(
