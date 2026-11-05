@@ -86,10 +86,16 @@ def _deliver(msg: EmailMessage) -> None:
         server = smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=TIMEOUT_SECONDS)
     with server:
         server.ehlo()
+        encrypted = settings.smtp_port == IMPLICIT_TLS_PORT
         # A local test server (Mailpit) offers no TLS; a real provider does.
-        if server.has_extn("starttls"):
+        if not encrypted and server.has_extn("starttls"):
             server.starttls(context=context)
             server.ehlo()
+            encrypted = True
         if settings.smtp_user:
+            # Someone in the middle can strip the STARTTLS offer. Without
+            # this check the password would then go out in clear text.
+            if not encrypted:
+                raise smtplib.SMTPNotSupportedError("no TLS: refusing to send the password")
             server.login(settings.smtp_user, settings.smtp_password)
         server.send_message(msg)

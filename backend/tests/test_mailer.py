@@ -130,6 +130,28 @@ def test_port_465_uses_tls_from_the_start(smtp):
     assert not server.started_tls
 
 
+def test_port_465_logs_in_over_its_own_tls(smtp):
+    smtp.smtp_port = 465
+    smtp.smtp_user = "resend"
+
+    assert mailer.send(EMAIL) is True
+
+    (server,) = FakeSMTP.instances
+    assert server.logged_in == ("resend", "")
+
+
+def test_the_password_never_goes_out_without_tls(smtp, monkeypatch):
+    monkeypatch.setattr(FakeSMTP, "offers_starttls", False)
+    smtp.smtp_user = "resend"
+    smtp.smtp_password = "key"
+
+    assert mailer.send(EMAIL) is False
+
+    (server,) = FakeSMTP.instances
+    assert server.logged_in is None
+    assert server.sent == []
+
+
 def test_a_server_without_tls_or_login_still_sends(smtp, monkeypatch):
     monkeypatch.setattr(FakeSMTP, "offers_starttls", False)
 
