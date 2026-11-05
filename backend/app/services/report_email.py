@@ -186,7 +186,9 @@ def headline(totals: Totals, period: str) -> str:
     direction = _direction(totals)
     if direction is None:
         return f"{month}: {_total(totals)}, en línea con {against}"
-    diff = eur_whole(abs(totals.total - totals.baseline.mean))
+    gap = abs(totals.total - totals.baseline.mean)
+    # Round euros read better, but a small gap would round to "0 €".
+    diff = eur_whole(gap) if gap >= 1 else eur(gap)
     more = "más" if direction == "up" else "menos"
     return f"{month} costó {diff} {more} que {against}"
 
@@ -221,11 +223,17 @@ def _trips_sentence(totals: Totals, period: str) -> str:
     return f"{sentence(text)}, {same} que en {before}."
 
 
-def _moves_sentence(moves: ProductMoves, direction: str) -> str | None:
+def _moves_sentence(moves: ProductMoves, direction: str, gap: float) -> str | None:
+    """How much of the difference the top movers explain. Their sum is on
+    line prices and the difference on ticket totals, so it can come out
+    larger: other products moved the other way, or the lines run over the
+    tickets. "Suman 180 € de una diferencia de 90 €" would be false, so the
+    sentence drops and the table alone shows them."""
     rows = moves.rises if direction == "up" else moves.falls
-    if not rows:
+    explained = abs(sum(m.delta for m in rows))
+    if not rows or explained > abs(gap):
         return None
-    total = eur(abs(sum(m.delta for m in rows)))
+    total = eur(explained)
     k = len(rows)
     if k == 1:
         verb = "subió" if direction == "up" else "bajó"
@@ -248,7 +256,8 @@ def lede(totals: Totals, moves: ProductMoves, period: str) -> str:
             "un mes cuenta cuando todos sus tickets tienen el total confirmado."
         )
     direction = _direction(totals)
-    second = _moves_sentence(moves, direction) if direction else None
+    gap = totals.total - totals.baseline.mean
+    second = _moves_sentence(moves, direction, gap) if direction else None
     return f"{first} {second}" if second else first
 
 
@@ -322,6 +331,7 @@ class Bar:
     value: str
     height: int
     current: bool
+    approximate: bool
 
 
 @dataclass
@@ -358,13 +368,15 @@ def _chart(totals: Totals) -> list[Bar]:
             value=("≈ " if p.approximate else "") + _number(p.total, 0),
             height=max(2, round(p.total / top * BAR_MAX)) if p.total else 0,
             current=p.month == totals.period,
+            approximate=p.approximate,
         )
         for p in points
     ]
 
 
-def _chart_caption(totals: Totals) -> str:
-    approx = any(p.approximate for p in totals.series)
+def _chart_caption(totals: Totals, chart: list[Bar]) -> str:
+    # Only the bars drawn: a dropped leading month carries no mark to explain.
+    approx = any(b.approximate for b in chart)
     parts = [
         "Euros de tickets; ≈ marca un mes con algún ticket sin total confirmado."
         if approx
@@ -508,7 +520,7 @@ def report_view(report: SpendReport, list_name: str) -> dict:
         "text_tiles": text_tiles,
         "chart": chart,
         "chart_title": f"Últimos {NUMBERS[len(chart)]} meses" if len(chart) > 1 else None,
-        "chart_caption": _chart_caption(totals) if chart else None,
+        "chart_caption": _chart_caption(totals, chart) if chart else None,
         "chart_alt": "Gasto mensual: " + ", ".join(f"{b.month} {b.value} €" for b in chart),
         "explain": explain if explain and explain.rows else None,
         "stores": stores,

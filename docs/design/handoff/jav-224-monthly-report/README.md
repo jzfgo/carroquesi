@@ -94,6 +94,12 @@ The frames did not settle these. JAV-229 decided them as follows.
   prints nothing in "Lo que más pesó", as in `Quiet`. A product bought both by
   weight and by unit, or weighed with no weight, prints no quantity. A habit
   with no price drops the money: "Pan aparece en 4 de las 26 compras."
+- **Movers that outweigh the difference:** "Los cinco productos que más
+  subieron suman {X €} de la diferencia" drops when X is larger than the
+  headline's difference. That happens when other products moved the other
+  way, or the lines run over the tickets. The "Qué explica…" table still shows.
+- **A difference under 1 €** keeps its cents ("costó 0,40 € más"); it would
+  otherwise round to "0 €".
 - **A month with no purchases:** headline "{Mes}: sin compras", lede "Este mes
   no se registró ninguna compra en esta lista.", then only the footer's
   unsubscribe line.

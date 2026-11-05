@@ -345,6 +345,35 @@ def test_the_lede_counts_the_movers_it_has():
     )
 
 
+def test_movers_that_outweigh_the_difference_are_not_said_to_be_part_of_it():
+    # 90 € over the mean, but the top rises add up to 180 €: other products
+    # fell, or the lines run over the tickets. "Suman 180 € de la diferencia"
+    # would be false.
+    t = _totals(total=190.0, baseline=Baseline(months=FIVE, mean=100.0), vs_average=0.9)
+    moves = _moves(rises=[_move("A", 120.0), _move("B", 60.0)])
+
+    assert lede(t, moves, OCT) == "26 compras, 9 más que en septiembre."
+
+
+def test_a_small_difference_keeps_its_cents():
+    t = _totals(total=8.40, baseline=Baseline(months=FIVE, mean=8.0), vs_average=0.05)
+
+    assert sp(headline(t, OCT)) == "Octubre costó 0,40 € más que tu media de los últimos 5 meses"
+
+
+def test_the_caption_explains_only_marks_the_chart_shows():
+    # The approximate month is a leading empty one, so the chart drops it.
+    series = [
+        MonthPoint(month="2026-09", total=0.0, approximate=True),
+        MonthPoint(month=OCT, total=400.0, approximate=False),
+    ]
+
+    view = report_view(_report(_totals(series=series)), "Casa")
+
+    assert [b.label for b in view["chart"]] == ["oct"]
+    assert view["chart_caption"].startswith("Euros de tickets confirmados.")
+
+
 def test_an_in_line_month_explains_nothing():
     moves = _moves(rises=[_move("A", 2.0)])
 
