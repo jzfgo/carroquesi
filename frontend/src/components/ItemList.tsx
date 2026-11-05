@@ -4,7 +4,7 @@ import { foldText } from '../lib/foldText'
 import { formatPrice } from '../lib/formatPrice'
 import { isTripOpen } from '../lib/isTripOpen'
 import type { CostSummary } from '../lib/itemCost'
-import { parseServerInstant } from '../lib/serverInstant'
+import { compareServerInstants, parseServerInstant } from '../lib/serverInstant'
 import { storeKey } from '../lib/storeKey'
 import type { DueSuggestion, ElsewhereMatch, ListItem } from '../types'
 import { ItemCard } from './ItemCard'
@@ -120,9 +120,7 @@ export function ItemList({
 
   const active = items
     .filter((i) => !i.purchased)
-    .sort((a, b) =>
-      a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0,
-    )
+    .sort((a, b) => compareServerInstants(a.created_at, b.created_at))
 
   // The three states split here, not on the row: in-cart is a purchased item
   // whose trip is still open, and it lives on the counterfoil below the
@@ -134,11 +132,7 @@ export function ItemList({
     .sort((a, b) => {
       if (!a.purchased_at) return 1
       if (!b.purchased_at) return -1
-      return a.purchased_at < b.purchased_at
-        ? -1
-        : a.purchased_at > b.purchased_at
-          ? 1
-          : 0
+      return compareServerInstants(a.purchased_at, b.purchased_at)
     })
 
   // The pending sheet (active + cart) alone. A search dead end keys off this,

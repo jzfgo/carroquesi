@@ -258,6 +258,7 @@ def test_price_history_entry_includes_purchased_at_for_purchased_item(client: Te
     from datetime import datetime
 
     datetime.fromisoformat(entries[0]["purchased_at"])  # raises if malformed
+    assert entries[0]["purchased_at"].endswith("Z")  # same shape as every other instant
 
 
 def test_price_history_entry_purchased_at_is_null_for_unpurchased_item(client: TestClient):

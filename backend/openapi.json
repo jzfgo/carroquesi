@@ -1327,6 +1327,7 @@
           "purchased_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
