@@ -118,21 +118,24 @@ Each is a record with `type`, `period`, `list_id`, its value fields, and the
 line/trip counts behind it.
 
 - **totals** — month total (+ approximate flag), trip count, delta vs previous
-  month and vs the average of the three before, and a five-month series ending
-  at the month.
+  month, vs the baseline (with the months it covers), and vs the same month
+  last year when that month is complete, and a five-month series ending at the
+  month.
 - **by_store** — money and trip count per store key.
 - **top_products** — products by money in the month, each with its delta vs
-  its own three-month average and a `new` flag when not bought in those three
-  months. This is what explains a change ("94 € from 5 meat/fish products, 3
+  its own average over the baseline months, and a `new` flag when not bought
+  in any of the twelve months before. This is what explains a change ("94 € from 5 meat/fish products, 3
   new").
 - **by_requester** — line money per `added_by` user, named from `users` even
   when they have since left the list.
 - **cadence** — trips in the month and mean days between them.
 - **cheaper_elsewhere** — see below; at most 5, best projected saving first.
 
-- "The three months before" averages only months since the list's first trip,
-  so a new list is not compared against empty months. A month with no trips
-  after that counts as 0.
+- The **baseline** is the mean of the complete months among the twelve before.
+  A month is complete when it has trips and every trip has a confirmed total.
+  Fewer than twelve: use what there is; none: no comparison. Empty months are
+  left out, so a summer away does not drag the baseline down (JAV-230: a
+  three-month mean over July–September made a normal October read +56 %).
 
 ### Cheaper at another chain
 

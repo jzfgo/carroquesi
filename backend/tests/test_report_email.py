@@ -8,7 +8,8 @@ from app.core.config import get_settings
 from app.db.models import List, ListItem, Purchase, User
 from app.services import mailer, monthly_report
 from app.services.insights.engine import compute_report
-from app.services.report_email import build_report_email, eur, month_label, pct
+from app.services.insights.schemas import Baseline
+from app.services.report_email import baseline_label, build_report_email, eur, month_label, pct
 from app.services.report_opt_out import read_token
 
 MADRID = ZoneInfo("Europe/Madrid")
@@ -92,3 +93,45 @@ def test_a_line_break_in_the_list_name_stays_out_of_the_subject(session: Session
     email = build_report_email(report, lst, user)
 
     assert "\n" not in email.subject and "\r" not in email.subject
+
+
+def test_the_email_names_the_baseline_and_the_same_month_last_year(session: Session, user: User):
+    lst = List(name="Casa", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+    for day, total in [
+        (datetime(2025, 10, 10, 10, tzinfo=UTC), 100.0),
+        (datetime(2026, 8, 10, 10, tzinfo=UTC), 100.0),
+        (datetime(2026, 9, 10, 10, tzinfo=UTC), 100.0),
+        (datetime(2026, 10, 10, 10, tzinfo=UTC), 150.0),
+    ]:
+        session.add(
+            Purchase(
+                list_id=lst.id,
+                opened_at=day,
+                tears_off_at=day + timedelta(days=1),
+                closed_at=day,
+                total=total,
+            )
+        )
+    session.commit()
+
+    email = build_report_email(compute_report(session, lst.id, "2026-10", MADRID), lst, user)
+
+    assert "+50 % frente a tu media de 3 meses." in email.text
+    assert "+50 % frente a octubre de 2025." in email.text
+    assert "frente a octubre de 2025." in email.html
+
+
+@pytest.mark.parametrize(
+    ("months", "label"),
+    [
+        (["2026-09"], "septiembre de 2026"),
+        (["2026-05", "2026-06", "2026-07"], "tu media de mayo a julio de 2026"),
+        (["2025-11", "2025-12", "2026-01"], "tu media de noviembre de 2025 a enero de 2026"),
+        # A gap: a range would claim June, so only the count is given.
+        (["2026-05", "2026-07"], "tu media de 2 meses"),
+    ],
+)
+def test_the_baseline_is_named_by_its_months(months: list[str], label: str):
+    assert baseline_label(Baseline(months=months, mean=10.0)) == label

@@ -13,8 +13,11 @@
     {% if totals.vs_previous is not none %}
     <p style="margin:0 0 4px;">{{ totals.vs_previous | pct }} frente al mes anterior.</p>
     {% endif %}
-    {% if totals.vs_average is not none %}
-    <p style="margin:0 0 4px;">{{ totals.vs_average | pct }} frente a la media de los tres meses anteriores.</p>
+    {% if totals.vs_average is not none and baseline %}
+    <p style="margin:0 0 4px;">{{ totals.vs_average | pct }} frente a {{ baseline }}.</p>
+    {% endif %}
+    {% if totals.vs_last_year is not none %}
+    <p style="margin:0 0 4px;">{{ totals.vs_last_year | pct }} frente a {{ last_year }}.</p>
     {% endif %}
     {% if stores %}
     <h2 style="margin:24px 0 8px;font-size:18px;">Por tienda</h2>

@@ -30,6 +30,15 @@ class MonthPoint(BaseModel):
     approximate: bool
 
 
+class Baseline(BaseModel):
+    """The months a month is compared with: up to the twelve before it,
+    complete ones only. A month is complete when it has trips and every
+    trip has a confirmed total; a line sum would read too low."""
+
+    months: list[str]
+    mean: float
+
+
 class Totals(_Record):
     type: Literal["totals"] = "totals"
     total: float
@@ -38,7 +47,10 @@ class Totals(_Record):
     trips: int
     trips_confirmed: int
     vs_previous: float | None
+    baseline: Baseline | None
     vs_average: float | None
+    # Against the same month a year before, when that month is complete.
+    vs_last_year: float | None
     series: list[MonthPoint]
 
 

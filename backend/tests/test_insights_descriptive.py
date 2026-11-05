@@ -19,7 +19,7 @@ def test_totals_prefer_the_confirmed_total_and_flag_line_sums():
     assert (t.trips, t.trips_confirmed) == (2, 1)
 
 
-def test_totals_compare_with_previous_month_and_three_month_average():
+def test_totals_compare_with_previous_month_and_the_baseline():
     trips = [
         trip("2026-07-10", total=30.0),
         trip("2026-08-10", total=60.0),
@@ -29,27 +29,68 @@ def test_totals_compare_with_previous_month_and_three_month_average():
     t = totals(window(trips, []), "2026-10")
 
     assert t.vs_previous == pytest.approx(0.10)
+    assert t.baseline is not None
+    assert t.baseline.months == ["2026-07", "2026-08", "2026-09"]
+    assert t.baseline.mean == 60.0
     assert t.vs_average == pytest.approx(0.65)
     assert [p.month for p in t.series] == ["2026-06", "2026-07", "2026-08", "2026-09", "2026-10"]
     assert [p.total for p in t.series] == [0.0, 30.0, 60.0, 90.0, 99.0]
 
 
-def test_the_average_skips_months_before_the_lists_first_trip():
-    trips = [trip("2026-09-10", total=50.0), trip("2026-10-10", total=100.0)]
+def test_the_baseline_reaches_back_twelve_months_and_no_further():
+    trips = [trip(f"{m}-10", total=10.0) for m in ["2025-09", "2025-10", "2026-03", "2026-09"]]
+    trips.append(trip("2026-10-10", total=20.0))
 
     t = totals(window(trips, []), "2026-10")
 
+    assert t.baseline is not None
+    assert t.baseline.months == ["2025-10", "2026-03", "2026-09"]
     assert t.vs_average == pytest.approx(1.0)
 
 
-def test_an_empty_month_after_the_first_trip_counts_as_zero_in_the_average():
-    trips = [trip("2026-07-10", total=90.0), trip("2026-10-10", total=60.0)]
+def test_the_baseline_skips_empty_months_and_months_with_an_unconfirmed_trip():
+    trips = [
+        trip("2026-05-10", total=100.0),
+        # June has one trip with no confirmed total: its line sum would read low.
+        trip("2026-06-03", total=80.0),
+        trip("2026-06-20"),
+        # July and August are empty: a summer away is not a normal month.
+        trip("2026-09-10", total=50.0),
+        trip("2026-10-10", total=150.0),
+    ]
 
     t = totals(window(trips, []), "2026-10")
 
-    # (90 + 0 + 0) / 3 = 30
+    assert t.baseline is not None
+    assert t.baseline.months == ["2026-05", "2026-09"]
+    assert t.baseline.mean == 75.0
     assert t.vs_average == pytest.approx(1.0)
-    assert t.vs_previous is None
+
+
+def test_a_first_month_has_no_baseline():
+    t = totals(window([trip("2026-10-10", total=50.0)], []), "2026-10")
+
+    assert t.baseline is None
+    assert t.vs_average is None
+    assert t.vs_last_year is None
+
+
+def test_totals_compare_with_the_same_month_last_year_when_complete():
+    trips = [trip("2025-10-10", total=80.0), trip("2026-10-10", total=100.0)]
+
+    t = totals(window(trips, []), "2026-10")
+
+    assert t.vs_last_year == pytest.approx(0.25)
+
+
+def test_an_incomplete_month_last_year_is_not_compared():
+    trips = [
+        trip("2025-10-10", total=80.0),
+        trip("2025-10-20"),
+        trip("2026-10-10", total=100.0),
+    ]
+
+    assert totals(window(trips, []), "2026-10").vs_last_year is None
 
 
 def test_by_store_groups_spelling_variants_under_one_key():
@@ -69,10 +110,14 @@ def test_by_store_groups_spelling_variants_under_one_key():
     ]
 
 
-def test_top_products_flag_new_ones_and_compare_with_their_average():
-    sep, oct_ = trip("2026-09-10"), trip("2026-10-10")
+def test_top_products_flag_new_ones_and_compare_with_their_baseline():
+    aug, sep, oct_ = (
+        trip("2026-08-10", total=5.0),
+        trip("2026-09-10", total=6.0),
+        trip("2026-10-10"),
+    )
     w = window(
-        [trip("2026-08-10"), sep, oct_],
+        [aug, sep, oct_],
         [
             line(sep, "Leche", 6.0),
             line(oct_, "Leche", 9.0),
@@ -88,6 +133,21 @@ def test_top_products_flag_new_ones_and_compare_with_their_average():
     # Leche averaged (0 + 6) / 2 over Aug–Sep; 9 is +200 %.
     assert products["Leche"].vs_average == pytest.approx(2.0)
     assert [p.name for p in top_products(w, "2026-10").products] == ["Solomillo", "Leche"]
+
+
+def test_a_product_uses_the_same_baseline_months_as_the_total():
+    # September has an unconfirmed trip, so it is not in the baseline: the
+    # Leche bought there neither counts in its average nor makes it new.
+    aug, sep, oct_ = trip("2026-08-10", total=4.0), trip("2026-09-10"), trip("2026-10-10")
+    w = window(
+        [aug, sep, oct_],
+        [line(aug, "Leche", 4.0), line(sep, "Leche", 50.0), line(oct_, "Leche", 6.0)],
+    )
+
+    leche = top_products(w, "2026-10").products[0]
+
+    assert leche.vs_average == pytest.approx(0.5)
+    assert leche.new is False
 
 
 def test_a_first_month_marks_nothing_new():
