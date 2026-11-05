@@ -146,18 +146,19 @@ def by_requester(w: Window, month: str) -> ByRequester:
 def coverage(w: Window, month: str, tripless_lines: int) -> Coverage:
     trips = _trips_in(w, month)
     lines = _lines_in(w, month)
-    confirmed = {t.id: t.total for t in trips if t.total is not None}
-    unattributed = None
-    if confirmed:
-        attributed = sum(line.amount or 0.0 for line in lines if line.trip_id in confirmed)
-        # Adding 0.0 turns a rounded -0.0 into 0.0, so it never prints a sign.
-        unattributed = round(sum(confirmed.values()) - attributed, 2) + 0.0
+    confirmed = [t for t in trips if t.total is not None]
+    # Rounded per trip, so float noise on a trip that matches is not a gap.
+    gaps = [round(_trip_money(w, t)[0] - _lines_money(w, t), 2) for t in confirmed]
+    under = round(sum(g for g in gaps if g > 0), 2) if confirmed else None
+    over = round(-sum(g for g in gaps if g < 0), 2) if confirmed else None
     return Coverage(
         lines_total=len(lines),
         lines_priced=_priced(lines),
         trips=len(trips),
         trips_confirmed=len(confirmed),
-        unattributed=unattributed,
+        unattributed=under,
+        lines_over=over,
+        trips_lines_over=sum(1 for g in gaps if g < 0),
         tripless_lines=tripless_lines,
     )
 
@@ -185,11 +186,15 @@ def _lines_in(w: Window, month: str) -> list[Line]:
     return [line for line in w.lines if line.trip_id in trip_ids]
 
 
+def _lines_money(w: Window, t: Trip) -> float:
+    return sum(line.amount or 0.0 for line in w.lines if line.trip_id == t.id)
+
+
 def _trip_money(w: Window, t: Trip) -> tuple[float, bool]:
     """A trip's confirmed total, or its line sum flagged approximate."""
     if t.total is not None:
         return t.total, False
-    return sum(line.amount or 0.0 for line in w.lines if line.trip_id == t.id), True
+    return _lines_money(w, t), True
 
 
 def _month_money(w: Window, month: str) -> tuple[float, bool]:

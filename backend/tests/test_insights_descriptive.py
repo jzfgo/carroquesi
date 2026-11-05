@@ -31,29 +31,49 @@ def test_coverage_counts_priced_lines_confirmed_trips_and_unattributed_spend():
     assert (c.trips_confirmed, c.trips) == (1, 2)
     # Measured on the confirmed trip only: the open one has no total to
     # measure its lines against.
-    assert c.unattributed == 10.0
+    assert (c.unattributed, c.lines_over, c.trips_lines_over) == (10.0, 0.0, 0)
     assert c.tripless_lines == 2
 
 
-def test_coverage_cannot_tell_the_unattributed_spend_without_a_confirmed_total():
+def test_coverage_cannot_tell_the_gaps_without_a_confirmed_total():
     t = trip("2026-10-05")
     w = window([t], [line(t, amount=5.0), line(t, amount=None)])
 
-    assert coverage(w, "2026-10", tripless_lines=0).unattributed is None
+    c = coverage(w, "2026-10", tripless_lines=0)
+
+    assert (c.unattributed, c.lines_over) == (None, None)
 
 
-def test_coverage_goes_negative_when_lines_exceed_the_ticket():
+def test_coverage_counts_lines_that_exceed_the_ticket_apart():
     t = trip("2026-10-05", total=20.0)
     w = window([t], [line(t, amount=15.0), line(t, amount=9.96)])
 
-    assert coverage(w, "2026-10", tripless_lines=0).unattributed == -4.96
+    c = coverage(w, "2026-10", tripless_lines=0)
+
+    assert (c.unattributed, c.lines_over, c.trips_lines_over) == (0.0, 4.96, 1)
 
 
-def test_coverage_never_carries_a_negative_zero():
+def test_coverage_keeps_gaps_on_different_trips_from_cancelling():
+    short = trip("2026-10-05", total=20.0)  # 5 € of unpriced lines
+    over = trip("2026-10-12", total=10.0)  # 5 € of discounts the receipt hides
+    w = window(
+        [short, over],
+        [line(short, amount=15.0), line(short, amount=None), line(over, amount=15.0)],
+    )
+
+    c = coverage(w, "2026-10", tripless_lines=0)
+
+    assert (c.unattributed, c.lines_over, c.trips_lines_over) == (5.0, 5.0, 1)
+
+
+def test_coverage_ignores_float_noise_on_a_trip_that_matches():
     t = trip("2026-10-05", total=0.3)
     w = window([t], [line(t, amount=0.1), line(t, amount=0.2)])
 
-    assert str(coverage(w, "2026-10", tripless_lines=0).unattributed) == "0.0"
+    c = coverage(w, "2026-10", tripless_lines=0)
+
+    assert (c.unattributed, c.lines_over, c.trips_lines_over) == (0.0, 0.0, 0)
+    assert str(c.lines_over) == "0.0"
 
 
 def test_totals_prefer_the_confirmed_total_and_flag_line_sums():

@@ -147,12 +147,17 @@ class Coverage(_LineCoverage):
 
     trips: int
     trips_confirmed: int
-    # Confirmed totals minus the money their trips' lines add up to. Unpriced
-    # lines leave it above zero; discounts a receipt does not itemise can take
-    # it below. It is one net figure, so gaps on different trips can offset
-    # each other. A trip with no confirmed total cannot tell, so it is left out,
-    # and with no confirmed trip at all this is None: zero would claim a match.
+    # Each confirmed trip's total is compared with the money its own lines add
+    # up to. Where the total is higher (unpriced lines), the gap goes to
+    # `unattributed`; where the lines are higher (discounts the receipt does
+    # not itemise), it goes to `lines_over`. Kept apart so one trip's gap
+    # cannot hide another's. A trip with no confirmed total cannot tell, so
+    # it is left out; with no confirmed trip at all both are None, because
+    # zero would claim a match nobody measured.
     unattributed: float | None
+    lines_over: float | None
+    # How many confirmed trips have lines above their total.
+    trips_lines_over: int
     # Purchased lines with no trip: left out of every figure, counted here.
     tripless_lines: int
 

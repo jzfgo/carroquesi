@@ -107,19 +107,23 @@ def coverage_clauses(cov: Coverage) -> list[str]:
         clauses.append(f"{cov.lines_priced} de {cov.lines_total} {product} con precio")
     ticket = _plural(cov.trips, "ticket", "tickets")
     clauses.append(f"{cov.trips_confirmed} de {cov.trips} {ticket} con total confirmado")
-    if cov.unattributed is None:
+    if cov.unattributed is None or cov.lines_over is None:
         # No confirmed total to measure against; the ticket clause says so.
         return clauses
-    if cov.unattributed >= 0:
+    # The approved copy has one clause. Both appear only when some tickets
+    # fall short and others run over, so neither gap hides the other.
+    if cov.unattributed > 0 or not cov.lines_over:
         clauses.append(f"{eur(cov.unattributed)} del total sin asignar a un producto")
-    else:
-        # Only confirmed tickets were measured, so only they are named.
-        the_ticket = _plural(cov.trips_confirmed, "el ticket", "los tickets")
-        details = _plural(cov.trips_confirmed, "no detalla", "no detallan")
-        clauses.append(
-            f"los productos suman {eur(-cov.unattributed)} más que {the_ticket}, "
-            f"seguramente por descuentos que {the_ticket} {details}"
+    if cov.lines_over:
+        n = cov.trips_lines_over
+        the_ticket = _plural(n, "el ticket", "los tickets")
+        over = (
+            f"los productos suman {eur(cov.lines_over)} más que {the_ticket}, "
+            f"seguramente por descuentos que {the_ticket} {_plural(n, 'no detalla', 'no detallan')}"
         )
+        if cov.unattributed > 0:
+            over = f"{_plural(n, 'en otro ticket', 'en otros tickets')} {over}"
+        clauses.append(over)
     return clauses
 
 

@@ -176,6 +176,8 @@ def _coverage(**fields) -> Coverage:
         "trips": 26,
         "trips_confirmed": 26,
         "unattributed": 0.03,
+        "lines_over": 0.0,
+        "trips_lines_over": 0,
         "tripless_lines": 0,
     }
     return Coverage(**(base | fields))
@@ -189,9 +191,23 @@ def test_the_coverage_footer_names_the_unattributed_spend():
     ]
 
 
+def test_the_coverage_footer_says_zero_when_every_ticket_matches():
+    (*_, last) = coverage_clauses(_coverage(unattributed=0.0))
+
+    assert last == "0,00 € del total sin asignar a un producto"
+
+
 def test_the_coverage_footer_explains_lines_that_exceed_the_ticket():
     clauses = coverage_clauses(
-        _coverage(lines_total=9, lines_priced=9, trips=1, trips_confirmed=1, unattributed=-4.96)
+        _coverage(
+            lines_total=9,
+            lines_priced=9,
+            trips=1,
+            trips_confirmed=1,
+            unattributed=0.0,
+            lines_over=4.96,
+            trips_lines_over=1,
+        )
     )
 
     assert clauses == [
@@ -202,19 +218,31 @@ def test_the_coverage_footer_explains_lines_that_exceed_the_ticket():
     ]
 
 
-def test_the_coverage_footer_speaks_of_tickets_in_the_plural_when_there_are_several():
-    (*_, last) = coverage_clauses(_coverage(unattributed=-1.0))
+def test_the_coverage_footer_names_the_tickets_that_run_over_in_the_plural():
+    (*_, last) = coverage_clauses(_coverage(unattributed=0.0, lines_over=1.0, trips_lines_over=2))
 
     assert last.endswith(
         "más que los tickets, seguramente por descuentos que los tickets no detallan"
     )
 
 
-def test_the_coverage_footer_names_only_the_tickets_it_measured():
-    # Three tickets, one confirmed: only that one was compared with its lines.
-    (*_, last) = coverage_clauses(_coverage(trips=3, trips_confirmed=1, unattributed=-2.0))
+def test_the_coverage_footer_shows_both_gaps_when_tickets_differ():
+    # One ticket falls short, another runs over: a net figure would read 0 €.
+    (*_, short, over) = coverage_clauses(
+        _coverage(unattributed=5.0, lines_over=5.0, trips_lines_over=1)
+    )
 
-    assert last.endswith("más que el ticket, seguramente por descuentos que el ticket no detalla")
+    assert short == "5,00 € del total sin asignar a un producto"
+    assert over == (
+        "en otro ticket los productos suman 5,00 € más que el ticket, "
+        "seguramente por descuentos que el ticket no detalla"
+    )
+
+
+def test_the_coverage_footer_says_other_tickets_in_the_plural():
+    (*_, over) = coverage_clauses(_coverage(unattributed=5.0, lines_over=2.0, trips_lines_over=3))
+
+    assert over.startswith("en otros tickets los productos suman 2,00 € más que los tickets")
 
 
 def test_the_coverage_footer_skips_what_says_nothing():
