@@ -36,9 +36,9 @@ Scanning in the store and scanning several labels in one go are separate
 issues.
 
 **One button per line.** A dashed «Peso» chip shows on a row when the store
-has a label decoder and either:
+has a label decoder, the line has no weight yet, and either:
 
-- the line has quantity 1, no weight yet, and its product has no EAN; or
+- the line has quantity 1 and its product has no EAN; or
 - the product was bought by weight before.
 
 A pack counts as quantity 1, so the EAN check does most of the filtering. The
