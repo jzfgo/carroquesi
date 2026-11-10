@@ -10,6 +10,7 @@ import {
   isDiscountLine,
   isNamed,
   linePricePer,
+  QUANTITY_EPSILON,
   quantityString,
   resolutionItemId,
   resolutionName,
@@ -101,9 +102,6 @@ interface Props {
 
 /** Prices that print differently are different; below a céntimo they are not. */
 const PRICE_EPSILON = 0.005
-
-/** Quantities closer than a gram (or a thousandth of a unit) are the same. */
-const QUANTITY_EPSILON = 0.0005
 
 /** What the record says was bought, falling back to what was planned. */
 function recordedQuantity(item: ItemRef): string | null {
