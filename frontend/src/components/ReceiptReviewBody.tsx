@@ -18,9 +18,9 @@ import {
 } from '../lib/receiptDate'
 import {
   effectiveLineTotal,
+  effectiveQuantityDisplay,
   isDiscountLine,
   isNamed,
-  quantityDisplay,
   type LineState,
   type ReceiptLine,
 } from '../lib/receiptReview'
@@ -343,7 +343,9 @@ export function ReceiptReviewBody({
                     </span>
                   )}
                 </span>
-                <span className="rss-qty">{quantityDisplay(line)}</span>
+                <span className="rss-qty">
+                  {effectiveQuantityDisplay(line, ls)}
+                </span>
                 <span className="rss-price">
                   {formatRowAmount(effectiveLineTotal(line, ls))}
                 </span>

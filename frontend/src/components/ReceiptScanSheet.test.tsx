@@ -788,3 +788,47 @@ describe('ReceiptScanSheet — price correction (JAV-185)', () => {
     expect(patches.find((p) => p.item_id === 'item-2')?.price).toBe(11.4)
   })
 })
+
+describe('ReceiptScanSheet — quantity correction (JAV-222)', () => {
+  function setQuantity(raw: string, text: string) {
+    fireEvent.click(openRow(raw))
+    const qty = screen.getByLabelText('Cantidad y precio')
+    fireEvent.change(qty, { target: { value: text } })
+    fireEvent.blur(qty)
+    fireEvent.click(
+      screen.getByRole('button', { name: /Revisar ticket|Añadir ticket/ }),
+    )
+  }
+
+  it('saves the corrected quantity', async () => {
+    const { onConfirm } = renderSheet()
+    // BEBIDA ALMENDRAS reads 1 × 1,15; it was really 346 g.
+    setQuantity('BEBIDA ALMENDRAS', '346 g')
+    expect(screen.getByText('346 g')).toBeInTheDocument()
+    expect(screen.getByText('1,15')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    const bebida = patches.find((p) => p.item_id === 'item-1')
+    expect(bebida).toMatchObject({ quantity: '346 g', price_per: 'KILOGRAM' })
+    expect(bebida?.price).toBeCloseTo(1.15 / 0.346)
+  })
+
+  it('targeted: a quantity-only correction reads «era …»', () => {
+    renderTargeted({
+      candidateItems: [
+        { ...targetItems[0], price: 1.15, purchased_quantity: '1' },
+        targetItems[1],
+        targetItems[2],
+      ],
+    })
+    setQuantity('BEBIDA ALMENDRAS', '2')
+    const box = screen.getByRole('checkbox', { name: /BEBIDA ALMENDRAS/ })
+    if (!(box as HTMLInputElement).checked) fireEvent.click(box)
+    // The total stays 1,15, so the unit price moves to 0,575: the price note
+    // wins over the quantity one.
+    expect(screen.getByText('era € 1,15')).toBeInTheDocument()
+  })
+})
