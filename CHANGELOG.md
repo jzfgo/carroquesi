@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.24.0] — 2026-11-10
+
+### Added
+- **insights:** Backend spend-insight engine (#423)
+
+- **chains:** Chain profiles module in the backend (#424)
+
+- **reports:** Monthly report trigger with idempotent runs (#426)
+
+- **reports:** Send the monthly report over SMTP, with a per-list opt-out (#430)
+
+- **insights:** Baseline over up to 12 complete months, plus same month last year (#434)
+
+- **insights:** Spend coverage alongside every report (JAV-217) (#435)
+
+- **reports:** Monthly report email and opt-out pages per the approved design (#436)
+
+- **reports:** Owner's monthly report switch in the list options sheet (#437)
+
+
+### Fixed
+- **e2e:** Pin the app version in the settings-sheet baselines (#420)
+
+- **receipt:** Check the receipt date server-side and repair misread years (#425)
+
+- **lists:** Delete a list that has trips or stores (#427)
+
+- Read server timestamps with or without a zone suffix (#428)
+
+- Store timestamps as timezone-aware UTC (timestamptz) (#429)
+
+- **prices:** Default a bought line's price store to its trip's store (#443)
+
+- **receipts:** Link a targeted attach's missed lines to the trip instead of duplicating them (JAV-232) (#444)
+
+
+---
 ## [0.23.10] — 2026-11-03
 
 ### Fixed
