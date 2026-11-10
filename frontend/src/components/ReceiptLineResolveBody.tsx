@@ -37,6 +37,9 @@ interface Props {
   /** The back galón names the review it returns to; the targeted review has
    *  its own title. */
   backLabel?: string
+  /** The review completes a settled purchase: the list holds that trip's own
+   *  lines, labelled by their recorded price. */
+  targeted?: boolean
 }
 
 /** Case- and accent-insensitive "name contains the typed text". */
@@ -44,7 +47,14 @@ function matchesQuery(name: string, query: string): boolean {
   return foldText(name).includes(foldText(query))
 }
 
-function itemSubLabel(item: ItemRef): string {
+function itemSubLabel(item: ItemRef, targeted: boolean): string {
+  // A trip line is told apart by what the record already says it cost: the
+  // receipt line's partner usually prints the same figure.
+  if (targeted) {
+    if (item.price == null) return 'sin precio'
+    const per = item.price_per === 'KILOGRAM' ? '/KG' : '/UD'
+    return `${formatRowAmount(item.price)}${per}`
+  }
   // An in-cart item's store isn't settled until the receipt closes the trip, so
   // it reads bare — only a still-pending item names the store it's tagged for.
   if (item.purchased) return 'en el carro'
@@ -68,6 +78,7 @@ export function ReceiptLineResolveBody({
   effectiveTotal,
   onChangePrice,
   backLabel = 'Revisar ticket',
+  targeted = false,
 }: Props) {
   // The amount draft, comma-decimal like every hand-typed price. Committed on
   // blur: an amount equal to the read figure clears the correction (typing
@@ -151,7 +162,8 @@ export function ReceiptLineResolveBody({
       <div className="rss-resolve-body">
         <div className="rss-pending">
           <span className="rss-eyebrow">
-            Pendientes de asignar · {visibleItems.length}
+            {targeted ? 'En esta compra' : 'Pendientes de asignar'} ·{' '}
+            {visibleItems.length}
           </span>
           {visibleItems.map((item) => (
             <button
@@ -165,14 +177,20 @@ export function ReceiptLineResolveBody({
               <span className="rss-radio" aria-hidden="true" />
               <span className="rss-pending__text">
                 <span className="rss-pending__name">{item.name}</span>
-                <span className="rss-pending__sub">{itemSubLabel(item)}</span>
+                <span className="rss-pending__sub">
+                  {itemSubLabel(item, targeted)}
+                </span>
               </span>
             </button>
           ))}
         </div>
 
         <div className="rss-create">
-          <span className="rss-eyebrow">Si no estaba en la lista</span>
+          <span className="rss-eyebrow">
+            {targeted
+              ? 'Si no estaba en esta compra'
+              : 'Si no estaba en la lista'}
+          </span>
           {showPreview && (
             <div className="rss-create__preview">
               <span className="rss-create__preview-name">{previewName}</span>

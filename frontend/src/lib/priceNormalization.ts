@@ -1,5 +1,5 @@
 import type { PriceEntry } from '../types'
-import { parseKgFactor } from './itemCost'
+import { parseKgFactor, unitPrice } from './itemCost'
 
 export interface ChartEntry {
   displayAmount: number | null
@@ -56,20 +56,10 @@ export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
   let hasGaps = false
 
   const normalized: ChartEntry[] = priced.map((e) => {
-    let displayAmount: number | null
-
-    if (e.price_per === 'KILOGRAM') {
-      displayAmount = e.amount
-    } else {
-      const kgFactor = parseKgFactor(e.quantity)
-      if (kgFactor !== null) {
-        displayAmount = e.amount / kgFactor
-        isNormalized = true
-      } else {
-        displayAmount = null
-        hasGaps = true
-      }
-    }
+    const unit = unitPrice(e.amount, e.quantity, e.price_per)
+    const displayAmount = unit.basis === 'kg' ? unit.value : null
+    if (displayAmount === null) hasGaps = true
+    else if (e.price_per !== 'KILOGRAM') isNormalized = true
 
     return {
       displayAmount,

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlmodel import Session, select
 
@@ -55,7 +55,7 @@ def test_padded_token_is_stored_trimmed(client, session: Session):
 def test_reregistering_moves_the_registration_timestamp(client, session: Session):
     client.post("/notifications/tokens", json={"token": "tok-abc"})
     row = session.exec(select(PushToken).where(PushToken.token == "tok-abc")).one()
-    row.last_registered_at = datetime(2020, 1, 1)
+    row.last_registered_at = datetime(2020, 1, 1, tzinfo=UTC)
     session.add(row)
     session.commit()
 
@@ -63,7 +63,7 @@ def test_reregistering_moves_the_registration_timestamp(client, session: Session
 
     session.expire_all()
     refreshed = session.exec(select(PushToken).where(PushToken.token == "tok-abc")).one()
-    assert refreshed.last_registered_at > datetime(2020, 1, 1)
+    assert refreshed.last_registered_at > datetime(2020, 1, 1, tzinfo=UTC)
 
 
 def test_delete_cannot_remove_another_users_token(client, other_client, session: Session):

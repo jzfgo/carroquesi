@@ -12,6 +12,7 @@ from app.schemas.members import (
     MemberRead,
     TransferOwnershipRequest,
 )
+from app.services.public_name import public_name
 from app.services.push import notify_ownership_change
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ owner_router = APIRouter(prefix="/lists/{list_id}", tags=["members"])
 
 
 def _bump(lst: List, session: Session) -> None:
-    lst.updated_at = datetime.now(UTC).replace(tzinfo=None)
+    lst.updated_at = datetime.now(UTC)
     session.add(lst)
 
 
@@ -53,7 +54,7 @@ def get_members(
             user_id=member.user_id,
             list_id=member.list_id,
             created_at=member.created_at,
-            display_name=user.display_name or user.email.split("@")[0],
+            display_name=public_name(user.display_name, user.email),
             photo_url=user.photo_url,
         )
         for member, user in results

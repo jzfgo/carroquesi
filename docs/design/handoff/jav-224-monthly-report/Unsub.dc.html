@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Dejar de recibir el informe</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;500;600&amp;family=Patrick+Hand+SC&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#1a3fa0}a:hover{color:#2c56c1}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; padding: 56px 24px 32px; background: #eef1f5; font-family: Geist, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #15161b; display: flex; flex-direction: column; gap: 28px">
+  <span style="font-family: 'Patrick Hand SC', 'Bradley Hand', cursive; font-weight: 700; font-size: 24px; letter-spacing: 0.04em; color: #1a3fa0">CarroQueSí</span>
+
+  <div style="display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px dashed #b4bac4">
+    <h1 style="margin: 0; font-family: 'Bree Serif', Georgia, serif; font-weight: 400; font-size: 26px; line-height: 1.2; text-wrap: balance">¿Dejar de recibir el informe de Casa?</h1>
+    <p style="margin: 0; font-size: 16px; line-height: 1.55; color: #353742">Dejarás de recibir el resumen mensual de gasto de esta lista. Tus otras listas no cambian, y la lista sigue funcionando igual.</p>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px">
+    <a href="UnsubDone.dc.html" style="display: flex; align-items: center; justify-content: center; height: 48px; border-radius: 10px; background: #1a3fa0; color: #eef1f5; font-size: 16px; font-weight: 600; text-decoration: none">Dejar de recibirlo</a>
+    <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #353742; text-align: center">Si prefieres seguir recibiéndolo, cierra esta página.</p>
+  </div>
+
+  <p style="margin: auto 0 0; font-size: 13px; line-height: 1.5; color: #6a6d7a">Puedes volver a activarlo cuando quieras desde la lista, en la app.</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

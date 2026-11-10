@@ -9,7 +9,9 @@ from app.routers import (
     admin,
     auth,
     barcode,
+    chains,
     feedback,
+    internal,
     invites,
     items,
     lists,
@@ -18,6 +20,7 @@ from app.routers import (
     prices,
     purchases,
     receipt,
+    report_opt_out,
     share,
     shortcuts,
     stores,
@@ -56,6 +59,7 @@ app.include_router(invites.router)
 app.include_router(invites.list_invites_router)
 app.include_router(suggestions.router)
 app.include_router(barcode.router)
+app.include_router(chains.router)
 app.include_router(prices.router)
 app.include_router(purchases.router)
 app.include_router(receipt.router)
@@ -66,6 +70,8 @@ app.include_router(waitlist.router)
 app.include_router(shortcuts.router)
 app.include_router(notifications.router)
 app.include_router(notifications.list_seen_router)
+app.include_router(internal.router)
+app.include_router(report_opt_out.router)
 
 
 @app.get("/health")

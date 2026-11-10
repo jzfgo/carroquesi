@@ -1,5 +1,6 @@
 import type {
   BarcodeRead,
+  ChainRead,
   DueSuggestion,
   ElsewhereMatch,
   ListItem,
@@ -20,6 +21,7 @@ import type {
   ReceiptThumbUrlResult,
   ReceiptUploadUrlRequest,
   ReceiptUploadUrlResult,
+  ReportPref,
   Suggestion,
 } from '../types'
 import type { BoardName } from './boards'
@@ -178,6 +180,29 @@ export function setBoardPref(
   })
 }
 
+/** Whether the owner gets this list's monthly report. Owner only. */
+export function getReportPref(
+  getToken: () => Promise<string>,
+  listId: string,
+): Promise<ReportPref> {
+  return apiFetch(
+    getToken,
+    `/lists/${listId}/prefs/report`,
+  ) as Promise<ReportPref>
+}
+
+/** Turn the monthly report on or off; undoes the email's unsubscribe too. */
+export function setReportPref(
+  getToken: () => Promise<string>,
+  listId: string,
+  enabled: boolean,
+) {
+  return apiFetch(getToken, `/lists/${listId}/prefs/report`, {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  })
+}
+
 export function getListItems(getToken: () => Promise<string>, listId: string) {
   return apiFetch(getToken, `/lists/${listId}/items`)
 }
@@ -303,6 +328,12 @@ export async function getBarcode(
   ean: string,
 ): Promise<BarcodeRead> {
   return apiFetch(getToken, `/barcode/${ean}`) as Promise<BarcodeRead>
+}
+
+export function getChains(
+  getToken: () => Promise<string>,
+): Promise<ChainRead[]> {
+  return apiFetch(getToken, '/chains') as Promise<ChainRead[]>
 }
 
 export function removeMember(

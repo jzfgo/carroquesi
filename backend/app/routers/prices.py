@@ -81,7 +81,7 @@ def delete_price(
     if item.purchased_at is not None:
         # A purchased item whose trip row is missing counts as closed —
         # refusing a delete is recoverable, erasing settled spend is not.
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = datetime.now(UTC)
         trip = session.get(Purchase, item.purchase_id) if item.purchase_id else None
         if trip is None or not trips.is_open(trip, now):
             raise HTTPException(
@@ -112,7 +112,7 @@ def get_price_history(
             price_per=i.price_per,
             # A sin-precio line has no price_store; its trip carries the store.
             store=i.price_store if i.price_store is not None else purchase_store,
-            purchased_at=i.purchased_at.isoformat() if i.purchased_at else None,
+            purchased_at=i.purchased_at,
             quantity=i.quantity,
             is_sin_precio=i.purchase_id is not None and i.price is None,
         )

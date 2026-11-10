@@ -1,0 +1,80 @@
+{{ list_name }} · {{ period_label }}
+
+{{ (headline ~ ".") | wrap }}
+{{ lede | wrap }}
+{% if text_tiles %}
+
+{% for label, value in text_tiles %}
+{{ label | leader(value) }}
+{% endfor %}
+{% endif %}
+{% if chart_title %}
+
+{{ chart_title }}
+{% for b in chart %}
+  {{ b.label }}  {{ "%8s" | format(b.value ~ " €") }}
+{% endfor %}
+
+{{ chart_caption | wrap("  ") }}
+{% endif %}
+{% if explain %}
+
+{{ explain.title }}
+{% for r in explain.rows %}
+{{ r.name | leader(r.value) }}
+{% endfor %}
+{% endif %}
+{% if stores %}
+
+Dónde
+{% for r in stores %}
+{{ r.name | leader(r.value, " (" ~ r.detail ~ ")") }}
+{% endfor %}
+{% endif %}
+{% if people %}
+
+Quién lo pidió
+{% for r in people %}
+{{ r.name | leader(r.value, " (" ~ r.detail ~ ")") }}
+{% endfor %}
+{% endif %}
+{% if top %}
+
+Lo que más pesó
+{% for r in top %}
+{{ r.name | leader(r.value, ", " ~ r.detail if r.detail else "") }}
+{% endfor %}
+{% endif %}
+{% if habit %}
+
+Un hábito
+{{ habit | wrap("  ") }}
+{% endif %}
+{% if not empty %}
+
+Para ahorrar
+{% for s in savings %}
+{{ (s.name ~ ": unos " ~ s.monthly | replace("/mes", " al mes") ~ ".") | wrap("  ") }}
+{{ s.text | wrap("  ") }}
+
+{% else %}
+{{ savings_empty | wrap("  ") }}
+
+{% endfor %}
+{% if savings %}
+{{ savings_rule | wrap("  ") }}
+
+{% endif %}
+{% else %}
+
+{% endif %}
+--
+{% if coverage %}
+{{ coverage | map("sentence") | join(". ") | wrap }}.
+{% endif %}
+{% if not empty %}
+Precios por unidad, por envase o por kilo, tal como se registraron.
+{% endif %}
+
+{{ ("Recibes este informe porque gestionas la lista " ~ list_name ~ " en CarroQueSí. Para dejar de recibirlo:") | wrap }}
+{{ unsubscribe_url }}

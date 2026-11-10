@@ -60,7 +60,7 @@ def _tear_off(session: Session, item: dict, days_ago: int) -> str:
     directly: the same rows the app would hold the morning after a shop
     nobody wrote down. Returns the trip's id.
     """
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     row = session.get_one(ListItem, item["id"])
     trip = session.get_one(Purchase, row.purchase_id)
     trip.opened_at = now - timedelta(days=days_ago)
@@ -132,7 +132,7 @@ def test_a_back_dated_close_files_the_ticket_under_its_day(client: TestClient, s
     opened = datetime.fromisoformat(body["opened_at"])
     closed = datetime.fromisoformat(body["closed_at"])
     assert opened < closed  # the day's start precedes its tear-off
-    assert closed < datetime.now(UTC).replace(tzinfo=None)  # a week ago, not today
+    assert closed < datetime.now(UTC)  # a week ago, not today
 
 
 def test_a_same_day_close_is_unchanged_by_the_date_extension(client: TestClient):
@@ -159,7 +159,7 @@ def test_a_close_dated_today_lands_closed_at_now_not_the_future_tearoff(client: 
 
     closed = datetime.fromisoformat(body["closed_at"])
     tears = datetime.fromisoformat(body["tears_off_at"])
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     assert closed < tears  # not stamped at the future tear-off
     assert closed <= now  # the reconciliation instant, not ahead of now
 
@@ -232,7 +232,7 @@ def test_closing_a_torn_off_trip_by_name(client: TestClient, session: Session):
     assert body["store"] == "Mercadona"
     # The test only means anything if the trip really had torn off.
     tears_off_at = datetime.fromisoformat(body["tears_off_at"])
-    assert tears_off_at < datetime.now(UTC).replace(tzinfo=None)
+    assert tears_off_at < datetime.now(UTC)
 
 
 def test_closing_an_already_closed_trip_returns_409(client: TestClient, session: Session):
@@ -462,7 +462,7 @@ def test_closing_bumps_the_lists_updated_at(client: TestClient, session: Session
     lst = _create_list(client)
     milk = _tap(client, lst["id"], "Leche")
     row = session.get_one(List, lst["id"])
-    row.updated_at = datetime(2026, 1, 1)
+    row.updated_at = datetime(2026, 1, 1, tzinfo=UTC)
     session.add(row)
     session.commit()
 
@@ -470,7 +470,7 @@ def test_closing_bumps_the_lists_updated_at(client: TestClient, session: Session
 
     assert response.status_code == 200
     session.expire_all()
-    assert session.get_one(List, lst["id"]).updated_at > datetime(2026, 1, 1)
+    assert session.get_one(List, lst["id"]).updated_at > datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def test_closing_makes_purchase_ends_at_the_close_time_not_the_tear_off(client: TestClient):
@@ -607,7 +607,7 @@ def _page(client: TestClient, list_id: str, **params):
 
 def _backdate_close(session: Session, trip_id: str, days_ago: int) -> None:
     trip = session.get_one(Purchase, trip_id)
-    trip.closed_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days_ago)
+    trip.closed_at = datetime.now(UTC) - timedelta(days=days_ago)
     session.add(trip)
     session.commit()
 
@@ -668,6 +668,26 @@ def test_the_page_sums_a_provisional_items_total_from_priced_proto_lines(
     assert proto["items_total"] == 26.09
 
 
+def test_items_total_uses_the_purchased_quantity_when_set(client: TestClient, session: Session):
+    """A weighed tray asked for as «1 kg» but bought at 0,636 kg costs what
+    was bought. The row the app draws uses the purchased quantity, so the
+    provisional total must too, or «≈ total» disagrees with the rows."""
+    lst = _create_list(client)
+    tray = _tap(client, lst["id"], "Solomillo", quantity="1 kg")
+    torn_id = _tear_off(session, tray, days_ago=2)
+    row = session.get_one(ListItem, tray["id"])
+    row.purchased_quantity = "0.636 kg"
+    row.price = 12.50
+    row.price_per = "KILOGRAM"
+    session.add(row)
+    session.commit()
+
+    body = _page(client, lst["id"]).json()
+
+    (proto,) = [p for p in body["purchases"] if p["id"] == torn_id]
+    assert proto["items_total"] == 7.95
+
+
 def test_the_page_leaves_items_total_null_when_no_line_is_priced(
     client: TestClient, session: Session
 ):
@@ -705,14 +725,15 @@ def test_the_page_carries_each_trips_lines_only_when_asked(client: TestClient, s
     body = _page(client, lst["id"], include_items=True).json()
     by_id = {p["id"]: p for p in body["purchases"]}
     per_trip = client.get(f"/lists/{lst['id']}/purchases/{ticket['id']}/items").json()
+    assert {line["purchase_store"] for line in per_trip} == {"Lidl"}
     assert by_id[ticket["id"]]["items"] == per_trip
     assert by_id[manual["id"]]["items"] == []
 
 
 def test_trips_sharing_a_boundary_tie_break_on_id(client: TestClient, session: Session):
     lst = _create_list(client)
-    instant = datetime(2026, 7, 1, 12, 0, 0)
-    boundary = datetime(2026, 7, 1, 22, 0, 0)
+    instant = datetime(2026, 7, 1, 12, 0, 0, tzinfo=UTC)
+    boundary = datetime(2026, 7, 1, 22, 0, 0, tzinfo=UTC)
     for trip_id in ("trip-a", "trip-b"):
         session.add(
             Purchase(
@@ -806,7 +827,7 @@ def test_a_tickets_lines_come_in_tap_order_with_the_boundary_stamped(
     bread = _tap(client, lst["id"], "Pan")
     # Taps land microseconds apart; set the order beyond doubt. The bread
     # went into the cart first, so created_at alone would order it wrong.
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     session.get_one(ListItem, bread["id"]).purchased_at = now - timedelta(hours=2)
     session.get_one(ListItem, milk["id"]).purchased_at = now - timedelta(hours=1)
     session.commit()
@@ -820,6 +841,7 @@ def test_a_tickets_lines_come_in_tap_order_with_the_boundary_stamped(
     for line in lines:
         assert line["purchase_id"] == ticket["id"]
         assert line["purchase_ends_at"] == ticket["closed_at"]
+        assert line["purchase_store"] == "Lidl"
 
 
 def test_an_open_carts_lines_are_readable_too(client: TestClient, session: Session):
@@ -832,7 +854,7 @@ def test_an_open_carts_lines_are_readable_too(client: TestClient, session: Sessi
     assert [line["name"] for line in lines] == ["Leche"]
     # An open cart's boundary is its tear-off, still ahead.
     ends_at = datetime.fromisoformat(lines[0]["purchase_ends_at"])
-    assert ends_at > datetime.now(UTC).replace(tzinfo=None)
+    assert ends_at > datetime.now(UTC)
 
 
 def test_another_lists_ticket_reads_as_not_found(
@@ -1205,10 +1227,8 @@ def test_a_manual_purchases_boundary_lands_on_the_clients_day(client: TestClient
 
     assert response.status_code == 200
     trip = session.get_one(Purchase, response.json()["id"])
-    # opened_at is the local midnight that STARTS the day, as naive UTC.
-    expected_open = (
-        datetime.combine(day, datetime.min.time(), tzinfo=tz).astimezone(UTC).replace(tzinfo=None)
-    )
+    # opened_at is the local midnight that STARTS the day, in UTC.
+    expected_open = datetime.combine(day, datetime.min.time(), tzinfo=tz).astimezone(UTC)
     assert trip.opened_at == expected_open
     assert trip.tears_off_at == tears_off_at_for(expected_open, tz)
     assert trip.closed_at == trip.tears_off_at
@@ -1327,4 +1347,5 @@ def test_search_lines_carry_the_purchase_boundary(client: TestClient, session: S
     line = _search(client, lst["id"], "leche").json()["results"][0]["lines"][0]
 
     assert line["purchase_ends_at"] is not None
+    assert line["purchase_store"] == "Mercadona"
     assert line["purchased"] is True

@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ListItem } from '../types'
-import { computeCostSummary, tripDateLabel } from './itemCost'
+import {
+  computeCostSummary,
+  parseQuantityFactor,
+  tripDateLabel,
+  unitPrice,
+} from './itemCost'
+import vectors from './quantityVectors.json'
 
 function makeItem(overrides: Partial<ListItem> = {}): ListItem {
   return {
@@ -76,7 +82,7 @@ describe('tripDateLabel', () => {
   afterEach(() => vi.useRealTimers())
 
   // Pin "now" to 15 Aug 2026 so the month boundary is deterministic. Dates are
-  // parsed as naive-UTC; run at UTC to keep the local-day mapping stable.
+  // UTC instants; run at UTC to keep the local-day mapping stable.
   function pinNow() {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-08-15T12:00:00Z'))
@@ -108,4 +114,25 @@ describe('tripDateLabel', () => {
     pinNow()
     expect(tripDateLabel('2026-07-22T10:00:00', false)).toBe('22 jul')
   })
+})
+
+describe('shared quantity vectors', () => {
+  // The backend asserts the same file; either side drifting fails its suite.
+  it.each(vectors.factor)(
+    'parseQuantityFactor($quantity, $price_per) → $expected',
+    ({ quantity, price_per, expected }) => {
+      const result = parseQuantityFactor(quantity, price_per)
+      if (expected === null) expect(result).toBeNull()
+      else expect(result).toBeCloseTo(expected)
+    },
+  )
+
+  it.each(vectors.unit_price)(
+    'unitPrice($price, $quantity, $price_per) → $value/$basis',
+    ({ price, quantity, price_per, value, basis }) => {
+      const result = unitPrice(price, quantity, price_per)
+      expect(result.value).toBeCloseTo(value)
+      expect(result.basis).toBe(basis)
+    },
+  )
 })

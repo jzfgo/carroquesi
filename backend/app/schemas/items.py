@@ -53,6 +53,10 @@ class ItemRead(BaseModel):
     # is settled paper, so its lines leave the receipt-linking pool even if
     # the boundary is still ahead. False while unpurchased.
     purchase_has_receipt: bool = False
+    # The store of this item's trip. A price entered on a bought line belongs
+    # to that shop, so clients use it as the price form's default store.
+    # None while unpurchased, or when the trip names no store.
+    purchase_store: str | None = None
     added_by: str
     created_at: datetime
     updated_at: datetime

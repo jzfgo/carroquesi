@@ -17,6 +17,9 @@ tmp/dry-run/
 # Generated from backend/openapi.json — regenerate with `just openapi`
 src/apiSchema.generated.ts
 
+# Generated from the backend chain profiles — refresh with `just backend chains-snapshot`
+src/lib/chains.generated.json
+
 # HAR fixtures are opaque recorded artifacts — don't reformat them
 tests/fixtures/*.har
 playwright/recordings/*.har

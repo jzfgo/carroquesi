@@ -18,6 +18,7 @@ import { foldText } from '../lib/foldText'
 import { isTripOpen } from '../lib/isTripOpen'
 import { withOwnBrandStore } from '../lib/ownBrands'
 import { reconcileItems } from '../lib/reconcileItems'
+import { parseServerInstant } from '../lib/serverInstant'
 import { storeKey } from '../lib/storeKey'
 import type {
   BackendMember,
@@ -276,7 +277,7 @@ export function useListItems(
       // server enforces the same rule against the same stored boundary;
       // this copy only saves the round-trip.
       if (prevPurchased && targetItem?.purchased_at) {
-        const writtenAt = new Date(targetItem.updated_at + 'Z').getTime()
+        const writtenAt = parseServerInstant(targetItem.updated_at).getTime()
         const withinGrace = Date.now() - writtenAt <= UNPURCHASE_GRACE_MS
         if (!isTripOpen(targetItem.purchase_ends_at) && !withinGrace) {
           showToast('No se puede desmarcar un producto comprado en otro día')
@@ -284,9 +285,7 @@ export function useListItems(
         }
       }
 
-      const nowStr = !prevPurchased
-        ? new Date().toISOString().slice(0, -1)
-        : null
+      const nowStr = !prevPurchased ? new Date().toISOString() : null
       setItems(
         snapshot.map((i) =>
           i.id === itemId

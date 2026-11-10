@@ -1,7 +1,7 @@
 import logging
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
@@ -10,16 +10,28 @@ from app.db.models import (
     ListInvite,
     ListItem,
     ListMember,
+    ListStore,
     Purchase,
     ReceiptScan,
+    ReportOptOut,
+    ReportRun,
     User,
     UserListPref,
 )
 from app.dependencies import CurrentSession, CurrentUser, MemberDep, OwnerDep
-from app.schemas.lists import BoardPrefUpdate, ListCreate, ListMemberBrief, ListRead, ListUpdate
-from app.services import receipt_storage
+from app.schemas.lists import (
+    BoardPrefUpdate,
+    ListCreate,
+    ListMemberBrief,
+    ListRead,
+    ListUpdate,
+    ReportPref,
+)
+from app.services import feature_flags, receipt_storage
 from app.services.default_list import ensure_default, set_default
 from app.services.list_board import ensure_board, get_board, set_board
+from app.services.public_name import public_name
+from app.services.report_opt_out import is_opted_out, opt_in, opt_out
 from app.services.trips import in_cart_predicate, in_scope_predicate
 
 logger = logging.getLogger(__name__)
@@ -28,7 +40,7 @@ router = APIRouter(prefix="/lists", tags=["lists"])
 
 
 def _bump(lst: List, session: Session) -> None:
-    lst.updated_at = datetime.now(UTC).replace(tzinfo=None)
+    lst.updated_at = datetime.now(UTC)
     session.add(lst)
 
 
@@ -74,11 +86,11 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
     # closed or torn-off trips are excluded from both the denominator and
     # the numerator so the progress bar reflects only the current trip.
     #
-    # `now` is a bound naive-UTC instant, the same convention the trips
+    # `now` is a bound UTC instant, the same convention the trips
     # service compares tears_off_at with. The LEFT JOIN keeps unpurchased
     # items (purchase_id NULL) in item_count; a purchased item with no
     # matching trip row joins NULL, compares as NULL, and counts as closed.
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     in_cart = in_cart_predicate(now)
     in_scope = in_scope_predicate(now)
 
@@ -113,7 +125,7 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
         members_by_list.setdefault(list_id, []).append(
             ListMemberBrief(
                 user_id=user_id,
-                display_name=display_name or email.split("@")[0],
+                display_name=public_name(display_name, email),
             )
         )
 
@@ -215,6 +227,36 @@ def set_board_pref(
     session.commit()
 
 
+@router.get("/{list_id}/prefs/report", response_model=ReportPref)
+def get_report_pref(list_and_user: OwnerDep, session: CurrentSession):
+    """Whether the monthly report for this list is on. Owner only: the
+    report goes to the owner, so nobody else has a setting to see."""
+    lst, current_user = list_and_user
+    _require_report_flag(current_user.id, session)
+    return ReportPref(enabled=not is_opted_out(session, current_user.id, lst.id))
+
+
+@router.put("/{list_id}/prefs/report", status_code=status.HTTP_204_NO_CONTENT)
+def set_report_pref(body: ReportPref, list_and_user: OwnerDep, session: CurrentSession):
+    """Turn the monthly report on or off: the same opt-out row the email's
+    unsubscribe link writes. Personal, so it does not bump lists.updated_at."""
+    lst, current_user = list_and_user
+    _require_report_flag(current_user.id, session)
+    if body.enabled:
+        opt_in(session, current_user.id, lst.id)
+    else:
+        opt_out(session, current_user.id, lst.id)
+
+
+def _require_report_flag(user_id: str, session: Session) -> None:
+    """Without the flag no report is sent, so there is no setting to show."""
+    if not feature_flags.is_enabled(user_id, "monthly_report", session):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="monthly_report feature not enabled",
+        )
+
+
 @router.delete("/{list_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_list(
     list_and_user: OwnerDep,
@@ -232,6 +274,19 @@ def delete_list(
         session.delete(pref)
     for scan in session.exec(select(ReceiptScan).where(ReceiptScan.list_id == lst.id)).all():
         session.delete(scan)
+    for run in session.exec(select(ReportRun).where(ReportRun.list_id == lst.id)).all():
+        session.delete(run)
+    for row in session.exec(select(ReportOptOut).where(ReportOptOut.list_id == lst.id)).all():
+        session.delete(row)
+    # The models declare no relationships, so a flush does not order these
+    # deletes by foreign key. Each flush below forces one layer out first:
+    # items and scans point at trips, and everything points at the list.
+    session.flush()
+    for trip in session.exec(select(Purchase).where(Purchase.list_id == lst.id)).all():
+        session.delete(trip)
+    for store in session.exec(select(ListStore).where(ListStore.list_id == lst.id)).all():
+        session.delete(store)
+    session.flush()
     session.delete(lst)
     session.commit()
     # After the commit and best effort: a storage hiccup must not block list

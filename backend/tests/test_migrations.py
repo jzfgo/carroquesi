@@ -17,7 +17,7 @@ one connection closes).
 
 import importlib.util
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -199,7 +199,9 @@ def test_migration_helper_agrees_with_the_live_boundary_rule() -> None:
         datetime(2026, 12, 31, 23, 30, 0),  # year boundary
     ]
     for instant in instants:
-        assert migration._tears_off_at_for(instant) == tears_off_at_for(instant, madrid), instant
+        assert migration._tears_off_at_for(instant) == tears_off_at_for(
+            instant.replace(tzinfo=UTC), madrid
+        ).replace(tzinfo=None), instant
 
 
 def test_backfilled_tears_off_at_matches_the_live_trip_boundary_rule(
@@ -232,8 +234,12 @@ def test_backfilled_tears_off_at_matches_the_live_trip_boundary_rule(
             .mappings()
             .one()
         )
-    expected = tears_off_at_for(datetime.fromisoformat(purchased_at), ZoneInfo("Europe/Madrid"))
-    assert datetime.fromisoformat(str(trip["tears_off_at"])) == expected
+    expected = tears_off_at_for(
+        datetime.fromisoformat(purchased_at).replace(tzinfo=UTC), ZoneInfo("Europe/Madrid")
+    )
+    # SQLite stores the instant without an offset; the column type reads it as UTC.
+    stored = datetime.fromisoformat(str(trip["tears_off_at"]))
+    assert stored.replace(tzinfo=stored.tzinfo or UTC) == expected
 
 
 def test_open_per_list_index_is_unique_and_partial(alembic_config: Config, db_url: str) -> None:

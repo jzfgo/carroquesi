@@ -25,7 +25,7 @@ from app.services.fold import fold_name
 from app.services.money import reject_bad_amount, reject_bad_price
 from app.services.pending_duplicate import find_pending_duplicate
 from app.services.push import notify_list_change
-from app.services.quantity import parse_quantity_factor
+from app.services.quantity import line_amount
 from app.services.store_key import store_key
 from app.services.store_registry import ensure_stores
 
@@ -178,29 +178,24 @@ def list_purchases(
                 .distinct()
             ).all()
         )
-        # The provisional total per trip: sum each priced line's `price *
-        # factor` (the line's real amount, matching the row the app draws), not
-        # the raw price. The factor needs the quantity string parsed, so it is
-        # computed in Python rather than SQL. A line whose factor cannot apply
-        # (a per-kg price with no SI unit) contributes nothing; a trip with no
-        # contributing line stays absent, so its items_total serializes as None.
+        # The provisional total per trip: sum each priced line's real amount
+        # (matching the row the app draws), not the raw price. The amount needs
+        # the quantity string parsed, so it is computed in Python rather than
+        # SQL. A line whose amount cannot apply (a per-kg price with no SI
+        # unit) contributes nothing; a trip with no contributing line stays
+        # absent, so its items_total serializes as None.
         acc: dict[str, float] = {}
         priced_lines = session.exec(
-            select(
-                ListItem.purchase_id,
-                ListItem.price,
-                ListItem.price_per,
-                ListItem.quantity,
-            ).where(
+            select(ListItem).where(
                 col(ListItem.purchase_id).in_(page_ids),
                 col(ListItem.price).isnot(None),
             )
         ).all()
-        for purchase_id, price, price_per, quantity in priced_lines:
-            factor = parse_quantity_factor(quantity, price_per)
-            if factor is None:
+        for line in priced_lines:
+            amount = line_amount(line.price, line.quantity, line.purchased_quantity, line.price_per)
+            if amount is None or line.purchase_id is None:
                 continue
-            acc[purchase_id] = acc.get(purchase_id, 0.0) + price * factor
+            acc[line.purchase_id] = acc.get(line.purchase_id, 0.0) + amount
         items_totals = {pid: round(amount, 2) for pid, amount in acc.items()}
 
     # The batched lines, grouped per trip in cart order — the same rows and
@@ -214,12 +209,14 @@ def list_purchases(
             .order_by(col(ListItem.purchased_at).asc(), col(ListItem.created_at).asc())
         ).all()
         ends = {trip.id: trips.ends_at(trip) for trip in page}
+        stores = {trip.id: trip.store for trip in page}
         for item in rows:
             # The query selected these rows by trip, so every one has a trip.
             assert item.purchase_id is not None
             # object.__setattr__ because pydantic rejects undeclared fields.
             object.__setattr__(item, "purchase_ends_at", ends[item.purchase_id])
             object.__setattr__(item, "purchase_has_receipt", item.purchase_id in scanned)
+            object.__setattr__(item, "purchase_store", stores[item.purchase_id])
             lines_by_trip.setdefault(item.purchase_id, []).append(
                 ItemRead.model_validate(item, from_attributes=True)
             )
@@ -263,7 +260,7 @@ def search_purchases(
     if not name_l and brand_l is None and not store_keys:
         return PurchaseSearchResults(results=[])
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     stopped_at = func.coalesce(Purchase.closed_at, Purchase.tears_off_at)
     # A boundary at or before now is a settled trip; the one still ahead is the
     # open cart, which the stack filters out too.
@@ -314,6 +311,7 @@ def search_purchases(
             # object.__setattr__ because pydantic rejects undeclared fields; the
             # ItemRead is then built by attribute so it picks the boundary up.
             object.__setattr__(item, "purchase_ends_at", ends)
+            object.__setattr__(item, "purchase_store", trip.store)
             read_lines.append(ItemRead.model_validate(item, from_attributes=True))
         summary = PurchaseSummary(
             **trip.model_dump(),
@@ -354,6 +352,7 @@ def get_purchase_items(
         # object.__setattr__ because pydantic rejects undeclared fields.
         object.__setattr__(item, "purchase_ends_at", ends_at)
         object.__setattr__(item, "purchase_has_receipt", has_receipt)
+        object.__setattr__(item, "purchase_store", trip.store)
     return items
 
 
@@ -389,7 +388,7 @@ def rebuy_item(
     if trip is None or trip.list_id != lst.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Purchase not found")
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     if trips.is_open(trip, now):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -469,7 +468,7 @@ def close_purchase(
     for index, new in enumerate(body.new_items):
         reject_bad_price(new.price, new.price_per, f"new_items[{index}]")
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
 
     # A back-dated close maps its day to the trip's boundaries the same way a
     # manual purchase does; a future day has no shop to file, so it is refused.
@@ -480,11 +479,7 @@ def close_purchase(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="A purchase cannot be dated in the future",
             )
-        opened_at = (
-            datetime.combine(body.date, time.min, tzinfo=client_tz)
-            .astimezone(UTC)
-            .replace(tzinfo=None)
-        )
+        opened_at = datetime.combine(body.date, time.min, tzinfo=client_tz).astimezone(UTC)
         tears_off_at = trips.tears_off_at_for(opened_at, client_tz)
         # closed_at is the reconciliation instant, but NEVER in the future.
         # A same-day close's tear-off is tonight's midnight (ahead of now), so
@@ -621,12 +616,10 @@ def create_manual_purchase(
     # already skips blanks; this keeps the Purchase.store column consistent too.
     store = body.store if (body.store and body.store.strip()) else None
 
-    # The local midnight that STARTS the submitted day, as naive UTC — the same
+    # The local midnight that STARTS the submitted day, in UTC — the same
     # shape tears_off_at_for produces, but for the day's opening rather than its
     # close.
-    opened_at = (
-        datetime.combine(body.date, time.min, tzinfo=client_tz).astimezone(UTC).replace(tzinfo=None)
-    )
+    opened_at = datetime.combine(body.date, time.min, tzinfo=client_tz).astimezone(UTC)
     tears_off_at = trips.tears_off_at_for(opened_at, client_tz)
 
     # closed_at is set to the tear-off, not now, deliberately: the history stack
@@ -635,7 +628,7 @@ def create_manual_purchase(
     # day it covered. A future reader should NOT "fix" this to now. Being
     # non-null also exempts the row from uq_purchases_open_per_list, so it never
     # collides with the open cart or another closed trip sharing a tears_off_at.
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     purchase = Purchase(
         list_id=lst.id,
         opened_at=opened_at,

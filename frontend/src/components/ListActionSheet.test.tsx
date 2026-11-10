@@ -1,7 +1,16 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
+import * as FeatureFlagsContext from '../contexts/FeatureFlagsContext'
+import { FLAGS } from '../lib/featureFlags'
 import { ListActionSheet } from './ListActionSheet'
 
+vi.mock('../contexts/FeatureFlagsContext', () => ({
+  useFeatureFlags: vi.fn(),
+}))
+// The row reads and writes the API itself; here only its presence matters.
+vi.mock('./ReportSwitchRow', () => ({
+  ReportSwitchRow: () => <div>Informe mensual</div>,
+}))
 vi.mock('./ListMembersSheet', () => ({
   ListMembersSheet: () => (
     <div role="dialog" aria-label="Miembros de la lista">
@@ -25,7 +34,33 @@ const baseProps = {
   onClose: vi.fn(),
 }
 
-beforeEach(() => vi.clearAllMocks())
+function withFlags(...flags: string[]) {
+  vi.mocked(FeatureFlagsContext.useFeatureFlags).mockReturnValue({
+    isEnabled: (flag: string) => flags.includes(flag),
+  })
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  withFlags()
+})
+
+test('the owner gets the monthly report switch when the flag is on', () => {
+  withFlags(FLAGS.MONTHLY_REPORT)
+  render(<ListActionSheet {...baseProps} />)
+  expect(screen.getByText('Informe mensual')).toBeInTheDocument()
+})
+
+test('a member who is not the owner gets no report switch', () => {
+  withFlags(FLAGS.MONTHLY_REPORT)
+  render(<ListActionSheet {...baseProps} ownerId="u2" />)
+  expect(screen.queryByText('Informe mensual')).not.toBeInTheDocument()
+})
+
+test('without the flag the owner gets no report switch', () => {
+  render(<ListActionSheet {...baseProps} />)
+  expect(screen.queryByText('Informe mensual')).not.toBeInTheDocument()
+})
 
 const nameField = () => screen.getByLabelText('Nombre de la lista')
 

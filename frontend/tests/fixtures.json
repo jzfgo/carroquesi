@@ -15,8 +15,8 @@
       "name": "Compra semanal",
       "emoji": "🛒",
       "owner_id": "seed-user-alice",
-      "created_at": "2026-01-01T00:00:00",
-      "updated_at": "2026-06-23T10:00:00",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-06-23T10:00:00Z",
       "item_count": 2,
       "purchased_count": 1,
       "cart_count": 1,
@@ -38,8 +38,8 @@
       "name": "Fiesta de cumple",
       "emoji": "🎉",
       "owner_id": "seed-user-alice",
-      "created_at": "2026-01-01T00:00:00",
-      "updated_at": "2026-06-23T10:00:00",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-06-23T10:00:00Z",
       "item_count": 1,
       "purchased_count": 0,
       "cart_count": 0,
@@ -68,13 +68,14 @@
         "purchase_id": null,
         "purchase_ends_at": null,
         "purchase_has_receipt": false,
+        "purchase_store": null,
         "ean": null,
         "price": 0.65,
         "price_per": null,
         "price_store": "Mercadona",
         "added_by": "seed-user-alice",
-        "created_at": "2026-06-01T00:00:00",
-        "updated_at": "2026-06-23T10:00:00"
+        "created_at": "2026-06-01T00:00:00Z",
+        "updated_at": "2026-06-23T10:00:00Z"
       },
       {
         "id": "item-cafe",
@@ -89,13 +90,14 @@
         "purchase_id": null,
         "purchase_ends_at": null,
         "purchase_has_receipt": false,
+        "purchase_store": null,
         "ean": null,
         "price": null,
         "price_per": null,
         "price_store": null,
         "added_by": "seed-user-alice",
-        "created_at": "2026-06-01T00:00:00",
-        "updated_at": "2026-06-23T10:00:00"
+        "created_at": "2026-06-01T00:00:00Z",
+        "updated_at": "2026-06-23T10:00:00Z"
       },
       {
         "id": "item-mantequilla",
@@ -106,17 +108,18 @@
         "brand": "Hacendado",
         "stores": ["Mercadona"],
         "purchased": true,
-        "purchased_at": "2026-07-10T09:00:00",
+        "purchased_at": "2026-07-10T09:00:00Z",
         "purchase_id": "trip-compra-0710",
-        "purchase_ends_at": "2026-07-11T00:00:00",
+        "purchase_ends_at": "2026-07-11T00:00:00Z",
         "purchase_has_receipt": false,
+        "purchase_store": null,
         "ean": null,
         "price": null,
         "price_per": null,
         "price_store": null,
         "added_by": "seed-user-alice",
-        "created_at": "2026-07-10T09:00:00",
-        "updated_at": "2026-07-10T09:00:00"
+        "created_at": "2026-07-10T09:00:00Z",
+        "updated_at": "2026-07-10T09:00:00Z"
       },
       {
         "id": "item-huevos",
@@ -127,17 +130,18 @@
         "brand": "Hacendado",
         "stores": ["Mercadona"],
         "purchased": true,
-        "purchased_at": "2026-07-10T09:00:00",
+        "purchased_at": "2026-07-10T09:00:00Z",
         "purchase_id": "trip-compra-0710",
-        "purchase_ends_at": "2026-07-11T00:00:00",
+        "purchase_ends_at": "2026-07-11T00:00:00Z",
         "purchase_has_receipt": false,
+        "purchase_store": null,
         "ean": null,
         "price": 2.1,
         "price_per": null,
         "price_store": "Mercadona",
         "added_by": "seed-user-alice",
-        "created_at": "2026-07-10T09:00:00",
-        "updated_at": "2026-07-10T09:00:00"
+        "created_at": "2026-07-10T09:00:00Z",
+        "updated_at": "2026-07-10T09:00:00Z"
       }
     ],
     "seed-list-fiesta": [
@@ -154,13 +158,14 @@
         "purchase_id": null,
         "purchase_ends_at": null,
         "purchase_has_receipt": false,
+        "purchase_store": null,
         "ean": null,
         "price": null,
         "price_per": null,
         "price_store": null,
         "added_by": "seed-user-alice",
-        "created_at": "2026-06-01T00:00:00",
-        "updated_at": "2026-06-23T10:00:00"
+        "created_at": "2026-06-01T00:00:00Z",
+        "updated_at": "2026-06-23T10:00:00Z"
       }
     ]
   },
@@ -172,7 +177,7 @@
         "list_id": "seed-list-compra",
         "display_name": "Alice (seed)",
         "photo_url": null,
-        "created_at": "2026-06-01T00:00:00"
+        "created_at": "2026-06-01T00:00:00Z"
       },
       {
         "id": "member-2",
@@ -180,7 +185,7 @@
         "list_id": "seed-list-compra",
         "display_name": "Bob (seed)",
         "photo_url": null,
-        "created_at": "2026-06-01T00:00:00"
+        "created_at": "2026-06-01T00:00:00Z"
       }
     ],
     "seed-list-fiesta": [
@@ -190,7 +195,7 @@
         "list_id": "seed-list-fiesta",
         "display_name": "Alice (seed)",
         "photo_url": null,
-        "created_at": "2026-06-01T00:00:00"
+        "created_at": "2026-06-01T00:00:00Z"
       }
     ]
   },
@@ -249,8 +254,8 @@
     "name": "Lista nueva",
     "emoji": null,
     "owner_id": "seed-user-alice",
-    "created_at": "2026-06-23T10:00:00",
-    "updated_at": "2026-06-23T10:00:00",
+    "created_at": "2026-06-23T10:00:00Z",
+    "updated_at": "2026-06-23T10:00:00Z",
     "item_count": 0,
     "purchased_count": 0,
     "cart_count": 0,
@@ -271,13 +276,14 @@
     "purchase_id": null,
     "purchase_ends_at": null,
     "purchase_has_receipt": false,
+    "purchase_store": null,
     "ean": null,
     "price": null,
     "price_per": null,
     "price_store": null,
     "added_by": "seed-user-alice",
-    "created_at": "2026-06-23T10:00:00",
-    "updated_at": "2026-06-23T10:00:00"
+    "created_at": "2026-06-23T10:00:00Z",
+    "updated_at": "2026-06-23T10:00:00Z"
   },
   "SEED_IMPULSE_ITEM": {
     "id": "impulse-item-template",
@@ -288,17 +294,18 @@
     "brand": null,
     "stores": ["Mercadona"],
     "purchased": true,
-    "purchased_at": "2026-07-10T00:00:00",
+    "purchased_at": "2026-07-10T00:00:00Z",
     "purchase_id": null,
-    "purchase_ends_at": "2026-07-11T00:00:00",
+    "purchase_ends_at": "2026-07-11T00:00:00Z",
     "purchase_has_receipt": false,
+    "purchase_store": null,
     "ean": null,
     "price": 1.0,
     "price_per": null,
     "price_store": "Mercadona",
     "added_by": "seed-user-alice",
-    "created_at": "2026-06-23T10:00:00",
-    "updated_at": "2026-06-23T10:00:00"
+    "created_at": "2026-06-23T10:00:00Z",
+    "updated_at": "2026-06-23T10:00:00Z"
   },
   "SEED_PRICE_ENTRY": {
     "amount": 0.75,
@@ -317,16 +324,16 @@
     "items_skipped": 0
   },
   "SEED_UPDATED_AT": {
-    "updated_at": "2026-06-23T10:00:00"
+    "updated_at": "2026-06-23T10:00:00Z"
   },
   "SEED_TRIPS": {
     "purchases": [
       {
         "id": "trip-con-ticket",
         "list_id": "seed-list-compra",
-        "opened_at": "2026-07-10T09:00:00",
-        "tears_off_at": "2026-07-11T00:00:00",
-        "closed_at": "2026-07-11T00:00:00",
+        "opened_at": "2026-07-10T09:00:00Z",
+        "tears_off_at": "2026-07-11T00:00:00Z",
+        "closed_at": "2026-07-11T00:00:00Z",
         "store": "Mercadona",
         "total": 8.13,
         "line_count": 2,
@@ -337,9 +344,9 @@
       {
         "id": "trip-sin-ticket",
         "list_id": "seed-list-compra",
-        "opened_at": "2026-07-08T18:30:00",
-        "tears_off_at": "2026-07-09T00:00:00",
-        "closed_at": "2026-07-09T00:00:00",
+        "opened_at": "2026-07-08T18:30:00Z",
+        "tears_off_at": "2026-07-09T00:00:00Z",
+        "closed_at": "2026-07-09T00:00:00Z",
         "store": "Lidl",
         "total": 23.44,
         "line_count": 1,
@@ -354,11 +361,11 @@
     {
       "id": "scan-e2e-1",
       "store": "Mercadona",
-      "receipt_at": "2026-07-10T00:00:00",
+      "receipt_at": "2026-07-10T00:00:00Z",
       "receipt_total": 8.13,
       "has_file": true,
       "file_pages": null,
-      "created_at": "2026-07-10T20:15:00"
+      "created_at": "2026-07-10T20:15:00Z"
     }
   ],
   "SEED_FILE_URL_RESULT": {

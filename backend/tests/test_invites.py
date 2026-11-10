@@ -208,7 +208,7 @@ def test_expired_invites_cleaned_up_on_create(client, session, user):
     old = ListInvite(
         list_id=lst["id"],
         invited_by=user.id,
-        created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=25),
+        created_at=datetime.now(UTC) - timedelta(hours=25),
     )
     session.add(old)
     session.commit()
@@ -236,7 +236,7 @@ def test_expired_invites_do_not_count_toward_limit(client, session, user):
         inv = ListInvite(
             list_id=lst["id"],
             invited_by=user.id,
-            created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=25),
+            created_at=datetime.now(UTC) - timedelta(hours=25),
         )
         session.add(inv)
     session.commit()
@@ -289,7 +289,7 @@ def test_get_invite_preview_returns_410_when_expired(session: Session, user):
     invite = ListInvite(
         list_id=lst.id,
         invited_by=user.id,
-        created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=25),
+        created_at=datetime.now(UTC) - timedelta(hours=25),
     )
     session.add(invite)
     session.commit()
@@ -315,7 +315,7 @@ def test_accept_invite_returns_410_when_expired(client: TestClient, session: Ses
     invite = ListInvite(
         list_id=lst.id,
         invited_by=user.id,
-        created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=25),
+        created_at=datetime.now(UTC) - timedelta(hours=25),
     )
     session.add(invite)
     session.commit()

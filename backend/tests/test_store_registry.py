@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
@@ -157,7 +157,7 @@ def test_backfill_picks_most_frequent_variant(session: Session, user):
                 added_by=user.id,
                 stores=stores,
                 price_store=price_store,
-                created_at=datetime(2026, 1, 1, 0, n),
+                created_at=datetime(2026, 1, 1, 0, n, tzinfo=UTC),
             )
             for n, (stores, price_store) in enumerate(
                 [
@@ -192,7 +192,7 @@ def test_backfill_tie_breaks_on_first_seen(session: Session, user):
                 name="A",
                 added_by=user.id,
                 stores=["Ahorra Más"],
-                created_at=datetime(2026, 1, 1),
+                created_at=datetime(2026, 1, 1, tzinfo=UTC),
             ),
             ListItem(
                 id="i2",
@@ -200,7 +200,7 @@ def test_backfill_tie_breaks_on_first_seen(session: Session, user):
                 name="B",
                 added_by=user.id,
                 stores=["AHORRAMAS"],
-                created_at=datetime(2026, 1, 2),
+                created_at=datetime(2026, 1, 2, tzinfo=UTC),
             ),
         ]
     )

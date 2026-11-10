@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="light dark">
+  <title>Informe mensual — CarroQueSí</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;600&amp;family=Patrick+Hand+SC&amp;display=swap">
+  <style>
+    :root {
+      --paper: #eef1f5;
+      --ink-0: #15161b;
+      --ink-1: #353742;
+      --ink-2: #6a6d7a;
+      --rule: #b4bac4;
+      --accent: #1a3fa0;
+      --on-accent: #eef1f5;
+      --ok: #2f7a4a;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --paper: #131419;
+        --ink-0: #edeef2;
+        --ink-1: #c6c8cf;
+        --ink-2: #8e919a;
+        --rule: #3a3c44;
+        --accent: #91a8ff;
+        --on-accent: #0b0c10;
+        --ok: #7bc68b;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      background: var(--paper);
+      color: var(--ink-0);
+      font-family: Geist, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    }
+    main {
+      max-width: 440px;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0 auto;
+      padding: 56px 24px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .brand {
+      font-family: 'Patrick Hand SC', 'Bradley Hand', cursive;
+      font-weight: 700;
+      font-size: 24px;
+      letter-spacing: 0.04em;
+      color: var(--accent);
+    }
+    .lead {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-top: 16px;
+      border-top: 1px dashed var(--rule);
+    }
+    .title { display: flex; align-items: center; gap: 10px; }
+    .title svg { flex: none; color: var(--ok); }
+    h1 {
+      margin: 0;
+      font-family: 'Bree Serif', Georgia, serif;
+      font-weight: 400;
+      font-size: 26px;
+      line-height: 1.2;
+      text-wrap: balance;
+    }
+    p { margin: 0; }
+    .body { font-size: 16px; line-height: 1.55; color: var(--ink-1); }
+    .actions { display: flex; flex-direction: column; gap: 12px; }
+    .button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 48px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .primary { border: none; background: var(--accent); color: var(--on-accent); }
+    .secondary { border: 1px solid var(--rule); background: var(--paper); color: var(--ink-0); }
+    .button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .hint { font-size: 14px; line-height: 1.5; color: var(--ink-1); text-align: center; }
+    .foot { margin-top: auto; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="brand">CarroQueSí</span>
+    {% if state == "confirm" %}
+    <div class="lead">
+      <h1>¿Dejar de recibir el informe de {{ list_name }}?</h1>
+      <p class="body">Dejarás de recibir el resumen mensual de gasto de esta lista. Tus otras listas no cambian, y la lista sigue funcionando igual.</p>
+    </div>
+    <div class="actions">
+      {#- A form, not a link: link scanners open links, and must not unsubscribe anyone. #}
+      <form method="post">
+        <button type="submit" class="button primary">Dejar de recibirlo</button>
+      </form>
+      <p class="hint">Si prefieres seguir recibiéndolo, cierra esta página.</p>
+    </div>
+    <p class="foot">Puedes volver a activarlo cuando quieras desde la lista, en la app.</p>
+    {% elif state == "done" %}
+    <div class="lead">
+      <div class="title">
+        <svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M7.5 12.5l3 3 6-6.5"></path></svg>
+        <h1>Hecho</h1>
+      </div>
+      <p class="body">Ya no recibirás el informe mensual de {{ list_name }}. Si cambias de idea, puedes volver a activarlo desde la lista, en la app.</p>
+    </div>
+    <a class="button secondary" href="{{ app_url }}">Abrir CarroQueSí</a>
+    {% else %}
+    <div class="lead">
+      <h1>Este enlace no es válido</h1>
+      <p class="body">Puede que se haya copiado incompleto. El informe se puede desactivar también desde la lista, en la app.</p>
+    </div>
+    <a class="button secondary" href="{{ app_url }}">Abrir CarroQueSí</a>
+    {% endif %}
+  </main>
+</body>
+</html>

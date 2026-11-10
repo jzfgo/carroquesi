@@ -3,7 +3,17 @@ from datetime import UTC, datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app.db.models import List, ListItem, ListMember, Purchase, ReceiptScan, User
+from app.db.models import (
+    List,
+    ListItem,
+    ListMember,
+    ListStore,
+    Purchase,
+    ReceiptScan,
+    ReportOptOut,
+    ReportRun,
+    User,
+)
 
 
 def _reshape_trip(session: Session, item_id: str, *, tear_off=None, closed_at=None) -> Purchase:
@@ -96,6 +106,46 @@ def test_delete_list_with_receipt_scans(client: TestClient, session: Session, us
     response = client.delete(f"/lists/{created['id']}")
     assert response.status_code == 204
     assert session.get(List, created["id"]) is None
+
+
+def test_delete_list_with_trips_and_stores(client: TestClient, session: Session, engine, user):
+    # SQLite skips foreign key checks unless asked. Postgres always runs them.
+    with engine.connect() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+    created = client.post("/lists", json={"name": "Con Viajes"}).json()
+    list_id = created["id"]
+    item = client.post(f"/lists/{list_id}/items", json={"name": "Leche", "stores": ["Mercadona"]})
+    client.patch(f"/lists/{list_id}/items/{item.json()['id']}", json={"purchased": True})
+    trip_id = session.get_one(ListItem, item.json()["id"]).purchase_id
+    assert trip_id is not None
+    session.add(
+        ReceiptScan(list_id=list_id, scanned_by=user.id, items_updated=0, purchase_id=trip_id)
+    )
+    session.commit()
+    assert session.exec(select(ListStore).where(ListStore.list_id == list_id)).first() is not None
+
+    assert client.delete(f"/lists/{list_id}").status_code == 204
+    assert session.get(List, list_id) is None
+    assert session.exec(select(Purchase).where(Purchase.list_id == list_id)).all() == []
+    assert session.exec(select(ListStore).where(ListStore.list_id == list_id)).all() == []
+
+
+def test_delete_list_removes_its_report_runs_and_opt_outs(
+    client: TestClient, session: Session, engine, user: User
+):
+    with engine.connect() as conn:
+        conn.exec_driver_sql("PRAGMA foreign_keys=ON")
+    created = client.post("/lists", json={"name": "Con Informe"}).json()
+    run = ReportRun(list_id=created["id"], period="2026-10", timezone="UTC", status="sent")
+    opt_out = ReportOptOut(user_id=user.id, list_id=created["id"])
+    session.add(run)
+    session.add(opt_out)
+    session.commit()
+    run_id, opt_out_id = run.id, opt_out.id
+
+    assert client.delete(f"/lists/{created['id']}").status_code == 204
+    assert session.get(ReportRun, run_id) is None
+    assert session.get(ReportOptOut, opt_out_id) is None
 
 
 def test_get_lists_includes_zero_counts_when_no_items(client: TestClient):
@@ -208,7 +258,7 @@ def test_items_on_torn_off_trips_excluded_from_counts(client: TestClient, sessio
     # Purchase the first item and tear its trip off before purchasing the
     # second, so the second purchase opens a fresh trip of its own.
     client.patch(f"/lists/{list_id}/items/{item_old['id']}", json={"purchased": True})
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     _reshape_trip(session, item_old["id"], tear_off=now - timedelta(hours=1))
     client.patch(f"/lists/{list_id}/items/{item_today['id']}", json={"purchased": True})
 
@@ -273,7 +323,7 @@ def test_cart_count_counts_open_trip_purchases_and_excludes_torn_off_trips(
     # Same trick as the counts test above: tear off the first purchase's
     # trip so the second purchase lands on a fresh open trip.
     client.patch(f"/lists/{list_id}/items/{item_old['id']}", json={"purchased": True})
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     _reshape_trip(session, item_old["id"], tear_off=now - timedelta(hours=1))
     client.patch(f"/lists/{list_id}/items/{item_today['id']}", json={"purchased": True})
 
@@ -291,7 +341,7 @@ def test_counts_exclude_a_trip_closed_before_its_tear_off(client: TestClient, se
     item = client.post(f"/lists/{list_id}/items", json={"name": "Cerrado"}).json()
     client.post(f"/lists/{list_id}/items", json={"name": "Pendiente"})
     client.patch(f"/lists/{list_id}/items/{item['id']}", json={"purchased": True})
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     trip = _reshape_trip(session, item["id"], closed_at=now - timedelta(minutes=5))
     assert trip.tears_off_at > now
 

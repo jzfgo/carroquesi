@@ -1,0 +1,24 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-05T15:05:00Z" },
+  "title": "Informe mensual · JAV-224",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 680, "h": 2020, "title": "Email · mes normal (Casa, octubre)" },
+    "Quiet.dc.html": { "x": 760, "y": 0, "w": 680, "h": 1120, "title": "Email · mes con poca actividad (Pamplona, junio)" },
+    "Plain.dc.html": { "x": 1520, "y": 0, "w": 680, "h": 1420, "title": "Email · versión de texto plano" },
+    "Dark.dc.html": { "x": 2280, "y": 0, "w": 680, "h": 2020, "title": "Email · modo oscuro" },
+    "Unsub.dc.html": { "x": 0, "y": 2400, "w": 390, "h": 844, "title": "Baja · confirmar (GET)" },
+    "UnsubDone.dc.html": { "x": 470, "y": 2400, "w": 390, "h": 844, "title": "Baja · hecho (POST)" },
+    "Setting.dc.html": { "x": 940, "y": 2400, "w": 390, "h": 844, "title": "App · ajuste en la hoja de la lista" }
+  },
+  "order": ["Main.dc.html", "Quiet.dc.html", "Plain.dc.html", "Dark.dc.html", "Unsub.dc.html", "UnsubDone.dc.html", "Setting.dc.html"],
+  "notes": {
+    "t-email": { "x": 0, "y": -300, "text": "El email del informe mensual", "kind": "title1", "maxW": 2960 },
+    "n-base": { "x": 0, "y": -200, "w": 680, "text": "Referencia: media de hasta 12 meses completos (con todos los tickets confirmados), nombrada en el texto: «tu media de los últimos N meses». Con 12 meses de datos se añade una cuarta cifra y una frase: «frente a octubre de 2025».", "color": "yellow" },
+    "n-plantillas": { "x": -760, "y": 0, "w": 680, "size": "s", "color": "blue", "text": "Textos = plantillas fijas con huecos. Sin LLM ni categorías.\n\nPREÁMBULO: «{Mes}: {total} en {n} compra(s), un {±%} más/menos que tu media de los últimos {N} meses.» Sin media: se corta tras «compra(s)».\n\nTITULAR (según la diferencia con la media):\n· ≥ +5 %: «{Mes} costó {Δ €} más que tu media de los últimos {N} meses»\n· ≤ −5 %: «{Mes} costó {Δ €} menos que tu media de los últimos {N} meses»\n· entre: «{Mes}: {total}, en línea con tu media de los últimos {N} meses»\n· sin media: «{Mes}: {total} en {n} compra(s)»\n\nENTRADILLA: «{n} compras, {Δn} más/menos que en {mes anterior}. Los cinco productos que más subieron/bajaron suman {X €} de la diferencia.» Sin media: «Es el primer mes con compras en esta lista, así que todavía no hay con qué compararlo.»\n\nSECCIÓN: «Qué explica la subida/bajada».\n\nHÁBITO (producto en más compras, mínimo 3): «{Producto} aparece en {k} de las {n} compras: {uds} uds y {€}, el {%} % del gasto de la lista.» Si nadie llega a 3, la sección no sale.\n\nSUGERENCIA: «Pagaste {precio} en {tienda}. En {otra tienda} pagaste {precio} el {dd/mm}.» Precio con unidad (€/kg) cuando la línea es al peso.\n\nVACÍO: texto fijo, como en el mes con poca actividad.\n\nPIE: «{a} de {b} productos con precio · {c} de {d} tickets con total confirmado · » + «{x €} del total sin asignar a un producto» o, si las líneas superan al total, «los productos suman {x €} más que el ticket, seguramente por descuentos que el ticket no detalla».\n\nPlurales y «más/menos», «subida/bajada»: reglas fijas en la plantilla." },
+    "t-baja": { "x": 0, "y": 2100, "text": "Darse de baja", "kind": "title1", "maxW": 1330 }
+  },
+  "designSystems": []
+}

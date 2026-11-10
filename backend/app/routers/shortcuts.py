@@ -75,5 +75,5 @@ def regenerate_api_key(current_user: CurrentUser, session: CurrentSession) -> di
     session.commit()
     return {
         "key": plaintext,
-        "regenerated_at": datetime.now(UTC).replace(tzinfo=None).isoformat(),
+        "regenerated_at": datetime.now(UTC).isoformat(),
     }

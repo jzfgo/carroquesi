@@ -1,0 +1,170 @@
+[
+  {
+    "name": "Mercadona",
+    "store_keys": [
+      "mercadona"
+    ],
+    "own_brands": [
+      "hacendado",
+      "bosque verde",
+      "deliplus baby",
+      "deliplus",
+      "compy"
+    ]
+  },
+  {
+    "name": "Carrefour",
+    "store_keys": [
+      "carrefour"
+    ],
+    "own_brands": [
+      "carrefour bio",
+      "carrefour home",
+      "carrefour soft",
+      "carrefour",
+      "selection",
+      "no. 1",
+      "tex"
+    ]
+  },
+  {
+    "name": "Lidl",
+    "store_keys": [
+      "lidl"
+    ],
+    "own_brands": [
+      "milbona",
+      "realvalle",
+      "w5",
+      "formil",
+      "cien",
+      "lupilu",
+      "deluxe",
+      "silvercrest"
+    ]
+  },
+  {
+    "name": "Aldi",
+    "store_keys": [
+      "aldi"
+    ],
+    "own_brands": [
+      "gutbio",
+      "milsani",
+      "tandil",
+      "mildeen",
+      "el mercado",
+      "my night"
+    ]
+  },
+  {
+    "name": "DIA",
+    "store_keys": [
+      "dia"
+    ],
+    "own_brands": [
+      "dia",
+      "as",
+      "bonté",
+      "delicious",
+      "mari marinera",
+      "baby smile"
+    ]
+  },
+  {
+    "name": "Ahorramas",
+    "store_keys": [
+      "ahorramas"
+    ],
+    "own_brands": [
+      "alipende",
+      "lanta",
+      "bodyplus",
+      "meque"
+    ]
+  },
+  {
+    "name": "Alcampo",
+    "store_keys": [
+      "alcampo"
+    ],
+    "own_brands": [
+      "auchan",
+      "cosmia",
+      "producto económico",
+      "inextenso"
+    ]
+  },
+  {
+    "name": "Eroski",
+    "store_keys": [
+      "eroski"
+    ],
+    "own_brands": [
+      "eroski natur",
+      "eroski",
+      "belle",
+      "seleqtia",
+      "sannia"
+    ]
+  },
+  {
+    "name": "El Corte Inglés",
+    "store_keys": [
+      "elcorteingles"
+    ],
+    "own_brands": [
+      "el corte inglés",
+      "aliada",
+      "hipercor",
+      "special line"
+    ]
+  },
+  {
+    "name": "Gadis",
+    "store_keys": [
+      "gadis"
+    ],
+    "own_brands": [
+      "ifa eliges",
+      "ifa sabe",
+      "ifa unnia",
+      "peny",
+      "amigo"
+    ]
+  },
+  {
+    "name": "Consum",
+    "store_keys": [
+      "consum"
+    ],
+    "own_brands": [
+      "consum eco",
+      "consum kids",
+      "consum",
+      "kyrey"
+    ]
+  },
+  {
+    "name": "BM Supermercados",
+    "store_keys": [
+      "bmsupermercados",
+      "bm"
+    ],
+    "own_brands": [
+      "bm"
+    ]
+  },
+  {
+    "name": "E.Leclerc",
+    "store_keys": [
+      "eleclerc"
+    ],
+    "own_brands": [
+      "marque repère",
+      "eco+",
+      "kado",
+      "tissaia"
+    ]
+  }
+]

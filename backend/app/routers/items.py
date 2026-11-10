@@ -27,7 +27,7 @@ UNPURCHASE_GRACE = timedelta(minutes=15)
 
 
 def _bump(lst: List, session: Session) -> None:
-    lst.updated_at = datetime.now(UTC).replace(tzinfo=None)
+    lst.updated_at = datetime.now(UTC)
     session.add(lst)
 
 
@@ -64,7 +64,7 @@ def get_items(
 def _attach_purchase_ends_at(session: Session, items: Sequence[ListItem]) -> None:
     """Stamp each item with its trip's facts, in two queries for the page.
 
-    The end instant and whether a scan claimed the trip ride on the ORM object
+    The end instant, the trip's store, and whether a scan claimed the trip ride on the ORM object
     as transient attributes (the way User.is_admin does) and ItemRead picks
     them up; items without a trip keep the schema's defaults.
     """
@@ -88,6 +88,7 @@ def _attach_purchase_ends_at(session: Session, items: Sequence[ListItem]) -> Non
             # object.__setattr__ because pydantic rejects undeclared fields.
             object.__setattr__(item, "purchase_ends_at", trips.ends_at(trip))
             object.__setattr__(item, "purchase_has_receipt", trip.id in scanned)
+            object.__setattr__(item, "purchase_store", trip.store)
 
 
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
@@ -129,13 +130,13 @@ def update_item(
     if data.get("stores"):
         ensure_stores(session, lst.id, data["stores"])
     if purchased is True and item.purchased_at is None:
-        now = datetime.now(UTC).replace(tzinfo=None)
+        now = datetime.now(UTC)
         item.purchased_at = now
         item.purchased_by = current_user.id
         item.purchase_id = trips.open_trip_for(session, lst.id, now, client_tz).id
     elif purchased is False:
         if item.purchased_at is not None:
-            now = datetime.now(UTC).replace(tzinfo=None)
+            now = datetime.now(UTC)
             # A purchased item whose trip row is missing counts as closed:
             # better to refuse an undo than to reopen spend nobody can date.
             # The grace window below still rescues a fresh write.
@@ -150,7 +151,7 @@ def update_item(
         item.purchased_at = None
         emptied_trip_id, item.purchase_id = item.purchase_id, None
         trips.prune_if_empty(session, emptied_trip_id)
-    item.updated_at = datetime.now(UTC).replace(tzinfo=None)
+    item.updated_at = datetime.now(UTC)
     session.add(item)
     _bump(lst, session)
     session.commit()

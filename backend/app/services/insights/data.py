@@ -1,0 +1,211 @@
+"""Load one list's trips and purchased lines for a window, as plain data.
+
+The insights run in Python over these records because a line's money needs
+its free-text quantity parsed, which SQL cannot do. Loading once and
+computing in memory also keeps every rule in one language.
+"""
+
+from collections.abc import Iterable
+from dataclasses import dataclass
+from datetime import UTC, datetime, tzinfo
+from typing import Literal
+
+from sqlmodel import Session, col, func, select
+
+from app.db.models import ListItem, ListStore, Purchase, User
+from app.services.fold import fold_name
+from app.services.public_name import public_name
+from app.services.quantity import (
+    effective_quantity,
+    line_amount,
+    parse_quantity_factor,
+    unit_price,
+)
+from app.services.store_key import store_key
+
+NO_STORE = "Sin tienda"
+
+
+def month_bounds(month: str, tz: tzinfo) -> tuple[datetime, datetime]:
+    """`[start, end)` of a "YYYY-MM" month in `tz`, in UTC."""
+    year, mon = _parse_month(month)
+    nxt_year, nxt_mon = _parse_month(shift_month(month, 1))
+    return _utc(datetime(year, mon, 1, tzinfo=tz)), _utc(datetime(nxt_year, nxt_mon, 1, tzinfo=tz))
+
+
+def shift_month(month: str, delta: int) -> str:
+    year, mon = _parse_month(month)
+    index = year * 12 + (mon - 1) + delta
+    return f"{index // 12:04d}-{index % 12 + 1:02d}"
+
+
+def local_month(instant: datetime, tz: tzinfo) -> str:
+    """The "YYYY-MM" an instant falls in, seen from `tz`."""
+    # A naive value would be read in the server's own zone, silently.
+    if instant.tzinfo is None:
+        raise ValueError("local_month needs an aware instant")
+    return instant.astimezone(tz).strftime("%Y-%m")
+
+
+def _parse_month(month: str) -> tuple[int, int]:
+    parsed = datetime.strptime(month, "%Y-%m")
+    return parsed.year, parsed.month
+
+
+def _utc(aware: datetime) -> datetime:
+    return aware.astimezone(UTC)
+
+
+def _key(raw: str | None) -> str | None:
+    return store_key(raw) if raw else None
+
+
+@dataclass(frozen=True)
+class Trip:
+    id: str
+    opened_at: datetime
+    month: str
+    store_key: str | None
+    store_raw: str | None
+    total: float | None
+
+
+@dataclass(frozen=True)
+class Line:
+    id: str
+    trip_id: str
+    # The trip's day, not the tap time: a back-dated close moves the trip and
+    # leaves each tap alone, and every insight must file a line the same way.
+    day: datetime
+    month: str
+    product: tuple[str, str]
+    name: str
+    brand: str | None
+    store_key: str | None
+    store_raw: str | None
+    added_by: str
+    amount: float | None
+    unit_price: float | None
+    basis: Literal["kg", "unit"] | None
+    # How much was bought: units, or kilograms on a weighed line. None when a
+    # weighed line names no weight.
+    quantity: float | None = 1.0
+    measure: Literal["ud", "kg"] = "ud"
+
+
+@dataclass
+class Window:
+    list_id: str
+    tz: tzinfo
+    trips: list[Trip]
+    lines: list[Line]
+    first_trip_month: str | None
+    store_names: dict[str, str]
+    user_names: dict[str, str]
+
+    def store_name(self, key: str | None, raw: str | None) -> str:
+        """The registry's name for a store, else the typed one (ADR-013)."""
+        if key is None:
+            return NO_STORE
+        return self.store_names.get(key) or raw or key
+
+
+def load_window(
+    session: Session, list_id: str, start: datetime, end: datetime, tz: tzinfo
+) -> Window:
+    """Trips opened in `[start, end)` and their lines."""
+    purchases = session.exec(
+        select(Purchase).where(
+            Purchase.list_id == list_id,
+            col(Purchase.opened_at) >= start,
+            col(Purchase.opened_at) < end,
+        )
+    ).all()
+    trips = {
+        p.id: Trip(
+            id=p.id,
+            opened_at=p.opened_at,
+            month=local_month(p.opened_at, tz),
+            store_key=_key(p.store),
+            store_raw=p.store,
+            total=p.total,
+        )
+        for p in purchases
+    }
+
+    items = (
+        session.exec(select(ListItem).where(col(ListItem.purchase_id).in_(list(trips)))).all()
+        if trips
+        else []
+    )
+    lines = [_line(item, trips[item.purchase_id], tz) for item in items if item.purchase_id]
+
+    first = session.exec(
+        select(func.min(Purchase.opened_at)).where(Purchase.list_id == list_id)
+    ).one()
+    stores = session.exec(select(ListStore).where(ListStore.list_id == list_id)).all()
+
+    return Window(
+        list_id=list_id,
+        tz=tz,
+        trips=list(trips.values()),
+        lines=lines,
+        first_trip_month=local_month(first, tz) if first else None,
+        store_names={s.store_key: s.display_name for s in stores},
+        user_names=_user_names(session, {line.added_by for line in lines}),
+    )
+
+
+def count_tripless(session: Session, list_id: str, start: datetime, end: datetime) -> int:
+    """Purchased lines with no trip, bought in `[start, end)`.
+
+    They predate trips; their day and store cannot be trusted, so no figure
+    uses them. They are only counted, for coverage.
+    """
+    return session.exec(
+        select(func.count())
+        .select_from(ListItem)
+        .where(
+            ListItem.list_id == list_id,
+            col(ListItem.purchase_id).is_(None),
+            col(ListItem.purchased_at) >= start,
+            col(ListItem.purchased_at) < end,
+        )
+    ).one()
+
+
+def _line(item: ListItem, trip: Trip, tz: tzinfo) -> Line:
+    store_raw = item.price_store or trip.store_raw
+    amount = line_amount(item.price, item.quantity, item.purchased_quantity, item.price_per)
+    quantity = effective_quantity(item.quantity, item.purchased_quantity)
+    unit, basis = (None, None)
+    if item.price is not None and amount is not None:
+        unit, basis = unit_price(item.price, quantity, item.price_per)
+    # The same factor the money uses: a count, or kilograms when weighed.
+    weighed = item.price_per == "KILOGRAM"
+    bought = parse_quantity_factor(quantity, "KILOGRAM" if weighed else None)
+    return Line(
+        id=item.id,
+        trip_id=trip.id,
+        day=trip.opened_at,
+        month=trip.month,
+        product=(fold_name(item.name), fold_name(item.brand or "")),
+        name=item.name,
+        brand=item.brand,
+        store_key=_key(store_raw),
+        store_raw=store_raw,
+        added_by=item.added_by,
+        amount=amount,
+        unit_price=unit,
+        basis=basis,
+        quantity=bought,
+        measure="kg" if weighed else "ud",
+    )
+
+
+def _user_names(session: Session, ids: Iterable[str]) -> dict[str, str]:
+    ids = list(ids)
+    if not ids:
+        return {}
+    users = session.exec(select(User).where(col(User.id).in_(ids))).all()
+    return {u.id: public_name(u.display_name, u.email) for u in users}

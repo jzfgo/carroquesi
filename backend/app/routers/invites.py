@@ -17,7 +17,7 @@ INVITE_TTL_HOURS = 24
 
 
 def _check_not_expired(invite: ListInvite) -> None:
-    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=INVITE_TTL_HOURS)
+    cutoff = datetime.now(UTC) - timedelta(hours=INVITE_TTL_HOURS)
     if invite.created_at < cutoff:
         raise HTTPException(status_code=410, detail="Invite expired")
 
@@ -37,7 +37,7 @@ def create_open_invite(
     if len(members) >= MAX_MEMBERS:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="List is full")
 
-    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=INVITE_TTL_HOURS)
+    cutoff = datetime.now(UTC) - timedelta(hours=INVITE_TTL_HOURS)
     expired = session.exec(
         select(ListInvite).where(ListInvite.list_id == list_id, ListInvite.created_at < cutoff)
     ).all()
@@ -127,7 +127,7 @@ def accept_invite(
         # Bump lists.updated_at for polling
         lst = session.get(List, invite.list_id)
         if lst:
-            lst.updated_at = datetime.now(UTC).replace(tzinfo=None)
+            lst.updated_at = datetime.now(UTC)
             session.add(lst)
 
     list_id = invite.list_id

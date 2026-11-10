@@ -25,12 +25,12 @@ import {
   updateList,
 } from '../lib/api'
 import { asBoardName, type BoardName } from '../lib/boards'
+import { defaultPriceStore } from '../lib/defaultPriceStore'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
 import { isTripOpen } from '../lib/isTripOpen'
 import { computeCostSummary, tripDateInput } from '../lib/itemCost'
-import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
-import { withOwnBrandStore } from '../lib/ownBrands'
+import { loadChains, withOwnBrandStore } from '../lib/ownBrands'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
 import { parseReceiptWithAi } from '../lib/receiptAi'
@@ -143,6 +143,11 @@ export function ListScreen({
   // Resets the push unseen watermark and clears this list's tray notifications
   // whenever the list is actually on screen.
   useListSeen(listId, getToken)
+  // Own-brand lookups read the served chain table once it lands; until then
+  // they read the bundled snapshot.
+  useEffect(() => {
+    void loadChains(getToken)
+  }, [getToken])
   const isOffline = !useOnline()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
@@ -191,7 +196,6 @@ export function ListScreen({
     itemId: string
     initialAmount: number | null
     initialStore: string | null
-    suggestedStore: string | null
   } | null>(null)
 
   // A write answering 403/404 only *suggests* the list is gone — the missing
@@ -563,12 +567,16 @@ export function ListScreen({
           // rescue, so the catch is local (the outer one would toast a
           // processing error and never mount the 18c sheet).
           let scanId: string | null = null
+          // The server's checked date, never the raw read: a misread year
+          // comes back repaired, or null when it cannot be trusted.
+          let checkedDate: string | null = null
           try {
             const result = await submitParsedReceipt(getToken, listId, {
               ...parsed,
               purchase_id: receiptScanTarget?.purchaseId ?? null,
             })
             scanId = result.scan_id
+            checkedDate = result.receipt_date ?? null
             void uploadReceiptFile(
               getToken,
               listId,
@@ -599,7 +607,7 @@ export function ListScreen({
           }
           setIllegibleRescue({
             store: parsed.store ?? null,
-            date: parsed.receipt_date ?? null,
+            date: checkedDate,
             total: parsed.receipt_total ?? null,
             scanId,
           })
@@ -942,8 +950,7 @@ export function ListScreen({
       setLogPriceFor({
         itemId,
         initialAmount: item?.price ?? null,
-        initialStore: item?.price_store ?? item?.stores?.[0] ?? null,
-        suggestedStore: item?.stores?.length ? null : getLastPriceStore(),
+        initialStore: item ? defaultPriceStore(item) : null,
       })
     },
     [items],
@@ -973,7 +980,6 @@ export function ListScreen({
         setToast('No se pudo guardar el precio')
         return
       }
-      if (store) setLastPriceStore(store)
       setLogPriceFor(null)
     },
     [logPriceFor, savePrice, isOffline, setToast],
@@ -1451,7 +1457,6 @@ export function ListScreen({
               initialAmount={logPriceFor.initialAmount}
               initialStore={logPriceFor.initialStore}
               initialPurchasedQuantity={logItem.purchased_quantity ?? null}
-              suggestedStore={logPriceFor.suggestedStore}
               onSave={handleSavePrice}
               onDelete={handleDeletePrice}
               onClose={() => setLogPriceFor(null)}
@@ -1607,6 +1612,7 @@ export function ListScreen({
               quantity: i.quantity,
               price: i.price,
               price_per: i.price_per,
+              purchased_quantity: i.purchased_quantity,
             }))}
           store={receiptScanTarget?.store ?? receiptScanResult.store}
           target={receiptScanTarget}

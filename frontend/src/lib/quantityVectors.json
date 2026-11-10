@@ -1,0 +1,68 @@
+{
+  "factor": [
+    { "quantity": "12 ud", "price_per": null, "expected": 12 },
+    { "quantity": "3", "price_per": null, "expected": 3 },
+    { "quantity": "1 kg", "price_per": null, "expected": 1 },
+    { "quantity": "500 g", "price_per": null, "expected": 1 },
+    { "quantity": null, "price_per": null, "expected": 1 },
+    { "quantity": "", "price_per": null, "expected": 1 },
+    { "quantity": "granel", "price_per": null, "expected": 1 },
+    { "quantity": "2 kg", "price_per": "KILOGRAM", "expected": 2 },
+    { "quantity": "500 g", "price_per": "KILOGRAM", "expected": 0.5 },
+    { "quantity": "750 ml", "price_per": "KILOGRAM", "expected": 0.75 },
+    { "quantity": "1 ud", "price_per": "KILOGRAM", "expected": null },
+    { "quantity": null, "price_per": "KILOGRAM", "expected": null },
+    { "quantity": "1,5 kg.", "price_per": "KILOGRAM", "expected": 1.5 }
+  ],
+  "unit_price": [
+    {
+      "price": 12.5,
+      "quantity": "0.636 kg",
+      "price_per": "KILOGRAM",
+      "value": 12.5,
+      "basis": "kg"
+    },
+    {
+      "price": 12.5,
+      "quantity": null,
+      "price_per": "KILOGRAM",
+      "value": 12.5,
+      "basis": "kg"
+    },
+    {
+      "price": 1.2,
+      "quantity": "500 g",
+      "price_per": null,
+      "value": 2.4,
+      "basis": "kg"
+    },
+    {
+      "price": 1.5,
+      "quantity": "1,5 L.",
+      "price_per": null,
+      "value": 1,
+      "basis": "kg"
+    },
+    {
+      "price": 0.89,
+      "quantity": "12 ud",
+      "price_per": null,
+      "value": 0.89,
+      "basis": "unit"
+    },
+    {
+      "price": 0.89,
+      "quantity": null,
+      "price_per": null,
+      "value": 0.89,
+      "basis": "unit"
+    },
+    {
+      "price": 2.1,
+      "quantity": "granel",
+      "price_per": null,
+      "value": 2.1,
+      "basis": "unit"
+    }
+  ]
+}

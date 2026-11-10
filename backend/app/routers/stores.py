@@ -35,7 +35,7 @@ def rename_store(
     ).first()
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Store not found")
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     row.display_name = body.display_name
     row.updated_at = now
     session.add(row)

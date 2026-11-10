@@ -87,6 +87,35 @@
         "title": "BoardPrefUpdate",
         "type": "object"
       },
+      "ChainRead": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "own_brands": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Own Brands",
+            "type": "array"
+          },
+          "store_keys": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Store Keys",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "store_keys",
+          "own_brands"
+        ],
+        "title": "ChainRead",
+        "type": "object"
+      },
       "DueSuggestionRead": {
         "properties": {
           "avg_quantity": {
@@ -581,6 +610,17 @@
             ],
             "title": "Purchase Id"
           },
+          "purchase_store": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Store"
+          },
           "purchased": {
             "readOnly": true,
             "title": "Purchased",
@@ -728,6 +768,67 @@
           }
         },
         "title": "ItemUpdate",
+        "type": "object"
+      },
+      "LabelRead": {
+        "properties": {
+          "article": {
+            "title": "Article",
+            "type": "string"
+          },
+          "chain": {
+            "title": "Chain",
+            "type": "string"
+          },
+          "format": {
+            "title": "Format",
+            "type": "string"
+          },
+          "price_per_kg_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Per Kg Cents"
+          },
+          "reduced": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reduced"
+          },
+          "total_cents": {
+            "title": "Total Cents",
+            "type": "integer"
+          },
+          "weight_g": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight G"
+          }
+        },
+        "required": [
+          "format",
+          "article",
+          "total_cents",
+          "chain"
+        ],
+        "title": "LabelRead",
         "type": "object"
       },
       "ListCreate": {
@@ -1237,6 +1338,7 @@
           "purchased_at": {
             "anyOf": [
               {
+                "format": "date-time",
                 "type": "string"
               },
               {
@@ -2316,6 +2418,20 @@
         "title": "ReceiptUploadUrlResult",
         "type": "object"
       },
+      "ReportPref": {
+        "description": "Whether the list's owner gets the monthly report for it.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "ReportPref",
+        "type": "object"
+      },
       "StoreRead": {
         "properties": {
           "display_name": {
@@ -3108,6 +3224,214 @@
         "summary": "Get Barcode",
         "tags": [
           "barcode"
+        ]
+      }
+    },
+    "/chains": {
+      "get": {
+        "operationId": "get_chains_chains_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChainRead"
+                  },
+                  "title": "Response Get Chains Chains Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Chains",
+        "tags": [
+          "chains"
+        ]
+      }
+    },
+    "/chains/labels/{digits}": {
+      "get": {
+        "description": "Decode an in-store label's barcode. `store` is the one store the scan\nis tied to, if any; with it, only that chain's decoders run.",
+        "operationId": "get_label_chains_labels__digits__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "digits",
+            "required": true,
+            "schema": {
+              "maxLength": 32,
+              "pattern": "^\\d+$",
+              "title": "Digits",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "store",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Store"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabelRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "label_not_decoded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Label",
+        "tags": [
+          "chains"
         ]
       }
     },
@@ -5774,6 +6098,199 @@
           }
         ],
         "summary": "Set Board Pref",
+        "tags": [
+          "lists"
+        ]
+      }
+    },
+    "/lists/{list_id}/prefs/report": {
+      "get": {
+        "description": "Whether the monthly report for this list is on. Owner only: the\nreport goes to the owner, so nobody else has a setting to see.",
+        "operationId": "get_report_pref_lists__list_id__prefs_report_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportPref"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Report Pref",
+        "tags": [
+          "lists"
+        ]
+      },
+      "put": {
+        "description": "Turn the monthly report on or off: the same opt-out row the email's\nunsubscribe link writes. Personal, so it does not bump lists.updated_at.",
+        "operationId": "set_report_pref_lists__list_id__prefs_report_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "list_id",
+            "required": true,
+            "schema": {
+              "title": "List Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportPref"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Report Pref",
         "tags": [
           "lists"
         ]

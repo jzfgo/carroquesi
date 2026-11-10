@@ -1,87 +1,38 @@
+import type { ChainRead } from '../types'
+import { getChains } from './api'
+import snapshot from './chains.generated.json'
 import { storeKey } from './storeKey'
 
-const OWN_BRAND_MAP: Record<string, string> = {
-  // Mercadona
-  hacendado: 'Mercadona',
-  'bosque verde': 'Mercadona',
-  'deliplus baby': 'Mercadona',
-  deliplus: 'Mercadona',
-  compy: 'Mercadona',
-  // Carrefour
-  'carrefour bio': 'Carrefour',
-  'carrefour home': 'Carrefour',
-  'carrefour soft': 'Carrefour',
-  carrefour: 'Carrefour',
-  selection: 'Carrefour',
-  'no. 1': 'Carrefour',
-  tex: 'Carrefour',
-  // Lidl
-  milbona: 'Lidl',
-  realvalle: 'Lidl',
-  w5: 'Lidl',
-  formil: 'Lidl',
-  cien: 'Lidl',
-  lupilu: 'Lidl',
-  deluxe: 'Lidl',
-  silvercrest: 'Lidl',
-  // Aldi
-  gutbio: 'Aldi',
-  milsani: 'Aldi',
-  tandil: 'Aldi',
-  mildeen: 'Aldi',
-  'el mercado': 'Aldi',
-  'my night': 'Aldi',
-  // DIA
-  dia: 'DIA',
-  as: 'DIA',
-  bonté: 'DIA',
-  delicious: 'DIA',
-  'mari marinera': 'DIA',
-  'baby smile': 'DIA',
-  // Ahorramas
-  alipende: 'Ahorramas',
-  lanta: 'Ahorramas',
-  bodyplus: 'Ahorramas',
-  meque: 'Ahorramas',
-  // Alcampo
-  auchan: 'Alcampo',
-  cosmia: 'Alcampo',
-  'producto económico': 'Alcampo',
-  inextenso: 'Alcampo',
-  // Eroski
-  'eroski natur': 'Eroski',
-  eroski: 'Eroski',
-  belle: 'Eroski',
-  seleqtia: 'Eroski',
-  sannia: 'Eroski',
-  // El Corte Inglés
-  'el corte inglés': 'El Corte Inglés',
-  aliada: 'El Corte Inglés',
-  hipercor: 'El Corte Inglés',
-  'special line': 'El Corte Inglés',
-  // Gadis
-  'ifa eliges': 'Gadis',
-  'ifa sabe': 'Gadis',
-  'ifa unnia': 'Gadis',
-  peny: 'Gadis',
-  amigo: 'Gadis',
-  // Consum
-  'consum eco': 'Consum',
-  'consum kids': 'Consum',
-  consum: 'Consum',
-  kyrey: 'Consum',
-  // BM Supermercados
-  bm: 'BM Supermercados',
-  // E.Leclerc
-  'marque repère': 'E.Leclerc',
-  'eco+': 'E.Leclerc',
-  kado: 'E.Leclerc',
-  tissaia: 'E.Leclerc',
+// The backend owns the chain table. This side only reads it: the generated
+// snapshot until GET /chains answers, then the served copy.
+let ownBrandStore = buildIndex(snapshot)
+let loading: Promise<void> | null = null
+
+function buildIndex(chains: ChainRead[]): Map<string, string> {
+  return new Map(
+    chains.flatMap((chain) =>
+      chain.own_brands.map((brand) => [brand, chain.name] as const),
+    ),
+  )
+}
+
+/** Fetch the served table once per page load. A failure keeps the copy we
+ * have and lets the next call try again. */
+export function loadChains(getToken: () => Promise<string>): Promise<void> {
+  loading ??= getChains(getToken).then(
+    (chains) => {
+      ownBrandStore = buildIndex(chains)
+    },
+    () => {
+      loading = null
+    },
+  )
+  return loading
 }
 
 export function lookupOwnBrandStore(brand: string | null): string | null {
   if (!brand) return null
-  return OWN_BRAND_MAP[brand.toLowerCase().trim()] ?? null
+  return ownBrandStore.get(brand.toLowerCase().trim()) ?? null
 }
 
 // An own brand is only sold at its supermarket, so every path that sets a

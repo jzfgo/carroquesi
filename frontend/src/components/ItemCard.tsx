@@ -4,6 +4,7 @@ import { formatRowAmount } from '../lib/formatPrice'
 import { formatQuantity, formatQuantityColumn } from '../lib/formatQuantity'
 import { isTripOpen } from '../lib/isTripOpen'
 import { parseQuantityFactor } from '../lib/itemCost'
+import { parseServerInstant } from '../lib/serverInstant'
 import type { ListItem } from '../types'
 import './ItemCard.css'
 
@@ -16,14 +17,10 @@ interface Props {
   onClone?: (itemId: string) => void
 }
 
-// Whether the purchase happened on the viewer's current local day. purchased_at
-// arrives as naive UTC, so the Z is restored before parsing (see isTripOpen for
-// the doubled-suffix caveat).
+// Whether the purchase happened on the viewer's current local day.
 function purchasedToday(purchasedAt: string | null): boolean {
   if (!purchasedAt) return false
-  const d = new Date(
-    purchasedAt.endsWith('Z') ? purchasedAt : purchasedAt + 'Z',
-  )
+  const d = parseServerInstant(purchasedAt)
   const now = new Date()
   return (
     d.getFullYear() === now.getFullYear() &&

@@ -25,7 +25,7 @@ from app.services.feature_flags import REGISTRY
 
 
 def _now():
-    return datetime.now(UTC).replace(tzinfo=None)
+    return datetime.now(UTC)
 
 
 def main():

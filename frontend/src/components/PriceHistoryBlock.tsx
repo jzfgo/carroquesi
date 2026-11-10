@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
 import { formatChartDate, priceStats, Sparkline } from '../lib/priceChart'
 import { normalizeEntries, type ChartEntry } from '../lib/priceNormalization'
+import { compareServerInstants } from '../lib/serverInstant'
 import { storeKey } from '../lib/storeKey'
 import type { PriceEntry } from '../types'
 
@@ -75,7 +76,7 @@ function groupByStore(
     if (!a && !b) return 0
     if (!a) return 1
     if (!b) return -1
-    return b.localeCompare(a)
+    return compareServerInstants(b, a)
   }
 
   for (const group of map.values()) {

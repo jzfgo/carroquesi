@@ -1,14 +1,15 @@
-"""How much of a line one price covers — the backend twin of the frontend's
-`parseQuantityFactor` (frontend/src/lib/itemCost.ts).
+"""How much money a line is, and its price on a comparable scale — the
+backend twin of the frontend's `parseQuantityFactor` and `unitPrice`
+(frontend/src/lib/itemCost.ts).
 
 A line's displayed amount is `price * factor`, so a provisional trip total (the
-stack's «≈ total» on an unclosed proto-ticket) must sum `price * factor`, not
-raw prices, or the folded figure would disagree with the expanded rows. This
-logic is kept byte-for-byte equivalent to the frontend so the two never drift;
-`test_quantity.py` pins the shared cases.
+stack's «≈ total» on an unclosed proto-ticket) and every spend insight must sum
+`price * factor`, not raw prices, or the figures would disagree with the rows.
+Both sides assert frontend/src/lib/quantityVectors.json, so neither can drift.
 """
 
 import re
+from typing import Literal
 
 # SI units → kg equivalent (volume treated as water: 1 L = 1 kg).
 UNIT_TO_KG: dict[str, float] = {
@@ -55,3 +56,42 @@ def parse_quantity_factor(quantity: str | None, price_per: str | None) -> float 
 
     # Non-per-unit: an SI unit is a pack descriptor (×1), otherwise the count.
     return 1.0 if kg_factor is not None else value
+
+
+def effective_quantity(quantity: str | None, purchased_quantity: str | None) -> str | None:
+    """What was bought wins over what was asked for. `is not None`, not
+    truthiness: the frontend row makes the same test."""
+    return purchased_quantity if purchased_quantity is not None else quantity
+
+
+def line_amount(
+    price: float | None,
+    quantity: str | None,
+    purchased_quantity: str | None,
+    price_per: str | None,
+) -> float | None:
+    """The money a line is, or None when it is unpriced or the price cannot
+    apply. What was bought wins over what was asked for: a tray asked as
+    «1 kg» and weighed at 0,636 kg costs the 0,636 kg."""
+    if price is None:
+        return None
+    factor = parse_quantity_factor(effective_quantity(quantity, purchased_quantity), price_per)
+    return None if factor is None else price * factor
+
+
+def unit_price(
+    price: float, quantity: str | None, price_per: str | None
+) -> tuple[float, Literal["kg", "unit"]]:
+    """A line's price on a scale that compares across purchases: €/kg when
+    the line is weighed or names its weight, otherwise €/unit.
+
+    A pack that names its content («500 g» at 1,20) becomes 2,40 €/kg, the
+    same step the price history chart takes. Callers compare two prices only
+    when their bases match.
+    """
+    if price_per == "KILOGRAM":
+        return price, "kg"
+    kg_factor = parse_quantity_factor(quantity, "KILOGRAM")
+    if kg_factor:
+        return price / kg_factor, "kg"
+    return price, "unit"

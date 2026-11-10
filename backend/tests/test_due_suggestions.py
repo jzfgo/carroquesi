@@ -24,7 +24,7 @@ def _add_purchased(session: Session, list_id: str, user_id: str, name: str, purc
 
 def test_due_suggestions_returns_due_item(client: TestClient, session: Session, user):
     lst = _create_list(client)
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     # 3 purchases ~14 days apart; last was 14 days ago
     # median=14, 0.9×14=12.6 <= 14 <= 1.5×14=21 ✓
     for i in range(3, 0, -1):
@@ -38,7 +38,7 @@ def test_due_suggestions_returns_due_item(client: TestClient, session: Session, 
 
 def test_due_suggestions_requires_3_purchases(client: TestClient, session: Session, user):
     lst = _create_list(client)
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     for i in range(2, 0, -1):
         _add_purchased(session, lst["id"], user.id, "Milk", now - timedelta(days=7 * i))
 
@@ -49,7 +49,7 @@ def test_due_suggestions_requires_3_purchases(client: TestClient, session: Sessi
 
 def test_due_suggestions_excludes_unpurchased_items(client: TestClient, session: Session, user):
     lst = _create_list(client)
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     for i in range(3, 0, -1):
         _add_purchased(session, lst["id"], user.id, "Eggs", now - timedelta(days=14 * i))
 
@@ -65,7 +65,7 @@ def test_due_suggestions_excludes_items_outside_upper_bound(
     client: TestClient, session: Session, user
 ):
     lst = _create_list(client)
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     # median=14, upper=21. Last purchase 30 days ago → outside window
     _add_purchased(session, lst["id"], user.id, "Cheese", now - timedelta(days=42))
     _add_purchased(session, lst["id"], user.id, "Cheese", now - timedelta(days=28))
@@ -80,7 +80,7 @@ def test_due_suggestions_excludes_items_below_lower_bound(
     client: TestClient, session: Session, user
 ):
     lst = _create_list(client)
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     # median=14, lower=12.6. Last purchase 10 days ago → below lower bound
     _add_purchased(session, lst["id"], user.id, "Yogurt", now - timedelta(days=38))
     _add_purchased(session, lst["id"], user.id, "Yogurt", now - timedelta(days=24))
@@ -93,7 +93,7 @@ def test_due_suggestions_excludes_items_below_lower_bound(
 
 def test_due_suggestions_sorted_most_overdue_first(client: TestClient, session: Session, user):
     lst = _create_list(client)
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     # Apples: median=14, last=18d → days_overdue=18-12.6=5.4
     _add_purchased(session, lst["id"], user.id, "Apples", now - timedelta(days=46))
     _add_purchased(session, lst["id"], user.id, "Apples", now - timedelta(days=32))
@@ -116,7 +116,7 @@ def test_due_suggestions_non_member_forbidden(other_client: TestClient, client: 
 
 def test_due_suggestions_includes_median_interval_days(client: TestClient, session: Session, user):
     lst = _create_list(client)
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     # 3 purchases 14 days apart; median gap = 14
     for i in range(3, 0, -1):
         _add_purchased(session, lst["id"], user.id, "Butter", now - timedelta(days=14 * i))
@@ -130,7 +130,7 @@ def test_due_suggestions_includes_median_interval_days(client: TestClient, sessi
 
 def test_due_suggestions_includes_days_since_last(client: TestClient, session: Session, user):
     lst = _create_list(client)
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     # Last purchase exactly 14 days ago; median=14
     for i in range(3, 0, -1):
         _add_purchased(session, lst["id"], user.id, "Cream", now - timedelta(days=14 * i))
@@ -147,7 +147,7 @@ def test_due_suggestions_unit_suffixed_quantities_excluded_from_avg(
 ):
     """Quantities like '500g' must not be parsed as raw numbers (e.g. 500)."""
     lst = _create_list(client)
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
 
     def _add_with_qty(name, purchased_at, quantity):
         item = ListItem(

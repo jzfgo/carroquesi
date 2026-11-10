@@ -11,6 +11,7 @@ import * as AuthContext from '../contexts/AuthContext'
 import * as FeatureFlagsContextModule from '../contexts/FeatureFlagsContext'
 import * as useListItemsModule from '../hooks/useListItems'
 import * as api from '../lib/api'
+import chainsSnapshot from '../lib/chains.generated.json'
 import { reportRequestOutcome } from '../lib/connectivity'
 import {
   isDismissed,
@@ -103,6 +104,8 @@ vi.mock('./ListMembersSheet', () => ({
     </div>
   ),
 }))
+// The report switch reads the API on mount; its own suite covers that.
+vi.mock('./ReportSwitchRow', () => ({ ReportSwitchRow: () => null }))
 // Simulates the real scanner resolving a single fixed product, so tests can
 // drive the receipt-line-scan flow without a camera or barcode API.
 vi.mock('./BarcodeScanner', () => ({
@@ -199,6 +202,8 @@ beforeEach(() => {
   // useListSeen fires on mount and chains .catch on the result; the api
   // automock would otherwise return undefined.
   vi.mocked(api.markListSeen).mockResolvedValue(null)
+  // Own-brand tests below read this table once it lands.
+  vi.mocked(api.getChains).mockResolvedValue(chainsSnapshot)
   vi.mocked(AuthContext.useAuth).mockReturnValue({
     user: {
       id: 'u1',
@@ -1471,6 +1476,34 @@ describe('targeted receipt attach (25b)', () => {
       'scan-t1',
       expect.any(File),
     )
+  })
+
+  it('the rescue offers the date the server checked, not the raw read', async () => {
+    // The label prints no year, so a misread «2020» would pass unseen.
+    vi.mocked(receiptAi.parseReceiptWithAi).mockResolvedValue({
+      ...illegibleParse,
+      receipt_date: '2020-07-20',
+    })
+    vi.mocked(api.submitParsedReceipt).mockResolvedValue({
+      scan_id: 'scan-t1',
+      store: 'Mercadona',
+      receipt_date: '2026-07-20',
+      receipt_total: null,
+      matched: [],
+      unmatched: [],
+      target_purchase: null,
+    })
+    const { container } = render(
+      <ListScreen listId="list1" listName="Test" listOwnerId="u1" />,
+    )
+    pickFile(container)
+    const sheet = await screen.findByRole('dialog', {
+      name: 'No se lee el ticket',
+    })
+    fireEvent.click(within(sheet).getByRole('button', { name: /jul/ }))
+    expect(
+      container.ownerDocument.querySelector('input[type="date"]'),
+    ).toHaveValue('2026-07-20')
   })
 
   it('a failed capture store still opens the rescue, promising no photo', async () => {

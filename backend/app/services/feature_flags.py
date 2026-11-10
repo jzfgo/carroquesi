@@ -20,6 +20,9 @@ REGISTRY: dict[str, FlagDef] = {
         # is_enabled only supports per-user overrides, so turning it off for
         # everyone needs a deploy. Acceptable — the blast radius is UI only.
         FlagDef("push_notifications", default=True, description="Web push notifications"),
+        # Granted to a list's owner, it opts the owner's lists into the
+        # monthly spend report.
+        FlagDef("monthly_report", default=False, description="Monthly spend report email"),
     ]
 }
 
