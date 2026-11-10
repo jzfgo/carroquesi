@@ -491,10 +491,12 @@ export default function ReceiptScanSheet({
           const samePrice =
             Math.abs(item.price - effectiveUnitPrice(line, lineStates[i])) <
               PRICE_EPSILON && (item.price_per ?? null) === linePricePer(line)
+          if (!samePrice) return `era € ${formatRowAmount(item.price)}`
           const recorded = recordedQuantity(item)
-          return samePrice && recorded != null
-            ? `era ${formatQuantity(recorded)}`
-            : `era € ${formatRowAmount(item.price)}`
+          if (recorded != null) return `era ${formatQuantity(recorded)}`
+          // No quantity on the record: a unit line counts as one, and a
+          // weighed line had no weight for the paper to correct.
+          return item.price_per === 'KILOGRAM' ? 'completa el peso' : 'era 1 UD'
         }
         if (r.kind === 'created') return 'línea nueva en esta compra'
         return null

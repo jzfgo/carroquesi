@@ -528,6 +528,21 @@ describe('ReceiptScanSheet — targeted resolve (JAV-232)', () => {
     expect(screen.getByRole('checkbox', { name: /YOGUR/ })).toBeChecked()
   })
 
+  it('names the implied quantity when the record holds none', () => {
+    // Same prices as the paper, no quantity recorded: the note must not
+    // repeat the unchanged price.
+    renderTargeted({
+      candidateItems: [
+        targetItems[0],
+        { ...targetItems[1], purchased_quantity: null },
+        { ...targetItems[2], price: 0.95 },
+      ],
+    })
+    expect(screen.getByText('era 1 UD')).toBeInTheDocument()
+    expect(screen.getByText('completa el peso')).toBeInTheDocument()
+    expect(screen.queryByText(/era € 0,95|era € 11,40/)).not.toBeInTheDocument()
+  })
+
   it('guesses nothing when no single line stands out', () => {
     renderTargeted({
       candidateItems: [
