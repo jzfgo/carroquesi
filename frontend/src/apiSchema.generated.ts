@@ -1226,6 +1226,8 @@ export interface components {
             purchase_has_receipt: boolean;
             /** Purchase Id */
             purchase_id?: string | null;
+            /** Purchase Store */
+            purchase_store?: string | null;
             /** Purchased */
             readonly purchased: boolean;
             /** Purchased At */

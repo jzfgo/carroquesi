@@ -610,6 +610,17 @@
             ],
             "title": "Purchase Id"
           },
+          "purchase_store": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Store"
+          },
           "purchased": {
             "readOnly": true,
             "title": "Purchased",

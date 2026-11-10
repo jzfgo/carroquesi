@@ -14,7 +14,6 @@ interface Props {
   initialAmount: number | null
   initialStore: string | null
   initialPurchasedQuantity: string | null
-  suggestedStore?: string | null
   onSave: (
     amount: number,
     pricePer: 'KILOGRAM' | null,
@@ -32,30 +31,31 @@ export default function LogPurchaseSheet({
   initialAmount,
   initialStore,
   initialPurchasedQuantity,
-  suggestedStore,
   onSave,
   onDelete,
   onClose,
   displayStore = (raw) => raw,
 }: Props) {
   // One offer per store: dedupe spelling variants by key and label with the
-  // registry's canonical name.
+  // registry's canonical name. The trip's store comes first, because the
+  // price was paid there.
   const storesByKey = new Map<string, string>()
-  for (const s of item.stores ?? []) {
+  const offered = [
+    ...(item.purchase_store ? [item.purchase_store] : []),
+    ...(item.stores ?? []),
+  ]
+  for (const s of offered) {
     if (!storesByKey.has(storeKey(s))) {
       storesByKey.set(storeKey(s), displayStore(s))
     }
   }
   const stores = [...storesByKey.values()]
-  // Guard again here so the component stays self-contained if reused elsewhere
-  const effectiveSuggestion =
-    stores.length === 0 ? (suggestedStore ?? null) : null
 
   const [amountStr, setAmountStr] = useState(
     initialAmount !== null ? String(initialAmount) : '',
   )
   const [selectedStore, setSelectedStore] = useState<string | null>(
-    initialStore ?? effectiveSuggestion,
+    initialStore,
   )
   const [purchasedQtyStr, setPurchasedQtyStr] = useState(
     initialPurchasedQuantity ?? '',
@@ -162,7 +162,7 @@ export default function LogPurchaseSheet({
             open the select shows that entry as the current choice. */}
         <StoreSelect
           className="lps__store"
-          options={effectiveSuggestion ? [effectiveSuggestion] : stores}
+          options={stores}
           value={addingStore ? ADD_STORE : (selectedStore ?? '')}
           onSelect={(v) => {
             setAddingStore(false)
