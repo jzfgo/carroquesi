@@ -82,6 +82,7 @@ const candidateItems: ItemRef[] = [
     quantity: null,
     price: null,
     price_per: null,
+    purchased_quantity: null,
   },
   {
     id: 'item-2',
@@ -93,6 +94,7 @@ const candidateItems: ItemRef[] = [
     quantity: null,
     price: null,
     price_per: null,
+    purchased_quantity: null,
   },
   {
     id: 'item-3',
@@ -104,6 +106,7 @@ const candidateItems: ItemRef[] = [
     quantity: null,
     price: null,
     price_per: null,
+    purchased_quantity: null,
   },
   {
     id: 'item-4',
@@ -115,6 +118,7 @@ const candidateItems: ItemRef[] = [
     quantity: null,
     price: null,
     price_per: null,
+    purchased_quantity: null,
   },
 ]
 
@@ -348,7 +352,12 @@ describe('ReceiptScanSheet — thumbnail', () => {
 // (correction). MANI DULCE stays unmatched → a new line if resolved.
 const targetItems: ItemRef[] = [
   { ...candidateItems[0], price: null, price_per: null },
-  { ...candidateItems[1], price: 11.4, price_per: 'KILOGRAM' },
+  {
+    ...candidateItems[1],
+    price: 11.4,
+    price_per: 'KILOGRAM',
+    purchased_quantity: '202g',
+  },
   { ...candidateItems[2], price: 1.2, price_per: null },
 ]
 
@@ -430,6 +439,142 @@ describe('ReceiptScanSheet — targeted attach (25b)', () => {
     await waitFor(() => expect(onConfirm).toHaveBeenCalled())
     const [, , , meta] = onConfirm.mock.calls[0]
     expect(meta).toEqual({ receiptDate: '2026-04-11', store: 'Mercadona' })
+  })
+})
+
+describe('ReceiptScanSheet — targeted resolve (JAV-232)', () => {
+  // MANI DULCE is on the trip as «Cacahuetes garrapiñados»: the matcher
+  // pairs by name and misses it. The trip also holds another unpaired line.
+  const partner: ItemRef = {
+    ...candidateItems[3],
+    id: 'item-4',
+    name: 'Cacahuetes garrapiñados',
+    purchased: true,
+    purchased_at: '2026-04-11T15:00:00',
+    price: 3.15,
+    price_per: null,
+  }
+  const other: ItemRef = {
+    ...partner,
+    id: 'item-5',
+    name: 'Pipas',
+    price: 1.1,
+  }
+
+  it('preselects the trip line at the same price, so «Asignar» links it', async () => {
+    const { onConfirm } = renderTargeted({
+      candidateItems: [...targetItems, partner, other],
+    })
+    fireEvent.click(openRow('MANI DULCE'))
+    expect(screen.getByText(/En esta compra/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('radio', { name: /Cacahuetes garrapiñados/ }),
+    ).toBeChecked()
+    // The sub-label is the recorded price, which is how the partner reads.
+    expect(screen.getByText('3,15/UD')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches, , newItems] = onConfirm.mock.calls[0]
+    expect(newItems).toHaveLength(0)
+    expect(patches.some((p) => p.item_id === 'item-4')).toBe(true)
+  })
+
+  it('does not guess the only unpaired line when the price says nothing', () => {
+    // It may be a product nobody ticked: a wrong link would overwrite a
+    // correct price and lose the new spend.
+    for (const price of [null, 2]) {
+      const { unmount } = render(
+        <ReceiptScanSheet
+          result={makeResult()}
+          candidateItems={[...targetItems, { ...partner, price }]}
+          store="Mercadona"
+          target={target}
+          onConfirm={vi.fn(async () => true)}
+          onClose={vi.fn()}
+          onReReadReceipt={vi.fn()}
+        />,
+      )
+      fireEvent.click(openRow('MANI DULCE'))
+      expect(
+        screen.getByRole('radio', { name: /Cacahuetes garrapiñados/ }),
+      ).not.toBeChecked()
+      unmount()
+    }
+  })
+
+  it('does not guess a line at the same unit price but another quantity', () => {
+    // The patch writes the quantity too: linking 1 × 3,15 onto a record of
+    // 4 × 3,15 would cut its amount and lose the new product's spend.
+    renderTargeted({
+      candidateItems: [...targetItems, { ...partner, purchased_quantity: '4' }],
+    })
+    fireEvent.click(openRow('MANI DULCE'))
+    expect(
+      screen.getByRole('radio', { name: /Cacahuetes garrapiñados/ }),
+    ).not.toBeChecked()
+  })
+
+  it('notes a quantity correction even when the price repeats', () => {
+    // YOGUR prints 3 × 0,95; the record holds 0,95 × 2.
+    renderTargeted({
+      candidateItems: [
+        targetItems[0],
+        targetItems[1],
+        { ...targetItems[2], price: 0.95, purchased_quantity: '2' },
+      ],
+    })
+    expect(screen.getByText('era 2 UD')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /YOGUR/ })).toBeChecked()
+  })
+
+  it('names the implied quantity when the record holds none', () => {
+    // Same prices as the paper, no quantity recorded: the note must not
+    // repeat the unchanged price.
+    renderTargeted({
+      candidateItems: [
+        targetItems[0],
+        { ...targetItems[1], purchased_quantity: null },
+        { ...targetItems[2], price: 0.95 },
+      ],
+    })
+    expect(screen.getByText('era 1 UD')).toBeInTheDocument()
+    expect(screen.getByText('completa el peso')).toBeInTheDocument()
+    expect(screen.queryByText(/era € 0,95|era € 11,40/)).not.toBeInTheDocument()
+  })
+
+  it('guesses nothing when no single line stands out', () => {
+    renderTargeted({
+      candidateItems: [
+        ...targetItems,
+        { ...partner, price: 2 },
+        { ...other, price: 1.1 },
+      ],
+    })
+    fireEvent.click(openRow('MANI DULCE'))
+    for (const radio of screen.getAllByRole('radio')) {
+      expect(radio).not.toBeChecked()
+    }
+    // With no guess, the bar keeps the raw line as its prefill.
+    expect(screen.getByPlaceholderText(/Nombre del producto/)).toHaveValue(
+      'MANI DULCE',
+    )
+  })
+
+  it('typing a name still creates a new line when the user insists', async () => {
+    const { onConfirm } = renderTargeted({
+      candidateItems: [...targetItems, partner],
+    })
+    fireEvent.click(openRow('MANI DULCE'))
+    fireEvent.change(screen.getByPlaceholderText(/Nombre del producto/), {
+      target: { value: 'Maní dulce' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches, , newItems] = onConfirm.mock.calls[0]
+    expect(newItems).toEqual([expect.objectContaining({ name: 'Maní dulce' })])
+    expect(patches.some((p) => p.item_id === 'item-4')).toBe(false)
   })
 })
 

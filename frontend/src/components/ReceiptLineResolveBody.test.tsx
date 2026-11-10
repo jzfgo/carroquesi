@@ -23,6 +23,7 @@ const inCart: ItemRef = {
   quantity: null,
   price: null,
   price_per: null,
+  purchased_quantity: null,
 }
 
 const pendingWithStore: ItemRef = {
@@ -35,6 +36,7 @@ const pendingWithStore: ItemRef = {
   quantity: null,
   price: null,
   price_per: null,
+  purchased_quantity: null,
 }
 
 const pendingNoStore: ItemRef = {
@@ -47,6 +49,7 @@ const pendingNoStore: ItemRef = {
   quantity: null,
   price: null,
   price_per: null,
+  purchased_quantity: null,
 }
 
 function renderBody(overrides: {
