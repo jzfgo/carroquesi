@@ -110,6 +110,25 @@ function targetChange(
   return samePrice && samePer ? 'equal' : 'correct'
 }
 
+/**
+ * In a targeted review, the trip line an unmatched receipt line most likely
+ * is. The matcher pairs by name, so a line it missed is often a product the
+ * trip holds under another name. Only a price match counts as evidence: the
+ * missed line may also be a product nobody ticked, and linking it to the
+ * wrong line would overwrite a correct price and lose the new spend. So the
+ * guess is the one line at the paper's price, or none.
+ */
+function likelyPartner(
+  line: ReceiptLine,
+  state: LineState | undefined,
+  items: ItemRef[],
+): string | null {
+  const samePrice = items.filter(
+    (item) => targetChange(line, item, state) === 'equal',
+  )
+  return samePrice.length === 1 ? samePrice[0].id : null
+}
+
 function initStates(
   result: ReceiptScanResult,
   target: ReceiptScanTarget | null,
@@ -305,10 +324,21 @@ export default function ReceiptScanSheet({
       setResolveText(withBrandSigil(r.name, r.brand))
       setResolveEan(r.ean)
     } else {
-      setResolveRadioId(null)
-      // Prefill the create bar with the raw line — the best name we have until
-      // the user cleans it up.
-      setResolveText(allLines[index].receipt_name)
+      // A targeted review completes a record, so an unmatched line is first
+      // a trip line under another name. Creating one would count the product
+      // twice, so a likely partner starts selected and «Asignar» links it.
+      // Typing a name is how the user insists on a new line.
+      const partner = targeted
+        ? likelyPartner(
+            allLines[index],
+            lineStates[index],
+            availableItems(index),
+          )
+        : null
+      setResolveRadioId(partner)
+      // Otherwise prefill the create bar with the raw line — the best name
+      // we have until the user cleans it up.
+      setResolveText(partner ? '' : allLines[index].receipt_name)
       setResolveEan(null)
     }
     setResolveDirty(false)
@@ -448,6 +478,7 @@ export default function ReceiptScanSheet({
           line={allLines[resolvingIndex]}
           candidateItems={availableItems(resolvingIndex)}
           backLabel={targeted ? 'Añadir ticket a esta compra' : undefined}
+          targeted={targeted}
           radioId={resolveRadioId}
           createText={resolveText}
           userEdited={resolveDirty}
