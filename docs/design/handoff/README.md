@@ -24,6 +24,9 @@ disagree, the frames here win.
 - `jav-224-monthly-report/` — approved frames for the monthly spend report
   email, its opt-out pages and the in-app setting (2026-11-05). Its own
   README restates the copy templates and the rules the frames encode.
+- `jav-225-weighed-label/` — approved frames for scanning a weighed-goods
+  label at close, with and without a receipt (2026-11-10). Its README
+  restates the rules the frames encode.
 - `BUNDLE-README.md` — the exporter's own README, kept as shipped.
 
 ## Provenance and pruning

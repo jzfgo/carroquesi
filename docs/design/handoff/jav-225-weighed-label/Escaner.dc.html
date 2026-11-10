@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Escáner de etiqueta de peso</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cqs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:#1a3fa0}a:hover{color:#2c56c1}</style>
+</helmet>
+<div class="cam" style="height: 560px;">
+  <div class="view" style="height: 560px;">
+    <div class="stripes"></div>
+    <div style="position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: 320px; height: 110px; border: 2px solid #fff; border-radius: 12px; box-shadow: 0 0 0 2000px rgb(0 0 0 / 55%);"></div>
+    <div style="position: absolute; left: 0; right: 0; top: calc(46% + 74px); display: flex; flex-direction: column; align-items: center; gap: 6px;">
+      <span style="font: 400 14px/1.4 'Geist', system-ui, sans-serif; color: #fff; text-shadow: 0 1px 3px rgb(0 0 0 / 50%);">Apunta al código de barras de la etiqueta</span>
+    </div>
+    <div style="position: absolute; top: 20px; left: 20px; right: 76px; display: flex;">
+      <span style="display: inline-flex; flex-direction: column; gap: 3px; padding: 8px 12px; border-radius: 12px; background: rgb(0 0 0 / 50%); border: 1px solid rgb(255 255 255 / 30%); color: #fff; max-width: 100%;">
+        <span style="font: 600 10px/1 'Geist', system-ui, sans-serif; letter-spacing: .09em; text-transform: uppercase; color: rgb(255 255 255 / 70%);">Etiqueta para</span>
+        <span style="display: flex; gap: 8px; align-items: baseline;">
+          <span style="font: 500 14px/1.3 'Geist', system-ui, sans-serif;">Pechuga de pollo</span>
+          <span style="font: 600 13px/1 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums;">5,72</span>
+        </span>
+      </span>
+    </div>
+    <button class="close" aria-label="Cerrar escáner"><svg class="i" viewBox="0 0 24 24"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":560}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

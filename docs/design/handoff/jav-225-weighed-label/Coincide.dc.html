@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Etiqueta leída que cuadra</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cqs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:#1a3fa0}a:hover{color:#2c56c1}</style>
+</helmet>
+<div class="bd scrim" style="height: 620px;">
+  <div class="sh">
+    <div class="grab"></div>
+    <div class="hd">
+      <h1 class="t">Etiqueta leída</h1>
+      <div class="sub">Pechuga de pollo · línea del ticket <span class="mono" style="color: #353742;">5,72</span></div>
+    </div>
+
+    <div style="padding: 16px 20px 0; display: flex; flex-direction: column; gap: 14px;">
+      <div class="fig3">
+        <div><span class="cap">Peso</span><span class="fig">0,636<small>kg</small></span></div>
+        <div><span class="cap">Precio</span><span class="fig">9,00<small>/kg</small></span></div>
+        <div><span class="cap">Total</span><span class="fig">5,72</span></div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 8px; color: #353742; font: 400 13px/1.4 'Geist', system-ui, sans-serif;">
+        <span style="width: 20px; height: 20px; border-radius: 50%; background: #2f7a4a; color: #fff; display: flex; align-items: center; justify-content: center;"><svg class="i" viewBox="0 0 24 24" style="width: 12px; height: 12px; stroke-width: 3;"><path d="M20 6 9 17l-5-5"></path></svg></span>
+        Cuadra con el ticket
+      </div>
+
+      <p class="small" style="margin: 0;">La línea guarda el peso y el precio por kilo. El importe sigue siendo el del ticket.</p>
+    </div>
+
+    <div style="padding: 20px 20px 0; display: flex; flex-direction: column; gap: 4px;">
+      <button class="btn">Usar en esta línea</button>
+      <button class="lnk">Volver a escanear</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":402,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
