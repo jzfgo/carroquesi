@@ -619,20 +619,42 @@
 /* The Importe correction (JAV-185): the same editor chrome as the header
    store/date controls, under its own eyebrow. The raw line above keeps the
    read amount; this holds what the review works with. */
-.rss-resolve-price {
-  padding: 12px 20px 0;
+.rss-qtyprice {
+  padding: 18px 20px 0;
   flex-shrink: 0;
 }
 
-.rss-resolve-price .rss-control-editor {
-  padding: 6px 0 12px;
-  border-bottom: none;
+/* A corrected total, on the verde ground the close editor's line total uses. */
+.rss-corrected {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 9px 12px;
+  background: var(--success-bg);
+  border-radius: 8px;
 }
 
-.rss-resolve-price__input {
-  max-width: 140px;
+.rss-corrected__label {
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  color: var(--ink-1);
+}
+
+.rss-corrected__paper {
+  color: var(--ink-2);
+}
+
+.rss-corrected__num,
+.rss-corrected__value {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+.rss-corrected__value {
+  font-size: var(--fs-15);
+  font-weight: 600;
+  color: var(--ink-0);
 }
 
 .rss-resolve-body {

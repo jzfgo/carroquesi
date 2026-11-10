@@ -760,23 +760,23 @@ describe('ReceiptScanSheet — discount lines (JAV-184)', () => {
 describe('ReceiptScanSheet — price correction (JAV-185)', () => {
   it('a corrected line total flows into the row, the sums, and the payload', async () => {
     const { onConfirm } = renderSheet()
-    // Open the MULTI line (3 × 0,95 = 2,85) and correct its total to 1,85.
+    // Open the MULTI line (3 × 0,95 = 2,85) and correct its price to 0,60.
     fireEvent.click(openRow('YOGUR NATURAL'))
-    const input = screen.getByLabelText('Importe')
-    expect(input).toHaveValue('2,85')
-    fireEvent.change(input, { target: { value: '1,85' } })
+    const input = screen.getByLabelText('Precio')
+    expect(input).toHaveValue('0,95')
+    fireEvent.change(input, { target: { value: '0,60' } })
     fireEvent.blur(input)
     fireEvent.click(screen.getByRole('button', { name: /Revisar ticket/ }))
 
-    // The row prints the corrected figure.
-    expect(screen.getByText('1,85')).toBeInTheDocument()
+    // The row prints the corrected total, 3 × 0,60.
+    expect(screen.getByText('1,80')).toBeInTheDocument()
     // Save: the recorded unit price re-derives from the corrected total.
     fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
     fireEvent.click(saveButton())
     await waitFor(() => expect(onConfirm).toHaveBeenCalled())
     const [patches] = onConfirm.mock.calls[0]
     const yogur = patches.find((p) => p.item_id === 'item-3')
-    expect(yogur?.price).toBeCloseTo(1.85 / 3)
+    expect(yogur?.price).toBeCloseTo(0.6)
   })
 
   it("an uncorrected line keeps the parse's own unit price", async () => {
