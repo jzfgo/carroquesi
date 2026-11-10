@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
 import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
 import './AdjustProductSheet.css'
+import { QuantityPriceRow } from './QuantityPriceRow'
 
 /** One line of the close draft — the shape 10b holds and 10d edits. */
 export interface DraftLine {
@@ -109,47 +110,21 @@ export function AdjustProductSheet({
           />
         </label>
 
-        <div className="adjust-field">
-          <span className="adjust-field__label">Cantidad y precio</span>
-          <div className="adjust-qtyprice">
-            <input
-              className="adjust-field__box adjust-qtyprice__qty"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              placeholder="6"
-              inputMode="text"
-            />
-            <span className="adjust-qtyprice__x" aria-hidden>
-              ×
-            </span>
-            <div
-              className={`adjust-field__box adjust-qtyprice__price${
-                showSuggestion ? ' adjust-qtyprice__price--suggested' : ''
-              }`}
-            >
-              <span className="adjust-qtyprice__euro">€</span>
-              <input
-                className="adjust-qtyprice__amount"
-                value={priceText}
-                onChange={(e) => {
-                  setPriceText(e.target.value)
-                  setPriceTouched(true)
-                }}
-                placeholder={
-                  showSuggestion
-                    ? formatRowAmount(line.suggested!.price)
-                    : '0,00'
-                }
-                inputMode="decimal"
-              />
-              <span className="adjust-qtyprice__suffix">{suffix}</span>
-            </div>
-          </div>
-          <p className="adjust-help">
-            Escribe unidades (<code>6</code>) o peso (<code>500 ml</code>,{' '}
-            <code>1,12 kg</code>). El precio se ajusta solo.
-          </p>
-
+        <QuantityPriceRow
+          id="adjust-qty"
+          quantity={quantity}
+          priceText={priceText}
+          suffix={suffix}
+          onQuantityChange={setQuantity}
+          onPriceChange={(text) => {
+            setPriceText(text)
+            setPriceTouched(true)
+          }}
+          pricePlaceholder={
+            showSuggestion ? formatRowAmount(line.suggested!.price) : '0,00'
+          }
+          suggested={showSuggestion}
+        >
           {showSuggestion ? (
             <div className="adjust-suggest">
               <span className="adjust-suggest__q">
@@ -182,7 +157,7 @@ export function AdjustProductSheet({
               </span>
             </div>
           )}
-        </div>
+        </QuantityPriceRow>
 
         <label className="adjust-field">
           <span className="adjust-field__label">
