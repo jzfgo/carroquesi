@@ -725,6 +725,7 @@ def test_the_page_carries_each_trips_lines_only_when_asked(client: TestClient, s
     body = _page(client, lst["id"], include_items=True).json()
     by_id = {p["id"]: p for p in body["purchases"]}
     per_trip = client.get(f"/lists/{lst['id']}/purchases/{ticket['id']}/items").json()
+    assert {line["purchase_store"] for line in per_trip} == {"Lidl"}
     assert by_id[ticket["id"]]["items"] == per_trip
     assert by_id[manual["id"]]["items"] == []
 
@@ -840,6 +841,7 @@ def test_a_tickets_lines_come_in_tap_order_with_the_boundary_stamped(
     for line in lines:
         assert line["purchase_id"] == ticket["id"]
         assert line["purchase_ends_at"] == ticket["closed_at"]
+        assert line["purchase_store"] == "Lidl"
 
 
 def test_an_open_carts_lines_are_readable_too(client: TestClient, session: Session):
@@ -1345,4 +1347,5 @@ def test_search_lines_carry_the_purchase_boundary(client: TestClient, session: S
     line = _search(client, lst["id"], "leche").json()["results"][0]["lines"][0]
 
     assert line["purchase_ends_at"] is not None
+    assert line["purchase_store"] == "Mercadona"
     assert line["purchased"] is True

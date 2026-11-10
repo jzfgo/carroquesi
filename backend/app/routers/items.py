@@ -64,7 +64,7 @@ def get_items(
 def _attach_purchase_ends_at(session: Session, items: Sequence[ListItem]) -> None:
     """Stamp each item with its trip's facts, in two queries for the page.
 
-    The end instant and whether a scan claimed the trip ride on the ORM object
+    The end instant, the trip's store, and whether a scan claimed the trip ride on the ORM object
     as transient attributes (the way User.is_admin does) and ItemRead picks
     them up; items without a trip keep the schema's defaults.
     """
@@ -88,6 +88,7 @@ def _attach_purchase_ends_at(session: Session, items: Sequence[ListItem]) -> Non
             # object.__setattr__ because pydantic rejects undeclared fields.
             object.__setattr__(item, "purchase_ends_at", trips.ends_at(trip))
             object.__setattr__(item, "purchase_has_receipt", trip.id in scanned)
+            object.__setattr__(item, "purchase_store", trip.store)
 
 
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)

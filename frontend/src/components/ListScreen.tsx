@@ -25,11 +25,11 @@ import {
   updateList,
 } from '../lib/api'
 import { asBoardName, type BoardName } from '../lib/boards'
+import { defaultPriceStore } from '../lib/defaultPriceStore'
 import { isDismissed, writeDismissal } from '../lib/dismissedSuggestions'
 import { FLAGS } from '../lib/featureFlags'
 import { isTripOpen } from '../lib/isTripOpen'
 import { computeCostSummary, tripDateInput } from '../lib/itemCost'
-import { getLastPriceStore, setLastPriceStore } from '../lib/lastPriceStore'
 import { loadChains, withOwnBrandStore } from '../lib/ownBrands'
 import { parseInput } from '../lib/parseInput'
 import { canReceivePush, enablePush, permissionState } from '../lib/push'
@@ -196,7 +196,6 @@ export function ListScreen({
     itemId: string
     initialAmount: number | null
     initialStore: string | null
-    suggestedStore: string | null
   } | null>(null)
 
   // A write answering 403/404 only *suggests* the list is gone — the missing
@@ -951,8 +950,7 @@ export function ListScreen({
       setLogPriceFor({
         itemId,
         initialAmount: item?.price ?? null,
-        initialStore: item?.price_store ?? item?.stores?.[0] ?? null,
-        suggestedStore: item?.stores?.length ? null : getLastPriceStore(),
+        initialStore: item ? defaultPriceStore(item) : null,
       })
     },
     [items],
@@ -982,7 +980,6 @@ export function ListScreen({
         setToast('No se pudo guardar el precio')
         return
       }
-      if (store) setLastPriceStore(store)
       setLogPriceFor(null)
     },
     [logPriceFor, savePrice, isOffline, setToast],
@@ -1460,7 +1457,6 @@ export function ListScreen({
               initialAmount={logPriceFor.initialAmount}
               initialStore={logPriceFor.initialStore}
               initialPurchasedQuantity={logItem.purchased_quantity ?? null}
-              suggestedStore={logPriceFor.suggestedStore}
               onSave={handleSavePrice}
               onDelete={handleDeletePrice}
               onClose={() => setLogPriceFor(null)}

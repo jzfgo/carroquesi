@@ -634,6 +634,26 @@ def test_item_read_carries_the_trip_it_was_bought_on(client: TestClient, session
     assert listed[0]["purchase_id"] == db_item.purchase_id
 
 
+def test_item_read_carries_its_trip_store(client: TestClient, session: Session):
+    """The price form defaults to the trip's store, so a bought line must say it."""
+    from app.db.models import ListItem, Purchase
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    assert item["purchase_store"] is None
+
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    db_item = session.get_one(ListItem, item["id"])
+    session.refresh(db_item)
+    trip = session.get_one(Purchase, db_item.purchase_id)
+    trip.store = "Mercadona"
+    session.add(trip)
+    session.commit()
+
+    listed = client.get(f"/lists/{lst['id']}/items").json()
+    assert listed[0]["purchase_store"] == "Mercadona"
+
+
 def test_deleting_the_last_item_in_the_cart_deletes_the_open_trip(
     client: TestClient, session: Session
 ):

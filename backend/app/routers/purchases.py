@@ -209,12 +209,14 @@ def list_purchases(
             .order_by(col(ListItem.purchased_at).asc(), col(ListItem.created_at).asc())
         ).all()
         ends = {trip.id: trips.ends_at(trip) for trip in page}
+        stores = {trip.id: trip.store for trip in page}
         for item in rows:
             # The query selected these rows by trip, so every one has a trip.
             assert item.purchase_id is not None
             # object.__setattr__ because pydantic rejects undeclared fields.
             object.__setattr__(item, "purchase_ends_at", ends[item.purchase_id])
             object.__setattr__(item, "purchase_has_receipt", item.purchase_id in scanned)
+            object.__setattr__(item, "purchase_store", stores[item.purchase_id])
             lines_by_trip.setdefault(item.purchase_id, []).append(
                 ItemRead.model_validate(item, from_attributes=True)
             )
@@ -309,6 +311,7 @@ def search_purchases(
             # object.__setattr__ because pydantic rejects undeclared fields; the
             # ItemRead is then built by attribute so it picks the boundary up.
             object.__setattr__(item, "purchase_ends_at", ends)
+            object.__setattr__(item, "purchase_store", trip.store)
             read_lines.append(ItemRead.model_validate(item, from_attributes=True))
         summary = PurchaseSummary(
             **trip.model_dump(),
@@ -349,6 +352,7 @@ def get_purchase_items(
         # object.__setattr__ because pydantic rejects undeclared fields.
         object.__setattr__(item, "purchase_ends_at", ends_at)
         object.__setattr__(item, "purchase_has_receipt", has_receipt)
+        object.__setattr__(item, "purchase_store", trip.store)
     return items
 
 

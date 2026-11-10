@@ -132,6 +132,33 @@ describe('LogPurchaseSheet quantity and price calculation', () => {
     expect(onSave).toHaveBeenCalledWith(2.5, null, 'Lidl', '5')
   })
 
+  it("offers the trip's store first, beside the item's planned stores", () => {
+    const item = {
+      ...BASE_ITEM,
+      purchase_store: 'Mercadona',
+      stores: ['Ahorramas', 'MERCADONA'],
+    }
+    render(
+      <LogPurchaseSheet
+        item={item}
+        initialAmount={null}
+        initialStore="Mercadona"
+        initialPurchasedQuantity={null}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    const select = screen.getByLabelText<HTMLSelectElement>('Tienda')
+    const labels = [...select.options].map((o) => o.textContent)
+    expect(labels.filter((l) => /mercadona/i.test(l ?? ''))).toEqual([
+      'Mercadona',
+    ])
+    expect(labels.indexOf('Mercadona')).toBeLessThan(
+      labels.indexOf('Ahorramas'),
+    )
+    expect(select.value).toBe('Mercadona')
+  })
+
   it('offers one option per store across spelling variants', () => {
     const item = {
       ...BASE_ITEM,
