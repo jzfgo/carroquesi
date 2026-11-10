@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Etiqueta leída sin ticket</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cqs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:#1a3fa0}a:hover{color:#2c56c1}</style>
+</helmet>
+<div class="bd scrim" style="height: 620px;">
+  <div class="sh">
+    <div class="grab"></div>
+    <div class="hd">
+      <h1 class="t">Etiqueta leída</h1>
+      <div class="sub">Contramuslo deshuesado</div>
+    </div>
+
+    <div style="padding: 16px 20px 0; display: flex; flex-direction: column; gap: 14px;">
+      <div class="fig3">
+        <div><span class="cap">Peso</span><span class="fig">0,346<small>kg</small></span></div>
+        <div><span class="cap">Precio</span><span class="fig">8,82<small>/kg</small></span></div>
+        <div><span class="cap">Total</span><span class="fig">3,05</span></div>
+      </div>    </div>
+
+    <div style="padding: 20px 20px 0; display: flex; flex-direction: column; gap: 4px;">
+      <button class="btn">Usar en esta línea</button>
+      <button class="lnk">Volver a escanear</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":402,"height":620}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

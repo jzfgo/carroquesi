@@ -1,0 +1,45 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-10T17:30:00Z" },
+  "title": "Etiquetas de peso · JAV-225",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 402, "h": 760, "title": "1 · Revisar ticket: «Peso» solo donde hay pruebas" },
+    "Detalle.dc.html": { "x": 482, "y": 0, "w": 402, "h": 820, "title": "2 · Detalle de línea (13b): siempre se puede escanear" },
+    "DetalleCorregido.dc.html": { "x": 964, "y": 0, "w": 402, "h": 820, "title": "2b · Precio corregido: el total cambia y se enseña" },
+    "Escaner.dc.html": { "x": 1446, "y": 0, "w": 390, "h": 560, "title": "3 · Escáner de etiqueta" },
+    "Coincide.dc.html": { "x": 1916, "y": 0, "w": 402, "h": 620, "title": "4 · Etiqueta leída, cuadra con la línea" },
+    "NoCuadra.dc.html": { "x": 2398, "y": 0, "w": 402, "h": 600, "title": "5 · Aviso: el total no coincide o la etiqueta ya está usada" },
+    "Cierre.dc.html": { "x": 0, "y": 1100, "w": 402, "h": 760, "title": "6 · Cerrar compra sin ticket (10b)" },
+    "DetalleCierre.dc.html": { "x": 482, "y": 1100, "w": 402, "h": 720, "title": "7 · Ajustar producto (10d) con etiqueta" },
+    "SinTicket.dc.html": { "x": 964, "y": 1100, "w": 402, "h": 620, "title": "8 · Etiqueta leída sin ticket" },
+    "Error.dc.html": { "x": 1446, "y": 1100, "w": 390, "h": 560, "title": "9 · No reconozco esta etiqueta" }
+  },
+  "order": [
+    "Main.dc.html",
+    "Detalle.dc.html",
+    "DetalleCorregido.dc.html",
+    "Escaner.dc.html",
+    "Coincide.dc.html",
+    "NoCuadra.dc.html",
+    "Cierre.dc.html",
+    "DetalleCierre.dc.html",
+    "SinTicket.dc.html",
+    "Error.dc.html"
+  ],
+  "notes": {
+    "n11": { "x": 964, "y": 1740, "w": 402, "size": "s", "fill": "orange", "text": "Sin ticket no hay con qué contrastar: la línea toma el importe de la etiqueta. Si el precio está rebajado, la etiqueta ya trae el precio rebajado, que es el que pagaste. Guardar si un precio es de rebaja: incidencia aparte." },
+    "n7": { "x": 0, "y": 780, "w": 402, "size": "s", "fill": "orange", "text": "«Peso» sale en las líneas de una unidad, sin peso y cuyo producto no tiene EAN, o que ya se compraron por peso. El pack de yogures es una unidad, pero su producto tiene EAN: no lo lleva. Los tomates (ya en kg) tampoco. Escanear es opcional." },
+    "n8": { "x": 482, "y": 840, "w": 402, "size": "s", "fill": "orange", "text": "Lo nuevo es «Cantidad y precio», igual que en 10d: llega relleno con lo que dice el ticket y sustituye al campo «Importe». Debajo sigue la barra de crear de siempre." },
+    "n10": { "x": 964, "y": 840, "w": 402, "size": "s", "fill": "orange", "text": "Cambiar la cantidad no mueve el total: se recalcula el precio (0,346 kg → 8,82 /kg). Cambiar el precio cambia el total: es corregir una lectura mala del ticket. El recuadro verde solo sale cuando el total ya no coincide con lo leído." },
+    "n9": { "x": 0, "y": 1880, "w": 402, "size": "s", "fill": "orange", "text": "Misma regla que en el ticket: una unidad, sin peso y sin EAN. El aceite es una unidad pero tiene su código de barras: precio fijo, sin «Peso». Una etiqueta leída llena peso, €/kg e importe de su línea." },
+    "n6": { "x": 2398, "y": 660, "w": 402, "size": "s", "fill": "orange", "text": "Mismo aviso, otro motivo. Si la etiqueta ya está en otra línea, solo cambia la frase: «Esta etiqueta ya está en otra línea de Pechuga de pollo. Puede ser la misma etiqueta dos veces, o dos artículos que pesan y cuestan lo mismo.» Si pasan las dos cosas, salen las dos frases." },
+    "n1": { "x": 2880, "y": 0, "w": 300, "size": "s", "fill": "orange", "text": "Cuándo: al cerrar, en casa, con las etiquetas aún puestas. Los precios solo existen en compras cerradas. Escanear en tienda: JAV-233. Escanear varias seguidas: incidencia aparte, secundaria." },
+    "n2": { "x": 2880, "y": 260, "w": 300, "size": "s", "fill": "orange", "text": "Un botón por línea, solo si la tienda tiene etiquetas que la app sabe leer. «Peso» en la fila: cantidad 1, sin peso todavía y producto sin EAN; o producto ya comprado por peso. En el detalle de la línea, siempre, para lo que la regla no pille. Una etiqueta repetida usa el mismo aviso que un total que no coincide (frame 5): el código no lleva número de serie, y dos artículos con el mismo peso y precio dan el mismo. Decides tú." },
+    "n3": { "x": 2880, "y": 560, "w": 300, "size": "s", "fill": "orange", "text": "La cámara se corta en la primera lectura, como en 20a. La línea que tocaste es el destino: no hay selector." },
+    "n4": { "x": 2880, "y": 1100, "w": 300, "size": "s", "fill": "orange", "text": "Sin conexión: la acción sigue visible; al tocarla, el aviso estándar de sin conexión (ADR-011). Sin frame propio." },
+    "n5": { "x": 2880, "y": 1320, "w": 300, "size": "s", "fill": "orange", "text": "Un solo error. El backend responde igual a dígito de control, total que no cuadra, cadena desconocida y longitud. Con pista de tienda, el rechazo es definitivo (ADR-017)." }
+  },
+  "designSystems": []
+}
