@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
+import { formatQuantity } from '../lib/formatQuantity'
+import { parseQuantityFactor } from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
 import {
   effectiveLineTotal,
@@ -42,6 +44,9 @@ export interface ItemRef {
    *  correction from a no-op. */
   price: number | null
   price_per: 'KILOGRAM' | null
+  /** What the record says was bought. A targeted patch overwrites it, so a
+   *  line that changes it is a correction even at the same price. */
+  purchased_quantity: string | null
 }
 
 export type ReceiptConfirmMeta = {
@@ -97,7 +102,32 @@ interface Props {
 /** Prices that print differently are different; below a céntimo they are not. */
 const PRICE_EPSILON = 0.005
 
-/** Whether a receipt line fills, corrects, or merely repeats the current price. */
+/** Quantities closer than a gram (or a thousandth of a unit) are the same. */
+const QUANTITY_EPSILON = 0.0005
+
+/** What the record says was bought, falling back to what was planned. */
+function recordedQuantity(item: ItemRef): string | null {
+  return item.purchased_quantity ?? item.quantity
+}
+
+/**
+ * Whether a receipt line and a record agree on how much was bought. Both
+ * sides go through the same factor parse, so «202g» and «0.202kg» agree. A
+ * side that cannot be read agrees only with another that cannot.
+ */
+function sameQuantity(line: ReceiptLine, item: ItemRef): boolean {
+  const pricePer = linePricePer(line)
+  const fromLine = parseQuantityFactor(quantityString(line), pricePer)
+  const fromItem = parseQuantityFactor(recordedQuantity(item), pricePer)
+  if (fromLine == null || fromItem == null) return fromLine === fromItem
+  return Math.abs(fromLine - fromItem) < QUANTITY_EPSILON
+}
+
+/**
+ * Whether a receipt line fills, corrects, or merely repeats the record. The
+ * patch writes the quantity as well as the price, so a line that changes
+ * either one is a correction.
+ */
 function targetChange(
   line: ReceiptLine,
   item: ItemRef | undefined,
@@ -107,16 +137,17 @@ function targetChange(
   const samePrice =
     Math.abs(item.price - effectiveUnitPrice(line, state)) < PRICE_EPSILON
   const samePer = (item.price_per ?? null) === linePricePer(line)
-  return samePrice && samePer ? 'equal' : 'correct'
+  return samePrice && samePer && sameQuantity(line, item) ? 'equal' : 'correct'
 }
 
 /**
  * In a targeted review, the trip line an unmatched receipt line most likely
  * is. The matcher pairs by name, so a line it missed is often a product the
- * trip holds under another name. Only a price match counts as evidence: the
+ * trip holds under another name. Only a full match counts as evidence: the
  * missed line may also be a product nobody ticked, and linking it to the
- * wrong line would overwrite a correct price and lose the new spend. So the
- * guess is the one line at the paper's price, or none.
+ * wrong line would overwrite a correct price or quantity and lose the new
+ * spend. So the guess is the one line the paper repeats exactly (same unit
+ * price, same quantity), or none.
  */
 function likelyPartner(
   line: ReceiptLine,
@@ -335,6 +366,9 @@ export default function ReceiptScanSheet({
             availableItems(index),
           )
         : null
+      // An accepted guess repeats the record, so its patch changes nothing,
+      // yet the line stays checked: saving it teaches the store's name for
+      // this product, so the next scan matches it on its own.
       setResolveRadioId(partner)
       // Otherwise prefill the create bar with the raw line — the best name
       // we have until the user cleans it up.
@@ -449,8 +483,17 @@ export default function ReceiptScanSheet({
         if (r.kind === 'matched' || r.kind === 'linked') {
           const item = candidateItems.find((it) => it.id === r.itemId)
           if (!item || item.price == null) return 'completa el precio'
-          return targetChange(line, item, lineStates[i]) === 'equal'
-            ? 'sin cambios'
+          if (targetChange(line, item, lineStates[i]) === 'equal') {
+            return 'sin cambios'
+          }
+          // A correction names what it replaces: the price when that moves,
+          // else the quantity, which the patch overwrites too.
+          const samePrice =
+            Math.abs(item.price - effectiveUnitPrice(line, lineStates[i])) <
+              PRICE_EPSILON && (item.price_per ?? null) === linePricePer(line)
+          const recorded = recordedQuantity(item)
+          return samePrice && recorded != null
+            ? `era ${formatQuantity(recorded)}`
             : `era € ${formatRowAmount(item.price)}`
         }
         if (r.kind === 'created') return 'línea nueva en esta compra'

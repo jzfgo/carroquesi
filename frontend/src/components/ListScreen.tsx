@@ -1612,6 +1612,7 @@ export function ListScreen({
               quantity: i.quantity,
               price: i.price,
               price_per: i.price_per,
+              purchased_quantity: i.purchased_quantity,
             }))}
           store={receiptScanTarget?.store ?? receiptScanResult.store}
           target={receiptScanTarget}

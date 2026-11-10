@@ -82,6 +82,7 @@ const candidateItems: ItemRef[] = [
     quantity: null,
     price: null,
     price_per: null,
+    purchased_quantity: null,
   },
   {
     id: 'item-2',
@@ -93,6 +94,7 @@ const candidateItems: ItemRef[] = [
     quantity: null,
     price: null,
     price_per: null,
+    purchased_quantity: null,
   },
   {
     id: 'item-3',
@@ -104,6 +106,7 @@ const candidateItems: ItemRef[] = [
     quantity: null,
     price: null,
     price_per: null,
+    purchased_quantity: null,
   },
   {
     id: 'item-4',
@@ -115,6 +118,7 @@ const candidateItems: ItemRef[] = [
     quantity: null,
     price: null,
     price_per: null,
+    purchased_quantity: null,
   },
 ]
 
@@ -348,7 +352,12 @@ describe('ReceiptScanSheet — thumbnail', () => {
 // (correction). MANI DULCE stays unmatched → a new line if resolved.
 const targetItems: ItemRef[] = [
   { ...candidateItems[0], price: null, price_per: null },
-  { ...candidateItems[1], price: 11.4, price_per: 'KILOGRAM' },
+  {
+    ...candidateItems[1],
+    price: 11.4,
+    price_per: 'KILOGRAM',
+    purchased_quantity: '202g',
+  },
   { ...candidateItems[2], price: 1.2, price_per: null },
 ]
 
@@ -492,6 +501,31 @@ describe('ReceiptScanSheet — targeted resolve (JAV-232)', () => {
       ).not.toBeChecked()
       unmount()
     }
+  })
+
+  it('does not guess a line at the same unit price but another quantity', () => {
+    // The patch writes the quantity too: linking 1 × 3,15 onto a record of
+    // 4 × 3,15 would cut its amount and lose the new product's spend.
+    renderTargeted({
+      candidateItems: [...targetItems, { ...partner, purchased_quantity: '4' }],
+    })
+    fireEvent.click(openRow('MANI DULCE'))
+    expect(
+      screen.getByRole('radio', { name: /Cacahuetes garrapiñados/ }),
+    ).not.toBeChecked()
+  })
+
+  it('notes a quantity correction even when the price repeats', () => {
+    // YOGUR prints 3 × 0,95; the record holds 0,95 × 2.
+    renderTargeted({
+      candidateItems: [
+        targetItems[0],
+        targetItems[1],
+        { ...targetItems[2], price: 0.95, purchased_quantity: '2' },
+      ],
+    })
+    expect(screen.getByText('era 2 UD')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /YOGUR/ })).toBeChecked()
   })
 
   it('guesses nothing when no single line stands out', () => {
