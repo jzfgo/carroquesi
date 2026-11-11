@@ -760,23 +760,23 @@ describe('ReceiptScanSheet — discount lines (JAV-184)', () => {
 describe('ReceiptScanSheet — price correction (JAV-185)', () => {
   it('a corrected line total flows into the row, the sums, and the payload', async () => {
     const { onConfirm } = renderSheet()
-    // Open the MULTI line (3 × 0,95 = 2,85) and correct its total to 1,85.
+    // Open the MULTI line (3 × 0,95 = 2,85) and correct its price to 0,60.
     fireEvent.click(openRow('YOGUR NATURAL'))
-    const input = screen.getByLabelText('Importe')
-    expect(input).toHaveValue('2,85')
-    fireEvent.change(input, { target: { value: '1,85' } })
+    const input = screen.getByLabelText('Precio')
+    expect(input).toHaveValue('0,95')
+    fireEvent.change(input, { target: { value: '0,60' } })
     fireEvent.blur(input)
     fireEvent.click(screen.getByRole('button', { name: /Revisar ticket/ }))
 
-    // The row prints the corrected figure.
-    expect(screen.getByText('1,85')).toBeInTheDocument()
+    // The row prints the corrected total, 3 × 0,60.
+    expect(screen.getByText('1,80')).toBeInTheDocument()
     // Save: the recorded unit price re-derives from the corrected total.
     fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
     fireEvent.click(saveButton())
     await waitFor(() => expect(onConfirm).toHaveBeenCalled())
     const [patches] = onConfirm.mock.calls[0]
     const yogur = patches.find((p) => p.item_id === 'item-3')
-    expect(yogur?.price).toBeCloseTo(1.85 / 3)
+    expect(yogur?.price).toBeCloseTo(0.6)
   })
 
   it("an uncorrected line keeps the parse's own unit price", async () => {
@@ -786,5 +786,71 @@ describe('ReceiptScanSheet — price correction (JAV-185)', () => {
     await waitFor(() => expect(onConfirm).toHaveBeenCalled())
     const [patches] = onConfirm.mock.calls[0]
     expect(patches.find((p) => p.item_id === 'item-2')?.price).toBe(11.4)
+  })
+})
+
+describe('ReceiptScanSheet — quantity correction', () => {
+  function setQuantity(raw: string, text: string) {
+    fireEvent.click(openRow(raw))
+    const qty = screen.getByLabelText('Cantidad y precio')
+    fireEvent.change(qty, { target: { value: text } })
+    fireEvent.blur(qty)
+    fireEvent.click(
+      screen.getByRole('button', { name: /Revisar ticket|Añadir ticket/ }),
+    )
+  }
+
+  it('saves the corrected quantity', async () => {
+    const { onConfirm } = renderSheet()
+    // BEBIDA ALMENDRAS reads 1 × 1,15; it was really 346 g.
+    setQuantity('BEBIDA ALMENDRAS', '346 g')
+    expect(screen.getByText('346 g')).toBeInTheDocument()
+    expect(screen.getByText('1,15')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    const bebida = patches.find((p) => p.item_id === 'item-1')
+    expect(bebida).toMatchObject({ quantity: '346 g', price_per: 'KILOGRAM' })
+    expect(bebida?.price).toBeCloseTo(1.15 / 0.346)
+  })
+
+  it('saves a typed price as typed', async () => {
+    const { onConfirm } = renderSheet()
+    fireEvent.click(openRow('BEBIDA ALMENDRAS'))
+    const qty = screen.getByLabelText('Cantidad y precio')
+    fireEvent.change(qty, { target: { value: '346 g' } })
+    fireEvent.blur(qty)
+    const price = screen.getByLabelText('Precio')
+    fireEvent.change(price, { target: { value: '3,30' } })
+    fireEvent.blur(price)
+    fireEvent.click(
+      screen.getByRole('button', { name: /Revisar ticket|Añadir ticket/ }),
+    )
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    const bebida = patches.find((p) => p.item_id === 'item-1')
+    // 3,30 × 0,346 = 1,1418 → 1,14; dividing back would give 3,2948.
+    expect(bebida?.price).toBe(3.3)
+  })
+
+  it('targeted: a quantity change reads the old price', () => {
+    renderTargeted({
+      candidateItems: [
+        { ...targetItems[0], price: 1.15, purchased_quantity: '1' },
+        targetItems[1],
+        targetItems[2],
+      ],
+    })
+    setQuantity('BEBIDA ALMENDRAS', '2')
+    const box = screen.getByRole('checkbox', { name: /BEBIDA ALMENDRAS/ })
+    if (!(box as HTMLInputElement).checked) fireEvent.click(box)
+    // The total stays 1,15, so the unit price moves to 0,575: the price note
+    // wins over the quantity one.
+    expect(screen.getByText('era € 1,15')).toBeInTheDocument()
   })
 })

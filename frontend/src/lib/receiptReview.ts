@@ -1,5 +1,5 @@
 import type { MatchedLine, UnmatchedLine } from '../types'
-import { deriveUnit } from './itemCost'
+import { deriveUnit, parseQuantityFactor } from './itemCost'
 import { toDateInputValue } from './receiptDate'
 
 export type ReceiptLine = MatchedLine | UnmatchedLine
@@ -22,12 +22,28 @@ export interface LineState {
   included: boolean
   resolution: LineResolution
   /**
-   * A user-corrected line total (13b «Importe»), or null/absent for as-read.
+   * A user-corrected line total (13b «Cantidad y precio»), or null/absent
+   * for as-read.
    * The paper line's own figures stay untouched — this is a correction of the
    * interpretation, and every derived figure (unit price, cuadre, save sum)
    * reads through it.
    */
   lineTotal?: number | null
+  /**
+   * A user-typed quantity (13b «Cantidad y precio»: «346 g», «2»), or
+   * null/absent for as-read. Like `lineTotal`, it corrects the interpretation,
+   * never the paper: the unit price and its per-kg or per-unit key read
+   * through it.
+   */
+  quantity?: string | null
+  /**
+   * The unit price the user typed, or null/absent when the price is derived.
+   * The total rounds to cents, so dividing it back would not give the typed
+   * figure (8,80 €/kg × 0,346 kg = 3,04, and 3,04 / 0,346 = 8,79). Kept so
+   * the field and the price history show what the label says. A new
+   * quantity clears it, since a quantity change keeps the total.
+   */
+  unitPrice?: number | null
 }
 
 export function isNamed(resolution: LineResolution): boolean {
@@ -100,6 +116,58 @@ export function linePricePer(line: ReceiptLine): 'KILOGRAM' | null {
   return deriveUnit(quantityString(line)).pricePer
 }
 
+/** The quantity the review works with: the user's, else the paper's. */
+export function effectiveQuantity(
+  line: ReceiptLine,
+  state?: LineState,
+): string {
+  return state?.quantity ?? quantityString(line)
+}
+
+export function effectivePricePer(
+  line: ReceiptLine,
+  state?: LineState,
+): 'KILOGRAM' | null {
+  return deriveUnit(effectiveQuantity(line, state)).pricePer
+}
+
+/** The quantity column: the paper's, or the user's as they typed it. */
+export function effectiveQuantityDisplay(
+  line: ReceiptLine,
+  state?: LineState,
+): string {
+  return state?.quantity != null ? state.quantity.trim() : quantityDisplay(line)
+}
+
+/**
+ * Two quantities below this apart are the same: a weight read in kilos and
+ * one typed in grams differ only by float noise.
+ */
+export const QUANTITY_EPSILON = 0.0005
+
+/**
+ * Whether two quantity texts mean the same amount: «202 g» and «0,202 kg»
+ * do, «1» and «1 kg» do not, since one counts and the other weighs.
+ */
+export function sameQuantityText(a: string, b: string): boolean {
+  const perA = deriveUnit(a).pricePer
+  if (perA !== deriveUnit(b).pricePer) return false
+  const fa = parseQuantityFactor(a, perA)
+  const fb = parseQuantityFactor(b, perA)
+  if (fa == null || fb == null) return false
+  return Math.abs(fa - fb) < QUANTITY_EPSILON
+}
+
+/** The line total a unit price makes at a quantity, rounded to cents. */
+export function unitPriceToTotal(
+  price: number,
+  quantity: string,
+): number | null {
+  const factor = parseQuantityFactor(quantity, deriveUnit(quantity).pricePer)
+  if (factor == null) return null
+  return Math.round(price * factor * 100) / 100
+}
+
 /**
  * A line's contribution to the receipt — the parse's own `line_total`, not a
  * recomputation. The read receipt total is the sum of these, so the cuadre
@@ -123,25 +191,27 @@ export function effectiveLineTotal(
 }
 
 /**
- * The per-item price the apply records, derived from the effective line
- * total: a multi-unit or by-weight line divides by its quantity, a single
- * unit is the total itself. A missing or zero quantity falls back to the
- * total — recording something recoverable beats dividing by nothing.
+ * The per-item price the apply records. A typed price is kept as typed.
+ * As read, it is the parse's own.
+ * Once either figure is corrected, it is the effective total divided by the
+ * effective quantity, per kilo or per unit. A quantity that gives no factor,
+ * or a zero one, falls back to the total: recording something recoverable
+ * beats dividing by nothing.
  */
 export function effectiveUnitPrice(
   line: ReceiptLine,
   state?: LineState,
 ): number {
-  const total = effectiveLineTotal(line, state)
-  if (state?.lineTotal == null) return line.unit_price
-  if (
-    (line.price_type === 'MULTI' || line.price_type === 'KILOGRAM') &&
-    line.quantity != null &&
-    line.quantity > 0
-  ) {
-    return total / line.quantity
+  if (state?.unitPrice != null) return state.unitPrice
+  if (state?.lineTotal == null && state?.quantity == null) {
+    return line.unit_price
   }
-  return total
+  const total = effectiveLineTotal(line, state)
+  const factor = parseQuantityFactor(
+    effectiveQuantity(line, state),
+    effectivePricePer(line, state),
+  )
+  return factor != null && factor > 0 ? total / factor : total
 }
 
 /** The receipt date as the header pill prints it — «26 jul» (year only if past). */

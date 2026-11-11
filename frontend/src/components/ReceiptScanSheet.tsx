@@ -5,12 +5,13 @@ import { parseQuantityFactor } from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
 import {
   effectiveLineTotal,
+  effectivePricePer,
+  effectiveQuantity,
   effectiveUnitPrice,
   formatReceiptDate,
   isDiscountLine,
   isNamed,
-  linePricePer,
-  quantityString,
+  QUANTITY_EPSILON,
   resolutionItemId,
   resolutionName,
   withBrandSigil,
@@ -102,9 +103,6 @@ interface Props {
 /** Prices that print differently are different; below a céntimo they are not. */
 const PRICE_EPSILON = 0.005
 
-/** Quantities closer than a gram (or a thousandth of a unit) are the same. */
-const QUANTITY_EPSILON = 0.0005
-
 /** What the record says was bought, falling back to what was planned. */
 function recordedQuantity(item: ItemRef): string | null {
   return item.purchased_quantity ?? item.quantity
@@ -115,9 +113,13 @@ function recordedQuantity(item: ItemRef): string | null {
  * sides go through the same factor parse, so «202g» and «0.202kg» agree. A
  * side that cannot be read agrees only with another that cannot.
  */
-function sameQuantity(line: ReceiptLine, item: ItemRef): boolean {
-  const pricePer = linePricePer(line)
-  const fromLine = parseQuantityFactor(quantityString(line), pricePer)
+function sameQuantity(
+  line: ReceiptLine,
+  item: ItemRef,
+  state?: LineState,
+): boolean {
+  const pricePer = effectivePricePer(line, state)
+  const fromLine = parseQuantityFactor(effectiveQuantity(line, state), pricePer)
   const fromItem = parseQuantityFactor(recordedQuantity(item), pricePer)
   if (fromLine == null || fromItem == null) return fromLine === fromItem
   return Math.abs(fromLine - fromItem) < QUANTITY_EPSILON
@@ -136,8 +138,10 @@ function targetChange(
   if (!item || item.price == null) return 'fill'
   const samePrice =
     Math.abs(item.price - effectiveUnitPrice(line, state)) < PRICE_EPSILON
-  const samePer = (item.price_per ?? null) === linePricePer(line)
-  return samePrice && samePer && sameQuantity(line, item) ? 'equal' : 'correct'
+  const samePer = (item.price_per ?? null) === effectivePricePer(line, state)
+  return samePrice && samePer && sameQuantity(line, item, state)
+    ? 'equal'
+    : 'correct'
 }
 
 /**
@@ -337,9 +341,20 @@ export default function ReceiptScanSheet({
     )
   }
 
-  function setLinePrice(index: number, value: number | null) {
+  function setLinePrice(index: number, price: number, total: number | null) {
     setLineStates((prev) =>
-      prev.map((ls, i) => (i === index ? { ...ls, lineTotal: value } : ls)),
+      prev.map((ls, i) =>
+        i === index ? { ...ls, unitPrice: price, lineTotal: total } : ls,
+      ),
+    )
+  }
+
+  function setLineQuantity(index: number, value: string | null) {
+    setLineStates((prev) =>
+      prev.map((ls, i) =>
+        // A quantity change keeps the total, so a typed price no longer holds.
+        i === index ? { ...ls, quantity: value, unitPrice: null } : ls,
+      ),
     )
   }
 
@@ -427,8 +442,8 @@ export default function ReceiptScanSheet({
     lineStates.forEach((ls, i) => {
       if (!ls.included) return
       const line = allLines[i]
-      const quantity = quantityString(line)
-      const pricePer = linePricePer(line)
+      const quantity = effectiveQuantity(line, ls)
+      const pricePer = effectivePricePer(line, ls)
       const r = ls.resolution
       if (r.kind === 'matched' || r.kind === 'linked') {
         patches.push({
@@ -490,7 +505,8 @@ export default function ReceiptScanSheet({
           // else the quantity, which the patch overwrites too.
           const samePrice =
             Math.abs(item.price - effectiveUnitPrice(line, lineStates[i])) <
-              PRICE_EPSILON && (item.price_per ?? null) === linePricePer(line)
+              PRICE_EPSILON &&
+            (item.price_per ?? null) === effectivePricePer(line, lineStates[i])
           if (!samePrice) return `era € ${formatRowAmount(item.price)}`
           const recorded = recordedQuantity(item)
           if (recorded != null) return `era ${formatQuantity(recorded)}`
@@ -542,11 +558,11 @@ export default function ReceiptScanSheet({
           }
           onAssign={assign}
           onBack={() => setResolvingIndex(null)}
-          effectiveTotal={effectiveLineTotal(
-            allLines[resolvingIndex],
-            lineStates[resolvingIndex],
-          )}
-          onChangePrice={(value) => setLinePrice(resolvingIndex, value)}
+          state={lineStates[resolvingIndex]}
+          onChangeQuantity={(value) => setLineQuantity(resolvingIndex, value)}
+          onChangePrice={(price, total) =>
+            setLinePrice(resolvingIndex, price, total)
+          }
         />
       ) : (
         <ReceiptReviewBody

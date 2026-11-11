@@ -1,10 +1,15 @@
-import { expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import type { UnmatchedLine } from '../types'
 import {
   effectiveLineTotal,
+  effectivePricePer,
+  effectiveQuantity,
+  effectiveQuantityDisplay,
   effectiveUnitPrice,
   isDiscountLine,
   type LineState,
+  sameQuantityText,
+  unitPriceToTotal,
 } from './receiptReview'
 
 const line = (over: Partial<UnmatchedLine> = {}): UnmatchedLine => ({
@@ -84,4 +89,64 @@ test('a negative amount marks a discount line; a normal one does not', () => {
   expect(isDiscountLine(line({ line_total: -1.2, unit_price: 1.2 }))).toBe(true)
   expect(isDiscountLine(line())).toBe(false)
   expect(isDiscountLine(line({ line_total: 0, unit_price: 0 }))).toBe(false)
+})
+
+describe('quantity override', () => {
+  const weighed = line({
+    price_type: 'KILOGRAM',
+    quantity: 0.202,
+    unit_price: 9.9,
+    line_total: 2,
+  })
+  const unit = line({ unit_price: 3.05, line_total: 3.05 })
+
+  test('a typed unit price wins over the derived one', () => {
+    const state = {
+      included: true,
+      resolution: { kind: 'unassigned' as const },
+      quantity: '0,346 kg',
+      lineTotal: 3.04,
+      unitPrice: 8.8,
+    }
+    expect(effectiveUnitPrice(unit, state)).toBe(8.8)
+  })
+
+  test('effectiveQuantity falls back to the line', () => {
+    expect(effectiveQuantity(weighed)).toBe('202g')
+  })
+
+  test('sameQuantityText compares by factor and unit', () => {
+    expect(sameQuantityText('202 g', '202g')).toBe(true)
+    expect(sameQuantityText('0,202 kg', '202g')).toBe(true)
+    expect(sameQuantityText('1', '1')).toBe(true)
+    expect(sameQuantityText('2', '1')).toBe(false)
+    expect(sameQuantityText('1', '1 kg')).toBe(false)
+  })
+
+  test('effectivePricePer follows the override', () => {
+    expect(effectivePricePer(unit, state({ quantity: '346 g' }))).toBe(
+      'KILOGRAM',
+    )
+    expect(effectivePricePer(unit, state())).toBeNull()
+  })
+
+  test('quantity change keeps the total', () => {
+    const s = state({ quantity: '0,346 kg' })
+    expect(effectiveLineTotal(unit, s)).toBe(3.05)
+    expect(effectiveUnitPrice(unit, s)).toBeCloseTo(8.815, 3)
+  })
+
+  test('unitPriceToTotal rounds to cents', () => {
+    expect(unitPriceToTotal(8.82, '0,346 kg')).toBe(3.05)
+    expect(unitPriceToTotal(3.5, '1')).toBe(3.5)
+    expect(unitPriceToTotal(2, 'abc kg')).toBe(2)
+    expect(unitPriceToTotal(2, '')).toBe(2)
+  })
+
+  test('effectiveQuantityDisplay shows the override trimmed', () => {
+    expect(effectiveQuantityDisplay(weighed)).toBe('202 g')
+    expect(
+      effectiveQuantityDisplay(weighed, state({ quantity: '  346 g ' })),
+    ).toBe('346 g')
+  })
 })

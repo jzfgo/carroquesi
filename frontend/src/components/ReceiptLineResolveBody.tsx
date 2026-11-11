@@ -2,14 +2,28 @@ import { ChevronLeft, ScanBarcode } from 'lucide-react'
 import { useState } from 'react'
 import { foldText } from '../lib/foldText'
 import { formatRowAmount, parseAmount } from '../lib/formatPrice'
+import { deriveUnit } from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
 import {
+  effectiveLineTotal,
+  effectiveQuantity,
+  effectiveQuantityDisplay,
+  effectiveUnitPrice,
+  type LineState,
   lineTotal,
   quantityDisplay,
+  quantityString,
   type ReceiptLine,
+  sameQuantityText,
+  unitPriceToTotal,
 } from '../lib/receiptReview'
 import type { Suggestion } from '../types'
+import { QuantityPriceRow } from './QuantityPriceRow'
 import type { ItemRef } from './ReceiptScanSheet'
+
+// A quantity must open with a number: «6», «0,346 kg». The factor parse
+// cannot judge this, since it reads unknown text as one unit.
+const LEADING_NUMBER = /^\d+(?:[.,]\d+)?/
 
 interface Props {
   line: ReceiptLine
@@ -27,13 +41,15 @@ interface Props {
   onRequestScan?: () => void
   onAssign: () => void
   onBack: () => void
-  /** The line total the review is working with — the user's correction when
-   *  one exists, else the read figure. */
-  effectiveTotal: number
-  /** Corrects the line's total («el papel no se discute» — this edits the
+  /** The line's review state, carrying any quantity or total correction. */
+  state: LineState | undefined
+  /** Corrects how much was bought («el papel no se discute»: this edits the
    *  interpretation, never the raw line above). Null clears the correction.
    *  Commits like the header store/date controls: on leaving the field. */
-  onChangePrice: (value: number | null) => void
+  onChangeQuantity: (quantity: string | null) => void
+  /** Sets the typed unit price and the total it makes. A null total means
+   *  the total matches the paper again. */
+  onChangePrice: (price: number, total: number | null) => void
   /** The back galón names the review it returns to; the targeted review has
    *  its own title. */
   backLabel?: string
@@ -75,27 +91,67 @@ export function ReceiptLineResolveBody({
   onRequestScan,
   onAssign,
   onBack,
-  effectiveTotal,
+  state,
+  onChangeQuantity,
   onChangePrice,
   backLabel = 'Revisar ticket',
   targeted = false,
 }: Props) {
-  // The amount draft, comma-decimal like every hand-typed price. Committed on
-  // blur: an amount equal to the read figure clears the correction (typing
-  // the paper's own number back is undoing, not overriding), an invalid one
-  // reverts to what the review is working with.
-  const [priceDraft, setPriceDraft] = useState(() =>
-    effectiveTotal.toFixed(2).replace('.', ','),
-  )
-  function commitPrice() {
-    const value = parseAmount(priceDraft)
-    if (value == null) {
-      setPriceDraft(effectiveTotal.toFixed(2).replace('.', ','))
+  // Both drafts start from what the review works with and follow it when it
+  // changes: a new quantity re-derives the price, never the total. A field
+  // commits on blur; matching the paper clears the correction (typing the
+  // paper's own figure back is undoing, not overriding); invalid text
+  // reverts.
+  const qtyBase = effectiveQuantityDisplay(line, state)
+  const priceBase = formatRowAmount(effectiveUnitPrice(line, state))
+  const [qtyDraft, setQtyDraft] = useState(qtyBase)
+  const [priceDraft, setPriceDraft] = useState(priceBase)
+  const [seen, setSeen] = useState({ qty: qtyBase, price: priceBase })
+  if (seen.qty !== qtyBase || seen.price !== priceBase) {
+    setSeen({ qty: qtyBase, price: priceBase })
+    setQtyDraft(qtyBase)
+    setPriceDraft(priceBase)
+  }
+
+  function commitQuantity() {
+    if (qtyDraft === qtyBase) return
+    const text = qtyDraft.trim()
+    const number = LEADING_NUMBER.exec(text)
+    if (!number || parseFloat(number[0].replace(',', '.')) === 0) {
+      setQtyDraft(qtyBase)
       return
     }
-    onChangePrice(value === lineTotal(line) ? null : value)
-    setPriceDraft(value.toFixed(2).replace('.', ','))
+    // The same amount written another way is no change, and must not drop a
+    // typed price.
+    if (sameQuantityText(text, effectiveQuantity(line, state))) {
+      setQtyDraft(qtyBase)
+      return
+    }
+    if (sameQuantityText(text, quantityString(line))) {
+      onChangeQuantity(null)
+      setQtyDraft(quantityDisplay(line))
+      return
+    }
+    onChangeQuantity(text)
   }
+
+  function commitPrice() {
+    // A field left untouched must not round its own figure into a correction.
+    if (priceDraft === priceBase) return
+    const price = parseAmount(priceDraft)
+    const total =
+      price == null
+        ? null
+        : unitPriceToTotal(price, effectiveQuantity(line, state))
+    if (price == null || total == null) {
+      setPriceDraft(priceBase)
+      return
+    }
+    onChangePrice(price, total === lineTotal(line) ? null : total)
+  }
+
+  const total = effectiveLineTotal(line, state)
+  const corrected = total !== lineTotal(line)
   // The main add bar keeps its sigils silent, but this bar arrives prefilled
   // with raw OCR text the user has to clean by hand — so it earns a short,
   // collapsed reminder of the syntax that helps. Only the sigils this path
@@ -138,25 +194,35 @@ export function ReceiptLineResolveBody({
       </div>
 
       {/* The raw line above is the paper and stays as read; this corrects what
-          the app understood — the amount that sums, saves, and prices. */}
-      <div className="rss-resolve-price">
-        <label className="rss-eyebrow" htmlFor="rss-resolve-price-input">
-          Importe
-        </label>
-        <div className="rss-control-editor">
-          <input
-            id="rss-resolve-price-input"
-            className="rss-control-editor__input rss-resolve-price__input"
-            type="text"
-            inputMode="decimal"
-            value={priceDraft}
-            onChange={(e) => setPriceDraft(e.target.value)}
-            onBlur={commitPrice}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur()
-            }}
-          />
-        </div>
+          the app understood — how much, and at what price. */}
+      <div className="rss-qtyprice">
+        <QuantityPriceRow
+          id="rss-qty"
+          quantity={qtyDraft}
+          priceText={priceDraft}
+          suffix={deriveUnit(qtyDraft).suffix}
+          onQuantityChange={setQtyDraft}
+          onPriceChange={setPriceDraft}
+          onQuantityBlur={commitQuantity}
+          onPriceBlur={commitPrice}
+        >
+          {corrected && (
+            <div className="rss-corrected" role="status">
+              <span className="rss-corrected__label">
+                Importe corregido{' '}
+                <span className="rss-corrected__paper">
+                  · en el ticket{' '}
+                  <span className="rss-corrected__num">
+                    {formatRowAmount(lineTotal(line))}
+                  </span>
+                </span>
+              </span>
+              <span className="rss-corrected__value">
+                {formatRowAmount(total)}
+              </span>
+            </div>
+          )}
+        </QuantityPriceRow>
       </div>
 
       <div className="rss-resolve-body">
