@@ -43,6 +43,66 @@
   background: transparent;
 }
 
+/* A label's barcode is long and low. */
+.barcode-scanner__frame--wide {
+  width: min(320px, calc(100vw - 40px));
+  height: 110px;
+}
+
+/* The line a label scan is for, top left, clear of the close button. */
+.barcode-scanner__caption {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  right: 76px;
+  display: flex;
+}
+
+.barcode-scanner__target {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 50%);
+  border: 1px solid rgb(255 255 255 / 30%);
+  color: #fff;
+}
+
+.barcode-scanner__target-eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 70%);
+}
+
+.barcode-scanner__target-line {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.barcode-scanner__target-name {
+  font-size: var(--fs-14);
+  font-weight: 500;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barcode-scanner__target-total {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
 .barcode-scanner__hint {
   /* Above the frame's shadow, which would otherwise dim the text. */
   position: relative;
