@@ -373,6 +373,41 @@ test('the 10d editor scans too, and keeps what was typed', async () => {
   })
 })
 
+test('a blank «Añadir producto» that scans and goes back adds no line', async () => {
+  vi.mocked(getLabel).mockResolvedValue(LABEL)
+  renderSheet([item({ id: 'a', name: 'Leche', quantity: '6' })])
+  fireEvent.click(screen.getByText('Añadir producto'))
+  fireEvent.click(screen.getByRole('button', { name: 'Escanear etiqueta' }))
+  await scanAndUse()
+  // Still a new line: it discards, it does not «quit the cart».
+  expect(screen.getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
+  expect(screen.getByDisplayValue('0,346 kg')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /Cerrar compra/ }))
+
+  fireEvent.click(screen.getByText('Guardar compra'))
+  await waitFor(() => expect(closePurchase).toHaveBeenCalled())
+  const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
+  expect(body.new_items).toEqual([])
+})
+
+test('a scan cancelled from 10d leaves the line as it was', async () => {
+  renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '2' })])
+  fireEvent.click(screen.getByLabelText('Ajustar Contramuslo'))
+  fireEvent.change(screen.getByPlaceholderText('Nombre del producto'), {
+    target: { value: '' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Escanear etiqueta' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar escáner' }))
+  // Back in 10d with the typed (blank) name; going back drops the edit.
+  expect(screen.getByPlaceholderText('Nombre del producto')).toHaveValue('')
+  fireEvent.click(screen.getByRole('button', { name: /Cerrar compra/ }))
+
+  fireEvent.click(screen.getByText('Guardar compra'))
+  await waitFor(() => expect(closePurchase).toHaveBeenCalled())
+  const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
+  expect(body.lines[0]).toMatchObject({ item_id: 'a', name: 'Contramuslo' })
+})
+
 test('«Escribir a mano» opens the line’s editor', async () => {
   vi.mocked(getLabel).mockResolvedValue(null)
   renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '1' })])
