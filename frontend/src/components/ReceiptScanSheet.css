@@ -268,6 +268,10 @@
 .rss-row__check {
   width: 20px;
   height: 20px;
+
+  /* The row's column gap is the subgrid's 8px; this keeps the product 10px
+     from the box, plus the box's own 3px margin. */
+  margin-right: 5px;
   accent-color: var(--accent);
   cursor: pointer;
 }
