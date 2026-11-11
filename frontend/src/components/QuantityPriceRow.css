@@ -1,0 +1,123 @@
+.qtyprice-field {
+  display: block;
+}
+
+.qtyprice-field__label {
+  margin-bottom: 8px;
+}
+
+.qtyprice {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+/* The same field box the editor's other fields use. The price box is a div
+   wrapping its own input, so it can hold the € and the unit suffix. */
+.qtyprice__box {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+  background: var(--paper-1);
+  border: 1.5px solid var(--paper-edge);
+  border-radius: var(--r-md);
+  line-height: 1.3;
+  color: var(--ink-0);
+  outline: none;
+}
+
+.qtyprice__qty {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.qtyprice__qty::placeholder {
+  color: var(--ink-3);
+}
+
+.qtyprice__x {
+  align-self: center;
+  font-family: var(--font-sans);
+  font-size: var(--fs-15);
+  color: var(--ink-2);
+}
+
+.qtyprice__price {
+  flex: 1;
+  min-width: 0;
+  gap: 6px;
+}
+
+/* Focus is the accent ring the design system already defines — border + halo. */
+.qtyprice__qty:focus,
+.qtyprice__price:focus-within {
+  box-shadow: var(--focus-ring);
+  border-color: var(--tinta-0);
+}
+
+.qtyprice__euro {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+.qtyprice__amount {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  outline: none;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-0);
+}
+
+.qtyprice__suffix {
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  color: var(--ink-1);
+}
+
+/* Dashed/tinta while a suggestion waits: «esto aún no es real». Declared after
+   the base fields so the compound overrides don't descend in specificity. */
+.qtyprice__price--suggested {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--tinta-0);
+}
+
+.qtyprice__price--suggested .qtyprice__euro,
+.qtyprice__price--suggested .qtyprice__amount,
+.qtyprice__price--suggested .qtyprice__suffix {
+  color: var(--tinta-0);
+}
+
+.qtyprice__price--suggested .qtyprice__amount::placeholder {
+  color: var(--tinta-0);
+  opacity: 0.7;
+}
+
+.qtyprice-help {
+  margin: 8px 0 0;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.qtyprice-help code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-1);
+}

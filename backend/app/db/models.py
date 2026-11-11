@@ -233,6 +233,29 @@ class ReceiptNameMapping(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=_now)
 
 
+class ChainArticleMapping(SQLModel, table=True):
+    """A chain's article code on an in-store label, and the product it was.
+
+    Each list keeps its own rows. The item names are what one household
+    typed, so they must not reach another household's list. `chain` is the
+    chain's `key`, a lookup key only, never displayed.
+    """
+
+    __tablename__ = "chain_article_mappings"
+    __table_args__ = (UniqueConstraint("list_id", "chain", "article"),)
+
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    list_id: str = Field(foreign_key="lists.id")
+    chain: str
+    article: str
+    item_name: str
+    item_brand: str | None = None
+    confirmed_by: str = Field(foreign_key="users.id")
+    use_count: int = 1
+    created_at: datetime = Field(default_factory=_now)
+    updated_at: datetime = Field(default_factory=_now)
+
+
 class FeedbackSubmission(SQLModel, table=True):
     __tablename__ = "feedback_submissions"
 

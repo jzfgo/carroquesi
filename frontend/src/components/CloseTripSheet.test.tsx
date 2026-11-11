@@ -1,21 +1,59 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import {
   closePurchase,
+  getLabel,
   getPriceHistory,
   getPurchaseItems,
   updateItem,
 } from '../lib/api'
-import type { ListItem } from '../types'
+import { reportRequestOutcome } from '../lib/connectivity'
+import type { LabelRead, ListItem } from '../types'
 import { CloseTripSheet } from './CloseTripSheet'
 import { ADD_STORE } from './StoreSelect'
 
 vi.mock('../lib/api', () => ({
   closePurchase: vi.fn(),
+  getLabel: vi.fn(),
   getPriceHistory: vi.fn(),
   getPurchaseItems: vi.fn(),
   updateItem: vi.fn(),
 }))
+
+// The camera is LabelScanner's to test; here a read is a button.
+vi.mock('./LabelScanner', () => ({
+  LabelScanner: ({
+    onDetect,
+    onClose,
+  }: {
+    onDetect: (code: string | null) => void
+    onClose: () => void
+  }) => (
+    <div>
+      <button onClick={() => onDetect('230123450034600882003052')}>
+        leer etiqueta
+      </button>
+      <button onClick={onClose}>Cerrar escáner</button>
+    </div>
+  ),
+}))
+
+// The frames' «Contramuslo deshuesado»: 346 g at 8,82 €/kg is 3,05.
+const LABEL: LabelRead = {
+  format: 'mercadona-24',
+  article: '01234',
+  reduced: false,
+  weight_g: 346,
+  price_per_kg_cents: 882,
+  total_cents: 305,
+  chain: 'Mercadona',
+}
+
+const showToast = vi.fn()
+
+afterEach(() => {
+  reportRequestOutcome(true)
+})
 
 const getToken = () => Promise.resolve('t')
 
@@ -31,6 +69,7 @@ function item(over: Partial<ListItem> = {}): ListItem {
     purchased: true,
     purchased_at: '2026-08-04T09:00:00',
     purchase_has_receipt: false,
+    bought_by_weight: false,
     purchase_ends_at: '2099-01-01T00:00:00',
     ean: null,
     price: null,
@@ -60,6 +99,7 @@ function renderSheet(cartItems: ListItem[]) {
       displayStore={(s) => s}
       onClose={vi.fn()}
       onDone={onDone}
+      showToast={showToast}
     />,
   )
   return { onDone }
@@ -73,7 +113,9 @@ test('renders each line and sums the confirmed total', () => {
   expect(screen.getByText('Leche')).toBeInTheDocument()
   expect(screen.getByText('Café')).toBeInTheDocument()
   // 1,90 + 3,29 = 5,19
-  expect(screen.getByText('€ 5,19')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Guardar compra · € 5,19' }),
+  ).toBeInTheDocument()
 })
 
 test('the store dropdown defaults to the first offer and selects another', async () => {
@@ -85,7 +127,7 @@ test('the store dropdown defaults to the first offer and selects another', async
   expect(select.value).toBe('Mercadona')
   fireEvent.change(select, { target: { value: 'Lidl' } })
   expect(select.value).toBe('Lidl')
-  fireEvent.click(screen.getByText('Guardar compra'))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   expect(vi.mocked(closePurchase).mock.calls.at(-1)![2].store).toBe('Lidl')
 })
@@ -100,6 +142,7 @@ test('a store-less cart still offers registry stores and «+ otra»', async () =
       displayStore={(s) => s}
       onClose={vi.fn()}
       onDone={vi.fn()}
+      showToast={showToast}
     />,
   )
   // Registry stores are offered though the cart names none.
@@ -113,10 +156,35 @@ test('a store-less cart still offers registry stores and «+ otra»', async () =
     target: { value: 'Ahorramás' },
   })
   fireEvent.click(screen.getByText('Usar esta tienda'))
-  fireEvent.click(screen.getByText('Guardar compra'))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
   expect(body.store).toBe('Ahorramás')
+})
+
+test('with no store to offer, the save waits and the warning says why', () => {
+  renderSheet([item({ id: 'a', stores: [] })])
+  expect(screen.getByRole('button', { name: /^Guardar compra/ })).toBeDisabled()
+  expect(screen.getByText(/para guardar esta compra/)).toHaveTextContent(
+    'Indica la tienda para guardar esta compra',
+  )
+})
+
+test('a row is named by its content, so its quantity and amount are read', () => {
+  renderSheet([item({ id: 'a', name: 'Leche', quantity: '2', price: 1.9 })])
+  expect(
+    screen.getByRole('button', { name: /^Ajustar Leche\b/ }),
+  ).toHaveAccessibleName('Ajustar Leche 2 3,80')
+})
+
+test('taking the last list product out leaves the save waiting, and says why', () => {
+  renderSheet([item({ id: 'a', name: 'Leche' })])
+  fireEvent.click(screen.getByRole('button', { name: /^Ajustar Leche\b/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Quitar del carro' }))
+  expect(screen.getByRole('button', { name: /^Guardar compra/ })).toBeDisabled()
+  expect(screen.getByText(/para guardar esta compra/)).toHaveTextContent(
+    'Deja al menos un producto del carro para guardar esta compra',
+  )
 })
 
 test('«Guardar compra» closes with the store, date and per-line fields', async () => {
@@ -129,7 +197,7 @@ test('«Guardar compra» closes with the store, date and per-line fields', async
       brand: 'Hacendado',
     }),
   ])
-  fireEvent.click(screen.getByText('Guardar compra'))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   const body = vi.mocked(closePurchase).mock.calls[0][2]
   expect(body.store).toBe('Mercadona')
@@ -159,10 +227,11 @@ test('a proto close defaults its date to the day it covered, not today', async (
       displayStore={(s) => s}
       onClose={vi.fn()}
       onDone={vi.fn()}
+      showToast={showToast}
     />,
   )
   await waitFor(() => expect(screen.getByText('Leche')).toBeInTheDocument())
-  fireEvent.click(screen.getByText('Guardar compra'))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
   expect(body.date).toBe('2026-07-30')
@@ -194,13 +263,205 @@ test('«Confirmar los precios sugeridos» applies the inherited price', async ()
   expect(screen.getByText('(precio sugerido)')).toBeInTheDocument()
   fireEvent.click(screen.getByText(/Confirmar el precio sugerido/))
   // Confirmed → it now counts toward the total and drops the suggested voice.
-  await waitFor(() => expect(screen.getByText('€ 2,50')).toBeInTheDocument())
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Guardar compra · € 2,50' }),
+    ).toBeInTheDocument(),
+  )
   expect(screen.queryByText('(precio sugerido)')).not.toBeInTheDocument()
 })
 
-test('the pencil opens the adjust-product editor (10d)', () => {
+test('tapping a row opens the adjust-product editor (10d)', () => {
   renderSheet([item({ id: 'a', name: 'Leche' })])
-  fireEvent.click(screen.getByLabelText('Ajustar Leche'))
+  fireEvent.click(screen.getByRole('button', { name: /^Ajustar Leche\b/ }))
   // 10d is a sub-sheet with a back-galón and the Producto field.
   expect(screen.getByText('Producto')).toBeInTheDocument()
+})
+
+const chip = (name: string) =>
+  screen.queryByRole('button', { name: `Escanear la etiqueta de «${name}»` })
+
+async function scanAndUse() {
+  fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Usar en esta línea' }),
+  )
+}
+
+test('«Peso» shows on one-unit lines with no EAN, at a store whose labels weigh', () => {
+  renderSheet([
+    item({ id: 'a', name: 'Contramuslo', quantity: '1' }),
+    item({ id: 'b', name: 'Leche', quantity: '6' }),
+    item({ id: 'c', name: 'Aceite', quantity: '1', ean: '8480000123456' }),
+    item({
+      id: 'd',
+      name: 'Pechuga',
+      quantity: '1',
+      ean: '8480000654321',
+      bought_by_weight: true,
+    }),
+  ])
+  expect(chip('Contramuslo')).toBeInTheDocument()
+  expect(chip('Leche')).not.toBeInTheDocument()
+  expect(chip('Aceite')).not.toBeInTheDocument()
+  expect(chip('Pechuga')).toBeInTheDocument()
+})
+
+test('a scanned label sets the line: weight, €/kg and amount', async () => {
+  vi.mocked(getLabel).mockResolvedValue(LABEL)
+  renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '1' })])
+  fireEvent.click(chip('Contramuslo')!)
+  await scanAndUse()
+  expect(screen.getByText('0,346 kg')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Guardar compra · € 3,05' }),
+  ).toBeInTheDocument()
+  expect(screen.getByText('8,82 €/kg · de la etiqueta')).toBeInTheDocument()
+  expect(chip('Contramuslo')).not.toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
+  await waitFor(() => expect(closePurchase).toHaveBeenCalled())
+  const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
+  expect(body.lines[0]).toMatchObject({
+    item_id: 'a',
+    quantity: '0,346 kg',
+    price: 8.82,
+    price_per: 'KILOGRAM',
+    article: '01234',
+  })
+})
+
+test('the label is decoded against the selected store', async () => {
+  vi.mocked(getLabel).mockResolvedValue(LABEL)
+  renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '1' })])
+  fireEvent.click(chip('Contramuslo')!)
+  fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+  await waitFor(() =>
+    expect(getLabel).toHaveBeenCalledWith(
+      getToken,
+      '230123450034600882003052',
+      'Mercadona',
+    ),
+  )
+})
+
+test('another store hides the chip, and a scanned line keeps its label', async () => {
+  vi.mocked(getLabel).mockResolvedValue(LABEL)
+  renderSheet([
+    item({
+      id: 'a',
+      name: 'Contramuslo',
+      quantity: '1',
+      stores: ['Mercadona'],
+    }),
+    item({ id: 'b', name: 'Pan', quantity: '1', stores: ['Ahorramas'] }),
+  ])
+  fireEvent.click(chip('Contramuslo')!)
+  await scanAndUse()
+  expect(chip('Pan')).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('Tienda'), {
+    target: { value: 'Ahorramas' },
+  })
+  expect(chip('Pan')).not.toBeInTheDocument()
+  expect(screen.getByText('0,346 kg')).toBeInTheDocument()
+})
+
+test('the same label on a second line warns', async () => {
+  vi.mocked(getLabel).mockResolvedValue(LABEL)
+  renderSheet([
+    item({ id: 'a', name: 'Contramuslo', quantity: '1' }),
+    item({ id: 'b', name: 'Pechuga', quantity: '1' }),
+  ])
+  fireEvent.click(chip('Contramuslo')!)
+  await scanAndUse()
+  fireEvent.click(chip('Pechuga')!)
+  fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+  expect(
+    await screen.findByText(
+      /Esta etiqueta ya está en otra línea de Contramuslo\./,
+    ),
+  ).toBeInTheDocument()
+})
+
+test('the 10d editor scans too, and keeps what was typed', async () => {
+  vi.mocked(getLabel).mockResolvedValue(LABEL)
+  renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '2' })])
+  fireEvent.click(
+    screen.getByRole('button', { name: /^Ajustar Contramuslo\b/ }),
+  )
+  fireEvent.change(screen.getByPlaceholderText('Nombre del producto'), {
+    target: { value: 'Contramuslo deshuesado' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Escanear etiqueta' }))
+  await scanAndUse()
+  expect(screen.getByDisplayValue('Contramuslo deshuesado')).toBeInTheDocument()
+  expect(screen.getByDisplayValue('0,346 kg')).toBeInTheDocument()
+  expect(screen.getByDisplayValue('8,82')).toBeInTheDocument()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Hecho' }))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
+  await waitFor(() => expect(closePurchase).toHaveBeenCalled())
+  const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
+  expect(body.lines[0]).toMatchObject({
+    name: 'Contramuslo deshuesado',
+    article: '01234',
+  })
+})
+
+test('a blank «Añadir producto» that scans and goes back adds no line', async () => {
+  vi.mocked(getLabel).mockResolvedValue(LABEL)
+  renderSheet([item({ id: 'a', name: 'Leche', quantity: '6' })])
+  fireEvent.click(screen.getByText('Añadir producto'))
+  fireEvent.click(screen.getByRole('button', { name: 'Escanear etiqueta' }))
+  await scanAndUse()
+  // Still a new line: it discards, it does not «quit the cart».
+  expect(screen.getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
+  expect(screen.getByDisplayValue('0,346 kg')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /Cerrar compra/ }))
+
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
+  await waitFor(() => expect(closePurchase).toHaveBeenCalled())
+  const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
+  expect(body.new_items).toEqual([])
+})
+
+test('a scan cancelled from 10d leaves the line as it was', async () => {
+  renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '2' })])
+  fireEvent.click(
+    screen.getByRole('button', { name: /^Ajustar Contramuslo\b/ }),
+  )
+  fireEvent.change(screen.getByPlaceholderText('Nombre del producto'), {
+    target: { value: '' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Escanear etiqueta' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Cerrar escáner' }))
+  // Back in 10d with the typed (blank) name; going back drops the edit.
+  expect(screen.getByPlaceholderText('Nombre del producto')).toHaveValue('')
+  fireEvent.click(screen.getByRole('button', { name: /Cerrar compra/ }))
+
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
+  await waitFor(() => expect(closePurchase).toHaveBeenCalled())
+  const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
+  expect(body.lines[0]).toMatchObject({ item_id: 'a', name: 'Contramuslo' })
+})
+
+test('«Escribir a mano» opens the line’s editor', async () => {
+  vi.mocked(getLabel).mockResolvedValue(null)
+  renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '1' })])
+  fireEvent.click(chip('Contramuslo')!)
+  fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Escribir a mano' }),
+  )
+  expect(screen.getByDisplayValue('Contramuslo')).toBeInTheDocument()
+})
+
+test('offline, the chip refuses with the offline toast', () => {
+  renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '1' })])
+  reportRequestOutcome(false)
+  fireEvent.click(chip('Contramuslo')!)
+  expect(showToast).toHaveBeenCalledWith('Sin conexión')
+  expect(
+    screen.queryByRole('button', { name: 'leer etiqueta' }),
+  ).not.toBeInTheDocument()
 })

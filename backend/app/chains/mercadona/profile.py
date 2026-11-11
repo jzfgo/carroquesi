@@ -40,4 +40,5 @@ PROFILE = ChainProfile(
     name="Mercadona",
     own_brands=("hacendado", "bosque verde", "deliplus baby", "deliplus", "compy"),
     decoders=(decode_weighed_24, ean13_price("23")),
+    reads_label_weight=True,
 )

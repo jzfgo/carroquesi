@@ -1,8 +1,11 @@
-import { Check, ChevronLeft, X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
 import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
 import './AdjustProductSheet.css'
+import { PrimaryButton, SheetBackButton } from './PurchaseSheetParts'
+import { QuantityPriceRow } from './QuantityPriceRow'
+import { ScanLabelButton } from './WeightChip'
 
 /** One line of the close draft — the shape 10b holds and 10d edits. */
 export interface DraftLine {
@@ -20,6 +23,13 @@ export interface DraftLine {
    * the dashed opt-in suggestion. Cleared/ignored once the user prices by hand.
    */
   suggested: { price: number; price_per: 'KILOGRAM' | null } | null
+  /** The cart item's EAN and past weighed purchases: they decide whether
+   *  the row offers the «Peso» chip. */
+  ean: string | null
+  bought_by_weight: boolean
+  /** The weighed label used on this line, if any: its code, to notice the
+   *  same label twice, and its article code, which the save sends. */
+  label: { code: string; article: string } | null
 }
 
 interface Props {
@@ -32,6 +42,9 @@ interface Props {
   onRemove: () => void
   /** Back-galón — return to the 10b table without committing. */
   onBack: () => void
+  /** «Escanear etiqueta». It hands over what the editor holds, so a typed
+   *  name or brand survives the scan. */
+  onScanLabel?: (draft: DraftLine) => void
 }
 
 function parsePrice(text: string): number | null {
@@ -52,6 +65,7 @@ export function AdjustProductSheet({
   onDone,
   onRemove,
   onBack,
+  onScanLabel,
 }: Props) {
   const [name, setName] = useState(line.name)
   const [brand, setBrand] = useState(line.brand ?? '')
@@ -71,16 +85,16 @@ export function AdjustProductSheet({
   const showSuggestion =
     line.suggested != null && !priceTouched && priceText === ''
 
-  const commit = () => {
-    onDone({
-      ...line,
-      name: name.trim(),
-      brand: brand.trim() || null,
-      quantity: quantity.trim() || null,
-      price,
-      price_per: price != null ? pricePer : null,
-    })
-  }
+  const draft = (): DraftLine => ({
+    ...line,
+    name: name.trim(),
+    brand: brand.trim() || null,
+    quantity: quantity.trim() || null,
+    price,
+    price_per: price != null ? pricePer : null,
+  })
+
+  const commit = () => onDone(draft())
 
   const confirmSuggested = () => {
     if (!line.suggested) return
@@ -90,14 +104,11 @@ export function AdjustProductSheet({
 
   return (
     <div className="adjust-sheet__view">
-      <button type="button" className="adjust-sheet__back" onClick={onBack}>
-        <ChevronLeft size={22} strokeWidth={1.8} aria-hidden />
-        Cerrar compra
-      </button>
+      <SheetBackButton label="Cerrar compra" onClick={onBack} />
 
       <div className="adjust-sheet__body">
         <label className="adjust-field">
-          <span className="adjust-field__label">Producto</span>
+          <span className="psheet-label adjust-field__label">Producto</span>
           {/* No autoFocus: a form sheet opens without popping the keyboard —
               the field waits for a tap. The sheet's focus trap parks focus on
               the panel, not on a text input. */}
@@ -109,47 +120,24 @@ export function AdjustProductSheet({
           />
         </label>
 
-        <div className="adjust-field">
-          <span className="adjust-field__label">Cantidad y precio</span>
-          <div className="adjust-qtyprice">
-            <input
-              className="adjust-field__box adjust-qtyprice__qty"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              placeholder="6"
-              inputMode="text"
-            />
-            <span className="adjust-qtyprice__x" aria-hidden>
-              ×
-            </span>
-            <div
-              className={`adjust-field__box adjust-qtyprice__price${
-                showSuggestion ? ' adjust-qtyprice__price--suggested' : ''
-              }`}
-            >
-              <span className="adjust-qtyprice__euro">€</span>
-              <input
-                className="adjust-qtyprice__amount"
-                value={priceText}
-                onChange={(e) => {
-                  setPriceText(e.target.value)
-                  setPriceTouched(true)
-                }}
-                placeholder={
-                  showSuggestion
-                    ? formatRowAmount(line.suggested!.price)
-                    : '0,00'
-                }
-                inputMode="decimal"
-              />
-              <span className="adjust-qtyprice__suffix">{suffix}</span>
-            </div>
-          </div>
-          <p className="adjust-help">
-            Escribe unidades (<code>6</code>) o peso (<code>500 ml</code>,{' '}
-            <code>1,12 kg</code>). El precio se ajusta solo.
-          </p>
-
+        <QuantityPriceRow
+          id="adjust-qty"
+          quantity={quantity}
+          priceText={priceText}
+          suffix={suffix}
+          onQuantityChange={setQuantity}
+          onPriceChange={(text) => {
+            setPriceText(text)
+            setPriceTouched(true)
+          }}
+          pricePlaceholder={
+            showSuggestion ? formatRowAmount(line.suggested!.price) : '0,00'
+          }
+          suggested={showSuggestion}
+        >
+          {onScanLabel && (
+            <ScanLabelButton onClick={() => onScanLabel(draft())} />
+          )}
           {showSuggestion ? (
             <div className="adjust-suggest">
               <span className="adjust-suggest__q">
@@ -174,18 +162,16 @@ export function AdjustProductSheet({
             </div>
           ) : (
             <div className="adjust-linetotal">
-              <span className="adjust-linetotal__label">
-                Línea de la compra
-              </span>
+              <span className="adjust-linetotal__label">Importe</span>
               <span className="adjust-linetotal__value">
                 {lineTotal != null ? `€ ${formatRowAmount(lineTotal)}` : '—'}
               </span>
             </div>
           )}
-        </div>
+        </QuantityPriceRow>
 
         <label className="adjust-field">
-          <span className="adjust-field__label">
+          <span className="psheet-label adjust-field__label">
             Marca <span className="adjust-field__opt">· opcional</span>
           </span>
           <input
@@ -198,14 +184,9 @@ export function AdjustProductSheet({
       </div>
 
       <div className="adjust-sheet__footer">
-        <button
-          type="button"
-          className="adjust-sheet__done"
-          onClick={commit}
-          disabled={name.trim() === ''}
-        >
+        <PrimaryButton onClick={commit} disabled={name.trim() === ''}>
           Hecho
-        </button>
+        </PrimaryButton>
         <button
           type="button"
           className="adjust-sheet__remove"

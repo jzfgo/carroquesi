@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
+import { isOnline } from '../lib/connectivity'
 import { formatRowAmount } from '../lib/formatPrice'
 import { formatQuantity } from '../lib/formatQuantity'
 import { parseQuantityFactor } from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
 import {
   effectiveLineTotal,
+  effectivePricePer,
+  effectiveQuantity,
   effectiveUnitPrice,
-  formatReceiptDate,
   isDiscountLine,
   isNamed,
-  linePricePer,
-  quantityString,
+  QUANTITY_EPSILON,
   resolutionItemId,
   resolutionName,
   withBrandSigil,
@@ -18,6 +19,13 @@ import {
   type LineState,
   type ReceiptLine,
 } from '../lib/receiptReview'
+import { storeOffer, withExtraStore } from '../lib/storeOffer'
+import {
+  labelAgrees,
+  labelPricePerKg,
+  labelQuantity,
+  showsWeightChip,
+} from '../lib/weighedLabel'
 import type {
   BarcodeRead,
   NameMapping,
@@ -26,6 +34,8 @@ import type {
   ReceiptScanResult,
   Suggestion,
 } from '../types'
+import { LabelScanFlow, type UsedLabel } from './LabelScanFlow'
+import { NewStoreStep } from './NewStoreStep'
 import { ReceiptLineResolveBody } from './ReceiptLineResolveBody'
 import { ReceiptReviewBody } from './ReceiptReviewBody'
 import './ReceiptScanSheet.css'
@@ -47,6 +57,10 @@ export interface ItemRef {
   /** What the record says was bought. A targeted patch overwrites it, so a
    *  line that changes it is a correction even at the same price. */
   purchased_quantity: string | null
+  /** A packaged product carries one; a weighed one usually does not. */
+  ean: string | null
+  /** The product was priced per kilo before, so its label may give a weight. */
+  bought_by_weight: boolean
 }
 
 export type ReceiptConfirmMeta = {
@@ -70,6 +84,8 @@ export type ReceiptScanTarget = {
 type PendingScan = { index: number; product: BarcodeRead } | null
 
 interface Props {
+  getToken: () => Promise<string>
+  showToast: (message: string) => void
   result: ReceiptScanResult
   candidateItems: ItemRef[]
   /** The store read from the ticket (or list), seeding the editable control. */
@@ -97,13 +113,15 @@ interface Props {
   /** Catalogue lookup behind the resolve bar's suggestions (the canonical add
    *  bar's machinery, owned by the parent). Absent = no suggestions. */
   onFetchSuggestions?: (q: string) => Promise<Suggestion[]>
+  /** The list's registered stores, offered by the store pill. */
+  storeOptions?: string[]
+  displayStore?: (raw: string) => string
 }
+
+const asTyped = (raw: string) => raw
 
 /** Prices that print differently are different; below a céntimo they are not. */
 const PRICE_EPSILON = 0.005
-
-/** Quantities closer than a gram (or a thousandth of a unit) are the same. */
-const QUANTITY_EPSILON = 0.0005
 
 /** What the record says was bought, falling back to what was planned. */
 function recordedQuantity(item: ItemRef): string | null {
@@ -115,9 +133,13 @@ function recordedQuantity(item: ItemRef): string | null {
  * sides go through the same factor parse, so «202g» and «0.202kg» agree. A
  * side that cannot be read agrees only with another that cannot.
  */
-function sameQuantity(line: ReceiptLine, item: ItemRef): boolean {
-  const pricePer = linePricePer(line)
-  const fromLine = parseQuantityFactor(quantityString(line), pricePer)
+function sameQuantity(
+  line: ReceiptLine,
+  item: ItemRef,
+  state?: LineState,
+): boolean {
+  const pricePer = effectivePricePer(line, state)
+  const fromLine = parseQuantityFactor(effectiveQuantity(line, state), pricePer)
   const fromItem = parseQuantityFactor(recordedQuantity(item), pricePer)
   if (fromLine == null || fromItem == null) return fromLine === fromItem
   return Math.abs(fromLine - fromItem) < QUANTITY_EPSILON
@@ -136,8 +158,10 @@ function targetChange(
   if (!item || item.price == null) return 'fill'
   const samePrice =
     Math.abs(item.price - effectiveUnitPrice(line, state)) < PRICE_EPSILON
-  const samePer = (item.price_per ?? null) === linePricePer(line)
-  return samePrice && samePer && sameQuantity(line, item) ? 'equal' : 'correct'
+  const samePer = (item.price_per ?? null) === effectivePricePer(line, state)
+  return samePrice && samePer && sameQuantity(line, item, state)
+    ? 'equal'
+    : 'correct'
 }
 
 /**
@@ -191,6 +215,8 @@ function initStates(
 }
 
 export default function ReceiptScanSheet({
+  getToken,
+  showToast,
   result,
   candidateItems,
   store: initialStore,
@@ -204,6 +230,8 @@ export default function ReceiptScanSheet({
   pendingScan,
   onRequestScan,
   onFetchSuggestions,
+  storeOptions = [],
+  displayStore = asTyped,
 }: Props) {
   const allLines: ReceiptLine[] = [...result.matched, ...result.unmatched]
   const targeted = target != null
@@ -221,6 +249,10 @@ export default function ReceiptScanSheet({
     target?.store ?? initialStore ?? null,
   )
 
+  // Stores added by hand through «+ otra», and the «Nueva tienda» step that
+  // takes them: a content swap of this same sheet.
+  const [extraStores, setExtraStores] = useState<string[]>([])
+  const [addingStore, setAddingStore] = useState(false)
   // The resolve sheet (13b) is a sub-view, not a second Sheet: `resolvingIndex`
   // swaps the body inside the same panel. Its draft (radio pick XOR create text)
   // lives here so a barcode scan — which round-trips through the parent — can
@@ -233,6 +265,12 @@ export default function ReceiptScanSheet({
   // prefills never search or filter — only what the user actually typed does.
   const [resolveDirty, setResolveDirty] = useState(false)
   const [resolveSuggestions, setResolveSuggestions] = useState<Suggestion[]>([])
+  // A weighed-label scan for one line: a third step of the same sheet. It
+  // returns to the step it started from.
+  const [labelScan, setLabelScan] = useState<{
+    index: number
+    from: 'review' | 'resolve'
+  } | null>(null)
 
   // Apply a barcode scan handed down by the parent, tracked by identity so the
   // same row can be scanned twice without re-applying on unrelated re-renders
@@ -272,11 +310,10 @@ export default function ReceiptScanSheet({
   }, [resolveText, resolveDirty, resolvingIndex, onFetchSuggestions])
 
   const includedCount = lineStates.filter((ls) => ls.included).length
-  // A locked discount line is unnamed by nature but asks for no work, so it
-  // stays out of the «sin nombre» count.
-  const unnamedCount = lineStates.filter(
-    (ls, i) => !isNamed(ls.resolution) && !isDiscountLine(allLines[i]),
-  ).length
+  // The review's title; its steps' back buttons name it.
+  const reviewTitle = targeted
+    ? 'Añadir ticket a esta compra'
+    : 'Revisar ticket'
   const namedMissing = lineStates.some(
     (ls) => ls.included && !isNamed(ls.resolution),
   )
@@ -337,9 +374,97 @@ export default function ReceiptScanSheet({
     )
   }
 
-  function setLinePrice(index: number, value: number | null) {
+  function setLinePrice(index: number, price: number, total: number | null) {
     setLineStates((prev) =>
-      prev.map((ls, i) => (i === index ? { ...ls, lineTotal: value } : ls)),
+      prev.map((ls, i) =>
+        i === index ? { ...ls, unitPrice: price, lineTotal: total } : ls,
+      ),
+    )
+  }
+
+  function setLineQuantity(index: number, value: string | null) {
+    setLineStates((prev) =>
+      prev.map((ls, i) =>
+        // A quantity change keeps the total, so a typed price no longer holds.
+        i === index ? { ...ls, quantity: value, unitPrice: null } : ls,
+      ),
+    )
+  }
+
+  // The product behind a line, as far as the review knows it: a linked or
+  // matched item, a line being created, or nothing yet. An unnamed line has
+  // no known EAN, so the quantity rule alone decides its chip.
+  function lineProduct(ls: LineState): {
+    ean: string | null
+    boughtByWeight: boolean
+  } {
+    const r = ls.resolution
+    if (r.kind === 'matched' || r.kind === 'linked') {
+      const item = candidateItems.find((it) => it.id === r.itemId)
+      return {
+        ean: item?.ean ?? null,
+        boughtByWeight: item?.bought_by_weight ?? false,
+      }
+    }
+    if (r.kind === 'created') return { ean: r.ean, boughtByWeight: false }
+    return { ean: null, boughtByWeight: false }
+  }
+
+  const weightChips = lineStates.map(
+    (ls, i) =>
+      ls.included &&
+      !isDiscountLine(allLines[i]) &&
+      showsWeightChip({
+        store,
+        quantity: effectiveQuantity(allLines[i], ls),
+        ...lineProduct(ls),
+      }),
+  )
+
+  function startLabelScan(index: number, from: 'review' | 'resolve') {
+    // Offline is read-only: the action stays visible and refuses.
+    if (!isOnline()) {
+      showToast('Sin conexión')
+      return
+    }
+    setLabelScan({ index, from })
+  }
+
+  function endLabelScan() {
+    if (labelScan?.from === 'review') setResolvingIndex(null)
+    setLabelScan(null)
+  }
+
+  // With a receipt the line keeps its amount (the paper's, or a total the
+  // user corrected) and gains the label's weight. A label that agrees gives
+  // its €/kg too; one used despite a mismatch is a weight only, and the
+  // €/kg follows from that amount.
+  function applyLabel(index: number, { code, label }: UsedLabel) {
+    setLineStates((prev) =>
+      prev.map((ls, i) =>
+        i === index
+          ? {
+              ...ls,
+              quantity: labelQuantity(label.weight_g!),
+              unitPrice: labelAgrees(label, effectiveLineTotal(allLines[i], ls))
+                ? labelPricePerKg(label)
+                : null,
+              label: { code, article: label.article },
+            }
+          : ls,
+      ),
+    )
+    endLabelScan()
+  }
+
+  function labelUsedOn(code: string, index: number): string | null {
+    const other = lineStates.findIndex(
+      (ls, i) => i !== index && ls.included && ls.label?.code === code,
+    )
+    if (other < 0) return null
+    return (
+      resolutionName(lineStates[other].resolution) ??
+      allLines[other].receipt_name
     )
   }
 
@@ -427,8 +552,8 @@ export default function ReceiptScanSheet({
     lineStates.forEach((ls, i) => {
       if (!ls.included) return
       const line = allLines[i]
-      const quantity = quantityString(line)
-      const pricePer = linePricePer(line)
+      const quantity = effectiveQuantity(line, ls)
+      const pricePer = effectivePricePer(line, ls)
       const r = ls.resolution
       if (r.kind === 'matched' || r.kind === 'linked') {
         patches.push({
@@ -437,6 +562,7 @@ export default function ReceiptScanSheet({
           price_per: pricePer,
           store,
           quantity,
+          article: ls.label?.article ?? null,
         })
       } else if (r.kind === 'created') {
         newItems.push({
@@ -447,6 +573,7 @@ export default function ReceiptScanSheet({
           price_per: pricePer,
           store,
           quantity,
+          article: ls.label?.article ?? null,
         })
       }
       const itemName = resolutionName(r)
@@ -490,7 +617,8 @@ export default function ReceiptScanSheet({
           // else the quantity, which the patch overwrites too.
           const samePrice =
             Math.abs(item.price - effectiveUnitPrice(line, lineStates[i])) <
-              PRICE_EPSILON && (item.price_per ?? null) === linePricePer(line)
+              PRICE_EPSILON &&
+            (item.price_per ?? null) === effectivePricePer(line, lineStates[i])
           if (!samePrice) return `era € ${formatRowAmount(item.price)}`
           const recorded = recordedQuantity(item)
           if (recorded != null) return `era ${formatQuantity(recorded)}`
@@ -507,22 +635,66 @@ export default function ReceiptScanSheet({
     <Sheet
       className="rss"
       label={
-        resolving
-          ? 'Resolver una línea'
-          : targeted
-            ? 'Añadir ticket a esta compra'
-            : 'Revisar ticket'
+        labelScan
+          ? 'Etiqueta de peso'
+          : addingStore
+            ? 'Nueva tienda'
+            : resolving
+              ? 'Resolver una línea'
+              : targeted
+                ? 'Añadir ticket a esta compra'
+                : 'Revisar ticket'
       }
       onClose={onClose}
-      // On the resolve sub-view, Escape / scrim / swipe go back to the list —
-      // the back galón is the exit, not a dismissal of the whole sheet.
-      onDismiss={resolving ? () => setResolvingIndex(null) : undefined}
+      // On a sub-view, Escape / scrim / swipe go back a step — the back galón
+      // is the exit, not a dismissal of the whole sheet.
+      onDismiss={
+        labelScan
+          ? endLabelScan
+          : addingStore
+            ? () => setAddingStore(false)
+            : resolving
+              ? () => setResolvingIndex(null)
+              : undefined
+      }
     >
-      {resolving ? (
+      {labelScan ? (
+        <LabelScanFlow
+          getToken={getToken}
+          store={store}
+          lineName={
+            resolutionName(lineStates[labelScan.index].resolution) ??
+            allLines[labelScan.index].receipt_name
+          }
+          lineTotal={effectiveLineTotal(
+            allLines[labelScan.index],
+            lineStates[labelScan.index],
+          )}
+          usedOn={(code) => labelUsedOn(code, labelScan.index)}
+          showToast={showToast}
+          onUse={(used) => applyLabel(labelScan.index, used)}
+          onManual={() => {
+            const { index, from } = labelScan
+            setLabelScan(null)
+            if (from === 'review') openResolve(index)
+          }}
+          onCancel={endLabelScan}
+        />
+      ) : addingStore ? (
+        <NewStoreStep
+          backLabel={reviewTitle}
+          onBack={() => setAddingStore(false)}
+          onConfirm={(added) => {
+            setExtraStores((xs) => withExtraStore(xs, added))
+            setStore(added)
+            setAddingStore(false)
+          }}
+        />
+      ) : resolving ? (
         <ReceiptLineResolveBody
           line={allLines[resolvingIndex]}
           candidateItems={availableItems(resolvingIndex)}
-          backLabel={targeted ? 'Añadir ticket a esta compra' : undefined}
+          backLabel={reviewTitle}
           targeted={targeted}
           radioId={resolveRadioId}
           createText={resolveText}
@@ -542,11 +714,12 @@ export default function ReceiptScanSheet({
           }
           onAssign={assign}
           onBack={() => setResolvingIndex(null)}
-          effectiveTotal={effectiveLineTotal(
-            allLines[resolvingIndex],
-            lineStates[resolvingIndex],
-          )}
-          onChangePrice={(value) => setLinePrice(resolvingIndex, value)}
+          state={lineStates[resolvingIndex]}
+          onChangeQuantity={(value) => setLineQuantity(resolvingIndex, value)}
+          onChangePrice={(price, total) =>
+            setLinePrice(resolvingIndex, price, total)
+          }
+          onScanLabel={() => startLabelScan(resolvingIndex, 'resolve')}
         />
       ) : (
         <ReceiptReviewBody
@@ -554,7 +727,6 @@ export default function ReceiptScanSheet({
           lineStates={lineStates}
           store={store}
           receiptDate={receiptDate}
-          receiptDateLabel={formatReceiptDate(receiptDate)}
           targeted={targeted}
           dateLocked={targeted}
           storeLocked={target?.store != null}
@@ -563,36 +735,33 @@ export default function ReceiptScanSheet({
           imageUrl={imageUrl}
           isPdf={isPdf}
           pdfPages={pdfPages}
-          knownStores={knownStores(candidateItems, initialStore)}
+          storeOptions={storeOffer(
+            [
+              initialStore,
+              ...candidateItems.flatMap((item) => item.stores),
+              ...storeOptions,
+              ...extraStores,
+            ],
+            displayStore,
+          )}
           lineSum={lineSum}
           savedSum={savedSum}
           receiptTotal={receiptTotal}
           cuadreDiff={cuadreDiff}
           includedCount={includedCount}
-          unnamedCount={unnamedCount}
           canSave={canSave}
           onToggleInclude={toggleInclude}
           onSetAll={setAll}
           onOpenResolve={openResolve}
+          weightChips={weightChips}
+          onScanLabel={(index) => startLabelScan(index, 'review')}
           onChangeDate={setReceiptDate}
           onChangeStore={setStore}
+          onAddStore={() => setAddingStore(true)}
           onReReadReceipt={onReReadReceipt}
           onConfirm={handleConfirm}
         />
       )}
     </Sheet>
   )
-}
-
-/** Distinct store names already known to the list, for the store control's list. */
-function knownStores(
-  candidateItems: ItemRef[],
-  initialStore: string | null,
-): string[] {
-  const set = new Set<string>()
-  if (initialStore) set.add(initialStore)
-  for (const item of candidateItems) {
-    for (const s of item.stores) if (s) set.add(s)
-  }
-  return [...set]
 }

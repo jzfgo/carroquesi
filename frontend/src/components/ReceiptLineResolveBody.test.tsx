@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { expect, test, vi } from 'vitest'
-import type { ReceiptLine } from '../lib/receiptReview'
+import { formatRowAmount } from '../lib/formatPrice'
+import type { LineState, ReceiptLine } from '../lib/receiptReview'
 import { ReceiptLineResolveBody } from './ReceiptLineResolveBody'
 import type { ItemRef } from './ReceiptScanSheet'
 
@@ -24,6 +26,8 @@ const inCart: ItemRef = {
   price: null,
   price_per: null,
   purchased_quantity: null,
+  ean: null,
+  bought_by_weight: false,
 }
 
 const pendingWithStore: ItemRef = {
@@ -37,6 +41,8 @@ const pendingWithStore: ItemRef = {
   price: null,
   price_per: null,
   purchased_quantity: null,
+  ean: null,
+  bought_by_weight: false,
 }
 
 const pendingNoStore: ItemRef = {
@@ -50,6 +56,8 @@ const pendingNoStore: ItemRef = {
   price: null,
   price_per: null,
   purchased_quantity: null,
+  ean: null,
+  bought_by_weight: false,
 }
 
 function renderBody(overrides: {
@@ -60,8 +68,6 @@ function renderBody(overrides: {
   onPickSuggestion?: Parameters<
     typeof ReceiptLineResolveBody
   >[0]['onPickSuggestion']
-  effectiveTotal?: number
-  onChangePrice?: (value: number | null) => void
 }) {
   return render(
     <ReceiptLineResolveBody
@@ -76,8 +82,9 @@ function renderBody(overrides: {
       onChangeCreateText={vi.fn()}
       onAssign={vi.fn()}
       onBack={vi.fn()}
-      effectiveTotal={overrides.effectiveTotal ?? line.line_total}
-      onChangePrice={overrides.onChangePrice ?? vi.fn()}
+      state={undefined}
+      onChangeQuantity={vi.fn()}
+      onChangePrice={vi.fn()}
     />,
   )
 }
@@ -131,7 +138,8 @@ test('a prefill never filters the link list; typed text does', () => {
       onChangeCreateText={vi.fn()}
       onAssign={vi.fn()}
       onBack={vi.fn()}
-      effectiveTotal={line.line_total}
+      state={undefined}
+      onChangeQuantity={vi.fn()}
       onChangePrice={vi.fn()}
     />,
   )
@@ -183,48 +191,177 @@ test('the helper link toggles the sigil legend in place', async () => {
   expect(screen.queryByText('#marca')).not.toBeInTheDocument()
 })
 
-// ── The Importe correction (JAV-185) ─────────────────────────────────────────
+// ── «Cantidad y precio» ────────────────────────────────────────────────────
 
-test('the Importe field prefills the effective total, comma-decimal', () => {
-  renderBody({ effectiveTotal: 4.58 })
-  expect(screen.getByLabelText('Importe')).toHaveValue('4,58')
-})
+const chicken: ReceiptLine = {
+  receipt_name: 'CONTRAMUSLO DESHUES',
+  price_type: 'UNIT',
+  unit_price: 3.05,
+  quantity: null,
+  line_total: 3.05,
+}
 
-test('a corrected amount commits on blur, comma accepted', async () => {
-  const user = userEvent.setup()
+/** Holds the line's state the way the review does, so edits round-trip. */
+function renderDetail(initial?: LineState) {
+  const onChangeQuantity = vi.fn()
   const onChangePrice = vi.fn()
-  renderBody({ onChangePrice })
+  let current = initial
+  function Harness() {
+    const [state, setState] = useState<LineState | undefined>(initial)
+    current = state
+    const base = (): LineState =>
+      state ?? { included: true, resolution: { kind: 'unassigned' } }
+    return (
+      <ReceiptLineResolveBody
+        line={chicken}
+        candidateItems={[]}
+        radioId={null}
+        createText=""
+        onSelectRadio={vi.fn()}
+        onChangeCreateText={vi.fn()}
+        onAssign={vi.fn()}
+        onBack={vi.fn()}
+        state={state}
+        onChangeQuantity={(q) => {
+          onChangeQuantity(q)
+          setState({ ...base(), quantity: q, unitPrice: null })
+        }}
+        onChangePrice={(p, t) => {
+          onChangePrice(p, t)
+          setState({ ...base(), unitPrice: p, lineTotal: t })
+        }}
+      />
+    )
+  }
+  render(<Harness />)
+  return {
+    onChangeQuantity,
+    onChangePrice,
+    state: () => current,
+    qty: () => screen.getByLabelText('Cantidad y precio'),
+    price: () => screen.getByLabelText('Precio'),
+  }
+}
 
-  const input = screen.getByLabelText('Importe')
-  await user.clear(input)
-  await user.type(input, '3,38')
-  await user.tab()
-  expect(onChangePrice).toHaveBeenCalledWith(3.38)
-  expect(input).toHaveValue('3,38')
-})
-
-test('typing the read figure back clears the correction', async () => {
+async function retype(el: HTMLElement, text: string) {
   const user = userEvent.setup()
-  const onChangePrice = vi.fn()
-  // A correction is in force (2,00); the paper read 3,18.
-  renderBody({ effectiveTotal: 2, onChangePrice })
-
-  const input = screen.getByLabelText('Importe')
-  await user.clear(input)
-  await user.type(input, '3,18')
+  await user.clear(el)
+  if (text) await user.type(el, text)
   await user.tab()
-  expect(onChangePrice).toHaveBeenCalledWith(null)
+}
+
+test('prefills from the receipt', () => {
+  const d = renderDetail()
+  expect(d.qty()).toHaveValue('1')
+  expect(d.price()).toHaveValue('3,05')
+  expect(screen.getByText('/ud')).toBeInTheDocument()
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(screen.queryByText('Importe')).not.toBeInTheDocument()
 })
 
-test('an invalid or negative amount reverts instead of committing', async () => {
+test('quantity change keeps the total', async () => {
+  const d = renderDetail()
+  await retype(d.qty(), '0,346 kg')
+  expect(d.price()).toHaveValue('8,82')
+  expect(screen.getByText('/kg')).toBeInTheDocument()
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(d.state()?.lineTotal).toBeUndefined()
+})
+
+test('price change corrects the total', async () => {
+  const d = renderDetail()
+  await retype(d.price(), '3,50')
+  const status = screen.getByRole('status')
+  expect(status).toHaveTextContent('Importe corregido · en el ticket 3,05')
+  expect(status).toHaveTextContent('3,50')
+})
+
+test("typing the paper's price back clears the correction", async () => {
+  const d = renderDetail()
+  await retype(d.price(), '3,50')
+  await retype(d.price(), '3,05')
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  expect(d.onChangePrice).toHaveBeenLastCalledWith(3.05, null)
+})
+
+test('blur without edits leaves no correction', async () => {
+  const d = renderDetail()
+  await retype(d.qty(), '0,346 kg')
+  expect(d.price()).toHaveValue('8,82')
   const user = userEvent.setup()
-  const onChangePrice = vi.fn()
-  renderBody({ effectiveTotal: 4.58, onChangePrice })
-
-  const input = screen.getByLabelText('Importe')
-  await user.clear(input)
-  await user.type(input, '-2')
+  await user.click(d.price())
   await user.tab()
-  expect(onChangePrice).not.toHaveBeenCalled()
-  expect(input).toHaveValue('4,58')
+  expect(d.onChangePrice).not.toHaveBeenCalled()
+  expect(screen.queryByRole('status')).not.toBeInTheDocument()
 })
+
+test.each(['', 'kg', 'abc', '0'])(
+  'invalid quantity %j reverts',
+  async (text) => {
+    const d = renderDetail()
+    await retype(d.qty(), text)
+    expect(d.qty()).toHaveValue('1')
+    expect(d.onChangeQuantity).not.toHaveBeenCalled()
+  },
+)
+
+test("typing the line's own quantity back clears it", async () => {
+  const d = renderDetail()
+  await retype(d.qty(), '2')
+  expect(d.onChangeQuantity).toHaveBeenLastCalledWith('2')
+  await retype(d.qty(), '1')
+  expect(d.onChangeQuantity).toHaveBeenLastCalledWith(null)
+})
+
+test('reopens with overrides', () => {
+  const d = renderDetail({
+    included: true,
+    resolution: { kind: 'unassigned' },
+    quantity: '346 g',
+    lineTotal: 3.5,
+  })
+  expect(d.qty()).toHaveValue('346 g')
+  expect(d.price()).toHaveValue(formatRowAmount(3.5 / 0.346))
+  expect(screen.getByRole('status')).toBeInTheDocument()
+})
+
+test('a typed price stays as typed on a weight', async () => {
+  const d = renderDetail()
+  await retype(d.qty(), '0,346 kg')
+  // 8,80 × 0,346 = 3,0448: the total rounds to 3,04, the price does not.
+  await retype(d.price(), '8,80')
+  expect(d.price()).toHaveValue('8,80')
+  expect(d.state()?.unitPrice).toBe(8.8)
+  expect(d.state()?.lineTotal).toBe(3.04)
+  expect(screen.getByRole('status')).toHaveTextContent('3,04')
+})
+
+test('a quantity change after a typed price keeps the total', async () => {
+  const d = renderDetail()
+  await retype(d.qty(), '0,346 kg')
+  await retype(d.price(), '8,80')
+  await retype(d.qty(), '0,5 kg')
+  expect(d.price()).toHaveValue('6,08')
+  expect(d.state()?.unitPrice).toBeNull()
+  expect(d.state()?.lineTotal).toBe(3.04)
+})
+
+test('blur on an untouched quantity commits nothing', async () => {
+  const d = renderDetail()
+  const user = userEvent.setup()
+  await user.click(d.qty())
+  await user.tab()
+  expect(d.onChangeQuantity).not.toHaveBeenCalled()
+})
+
+test.each(['346 g', '0,346 kg '])(
+  'retyping the same quantity as %j keeps a typed price',
+  async (text) => {
+    const d = renderDetail()
+    await retype(d.qty(), '0,346 kg')
+    await retype(d.price(), '8,80')
+    await retype(d.qty(), text)
+    expect(d.price()).toHaveValue('8,80')
+    expect(d.state()?.unitPrice).toBe(8.8)
+  },
+)

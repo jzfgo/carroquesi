@@ -1064,6 +1064,8 @@ export interface components {
             name: string;
             /** Own Brands */
             own_brands: string[];
+            /** Reads Label Weight */
+            reads_label_weight: boolean;
             /** Store Keys */
             store_keys: string[];
         };
@@ -1196,6 +1198,11 @@ export interface components {
         ItemRead: {
             /** Added By */
             added_by: string;
+            /**
+             * Bought By Weight
+             * @default false
+             */
+            bought_by_weight: boolean;
             /** Brand */
             brand: string | null;
             /**
@@ -1410,6 +1417,8 @@ export interface components {
         };
         /** NewPurchasedItem */
         NewPurchasedItem: {
+            /** Article */
+            article?: string | null;
             /** Brand */
             brand?: string | null;
             /** Ean */
@@ -1480,6 +1489,8 @@ export interface components {
         };
         /** PricePatch */
         PricePatch: {
+            /** Article */
+            article?: string | null;
             /** Item Id */
             item_id: string;
             /** Price */
@@ -1516,6 +1527,8 @@ export interface components {
          *     stated once on the close.
          */
         PurchaseLine: {
+            /** Article */
+            article?: string | null;
             /** Brand */
             brand?: string | null;
             /** Item Id */
@@ -1556,6 +1569,8 @@ export interface components {
          * @description Something bought that was never on the list. Born already purchased.
          */
         PurchaseNewItem: {
+            /** Article */
+            article?: string | null;
             /** Brand */
             brand?: string | null;
             /** Ean */

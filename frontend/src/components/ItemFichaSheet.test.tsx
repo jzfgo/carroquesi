@@ -36,6 +36,7 @@ const item: ListItem = {
   purchased: false,
   purchased_at: null,
   purchase_has_receipt: false,
+  bought_by_weight: false,
   ean: '8410188012374',
   price: 0.89,
   price_per: null,

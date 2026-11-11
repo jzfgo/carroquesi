@@ -1,0 +1,449 @@
+/* The parts closing a trip (10b) and reviewing a receipt (13a) share, and
+   the line details under them (10d, 13b). The dashed accent is the app-wide
+   "esto aún no es real" signal. */
+
+/* ── head: optional thumb, title, store and date pills ── */
+.psheet-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px 14px;
+  border-bottom: 1px solid var(--paper-edge);
+  flex-shrink: 0;
+}
+
+.psheet-head__main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.psheet-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--ink-0);
+}
+
+.psheet-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.psheet-pill {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 11px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 999px;
+  background: var(--paper-1);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.psheet-pill__icon {
+  flex-shrink: 0;
+  color: var(--ink-2);
+}
+
+.psheet-pill--empty {
+  border: 1px dashed var(--tinta-border);
+  background: transparent;
+  color: var(--tinta-0);
+}
+
+.psheet-pill--empty .psheet-pill__icon {
+  color: var(--tinta-0);
+}
+
+/* A record's own value in a targeted review: printed ink, not a control. */
+.psheet-pill--locked {
+  cursor: default;
+}
+
+.psheet-pill--locked svg {
+  color: var(--ink-2);
+}
+
+/* The native date input covers the pill, unseen, so a tap opens its picker. */
+.psheet-pill__date {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.psheet-pill:has(.psheet-pill__date:focus-visible) {
+  border-color: var(--tinta-0);
+}
+
+/* The store dropdown dressed as a pill. */
+.psheet-storepill .store-select__control {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 28px 0 29px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 999px;
+  background: var(--paper-1);
+  color: var(--ink-1);
+  font-size: var(--fs-13);
+  font-weight: 500;
+}
+
+.psheet-storepill .store-select__icon {
+  left: 11px;
+}
+
+.psheet-storepill .store-select__chevron {
+  right: 10px;
+}
+
+.psheet-storepill--empty .store-select__control {
+  border-style: dashed;
+  border-color: var(--tinta-border);
+  background: transparent;
+  color: var(--tinta-0);
+}
+
+.psheet-storepill--empty .store-select__icon,
+.psheet-storepill--empty .store-select__chevron {
+  color: var(--tinta-0);
+}
+
+/* ── table: head, rows, total, help ── */
+.psheet-table {
+  --psheet-cols: minmax(0, 1fr) 64px 72px 16px;
+}
+
+.psheet-table--checks {
+  --psheet-cols: 22px minmax(0, 1fr) 64px 72px 16px;
+}
+
+.psheet-grid {
+  display: grid;
+  grid-template-columns: var(--psheet-cols);
+  column-gap: 8px;
+  align-items: center;
+}
+
+.psheet-tablehead {
+  padding: 14px 0 8px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.psheet-num {
+  text-align: right;
+}
+
+.psheet-row {
+  min-height: 54px;
+  border-top: 1px solid var(--rule);
+}
+
+/* The row button spans the product, quantity, amount and chevron columns
+   through a subgrid, so a chip, a sibling button, can sit in the quantity
+   column on top of it. */
+.psheet-row__open {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  min-height: 54px;
+  padding: 9px 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.psheet-table--checks .psheet-row__open {
+  grid-column: 2 / -1;
+}
+
+/* A locked line is paper to read, not a door. */
+.psheet-row__open:disabled {
+  cursor: default;
+}
+
+.psheet-row__product {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.psheet-row__chevron {
+  color: var(--ink-3);
+}
+
+.psheet-row__chip {
+  position: relative;
+  z-index: 1;
+  grid-column: -4 / -3;
+  grid-row: 1;
+  justify-self: end;
+}
+
+/* The quantity column is narrow; the chip gives up a little padding to fit. */
+.psheet-row__chip .weight-chip {
+  padding: 0 6px;
+}
+
+.psheet-qty {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.psheet-amount {
+  font-family: var(--font-mono);
+  font-size: var(--fs-15);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-0);
+  white-space: nowrap;
+}
+
+.psheet-amount--suggested {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 7px;
+  border: 1.5px dashed var(--tinta-border);
+  border-radius: 8px;
+  color: var(--tinta-0);
+  font-size: var(--fs-14);
+}
+
+.psheet-amount--none {
+  font-family: var(--font-sans);
+  font-size: var(--fs-13);
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.psheet-row--off .psheet-qty,
+.psheet-row--off .psheet-amount {
+  color: var(--ink-2);
+}
+
+.psheet-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding: 14px 0 4px;
+  border-top: 1px solid var(--paper-edge);
+}
+
+.psheet-total__label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.psheet-total__figure {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.psheet-total__value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-18);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-0);
+}
+
+.psheet-help {
+  margin: 0;
+  padding: 6px 0 4px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+/* ── notices over the save button ── */
+.psheet-notice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 12px 14px;
+  border-radius: 10px;
+}
+
+.psheet-notice--info {
+  background: var(--tinta-bg);
+}
+
+.psheet-notice--warning {
+  background: var(--miel-bg);
+}
+
+.psheet-notice__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.psheet-notice__title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink-0);
+}
+
+/* A title alone sits level with the middle of the disc. */
+.psheet-notice__title:only-child {
+  padding-top: 6px;
+}
+
+.psheet-notice__detail {
+  margin: 3px 0 0;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-1);
+}
+
+.psheet-notice__disc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--accent-fg);
+}
+
+.psheet-notice--info .psheet-notice__disc {
+  background: var(--tinta-0);
+}
+
+.psheet-notice--warning .psheet-notice__disc {
+  background: var(--miel-0);
+}
+
+/* ── footer actions ── */
+.psheet-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 20px 0;
+  flex-shrink: 0;
+}
+
+.psheet-primary,
+.psheet-secondary {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  border-radius: 10px;
+  font-family: var(--font-sans);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.psheet-primary {
+  border: none;
+  background: var(--tinta-0);
+  color: var(--accent-fg);
+  font-size: var(--fs-15);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.psheet-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.psheet-secondary {
+  border: 1px solid var(--paper-edge);
+  background: none;
+  color: var(--tinta-0);
+  font-size: var(--fs-14);
+  font-weight: 500;
+}
+
+/* ── line detail (10d, 13b) ── */
+.psheet-backbar {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--paper-edge);
+  flex-shrink: 0;
+}
+
+.psheet-back {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 44px;
+  padding: 0 6px 0 0;
+  border: none;
+  background: none;
+  color: var(--tinta-0);
+  font-family: var(--font-sans);
+  font-size: var(--fs-15);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* The field label in a line detail: 11px caps, .08em tracking. */
+.psheet-label {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}

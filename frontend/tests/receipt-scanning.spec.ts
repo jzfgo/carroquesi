@@ -83,7 +83,7 @@ function reviewSheet(page: Page) {
 }
 
 function receiptRow(page: Page, receiptName: string) {
-  return page.locator('.rss-row').filter({ hasText: receiptName })
+  return page.locator('.psheet-row').filter({ hasText: receiptName })
 }
 
 async function gotoList(page: Page) {
@@ -145,7 +145,7 @@ for (const { name: themeName, colorScheme } of THEMES) {
 
       const sheet = reviewSheet(page)
       await expect(sheet).toBeVisible()
-      await expect(page.locator('.rss-row')).toHaveCount(3)
+      await expect(page.locator('.psheet-row')).toHaveCount(3)
 
       // Matched lines are confirmed — solid ink, checked by default.
       const lecheRow = receiptRow(page, 'LECHE HACENDADO')
@@ -261,7 +261,7 @@ test.describe('functional', () => {
 
     // Tap the unmatched row → the resolve sub-view (same sheet). Name it via the
     // smart create-bar; the brand rides in on the sigil grammar.
-    await receiptRow(page, 'PAN INTEGRAL').locator('.rss-row__open').click()
+    await receiptRow(page, 'PAN INTEGRAL').locator('.rss-ocr').click()
     await expect(sheet.getByText('Línea del ticket')).toBeVisible()
     await sheet
       .getByPlaceholder(/Nombre del producto/)
@@ -437,38 +437,46 @@ test.describe('functional', () => {
 
     // Both pills open empty, and the unnamed pan line is dropped so only the
     // date+store guard holds the button.
-    await expect(
-      sheet.getByRole('button', { name: 'Poner tienda' }),
-    ).toBeVisible()
-    await expect(
-      sheet.getByRole('button', { name: 'Poner fecha' }),
-    ).toBeVisible()
+    // The store pill is a native dropdown: «Poner tienda» is its hidden
+    // placeholder option, so the empty value is what shows it.
+    await expect(sheet.getByRole('combobox', { name: 'Tienda' })).toHaveValue(
+      '',
+    )
+    await expect(sheet.getByText('Poner fecha')).toBeVisible()
     await receiptRow(page, 'PAN INTEGRAL').locator('.rss-row__check').click()
 
     const save = sheet.getByRole('button', { name: /Guardar compra/ })
+    const warning = sheet.getByText(/para guardar esta compra/)
     await expect(save).toBeDisabled()
+    await expect(warning).toHaveText(
+      'Indica la tienda y la fecha para guardar esta compra',
+    )
 
     // A date alone is not enough.
-    await sheet.getByRole('button', { name: 'Poner fecha' }).click()
-    await sheet.locator('input[type="date"]').fill('2026-07-10')
+    const date = sheet.getByLabel('Fecha')
+    await date.fill('2026-07-10')
     await expect(save).toBeDisabled()
+    await expect(warning).toHaveText(
+      'Indica la tienda para guardar esta compra',
+    )
 
-    // The store completes the pair.
-    await sheet.getByRole('button', { name: 'Poner tienda' }).click()
+    // The store completes the pair: «+ otra» opens the «Nueva tienda» step.
+    await sheet
+      .getByRole('combobox', { name: 'Tienda' })
+      .selectOption('__add_store__')
     await sheet.getByPlaceholder('Nombre de la tienda').fill('Mercadona')
-    await sheet.getByRole('button', { name: 'Listo' }).click()
+    await sheet.getByRole('button', { name: 'Usar esta tienda' }).click()
     await expect(save).toBeEnabled()
+    await expect(warning).toHaveCount(0)
 
     // A store alone is not enough either: clearing the date locks the save
-    // again, so each half of the pair carries the guard. The date pill now
-    // prints the date itself, so it is reached by position, not label.
-    await sheet.locator('button.rss-pill').nth(1).click()
-    await sheet.locator('input[type="date"]').fill('')
+    // again, so each half of the pair carries the guard.
+    await date.fill('')
     await expect(save).toBeDisabled()
+    await expect(warning).toHaveText('Indica la fecha para guardar esta compra')
 
     // Re-entering the date restores the pair.
-    await sheet.getByRole('button', { name: 'Poner fecha' }).click()
-    await sheet.locator('input[type="date"]').fill('2026-07-10')
+    await date.fill('2026-07-10')
     await expect(save).toBeEnabled()
 
     // And the entered pair is what the apply carries.
@@ -512,11 +520,11 @@ test.describe('functional', () => {
     await uploadReceipt(page)
     const sheet = reviewSheet(page)
     await expect(sheet).toBeVisible()
-    await expect(page.locator('.rss-row')).toHaveCount(2)
+    await expect(page.locator('.psheet-row')).toHaveCount(2)
 
     // Open the unmatched row → the still-pending Leche is offered as a link
     // target, named with its pending state and store.
-    await receiptRow(page, 'PAN INTEGRAL').locator('.rss-row__open').click()
+    await receiptRow(page, 'PAN INTEGRAL').locator('.rss-ocr').click()
     await expect(sheet.getByText('Línea del ticket')).toBeVisible()
     const radio = sheet.getByRole('radio', { name: /Leche Hacendado/ })
     await expect(radio).toContainText('pendiente · Mercadona')
@@ -656,6 +664,6 @@ test.describe('functional', () => {
     await expect(page.getByRole('alert')).toContainText(
       'No se pudo leer el ticket',
     )
-    await expect(page.locator('.rss-listhead')).toHaveCount(0)
+    await expect(page.locator('.psheet-tablehead')).toHaveCount(0)
   })
 })

@@ -1,11 +1,4 @@
-import {
-  Calendar,
-  Check,
-  ChevronLeft,
-  Pencil,
-  Plus,
-  Receipt,
-} from 'lucide-react'
+import { Check, Plus, Receipt } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import {
   closePurchase,
@@ -13,14 +6,38 @@ import {
   getPurchaseItems,
   updateItem,
 } from '../lib/api'
+import { isOnline } from '../lib/connectivity'
 import { formatRowAmount } from '../lib/formatPrice'
 import { parseQuantityFactor } from '../lib/itemCost'
+import { todayInputValue } from '../lib/receiptDate'
 import { storeKey } from '../lib/storeKey'
+import { storeOffer, withExtraStore } from '../lib/storeOffer'
+import {
+  labelPricePerKg,
+  labelQuantity,
+  showsWeightChip,
+} from '../lib/weighedLabel'
 import type { ListItem, PurchaseLine } from '../types'
 import { AdjustProductSheet, type DraftLine } from './AdjustProductSheet'
 import './CloseTripSheet.css'
+import { LabelScanFlow, type UsedLabel } from './LabelScanFlow'
+import { NewStoreStep } from './NewStoreStep'
+import {
+  DatePill,
+  MissingToSaveNotice,
+  PurchaseAmount,
+  PurchaseHelp,
+  PurchaseRow,
+  PurchaseSheetHead,
+  PurchaseTable,
+  PurchaseTableHead,
+  PurchaseTotal,
+  SavePurchaseButton,
+  SecondaryButton,
+  StorePill,
+} from './PurchaseSheetParts'
 import { Sheet } from './Sheet'
-import { StoreSelect } from './StoreSelect'
+import { WeightChip } from './WeightChip'
 
 interface Props {
   listId: string
@@ -37,17 +54,11 @@ interface Props {
   storeOptions?: string[]
   displayStore: (raw: string) => string
   onClose: () => void
+  showToast: (message: string) => void
   /** After a successful close — the parent refreshes the list + stack. */
   onDone: () => void
   /** «Escanear el ticket en su lugar» — hand off to the receipt flow. */
   onScanReceipt?: () => void
-}
-
-const today = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-    d.getDate(),
-  ).padStart(2, '0')}`
 }
 
 function toDraft(item: ListItem): DraftLine {
@@ -60,6 +71,9 @@ function toDraft(item: ListItem): DraftLine {
     price_per: (item.price_per as 'KILOGRAM' | null) ?? null,
     included: true,
     suggested: null,
+    ean: item.ean,
+    bought_by_weight: item.bought_by_weight,
+    label: null,
   }
 }
 
@@ -90,6 +104,7 @@ export function CloseTripSheet({
   storeOptions = [],
   displayStore,
   onClose,
+  showToast,
   onDone,
   onScanReceipt,
 }: Props) {
@@ -103,10 +118,11 @@ export function CloseTripSheet({
   // The «Nueva tienda» step: a content swap of this same sheet (never a second
   // sheet), plus its field.
   const [storeSubsheet, setStoreSubsheet] = useState(false)
-  const [newStoreText, setNewStoreText] = useState('')
-  const [date, setDate] = useState(initialDate ?? today())
+  const [date, setDate] = useState(initialDate ?? todayInputValue())
+  // The 10d editor, on a line or a blank add. `draft` holds its unsaved
+  // fields across a label scan; nothing reaches `lines` before «Listo».
   const [editing, setEditing] = useState<
-    { index: number } | { add: true } | null
+    (({ index: number } | { add: true }) & { draft?: DraftLine }) | null
   >(null)
   const [saving, setSaving] = useState(false)
   // Item id → its price history, fetched once so store changes only re-filter.
@@ -121,6 +137,15 @@ export function CloseTripSheet({
       }[]
     >
   >({})
+  // A weighed-label scan for one line, from its 10b row or its 10d editor:
+  // another step of this same sheet, which returns where it started.
+  const [labelScan, setLabelScan] = useState<
+    | { from: 'table'; index: number }
+    | { from: 'adjust'; draft: DraftLine }
+    | null
+  >(null)
+  // Remounts the 10d editor after a scan, so it shows the label's figures.
+  const [editorKey, setEditorKey] = useState(0)
   // Track which items should return to the pending list on save («Quitar»).
   const [dropped, setDropped] = useState<string[]>([])
 
@@ -139,38 +164,28 @@ export function CloseTripSheet({
   // The stores offered — those the cart's lines mention, plus the list's
   // registered stores, so a store-less cart still has choices. «+ otra»
   // covers anything not listed.
-  const stores = useMemo(() => {
-    const seen = new Set<string>()
-    const out: string[] = []
-    const raws = [
-      ...(cartItems ?? []).flatMap((i) => [...i.stores, i.price_store]),
-      ...storeOptions,
-      ...extraStores,
-    ]
-    for (const raw of raws) {
-      if (!raw) continue
-      const k = storeKey(raw)
-      if (!seen.has(k)) {
-        seen.add(k)
-        out.push(displayStore(raw))
-      }
-    }
-    return out
-  }, [cartItems, storeOptions, extraStores, displayStore])
+  const stores = useMemo(
+    () =>
+      storeOffer(
+        [
+          ...(cartItems ?? []).flatMap((i) => [...i.stores, i.price_store]),
+          ...storeOptions,
+          ...extraStores,
+        ],
+        displayStore,
+      ),
+    [cartItems, storeOptions, extraStores, displayStore],
+  )
 
   // The active store: the picked or hand-added one, or the first offer as a
   // default. A store-less list with nothing to offer leaves this empty, which
   // keeps «Guardar compra» disabled until «+ otra» supplies one.
   const selectedStore = store || stores[0] || ''
 
-  // Confirm a hand-typed store from the «Nueva tienda» sub-view: keep it in
-  // the offer and select it, then return to the table.
-  const confirmNewStore = () => {
-    const v = newStoreText.trim()
-    if (!v) return
-    setExtraStores((xs) =>
-      xs.some((x) => storeKey(x) === storeKey(v)) ? xs : [...xs, v],
-    )
+  // Confirm a hand-typed store from the «Nueva tienda» step: keep it in the
+  // offer and select it, then return to the table.
+  const confirmNewStore = (v: string) => {
+    setExtraStores((xs) => withExtraStore(xs, v))
     setStore(v)
     setStoreSubsheet(false)
   }
@@ -256,8 +271,9 @@ export function CloseTripSheet({
     setEditing(null)
   }
 
-  const editorDraft: DraftLine | null =
-    editing && 'index' in editing
+  const editorDraft: DraftLine | null = editing?.draft
+    ? editing.draft
+    : editing && 'index' in editing
       ? withSuggestions[editing.index]
       : editing && 'add' in editing
         ? {
@@ -269,8 +285,77 @@ export function CloseTripSheet({
             price_per: null,
             included: true,
             suggested: null,
+            ean: null,
+            bought_by_weight: false,
+            label: null,
           }
         : null
+
+  function startLabelScan(index: number) {
+    // Offline is read-only: the action stays visible and refuses.
+    if (!isOnline()) {
+      showToast('Sin conexión')
+      return
+    }
+    setLabelScan({ from: 'table', index })
+  }
+
+  // From 10d the scan works on the editor's unsaved draft, which returns to
+  // the editor; a blank add stays an add until «Listo».
+  function scanFromEditor(draft: DraftLine) {
+    if (!isOnline()) {
+      showToast('Sin conexión')
+      return
+    }
+    setLabelScan({ from: 'adjust', draft })
+  }
+
+  // Back to where the scan started; 10d gets `draft` (remounted to show it).
+  function endLabelScan(draft?: DraftLine) {
+    if (labelScan?.from === 'adjust' && editing) {
+      setEditing({ ...editing, draft: draft ?? labelScan.draft })
+      setEditorKey((k) => k + 1)
+    }
+    setLabelScan(null)
+  }
+
+  // Without a receipt, the label sets the amount: its weight and its €/kg.
+  function withLabel(l: DraftLine, { code, label }: UsedLabel): DraftLine {
+    return {
+      ...l,
+      quantity: labelQuantity(label.weight_g!),
+      price: labelPricePerKg(label),
+      price_per: 'KILOGRAM',
+      label: { code, article: label.article },
+    }
+  }
+
+  function applyLabel(used: UsedLabel) {
+    if (labelScan?.from === 'adjust') {
+      endLabelScan(withLabel(labelScan.draft, used))
+      return
+    }
+    const index = labelScan!.index
+    setLines((prev) =>
+      prev.map((l, i) => (i === index ? withLabel(l, used) : l)),
+    )
+    endLabelScan()
+  }
+
+  // The line being scanned is not «another line»; a blank add has no index.
+  const scanIndex =
+    labelScan?.from === 'table'
+      ? labelScan.index
+      : editing && 'index' in editing
+        ? editing.index
+        : -1
+
+  function labelUsedOn(code: string): string | null {
+    const other = lines.find(
+      (l, i) => i !== scanIndex && l.included && l.label?.code === code,
+    )
+    return other ? other.name || 'Producto nuevo' : null
+  }
 
   const save = async () => {
     setSaving(true)
@@ -287,6 +372,7 @@ export function CloseTripSheet({
           quantity: l.quantity,
           name: l.name,
           brand: l.brand,
+          article: l.label?.article ?? null,
         })),
         new_items: included
           .filter((l) => !l.item_id)
@@ -296,6 +382,7 @@ export function CloseTripSheet({
             quantity: l.quantity,
             price: l.price,
             price_per: l.price_per,
+            article: l.label?.article ?? null,
           })),
       }
       await closePurchase(getToken, listId, body)
@@ -315,180 +402,151 @@ export function CloseTripSheet({
   // and the «Nueva tienda» step. A step never re-presents the sheet — the
   // surface stays, only what it holds changes (the app-wide sheet↔sub-sheet
   // rule). A dismiss gesture on any step goes back to the table, not away.
-  const step: 'adjust' | 'store' | 'table' = editorDraft
-    ? 'adjust'
-    : storeSubsheet
-      ? 'store'
-      : 'table'
+  const step: 'label' | 'adjust' | 'store' | 'table' = labelScan
+    ? 'label'
+    : editorDraft
+      ? 'adjust'
+      : storeSubsheet
+        ? 'store'
+        : 'table'
   return (
     <Sheet
       className={`close-sheet${step !== 'table' ? ' close-sheet--editing' : ''}`}
       onClose={onClose}
       onDismiss={
-        step === 'adjust'
-          ? () => setEditing(null)
-          : step === 'store'
-            ? () => setStoreSubsheet(false)
-            : undefined
+        step === 'label'
+          ? () => endLabelScan()
+          : step === 'adjust'
+            ? () => setEditing(null)
+            : step === 'store'
+              ? () => setStoreSubsheet(false)
+              : undefined
       }
       label={
-        step === 'adjust'
-          ? 'Ajustar producto'
-          : step === 'store'
-            ? 'Nueva tienda'
-            : 'Cerrar compra'
+        step === 'label'
+          ? 'Etiqueta de peso'
+          : step === 'adjust'
+            ? 'Ajustar producto'
+            : step === 'store'
+              ? 'Nueva tienda'
+              : 'Cerrar compra'
       }
     >
-      {step === 'adjust' ? (
+      {step === 'label' ? (
+        <LabelScanFlow
+          getToken={getToken}
+          store={selectedStore || null}
+          lineName={
+            (labelScan!.from === 'adjust'
+              ? labelScan!.draft.name
+              : lines[labelScan!.index].name) || 'Producto nuevo'
+          }
+          lineTotal={null}
+          usedOn={labelUsedOn}
+          showToast={showToast}
+          onUse={applyLabel}
+          onManual={() => {
+            if (labelScan!.from === 'table') {
+              setEditing({ index: labelScan!.index })
+            }
+            endLabelScan()
+          }}
+          onCancel={() => endLabelScan()}
+        />
+      ) : step === 'adjust' ? (
         <AdjustProductSheet
+          key={editorKey}
           line={editorDraft!}
+          onScanLabel={scanFromEditor}
           isNew={!!editing && 'add' in editing}
           onDone={applyEdit}
           onRemove={removeEditing}
           onBack={() => setEditing(null)}
         />
       ) : step === 'store' ? (
-        <div className="adjust-sheet__view">
-          <button
-            type="button"
-            className="adjust-sheet__back"
-            onClick={() => setStoreSubsheet(false)}
-          >
-            <ChevronLeft size={22} strokeWidth={1.8} aria-hidden />
-            Cerrar compra
-          </button>
-          <div className="adjust-sheet__body">
-            <label className="adjust-field">
-              <span className="adjust-field__label">Tienda</span>
-              <input
-                className="adjust-field__box"
-                value={newStoreText}
-                onChange={(e) => setNewStoreText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') confirmNewStore()
-                }}
-                placeholder="Nombre de la tienda"
-                autoFocus
-              />
-            </label>
-          </div>
-          <div className="adjust-sheet__footer">
-            <button
-              type="button"
-              className="adjust-sheet__done"
-              onClick={confirmNewStore}
-              disabled={newStoreText.trim() === ''}
-            >
-              Usar esta tienda
-            </button>
-          </div>
-        </div>
+        <NewStoreStep
+          backLabel="Cerrar compra"
+          onBack={() => setStoreSubsheet(false)}
+          onConfirm={confirmNewStore}
+        />
       ) : (
         <div className="close-sheet__view">
-          <div className="close-sheet__head">
-            <h2 className="close-sheet__title">Cerrar compra</h2>
-            <p className="close-sheet__subtitle">
-              {included.length}{' '}
-              {included.length === 1 ? 'producto pasa' : 'productos pasan'} a
-              comprados
-            </p>
-          </div>
-
-          <div className="close-sheet__controls">
-            {/* The «+ otra» entry opens the «Nueva tienda» step, like the
-                dashed chip it replaced. */}
-            <StoreSelect
-              className="close-sheet__store"
+          <PurchaseSheetHead title="Cerrar compra">
+            <StorePill
               options={stores}
               value={selectedStore}
               onSelect={setStore}
-              onAddNew={() => {
-                setNewStoreText('')
-                setStoreSubsheet(true)
-              }}
+              onAddNew={() => setStoreSubsheet(true)}
             />
-            <label className="close-date">
-              <Calendar size={13} aria-hidden />
-              <input
-                type="date"
-                className="close-date__input"
-                value={date}
-                max={today()}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </label>
-          </div>
+            {/* A cleared picker keeps the day it had: a close needs one. */}
+            <DatePill value={date} onChange={(day) => day && setDate(day)} />
+          </PurchaseSheetHead>
 
-          <div className="close-sheet__table">
-            <div className="close-row close-row--head">
-              <span>Producto</span>
-              <span>Cant.</span>
-              <span className="close-row__amount">Importe</span>
-              <span />
-            </div>
+          <PurchaseTable className="close-sheet__table">
+            <PurchaseTableHead count={included.length} />
 
-            {withSuggestions.map((line, index) =>
-              line.included ? (
-                <div className="close-row" key={line.item_id ?? `new-${index}`}>
-                  <span className="close-row__name">
-                    {line.name}
-                    {!line.item_id && (
-                      <span className="close-row__sub">
-                        no estaba en la lista
-                      </span>
-                    )}
-                  </span>
-                  <span className="close-row__qty">{line.quantity ?? ''}</span>
-                  <span className="close-row__amount">
-                    {(() => {
-                      const t = lineTotal(line)
-                      if (t && t.confirmed)
-                        return (
-                          <span className="close-amount">
-                            {formatRowAmount(t.value)}
-                          </span>
-                        )
-                      if (t && !t.confirmed)
-                        return (
-                          <span className="close-amount close-amount--suggested">
-                            {formatRowAmount(t.value)}
-                            {/* The dashed border says "suggested, not yet
-                                real"; say it for screen readers too. */}
-                            <span className="sr-only"> (precio sugerido)</span>
-                          </span>
-                        )
-                      return (
-                        <span className="close-amount close-amount--none">
-                          sin precio
+            {withSuggestions.map((line, index) => {
+              if (!line.included) return null
+              const t = lineTotal(line)
+              const chip = showsWeightChip({
+                store: selectedStore,
+                quantity: line.quantity,
+                ean: line.ean,
+                boughtByWeight: line.bought_by_weight,
+              })
+              return (
+                <PurchaseRow
+                  key={line.item_id ?? `new-${index}`}
+                  onOpen={() => setEditing({ index })}
+                  openVerb="Ajustar"
+                  product={
+                    <>
+                      <span className="close-row__name">{line.name}</span>
+                      {line.label && line.price != null && (
+                        <span className="close-row__sub">
+                          {formatRowAmount(line.price)} €/kg · de la etiqueta
                         </span>
-                      )
-                    })()}
-                  </span>
-                  <button
-                    type="button"
-                    className="close-row__pencil"
-                    onClick={() => setEditing({ index })}
-                    aria-label={`Ajustar ${line.name}`}
-                  >
-                    <Pencil size={14} aria-hidden />
-                  </button>
-                </div>
-              ) : null,
-            )}
+                      )}
+                      {!line.item_id && (
+                        <span className="close-row__sub">
+                          no estaba en la lista
+                        </span>
+                      )}
+                    </>
+                  }
+                  // With the chip, the chip takes the quantity's place.
+                  qty={chip ? '' : (line.quantity ?? '')}
+                  amount={
+                    <PurchaseAmount
+                      value={t?.value ?? null}
+                      suggested={t != null && !t.confirmed}
+                    />
+                  }
+                  chip={
+                    chip && (
+                      <WeightChip
+                        lineName={line.name}
+                        onClick={() => startLabelScan(index)}
+                      />
+                    )
+                  }
+                />
+              )
+            })}
 
             {suggestedCount > 0 && (
               <button
                 type="button"
-                className="close-row close-row--action"
+                className="close-action"
                 onClick={confirmAllSuggested}
               >
-                <span className="close-row__action-label">
+                <span className="close-action__label">
                   Confirmar{' '}
                   {suggestedCount === 1
                     ? 'el precio sugerido'
                     : `los ${suggestedCount} precios sugeridos`}
                 </span>
-                <span className="close-row__action-disc close-row__action-disc--fill">
+                <span className="close-action__disc close-action__disc--fill">
                   <Check size={15} strokeWidth={2.6} aria-hidden />
                 </span>
               </button>
@@ -496,51 +554,47 @@ export function CloseTripSheet({
 
             <button
               type="button"
-              className="close-row close-row--action"
+              className="close-action"
               onClick={() => setEditing({ add: true })}
             >
-              <span className="close-row__action-label">Añadir producto</span>
-              <span className="close-row__action-disc close-row__action-disc--ghost">
+              <span className="close-action__label">Añadir producto</span>
+              <span className="close-action__disc close-action__disc--ghost">
                 <Plus size={15} aria-hidden />
               </span>
             </button>
 
-            <div className="close-row close-row--total">
-              <span className="close-total__label">
-                Total de lo que has puesto
-              </span>
-              <span className="close-total__value">
-                € {formatRowAmount(total)}
-              </span>
-            </div>
+            <PurchaseTotal value={total} />
+            <PurchaseHelp>
+              Toca una línea para ajustarla. Lo que dejes sin precio se guarda
+              como comprado, sin inventar el importe. Los importes en
+              discontinuo son precios de la última compra: no cuentan hasta que
+              los confirmas.
+            </PurchaseHelp>
+          </PurchaseTable>
 
-            <p className="close-sheet__help">
-              El lapicero de cada línea abre el ajuste. Lo que dejes sin precio
-              se guarda como comprado, sin inventar el importe. Los importes en
-              discontinuo son precios heredados de la última compra.
-            </p>
-          </div>
-
-          <div className="close-sheet__footer">
-            <button
-              type="button"
-              className="close-sheet__save"
+          <div className="psheet-foot">
+            {/* The date always has a value here: it starts as the trip's day. */}
+            <MissingToSaveNotice
+              store={selectedStore === ''}
+              date={false}
+              unnamedLines={0}
+              // A close settles cart items: hand-added lines alone close
+              // nothing.
+              nothingToSave={included.some((l) => l.item_id) ? null : 'cart'}
+            />
+            <SavePurchaseButton
+              sum={total}
+              saving={saving}
               onClick={save}
               disabled={
                 saving ||
                 selectedStore === '' ||
                 included.filter((l) => l.item_id).length === 0
               }
-            >
-              {saving ? 'Guardando…' : 'Guardar compra'}
-            </button>
-            <button
-              type="button"
-              className="close-sheet__scan"
-              onClick={() => onScanReceipt?.()}
-            >
+            />
+            <SecondaryButton onClick={() => onScanReceipt?.()}>
               <Receipt size={16} aria-hidden /> Escanear el ticket en su lugar
-            </button>
+            </SecondaryButton>
           </div>
         </div>
       )}

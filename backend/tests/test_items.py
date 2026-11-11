@@ -726,3 +726,54 @@ def test_deleting_the_last_item_keeps_a_trip_a_receipt_scan_points_at(
 
     session.expire_all()
     assert session.get(Purchase, trip_id) is not None
+
+
+def _bought(client, list_id, name, *, price_per=None, brand=None, ean=None):
+    """Add an item with a price and mark it purchased, so a twin can be added."""
+    body = {"name": name, "price": 4.5, "price_per": price_per, "brand": brand, "ean": ean}
+    item = client.post(f"/lists/{list_id}/items", json=body).json()
+    client.patch(f"/lists/{list_id}/items/{item['id']}", json={"purchased": True})
+    return item
+
+
+def _feed_by_id(client, list_id):
+    return {i["id"]: i for i in client.get(f"/lists/{list_id}/items").json()}
+
+
+def test_feed_marks_a_product_bought_by_weight_before(client: TestClient):
+    lst = _create_list(client)
+    old = _bought(client, lst["id"], "Sandía", price_per="KILOGRAM")
+    new = client.post(f"/lists/{lst['id']}/items", json={"name": "Sandía"}).json()
+    feed = _feed_by_id(client, lst["id"])
+    assert feed[old["id"]]["bought_by_weight"] is True
+    assert feed[new["id"]]["bought_by_weight"] is True
+
+
+def test_feed_does_not_mark_a_unit_product(client: TestClient):
+    lst = _create_list(client)
+    _bought(client, lst["id"], "Yogur")
+    new = client.post(f"/lists/{lst['id']}/items", json={"name": "Yogur"}).json()
+    assert _feed_by_id(client, lst["id"])[new["id"]]["bought_by_weight"] is False
+
+
+def test_bought_by_weight_matches_brand_too(client: TestClient):
+    lst = _create_list(client)
+    _bought(client, lst["id"], "Pollo", price_per="KILOGRAM", brand="Marca A")
+    new = client.post(f"/lists/{lst['id']}/items", json={"name": "Pollo", "brand": "Marca B"})
+    assert _feed_by_id(client, lst["id"])[new.json()["id"]]["bought_by_weight"] is False
+
+
+def test_bought_by_weight_follows_the_ean(client: TestClient):
+    lst = _create_list(client)
+    _bought(client, lst["id"], "Queso tierno", price_per="KILOGRAM", ean="8410000000017")
+    new = client.post(
+        f"/lists/{lst['id']}/items", json={"name": "Queso", "ean": "8410000000017"}
+    ).json()
+    assert _feed_by_id(client, lst["id"])[new["id"]]["bought_by_weight"] is True
+
+
+def test_bought_by_weight_stays_in_its_list(client: TestClient, second_list):
+    lst = _create_list(client)
+    _bought(client, second_list["id"], "Sandía", price_per="KILOGRAM")
+    new = client.post(f"/lists/{lst['id']}/items", json={"name": "Sandía"}).json()
+    assert _feed_by_id(client, lst["id"])[new["id"]]["bought_by_weight"] is False

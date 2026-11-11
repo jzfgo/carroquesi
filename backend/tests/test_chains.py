@@ -106,6 +106,30 @@ def test_get_chains_serves_the_table(client: TestClient):
     assert "hacendado" in mercadona["own_brands"]
 
 
+def test_get_chains_says_which_chains_read_a_weight_from_labels(client: TestClient):
+    chains = {c["name"]: c for c in client.get("/chains").json()}
+    assert chains["Mercadona"]["reads_label_weight"] is True
+    # Ahorramas decodes price labels, but they carry no weight.
+    assert chains["Ahorramas"]["reads_label_weight"] is False
+    assert chains["Carrefour"]["reads_label_weight"] is False
+
+
+_FOLDERS = sorted(p.parent.name for p in CHAINS_DIR.glob("*/profile.py"))
+
+
+@pytest.mark.parametrize("folder", _FOLDERS)
+def test_reads_label_weight_matches_the_vectors(folder: str):
+    """The flag is set by hand, so the vectors keep it honest: a chain that
+    claims to read a weight has a weighed vector, and one that does not
+    has none."""
+    weighed = any(
+        v["expected"] is not None and v["expected"].get("weight_g") is not None
+        for chain, v in VECTORS
+        if chain == folder
+    )
+    assert _profile(folder).reads_label_weight is weighed
+
+
 def test_get_label_decodes(client: TestClient):
     res = client.get("/chains/labels/230035050320600155004972", params={"store": "Mercadona"})
     assert res.status_code == 200

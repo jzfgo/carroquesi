@@ -22,6 +22,7 @@ const item1: ListItem = {
   purchased: false,
   purchased_at: null,
   purchase_has_receipt: false,
+  bought_by_weight: false,
   purchase_ends_at: null,
   ean: null,
   price: null,

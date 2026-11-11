@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.chains import ArticleCode
+
 
 class ParsedLine(BaseModel):
     name: str
@@ -71,6 +73,7 @@ class PricePatch(BaseModel):
     price_per: Literal["KILOGRAM"] | None = None  # None = per unit, "KILOGRAM" = per kg
     store: str | None = None
     quantity: str | None = None
+    article: ArticleCode | None = None
 
 
 class NameMappingCreate(BaseModel):
@@ -88,6 +91,7 @@ class NewPurchasedItem(BaseModel):
     price_per: Literal["KILOGRAM"] | None = None
     store: str | None = None
     quantity: str | None = None
+    article: ArticleCode | None = None
 
 
 class ReceiptPriceBatch(BaseModel):

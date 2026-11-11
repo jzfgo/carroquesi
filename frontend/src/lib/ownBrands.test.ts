@@ -1,5 +1,9 @@
 import { getChains } from './api'
-import { lookupOwnBrandStore, withOwnBrandStore } from './ownBrands'
+import {
+  lookupOwnBrandStore,
+  readsLabelWeight,
+  withOwnBrandStore,
+} from './ownBrands'
 
 vi.mock('./api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api')>()),
@@ -112,6 +116,25 @@ describe('withOwnBrandStore', () => {
   })
 })
 
+describe('readsLabelWeight', () => {
+  test('a chain whose labels give a weight', () => {
+    expect(readsLabelWeight('Mercadona')).toBe(true)
+  })
+
+  test('matches the store by key', () => {
+    expect(readsLabelWeight('  MERCADONA ')).toBe(true)
+  })
+
+  test('a chain whose labels give no weight', () => {
+    expect(readsLabelWeight('Ahorramas')).toBe(false)
+  })
+
+  test('a store no chain claims, or none', () => {
+    expect(readsLabelWeight('Frutería Paco')).toBe(false)
+    expect(readsLabelWeight(null)).toBe(false)
+  })
+})
+
 describe('loadChains', () => {
   const getToken = () => Promise.resolve('t')
 
@@ -123,13 +146,33 @@ describe('loadChains', () => {
 
   test('the served table replaces the snapshot', async () => {
     vi.mocked(getChains).mockResolvedValue([
-      { name: 'Nueva', store_keys: ['nueva'], own_brands: ['marca nueva'] },
+      {
+        name: 'Nueva',
+        store_keys: ['nueva'],
+        own_brands: ['marca nueva'],
+        reads_label_weight: false,
+      },
     ])
     const m = await freshModule()
     expect(m.lookupOwnBrandStore('Marca Nueva')).toBeNull()
     await m.loadChains(getToken)
     expect(m.lookupOwnBrandStore('Marca Nueva')).toBe('Nueva')
     expect(m.lookupOwnBrandStore('Hacendado')).toBeNull()
+  })
+
+  test('the served table decides which stores read a weight', async () => {
+    vi.mocked(getChains).mockResolvedValue([
+      {
+        name: 'Nueva',
+        store_keys: ['nueva', 'nuevaexpress'],
+        own_brands: [],
+        reads_label_weight: true,
+      },
+    ])
+    const m = await freshModule()
+    await m.loadChains(getToken)
+    expect(m.readsLabelWeight('Nueva Express')).toBe(true)
+    expect(m.readsLabelWeight('Mercadona')).toBe(false)
   })
 
   test('fetches once per page load', async () => {

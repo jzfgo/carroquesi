@@ -11,16 +11,6 @@
   --rss-dashed: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
-/* ── header: thumbnail + title + store/date controls ── */
-.rss-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 20px 14px;
-  border-bottom: 1px solid var(--rule-dashed);
-  flex-shrink: 0;
-}
-
 .rss-thumb {
   position: relative;
   flex-shrink: 0;
@@ -85,109 +75,6 @@
   letter-spacing: 0.04em;
 }
 
-.rss-head__main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.rss-title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.35rem;
-  font-weight: 400;
-  color: var(--ink-0);
-}
-
-.rss-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-/* store/date control pills: solid when read, dashed accent when still empty */
-.rss-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-family: var(--font-sans);
-  font-size: 0.78rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.rss-pill--set {
-  background: var(--paper-1);
-  border: 1px solid var(--rule-dashed);
-  color: var(--ink-1);
-}
-
-.rss-pill--empty {
-  background: transparent;
-  border: 1px dashed var(--rss-dashed);
-  color: var(--accent);
-}
-
-.rss-pill__chevron {
-  opacity: 0.7;
-}
-
-/* The record's own store/date in a targeted review: printed ink, not a control. */
-.rss-pill--locked {
-  cursor: default;
-}
-
-.rss-control-editor {
-  display: flex;
-  gap: 8px;
-  padding: 10px 20px;
-  border-bottom: 1px solid var(--rule);
-  flex-shrink: 0;
-}
-
-.rss-control-editor__input {
-  flex: 1;
-  min-width: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--paper-0);
-  font: inherit;
-  font-size: 0.9rem;
-  color: var(--ink-0);
-}
-
-.rss-control-editor__done {
-  flex-shrink: 0;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 8px;
-  background: var(--accent);
-  color: var(--accent-fg);
-  font-size: 0.82rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* ── sticky list header: select-all + count + Quitar todas ── */
-.rss-listhead {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 20px 8px;
-  background: var(--paper-0);
-  border-bottom: 1px solid var(--rule);
-  flex-shrink: 0;
-}
-
 .rss-selectall {
   flex-shrink: 0;
   width: 20px;
@@ -212,85 +99,35 @@
   border-top: 3px solid var(--accent-fg);
 }
 
-.rss-listhead__count {
-  flex: 1;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-}
-
-.rss-listhead__clear {
-  flex-shrink: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--accent);
-  cursor: pointer;
-}
-
-.rss-listhead__clear:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
 /* ── the list ── */
+.rss-body .psheet-tablehead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+
+  /* The sheet's own surface, so the head reads as part of it. */
+  background: var(--paper-lift);
+}
+
 .rss-body {
   flex: 1;
   overflow-y: auto;
   padding: 0 20px;
 }
 
-.rss-row {
-  display: grid;
-  grid-template-columns: 20px 1fr;
-  gap: 10px;
-  align-items: center;
-  border-top: 1px solid var(--rule);
-}
-
-.rss-row:first-child {
-  border-top: none;
-}
-
 .rss-row__check {
   width: 20px;
   height: 20px;
+
+  /* The row's column gap is the subgrid's 8px; this keeps the product 10px
+     from the box, plus the box's own 3px margin. */
+  margin-right: 5px;
   accent-color: var(--accent);
   cursor: pointer;
 }
 
 .rss-row__check:disabled {
   cursor: default;
-}
-
-.rss-row__open {
-  display: grid;
-  grid-template-columns: 1fr auto auto 16px;
-  gap: 8px;
-  align-items: center;
-  min-height: 54px;
-  padding: 8px 0;
-  border: none;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-}
-
-/* A locked discount row is paper to read, not a door. */
-.rss-row__open:disabled {
-  cursor: default;
-}
-
-.rss-row__product {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .rss-ocr {
@@ -360,47 +197,13 @@
   color: var(--accent);
 }
 
-.rss-annot--off {
-  color: var(--ink-2);
-}
-
-.rss-qty {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.8rem;
-  color: var(--ink-2);
-  text-align: right;
-  white-space: nowrap;
-}
-
-.rss-price {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: var(--ink-0);
-  text-align: right;
-  white-space: nowrap;
-}
-
-.rss-row__chevron {
-  color: var(--ink-2);
-  opacity: 0.7;
-}
-
-/* Excluded line: dims whole row; still counts toward the cuadre. */
-.rss-row--off .rss-ocr,
-.rss-row--off .rss-qty,
-.rss-row--off .rss-price {
+.psheet-row--off .rss-ocr {
   color: var(--ink-2);
   font-weight: 400;
 }
 
-/* ── footer: cuadre + save + re-read ── */
-.rss-foot {
-  padding: 12px 20px 8px;
-  border-top: 1px solid var(--rule-dashed);
-  flex-shrink: 0;
+.rss-annot--off {
+  color: var(--ink-2);
 }
 
 /* Targeted review: the paper's total will replace the recorded one — said in
@@ -409,35 +212,6 @@
   margin-bottom: 8px;
   font-size: 0.78rem;
   color: var(--ink-1);
-}
-
-.rss-cuadre {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.rss-cuadre--ok,
-.rss-cuadre--neutral {
-  justify-content: flex-end;
-}
-
-.rss-cuadre__label {
-  margin-right: auto;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-}
-
-.rss-cuadre__total {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--ink-0);
 }
 
 .rss-cuadre__disc {
@@ -465,126 +239,12 @@
   transform: translateY(-1px) rotate(45deg);
 }
 
-.rss-cuadre--off {
-  align-items: flex-start;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: var(--miel-bg);
-}
-
-.rss-cuadre__text {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-}
-
-.rss-cuadre__headline {
-  margin: 0;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--ink-0);
-}
-
-.rss-cuadre__detail {
-  margin: 3px 0 0;
-  font-size: 0.74rem;
-  line-height: 1.4;
-  color: var(--ink-1);
-}
-
-.rss-cuadre__disc--off {
-  width: 28px;
-  height: 28px;
-  background: var(--miel-0);
-}
-
-.rss-save {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 48px;
-  padding: 12px;
-  border: none;
-  border-radius: 10px;
-  background: var(--accent);
-  color: var(--accent-fg);
-  font-family: var(--font-sans);
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.rss-save:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.rss-save__sum {
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.rss-reread {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 8px;
-  min-height: 44px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: none;
-  color: var(--accent);
-  font-family: var(--font-sans);
-  font-size: 0.88rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-
 /* ── image lightbox ── */
-
-/* ── resolve sub-view (13b) ── */
-.rss-resolve-head {
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--rule-dashed);
-  flex-shrink: 0;
-}
-
-.rss-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 44px;
-  padding: 0 4px;
-  border: none;
-  background: none;
-  color: var(--accent);
-  font-family: var(--font-sans);
-  font-size: 0.95rem;
-  font-weight: 500;
-  cursor: pointer;
-}
 
 .rss-ticketline {
   padding: 14px 20px 12px;
   border-bottom: 1px solid var(--rule-dashed);
   flex-shrink: 0;
-}
-
-.rss-eyebrow {
-  display: block;
-  font-family: var(--font-sans);
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-2);
 }
 
 .rss-ticketline__row {
@@ -619,20 +279,42 @@
 /* The Importe correction (JAV-185): the same editor chrome as the header
    store/date controls, under its own eyebrow. The raw line above keeps the
    read amount; this holds what the review works with. */
-.rss-resolve-price {
-  padding: 12px 20px 0;
+.rss-qtyprice {
+  padding: 18px 20px 0;
   flex-shrink: 0;
 }
 
-.rss-resolve-price .rss-control-editor {
-  padding: 6px 0 12px;
-  border-bottom: none;
+/* A corrected total, on the verde ground the close editor's line total uses. */
+.rss-corrected {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 9px 12px;
+  background: var(--success-bg);
+  border-radius: 8px;
 }
 
-.rss-resolve-price__input {
-  max-width: 140px;
+.rss-corrected__label {
+  font-family: var(--font-sans);
+  font-size: var(--fs-12);
+  color: var(--ink-1);
+}
+
+.rss-corrected__paper {
+  color: var(--ink-2);
+}
+
+.rss-corrected__num,
+.rss-corrected__value {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+.rss-corrected__value {
+  font-size: var(--fs-15);
+  font-weight: 600;
+  color: var(--ink-0);
 }
 
 .rss-resolve-body {
@@ -649,7 +331,7 @@
   flex-direction: column;
 }
 
-.rss-pending .rss-eyebrow {
+.rss-pending .psheet-label {
   margin-bottom: 2px;
 }
 
@@ -714,7 +396,7 @@
   border-top: 1px solid var(--rule-dashed);
 }
 
-.rss-create .rss-eyebrow {
+.rss-create .psheet-label {
   margin-bottom: 10px;
 }
 
