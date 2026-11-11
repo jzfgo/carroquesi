@@ -249,14 +249,14 @@ export default function ReceiptScanSheet({
     target?.store ?? initialStore ?? null,
   )
 
-  // The resolve sheet (13b) is a sub-view, not a second Sheet: `resolvingIndex`
-  // swaps the body inside the same panel. Its draft (radio pick XOR create text)
-  // lives here so a barcode scan — which round-trips through the parent — can
-  // land in the create bar.
   // Stores added by hand through «+ otra», and the «Nueva tienda» step that
   // takes them: a content swap of this same sheet.
   const [extraStores, setExtraStores] = useState<string[]>([])
   const [addingStore, setAddingStore] = useState(false)
+  // The resolve sheet (13b) is a sub-view, not a second Sheet: `resolvingIndex`
+  // swaps the body inside the same panel. Its draft (radio pick XOR create text)
+  // lives here so a barcode scan — which round-trips through the parent — can
+  // land in the create bar.
   const [resolvingIndex, setResolvingIndex] = useState<number | null>(null)
   const [resolveRadioId, setResolveRadioId] = useState<string | null>(null)
   const [resolveText, setResolveText] = useState('')

@@ -170,9 +170,16 @@ test('with no store to offer, the save waits and the warning says why', () => {
   )
 })
 
+test('a row is named by its content, so its quantity and amount are read', () => {
+  renderSheet([item({ id: 'a', name: 'Leche', quantity: '2', price: 1.9 })])
+  expect(
+    screen.getByRole('button', { name: /^Ajustar Leche\b/ }),
+  ).toHaveAccessibleName('Ajustar Leche 2 3,80')
+})
+
 test('taking the last list product out leaves the save waiting, and says why', () => {
   renderSheet([item({ id: 'a', name: 'Leche' })])
-  fireEvent.click(screen.getByLabelText('Ajustar Leche'))
+  fireEvent.click(screen.getByRole('button', { name: /^Ajustar Leche\b/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Quitar del carro' }))
   expect(screen.getByRole('button', { name: /^Guardar compra/ })).toBeDisabled()
   expect(screen.getByText(/para guardar esta compra/)).toHaveTextContent(
@@ -266,7 +273,7 @@ test('«Confirmar los precios sugeridos» applies the inherited price', async ()
 
 test('tapping a row opens the adjust-product editor (10d)', () => {
   renderSheet([item({ id: 'a', name: 'Leche' })])
-  fireEvent.click(screen.getByLabelText('Ajustar Leche'))
+  fireEvent.click(screen.getByRole('button', { name: /^Ajustar Leche\b/ }))
   // 10d is a sub-sheet with a back-galón and the Producto field.
   expect(screen.getByText('Producto')).toBeInTheDocument()
 })
@@ -379,7 +386,9 @@ test('the same label on a second line warns', async () => {
 test('the 10d editor scans too, and keeps what was typed', async () => {
   vi.mocked(getLabel).mockResolvedValue(LABEL)
   renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '2' })])
-  fireEvent.click(screen.getByLabelText('Ajustar Contramuslo'))
+  fireEvent.click(
+    screen.getByRole('button', { name: /^Ajustar Contramuslo\b/ }),
+  )
   fireEvent.change(screen.getByPlaceholderText('Nombre del producto'), {
     target: { value: 'Contramuslo deshuesado' },
   })
@@ -418,7 +427,9 @@ test('a blank «Añadir producto» that scans and goes back adds no line', async
 
 test('a scan cancelled from 10d leaves the line as it was', async () => {
   renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '2' })])
-  fireEvent.click(screen.getByLabelText('Ajustar Contramuslo'))
+  fireEvent.click(
+    screen.getByRole('button', { name: /^Ajustar Contramuslo\b/ }),
+  )
   fireEvent.change(screen.getByPlaceholderText('Nombre del producto'), {
     target: { value: '' },
   })

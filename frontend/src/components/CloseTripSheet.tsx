@@ -498,7 +498,7 @@ export function CloseTripSheet({
                 <PurchaseRow
                   key={line.item_id ?? `new-${index}`}
                   onOpen={() => setEditing({ index })}
-                  openLabel={`Ajustar ${line.name}`}
+                  openVerb="Ajustar"
                   product={
                     <>
                       <span className="close-row__name">{line.name}</span>

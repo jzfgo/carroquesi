@@ -177,7 +177,7 @@ export function PurchaseRow({
   qty,
   amount,
   onOpen,
-  openLabel,
+  openVerb,
   disabled = false,
   off = false,
   chip,
@@ -187,7 +187,9 @@ export function PurchaseRow({
   qty: ReactNode
   amount: ReactNode
   onOpen: () => void
-  openLabel?: string
+  /** Said before the row's content, for screen readers only. The content
+   *  stays the button's name, so quantity and amount are still read. */
+  openVerb?: string
   disabled?: boolean
   /** A line that will not be saved: its ink dims. */
   off?: boolean
@@ -201,10 +203,12 @@ export function PurchaseRow({
         className="psheet-row__open"
         onClick={onOpen}
         disabled={disabled}
-        aria-label={openLabel}
       >
-        <span className="psheet-row__product">{product}</span>
-        <span className="psheet-qty">{qty}</span>
+        {/* The content is the button's name. A whitespace node in a grid
+            makes no cell, but keeps the words apart when it is read out. */}
+        {openVerb && <span className="sr-only">{openVerb}</span>}{' '}
+        <span className="psheet-row__product">{product}</span>{' '}
+        <span className="psheet-qty">{qty}</span>{' '}
         <span className="psheet-num">{amount}</span>
         {disabled ? (
           <span />
