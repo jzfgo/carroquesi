@@ -238,7 +238,7 @@ class ChainArticleMapping(SQLModel, table=True):
 
     Each list keeps its own rows. The item names are what one household
     typed, so they must not reach another household's list. `chain` is the
-    chain's store key, a lookup key only, never displayed.
+    chain's `key`, a lookup key only, never displayed.
     """
 
     __tablename__ = "chain_article_mappings"

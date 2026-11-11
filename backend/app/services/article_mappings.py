@@ -4,7 +4,6 @@ from sqlmodel import Session, select
 
 from app.chains.registry import GENERIC, profile_for
 from app.db.models import ChainArticleMapping
-from app.services.store_key import store_key
 
 
 def remember_article(
@@ -29,7 +28,7 @@ def remember_article(
     profile = profile_for(store)
     if profile is GENERIC:
         return
-    chain = store_key(profile.name)
+    chain = profile.key
     # The session autoflushes before this query, so a second line with the
     # same article in one save finds the row the first line added.
     row = session.exec(

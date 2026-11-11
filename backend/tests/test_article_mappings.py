@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
+from app.chains.registry import decode_label, profile_for
 from app.db.models import ChainArticleMapping, User
 from app.services.article_mappings import remember_article
 
@@ -103,3 +104,13 @@ def test_deleting_a_list_deletes_its_article_mappings(client, session: Session, 
 
     assert client.delete(f"/lists/{list_id}").status_code == 204
     assert _rows(session) == []
+
+
+def test_a_decoded_label_finds_its_row_by_the_chain_key(client, session: Session, user: User):
+    list_id = _list_id(client)
+    _remember(session, user, list_id, store="Mercadona")
+    session.commit()
+    label = decode_label("230035050320600155004972")
+    assert label is not None
+    [row] = _rows(session)
+    assert profile_for(label.chain).key == row.chain
