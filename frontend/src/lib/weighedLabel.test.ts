@@ -1,0 +1,121 @@
+import type { LabelRead } from '../types'
+import { parseKgFactor } from './itemCost'
+import {
+  hasWeight,
+  labelAgrees,
+  labelCode,
+  labelPricePerKg,
+  labelQuantity,
+  labelTotal,
+  showsWeightChip,
+} from './weighedLabel'
+
+// A real label: backend/app/chains/mercadona/vectors.json, first entry.
+const SANDIA: LabelRead = {
+  format: 'mercadona-24',
+  article: '03505',
+  reduced: false,
+  weight_g: 3206,
+  price_per_kg_cents: 155,
+  total_cents: 497,
+  chain: 'Mercadona',
+}
+
+describe('labelQuantity', () => {
+  test('writes the weight in kilos with a comma', () => {
+    expect(labelQuantity(636)).toBe('0,636 kg')
+    expect(labelQuantity(3206)).toBe('3,206 kg')
+  })
+
+  test('drops trailing zeros', () => {
+    expect(labelQuantity(500)).toBe('0,5 kg')
+    expect(labelQuantity(1250)).toBe('1,25 kg')
+    expect(labelQuantity(2000)).toBe('2 kg')
+  })
+
+  test('reads back as the same weight', () => {
+    expect(parseKgFactor(labelQuantity(636))).toBeCloseTo(0.636, 6)
+  })
+})
+
+describe('label money', () => {
+  test('price per kilo and total in euros', () => {
+    expect(labelPricePerKg(SANDIA)).toBe(1.55)
+    expect(labelTotal(SANDIA)).toBe(4.97)
+  })
+
+  test('agrees with a line of the same total, to the cent', () => {
+    expect(labelAgrees(SANDIA, 4.97)).toBe(true)
+    expect(labelAgrees(SANDIA, 4.98)).toBe(false)
+  })
+})
+
+describe('hasWeight', () => {
+  test('a weight, not a count', () => {
+    expect(hasWeight('0,5 kg')).toBe(true)
+    expect(hasWeight('346 g')).toBe(true)
+    expect(hasWeight('2')).toBe(false)
+    expect(hasWeight(null)).toBe(false)
+  })
+})
+
+describe('showsWeightChip', () => {
+  const base = {
+    store: 'Mercadona',
+    quantity: '1',
+    ean: null,
+    boughtByWeight: false,
+  }
+
+  test('one unit with no EAN, at a chain whose labels give a weight', () => {
+    expect(showsWeightChip(base)).toBe(true)
+  })
+
+  test('no quantity counts as one unit', () => {
+    expect(showsWeightChip({ ...base, quantity: null })).toBe(true)
+  })
+
+  test('a product with an EAN is packaged, not weighed', () => {
+    expect(showsWeightChip({ ...base, ean: '8480000123456' })).toBe(false)
+  })
+
+  test('a product bought by weight before shows it anyway', () => {
+    expect(
+      showsWeightChip({
+        ...base,
+        quantity: '2',
+        ean: '8480000123456',
+        boughtByWeight: true,
+      }),
+    ).toBe(true)
+  })
+
+  test('several units do not', () => {
+    expect(showsWeightChip({ ...base, quantity: '2' })).toBe(false)
+  })
+
+  test('a line that already has a weight does not', () => {
+    expect(
+      showsWeightChip({ ...base, quantity: '0,5 kg', boughtByWeight: true }),
+    ).toBe(false)
+  })
+
+  test('a store whose labels give no weight does not', () => {
+    expect(showsWeightChip({ ...base, store: 'Ahorramas' })).toBe(false)
+    expect(showsWeightChip({ ...base, store: null })).toBe(false)
+  })
+})
+
+describe('labelCode', () => {
+  test('keeps a run of numbers', () => {
+    expect(labelCode(' 230035050320600155004972 ')).toBe(
+      '230035050320600155004972',
+    )
+  })
+
+  test('refuses anything else', () => {
+    expect(labelCode('https://example.com/x')).toBeNull()
+    expect(labelCode('123')).toBeNull()
+    expect(labelCode('2300350503206001550049721')).toBeNull()
+  })
+})
