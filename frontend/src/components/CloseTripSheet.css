@@ -118,6 +118,10 @@
   color: var(--ink-2);
 }
 
+.close-row__weight {
+  justify-self: end;
+}
+
 .close-row__qty {
   font-family: var(--font-mono);
   font-size: var(--fs-13);

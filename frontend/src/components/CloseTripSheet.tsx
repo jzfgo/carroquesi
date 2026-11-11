@@ -13,14 +13,22 @@ import {
   getPurchaseItems,
   updateItem,
 } from '../lib/api'
+import { isOnline } from '../lib/connectivity'
 import { formatRowAmount } from '../lib/formatPrice'
 import { parseQuantityFactor } from '../lib/itemCost'
 import { storeKey } from '../lib/storeKey'
+import {
+  labelPricePerKg,
+  labelQuantity,
+  showsWeightChip,
+} from '../lib/weighedLabel'
 import type { ListItem, PurchaseLine } from '../types'
 import { AdjustProductSheet, type DraftLine } from './AdjustProductSheet'
 import './CloseTripSheet.css'
+import { LabelScanFlow, type UsedLabel } from './LabelScanFlow'
 import { Sheet } from './Sheet'
 import { StoreSelect } from './StoreSelect'
+import { WeightChip } from './WeightChip'
 
 interface Props {
   listId: string
@@ -37,6 +45,7 @@ interface Props {
   storeOptions?: string[]
   displayStore: (raw: string) => string
   onClose: () => void
+  showToast: (message: string) => void
   /** After a successful close — the parent refreshes the list + stack. */
   onDone: () => void
   /** «Escanear el ticket en su lugar» — hand off to the receipt flow. */
@@ -60,6 +69,9 @@ function toDraft(item: ListItem): DraftLine {
     price_per: (item.price_per as 'KILOGRAM' | null) ?? null,
     included: true,
     suggested: null,
+    ean: item.ean,
+    bought_by_weight: item.bought_by_weight,
+    label: null,
   }
 }
 
@@ -90,6 +102,7 @@ export function CloseTripSheet({
   storeOptions = [],
   displayStore,
   onClose,
+  showToast,
   onDone,
   onScanReceipt,
 }: Props) {
@@ -121,6 +134,14 @@ export function CloseTripSheet({
       }[]
     >
   >({})
+  // A weighed-label scan for one line, from its 10b row or its 10d editor:
+  // another step of this same sheet, which returns where it started.
+  const [labelScan, setLabelScan] = useState<{
+    index: number
+    from: 'table' | 'adjust'
+  } | null>(null)
+  // Remounts the 10d editor after a scan, so it shows the label's figures.
+  const [editorKey, setEditorKey] = useState(0)
   // Track which items should return to the pending list on save («Quitar»).
   const [dropped, setDropped] = useState<string[]>([])
 
@@ -269,8 +290,65 @@ export function CloseTripSheet({
             price_per: null,
             included: true,
             suggested: null,
+            ean: null,
+            bought_by_weight: false,
+            label: null,
           }
         : null
+
+  function startLabelScan(index: number, from: 'table' | 'adjust') {
+    // Offline is read-only: the action stays visible and refuses.
+    if (!isOnline()) {
+      showToast('Sin conexión')
+      return
+    }
+    setLabelScan({ index, from })
+  }
+
+  // From 10d, the editor's unsaved fields go into the line first, so the
+  // scan does not lose them. A blank «Añadir producto» becomes a line.
+  function scanFromEditor(draft: DraftLine) {
+    if (!isOnline()) {
+      showToast('Sin conexión')
+      return
+    }
+    const index = editing && 'index' in editing ? editing.index : lines.length
+    setLines((prev) =>
+      index < prev.length
+        ? prev.map((l, i) => (i === index ? draft : l))
+        : [...prev, draft],
+    )
+    setEditing({ index })
+    setLabelScan({ index, from: 'adjust' })
+  }
+
+  function endLabelScan() {
+    setLabelScan(null)
+    setEditorKey((k) => k + 1)
+  }
+
+  // Without a receipt, the label sets the amount: its weight and its €/kg.
+  function applyLabel(index: number, { code, label }: UsedLabel) {
+    setLines((prev) =>
+      prev.map((l, i) =>
+        i === index
+          ? {
+              ...l,
+              quantity: labelQuantity(label.weight_g!),
+              price: labelPricePerKg(label),
+              price_per: 'KILOGRAM',
+              label: { code, article: label.article },
+            }
+          : l,
+      ),
+    )
+    endLabelScan()
+  }
+
+  function labelUsedOn(code: string, index: number): string | null {
+    const other = lines.find((l, i) => i !== index && l.label?.code === code)
+    return other ? other.name : null
+  }
 
   const save = async () => {
     setSaving(true)
@@ -287,6 +365,7 @@ export function CloseTripSheet({
           quantity: l.quantity,
           name: l.name,
           brand: l.brand,
+          article: l.label?.article ?? null,
         })),
         new_items: included
           .filter((l) => !l.item_id)
@@ -296,6 +375,7 @@ export function CloseTripSheet({
             quantity: l.quantity,
             price: l.price,
             price_per: l.price_per,
+            article: l.label?.article ?? null,
           })),
       }
       await closePurchase(getToken, listId, body)
@@ -315,33 +395,56 @@ export function CloseTripSheet({
   // and the «Nueva tienda» step. A step never re-presents the sheet — the
   // surface stays, only what it holds changes (the app-wide sheet↔sub-sheet
   // rule). A dismiss gesture on any step goes back to the table, not away.
-  const step: 'adjust' | 'store' | 'table' = editorDraft
-    ? 'adjust'
-    : storeSubsheet
-      ? 'store'
-      : 'table'
+  const step: 'label' | 'adjust' | 'store' | 'table' = labelScan
+    ? 'label'
+    : editorDraft
+      ? 'adjust'
+      : storeSubsheet
+        ? 'store'
+        : 'table'
   return (
     <Sheet
       className={`close-sheet${step !== 'table' ? ' close-sheet--editing' : ''}`}
       onClose={onClose}
       onDismiss={
-        step === 'adjust'
-          ? () => setEditing(null)
-          : step === 'store'
-            ? () => setStoreSubsheet(false)
-            : undefined
+        step === 'label'
+          ? endLabelScan
+          : step === 'adjust'
+            ? () => setEditing(null)
+            : step === 'store'
+              ? () => setStoreSubsheet(false)
+              : undefined
       }
       label={
-        step === 'adjust'
-          ? 'Ajustar producto'
-          : step === 'store'
-            ? 'Nueva tienda'
-            : 'Cerrar compra'
+        step === 'label'
+          ? 'Etiqueta de peso'
+          : step === 'adjust'
+            ? 'Ajustar producto'
+            : step === 'store'
+              ? 'Nueva tienda'
+              : 'Cerrar compra'
       }
     >
-      {step === 'adjust' ? (
+      {step === 'label' ? (
+        <LabelScanFlow
+          getToken={getToken}
+          store={selectedStore || null}
+          lineName={lines[labelScan!.index].name || 'Producto nuevo'}
+          lineTotal={null}
+          usedOn={(code) => labelUsedOn(code, labelScan!.index)}
+          showToast={showToast}
+          onUse={(used) => applyLabel(labelScan!.index, used)}
+          onManual={() => {
+            setEditing({ index: labelScan!.index })
+            endLabelScan()
+          }}
+          onCancel={endLabelScan}
+        />
+      ) : step === 'adjust' ? (
         <AdjustProductSheet
+          key={editorKey}
           line={editorDraft!}
+          onScanLabel={scanFromEditor}
           isNew={!!editing && 'add' in editing}
           onDone={applyEdit}
           onRemove={removeEditing}
@@ -432,13 +535,33 @@ export function CloseTripSheet({
                 <div className="close-row" key={line.item_id ?? `new-${index}`}>
                   <span className="close-row__name">
                     {line.name}
+                    {line.label && line.price != null && (
+                      <span className="close-row__sub">
+                        {formatRowAmount(line.price)} €/kg · de la etiqueta
+                      </span>
+                    )}
                     {!line.item_id && (
                       <span className="close-row__sub">
                         no estaba en la lista
                       </span>
                     )}
                   </span>
-                  <span className="close-row__qty">{line.quantity ?? ''}</span>
+                  {showsWeightChip({
+                    store: selectedStore,
+                    quantity: line.quantity,
+                    ean: line.ean,
+                    boughtByWeight: line.bought_by_weight,
+                  }) ? (
+                    <WeightChip
+                      className="close-row__weight"
+                      lineName={line.name}
+                      onClick={() => startLabelScan(index, 'table')}
+                    />
+                  ) : (
+                    <span className="close-row__qty">
+                      {line.quantity ?? ''}
+                    </span>
+                  )}
                   <span className="close-row__amount">
                     {(() => {
                       const t = lineTotal(line)

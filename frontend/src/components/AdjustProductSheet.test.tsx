@@ -11,6 +11,9 @@ const base: DraftLine = {
   price_per: null,
   included: true,
   suggested: null,
+  ean: null,
+  bought_by_weight: false,
+  label: null,
 }
 
 function renderSheet(over: Partial<DraftLine> = {}, isNew = false) {

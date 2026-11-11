@@ -1480,6 +1480,7 @@ export function ListScreen({
           storeOptions={items.flatMap((i) => i.stores)}
           displayStore={displayStore}
           onClose={() => setCloseTrip(null)}
+          showToast={setToast}
           onDone={() => {
             setCloseTrip(null)
             invalidateAfterTripChange()
