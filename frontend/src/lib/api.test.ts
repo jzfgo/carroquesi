@@ -7,6 +7,7 @@ import {
   deleteList,
   getElsewhereMatch,
   getInvitePreview,
+  getLabel,
   getLists,
   getListUpdatedAt,
   issueApiKey,
@@ -194,6 +195,54 @@ describe('getElsewhereMatch', () => {
     mockFetch.mockReturnValue(mockResponse(null))
     const match = await getElsewhereMatch(mockGetToken, 'l1', 'nada')
     expect(match).toBeNull()
+  })
+})
+
+describe('getLabel', () => {
+  const read = {
+    format: 'mercadona-24',
+    article: '03505',
+    reduced: false,
+    weight_g: 3206,
+    price_per_kg_cents: 155,
+    total_cents: 497,
+    chain: 'Mercadona',
+  }
+
+  it('GET /chains/labels/{code} with the store hint', async () => {
+    mockFetch.mockReturnValue(mockResponse(read))
+    const label = await getLabel(
+      mockGetToken,
+      '230035050320600155004972',
+      'Mercadona Centro',
+    )
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '/chains/labels/230035050320600155004972?store=Mercadona%20Centro',
+      ),
+      expect.anything(),
+    )
+    expect(label).toEqual(read)
+  })
+
+  it('sends no store query without a hint', async () => {
+    mockFetch.mockReturnValue(mockResponse(read))
+    await getLabel(mockGetToken, '230035050320600155004972', null)
+    expect(mockFetch.mock.calls[0][0]).toMatch(
+      /\/chains\/labels\/230035050320600155004972$/,
+    )
+  })
+
+  it('answers null when the backend refuses the label', async () => {
+    mockFetch.mockReturnValue(mockResponse('label_not_decoded', 404))
+    expect(await getLabel(mockGetToken, '123', null)).toBeNull()
+  })
+
+  it('throws on any other failure', async () => {
+    mockFetch.mockReturnValue(mockResponse('boom', 500))
+    await expect(getLabel(mockGetToken, '123', null)).rejects.toMatchObject({
+      status: 500,
+    })
   })
 })
 

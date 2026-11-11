@@ -244,12 +244,21 @@
   padding: 0 20px;
 }
 
+/* The row button spans the product, quantity, amount and chevron columns
+   through a subgrid, so the «Peso» chip, a sibling button, can sit in the
+   quantity column on top of it. */
 .rss-row {
   display: grid;
-  grid-template-columns: 20px 1fr;
-  gap: 10px;
+  grid-template-columns: 20px 1fr auto auto 16px;
+  column-gap: 8px;
   align-items: center;
   border-top: 1px solid var(--rule);
+}
+
+.rss-row__weight {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
 }
 
 .rss-row:first-child {
@@ -259,6 +268,10 @@
 .rss-row__check {
   width: 20px;
   height: 20px;
+
+  /* The row's column gap is the subgrid's 8px; this keeps the product 10px
+     from the box, plus the box's own 3px margin. */
+  margin-right: 5px;
   accent-color: var(--accent);
   cursor: pointer;
 }
@@ -269,8 +282,9 @@
 
 .rss-row__open {
   display: grid;
-  grid-template-columns: 1fr auto auto 16px;
-  gap: 8px;
+  grid-column: 2 / -1;
+  grid-row: 1;
+  grid-template-columns: subgrid;
   align-items: center;
   min-height: 54px;
   padding: 8px 0;

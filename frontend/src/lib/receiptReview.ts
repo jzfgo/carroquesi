@@ -44,6 +44,12 @@ export interface LineState {
    * quantity clears it, since a quantity change keeps the total.
    */
   unitPrice?: number | null
+  /**
+   * The weighed label used on this line: its code, to notice the same label
+   * on another line, and its article code, which the save sends so the
+   * product is remembered.
+   */
+  label?: { code: string; article: string } | null
 }
 
 export function isNamed(resolution: LineResolution): boolean {

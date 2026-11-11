@@ -3,6 +3,7 @@ import type {
   ChainRead,
   DueSuggestion,
   ElsewhereMatch,
+  LabelRead,
   ListItem,
   ListUpdatedAt,
   PriceEntry,
@@ -334,6 +335,25 @@ export function getChains(
   getToken: () => Promise<string>,
 ): Promise<ChainRead[]> {
   return apiFetch(getToken, '/chains') as Promise<ChainRead[]>
+}
+
+/** Decode an in-store label. Null when the backend refuses it: every refusal
+ * is the same answer, so the caller has one failure state. */
+export async function getLabel(
+  getToken: () => Promise<string>,
+  code: string,
+  store: string | null,
+): Promise<LabelRead | null> {
+  const query = store ? `?store=${encodeURIComponent(store)}` : ''
+  try {
+    return (await apiFetch(
+      getToken,
+      `/chains/labels/${code}${query}`,
+    )) as LabelRead
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null
+    throw err
+  }
 }
 
 export function removeMember(

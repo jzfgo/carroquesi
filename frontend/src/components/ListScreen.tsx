@@ -1480,6 +1480,7 @@ export function ListScreen({
           storeOptions={items.flatMap((i) => i.stores)}
           displayStore={displayStore}
           onClose={() => setCloseTrip(null)}
+          showToast={setToast}
           onDone={() => {
             setCloseTrip(null)
             invalidateAfterTripChange()
@@ -1613,7 +1614,11 @@ export function ListScreen({
               price: i.price,
               price_per: i.price_per,
               purchased_quantity: i.purchased_quantity,
+              ean: i.ean,
+              bought_by_weight: i.bought_by_weight,
             }))}
+          getToken={getToken}
+          showToast={setToast}
           store={receiptScanTarget?.store ?? receiptScanResult.store}
           target={receiptScanTarget}
           imageUrl={receiptImageUrl}

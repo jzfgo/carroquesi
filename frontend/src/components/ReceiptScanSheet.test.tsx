@@ -1,7 +1,32 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
-import type { ReceiptScanResult } from '../types'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { getLabel } from '../lib/api'
+import { reportRequestOutcome } from '../lib/connectivity'
+import type { LabelRead, ReceiptScanResult } from '../types'
 import ReceiptScanSheet, { type ItemRef } from './ReceiptScanSheet'
+
+vi.mock('../lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/api')>()),
+  getLabel: vi.fn(),
+}))
+
+// The camera is LabelScanner's to test; here a read is a button.
+vi.mock('./LabelScanner', () => ({
+  LabelScanner: ({
+    onDetect,
+    onClose,
+  }: {
+    onDetect: (code: string | null) => void
+    onClose: () => void
+  }) => (
+    <div>
+      <button onClick={() => onDetect('230123450063600900005724')}>
+        leer etiqueta
+      </button>
+      <button onClick={onClose}>Cerrar escáner</button>
+    </div>
+  ),
+}))
 
 // The PDF thumb opens ReceiptFileViewer, which loads pdf.js lazily.
 vi.mock('../lib/pdfjs', () => ({
@@ -83,6 +108,8 @@ const candidateItems: ItemRef[] = [
     price: null,
     price_per: null,
     purchased_quantity: null,
+    ean: null,
+    bought_by_weight: false,
   },
   {
     id: 'item-2',
@@ -95,6 +122,8 @@ const candidateItems: ItemRef[] = [
     price: null,
     price_per: null,
     purchased_quantity: null,
+    ean: null,
+    bought_by_weight: false,
   },
   {
     id: 'item-3',
@@ -107,6 +136,8 @@ const candidateItems: ItemRef[] = [
     price: null,
     price_per: null,
     purchased_quantity: null,
+    ean: null,
+    bought_by_weight: false,
   },
   {
     id: 'item-4',
@@ -119,6 +150,8 @@ const candidateItems: ItemRef[] = [
     price: null,
     price_per: null,
     purchased_quantity: null,
+    ean: null,
+    bought_by_weight: false,
   },
 ]
 
@@ -128,23 +161,26 @@ function renderSheet(overrides: Partial<SheetProps> = {}) {
   const onConfirm = vi.fn<SheetProps['onConfirm']>(async () => true)
   const onClose = vi.fn()
   const onReReadReceipt = vi.fn()
+  const showToast = vi.fn()
   render(
     <ReceiptScanSheet
       result={makeResult()}
       candidateItems={candidateItems}
       store="Mercadona"
+      getToken={() => Promise.resolve('t')}
+      showToast={showToast}
       onConfirm={onConfirm}
       onClose={onClose}
       onReReadReceipt={onReReadReceipt}
       {...overrides}
     />,
   )
-  return { onConfirm, onClose, onReReadReceipt }
+  return { onConfirm, onClose, onReReadReceipt, showToast }
 }
 
 const saveButton = () => screen.getByRole('button', { name: /Guardar compra/ })
 const openRow = (raw: string) =>
-  screen.getByRole('button', { name: new RegExp(raw) })
+  screen.getByRole('button', { name: new RegExp(`^${raw}`) })
 
 describe('ReceiptScanSheet — review list (13a)', () => {
   it('renders one list in ticket order with the raw OCR line as primary', () => {
@@ -489,6 +525,8 @@ describe('ReceiptScanSheet — targeted resolve (JAV-232)', () => {
           result={makeResult()}
           candidateItems={[...targetItems, { ...partner, price }]}
           store="Mercadona"
+          getToken={() => Promise.resolve('t')}
+          showToast={vi.fn()}
           target={target}
           onConfirm={vi.fn(async () => true)}
           onClose={vi.fn()}
@@ -852,5 +890,216 @@ describe('ReceiptScanSheet — quantity correction', () => {
     // The total stays 1,15, so the unit price moves to 0,575: the price note
     // wins over the quantity one.
     expect(screen.getByText('era € 1,15')).toBeInTheDocument()
+  })
+})
+
+describe('ReceiptScanSheet — weighed label', () => {
+  // 346 g at 3,32 €/kg is 1,15: the BEBIDA ALMENDRAS line's own total.
+  const LABEL: LabelRead = {
+    format: 'mercadona-24',
+    article: '01234',
+    reduced: false,
+    weight_g: 346,
+    price_per_kg_cents: 332,
+    total_cents: 115,
+    chain: 'Mercadona',
+  }
+  const chip = (raw: string) =>
+    screen.queryByRole('button', { name: `Escanear la etiqueta de «${raw}»` })
+
+  afterEach(() => {
+    reportRequestOutcome(true)
+  })
+
+  it('offers «Peso» on one-unit lines with no EAN, not on weighed or counted ones', () => {
+    renderSheet()
+    expect(chip('BEBIDA ALMENDRAS 0%')).toBeInTheDocument()
+    expect(chip('MANI DULCE')).toBeInTheDocument()
+    expect(chip('BACON LONCHAS')).not.toBeInTheDocument()
+    expect(chip('YOGUR NATURAL')).not.toBeInTheDocument()
+  })
+
+  it('offers nothing where the labels give no weight', () => {
+    renderSheet({
+      store: 'Ahorramas',
+      result: makeResult({ store: 'Ahorramas' }),
+    })
+    expect(chip('BEBIDA ALMENDRAS 0%')).not.toBeInTheDocument()
+  })
+
+  it('a product with an EAN needs a past weighed purchase', () => {
+    renderSheet({
+      candidateItems: [
+        { ...candidateItems[0], ean: '8480000123456' },
+        candidateItems[1],
+        { ...candidateItems[2], ean: '8480000654321', bought_by_weight: true },
+        candidateItems[3],
+      ],
+    })
+    expect(chip('BEBIDA ALMENDRAS 0%')).not.toBeInTheDocument()
+    expect(chip('YOGUR NATURAL')).toBeInTheDocument()
+  })
+
+  it('a used label gives the line its weight and €/kg, and keeps the paper amount', async () => {
+    vi.mocked(getLabel).mockResolvedValue(LABEL)
+    const { onConfirm } = renderSheet()
+    fireEvent.click(chip('BEBIDA ALMENDRAS 0%')!)
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Usar en esta línea' }),
+    )
+    expect(screen.getByText('0,346 kg')).toBeInTheDocument()
+    expect(screen.getByText('1,15')).toBeInTheDocument()
+    expect(chip('BEBIDA ALMENDRAS 0%')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    expect(patches.find((p) => p.item_id === 'item-1')).toMatchObject({
+      quantity: '0,346 kg',
+      price: 3.32,
+      price_per: 'KILOGRAM',
+      article: '01234',
+    })
+    expect(patches.find((p) => p.item_id === 'item-2')?.article).toBeNull()
+  })
+
+  it('a label used despite a mismatch keeps the paper amount', async () => {
+    // 400 g at 3,32 €/kg is 1,33; the paper says 1,15.
+    vi.mocked(getLabel).mockResolvedValue({
+      ...LABEL,
+      weight_g: 400,
+      total_cents: 133,
+    })
+    const { onConfirm } = renderSheet()
+    fireEvent.click(chip('BEBIDA ALMENDRAS 0%')!)
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Usarla de todas formas' }),
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    const patch = patches.find((p) => p.item_id === 'item-1')!
+    expect(patch).toMatchObject({
+      quantity: '0,4 kg',
+      price_per: 'KILOGRAM',
+      article: '01234',
+    })
+    // Weight × price is the paper's 1,15, not the label's 1,33.
+    expect(0.4 * patch.price!).toBeCloseTo(1.15, 2)
+  })
+
+  it('a label that matches a corrected total keeps that total', async () => {
+    // The paper reads 1,15; the user corrects it to 2,00, which the label
+    // agrees with: 346 g at 5,78 €/kg.
+    vi.mocked(getLabel).mockResolvedValue({
+      ...LABEL,
+      price_per_kg_cents: 578,
+      total_cents: 200,
+    })
+    const { onConfirm } = renderSheet()
+    fireEvent.click(openRow('BEBIDA ALMENDRAS'))
+    const input = screen.getByLabelText('Precio')
+    fireEvent.change(input, { target: { value: '2,00' } })
+    fireEvent.blur(input)
+    fireEvent.click(screen.getByRole('button', { name: 'Escanear etiqueta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Usar en esta línea' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Revisar ticket/ }))
+    expect(screen.getByText('2,00')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    const patch = patches.find((p) => p.item_id === 'item-1')!
+    expect(patch.quantity).toBe('0,346 kg')
+    expect(0.346 * patch.price!).toBeCloseTo(2, 2)
+  })
+
+  it('a created line carries the label too', async () => {
+    vi.mocked(getLabel).mockResolvedValue({ ...LABEL, total_cents: 315 })
+    const { onConfirm } = renderSheet()
+    fireEvent.click(chip('MANI DULCE')!)
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Usar en esta línea' }),
+    )
+    fireEvent.click(openRow('MANI DULCE'))
+    fireEvent.change(screen.getByPlaceholderText(/Nombre del producto/), {
+      target: { value: 'Maní dulce' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [, , newItems] = onConfirm.mock.calls[0]
+    expect(newItems[0]).toMatchObject({ name: 'Maní dulce', article: '01234' })
+  })
+
+  it('the same label on a second line warns', async () => {
+    vi.mocked(getLabel).mockResolvedValue(LABEL)
+    renderSheet()
+    fireEvent.click(chip('BEBIDA ALMENDRAS 0%')!)
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Usar en esta línea' }),
+    )
+    fireEvent.click(chip('MANI DULCE')!)
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    expect(
+      await screen.findByText(
+        /Esta etiqueta ya está en otra línea de Bebida de almendra 0% azúcares\./,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('an unchecked line does not count as the label’s other line', async () => {
+    vi.mocked(getLabel).mockResolvedValue(LABEL)
+    renderSheet()
+    fireEvent.click(chip('BEBIDA ALMENDRAS 0%')!)
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Usar en esta línea' }),
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: /BEBIDA ALMENDRAS/ }))
+    fireEvent.click(chip('MANI DULCE')!)
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    await screen.findByRole('button', { name: /Usar/ })
+    expect(screen.queryByText(/ya está en otra línea/)).not.toBeInTheDocument()
+  })
+
+  it('the line detail always offers the scan, and «Escribir a mano» returns there', async () => {
+    vi.mocked(getLabel).mockResolvedValue(null)
+    renderSheet()
+    fireEvent.click(openRow('YOGUR NATURAL'))
+    fireEvent.click(screen.getByRole('button', { name: 'Escanear etiqueta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Escribir a mano' }),
+    )
+    expect(screen.getByLabelText('Cantidad y precio')).toBeInTheDocument()
+    expect(screen.getByText('YOGUR NATURAL')).toBeInTheDocument()
+  })
+
+  it('closing the camera goes back to where the scan began', () => {
+    renderSheet()
+    fireEvent.click(chip('BEBIDA ALMENDRAS 0%')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar escáner' }))
+    expect(saveButton()).toBeInTheDocument()
+  })
+
+  it('offline, the chip refuses with the offline toast', () => {
+    const { showToast } = renderSheet()
+    reportRequestOutcome(false)
+    fireEvent.click(chip('BEBIDA ALMENDRAS 0%')!)
+    expect(showToast).toHaveBeenCalledWith('Sin conexión')
+    expect(
+      screen.queryByRole('button', { name: 'leer etiqueta' }),
+    ).not.toBeInTheDocument()
   })
 })

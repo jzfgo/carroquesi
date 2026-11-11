@@ -4,6 +4,7 @@ import { formatRowAmount } from '../lib/formatPrice'
 import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
 import './AdjustProductSheet.css'
 import { QuantityPriceRow } from './QuantityPriceRow'
+import { ScanLabelButton } from './WeightChip'
 
 /** One line of the close draft — the shape 10b holds and 10d edits. */
 export interface DraftLine {
@@ -21,6 +22,13 @@ export interface DraftLine {
    * the dashed opt-in suggestion. Cleared/ignored once the user prices by hand.
    */
   suggested: { price: number; price_per: 'KILOGRAM' | null } | null
+  /** The cart item's EAN and past weighed purchases: they decide whether
+   *  the row offers the «Peso» chip. */
+  ean: string | null
+  bought_by_weight: boolean
+  /** The weighed label used on this line, if any: its code, to notice the
+   *  same label twice, and its article code, which the save sends. */
+  label: { code: string; article: string } | null
 }
 
 interface Props {
@@ -33,6 +41,9 @@ interface Props {
   onRemove: () => void
   /** Back-galón — return to the 10b table without committing. */
   onBack: () => void
+  /** «Escanear etiqueta». It hands over what the editor holds, so a typed
+   *  name or brand survives the scan. */
+  onScanLabel?: (draft: DraftLine) => void
 }
 
 function parsePrice(text: string): number | null {
@@ -53,6 +64,7 @@ export function AdjustProductSheet({
   onDone,
   onRemove,
   onBack,
+  onScanLabel,
 }: Props) {
   const [name, setName] = useState(line.name)
   const [brand, setBrand] = useState(line.brand ?? '')
@@ -72,16 +84,16 @@ export function AdjustProductSheet({
   const showSuggestion =
     line.suggested != null && !priceTouched && priceText === ''
 
-  const commit = () => {
-    onDone({
-      ...line,
-      name: name.trim(),
-      brand: brand.trim() || null,
-      quantity: quantity.trim() || null,
-      price,
-      price_per: price != null ? pricePer : null,
-    })
-  }
+  const draft = (): DraftLine => ({
+    ...line,
+    name: name.trim(),
+    brand: brand.trim() || null,
+    quantity: quantity.trim() || null,
+    price,
+    price_per: price != null ? pricePer : null,
+  })
+
+  const commit = () => onDone(draft())
 
   const confirmSuggested = () => {
     if (!line.suggested) return
@@ -125,6 +137,9 @@ export function AdjustProductSheet({
           }
           suggested={showSuggestion}
         >
+          {onScanLabel && (
+            <ScanLabelButton onClick={() => onScanLabel(draft())} />
+          )}
           {showSuggestion ? (
             <div className="adjust-suggest">
               <span className="adjust-suggest__q">
