@@ -20,6 +20,7 @@ from app.schemas.purchases import (
     PurchaseSummary,
 )
 from app.services import trips
+from app.services.article_mappings import remember_article
 from app.services.client_day import ClientTimezone
 from app.services.fold import fold_name
 from app.services.money import reject_bad_amount, reject_bad_price
@@ -541,8 +542,31 @@ def close_purchase(
         # the un-purchase grace window exists for, and stamping it here
         # would reopen that window on the purchase being filed.
         session.add(item)
+        if line.article:
+            # After the correction, so the code maps to the product as saved.
+            remember_article(
+                session,
+                list_id=lst.id,
+                store=body.store,
+                article=line.article,
+                item_name=item.name,
+                item_brand=item.brand,
+                user_id=current_user.id,
+                now=now,
+            )
 
     for new in body.new_items:
+        if new.article:
+            remember_article(
+                session,
+                list_id=lst.id,
+                store=body.store,
+                article=new.article,
+                item_name=new.name,
+                item_brand=new.brand,
+                user_id=current_user.id,
+                now=now,
+            )
         session.add(
             ListItem(
                 list_id=lst.id,

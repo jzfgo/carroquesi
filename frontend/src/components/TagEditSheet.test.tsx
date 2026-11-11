@@ -13,6 +13,7 @@ const BASE_ITEM: ListItem = {
   purchased: false,
   purchased_at: null,
   purchase_has_receipt: false,
+  bought_by_weight: false,
   ean: null,
   price: null,
   price_per: null,

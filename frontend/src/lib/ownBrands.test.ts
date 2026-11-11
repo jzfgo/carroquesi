@@ -123,7 +123,12 @@ describe('loadChains', () => {
 
   test('the served table replaces the snapshot', async () => {
     vi.mocked(getChains).mockResolvedValue([
-      { name: 'Nueva', store_keys: ['nueva'], own_brands: ['marca nueva'] },
+      {
+        name: 'Nueva',
+        store_keys: ['nueva'],
+        own_brands: ['marca nueva'],
+        reads_label_weight: false,
+      },
     ])
     const m = await freshModule()
     expect(m.lookupOwnBrandStore('Marca Nueva')).toBeNull()

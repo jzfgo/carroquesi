@@ -35,8 +35,9 @@ closed-trip records only, so there is nowhere to put a label's price earlier.
 Scanning in the store and scanning several labels in one go are separate
 issues.
 
-**One button per line.** A dashed «Peso» chip shows on a row when the store
-has a label decoder, the line has no weight yet, and either:
+**One button per line.** A dashed «Peso» chip shows on a row when the store's
+labels give a weight (`reads_label_weight` on `GET /chains`), the line has no
+weight yet, and either:
 
 - the line has quantity 1 and its product has no EAN; or
 - the product was bought by weight before.

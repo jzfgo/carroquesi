@@ -6,6 +6,7 @@ from sqlalchemy import func
 from sqlmodel import Session, col, select
 
 from app.db.models import (
+    ChainArticleMapping,
     List,
     ListInvite,
     ListItem,
@@ -277,6 +278,9 @@ def delete_list(
     for run in session.exec(select(ReportRun).where(ReportRun.list_id == lst.id)).all():
         session.delete(run)
     for row in session.exec(select(ReportOptOut).where(ReportOptOut.list_id == lst.id)).all():
+        session.delete(row)
+    articles = select(ChainArticleMapping).where(ChainArticleMapping.list_id == lst.id)
+    for row in session.exec(articles).all():
         session.delete(row)
     # The models declare no relationships, so a flush does not order these
     # deletes by foreign key. Each flush below forces one layer out first:

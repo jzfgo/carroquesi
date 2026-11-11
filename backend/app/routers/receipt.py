@@ -19,6 +19,7 @@ from app.schemas.receipt import (
     ReceiptUploadUrlResult,
 )
 from app.services import feature_flags, receipt_storage, trips
+from app.services.article_mappings import remember_article
 from app.services.client_day import resolve_timezone
 from app.services.money import reject_bad_amount, reject_bad_price
 from app.services.receipt_date import plausible_day
@@ -478,6 +479,17 @@ def apply_receipt_prices(
             to_close.append(item.id)
         session.add(item)
         updated += 1
+        if patch.article:
+            remember_article(
+                session,
+                list_id=list_id,
+                store=patch.store or body.store or (target.store if target else None),
+                article=patch.article,
+                item_name=item.name,
+                item_brand=item.brand,
+                user_id=current_user.id,
+                now=now,
+            )
 
     created = 0
     for new in body.new_items:
@@ -507,6 +519,17 @@ def apply_receipt_prices(
         if target is None:
             to_close.append(line.id)
         created += 1
+        if new.article:
+            remember_article(
+                session,
+                list_id=list_id,
+                store=new.store or body.store or (target.store if target else None),
+                article=new.article,
+                item_name=new.name,
+                item_brand=new.brand,
+                user_id=current_user.id,
+                now=now,
+            )
 
     if target is not None:
         _write_down_torn_off(session, list_id, target, body.store)

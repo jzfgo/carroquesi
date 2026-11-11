@@ -13,6 +13,7 @@ const bought = (over: Partial<ListItem>): ListItem => ({
   purchased: true,
   purchased_at: '2026-05-07T10:00:00Z',
   purchase_has_receipt: false,
+  bought_by_weight: false,
   purchase_ends_at: '2026-05-07T22:00:00Z',
   ean: null,
   price: null,

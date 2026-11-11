@@ -10,6 +10,7 @@ from app.db.models import List, ListItem, Purchase, ReceiptScan, User
 from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 from app.services import trips
+from app.services.bought_by_weight import mark_bought_by_weight
 from app.services.client_day import ClientTimezone
 from app.services.pending_duplicate import find_pending_duplicate
 from app.services.push import notify_list_change
@@ -58,6 +59,7 @@ def get_items(
     )
     items = session.exec(query).all()
     _attach_purchase_ends_at(session, items)
+    mark_bought_by_weight(session, lst.id, items)
     return items
 
 

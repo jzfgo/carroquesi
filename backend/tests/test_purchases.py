@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from fastapi.testclient import TestClient
 from sqlmodel import Session, col, select
 
-from app.db.models import List, ListItem, ListStore, Purchase
+from app.db.models import ChainArticleMapping, List, ListItem, ListStore, Purchase
 
 # The date helpers below declare Europe/Madrid, so "today" must be read in that
 # same zone — not from the machine clock. Reading the machine's local date makes
@@ -1349,3 +1349,30 @@ def test_search_lines_carry_the_purchase_boundary(client: TestClient, session: S
     assert line["purchase_ends_at"] is not None
     assert line["purchase_store"] == "Mercadona"
     assert line["purchased"] is True
+
+
+def _articles(session: Session) -> list[ChainArticleMapping]:
+    session.expire_all()
+    return list(session.exec(select(ChainArticleMapping)).all())
+
+
+def test_close_remembers_a_line_article_with_the_corrected_name(
+    client: TestClient, session: Session
+):
+    lst = _create_list(client)
+    melon = _tap(client, lst["id"], "Sandía")
+    line = {"item_id": melon["id"], "name": "Sandía partida", "article": "03505"}
+    assert _close(client, lst["id"], store="Mercadona", lines=[line]).status_code == 200
+    [row] = _articles(session)
+    assert (row.list_id, row.chain, row.article) == (lst["id"], "mercadona", "03505")
+    assert row.item_name == "Sandía partida"
+
+
+def test_close_remembers_a_new_item_article(client: TestClient, session: Session):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    new = {"name": "Pollo entero", "brand": "Hacendado", "article": "04120"}
+    response = _close(client, lst["id"], store="Mercadona", lines=_lines(milk), new_items=[new])
+    assert response.status_code == 200
+    [row] = _articles(session)
+    assert (row.article, row.item_name, row.item_brand) == ("04120", "Pollo entero", "Hacendado")

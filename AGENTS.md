@@ -32,6 +32,7 @@ For the redesign's visuals, the **approved Claude Design handoff in [docs/design
 - `barcode_cache`: cached barcode lookup data
 - `receipt_scans`: receipt scan audit log (store, date, total, parsed lines, match results), plus where the original file sits in the bucket when one was uploaded (`file_path`/`file_content_type`/`file_pages`, recorded when the upload URL is minted — the backend never sees the bytes)
 - `receipt_name_mappings`: learned receipt→item name mappings per store; improves auto-matching on future scans
+- `chain_article_mappings`: per list, a chain's in-store label article code → the item name and brand it was saved as. Written when a close or receipt apply line carries `article`; `chain` is the chain's store key. List-scoped, unlike `receipt_name_mappings`, because the names are one household's own
 - `list_stores`: per-list store registry — `store_key` → canonical `display_name`, renameable by members. See [ADR-013](docs/decisions/013-store-registry.md)
 - `feedback_submissions`: in-app user feedback (message, email, source, user_agent)
 - `waitlist_signups`: early-access waitlist (email, allowed_at, invite_token)

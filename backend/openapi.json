@@ -100,6 +100,10 @@
             "title": "Own Brands",
             "type": "array"
           },
+          "reads_label_weight": {
+            "title": "Reads Label Weight",
+            "type": "boolean"
+          },
           "store_keys": {
             "items": {
               "type": "string"
@@ -111,7 +115,8 @@
         "required": [
           "name",
           "store_keys",
-          "own_brands"
+          "own_brands",
+          "reads_label_weight"
         ],
         "title": "ChainRead",
         "type": "object"
@@ -508,6 +513,11 @@
           "added_by": {
             "title": "Added By",
             "type": "string"
+          },
+          "bought_by_weight": {
+            "default": false,
+            "title": "Bought By Weight",
+            "type": "boolean"
           },
           "brand": {
             "anyOf": [
@@ -1138,6 +1148,18 @@
       },
       "NewPurchasedItem": {
         "properties": {
+          "article": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{1,16}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article"
+          },
           "brand": {
             "anyOf": [
               {
@@ -1396,6 +1418,18 @@
       },
       "PricePatch": {
         "properties": {
+          "article": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{1,16}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article"
+          },
           "item_id": {
             "title": "Item Id",
             "type": "string"
@@ -1516,6 +1550,18 @@
       "PurchaseLine": {
         "description": "One claimed line of the close sheet.\n\nUnlike a receipt's PricePatch, `price` is optional: a line without an\namount is a legitimate outcome — bought, nobody kept the figure — and no\namount is invented for it. No store either: a ticket belongs to one shop,\nstated once on the close.",
         "properties": {
+          "article": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{1,16}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article"
+          },
           "brand": {
             "anyOf": [
               {
@@ -1637,6 +1683,18 @@
       "PurchaseNewItem": {
         "description": "Something bought that was never on the list. Born already purchased.",
         "properties": {
+          "article": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{1,16}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Article"
+          },
           "brand": {
             "anyOf": [
               {
