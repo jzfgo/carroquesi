@@ -54,8 +54,9 @@ not load here. Open them as plain HTML or read the source.
 - **Help text.** A short line under the total in both sheets, starting «Toca
   una línea para…».
 - **Save button.** «Guardar compra · € N» in both: the sum of what will be
-  saved. The frames draw it enabled, but it stays disabled until the sheet can
-  save. 13a's frame shows «Poner fecha» only to draw the empty pill.
+  saved. `Main`, `13a` and `10d` draw it enabled; the notice frames draw it
+  disabled. It stays disabled until the sheet can save. 13a's frame shows
+  «Poner fecha» only to draw the empty pill.
 - **Notices over the save button.** One card shape for both: a bold title, an
   optional detail line, and a circled symbol at its top right (the shape of
   18b's difference card). Two tones:
