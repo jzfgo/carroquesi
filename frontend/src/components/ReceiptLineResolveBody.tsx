@@ -48,7 +48,7 @@ interface Props {
    *  Commits like the header store/date controls: on leaving the field. */
   onChangeQuantity: (quantity: string | null) => void
   /** Corrects the line's total. Null clears the correction. */
-  onChangeTotal: (total: number | null) => void
+  onChangePrice: (price: number, total: number | null) => void
   /** The back galón names the review it returns to; the targeted review has
    *  its own title. */
   backLabel?: string
@@ -92,7 +92,7 @@ export function ReceiptLineResolveBody({
   onBack,
   state,
   onChangeQuantity,
-  onChangeTotal,
+  onChangePrice,
   backLabel = 'Revisar ticket',
   targeted = false,
 }: Props) {
@@ -113,6 +113,7 @@ export function ReceiptLineResolveBody({
   }
 
   function commitQuantity() {
+    if (qtyDraft === qtyBase) return
     const text = qtyDraft.trim()
     const number = LEADING_NUMBER.exec(text)
     if (!number || parseFloat(number[0].replace(',', '.')) === 0) {
@@ -135,11 +136,11 @@ export function ReceiptLineResolveBody({
       price == null
         ? null
         : unitPriceToTotal(price, effectiveQuantity(line, state))
-    if (total == null) {
+    if (price == null || total == null) {
       setPriceDraft(priceBase)
       return
     }
-    onChangeTotal(total === lineTotal(line) ? null : total)
+    onChangePrice(price, total === lineTotal(line) ? null : total)
   }
 
   const total = effectiveLineTotal(line, state)

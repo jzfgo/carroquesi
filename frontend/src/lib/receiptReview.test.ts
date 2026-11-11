@@ -100,6 +100,17 @@ describe('quantity override', () => {
   })
   const unit = line({ unit_price: 3.05, line_total: 3.05 })
 
+  test('a typed unit price wins over the derived one', () => {
+    const state = {
+      included: true,
+      resolution: { kind: 'unassigned' as const },
+      quantity: '0,346 kg',
+      lineTotal: 3.04,
+      unitPrice: 8.8,
+    }
+    expect(effectiveUnitPrice(unit, state)).toBe(8.8)
+  })
+
   test('effectiveQuantity falls back to the line', () => {
     expect(effectiveQuantity(weighed)).toBe('202g')
   })

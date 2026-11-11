@@ -341,15 +341,20 @@ export default function ReceiptScanSheet({
     )
   }
 
-  function setLineTotal(index: number, value: number | null) {
+  function setLinePrice(index: number, price: number, total: number | null) {
     setLineStates((prev) =>
-      prev.map((ls, i) => (i === index ? { ...ls, lineTotal: value } : ls)),
+      prev.map((ls, i) =>
+        i === index ? { ...ls, unitPrice: price, lineTotal: total } : ls,
+      ),
     )
   }
 
   function setLineQuantity(index: number, value: string | null) {
     setLineStates((prev) =>
-      prev.map((ls, i) => (i === index ? { ...ls, quantity: value } : ls)),
+      prev.map((ls, i) =>
+        // A quantity change keeps the total, so a typed price no longer holds.
+        i === index ? { ...ls, quantity: value, unitPrice: null } : ls,
+      ),
     )
   }
 
@@ -555,7 +560,9 @@ export default function ReceiptScanSheet({
           onBack={() => setResolvingIndex(null)}
           state={lineStates[resolvingIndex]}
           onChangeQuantity={(value) => setLineQuantity(resolvingIndex, value)}
-          onChangeTotal={(value) => setLineTotal(resolvingIndex, value)}
+          onChangePrice={(price, total) =>
+            setLinePrice(resolvingIndex, price, total)
+          }
         />
       ) : (
         <ReceiptReviewBody

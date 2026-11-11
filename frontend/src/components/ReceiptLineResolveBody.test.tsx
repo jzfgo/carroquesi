@@ -78,7 +78,7 @@ function renderBody(overrides: {
       onBack={vi.fn()}
       state={undefined}
       onChangeQuantity={vi.fn()}
-      onChangeTotal={vi.fn()}
+      onChangePrice={vi.fn()}
     />,
   )
 }
@@ -134,7 +134,7 @@ test('a prefill never filters the link list; typed text does', () => {
       onBack={vi.fn()}
       state={undefined}
       onChangeQuantity={vi.fn()}
-      onChangeTotal={vi.fn()}
+      onChangePrice={vi.fn()}
     />,
   )
   expect(screen.getAllByRole('radio')).toHaveLength(1)
@@ -185,7 +185,7 @@ test('the helper link toggles the sigil legend in place', async () => {
   expect(screen.queryByText('#marca')).not.toBeInTheDocument()
 })
 
-// ── «Cantidad y precio» (JAV-222) ────────────────────────────────────────────
+// ── «Cantidad y precio» ────────────────────────────────────────────────────
 
 const chicken: ReceiptLine = {
   receipt_name: 'CONTRAMUSLO DESHUES',
@@ -198,7 +198,7 @@ const chicken: ReceiptLine = {
 /** Holds the line's state the way the review does, so edits round-trip. */
 function renderDetail(initial?: LineState) {
   const onChangeQuantity = vi.fn()
-  const onChangeTotal = vi.fn()
+  const onChangePrice = vi.fn()
   let current = initial
   function Harness() {
     const [state, setState] = useState<LineState | undefined>(initial)
@@ -218,11 +218,11 @@ function renderDetail(initial?: LineState) {
         state={state}
         onChangeQuantity={(q) => {
           onChangeQuantity(q)
-          setState({ ...base(), quantity: q })
+          setState({ ...base(), quantity: q, unitPrice: null })
         }}
-        onChangeTotal={(t) => {
-          onChangeTotal(t)
-          setState({ ...base(), lineTotal: t })
+        onChangePrice={(p, t) => {
+          onChangePrice(p, t)
+          setState({ ...base(), unitPrice: p, lineTotal: t })
         }}
       />
     )
@@ -230,7 +230,7 @@ function renderDetail(initial?: LineState) {
   render(<Harness />)
   return {
     onChangeQuantity,
-    onChangeTotal,
+    onChangePrice,
     state: () => current,
     qty: () => screen.getByLabelText('Cantidad y precio'),
     price: () => screen.getByLabelText('Precio'),
@@ -275,7 +275,7 @@ test("typing the paper's price back clears the correction", async () => {
   await retype(d.price(), '3,50')
   await retype(d.price(), '3,05')
   expect(screen.queryByRole('status')).not.toBeInTheDocument()
-  expect(d.onChangeTotal).toHaveBeenLastCalledWith(null)
+  expect(d.onChangePrice).toHaveBeenLastCalledWith(3.05, null)
 })
 
 test('blur without edits leaves no correction', async () => {
@@ -285,7 +285,7 @@ test('blur without edits leaves no correction', async () => {
   const user = userEvent.setup()
   await user.click(d.price())
   await user.tab()
-  expect(d.onChangeTotal).not.toHaveBeenCalled()
+  expect(d.onChangePrice).not.toHaveBeenCalled()
   expect(screen.queryByRole('status')).not.toBeInTheDocument()
 })
 
@@ -317,4 +317,33 @@ test('reopens with overrides', () => {
   expect(d.qty()).toHaveValue('346 g')
   expect(d.price()).toHaveValue(formatRowAmount(3.5 / 0.346))
   expect(screen.getByRole('status')).toBeInTheDocument()
+})
+
+test('a typed price stays as typed on a weight', async () => {
+  const d = renderDetail()
+  await retype(d.qty(), '0,346 kg')
+  // 8,80 × 0,346 = 3,0448: the total rounds to 3,04, the price does not.
+  await retype(d.price(), '8,80')
+  expect(d.price()).toHaveValue('8,80')
+  expect(d.state()?.unitPrice).toBe(8.8)
+  expect(d.state()?.lineTotal).toBe(3.04)
+  expect(screen.getByRole('status')).toHaveTextContent('3,04')
+})
+
+test('a quantity change after a typed price keeps the total', async () => {
+  const d = renderDetail()
+  await retype(d.qty(), '0,346 kg')
+  await retype(d.price(), '8,80')
+  await retype(d.qty(), '0,5 kg')
+  expect(d.price()).toHaveValue('6,08')
+  expect(d.state()?.unitPrice).toBeNull()
+  expect(d.state()?.lineTotal).toBe(3.04)
+})
+
+test('blur on an untouched quantity commits nothing', async () => {
+  const d = renderDetail()
+  const user = userEvent.setup()
+  await user.click(d.qty())
+  await user.tab()
+  expect(d.onChangeQuantity).not.toHaveBeenCalled()
 })

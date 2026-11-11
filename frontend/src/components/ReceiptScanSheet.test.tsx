@@ -789,7 +789,7 @@ describe('ReceiptScanSheet — price correction (JAV-185)', () => {
   })
 })
 
-describe('ReceiptScanSheet — quantity correction (JAV-222)', () => {
+describe('ReceiptScanSheet — quantity correction', () => {
   function setQuantity(raw: string, text: string) {
     fireEvent.click(openRow(raw))
     const qty = screen.getByLabelText('Cantidad y precio')
@@ -816,7 +816,29 @@ describe('ReceiptScanSheet — quantity correction (JAV-222)', () => {
     expect(bebida?.price).toBeCloseTo(1.15 / 0.346)
   })
 
-  it('targeted: a quantity-only correction reads «era …»', () => {
+  it('saves a typed price as typed', async () => {
+    const { onConfirm } = renderSheet()
+    fireEvent.click(openRow('BEBIDA ALMENDRAS'))
+    const qty = screen.getByLabelText('Cantidad y precio')
+    fireEvent.change(qty, { target: { value: '346 g' } })
+    fireEvent.blur(qty)
+    const price = screen.getByLabelText('Precio')
+    fireEvent.change(price, { target: { value: '3,30' } })
+    fireEvent.blur(price)
+    fireEvent.click(
+      screen.getByRole('button', { name: /Revisar ticket|Añadir ticket/ }),
+    )
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    const bebida = patches.find((p) => p.item_id === 'item-1')
+    // 3,30 × 0,346 = 1,1418 → 1,14; dividing back would give 3,2948.
+    expect(bebida?.price).toBe(3.3)
+  })
+
+  it('targeted: a quantity change reads the old price', () => {
     renderTargeted({
       candidateItems: [
         { ...targetItems[0], price: 1.15, purchased_quantity: '1' },

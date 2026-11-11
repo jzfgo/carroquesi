@@ -22,7 +22,8 @@ export interface LineState {
   included: boolean
   resolution: LineResolution
   /**
-   * A user-corrected line total (13b «Importe»), or null/absent for as-read.
+   * A user-corrected line total (13b «Cantidad y precio»), or null/absent
+   * for as-read.
    * The paper line's own figures stay untouched — this is a correction of the
    * interpretation, and every derived figure (unit price, cuadre, save sum)
    * reads through it.
@@ -35,6 +36,14 @@ export interface LineState {
    * through it.
    */
   quantity?: string | null
+  /**
+   * The unit price the user typed, or null/absent when the price is derived.
+   * The total rounds to cents, so dividing it back would not give the typed
+   * figure (8,80 €/kg × 0,346 kg = 3,04, and 3,04 / 0,346 = 8,79). Kept so
+   * the field and the price history show what the label says. A new
+   * quantity clears it, since a quantity change keeps the total.
+   */
+  unitPrice?: number | null
 }
 
 export function isNamed(resolution: LineResolution): boolean {
@@ -182,7 +191,8 @@ export function effectiveLineTotal(
 }
 
 /**
- * The per-item price the apply records. As read, it is the parse's own.
+ * The per-item price the apply records. A typed price is kept as typed.
+ * As read, it is the parse's own.
  * Once either figure is corrected, it is the effective total divided by the
  * effective quantity, per kilo or per unit. A quantity that gives no factor,
  * or a zero one, falls back to the total: recording something recoverable
@@ -192,6 +202,7 @@ export function effectiveUnitPrice(
   line: ReceiptLine,
   state?: LineState,
 ): number {
+  if (state?.unitPrice != null) return state.unitPrice
   if (state?.lineTotal == null && state?.quantity == null) {
     return line.unit_price
   }
