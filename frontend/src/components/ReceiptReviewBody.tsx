@@ -25,6 +25,7 @@ import {
   type ReceiptLine,
 } from '../lib/receiptReview'
 import { ReceiptFileViewer } from './ReceiptFileViewer'
+import { WeightChip } from './WeightChip'
 
 const CUADRE_TOLERANCE = 0.02
 
@@ -59,6 +60,9 @@ interface Props {
   onToggleInclude: (index: number) => void
   onSetAll: (included: boolean) => void
   onOpenResolve: (index: number) => void
+  /** Per line: whether it offers the «Peso» chip. */
+  weightChips?: boolean[]
+  onScanLabel?: (index: number) => void
   onChangeDate: (raw: string | null) => void
   onChangeStore: (store: string | null) => void
   onReReadReceipt: () => void
@@ -105,6 +109,8 @@ export function ReceiptReviewBody({
   onToggleInclude,
   onSetAll,
   onOpenResolve,
+  weightChips,
+  onScanLabel,
   onChangeDate,
   onChangeStore,
   onReReadReceipt,
@@ -284,6 +290,7 @@ export function ReceiptReviewBody({
           // product: it stays on the paper and in the cuadre's sum, but it is
           // locked — never saved, never named, no door to resolve it.
           const discount = isDiscountLine(line)
+          const weightChip = !!weightChips?.[i] && !!onScanLabel
           return (
             <div
               key={i}
@@ -343,8 +350,9 @@ export function ReceiptReviewBody({
                     </span>
                   )}
                 </span>
+                {/* With the chip, the chip takes the quantity's place. */}
                 <span className="rss-qty">
-                  {effectiveQuantityDisplay(line, ls)}
+                  {weightChip ? '' : effectiveQuantityDisplay(line, ls)}
                 </span>
                 <span className="rss-price">
                   {formatRowAmount(effectiveLineTotal(line, ls))}
@@ -353,6 +361,16 @@ export function ReceiptReviewBody({
                   <ChevronRight size={16} className="rss-row__chevron" />
                 )}
               </button>
+              {/* A sibling of the row button, never inside it: a button
+                  cannot hold a button. The grid lays it over the empty
+                  quantity cell. */}
+              {weightChip && (
+                <WeightChip
+                  className="rss-row__weight"
+                  lineName={line.receipt_name}
+                  onClick={() => onScanLabel!(i)}
+                />
+              )}
             </div>
           )
         })}

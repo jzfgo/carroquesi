@@ -20,6 +20,7 @@ import {
 import type { Suggestion } from '../types'
 import { QuantityPriceRow } from './QuantityPriceRow'
 import type { ItemRef } from './ReceiptScanSheet'
+import { ScanLabelButton } from './WeightChip'
 
 // A quantity must open with a number: «6», «0,346 kg». The factor parse
 // cannot judge this, since it reads unknown text as one unit.
@@ -50,6 +51,8 @@ interface Props {
   /** Sets the typed unit price and the total it makes. A null total means
    *  the total matches the paper again. */
   onChangePrice: (price: number, total: number | null) => void
+  /** «Escanear etiqueta»: always offered, for lines the chip rule misses. */
+  onScanLabel?: () => void
   /** The back galón names the review it returns to; the targeted review has
    *  its own title. */
   backLabel?: string
@@ -94,6 +97,7 @@ export function ReceiptLineResolveBody({
   state,
   onChangeQuantity,
   onChangePrice,
+  onScanLabel,
   backLabel = 'Revisar ticket',
   targeted = false,
 }: Props) {
@@ -206,6 +210,7 @@ export function ReceiptLineResolveBody({
           onQuantityBlur={commitQuantity}
           onPriceBlur={commitPrice}
         >
+          {onScanLabel && <ScanLabelButton onClick={onScanLabel} />}
           {corrected && (
             <div className="rss-corrected" role="status">
               <span className="rss-corrected__label">

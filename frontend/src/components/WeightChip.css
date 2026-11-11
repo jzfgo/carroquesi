@@ -1,0 +1,32 @@
+/* The dashed accent is the app's "you can add this" voice: an optional
+   action, never a state. */
+.weight-chip,
+.scan-label-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1.5px dashed var(--tinta-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tinta-0);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.weight-chip {
+  min-height: 32px;
+  padding: 0 8px;
+}
+
+.scan-label-button {
+  width: 100%;
+  min-height: 44px;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: var(--fs-14);
+}
