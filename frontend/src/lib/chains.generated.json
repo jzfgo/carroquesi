@@ -11,7 +11,7 @@
       "deliplus",
       "compy"
     ],
-    "has_label_decoder": true
+    "reads_label_weight": true
   },
   {
     "name": "Carrefour",
@@ -27,7 +27,7 @@
       "no. 1",
       "tex"
     ],
-    "has_label_decoder": false
+    "reads_label_weight": false
   },
   {
     "name": "Lidl",
@@ -44,7 +44,7 @@
       "deluxe",
       "silvercrest"
     ],
-    "has_label_decoder": false
+    "reads_label_weight": false
   },
   {
     "name": "Aldi",
@@ -59,7 +59,7 @@
       "el mercado",
       "my night"
     ],
-    "has_label_decoder": false
+    "reads_label_weight": false
   },
   {
     "name": "DIA",
@@ -74,7 +74,7 @@
       "mari marinera",
       "baby smile"
     ],
-    "has_label_decoder": false
+    "reads_label_weight": false
   },
   {
     "name": "Ahorramas",
@@ -87,7 +87,7 @@
       "bodyplus",
       "meque"
     ],
-    "has_label_decoder": true
+    "reads_label_weight": false
   },
   {
     "name": "Alcampo",
@@ -100,7 +100,7 @@
       "producto económico",
       "inextenso"
     ],
-    "has_label_decoder": false
+    "reads_label_weight": false
   },
   {
     "name": "Eroski",
@@ -114,7 +114,7 @@
       "seleqtia",
       "sannia"
     ],
-    "has_label_decoder": false
+    "reads_label_weight": false
   },
   {
     "name": "El Corte Inglés",
@@ -127,7 +127,7 @@
       "hipercor",
       "special line"
     ],
-    "has_label_decoder": false
+    "reads_label_weight": false
   },
   {
     "name": "Gadis",
@@ -141,7 +141,7 @@
       "peny",
       "amigo"
     ],
-    "has_label_decoder": false
+    "reads_label_weight": false
   },
   {
     "name": "Consum",
@@ -154,7 +154,7 @@
       "consum",
       "kyrey"
     ],
-    "has_label_decoder": false
+    "reads_label_weight": false
   },
   {
     "name": "BM Supermercados",
@@ -165,7 +165,7 @@
     "own_brands": [
       "bm"
     ],
-    "has_label_decoder": false
+    "reads_label_weight": false
   },
   {
     "name": "E.Leclerc",
@@ -178,6 +178,6 @@
       "kado",
       "tissaia"
     ],
-    "has_label_decoder": false
+    "reads_label_weight": false
   }
 ]

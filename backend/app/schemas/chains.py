@@ -11,8 +11,9 @@ class ChainRead(BaseModel):
     name: str
     store_keys: list[str]
     own_brands: list[str]
-    # Clients offer label scanning only where a decoder can read the label.
-    has_label_decoder: bool
+    # Whether this chain's labels give a weight. Clients offer the weighed
+    # label scan only where they do.
+    reads_label_weight: bool
 
 
 class DecodedLabel(BaseModel):

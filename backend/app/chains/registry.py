@@ -44,7 +44,7 @@ def chain_table() -> list[ChainRead]:
             name=p.name,
             store_keys=list(p.store_keys),
             own_brands=list(p.own_brands),
-            has_label_decoder=bool(p.decoders),
+            reads_label_weight=p.reads_label_weight,
         )
         for p in PROFILES
     ]

@@ -19,6 +19,9 @@ class ChainProfile:
     # Lowercase, trimmed: the form a typed brand is compared in.
     own_brands: tuple[str, ...] = ()
     decoders: tuple[LabelDecoder, ...] = field(default=(), repr=False)
+    # Whether one of the decoders returns a weight. Clients offer the weighed
+    # label scan only then; a price-only label has nothing to weigh.
+    reads_label_weight: bool = False
 
     @property
     def store_keys(self) -> tuple[str, ...]:

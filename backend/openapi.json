@@ -89,10 +89,6 @@
       },
       "ChainRead": {
         "properties": {
-          "has_label_decoder": {
-            "title": "Has Label Decoder",
-            "type": "boolean"
-          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -103,6 +99,10 @@
             },
             "title": "Own Brands",
             "type": "array"
+          },
+          "reads_label_weight": {
+            "title": "Reads Label Weight",
+            "type": "boolean"
           },
           "store_keys": {
             "items": {
@@ -116,7 +116,7 @@
           "name",
           "store_keys",
           "own_brands",
-          "has_label_decoder"
+          "reads_label_weight"
         ],
         "title": "ChainRead",
         "type": "object"

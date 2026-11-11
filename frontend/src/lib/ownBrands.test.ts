@@ -127,7 +127,7 @@ describe('loadChains', () => {
         name: 'Nueva',
         store_keys: ['nueva'],
         own_brands: ['marca nueva'],
-        has_label_decoder: false,
+        reads_label_weight: false,
       },
     ])
     const m = await freshModule()

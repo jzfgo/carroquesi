@@ -1060,12 +1060,12 @@ export interface components {
         };
         /** ChainRead */
         ChainRead: {
-            /** Has Label Decoder */
-            has_label_decoder: boolean;
             /** Name */
             name: string;
             /** Own Brands */
             own_brands: string[];
+            /** Reads Label Weight */
+            reads_label_weight: boolean;
             /** Store Keys */
             store_keys: string[];
         };
