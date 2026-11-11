@@ -1,4 +1,4 @@
-import { ChevronLeft, ScanBarcode } from 'lucide-react'
+import { ScanBarcode } from 'lucide-react'
 import { useState } from 'react'
 import { foldText } from '../lib/foldText'
 import { formatRowAmount, parseAmount } from '../lib/formatPrice'
@@ -18,6 +18,7 @@ import {
   unitPriceToTotal,
 } from '../lib/receiptReview'
 import type { Suggestion } from '../types'
+import { PrimaryButton, SheetBackButton } from './PurchaseSheetParts'
 import { QuantityPriceRow } from './QuantityPriceRow'
 import type { ItemRef } from './ReceiptScanSheet'
 import { ScanLabelButton } from './WeightChip'
@@ -181,14 +182,10 @@ export function ReceiptLineResolveBody({
 
   return (
     <>
-      <div className="rss-resolve-head">
-        <button type="button" className="rss-back" onClick={onBack}>
-          <ChevronLeft size={22} /> {backLabel}
-        </button>
-      </div>
+      <SheetBackButton label={backLabel} onClick={onBack} />
 
       <div className="rss-ticketline">
-        <span className="rss-eyebrow">Línea del ticket</span>
+        <span className="psheet-label">Línea del ticket</span>
         <div className="rss-ticketline__row">
           <span className="rss-ticketline__raw">{line.receipt_name}</span>
           <span className="rss-ticketline__num">
@@ -232,7 +229,7 @@ export function ReceiptLineResolveBody({
 
       <div className="rss-resolve-body">
         <div className="rss-pending">
-          <span className="rss-eyebrow">
+          <span className="psheet-label">
             {targeted ? 'En esta compra' : 'Pendientes de asignar'} ·{' '}
             {visibleItems.length}
           </span>
@@ -257,7 +254,7 @@ export function ReceiptLineResolveBody({
         </div>
 
         <div className="rss-create">
-          <span className="rss-eyebrow">
+          <span className="psheet-label">
             {targeted
               ? 'Si no estaba en esta compra'
               : 'Si no estaba en la lista'}
@@ -339,15 +336,10 @@ export function ReceiptLineResolveBody({
         </div>
       </div>
 
-      <div className="rss-foot">
-        <button
-          type="button"
-          className="rss-save"
-          disabled={!canAssign}
-          onClick={onAssign}
-        >
+      <div className="psheet-foot">
+        <PrimaryButton disabled={!canAssign} onClick={onAssign}>
           Asignar
-        </button>
+        </PrimaryButton>
       </div>
     </>
   )

@@ -1,8 +1,9 @@
-import { Check, ChevronLeft, X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
 import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
 import './AdjustProductSheet.css'
+import { PrimaryButton, SheetBackButton } from './PurchaseSheetParts'
 import { QuantityPriceRow } from './QuantityPriceRow'
 import { ScanLabelButton } from './WeightChip'
 
@@ -103,14 +104,11 @@ export function AdjustProductSheet({
 
   return (
     <div className="adjust-sheet__view">
-      <button type="button" className="adjust-sheet__back" onClick={onBack}>
-        <ChevronLeft size={22} strokeWidth={1.8} aria-hidden />
-        Cerrar compra
-      </button>
+      <SheetBackButton label="Cerrar compra" onClick={onBack} />
 
       <div className="adjust-sheet__body">
         <label className="adjust-field">
-          <span className="adjust-field__label">Producto</span>
+          <span className="psheet-label adjust-field__label">Producto</span>
           {/* No autoFocus: a form sheet opens without popping the keyboard —
               the field waits for a tap. The sheet's focus trap parks focus on
               the panel, not on a text input. */}
@@ -164,9 +162,7 @@ export function AdjustProductSheet({
             </div>
           ) : (
             <div className="adjust-linetotal">
-              <span className="adjust-linetotal__label">
-                Línea de la compra
-              </span>
+              <span className="adjust-linetotal__label">Importe</span>
               <span className="adjust-linetotal__value">
                 {lineTotal != null ? `€ ${formatRowAmount(lineTotal)}` : '—'}
               </span>
@@ -175,7 +171,7 @@ export function AdjustProductSheet({
         </QuantityPriceRow>
 
         <label className="adjust-field">
-          <span className="adjust-field__label">
+          <span className="psheet-label adjust-field__label">
             Marca <span className="adjust-field__opt">· opcional</span>
           </span>
           <input
@@ -188,14 +184,9 @@ export function AdjustProductSheet({
       </div>
 
       <div className="adjust-sheet__footer">
-        <button
-          type="button"
-          className="adjust-sheet__done"
-          onClick={commit}
-          disabled={name.trim() === ''}
-        >
+        <PrimaryButton onClick={commit} disabled={name.trim() === ''}>
           Hecho
-        </button>
+        </PrimaryButton>
         <button
           type="button"
           className="adjust-sheet__remove"

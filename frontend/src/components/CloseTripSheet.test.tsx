@@ -113,7 +113,9 @@ test('renders each line and sums the confirmed total', () => {
   expect(screen.getByText('Leche')).toBeInTheDocument()
   expect(screen.getByText('Café')).toBeInTheDocument()
   // 1,90 + 3,29 = 5,19
-  expect(screen.getByText('€ 5,19')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Guardar compra · € 5,19' }),
+  ).toBeInTheDocument()
 })
 
 test('the store dropdown defaults to the first offer and selects another', async () => {
@@ -125,7 +127,7 @@ test('the store dropdown defaults to the first offer and selects another', async
   expect(select.value).toBe('Mercadona')
   fireEvent.change(select, { target: { value: 'Lidl' } })
   expect(select.value).toBe('Lidl')
-  fireEvent.click(screen.getByText('Guardar compra'))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   expect(vi.mocked(closePurchase).mock.calls.at(-1)![2].store).toBe('Lidl')
 })
@@ -154,10 +156,35 @@ test('a store-less cart still offers registry stores and «+ otra»', async () =
     target: { value: 'Ahorramás' },
   })
   fireEvent.click(screen.getByText('Usar esta tienda'))
-  fireEvent.click(screen.getByText('Guardar compra'))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
   expect(body.store).toBe('Ahorramás')
+})
+
+test('with no store to offer, the save waits and the warning says why', () => {
+  renderSheet([item({ id: 'a', stores: [] })])
+  expect(screen.getByRole('button', { name: /^Guardar compra/ })).toBeDisabled()
+  expect(screen.getByText(/para guardar esta compra/)).toHaveTextContent(
+    'Indica la tienda para guardar esta compra',
+  )
+})
+
+test('a row is named by its content, so its quantity and amount are read', () => {
+  renderSheet([item({ id: 'a', name: 'Leche', quantity: '2', price: 1.9 })])
+  expect(
+    screen.getByRole('button', { name: /^Ajustar Leche\b/ }),
+  ).toHaveAccessibleName('Ajustar Leche 2 3,80')
+})
+
+test('taking the last list product out leaves the save waiting, and says why', () => {
+  renderSheet([item({ id: 'a', name: 'Leche' })])
+  fireEvent.click(screen.getByRole('button', { name: /^Ajustar Leche\b/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Quitar del carro' }))
+  expect(screen.getByRole('button', { name: /^Guardar compra/ })).toBeDisabled()
+  expect(screen.getByText(/para guardar esta compra/)).toHaveTextContent(
+    'Deja al menos un producto del carro para guardar esta compra',
+  )
 })
 
 test('«Guardar compra» closes with the store, date and per-line fields', async () => {
@@ -170,7 +197,7 @@ test('«Guardar compra» closes with the store, date and per-line fields', async
       brand: 'Hacendado',
     }),
   ])
-  fireEvent.click(screen.getByText('Guardar compra'))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   const body = vi.mocked(closePurchase).mock.calls[0][2]
   expect(body.store).toBe('Mercadona')
@@ -204,7 +231,7 @@ test('a proto close defaults its date to the day it covered, not today', async (
     />,
   )
   await waitFor(() => expect(screen.getByText('Leche')).toBeInTheDocument())
-  fireEvent.click(screen.getByText('Guardar compra'))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
   expect(body.date).toBe('2026-07-30')
@@ -236,13 +263,17 @@ test('«Confirmar los precios sugeridos» applies the inherited price', async ()
   expect(screen.getByText('(precio sugerido)')).toBeInTheDocument()
   fireEvent.click(screen.getByText(/Confirmar el precio sugerido/))
   // Confirmed → it now counts toward the total and drops the suggested voice.
-  await waitFor(() => expect(screen.getByText('€ 2,50')).toBeInTheDocument())
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Guardar compra · € 2,50' }),
+    ).toBeInTheDocument(),
+  )
   expect(screen.queryByText('(precio sugerido)')).not.toBeInTheDocument()
 })
 
-test('the pencil opens the adjust-product editor (10d)', () => {
+test('tapping a row opens the adjust-product editor (10d)', () => {
   renderSheet([item({ id: 'a', name: 'Leche' })])
-  fireEvent.click(screen.getByLabelText('Ajustar Leche'))
+  fireEvent.click(screen.getByRole('button', { name: /^Ajustar Leche\b/ }))
   // 10d is a sub-sheet with a back-galón and the Producto field.
   expect(screen.getByText('Producto')).toBeInTheDocument()
 })
@@ -282,11 +313,13 @@ test('a scanned label sets the line: weight, €/kg and amount', async () => {
   fireEvent.click(chip('Contramuslo')!)
   await scanAndUse()
   expect(screen.getByText('0,346 kg')).toBeInTheDocument()
-  expect(screen.getByText('3,05')).toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Guardar compra · € 3,05' }),
+  ).toBeInTheDocument()
   expect(screen.getByText('8,82 €/kg · de la etiqueta')).toBeInTheDocument()
   expect(chip('Contramuslo')).not.toBeInTheDocument()
 
-  fireEvent.click(screen.getByText('Guardar compra'))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
   expect(body.lines[0]).toMatchObject({
@@ -353,7 +386,9 @@ test('the same label on a second line warns', async () => {
 test('the 10d editor scans too, and keeps what was typed', async () => {
   vi.mocked(getLabel).mockResolvedValue(LABEL)
   renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '2' })])
-  fireEvent.click(screen.getByLabelText('Ajustar Contramuslo'))
+  fireEvent.click(
+    screen.getByRole('button', { name: /^Ajustar Contramuslo\b/ }),
+  )
   fireEvent.change(screen.getByPlaceholderText('Nombre del producto'), {
     target: { value: 'Contramuslo deshuesado' },
   })
@@ -364,7 +399,7 @@ test('the 10d editor scans too, and keeps what was typed', async () => {
   expect(screen.getByDisplayValue('8,82')).toBeInTheDocument()
 
   fireEvent.click(screen.getByRole('button', { name: 'Hecho' }))
-  fireEvent.click(screen.getByText('Guardar compra'))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
   expect(body.lines[0]).toMatchObject({
@@ -384,7 +419,7 @@ test('a blank «Añadir producto» that scans and goes back adds no line', async
   expect(screen.getByDisplayValue('0,346 kg')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: /Cerrar compra/ }))
 
-  fireEvent.click(screen.getByText('Guardar compra'))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
   expect(body.new_items).toEqual([])
@@ -392,7 +427,9 @@ test('a blank «Añadir producto» that scans and goes back adds no line', async
 
 test('a scan cancelled from 10d leaves the line as it was', async () => {
   renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '2' })])
-  fireEvent.click(screen.getByLabelText('Ajustar Contramuslo'))
+  fireEvent.click(
+    screen.getByRole('button', { name: /^Ajustar Contramuslo\b/ }),
+  )
   fireEvent.change(screen.getByPlaceholderText('Nombre del producto'), {
     target: { value: '' },
   })
@@ -402,7 +439,7 @@ test('a scan cancelled from 10d leaves the line as it was', async () => {
   expect(screen.getByPlaceholderText('Nombre del producto')).toHaveValue('')
   fireEvent.click(screen.getByRole('button', { name: /Cerrar compra/ }))
 
-  fireEvent.click(screen.getByText('Guardar compra'))
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
   await waitFor(() => expect(closePurchase).toHaveBeenCalled())
   const body = vi.mocked(closePurchase).mock.calls.at(-1)![2]
   expect(body.lines[0]).toMatchObject({ item_id: 'a', name: 'Contramuslo' })

@@ -1,21 +1,7 @@
-import {
-  Calendar,
-  ChevronDown,
-  ChevronRight,
-  CornerDownRight,
-  Maximize2,
-  Receipt,
-  RefreshCw,
-  Store,
-  TriangleAlert,
-} from 'lucide-react'
+import { CornerDownRight, Maximize2, Receipt, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { formatRowAmount } from '../lib/formatPrice'
-import {
-  toDateInputValue,
-  todayInputValue,
-  withDatePart,
-} from '../lib/receiptDate'
+import { toDateInputValue, withDatePart } from '../lib/receiptDate'
 import {
   effectiveLineTotal,
   effectiveQuantityDisplay,
@@ -24,6 +10,21 @@ import {
   type LineState,
   type ReceiptLine,
 } from '../lib/receiptReview'
+import {
+  DatePill,
+  MissingToSaveNotice,
+  PurchaseAmount,
+  PurchaseHelp,
+  PurchaseNotice,
+  PurchaseRow,
+  PurchaseSheetHead,
+  PurchaseTable,
+  PurchaseTableHead,
+  PurchaseTotal,
+  SavePurchaseButton,
+  SecondaryButton,
+  StorePill,
+} from './PurchaseSheetParts'
 import { ReceiptFileViewer } from './ReceiptFileViewer'
 import { WeightChip } from './WeightChip'
 
@@ -34,7 +35,6 @@ interface Props {
   lineStates: LineState[]
   store: string | null
   receiptDate: string | null
-  receiptDateLabel: string | null
   /** Targeted attach (25b): the review completes a settled purchase. */
   targeted?: boolean
   /** Render the date/store pill as ink, not a control — the record's own value. */
@@ -49,13 +49,13 @@ interface Props {
   isPdf?: boolean
   /** Page count printed on the PDF badge; null when it could not be read. */
   pdfPages?: number | null
-  knownStores: string[]
+  /** The stores the store pill offers. */
+  storeOptions: string[]
   lineSum: number
   savedSum: number
   receiptTotal: number | null
   cuadreDiff: number | null
   includedCount: number
-  unnamedCount: number
   canSave: boolean
   onToggleInclude: (index: number) => void
   onSetAll: (included: boolean) => void
@@ -65,6 +65,8 @@ interface Props {
   onScanLabel?: (index: number) => void
   onChangeDate: (raw: string | null) => void
   onChangeStore: (store: string | null) => void
+  /** The store pill's «+ otra»: the parent opens the «Nueva tienda» step. */
+  onAddStore: () => void
   onReReadReceipt: () => void
   onConfirm: () => void
 }
@@ -89,7 +91,6 @@ export function ReceiptReviewBody({
   lineStates,
   store,
   receiptDate,
-  receiptDateLabel,
   targeted = false,
   dateLocked = false,
   storeLocked = false,
@@ -98,13 +99,12 @@ export function ReceiptReviewBody({
   imageUrl,
   isPdf = false,
   pdfPages = null,
-  knownStores,
+  storeOptions,
   lineSum,
   savedSum,
   receiptTotal,
   cuadreDiff,
   includedCount,
-  unnamedCount,
   canSave,
   onToggleInclude,
   onSetAll,
@@ -113,11 +113,10 @@ export function ReceiptReviewBody({
   onScanLabel,
   onChangeDate,
   onChangeStore,
+  onAddStore,
   onReReadReceipt,
   onConfirm,
 }: Props) {
-  const [editing, setEditing] = useState<'date' | 'store' | null>(null)
-  const [storeDraft, setStoreDraft] = useState(store ?? '')
   const [lightbox, setLightbox] = useState(false)
 
   // "All" means all selectable: a locked discount line can never be included,
@@ -126,162 +125,74 @@ export function ReceiptReviewBody({
   const allIncluded = includedCount === selectableCount && includedCount > 0
   const matches = cuadreDiff != null && Math.abs(cuadreDiff) < CUADRE_TOLERANCE
 
-  function commitStore() {
-    const next = storeDraft.trim()
-    onChangeStore(next.length > 0 ? next : null)
-    setEditing(null)
-  }
+  const thumb = imageUrl ? (
+    <button
+      type="button"
+      className={`rss-thumb ${isPdf ? 'rss-thumb--pdfdoc' : ''}`}
+      onClick={() => setLightbox(true)}
+      aria-label={isPdf ? 'Ampliar el ticket' : 'Ampliar la foto del ticket'}
+    >
+      {isPdf ? (
+        <>
+          <Receipt size={20} />
+          <span className="rss-thumb__pdf">PDF</span>
+          {pdfPages != null && pdfPages > 1 && (
+            <span className="rss-thumb__pages">{pdfPages} pág.</span>
+          )}
+        </>
+      ) : (
+        <img src={imageUrl} alt="" className="rss-thumb__img" />
+      )}
+      <span className="rss-thumb__badge">
+        <Maximize2 size={12} />
+      </span>
+    </button>
+  ) : (
+    <div className="rss-thumb rss-thumb--placeholder" aria-hidden="true">
+      <Receipt size={20} />
+      {isPdf && <span className="rss-thumb__pdf">PDF</span>}
+    </div>
+  )
 
   return (
     <>
-      <div className="rss-head">
-        {imageUrl ? (
-          <button
-            type="button"
-            className={`rss-thumb ${isPdf ? 'rss-thumb--pdfdoc' : ''}`}
-            onClick={() => setLightbox(true)}
-            aria-label={
-              isPdf ? 'Ampliar el ticket' : 'Ampliar la foto del ticket'
-            }
-          >
-            {isPdf ? (
-              <>
-                <Receipt size={20} />
-                <span className="rss-thumb__pdf">PDF</span>
-                {pdfPages != null && pdfPages > 1 && (
-                  <span className="rss-thumb__pages">{pdfPages} pág.</span>
-                )}
-              </>
-            ) : (
-              <img src={imageUrl} alt="" className="rss-thumb__img" />
-            )}
-            <span className="rss-thumb__badge">
-              <Maximize2 size={12} />
-            </span>
-          </button>
-        ) : (
-          <div className="rss-thumb rss-thumb--placeholder" aria-hidden="true">
-            <Receipt size={20} />
-            {isPdf && <span className="rss-thumb__pdf">PDF</span>}
-          </div>
-        )}
-
-        <div className="rss-head__main">
-          <h2 className="rss-title">
-            {targeted ? 'Añadir ticket a esta compra' : 'Revisar ticket'}
-          </h2>
-          <div className="rss-controls">
-            {storeLocked ? (
-              <span className="rss-pill rss-pill--set rss-pill--locked">
-                <Store size={13} />
-                {store}
-              </span>
-            ) : (
-              <button
-                type="button"
-                className={`rss-pill ${store ? 'rss-pill--set' : 'rss-pill--empty'}`}
-                onClick={() => setEditing(editing === 'store' ? null : 'store')}
-                aria-expanded={editing === 'store'}
-              >
-                <Store size={13} />
-                {store ?? 'Poner tienda'}
-                <ChevronDown size={13} className="rss-pill__chevron" />
-              </button>
-            )}
-            {dateLocked ? (
-              <span className="rss-pill rss-pill--set rss-pill--locked">
-                <Calendar size={13} />
-                {receiptDateLabel}
-              </span>
-            ) : (
-              <button
-                type="button"
-                className={`rss-pill ${receiptDate ? 'rss-pill--set' : 'rss-pill--empty'}`}
-                onClick={() => setEditing(editing === 'date' ? null : 'date')}
-                aria-expanded={editing === 'date'}
-              >
-                <Calendar size={13} />
-                {receiptDateLabel ?? 'Poner fecha'}
-                <ChevronDown size={13} className="rss-pill__chevron" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {editing === 'store' && (
-        <div className="rss-control-editor">
-          <input
-            className="rss-control-editor__input"
-            type="text"
-            list="rss-known-stores"
-            value={storeDraft}
-            placeholder="Nombre de la tienda"
-            autoFocus
-            onChange={(e) => setStoreDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') commitStore()
-            }}
-          />
-          <datalist id="rss-known-stores">
-            {knownStores.map((s) => (
-              <option key={s} value={s} />
-            ))}
-          </datalist>
-          <button
-            type="button"
-            className="rss-control-editor__done"
-            onClick={commitStore}
-          >
-            Listo
-          </button>
-        </div>
-      )}
-
-      {editing === 'date' && (
-        <div className="rss-control-editor">
-          <input
-            className="rss-control-editor__input"
-            type="date"
-            value={toDateInputValue(receiptDate)}
-            max={todayInputValue()}
-            autoFocus
-            onChange={(e) => {
-              onChangeDate(
-                e.target.value
-                  ? withDatePart(receiptDate, e.target.value)
-                  : null,
-              )
-              setEditing(null)
-            }}
-          />
-        </div>
-      )}
-
-      <div className="rss-listhead">
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={allIncluded}
-          className={`rss-selectall ${allIncluded ? 'rss-selectall--on' : ''}`}
-          onClick={() => onSetAll(!allIncluded)}
-          aria-label={allIncluded ? 'Deseleccionar todo' : 'Seleccionar todo'}
+      <PurchaseSheetHead
+        title={targeted ? 'Añadir ticket a esta compra' : 'Revisar ticket'}
+        leading={thumb}
+      >
+        <StorePill
+          options={storeOptions}
+          value={store ?? ''}
+          locked={storeLocked}
+          onSelect={(next) => onChangeStore(next || null)}
+          onAddNew={onAddStore}
         />
-        <span className="rss-listhead__count">
-          {lineStates.length} línea{lineStates.length === 1 ? '' : 's'}
-          {unnamedCount > 0 && ` · ${unnamedCount} sin nombre`}
-        </span>
-        <button
-          type="button"
-          className="rss-listhead__clear"
-          onClick={() => onSetAll(false)}
-          disabled={includedCount === 0}
-        >
-          Quitar todas
-        </button>
-      </div>
+        <DatePill
+          value={toDateInputValue(receiptDate)}
+          locked={dateLocked}
+          onChange={(day) =>
+            onChangeDate(day ? withDatePart(receiptDate, day) : null)
+          }
+        />
+      </PurchaseSheetHead>
 
-      <div className="rss-body">
+      <PurchaseTable checks className="rss-body">
+        <PurchaseTableHead
+          count={lines.length}
+          leading={
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={allIncluded}
+              className={`rss-selectall ${allIncluded ? 'rss-selectall--on' : ''}`}
+              onClick={() => onSetAll(!allIncluded)}
+              aria-label={
+                allIncluded ? 'Deseleccionar todo' : 'Seleccionar todo'
+              }
+            />
+          }
+        />
+
         {lines.map((line, i) => {
           const ls = lineStates[i]
           const named = isNamed(ls.resolution)
@@ -292,25 +203,23 @@ export function ReceiptReviewBody({
           const discount = isDiscountLine(line)
           const weightChip = !!weightChips?.[i] && !!onScanLabel
           return (
-            <div
+            <PurchaseRow
               key={i}
-              className={`rss-row ${ls.included ? '' : 'rss-row--off'}`}
-            >
-              <input
-                type="checkbox"
-                className="rss-row__check"
-                checked={ls.included}
-                disabled={discount}
-                onChange={() => onToggleInclude(i)}
-                aria-label={`Guardar «${line.receipt_name}»`}
-              />
-              <button
-                type="button"
-                className="rss-row__open"
-                disabled={discount}
-                onClick={() => onOpenResolve(i)}
-              >
-                <span className="rss-row__product">
+              off={!ls.included}
+              disabled={discount}
+              onOpen={() => onOpenResolve(i)}
+              leading={
+                <input
+                  type="checkbox"
+                  className="rss-row__check"
+                  checked={ls.included}
+                  disabled={discount}
+                  onChange={() => onToggleInclude(i)}
+                  aria-label={`Guardar «${line.receipt_name}»`}
+                />
+              }
+              product={
+                <>
                   <span className="rss-ocr">{line.receipt_name}</span>
                   {discount ? (
                     <span className="rss-annot rss-annot--off">
@@ -349,34 +258,48 @@ export function ReceiptReviewBody({
                       no se guarda
                     </span>
                   )}
-                </span>
-                {/* With the chip, the chip takes the quantity's place. */}
-                <span className="rss-qty">
-                  {weightChip ? '' : effectiveQuantityDisplay(line, ls)}
-                </span>
-                <span className="rss-price">
-                  {formatRowAmount(effectiveLineTotal(line, ls))}
-                </span>
-                {!discount && (
-                  <ChevronRight size={16} className="rss-row__chevron" />
-                )}
-              </button>
-              {/* A sibling of the row button, never inside it: a button
-                  cannot hold a button. The grid lays it over the empty
-                  quantity cell. */}
-              {weightChip && (
-                <WeightChip
-                  className="rss-row__weight"
-                  lineName={line.receipt_name}
-                  onClick={() => onScanLabel!(i)}
-                />
-              )}
-            </div>
+                </>
+              }
+              // With the chip, the chip takes the quantity's place.
+              qty={weightChip ? '' : effectiveQuantityDisplay(line, ls)}
+              amount={<PurchaseAmount value={effectiveLineTotal(line, ls)} />}
+              chip={
+                weightChip && (
+                  <WeightChip
+                    lineName={line.receipt_name}
+                    onClick={() => onScanLabel!(i)}
+                  />
+                )
+              }
+            />
           )
         })}
-      </div>
 
-      <div className="rss-foot">
+        {receiptTotal == null ? (
+          <PurchaseTotal label="Suma de líneas" value={lineSum} />
+        ) : (
+          <PurchaseTotal
+            value={receiptTotal}
+            status={matches}
+            mark={
+              matches && (
+                <>
+                  <span className="rss-cuadre__disc rss-cuadre__disc--ok" />
+                  {/* The green disc is the only visible sign that the sum
+                      matches the paper total. */}
+                  <span className="sr-only">cuadra con la suma de líneas</span>
+                </>
+              )
+            }
+          />
+        )}
+        <PurchaseHelp>
+          Toca una línea para asignarla o corregirla. Una línea desmarcada no se
+          guarda, pero sigue sumando para el cuadre.
+        </PurchaseHelp>
+      </PurchaseTable>
+
+      <div className="psheet-foot">
         {targeted &&
           priorTotal != null &&
           receiptTotal != null &&
@@ -386,57 +309,37 @@ export function ReceiptReviewBody({
               {formatRowAmount(receiptTotal)}
             </div>
           )}
-        {receiptTotal != null ? (
-          matches ? (
-            <div className="rss-cuadre rss-cuadre--ok" role="status">
-              <span className="rss-cuadre__label">Total</span>
-              <span className="rss-cuadre__disc rss-cuadre__disc--ok" />
-              {/* The green disc is the only visible sign that the sum
-                  matches the paper total. */}
-              <span className="sr-only">cuadra con la suma de líneas</span>
-              <span className="rss-cuadre__total">
-                {formatRowAmount(receiptTotal)}
-              </span>
-            </div>
-          ) : (
-            <div className="rss-cuadre rss-cuadre--off" role="status">
-              <div className="rss-cuadre__text">
-                <p className="rss-cuadre__headline">
-                  {cuadreDiff != null && cuadreDiff < 0 ? 'Faltan' : 'Sobran'} €{' '}
-                  {formatRowAmount(Math.abs(cuadreDiff ?? 0))} para cuadrar
-                </p>
-                <p className="rss-cuadre__detail">
-                  Suma de líneas {formatRowAmount(lineSum)} · total leído{' '}
-                  {formatRowAmount(receiptTotal)}. Puede ser un descuento o una
-                  línea que no se ha leído bien.
-                </p>
-              </div>
-              <span className="rss-cuadre__disc rss-cuadre__disc--off">
-                <TriangleAlert size={15} />
-              </span>
-            </div>
-          )
-        ) : (
-          <div className="rss-cuadre rss-cuadre--neutral">
-            <span className="rss-cuadre__label">Suma de líneas</span>
-            <span className="rss-cuadre__total">
-              {formatRowAmount(lineSum)}
-            </span>
-          </div>
+        {/* A total that does not match moves up to sit over the save button,
+            where it cannot be missed (18b). It only informs: the paper may
+            hold a discount, so it never blocks the save. */}
+        {receiptTotal != null && !matches && (
+          <PurchaseNotice
+            tone="info"
+            title={`${cuadreDiff != null && cuadreDiff < 0 ? 'Faltan' : 'Sobran'} € ${formatRowAmount(Math.abs(cuadreDiff ?? 0))} para cuadrar`}
+          >
+            Suma de líneas {formatRowAmount(lineSum)} · total leído{' '}
+            {formatRowAmount(receiptTotal)}. Puede ser un descuento o una línea
+            que no se ha leído bien.
+          </PurchaseNotice>
         )}
+        <MissingToSaveNotice
+          store={store == null}
+          date={receiptDate == null}
+          unnamedLines={
+            lineStates.filter((ls) => ls.included && !isNamed(ls.resolution))
+              .length
+          }
+          nothingToSave={includedCount === 0 ? 'ticket' : null}
+        />
 
-        <button
-          type="button"
-          className="rss-save"
+        <SavePurchaseButton
+          sum={savedSum}
           disabled={!canSave}
           onClick={onConfirm}
-        >
-          Guardar compra
-          <span className="rss-save__sum">· € {formatRowAmount(savedSum)}</span>
-        </button>
-        <button type="button" className="rss-reread" onClick={onReReadReceipt}>
+        />
+        <SecondaryButton onClick={onReReadReceipt}>
           <RefreshCw size={15} /> Volver a leer el ticket
-        </button>
+        </SecondaryButton>
       </div>
 
       {lightbox && imageUrl && (

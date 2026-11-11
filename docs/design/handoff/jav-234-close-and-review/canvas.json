@@ -1,17 +1,81 @@
 {
   "v": 3,
-  "createdOnFiles": {"v": 1, "at": "2026-11-11T13:30:00Z"},
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-11T13:30:00Z"
+  },
   "title": "JAV-234 · Cerrar compra + Revisar ticket",
-  "launch": {"view": "canvas"},
+  "launch": {
+    "view": "canvas"
+  },
   "pages": [],
   "boards": {
-    "Main.dc.html": {"x": 0, "y": 0, "w": 402, "h": 820, "title": "10b · Cerrar compra (unificado)"},
-    "13a.dc.html": {"x": 482, "y": 0, "w": 402, "h": 760, "title": "13a · Revisar ticket (unificado)"},
-    "10d.dc.html": {"x": 964, "y": 0, "w": 402, "h": 640, "title": "10d · Ajustar producto (unificado)"}
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 402,
+      "h": 820,
+      "title": "10b · Cerrar compra (unificado)"
+    },
+    "13a.dc.html": {
+      "x": 482,
+      "y": 0,
+      "w": 402,
+      "h": 760,
+      "title": "13a · Revisar ticket (unificado)"
+    },
+    "10d.dc.html": {
+      "x": 964,
+      "y": 0,
+      "w": 402,
+      "h": 640,
+      "title": "10d · Ajustar producto (unificado)"
+    },
+    "13a-warn.dc.html": {
+      "x": 0,
+      "y": 1240,
+      "w": 402,
+      "h": 920,
+      "title": "13a · Faltan tienda, fecha y 2 productos"
+    },
+    "13a-cuadre.dc.html": {
+      "x": 482,
+      "y": 1240,
+      "w": 402,
+      "h": 1000,
+      "title": "13a · No cuadra (info) y falta la tienda"
+    },
+    "10b-warn.dc.html": {
+      "x": 964,
+      "y": 1240,
+      "w": 402,
+      "h": 920,
+      "title": "10b · Falta la tienda"
+    }
   },
-  "order": ["Main.dc.html", "13a.dc.html", "10d.dc.html"],
+  "order": [
+    "Main.dc.html",
+    "13a.dc.html",
+    "10d.dc.html",
+    "13a-warn.dc.html",
+    "13a-cuadre.dc.html",
+    "10b-warn.dc.html"
+  ],
   "notes": {
-    "t1": {"x": 0, "y": -260, "text": "JAV-234 · Cerrar compra y Revisar ticket, un solo juego de piezas", "kind": "title1", "maxW": 1366}
+    "t1": {
+      "x": 0,
+      "y": -260,
+      "text": "JAV-234 · Cerrar compra y Revisar ticket, un solo juego de piezas",
+      "kind": "title1",
+      "maxW": 1366
+    },
+    "t2": {
+      "x": 0,
+      "y": 980,
+      "text": "Avisos sobre «Guardar compra»: el cuadre informa, lo que falta avisa",
+      "kind": "title1",
+      "maxW": 1366
+    }
   },
   "designSystems": []
 }

@@ -3,23 +3,6 @@
    the name required; the /ud·/kg suffix is derived from the quantity, never a
    toggle (rule 10a). All values printed type — no handwriting. */
 
-.adjust-sheet__back {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  min-height: 44px;
-  padding: 0 20px;
-  border: none;
-  border-bottom: 1px solid var(--paper-edge);
-  background: none;
-  color: var(--tinta-0);
-  font-family: var(--font-sans);
-  font-size: var(--fs-15);
-  font-weight: 500;
-  cursor: pointer;
-}
-
 .adjust-sheet__body {
   display: flex;
   flex-direction: column;
@@ -32,14 +15,7 @@
 }
 
 .adjust-field__label {
-  display: block;
   margin-bottom: 8px;
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-2);
 }
 
 .adjust-field__opt {
@@ -149,23 +125,6 @@ input.adjust-field__box:focus {
   flex-direction: column;
   gap: 4px;
   padding: 18px 20px 0;
-}
-
-.adjust-sheet__done {
-  min-height: 48px;
-  border: none;
-  border-radius: var(--r-md);
-  background: var(--tinta-0);
-  color: var(--accent-fg);
-  font-family: var(--font-sans);
-  font-size: var(--fs-15);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.adjust-sheet__done:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .adjust-sheet__remove {

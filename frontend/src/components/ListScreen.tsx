@@ -1630,6 +1630,8 @@ export function ListScreen({
           pendingScan={pendingScan}
           onRequestScan={handleReceiptScanRequest}
           onFetchSuggestions={fetchResolveSuggestions}
+          storeOptions={items.flatMap((i) => i.stores)}
+          displayStore={displayStore}
         />
       )}
 

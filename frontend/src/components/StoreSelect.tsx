@@ -20,6 +20,8 @@ interface Props {
   onAddNew: () => void
   /** Present = no-store is a legitimate choice, offered first as this label. */
   emptyLabel?: string
+  /** What the control reads while no store is chosen. */
+  placeholder?: string
   className?: string
 }
 
@@ -34,6 +36,7 @@ export function StoreSelect({
   onSelect,
   onAddNew,
   emptyLabel,
+  placeholder = 'Elige tienda',
   className,
 }: Props) {
   const resolved =
@@ -63,7 +66,7 @@ export function StoreSelect({
         ) : (
           resolved === '' && (
             <option value="" disabled hidden>
-              Elige tienda
+              {placeholder}
             </option>
           )
         )}

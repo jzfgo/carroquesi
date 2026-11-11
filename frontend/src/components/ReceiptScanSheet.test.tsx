@@ -4,6 +4,7 @@ import { getLabel } from '../lib/api'
 import { reportRequestOutcome } from '../lib/connectivity'
 import type { LabelRead, ReceiptScanResult } from '../types'
 import ReceiptScanSheet, { type ItemRef } from './ReceiptScanSheet'
+import { ADD_STORE } from './StoreSelect'
 
 vi.mock('../lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../lib/api')>()),
@@ -231,12 +232,22 @@ describe('ReceiptScanSheet — cuadre', () => {
     expect(screen.queryByText(/para cuadrar/)).not.toBeInTheDocument()
   })
 
-  it('shows the amber diff card when the line-sum falls short', () => {
+  it('shows the cuadre card when the line-sum falls short', () => {
     renderSheet({ result: makeResult({ receipt_total: 9.87 }) })
     expect(screen.getByText(/Faltan € 0,42 para cuadrar/)).toBeInTheDocument()
     expect(
       screen.getByText(/Suma de líneas 9,45 · total leído 9,87/),
     ).toBeInTheDocument()
+  })
+
+  it('a cuadre that does not match informs, but never blocks the save', () => {
+    renderSheet({ result: makeResult({ receipt_total: 9.87 }) })
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    expect(screen.getByText(/para cuadrar/)).toBeInTheDocument()
+    expect(
+      screen.queryByText(/para guardar esta compra/),
+    ).not.toBeInTheDocument()
+    expect(saveButton()).toBeEnabled()
   })
 
   it('shows a signed overshoot when the line-sum exceeds the paper', () => {
@@ -258,14 +269,20 @@ describe('ReceiptScanSheet — cuadre', () => {
 describe('ReceiptScanSheet — save gating', () => {
   it('blocks save while a checked line is still unnamed', () => {
     renderSheet()
-    // MANI DULCE is checked but unassigned → disabled.
+    // MANI DULCE is checked but unassigned → disabled, and the warning says so.
     expect(saveButton()).toBeDisabled()
+    expect(screen.getByText(/para guardar esta compra/)).toHaveTextContent(
+      'Asigna un producto a 1 línea para guardar esta compra',
+    )
   })
 
   it('enables save once the unnamed line is unchecked', () => {
     renderSheet()
     fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
     expect(saveButton()).toBeEnabled()
+    expect(
+      screen.queryByText(/para guardar esta compra/),
+    ).not.toBeInTheDocument()
   })
 
   it('blocks save without a date', () => {
@@ -273,6 +290,9 @@ describe('ReceiptScanSheet — save gating', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
     expect(screen.getByText('Poner fecha')).toBeInTheDocument()
     expect(saveButton()).toBeDisabled()
+    expect(screen.getByText(/para guardar esta compra/)).toHaveTextContent(
+      'Indica la fecha para guardar esta compra',
+    )
   })
 
   it('blocks save without a store', () => {
@@ -283,16 +303,65 @@ describe('ReceiptScanSheet — save gating', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
     expect(screen.getByText('Poner tienda')).toBeInTheDocument()
     expect(saveButton()).toBeDisabled()
+    expect(screen.getByText(/para guardar esta compra/)).toHaveTextContent(
+      'Indica la tienda para guardar esta compra',
+    )
   })
 
-  it('"Quitar todas" clears every line and disables save', () => {
+  it('names everything missing in one warning', () => {
+    renderSheet({
+      store: null,
+      result: makeResult({ store: null, receipt_date: null }),
+    })
+    expect(screen.getByText(/para guardar esta compra/)).toHaveTextContent(
+      'Indica la tienda y la fecha y asigna un producto a 1 línea para guardar esta compra',
+    )
+  })
+
+  it('the head checkbox clears every line and disables save', () => {
     renderSheet()
-    fireEvent.click(screen.getByRole('button', { name: 'Quitar todas' }))
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Deseleccionar todo' }),
+    )
     const checks = screen
       .getAllByRole('checkbox')
       .filter((c) => (c as HTMLInputElement).type === 'checkbox')
     checks.forEach((c) => expect(c).not.toBeChecked())
     expect(saveButton()).toBeDisabled()
+    expect(screen.getByText(/para guardar esta compra/)).toHaveTextContent(
+      'Marca al menos una línea para guardar esta compra',
+    )
+  })
+
+  it('offers the list stores in the store pill, and «+ otra» adds one', () => {
+    renderSheet({
+      store: null,
+      result: makeResult({ store: null }),
+      storeOptions: ['Lidl', 'Mercadona'],
+    })
+    const pill = screen.getByRole('combobox', { name: 'Tienda' })
+    fireEvent.change(pill, { target: { value: 'Lidl' } })
+    expect(pill).toHaveValue('Lidl')
+
+    // «+ otra» swaps in the «Nueva tienda» step, in the same sheet.
+    fireEvent.change(pill, { target: { value: ADD_STORE } })
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    fireEvent.change(screen.getByPlaceholderText('Nombre de la tienda'), {
+      target: { value: 'Frutería Paqui' },
+    })
+    fireEvent.click(screen.getByText('Usar esta tienda'))
+    expect(screen.getByRole('combobox', { name: 'Tienda' })).toHaveValue(
+      'Frutería Paqui',
+    )
+  })
+
+  it('the date pill sets the receipt date', () => {
+    renderSheet({ result: makeResult({ receipt_date: null }) })
+    fireEvent.change(screen.getByLabelText('Fecha'), {
+      target: { value: '2026-07-14' },
+    })
+    expect(screen.queryByText('Poner fecha')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-07-14')
   })
 })
 
@@ -424,15 +493,15 @@ describe('ReceiptScanSheet — targeted attach (25b)', () => {
     renderTargeted()
     // Locked pills are ink, not controls: neither sits inside a button.
     expect(screen.getByText('Mercadona').closest('button')).toBeNull()
-    const dateEl = document.querySelectorAll('.rss-pill--locked')[1]
+    const dateEl = document.querySelectorAll('.psheet-pill--locked')[1]
     expect(dateEl?.closest('button')).toBeNull()
-    expect(document.querySelectorAll('.rss-pill--locked')).toHaveLength(2)
+    expect(document.querySelectorAll('.psheet-pill--locked')).toHaveLength(2)
   })
 
   it('keeps the store pill editable when the purchase has none', () => {
     renderTargeted({ target: { ...target, store: null }, store: 'Lidl' })
     // Seeded from the parse/list and still a control.
-    expect(screen.getByText('Lidl').closest('button')).not.toBeNull()
+    expect(screen.getByRole('combobox', { name: 'Tienda' })).toHaveValue('Lidl')
   })
 
   it('annotates each line as fill, correction, or no-op', () => {
@@ -786,12 +855,6 @@ describe('ReceiptScanSheet — discount lines (JAV-184)', () => {
     const [patches, , newItems] = onConfirm.mock.calls[0]
     expect(patches).toHaveLength(3)
     expect(newItems).toHaveLength(0)
-  })
-
-  it('leaves the sin-nombre count to real work, not locked discounts', () => {
-    renderSheet({ result: withPromo() })
-    // MANI DULCE is the one truly unnamed line; the promo does not count.
-    expect(screen.getByText(/1 sin nombre/)).toBeInTheDocument()
   })
 })
 

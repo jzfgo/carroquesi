@@ -1,4 +1,5 @@
 import type { KeyboardEvent, ReactNode } from 'react'
+import './PurchaseSheetParts.css'
 import './QuantityPriceRow.css'
 
 interface Props {
@@ -44,7 +45,7 @@ export function QuantityPriceRow({
 }: Props) {
   return (
     <div className="qtyprice-field">
-      <label className="qtyprice-field__label" htmlFor={id}>
+      <label className="psheet-label qtyprice-field__label" htmlFor={id}>
         Cantidad y precio
       </label>
       <div className="qtyprice">
