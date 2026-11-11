@@ -9,7 +9,6 @@ import {
   effectivePricePer,
   effectiveQuantity,
   effectiveUnitPrice,
-  formatReceiptDate,
   isDiscountLine,
   isNamed,
   QUANTITY_EPSILON,
@@ -20,6 +19,7 @@ import {
   type LineState,
   type ReceiptLine,
 } from '../lib/receiptReview'
+import { storeOffer, withExtraStore } from '../lib/storeOffer'
 import {
   labelAgrees,
   labelPricePerKg,
@@ -35,6 +35,7 @@ import type {
   Suggestion,
 } from '../types'
 import { LabelScanFlow, type UsedLabel } from './LabelScanFlow'
+import { NewStoreStep } from './NewStoreStep'
 import { ReceiptLineResolveBody } from './ReceiptLineResolveBody'
 import { ReceiptReviewBody } from './ReceiptReviewBody'
 import './ReceiptScanSheet.css'
@@ -112,7 +113,12 @@ interface Props {
   /** Catalogue lookup behind the resolve bar's suggestions (the canonical add
    *  bar's machinery, owned by the parent). Absent = no suggestions. */
   onFetchSuggestions?: (q: string) => Promise<Suggestion[]>
+  /** The list's registered stores, offered by the store pill. */
+  storeOptions?: string[]
+  displayStore?: (raw: string) => string
 }
+
+const asTyped = (raw: string) => raw
 
 /** Prices that print differently are different; below a céntimo they are not. */
 const PRICE_EPSILON = 0.005
@@ -224,6 +230,8 @@ export default function ReceiptScanSheet({
   pendingScan,
   onRequestScan,
   onFetchSuggestions,
+  storeOptions = [],
+  displayStore = asTyped,
 }: Props) {
   const allLines: ReceiptLine[] = [...result.matched, ...result.unmatched]
   const targeted = target != null
@@ -245,6 +253,10 @@ export default function ReceiptScanSheet({
   // swaps the body inside the same panel. Its draft (radio pick XOR create text)
   // lives here so a barcode scan — which round-trips through the parent — can
   // land in the create bar.
+  // Stores added by hand through «+ otra», and the «Nueva tienda» step that
+  // takes them: a content swap of this same sheet.
+  const [extraStores, setExtraStores] = useState<string[]>([])
+  const [addingStore, setAddingStore] = useState(false)
   const [resolvingIndex, setResolvingIndex] = useState<number | null>(null)
   const [resolveRadioId, setResolveRadioId] = useState<string | null>(null)
   const [resolveText, setResolveText] = useState('')
@@ -298,11 +310,10 @@ export default function ReceiptScanSheet({
   }, [resolveText, resolveDirty, resolvingIndex, onFetchSuggestions])
 
   const includedCount = lineStates.filter((ls) => ls.included).length
-  // A locked discount line is unnamed by nature but asks for no work, so it
-  // stays out of the «sin nombre» count.
-  const unnamedCount = lineStates.filter(
-    (ls, i) => !isNamed(ls.resolution) && !isDiscountLine(allLines[i]),
-  ).length
+  // The review's title; its steps' back buttons name it.
+  const reviewTitle = targeted
+    ? 'Añadir ticket a esta compra'
+    : 'Revisar ticket'
   const namedMissing = lineStates.some(
     (ls) => ls.included && !isNamed(ls.resolution),
   )
@@ -626,11 +637,13 @@ export default function ReceiptScanSheet({
       label={
         labelScan
           ? 'Etiqueta de peso'
-          : resolving
-            ? 'Resolver una línea'
-            : targeted
-              ? 'Añadir ticket a esta compra'
-              : 'Revisar ticket'
+          : addingStore
+            ? 'Nueva tienda'
+            : resolving
+              ? 'Resolver una línea'
+              : targeted
+                ? 'Añadir ticket a esta compra'
+                : 'Revisar ticket'
       }
       onClose={onClose}
       // On a sub-view, Escape / scrim / swipe go back a step — the back galón
@@ -638,9 +651,11 @@ export default function ReceiptScanSheet({
       onDismiss={
         labelScan
           ? endLabelScan
-          : resolving
-            ? () => setResolvingIndex(null)
-            : undefined
+          : addingStore
+            ? () => setAddingStore(false)
+            : resolving
+              ? () => setResolvingIndex(null)
+              : undefined
       }
     >
       {labelScan ? (
@@ -665,11 +680,21 @@ export default function ReceiptScanSheet({
           }}
           onCancel={endLabelScan}
         />
+      ) : addingStore ? (
+        <NewStoreStep
+          backLabel={reviewTitle}
+          onBack={() => setAddingStore(false)}
+          onConfirm={(added) => {
+            setExtraStores((xs) => withExtraStore(xs, added))
+            setStore(added)
+            setAddingStore(false)
+          }}
+        />
       ) : resolving ? (
         <ReceiptLineResolveBody
           line={allLines[resolvingIndex]}
           candidateItems={availableItems(resolvingIndex)}
-          backLabel={targeted ? 'Añadir ticket a esta compra' : undefined}
+          backLabel={reviewTitle}
           targeted={targeted}
           radioId={resolveRadioId}
           createText={resolveText}
@@ -702,7 +727,6 @@ export default function ReceiptScanSheet({
           lineStates={lineStates}
           store={store}
           receiptDate={receiptDate}
-          receiptDateLabel={formatReceiptDate(receiptDate)}
           targeted={targeted}
           dateLocked={targeted}
           storeLocked={target?.store != null}
@@ -711,13 +735,20 @@ export default function ReceiptScanSheet({
           imageUrl={imageUrl}
           isPdf={isPdf}
           pdfPages={pdfPages}
-          knownStores={knownStores(candidateItems, initialStore)}
+          storeOptions={storeOffer(
+            [
+              initialStore,
+              ...candidateItems.flatMap((item) => item.stores),
+              ...storeOptions,
+              ...extraStores,
+            ],
+            displayStore,
+          )}
           lineSum={lineSum}
           savedSum={savedSum}
           receiptTotal={receiptTotal}
           cuadreDiff={cuadreDiff}
           includedCount={includedCount}
-          unnamedCount={unnamedCount}
           canSave={canSave}
           onToggleInclude={toggleInclude}
           onSetAll={setAll}
@@ -726,23 +757,11 @@ export default function ReceiptScanSheet({
           onScanLabel={(index) => startLabelScan(index, 'review')}
           onChangeDate={setReceiptDate}
           onChangeStore={setStore}
+          onAddStore={() => setAddingStore(true)}
           onReReadReceipt={onReReadReceipt}
           onConfirm={handleConfirm}
         />
       )}
     </Sheet>
   )
-}
-
-/** Distinct store names already known to the list, for the store control's list. */
-function knownStores(
-  candidateItems: ItemRef[],
-  initialStore: string | null,
-): string[] {
-  const set = new Set<string>()
-  if (initialStore) set.add(initialStore)
-  for (const item of candidateItems) {
-    for (const s of item.stores) if (s) set.add(s)
-  }
-  return [...set]
 }
