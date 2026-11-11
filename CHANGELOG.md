@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.25.0] — 2026-11-11
+
+### Added
+- **receipt:** «Cantidad y precio» in the receipt line detail (#447)
+
+- **chains:** Backend for scanning weighed-goods labels (#448)
+
+- **scanner:** Scan a weighed label at close (#449)
+
+- **close:** One set of parts for closing a trip and reviewing a receipt (#451)
+
+
+---
 ## [0.24.0] — 2026-11-10
 
 ### Added
