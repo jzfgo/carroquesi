@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LabelScanner } from './LabelScanner'
 
@@ -120,9 +120,11 @@ describe('LabelScanner', () => {
     await waitFor(() => expect(onDetect).toHaveBeenCalledWith(null))
   })
 
-  it('renders on the page, outside a sliding sheet panel', () => {
+  // Inside the sheet's dialog, screen readers and the focus trap reach the
+  // camera's close button; a resting panel has no transform to break it.
+  it('renders inside the sheet that holds it', () => {
     render(
-      <div data-testid="panel" style={{ transform: 'translateY(0)' }}>
+      <div data-testid="panel">
         <LabelScanner
           lineName="Sandía"
           lineTotal={4.97}
@@ -132,7 +134,22 @@ describe('LabelScanner', () => {
       </div>,
     )
     const close = screen.getByRole('button', { name: 'Cerrar escáner' })
-    expect(screen.getByTestId('panel')).not.toContainElement(close)
-    expect(close.closest('.barcode-scanner')?.parentElement).toBe(document.body)
+    expect(screen.getByTestId('panel')).toContainElement(close)
+  })
+
+  it('keeps its touches from the sheet’s swipe', () => {
+    const onTouchStart = vi.fn()
+    render(
+      <div onTouchStart={onTouchStart}>
+        <LabelScanner
+          lineName="Sandía"
+          lineTotal={4.97}
+          onDetect={vi.fn()}
+          onClose={vi.fn()}
+        />
+      </div>,
+    )
+    fireEvent.touchStart(screen.getByRole('button', { name: 'Cerrar escáner' }))
+    expect(onTouchStart).not.toHaveBeenCalled()
   })
 })

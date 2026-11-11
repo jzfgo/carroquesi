@@ -1,7 +1,12 @@
 import { BarcodeDetectorPolyfill } from '@undecaf/barcode-detector-polyfill'
 import { CameraOff, X } from 'lucide-react'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import {
+  type ReactNode,
+  type TouchEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import './BarcodeScanner.css'
 
 type DetectorConstructor = typeof BarcodeDetectorPolyfill
@@ -20,9 +25,10 @@ interface Props {
 }
 
 /**
- * The full-screen camera: it reads one barcode and stops. It renders on the
- * page, not where it is mounted, because a sheet's panel slides with a
- * transform, and a fixed element inside a transform is placed against it.
+ * The full-screen camera: it reads one barcode and stops. It renders where
+ * it is mounted, so a sheet's dialog and focus trap hold it. A resting panel
+ * has no transform, so the fixed view still covers the screen; its touches
+ * stop here, so a drag on the camera never swipes the sheet behind it.
  */
 export function CameraScanner({
   formats,
@@ -93,8 +99,8 @@ export function CameraScanner({
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (cameraError) {
-    return createPortal(
-      <div className="barcode-scanner barcode-scanner--error">
+    return (
+      <div className="barcode-scanner barcode-scanner--error" {...stopTouches}>
         <CameraOff size={32} />
         <p>No se pudo acceder a la cámara.</p>
         <button
@@ -104,13 +110,12 @@ export function CameraScanner({
         >
           Cerrar
         </button>
-      </div>,
-      document.body,
+      </div>
     )
   }
 
-  return createPortal(
-    <div className="barcode-scanner">
+  return (
+    <div className="barcode-scanner" {...stopTouches}>
       <video
         ref={videoRef}
         className="barcode-scanner__video"
@@ -137,7 +142,9 @@ export function CameraScanner({
       >
         <X size={20} />
       </button>
-    </div>,
-    document.body,
+    </div>
   )
 }
+
+const stop = (e: TouchEvent) => e.stopPropagation()
+const stopTouches = { onTouchStart: stop, onTouchMove: stop, onTouchEnd: stop }
