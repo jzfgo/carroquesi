@@ -424,9 +424,10 @@ export default function ReceiptScanSheet({
     setLabelScan(null)
   }
 
-  // With a receipt the line keeps the paper's amount and gains the label's
-  // weight. A label that agrees gives its €/kg too; one used despite a
-  // mismatch is a weight only, and the €/kg follows from the paper.
+  // With a receipt the line keeps its amount (the paper's, or a total the
+  // user corrected) and gains the label's weight. A label that agrees gives
+  // its €/kg too; one used despite a mismatch is a weight only, and the
+  // €/kg follows from that amount.
   function applyLabel(index: number, { code, label }: UsedLabel) {
     setLineStates((prev) =>
       prev.map((ls, i) =>
@@ -437,7 +438,6 @@ export default function ReceiptScanSheet({
               unitPrice: labelAgrees(label, effectiveLineTotal(allLines[i], ls))
                 ? labelPricePerKg(label)
                 : null,
-              lineTotal: null,
               label: { code, article: label.article },
             }
           : ls,

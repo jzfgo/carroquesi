@@ -992,6 +992,36 @@ describe('ReceiptScanSheet — weighed label', () => {
     expect(0.4 * patch.price!).toBeCloseTo(1.15, 2)
   })
 
+  it('a label that matches a corrected total keeps that total', async () => {
+    // The paper reads 1,15; the user corrects it to 2,00, which the label
+    // agrees with: 346 g at 5,78 €/kg.
+    vi.mocked(getLabel).mockResolvedValue({
+      ...LABEL,
+      price_per_kg_cents: 578,
+      total_cents: 200,
+    })
+    const { onConfirm } = renderSheet()
+    fireEvent.click(openRow('BEBIDA ALMENDRAS'))
+    const input = screen.getByLabelText('Precio')
+    fireEvent.change(input, { target: { value: '2,00' } })
+    fireEvent.blur(input)
+    fireEvent.click(screen.getByRole('button', { name: 'Escanear etiqueta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Usar en esta línea' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Revisar ticket/ }))
+    expect(screen.getByText('2,00')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    const patch = patches.find((p) => p.item_id === 'item-1')!
+    expect(patch.quantity).toBe('0,346 kg')
+    expect(0.346 * patch.price!).toBeCloseTo(2, 2)
+  })
+
   it('a created line carries the label too', async () => {
     vi.mocked(getLabel).mockResolvedValue({ ...LABEL, total_cents: 315 })
     const { onConfirm } = renderSheet()
