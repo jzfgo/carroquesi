@@ -113,4 +113,4 @@ def test_a_decoded_label_finds_its_row_by_the_chain_key(client, session: Session
     label = decode_label("230035050320600155004972")
     assert label is not None
     [row] = _rows(session)
-    assert profile_for(label.chain).key == row.chain
+    assert (profile_for(label.chain).key, label.article) == (row.chain, row.article)
