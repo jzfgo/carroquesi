@@ -21,6 +21,7 @@ import {
   type ReceiptLine,
 } from '../lib/receiptReview'
 import {
+  labelAgrees,
   labelPricePerKg,
   labelQuantity,
   showsWeightChip,
@@ -424,7 +425,8 @@ export default function ReceiptScanSheet({
   }
 
   // With a receipt the line keeps the paper's amount and gains the label's
-  // weight and €/kg.
+  // weight. A label that agrees gives its €/kg too; one used despite a
+  // mismatch is a weight only, and the €/kg follows from the paper.
   function applyLabel(index: number, { code, label }: UsedLabel) {
     setLineStates((prev) =>
       prev.map((ls, i) =>
@@ -432,7 +434,9 @@ export default function ReceiptScanSheet({
           ? {
               ...ls,
               quantity: labelQuantity(label.weight_g!),
-              unitPrice: labelPricePerKg(label),
+              unitPrice: labelAgrees(label, effectiveLineTotal(allLines[i], ls))
+                ? labelPricePerKg(label)
+                : null,
               lineTotal: null,
               label: { code, article: label.article },
             }
@@ -444,7 +448,7 @@ export default function ReceiptScanSheet({
 
   function labelUsedOn(code: string, index: number): string | null {
     const other = lineStates.findIndex(
-      (ls, i) => i !== index && ls.label?.code === code,
+      (ls, i) => i !== index && ls.included && ls.label?.code === code,
     )
     if (other < 0) return null
     return (

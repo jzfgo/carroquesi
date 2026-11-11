@@ -965,6 +965,33 @@ describe('ReceiptScanSheet — weighed label', () => {
     expect(patches.find((p) => p.item_id === 'item-2')?.article).toBeNull()
   })
 
+  it('a label used despite a mismatch keeps the paper amount', async () => {
+    // 400 g at 3,32 €/kg is 1,33; the paper says 1,15.
+    vi.mocked(getLabel).mockResolvedValue({
+      ...LABEL,
+      weight_g: 400,
+      total_cents: 133,
+    })
+    const { onConfirm } = renderSheet()
+    fireEvent.click(chip('BEBIDA ALMENDRAS 0%')!)
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Usarla de todas formas' }),
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    const patch = patches.find((p) => p.item_id === 'item-1')!
+    expect(patch).toMatchObject({
+      quantity: '0,4 kg',
+      price_per: 'KILOGRAM',
+      article: '01234',
+    })
+    // Weight × price is the paper's 1,15, not the label's 1,33.
+    expect(0.4 * patch.price!).toBeCloseTo(1.15, 2)
+  })
+
   it('a created line carries the label too', async () => {
     vi.mocked(getLabel).mockResolvedValue({ ...LABEL, total_cents: 315 })
     const { onConfirm } = renderSheet()
@@ -999,6 +1026,21 @@ describe('ReceiptScanSheet — weighed label', () => {
         /Esta etiqueta ya está en otra línea de Bebida de almendra 0% azúcares\./,
       ),
     ).toBeInTheDocument()
+  })
+
+  it('an unchecked line does not count as the label’s other line', async () => {
+    vi.mocked(getLabel).mockResolvedValue(LABEL)
+    renderSheet()
+    fireEvent.click(chip('BEBIDA ALMENDRAS 0%')!)
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Usar en esta línea' }),
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: /BEBIDA ALMENDRAS/ }))
+    fireEvent.click(chip('MANI DULCE')!)
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    await screen.findByRole('button', { name: /Usar/ })
+    expect(screen.queryByText(/ya está en otra línea/)).not.toBeInTheDocument()
   })
 
   it('the line detail always offers the scan, and «Escribir a mano» returns there', async () => {
