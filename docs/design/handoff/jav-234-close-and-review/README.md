@@ -9,9 +9,8 @@ compra + Revisar ticket») and copied here verbatim.
 These frames **replace** 10b, 13a and 10d in `CarroQueSí - Handoff
 (aprobados).dc.html` for every element listed below. They also change two
 things in 18b: its list head's count and «Quitar todas», and its amber
-difference card (see Table head and Notices below). Those two changes were
-decided after the frames were exported (2026-11-11), so the frames here do not
-draw them; this README is the spec for them. Everything else in those
+difference card (see Table head and Notices below). The three notice frames
+draw those changes and the save warning. Everything else in those
 frames still holds, and so do the JAV-225 additions on the same sheets (the
 «Peso» chip and «Escanear etiqueta», in `../jav-225-weighed-label/`), which
 these frames leave out.
@@ -23,11 +22,14 @@ not load here. Open them as plain HTML or read the source.
 
 ## Frames
 
-| File           | What it shows                                                  |
-| -------------- | -------------------------------------------------------------- |
-| `Main.dc.html` | 10b · Cerrar compra, with the shared parts                     |
-| `13a.dc.html`  | 13a · Revisar ticket, with the shared parts                    |
-| `10d.dc.html`  | 10d · Ajustar producto, with 13b's label style                 |
+| File                 | What it shows                                                  |
+| -------------------- | -------------------------------------------------------------- |
+| `Main.dc.html`       | 10b · Cerrar compra, with the shared parts                     |
+| `13a.dc.html`        | 13a · Revisar ticket, with the shared parts                    |
+| `10d.dc.html`        | 10d · Ajustar producto, with 13b's label style                 |
+| `13a-warn.dc.html`   | 13a · the save warning: no store, no date, 2 unnamed lines     |
+| `13a-cuadre.dc.html` | 13a · the blue cuadre notice above the warning (no store)      |
+| `10b-warn.dc.html`   | 10b · the save warning: no store                               |
 
 13b does not change, so it has no frame here.
 
