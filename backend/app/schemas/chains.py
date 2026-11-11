@@ -1,4 +1,10 @@
-from pydantic import BaseModel
+from typing import Annotated
+
+from pydantic import BaseModel, Field
+
+# A label's article code, as a decoder reads it. A save line carries it when
+# the line came from a scanned label, so the product can be remembered.
+ArticleCode = Annotated[str, Field(pattern=r"^\d{1,16}$")]
 
 
 class ChainRead(BaseModel):

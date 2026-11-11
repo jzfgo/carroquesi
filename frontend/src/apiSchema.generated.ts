@@ -1417,6 +1417,8 @@ export interface components {
         };
         /** NewPurchasedItem */
         NewPurchasedItem: {
+            /** Article */
+            article?: string | null;
             /** Brand */
             brand?: string | null;
             /** Ean */
@@ -1487,6 +1489,8 @@ export interface components {
         };
         /** PricePatch */
         PricePatch: {
+            /** Article */
+            article?: string | null;
             /** Item Id */
             item_id: string;
             /** Price */
@@ -1523,6 +1527,8 @@ export interface components {
          *     stated once on the close.
          */
         PurchaseLine: {
+            /** Article */
+            article?: string | null;
             /** Brand */
             brand?: string | null;
             /** Item Id */
@@ -1563,6 +1569,8 @@ export interface components {
          * @description Something bought that was never on the list. Born already purchased.
          */
         PurchaseNewItem: {
+            /** Article */
+            article?: string | null;
             /** Brand */
             brand?: string | null;
             /** Ean */

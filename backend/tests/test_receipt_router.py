@@ -4,6 +4,7 @@ import pytest
 from sqlmodel import select
 
 from app.db.models import (
+    ChainArticleMapping,
     List,
     ListItem,
     ListMember,
@@ -2118,3 +2119,62 @@ def test_apply_accepts_an_old_date_the_review_confirmed(client):
     )
 
     assert response.status_code == 200
+
+
+def _articles(session) -> list[ChainArticleMapping]:
+    session.expire_all()
+    return list(session.exec(select(ChainArticleMapping)).all())
+
+
+def _apply(client, **body):
+    return client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json={"receipt_date": "2026-04-11", "store": "Mercadona", **body},
+    )
+
+
+def test_apply_remembers_a_patch_article(client, session):
+    patch = {**_price_patch("item-almendras", 1.15), "article": "03505"}
+    assert _apply(client, patches=[patch]).status_code == 200
+    [row] = _articles(session)
+    assert (row.list_id, row.chain, row.article) == (LIST_ID, "mercadona", "03505")
+    assert row.item_name == "Bebida de almendra 0% azúcares"
+
+
+def test_apply_remembers_a_new_item_article(client, session):
+    body = _new_item_body(article="03505")
+    assert client.post(f"/lists/{LIST_ID}/receipt-prices", json=body).status_code == 200
+    [row] = _articles(session)
+    assert (row.item_name, row.item_brand) == ("Chocolate negro 85%", "Valor")
+
+
+def test_a_skipped_patch_remembers_nothing(client, session, settled_trip):
+    patch = {**_price_patch("item-lookalike", 1.10), "article": "03505"}
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices", json=_targeted_batch(patches=[patch])
+    )
+    assert response.json()["items_skipped"] == 1
+    assert _articles(session) == []
+
+
+def test_targeted_apply_takes_the_purchase_store_for_articles(client, session, settled_trip):
+    patch = {**_price_patch("item-settled-unpriced", 1.10, store=None), "article": "03505"}
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_targeted_batch(store=None, patches=[patch]),
+    )
+    assert response.json()["items_updated"] == 1
+    [row] = _articles(session)
+    assert (row.chain, row.item_name) == ("mercadona", "Pan integral")
+
+
+def test_apply_at_an_unclaimed_store_saves_the_line_without_a_mapping(client, session):
+    patch = {**_price_patch("item-almendras", 1.15, store=None), "article": "03505"}
+    response = _apply(client, store="Frutería Paco", patches=[patch])
+    assert response.json()["items_updated"] == 1
+    assert _articles(session) == []
+
+
+def test_article_must_be_digits(client):
+    patch = {**_price_patch("item-almendras", 1.15), "article": "03a05"}
+    assert _apply(client, patches=[patch]).status_code == 422

@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.chains import ArticleCode
 from app.schemas.items import ItemRead
 
 
@@ -29,6 +30,7 @@ class PurchaseLine(BaseModel):
     # close time. None leaves the stored value untouched; a value overwrites it.
     name: str | None = Field(default=None, min_length=1, max_length=200)
     brand: str | None = None
+    article: ArticleCode | None = None
 
 
 class PurchaseNewItem(BaseModel):
@@ -42,6 +44,7 @@ class PurchaseNewItem(BaseModel):
     price: float | None = None
     price_per: Literal["KILOGRAM"] | None = None
     quantity: str | None = None
+    article: ArticleCode | None = None
 
 
 class PurchaseCloseBody(BaseModel):
