@@ -42,11 +42,14 @@ not load here. Open them as plain HTML or read the source.
   loses its pencil.
 - **Total row.** «Total» in caps, the figure in mono, no «€». 13a keeps its
   cuadre disc and its amber difference card. In 10b the total counts only
-  confirmed prices: dashed suggestions count once confirmed.
+  confirmed prices: dashed suggestions count once confirmed. The amber card
+  is not drawn here; 18b in the approved handoff shows it.
 - **Help text.** A short line under the total in both sheets, starting «Toca
   una línea para…».
 - **Save button.** «Guardar compra · € N» in both: the sum of what will be
-  saved.
+  saved. The frames draw it enabled, but it stays disabled until the sheet can
+  save: in 13a that needs a store and a date, in 10b a store. 13a's frame
+  shows «Poner fecha» only to draw the empty pill.
 - **Line detail (10d and 13b).** The same back button (the parent sheet's
   title), the same field labels (11 px, caps, .08em tracking), the same
   primary button. The line total box in 10d reads «Importe», like the column.

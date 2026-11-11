@@ -29,8 +29,8 @@ disagree, the frames here win.
   restates the rules the frames encode.
 - `jav-234-close-and-review/` — one set of shared parts for closing a trip
   (10b/10d) and reviewing a receipt (13a/13b) (2026-11-11). It replaces those
-  frames' header, table head, rows, total and line-detail styling. Its README
-  lists each shared part.
+  frames' header, table head, rows, total, help text, save button and
+  line-detail styling. Its README lists each shared part.
 - `BUNDLE-README.md` — the exporter's own README, kept as shipped.
 
 ## Provenance and pruning
