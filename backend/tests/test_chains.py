@@ -106,6 +106,13 @@ def test_get_chains_serves_the_table(client: TestClient):
     assert "hacendado" in mercadona["own_brands"]
 
 
+def test_get_chains_says_which_chains_decode_labels(client: TestClient):
+    chains = {c["name"]: c for c in client.get("/chains").json()}
+    assert chains["Mercadona"]["has_label_decoder"] is True
+    assert chains["Ahorramas"]["has_label_decoder"] is True
+    assert chains["Carrefour"]["has_label_decoder"] is False
+
+
 def test_get_label_decodes(client: TestClient):
     res = client.get("/chains/labels/230035050320600155004972", params={"store": "Mercadona"})
     assert res.status_code == 200

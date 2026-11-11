@@ -10,7 +10,8 @@
       "deliplus baby",
       "deliplus",
       "compy"
-    ]
+    ],
+    "has_label_decoder": true
   },
   {
     "name": "Carrefour",
@@ -25,7 +26,8 @@
       "selection",
       "no. 1",
       "tex"
-    ]
+    ],
+    "has_label_decoder": false
   },
   {
     "name": "Lidl",
@@ -41,7 +43,8 @@
       "lupilu",
       "deluxe",
       "silvercrest"
-    ]
+    ],
+    "has_label_decoder": false
   },
   {
     "name": "Aldi",
@@ -55,7 +58,8 @@
       "mildeen",
       "el mercado",
       "my night"
-    ]
+    ],
+    "has_label_decoder": false
   },
   {
     "name": "DIA",
@@ -69,7 +73,8 @@
       "delicious",
       "mari marinera",
       "baby smile"
-    ]
+    ],
+    "has_label_decoder": false
   },
   {
     "name": "Ahorramas",
@@ -81,7 +86,8 @@
       "lanta",
       "bodyplus",
       "meque"
-    ]
+    ],
+    "has_label_decoder": true
   },
   {
     "name": "Alcampo",
@@ -93,7 +99,8 @@
       "cosmia",
       "producto económico",
       "inextenso"
-    ]
+    ],
+    "has_label_decoder": false
   },
   {
     "name": "Eroski",
@@ -106,7 +113,8 @@
       "belle",
       "seleqtia",
       "sannia"
-    ]
+    ],
+    "has_label_decoder": false
   },
   {
     "name": "El Corte Inglés",
@@ -118,7 +126,8 @@
       "aliada",
       "hipercor",
       "special line"
-    ]
+    ],
+    "has_label_decoder": false
   },
   {
     "name": "Gadis",
@@ -131,7 +140,8 @@
       "ifa unnia",
       "peny",
       "amigo"
-    ]
+    ],
+    "has_label_decoder": false
   },
   {
     "name": "Consum",
@@ -143,7 +153,8 @@
       "consum kids",
       "consum",
       "kyrey"
-    ]
+    ],
+    "has_label_decoder": false
   },
   {
     "name": "BM Supermercados",
@@ -153,7 +164,8 @@
     ],
     "own_brands": [
       "bm"
-    ]
+    ],
+    "has_label_decoder": false
   },
   {
     "name": "E.Leclerc",
@@ -165,6 +177,7 @@
       "eco+",
       "kado",
       "tissaia"
-    ]
+    ],
+    "has_label_decoder": false
   }
 ]

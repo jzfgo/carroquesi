@@ -89,6 +89,10 @@
       },
       "ChainRead": {
         "properties": {
+          "has_label_decoder": {
+            "title": "Has Label Decoder",
+            "type": "boolean"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -111,7 +115,8 @@
         "required": [
           "name",
           "store_keys",
-          "own_brands"
+          "own_brands",
+          "has_label_decoder"
         ],
         "title": "ChainRead",
         "type": "object"

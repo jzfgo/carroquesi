@@ -40,7 +40,12 @@ _BY_KEY = {key: profile for profile in PROFILES for key in profile.store_keys}
 def chain_table() -> list[ChainRead]:
     """The chain data clients get as data, never as logic."""
     return [
-        ChainRead(name=p.name, store_keys=list(p.store_keys), own_brands=list(p.own_brands))
+        ChainRead(
+            name=p.name,
+            store_keys=list(p.store_keys),
+            own_brands=list(p.own_brands),
+            has_label_decoder=bool(p.decoders),
+        )
         for p in PROFILES
     ]
 

@@ -5,6 +5,8 @@ class ChainRead(BaseModel):
     name: str
     store_keys: list[str]
     own_brands: list[str]
+    # Clients offer label scanning only where a decoder can read the label.
+    has_label_decoder: bool
 
 
 class DecodedLabel(BaseModel):
