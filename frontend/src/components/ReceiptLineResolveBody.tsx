@@ -47,7 +47,8 @@ interface Props {
    *  interpretation, never the raw line above). Null clears the correction.
    *  Commits like the header store/date controls: on leaving the field. */
   onChangeQuantity: (quantity: string | null) => void
-  /** Corrects the line's total. Null clears the correction. */
+  /** Sets the typed unit price and the total it makes. A null total means
+   *  the total matches the paper again. */
   onChangePrice: (price: number, total: number | null) => void
   /** The back galón names the review it returns to; the targeted review has
    *  its own title. */
@@ -117,6 +118,12 @@ export function ReceiptLineResolveBody({
     const text = qtyDraft.trim()
     const number = LEADING_NUMBER.exec(text)
     if (!number || parseFloat(number[0].replace(',', '.')) === 0) {
+      setQtyDraft(qtyBase)
+      return
+    }
+    // The same amount written another way is no change, and must not drop a
+    // typed price.
+    if (sameQuantityText(text, effectiveQuantity(line, state))) {
       setQtyDraft(qtyBase)
       return
     }

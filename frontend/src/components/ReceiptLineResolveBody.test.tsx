@@ -347,3 +347,15 @@ test('blur on an untouched quantity commits nothing', async () => {
   await user.tab()
   expect(d.onChangeQuantity).not.toHaveBeenCalled()
 })
+
+test.each(['346 g', '0,346 kg '])(
+  'retyping the same quantity as %j keeps a typed price',
+  async (text) => {
+    const d = renderDetail()
+    await retype(d.qty(), '0,346 kg')
+    await retype(d.price(), '8,80')
+    await retype(d.qty(), text)
+    expect(d.price()).toHaveValue('8,80')
+    expect(d.state()?.unitPrice).toBe(8.8)
+  },
+)
