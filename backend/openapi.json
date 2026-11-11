@@ -514,6 +514,11 @@
             "title": "Added By",
             "type": "string"
           },
+          "bought_by_weight": {
+            "default": false,
+            "title": "Bought By Weight",
+            "type": "boolean"
+          },
           "brand": {
             "anyOf": [
               {

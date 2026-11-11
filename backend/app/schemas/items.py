@@ -57,6 +57,9 @@ class ItemRead(BaseModel):
     # to that shop, so clients use it as the price form's default store.
     # None while unpurchased, or when the trip names no store.
     purchase_store: str | None = None
+    # Whether this list has priced the same product per kg before. Only the
+    # list's items feed computes it; other responses keep the default.
+    bought_by_weight: bool = False
     added_by: str
     created_at: datetime
     updated_at: datetime

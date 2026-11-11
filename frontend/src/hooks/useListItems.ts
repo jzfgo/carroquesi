@@ -348,6 +348,7 @@ export function useListItems(
         purchased: false,
         purchased_at: null,
         purchase_has_receipt: false,
+        bought_by_weight: false,
         purchase_ends_at: null,
         ean: parsed.ean ?? null,
         price: null,

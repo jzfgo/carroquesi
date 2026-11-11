@@ -1198,6 +1198,11 @@ export interface components {
         ItemRead: {
             /** Added By */
             added_by: string;
+            /**
+             * Bought By Weight
+             * @default false
+             */
+            bought_by_weight: boolean;
             /** Brand */
             brand: string | null;
             /**
