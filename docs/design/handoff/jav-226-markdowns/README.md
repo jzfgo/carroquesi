@@ -68,9 +68,9 @@ price and is hidden when there are none. It goes after «Un hábito» and before
 amount. Unit prices read «8,82 €/kg», «0,89 €/ud» («€/KG», «€/UD» in the mono
 voice of bought rows), never «el kilo». A range puts the unit once, at the
 end: «entre 11,95 y 12,60 €/kg». Where a caption sits over a figure, the unit
-moves to the caption: «Precio / kg» over «8,82 €». The app follows this
-rule (JAV-237). The older frames still print «€ N» and «N/kg»; that
-migration is JAV-238.
+moves to the caption: «Precio / kg» over «8,82 €». The app and every
+approved frame follow this rule. The archive project file
+(`CarroQueSí - UI Polish.dc.html`) keeps the old «€ N» on purpose.
 
 **Wording.** «Artículo», never «bandeja». Nothing on screen depends on one
 chain.

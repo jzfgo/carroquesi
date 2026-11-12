@@ -86,14 +86,15 @@ export function buildRastroSegments(
   const priced = entries.filter(
     (e): e is PriceEntry & { amount: number } => e.amount !== null,
   )
-  if (priced.length > 0) {
+  // A per-kilo and a per-unit price can't share a range, so prices kept on
+  // two bases drop the clause.
+  const bases = new Set(priced.map((e) => e.price_per))
+  if (priced.length > 0 && bases.size === 1) {
     const amounts = priced.map((e) => e.amount)
     const min = Math.min(...amounts)
     const max = Math.max(...amounts)
-    // A range names its unit once, at the end. Prices kept on two bases
-    // have no single unit, so they read as plain euros.
-    const bases = new Set(priced.map((e) => e.price_per))
-    const unit = bases.size === 1 ? unitPriceSuffix(priced[0].price_per) : '€'
+    // A range names its unit once, at the end.
+    const unit = unitPriceSuffix(priced[0].price_per)
     clauses.push(
       min === max
         ? ['Siempre a ', { b: `${formatFigure(min)}\u00a0${unit}` }, '.']

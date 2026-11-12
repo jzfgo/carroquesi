@@ -102,12 +102,22 @@ test('a range names its unit once, at the end', () => {
   expect(result).toContain('Se paga entre 11,95 y 12,60 €/kg.')
 })
 
-test('prices on two bases have no single unit, so they read as plain euros', () => {
+test('prices on two bases share no range, so the price clause drops out', () => {
   const result = buildRastro(item(), members, [
-    entry({ amount: 11.95, price_per: 'KILOGRAM' }),
-    entry({ amount: 3.05, price_per: null }),
+    entry({
+      purchased_at: '2026-07-01T10:00:00Z',
+      amount: 11.95,
+      price_per: 'KILOGRAM',
+    }),
+    entry({
+      purchased_at: '2026-07-22T10:00:00Z',
+      amount: 3.05,
+      price_per: null,
+    }),
   ])
-  expect(result).toContain('Se paga entre 3,05 y 11,95 €.')
+  expect(result).toBe(
+    'Lo añadió Marta el 18 jul. Comprado 2 veces desde julio, la última el 22 jul.',
+  )
 })
 
 test('a price-less purchase counts toward the span but not the price range', () => {

@@ -48,19 +48,19 @@ not load here. Open them as plain HTML or read the source.
   from 18b): the save warning below says what is unnamed.
 - **Rows.** The whole row is the button and a chevron at its edge says so. 10b
   loses its pencil.
-- **Total row.** «Total» in caps, the figure in mono, no «€». 13a keeps its
+- **Total row.** «Total» in caps, the amount in mono («12,50 €»). 13a keeps its
   green cuadre disc. In 10b the total counts only confirmed prices: dashed
   suggestions count once confirmed.
 - **Help text.** A short line under the total in both sheets, starting «Toca
   una línea para…».
-- **Save button.** «Guardar compra · € N» in both: the sum of what will be
+- **Save button.** «Guardar compra · N €» in both: the sum of what will be
   saved. `Main`, `13a` and `10d` draw it enabled; the notice frames draw it
   disabled. It stays disabled until the sheet can save. 13a's frame shows
   «Poner fecha» only to draw the empty pill.
 - **Notices over the save button.** One card shape for both: a bold title, an
   optional detail line, and a circled symbol at its top right (the shape of
   18b's difference card). Two tones:
-  - **Info (blue tint, «i» disc): the cuadre.** «Faltan / Sobran € N para
+  - **Info (blue tint, «i» disc): the cuadre.** «Faltan / Sobran N € para
     cuadrar» with 18b's detail line. It only informs: a total that does not
     match never blocks the save. This replaces 18b's amber card.
   - **Warning (amber tint, warning disc): what keeps the save disabled.** One
