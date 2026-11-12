@@ -2195,3 +2195,52 @@ def test_apply_refuses_an_old_price_no_higher_than_the_price_paid(client, sessio
 
     assert response.status_code == 422
     assert "price_before must be higher" in response.json()["detail"]
+
+
+def _mark_reduced(session, item_id, before):
+    row = session.get_one(ListItem, item_id)
+    row.price_reduced, row.price_before = True, before
+    session.add(row)
+    session.commit()
+
+
+def test_targeted_apply_keeps_a_reduced_mark_the_patch_does_not_mention(
+    client, session, settled_trip
+):
+    """The client cannot see a closed line's flag, so leaving it out keeps it."""
+    _mark_reduced(session, "item-settled-priced", 3.10)
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_targeted_batch(patches=[_price_patch("item-settled-priced", 2.75)]),
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    row = session.get_one(ListItem, "item-settled-priced")
+    assert (row.price, row.price_reduced, row.price_before) == (2.75, True, 3.10)
+
+
+def test_targeted_apply_drops_a_kept_old_price_the_new_price_reaches(client, session, settled_trip):
+    _mark_reduced(session, "item-settled-priced", 2.60)
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_targeted_batch(patches=[_price_patch("item-settled-priced", 2.75)]),
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    row = session.get_one(ListItem, "item-settled-priced")
+    assert (row.price, row.price_reduced, row.price_before) == (2.75, True, None)
+
+
+def test_apply_clears_a_reduced_mark_when_the_patch_says_not_reduced(client, session, settled_trip):
+    _mark_reduced(session, "item-settled-priced", 3.10)
+    patch = {**_price_patch("item-settled-priced", 2.75), "reduced": False}
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices", json=_targeted_batch(patches=[patch])
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    row = session.get_one(ListItem, "item-settled-priced")
+    assert (row.price_reduced, row.price_before) == (False, None)

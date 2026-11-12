@@ -452,10 +452,16 @@ def apply_receipt_prices(
         if target is None and item.id not in eligible_ids:
             skipped += 1
             continue
+        if patch.reduced is not None:
+            item.price_reduced = patch.reduced
+            item.price_before = patch.price_before
+        elif item.price_before is not None and (
+            patch.price_per != item.price_per or item.price_before <= patch.price
+        ):
+            # Kept untouched, the old price must still read against the new one.
+            item.price_before = None
         item.price = patch.price
         item.price_per = patch.price_per
-        item.price_reduced = patch.reduced
-        item.price_before = patch.price_before
         if patch.store:
             item.price_store = patch.store
         if patch.quantity is not None:

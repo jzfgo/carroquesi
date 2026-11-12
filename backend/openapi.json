@@ -1516,9 +1516,15 @@
             "title": "Quantity"
           },
           "reduced": {
-            "default": false,
-            "title": "Reduced",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reduced"
           },
           "store": {
             "anyOf": [

@@ -74,10 +74,12 @@ class PricePatch(BaseModel):
     store: str | None = None
     quantity: str | None = None
     article: ArticleCode | None = None
-    # From a reduced label (10b/10d, 13a): `reduced` marks the price as a
-    # one-off, `price_before` is what it cost before, typed from the old
-    # label, in the basis of `price`. Both clear on a line sent without them.
-    reduced: bool = False
+    # From a reduced label (13a): `reduced` marks the price as a one-off,
+    # `price_before` is what it cost before, typed from the old label, in the
+    # basis of `price`. Left out (None), the line keeps what it has: a
+    # targeted apply re-prices lines closed earlier, and the client cannot see
+    # their stored flag.
+    reduced: bool | None = None
     price_before: float | None = None
 
 

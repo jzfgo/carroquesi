@@ -43,7 +43,7 @@ def reject_bad_price(price: float | None, price_per: str | None, where: str) -> 
 
 
 def reject_bad_reduction(
-    price: float | None, reduced: bool, price_before: float | None, where: str
+    price: float | None, reduced: bool | None, price_before: float | None, where: str
 ) -> None:
     """A price from a reduced label, and what it cost before.
 

@@ -1517,11 +1517,8 @@ export interface components {
             price_per?: "KILOGRAM" | null;
             /** Quantity */
             quantity?: string | null;
-            /**
-             * Reduced
-             * @default false
-             */
-            reduced: boolean;
+            /** Reduced */
+            reduced?: boolean | null;
             /** Store */
             store?: string | null;
         };

@@ -17,13 +17,14 @@ def markdowns(w: Window, month: str) -> Markdowns:
         for line in w.lines
         if line.month == month and line.amount is not None and line.amount_before is not None
     ]
-    paid = sum(line.amount or 0.0 for line in lines)
-    before = sum(line.amount_before or 0.0 for line in lines)
+    paid = round(sum(line.amount or 0.0 for line in lines), 2)
+    before = round(sum(line.amount_before or 0.0 for line in lines), 2)
+    # From the rounded figures, so the sentence's subtraction checks out.
     return Markdowns(
         list_id=w.list_id,
         period=month,
         lines=len(lines),
-        paid=round(paid, 2),
-        before=round(before, 2),
+        paid=paid,
+        before=before,
         saved=round(before - paid, 2),
     )
