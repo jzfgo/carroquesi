@@ -1,6 +1,6 @@
 import { Check, X } from 'lucide-react'
 import { useState } from 'react'
-import { formatAmount, formatFigure } from '../lib/formatPrice'
+import { formatAmount, formatFigure, parseAmount } from '../lib/formatPrice'
 import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
 import './AdjustProductSheet.css'
 import { PrimaryButton, SheetBackButton } from './PurchaseSheetParts'
@@ -47,11 +47,6 @@ interface Props {
   onScanLabel?: (draft: DraftLine) => void
 }
 
-function parsePrice(text: string): number | null {
-  const n = parseFloat(text.replace(',', '.'))
-  return Number.isFinite(n) && n >= 0 ? n : null
-}
-
 /**
  * The adjust-product editor (10d) — rendered as the *content* of a step inside
  * the close sheet, NOT its own `<Sheet>`. Moving between the 10b table and this
@@ -78,7 +73,7 @@ export function AdjustProductSheet({
   const [priceTouched, setPriceTouched] = useState(line.price != null)
 
   const { pricePer, suffix } = deriveUnit(quantity)
-  const price = parsePrice(priceText)
+  const price = parseAmount(priceText)
   const factor = parseQuantityFactor(quantity, pricePer)
   const lineTotal = price != null && factor != null ? price * factor : null
 

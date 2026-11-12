@@ -1,13 +1,15 @@
 /** Joins a figure to its «€» so the sign never wraps onto a line alone. */
 const NBSP = ' '
 
+// es-ES groups only from five digits by default; a receipt prints «1.234,50».
 const FIGURE = new Intl.NumberFormat('es-ES', {
+  useGrouping: 'always',
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 })
 
 /**
- * The bare figure, «8,15»: comma decimal, no symbol. Use it for text a
+ * The bare figure, «8,15» or «1.234,50»: comma decimal, no symbol. Use it for text a
  * person edits (an input's value or placeholder) and for a figure whose «€»
  * sits in its own element. Everything else goes through `formatAmount` or
  * `formatUnitPrice`, so the sign is never left out.
@@ -44,12 +46,17 @@ export function formatUnitPrice(
 
 /**
  * A hand-typed money amount as a number, or null when it is blank or invalid.
- * Accepts the comma decimal people actually type («8,15»); a negative or
- * non-finite figure is rejected as no amount rather than a bad one.
+ * Accepts the comma decimal people actually type («8,15»), and the grouped
+ * figure `formatFigure` seeds a field with («1.234,50»): with a comma
+ * present, a dot can only group thousands. A negative or non-finite figure
+ * is rejected as no amount rather than a bad one.
  */
 export function parseAmount(text: string): number | null {
   const trimmed = text.trim()
   if (trimmed === '') return null
-  const n = parseFloat(trimmed.replace(',', '.'))
+  const plain = trimmed.includes(',')
+    ? trimmed.replaceAll('.', '').replace(',', '.')
+    : trimmed
+  const n = parseFloat(plain)
   return Number.isFinite(n) && n >= 0 ? n : null
 }

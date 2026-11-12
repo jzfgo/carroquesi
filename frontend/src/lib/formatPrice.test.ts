@@ -2,6 +2,7 @@ import {
   formatAmount,
   formatFigure,
   formatUnitPrice,
+  parseAmount,
   unitPriceSuffix,
 } from './formatPrice'
 
@@ -11,6 +12,17 @@ test('a figure is bare — comma decimal, no symbol', () => {
   expect(formatFigure(8.15)).toBe('8,15')
   expect(formatFigure(1.9)).toBe('1,90')
   expect(formatFigure(5.34)).toBe('5,34')
+})
+
+test('a four-figure amount groups its thousands, as a receipt does', () => {
+  expect(formatFigure(1234.5)).toBe('1.234,50')
+  expect(formatAmount(12345.6)).toBe(`12.345,60${NBSP}€`)
+})
+
+test('a grouped figure parses back whole', () => {
+  expect(parseAmount('1.234,50')).toBe(1234.5)
+  expect(parseAmount('8,15')).toBe(8.15)
+  expect(parseAmount('8.15')).toBe(8.15)
 })
 
 test('an amount puts the euro sign after the figure, joined by a no-break space', () => {
