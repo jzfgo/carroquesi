@@ -11,6 +11,8 @@ function entry(
     purchased_at: null,
     quantity: null,
     is_sin_precio: false,
+    reduced: false,
+    price_before: null,
     ...overrides,
   }
 }

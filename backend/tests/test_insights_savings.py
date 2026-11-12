@@ -140,3 +140,18 @@ def test_the_thresholds_are_reported_and_configurable():
 
     assert len(report.suggestions) == 1
     assert report.thresholds.min_saving_pct == 0.05
+
+
+def test_a_reduced_price_elsewhere_is_not_a_cheaper_store():
+    paid = _bought("Filete", 18.00, 1, THREE_MONTHS, basis="kg")
+    seen = _bought("Filete", 14.40, 1, ["2026-10-11"], store="Ahorramas", basis="kg", reduced=True)
+
+    assert _report(paid, seen).suggestions == []
+
+
+def test_a_reduced_price_paid_here_is_not_compared():
+    # A one-off markdown this month says nothing about the usual price here.
+    paid = _bought("Filete", 9.00, 2, ["2026-10-10"], basis="kg", reduced=True)
+    seen = _bought("Filete", 7.00, 1, ["2026-10-11"], store="Ahorramas", basis="kg")
+
+    assert _report(paid, seen).suggestions == []

@@ -16,6 +16,7 @@ TYPES = [
     "by_requester",
     "cadence",
     "cheaper_elsewhere",
+    "markdowns",
 ]
 
 

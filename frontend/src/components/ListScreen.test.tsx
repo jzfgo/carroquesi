@@ -51,6 +51,7 @@ const { mockNewItem, mockScannedProduct } = vi.hoisted(() => ({
     price_per: null,
     store: 'Mercadona',
     quantity: '1',
+    reduced: false,
   },
   mockScannedProduct: {
     ean: '8412345678901',

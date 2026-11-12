@@ -20,6 +20,7 @@ from app.services.insights.descriptive import (
     top_products,
     totals,
 )
+from app.services.insights.markdowns import markdowns
 from app.services.insights.savings import cheaper_elsewhere
 from app.services.insights.schemas import DEFAULT_THRESHOLDS, SavingsThresholds, SpendReport
 
@@ -53,6 +54,7 @@ def compute_report(
             by_requester(w, month),
             cadence(w, month),
             cheaper_elsewhere(w, month, end, th),
+            markdowns(w, month),
         ],
         coverage=coverage(w, month, count_tripless(session, list_id, month_start, end)),
     )

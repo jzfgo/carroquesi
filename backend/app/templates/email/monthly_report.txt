@@ -50,6 +50,11 @@ Lo que más pesó
 Un hábito
 {{ habit | wrap("  ") }}
 {% endif %}
+{% if markdowns %}
+
+Precios bajados
+{{ markdowns | wrap("  ") }}
+{% endif %}
 {% if not empty %}
 
 Para ahorrar

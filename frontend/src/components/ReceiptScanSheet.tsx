@@ -563,6 +563,7 @@ export default function ReceiptScanSheet({
           store,
           quantity,
           article: ls.label?.article ?? null,
+          // No `reduced`: a line closed with a reduced label keeps its flag.
         })
       } else if (r.kind === 'created') {
         newItems.push({
@@ -574,6 +575,8 @@ export default function ReceiptScanSheet({
           store,
           quantity,
           article: ls.label?.article ?? null,
+          // A reduced label's price arrives with the label sheet's old-price field.
+          reduced: false,
         })
       }
       const itemName = resolutionName(r)
