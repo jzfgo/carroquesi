@@ -115,8 +115,19 @@ describe('labelCode', () => {
     )
   })
 
+  test('keeps a QR label: a GS1 Digital Link with a GTIN', () => {
+    // A «Bajada de precio» sticker: backend/app/chains/mercadona/vectors.json.
+    const qr =
+      'https://qrtrack.mercadona.es/01/08436574550801/10/E1016B?17=261023&16=261021&3103=000356&3922=00881&8005=002475&99=1'
+    expect(labelCode(` ${qr} `)).toBe(qr)
+  })
+
   test('refuses anything else', () => {
     expect(labelCode('https://example.com/x')).toBeNull()
+    expect(
+      labelCode('http://qrtrack.mercadona.es/01/08436574550801'),
+    ).toBeNull()
+    expect(labelCode('https://example.com/01/123')).toBeNull()
     expect(labelCode('123')).toBeNull()
     expect(labelCode('2300350503206001550049721')).toBeNull()
   })

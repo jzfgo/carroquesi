@@ -33,10 +33,10 @@ class ChainProfile:
     def store_keys(self) -> tuple[str, ...]:
         return (self.key, *self.extra_store_keys)
 
-    def decode_label(self, digits: str) -> DecodedLabel | None:
-        """The first of this chain's decoders that accepts the digits."""
+    def decode_label(self, code: str) -> DecodedLabel | None:
+        """The first of this chain's decoders that accepts the code."""
         for decoder in self.decoders:
-            decoded = decoder(digits)
+            decoded = decoder(code)
             if decoded is not None:
                 return decoded
         return None

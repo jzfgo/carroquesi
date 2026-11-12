@@ -344,11 +344,12 @@ export async function getLabel(
   code: string,
   store: string | null,
 ): Promise<LabelRead | null> {
-  const query = store ? `?store=${encodeURIComponent(store)}` : ''
+  const params = new URLSearchParams({ code })
+  if (store) params.set('store', store)
   try {
     return (await apiFetch(
       getToken,
-      `/chains/labels/${code}${query}`,
+      `/chains/labels?${params.toString()}`,
     )) as LabelRead
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return null

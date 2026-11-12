@@ -3472,10 +3472,128 @@
         ]
       }
     },
+    "/chains/labels": {
+      "get": {
+        "description": "Decode an in-store label's code, as the camera read it: a barcode's\ndigits or a QR's text. `store` is the one store the scan is tied to, if\nany; with it, only that chain's decoders run.",
+        "operationId": "get_label_chains_labels_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "maxLength": 512,
+              "minLength": 1,
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "store",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Store"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-User-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-dev-is-admin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dev-Is-Admin"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabelRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "label_not_decoded"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Label",
+        "tags": [
+          "chains"
+        ]
+      }
+    },
     "/chains/labels/{digits}": {
       "get": {
-        "description": "Decode an in-store label's barcode. `store` is the one store the scan\nis tied to, if any; with it, only that chain's decoders run.",
-        "operationId": "get_label_chains_labels__digits__get",
+        "description": "The digits-only form, for clients from before QR labels.",
+        "operationId": "get_label_by_digits_chains_labels__digits__get",
         "parameters": [
           {
             "in": "path",
@@ -3584,7 +3702,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Get Label",
+        "summary": "Get Label By Digits",
         "tags": [
           "chains"
         ]

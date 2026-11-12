@@ -54,8 +54,9 @@ def profile_for(store: str) -> ChainProfile:
     return _BY_KEY.get(store_key(store), GENERIC)
 
 
-def decode_label(digits: str, store: str | None = None) -> LabelRead | None:
-    """Decode an in-store label, or refuse.
+def decode_label(code: str, store: str | None = None) -> LabelRead | None:
+    """Decode an in-store label, or refuse. `code` is what the camera read:
+    a barcode's digits or a QR's text.
 
     With a known chain's store, only that chain's decoders run, and their
     refusal is final: prefix 23 means one thing at Mercadona and may mean
@@ -69,6 +70,6 @@ def decode_label(digits: str, store: str | None = None) -> LabelRead | None:
     reads = [
         LabelRead(chain=profile.name, **decoded.model_dump())
         for profile in candidates
-        if (decoded := profile.decode_label(digits)) is not None
+        if (decoded := profile.decode_label(code)) is not None
     ]
     return reads[0] if len(reads) == 1 else None
