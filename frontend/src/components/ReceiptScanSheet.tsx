@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { isOnline } from '../lib/connectivity'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatUnitPrice } from '../lib/formatPrice'
 import { formatQuantity } from '../lib/formatQuantity'
 import { parseQuantityFactor } from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
@@ -619,7 +619,8 @@ export default function ReceiptScanSheet({
             Math.abs(item.price - effectiveUnitPrice(line, lineStates[i])) <
               PRICE_EPSILON &&
             (item.price_per ?? null) === effectivePricePer(line, lineStates[i])
-          if (!samePrice) return `era € ${formatRowAmount(item.price)}`
+          if (!samePrice)
+            return `era ${formatUnitPrice(item.price, item.price_per, true)}`
           const recorded = recordedQuantity(item)
           if (recorded != null) return `era ${formatQuantity(recorded)}`
           // No quantity on the record: a unit line counts as one, and a

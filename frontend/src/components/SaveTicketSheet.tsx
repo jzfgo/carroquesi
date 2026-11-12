@@ -212,7 +212,6 @@ export function SaveTicketSheet({
             <label className="save-sheet__field-block">
               <span className="save-field__label">Total · opcional</span>
               <span className="save-total">
-                <span className="save-total__euro">€</span>
                 <input
                   className="save-total__input"
                   value={totalText}
@@ -220,6 +219,7 @@ export function SaveTicketSheet({
                   placeholder="0,00"
                   inputMode="decimal"
                 />
+                <span className="save-total__euro">€</span>
               </span>
             </label>
           </div>

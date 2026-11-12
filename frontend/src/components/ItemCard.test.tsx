@@ -228,12 +228,12 @@ test('bought state puts the name and a qty-bearing meta inside the modifier', ()
   )
 })
 
-test('bought row prints the bare amount — comma decimal, no symbol', () => {
+test('bought row prints the amount — comma decimal, € after the figure', () => {
   // '487g' parses as a pack descriptor (factor 1): the total IS the price
   // and no unit line repeats it.
   const { container } = renderCard(BOUGHT_ITEM)
   expect(container.querySelector('.item-card__amount-total')).toHaveTextContent(
-    /^3,50$/,
+    /^3,50 €$/,
   )
   expect(
     container.querySelector('.item-card__amount-unit'),
@@ -241,7 +241,7 @@ test('bought row prints the bare amount — comma decimal, no symbol', () => {
 })
 
 test('a multi-unit record totals the line and drops the unit price beneath', () => {
-  // 21b: «5,34» over «0,89/UD» — the big figure is what the line cost.
+  // 21b: «5,34 €» over «0,89 €/UD» — the big figure is what the line cost.
   const item = {
     ...BOUGHT_ITEM,
     price: 0.89,
@@ -249,10 +249,10 @@ test('a multi-unit record totals the line and drops the unit price beneath', () 
   }
   const { container } = renderCard(item)
   expect(container.querySelector('.item-card__amount-total')).toHaveTextContent(
-    /^5,34$/,
+    /^5,34 €$/,
   )
   expect(container.querySelector('.item-card__amount-unit')).toHaveTextContent(
-    /^0,89\/UD$/,
+    /^0,89 €\/UD$/,
   )
 })
 
@@ -265,10 +265,10 @@ test('a per-kg record totals by weight with the unit price per KG', () => {
   }
   const { container } = renderCard(item)
   expect(container.querySelector('.item-card__amount-total')).toHaveTextContent(
-    /^5,00$/,
+    /^5,00 €$/,
   )
   expect(container.querySelector('.item-card__amount-unit')).toHaveTextContent(
-    /^2,50\/KG$/,
+    /^2,50 €\/KG$/,
   )
 })
 
@@ -282,7 +282,7 @@ test('a per-kg price with no weight shows the unit price, suffixed', () => {
   }
   const { container } = renderCard(item)
   expect(container.querySelector('.item-card__amount-total')).toHaveTextContent(
-    /^2,50\/KG$/,
+    /^2,50 €\/KG$/,
   )
   expect(
     container.querySelector('.item-card__amount-unit'),

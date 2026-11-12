@@ -338,7 +338,13 @@ itself against those five.
   uppercase): content the household wrote. The small step is
   `calc(15px * var(--written-scale))` = 13.5px for written meta.
 - **Data** (600, 17.5px, 0.02em, uppercase, tabular): printed content — all
-  prices, EANs, totals. Money is `€ 5,34` — symbol first, comma decimal.
+  prices, EANs, totals. Money is `5,34 €` — comma decimal, the sign after
+  the figure, joined by a no-break space. Unit prices carry the sign and the
+  unit: `8,82 €/kg`, `0,89 €/ud` (`€/KG`, `€/UD` in the caps voice). Never a
+  bare amount, never the unit in words. A range names the unit once, at the
+  end (`entre 11,95 y 12,60 €/kg`). Over a caption, the unit moves to the
+  caption (`Precio / kg` over `8,82 €`). `lib/formatPrice.ts` holds the
+  formatters.
 
 ### Named Rules
 

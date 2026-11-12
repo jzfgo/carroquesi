@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { expect, test, vi } from 'vitest'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatFigure } from '../lib/formatPrice'
 import type { LineState, ReceiptLine } from '../lib/receiptReview'
 import { ReceiptLineResolveBody } from './ReceiptLineResolveBody'
 import type { ItemRef } from './ReceiptScanSheet'
@@ -321,7 +321,7 @@ test('reopens with overrides', () => {
     lineTotal: 3.5,
   })
   expect(d.qty()).toHaveValue('346 g')
-  expect(d.price()).toHaveValue(formatRowAmount(3.5 / 0.346))
+  expect(d.price()).toHaveValue(formatFigure(3.5 / 0.346))
   expect(screen.getByRole('status')).toBeInTheDocument()
 })
 

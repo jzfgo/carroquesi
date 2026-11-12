@@ -1,5 +1,5 @@
 import type { ListItem, PriceEntry } from '../types'
-import { formatRowAmount } from './formatPrice'
+import { formatFigure, unitPriceSuffix } from './formatPrice'
 import { formatChartDate } from './priceChart'
 
 const FULL_MONTHS = [
@@ -83,20 +83,25 @@ export function buildRastroSegments(
     ])
   }
 
-  const amounts = entries
-    .map((e) => e.amount)
-    .filter((a): a is number => a !== null)
-  if (amounts.length > 0) {
+  const priced = entries.filter(
+    (e): e is PriceEntry & { amount: number } => e.amount !== null,
+  )
+  if (priced.length > 0) {
+    const amounts = priced.map((e) => e.amount)
     const min = Math.min(...amounts)
     const max = Math.max(...amounts)
+    // A range names its unit once, at the end. Prices kept on two bases
+    // have no single unit, so they read as plain euros.
+    const bases = new Set(priced.map((e) => e.price_per))
+    const unit = bases.size === 1 ? unitPriceSuffix(priced[0].price_per) : '€'
     clauses.push(
       min === max
-        ? ['Siempre a € ', { b: formatRowAmount(min) }, '.']
+        ? ['Siempre a ', { b: `${formatFigure(min)}\u00a0${unit}` }, '.']
         : [
-            'Se paga entre € ',
-            { b: formatRowAmount(min) },
-            ' y € ',
-            { b: formatRowAmount(max) },
+            'Se paga entre ',
+            { b: formatFigure(min) },
+            ' y ',
+            { b: `${formatFigure(max)}\u00a0${unit}` },
             '.',
           ],
     )

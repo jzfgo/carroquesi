@@ -1,6 +1,6 @@
 import { CornerDownRight, Maximize2, Receipt, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatAmount } from '../lib/formatPrice'
 import { toDateInputValue, withDatePart } from '../lib/receiptDate'
 import {
   effectiveLineTotal,
@@ -305,8 +305,8 @@ export function ReceiptReviewBody({
           receiptTotal != null &&
           Math.abs(priorTotal - receiptTotal) >= 0.005 && (
             <div className="rss-totalchange" role="status">
-              El total guardado pasa de € {formatRowAmount(priorTotal)} a €{' '}
-              {formatRowAmount(receiptTotal)}
+              El total guardado pasa de {formatAmount(priorTotal)} a{' '}
+              {formatAmount(receiptTotal)}
             </div>
           )}
         {/* A total that does not match moves up to sit over the save button,
@@ -315,11 +315,11 @@ export function ReceiptReviewBody({
         {receiptTotal != null && !matches && (
           <PurchaseNotice
             tone="info"
-            title={`${cuadreDiff != null && cuadreDiff < 0 ? 'Faltan' : 'Sobran'} € ${formatRowAmount(Math.abs(cuadreDiff ?? 0))} para cuadrar`}
+            title={`${cuadreDiff != null && cuadreDiff < 0 ? 'Faltan' : 'Sobran'} ${formatAmount(Math.abs(cuadreDiff ?? 0))} para cuadrar`}
           >
-            Suma de líneas {formatRowAmount(lineSum)} · total leído{' '}
-            {formatRowAmount(receiptTotal)}. Puede ser un descuento o una línea
-            que no se ha leído bien.
+            Suma de líneas {formatAmount(lineSum)} · total leído{' '}
+            {formatAmount(receiptTotal)}. Puede ser un descuento o una línea que
+            no se ha leído bien.
           </PurchaseNotice>
         )}
         <MissingToSaveNotice

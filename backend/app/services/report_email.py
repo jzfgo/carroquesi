@@ -418,7 +418,8 @@ def _top_row(p: ProductSpend) -> Row:
 def _savings(savings: CheaperElsewhere) -> list[Saving]:
     out = []
     for s in savings.suggestions:
-        per = "/kg" if s.basis == "kg" else ""
+        # A unit price always names its unit: "1,89 €/ud", never a bare "1,89 €".
+        per = "/kg" if s.basis == "kg" else "/ud"
         out.append(
             Saving(
                 name=f"{s.name} · {s.brand}" if s.brand else s.name,

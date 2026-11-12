@@ -1,7 +1,7 @@
 import { ArrowDown, Plus } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { foldText } from '../lib/foldText'
-import { formatPrice } from '../lib/formatPrice'
+import { formatAmount } from '../lib/formatPrice'
 import { isTripOpen } from '../lib/isTripOpen'
 import type { CostSummary } from '../lib/itemCost'
 import { compareServerInstants, parseServerInstant } from '../lib/serverInstant'
@@ -66,7 +66,7 @@ function CostBadge({
   return (
     <span className={className}>
       {cost.partial ? '≥ ' : ''}
-      {formatPrice(cost.total)}
+      {formatAmount(cost.total)}
     </span>
   )
 }

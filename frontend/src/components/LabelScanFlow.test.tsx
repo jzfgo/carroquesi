@@ -101,7 +101,7 @@ describe('LabelScanFlow', () => {
     await read()
     expect(await screen.findByText('Etiqueta leída')).toBeInTheDocument()
     expect(screen.getByText('0,636')).toBeInTheDocument()
-    expect(screen.getByText('9,00')).toBeInTheDocument()
+    expect(screen.getByText('9,00 €')).toBeInTheDocument()
     expect(screen.getByText('Cuadra con el ticket')).toBeInTheDocument()
     expect(
       screen.getByText(
@@ -127,7 +127,7 @@ describe('LabelScanFlow', () => {
       screen.getAllByText(
         (_, el) =>
           el?.textContent ===
-          'La etiqueta dice 6,32 y esta línea 5,72. Puede que sea otro artículo.',
+          'La etiqueta dice 6,32\u00a0€ y esta línea 5,72\u00a0€. Puede que sea otro artículo.',
       ).length,
     ).toBeGreaterThan(0)
     expect(
@@ -184,7 +184,7 @@ describe('LabelScanFlow', () => {
     const props = setup({ lineTotal: null, lineName: 'Contramuslo' })
     await read()
     expect(await screen.findByText('Etiqueta leída')).toBeInTheDocument()
-    expect(screen.getByText('5,72')).toBeInTheDocument()
+    expect(screen.getByText('5,72 €')).toBeInTheDocument()
     expect(screen.queryByText('Cuadra con el ticket')).not.toBeInTheDocument()
     expect(screen.queryByText(/línea del ticket/)).not.toBeInTheDocument()
     await userEvent.click(

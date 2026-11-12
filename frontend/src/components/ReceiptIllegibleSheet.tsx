@@ -220,7 +220,6 @@ export function ReceiptIllegibleSheet({
           <span className="rill-field__label">Total</span>
           {editing === 'total' ? (
             <span className="rill-total-edit">
-              <span className="rill-total-edit__euro">€</span>
               <input
                 className="rill-field__input rill-field__input--total"
                 inputMode="decimal"
@@ -233,6 +232,7 @@ export function ReceiptIllegibleSheet({
                   if (e.key === 'Enter') setEditing(null)
                 }}
               />
+              <span className="rill-total-edit__euro">€</span>
             </span>
           ) : (
             <button
@@ -240,7 +240,8 @@ export function ReceiptIllegibleSheet({
               className="rill-pill rill-pill--total"
               onClick={() => setEditing('total')}
             >
-              € {totalText.trim() || '0,00'}
+              {totalText.trim() || '0,00'}
+              {'\u00a0'}€
               <Pencil size={12} strokeWidth={2} />
             </button>
           )}

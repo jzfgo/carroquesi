@@ -537,6 +537,30 @@ def test_a_suggestion_names_the_day_of_the_cheaper_price():
     )
 
 
+def test_a_unit_suggestion_names_its_unit():
+    s = Suggestion(
+        name="Leche entera",
+        brand=None,
+        basis="unit",
+        paid_store_key="a",
+        paid_store="Ahorramas",
+        paid_price=1.89,
+        cheaper_store_key="m",
+        cheaper_store="Mercadona",
+        cheaper_price=1.29,
+        cheaper_seen_at=date(2026, 10, 7),
+        saving_pct=0.3,
+        monthly_eur=1.2,
+    )
+
+    view = report_view(_report(suggestions=[s]), "Casa")
+
+    (saving,) = view["savings"]
+    assert sp(saving.text) == (
+        "Pagaste 1,89 €/ud en Ahorramas. En Mercadona pagaste 1,29 €/ud el 07/10."
+    )
+
+
 # --- the email ---------------------------------------------------------------
 
 

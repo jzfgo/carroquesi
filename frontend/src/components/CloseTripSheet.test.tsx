@@ -114,7 +114,7 @@ test('renders each line and sums the confirmed total', () => {
   expect(screen.getByText('Café')).toBeInTheDocument()
   // 1,90 + 3,29 = 5,19
   expect(
-    screen.getByRole('button', { name: 'Guardar compra · € 5,19' }),
+    screen.getByRole('button', { name: /Guardar compra · 5,19\s€/ }),
   ).toBeInTheDocument()
 })
 
@@ -174,7 +174,7 @@ test('a row is named by its content, so its quantity and amount are read', () =>
   renderSheet([item({ id: 'a', name: 'Leche', quantity: '2', price: 1.9 })])
   expect(
     screen.getByRole('button', { name: /^Ajustar Leche\b/ }),
-  ).toHaveAccessibleName('Ajustar Leche 2 3,80')
+  ).toHaveAccessibleName(/^Ajustar Leche 2 3,80\s€$/)
 })
 
 test('taking the last list product out leaves the save waiting, and says why', () => {
@@ -265,7 +265,7 @@ test('«Confirmar los precios sugeridos» applies the inherited price', async ()
   // Confirmed → it now counts toward the total and drops the suggested voice.
   await waitFor(() =>
     expect(
-      screen.getByRole('button', { name: 'Guardar compra · € 2,50' }),
+      screen.getByRole('button', { name: /Guardar compra · 2,50\s€/ }),
     ).toBeInTheDocument(),
   )
   expect(screen.queryByText('(precio sugerido)')).not.toBeInTheDocument()
@@ -314,7 +314,7 @@ test('a scanned label sets the line: weight, €/kg and amount', async () => {
   await scanAndUse()
   expect(screen.getByText('0,346 kg')).toBeInTheDocument()
   expect(
-    screen.getByRole('button', { name: 'Guardar compra · € 3,05' }),
+    screen.getByRole('button', { name: /Guardar compra · 3,05\s€/ }),
   ).toBeInTheDocument()
   expect(screen.getByText('8,82 €/kg · de la etiqueta')).toBeInTheDocument()
   expect(chip('Contramuslo')).not.toBeInTheDocument()
