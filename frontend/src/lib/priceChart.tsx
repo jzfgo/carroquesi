@@ -2,7 +2,7 @@
    This module is a set of pure chart helpers plus one small SVG component that
    draws from them. They belong together, and fast-refresh has nothing to keep
    warm here. */
-import { formatPrice } from './formatPrice'
+import { formatUnitPrice } from './formatPrice'
 import type { ChartEntry } from './priceNormalization'
 import { parseServerInstant } from './serverInstant'
 import { storeKey } from './storeKey'
@@ -48,6 +48,8 @@ interface CurveGeometry {
   areaPaths: string[]
   /** X positions of gap points (a purchase with no plottable price). */
   gapX: number[]
+  /** Reduced prices: drawn as hollow points, off the line. */
+  hollow: { x: number; y: number }[]
   validCount: number
 }
 
@@ -89,11 +91,17 @@ function curveGeometry(
   const getY = (amount: number) =>
     min === max ? h / 2 : pad + ((max - amount) / range) * (h - 2 * pad)
 
-  const pts = reversed.map((r, i) => {
+  const all = reversed.map((r, i) => {
     const x = getX(i)
-    if (r.displayAmount === null) return { x, y: null as number | null }
-    return { x, y: getY(r.displayAmount) }
+    if (r.displayAmount === null) return { x, y: null as number | null, r }
+    return { x, y: getY(r.displayAmount), r }
   })
+  // The scale above spans every price, so a hollow point lands in frame; the
+  // line runs over the other points only, joined across the hollow ones.
+  const pts = all.filter((p) => !(p.r.reduced && p.y !== null))
+  const hollow = all
+    .filter((p) => p.r.reduced && p.y !== null)
+    .map((p) => ({ x: p.x, y: p.y! }))
 
   const pathD = pts
     .map((pt, i) => {
@@ -130,7 +138,8 @@ function curveGeometry(
 
   const gapX = pts.filter((p) => p.y === null).map((p) => p.x)
 
-  return { pathD, areaPaths, gapX, validCount: validAmounts.length }
+  const validCount = pts.filter((p) => p.y !== null).length
+  return { pathD, areaPaths, gapX, hollow, validCount }
 }
 
 interface SparklineProps {
@@ -156,7 +165,7 @@ export function Sparkline({
   strokeWidth = 1.5,
   className = 'phs__sparkline',
 }: SparklineProps) {
-  const { pathD, areaPaths, gapX, validCount } = curveGeometry(
+  const { pathD, areaPaths, gapX, hollow, validCount } = curveGeometry(
     records,
     width,
     height,
@@ -164,20 +173,24 @@ export function Sparkline({
   )
 
   if (validCount < 2) {
-    // Single/zero valid points: place a dot per record at the mid-line.
+    // Too few points for a line: place a dot per record at the mid-line.
     const dots = pointsForDots(records, width, pad)
     return (
       <svg className={className} viewBox={`0 0 ${width} ${height}`}>
-        {dots.map((d, i) => (
-          <circle
-            key={i}
-            cx={d.x.toFixed(1)}
-            cy={height / 2}
-            r="2"
-            fill="var(--color-primary, #0a84ff)"
-            opacity={d.valid ? undefined : '0.5'}
-          />
-        ))}
+        {dots.map((d, i) =>
+          d.reduced ? (
+            <HollowPoint key={i} x={d.x} y={height / 2} />
+          ) : (
+            <circle
+              key={i}
+              cx={d.x.toFixed(1)}
+              cy={height / 2}
+              r="2"
+              fill="var(--color-primary, #0a84ff)"
+              opacity={d.valid ? undefined : '0.5'}
+            />
+          ),
+        )}
       </svg>
     )
   }
@@ -213,7 +226,25 @@ export function Sparkline({
           opacity="0.5"
         />
       ))}
+      {hollow.map((p, i) => (
+        <HollowPoint key={`h${i}`} x={p.x} y={p.y} />
+      ))}
     </svg>
+  )
+}
+
+/** A reduced price: a ring in ink, on its own. */
+function HollowPoint({ x, y }: { x: number; y: number }) {
+  return (
+    <circle
+      className="price-hollow"
+      cx={x.toFixed(1)}
+      cy={y.toFixed(1)}
+      r="3"
+      fill="var(--paper-0)"
+      stroke="var(--ink-1)"
+      strokeWidth="1.5"
+    />
   )
 }
 
@@ -221,7 +252,7 @@ function pointsForDots(
   records: ChartEntry[],
   w: number,
   pad: number,
-): { x: number; valid: boolean }[] {
+): { x: number; valid: boolean; reduced: boolean }[] {
   const reversed = [...records].reverse()
   const timestamps = reversed.map((r) =>
     r.purchased_at ? parseServerInstant(r.purchased_at).getTime() : null,
@@ -239,7 +270,11 @@ function pointsForDots(
       timeRange === 0 || timestamps[i] === null
         ? evenX
         : pad + ((timestamps[i]! - minMs) / timeRange) * (w - 2 * pad)
-    return { x, valid: r.displayAmount !== null }
+    return {
+      x,
+      valid: r.displayAmount !== null,
+      reduced: r.reduced && r.displayAmount !== null,
+    }
   })
 }
 
@@ -249,15 +284,20 @@ export interface PriceStats {
   latest: ChartEntry | null
   displayPricePer: 'KILOGRAM' | null
   hasValid: boolean
+  /** Some record is a reduced price, which the minimum and maximum skip. */
+  hasReduced: boolean
 }
 
 /**
  * Minimum, maximum, and latest price for a store's records (newest first).
  * The latest keeps its own record so a caller can fall back to its original
- * (un-normalised) amount when the display amount could not be computed.
+ * (un-normalised) amount when the display amount could not be computed. A
+ * reduced price is the latest when it is the newest, because it is what was
+ * paid, but never the minimum or maximum.
  */
 export function priceStats(records: ChartEntry[]): PriceStats {
   const valid = records
+    .filter((r) => !r.reduced)
     .map((r) => r.displayAmount)
     .filter((a): a is number => a !== null)
   const latest = records[0] ?? null
@@ -267,6 +307,7 @@ export function priceStats(records: ChartEntry[]): PriceStats {
     latest,
     displayPricePer: latest?.displayPricePer ?? null,
     hasValid: valid.length > 0,
+    hasReduced: records.some((r) => r.reduced && r.displayAmount !== null),
   }
 }
 
@@ -276,8 +317,8 @@ export function priceStats(records: ChartEntry[]): PriceStats {
  */
 export function recordAmountLabel(r: ChartEntry): string {
   return r.displayAmount !== null
-    ? formatPrice(r.displayAmount, r.displayPricePer)
-    : formatPrice(r.originalAmount, r.originalPricePer as 'KILOGRAM' | null)
+    ? formatUnitPrice(r.displayAmount, r.displayPricePer)
+    : formatUnitPrice(r.originalAmount, r.originalPricePer)
 }
 
 export interface BandGeometry {
@@ -287,6 +328,8 @@ export interface BandGeometry {
   avgPathD: string
   /** A dot per store seen only once — an observation, not a trend. */
   dots: { x: number; y: number }[]
+  /** Reduced prices: hollow points, outside the band and the line. */
+  hollow: { x: number; y: number }[]
   /** True when any moment had two or more stores, so the band has width. */
   hasWidth: boolean
   /** Count of priced, dated points that reached the geometry. */
@@ -328,6 +371,7 @@ export function bandGeometry(
       key: r.store ? storeKey(r.store) : '__none__',
       t: parseServerInstant(r.purchased_at).getTime(),
       v: r.displayAmount,
+      reduced: r.reduced,
     }))
 
   const validCount = priced.length
@@ -349,8 +393,12 @@ export function bandGeometry(
 
   // Group by store, averaging any points that share a timestamp so each store
   // reads as a strictly increasing series.
+  const hollow = priced
+    .filter((p) => p.reduced)
+    .map((p) => ({ x: getX(p.t), y: getY(p.v) }))
   const groups = new Map<string, Map<number, number[]>>()
   for (const p of priced) {
+    if (p.reduced) continue
     let g = groups.get(p.key)
     if (!g) {
       g = new Map()
@@ -464,6 +512,7 @@ export function bandGeometry(
     bandPaths,
     avgPathD: avgSegments.join(' '),
     dots,
+    hollow,
     hasWidth,
     validCount,
   }
@@ -492,7 +541,7 @@ export function PriceBand({
   strokeWidth = 1.5,
   className = 'phs__sparkline',
 }: PriceBandProps) {
-  const { bandPaths, avgPathD, dots, validCount } = bandGeometry(
+  const { bandPaths, avgPathD, dots, hollow, validCount } = bandGeometry(
     records,
     width,
     height,
@@ -528,6 +577,9 @@ export function PriceBand({
           r="2"
           fill="var(--color-primary, #0a84ff)"
         />
+      ))}
+      {hollow.map((p, i) => (
+        <HollowPoint key={`h${i}`} x={p.x} y={p.y} />
       ))}
     </svg>
   )

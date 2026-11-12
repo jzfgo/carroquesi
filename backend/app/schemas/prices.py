@@ -17,6 +17,10 @@ class PriceEntry(BaseModel):
     purchased_at: datetime | None = None
     quantity: str | None = None
     is_sin_precio: bool = False
+    # A price from a reduced label: kept out of the minimum, the chart line
+    # and the close sheet's suggestion, but still the last price paid.
+    reduced: bool = False
+    price_before: float | None = None
 
 
 class PriceHistoryResponse(BaseModel):

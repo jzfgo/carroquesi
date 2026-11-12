@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Etiqueta con precio bajado: precio anterior a mano</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cqs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:#1a3fa0}a:hover{color:#2c56c1}
+.fld{display:flex;align-items:center;gap:6px;min-height:48px;padding:0 12px;border:1px solid #b4bac4;border-radius:10px;background:#f6f8fa;box-sizing:border-box}
+.fld input{border:0;background:transparent;outline:none;width:100%;min-width:0}
+.lbl{font:600 11px/1 'Geist',system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#353742}
+.help{margin:0;font:400 11.5px/1.55 'Geist',system-ui,sans-serif;color:#353742}
+</style>
+</helmet>
+<div class="bd scrim" style="height: 660px;">
+  <div class="sh">
+    <div class="grab"></div>
+    <div class="hd">
+      <h1 class="t">Etiqueta leída</h1>
+      <div class="sub">Contramuslo deshuesado</div>
+    </div>
+
+    <div style="padding: 16px 20px 0; display: flex; flex-direction: column; gap: 14px;">
+      <div class="fig3">
+        <div><span class="cap">Peso</span><span class="fig">0,346<small>kg</small></span></div>
+        <div><span class="cap">Precio / kg</span><span class="fig">8,82 €</span></div>
+        <div><span class="cap">Total</span><span class="fig">3,05 €</span></div>
+      </div>
+
+      <div style="border: 1.5px dashed rgb(26 63 160 / 45%); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px;">
+        <p style="margin: 0; font: 400 13px/1.45 'Geist', system-ui, sans-serif; color: #353742;">Este precio está bajado. Si ves el precio anterior en la etiqueta de debajo, escríbelo.</p>
+        <label style="display: flex; flex-direction: column; gap: 8px;">
+          <span class="lbl">Precio anterior <span style="font-weight: 400; text-transform: none; letter-spacing: 0px; color: rgb(106, 109, 122)">· opcional</span></span>
+          <span class="fld" style="border-color: #b4bac4;"><input aria-label="Precio anterior" placeholder="0,00" inputmode="decimal" style="font: 600 17px/1 'JetBrains Mono', monospace; color: #15161b; text-align: right;"><span style="font: 600 17px/1 'JetBrains Mono', monospace; color: #353742;">€</span></span>
+        </label>
+      </div>
+    </div>
+
+    <div style="padding: 20px 20px 0; display: flex; flex-direction: column; gap: 4px;">
+      <button class="btn">Usar en esta línea</button>
+      <button class="lnk">Volver a escanear</button>
+    </div>
+    <p class="small" style="margin: 2px 20px 0; text-align: center;">Sin precio anterior, la línea guarda lo que pagaste.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":402,"height":660}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -91,6 +91,11 @@ class Line:
     # weighed line names no weight.
     quantity: float | None = 1.0
     measure: Literal["ud", "kg"] = "ud"
+    # A price from a reduced label: real money, but a one-off, so no
+    # comparison may read it as a store's usual price.
+    reduced: bool = False
+    # What the line would have cost at the price before, when known.
+    amount_before: float | None = None
 
 
 @dataclass
@@ -184,6 +189,11 @@ def _line(item: ListItem, trip: Trip, tz: tzinfo) -> Line:
     # The same factor the money uses: a count, or kilograms when weighed.
     weighed = item.price_per == "KILOGRAM"
     bought = parse_quantity_factor(quantity, "KILOGRAM" if weighed else None)
+    amount_before = None
+    if item.price_before is not None and amount is not None:
+        amount_before = line_amount(
+            item.price_before, item.quantity, item.purchased_quantity, item.price_per
+        )
     return Line(
         id=item.id,
         trip_id=trip.id,
@@ -200,6 +210,8 @@ def _line(item: ListItem, trip: Trip, tz: tzinfo) -> Line:
         basis=basis,
         quantity=bought,
         measure="kg" if weighed else "ud",
+        reduced=item.price_reduced,
+        amount_before=amount_before,
     )
 
 

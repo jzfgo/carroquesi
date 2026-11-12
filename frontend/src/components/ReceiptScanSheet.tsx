@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { isOnline } from '../lib/connectivity'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatUnitPrice } from '../lib/formatPrice'
 import { formatQuantity } from '../lib/formatQuantity'
 import { parseQuantityFactor } from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
@@ -24,6 +24,7 @@ import {
   labelAgrees,
   labelPricePerKg,
   labelQuantity,
+  reductionFields,
   showsWeightChip,
 } from '../lib/weighedLabel'
 import type {
@@ -439,7 +440,7 @@ export default function ReceiptScanSheet({
   // user corrected) and gains the label's weight. A label that agrees gives
   // its €/kg too; one used despite a mismatch is a weight only, and the
   // €/kg follows from that amount.
-  function applyLabel(index: number, { code, label }: UsedLabel) {
+  function applyLabel(index: number, { code, label, priceBefore }: UsedLabel) {
     setLineStates((prev) =>
       prev.map((ls, i) =>
         i === index
@@ -449,7 +450,12 @@ export default function ReceiptScanSheet({
               unitPrice: labelAgrees(label, effectiveLineTotal(allLines[i], ls))
                 ? labelPricePerKg(label)
                 : null,
-              label: { code, article: label.article },
+              label: {
+                code,
+                article: label.article,
+                reduced: label.reduced === true,
+                priceBefore,
+              },
             }
           : ls,
       ),
@@ -555,25 +561,33 @@ export default function ReceiptScanSheet({
       const quantity = effectiveQuantity(line, ls)
       const pricePer = effectivePricePer(line, ls)
       const r = ls.resolution
+      const price = effectiveUnitPrice(line, ls)
+      const reduction = ls.label
+        ? reductionFields(ls.label, price, pricePer)
+        : null
       if (r.kind === 'matched' || r.kind === 'linked') {
         patches.push({
           item_id: r.itemId,
-          price: effectiveUnitPrice(line, ls),
+          price,
           price_per: pricePer,
           store,
           quantity,
           article: ls.label?.article ?? null,
+          // Without a label read here, no `reduced`: a line closed with a
+          // reduced label keeps its flag.
+          ...reduction,
         })
       } else if (r.kind === 'created') {
         newItems.push({
           name: r.name,
           brand: r.brand,
           ean: r.ean,
-          price: effectiveUnitPrice(line, ls),
+          price,
           price_per: pricePer,
           store,
           quantity,
           article: ls.label?.article ?? null,
+          ...(reduction ?? { reduced: false }),
         })
       }
       const itemName = resolutionName(r)
@@ -619,7 +633,8 @@ export default function ReceiptScanSheet({
             Math.abs(item.price - effectiveUnitPrice(line, lineStates[i])) <
               PRICE_EPSILON &&
             (item.price_per ?? null) === effectivePricePer(line, lineStates[i])
-          if (!samePrice) return `era € ${formatRowAmount(item.price)}`
+          if (!samePrice)
+            return `era ${formatUnitPrice(item.price, item.price_per, true)}`
           const recorded = recordedQuantity(item)
           if (recorded != null) return `era ${formatQuantity(recorded)}`
           // No quantity on the record: a unit line counts as one, and a

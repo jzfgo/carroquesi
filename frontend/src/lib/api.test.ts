@@ -209,7 +209,7 @@ describe('getLabel', () => {
     chain: 'Mercadona',
   }
 
-  it('GET /chains/labels/{code} with the store hint', async () => {
+  it('GET /chains/labels with the code and the store hint', async () => {
     mockFetch.mockReturnValue(mockResponse(read))
     const label = await getLabel(
       mockGetToken,
@@ -218,7 +218,7 @@ describe('getLabel', () => {
     )
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining(
-        '/chains/labels/230035050320600155004972?store=Mercadona%20Centro',
+        '/chains/labels?code=230035050320600155004972&store=Mercadona+Centro',
       ),
       expect.anything(),
     )
@@ -229,8 +229,16 @@ describe('getLabel', () => {
     mockFetch.mockReturnValue(mockResponse(read))
     await getLabel(mockGetToken, '230035050320600155004972', null)
     expect(mockFetch.mock.calls[0][0]).toMatch(
-      /\/chains\/labels\/230035050320600155004972$/,
+      /\/chains\/labels\?code=230035050320600155004972$/,
     )
+  })
+
+  it('sends a QR link encoded, as one query value', async () => {
+    mockFetch.mockReturnValue(mockResponse(read))
+    await getLabel(mockGetToken, 'https://q.example/01/1?a=1&b=2', null)
+    const url = new URL(mockFetch.mock.calls[0][0] as string)
+    expect(url.searchParams.get('code')).toBe('https://q.example/01/1?a=1&b=2')
+    expect(url.searchParams.has('b')).toBe(false)
   })
 
   it('answers null when the backend refuses the label', async () => {

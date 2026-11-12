@@ -116,11 +116,9 @@ test('without a stored scan the save carries no scan_id and promises no photo', 
   expect(vi.mocked(manualPurchase).mock.calls.at(-1)![2].scan_id).toBeNull()
 })
 
-test('a four-figure rescued total round-trips whole (no thousands separator)', async () => {
+test('a four-figure rescued total round-trips whole through its grouping dot', async () => {
   const { onDone } = renderSheet({ rescuedTotal: 1234.5 })
-  // Seeded ungrouped so parseAmount reads it whole rather than truncating at a
-  // grouping dot («1.234,50» → 1.234).
-  expect(screen.getByRole('button', { name: /1234,50/ })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /1\.234,50/ })).toBeInTheDocument()
   fireEvent.click(screen.getByText('Guardar solo la tienda y el total'))
 
   await waitFor(() => expect(manualPurchase).toHaveBeenCalled())

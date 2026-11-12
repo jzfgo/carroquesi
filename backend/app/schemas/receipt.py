@@ -74,6 +74,13 @@ class PricePatch(BaseModel):
     store: str | None = None
     quantity: str | None = None
     article: ArticleCode | None = None
+    # From a reduced label (13a): `reduced` marks the price as a one-off,
+    # `price_before` is what it cost before, typed from the old label, in the
+    # basis of `price`. Left out (None) in a targeted apply, the line keeps
+    # what it has: that apply re-prices lines closed earlier, and the client
+    # cannot see their stored flag. Elsewhere, left out means not reduced.
+    reduced: bool | None = None
+    price_before: float | None = None
 
 
 class NameMappingCreate(BaseModel):
@@ -92,6 +99,11 @@ class NewPurchasedItem(BaseModel):
     store: str | None = None
     quantity: str | None = None
     article: ArticleCode | None = None
+    # From a reduced label (10b/10d, 13a): `reduced` marks the price as a
+    # one-off, `price_before` is what it cost before, typed from the old
+    # label, in the basis of `price`. Both clear on a line sent without them.
+    reduced: bool = False
+    price_before: float | None = None
 
 
 class ReceiptPriceBatch(BaseModel):

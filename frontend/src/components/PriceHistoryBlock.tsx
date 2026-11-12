@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, Plus } from 'lucide-react'
 import { useState } from 'react'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatUnitPrice } from '../lib/formatPrice'
 import { formatChartDate, priceStats, Sparkline } from '../lib/priceChart'
 import { normalizeEntries, type ChartEntry } from '../lib/priceNormalization'
 import { compareServerInstants } from '../lib/serverInstant'
@@ -88,12 +88,16 @@ function groupByStore(
   return [...map.values()].sort((a, b) => byDateDesc(a.latestAt, b.latestAt))
 }
 
-function bareAmount(entry: ChartEntry): string {
-  return formatRowAmount(entry.displayAmount ?? entry.originalAmount)
+function entryPrice(entry: ChartEntry): string {
+  return entry.displayAmount !== null
+    ? formatUnitPrice(entry.displayAmount, entry.displayPricePer)
+    : formatUnitPrice(entry.originalAmount, entry.originalPricePer)
 }
 
 function ExpandedStore({ group }: { group: StoreGroup }) {
-  const { min, max, latest } = priceStats(group.priced)
+  const { min, max, latest, displayPricePer, hasReduced } = priceStats(
+    group.priced,
+  )
   const pricedForCurve = group.priced.filter((r) => r.displayAmount !== null)
 
   return (
@@ -112,19 +116,19 @@ function ExpandedStore({ group }: { group: StoreGroup }) {
         <div className="phb__figures">
           <span className="phb__figure">
             <span className="phb__figure-value">
-              {min !== null ? formatRowAmount(min) : '—'}
+              {min !== null ? formatUnitPrice(min, displayPricePer) : '—'}
             </span>
             <span className="phb__figure-label">Mínimo</span>
           </span>
           <span className="phb__figure">
             <span className="phb__figure-value">
-              {max !== null ? formatRowAmount(max) : '—'}
+              {max !== null ? formatUnitPrice(max, displayPricePer) : '—'}
             </span>
             <span className="phb__figure-label">Máximo</span>
           </span>
           <span className="phb__figure">
             <span className="phb__figure-value">
-              {latest ? bareAmount(latest) : '—'}
+              {latest ? entryPrice(latest) : '—'}
             </span>
             <span className="phb__figure-label">Último</span>
           </span>
@@ -147,14 +151,40 @@ function ExpandedStore({ group }: { group: StoreGroup }) {
               <span className="phb__record-sin">sin precio</span>
             ) : (
               <span className="phb__record-amount">
-                <span className="phb__record-figure">
-                  {formatRowAmount(record.entry.originalAmount)}
+                {record.entry.originalBefore !== null && (
+                  <span className="phb__record-before">
+                    antes{' '}
+                    {formatUnitPrice(
+                      record.entry.originalBefore,
+                      record.entry.originalPricePer,
+                    )}
+                  </span>
+                )}
+                {record.entry.reduced && (
+                  <span
+                    className="phb__hollow"
+                    role="img"
+                    aria-label="Precio bajado"
+                  />
+                )}
+                <span
+                  className={
+                    record.entry.reduced
+                      ? 'phb__record-figure phb__record-figure--reduced'
+                      : 'phb__record-figure'
+                  }
+                >
+                  {formatUnitPrice(
+                    record.entry.originalAmount,
+                    record.entry.originalPricePer,
+                  )}
                 </span>
                 {record.entry.displayAmount !== null &&
                   record.entry.originalPricePer !==
                     (record.entry.displayPricePer as string | null) && (
                     <span className="phb__record-approx">
-                      ≈ {formatRowAmount(record.entry.displayAmount)}/kg
+                      ≈{' '}
+                      {formatUnitPrice(record.entry.displayAmount, 'KILOGRAM')}
                     </span>
                   )}
               </span>
@@ -162,6 +192,14 @@ function ExpandedStore({ group }: { group: StoreGroup }) {
           </div>
         )
       })}
+      {/* The minimum can sit above the last price, so a hollow point is
+          explained wherever one shows. */}
+      {hasReduced && (
+        <p className="phb__note">
+          <span className="phb__hollow" aria-hidden />
+          Precio bajado: no cuenta para el mínimo ni para la curva.
+        </p>
+      )}
     </div>
   )
 }
@@ -210,7 +248,7 @@ export function PriceHistoryBlock({
                 </span>
               </span>
               <span className="phb__store-price">
-                {latest ? bareAmount(latest) : '—'}
+                {latest ? entryPrice(latest) : '—'}
               </span>
               {isExpanded ? (
                 <ChevronUp size={14} className="phb__chevron" />

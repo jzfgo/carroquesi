@@ -1,4 +1,4 @@
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatAmount } from '../lib/formatPrice'
 import { labelCode } from '../lib/weighedLabel'
 import { CameraScanner } from './CameraScanner'
 
@@ -31,7 +31,7 @@ export function LabelScanner({
             <span className="barcode-scanner__target-name">{lineName}</span>
             {lineTotal != null && (
               <span className="barcode-scanner__target-total">
-                {formatRowAmount(lineTotal)}
+                {formatAmount(lineTotal)}
               </span>
             )}
           </span>

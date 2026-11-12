@@ -7,6 +7,8 @@ function entry(over: Partial<PriceEntry> = {}): PriceEntry {
   return {
     amount: 5.34,
     is_sin_precio: false,
+    reduced: false,
+    price_before: null,
     price_per: null,
     purchased_at: '2026-07-22T10:00:00Z',
     quantity: '1 ud',
@@ -46,6 +48,45 @@ test('a store expands in place and its records appear', () => {
   expect(screen.getByText('Último')).toBeInTheDocument()
   expect(screen.getByText('22 jul')).toBeInTheDocument()
   expect(screen.getByText('15 jul')).toBeInTheDocument()
+})
+
+test('a reduced price is marked, keeps its old price, and is explained', () => {
+  render(
+    <PriceHistoryBlock
+      entries={[
+        entry({
+          purchased_at: '2026-07-22T10:00:00Z',
+          amount: 8.82,
+          price_per: 'KILOGRAM',
+          quantity: '0,346 kg',
+          reduced: true,
+          price_before: 12.6,
+        }),
+        entry({
+          purchased_at: '2026-07-15T10:00:00Z',
+          amount: 12.6,
+          price_per: 'KILOGRAM',
+          quantity: '0,346 kg',
+        }),
+      ]}
+      displayStore={identity}
+    />,
+  )
+  fireEvent.click(screen.getByText('Mercadona'))
+
+  expect(screen.getByRole('img', { name: 'Precio bajado' })).toBeInTheDocument()
+  expect(screen.getByText(/^antes 12,60\s€\/kg$/)).toBeInTheDocument()
+  expect(
+    screen.getByText(
+      'Precio bajado: no cuenta para el mínimo ni para la curva.',
+    ),
+  ).toBeInTheDocument()
+})
+
+test('no reduced price, no footnote', () => {
+  render(<PriceHistoryBlock entries={[entry()]} displayStore={identity} />)
+  fireEvent.click(screen.getByText('Mercadona'))
+  expect(screen.queryByText(/Precio bajado/)).not.toBeInTheDocument()
 })
 
 test('expanding one store leaves its siblings at full ink — no dimming', () => {
@@ -117,8 +158,8 @@ test('a normalized amount carries its ≈ €/kg marker', () => {
 
   fireEvent.click(screen.getByText('Mercadona'))
 
-  // 2,00 for 500 g normalises to 4,00/kg.
-  expect(screen.getByText(/≈ 4,00\/kg/)).toBeInTheDocument()
+  // 2,00 for 500 g normalises to 4,00 €/kg.
+  expect(screen.getByText(/≈ 4,00 €\/kg/)).toBeInTheDocument()
 })
 
 test('the ficha price block carries no scope switcher', () => {

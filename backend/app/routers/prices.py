@@ -27,6 +27,10 @@ def _write_price(item: ListItem, price_in: PriceCreate, session: Session) -> Pri
     item.price = price_in.amount
     item.price_per = price_in.price_per
     item.price_store = price_in.store
+    # A price typed here is not a reduced label's, so what that label said
+    # no longer describes it.
+    item.price_reduced = False
+    item.price_before = None
     session.add(item)
     if price_in.store:
         ensure_stores(session, item.list_id, [price_in.store])
@@ -91,6 +95,8 @@ def delete_price(
     item.price = None
     item.price_per = None
     item.price_store = None
+    item.price_reduced = False
+    item.price_before = None
     session.add(item)
     session.commit()
 
@@ -115,6 +121,8 @@ def get_price_history(
             purchased_at=i.purchased_at,
             quantity=i.quantity,
             is_sin_precio=i.purchase_id is not None and i.price is None,
+            reduced=i.price_reduced,
+            price_before=i.price_before,
         )
         for i, purchase_store in rows
     ]

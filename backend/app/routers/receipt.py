@@ -21,7 +21,7 @@ from app.schemas.receipt import (
 from app.services import feature_flags, receipt_storage, trips
 from app.services.article_mappings import remember_article
 from app.services.client_day import resolve_timezone
-from app.services.money import reject_bad_amount, reject_bad_price
+from app.services.money import reject_bad_amount, reject_bad_price, reject_bad_reduction
 from app.services.receipt_date import plausible_day
 from app.services.receipt_matcher import match_lines, normalise
 from app.services.store_key import store_key
@@ -370,8 +370,10 @@ def apply_receipt_prices(
     reject_bad_amount(body.receipt_total, "receipt_total")
     for index, patch in enumerate(body.patches):
         reject_bad_price(patch.price, patch.price_per, f"patches[{index}]")
+        reject_bad_reduction(patch.price, patch.reduced, patch.price_before, f"patches[{index}]")
     for index, new in enumerate(body.new_items):
         reject_bad_price(new.price, new.price_per, f"new_items[{index}]")
+        reject_bad_reduction(new.price, new.reduced, new.price_before, f"new_items[{index}]")
     # Patches apply in order over the same row, so a second patch for one item
     # would overwrite the first and its line's spend would land nowhere.
     patch_ids = [patch.item_id for patch in body.patches]
@@ -450,6 +452,16 @@ def apply_receipt_prices(
         if target is None and item.id not in eligible_ids:
             skipped += 1
             continue
+        if patch.reduced is not None or target is None:
+            # Only a targeted apply re-prices closed lines; anything stored on
+            # a pending or open-cart line is left over from an undone close.
+            item.price_reduced = bool(patch.reduced)
+            item.price_before = patch.price_before
+        elif item.price_before is not None and (
+            patch.price_per != item.price_per or item.price_before <= patch.price
+        ):
+            # Kept untouched, the old price must still read against the new one.
+            item.price_before = None
         item.price = patch.price
         item.price_per = patch.price_per
         if patch.store:
@@ -505,6 +517,8 @@ def apply_receipt_prices(
             price=new.price,
             price_per=new.price_per,
             price_store=new.store,
+            price_reduced=new.reduced,
+            price_before=new.price_before,
             # A targeted line files onto the named ticket at its opening —
             # opened_at is the floor of its lines' purchased_at, and a
             # receipt-midnight timestamp could precede it. The fresh

@@ -9,7 +9,7 @@ import {
 import { useMemo, useState } from 'react'
 import { manualPurchase } from '../lib/api'
 import { isOnline } from '../lib/connectivity'
-import { parseAmount } from '../lib/formatPrice'
+import { formatFigure, parseAmount } from '../lib/formatPrice'
 import { toDateInputValue, todayInputValue } from '../lib/receiptDate'
 import { storeKey } from '../lib/storeKey'
 import type { PurchaseManualBody } from '../types'
@@ -88,11 +88,7 @@ export function ReceiptIllegibleSheet({
     () => toDateInputValue(rescuedDate) || todayInputValue(),
   )
   const [totalText, setTotalText] = useState(() =>
-    // Ungrouped on purpose: this value round-trips through parseAmount, whose
-    // comma→dot swap would read a grouped «1.234,50» as 1.234. Seed the plain
-    // «1234,50» the field parses cleanly; a thousands separator here would
-    // silently truncate a four-figure total on save.
-    rescuedTotal != null ? rescuedTotal.toFixed(2).replace('.', ',') : '',
+    rescuedTotal != null ? formatFigure(rescuedTotal) : '',
   )
   const [editing, setEditing] = useState<Editing>(null)
   const [saving, setSaving] = useState(false)
@@ -220,7 +216,6 @@ export function ReceiptIllegibleSheet({
           <span className="rill-field__label">Total</span>
           {editing === 'total' ? (
             <span className="rill-total-edit">
-              <span className="rill-total-edit__euro">€</span>
               <input
                 className="rill-field__input rill-field__input--total"
                 inputMode="decimal"
@@ -233,6 +228,7 @@ export function ReceiptIllegibleSheet({
                   if (e.key === 'Enter') setEditing(null)
                 }}
               />
+              <span className="rill-total-edit__euro">€</span>
             </span>
           ) : (
             <button
@@ -240,7 +236,8 @@ export function ReceiptIllegibleSheet({
               className="rill-pill rill-pill--total"
               onClick={() => setEditing('total')}
             >
-              € {totalText.trim() || '0,00'}
+              {totalText.trim() || '0,00'}
+              {'\u00a0'}€
               <Pencil size={12} strokeWidth={2} />
             </button>
           )}

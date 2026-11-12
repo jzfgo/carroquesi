@@ -2,7 +2,8 @@
 recently paid less for the same product elsewhere.
 
 Only this list's own prices count. When in doubt, say nothing: a wrong
-suggestion costs more trust than a missing one.
+suggestion costs more trust than a missing one. A reduced price never
+counts, on either side: a one-off markdown is not a store being cheaper.
 """
 
 from collections import defaultdict
@@ -46,6 +47,8 @@ def cheaper_elsewhere(
     # Prices are compared only on the same scale: €/kg with €/kg, €/unit with €/unit.
     by_product: dict[tuple, list[_Seen]] = defaultdict(list)
     for line in w.lines:
+        if line.reduced:
+            continue
         if line.unit_price and line.basis and line.store_key and start <= line.day < month_end:
             seen = _Seen(line, line.unit_price, line.basis, line.store_key)
             by_product[(line.product, line.basis)].append(seen)

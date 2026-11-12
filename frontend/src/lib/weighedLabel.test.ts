@@ -7,6 +7,8 @@ import {
   labelPricePerKg,
   labelQuantity,
   labelTotal,
+  readPriceBefore,
+  reductionFields,
   showsWeightChip,
 } from './weighedLabel'
 
@@ -113,9 +115,86 @@ describe('labelCode', () => {
     )
   })
 
+  test('keeps a QR label: a GS1 Digital Link with a GTIN', () => {
+    // A «Bajada de precio» sticker: backend/app/chains/mercadona/vectors.json.
+    const qr =
+      'https://qrtrack.mercadona.es/01/08436574550801/10/E1016B?17=261023&16=261021&3103=000356&3922=00881&8005=002475&99=1'
+    expect(labelCode(` ${qr} `)).toBe(qr)
+  })
+
   test('refuses anything else', () => {
     expect(labelCode('https://example.com/x')).toBeNull()
+    expect(
+      labelCode('http://qrtrack.mercadona.es/01/08436574550801'),
+    ).toBeNull()
+    expect(labelCode('https://example.com/01/123')).toBeNull()
     expect(labelCode('123')).toBeNull()
     expect(labelCode('2300350503206001550049721')).toBeNull()
+  })
+})
+
+describe('readPriceBefore', () => {
+  // The frames' «Contramuslo»: 346 g at 8,82 €/kg is 3,05.
+  const read = (text: string) => readPriceBefore(text, 3.05, 0.346, 8.82)
+
+  test('a blank field is no old price', () => {
+    expect(read('  ')).toBeNull()
+  })
+
+  test('an old price above what was paid is valid', () => {
+    expect(read('4,36')).toEqual({ total: 4.36, valid: true })
+  })
+
+  test('the same figure or less is refused, to the cent', () => {
+    expect(read('3,05')?.valid).toBe(false)
+    expect(read('2,90')?.valid).toBe(false)
+    expect(read('3,06')?.valid).toBe(true)
+  })
+
+  test('a figure that cannot be read is refused', () => {
+    expect(read('abc')?.valid).toBe(false)
+  })
+
+  test('a cent above the total is refused when it is not above the €/kg saved', () => {
+    // A label whose total and €/kg disagree by more than rounding: 500 g at
+    // 20,02 €/kg, printed 10,00. 10,01 is a cent more, but only 20,02 €/kg,
+    // which the save would drop.
+    expect(readPriceBefore('10,01', 10, 0.5, 20.02)?.valid).toBe(false)
+    expect(readPriceBefore('10,02', 10, 0.5, 20.02)?.valid).toBe(true)
+  })
+})
+
+describe('reductionFields', () => {
+  const reduced = {
+    code: '1',
+    article: '01234',
+    reduced: true,
+    priceBefore: 12.6,
+  }
+
+  test('a reduced label sends its mark and its old price', () => {
+    expect(reductionFields(reduced, 8.82, 'KILOGRAM')).toEqual({
+      reduced: true,
+      price_before: 12.6,
+    })
+  })
+
+  test('a plain label sends no mark', () => {
+    expect(
+      reductionFields(
+        { ...reduced, reduced: false, priceBefore: null },
+        8.82,
+        'KILOGRAM',
+      ),
+    ).toEqual({ reduced: false, price_before: null })
+  })
+
+  test('an edit after the scan drops an old price the line no longer sits below', () => {
+    expect(reductionFields(reduced, 13, 'KILOGRAM')).toEqual({
+      reduced: true,
+      price_before: null,
+    })
+    expect(reductionFields(reduced, null, 'KILOGRAM').price_before).toBeNull()
+    expect(reductionFields(reduced, 3.05, null).price_before).toBeNull()
   })
 })

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.26.0] — 2026-11-13
+
+### Added
+- Put the euro sign after the figure on every price (#454)
+
+- Group thousands, drop mixed-basis ranges, move the € in the handoff (#455)
+
+- Record reduced-label prices and the price before (#457)
+
+- Show and record reduced-label prices (JAV-221) (#458)
+
+
+### Fixed
+- Read the QR on reduced-price weighed labels (#459)
+
+
+---
 ## [0.25.0] — 2026-11-11
 
 ### Added

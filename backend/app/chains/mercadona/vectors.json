@@ -228,5 +228,119 @@
     "input": "5449000000996",
     "note": "Ordinary EAN-13 (not in-store), not a weighed label",
     "expected": null
+  },
+  {
+    "input": "https://qrtrack.mercadona.es/01/08480000027917/10/26109673?17=261015&16=261012&3103=000636&3922=00572&8005=000900&99=1",
+    "label": "Pechuga de pollo, bajada de precio",
+    "expected": {
+      "format": "mercadona-qr",
+      "article": "08480000027917",
+      "reduced": true,
+      "weight_g": 636,
+      "price_per_kg_cents": 900,
+      "total_cents": 572
+    }
+  },
+  {
+    "input": "https://qrtrack.mercadona.es/01/08480000027917/10/26109673?17=261015&16=261012&3103=000696&3922=00626&8005=000900&99=1",
+    "label": "Pechuga de pollo, bajada de precio",
+    "expected": {
+      "format": "mercadona-qr",
+      "article": "08480000027917",
+      "reduced": true,
+      "weight_g": 696,
+      "price_per_kg_cents": 900,
+      "total_cents": 626
+    }
+  },
+  {
+    "input": "https://qrtrack.mercadona.es/01/08480000027917/10/26109673?17=261015&16=261012&3103=000666&3922=00599&8005=000900&99=1",
+    "label": "Pechuga de pollo, bajada de precio",
+    "expected": {
+      "format": "mercadona-qr",
+      "article": "08480000027917",
+      "reduced": true,
+      "weight_g": 666,
+      "price_per_kg_cents": 900,
+      "total_cents": 599
+    }
+  },
+  {
+    "input": "https://qrtrack.mercadona.es/01/08436035942145/10/26109695?17=261015&16=261012&3103=000346&3922=00305&8005=000882&99=1",
+    "label": "Contramuslo deshuesado, bajada de precio",
+    "expected": {
+      "format": "mercadona-qr",
+      "article": "08436035942145",
+      "reduced": true,
+      "weight_g": 346,
+      "price_per_kg_cents": 882,
+      "total_cents": 305
+    }
+  },
+  {
+    "input": "https://qrtrack.mercadona.es/01/08436574550801/10/E1016B?17=261023&16=261021&3103=000356&3922=00881&8005=002475&99=1",
+    "label": "Chuletas palo/riñonada, bajada de precio",
+    "expected": {
+      "format": "mercadona-qr",
+      "article": "08436574550801",
+      "reduced": true,
+      "weight_g": 356,
+      "price_per_kg_cents": 2475,
+      "total_cents": 881
+    }
+  },
+  {
+    "input": "https://qrtrack.mercadona.es/01/08436574550801/10/E1016B?17=261023&16=261021&3103=000296&3922=00733&8005=002475&99=1",
+    "label": "Chuletas palo/riñonada, bajada de precio",
+    "expected": {
+      "format": "mercadona-qr",
+      "article": "08436574550801",
+      "reduced": true,
+      "weight_g": 296,
+      "price_per_kg_cents": 2475,
+      "total_cents": 733
+    }
+  },
+  {
+    "input": "https://qrtrack.mercadona.es/01/08436574550801/10/E1016B?17=261023&16=261021&3103=000304&3922=00752&8005=002475&99=1",
+    "label": "Chuletas palo/riñonada, bajada de precio",
+    "expected": {
+      "format": "mercadona-qr",
+      "article": "08436574550801",
+      "reduced": true,
+      "weight_g": 304,
+      "price_per_kg_cents": 2475,
+      "total_cents": 752
+    }
+  },
+  {
+    "input": "https://example.com/01/08436574550801/10/E1016B?3103=000356&3922=00881&8005=002475&99=1",
+    "note": "Same fields on another host",
+    "expected": null
+  },
+  {
+    "input": "https://qrtrack.mercadona.es/01/08436574550802/10/E1016B?3103=000356&3922=00881&8005=002475&99=1",
+    "note": "Bad GTIN check digit",
+    "expected": null
+  },
+  {
+    "input": "https://qrtrack.mercadona.es/01/08436574550801/10/E1016B?3103=000356&3922=00900&8005=002475&99=1",
+    "note": "Total disagrees with weight × €/kg (0,356 kg × 24,75 = 8,81, not 9,00)",
+    "expected": null
+  },
+  {
+    "input": "23²²²²²²²²²²²",
+    "note": "13 characters Python calls digits, but «²» is not 0–9: refused, not a crash",
+    "expected": null
+  },
+  {
+    "input": "https://qrtrack.mercadona.es/01/08436574550801?3103=%C2%B2&3922=00881&8005=002475",
+    "note": "A percent-encoded «²» as the weight: refused, not a crash",
+    "expected": null
+  },
+  {
+    "input": "https://[abc/01/08436574550801",
+    "note": "A malformed IPv6 host: refused, not a crash",
+    "expected": null
   }
 ]

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Ficha con precio anterior</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cqs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:#1a3fa0}a:hover{color:#2c56c1}</style>
+</helmet>
+<div class="bd" style="height: 640px;">
+  <div class="sh">
+    <div class="grab"></div>
+    <div style="padding: 0 20px 16px; border-bottom: 1px solid #b4bac4;">
+      <h1 class="t" style="font-size: 24px;">Contramuslo deshuesado</h1>
+      <div class="sub" style="margin-top: 3px;">en Mercadona</div>
+    </div>
+
+    <div style="padding: 16px 20px 6px; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;">
+      <span style="display: flex; flex-direction: column; gap: 2px;">
+        <span class="cap">Último precio</span>
+        <span style="font: 600 28px/1.1 'JetBrains Mono', monospace; color: #15161b; font-variant-numeric: tabular-nums;">3,05 €</span>
+        <span style="font: 400 12.5px/1.4 'Geist', system-ui, sans-serif; color: #6a6d7a;">8,82 €/kg · Mercadona, 10 nov</span>
+        <span style="align-self: flex-start; margin-top: 4px; border: 1.5px dashed rgb(26 63 160 / 45%); border-radius: 6px; padding: 3px 6px; font: 400 12.5px/1.4 'Geist', system-ui, sans-serif; color: #353742; display: inline-flex; align-items: center; gap: 5px;"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 13px; height: 13px; color: #353742; stroke-width: 2.2;"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg><span>Antes <span class="mono" style="font-weight: 600; color: #15161b;">4,36 €</span> · 30 % menos</span></span>
+      </span>
+      <span style="width: 120px; padding-bottom: 4px;">
+        <svg viewBox="0 0 120 42" aria-hidden="true" style="width: 120px; height: 42px; display: block;">
+          <path d="M4,8 L26,12 L70,8 L92,8 L92,42 L4,42 Z" fill="rgb(53 55 66 / 10%)"></path>
+          <path d="M4,8 L26,12 L70,8 L92,8" stroke="#353742" stroke-width="1.5" fill="none"></path>
+          <circle cx="48" cy="30" r="3" fill="#eef1f5" stroke="#353742" stroke-width="1.5"></circle>
+          <circle cx="114" cy="34" r="3" fill="#eef1f5" stroke="#353742" stroke-width="1.5"></circle>
+        </svg>
+      </span>
+    </div>
+
+    <div style="padding: 6px 20px 0;">
+      <div style="display: grid; grid-template-columns: 1fr auto 14px; gap: 10px; align-items: center; min-height: 48px; box-sizing: border-box; border-top: 1px solid #e3e7ed;">
+        <span style="display: flex; flex-direction: column; gap: 1px;"><span style="font: 500 14.5px/1.3 'Geist', system-ui, sans-serif; color: #15161b;">Mercadona</span><span style="font: 400 11.5px/1.35 'Geist', system-ui, sans-serif; color: #6a6d7a;">6 precios · último 10 nov</span></span>
+        <span style="font: 600 14px/1 'JetBrains Mono', monospace; color: #15161b; font-variant-numeric: tabular-nums;">8,82 €/kg</span>
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #94969f;"><path d="m6 9 6 6 6-6"></path></svg>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; min-height: 48px; box-sizing: border-box; border-top: 1px solid #e3e7ed;">
+        <span style="font: 500 14.5px/1.3 'Geist', system-ui, sans-serif; color: #1a3fa0;">Registrar un precio</span>
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 16px; height: 16px; stroke-width: 2.2; color: #1a3fa0;"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+      </div>
+    </div>
+
+    <div style="padding: 22px 20px 0;">
+      <div class="cap" style="margin-bottom: 8px;">Rastro</div>
+      <div style="font: 400 12px/1.6 'Geist', system-ui, sans-serif; color: #353742;">Lo añadió <b style="color: #15161b; font-weight: 600;">Marta</b> el 2 sep. Comprado 6 veces desde septiembre, la última el 10 nov. Se paga entre <b style="color: #15161b; font-weight: 600;">11,95</b> y <b style="color: #15161b; font-weight: 600;">12,60 €/kg</b>, sin contar precios bajados.</div>
+    </div>
+
+    <div style="padding: 20px 20px 0; display: flex; flex-direction: column; gap: 6px;">
+      <button class="btn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 16px; height: 16px; stroke-width: 2;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg> Volver a comprar</button>
+      <button class="lnk" style="color: #c0392b;">Eliminar producto</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":402,"height":640}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

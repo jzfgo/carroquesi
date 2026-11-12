@@ -17,6 +17,8 @@ const history: PriceHistoryResponse = {
     {
       amount: 0.89,
       is_sin_precio: false,
+      reduced: false,
+      price_before: null,
       price_per: null,
       purchased_at: '2026-07-22T10:00:00Z',
       quantity: '6 ud',
@@ -115,6 +117,40 @@ test('renders the four blocks: último precio, price history, producto fields, a
   expect(screen.getByText('Rastro')).toBeInTheDocument()
   expect(screen.getByText(/Lo añadió/)).toBeInTheDocument()
   expect(screen.getByText('Marta').tagName).toBe('B')
+})
+
+test('a reduced last price with a known old price shows it and the saving', async () => {
+  vi.mocked(getPriceHistory).mockResolvedValueOnce({
+    entries: [
+      {
+        amount: 8.82,
+        is_sin_precio: false,
+        reduced: true,
+        price_before: 12.6,
+        price_per: 'KILOGRAM',
+        purchased_at: '2026-11-10T10:00:00Z',
+        quantity: '0,346 kg',
+        store: 'Mercadona',
+      },
+    ],
+  })
+  renderSheet()
+  expect(
+    await screen.findByText(
+      (_, el) =>
+        el?.className === 'ficha__before' &&
+        /^Antes 12,60\s€\/kg · 30\s% menos$/.test(el.textContent ?? ''),
+    ),
+  ).toBeInTheDocument()
+})
+
+test('a reduced price without an old price reads like any other', async () => {
+  vi.mocked(getPriceHistory).mockResolvedValueOnce({
+    entries: [{ ...history.entries[0], reduced: true }],
+  })
+  renderSheet()
+  await waitFor(() => expect(screen.getByText(/1 precio/)).toBeInTheDocument())
+  expect(screen.queryByText(/Antes/)).not.toBeInTheDocument()
 })
 
 test('the EAN field is read-only — no chevron, no editor', () => {

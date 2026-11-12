@@ -2178,3 +2178,79 @@ def test_apply_at_an_unclaimed_store_saves_the_line_without_a_mapping(client, se
 def test_article_must_be_digits(client):
     patch = {**_price_patch("item-almendras", 1.15), "article": "03a05"}
     assert _apply(client, patches=[patch]).status_code == 422
+
+
+def test_apply_stores_a_reduced_price_and_what_it_cost_before(client, session):
+    patch = {**_price_patch("item-almendras", 1.15), "reduced": True, "price_before": 1.45}
+    assert _apply(client, patches=[patch]).status_code == 200
+
+    row = session.get_one(ListItem, "item-almendras")
+    session.refresh(row)
+    assert (row.price, row.price_reduced, row.price_before) == (1.15, True, 1.45)
+
+
+def test_apply_refuses_an_old_price_no_higher_than_the_price_paid(client, session):
+    patch = {**_price_patch("item-almendras", 1.15), "reduced": True, "price_before": 1.15}
+    response = _apply(client, patches=[patch])
+
+    assert response.status_code == 422
+    assert "price_before must be higher" in response.json()["detail"]
+
+
+def _mark_reduced(session, item_id, before):
+    row = session.get_one(ListItem, item_id)
+    row.price_reduced, row.price_before = True, before
+    session.add(row)
+    session.commit()
+
+
+def test_targeted_apply_keeps_a_reduced_mark_the_patch_does_not_mention(
+    client, session, settled_trip
+):
+    """The client cannot see a closed line's flag, so leaving it out keeps it."""
+    _mark_reduced(session, "item-settled-priced", 3.10)
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_targeted_batch(patches=[_price_patch("item-settled-priced", 2.75)]),
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    row = session.get_one(ListItem, "item-settled-priced")
+    assert (row.price, row.price_reduced, row.price_before) == (2.75, True, 3.10)
+
+
+def test_targeted_apply_drops_a_kept_old_price_the_new_price_reaches(client, session, settled_trip):
+    _mark_reduced(session, "item-settled-priced", 2.60)
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_targeted_batch(patches=[_price_patch("item-settled-priced", 2.75)]),
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    row = session.get_one(ListItem, "item-settled-priced")
+    assert (row.price, row.price_reduced, row.price_before) == (2.75, True, None)
+
+
+def test_apply_clears_a_reduced_mark_when_the_patch_says_not_reduced(client, session, settled_trip):
+    _mark_reduced(session, "item-settled-priced", 3.10)
+    patch = {**_price_patch("item-settled-priced", 2.75), "reduced": False}
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices", json=_targeted_batch(patches=[patch])
+    )
+    assert response.status_code == 200
+
+    session.expire_all()
+    row = session.get_one(ListItem, "item-settled-priced")
+    assert (row.price_reduced, row.price_before) == (False, None)
+
+
+def test_an_ordinary_apply_clears_a_reduced_mark_left_from_an_undone_close(client, session):
+    """An un-purchase keeps the price fields, so a pending line can carry a stale mark."""
+    _mark_reduced(session, "item-almendras", 3.10)
+    assert _apply(client, patches=[_price_patch("item-almendras", 2.75)]).status_code == 200
+
+    session.expire_all()
+    row = session.get_one(ListItem, "item-almendras")
+    assert (row.price, row.price_reduced, row.price_before) == (2.75, False, None)

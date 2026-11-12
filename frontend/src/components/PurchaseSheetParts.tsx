@@ -7,7 +7,7 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatAmount } from '../lib/formatPrice'
 import { type MissingToSave, missingToSaveText } from '../lib/missingToSave'
 import { todayInputValue } from '../lib/receiptDate'
 import { formatReceiptDate } from '../lib/receiptReview'
@@ -236,17 +236,17 @@ export function PurchaseAmount({
   if (suggested) {
     return (
       <span className="psheet-amount psheet-amount--suggested">
-        {formatRowAmount(value)}
+        {formatAmount(value)}
         {/* The dashed border says "suggested, not yet real"; say it for
             screen readers too. */}
         <span className="sr-only"> (precio sugerido)</span>
       </span>
     )
   }
-  return <span className="psheet-amount">{formatRowAmount(value)}</span>
+  return <span className="psheet-amount">{formatAmount(value)}</span>
 }
 
-/** «Total» in caps and the figure in mono, with no «€». `mark` sits before
+/** «Total» in caps and the amount in mono. `mark` sits before
  *  the figure (the receipt's cuadre disc). */
 export function PurchaseTotal({
   label = 'Total',
@@ -264,7 +264,7 @@ export function PurchaseTotal({
       <span className="psheet-total__label">{label}</span>
       <span className="psheet-total__figure">
         {mark}
-        <span className="psheet-total__value">{formatRowAmount(value)}</span>
+        <span className="psheet-total__value">{formatAmount(value)}</span>
       </span>
     </div>
   )
@@ -297,7 +297,7 @@ export function PrimaryButton({
   )
 }
 
-/** «Guardar compra · € N»: the sum of what will be saved. */
+/** «Guardar compra · N €»: the sum of what will be saved. */
 export function SavePurchaseButton({
   sum,
   disabled,
@@ -311,7 +311,7 @@ export function SavePurchaseButton({
 }) {
   return (
     <PrimaryButton disabled={disabled} onClick={onClick}>
-      {saving ? 'Guardando…' : `Guardar compra · € ${formatRowAmount(sum)}`}
+      {saving ? 'Guardando…' : `Guardar compra · ${formatAmount(sum)}`}
     </PrimaryButton>
   )
 }

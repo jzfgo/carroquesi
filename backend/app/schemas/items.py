@@ -42,6 +42,10 @@ class ItemRead(BaseModel):
     price: float | None
     price_per: Literal["KILOGRAM"] | None
     price_store: str | None
+    # What a reduced price cost before, in the basis of `price`, when known.
+    # Whether a price was reduced is not sent here: only a known old price
+    # shows on a row.
+    price_before: float | None = None
     purchased_at: datetime | None
     # The trip this item was bought on. None while unpurchased.
     purchase_id: str | None = None

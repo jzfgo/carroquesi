@@ -1,7 +1,7 @@
 import { ChevronDown, Stamp } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTripReceipt } from '../hooks/useTripReceipt'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatAmount } from '../lib/formatPrice'
 import { tripDateInput, tripDateLabel } from '../lib/itemCost'
 import type {
   ListItem,
@@ -51,7 +51,7 @@ const noop = () => {}
 /**
  * One trip in the stack (18a / 29a). Three states share one paper card:
  *
- * - Closed, folded: header only — «store · date», «€ total» and a down-chevron
+ * - Closed, folded: header only — «store · date», «total €» and a down-chevron
  *   (the total is the glance that matters, not the line count). Tapping opens it
  *   in place (lazy-loads the lines).
  * - Closed, expanded: the dashed-underlined header over its lines (ItemCards in
@@ -229,7 +229,7 @@ export function TripCard({
             {titles(ticketLine)}
             {trip.total != null && (
               <span className="trip-card__total">
-                € {formatRowAmount(trip.total)}
+                {formatAmount(trip.total)}
               </span>
             )}
           </div>
@@ -256,7 +256,7 @@ export function TripCard({
                 below, its own tap target rather than a button in a button). */}
               {!proto && trip.total != null && (
                 <span className="trip-card__total">
-                  € {formatRowAmount(trip.total)}
+                  {formatAmount(trip.total)}
                 </span>
               )}
               {/* A proto has no confirmed total; when its lines are priced we show
@@ -264,7 +264,7 @@ export function TripCard({
                 it matches the rows. */}
               {proto && !expanded && trip.items_total != null && (
                 <span className="trip-card__total trip-card__total--provisional">
-                  ≈ € {formatRowAmount(trip.items_total)}
+                  ≈ {formatAmount(trip.items_total)}
                 </span>
               )}
               {/* The seal badge marks EVERY open purchase «sin cerrar», priced or

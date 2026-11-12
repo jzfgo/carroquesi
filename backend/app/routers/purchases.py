@@ -23,7 +23,7 @@ from app.services import trips
 from app.services.article_mappings import remember_article
 from app.services.client_day import ClientTimezone
 from app.services.fold import fold_name
-from app.services.money import reject_bad_amount, reject_bad_price
+from app.services.money import reject_bad_amount, reject_bad_price, reject_bad_reduction
 from app.services.pending_duplicate import find_pending_duplicate
 from app.services.push import notify_list_change
 from app.services.quantity import line_amount
@@ -466,8 +466,10 @@ def close_purchase(
     reject_bad_amount(body.total, "total")
     for index, line in enumerate(body.lines):
         reject_bad_price(line.price, line.price_per, f"lines[{index}]")
+        reject_bad_reduction(line.price, line.reduced, line.price_before, f"lines[{index}]")
     for index, new in enumerate(body.new_items):
         reject_bad_price(new.price, new.price_per, f"new_items[{index}]")
+        reject_bad_reduction(new.price, new.reduced, new.price_before, f"new_items[{index}]")
 
     now = datetime.now(UTC)
 
@@ -523,6 +525,8 @@ def close_purchase(
             item.price = line.price
             item.price_per = line.price_per
             item.price_store = body.store
+            item.price_reduced = line.reduced
+            item.price_before = line.price_before
         else:
             # A dash on the sheet is an answer: bought, price unconfirmed.
             # Whatever figure the item carried described some earlier shop,
@@ -530,6 +534,8 @@ def close_purchase(
             item.price = None
             item.price_per = None
             item.price_store = None
+            item.price_reduced = False
+            item.price_before = None
         if line.quantity is not None:
             item.purchased_quantity = line.quantity
         # A correction from the adjust-product editor (10d): overwrite only what
@@ -582,6 +588,8 @@ def close_purchase(
                 price=new.price,
                 price_per=new.price_per,
                 price_store=body.store if new.price is not None else None,
+                price_reduced=new.reduced and new.price is not None,
+                price_before=new.price_before,
                 purchased_at=now,
                 purchase_id=purchase.id,
             )

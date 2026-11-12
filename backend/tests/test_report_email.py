@@ -15,6 +15,7 @@ from app.services.insights.schemas import (
     Cadence,
     CheaperElsewhere,
     Coverage,
+    Markdowns,
     MonthPoint,
     ProductMove,
     ProductMoves,
@@ -126,6 +127,7 @@ def _report(
     frequent: ProductSpend | None = None,
     requesters: tuple[str, ...] = ("Marina", "Lucía"),
     suggestions: list[Suggestion] | None = None,
+    markdowns: Markdowns | None = None,
 ) -> SpendReport:
     totals = totals or _totals()
     period = totals.period
@@ -166,6 +168,8 @@ def _report(
                 suggestions=suggestions or [],
                 thresholds=SavingsThresholds(),
             ),
+            markdowns
+            or Markdowns(list_id=L, period=period, lines=0, paid=0.0, before=0.0, saved=0.0),
         ],
     )
 
@@ -537,6 +541,30 @@ def test_a_suggestion_names_the_day_of_the_cheaper_price():
     )
 
 
+def test_a_unit_suggestion_names_its_unit():
+    s = Suggestion(
+        name="Leche entera",
+        brand=None,
+        basis="unit",
+        paid_store_key="a",
+        paid_store="Ahorramas",
+        paid_price=1.89,
+        cheaper_store_key="m",
+        cheaper_store="Mercadona",
+        cheaper_price=1.29,
+        cheaper_seen_at=date(2026, 10, 7),
+        saving_pct=0.3,
+        monthly_eur=1.2,
+    )
+
+    view = report_view(_report(suggestions=[s]), "Casa")
+
+    (saving,) = view["savings"]
+    assert sp(saving.text) == (
+        "Pagaste 1,89 €/ud en Ahorramas. En Mercadona pagaste 1,29 €/ud el 07/10."
+    )
+
+
 # --- the email ---------------------------------------------------------------
 
 
@@ -695,3 +723,68 @@ def test_the_coverage_footer_skips_what_says_nothing():
     assert coverage_clauses(_coverage(trips=0, trips_confirmed=0, lines_total=0)) == []
     # A ticket with a total and no lines: "0 de 0 productos" would say nothing.
     assert coverage_clauses(_coverage(lines_total=0, lines_priced=0))[0].startswith("26 de 26")
+
+
+# --- reduced prices ----------------------------------------------------------
+
+
+def _markdowns(lines: int, paid: float, before: float) -> Markdowns:
+    return Markdowns(
+        list_id=L, period=OCT, lines=lines, paid=paid, before=before, saved=round(before - paid, 2)
+    )
+
+
+def test_reduced_prices_read_as_one_sentence():
+    view = report_view(_report(markdowns=_markdowns(3, 9.14, 13.06)), "Casa")
+
+    assert sp(view["markdowns"]) == (
+        "Pagaste 9,14 € por 3 artículos que antes costaban 13,06 €: 3,92 € menos."
+    )
+
+
+def test_one_reduced_price_reads_in_the_singular():
+    view = report_view(_report(markdowns=_markdowns(1, 3.05, 4.36)), "Casa")
+
+    assert sp(view["markdowns"]) == (
+        "Pagaste 3,05 € por 1 artículo que antes costaba 4,36 €: 1,31 € menos."
+    )
+
+
+def test_the_reduced_prices_block_hides_without_an_old_price():
+    assert report_view(_report(), "Casa")["markdowns"] is None
+
+
+def test_the_email_puts_reduced_prices_between_the_habit_and_the_savings(
+    session: Session, user: User
+):
+    lst = _seed(session, user)
+    day = datetime(2026, 10, 12, 10, tzinfo=UTC)
+    trip = Purchase(list_id=lst.id, opened_at=day, tears_off_at=day + timedelta(days=1))
+    session.add(trip)
+    session.commit()
+    # A weighed line: €/kg in the price basis, 0,346 kg bought.
+    session.add(
+        ListItem(
+            list_id=lst.id,
+            name="Contramuslo",
+            purchased_quantity="0,346 kg",
+            price=8.82,
+            price_per="KILOGRAM",
+            price_reduced=True,
+            price_before=12.60,
+            added_by=user.id,
+            purchase_id=trip.id,
+            purchased_at=day,
+        )
+    )
+    session.commit()
+
+    email = build_report_email(compute_report(session, lst.id, OCT, MADRID), lst, user)
+
+    text = " ".join(sp(email.text).split())
+    assert (
+        "Precios bajados Pagaste 3,05 € por 1 artículo que antes costaba 4,36 €: 1,31 € menos."
+        in text
+    )
+    assert text.index("Precios bajados") < text.index("Para ahorrar")
+    assert "Precios bajados" in email.html

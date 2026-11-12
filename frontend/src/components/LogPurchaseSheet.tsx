@@ -1,6 +1,6 @@
 import { ShoppingCart } from 'lucide-react'
 import { useState } from 'react'
-import { formatPrice } from '../lib/formatPrice'
+import { formatAmount } from '../lib/formatPrice'
 import { isTripOpen } from '../lib/isTripOpen'
 import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
 import { storeKey } from '../lib/storeKey'
@@ -129,7 +129,6 @@ export default function LogPurchaseSheet({
             onChange={(e) => setPurchasedQtyStr(e.target.value)}
           />
           <span className="lps__sep">×</span>
-          <span className="lps__euro">€</span>
           {/* No autoFocus: this multi-field form opens without raising the
               keyboard (the field waits for a tap). The «+ otra» store input
               below keeps its autoFocus — it appears on a deliberate tap, not on
@@ -144,14 +143,17 @@ export default function LogPurchaseSheet({
             min="0"
             step="0.01"
           />
-          <span className="lps__unit-suffix">{suffix}</span>
+          {/* One span, so the flex gap never splits «€» from «/ud». */}
+          <span className="lps__euro">
+            €<span className="lps__unit-suffix">{suffix}</span>
+          </span>
         </div>
         <div className="lps__qp-footer">
           <span className="lps__legend">
             Introduce unidades (ej. 3) o peso (ej. 487g, 1.2kg)
           </span>
           {liveCost !== null && (
-            <span className="lps__live-cost">≈ {formatPrice(liveCost)}</span>
+            <span className="lps__live-cost">≈ {formatAmount(liveCost)}</span>
           )}
         </div>
       </div>

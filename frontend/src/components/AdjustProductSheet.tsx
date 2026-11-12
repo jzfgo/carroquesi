@@ -1,7 +1,8 @@
 import { Check, X } from 'lucide-react'
 import { useState } from 'react'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatAmount, formatFigure, parseAmount } from '../lib/formatPrice'
 import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
+import type { LineLabel } from '../lib/weighedLabel'
 import './AdjustProductSheet.css'
 import { PrimaryButton, SheetBackButton } from './PurchaseSheetParts'
 import { QuantityPriceRow } from './QuantityPriceRow'
@@ -27,9 +28,8 @@ export interface DraftLine {
    *  the row offers the «Peso» chip. */
   ean: string | null
   bought_by_weight: boolean
-  /** The weighed label used on this line, if any: its code, to notice the
-   *  same label twice, and its article code, which the save sends. */
-  label: { code: string; article: string } | null
+  /** The weighed label used on this line, if any. */
+  label: LineLabel | null
 }
 
 interface Props {
@@ -45,11 +45,6 @@ interface Props {
   /** «Escanear etiqueta». It hands over what the editor holds, so a typed
    *  name or brand survives the scan. */
   onScanLabel?: (draft: DraftLine) => void
-}
-
-function parsePrice(text: string): number | null {
-  const n = parseFloat(text.replace(',', '.'))
-  return Number.isFinite(n) && n >= 0 ? n : null
 }
 
 /**
@@ -71,14 +66,14 @@ export function AdjustProductSheet({
   const [brand, setBrand] = useState(line.brand ?? '')
   const [quantity, setQuantity] = useState(line.quantity ?? '')
   const [priceText, setPriceText] = useState(
-    line.price != null ? formatRowAmount(line.price) : '',
+    line.price != null ? formatFigure(line.price) : '',
   )
   // Once the user touches the price (types, confirms or rejects the suggestion)
   // the dashed opt-in yields to a plain field.
   const [priceTouched, setPriceTouched] = useState(line.price != null)
 
   const { pricePer, suffix } = deriveUnit(quantity)
-  const price = parsePrice(priceText)
+  const price = parseAmount(priceText)
   const factor = parseQuantityFactor(quantity, pricePer)
   const lineTotal = price != null && factor != null ? price * factor : null
 
@@ -98,7 +93,7 @@ export function AdjustProductSheet({
 
   const confirmSuggested = () => {
     if (!line.suggested) return
-    setPriceText(formatRowAmount(line.suggested.price))
+    setPriceText(formatFigure(line.suggested.price))
     setPriceTouched(true)
   }
 
@@ -131,7 +126,7 @@ export function AdjustProductSheet({
             setPriceTouched(true)
           }}
           pricePlaceholder={
-            showSuggestion ? formatRowAmount(line.suggested!.price) : '0,00'
+            showSuggestion ? formatFigure(line.suggested!.price) : '0,00'
           }
           suggested={showSuggestion}
         >
@@ -164,7 +159,7 @@ export function AdjustProductSheet({
             <div className="adjust-linetotal">
               <span className="adjust-linetotal__label">Importe</span>
               <span className="adjust-linetotal__value">
-                {lineTotal != null ? `€ ${formatRowAmount(lineTotal)}` : '—'}
+                {lineTotal != null ? formatAmount(lineTotal) : '—'}
               </span>
             </div>
           )}

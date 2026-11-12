@@ -7,7 +7,7 @@ import {
   updateItem,
 } from '../lib/api'
 import { isOnline } from '../lib/connectivity'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatUnitPrice } from '../lib/formatPrice'
 import { parseQuantityFactor } from '../lib/itemCost'
 import { todayInputValue } from '../lib/receiptDate'
 import { storeKey } from '../lib/storeKey'
@@ -15,6 +15,7 @@ import { storeOffer, withExtraStore } from '../lib/storeOffer'
 import {
   labelPricePerKg,
   labelQuantity,
+  reductionFields,
   showsWeightChip,
 } from '../lib/weighedLabel'
 import type { ListItem, PurchaseLine } from '../types'
@@ -77,6 +78,13 @@ function toDraft(item: ListItem): DraftLine {
   }
 }
 
+// A line closes as reduced only from a reduced label read on it.
+function reductionOf(l: DraftLine) {
+  return l.label
+    ? reductionFields(l.label, l.price, l.price_per)
+    : { reduced: false, price_before: null }
+}
+
 // The line's money: its confirmed total (price × quantity factor), the projected
 // total from a pending suggestion, or nothing.
 function lineTotal(
@@ -134,6 +142,7 @@ export function CloseTripSheet({
         price_per: 'KILOGRAM' | null
         store: string | null
         is_sin_precio: boolean
+        reduced: boolean
       }[]
     >
   >({})
@@ -208,7 +217,8 @@ export function CloseTripSheet({
   }, [lines, getToken, listId, histories])
 
   // Recompute each line's suggestion for the selected store from its history:
-  // the most recent priced (non-sin-precio) entry at that store.
+  // the most recent priced (non-sin-precio) entry at that store. A reduced
+  // price was a one-off, so it is never suggested again.
   const withSuggestions = useMemo(() => {
     if (selectedStore === '') return lines
     const key = storeKey(selectedStore)
@@ -219,6 +229,7 @@ export function CloseTripSheet({
       const hit = entries.find(
         (e) =>
           !e.is_sin_precio &&
+          !e.reduced &&
           e.amount != null &&
           e.store &&
           storeKey(e.store) === key,
@@ -320,13 +331,21 @@ export function CloseTripSheet({
   }
 
   // Without a receipt, the label sets the amount: its weight and its €/kg.
-  function withLabel(l: DraftLine, { code, label }: UsedLabel): DraftLine {
+  function withLabel(
+    l: DraftLine,
+    { code, label, priceBefore }: UsedLabel,
+  ): DraftLine {
     return {
       ...l,
       quantity: labelQuantity(label.weight_g!),
       price: labelPricePerKg(label),
       price_per: 'KILOGRAM',
-      label: { code, article: label.article },
+      label: {
+        code,
+        article: label.article,
+        reduced: label.reduced === true,
+        priceBefore,
+      },
     }
   }
 
@@ -373,6 +392,7 @@ export function CloseTripSheet({
           name: l.name,
           brand: l.brand,
           article: l.label?.article ?? null,
+          ...reductionOf(l),
         })),
         new_items: included
           .filter((l) => !l.item_id)
@@ -383,6 +403,7 @@ export function CloseTripSheet({
             price: l.price,
             price_per: l.price_per,
             article: l.label?.article ?? null,
+            ...reductionOf(l),
           })),
       }
       await closePurchase(getToken, listId, body)
@@ -504,7 +525,8 @@ export function CloseTripSheet({
                       <span className="close-row__name">{line.name}</span>
                       {line.label && line.price != null && (
                         <span className="close-row__sub">
-                          {formatRowAmount(line.price)} €/kg · de la etiqueta
+                          {formatUnitPrice(line.price, 'KILOGRAM')} · de la
+                          etiqueta
                         </span>
                       )}
                       {!line.item_id && (

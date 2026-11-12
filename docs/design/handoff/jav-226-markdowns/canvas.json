@@ -1,0 +1,169 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "FichaConocido.dc.html": {
+      "h": 640,
+      "title": "2 · Ficha (22a) con precio anterior",
+      "w": 402,
+      "x": 482,
+      "y": 0
+    },
+    "FichaDesconocido.dc.html": {
+      "h": 640,
+      "title": "3 · Ficha (22a) sin precio anterior: como cualquier otra",
+      "w": 402,
+      "x": 964,
+      "y": 0
+    },
+    "Historial.dc.html": {
+      "h": 720,
+      "title": "4 · Historial (22b): puntos huecos, fuera del mínimo",
+      "w": 402,
+      "x": 1446,
+      "y": 0
+    },
+    "Informe.dc.html": {
+      "h": 640,
+      "title": "8 · Informe HTML: bloque «Precios bajados»",
+      "w": 680,
+      "x": 0,
+      "y": 2740
+    },
+    "InformePlano.dc.html": {
+      "h": 520,
+      "title": "9 · Informe en texto plano",
+      "w": 680,
+      "x": 760,
+      "y": 2740
+    },
+    "Main.dc.html": {
+      "h": 400,
+      "title": "1 · Filas compradas (21b): marca de rebaja solo si se sabe el anterior",
+      "w": 390,
+      "x": 0,
+      "y": 0
+    },
+    "Pareja.dc.html": {
+      "h": 660,
+      "title": "6 · Precio anterior escrito: se ve el descuento",
+      "w": 402,
+      "x": 482,
+      "y": 1440
+    },
+    "Rebajada.dc.html": {
+      "h": 660,
+      "title": "5 · Etiqueta con precio bajado: precio anterior a mano, opcional",
+      "w": 402,
+      "x": 0,
+      "y": 1440
+    },
+    "Rechazada.dc.html": {
+      "h": 660,
+      "title": "7 · Precio anterior imposible: aviso en el campo",
+      "w": 402,
+      "x": 964,
+      "y": 1440
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-11-11T22:30:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "noteOrder": [
+    "t1",
+    "t2",
+    "t3",
+    "q1",
+    "q3",
+    "r1",
+    "q2",
+    "q2c",
+    "rep"
+  ],
+  "notes": {
+    "q1": {
+      "fill": "orange",
+      "text": "Pregunta 1, decidida. No hay estado «rebajado»: hay un precio anterior, y solo se enseña cuando se sabe. Hoy se escribe a mano al escanear la etiqueta rebajada; mañana podría darlo una foto o un ticket, así que no depende de ninguna cadena. En la fila, una marca en tinta junto al importe (Contramuslo), sin cifras ni tachados; el precio anterior y lo ahorrado están en la ficha (2): desglose progresivo. La marca es una etiqueta de precio en tinta, solo trazo: no se lee como un número y se dibuja con boli. Se descartaron el % (parece un porcentaje), las flechas y el color (Grayscale Ink Rule). Una línea con solo la etiqueta del precio bajado se ve como cualquier otra (Pechuga).",
+      "w": 320,
+      "x": 1928,
+      "y": 0
+    },
+    "q2": {
+      "fill": "orange",
+      "text": "Pregunta 2, rehecha. La pegatina del precio bajado tapa el código de la etiqueta de antes: solo se ve la cifra impresa. Así que no hay segundo escaneo. Al leer una etiqueta con precio bajado, la hoja ofrece un campo opcional «Precio anterior» (5): se copia la cifra que se ve. Vacío = la línea guarda lo pagado y queda como en 3. Escrito, se ve al momento lo que ahorraste (6), y un error de tecleo salta a la vista. Error de lectura: el frame 9 de JAV-225, sin cambios.",
+      "w": 320,
+      "x": 1446,
+      "y": 1440
+    },
+    "q2c": {
+      "fill": "orange",
+      "text": "Una sola comprobación: el precio anterior tiene que ser mayor que lo pagado. Si no, aviso en el propio campo y «Usar en esta línea» espera (7). Borrar la cifra lo desbloquea. Ya no hay comprobación de códigos de artículo: solo hay una etiqueta. Más adelante, una foto con OCR podría rellenar el campo (JAV-220).",
+      "w": 320,
+      "x": 1446,
+      "y": 1820
+    },
+    "q3": {
+      "fill": "orange",
+      "text": "Pregunta 3, decidida. Un precio bajado (se sepa o no el anterior) no cuenta para el mínimo ni para la línea de la curva: es un punto hueco, suelto. Sí cuenta como «Último», porque es lo que pagaste. El máximo no cambia nada. Como el mínimo puede quedar por encima del último, la nota al pie lo explica, y solo sale si hay algún punto hueco. Es el único sitio donde se nombra un precio bajado sin precio anterior: dejarlo fuera del mínimo sin decirlo sería peor. El rastro de la ficha («se paga entre…») usa la misma regla.",
+      "w": 320,
+      "x": 1928,
+      "y": 380
+    },
+    "r1": {
+      "fill": "gray",
+      "text": "Lo nuevo va en contorno discontinuo, como en el resto del handoff. Contramuslo: precio anterior escrito. Pechuga: precio bajado sin precio anterior. Leche: precio normal.",
+      "w": 390,
+      "x": 0,
+      "y": 440
+    },
+    "rep": {
+      "fill": "orange",
+      "text": "Plantilla fija: «Pagaste {pagado} por {n} artículo(s) que antes costaba(n) {antes}: {diferencia} menos.» Solo cuenta líneas con precio anterior. Se oculta si no hay ninguna. Va después de «Un hábito» y antes de «Para ahorrar». Los precios bajados no entran en «Para ahorrar» (JAV-221): ahí no cambia nada que se vea.",
+      "w": 320,
+      "x": 1520,
+      "y": 2740
+    },
+    "t1": {
+      "kind": "title1",
+      "maxW": 1848,
+      "text": "Registro: fila, ficha e historial",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "t2": {
+      "kind": "title1",
+      "maxW": 1366,
+      "text": "Escanear una etiqueta rebajada",
+      "w": 240,
+      "x": 0,
+      "y": 1180
+    },
+    "t3": {
+      "kind": "title1",
+      "maxW": 1440,
+      "text": "Informe mensual",
+      "w": 240,
+      "x": 0,
+      "y": 2480
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "FichaConocido.dc.html",
+    "FichaDesconocido.dc.html",
+    "Historial.dc.html",
+    "Rebajada.dc.html",
+    "Pareja.dc.html",
+    "Rechazada.dc.html",
+    "Informe.dc.html",
+    "InformePlano.dc.html"
+  ],
+  "pages": [],
+  "title": "Precios bajados · JAV-226"
+}
