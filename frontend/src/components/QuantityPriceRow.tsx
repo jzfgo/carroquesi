@@ -67,7 +67,6 @@ export function QuantityPriceRow({
             suggested ? ' qtyprice__price--suggested' : ''
           }`}
         >
-          <span className="qtyprice__euro">€</span>
           <input
             className="qtyprice__amount"
             aria-label="Precio"
@@ -78,7 +77,10 @@ export function QuantityPriceRow({
             placeholder={pricePlaceholder}
             inputMode="decimal"
           />
-          <span className="qtyprice__suffix">{suffix}</span>
+          {/* One span, so the flex gap never splits «€» from «/kg». */}
+          <span className="qtyprice__euro">
+            €<span className="qtyprice__suffix">{suffix}</span>
+          </span>
         </div>
       </div>
       <p className="qtyprice-help">

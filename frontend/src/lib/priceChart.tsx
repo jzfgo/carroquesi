@@ -2,7 +2,7 @@
    This module is a set of pure chart helpers plus one small SVG component that
    draws from them. They belong together, and fast-refresh has nothing to keep
    warm here. */
-import { formatPrice } from './formatPrice'
+import { formatUnitPrice } from './formatPrice'
 import type { ChartEntry } from './priceNormalization'
 import { parseServerInstant } from './serverInstant'
 import { storeKey } from './storeKey'
@@ -276,8 +276,8 @@ export function priceStats(records: ChartEntry[]): PriceStats {
  */
 export function recordAmountLabel(r: ChartEntry): string {
   return r.displayAmount !== null
-    ? formatPrice(r.displayAmount, r.displayPricePer)
-    : formatPrice(r.originalAmount, r.originalPricePer as 'KILOGRAM' | null)
+    ? formatUnitPrice(r.displayAmount, r.displayPricePer)
+    : formatUnitPrice(r.originalAmount, r.originalPricePer)
 }
 
 export interface BandGeometry {

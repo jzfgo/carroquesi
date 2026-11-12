@@ -117,8 +117,8 @@ test('a normalized amount carries its ≈ €/kg marker', () => {
 
   fireEvent.click(screen.getByText('Mercadona'))
 
-  // 2,00 for 500 g normalises to 4,00/kg.
-  expect(screen.getByText(/≈ 4,00\/kg/)).toBeInTheDocument()
+  // 2,00 for 500 g normalises to 4,00 €/kg.
+  expect(screen.getByText(/≈ 4,00 €\/kg/)).toBeInTheDocument()
 })
 
 test('the ficha price block carries no scope switcher', () => {

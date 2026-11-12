@@ -62,7 +62,7 @@ test('the full sentence names the adder, the span, and the price range', () => {
     entry({ purchased_at: '2026-07-22T10:00:00Z', amount: 5.34 }),
   ]
   expect(buildRastro(item(), members, entries)).toBe(
-    'Lo añadió Marta el 18 jul. Comprado 8 veces desde marzo, la última el 22 jul. Se paga entre € 5,10 y € 5,79.',
+    'Lo añadió Marta el 18 jul. Comprado 8 veces desde marzo, la última el 22 jul. Se paga entre 5,10 y 5,79\u00a0€/ud.',
   )
 })
 
@@ -90,8 +90,24 @@ test('an equal price floor and ceiling reads "Siempre a"', () => {
     entry({ purchased_at: '2026-07-01T10:00:00Z', amount: 5.34 }),
     entry({ purchased_at: '2026-07-22T10:00:00Z', amount: 5.34 }),
   ])
-  expect(result).toContain('Siempre a € 5,34.')
+  expect(result).toContain('Siempre a 5,34\u00a0€/ud.')
   expect(result).not.toContain('entre')
+})
+
+test('a range names its unit once, at the end', () => {
+  const result = buildRastro(item(), members, [
+    entry({ amount: 11.95, price_per: 'KILOGRAM' }),
+    entry({ amount: 12.6, price_per: 'KILOGRAM' }),
+  ])
+  expect(result).toContain('Se paga entre 11,95 y 12,60 €/kg.')
+})
+
+test('prices on two bases have no single unit, so they read as plain euros', () => {
+  const result = buildRastro(item(), members, [
+    entry({ amount: 11.95, price_per: 'KILOGRAM' }),
+    entry({ amount: 3.05, price_per: null }),
+  ])
+  expect(result).toContain('Se paga entre 3,05 y 11,95 €.')
 })
 
 test('a price-less purchase counts toward the span but not the price range', () => {
@@ -104,7 +120,7 @@ test('a price-less purchase counts toward the span but not the price range', () 
     }),
   ])
   expect(result).toContain('Comprado 2 veces desde marzo, la última el 22 jul.')
-  expect(result).toContain('Siempre a € 5,34.')
+  expect(result).toContain('Siempre a 5,34\u00a0€/ud.')
 })
 
 test('the date is read off the ISO string, not the runner timezone', () => {

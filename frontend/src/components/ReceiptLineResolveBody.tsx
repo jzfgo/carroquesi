@@ -1,7 +1,12 @@
 import { ScanBarcode } from 'lucide-react'
 import { useState } from 'react'
 import { foldText } from '../lib/foldText'
-import { formatRowAmount, parseAmount } from '../lib/formatPrice'
+import {
+  formatAmount,
+  formatFigure,
+  formatUnitPrice,
+  parseAmount,
+} from '../lib/formatPrice'
 import { deriveUnit } from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
 import {
@@ -72,8 +77,7 @@ function itemSubLabel(item: ItemRef, targeted: boolean): string {
   // receipt line's partner usually prints the same figure.
   if (targeted) {
     if (item.price == null) return 'sin precio'
-    const per = item.price_per === 'KILOGRAM' ? '/KG' : '/UD'
-    return `${formatRowAmount(item.price)}${per}`
+    return formatUnitPrice(item.price, item.price_per, true)
   }
   // An in-cart item's store isn't settled until the receipt closes the trip, so
   // it reads bare — only a still-pending item names the store it's tagged for.
@@ -108,7 +112,7 @@ export function ReceiptLineResolveBody({
   // paper's own figure back is undoing, not overriding); invalid text
   // reverts.
   const qtyBase = effectiveQuantityDisplay(line, state)
-  const priceBase = formatRowAmount(effectiveUnitPrice(line, state))
+  const priceBase = formatFigure(effectiveUnitPrice(line, state))
   const [qtyDraft, setQtyDraft] = useState(qtyBase)
   const [priceDraft, setPriceDraft] = useState(priceBase)
   const [seen, setSeen] = useState({ qty: qtyBase, price: priceBase })
@@ -189,7 +193,7 @@ export function ReceiptLineResolveBody({
         <div className="rss-ticketline__row">
           <span className="rss-ticketline__raw">{line.receipt_name}</span>
           <span className="rss-ticketline__num">
-            {quantityDisplay(line)} · {formatRowAmount(lineTotal(line))}
+            {quantityDisplay(line)} · {formatAmount(lineTotal(line))}
           </span>
         </div>
       </div>
@@ -215,12 +219,12 @@ export function ReceiptLineResolveBody({
                 <span className="rss-corrected__paper">
                   · en el ticket{' '}
                   <span className="rss-corrected__num">
-                    {formatRowAmount(lineTotal(line))}
+                    {formatAmount(lineTotal(line))}
                   </span>
                 </span>
               </span>
               <span className="rss-corrected__value">
-                {formatRowAmount(total)}
+                {formatAmount(total)}
               </span>
             </div>
           )}

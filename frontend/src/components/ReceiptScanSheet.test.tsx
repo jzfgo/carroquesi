@@ -220,8 +220,8 @@ describe('ReceiptScanSheet — review list (13a)', () => {
   it('shows per-line quantity and price', () => {
     renderSheet()
     expect(screen.getByText('202 g')).toBeInTheDocument()
-    expect(screen.getByText('2,85')).toBeInTheDocument()
-    expect(screen.getByText('3,15')).toBeInTheDocument()
+    expect(screen.getByText('2,85 €')).toBeInTheDocument()
+    expect(screen.getByText('3,15 €')).toBeInTheDocument()
   })
 })
 
@@ -234,9 +234,9 @@ describe('ReceiptScanSheet — cuadre', () => {
 
   it('shows the cuadre card when the line-sum falls short', () => {
     renderSheet({ result: makeResult({ receipt_total: 9.87 }) })
-    expect(screen.getByText(/Faltan € 0,42 para cuadrar/)).toBeInTheDocument()
+    expect(screen.getByText(/Faltan 0,42 € para cuadrar/)).toBeInTheDocument()
     expect(
-      screen.getByText(/Suma de líneas 9,45 · total leído 9,87/),
+      screen.getByText(/Suma de líneas 9,45 € · total leído 9,87 €/),
     ).toBeInTheDocument()
   })
 
@@ -252,7 +252,7 @@ describe('ReceiptScanSheet — cuadre', () => {
 
   it('shows a signed overshoot when the line-sum exceeds the paper', () => {
     renderSheet({ result: makeResult({ receipt_total: 9.0 }) })
-    expect(screen.getByText(/Sobran € 0,45 para cuadrar/)).toBeInTheDocument()
+    expect(screen.getByText(/Sobran 0,45 € para cuadrar/)).toBeInTheDocument()
   })
 
   it('keeps the cuadre green from all lines while the button saves only checked', () => {
@@ -507,7 +507,7 @@ describe('ReceiptScanSheet — targeted attach (25b)', () => {
   it('annotates each line as fill, correction, or no-op', () => {
     renderTargeted()
     expect(screen.getByText('completa el precio')).toBeInTheDocument()
-    expect(screen.getByText('era € 1,20')).toBeInTheDocument()
+    expect(screen.getByText('era 1,20 €/UD')).toBeInTheDocument()
     // The no-op line starts unchecked, so it reads «no se guarda»; checking
     // it back on surfaces the reason a save would change nothing.
     fireEvent.click(screen.getByRole('checkbox', { name: /BACON LONCHAS/ }))
@@ -528,7 +528,7 @@ describe('ReceiptScanSheet — targeted attach (25b)', () => {
   it('announces a differing paper total before it replaces the recorded one', () => {
     renderTargeted({ target: { ...target, total: 10 } })
     expect(
-      screen.getByText(/El total guardado pasa de € 10,00 a € 9,45/),
+      screen.getByText(/El total guardado pasa de 10,00 € a 9,45 €/),
     ).toBeInTheDocument()
   })
 
@@ -576,7 +576,7 @@ describe('ReceiptScanSheet — targeted resolve (JAV-232)', () => {
       screen.getByRole('radio', { name: /Cacahuetes garrapiñados/ }),
     ).toBeChecked()
     // The sub-label is the recorded price, which is how the partner reads.
-    expect(screen.getByText('3,15/UD')).toBeInTheDocument()
+    expect(screen.getByText('3,15 €/UD')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Asignar' }))
     fireEvent.click(saveButton())
     await waitFor(() => expect(onConfirm).toHaveBeenCalled())
@@ -647,7 +647,7 @@ describe('ReceiptScanSheet — targeted resolve (JAV-232)', () => {
     })
     expect(screen.getByText('era 1 UD')).toBeInTheDocument()
     expect(screen.getByText('completa el peso')).toBeInTheDocument()
-    expect(screen.queryByText(/era € 0,95|era € 11,40/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/era 0,95 €|era 11,40 €/)).not.toBeInTheDocument()
   })
 
   it('guesses nothing when no single line stands out', () => {
@@ -692,7 +692,7 @@ describe('ReceiptScanSheet — resolve sheet (13b)', () => {
     expect(screen.getByText('Línea del ticket')).toBeInTheDocument()
     expect(screen.getByText('Revisar ticket')).toBeInTheDocument() // back galón
     // The line's qty·price shown read-only.
-    expect(screen.getByText('1 · 3,15')).toBeInTheDocument()
+    expect(screen.getByText('1 · 3,15 €')).toBeInTheDocument()
   })
 
   it('links a line to a pending item via the radio list', async () => {
@@ -870,7 +870,7 @@ describe('ReceiptScanSheet — price correction (JAV-185)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Revisar ticket/ }))
 
     // The row prints the corrected total, 3 × 0,60.
-    expect(screen.getByText('1,80')).toBeInTheDocument()
+    expect(screen.getByText('1,80 €')).toBeInTheDocument()
     // Save: the recorded unit price re-derives from the corrected total.
     fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
     fireEvent.click(saveButton())
@@ -906,7 +906,7 @@ describe('ReceiptScanSheet — quantity correction', () => {
     // BEBIDA ALMENDRAS reads 1 × 1,15; it was really 346 g.
     setQuantity('BEBIDA ALMENDRAS', '346 g')
     expect(screen.getByText('346 g')).toBeInTheDocument()
-    expect(screen.getByText('1,15')).toBeInTheDocument()
+    expect(screen.getByText('1,15 €')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
     fireEvent.click(saveButton())
@@ -952,7 +952,7 @@ describe('ReceiptScanSheet — quantity correction', () => {
     if (!(box as HTMLInputElement).checked) fireEvent.click(box)
     // The total stays 1,15, so the unit price moves to 0,575: the price note
     // wins over the quantity one.
-    expect(screen.getByText('era € 1,15')).toBeInTheDocument()
+    expect(screen.getByText('era 1,15 €/UD')).toBeInTheDocument()
   })
 })
 
@@ -1012,7 +1012,7 @@ describe('ReceiptScanSheet — weighed label', () => {
       await screen.findByRole('button', { name: 'Usar en esta línea' }),
     )
     expect(screen.getByText('0,346 kg')).toBeInTheDocument()
-    expect(screen.getByText('1,15')).toBeInTheDocument()
+    expect(screen.getByText('1,15 €')).toBeInTheDocument()
     expect(chip('BEBIDA ALMENDRAS 0%')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
@@ -1074,7 +1074,7 @@ describe('ReceiptScanSheet — weighed label', () => {
       await screen.findByRole('button', { name: 'Usar en esta línea' }),
     )
     fireEvent.click(screen.getByRole('button', { name: /Revisar ticket/ }))
-    expect(screen.getByText('2,00')).toBeInTheDocument()
+    expect(screen.getByText('2,00 €')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
     fireEvent.click(saveButton())

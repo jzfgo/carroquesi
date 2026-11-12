@@ -1,6 +1,6 @@
 import { Check, X } from 'lucide-react'
 import { useState } from 'react'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatAmount, formatFigure } from '../lib/formatPrice'
 import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
 import './AdjustProductSheet.css'
 import { PrimaryButton, SheetBackButton } from './PurchaseSheetParts'
@@ -71,7 +71,7 @@ export function AdjustProductSheet({
   const [brand, setBrand] = useState(line.brand ?? '')
   const [quantity, setQuantity] = useState(line.quantity ?? '')
   const [priceText, setPriceText] = useState(
-    line.price != null ? formatRowAmount(line.price) : '',
+    line.price != null ? formatFigure(line.price) : '',
   )
   // Once the user touches the price (types, confirms or rejects the suggestion)
   // the dashed opt-in yields to a plain field.
@@ -98,7 +98,7 @@ export function AdjustProductSheet({
 
   const confirmSuggested = () => {
     if (!line.suggested) return
-    setPriceText(formatRowAmount(line.suggested.price))
+    setPriceText(formatFigure(line.suggested.price))
     setPriceTouched(true)
   }
 
@@ -131,7 +131,7 @@ export function AdjustProductSheet({
             setPriceTouched(true)
           }}
           pricePlaceholder={
-            showSuggestion ? formatRowAmount(line.suggested!.price) : '0,00'
+            showSuggestion ? formatFigure(line.suggested!.price) : '0,00'
           }
           suggested={showSuggestion}
         >
@@ -164,7 +164,7 @@ export function AdjustProductSheet({
             <div className="adjust-linetotal">
               <span className="adjust-linetotal__label">Importe</span>
               <span className="adjust-linetotal__value">
-                {lineTotal != null ? `€ ${formatRowAmount(lineTotal)}` : '—'}
+                {lineTotal != null ? formatAmount(lineTotal) : '—'}
               </span>
             </div>
           )}

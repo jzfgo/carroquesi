@@ -7,7 +7,7 @@ import {
   updateItem,
 } from '../lib/api'
 import { isOnline } from '../lib/connectivity'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatUnitPrice } from '../lib/formatPrice'
 import { parseQuantityFactor } from '../lib/itemCost'
 import { todayInputValue } from '../lib/receiptDate'
 import { storeKey } from '../lib/storeKey'
@@ -504,7 +504,8 @@ export function CloseTripSheet({
                       <span className="close-row__name">{line.name}</span>
                       {line.label && line.price != null && (
                         <span className="close-row__sub">
-                          {formatRowAmount(line.price)} €/kg · de la etiqueta
+                          {formatUnitPrice(line.price, 'KILOGRAM')} · de la
+                          etiqueta
                         </span>
                       )}
                       {!line.item_id && (

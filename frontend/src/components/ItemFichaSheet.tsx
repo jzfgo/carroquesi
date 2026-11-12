@@ -1,7 +1,7 @@
 import { ChevronRight, RotateCcw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getPriceHistory } from '../lib/api'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatAmount } from '../lib/formatPrice'
 import { formatChartDate, PriceBand } from '../lib/priceChart'
 import { normalizeEntries } from '../lib/priceNormalization'
 import { buildRastroSegments } from '../lib/rastro'
@@ -109,7 +109,7 @@ function LastPriceBlock({
       <span className="ficha__last-figures">
         <span className="ficha__eyebrow">Último precio</span>
         <span className="ficha__last-amount">
-          € {formatRowAmount(latest.amount)}
+          {formatAmount(latest.amount)}
           <span className="ficha__last-unit">{unitSuffix}</span>
         </span>
         {sub && <span className="ficha__last-sub">{sub}</span>}

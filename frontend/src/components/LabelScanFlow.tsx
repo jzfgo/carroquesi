@@ -2,7 +2,7 @@ import { Check, CircleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { getLabel } from '../lib/api'
 import { isOnline } from '../lib/connectivity'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatAmount } from '../lib/formatPrice'
 import { labelAgrees, labelPricePerKg, labelTotal } from '../lib/weighedLabel'
 import type { LabelRead } from '../types'
 import './LabelScanFlow.css'
@@ -157,9 +157,7 @@ export function LabelScanFlow({
             <>
               {' '}
               · línea del ticket{' '}
-              <span className="label-read__num">
-                {formatRowAmount(lineTotal)}
-              </span>
+              <span className="label-read__num">{formatAmount(lineTotal)}</span>
             </>
           )}
         </p>
@@ -175,16 +173,15 @@ export function LabelScanFlow({
             </span>
           </div>
           <div className="label-figs__cell">
-            <span className="label-figs__cap">Precio</span>
+            <span className="label-figs__cap">Precio / kg</span>
             <span className="label-figs__fig">
-              {formatRowAmount(labelPricePerKg(label))}
-              <small>/kg</small>
+              {formatAmount(labelPricePerKg(label))}
             </span>
           </div>
           <div className="label-figs__cell">
             <span className="label-figs__cap">Total</span>
             <span className="label-figs__fig">
-              {formatRowAmount(labelTotal(label))}
+              {formatAmount(labelTotal(label))}
             </span>
           </div>
         </div>
@@ -197,11 +194,11 @@ export function LabelScanFlow({
                 <span>
                   La etiqueta dice{' '}
                   <span className="label-read__num label-read__num--strong">
-                    {formatRowAmount(labelTotal(label))}
+                    {formatAmount(labelTotal(label))}
                   </span>{' '}
                   y esta línea{' '}
                   <span className="label-read__num label-read__num--strong">
-                    {formatRowAmount(lineTotal!)}
+                    {formatAmount(lineTotal!)}
                   </span>
                   . Puede que sea otro artículo.
                 </span>

@@ -69,7 +69,7 @@ describe('LabelScanner', () => {
     )
     expect(screen.getByText('Etiqueta para')).toBeInTheDocument()
     expect(screen.getByText('Pechuga de pollo')).toBeInTheDocument()
-    expect(screen.getByText('5,72')).toBeInTheDocument()
+    expect(screen.getByText('5,72 €')).toBeInTheDocument()
     expect(
       screen.getByText('Apunta al código de barras de la etiqueta'),
     ).toBeInTheDocument()

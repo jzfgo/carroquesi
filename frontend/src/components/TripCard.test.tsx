@@ -53,7 +53,7 @@ test('folded closed trip shows store · date, the total and a down-chevron', () 
     `${trip.store} · ${tripDateLabel(trip.opened_at, false)}`,
   )
   expect(label).toBeInTheDocument()
-  expect(screen.getByText('€ 8,13')).toBeInTheDocument()
+  expect(screen.getByText('8,13 €')).toBeInTheDocument()
   // The line count is not shown — the total is the glance that matters.
   expect(screen.queryByText(/líneas?/)).not.toBeInTheDocument()
   expect(container.querySelector('.trip-card__chevron')).toBeInTheDocument()
@@ -67,7 +67,7 @@ test('an empty closed record (no lines) shows the total but no chevron — nothi
   const { container } = render(
     <TripCard trip={trip} defaultExpanded loadItems={loadItems} />,
   )
-  expect(screen.getByText('€ 41,60')).toBeInTheDocument()
+  expect(screen.getByText('41,60 €')).toBeInTheDocument()
   // Total-only: no expand affordance and no fetch, even opened as the latest.
   expect(container.querySelector('.trip-card__chevron')).not.toBeInTheDocument()
   expect(container.querySelector('.trip-card__toggle')).not.toBeInTheDocument()
@@ -97,7 +97,7 @@ test('a folded proto shows the compact seal badge, not the full «Cerrar compra�
 test('a folded proto with priced lines shows both the provisional «≈ total» and the seal badge', () => {
   const trip = makeTrip({ closed_at: null, total: null, items_total: 12.4 })
   render(<TripCard trip={trip} loadItems={noItems} />)
-  expect(screen.getByText(/≈\s*€\s*12,40/)).toBeInTheDocument()
+  expect(screen.getByText(/≈\s*12,40\s*€/)).toBeInTheDocument()
   // The seal marks every open purchase, priced or not — it sits beside the total.
   expect(screen.getByLabelText('Sin cerrar')).toBeInTheDocument()
 })
@@ -159,7 +159,7 @@ test('search mode is force-expanded, shows only the matching lines and «N de M�
   // «N de M»: 1 matched of the trip's 9 lines.
   expect(screen.getByText('1 de 9')).toBeInTheDocument()
   // The total, seal and toggle chevron all yield the slot.
-  expect(screen.queryByText('€ 8,13')).not.toBeInTheDocument()
+  expect(screen.queryByText('8,13 €')).not.toBeInTheDocument()
   expect(container.querySelector('.trip-card__chevron')).not.toBeInTheDocument()
 })
 

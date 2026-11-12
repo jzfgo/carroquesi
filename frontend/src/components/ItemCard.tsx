@@ -1,6 +1,6 @@
 import { Check, ChevronRight, RotateCcw, ShoppingCart } from 'lucide-react'
 import { useOnline } from '../hooks/useOnline'
-import { formatRowAmount } from '../lib/formatPrice'
+import { formatAmount, formatUnitPrice } from '../lib/formatPrice'
 import { formatQuantity, formatQuantityColumn } from '../lib/formatQuantity'
 import { isTripOpen } from '../lib/isTripOpen'
 import { parseQuantityFactor } from '../lib/itemCost'
@@ -126,7 +126,7 @@ export function ItemCard({
             price exists — a pending row would be guessing, and an in-cart
             figure is not yet confirmed (the Confirmed-Price Rule). The big
             figure is what the line actually cost; the unit price drops to
-            the small line beneath (21b: «5,34» over «0,89/UD»). With no
+            the small line beneath (21b: «5,34 €» over «0,89 €/UD»). With no
             computable factor the unit price is the only figure there is,
             so it takes the total's place, suffixed. */}
         {bought &&
@@ -134,19 +134,17 @@ export function ItemCard({
           (() => {
             const price = item.price
             const factor = parseQuantityFactor(displayQty, item.price_per)
-            const per = item.price_per === 'KILOGRAM' ? '/KG' : '/UD'
             const total = factor != null ? price * factor : null
             return (
               <span className="item-card__amount">
                 <span className="item-card__amount-total">
                   {total != null
-                    ? formatRowAmount(total)
-                    : `${formatRowAmount(price)}${per}`}
+                    ? formatAmount(total)
+                    : formatUnitPrice(price, item.price_per, true)}
                 </span>
                 {total != null && factor !== 1 && (
                   <span className="item-card__amount-unit">
-                    {formatRowAmount(price)}
-                    {per}
+                    {formatUnitPrice(price, item.price_per, true)}
                   </span>
                 )}
               </span>
