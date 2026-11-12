@@ -2244,3 +2244,13 @@ def test_apply_clears_a_reduced_mark_when_the_patch_says_not_reduced(client, ses
     session.expire_all()
     row = session.get_one(ListItem, "item-settled-priced")
     assert (row.price_reduced, row.price_before) == (False, None)
+
+
+def test_an_ordinary_apply_clears_a_reduced_mark_left_from_an_undone_close(client, session):
+    """An un-purchase keeps the price fields, so a pending line can carry a stale mark."""
+    _mark_reduced(session, "item-almendras", 3.10)
+    assert _apply(client, patches=[_price_patch("item-almendras", 2.75)]).status_code == 200
+
+    session.expire_all()
+    row = session.get_one(ListItem, "item-almendras")
+    assert (row.price, row.price_reduced, row.price_before) == (2.75, False, None)

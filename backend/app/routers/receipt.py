@@ -452,8 +452,10 @@ def apply_receipt_prices(
         if target is None and item.id not in eligible_ids:
             skipped += 1
             continue
-        if patch.reduced is not None:
-            item.price_reduced = patch.reduced
+        if patch.reduced is not None or target is None:
+            # Only a targeted apply re-prices closed lines; anything stored on
+            # a pending or open-cart line is left over from an undone close.
+            item.price_reduced = bool(patch.reduced)
             item.price_before = patch.price_before
         elif item.price_before is not None and (
             patch.price_per != item.price_per or item.price_before <= patch.price
