@@ -17,6 +17,8 @@ const history: PriceHistoryResponse = {
     {
       amount: 0.89,
       is_sin_precio: false,
+      reduced: false,
+      price_before: null,
       price_per: null,
       purchased_at: '2026-07-22T10:00:00Z',
       quantity: '6 ud',

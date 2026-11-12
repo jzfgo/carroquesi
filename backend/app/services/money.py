@@ -40,3 +40,27 @@ def reject_bad_price(price: float | None, price_per: str | None, where: str) -> 
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"{where}.price_per requires {where}.price",
         )
+
+
+def reject_bad_reduction(
+    price: float | None, reduced: bool, price_before: float | None, where: str
+) -> None:
+    """A price from a reduced label, and what it cost before.
+
+    The old price is copied by hand from the label under the sticker, so a
+    typo is likely. It must be higher than the price paid, in the same basis
+    (€/kg on a weighed line), and it only exists next to a reduced price.
+    """
+    if price_before is None:
+        return
+    reject_bad_amount(price_before, f"{where}.price_before")
+    if not reduced or price is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"{where}.price_before requires a reduced {where}.price",
+        )
+    if price_before <= price:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"{where}.price_before must be higher than {where}.price",
+        )

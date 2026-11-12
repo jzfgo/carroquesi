@@ -1220,6 +1220,8 @@ export interface components {
             name: string;
             /** Price */
             price: number | null;
+            /** Price Before */
+            price_before?: number | null;
             /** Price Per */
             price_per: "KILOGRAM" | null;
             /** Price Store */
@@ -1427,10 +1429,17 @@ export interface components {
             name: string;
             /** Price */
             price: number;
+            /** Price Before */
+            price_before?: number | null;
             /** Price Per */
             price_per?: "KILOGRAM" | null;
             /** Quantity */
             quantity?: string | null;
+            /**
+             * Reduced
+             * @default false
+             */
+            reduced: boolean;
             /** Store */
             store?: string | null;
         };
@@ -1473,12 +1482,19 @@ export interface components {
              * @default false
              */
             is_sin_precio: boolean;
+            /** Price Before */
+            price_before?: number | null;
             /** Price Per */
             price_per: "KILOGRAM" | null;
             /** Purchased At */
             purchased_at?: string | null;
             /** Quantity */
             quantity?: string | null;
+            /**
+             * Reduced
+             * @default false
+             */
+            reduced: boolean;
             /** Store */
             store: string | null;
         };
@@ -1495,10 +1511,17 @@ export interface components {
             item_id: string;
             /** Price */
             price: number;
+            /** Price Before */
+            price_before?: number | null;
             /** Price Per */
             price_per?: "KILOGRAM" | null;
             /** Quantity */
             quantity?: string | null;
+            /**
+             * Reduced
+             * @default false
+             */
+            reduced: boolean;
             /** Store */
             store?: string | null;
         };
@@ -1537,10 +1560,17 @@ export interface components {
             name?: string | null;
             /** Price */
             price?: number | null;
+            /** Price Before */
+            price_before?: number | null;
             /** Price Per */
             price_per?: "KILOGRAM" | null;
             /** Quantity */
             quantity?: string | null;
+            /**
+             * Reduced
+             * @default false
+             */
+            reduced: boolean;
         };
         /**
          * PurchaseManualBody
@@ -1579,10 +1609,17 @@ export interface components {
             name: string;
             /** Price */
             price?: number | null;
+            /** Price Before */
+            price_before?: number | null;
             /** Price Per */
             price_per?: "KILOGRAM" | null;
             /** Quantity */
             quantity?: string | null;
+            /**
+             * Reduced
+             * @default false
+             */
+            reduced: boolean;
         };
         /** PurchasePage */
         PurchasePage: {

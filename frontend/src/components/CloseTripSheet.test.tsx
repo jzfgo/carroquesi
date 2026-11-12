@@ -248,6 +248,8 @@ test('«Confirmar los precios sugeridos» applies the inherited price', async ()
         purchased_at: '2026-07-01T09:00:00',
         quantity: '1',
         is_sin_precio: false,
+        reduced: false,
+        price_before: null,
       },
     ],
   })

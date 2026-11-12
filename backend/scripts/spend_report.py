@@ -30,6 +30,7 @@ from app.services.insights.schemas import (
     ByStore,
     Cadence,
     CheaperElsewhere,
+    Markdowns,
     SavingsThresholds,
     SpendReport,
     TopProducts,
@@ -104,6 +105,11 @@ def _print(report: SpendReport, list_name: str) -> None:
                         f"el {s.cheaper_seen_at:%d/%m}  →  {_eur(s.monthly_eur)}/mes"
                         f" ({s.saving_pct:.0%})"
                     )
+            case Markdowns():
+                print(
+                    f"Precios bajados: {insight.lines} líneas, {_eur(insight.paid)} pagado, "
+                    f"{_eur(insight.before)} antes  →  {_eur(insight.saved)} menos"
+                )
     if clauses := coverage_clauses(report.coverage):
         print(f"\nCobertura: {' · '.join(clauses)}.")
     if report.coverage.tripless_lines:

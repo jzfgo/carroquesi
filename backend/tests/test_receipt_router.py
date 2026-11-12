@@ -2178,3 +2178,20 @@ def test_apply_at_an_unclaimed_store_saves_the_line_without_a_mapping(client, se
 def test_article_must_be_digits(client):
     patch = {**_price_patch("item-almendras", 1.15), "article": "03a05"}
     assert _apply(client, patches=[patch]).status_code == 422
+
+
+def test_apply_stores_a_reduced_price_and_what_it_cost_before(client, session):
+    patch = {**_price_patch("item-almendras", 1.15), "reduced": True, "price_before": 1.45}
+    assert _apply(client, patches=[patch]).status_code == 200
+
+    row = session.get_one(ListItem, "item-almendras")
+    session.refresh(row)
+    assert (row.price, row.price_reduced, row.price_before) == (1.15, True, 1.45)
+
+
+def test_apply_refuses_an_old_price_no_higher_than_the_price_paid(client, session):
+    patch = {**_price_patch("item-almendras", 1.15), "reduced": True, "price_before": 1.15}
+    response = _apply(client, patches=[patch])
+
+    assert response.status_code == 422
+    assert "price_before must be higher" in response.json()["detail"]

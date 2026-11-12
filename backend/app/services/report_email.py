@@ -20,6 +20,7 @@ from app.services.insights.schemas import (
     ByStore,
     CheaperElsewhere,
     Coverage,
+    Markdowns,
     ProductMoves,
     ProductSpend,
     SpendReport,
@@ -277,6 +278,17 @@ def habit(top: TopProducts, totals: Totals) -> str | None:
     return f"{start}: {detail}, {of_spend} del gasto de la lista."
 
 
+def markdowns_sentence(m: Markdowns) -> str | None:
+    """Only lines with an old price count; with none, the block hides."""
+    if m.lines == 0:
+        return None
+    items = _count(m.lines, "artículo", "artículos")
+    cost = _plural(m.lines, "costaba", "costaban")
+    return (
+        f"Pagaste {eur(m.paid)} por {items} que antes {cost} {eur(m.before)}: {eur(m.saved)} menos."
+    )
+
+
 def coverage_clauses(cov: Coverage) -> list[str]:
     """The footer's honesty line, as clauses each surface joins its own way.
 
@@ -456,12 +468,14 @@ def report_view(report: SpendReport, list_name: str) -> dict:
     moves = insights["product_moves"]
     requesters = insights["by_requester"]
     savings = insights["cheaper_elsewhere"]
+    marked_down = insights["markdowns"]
     assert isinstance(totals, Totals)
     assert isinstance(by_store, ByStore)
     assert isinstance(top, TopProducts)
     assert isinstance(moves, ProductMoves)
     assert isinstance(requesters, ByRequester)
     assert isinstance(savings, CheaperElsewhere)
+    assert isinstance(marked_down, Markdowns)
     period = report.period
     empty = totals.trips == 0
     # Without a baseline the email keeps the headline, the lede, the top
@@ -528,6 +542,7 @@ def report_view(report: SpendReport, list_name: str) -> dict:
         "people": people,
         "top": [_top_row(p) for p in top.products[:TOP_PRODUCTS]],
         "habit": habit(top, totals) if compared else None,
+        "markdowns": markdowns_sentence(marked_down),
         "savings": _savings(savings),
         "savings_rule": shown_rule,
         "savings_empty": empty_rule,

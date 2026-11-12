@@ -168,8 +168,26 @@ class CheaperElsewhere(_Record):
     thresholds: SavingsThresholds
 
 
+class Markdowns(_Record):
+    """The month's reduced prices whose old price someone wrote down. A
+    reduced price with no old price is left out: nothing says what it saved."""
+
+    type: Literal["markdowns"] = "markdowns"
+    lines: int
+    paid: float
+    before: float
+    saved: float
+
+
 Insight = Annotated[
-    Totals | ByStore | TopProducts | ProductMoves | ByRequester | Cadence | CheaperElsewhere,
+    Totals
+    | ByStore
+    | TopProducts
+    | ProductMoves
+    | ByRequester
+    | Cadence
+    | CheaperElsewhere
+    | Markdowns,
     Field(discriminator="type"),
 ]
 

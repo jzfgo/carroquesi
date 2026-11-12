@@ -90,6 +90,17 @@ class ListItem(SQLModel, table=True):
     price: float | None = Field(default=None)
     price_per: str | None = Field(default=None)
     price_store: str | None = Field(default=None)
+    # The price came from a reduced label. Internal only: one chain's label
+    # says so, and no screen may depend on one chain. A reduced price stays
+    # out of every comparison and suggestion; it is what was paid, once.
+    price_reduced: bool = Field(
+        default=False, sa_column=Column(Boolean, nullable=False, server_default=text("0"))
+    )
+    # What the reduced label's product cost before, in the basis of `price`
+    # (€/kg on a weighed line), when someone copied it from the old label.
+    # Never inferred from an earlier purchase: list prices move. Always
+    # higher than `price`; NULL means unknown.
+    price_before: float | None = Field(default=None)
     # The trip this was bought on — not another "purchased_*" attribute of the
     # item. NULL means unpurchased, which is most rows; the invariant
     # "purchased => purchase_id set" is enforced in-app, the way

@@ -373,6 +373,8 @@ export function CloseTripSheet({
           name: l.name,
           brand: l.brand,
           article: l.label?.article ?? null,
+          // A reduced label's price arrives with the label sheet's old-price field.
+          reduced: false,
         })),
         new_items: included
           .filter((l) => !l.item_id)
@@ -383,6 +385,7 @@ export function CloseTripSheet({
             price: l.price,
             price_per: l.price_per,
             article: l.label?.article ?? null,
+            reduced: false,
           })),
       }
       await closePurchase(getToken, listId, body)

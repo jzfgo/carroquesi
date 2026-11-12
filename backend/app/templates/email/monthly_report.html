@@ -184,6 +184,17 @@
               </table>
               {% endif %}
 
+              {% if markdowns %}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0;">
+                <tr>
+                  <td class="tile" style="background:#e3e7ed;border-radius:4px;padding:16px 18px;">
+                    <span class="ink1" style="font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#353742;">Precios bajados</span>
+                    <p class="ink0" style="margin:4px 0 0;font-size:16px;line-height:1.5;color:#15161b;">{{ markdowns }}</p>
+                  </td>
+                </tr>
+              </table>
+              {% endif %}
+
               {% if not empty %}
               <div style="margin:32px 0 0;">
                 {{ h2("Para ahorrar") }}

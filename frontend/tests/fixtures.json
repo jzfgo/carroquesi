@@ -74,6 +74,7 @@
         "price": 0.65,
         "price_per": null,
         "price_store": "Mercadona",
+        "price_before": null,
         "added_by": "seed-user-alice",
         "created_at": "2026-06-01T00:00:00Z",
         "updated_at": "2026-06-23T10:00:00Z"
@@ -97,6 +98,7 @@
         "price": null,
         "price_per": null,
         "price_store": null,
+        "price_before": null,
         "added_by": "seed-user-alice",
         "created_at": "2026-06-01T00:00:00Z",
         "updated_at": "2026-06-23T10:00:00Z"
@@ -120,6 +122,7 @@
         "price": null,
         "price_per": null,
         "price_store": null,
+        "price_before": null,
         "added_by": "seed-user-alice",
         "created_at": "2026-07-10T09:00:00Z",
         "updated_at": "2026-07-10T09:00:00Z"
@@ -143,6 +146,7 @@
         "price": 2.1,
         "price_per": null,
         "price_store": "Mercadona",
+        "price_before": null,
         "added_by": "seed-user-alice",
         "created_at": "2026-07-10T09:00:00Z",
         "updated_at": "2026-07-10T09:00:00Z"
@@ -168,6 +172,7 @@
         "price": null,
         "price_per": null,
         "price_store": null,
+        "price_before": null,
         "added_by": "seed-user-alice",
         "created_at": "2026-06-01T00:00:00Z",
         "updated_at": "2026-06-23T10:00:00Z"
@@ -287,6 +292,7 @@
     "price": null,
     "price_per": null,
     "price_store": null,
+    "price_before": null,
     "added_by": "seed-user-alice",
     "created_at": "2026-06-23T10:00:00Z",
     "updated_at": "2026-06-23T10:00:00Z"
@@ -310,6 +316,7 @@
     "price": 1.0,
     "price_per": null,
     "price_store": "Mercadona",
+    "price_before": null,
     "added_by": "seed-user-alice",
     "created_at": "2026-06-23T10:00:00Z",
     "updated_at": "2026-06-23T10:00:00Z"
@@ -320,7 +327,9 @@
     "store": "Mercadona",
     "purchased_at": null,
     "quantity": null,
-    "is_sin_precio": false
+    "is_sin_precio": false,
+    "reduced": false,
+    "price_before": null
   },
   "SEED_PRICE_HISTORY": {
     "entries": []
