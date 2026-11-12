@@ -178,3 +178,117 @@
   font-weight: 500;
   cursor: pointer;
 }
+
+.label-read__primary:disabled,
+.label-read__secondary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* A reduced label's optional old price (frames Rebajada, Pareja and
+   Rechazada, JAV-226). */
+.label-before {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.label-before__text {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-13);
+  line-height: 1.45;
+  color: var(--ink-1);
+}
+
+.label-before__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label-before__label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-1);
+}
+
+.label-before__optional {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-2);
+}
+
+.label-before__input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--r-md);
+  background: var(--paper-1);
+  box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+.label-before__input--refused {
+  border: 1.5px solid var(--ink-1);
+}
+
+.label-before__input input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  color: var(--ink-0);
+  text-align: right;
+}
+
+.label-before__refused {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink-1);
+}
+
+.label-before__refused svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.label-before__figs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.label-before__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label-before__fig {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-0);
+}

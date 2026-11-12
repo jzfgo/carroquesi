@@ -1,4 +1,4 @@
-import { Check, ChevronRight, RotateCcw, ShoppingCart } from 'lucide-react'
+import { Check, ChevronRight, RotateCcw, ShoppingCart, Tag } from 'lucide-react'
 import { useOnline } from '../hooks/useOnline'
 import { formatAmount, formatUnitPrice } from '../lib/formatPrice'
 import { formatQuantity, formatQuantityColumn } from '../lib/formatQuantity'
@@ -138,6 +138,17 @@ export function ItemCard({
             return (
               <span className="item-card__amount">
                 <span className="item-card__amount-total">
+                  {/* A known old price earns a tag in ink, no figures: the
+                      old price and the saving live in the ficha. */}
+                  {item.price_before != null && (
+                    <Tag
+                      size={15}
+                      strokeWidth={2.2}
+                      className="item-card__reduced"
+                      role="img"
+                      aria-label="Precio bajado"
+                    />
+                  )}
                   {total != null
                     ? formatAmount(total)
                     : formatUnitPrice(price, item.price_per, true)}

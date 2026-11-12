@@ -95,7 +95,9 @@ function entryPrice(entry: ChartEntry): string {
 }
 
 function ExpandedStore({ group }: { group: StoreGroup }) {
-  const { min, max, latest, displayPricePer } = priceStats(group.priced)
+  const { min, max, latest, displayPricePer, hasReduced } = priceStats(
+    group.priced,
+  )
   const pricedForCurve = group.priced.filter((r) => r.displayAmount !== null)
 
   return (
@@ -149,7 +151,29 @@ function ExpandedStore({ group }: { group: StoreGroup }) {
               <span className="phb__record-sin">sin precio</span>
             ) : (
               <span className="phb__record-amount">
-                <span className="phb__record-figure">
+                {record.entry.originalBefore !== null && (
+                  <span className="phb__record-before">
+                    antes{' '}
+                    {formatUnitPrice(
+                      record.entry.originalBefore,
+                      record.entry.originalPricePer,
+                    )}
+                  </span>
+                )}
+                {record.entry.reduced && (
+                  <span
+                    className="phb__hollow"
+                    role="img"
+                    aria-label="Precio bajado"
+                  />
+                )}
+                <span
+                  className={
+                    record.entry.reduced
+                      ? 'phb__record-figure phb__record-figure--reduced'
+                      : 'phb__record-figure'
+                  }
+                >
                   {formatUnitPrice(
                     record.entry.originalAmount,
                     record.entry.originalPricePer,
@@ -168,6 +192,14 @@ function ExpandedStore({ group }: { group: StoreGroup }) {
           </div>
         )
       })}
+      {/* The minimum can sit above the last price, so a hollow point is
+          explained wherever one shows. */}
+      {hasReduced && (
+        <p className="phb__note">
+          <span className="phb__hollow" aria-hidden />
+          Precio bajado: no cuenta para el mínimo ni para la curva.
+        </p>
+      )}
     </div>
   )
 }

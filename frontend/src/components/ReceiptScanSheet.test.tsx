@@ -1026,6 +1026,34 @@ describe('ReceiptScanSheet — weighed label', () => {
       article: '01234',
     })
     expect(patches.find((p) => p.item_id === 'item-2')?.article).toBeNull()
+    // A label read here speaks for the line; without one the patch says
+    // nothing, so a line closed with a reduced label keeps its mark.
+    expect(patches.find((p) => p.item_id === 'item-1')).toMatchObject({
+      reduced: false,
+      price_before: null,
+    })
+    expect(patches.find((p) => p.item_id === 'item-2')).not.toHaveProperty(
+      'reduced',
+    )
+  })
+
+  it('a reduced label marks the patch and sends the old €/kg', async () => {
+    vi.mocked(getLabel).mockResolvedValue({ ...LABEL, reduced: true })
+    const { onConfirm } = renderSheet()
+    fireEvent.click(chip('BEBIDA ALMENDRAS 0%')!)
+    fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+    fireEvent.change(await screen.findByLabelText('Precio anterior'), {
+      target: { value: '1,50' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Usar en esta línea' }))
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    const patch = patches.find((p) => p.item_id === 'item-1')!
+    expect(patch.reduced).toBe(true)
+    expect(patch.price_before).toBeCloseTo(1.5 / 0.346, 6)
   })
 
   it('a label used despite a mismatch keeps the paper amount', async () => {

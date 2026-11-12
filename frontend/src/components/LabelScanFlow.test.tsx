@@ -111,7 +111,104 @@ describe('LabelScanFlow', () => {
     await userEvent.click(
       screen.getByRole('button', { name: 'Usar en esta línea' }),
     )
-    expect(props.onUse).toHaveBeenCalledWith({ code: CODE, label: POLLO })
+    expect(props.onUse).toHaveBeenCalledWith({
+      code: CODE,
+      label: POLLO,
+      priceBefore: null,
+    })
+    expect(screen.queryByLabelText('Precio anterior')).not.toBeInTheDocument()
+  })
+
+  describe('a reduced label', () => {
+    // The frames' «Contramuslo deshuesado»: 346 g at 8,82 €/kg is 3,05.
+    const CONTRAMUSLO: LabelRead = {
+      ...POLLO,
+      reduced: true,
+      weight_g: 346,
+      price_per_kg_cents: 882,
+      total_cents: 305,
+    }
+
+    function setupReduced() {
+      vi.mocked(getLabel).mockResolvedValue(CONTRAMUSLO)
+      return setup({ lineName: 'Contramuslo deshuesado', lineTotal: null })
+    }
+
+    it('offers an optional old price, and keeps what was paid without one', async () => {
+      const props = setupReduced()
+      await read()
+      expect(await screen.findByLabelText('Precio anterior')).toHaveValue('')
+      expect(
+        screen.getByText(
+          'Sin precio anterior, la línea guarda lo que pagaste.',
+        ),
+      ).toBeInTheDocument()
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Usar en esta línea' }),
+      )
+      expect(props.onUse).toHaveBeenCalledWith({
+        code: CODE,
+        label: CONTRAMUSLO,
+        priceBefore: null,
+      })
+    })
+
+    it('shows the saving at once and stores the old €/kg', async () => {
+      const props = setupReduced()
+      await read()
+      await userEvent.type(
+        await screen.findByLabelText('Precio anterior'),
+        '4,36',
+      )
+      // The matchers fold the figures' no-break space, so they match on \s.
+      expect(screen.getByText(/^12,60\s€$/)).toBeInTheDocument()
+      expect(screen.getByText(/^1,31\s€$/)).toBeInTheDocument()
+      expect(screen.getByText(/^un 30\s%$/)).toBeInTheDocument()
+      expect(
+        screen.queryByText(
+          'Sin precio anterior, la línea guarda lo que pagaste.',
+        ),
+      ).not.toBeInTheDocument()
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Usar en esta línea' }),
+      )
+      const used = vi.mocked(props.onUse).mock.calls[0][0]
+      expect(used.priceBefore).toBeCloseTo(4.36 / 0.346, 6)
+    })
+
+    it('refuses an old price that is not above what was paid', async () => {
+      const props = setupReduced()
+      await read()
+      const field = await screen.findByLabelText('Precio anterior')
+      await userEvent.type(field, '2,90')
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        /^Es menos de lo que pagaste \(3,05\s€\)\. Revisa la cifra o déjalo vacío\.$/,
+      )
+      const use = screen.getByRole('button', { name: 'Usar en esta línea' })
+      expect(use).toBeDisabled()
+      // The same figure as paid is no reduction either.
+      await userEvent.clear(field)
+      await userEvent.type(field, '3,05')
+      expect(use).toBeDisabled()
+      // Clearing the field frees the save.
+      await userEvent.clear(field)
+      expect(use).toBeEnabled()
+      await userEvent.click(use)
+      expect(props.onUse).toHaveBeenCalledWith(
+        expect.objectContaining({ priceBefore: null }),
+      )
+    })
+
+    it('with a receipt, compares against the receipt amount', async () => {
+      vi.mocked(getLabel).mockResolvedValue(CONTRAMUSLO)
+      setup({ lineName: 'Contramuslo deshuesado', lineTotal: 3.4 })
+      await read()
+      await userEvent.type(
+        await screen.findByLabelText('Precio anterior'),
+        '3,30',
+      )
+      expect(screen.getByRole('alert')).toHaveTextContent(/\(3,40\s€\)/)
+    })
   })
 
   it('a label whose total differs is the user to judge', async () => {

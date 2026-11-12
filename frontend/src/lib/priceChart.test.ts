@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { bandGeometry } from './priceChart'
+import { bandGeometry, priceStats } from './priceChart'
 import type { ChartEntry } from './priceNormalization'
 
 // A priced point for one store on one day. ISO strings carry an explicit Z so
@@ -17,6 +17,8 @@ function point(
     purchased_at: `2026-07-${day}T10:00:00Z`,
     originalAmount: v ?? 0,
     originalPricePer: 'KILOGRAM',
+    reduced: false,
+    originalBefore: null,
   }
 }
 
@@ -118,6 +120,38 @@ test('gap records without a plottable price are excluded from the geometry', () 
     PAD,
   )
   expect(g.validCount).toBe(2)
+})
+
+test('a reduced price is a hollow point, off the line and out of the band', () => {
+  const g = bandGeometry(
+    [
+      point(12.6, 'Mercadona', '01'),
+      { ...point(8.82, 'Mercadona', '05'), reduced: true },
+      point(12.6, 'Mercadona', '10'),
+    ],
+    W,
+    H,
+    PAD,
+  )
+  expect(g.hollow).toHaveLength(1)
+  // The two full prices still form one line, joined across the hollow one.
+  expect(countMoves(g.avgPathD)).toBe(1)
+  expect(g.dots).toHaveLength(0)
+  // The scale spans the hollow point, so it sits below the line, in frame.
+  expect(g.hollow[0].y).toBeGreaterThan(H / 2)
+  expect(g.hollow[0].y).toBeLessThanOrEqual(H - PAD)
+})
+
+test('the minimum and maximum skip a reduced price; the latest does not', () => {
+  const s = priceStats([
+    { ...point(8.82, 'Mercadona', '10'), reduced: true },
+    point(12.6, 'Mercadona', '05'),
+    point(11.95, 'Mercadona', '01'),
+  ])
+  expect(s.min).toBe(11.95)
+  expect(s.max).toBe(12.6)
+  expect(s.latest?.displayAmount).toBe(8.82)
+  expect(s.hasReduced).toBe(true)
 })
 
 test('spelling variants of one store stay a single line, not two', () => {

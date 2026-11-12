@@ -7,6 +7,8 @@ import {
   labelPricePerKg,
   labelQuantity,
   labelTotal,
+  readPriceBefore,
+  reductionFields,
   showsWeightChip,
 } from './weighedLabel'
 
@@ -117,5 +119,60 @@ describe('labelCode', () => {
     expect(labelCode('https://example.com/x')).toBeNull()
     expect(labelCode('123')).toBeNull()
     expect(labelCode('2300350503206001550049721')).toBeNull()
+  })
+})
+
+describe('readPriceBefore', () => {
+  test('a blank field is no old price', () => {
+    expect(readPriceBefore('  ', 3.05)).toBeNull()
+  })
+
+  test('an old price above what was paid is valid', () => {
+    expect(readPriceBefore('4,36', 3.05)).toEqual({ total: 4.36, valid: true })
+  })
+
+  test('the same figure or less is refused, to the cent', () => {
+    expect(readPriceBefore('3,05', 3.05)?.valid).toBe(false)
+    expect(readPriceBefore('2,90', 3.05)?.valid).toBe(false)
+    expect(readPriceBefore('3,06', 3.05)?.valid).toBe(true)
+  })
+
+  test('a figure that cannot be read is refused', () => {
+    expect(readPriceBefore('abc', 3.05)?.valid).toBe(false)
+  })
+})
+
+describe('reductionFields', () => {
+  const reduced = {
+    code: '1',
+    article: '01234',
+    reduced: true,
+    priceBefore: 12.6,
+  }
+
+  test('a reduced label sends its mark and its old price', () => {
+    expect(reductionFields(reduced, 8.82, 'KILOGRAM')).toEqual({
+      reduced: true,
+      price_before: 12.6,
+    })
+  })
+
+  test('a plain label sends no mark', () => {
+    expect(
+      reductionFields(
+        { ...reduced, reduced: false, priceBefore: null },
+        8.82,
+        'KILOGRAM',
+      ),
+    ).toEqual({ reduced: false, price_before: null })
+  })
+
+  test('an edit after the scan drops an old price the line no longer sits below', () => {
+    expect(reductionFields(reduced, 13, 'KILOGRAM')).toEqual({
+      reduced: true,
+      price_before: null,
+    })
+    expect(reductionFields(reduced, null, 'KILOGRAM').price_before).toBeNull()
+    expect(reductionFields(reduced, 3.05, null).price_before).toBeNull()
   })
 })

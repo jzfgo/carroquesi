@@ -272,6 +272,31 @@ test('a per-kg record totals by weight with the unit price per KG', () => {
   )
 })
 
+test('a known old price puts a tag before the amount, and no figures', () => {
+  const item = {
+    ...BOUGHT_ITEM,
+    price: 8.82,
+    price_per: 'KILOGRAM' as const,
+    price_before: 12.6,
+    purchased_quantity: '0,346 kg',
+  }
+  const { container } = renderCard(item)
+  const total = container.querySelector('.item-card__amount-total')!
+  expect(screen.getByRole('img', { name: 'Precio bajado' })).toBeInTheDocument()
+  expect(total).toContainElement(
+    screen.getByRole('img', { name: 'Precio bajado' }),
+  )
+  expect(total).toHaveTextContent(/^3,05 €$/)
+  expect(container).not.toHaveTextContent('12,60')
+})
+
+test('a record without an old price carries no tag', () => {
+  renderCard(BOUGHT_ITEM)
+  expect(
+    screen.queryByRole('img', { name: 'Precio bajado' }),
+  ).not.toBeInTheDocument()
+})
+
 test('a per-kg price with no weight shows the unit price, suffixed', () => {
   const item = {
     ...BOUGHT_ITEM,

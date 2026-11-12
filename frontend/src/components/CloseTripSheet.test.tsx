@@ -333,6 +333,75 @@ test('a scanned label sets the line: weight, €/kg and amount', async () => {
   })
 })
 
+test('a reduced label closes the line as reduced, with the old price typed', async () => {
+  vi.mocked(getLabel).mockResolvedValue({ ...LABEL, reduced: true })
+  renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '1' })])
+  fireEvent.click(chip('Contramuslo')!)
+  fireEvent.click(screen.getByRole('button', { name: 'leer etiqueta' }))
+  fireEvent.change(await screen.findByLabelText('Precio anterior'), {
+    target: { value: '4,36' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Usar en esta línea' }))
+
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
+  await waitFor(() => expect(closePurchase).toHaveBeenCalled())
+  const line = vi.mocked(closePurchase).mock.calls.at(-1)![2].lines[0]
+  expect(line.price).toBe(8.82)
+  expect(line.reduced).toBe(true)
+  expect(line.price_before).toBeCloseTo(4.36 / 0.346, 6)
+})
+
+test('a line with no reduced label closes as not reduced', async () => {
+  vi.mocked(getLabel).mockResolvedValue(LABEL)
+  renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '1' })])
+  fireEvent.click(chip('Contramuslo')!)
+  await scanAndUse()
+  fireEvent.click(screen.getByRole('button', { name: /^Guardar compra/ }))
+  await waitFor(() => expect(closePurchase).toHaveBeenCalled())
+  expect(vi.mocked(closePurchase).mock.calls.at(-1)![2].lines[0]).toMatchObject(
+    { reduced: false, price_before: null },
+  )
+})
+
+test('a reduced price is never suggested again', async () => {
+  vi.mocked(getPriceHistory).mockResolvedValue({
+    entries: [
+      {
+        amount: 1.9,
+        price_per: null,
+        store: 'Mercadona',
+        purchased_at: '2026-07-08T09:00:00',
+        quantity: '1',
+        is_sin_precio: false,
+        reduced: true,
+        price_before: null,
+      },
+      {
+        amount: 2.5,
+        price_per: null,
+        store: 'Mercadona',
+        purchased_at: '2026-07-01T09:00:00',
+        quantity: '1',
+        is_sin_precio: false,
+        reduced: false,
+        price_before: null,
+      },
+    ],
+  })
+  renderSheet([item({ id: 'a', name: 'Leche', price: null, quantity: '1' })])
+  await waitFor(() =>
+    expect(
+      screen.getByText(/Confirmar el precio sugerido/),
+    ).toBeInTheDocument(),
+  )
+  fireEvent.click(screen.getByText(/Confirmar el precio sugerido/))
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: /Guardar compra · 2,50\s€/ }),
+    ).toBeInTheDocument(),
+  )
+})
+
 test('the label is decoded against the selected store', async () => {
   vi.mocked(getLabel).mockResolvedValue(LABEL)
   renderSheet([item({ id: 'a', name: 'Contramuslo', quantity: '1' })])

@@ -83,9 +83,13 @@ export function buildRastroSegments(
     ])
   }
 
-  const priced = entries.filter(
+  const allPriced = entries.filter(
     (e): e is PriceEntry & { amount: number } => e.amount !== null,
   )
+  // A reduced price is a one-off, not what the product costs, so the range
+  // leaves it out and says so.
+  const priced = allPriced.filter((e) => !e.reduced)
+  const skipped = priced.length < allPriced.length
   // A per-kilo and a per-unit price can't share a range, so prices kept on
   // two bases drop the clause.
   const bases = new Set(priced.map((e) => e.price_per))
@@ -95,15 +99,16 @@ export function buildRastroSegments(
     const max = Math.max(...amounts)
     // A range names its unit once, at the end.
     const unit = unitPriceSuffix(priced[0].price_per)
+    const end = skipped ? ', sin contar precios bajados.' : '.'
     clauses.push(
       min === max
-        ? ['Siempre a ', { b: `${formatFigure(min)}\u00a0${unit}` }, '.']
+        ? ['Siempre a ', { b: `${formatFigure(min)}\u00a0${unit}` }, end]
         : [
             'Se paga entre ',
             { b: formatFigure(min) },
             ' y ',
             { b: `${formatFigure(max)}\u00a0${unit}` },
-            '.',
+            end,
           ],
     )
   }
