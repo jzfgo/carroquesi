@@ -64,7 +64,7 @@ No Figma file was provided.
 
 ### Numbers, money, units
 
-- Euros with comma decimal and the symbol BEFORE the value: `€ 6,99` (not `6,99 €`). Tabular figures via JetBrains Mono so totals line up.
+- Euros with comma decimal and the symbol AFTER the value, joined by a no-break space: `6,99 €` (not `€ 6,99`). Unit prices read `8,82 €/kg`, `0,89 €/ud`; thousands group with a dot (`1.234,50 €`). Tabular figures via JetBrains Mono so totals line up.
 - Quantities pluralize in Spanish: *1 kg*, *2 kg* (no irregular plurals in our domain). Units lowercase (`kg`, `g`, `ud`, `L`).
 
 ### Emoji
