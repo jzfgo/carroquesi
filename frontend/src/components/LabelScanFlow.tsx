@@ -2,17 +2,23 @@ import { Check, CircleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { getLabel } from '../lib/api'
 import { isOnline } from '../lib/connectivity'
-import { formatAmount } from '../lib/formatPrice'
-import { labelAgrees, labelPricePerKg, labelTotal } from '../lib/weighedLabel'
+import { formatAmount, savedPercent } from '../lib/formatPrice'
+import {
+  labelAgrees,
+  labelPricePerKg,
+  labelTotal,
+  readPriceBefore,
+} from '../lib/weighedLabel'
 import type { LabelRead } from '../types'
 import './LabelScanFlow.css'
 import { LabelScanner } from './LabelScanner'
 
-/** A label someone chose to use on a line: its code, to spot it twice, and
- * what it says. */
+/** A label someone chose to use on a line: its code, to spot it twice, what
+ * it says, and, from a reduced label, the price before in €/kg. */
 export interface UsedLabel {
   code: string
   label: LabelRead
+  priceBefore: number | null
 }
 
 interface Props {
@@ -36,7 +42,7 @@ interface Props {
 type Step =
   | { kind: 'scanning' }
   | { kind: 'reading' }
-  | { kind: 'read'; used: UsedLabel }
+  | { kind: 'read'; code: string; label: LabelRead }
   | { kind: 'error' }
 
 const OFFLINE_TOAST = 'Sin conexión'
@@ -60,6 +66,7 @@ export function LabelScanFlow({
   onCancel,
 }: Props) {
   const [step, setStep] = useState<Step>({ kind: 'scanning' })
+  const [beforeText, setBeforeText] = useState('')
 
   async function decode(code: string | null) {
     if (code == null) {
@@ -78,7 +85,7 @@ export function LabelScanFlow({
       // label) cannot fill the line, so it fails like any refusal.
       setStep(
         label?.weight_g != null && label.price_per_kg_cents != null
-          ? { kind: 'read', used: { code, label } }
+          ? { kind: 'read', code, label }
           : { kind: 'error' },
       )
     } catch (err) {
@@ -91,7 +98,10 @@ export function LabelScanFlow({
     }
   }
 
-  const rescan = () => setStep({ kind: 'scanning' })
+  const rescan = () => {
+    setBeforeText('')
+    setStep({ kind: 'scanning' })
+  }
 
   if (step.kind === 'scanning') {
     return (
@@ -138,12 +148,30 @@ export function LabelScanFlow({
     )
   }
 
-  const { used } = step
-  const { label } = used
+  const { code, label } = step
   const mismatch = lineTotal != null && !labelAgrees(label, lineTotal)
-  const repeatedOn = usedOn(used.code)
+  const repeatedOn = usedOn(code)
   const warn = mismatch || repeatedOn != null
-  const use = () => onUse(used)
+  // What the user paid for this weight: the receipt's amount, or without
+  // one, the label's. The old price is a total for the same weight.
+  const paid = lineTotal ?? labelTotal(label)
+  const kilos = label.weight_g! / 1000
+  // The €/kg the line will save: the label's, unless a receipt amount it
+  // does not match sets it.
+  const paidPerKg =
+    lineTotal == null || labelAgrees(label, lineTotal)
+      ? labelPricePerKg(label)
+      : lineTotal / kilos
+  const before = label.reduced
+    ? readPriceBefore(beforeText, paid, kilos, paidPerKg)
+    : null
+  const refused = before != null && !before.valid
+  const use = () =>
+    onUse({
+      code,
+      label,
+      priceBefore: before?.valid ? before.total / kilos : null,
+    })
 
   return (
     <div className="label-read">
@@ -185,6 +213,75 @@ export function LabelScanFlow({
             </span>
           </div>
         </div>
+
+        {label.reduced && (
+          <div className="label-before">
+            <p className="label-before__text">
+              Este precio está bajado. Si ves el precio anterior en la etiqueta
+              de debajo, escríbelo.
+            </p>
+            <label className="label-before__field">
+              <span className="label-before__label">
+                Precio anterior{' '}
+                <span className="label-before__optional">· opcional</span>
+              </span>
+              <span
+                className={`label-before__input${refused ? ' label-before__input--refused' : ''}`}
+              >
+                <input
+                  aria-label="Precio anterior"
+                  aria-invalid={refused}
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={beforeText}
+                  onChange={(e) => setBeforeText(e.target.value)}
+                />
+                <span aria-hidden>€</span>
+              </span>
+            </label>
+            {refused && (
+              <p className="label-before__refused" role="alert">
+                <CircleAlert size={15} aria-hidden />
+                {Number.isNaN(before.total) ? (
+                  <span>Revisa la cifra o déjalo vacío.</span>
+                ) : (
+                  <span>
+                    Es menos de lo que pagaste (
+                    <span className="label-read__num label-read__num--strong">
+                      {formatAmount(paid)}
+                    </span>
+                    ). Revisa la cifra o déjalo vacío.
+                  </span>
+                )}
+              </p>
+            )}
+            {before?.valid && (
+              <div className="label-before__figs">
+                <span className="label-before__cell">
+                  <span className="label-figs__cap">Antes / kg</span>
+                  <span className="label-before__fig">
+                    {formatAmount(before.total / kilos)}
+                  </span>
+                </span>
+                <span className="label-before__cell">
+                  <span className="label-figs__cap">Menos</span>
+                  <span className="label-before__fig">
+                    {formatAmount(before.total - paid)}
+                  </span>
+                  <span className="label-read__small">
+                    un {savedPercent(before.total, paid)}
+                    {' '}%
+                  </span>
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+        {before?.valid && lineTotal == null && (
+          <p className="label-read__small">
+            El importe es lo que pagaste. El precio anterior se guarda al lado.
+          </p>
+        )}
 
         {warn ? (
           <div className="label-read__warn">
@@ -245,13 +342,19 @@ export function LabelScanFlow({
               type="button"
               className="label-read__secondary"
               onClick={use}
+              disabled={refused}
             >
               Usarla de todas formas
             </button>
           </>
         ) : (
           <>
-            <button type="button" className="label-read__primary" onClick={use}>
+            <button
+              type="button"
+              className="label-read__primary"
+              onClick={use}
+              disabled={refused}
+            >
               Usar en esta línea
             </button>
             <button
@@ -264,13 +367,24 @@ export function LabelScanFlow({
           </>
         )}
       </div>
-      {/* Without a receipt the label sets the amount, so the note about
-          keeping the receipt's would be wrong. */}
-      {warn && lineTotal != null && (
+      {refused ? (
+        <p className="label-read__small label-read__small--foot">
+          Con una cifra imposible no se guarda nada hasta corregirla o borrarla.
+        </p>
+      ) : warn && lineTotal != null ? (
+        // Without a receipt the label sets the amount, so the note about
+        // keeping the receipt's would be wrong.
         <p className="label-read__small label-read__small--foot">
           Usarla guarda el peso y el €/kg. El importe sigue siendo el del
           ticket.
         </p>
+      ) : (
+        label.reduced &&
+        before == null && (
+          <p className="label-read__small label-read__small--foot">
+            Sin precio anterior, la línea guarda lo que pagaste.
+          </p>
+        )
       )}
     </div>
   )

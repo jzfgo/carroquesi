@@ -44,6 +44,11 @@ export function formatUnitPrice(
   return `${formatFigure(amount)}${NBSP}${unitPriceSuffix(pricePer, caps)}`
 }
 
+/** How much less was paid than the old price, as a whole percentage of it. */
+export function savedPercent(before: number, paid: number): number {
+  return Math.round(((before - paid) / before) * 100)
+}
+
 /**
  * A hand-typed money amount as a number, or null when it is blank or invalid.
  * Accepts the comma decimal people actually type («8,15»), and the grouped

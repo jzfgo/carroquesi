@@ -2,6 +2,7 @@ import { Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { formatAmount, formatFigure, parseAmount } from '../lib/formatPrice'
 import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
+import type { LineLabel } from '../lib/weighedLabel'
 import './AdjustProductSheet.css'
 import { PrimaryButton, SheetBackButton } from './PurchaseSheetParts'
 import { QuantityPriceRow } from './QuantityPriceRow'
@@ -27,9 +28,8 @@ export interface DraftLine {
    *  the row offers the «Peso» chip. */
   ean: string | null
   bought_by_weight: boolean
-  /** The weighed label used on this line, if any: its code, to notice the
-   *  same label twice, and its article code, which the save sends. */
-  label: { code: string; article: string } | null
+  /** The weighed label used on this line, if any. */
+  label: LineLabel | null
 }
 
 interface Props {

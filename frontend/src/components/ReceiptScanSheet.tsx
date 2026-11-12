@@ -24,6 +24,7 @@ import {
   labelAgrees,
   labelPricePerKg,
   labelQuantity,
+  reductionFields,
   showsWeightChip,
 } from '../lib/weighedLabel'
 import type {
@@ -439,7 +440,7 @@ export default function ReceiptScanSheet({
   // user corrected) and gains the label's weight. A label that agrees gives
   // its €/kg too; one used despite a mismatch is a weight only, and the
   // €/kg follows from that amount.
-  function applyLabel(index: number, { code, label }: UsedLabel) {
+  function applyLabel(index: number, { code, label, priceBefore }: UsedLabel) {
     setLineStates((prev) =>
       prev.map((ls, i) =>
         i === index
@@ -449,7 +450,12 @@ export default function ReceiptScanSheet({
               unitPrice: labelAgrees(label, effectiveLineTotal(allLines[i], ls))
                 ? labelPricePerKg(label)
                 : null,
-              label: { code, article: label.article },
+              label: {
+                code,
+                article: label.article,
+                reduced: label.reduced === true,
+                priceBefore,
+              },
             }
           : ls,
       ),
@@ -555,28 +561,33 @@ export default function ReceiptScanSheet({
       const quantity = effectiveQuantity(line, ls)
       const pricePer = effectivePricePer(line, ls)
       const r = ls.resolution
+      const price = effectiveUnitPrice(line, ls)
+      const reduction = ls.label
+        ? reductionFields(ls.label, price, pricePer)
+        : null
       if (r.kind === 'matched' || r.kind === 'linked') {
         patches.push({
           item_id: r.itemId,
-          price: effectiveUnitPrice(line, ls),
+          price,
           price_per: pricePer,
           store,
           quantity,
           article: ls.label?.article ?? null,
-          // No `reduced`: a line closed with a reduced label keeps its flag.
+          // Without a label read here, no `reduced`: a line closed with a
+          // reduced label keeps its flag.
+          ...reduction,
         })
       } else if (r.kind === 'created') {
         newItems.push({
           name: r.name,
           brand: r.brand,
           ean: r.ean,
-          price: effectiveUnitPrice(line, ls),
+          price,
           price_per: pricePer,
           store,
           quantity,
           article: ls.label?.article ?? null,
-          // A reduced label's price arrives with the label sheet's old-price field.
-          reduced: false,
+          ...(reduction ?? { reduced: false }),
         })
       }
       const itemName = resolutionName(r)

@@ -122,6 +122,25 @@ test('prices on two bases share no range, so the price clause drops out', () => 
   )
 })
 
+test('a reduced price stays out of the range, and the sentence says so', () => {
+  const result = buildRastro(item(), members, [
+    entry({ amount: 11.95, price_per: 'KILOGRAM' }),
+    entry({ amount: 8.82, price_per: 'KILOGRAM', reduced: true }),
+    entry({ amount: 12.6, price_per: 'KILOGRAM' }),
+  ])
+  expect(result).toMatch(
+    /Se paga entre 11,95 y 12,60\s€\/kg, sin contar precios bajados\.$/,
+  )
+})
+
+test('only reduced prices leave no range to give', () => {
+  const result = buildRastro(item(), members, [
+    entry({ amount: 8.82, price_per: 'KILOGRAM', reduced: true }),
+  ])
+  expect(result).not.toContain('Se paga')
+  expect(result).not.toContain('Siempre a')
+})
+
 test('a price-less purchase counts toward the span but not the price range', () => {
   const result = buildRastro(item(), members, [
     entry({ purchased_at: '2026-03-05T10:00:00Z', amount: 5.34 }),

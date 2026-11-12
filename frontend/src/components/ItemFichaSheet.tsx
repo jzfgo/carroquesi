@@ -1,7 +1,7 @@
-import { ChevronRight, RotateCcw } from 'lucide-react'
+import { ChevronRight, RotateCcw, Tag } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getPriceHistory } from '../lib/api'
-import { formatAmount } from '../lib/formatPrice'
+import { formatAmount, savedPercent } from '../lib/formatPrice'
 import { formatChartDate, PriceBand } from '../lib/priceChart'
 import { normalizeEntries } from '../lib/priceNormalization'
 import { buildRastroSegments } from '../lib/rastro'
@@ -42,6 +42,8 @@ interface LatestPrice {
   store: string | null
   purchasedAt: string | null
   quantity: string | null
+  /** From a reduced label: what it cost before, in the same basis. */
+  before: number | null
 }
 
 function latestPrice(
@@ -64,6 +66,7 @@ function latestPrice(
       store: top.store,
       purchasedAt: top.purchased_at ?? null,
       quantity: top.quantity ?? item.quantity,
+      before: top.price_before ?? null,
     }
   }
   if (item.price != null) {
@@ -73,6 +76,7 @@ function latestPrice(
       store: item.price_store ?? item.stores[0] ?? null,
       purchasedAt: item.purchased_at,
       quantity: item.quantity,
+      before: item.price_before ?? null,
     }
   }
   return null
@@ -113,6 +117,22 @@ function LastPriceBlock({
           <span className="ficha__last-unit">{unitSuffix}</span>
         </span>
         {sub && <span className="ficha__last-sub">{sub}</span>}
+        {/* Only a known old price shows: a reduced price without one reads
+            like any other. */}
+        {latest.before != null && latest.before > latest.amount && (
+          <span className="ficha__before">
+            <Tag size={13} strokeWidth={2.2} aria-hidden />
+            <span>
+              Antes{' '}
+              <span className="ficha__before-figure">
+                {formatAmount(latest.before)}
+                {unitSuffix}
+              </span>{' '}
+              · {savedPercent(latest.before, latest.amount)}
+              {' '}% menos
+            </span>
+          </span>
+        )}
       </span>
       <PriceBand
         records={curve}

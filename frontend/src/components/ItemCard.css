@@ -174,6 +174,12 @@
   white-space: nowrap;
 }
 
+/* The reduced-price tag sits before the amount, in the row's ink. */
+.item-card__reduced {
+  margin-right: 4px;
+  vertical-align: -1px;
+}
+
 .item-card__amount-unit {
   font-family: var(--font-mono);
   font-size: var(--fs-13);

@@ -8,6 +8,11 @@ export interface ChartEntry {
   purchased_at: string | null
   originalAmount: number
   originalPricePer: string | null
+  /** A reduced label's price: a hollow point, kept off the curve and out of
+   *  the minimum. */
+  reduced: boolean
+  /** The price before the reduction, in the original basis, when known. */
+  originalBefore: number | null
 }
 
 export interface NormalizationResult {
@@ -46,6 +51,8 @@ export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
         purchased_at: e.purchased_at,
         originalAmount: e.amount,
         originalPricePer: e.price_per,
+        reduced: e.reduced,
+        originalBefore: e.price_before ?? null,
       })),
       isNormalized: false,
       hasGaps: false,
@@ -68,6 +75,8 @@ export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
       purchased_at: e.purchased_at,
       originalAmount: e.amount,
       originalPricePer: e.price_per,
+      reduced: e.reduced,
+      originalBefore: e.price_before ?? null,
     }
   })
 
