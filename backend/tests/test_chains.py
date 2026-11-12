@@ -147,3 +147,59 @@ def test_get_label_refusal_is_404(client: TestClient):
 
 def test_get_label_rejects_non_digits(client: TestClient):
     assert client.get("/chains/labels/23abc").status_code == 422
+
+
+# A "Bajada de precio" sticker's QR: 0,356 kg at 24,75 €/kg is 8,81.
+REDUCED_QR = (
+    "https://qrtrack.mercadona.es/01/08436574550801/10/E1016B"
+    "?17=261023&16=261021&3103=000356&3922=00881&8005=002475&99=1"
+)
+
+
+def test_get_label_by_code_decodes_a_qr(client: TestClient):
+    res = client.get("/chains/labels", params={"code": REDUCED_QR, "store": "Mercadona"})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["chain"] == "Mercadona"
+    assert body["format"] == "mercadona-qr"
+    assert body["article"] == "08436574550801"
+    assert body["reduced"] is True
+    assert body["weight_g"] == 356
+    assert body["price_per_kg_cents"] == 2475
+    assert body["total_cents"] == 881
+
+
+def test_get_label_by_code_reads_digits_too(client: TestClient):
+    res = client.get("/chains/labels", params={"code": "230035050320600155004972"})
+    assert res.status_code == 200
+    assert res.json()["weight_g"] == 3206
+
+
+def test_get_label_by_code_refusal_is_404(client: TestClient):
+    res = client.get("/chains/labels", params={"code": "https://example.com/x"})
+    assert res.status_code == 404
+    assert res.json()["detail"] == "label_not_decoded"
+
+
+def test_get_label_by_code_refuses_a_crafted_code_with_404_not_500(client: TestClient):
+    for code in ("23²²²²²²²²²²²", "https://[abc/01/08436574550801"):
+        assert client.get("/chains/labels", params={"code": code}).status_code == 404
+
+
+def test_a_link_with_a_path_prefix_still_reads():
+    prefixed = REDUCED_QR.replace("mercadona.es/01/", "mercadona.es/gs1/01/")
+    decoded = decode_label(prefixed, "Mercadona")
+    assert decoded is not None
+    assert decoded.weight_g == 356
+
+
+def test_the_path_gtin_wins_over_a_query_one():
+    decoded = decode_label(REDUCED_QR + "&01=08480000027917", "Mercadona")
+    assert decoded is not None
+    assert decoded.article == "08436574550801"
+
+
+def test_a_qr_without_the_reduced_mark_is_not_reduced():
+    decoded = decode_label(REDUCED_QR.removesuffix("&99=1"), "Mercadona")
+    assert decoded is not None
+    assert decoded.reduced is False

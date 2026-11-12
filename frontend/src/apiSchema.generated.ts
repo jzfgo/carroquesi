@@ -125,7 +125,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/chains/labels/{digits}": {
+    "/chains/labels": {
         parameters: {
             query?: never;
             header?: never;
@@ -134,10 +134,31 @@ export interface paths {
         };
         /**
          * Get Label
-         * @description Decode an in-store label's barcode. `store` is the one store the scan
-         *     is tied to, if any; with it, only that chain's decoders run.
+         * @description Decode an in-store label's code, as the camera read it: a barcode's
+         *     digits or a QR's text. `store` is the one store the scan is tied to, if
+         *     any; with it, only that chain's decoders run.
          */
-        get: operations["get_label_chains_labels__digits__get"];
+        get: operations["get_label_chains_labels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chains/labels/{digits}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Label By Digits
+         * @description The digits-only form, for clients from before QR labels.
+         */
+        get: operations["get_label_by_digits_chains_labels__digits__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2192,7 +2213,50 @@ export interface operations {
             };
         };
     };
-    get_label_chains_labels__digits__get: {
+    get_label_chains_labels_get: {
+        parameters: {
+            query: {
+                code: string;
+                store?: string | null;
+            };
+            header?: {
+                "x-dev-user-id"?: string | null;
+                "x-dev-is-admin"?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LabelRead"];
+                };
+            };
+            /** @description label_not_decoded */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_label_by_digits_chains_labels__digits__get: {
         parameters: {
             query?: {
                 store?: string | null;

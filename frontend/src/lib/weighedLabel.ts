@@ -45,11 +45,16 @@ export function showsWeightChip(line: {
   return (isOneUnit(line.quantity) && !line.ean) || line.boughtByWeight
 }
 
-/** The code to send for decoding, or null when the read cannot be a label:
- * a QR code may hold a link, and a label is 8 to 24 numbers. */
+/** The code to send for decoding, or null when the read cannot be a label.
+ * A barcode label is 8 to 24 numbers. A QR label is a GS1 Digital Link: an
+ * https link whose path names a product's GTIN (`/01/<14 digits>`). Which
+ * chain it belongs to, and what it says, is the backend's to decide. */
 export function labelCode(raw: string): string | null {
   const code = raw.trim()
-  return /^\d{8,24}$/.test(code) ? code : null
+  if (/^\d{8,24}$/.test(code)) return code
+  return /^https:\/\/[^/\s]+\/(?:[^\s]*\/)?01\/\d{14}(?:[/?]\S*)?$/.test(code)
+    ? code
+    : null
 }
 
 /**
