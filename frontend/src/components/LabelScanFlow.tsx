@@ -46,6 +46,7 @@ type Step =
   | { kind: 'error' }
 
 const OFFLINE_TOAST = 'Sin conexión'
+
 /**
  * Scanning one weighed label for the line the user tapped: the camera, then
  * what the label says against the line. The content of a step in the
@@ -155,7 +156,15 @@ export function LabelScanFlow({
   // one, the label's. The old price is a total for the same weight.
   const paid = lineTotal ?? labelTotal(label)
   const kilos = label.weight_g! / 1000
-  const before = label.reduced ? readPriceBefore(beforeText, paid) : null
+  // The €/kg the line will save: the label's, unless a receipt amount it
+  // does not match sets it.
+  const paidPerKg =
+    lineTotal == null || labelAgrees(label, lineTotal)
+      ? labelPricePerKg(label)
+      : lineTotal / kilos
+  const before = label.reduced
+    ? readPriceBefore(beforeText, paid, kilos, paidPerKg)
+    : null
   const refused = before != null && !before.valid
   const use = () =>
     onUse({

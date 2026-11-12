@@ -66,24 +66,33 @@ export interface LineLabel {
 
 /**
  * The old price typed from the label under a reduced one, against what was
- * paid. Both are totals for the same weight. Null while the field is blank;
- * `valid` is false for a figure that cannot be read or is not above `paid`.
+ * paid. Both are totals for `kilos`. Null while the field is blank; `valid`
+ * is false for a figure that cannot be read or is not above `paid`. It must
+ * also sit above `paidPerKg` per kilo, the price the line will save: the
+ * label's printed total and its €/kg are rounded apart, and the save keeps
+ * only an old price above that €/kg.
  */
 export function readPriceBefore(
   text: string,
   paid: number,
+  kilos: number,
+  paidPerKg: number,
 ): { total: number; valid: boolean } | null {
   if (text.trim() === '') return null
   const total = parseAmount(text)
   if (total == null) return { total: Number.NaN, valid: false }
-  return { total, valid: Math.round(total * 100) > Math.round(paid * 100) }
+  const valid =
+    Math.round(total * 100) > Math.round(paid * 100) &&
+    total / kilos > paidPerKg
+  return { total, valid }
 }
 
 /**
  * What a line's label adds to its save. The price before goes only while
  * the line is still priced per kilo below it: an edit after the scan may
  * have moved the price, and the backend refuses an old price that is not
- * above it.
+ * above it. The mark itself stays through such an edit: the label said the
+ * price was reduced, and the user kept that label on the line.
  */
 export function reductionFields(
   label: LineLabel,

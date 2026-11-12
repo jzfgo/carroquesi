@@ -78,8 +78,6 @@ function toDraft(item: ListItem): DraftLine {
   }
 }
 
-// The line's money: its confirmed total (price × quantity factor), the projected
-// total from a pending suggestion, or nothing.
 // A line closes as reduced only from a reduced label read on it.
 function reductionOf(l: DraftLine) {
   return l.label
@@ -87,6 +85,8 @@ function reductionOf(l: DraftLine) {
     : { reduced: false, price_before: null }
 }
 
+// The line's money: its confirmed total (price × quantity factor), the projected
+// total from a pending suggestion, or nothing.
 function lineTotal(
   line: DraftLine,
 ): { value: number; confirmed: boolean } | null {

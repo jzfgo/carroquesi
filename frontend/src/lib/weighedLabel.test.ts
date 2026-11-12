@@ -123,22 +123,33 @@ describe('labelCode', () => {
 })
 
 describe('readPriceBefore', () => {
+  // The frames' «Contramuslo»: 346 g at 8,82 €/kg is 3,05.
+  const read = (text: string) => readPriceBefore(text, 3.05, 0.346, 8.82)
+
   test('a blank field is no old price', () => {
-    expect(readPriceBefore('  ', 3.05)).toBeNull()
+    expect(read('  ')).toBeNull()
   })
 
   test('an old price above what was paid is valid', () => {
-    expect(readPriceBefore('4,36', 3.05)).toEqual({ total: 4.36, valid: true })
+    expect(read('4,36')).toEqual({ total: 4.36, valid: true })
   })
 
   test('the same figure or less is refused, to the cent', () => {
-    expect(readPriceBefore('3,05', 3.05)?.valid).toBe(false)
-    expect(readPriceBefore('2,90', 3.05)?.valid).toBe(false)
-    expect(readPriceBefore('3,06', 3.05)?.valid).toBe(true)
+    expect(read('3,05')?.valid).toBe(false)
+    expect(read('2,90')?.valid).toBe(false)
+    expect(read('3,06')?.valid).toBe(true)
   })
 
   test('a figure that cannot be read is refused', () => {
-    expect(readPriceBefore('abc', 3.05)?.valid).toBe(false)
+    expect(read('abc')?.valid).toBe(false)
+  })
+
+  test('a cent above the total is refused when it is not above the €/kg saved', () => {
+    // 500,5 g printed at 10,01 with 20,02 €/kg: the two were rounded apart.
+    // 10,02 is a cent more, but 10,02 / 0,5005 is under 20,02 €/kg, which
+    // the save would drop.
+    expect(readPriceBefore('10,02', 10.01, 0.5005, 20.02)?.valid).toBe(false)
+    expect(readPriceBefore('10,03', 10.01, 0.5005, 20.02)?.valid).toBe(true)
   })
 })
 
