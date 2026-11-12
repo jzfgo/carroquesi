@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Informe mensual · texto plano · precios bajados</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 680px; height: 520px; box-sizing: border-box; padding: 32px 40px 40px; background: #d5dae2;">
+  <pre style="margin: 0; background: #ffffff; border: 1px solid #b4bac4; border-radius: 4px; padding: 28px 32px; font-family: 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 13px; line-height: 1.6; color: #15161b; white-space: pre-wrap;">[…]
+
+Un hábito
+  Salmón ahumado aparece en 5 de las 26 compras: 9 uds y
+  100,83 €, el 15 % del gasto de la lista.
+
+<span style="outline: 1.5px dashed rgb(26 63 160 / 45%); outline-offset: 2px;">Precios bajados
+  Pagaste 9,14 € por 3 artículos que antes costaban
+  13,06 €: 3,92 € menos.</span>
+
+Para ahorrar
+  Leche entera, botella 1,5 L: unos 1,20 € al mes.
+  Pagaste 1,89 € en Ahorramas. En Mercadona pagaste
+  1,29 € el 07/10.
+
+[…]</pre>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":680,"height":520}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
