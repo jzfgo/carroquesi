@@ -356,10 +356,7 @@ test.describe('functional', () => {
       created.getByRole('button', { name: 'Volver a comprar' }),
     ).toBeVisible()
     await expect(created.locator('.item-card__meta')).toContainText('Bimbo')
-    // formatPrice() uses Intl with the *browser's* locale and the config pins
-    // none, so the decimal separator differs between a local run and CI's
-    // container. Match either rather than baking in one environment's output.
-    await expect(created.locator('.item-card__amount')).toContainText(/1[.,]00/)
+    await expect(created.locator('.item-card__amount')).toContainText(/1,00\s€/)
   })
 
   // JAV-182: an unreadable ticket still stores its capture — a lineless scan

@@ -81,7 +81,7 @@
   gap: 10px;
 }
 
-/* «€ 23,44» — the printed total, mono, tabular so columns of trips align. */
+/* «23,44 €» — the printed total, mono, tabular so columns of trips align. */
 .trip-card__total {
   font-family: var(--font-mono);
   font-size: var(--fs-13);
