@@ -69,8 +69,8 @@ export interface LineLabel {
  * paid. Both are totals for `kilos`. Null while the field is blank; `valid`
  * is false for a figure that cannot be read or is not above `paid`. It must
  * also sit above `paidPerKg` per kilo, the price the line will save: the
- * label's printed total and its €/kg are rounded apart, and the save keeps
- * only an old price above that €/kg.
+ * label's printed total need not be its weight times its €/kg, and the save
+ * keeps only an old price above that €/kg.
  */
 export function readPriceBefore(
   text: string,

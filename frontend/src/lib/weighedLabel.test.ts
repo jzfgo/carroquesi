@@ -145,11 +145,11 @@ describe('readPriceBefore', () => {
   })
 
   test('a cent above the total is refused when it is not above the €/kg saved', () => {
-    // 500,5 g printed at 10,01 with 20,02 €/kg: the two were rounded apart.
-    // 10,02 is a cent more, but 10,02 / 0,5005 is under 20,02 €/kg, which
-    // the save would drop.
-    expect(readPriceBefore('10,02', 10.01, 0.5005, 20.02)?.valid).toBe(false)
-    expect(readPriceBefore('10,03', 10.01, 0.5005, 20.02)?.valid).toBe(true)
+    // A label whose total and €/kg disagree by more than rounding: 500 g at
+    // 20,02 €/kg, printed 10,00. 10,01 is a cent more, but only 20,02 €/kg,
+    // which the save would drop.
+    expect(readPriceBefore('10,01', 10, 0.5, 20.02)?.valid).toBe(false)
+    expect(readPriceBefore('10,02', 10, 0.5, 20.02)?.valid).toBe(true)
   })
 })
 
