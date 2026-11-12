@@ -1,7 +1,7 @@
 from decimal import ROUND_HALF_UP, Decimal
 
 from app.chains.base import ChainProfile
-from app.chains.gs1 import check_digit_ok, digital_link, ean13_price
+from app.chains.gs1 import check_digit_ok, digital_link, ean13_price, is_digits
 from app.schemas.chains import DecodedLabel
 
 QR_HOST = "qrtrack.mercadona.es"
@@ -34,7 +34,7 @@ def decode_weighed_qr(code: str) -> DecodedLabel | None:
     gtin, weight, total, per_kg = ais["01"], ais.get("3103"), ais.get("3922"), ais.get("8005")
     if len(gtin) != 14 or not check_digit_ok(gtin):
         return None
-    if not (weight and total and per_kg and (weight + total + per_kg).isdigit()):
+    if not (weight and total and per_kg and is_digits(weight + total + per_kg)):
         return None
     weight_g, total_cents, price_per_kg_cents = int(weight), int(total), int(per_kg)
     if not _adds_up(weight_g, price_per_kg_cents, total_cents):
@@ -58,7 +58,7 @@ def decode_weighed_24(digits: str) -> DecodedLabel | None:
     both the check digit and the arithmetic. A wrong decode records a wrong
     price; a refusal costs only a manual entry.
     """
-    if len(digits) != 24 or not digits.isdigit() or digits[:2] != "23" or digits[2] not in "01":
+    if len(digits) != 24 or not is_digits(digits) or digits[:2] != "23" or digits[2] not in "01":
         return None
     if not check_digit_ok(digits):
         return None

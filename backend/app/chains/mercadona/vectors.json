@@ -327,5 +327,20 @@
     "input": "https://qrtrack.mercadona.es/01/08436574550801/10/E1016B?3103=000356&3922=00900&8005=002475&99=1",
     "note": "Total disagrees with weight × €/kg (0,356 kg × 24,75 = 8,81, not 9,00)",
     "expected": null
+  },
+  {
+    "input": "23²²²²²²²²²²²",
+    "note": "13 characters Python calls digits, but «²» is not 0–9: refused, not a crash",
+    "expected": null
+  },
+  {
+    "input": "https://qrtrack.mercadona.es/01/08436574550801?3103=%C2%B2&3922=00881&8005=002475",
+    "note": "A percent-encoded «²» as the weight: refused, not a crash",
+    "expected": null
+  },
+  {
+    "input": "https://[abc/01/08436574550801",
+    "note": "A malformed IPv6 host: refused, not a crash",
+    "expected": null
   }
 ]

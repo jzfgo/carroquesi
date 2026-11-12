@@ -6,24 +6,38 @@ from app.chains.base import LabelDecoder
 from app.schemas.chains import DecodedLabel
 
 
+def is_digits(text: str) -> bool:
+    """Only the ASCII digits 0–9. `str.isdigit` also accepts characters
+    like «²» that `int` then refuses, and a decoder must refuse, not fail."""
+    return text.isascii() and text.isdigit()
+
+
 def digital_link(code: str) -> tuple[str, dict[str, str]] | None:
     """A GS1 Digital Link URL, as its host and its application identifiers.
 
-    The standard puts the key identifiers in the path, in pairs
-    (`/01/<gtin>/10/<lot>`), and the rest in the query (`?3103=000356`).
+    The standard puts the key identifiers in the path, in pairs from the
+    GTIN on (`/01/<gtin>/10/<lot>`), after any prefix the host chooses, and
+    the rest in the query (`?3103=000356`). The path wins over the query.
     Returns None for anything that is not an https URL with a GTIN.
     """
-    parts = urlsplit(code.strip())
-    if parts.scheme != "https" or not parts.hostname:
+    try:
+        parts = urlsplit(code.strip())
+        host = parts.hostname
+    except ValueError:  # a malformed host, such as a broken IPv6 one
+        return None
+    if parts.scheme != "https" or not host:
         return None
     segments = [s for s in parts.path.split("/") if s]
-    if len(segments) % 2:
+    if "01" not in segments:
         return None
-    ais = dict(zip(segments[::2], segments[1::2], strict=True))
-    ais.update(parse_qsl(parts.query))
-    if not ais.get("01", "").isdigit():
+    keyed = segments[segments.index("01") :]
+    if len(keyed) % 2:
         return None
-    return parts.hostname, ais
+    ais = dict(parse_qsl(parts.query))
+    ais.update(zip(keyed[::2], keyed[1::2], strict=True))
+    if not is_digits(ais["01"]):
+        return None
+    return host, ais
 
 
 def check_digit_ok(digits: str) -> bool:
@@ -40,7 +54,7 @@ def ean13_price(prefix: str) -> LabelDecoder:
     in-store range, and each chain uses its own."""
 
     def decode(digits: str) -> DecodedLabel | None:
-        if len(digits) != 13 or not digits.isdigit() or not digits.startswith(prefix):
+        if len(digits) != 13 or not is_digits(digits) or not digits.startswith(prefix):
             return None
         if not check_digit_ok(digits):
             return None

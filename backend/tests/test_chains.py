@@ -181,6 +181,24 @@ def test_get_label_by_code_refusal_is_404(client: TestClient):
     assert res.json()["detail"] == "label_not_decoded"
 
 
+def test_get_label_by_code_refuses_a_crafted_code_with_404_not_500(client: TestClient):
+    for code in ("23²²²²²²²²²²²", "https://[abc/01/08436574550801"):
+        assert client.get("/chains/labels", params={"code": code}).status_code == 404
+
+
+def test_a_link_with_a_path_prefix_still_reads():
+    prefixed = REDUCED_QR.replace("mercadona.es/01/", "mercadona.es/gs1/01/")
+    decoded = decode_label(prefixed, "Mercadona")
+    assert decoded is not None
+    assert decoded.weight_g == 356
+
+
+def test_the_path_gtin_wins_over_a_query_one():
+    decoded = decode_label(REDUCED_QR + "&01=08480000027917", "Mercadona")
+    assert decoded is not None
+    assert decoded.article == "08436574550801"
+
+
 def test_a_qr_without_the_reduced_mark_is_not_reduced():
     decoded = decode_label(REDUCED_QR.removesuffix("&99=1"), "Mercadona")
     assert decoded is not None
