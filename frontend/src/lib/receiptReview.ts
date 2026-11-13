@@ -5,6 +5,28 @@ import type { LineLabel } from './weighedLabel'
 
 export type ReceiptLine = MatchedLine | UnmatchedLine
 
+/** A subset of the list's items, offered as link targets in the resolve sheet. */
+export interface ItemRef {
+  id: string
+  name: string
+  purchased: boolean
+  purchased_at: string | null
+  brand: string | null
+  stores: string[]
+  quantity: string | null
+  /** Current price on the line, so a targeted review can tell a fill from a
+   *  correction from a no-op. */
+  price: number | null
+  price_per: 'KILOGRAM' | null
+  /** What the record says was bought. A targeted patch overwrites it, so a
+   *  line that changes it is a correction even at the same price. */
+  purchased_quantity: string | null
+  /** A packaged product carries one; a weighed one usually does not. */
+  ean: string | null
+  /** The product was priced per kilo before, so its label may give a weight. */
+  bought_by_weight: boolean
+}
+
 /**
  * How a receipt line has been resolved to a catalogue product. The paper line
  * itself ("el papel no se discute") is never edited — only *which* product it

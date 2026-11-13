@@ -2,8 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getLabel } from '../lib/api'
 import { reportRequestOutcome } from '../lib/connectivity'
+import type { ItemRef } from '../lib/receiptReview'
 import type { LabelRead, ReceiptScanResult } from '../types'
-import ReceiptScanSheet, { type ItemRef } from './ReceiptScanSheet'
+import ReceiptScanSheet from './ReceiptScanSheet'
 import { ADD_STORE } from './StoreSelect'
 
 vi.mock('../lib/api', async (importOriginal) => ({
