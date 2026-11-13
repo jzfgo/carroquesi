@@ -25,7 +25,7 @@ import { DEV_USER_ID } from '../lib/environment'
 import { getFirebaseAuth } from '../lib/firebase'
 import { disablePush, syncPushToken } from '../lib/push'
 
-export type ReceiptConsent = 'granted' | 'declined' | null
+type ReceiptConsent = 'granted' | 'declined' | null
 
 export interface AuthUser {
   id: string

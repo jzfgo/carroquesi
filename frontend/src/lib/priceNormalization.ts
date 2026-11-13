@@ -15,7 +15,7 @@ export interface ChartEntry {
   originalBefore: number | null
 }
 
-export interface NormalizationResult {
+interface NormalizationResult {
   entries: ChartEntry[]
   isNormalized: boolean
   hasGaps: boolean

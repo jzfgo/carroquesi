@@ -76,7 +76,6 @@ export type ReceiptPriceBatch = S['ReceiptPriceBatch']
 export type ReceiptUploadUrlRequest = S['ReceiptUploadUrlRequest']
 // Close-trip (10b) and manual/back-dated (26a) purchase bodies.
 export type PurchaseLine = S['PurchaseLine']
-export type PurchaseNewItem = S['PurchaseNewItem']
 export type PurchaseCloseBody = S['PurchaseCloseBody']
 export type PurchaseManualBody = S['PurchaseManualBody']
 
