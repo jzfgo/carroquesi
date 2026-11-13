@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint . && stylelint 'src/**/*.css' && npm run --silent openapi:check",
+    "lint": "eslint . && stylelint 'src/**/*.css' && type-coverage -p tsconfig.app.json && npm run --silent openapi:check",
     "openapi:types": "openapi-typescript ../backend/openapi.json -o src/apiSchema.generated.ts",
     "openapi:check": "openapi-typescript ../backend/openapi.json | diff -q src/apiSchema.generated.ts - || (echo 'src/apiSchema.generated.ts is out of date with backend/openapi.json - run: just openapi' && false)",
     "preview": "vite preview",
@@ -71,10 +71,14 @@
     "prettier-plugin-organize-imports": "^4.3.0",
     "stylelint": "^17.16.0",
     "stylelint-config-standard": "^40.0.0",
+    "type-coverage": "^2.31.2",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1",
     "vite": "^8.3.5",
     "vite-plugin-pwa": "^2.0.0",
     "vitest": "^5.0.5"
+  },
+  "typeCoverage": {
+    "atLeast": 99.96
   }
 }
