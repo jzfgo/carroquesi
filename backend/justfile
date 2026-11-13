@@ -43,7 +43,7 @@ test-file file:
 
 # Run mutation testing (mutmut over pytest)
 mutation *args:
-    PYTEST_ADDOPTS="--ignore=tests/test_store_key.py --ignore=tests/test_e2e_contract.py --ignore=tests/test_quantity.py" uv run mutmut run {{ args }}
+    PYTEST_ADDOPTS="${PYTEST_ADDOPTS:-} --ignore=tests/test_store_key.py --ignore=tests/test_e2e_contract.py --ignore=tests/test_quantity.py" uv run mutmut run {{ args }}
 
 # Add a dependency
 add package:

@@ -71,4 +71,4 @@ pytest_add_cli_args_test_selection = ["tests/"]
 also_copy = ["app/", "openapi.json", "alembic.ini", "alembic/"]
 
 [tool.pytest.ini_options]
-norecursedirs = ["mutants", ".venv", ".git"]
+testpaths = ["tests"]

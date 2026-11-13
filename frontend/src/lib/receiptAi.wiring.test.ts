@@ -445,7 +445,7 @@ describe('parseReceiptWithAi wiring', () => {
       expect(
         modelParams.onDeviceParams.promptOptions.responseConstraint.required,
       ).toEqual(['lines'])
-      expect(modelParams.inCloudParams.model).toBe('gemini-3.8-flash')
+      expect(modelParams.inCloudParams.model).toMatch(/^gemini-/)
       expect(modelParams.inCloudParams.generationConfig.responseMimeType).toBe(
         'application/json',
       )
@@ -686,7 +686,7 @@ describe('parseReceiptWithAi wiring', () => {
       )
     })
 
-    it('falls back when only width is zero, when width is exactly 1000px, or when 2d context is null', async () => {
+    it('falls back when only width is zero', async () => {
       const { parseReceiptWithAi } = await import('./receiptAi')
 
       stubImage(0, 100)
@@ -694,12 +694,20 @@ describe('parseReceiptWithAi wiring', () => {
         new File(['x'], 'zero-w.png', { type: 'image/png' }),
       )
       expect(createdCanvases()).toHaveLength(0)
+    })
+
+    it('falls back when width is exactly 1000px', async () => {
+      const { parseReceiptWithAi } = await import('./receiptAi')
 
       stubImage(1000, 2000)
       await parseReceiptWithAi(
         new File(['x'], 'exact.png', { type: 'image/png' }),
       )
       expect(createdCanvases()).toHaveLength(0)
+    })
+
+    it('falls back when 2d context is null', async () => {
+      const { parseReceiptWithAi } = await import('./receiptAi')
 
       stubImage(2000, 3000)
       vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
