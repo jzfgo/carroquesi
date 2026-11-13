@@ -17,9 +17,10 @@ dev scope="local":
 serve scope="local":
     uv run fastapi run {{ if scope == "network" { "--host 0.0.0.0" } else { "--host localhost" } }} --port {{ port }}
 
-# Lint (ruff check)
+# Lint (ruff check + import-linter)
 lint:
     uv run ruff check
+    uv run lint-imports
 
 # Type-check (ty)
 typecheck:

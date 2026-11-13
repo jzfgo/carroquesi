@@ -20,23 +20,12 @@ import {
   clearCachedUser,
   loadCachedUser,
   saveCachedUser,
+  type AuthUser,
+  type ReceiptConsent,
 } from '../lib/cachedUser'
 import { DEV_USER_ID } from '../lib/environment'
 import { getFirebaseAuth } from '../lib/firebase'
 import { disablePush, syncPushToken } from '../lib/push'
-
-type ReceiptConsent = 'granted' | 'declined' | null
-
-export interface AuthUser {
-  id: string
-  displayName: string
-  photoUrl: string | null
-  email: string
-  features: string[]
-  // null means the user was never asked; the consent sheet reads this to
-  // decide whether to intercept the first scan. See recordReceiptConsent.
-  receiptConsent: ReceiptConsent
-}
 
 interface AuthContextValue {
   user: AuthUser | null

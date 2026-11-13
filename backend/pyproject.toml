@@ -33,6 +33,7 @@ exclude-newer = "7d"
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
+    "import-linter>=2.16",
     "mutmut>=3.8.1",
     "pytest>=9.0.2",
     "pytest-asyncio>=1.4.0",
@@ -72,3 +73,45 @@ also_copy = ["app/", "openapi.json", "alembic.ini", "alembic/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.importlinter]
+root_package = "app"
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture"
+type = "layers"
+layers = [
+    "app.main",
+    "app.routers",
+    "app.dependencies",
+    "app.services",
+    "app.schemas",
+    "app.db",
+    "app.core",
+]
+
+[[tool.importlinter.contracts]]
+name = "Routers do not import each other"
+type = "independence"
+modules = [
+    "app.routers.admin",
+    "app.routers.auth",
+    "app.routers.barcode",
+    "app.routers.chains",
+    "app.routers.feedback",
+    "app.routers.internal",
+    "app.routers.invites",
+    "app.routers.items",
+    "app.routers.lists",
+    "app.routers.members",
+    "app.routers.notifications",
+    "app.routers.prices",
+    "app.routers.purchases",
+    "app.routers.receipt",
+    "app.routers.report_opt_out",
+    "app.routers.share",
+    "app.routers.shortcuts",
+    "app.routers.stores",
+    "app.routers.suggestions",
+    "app.routers.waitlist",
+]

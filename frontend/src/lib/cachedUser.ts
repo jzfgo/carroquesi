@@ -1,4 +1,15 @@
-import type { AuthUser } from '../contexts/AuthContext'
+export type ReceiptConsent = 'granted' | 'declined' | null
+
+export interface AuthUser {
+  id: string
+  displayName: string
+  photoUrl: string | null
+  email: string
+  features: string[]
+  // null means the user was never asked; the consent sheet reads this to
+  // decide whether to intercept the first scan. See recordReceiptConsent.
+  receiptConsent: ReceiptConsent
+}
 
 // The last profile the backend confirmed for this device. A cold start with
 // no network cannot ask the server who the user is, but Firebase still knows
