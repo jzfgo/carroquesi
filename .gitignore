@@ -51,6 +51,11 @@ node_modules/
 frontend/dist/
 frontend/.env*
 !frontend/.env.example
+frontend/.stryker-tmp/
+frontend/reports/
+
+# Backend
+backend/mutants/
 
 # Backend env
 backend/.env*

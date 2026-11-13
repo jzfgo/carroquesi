@@ -2,6 +2,7 @@ import {
   AIError,
   AIErrorCode,
   FinishReason,
+  InferenceMode,
   InferenceSource,
 } from 'firebase/ai'
 import type { MockInstance } from 'vitest'
@@ -16,15 +17,17 @@ vi.mock('./firebase', () => ({
 }))
 
 const mockGenerateContent = vi.fn()
+const mockGetGenerativeModel = vi.fn<(...args: unknown[]) => unknown>(() => ({
+  generateContent: (...args: unknown[]) => mockGenerateContent(...args),
+}))
 
 // Only getGenerativeModel is replaced. AIError, AIErrorCode and FinishReason
 // come from the real SDK, because the retry rules read them: a hand-written
 // stand-in would let a fixture assert a shape Google never produces.
 vi.mock('firebase/ai', async (importOriginal) => ({
   ...(await importOriginal<typeof import('firebase/ai')>()),
-  getGenerativeModel: () => ({
-    generateContent: (...args: unknown[]) => mockGenerateContent(...args),
-  }),
+  getGenerativeModel: (ai: unknown, params: unknown) =>
+    mockGetGenerativeModel(ai, params),
 }))
 
 /** What the SDK throws for an HTTP error response from the proxy. */
@@ -369,6 +372,98 @@ describe('parseReceiptWithAi wiring', () => {
       ).rejects.toThrow('Quota exceeded')
       expect(mockGenerateContent).toHaveBeenCalledTimes(1)
     })
+
+    it('does not retry an unrecognised AIErrorCode or missing error metadata', async () => {
+      const { parseReceiptWithAi } = await import('./receiptAi')
+
+      mockGenerateContent.mockRejectedValueOnce(
+        new AIError(AIErrorCode.NO_API_KEY, 'Missing API key'),
+      )
+      await expect(
+        parseReceiptWithAi(receiptFile(), { delayMs: 0 }),
+      ).rejects.toThrow('Missing API key')
+
+      mockGenerateContent.mockRejectedValueOnce(
+        new AIError(AIErrorCode.FETCH_ERROR, 'Network failure'),
+      )
+      await expect(
+        parseReceiptWithAi(receiptFile(), { delayMs: 0 }),
+      ).rejects.toThrow('Network failure')
+
+      mockGenerateContent.mockRejectedValueOnce(
+        new AIError(AIErrorCode.RESPONSE_ERROR, 'Blocked without candidates'),
+      )
+      await expect(
+        parseReceiptWithAi(receiptFile(), { delayMs: 0 }),
+      ).rejects.toThrow('Blocked without candidates')
+
+      expect(mockGenerateContent).toHaveBeenCalledTimes(3)
+    })
+
+    it('configures the model schema, prompt, and exponential backoff', async () => {
+      const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+      const { parseReceiptWithAi } = await import('./receiptAi')
+
+      mockGenerateContent
+        .mockRejectedValueOnce(fetchError(503))
+        .mockRejectedValueOnce(fetchError(503))
+        .mockResolvedValueOnce(successResponse)
+
+      await parseReceiptWithAi(receiptFile(), { delayMs: 5 })
+
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 5)
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 10)
+
+      expect(mockGetGenerativeModel).toHaveBeenCalledTimes(1)
+      const modelParams = mockGetGenerativeModel.mock.calls[0]?.[1] as {
+        mode: InferenceMode
+        onDeviceParams: {
+          createOptions: {
+            expectedInputs: Array<{ type: string }>
+            expectedOutputs: Array<{ type: string; languages: string[] }>
+          }
+          promptOptions: { responseConstraint: { required: string[] } }
+        }
+        inCloudParams: {
+          model: string
+          generationConfig: {
+            responseMimeType: string
+            responseJsonSchema: {
+              required: string[]
+              properties: {
+                lines: { items: { required: string[] } }
+              }
+            }
+          }
+        }
+      }
+      expect(modelParams.mode).toBe(InferenceMode.PREFER_IN_CLOUD)
+      expect(modelParams.onDeviceParams.createOptions).toEqual({
+        expectedInputs: [{ type: 'image' }],
+        expectedOutputs: [{ type: 'text', languages: ['es'] }],
+      })
+      expect(
+        modelParams.onDeviceParams.promptOptions.responseConstraint.required,
+      ).toEqual(['lines'])
+      expect(modelParams.inCloudParams.model).toBe('gemini-3.8-flash')
+      expect(modelParams.inCloudParams.generationConfig.responseMimeType).toBe(
+        'application/json',
+      )
+      expect(
+        modelParams.inCloudParams.generationConfig.responseJsonSchema.required,
+      ).toEqual(['lines'])
+      expect(
+        modelParams.inCloudParams.generationConfig.responseJsonSchema.properties
+          .lines.items.required,
+      ).toEqual(['name', 'price_type', 'unit_price', 'line_total'])
+
+      expect(mockGenerateContent).toHaveBeenCalledWith([
+        expect.objectContaining({ type: 'inlineData' }),
+        expect.stringContaining(
+          'Extract structured data from this Spanish grocery receipt',
+        ),
+      ])
+    })
   })
 
   describe('image resizing', () => {
@@ -406,6 +501,10 @@ describe('parseReceiptWithAi wiring', () => {
     it('scales a portrait receipt to 1000px wide, keeping its aspect ratio', async () => {
       // The exact photo from the JAV-51 report.
       stubImage(1418, 3543)
+      const drawImage = vi.fn()
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
+        (() => ({ drawImage })) as never,
+      )
       const { parseReceiptWithAi } = await import('./receiptAi')
       const file = new File([new ArrayBuffer(490 * 1024)], 'receipt.jpg', {
         type: 'image/jpeg',
@@ -416,9 +515,19 @@ describe('parseReceiptWithAi wiring', () => {
       const [canvas] = createdCanvases()
       expect(canvas.width).toBe(1000)
       expect(canvas.height).toBe(2499)
+      expect(HTMLCanvasElement.prototype.getContext).toHaveBeenCalledWith('2d')
+      expect(drawImage).toHaveBeenCalledWith(
+        expect.anything(),
+        0,
+        0,
+        1000,
+        2499,
+      )
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test')
       expect(mockGenerateContent).toHaveBeenCalledWith(
         expect.arrayContaining([
           expect.objectContaining({
+            type: 'inlineData',
             inlineData: { mimeType: 'image/jpeg', data: 'mock' },
           }),
         ]),
@@ -426,6 +535,29 @@ describe('parseReceiptWithAi wiring', () => {
       expect(HTMLCanvasElement.prototype.toDataURL).toHaveBeenCalledWith(
         'image/jpeg',
         0.85,
+      )
+    })
+
+    it('keeps the resized encode when base64 length equals 4/3 of file size', async () => {
+      stubImage(2000, 3000)
+      vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockImplementation(
+        () => 'data:image/jpeg;base64,' + 'R'.repeat(16),
+      )
+      const { parseReceiptWithAi } = await import('./receiptAi')
+      // 12 bytes * 4 / 3 = 16 base64 chars — boundary for <= vs <.
+      const file = new File([new ArrayBuffer(12)], 'receipt.jpg', {
+        type: 'image/jpeg',
+      })
+
+      await parseReceiptWithAi(file)
+
+      expect(mockGenerateContent).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'inlineData',
+            inlineData: { mimeType: 'image/jpeg', data: 'R'.repeat(16) },
+          }),
+        ]),
       )
     })
 
@@ -549,6 +681,53 @@ describe('parseReceiptWithAi wiring', () => {
         expect.arrayContaining([
           expect.objectContaining({
             inlineData: expect.objectContaining({ mimeType: 'image/png' }),
+          }),
+        ]),
+      )
+    })
+
+    it('falls back when only width is zero, when width is exactly 1000px, or when 2d context is null', async () => {
+      const { parseReceiptWithAi } = await import('./receiptAi')
+
+      stubImage(0, 100)
+      await parseReceiptWithAi(
+        new File(['x'], 'zero-w.png', { type: 'image/png' }),
+      )
+      expect(createdCanvases()).toHaveLength(0)
+
+      stubImage(1000, 2000)
+      await parseReceiptWithAi(
+        new File(['x'], 'exact.png', { type: 'image/png' }),
+      )
+      expect(createdCanvases()).toHaveLength(0)
+
+      stubImage(2000, 3000)
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
+        (() => null) as never,
+      )
+      await parseReceiptWithAi(
+        new File(['x'], 'no-ctx.png', { type: 'image/png' }),
+      )
+      expect(createdCanvases()).toHaveLength(1)
+      expect(HTMLCanvasElement.prototype.toDataURL).not.toHaveBeenCalled()
+    })
+
+    it('skips resizing for non-image files like PDFs and strips the data URL prefix', async () => {
+      const { parseReceiptWithAi } = await import('./receiptAi')
+
+      await parseReceiptWithAi(
+        new File(['%PDF-1.4'], 'receipt.pdf', { type: 'application/pdf' }),
+      )
+
+      expect(URL.createObjectURL).not.toHaveBeenCalled()
+      expect(mockGenerateContent).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'inlineData',
+            inlineData: {
+              mimeType: 'application/pdf',
+              data: btoa('%PDF-1.4'),
+            },
           }),
         ]),
       )

@@ -1376,3 +1376,45 @@ def test_close_remembers_a_new_item_article(client: TestClient, session: Session
     assert response.status_code == 200
     [row] = _articles(session)
     assert (row.article, row.item_name, row.item_brand) == ("04120", "Pollo entero", "Hacendado")
+
+
+def test_parse_search_splits_name_brand_stores_and_skips_qty_ean():
+    from app.routers.purchases import _parse_search
+
+    assert _parse_search("") == ("", None, [])
+    assert _parse_search("   ") == ("", None, [])
+    assert _parse_search("  leche   entera  ") == ("leche entera", None, [])
+    assert _parse_search("leche #Puleva Eco @El Corte Inglés") == (
+        "leche",
+        "Puleva Eco",
+        ["elcorteingles"],
+    )
+    # Only the first #brand opens the brand run; subsequent # sigils are ignored.
+    assert _parse_search("leche #Puleva extra #Hacendado") == ("leche", "Puleva extra", [])
+    # Stores are keyed and deduplicated while preserving order.
+    assert _parse_search("@Ahorra Más @Ahorramás @Lidl @Mercadona") == (
+        "",
+        None,
+        ["ahorramas", "lidl", "mercadona"],
+    )
+    # +qty consumes following non-sigil words; |ean does not capture following words.
+    assert _parse_search("|8412345678901 leche entera +2 litros @Lidl") == (
+        "leche entera",
+        None,
+        ["lidl"],
+    )
+    assert _parse_search("+2 bolsas") == ("", None, [])
+    # Empty or whitespace-only sigils are ignored, without stopping later stores.
+    assert _parse_search('leche # @ @"   " #"   "') == ("leche", None, [])
+    assert _parse_search("@ @Lidl") == ("", None, ["lidl"])
+    # Quoted values preserve internal sigils, support single & double quotes, trim, and restore multiple placeholders.
+    assert _parse_search('"Leche @ 100%" #"Marca + Bio " @\'Tienda #1\'') == (
+        "Leche @ 100%",
+        "Marca + Bio",
+        ["tienda1"],
+    )
+    assert _parse_search("'Aceite + Extra' @\"El Corte Inglés\"") == (
+        "Aceite + Extra",
+        None,
+        ["elcorteingles"],
+    )

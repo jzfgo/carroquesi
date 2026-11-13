@@ -7,7 +7,14 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default defineConfig([
-  globalIgnores(['dist', 'dev-dist', 'coverage', 'src/apiSchema.generated.ts']),
+  globalIgnores([
+    'dist',
+    'dev-dist',
+    'coverage',
+    'reports',
+    '.stryker-tmp',
+    'src/apiSchema.generated.ts',
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
