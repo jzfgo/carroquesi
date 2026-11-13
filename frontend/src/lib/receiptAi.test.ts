@@ -62,4 +62,31 @@ describe('toReceiptInstant', () => {
     // would throw away the day and month the repair keeps.
     expect(toReceiptInstant('2062-10-30', null)).not.toBeNull()
   })
+
+  it('accepts boundary hours and minutes 00:00 and 23:59', () => {
+    const start = new Date(toReceiptInstant('2026-07-12', '00:00') as string)
+    expect(start.getHours()).toBe(0)
+    expect(start.getMinutes()).toBe(0)
+
+    const end = new Date(toReceiptInstant('2026-07-12', '23:59') as string)
+    expect(end.getHours()).toBe(23)
+    expect(end.getMinutes()).toBe(59)
+  })
+
+  it('degrades negative or non-integer time components to 00:00', () => {
+    const neg = new Date(toReceiptInstant('2026-07-12', '-1:-5') as string)
+    expect(neg.getHours()).toBe(0)
+    expect(neg.getMinutes()).toBe(0)
+
+    const frac = new Date(toReceiptInstant('2026-07-12', '12.5:30.5') as string)
+    expect(frac.getHours()).toBe(0)
+    expect(frac.getMinutes()).toBe(0)
+  })
+
+  it('rejects non-leap Feb 29, month 0, year 0, and non-numeric dates', () => {
+    expect(toReceiptInstant('2026-02-29', null)).toBeNull()
+    expect(toReceiptInstant('2026-00-01', null)).toBeNull()
+    expect(toReceiptInstant('0000-01-01', null)).toBeNull()
+    expect(toReceiptInstant('not-a-date', null)).toBeNull()
+  })
 })

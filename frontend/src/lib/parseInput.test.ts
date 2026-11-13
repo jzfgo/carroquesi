@@ -210,5 +210,20 @@ describe('parseInput', () => {
       const result = parseInput('#""')
       expect(result.brand).toBeNull()
     })
+
+    test('quoted sigil values are trimmed and whitespace-only values ignored', () => {
+      expect(parseInput('Leche #"PULEVA " +" 2 " @" Mercadona "')).toEqual({
+        name: 'Leche',
+        quantity: '2',
+        brand: 'PULEVA',
+        stores: ['Mercadona'],
+      })
+      expect(parseInput('Leche #"   " @"   "')).toEqual({
+        name: 'Leche',
+        quantity: null,
+        brand: null,
+        stores: [],
+      })
+    })
   })
 })
