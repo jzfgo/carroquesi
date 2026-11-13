@@ -16,7 +16,7 @@ interface SubtitleMember {
 // A structural subset of ListRead. The dashboard cache in localStorage can
 // hold list payloads from before members/cart_count existed, so both fields
 // must be optional here and absence must read as "nobody else / empty cart".
-export interface SubtitleSource {
+interface SubtitleSource {
   members?: SubtitleMember[] | null
   cart_count?: number | null
 }

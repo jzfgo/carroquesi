@@ -115,10 +115,6 @@ export function quantityDisplay(line: ReceiptLine): string {
   return '1'
 }
 
-export function linePricePer(line: ReceiptLine): 'KILOGRAM' | null {
-  return deriveUnit(quantityString(line)).pricePer
-}
-
 /** The quantity the review works with: the user's, else the paper's. */
 export function effectiveQuantity(
   line: ReceiptLine,
