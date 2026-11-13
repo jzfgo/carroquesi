@@ -91,8 +91,14 @@ export default defineConfig({
   // the going rate for a visible affordance, and one smaller than this budget
   // and without its own assertion would still slip through. So treat this as
   // a number to lower, never to raise.
+  // Per-pixel colour threshold is lowered from Playwright's 0.2 default to 0.03:
+  // close surface tokens (e.g. dark-mode --paper-0 #252731 vs --paper-lift
+  // #2e313b, YIQ distance ~0.037) sit well below 0.2 (and even 0.05), so a
+  // token swap counts 0 differing pixels and never reaches maxDiffPixels.
+  // CI runs inside the same Playwright container as update-snapshots and stayed
+  // 74/74 green across 3 --retries=0 runs at 0.03 (JAV-236).
   expect: {
-    toHaveScreenshot: { maxDiffPixels: 50 },
+    toHaveScreenshot: { maxDiffPixels: 50, threshold: 0.03 },
   },
   projects: [
     {
