@@ -48,6 +48,9 @@ def test_share_page_names_list_and_inviter(client: TestClient, session: Session,
     assert f'<meta property="og:description" content="{description}" />' in body
     og_image = f"{get_settings().frontend_url}/og-image.png"
     assert f'<meta property="og:image" content="{og_image}" />' in body
+    assert f'<meta name="twitter:title" content="{title}" />' in body
+    assert f'<meta name="twitter:description" content="{description}" />' in body
+    assert f'<meta name="twitter:image" content="{og_image}" />' in body
     assert f'content="0;url=/invite/{invite.id}"' in body
     assert f'window.location.replace("/invite/{invite.id}")' in body
 
