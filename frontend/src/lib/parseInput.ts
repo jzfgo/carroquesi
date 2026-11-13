@@ -18,6 +18,8 @@ export function parseInput(raw: string): ParsedInput {
   // the word-loop never sees sigil characters that are meant to be literal text.
   // Unclosed quotes produce no regex match and pass through unchanged.
   const placeholders: string[] = []
+  // One of dq or sq is always a string when QUOTED_RE matches; typing sq as
+  // string reflects the fallback after the dq !== undefined check.
   const withPlaceholders = raw.replace(
     QUOTED_RE,
     (_match, sigil: string, dq: string | undefined, sq: string) => {
