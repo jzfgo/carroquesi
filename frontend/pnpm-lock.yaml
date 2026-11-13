@@ -152,6 +152,9 @@ importers:
       stylelint-config-standard:
         specifier: ^40.0.0
         version: 40.0.0(stylelint@17.16.0(typescript@6.0.3))
+      type-coverage:
+        specifier: ^2.31.2
+        version: 2.31.2(typescript@6.0.3)
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -5346,6 +5349,9 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4'
 
+  tslib@1.14.1:
+    resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
+
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
@@ -5353,9 +5359,24 @@ packages:
     resolution: {integrity: sha512-LxhtAkPDTkVCMQjt2h6eBVY28KCjikZqZfMcC15YBeNjkgUpdCfBu5HoiOTDu86v6smE8yOjyEktJ8hlbANHQA==}
     engines: {node: '>=0.6.x'}
 
+  tsutils@3.21.0:
+    resolution: {integrity: sha512-mHKK3iUXL+3UF6xL5k0PEhKRUBKPBCv/+RkEOpjRWxxx27KKRBmmA60A9pgOUvMi8GKhRMPEmjBRPzs2W7O1OA==}
+    engines: {node: '>= 6'}
+    peerDependencies:
+      typescript: '>=2.8.0 || >= 3.2.0-dev || >= 3.3.0-dev || >= 3.4.0-dev || >= 3.5.0-dev || >= 3.6.0-dev || >= 3.6.0-beta || >= 3.7.0-dev || >= 3.7.0-beta'
+
   type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
     engines: {node: '>= 0.8.0'}
+
+  type-coverage-core@2.31.2:
+    resolution: {integrity: sha512-g6Pw+96CkXiW1H3iffNLDvCQxQEGpOqLJPEETHRPW3Gf377C10S2gxkS0U39xYosGoxcUOTGS1M5UfRbaPEvhg==}
+    peerDependencies:
+      typescript: 2 || 3 || 4 || 5 || 6 || 7
+
+  type-coverage@2.31.2:
+    resolution: {integrity: sha512-eroIGjjfPJacik99YiFL/yXYRfiLKpymY7Pjrdm1cVA1H11XUPeDDfaf2GZgU4uS/o3RVSaA+xAwLDFqocsdQw==}
+    hasBin: true
 
   type-fest@0.16.0:
     resolution: {integrity: sha512-eaBzG6MxNzEn9kiwvtre90cXaNLkmadMWa1zQMs3XORCXNbsH/OewwbxC5ia9dCxIxnTAsSxXJaa/p5y8DlvJg==}
@@ -11588,13 +11609,36 @@ snapshots:
     dependencies:
       typescript: 6.0.3
 
+  tslib@1.14.1: {}
+
   tslib@2.8.1: {}
 
   tsscmp@1.0.6: {}
 
+  tsutils@3.21.0(typescript@6.0.3):
+    dependencies:
+      tslib: 1.14.1
+      typescript: 6.0.3
+
   type-check@0.4.0:
     dependencies:
       prelude-ls: 1.2.1
+
+  type-coverage-core@2.31.2(typescript@6.0.3):
+    dependencies:
+      minimatch: 10.2.6
+      normalize-path: 3.0.0
+      tslib: 2.8.1
+      tsutils: 3.21.0(typescript@6.0.3)
+      typescript: 6.0.3
+
+  type-coverage@2.31.2(typescript@6.0.3):
+    dependencies:
+      chalk: 4.1.2
+      minimist: 1.2.8
+      type-coverage-core: 2.31.2(typescript@6.0.3)
+    transitivePeerDependencies:
+      - typescript
 
   type-fest@0.16.0: {}
 
