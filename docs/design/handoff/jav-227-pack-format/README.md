@@ -34,6 +34,26 @@ not change and show no «Formato».
 
 ## Rules the frames encode
 
+**Format and name.** A format taken from the name is removed from the name
+on save: «Agua mineral 6x1,5L» becomes «Agua mineral» with the format
+6 × 1,5 L. That is why rows and sheets show the plain name. If the format is
+cleared later, the name does not get the text back.
+
+**Format and quantity.** «Cantidad» holds units, or the weight of something
+weighed in the store («1,12 kg»). The size of a package («1,5 L», «500 g»)
+goes in «Formato», never in «Cantidad». The 10d help text says so: «Escribe
+unidades (6) o el peso de lo que pesaste (1,12 kg)». Today a non-weighed
+quantity with a unit is read as the package size; JAV-220's backfill moves
+those values to «Formato», so one package is never stored in two places.
+
+**Bases.** L is a basis of its own, apart from kg. Today `unit_price()` maps L
+to kg; JAV-12 splits them, and the history never mixes them.
+
+**Unit spelling.** Rows (21b) print the unit in uppercase, in the mono voice
+of the record: «10,65 €/KG», «3,48 €/UD». Sheets and history use lowercase:
+«10,65 €/kg», «3,48 €/ud». Both are on purpose.
+
+
 **Format text.** «6 × 1,5 L» (count and content), «1,5 L» or «108 G» (count
 1), «PACK DE 12» (count only). Uppercase in the mono voice of bought rows,
 as typed elsewhere.
