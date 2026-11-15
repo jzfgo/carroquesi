@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 
 from app.db.models import ListItem, ReceiptNameMapping
 from app.schemas.receipt import MatchedLine, ParsedLine, UnmatchedLine
+from app.services.pack_from_name import name_without_format
 from app.services.store_key import store_key
 
 MATCH_THRESHOLD = 70
@@ -73,9 +74,15 @@ def match_lines(
 
         mapping = _lookup_mapping(store, norm, session)
         if mapping:
-            mapped_name = normalise(mapping.item_name)
+            # A mapping learned before formats left names still names «Agua
+            # 6x1,5L»; the item is «Agua» now. Compare without the format.
+            mapped_name = normalise(name_without_format(mapping.item_name))
             item = next(
-                (i for i in purchased_items if free(i) and normalise(i.name) == mapped_name),
+                (
+                    i
+                    for i in purchased_items
+                    if free(i) and normalise(name_without_format(i.name)) == mapped_name
+                ),
                 None,
             )
             if item:

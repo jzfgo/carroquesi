@@ -12,6 +12,7 @@ from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 from app.services import trips
 from app.services.bought_by_weight import mark_bought_by_weight
 from app.services.client_day import ClientTimezone
+from app.services.pack_from_name import fill_from_name
 from app.services.pending_duplicate import find_pending_duplicate
 from app.services.push import notify_list_change
 from app.services.store_registry import ensure_stores
@@ -110,6 +111,7 @@ def _take_format_of_ean(session: Session, item: ListItem, ean: str) -> None:
         item.pack_count = source.pack_count
         item.pack_content = source.pack_content
         item.pack_content_unit = source.pack_content_unit
+        item.pack_source = source.pack_source
 
 
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
@@ -119,11 +121,13 @@ def add_item(
     session: CurrentSession,
 ):
     lst, current_user = list_and_user
-    if find_pending_duplicate(session, lst.id, body.name, body.ean) is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Item already in list")
     item = ListItem(list_id=lst.id, added_by=current_user.id, **body.model_dump())
     if body.ean:
         _take_format_of_ean(session, item, body.ean)
+    fill_from_name(item)
+    # After the format leaves the name: «Agua 6x1,5L» is the pending «Agua».
+    if find_pending_duplicate(session, lst.id, item.name, item.ean) is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Item already in list")
     session.add(item)
     ensure_stores(session, lst.id, body.stores)
     _bump(lst, session)
@@ -158,6 +162,8 @@ def update_item(
         item.change_pack(body.pack.model_dump() if body.pack else None)
     for field, value in data.items():
         setattr(item, field, value)
+    if "name" in data and "pack" not in body.model_fields_set:
+        fill_from_name(item)
     if data.get("stores"):
         ensure_stores(session, lst.id, data["stores"])
     if purchased is True and item.purchased_at is None:
