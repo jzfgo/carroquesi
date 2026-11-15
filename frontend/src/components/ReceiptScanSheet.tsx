@@ -381,12 +381,11 @@ export default function ReceiptScanSheet({
     )
   }
 
-  // The item 13b's format block is about: the one picked in the list, else
-  // the one the line is linked to, or null for a line being created.
-  function packTarget(ls: LineState): string | null {
-    if (resolveRadioId) return resolveRadioId
-    const r = ls.resolution
-    return r.kind === 'matched' || r.kind === 'linked' ? r.itemId : null
+  // The item 13b's format block is about: the one picked in the list, or
+  // null for the line «Asignar» would create. Opening the detail picks the
+  // linked item, and typing a name clears the pick, so the pick alone says.
+  function packTarget(): string | null {
+    return resolveRadioId
   }
 
   // A format typed for this item, else the item's own.
@@ -751,16 +750,9 @@ export default function ReceiptScanSheet({
           onBack={() => setResolvingIndex(null)}
           state={lineStates[resolvingIndex]}
           onChangeQuantity={(value) => setLineQuantity(resolvingIndex, value)}
-          pack={linePack(
-            lineStates[resolvingIndex],
-            packTarget(lineStates[resolvingIndex]),
-          )}
+          pack={linePack(lineStates[resolvingIndex], packTarget())}
           onChangePack={(pack) =>
-            setLinePack(
-              resolvingIndex,
-              pack,
-              packTarget(lineStates[resolvingIndex]),
-            )
+            setLinePack(resolvingIndex, pack, packTarget())
           }
           onChangePrice={(price, total) =>
             setLinePrice(resolvingIndex, price, total)

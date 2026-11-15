@@ -56,6 +56,11 @@ describe('readPackWeight', () => {
       content: 1.5,
       unit: 'l',
     })
+    expect(readPackWeight('0.330 L')).toEqual({
+      kind: 'weight',
+      content: 0.33,
+      unit: 'l',
+    })
   })
 
   it.each(['1,5', '108 latas', 'L', '0 g', '200000 l', '1.000 ml'])(

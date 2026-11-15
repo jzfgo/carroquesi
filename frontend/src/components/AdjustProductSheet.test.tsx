@@ -126,7 +126,11 @@ test('Hecho saves the typed format on the line', () => {
   expect(screen.getByText('12 ud')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Hecho' }))
   expect(onDone).toHaveBeenCalledWith(
-    expect.objectContaining({ pack: { count: 12, content: null, unit: null } }),
+    expect.objectContaining({
+      pack: { count: 12, content: null, unit: null },
+      // Without the flag the close would not send the format.
+      packEdited: true,
+    }),
   )
 })
 

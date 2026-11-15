@@ -1263,4 +1263,32 @@ describe('ReceiptScanSheet — a format follows its item', () => {
     expect(mani).toBeDefined()
     expect(mani).not.toHaveProperty('pack')
   })
+
+  it('gives a format typed under the create bar to the item it creates', async () => {
+    const { onConfirm } = renderSheet()
+    fireEvent.click(openRow('BEBIDA ALMENDRAS'))
+    // Typing a name clears the pick: «Asignar» will create, so the block is
+    // about the new item, not the matched one.
+    fireEvent.change(screen.getByPlaceholderText(/Nombre del producto/), {
+      target: { value: 'Bebida de avena' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Añadir formato/ }))
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Peso de cada unidad' }),
+      { target: { value: '1 L' } },
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches, , newItems] = onConfirm.mock.calls[0]
+    expect(newItems).toEqual([
+      expect.objectContaining({
+        name: 'Bebida de avena',
+        pack: { count: 1, content: 1, unit: 'l' },
+      }),
+    ])
+    expect(patches.find((p) => p.item_id === 'item-1')).toBeUndefined()
+  })
 })
