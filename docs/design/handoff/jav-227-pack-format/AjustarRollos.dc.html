@@ -40,7 +40,7 @@
 
     <div class="newbox">
       <span class="lbl">Formato <span class="opt">· opcional</span></span>
-      <div style="display: grid; grid-template-columns: 84px auto 1fr 76px; gap: 8px; align-items: end;">
+      <div style="display: grid; grid-template-columns: 84px auto 1fr; gap: 8px; align-items: end;">
         <label style="display: flex; flex-direction: column; gap: 6px;">
           <span style="font: 400 11.5px/1 'Geist', system-ui, sans-serif; color: #353742;">Unidades</span>
           <span class="fld"><input aria-label="Unidades por envase" value="12" inputmode="numeric" placeholder="1"></span>
@@ -48,13 +48,10 @@
         <span style="display: flex; align-items: center; height: 48px; font: 400 15px/1 'Geist', system-ui, sans-serif; color: #6a6d7a;">×</span>
         <label style="display: flex; flex-direction: column; gap: 6px;">
           <span style="font: 400 11.5px/1 'Geist', system-ui, sans-serif; color: #353742;">Contenido</span>
-          <span class="fld"><input aria-label="Contenido de cada unidad" value="" placeholder="—" inputmode="decimal" style="text-align: right;"></span>
-        </label>
-        <label style="display: flex; flex-direction: column; gap: 6px;">
-          <span style="font: 400 11.5px/1 'Geist', system-ui, sans-serif; color: #353742;">&nbsp;</span>
-          <span class="fld" style="padding: 0 8px 0 12px;"><select aria-label="Unidad del contenido" style="font: 500 15px/1 'Geist', system-ui, sans-serif; color: #6a6d7a;"><option selected>g</option><option>kg</option><option>ml</option><option>cl</option><option>L</option></select><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #353742;"><path d="m6 9 6 6 6-6"></path></svg></span>
+          <span class="fld"><input aria-label="Contenido de cada unidad" value="" placeholder="ej. 500 ml" style="text-align: right;"></span>
         </label>
       </div>
+      <p class="help">Escribe el contenido con su unidad (<span class="mono">1,5 L</span>, <span class="mono">108 g</span>, <span class="mono">33 cl</span>).</p>
       <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 12px;">
         <span style="display: flex; flex-direction: column; gap: 6px;"><span class="cap">Precio / ud</span><span class="fig" style="font-size: 17px;">0,30 €</span></span>
         <span style="display: flex; flex-direction: column; gap: 6px;"><span class="cap">En total</span><span class="fig" style="font-size: 17px;">12<small>ud</small></span></span>
