@@ -16,8 +16,10 @@ class PackFormat(BaseModel):
     nothing, so it is refused: send null to remove a format.
     """
 
-    count: int = Field(default=1, ge=1)
-    content: float | None = Field(default=None, gt=0)
+    # Bounded so a normalised price stays a finite figure: a near-zero content
+    # would divide into infinity, which no JSON response can carry.
+    count: int = Field(default=1, ge=1, le=1000)
+    content: float | None = Field(default=None, ge=0.001, le=100_000, allow_inf_nan=False)
     unit: ContentUnit | None = None
 
     @model_validator(mode="after")

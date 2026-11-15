@@ -66,6 +66,9 @@ def test_null_removes_the_format(client: TestClient):
         {"count": 6, "content": 1.5},  # a figure with no unit
         {"count": 6, "unit": "l"},
         {"count": 1, "content": 0, "unit": "l"},
+        {"count": 1, "content": 1e-300, "unit": "g"},  # would price at infinity
+        {"count": 1, "content": 1e9, "unit": "l"},
+        {"count": 100_000},
         {"count": 1, "content": 1.5, "unit": "litros"},  # the client maps spellings
     ],
 )

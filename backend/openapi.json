@@ -1310,7 +1310,8 @@
           "content": {
             "anyOf": [
               {
-                "exclusiveMinimum": 0.0,
+                "maximum": 100000.0,
+                "minimum": 0.001,
                 "type": "number"
               },
               {
@@ -1321,6 +1322,7 @@
           },
           "count": {
             "default": 1,
+            "maximum": 1000.0,
             "minimum": 1.0,
             "title": "Count",
             "type": "integer"
