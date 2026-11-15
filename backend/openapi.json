@@ -741,6 +741,7 @@
           "ean": {
             "anyOf": [
               {
+                "pattern": "^\\d{8}$|^\\d{13}$",
                 "type": "string"
               },
               {

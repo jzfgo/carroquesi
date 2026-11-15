@@ -160,12 +160,32 @@ describe('normalizeEntries', () => {
       expect(result.entries[0].displayBasis).toBe('ud')
     })
 
-    it('breaks a tie in favour of the newer entries', () => {
+    it('breaks a tie in favour of the newest dated entry', () => {
       const entries = [
-        entry({ amount: 1.2, quantity: '500 g' }),
-        entry({ amount: 0.65, quantity: '1,5 L' }),
+        entry({
+          amount: 0.65,
+          quantity: '1,5 L',
+          purchased_at: '2026-08-01T10:00:00Z',
+        }),
+        entry({
+          amount: 1.2,
+          quantity: '500 g',
+          purchased_at: '2026-07-01T10:00:00Z',
+        }),
       ]
       expect(normalizeEntries(entries).entries[0].displayBasis).toBe('l')
+    })
+
+    it('never lets a dateless log break a tie', () => {
+      const entries = [
+        entry({
+          amount: 1.2,
+          quantity: '500 g',
+          purchased_at: '2026-07-01T10:00:00Z',
+        }),
+        entry({ amount: 0.65, quantity: '1,5 L', purchased_at: null }),
+      ]
+      expect(normalizeEntries(entries).entries[0].displayBasis).toBe('kg')
     })
   })
 })

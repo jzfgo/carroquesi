@@ -45,7 +45,9 @@ def cheaper_elsewhere(
 ) -> CheaperElsewhere:
     start = month_end - timedelta(days=th.window_days)
     # Prices are compared only on the same scale: €/kg with €/kg, €/L with
-    # €/L. A line with a format never meets one without: they differ in basis.
+    # €/L. A line with no format meets a pack only when its quantity names a
+    # size on the same basis («1,5 L» against 6 × 1,5 L); otherwise it is per
+    # unit bought and stays apart.
     by_product: dict[tuple, list[_Seen]] = defaultdict(list)
     for line in w.lines:
         if line.reduced:

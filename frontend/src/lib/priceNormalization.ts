@@ -1,5 +1,6 @@
 import type { PriceEntry } from '../types'
 import { type PriceBasis, unitPrice } from './itemCost'
+import { compareServerInstants } from './serverInstant'
 
 export interface ChartEntry {
   displayAmount: number | null
@@ -26,7 +27,8 @@ interface NormalizationResult {
  * Puts a product's prices on one scale, like a shelf label.
  *
  * When any entry can be priced per kg, L or ud of a pack, the history takes
- * the basis most entries share. An entry on another basis, or with no format
+ * the basis most of those entries share; entries priced per unit bought do
+ * not vote. An entry on another basis, or with no format
  * at all, gets displayAmount=null: it keeps its own price, off the curve and
  * out of the minimum. Kilos and litres are never mixed. When no entry can be
  * converted, every price stays per unit bought.
@@ -48,7 +50,9 @@ export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
       ),
     }))
 
-  const basis = sharedBasis(priced.map((p) => p.unit.basis))
+  const basis = sharedBasis(
+    priced.map((p) => ({ basis: p.unit.basis, at: p.e.purchased_at ?? null })),
+  )
   let isNormalized = false
   let hasGaps = false
 
@@ -72,18 +76,27 @@ export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
 }
 
 /** The basis most entries can be priced on; per unit bought only if none. */
-function sharedBasis(bases: PriceBasis[]): PriceBasis {
+function sharedBasis(
+  entries: { basis: PriceBasis; at: string | null }[],
+): PriceBasis {
   const counts = new Map<PriceBasis, number>()
-  for (const b of bases) {
-    if (b !== 'unit') counts.set(b, (counts.get(b) ?? 0) + 1)
+  for (const { basis } of entries) {
+    if (basis !== 'unit') counts.set(basis, (counts.get(basis) ?? 0) + 1)
   }
+  // A tie goes to the newest dated entry's basis. A dateless manual log has
+  // no place in time, so it never breaks a tie.
+  const newestFirst = [...entries].sort((a, b) => {
+    if (a.at === b.at) return 0
+    if (a.at === null) return 1
+    if (b.at === null) return -1
+    return compareServerInstants(b.at, a.at)
+  })
   let best: PriceBasis = 'unit'
   let most = 0
-  // A tie goes to the newer entries' basis: the response is oldest first.
-  for (const b of [...bases].reverse()) {
-    const n = counts.get(b) ?? 0
+  for (const { basis } of newestFirst) {
+    const n = counts.get(basis) ?? 0
     if (n > most) {
-      best = b
+      best = basis
       most = n
     }
   }

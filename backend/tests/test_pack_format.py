@@ -104,6 +104,13 @@ def test_a_scan_in_the_same_request_sets_the_new_ean(client: TestClient):
     assert response.json()["ean"] == "8410188011128"
 
 
+def test_an_ean_that_is_not_8_or_13_digits_is_refused(client: TestClient):
+    lst = _list(client)
+    item = _item(client, lst["id"])
+
+    assert _patch(client, lst["id"], item["id"], {"ean": "12345"}).status_code == 422
+
+
 def test_resending_the_same_format_keeps_the_ean(client: TestClient):
     lst = _list(client)
     item = _item(client, lst["id"])
