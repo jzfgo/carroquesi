@@ -48,6 +48,8 @@ Today a non-weighed quantity with a unit is read as the package size. JAV-12
 keeps that reading as a fallback for lines with no format, so nothing drops
 out of the history between JAV-12 and JAV-220's backfill. A unit typed in
 «Cantidad» after that keeps the same reading; it is not refused or moved.
+When a line has both, «Formato» wins: the unit in «Cantidad» is ignored for
+the normalised price, so litres are never multiplied by litres.
 
 **Backfill (JAV-220).** One pass over existing lines, dry-run first with a
 diff report:
@@ -64,7 +66,9 @@ product: the price history and every comparison group by them, always. The
 EAN names the format, since each format has its own code (1,5 L, 6 × 1,5 L and
 5 L are three EANs). Today the history groups by EAN when the item has one,
 which keeps a scanned item's history to one format and splits it from lines
-typed by hand. JAV-12 changes that rule, with an ADR:
+typed by hand. JAV-12 changes that rule, with an ADR that cross-links
+[ADR-013](../../../decisions/013-store-registry.md), the nearest record on
+how lines are grouped:
 
 - The history never groups by EAN. Frame 3 (one history across formats)
   depends on it.
@@ -77,7 +81,11 @@ Exact name matching stays the weak point, as today: two spellings split a
 history. A separate product/format entity is tracked in JAV-242.
 
 **Bases.** L is a basis of its own, apart from kg. Today `unit_price()` maps L
-to kg; JAV-12 splits them, and the history never mixes them.
+to kg; JAV-12 splits them, and the history never mixes them. «ud» of a pack
+(one roll of twelve) is also its own basis, apart from «per item bought» (a
+line with no format). Spend insights follow the history's rule: they never
+compare a line with a format against one without (`cheaper_elsewhere`), and
+`monthly_quantity` counts in the basis unit (litres, not packs).
 
 **Unit spelling.** Rows (21b) print the unit in uppercase, in the mono voice
 of the record: «10,65 €/KG», «3,48 €/UD». Sheets and history use lowercase:
@@ -124,11 +132,11 @@ and the value becomes manual, which automatic filling never overwrites
 
 - «Unidades»: whole number ≥ 1; empty means 1.
 - «Peso»: optional. When typed, a figure > 0 with one of these units:
-  g, gr, gramo(s); kg, kilo(s); ml; cl; l, litro(s). Today only the display
+  g, gr, gramo(s); kg, kilo(s); ml; cl; dl; l, litro(s). Today only the display
   table (`formatQuantity.ts`) knows the long spellings. The pricing tables
   (`UNIT_TO_KG` in `quantity.py` and `itemCost.ts`, pinned by
   `quantityVectors.json`) know only g, kg, ml, cl, dl, l, and must grow to
-  this list, vectors first.
+  this list (adding spellings, removing none), vectors first.
 - A figure with no unit is refused: the field shows «Añade la unidad: 1,5 L,
   108 g» in `--danger` text beneath, and «Hecho» stays disabled, like the old
   price in JAV-226. Without a weight, the price is per unit of the pack.
