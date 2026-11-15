@@ -42,9 +42,22 @@ cleared later, the name does not get the text back.
 **Format and quantity.** «Cantidad» holds units, or the weight of something
 weighed in the store («1,12 kg»). The size of a package («1,5 L», «500 g»)
 goes in «Formato», never in «Cantidad». The 10d help text says so: «Escribe
-unidades (6) o el peso de lo que pesaste (1,12 kg)». Today a non-weighed
-quantity with a unit is read as the package size; JAV-220's backfill moves
-those values to «Formato», so one package is never stored in two places.
+unidades (6) o el peso de lo que pesaste (1,12 kg)».
+
+Today a non-weighed quantity with a unit is read as the package size. JAV-12
+keeps that reading as a fallback for lines with no format, so nothing drops
+out of the history between JAV-12 and JAV-220's backfill. A unit typed in
+«Cantidad» after that keeps the same reading; it is not refused or moved.
+
+**Backfill (JAV-220).** One pass over existing lines, dry-run first with a
+diff report:
+
+- A format found in a line's name is stripped from the name and stored with
+  the source «del nombre». Old and new lines then share one name, so their
+  history stays together.
+- A package size found in a non-weighed «Cantidad» («1,5 L», «500 g») moves
+  to «Formato», and «Cantidad» becomes 1. Someone typed it, so it counts as
+  manual: no source note, never overwritten.
 
 **Bases.** L is a basis of its own, apart from kg. Today `unit_price()` maps L
 to kg; JAV-12 splits them, and the history never mixes them.
@@ -52,7 +65,6 @@ to kg; JAV-12 splits them, and the history never mixes them.
 **Unit spelling.** Rows (21b) print the unit in uppercase, in the mono voice
 of the record: «10,65 €/KG», «3,48 €/UD». Sheets and history use lowercase:
 «10,65 €/kg», «3,48 €/ud». Both are on purpose.
-
 
 **Format text.** «6 × 1,5 L» (count and content), «1,5 L» or «108 G» (count
 1), «PACK DE 12» (count only). Uppercase in the mono voice of bought rows,
@@ -94,15 +106,18 @@ and the value becomes manual, which automatic filling never overwrites
 (JAV-220). 13b uses the same block, with the source «del ticket».
 
 - «Unidades»: whole number ≥ 1; empty means 1.
-- «Peso»: optional. When typed, a figure > 0 with a unit (g, kg, ml, cl,
-  L, with the same spellings «Cantidad» accepts: «gr», «litros»…). A figure
-  with no unit is refused: a warning on the field, and «Hecho» stays disabled,
-  like the old price in JAV-226. Without a weight, the price is per unit of
-  the pack.
+- «Peso»: optional. When typed, a figure > 0 with one of these units:
+  g, gr, gramo(s); kg, kilo(s); ml; cl; l, litro(s). Today only the display
+  table (`formatQuantity.ts`) knows the long spellings. The pricing tables
+  (`UNIT_TO_KG` in `quantity.py` and `itemCost.ts`, pinned by
+  `quantityVectors.json`) know only g, kg, ml, cl, dl, l, and must grow to
+  this list, vectors first.
+- A figure with no unit is refused: the field shows «Añade la unidad: 1,5 L,
+  108 g» in `--danger` text beneath, and «Hecho» stays disabled, like the old
+  price in JAV-226. Without a weight, the price is per unit of the pack.
 - The field is «Peso», not «Contenido»: for a pack of rolls, or of anything
-  sold by the piece, «Peso · opcional» reads as safe to leave empty. As in
-  «Cantidad y precio», «peso» also covers ml and L. In the model it is still
-  `unit_content`.
+  sold by the piece, «Peso · opcional» reads as safe to leave empty. Here
+  «peso» also covers ml and L. In the model it is still `unit_content`.
 - Emptying both fields removes the format.
 
 **Automatic values need no confirmation.** A format from the name, the
