@@ -58,7 +58,7 @@ class ItemUpdate(BaseModel):
     # Absent = don't touch; null = remove the format. Changing it clears the
     # EAN unless this request sets one: that EAN named the old format.
     pack: PackFormat | None = None
-    ean: str | None = Field(default=None, pattern=r"^\d{8}$|^\d{13}$")
+    ean: str | None = Field(default=None, pattern=r"^[0-9]{8}$|^[0-9]{13}$")
 
 
 class ItemRead(BaseModel):

@@ -109,6 +109,8 @@ def test_an_ean_that_is_not_8_or_13_digits_is_refused(client: TestClient):
     item = _item(client, lst["id"])
 
     assert _patch(client, lst["id"], item["id"], {"ean": "12345"}).status_code == 422
+    # Digits from another script are not a barcode.
+    assert _patch(client, lst["id"], item["id"], {"ean": "٨٤١٠١٨٨٠"}).status_code == 422
 
 
 def test_resending_the_same_format_keeps_the_ean(client: TestClient):
@@ -163,3 +165,24 @@ def test_rebuy_keeps_the_format(client: TestClient, session: Session):
     assert response.status_code == 201
     assert response.json()["pack"] == SIX_BY_ONE_AND_A_HALF
     assert response.json()["ean"] == "8410188011128"
+
+
+def test_a_scanned_ean_brings_the_format_its_last_line_carried(client: TestClient):
+    """The EAN names the format: adding by a known code gets that format."""
+    lst = _list(client)
+    first = _item(client, lst["id"], ean="8410188011128")
+    _patch(client, lst["id"], first["id"], {"pack": SIX_BY_ONE_AND_A_HALF, "ean": "8410188011128"})
+    _patch(client, lst["id"], first["id"], {"purchased": True})
+
+    again = _item(client, lst["id"], ean="8410188011128")
+
+    assert again["pack"] == SIX_BY_ONE_AND_A_HALF
+
+
+def test_an_ean_from_another_list_brings_no_format(client: TestClient):
+    mine = _list(client)
+    other = _list(client)
+    line = _item(client, other["id"], ean="8410188011128")
+    _patch(client, other["id"], line["id"], {"pack": SIX_BY_ONE_AND_A_HALF, "ean": "8410188011128"})
+
+    assert _item(client, mine["id"], ean="8410188011128")["pack"] is None
