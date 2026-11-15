@@ -79,7 +79,7 @@ function getModel(): GenerativeModel {
   }))
 }
 
-export interface ParseReceiptOptions {
+interface ParseReceiptOptions {
   /**
    * Seed for the retry backoff. Only the tests set it, so the suite does not
    * spend real seconds sleeping between attempts.

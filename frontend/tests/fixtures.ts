@@ -61,7 +61,7 @@ const SEED_UPDATED_AT: ListUpdatedAt = data.SEED_UPDATED_AT
 // never drifts the other specs' screenshots. The scan/file handlers ARE
 // shared: every scan now mints an upload URL, so every receipt spec hits them.
 export const SEED_TRIPS: PurchasePage = data.SEED_TRIPS
-export const SEED_RECEIPT_SCANS: ReceiptScanSummary[] = data.SEED_RECEIPT_SCANS
+const SEED_RECEIPT_SCANS: ReceiptScanSummary[] = data.SEED_RECEIPT_SCANS
 const SEED_FILE_URL_RESULT: ReceiptFileUrlResult = data.SEED_FILE_URL_RESULT
 const SEED_UPLOAD_URL_RESULT: ReceiptUploadUrlResult =
   data.SEED_UPLOAD_URL_RESULT
@@ -93,7 +93,7 @@ export const SEED_RECEIPT_RESULT: ReceiptScanResult = {
 
 // ── Route installer ───────────────────────────────────────────────────────────
 
-export async function installApiMocks(page: Page): Promise<void> {
+async function installApiMocks(page: Page): Promise<void> {
   // Impulse buys created mid-test, keyed by list. The rest of this mock is
   // deliberately stateless — echo a response, persist nothing — but a created
   // item is the one thing that has to outlive its request: the client refetches

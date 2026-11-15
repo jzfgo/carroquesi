@@ -82,6 +82,10 @@ format-check:
 lint:
     {{ pnpm }} lint
 
+# Run mutation testing (StrykerJS over vitest)
+mutation *args:
+    {{ pnpm }} exec stryker run {{ args }}
+
 # Regenerate src/apiSchema.generated.ts from backend/openapi.json
 openapi-types:
     {{ pnpm }} openapi:types

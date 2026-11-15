@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.26.1] — 2026-11-15
+
+### Fixed
+- **deps:** Raise @hono/node-server override to 2.1.6 (#461)
+
+- **deps:** Override qs to patch two stringify DoS advisories (#469)
+
+
+---
 ## [0.26.0] — 2026-11-13
 
 ### Added

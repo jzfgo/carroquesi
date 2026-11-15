@@ -3,9 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { expect, test, vi } from 'vitest'
 import { formatFigure } from '../lib/formatPrice'
-import type { LineState, ReceiptLine } from '../lib/receiptReview'
+import type { ItemRef, LineState, ReceiptLine } from '../lib/receiptReview'
 import { ReceiptLineResolveBody } from './ReceiptLineResolveBody'
-import type { ItemRef } from './ReceiptScanSheet'
 
 const line: ReceiptLine = {
   receipt_name: 'CHOCO NGR 70% 100G',

@@ -27,7 +27,7 @@ interface MemberLookup {
  * emphasised. The renderer decides how — bold in the ficha — while the text
  * stays the single source of truth (`buildRastro` joins the same pieces).
  */
-export type RastroSegment = string | { b: string }
+type RastroSegment = string | { b: string }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 

@@ -670,7 +670,7 @@ export interface FeedbackPayload {
   source?: 'manual'
 }
 
-export interface FeedbackResponse {
+interface FeedbackResponse {
   id: string
   created_at: string
 }

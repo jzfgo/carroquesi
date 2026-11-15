@@ -5,7 +5,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
-export interface UsePWAInstallResult {
+interface UsePWAInstallResult {
   isInstallable: boolean
   isInstalled: boolean
   isIOS: boolean

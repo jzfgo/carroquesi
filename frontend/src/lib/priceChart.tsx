@@ -2,7 +2,6 @@
    This module is a set of pure chart helpers plus one small SVG component that
    draws from them. They belong together, and fast-refresh has nothing to keep
    warm here. */
-import { formatUnitPrice } from './formatPrice'
 import type { ChartEntry } from './priceNormalization'
 import { parseServerInstant } from './serverInstant'
 import { storeKey } from './storeKey'
@@ -278,7 +277,7 @@ function pointsForDots(
   })
 }
 
-export interface PriceStats {
+interface PriceStats {
   min: number | null
   max: number | null
   latest: ChartEntry | null
@@ -311,17 +310,7 @@ export function priceStats(records: ChartEntry[]): PriceStats {
   }
 }
 
-/**
- * The price a record prints, preferring its normalised display amount and
- * falling back to the raw amount when normalisation left a gap.
- */
-export function recordAmountLabel(r: ChartEntry): string {
-  return r.displayAmount !== null
-    ? formatUnitPrice(r.displayAmount, r.displayPricePer)
-    : formatUnitPrice(r.originalAmount, r.originalPricePer)
-}
-
-export interface BandGeometry {
+interface BandGeometry {
   /** Filled min–max ribbons, one per run of stores that overlap in time. */
   bandPaths: string[]
   /** The average line, broken into one M…L… run per continuous stretch. */

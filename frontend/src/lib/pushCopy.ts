@@ -7,7 +7,7 @@ export interface PushPayload {
   unseen_count?: string
 }
 
-export interface BuiltNotification {
+interface BuiltNotification {
   title: string
   body: string
   tag: string

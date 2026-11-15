@@ -9,6 +9,8 @@ pnpm-lock.yaml
 # Miscellaneous
 dist
 coverage
+reports
+.stryker-tmp
 
 # Dry-run worktrees live here; never let Prettier walk nested repo copies
 tmp/

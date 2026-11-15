@@ -38,7 +38,7 @@ function notOpenCart(trip: PurchaseSummary): boolean {
   return trip.closed_at != null || !isTripOpen(trip.tears_off_at)
 }
 
-export interface UseStack {
+interface UseStack {
   trips: PurchaseSummary[]
   total: number
   loading: boolean

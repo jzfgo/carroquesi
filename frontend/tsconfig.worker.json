@@ -18,5 +18,5 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force"
   },
-  "include": ["src/sw.ts", "src/lib/pushCopy.ts"]
+  "include": ["src/sw.ts", "src/lib/pushCopy.ts", "src/vite-env.d.ts"]
 }

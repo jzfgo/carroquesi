@@ -18,13 +18,18 @@ export function parseInput(raw: string): ParsedInput {
   // the word-loop never sees sigil characters that are meant to be literal text.
   // Unclosed quotes produce no regex match and pass through unchanged.
   const placeholders: string[] = []
-  const withPlaceholders = raw.replace(QUOTED_RE, (_match, sigil, dq, sq) => {
-    const key = `${PH}q${placeholders.length}${PH}`
-    placeholders.push(dq !== undefined ? dq : sq)
-    return `${sigil}${key}`
-  })
+  // One of dq or sq is always a string when QUOTED_RE matches; typing sq as
+  // string reflects the fallback after the dq !== undefined check.
+  const withPlaceholders = raw.replace(
+    QUOTED_RE,
+    (_match, sigil: string, dq: string | undefined, sq: string) => {
+      const key = `${PH}q${placeholders.length}${PH}`
+      placeholders.push(dq !== undefined ? dq : sq)
+      return `${sigil}${key}`
+    },
+  )
   const restore = (s: string) =>
-    s.replace(RESTORE_RE, (_, i) => placeholders[+i])
+    s.replace(RESTORE_RE, (_, i: string) => placeholders[+i])
 
   const words = withPlaceholders.trim().split(/\s+/).filter(Boolean)
 

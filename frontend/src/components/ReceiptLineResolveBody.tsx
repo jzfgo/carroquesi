@@ -14,6 +14,7 @@ import {
   effectiveQuantity,
   effectiveQuantityDisplay,
   effectiveUnitPrice,
+  type ItemRef,
   type LineState,
   lineTotal,
   quantityDisplay,
@@ -25,7 +26,6 @@ import {
 import type { Suggestion } from '../types'
 import { PrimaryButton, SheetBackButton } from './PurchaseSheetParts'
 import { QuantityPriceRow } from './QuantityPriceRow'
-import type { ItemRef } from './ReceiptScanSheet'
 import { ScanLabelButton } from './WeightChip'
 
 // A quantity must open with a number: «6», «0,346 kg». The factor parse

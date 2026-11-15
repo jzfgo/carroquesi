@@ -15,3 +15,7 @@ Key gotchas:
 - Browsers: Chromium, Firefox, WebKit, Mobile Chrome (Pixel 10), Mobile Safari (iPhone 17)
 
 Visual-regression baselines and how to regenerate them are in the root `AGENTS.md` — the regenerate command is run from the repo root, so that guidance must stay always-loaded.
+
+## Mutation Testing (StrykerJS)
+
+Run with `just frontend mutation` (or scope to specific files with `-m src/lib/foo.ts,src/hooks/bar.ts`, or `--incremental`). Config: `frontend/stryker.config.json`. Equivalent or deliberate best-effort survivors do not block; `/ship` runs it scoped to changed `src/lib/**` and `src/hooks/**` files.

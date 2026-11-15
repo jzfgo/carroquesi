@@ -1,0 +1,7 @@
+{
+  "entry": ["pwa-assets.maskable.config.ts"],
+  "project": ["src/**/*.{ts,tsx}", "tests/**/*.ts"],
+  "ignoreBinaries": ["diff"],
+  "ignoreDependencies": ["@fontsource/.+"],
+  "ignore": ["src/apiSchema.generated.ts"]
+}
