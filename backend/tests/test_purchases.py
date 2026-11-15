@@ -1418,3 +1418,61 @@ def test_parse_search_splits_name_brand_stores_and_skips_qty_ean():
         None,
         ["elcorteingles"],
     )
+
+
+SIX_BY_ONE_AND_A_HALF = {"count": 6, "content": 1.5, "unit": "l"}
+
+
+def test_a_close_line_sets_the_format_and_clears_the_old_ean(client: TestClient, session: Session):
+    """A format corrected in 10d lands on the item. The EAN named the old
+    format, so it goes."""
+    lst = _create_list(client)
+    water = _tap(client, lst["id"], "Agua", ean="8410188011111")
+
+    response = _close(
+        client,
+        lst["id"],
+        store="Lidl",
+        lines=[{"item_id": water["id"], "pack": SIX_BY_ONE_AND_A_HALF}],
+    )
+
+    assert response.status_code == 200
+    row = session.get_one(ListItem, water["id"])
+    session.refresh(row)
+    assert row.pack == SIX_BY_ONE_AND_A_HALF
+    assert row.ean is None
+
+
+def test_a_close_line_without_pack_leaves_the_format(client: TestClient, session: Session):
+    lst = _create_list(client)
+    water = _tap(client, lst["id"], "Agua", ean="8410188011111")
+    client.patch(
+        f"/lists/{lst['id']}/items/{water['id']}",
+        json={"pack": SIX_BY_ONE_AND_A_HALF, "ean": "8410188011111"},
+    )
+
+    _close(client, lst["id"], store="Lidl", lines=_lines(water))
+
+    row = session.get_one(ListItem, water["id"])
+    session.refresh(row)
+    assert row.pack == SIX_BY_ONE_AND_A_HALF
+    assert row.ean == "8410188011111"
+
+
+def test_a_new_close_item_carries_its_format_and_ean(client: TestClient, session: Session):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+
+    _close(
+        client,
+        lst["id"],
+        store="Lidl",
+        lines=_lines(milk),
+        new_items=[
+            {"name": "Agua", "ean": "8410188011128", "pack": SIX_BY_ONE_AND_A_HALF},
+        ],
+    )
+
+    water = _items_by_name(client, lst["id"])["Agua"]
+    assert water["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert water["ean"] == "8410188011128"

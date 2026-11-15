@@ -75,6 +75,7 @@ function toDraft(item: ListItem): DraftLine {
     ean: item.ean,
     bought_by_weight: item.bought_by_weight,
     label: null,
+    pack: item.pack ?? null,
   }
 }
 
@@ -299,6 +300,7 @@ export function CloseTripSheet({
             ean: null,
             bought_by_weight: false,
             label: null,
+            pack: null,
           }
         : null
 
@@ -392,6 +394,9 @@ export function CloseTripSheet({
           name: l.name,
           brand: l.brand,
           article: l.label?.article ?? null,
+          // Only a format changed here: resending the one the sheet opened
+          // with would undo a co-shopper's correction and clear its EAN.
+          ...(l.packEdited ? { pack: l.pack } : {}),
           ...reductionOf(l),
         })),
         new_items: included
@@ -403,6 +408,7 @@ export function CloseTripSheet({
             price: l.price,
             price_per: l.price_per,
             article: l.label?.article ?? null,
+            pack: l.pack,
             ...reductionOf(l),
           })),
       }

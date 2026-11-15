@@ -1,9 +1,14 @@
 import { Check, ChevronRight, RotateCcw, ShoppingCart, Tag } from 'lucide-react'
 import { useOnline } from '../hooks/useOnline'
-import { formatAmount, formatUnitPrice } from '../lib/formatPrice'
+import {
+  formatAmount,
+  formatBasisPrice,
+  formatUnitPrice,
+} from '../lib/formatPrice'
 import { formatQuantity, formatQuantityColumn } from '../lib/formatQuantity'
 import { isTripOpen } from '../lib/isTripOpen'
-import { parseQuantityFactor } from '../lib/itemCost'
+import { parseQuantityFactor, unitPrice } from '../lib/itemCost'
+import { formatPack } from '../lib/packFormat'
 import { parseServerInstant } from '../lib/serverInstant'
 import type { ListItem } from '../types'
 import './ItemCard.css'
@@ -71,12 +76,19 @@ export function ItemCard({
       ? item.purchased_quantity
       : item.quantity
 
-  // A record folds its quantity into the printed detail line («12 UD ·
-  // PULEVA»); the other states keep it in the right-hand column and the
-  // meta carries the brand alone.
+  // A weighed line is priced per kg whatever its package: it has no format.
+  const pack = item.price_per === 'KILOGRAM' ? null : (item.pack ?? null)
+
+  // A record folds its quantity and format into the printed detail line
+  // («2 UD · 6 × 1,5 L · BEZOYA»); the other states keep the quantity in the
+  // right-hand column and the meta carries the brand alone.
   const meta = (
     bought
-      ? [displayQty && formatQuantity(displayQty), item.brand]
+      ? [
+          displayQty && formatQuantity(displayQty),
+          pack && formatPack(pack, true),
+          item.brand,
+        ]
       : [item.brand]
   )
     .filter(Boolean)
@@ -135,6 +147,16 @@ export function ItemCard({
             const price = item.price
             const factor = parseQuantityFactor(displayQty, item.price_per)
             const total = factor != null ? price * factor : null
+            // With a format, the small figure is the shelf-label price
+            // («0,39 €/L»), shown even for a single pack.
+            const shelf = pack
+              ? unitPrice(price, displayQty, item.price_per, pack)
+              : null
+            const unit = shelf
+              ? formatBasisPrice(shelf.value, shelf.basis, true)
+              : factor !== 1
+                ? formatUnitPrice(price, item.price_per, true)
+                : null
             return (
               <span className="item-card__amount">
                 <span className="item-card__amount-total">
@@ -153,10 +175,8 @@ export function ItemCard({
                     ? formatAmount(total)
                     : formatUnitPrice(price, item.price_per, true)}
                 </span>
-                {total != null && factor !== 1 && (
-                  <span className="item-card__amount-unit">
-                    {formatUnitPrice(price, item.price_per, true)}
-                  </span>
+                {total != null && unit != null && (
+                  <span className="item-card__amount-unit">{unit}</span>
                 )}
               </span>
             )

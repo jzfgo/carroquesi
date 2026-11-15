@@ -84,7 +84,7 @@ export function QuantityPriceRow({
         </div>
       </div>
       <p className="qtyprice-help">
-        Escribe unidades (<code>6</code>) o peso (<code>500 ml</code>,{' '}
+        Escribe unidades (<code>6</code>) o el peso de lo que pesaste (
         <code>1,12 kg</code>). El precio se ajusta solo.
       </p>
       {children}

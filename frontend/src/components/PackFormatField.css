@@ -1,0 +1,184 @@
+.pack-field {
+  display: block;
+}
+
+.pack-field__label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.pack-field__help {
+  margin: 8px 0 0;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.pack-field__help code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-1);
+}
+
+.pack-field__opt {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.pack-field__row {
+  display: grid;
+  grid-template-columns: 84px auto 1fr;
+  gap: 8px;
+  align-items: end;
+}
+
+.pack-field__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pack-field__cap {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1;
+  color: var(--ink-1);
+}
+
+.pack-field__cap .pack-field__opt {
+  color: var(--ink-2);
+}
+
+/* The same field box as «Cantidad y precio». */
+.pack-field__box {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 12px;
+  background: var(--paper-1);
+  border: 1.5px solid var(--paper-edge);
+  border-radius: var(--r-md);
+  outline: none;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-0);
+}
+
+.pack-field__box--weight {
+  text-align: right;
+}
+
+.pack-field__box::placeholder {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+.pack-field__box:focus {
+  box-shadow: var(--focus-ring);
+  border-color: var(--tinta-0);
+}
+
+.pack-field__box[aria-invalid] {
+  border-color: var(--danger);
+}
+
+.pack-field__x {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-15);
+  color: var(--ink-2);
+}
+
+.pack-field__error {
+  margin: 8px 0 0;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--danger);
+}
+
+.pack-field__error code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.pack-field__figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.pack-field__figure {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pack-field__cap-caps {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.pack-field__fig {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-0);
+}
+
+/* No format yet: one dashed row, the system's «not real yet» accent. */
+.pack-field__add {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1.5px dashed var(--tinta-border);
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--tinta-0);
+  font-family: var(--font-sans);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pack-field__add-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.pack-field__add-sub {
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--ink-2);
+}

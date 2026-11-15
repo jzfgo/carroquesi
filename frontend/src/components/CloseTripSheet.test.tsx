@@ -209,6 +209,9 @@ test('«Guardar compra» closes with the store, date and per-line fields', async
     name: 'Leche',
     brand: 'Hacendado',
   })
+  // A format nobody touched is not sent: resending it could undo a
+  // co-shopper's correction.
+  expect(body.lines[0]).not.toHaveProperty('pack')
   await waitFor(() => expect(onDone).toHaveBeenCalled())
 })
 

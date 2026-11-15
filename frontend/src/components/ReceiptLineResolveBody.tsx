@@ -7,7 +7,11 @@ import {
   formatUnitPrice,
   parseAmount,
 } from '../lib/formatPrice'
-import { deriveUnit } from '../lib/itemCost'
+import {
+  deriveUnit,
+  type PackFormat,
+  parseQuantityFactor,
+} from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
 import {
   effectiveLineTotal,
@@ -24,6 +28,7 @@ import {
   unitPriceToTotal,
 } from '../lib/receiptReview'
 import type { Suggestion } from '../types'
+import { PackFormatField } from './PackFormatField'
 import { PrimaryButton, SheetBackButton } from './PurchaseSheetParts'
 import { QuantityPriceRow } from './QuantityPriceRow'
 import { ScanLabelButton } from './WeightChip'
@@ -57,6 +62,10 @@ interface Props {
   /** Sets the typed unit price and the total it makes. A null total means
    *  the total matches the paper again. */
   onChangePrice: (price: number, total: number | null) => void
+  /** The format the line starts from: one typed here, or the item's. */
+  pack: PackFormat | null
+  /** Sets the line's format; null removes it. */
+  onChangePack: (pack: PackFormat | null) => void
   /** «Escanear etiqueta»: always offered, for lines the chip rule misses. */
   onScanLabel?: () => void
   /** The back galón names the review it returns to; the targeted review has
@@ -102,6 +111,8 @@ export function ReceiptLineResolveBody({
   state,
   onChangeQuantity,
   onChangePrice,
+  pack,
+  onChangePack,
   onScanLabel,
   backLabel = 'Revisar ticket',
   targeted = false,
@@ -229,6 +240,23 @@ export function ReceiptLineResolveBody({
             </div>
           )}
         </QuantityPriceRow>
+        {/* The same block as 10d, under «Cantidad y precio». A weighed
+            line is priced per kg whatever its package. It restarts when
+            the line is linked to another item, whose format it shows. */}
+        {deriveUnit(qtyBase).pricePer !== 'KILOGRAM' && (
+          <div className="rss-pack">
+            <PackFormatField
+              key={radioId ?? ''}
+              initial={pack}
+              price={effectiveUnitPrice(line, state)}
+              units={parseQuantityFactor(qtyBase, null)}
+              onChange={(next) => {
+                if (next !== undefined) onChangePack(next)
+              }}
+              foldWhenEmpty
+            />
+          </div>
+        )}
       </div>
 
       <div className="rss-resolve-body">

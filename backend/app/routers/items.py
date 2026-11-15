@@ -93,6 +93,25 @@ def _attach_purchase_ends_at(session: Session, items: Sequence[ListItem]) -> Non
             object.__setattr__(item, "purchase_store", trip.store)
 
 
+def _take_format_of_ean(session: Session, item: ListItem, ean: str) -> None:
+    """An EAN names one format, so a scanned code brings the format the
+    list's last line with that code carried. Only this list's lines: another
+    household's are not ours to read."""
+    source = session.exec(
+        select(ListItem)
+        .where(
+            ListItem.list_id == item.list_id,
+            ListItem.ean == ean,
+            (col(ListItem.pack_count).is_not(None)) | (col(ListItem.pack_content).is_not(None)),
+        )
+        .order_by(col(ListItem.updated_at).desc())
+    ).first()
+    if source is not None:
+        item.pack_count = source.pack_count
+        item.pack_content = source.pack_content
+        item.pack_content_unit = source.pack_content_unit
+
+
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
 def add_item(
     body: ItemCreate,
@@ -103,6 +122,8 @@ def add_item(
     if find_pending_duplicate(session, lst.id, body.name, body.ean) is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Item already in list")
     item = ListItem(list_id=lst.id, added_by=current_user.id, **body.model_dump())
+    if body.ean:
+        _take_format_of_ean(session, item, body.ean)
     session.add(item)
     ensure_stores(session, lst.id, body.stores)
     _bump(lst, session)
@@ -132,12 +153,9 @@ def update_item(
     format_only = bool(data) and purchased is None and data.keys() <= {"pack", "ean"}
     if "pack" in data:
         data.pop("pack")
-        # Whole, not exclude_unset: a field left out of the format is a default, not "keep".
-        pack = body.pack.model_dump() if body.pack else None
-        if pack != item.pack:
-            item.set_pack(pack)
-            # That EAN named the old format; a scan in this request sets the new one.
-            data.setdefault("ean", None)
+        # Whole, not exclude_unset: a field left out of the format is a default,
+        # not "keep". A scan in this request sets the EAN after it is cleared.
+        item.change_pack(body.pack.model_dump() if body.pack else None)
     for field, value in data.items():
         setattr(item, field, value)
     if data.get("stores"):

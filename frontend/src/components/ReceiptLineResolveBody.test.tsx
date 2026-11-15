@@ -27,6 +27,7 @@ const inCart: ItemRef = {
   purchased_quantity: null,
   ean: null,
   bought_by_weight: false,
+  pack: null,
 }
 
 const pendingWithStore: ItemRef = {
@@ -42,6 +43,7 @@ const pendingWithStore: ItemRef = {
   purchased_quantity: null,
   ean: null,
   bought_by_weight: false,
+  pack: null,
 }
 
 const pendingNoStore: ItemRef = {
@@ -57,6 +59,7 @@ const pendingNoStore: ItemRef = {
   purchased_quantity: null,
   ean: null,
   bought_by_weight: false,
+  pack: null,
 }
 
 function renderBody(overrides: {
@@ -84,6 +87,8 @@ function renderBody(overrides: {
       state={undefined}
       onChangeQuantity={vi.fn()}
       onChangePrice={vi.fn()}
+      pack={null}
+      onChangePack={vi.fn()}
     />,
   )
 }
@@ -140,6 +145,8 @@ test('a prefill never filters the link list; typed text does', () => {
       state={undefined}
       onChangeQuantity={vi.fn()}
       onChangePrice={vi.fn()}
+      pack={null}
+      onChangePack={vi.fn()}
     />,
   )
   expect(screen.getAllByRole('radio')).toHaveLength(1)
@@ -229,6 +236,8 @@ function renderDetail(initial?: LineState) {
           onChangePrice(p, t)
           setState({ ...base(), unitPrice: p, lineTotal: t })
         }}
+        pack={null}
+        onChangePack={vi.fn()}
       />
     )
   }

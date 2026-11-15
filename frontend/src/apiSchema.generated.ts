@@ -1452,6 +1452,7 @@ export interface components {
             ean?: string | null;
             /** Name */
             name: string;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Price */
             price: number;
             /** Price Before */
@@ -1554,6 +1555,7 @@ export interface components {
             article?: string | null;
             /** Item Id */
             item_id: string;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Price */
             price: number;
             /** Price Before */
@@ -1600,6 +1602,7 @@ export interface components {
             item_id: string;
             /** Name */
             name?: string | null;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Price */
             price?: number | null;
             /** Price Before */
@@ -1649,6 +1652,7 @@ export interface components {
             ean?: string | null;
             /** Name */
             name: string;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Price */
             price?: number | null;
             /** Price Before */

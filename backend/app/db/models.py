@@ -69,6 +69,15 @@ class ListMember(SQLModel, table=True):
     last_seen_at: datetime | None = Field(default=None)
 
 
+def pack_columns(pack: dict | None) -> dict:
+    """A format as `list_items` stores it, for a line built with one."""
+    return {
+        "pack_count": pack["count"] if pack else None,
+        "pack_content": pack["content"] if pack else None,
+        "pack_content_unit": pack["unit"] if pack else None,
+    }
+
+
 class ListItem(SQLModel, table=True):
     __tablename__ = "list_items"
 
@@ -125,10 +134,14 @@ class ListItem(SQLModel, table=True):
             "unit": self.pack_content_unit,
         }
 
-    def set_pack(self, pack: dict | None) -> None:
-        self.pack_count = pack["count"] if pack else None
-        self.pack_content = pack["content"] if pack else None
-        self.pack_content_unit = pack["unit"] if pack else None
+    def change_pack(self, pack: dict | None) -> None:
+        """Sets a format typed by hand. A new format clears the EAN: that
+        code named the old one, and would teach the barcode the wrong size."""
+        if pack == self.pack:
+            return
+        for column, value in pack_columns(pack).items():
+            setattr(self, column, value)
+        self.ean = None
 
 
 class Purchase(SQLModel, table=True):

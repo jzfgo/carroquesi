@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func
 from sqlmodel import col, select
 
-from app.db.models import List, ListItem, Purchase, ReceiptScan, User
+from app.db.models import List, ListItem, Purchase, ReceiptScan, User, pack_columns
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.items import ItemRead
 from app.schemas.purchases import (
@@ -549,6 +549,8 @@ def close_purchase(
             item.name = line.name
         if line.brand is not None:
             item.brand = line.brand
+        if "pack" in line.model_fields_set:
+            item.change_pack(line.pack.model_dump() if line.pack else None)
         # updated_at deliberately untouched: pricing is not the fresh write
         # the un-purchase grace window exists for, and stamping it here
         # would reopen that window on the purchase being filed.
@@ -597,6 +599,7 @@ def close_purchase(
                 price_before=new.price_before,
                 purchased_at=now,
                 purchase_id=purchase.id,
+                **pack_columns(new.pack.model_dump() if new.pack else None),
             )
         )
 

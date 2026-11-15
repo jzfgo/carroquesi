@@ -28,6 +28,7 @@ import type {
 import type { BoardName } from './boards'
 import { reportRequestOutcome } from './connectivity'
 import { BACKEND_URL, DEV_USER_ID } from './environment'
+import type { PackFormat } from './itemCost'
 import { isNetworkError } from './networkError'
 
 // Date-based guards on the server judge "today" in the viewer's calendar,
@@ -287,6 +288,7 @@ export function updateItem(
     purchased_quantity: string | null
     brand: string | null
     stores: string[]
+    pack: PackFormat | null
   }>,
 ) {
   return apiFetch(getToken, `/lists/${listId}/items/${itemId}`, {

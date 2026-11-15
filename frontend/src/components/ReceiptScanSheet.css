@@ -284,6 +284,11 @@
   flex-shrink: 0;
 }
 
+/* «Formato» sits under «Cantidad y precio», as in 10d. */
+.rss-pack {
+  padding-top: 16px;
+}
+
 /* A corrected total, on the verde ground the close editor's line total uses. */
 .rss-corrected {
   display: flex;

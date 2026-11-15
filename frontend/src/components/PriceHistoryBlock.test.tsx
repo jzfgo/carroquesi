@@ -186,3 +186,62 @@ test('the "Registrar un precio" row appears only when a handler is given', () =>
   )
   expect(screen.getByText('Registrar un precio')).toBeInTheDocument()
 })
+
+const SIX = { count: 6, content: 1.5, unit: 'l' as const }
+
+function waterHistory() {
+  render(
+    <PriceHistoryBlock
+      entries={[
+        entry({
+          amount: 3.48,
+          pack: SIX,
+          purchased_at: '2026-11-10T10:00:00Z',
+        }),
+        entry({
+          amount: 1.4,
+          pack: { count: 1, content: 5, unit: 'l' },
+          purchased_at: '2026-10-13T10:00:00Z',
+        }),
+        entry({ amount: 3.3, purchased_at: '2026-09-29T10:00:00Z' }),
+      ]}
+      displayStore={identity}
+    />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: /Mercadona/ }))
+}
+
+test('a history with formats leads each row with the price per litre', () => {
+  waterHistory()
+  expect(screen.getAllByText('6 × 1,5 L').length).toBeGreaterThan(0)
+  expect(screen.getByText('5 L')).toBeInTheDocument()
+  // The price per unit bought explains the figure above it.
+  expect(screen.getByText(/^1,40\s€\/ud$/)).toBeInTheDocument()
+  // Once as the row's figure, once as the minimum.
+  expect(screen.getAllByText(/^0,28\s€\/L$/)).toHaveLength(2)
+})
+
+test('an entry with no format keeps its own price, in grey', () => {
+  waterHistory()
+  expect(screen.getByText('sin formato')).toBeInTheDocument()
+  expect(screen.getByText(/^3,30\s€\/ud$/)).toHaveClass(
+    'phb__record-figure--left',
+  )
+  expect(
+    screen.getByText(/Sin formato: no entra en el precio por litro/),
+  ).toBeInTheDocument()
+})
+
+test('the footnote shows only when an entry is left out', () => {
+  render(
+    <PriceHistoryBlock
+      entries={[
+        entry({ amount: 3.48, pack: SIX }),
+        entry({ amount: 3.3, pack: SIX, purchased_at: '2026-10-06T10:00:00Z' }),
+      ]}
+      displayStore={identity}
+    />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: /Mercadona/ }))
+  expect(screen.queryByText(/no entra en el precio/)).not.toBeInTheDocument()
+})

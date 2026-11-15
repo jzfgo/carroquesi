@@ -408,3 +408,79 @@ test('the circle is not dashed while online', () => {
     container.querySelector('.item-card__circle--offline'),
   ).not.toBeInTheDocument()
 })
+
+describe('a record with a pack format (21b)', () => {
+  const water: ListItem = {
+    ...BOUGHT_ITEM,
+    name: 'Agua mineral',
+    brand: 'Bezoya',
+    price: 3.48,
+    purchased_quantity: '2',
+    pack: { count: 6, content: 1.5, unit: 'l' },
+  }
+
+  test('puts the format in the meta, between quantity and brand', () => {
+    const { container } = renderCard(water)
+    expect(container.querySelector('.item-card__meta')).toHaveTextContent(
+      '2 UD · 6 × 1,5 L · Bezoya',
+    )
+  })
+
+  test('prints the shelf-label price under the line total', () => {
+    const { container } = renderCard(water)
+    expect(
+      container.querySelector('.item-card__amount-total'),
+    ).toHaveTextContent(/^6,96 €$/)
+    expect(
+      container.querySelector('.item-card__amount-unit'),
+    ).toHaveTextContent(/^0,39 €\/L$/)
+  })
+
+  test('shows the shelf-label price for a single pack too', () => {
+    const item = {
+      ...water,
+      price: 1.15,
+      purchased_quantity: '1',
+      pack: { count: 1, content: 108, unit: 'g' as const },
+    }
+    const { container } = renderCard(item)
+    expect(container.querySelector('.item-card__meta')).toHaveTextContent(
+      '1 UD · 108 G · Bezoya',
+    )
+    expect(
+      container.querySelector('.item-card__amount-unit'),
+    ).toHaveTextContent(/^10,65 €\/KG$/)
+  })
+
+  test('prices a count-only pack per unit of the pack', () => {
+    const item = {
+      ...water,
+      price: 3.6,
+      purchased_quantity: '1',
+      pack: { count: 12, content: null, unit: null },
+    }
+    const { container } = renderCard(item)
+    expect(container.querySelector('.item-card__meta')).toHaveTextContent(
+      'PACK DE 12',
+    )
+    expect(
+      container.querySelector('.item-card__amount-unit'),
+    ).toHaveTextContent(/^0,30 €\/UD$/)
+  })
+
+  test('a weighed line shows no format', () => {
+    const item = {
+      ...water,
+      price: 2.19,
+      price_per: 'KILOGRAM' as const,
+      purchased_quantity: '1,02 kg',
+    }
+    const { container } = renderCard(item)
+    expect(container.querySelector('.item-card__meta')).not.toHaveTextContent(
+      '1,5 L',
+    )
+    expect(
+      container.querySelector('.item-card__amount-unit'),
+    ).toHaveTextContent(/^2,19 €\/KG$/)
+  })
+})

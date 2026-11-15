@@ -19,6 +19,7 @@ function point(
     originalPricePer: 'KILOGRAM',
     reduced: false,
     originalBefore: null,
+    pack: null,
   }
 }
 

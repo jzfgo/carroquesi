@@ -1,17 +1,24 @@
 import { ChevronRight, RotateCcw, Tag } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { getPriceHistory } from '../lib/api'
-import { formatAmount, savedPercent } from '../lib/formatPrice'
+import { formatAmount, formatUnitPrice, savedPercent } from '../lib/formatPrice'
+import {
+  type PackFormat,
+  parseQuantityFactor,
+  unitPrice,
+} from '../lib/itemCost'
+import { formatPack } from '../lib/packFormat'
 import { formatChartDate, PriceBand } from '../lib/priceChart'
 import { normalizeEntries } from '../lib/priceNormalization'
 import { buildRastroSegments } from '../lib/rastro'
 import { compareServerInstants } from '../lib/serverInstant'
 import type { ListItem, Member, PriceEntry, TagField } from '../types'
 import './ItemFichaSheet.css'
+import { PackFormatField } from './PackFormatField'
 import { PriceHistoryBlock } from './PriceHistoryBlock'
 import { Sheet } from './Sheet'
 
-type SubState = 'main' | 'rename' | 'confirm-delete'
+type SubState = 'main' | 'rename' | 'format' | 'confirm-delete'
 
 interface Props {
   item: ListItem
@@ -22,6 +29,8 @@ interface Props {
   purchased?: boolean
   onRename: (newName: string) => void
   onEditField: (field: TagField | 'stores') => void
+  /** Saves a format typed by hand; null removes it. */
+  onSetPack: (pack: PackFormat | null) => void
   onDelete: () => void
   onClone: () => void
   /** Opens the price editor; present only for a closed-trip record. */
@@ -44,6 +53,7 @@ interface LatestPrice {
   quantity: string | null
   /** From a reduced label: what it cost before, in the same basis. */
   before: number | null
+  pack: PackFormat | null
 }
 
 function latestPrice(
@@ -67,6 +77,7 @@ function latestPrice(
       purchasedAt: top.purchased_at ?? null,
       quantity: top.quantity ?? item.quantity,
       before: top.price_before ?? null,
+      pack: top.pack ?? null,
     }
   }
   if (item.price != null) {
@@ -77,10 +88,13 @@ function latestPrice(
       purchasedAt: item.purchased_at,
       quantity: item.quantity,
       before: item.price_before ?? null,
+      pack: item.pack ?? null,
     }
   }
   return null
 }
+
+const BASIS_UNIT = { kg: 'kg', l: 'L', ud: 'ud', unit: 'ud' } as const
 
 function LastPriceBlock({
   entries,
@@ -95,9 +109,17 @@ function LastPriceBlock({
   if (!latest) return null
 
   // The headline is the unit price the household pays — per kilo for weighed
-  // goods, per unit otherwise — not the line total of the last trip.
+  // goods, per unit otherwise — not the line total of the last trip. With a
+  // format it is the shelf-label price, and the price per unit bought and
+  // the format move beneath it.
   const unitSuffix = latest.pricePer === 'KILOGRAM' ? '/kg' : '/ud'
+  const pack = latest.pricePer === 'KILOGRAM' ? null : latest.pack
+  const shelf = pack ? unitPrice(latest.amount, null, null, pack) : null
+  const headline = shelf ? shelf.value : latest.amount
+  const headlineSuffix = shelf ? `/${BASIS_UNIT[shelf.basis]}` : unitSuffix
   const sub = [
+    shelf ? formatUnitPrice(latest.amount, latest.pricePer) : null,
+    pack ? formatPack(pack) : null,
     latest.store ? displayStore(latest.store) : null,
     latest.purchasedAt ? formatChartDate(latest.purchasedAt) : null,
   ]
@@ -113,8 +135,8 @@ function LastPriceBlock({
       <span className="ficha__last-figures">
         <span className="ficha__eyebrow">Último precio</span>
         <span className="ficha__last-amount">
-          {formatAmount(latest.amount)}
-          <span className="ficha__last-unit">{unitSuffix}</span>
+          {formatAmount(headline)}
+          <span className="ficha__last-unit">{headlineSuffix}</span>
         </span>
         {sub && <span className="ficha__last-sub">{sub}</span>}
         {/* Only a known old price shows: a reduced price without one reads
@@ -198,6 +220,7 @@ export function ItemFichaSheet({
   purchased,
   onRename,
   onEditField,
+  onSetPack,
   onDelete,
   onClone,
   onLogPrice,
@@ -207,6 +230,16 @@ export function ItemFichaSheet({
   const [renameValue, setRenameValue] = useState(item.name)
   const [entries, setEntries] = useState<PriceEntry[]>([])
   const trimmed = renameValue.trim()
+  // undefined while a field of the format block cannot be read.
+  const [draftPack, setDraftPack] = useState<PackFormat | null | undefined>(
+    item.pack ?? null,
+  )
+  // A weighed line is priced per kg whatever its package: no «Formato».
+  const hasFormat = item.price_per !== 'KILOGRAM'
+  const boughtQty =
+    item.purchased && item.purchased_quantity != null
+      ? item.purchased_quantity
+      : item.quantity
 
   useEffect(() => {
     let cancelled = false
@@ -223,9 +256,11 @@ export function ItemFichaSheet({
   const label =
     subState === 'rename'
       ? 'Renombrar producto'
-      : subState === 'confirm-delete'
-        ? 'Confirmar eliminación'
-        : item.name
+      : subState === 'format'
+        ? 'Formato'
+        : subState === 'confirm-delete'
+          ? 'Confirmar eliminación'
+          : item.name
 
   const storeNames = item.stores.map(displayStore)
   const subtitle = [
@@ -283,6 +318,18 @@ export function ItemFichaSheet({
               value={item.quantity ?? '—'}
               onEdit={!purchased ? () => onEditField('quantity') : undefined}
             />
+            {/* The only «Producto» row a closed purchase can still change:
+                a format is an attribute of the line, not of its price. */}
+            {hasFormat && (
+              <ProductField
+                label="Formato"
+                value={item.pack ? formatPack(item.pack) : '—'}
+                onEdit={() => {
+                  setDraftPack(item.pack ?? null)
+                  setSubState('format')
+                }}
+              />
+            )}
             <ProductField
               label="Tiendas"
               value={storeNames.length > 0 ? storeNames.join(', ') : '—'}
@@ -348,6 +395,34 @@ export function ItemFichaSheet({
           </div>
           <button
             className="ficha__cancel-link"
+            onClick={() => setSubState('main')}
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+
+      {subState === 'format' && (
+        <div className="ficha ficha--sub ficha--format">
+          <PackFormatField
+            initial={item.pack ?? null}
+            price={item.price}
+            units={parseQuantityFactor(boughtQty, null)}
+            onChange={setDraftPack}
+          />
+          <button
+            className="ficha__done-btn"
+            disabled={draftPack === undefined}
+            onClick={() => {
+              if (draftPack === undefined) return
+              onSetPack(draftPack)
+              setSubState('main')
+            }}
+          >
+            Hecho
+          </button>
+          <button
+            className="ficha__cancel-btn"
             onClick={() => setSubState('main')}
           >
             Cancelar
