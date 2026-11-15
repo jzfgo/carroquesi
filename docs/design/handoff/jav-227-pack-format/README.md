@@ -62,9 +62,11 @@ diff report:
   manual: no source note, never overwritten.
 
 **Product and format.** A line carries two keys. Name and brand name the
-product: the price history and every comparison group by them, always. The
-EAN names the format, since each format has its own code (1,5 L, 6 × 1,5 L and
-5 L are three EANs). Today the history groups by EAN when the item has one,
+product: the price history and the spend comparisons group by them, always.
+The EAN names the format, since each format has its own code (1,5 L,
+6 × 1,5 L and 5 L are three EANs). What belongs to the format still keys on
+the EAN first: `bought_by_weight` decides whether a product is weighed that
+way, and that stays. Today the history groups by EAN when the item has one,
 which keeps a scanned item's history to one format and splits it from lines
 typed by hand. JAV-12 changes that rule, with an ADR that cross-links
 [ADR-013](../../../decisions/013-store-registry.md), the nearest record on
@@ -76,6 +78,10 @@ how lines are grouped:
   barcode cache that already carry it.
 - Re-buy keeps the line's EAN and format: the usual case is the same format
   again. Buying another one is corrected by scanning it or in «Formato».
+- The pending-duplicate guard stays at name level: one product, one pending
+  line. Adding the 5 L bottle while «Agua mineral» 1,5 L is pending answers
+  «already on the list», as today; the pending line's format is where to
+  change it. The pending list says what to buy, not which formats.
 
 Exact name matching stays the weak point, as today: two spellings split a
 history. A separate product/format entity is tracked in JAV-242.
