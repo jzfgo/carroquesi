@@ -1,5 +1,5 @@
 import type { PriceEntry } from '../types'
-import { type PriceBasis, unitPrice } from './itemCost'
+import { type PackFormat, type PriceBasis, unitPrice } from './itemCost'
 import { compareServerInstants } from './serverInstant'
 
 export interface ChartEntry {
@@ -15,6 +15,7 @@ export interface ChartEntry {
   reduced: boolean
   /** The price before the reduction, in the original basis, when known. */
   originalBefore: number | null
+  pack: PackFormat | null
 }
 
 interface NormalizationResult {
@@ -69,6 +70,7 @@ export function normalizeEntries(entries: PriceEntry[]): NormalizationResult {
       originalPricePer: e.price_per,
       reduced: e.reduced,
       originalBefore: e.price_before ?? null,
+      pack: e.pack ?? null,
     }
   })
 

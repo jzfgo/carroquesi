@@ -18,7 +18,7 @@ const UNIT_ALIASES: Record<string, ContentUnit> = {
   litros: 'l',
 }
 
-type ContentUnit = 'g' | 'kg' | 'ml' | 'cl' | 'dl' | 'l'
+export type ContentUnit = 'g' | 'kg' | 'ml' | 'cl' | 'dl' | 'l'
 export type PriceBasis = 'kg' | 'l' | 'ud' | 'unit'
 
 // A unit → how many of its basis (kilos or litres) it holds.
@@ -32,7 +32,7 @@ const UNIT_TO_BASE: Record<ContentUnit, [number, 'kg' | 'l']> = {
 }
 
 /** The unit a typed token means, or null when it is not one we price. */
-function readUnit(raw: string | null | undefined): ContentUnit | null {
+export function readUnit(raw: string | null | undefined): ContentUnit | null {
   if (!raw) return null
   return UNIT_ALIASES[raw.replace(/\.$/, '').toLowerCase()] ?? null
 }

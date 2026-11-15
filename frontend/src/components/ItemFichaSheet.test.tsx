@@ -69,6 +69,7 @@ function renderSheet(
   const handlers = {
     onRename: vi.fn(),
     onEditField: vi.fn(),
+    onSetPack: vi.fn(),
     onDelete: vi.fn(),
     onClone: vi.fn(),
     onClose: vi.fn(),
@@ -225,4 +226,97 @@ test('deleting confirms in a sub-state before calling onDelete', () => {
   expect(screen.getByText(/no se puede deshacer/i)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: /sí, eliminar/i }))
   expect(onDelete).toHaveBeenCalled()
+})
+
+const water = {
+  amount: 3.48,
+  is_sin_precio: false,
+  reduced: false,
+  price_before: null,
+  pack: { count: 6, content: 1.5, unit: 'l' as const },
+  price_per: null,
+  purchased_at: '2026-11-10T10:00:00Z',
+  quantity: '2',
+  store: 'Mercadona',
+}
+
+test('with a format, «Último precio» is the shelf-label price', async () => {
+  vi.mocked(getPriceHistory).mockResolvedValueOnce({ entries: [water] })
+  renderSheet()
+  expect(
+    await screen.findByText(
+      (_, el) =>
+        el?.className === 'ficha__last-amount' &&
+        /^0,39\s€\/L$/.test(el.textContent ?? ''),
+    ),
+  ).toBeInTheDocument()
+  expect(
+    screen.getByText(/3,48\s€\/ud · 6 × 1,5 L · Mercadona/),
+  ).toBeInTheDocument()
+})
+
+test('the Formato row shows the format and opens its editor', () => {
+  renderSheet({ pack: { count: 6, content: 1.5, unit: 'l' } })
+  const row = screen.getByRole('button', { name: /formato/i })
+  expect(row).toHaveTextContent('6 × 1,5 L')
+  fireEvent.click(row)
+  expect(
+    screen.getByRole('textbox', { name: 'Unidades por envase' }),
+  ).toHaveValue('6')
+  expect(
+    screen.getByRole('textbox', { name: 'Peso de cada unidad' }),
+  ).toHaveValue('1,5 L')
+})
+
+test('Hecho saves the typed format', () => {
+  const { onSetPack } = renderSheet()
+  fireEvent.click(screen.getByRole('button', { name: /formato/i }))
+  fireEvent.change(
+    screen.getByRole('textbox', { name: 'Unidades por envase' }),
+    { target: { value: '12' } },
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Hecho' }))
+  expect(onSetPack).toHaveBeenCalledWith({
+    count: 12,
+    content: null,
+    unit: null,
+  })
+})
+
+test('a weight with no unit is refused and Hecho stays disabled', () => {
+  renderSheet()
+  fireEvent.click(screen.getByRole('button', { name: /formato/i }))
+  fireEvent.change(
+    screen.getByRole('textbox', { name: 'Peso de cada unidad' }),
+    { target: { value: '1,5' } },
+  )
+  expect(screen.getByRole('alert')).toHaveTextContent('Añade la unidad')
+  expect(screen.getByRole('button', { name: 'Hecho' })).toBeDisabled()
+})
+
+test('emptying both fields removes the format', () => {
+  const { onSetPack } = renderSheet({
+    pack: { count: 6, content: 1.5, unit: 'l' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: /formato/i }))
+  fireEvent.change(
+    screen.getByRole('textbox', { name: 'Unidades por envase' }),
+    { target: { value: '' } },
+  )
+  fireEvent.change(
+    screen.getByRole('textbox', { name: 'Peso de cada unidad' }),
+    { target: { value: '' } },
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Hecho' }))
+  expect(onSetPack).toHaveBeenCalledWith(null)
+})
+
+test('a closed purchase can still correct its format', () => {
+  renderSheet({ purchased: true })
+  expect(screen.getByRole('button', { name: /formato/i })).toBeInTheDocument()
+})
+
+test('a weighed line has no Formato row', () => {
+  renderSheet({ price_per: 'KILOGRAM' })
+  expect(screen.queryByText('Formato')).not.toBeInTheDocument()
 })
