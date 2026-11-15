@@ -16,6 +16,7 @@ from app.db.models import ListItem, ListStore, Purchase, User
 from app.services.fold import fold_name
 from app.services.public_name import public_name
 from app.services.quantity import (
+    Basis,
     effective_quantity,
     line_amount,
     parse_quantity_factor,
@@ -86,7 +87,7 @@ class Line:
     added_by: str
     amount: float | None
     unit_price: float | None
-    basis: Literal["kg", "unit"] | None
+    basis: Basis | None
     # How much was bought: units, or kilograms on a weighed line. None when a
     # weighed line names no weight.
     quantity: float | None = 1.0
@@ -185,7 +186,14 @@ def _line(item: ListItem, trip: Trip, tz: tzinfo) -> Line:
     quantity = effective_quantity(item.quantity, item.purchased_quantity)
     unit, basis = (None, None)
     if item.price is not None and amount is not None:
-        unit, basis = unit_price(item.price, quantity, item.price_per)
+        unit, basis = unit_price(
+            item.price,
+            quantity,
+            item.price_per,
+            item.pack_count,
+            item.pack_content,
+            item.pack_content_unit,
+        )
     # The same factor the money uses: a count, or kilograms when weighed.
     weighed = item.price_per == "KILOGRAM"
     bought = parse_quantity_factor(quantity, "KILOGRAM" if weighed else None)

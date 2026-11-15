@@ -123,6 +123,7 @@ def get_price_history(
             is_sin_precio=i.purchase_id is not None and i.price is None,
             reduced=i.price_reduced,
             price_before=i.price_before,
+            pack=i.pack,
         )
         for i, purchase_store in rows
     ]
@@ -158,6 +159,6 @@ def _base_conditions(item: ListItem):
     # surfaces sin-precio purchase rows as gaps, and still excludes
     # pending-never-bought rows (both price and purchase_id null).
     surfaced = or_(col(ListItem.price).isnot(None), col(ListItem.purchase_id).isnot(None))
-    if item.ean:
-        return (ListItem.ean == item.ean, surfaced)
+    # Name and brand name the product; the EAN names only one of its formats,
+    # so grouping by it would split one history by size (ADR-019).
     return (ListItem.name == item.name, ListItem.brand == item.brand, surfaced)

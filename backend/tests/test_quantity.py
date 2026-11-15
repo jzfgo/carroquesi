@@ -24,10 +24,20 @@ def test_parse_quantity_factor_matches_shared_vectors(vector):
 
 
 @pytest.mark.parametrize(
-    "vector", VECTORS["unit_price"], ids=lambda v: f"{v['price']}-{v['quantity']}-{v['price_per']}"
+    "vector",
+    VECTORS["unit_price"],
+    ids=lambda v: f"{v['price']}-{v['quantity']}-{v['price_per']}-{v['pack']}",
 )
 def test_unit_price_matches_shared_vectors(vector):
-    value, basis = unit_price(vector["price"], vector["quantity"], vector["price_per"])
+    pack = vector["pack"] or {}
+    value, basis = unit_price(
+        vector["price"],
+        vector["quantity"],
+        vector["price_per"],
+        pack.get("count"),
+        pack.get("content"),
+        pack.get("unit"),
+    )
     assert value == pytest.approx(vector["value"])
     assert basis == vector["basis"]
 

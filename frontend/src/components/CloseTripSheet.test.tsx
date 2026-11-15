@@ -250,6 +250,7 @@ test('«Confirmar los precios sugeridos» applies the inherited price', async ()
         is_sin_precio: false,
         reduced: false,
         price_before: null,
+        pack: null,
       },
     ],
   })
@@ -375,6 +376,7 @@ test('a reduced price is never suggested again', async () => {
         is_sin_precio: false,
         reduced: true,
         price_before: null,
+        pack: null,
       },
       {
         amount: 2.5,
@@ -385,6 +387,7 @@ test('a reduced price is never suggested again', async () => {
         is_sin_precio: false,
         reduced: false,
         price_before: null,
+        pack: null,
       },
     ],
   })

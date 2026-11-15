@@ -2,6 +2,7 @@
    This module is a set of pure chart helpers plus one small SVG component that
    draws from them. They belong together, and fast-refresh has nothing to keep
    warm here. */
+import type { PriceBasis } from './itemCost'
 import type { ChartEntry } from './priceNormalization'
 import { parseServerInstant } from './serverInstant'
 import { storeKey } from './storeKey'
@@ -281,7 +282,7 @@ interface PriceStats {
   min: number | null
   max: number | null
   latest: ChartEntry | null
-  displayPricePer: 'KILOGRAM' | null
+  displayBasis: PriceBasis
   hasValid: boolean
   /** Some record is a reduced price, which the minimum and maximum skip. */
   hasReduced: boolean
@@ -304,7 +305,7 @@ export function priceStats(records: ChartEntry[]): PriceStats {
     min: valid.length > 0 ? Math.min(...valid) : null,
     max: valid.length > 0 ? Math.max(...valid) : null,
     latest,
-    displayPricePer: latest?.displayPricePer ?? null,
+    displayBasis: latest?.displayBasis ?? 'unit',
     hasValid: valid.length > 0,
     hasReduced: records.some((r) => r.reduced && r.displayAmount !== null),
   }

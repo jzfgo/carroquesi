@@ -129,8 +129,29 @@ def test_patch_price_non_member_forbidden(client: TestClient, other_client: Test
 # --- GET (price history by scope) ---
 
 
-def test_get_price_history_this_list_by_ean(client: TestClient):
-    ean = "8410188011111"
+def test_price_history_spans_formats_of_one_product(client: TestClient):
+    """Each format has its own EAN; the history is the product's, so a scanned
+    6-pack sees the single bottle and the line typed by hand (ADR-019)."""
+    lst = _make_list(client)
+    single = _make_item(client, lst["id"], name="Agua", brand="Bezoya", ean="8410188011111")
+    client.patch(f"/lists/{lst['id']}/items/{single['id']}", json={"purchased": True})
+    pack = _make_item(client, lst["id"], name="Agua", brand="Bezoya", ean="8410188011128")
+    client.patch(f"/lists/{lst['id']}/items/{pack['id']}", json={"purchased": True})
+    typed = _make_item(client, lst["id"], name="Agua", brand="Bezoya")
+
+    _set_price(client, lst["id"], single["id"], 0.65, store="Mercadona")
+    _set_price(client, lst["id"], pack["id"], 3.48, store="Carrefour")
+    _set_price(client, lst["id"], typed["id"], 0.70, store="Lidl")
+
+    resp = client.get(f"/lists/{lst['id']}/items/{pack['id']}/prices?scope=this_list")
+    assert resp.status_code == 200
+    stores = {e["store"] for e in resp.json()["entries"]}
+    assert stores == {"Mercadona", "Carrefour", "Lidl"}
+
+
+def test_price_history_does_not_group_by_ean(client: TestClient):
+    """An EAN shared by two names does not merge their histories."""
+    ean = "8410188011135"
     lst = _make_list(client)
     item1 = _make_item(client, lst["id"], name="Aceite", ean=ean)
     client.patch(f"/lists/{lst['id']}/items/{item1['id']}", json={"purchased": True})
@@ -140,9 +161,18 @@ def test_get_price_history_this_list_by_ean(client: TestClient):
     _set_price(client, lst["id"], item2["id"], 4.50, store="Carrefour")
 
     resp = client.get(f"/lists/{lst['id']}/items/{item1['id']}/prices?scope=this_list")
-    assert resp.status_code == 200
-    stores = {e["store"] for e in resp.json()["entries"]}
-    assert stores == {"Mercadona", "Carrefour"}
+    assert {e["store"] for e in resp.json()["entries"]} == {"Mercadona"}
+
+
+def test_price_history_entry_carries_the_pack_format(client: TestClient):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"], name="Agua")
+    pack = {"count": 6, "content": 1.5, "unit": "l"}
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"pack": pack})
+    _set_price(client, lst["id"], item["id"], 3.48)
+
+    entries = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices").json()["entries"]
+    assert entries[0]["pack"] == pack
 
 
 def test_get_price_history_this_list_by_name_brand(client: TestClient):
@@ -173,14 +203,13 @@ def test_get_price_history_excludes_items_without_price(client: TestClient):
     assert len(resp.json()["entries"]) == 1
 
 
-def test_get_price_history_my_lists_by_ean(client: TestClient):
-    ean = "8410188022222"
+def test_get_price_history_my_lists_by_name_brand(client: TestClient):
     lst1 = _make_list(client)
-    item1 = _make_item(client, lst1["id"], name="Aceite", ean=ean)
+    item1 = _make_item(client, lst1["id"], name="Aceite", ean="8410188022222")
     _set_price(client, lst1["id"], item1["id"], 4.50, store="Mercadona")
 
     lst2 = client.post("/lists", json={"name": "Lista 2"}).json()
-    item2 = _make_item(client, lst2["id"], name="Aceite oliva", ean=ean)
+    item2 = _make_item(client, lst2["id"], name="Aceite")
     _set_price(client, lst2["id"], item2["id"], 5.00, store="Carrefour")
 
     resp = client.get(f"/lists/{lst1['id']}/items/{item1['id']}/prices?scope=my_lists")
@@ -485,7 +514,7 @@ def test_sin_precio_store_comes_from_the_trip(client: TestClient, session, user)
         session,
         lst["id"],
         user.id,
-        name="Aceite oliva",
+        name="Aceite",
         ean=ean,
         purchase_id=trip.id,
         purchased_at=datetime.now(UTC),
@@ -535,7 +564,7 @@ def test_price_history_orders_dated_rows_before_dateless(client: TestClient):
     dated = _make_item(client, lst["id"], name="Pan", ean=ean)
     client.patch(f"/lists/{lst['id']}/items/{dated['id']}", json={"purchased": True})
     _set_price(client, lst["id"], dated["id"], 1.10, store="Mercadona")
-    manual = _make_item(client, lst["id"], name="Pan molde", ean=ean)
+    manual = _make_item(client, lst["id"], name="Pan", ean=ean)
     _set_price(client, lst["id"], manual["id"], 1.30, store="Lidl")
 
     entries = client.get(f"/lists/{lst['id']}/items/{dated['id']}/prices?scope=this_list").json()[

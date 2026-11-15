@@ -558,6 +558,16 @@
             "title": "Name",
             "type": "string"
           },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "price": {
             "anyOf": [
               {
@@ -728,6 +738,17 @@
             ],
             "title": "Brand"
           },
+          "ean": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ean"
+          },
           "name": {
             "anyOf": [
               {
@@ -739,6 +760,16 @@
               }
             ],
             "title": "Name"
+          },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "purchased": {
             "anyOf": [
@@ -1273,6 +1304,50 @@
         "title": "OpenInviteCreated",
         "type": "object"
       },
+      "PackFormat": {
+        "description": "A line's pack format: 6 × 1,5 L, 108 g, or a pack of 12.\n\nThe content is sent as a figure and a unit; the client reads what was\ntyped («1,5 L», «108 gramos»). A format with count 1 and no content says\nnothing, so it is refused: send null to remove a format.",
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "count": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "g",
+                  "kg",
+                  "ml",
+                  "cl",
+                  "dl",
+                  "l"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "title": "PackFormat",
+        "type": "object"
+      },
       "ParsedLine": {
         "properties": {
           "line_total": {
@@ -1371,6 +1446,16 @@
             "default": false,
             "title": "Is Sin Precio",
             "type": "boolean"
+          },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "price_before": {
             "anyOf": [

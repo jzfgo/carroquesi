@@ -101,11 +101,34 @@ class ListItem(SQLModel, table=True):
     # Never inferred from an earlier purchase: list prices move. Always
     # higher than `price`; NULL means unknown.
     price_before: float | None = Field(default=None)
+    # The pack format of this line: 6 × 1,5 L is count 6, content 1,5, unit
+    # "l". Per line, not per product: formats change between purchases.
+    # NULL count means 1; NULL content means a pack of pieces (rolls). A
+    # line with neither has no format.
+    pack_count: int | None = Field(default=None)
+    pack_content: float | None = Field(default=None)
+    pack_content_unit: str | None = Field(default=None)
     # The trip this was bought on — not another "purchased_*" attribute of the
     # item. NULL means unpurchased, which is most rows; the invariant
     # "purchased => purchase_id set" is enforced in-app, the way
     # list_members.is_default is.
     purchase_id: str | None = Field(default=None, foreign_key="purchases.id", index=True)
+
+    @property
+    def pack(self) -> dict | None:
+        """The format as the API sends it, or None when the line has none."""
+        if self.pack_content is None and (self.pack_count or 1) == 1:
+            return None
+        return {
+            "count": self.pack_count or 1,
+            "content": self.pack_content,
+            "unit": self.pack_content_unit,
+        }
+
+    def set_pack(self, pack: dict | None) -> None:
+        self.pack_count = pack["count"] if pack else None
+        self.pack_content = pack["content"] if pack else None
+        self.pack_content_unit = pack["unit"] if pack else None
 
 
 class Purchase(SQLModel, table=True):
