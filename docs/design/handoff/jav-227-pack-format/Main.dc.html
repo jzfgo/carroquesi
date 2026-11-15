@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>1A · Filas compradas con precio normalizado</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cqs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:#1a3fa0}a:hover{color:#2c56c1}</style>
+</helmet>
+<div style="width: 390px; height: 400px; box-sizing: border-box; background: #c2a982; padding: 14px 12px; font-family: 'Geist', system-ui, sans-serif; color: #15161b;">
+  <div style="background: #eef1f5; border-radius: 2px; box-shadow: 0 1px 1px rgb(22 27 45 / 16%), 0 2px 5px -3px rgb(22 27 45 / 30%); padding: 0 0 8px;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 14px 20px 8px; border-bottom: 1px dashed #b4bac4;">
+      <span style="font-family: 'Bree Serif', Georgia, serif; font-size: 17px; color: #15161b;">Mercadona · 10 nov</span>
+      <span style="font: 600 12px/1 'JetBrains Mono', monospace; color: #6a6d7a;">13,94 €</span>
+    </div>
+
+    <div class="row21">
+      <button class="rb" aria-label="Volver a comprar Agua mineral"><svg class="i" viewBox="0 0 24 24" style="width: 20px; height: 20px; stroke-width: 2;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg></button>
+      <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+        <span class="rname">Agua mineral</span>
+        <span class="rmeta">2 UD · <span class="new">6 × 1,5 L</span> · BEZOYA</span>
+      </span>
+      <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
+        <span class="ramt">6,96 €</span>
+        <span class="runit new">0,39 €/L</span>
+      </span>
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #94969f;"><path d="m9 18 6-6-6-6"></path></svg>
+    </div>
+
+    <div class="row21">
+      <button class="rb" aria-label="Volver a comprar Tortitas de maíz"><svg class="i" viewBox="0 0 24 24" style="width: 20px; height: 20px; stroke-width: 2;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg></button>
+      <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+        <span class="rname">Tortitas de maíz</span>
+        <span class="rmeta">1 UD · <span class="new">108 G</span> · HACENDADO</span>
+      </span>
+      <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
+        <span class="ramt">1,15 €</span>
+        <span class="runit new">10,65 €/KG</span>
+      </span>
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #94969f;"><path d="m9 18 6-6-6-6"></path></svg>
+    </div>
+
+    <div class="row21">
+      <button class="rb" aria-label="Volver a comprar Papel higiénico"><svg class="i" viewBox="0 0 24 24" style="width: 20px; height: 20px; stroke-width: 2;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg></button>
+      <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+        <span class="rname">Papel higiénico</span>
+        <span class="rmeta">1 UD · <span class="new">PACK DE 12</span> · SCOTTEX</span>
+      </span>
+      <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
+        <span class="ramt">3,60 €</span>
+        <span class="runit new">0,30 €/UD</span>
+      </span>
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #94969f;"><path d="m9 18 6-6-6-6"></path></svg>
+    </div>
+
+    <div class="row21">
+      <button class="rb" aria-label="Volver a comprar Plátano de Canarias"><svg class="i" viewBox="0 0 24 24" style="width: 20px; height: 20px; stroke-width: 2;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg></button>
+      <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+        <span class="rname">Plátano de Canarias</span>
+        <span class="rmeta">1,02 KG</span>
+      </span>
+      <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 1px;">
+        <span class="ramt">2,23 €</span>
+        <span class="runit">2,19 €/KG</span>
+      </span>
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #94969f;"><path d="m9 18 6-6-6-6"></path></svg>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":400}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -31,6 +31,10 @@ disagree, the frames here win.
   marker, the item sheet and history, entering the old price by hand, and
   the report block (2026-11-12). Its README restates the rules the frames
   encode, including the «3,05 €» price format.
+- `jav-227-pack-format/` — approved frames for a line's pack format
+  («6 × 1,5 L»): the bought row, the item sheet, the price history in €/L
+  with mixed formats, and correcting the format in 10d/13b (2026-11-15). Its
+  README restates the rules the frames encode.
 - `jav-234-close-and-review/` — one set of shared parts for closing a trip
   (10b/10d) and reviewing a receipt (13a/13b) (2026-11-11). It replaces those
   frames' header, table head, rows, total, help text, save button and

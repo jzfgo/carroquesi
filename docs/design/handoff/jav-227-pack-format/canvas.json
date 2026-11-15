@@ -1,0 +1,133 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-15T10:40:00Z"
+  },
+  "title": "Formato de pack · JAV-227",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 400,
+      "title": "1A · Filas compradas (21b): bajo el importe, el precio normalizado"
+    },
+    "Ficha.dc.html": {
+      "x": 0,
+      "y": 760,
+      "w": 402,
+      "h": 760,
+      "title": "2 · Ficha (22a): €/L arriba, «Formato» con su origen"
+    },
+    "Historial.dc.html": {
+      "x": 482,
+      "y": 760,
+      "w": 402,
+      "h": 760,
+      "title": "3 · Historial (22b): formatos mezclados, todo en €/L"
+    },
+    "Ajustar.dc.html": {
+      "x": 0,
+      "y": 1900,
+      "w": 402,
+      "h": 800,
+      "title": "4 · Ajustar producto (10d): formato sacado del nombre"
+    },
+    "AjustarVacio.dc.html": {
+      "x": 482,
+      "y": 1900,
+      "w": 402,
+      "h": 640,
+      "title": "5 · Ajustar producto (10d): sin formato, plegado"
+    },
+    "AjustarRollos.dc.html": {
+      "x": 964,
+      "y": 1900,
+      "w": 402,
+      "h": 800,
+      "title": "6 · Ajustar producto (10d): escrito a mano, solo unidades"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Ficha.dc.html",
+    "Historial.dc.html",
+    "Ajustar.dc.html",
+    "AjustarVacio.dc.html",
+    "AjustarRollos.dc.html"
+  ],
+  "notes": {
+    "t1": {
+      "kind": "title1",
+      "x": 0,
+      "y": -300,
+      "text": "Fila comprada",
+      "w": 240,
+      "maxW": 860
+    },
+    "t2": {
+      "kind": "title1",
+      "x": 0,
+      "y": 500,
+      "text": "Ficha e historial",
+      "w": 240,
+      "maxW": 884
+    },
+    "t3": {
+      "kind": "title1",
+      "x": 0,
+      "y": 1640,
+      "text": "Corregir el formato",
+      "w": 240,
+      "maxW": 1366
+    },
+    "q1": {
+      "x": 940,
+      "y": 0,
+      "w": 340,
+      "fill": "orange",
+      "text": "Pregunta 1, decidida: 1A. Con formato, la cifra pequeña bajo el importe es el precio normalizado (€/L, €/kg) o, en un pack sin contenido, el precio por unidad del pack (Papel higiénico: 0,30 €/UD por rollo). Sin formato, la fila queda como hoy (€/UD por envase). El formato va en la meta, entre la cantidad y la marca."
+    },
+    "r1": {
+      "x": 940,
+      "y": 330,
+      "w": 340,
+      "fill": "gray",
+      "text": "Lo nuevo va en contorno discontinuo, como en el resto del handoff. Agua: pack de 6 × 1,5 L, 2 comprados. Tortitas: 108 g. Papel: pack de 12, sin contenido. Plátano: a peso, no cambia."
+    },
+    "q2": {
+      "x": 964,
+      "y": 760,
+      "w": 340,
+      "fill": "orange",
+      "text": "Ficha (decidido): con formato, el titular de «Último precio» es el precio normalizado (0,39 €/L) y debajo van el precio por unidad comprada y el formato. En «Producto», una fila «Formato» con su origen en gris: «del nombre», «del ticket», «de Open Food Facts». Escrito a mano no lleva nota. «Formato» se puede editar también en una línea ya comprada (abre el mismo bloque de 10d), porque el formato del nombre se rellena al guardar y el error se ve aquí. Es la única fila de «Producto» editable en una compra cerrada."
+    },
+    "q3": {
+      "x": 964,
+      "y": 1180,
+      "w": 340,
+      "fill": "orange",
+      "text": "Historial: si alguna entrada tiene formato, todo se pasa a la base de la mayoría (L, kg o ud). Mínimo, máximo, último y curva van en esa base. Cada fila lleva el formato bajo la fecha y el precio por unidad comprada bajo el normalizado, para que se vea por qué cambia (la garrafa de 5 L sale más barata). Una entrada sin formato, o con una base distinta (g frente a L), se queda con su precio en tinta gris, fuera del mínimo y de la curva, y explica la nota al pie, que solo sale si hay alguna. Sin marca de origen (decidido)."
+    },
+    "q4": {
+      "x": 1446,
+      "y": 1900,
+      "w": 340,
+      "fill": "orange",
+      "text": "Corregir (decidido: dos campos, sin selector de unidad). «Unidades» × «Peso» (no «Contenido»: en un pack de rollos o de cosas que no se pesan, «Peso · opcional» se deja vacío sin dudar; como la ayuda de «Cantidad», «peso» vale también para ml y L). El peso se escribe con su unidad («1,5 L», «108 g», «33 cl») y la app la lee, como en «Cantidad y precio» (Already-Told Rule). Va debajo de «Cantidad y precio», porque es una corrección y no un paso. Sin formato, una sola fila discontinua «Añadir formato» (5); con formato, el bloque abierto (4). Debajo, el precio normalizado al momento, como el descuento de JAV-226: un error de tecleo salta a la vista. Origen en gris bajo el bloque; si se toca un campo, la nota desaparece y el valor pasa a ser manual (JAV-220: nunca se pisa)."
+    },
+    "q5": {
+      "x": 1446,
+      "y": 2290,
+      "w": 340,
+      "fill": "gray",
+      "text": "Reglas: «Unidades» entero ≥ 1, vacío = 1. «Peso» opcional; si se escribe, una cifra > 0 con unidad (g/gr/gramos, kg/kilos, ml, cl, L/litros). Una cifra sin unidad no vale: «Añade la unidad: 1,5 L, 108 g» bajo el campo y «Hecho» espera, como el precio anterior de JAV-226. Sin peso, el precio es por unidad del pack (6). Vaciar los dos campos quita el formato. «Cantidad» sigue siendo cuántos envases compraste: 2 packs × 3,48 € con 6 × 1,5 L = 6,96 € ÷ 18 L = 0,39 €/L. 13b usa el mismo bloque, con origen «del ticket». Las líneas a peso (KILOGRAM) no muestran «Formato». Decidido tras la revisión: (1) el formato sacado del nombre se quita del nombre al guardar («Agua mineral 6x1,5L» → «Agua mineral»); si luego se vacía el formato, el nombre no recupera el texto. (2) «Cantidad» queda para unidades o el peso de lo que se pesa en tienda; el peso de un envase va en «Formato». Hasta el backfill de JAV-220, JAV-12 sigue leyendo «1,5 L» en «Cantidad» como hoy. El backfill quita el formato del nombre de las líneas antiguas («del nombre») y mueve a «Formato» el «1,5 L» de «Cantidad», que pasa a 1 (cuenta como manual)."
+    }
+  },
+  "designSystems": []
+}

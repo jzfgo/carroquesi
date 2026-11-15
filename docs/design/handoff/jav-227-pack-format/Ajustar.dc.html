@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Ajustar producto con formato del nombre</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="cqs.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bree+Serif&amp;family=Geist:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#d5dae2}a{color:#1a3fa0}a:hover{color:#15307f}</style>
+</helmet>
+<div style="width: 402px; height: 800px; box-sizing: border-box; background: #d5dae2; padding-top: 22px; font-family: 'Geist', system-ui, sans-serif; color: #15161b;">
+<div style="background: #eef1f5; border-radius: 16px 16px 0 0; box-shadow: 0 -2px 4px rgb(30 35 55 / 10%), 0 -16px 40px -6px rgb(30 35 55 / 22%); padding: 10px 0 18px; min-height: 778px; box-sizing: border-box;">
+  <div class="grab" style="margin-bottom: 12px;"></div>
+  <div style="display: flex; align-items: center; padding: 0 12px 12px; border-bottom: 1px solid #b4bac4;">
+    <button type="button" class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg> Cerrar compra</button>
+  </div>
+  <div style="padding: 14px 20px 0; display: flex; flex-direction: column; gap: 16px;">
+    <label style="display: block;">
+      <span class="lbl">Producto</span>
+      <span class="fld"><input value="Agua mineral 6x1,5L" style="font: 500 16px/1.3 'Geist', system-ui, sans-serif;"></span>
+    </label>
+
+    <div>
+      <span class="lbl">Cantidad y precio</span>
+      <div style="display: flex; gap: 8px; align-items: stretch;">
+        <label class="fld" style="flex: 1;"><input aria-label="Cantidad" value="2"></label>
+        <span style="display: flex; align-items: center; font: 400 15px/1 'Geist', system-ui, sans-serif; color: #6a6d7a;">×</span>
+        <label class="fld" style="flex: 1;"><input aria-label="Precio por unidad" value="3,48" style="text-align: right;"><span class="u">€/ud</span></label>
+      </div>
+      <p class="help">Escribe unidades (<span class="mono">6</span>) o el peso de lo que pesaste (<span class="mono">1,12 kg</span>). El precio se ajusta solo.</p>
+      <div class="importe">
+        <span style="font: 400 12px/1.3 'Geist', system-ui, sans-serif; color: #353742;">Importe</span>
+        <span style="font: 600 15px/1 'JetBrains Mono', monospace; color: #15161b; font-variant-numeric: tabular-nums;">6,96&nbsp;€</span>
+      </div>
+    </div>
+
+    <div class="newbox">
+      <span class="lbl">Formato <span class="opt">· opcional</span></span>
+      <div style="display: grid; grid-template-columns: 84px auto 1fr; gap: 8px; align-items: end;">
+        <label style="display: flex; flex-direction: column; gap: 6px;">
+          <span style="font: 400 11.5px/1 'Geist', system-ui, sans-serif; color: #353742;">Unidades</span>
+          <span class="fld"><input aria-label="Unidades por envase" value="6" inputmode="numeric" placeholder="1"></span>
+        </label>
+        <span style="display: flex; align-items: center; height: 48px; font: 400 15px/1 'Geist', system-ui, sans-serif; color: #6a6d7a;">×</span>
+        <label style="display: flex; flex-direction: column; gap: 6px;">
+          <span style="font: 400 11.5px/1 'Geist', system-ui, sans-serif; color: #353742;">Peso <span style="color: #6a6d7a;">· opcional</span></span>
+          <span class="fld"><input aria-label="Peso de cada unidad" value="1,5 L" placeholder="ej. 500 ml" style="text-align: right;"></span>
+        </label>
+      </div>
+      <p class="help">Escribe el peso de cada unidad (<span class="mono">1,5 L</span>, <span class="mono">108 g</span>, <span class="mono">33 cl</span>).</p>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 12px;">
+        <span style="display: flex; flex-direction: column; gap: 6px;"><span class="cap">Precio / L</span><span class="fig" style="font-size: 17px;">0,39 €</span></span>
+        <span style="display: flex; flex-direction: column; gap: 6px;"><span class="cap">En total</span><span class="fig" style="font-size: 17px;">18<small>L</small></span></span>
+      </div>
+      <p class="help" style="margin-top: 10px;">Sacado del nombre del producto. Corrígelo si no es así.</p>
+    </div>
+
+    <label style="display: block;">
+      <span class="lbl">Marca <span class="opt">· opcional</span></span>
+      <span class="fld"><input value="Bezoya" style="font: 500 16px/1.3 'Geist', system-ui, sans-serif;"></span>
+    </label>
+  </div>
+  <div style="padding: 18px 20px 0; display: flex; flex-direction: column; gap: 4px;">
+    <button type="button" class="btn">Hecho</button>
+    <button type="button" class="lnk" style="color: #c0392b; font-weight: 400;">Quitar del carro</button>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":402,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
