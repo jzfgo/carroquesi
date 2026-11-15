@@ -59,6 +59,23 @@ diff report:
   to «Formato», and «Cantidad» becomes 1. Someone typed it, so it counts as
   manual: no source note, never overwritten.
 
+**Product and format.** A line carries two keys. Name and brand name the
+product: the price history and every comparison group by them, always. The
+EAN names the format, since each format has its own code (1,5 L, 6 × 1,5 L and
+5 L are three EANs). Today the history groups by EAN when the item has one,
+which keeps a scanned item's history to one format and splits it from lines
+typed by hand. JAV-12 changes that rule, with an ADR:
+
+- The history never groups by EAN. Frame 3 (one history across formats)
+  depends on it.
+- Scanning an EAN resolves to name, brand and format from the lines and the
+  barcode cache that already carry it.
+- Re-buy keeps the line's EAN and format: the usual case is the same format
+  again. Buying another one is corrected by scanning it or in «Formato».
+
+Exact name matching stays the weak point, as today: two spellings split a
+history. A separate product/format entity is tracked in JAV-242.
+
 **Bases.** L is a basis of its own, apart from kg. Today `unit_price()` maps L
 to kg; JAV-12 splits them, and the history never mixes them.
 
