@@ -1,5 +1,5 @@
 import type { MatchedLine, UnmatchedLine } from '../types'
-import { deriveUnit, parseQuantityFactor } from './itemCost'
+import { deriveUnit, type PackFormat, parseQuantityFactor } from './itemCost'
 import { toDateInputValue } from './receiptDate'
 import type { LineLabel } from './weighedLabel'
 
@@ -25,6 +25,8 @@ export interface ItemRef {
   ean: string | null
   /** The product was priced per kilo before, so its label may give a weight. */
   bought_by_weight: boolean
+  /** The format the item holds, the start of the 13b «Formato» block. */
+  pack: PackFormat | null
 }
 
 /**
@@ -69,6 +71,8 @@ export interface LineState {
   unitPrice?: number | null
   /** The weighed label used on this line. */
   label?: LineLabel | null
+  /** A format typed in 13b; absent leaves the item's own. */
+  pack?: PackFormat | null
 }
 
 export function isNamed(resolution: LineResolution): boolean {

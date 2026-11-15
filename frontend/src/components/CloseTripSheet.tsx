@@ -75,6 +75,7 @@ function toDraft(item: ListItem): DraftLine {
     ean: item.ean,
     bought_by_weight: item.bought_by_weight,
     label: null,
+    pack: item.pack ?? null,
   }
 }
 
@@ -299,6 +300,7 @@ export function CloseTripSheet({
             ean: null,
             bought_by_weight: false,
             label: null,
+            pack: null,
           }
         : null
 
@@ -392,6 +394,8 @@ export function CloseTripSheet({
           name: l.name,
           brand: l.brand,
           article: l.label?.article ?? null,
+          // The server keeps the EAN unless the format really changed.
+          pack: l.pack,
           ...reductionOf(l),
         })),
         new_items: included
@@ -403,6 +407,7 @@ export function CloseTripSheet({
             price: l.price,
             price_per: l.price_per,
             article: l.label?.article ?? null,
+            pack: l.pack,
             ...reductionOf(l),
           })),
       }

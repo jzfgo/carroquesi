@@ -28,7 +28,7 @@ test('renders the shared copy', () => {
     '6',
   )
   expect(screen.getByText(/El precio se ajusta solo\./)).toHaveTextContent(
-    'Escribe unidades (6) o peso (500 ml, 1,12 kg). El precio se ajusta solo.',
+    'Escribe unidades (6) o el peso de lo que pesaste (1,12 kg). El precio se ajusta solo.',
   )
 })
 

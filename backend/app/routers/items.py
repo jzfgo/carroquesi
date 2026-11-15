@@ -132,12 +132,9 @@ def update_item(
     format_only = bool(data) and purchased is None and data.keys() <= {"pack", "ean"}
     if "pack" in data:
         data.pop("pack")
-        # Whole, not exclude_unset: a field left out of the format is a default, not "keep".
-        pack = body.pack.model_dump() if body.pack else None
-        if pack != item.pack:
-            item.set_pack(pack)
-            # That EAN named the old format; a scan in this request sets the new one.
-            data.setdefault("ean", None)
+        # Whole, not exclude_unset: a field left out of the format is a default,
+        # not "keep". A scan in this request sets the EAN after it is cleared.
+        item.change_pack(body.pack.model_dump() if body.pack else None)
     for field, value in data.items():
         setattr(item, field, value)
     if data.get("stores"):

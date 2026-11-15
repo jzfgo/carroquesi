@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { isOnline } from '../lib/connectivity'
 import { formatUnitPrice } from '../lib/formatPrice'
 import { formatQuantity } from '../lib/formatQuantity'
-import { parseQuantityFactor } from '../lib/itemCost'
+import { parseQuantityFactor, type PackFormat } from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
 import {
   effectiveLineTotal,
@@ -371,6 +371,21 @@ export default function ReceiptScanSheet({
     )
   }
 
+  function setLinePack(index: number, pack: PackFormat | null) {
+    setLineStates((prev) =>
+      prev.map((ls, i) => (i === index ? { ...ls, pack } : ls)),
+    )
+  }
+
+  // The format a line starts from in 13b: one typed there, else the
+  // linked item's own.
+  function linePack(ls: LineState): PackFormat | null {
+    if (ls.pack !== undefined) return ls.pack
+    const r = ls.resolution
+    if (r.kind !== 'matched' && r.kind !== 'linked') return null
+    return candidateItems.find((it) => it.id === r.itemId)?.pack ?? null
+  }
+
   // The product behind a line, as far as the review knows it: a linked or
   // matched item, a line being created, or nothing yet. An unnamed line has
   // no known EAN, so the quantity rule alone decides its chip.
@@ -552,6 +567,9 @@ export default function ReceiptScanSheet({
           store,
           quantity,
           article: ls.label?.article ?? null,
+          // Only a format typed here: the server keeps the item's own, and
+          // its EAN, otherwise.
+          ...(ls.pack !== undefined ? { pack: ls.pack } : {}),
           // Without a label read here, no `reduced`: a line closed with a
           // reduced label keeps its flag.
           ...reduction,
@@ -566,6 +584,7 @@ export default function ReceiptScanSheet({
           store,
           quantity,
           article: ls.label?.article ?? null,
+          pack: ls.pack ?? null,
           ...(reduction ?? { reduced: false }),
         })
       }
@@ -710,6 +729,8 @@ export default function ReceiptScanSheet({
           onBack={() => setResolvingIndex(null)}
           state={lineStates[resolvingIndex]}
           onChangeQuantity={(value) => setLineQuantity(resolvingIndex, value)}
+          pack={linePack(lineStates[resolvingIndex])}
+          onChangePack={(pack) => setLinePack(resolvingIndex, pack)}
           onChangePrice={(price, total) =>
             setLinePrice(resolvingIndex, price, total)
           }

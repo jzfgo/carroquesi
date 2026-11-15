@@ -112,6 +112,7 @@ const candidateItems: ItemRef[] = [
     purchased_quantity: null,
     ean: null,
     bought_by_weight: false,
+    pack: null,
   },
   {
     id: 'item-2',
@@ -126,6 +127,7 @@ const candidateItems: ItemRef[] = [
     purchased_quantity: null,
     ean: null,
     bought_by_weight: false,
+    pack: null,
   },
   {
     id: 'item-3',
@@ -140,6 +142,7 @@ const candidateItems: ItemRef[] = [
     purchased_quantity: null,
     ean: null,
     bought_by_weight: false,
+    pack: null,
   },
   {
     id: 'item-4',
@@ -154,6 +157,7 @@ const candidateItems: ItemRef[] = [
     purchased_quantity: null,
     ean: null,
     bought_by_weight: false,
+    pack: null,
   },
 ]
 
@@ -1193,5 +1197,43 @@ describe('ReceiptScanSheet — weighed label', () => {
     expect(
       screen.queryByRole('button', { name: 'leer etiqueta' }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('ReceiptScanSheet — pack format (13b)', () => {
+  function back() {
+    fireEvent.click(
+      screen.getByRole('button', { name: /Revisar ticket|Añadir ticket/ }),
+    )
+  }
+
+  async function savedBebida(
+    onConfirm: ReturnType<typeof renderSheet>['onConfirm'],
+  ) {
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    return patches.find((p) => p.item_id === 'item-1')
+  }
+
+  it('sends a format typed in the line detail', async () => {
+    const { onConfirm } = renderSheet()
+    fireEvent.click(openRow('BEBIDA ALMENDRAS'))
+    fireEvent.click(screen.getByRole('button', { name: /Añadir formato/ }))
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Peso de cada unidad' }),
+      { target: { value: '1 L' } },
+    )
+    back()
+
+    expect(await savedBebida(onConfirm)).toMatchObject({
+      pack: { count: 1, content: 1, unit: 'l' },
+    })
+  })
+
+  it('sends no format when none was typed, so the item keeps its own', async () => {
+    const { onConfirm } = renderSheet()
+    expect(await savedBebida(onConfirm)).not.toHaveProperty('pack')
   })
 })

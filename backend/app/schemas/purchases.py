@@ -8,7 +8,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.chains import ArticleCode
-from app.schemas.items import ItemRead
+from app.schemas.items import ItemRead, PackFormat
 
 
 class PurchaseLine(BaseModel):
@@ -36,6 +36,8 @@ class PurchaseLine(BaseModel):
     # label, in the basis of `price`. Both clear on a line sent without them.
     reduced: bool = False
     price_before: float | None = None
+    # A format corrected in 10d/13b. Absent leaves it; null removes it.
+    pack: PackFormat | None = None
 
 
 class PurchaseNewItem(BaseModel):
@@ -55,6 +57,7 @@ class PurchaseNewItem(BaseModel):
     # label, in the basis of `price`. Both clear on a line sent without them.
     reduced: bool = False
     price_before: float | None = None
+    pack: PackFormat | None = None
 
 
 class PurchaseCloseBody(BaseModel):

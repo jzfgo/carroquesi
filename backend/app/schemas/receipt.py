@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.chains import ArticleCode
+from app.schemas.items import PackFormat
 
 
 class ParsedLine(BaseModel):
@@ -81,6 +82,8 @@ class PricePatch(BaseModel):
     # cannot see their stored flag. Elsewhere, left out means not reduced.
     reduced: bool | None = None
     price_before: float | None = None
+    # A format corrected in 10d/13b. Absent leaves it; null removes it.
+    pack: PackFormat | None = None
 
 
 class NameMappingCreate(BaseModel):
@@ -104,6 +107,7 @@ class NewPurchasedItem(BaseModel):
     # label, in the basis of `price`. Both clear on a line sent without them.
     reduced: bool = False
     price_before: float | None = None
+    pack: PackFormat | None = None
 
 
 class ReceiptPriceBatch(BaseModel):

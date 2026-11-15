@@ -1,9 +1,14 @@
 import { Check, X } from 'lucide-react'
 import { useState } from 'react'
 import { formatAmount, formatFigure, parseAmount } from '../lib/formatPrice'
-import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
+import {
+  deriveUnit,
+  type PackFormat,
+  parseQuantityFactor,
+} from '../lib/itemCost'
 import type { LineLabel } from '../lib/weighedLabel'
 import './AdjustProductSheet.css'
+import { PackFormatField } from './PackFormatField'
 import { PrimaryButton, SheetBackButton } from './PurchaseSheetParts'
 import { QuantityPriceRow } from './QuantityPriceRow'
 import { ScanLabelButton } from './WeightChip'
@@ -30,6 +35,8 @@ export interface DraftLine {
   bought_by_weight: boolean
   /** The weighed label used on this line, if any. */
   label: LineLabel | null
+  /** The pack format: «6 × 1,5 L», a pack of 12, or none. */
+  pack: PackFormat | null
 }
 
 interface Props {
@@ -71,6 +78,8 @@ export function AdjustProductSheet({
   // Once the user touches the price (types, confirms or rejects the suggestion)
   // the dashed opt-in yields to a plain field.
   const [priceTouched, setPriceTouched] = useState(line.price != null)
+  // undefined while a field of the format block cannot be read.
+  const [pack, setPack] = useState<PackFormat | null | undefined>(line.pack)
 
   const { pricePer, suffix } = deriveUnit(quantity)
   const price = parseAmount(priceText)
@@ -87,6 +96,7 @@ export function AdjustProductSheet({
     quantity: quantity.trim() || null,
     price,
     price_per: price != null ? pricePer : null,
+    pack: pack === undefined ? line.pack : pack,
   })
 
   const commit = () => onDone(draft())
@@ -165,6 +175,18 @@ export function AdjustProductSheet({
           )}
         </QuantityPriceRow>
 
+        {/* A correction, not a step: it sits under «Cantidad y precio». A
+            weighed line is priced per kg whatever its package. */}
+        {pricePer !== 'KILOGRAM' && (
+          <PackFormatField
+            initial={line.pack}
+            price={price}
+            units={factor}
+            onChange={setPack}
+            foldWhenEmpty
+          />
+        )}
+
         <label className="adjust-field">
           <span className="psheet-label adjust-field__label">
             Marca <span className="adjust-field__opt">· opcional</span>
@@ -179,7 +201,10 @@ export function AdjustProductSheet({
       </div>
 
       <div className="adjust-sheet__footer">
-        <PrimaryButton onClick={commit} disabled={name.trim() === ''}>
+        <PrimaryButton
+          onClick={commit}
+          disabled={name.trim() === '' || pack === undefined}
+        >
           Hecho
         </PrimaryButton>
         <button

@@ -1618,6 +1618,7 @@ export function ListScreen({
               purchased_quantity: i.purchased_quantity,
               ean: i.ean,
               bought_by_weight: i.bought_by_weight,
+              pack: i.pack ?? null,
             }))}
           getToken={getToken}
           showToast={setToast}

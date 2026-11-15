@@ -14,6 +14,7 @@ const base: DraftLine = {
   ean: null,
   bought_by_weight: false,
   label: null,
+  pack: null,
 }
 
 function renderSheet(over: Partial<DraftLine> = {}, isNew = false) {
@@ -90,4 +91,59 @@ test('an untouched suggestion saves without a price (bought, unpriced)', () => {
 test('Hecho is disabled until the product has a name', () => {
   renderSheet({ name: '' })
   expect(screen.getByText('Hecho')).toBeDisabled()
+})
+
+test('with no format, «Formato» folds into one «Añadir formato» row', () => {
+  renderSheet()
+  expect(
+    screen.queryByRole('textbox', { name: 'Peso de cada unidad' }),
+  ).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /Añadir formato/ }))
+  expect(
+    screen.getByRole('textbox', { name: 'Peso de cada unidad' }),
+  ).toBeInTheDocument()
+})
+
+test('a format opens the block and shows the price per litre at once', () => {
+  renderSheet({
+    quantity: '2',
+    price: 3.48,
+    pack: { count: 6, content: 1.5, unit: 'l' },
+  })
+  expect(screen.getByText('Precio / L')).toBeInTheDocument()
+  expect(screen.getByText(/^0,39\s€$/)).toBeInTheDocument()
+  expect(screen.getByText('18 L')).toBeInTheDocument()
+})
+
+test('Hecho saves the typed format on the line', () => {
+  const { onDone } = renderSheet({ price: 3.6, quantity: '1' })
+  fireEvent.click(screen.getByRole('button', { name: /Añadir formato/ }))
+  fireEvent.change(
+    screen.getByRole('textbox', { name: 'Unidades por envase' }),
+    { target: { value: '12' } },
+  )
+  expect(screen.getByText('Precio / ud')).toBeInTheDocument()
+  expect(screen.getByText('12 ud')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Hecho' }))
+  expect(onDone).toHaveBeenCalledWith(
+    expect.objectContaining({ pack: { count: 12, content: null, unit: null } }),
+  )
+})
+
+test('a weight with no unit keeps Hecho disabled', () => {
+  renderSheet()
+  fireEvent.click(screen.getByRole('button', { name: /Añadir formato/ }))
+  fireEvent.change(
+    screen.getByRole('textbox', { name: 'Peso de cada unidad' }),
+    { target: { value: '500' } },
+  )
+  expect(screen.getByRole('alert')).toHaveTextContent('Añade la unidad')
+  expect(screen.getByRole('button', { name: 'Hecho' })).toBeDisabled()
+})
+
+test('a weighed line has no «Formato»', () => {
+  renderSheet({ quantity: '1,02 kg' })
+  expect(
+    screen.queryByRole('button', { name: /Añadir formato/ }),
+  ).not.toBeInTheDocument()
 })

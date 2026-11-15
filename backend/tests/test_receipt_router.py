@@ -2254,3 +2254,67 @@ def test_an_ordinary_apply_clears_a_reduced_mark_left_from_an_undone_close(clien
     session.expire_all()
     row = session.get_one(ListItem, "item-almendras")
     assert (row.price, row.price_reduced, row.price_before) == (2.75, False, None)
+
+
+SIX_BY_ONE_AND_A_HALF = {"count": 6, "content": 1.5, "unit": "l"}
+
+
+def _patch_body(**patch):
+    return {
+        "scan_id": None,
+        "patches": [
+            {
+                "item_id": "item-almendras",
+                "price": 1.15,
+                "price_per": None,
+                "store": "Mercadona",
+                **patch,
+            }
+        ],
+        "mappings": [],
+    }
+
+
+def test_a_receipt_patch_sets_the_format_and_clears_the_old_ean(client, session):
+    """A format corrected in 13b lands on the item; the old EAN named the
+    old format."""
+    item = session.get_one(ListItem, "item-almendras")
+    item.ean = "8410188011111"
+    session.add(item)
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_patch_body(pack={"count": 1, "content": 200, "unit": "g"}),
+    )
+
+    assert response.status_code == 200
+    session.expire_all()
+    item = session.get_one(ListItem, "item-almendras")
+    assert item.pack == {"count": 1, "content": 200, "unit": "g"}
+    assert item.ean is None
+
+
+def test_a_receipt_patch_without_pack_leaves_the_format(client, session):
+    item = session.get_one(ListItem, "item-almendras")
+    item.pack_count = 6
+    item.ean = "8410188011111"
+    session.add(item)
+    session.commit()
+
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=_patch_body())
+
+    session.expire_all()
+    item = session.get_one(ListItem, "item-almendras")
+    assert item.pack == {"count": 6, "content": None, "unit": None}
+    assert item.ean == "8410188011111"
+
+
+def test_a_created_receipt_item_carries_its_format(client, session):
+    body = _new_item_body(pack=SIX_BY_ONE_AND_A_HALF)
+
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.pack == SIX_BY_ONE_AND_A_HALF
+    assert created.ean == "8412345678901"

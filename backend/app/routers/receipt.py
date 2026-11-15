@@ -4,7 +4,15 @@ from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import and_
 from sqlmodel import col, select
 
-from app.db.models import List, ListItem, Purchase, ReceiptNameMapping, ReceiptScan, User
+from app.db.models import (
+    List,
+    ListItem,
+    Purchase,
+    ReceiptNameMapping,
+    ReceiptScan,
+    User,
+    pack_columns,
+)
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.receipt import (
     ReceiptFileUrlResult,
@@ -468,6 +476,8 @@ def apply_receipt_prices(
             item.price_store = patch.store
         if patch.quantity is not None:
             item.purchased_quantity = patch.quantity  # actual receipt qty → new field
+        if "pack" in patch.model_fields_set:
+            item.change_pack(patch.pack.model_dump() if patch.pack else None)
             # item.quantity (planned qty) is intentionally left untouched
         # In a targeted apply the line is already settled and takes its filled
         # or corrected price and nothing else: purchased_at, purchase_id, and
@@ -526,6 +536,7 @@ def apply_receipt_prices(
             # can still be un-purchased like any other just-written record.
             purchased_at=target.opened_at if target is not None else purchase_ts,
             purchase_id=target.id if target is not None else settle_trip().id,
+            **pack_columns(new.pack.model_dump() if new.pack else None),
         )
         session.add(line)
         # Flush so the row has an id for close()'s selection below.
