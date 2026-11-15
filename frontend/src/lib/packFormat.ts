@@ -58,7 +58,9 @@ export function readPackWeight(text: string): PackWeight {
   const trimmed = text.trim()
   if (trimmed === '') return { kind: 'empty' }
   const m = trimmed.match(/^(\d+(?:[.,]\d+)?)\s*(\p{L}+\.?)$/u)
-  if (!m) return { kind: 'invalid' }
+  // «1.000 ml» is a thousand in Spanish, not one: a dot before exactly
+  // three digits groups thousands, so it is refused rather than misread.
+  if (!m || /^\d+\.\d{3}$/.test(m[1])) return { kind: 'invalid' }
   const content = parseFloat(m[1].replace(',', '.'))
   const unit = readUnit(m[2])
   if (unit == null || content < MIN_CONTENT || content > MAX_CONTENT) {

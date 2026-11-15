@@ -73,6 +73,12 @@ export interface LineState {
   label?: LineLabel | null
   /** A format typed in 13b; absent leaves the item's own. */
   pack?: PackFormat | null
+  /**
+   * The item that format was typed for, null for a line being created. A
+   * format follows its item: relinking the line to another one drops it,
+   * since it would overwrite that item's format and clear its EAN.
+   */
+  packFor?: string | null
 }
 
 export function isNamed(resolution: LineResolution): boolean {

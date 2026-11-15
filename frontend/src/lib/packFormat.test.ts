@@ -50,7 +50,15 @@ describe('readPackWeight', () => {
     expect(readPackWeight('  ')).toEqual({ kind: 'empty' })
   })
 
-  it.each(['1,5', '108 latas', 'L', '0 g', '200000 l'])(
+  it('reads a dot as a decimal mark', () => {
+    expect(readPackWeight('1.5 L')).toEqual({
+      kind: 'weight',
+      content: 1.5,
+      unit: 'l',
+    })
+  })
+
+  it.each(['1,5', '108 latas', 'L', '0 g', '200000 l', '1.000 ml'])(
     'refuses «%s»',
     (text) => {
       expect(readPackWeight(text)).toEqual({ kind: 'invalid' })

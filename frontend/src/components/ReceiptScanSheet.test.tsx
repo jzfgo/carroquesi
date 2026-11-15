@@ -1237,3 +1237,30 @@ describe('ReceiptScanSheet — pack format (13b)', () => {
     expect(await savedBebida(onConfirm)).not.toHaveProperty('pack')
   })
 })
+
+describe('ReceiptScanSheet — a format follows its item', () => {
+  it('drops a format typed for one item when the line is linked to another', async () => {
+    const { onConfirm } = renderSheet()
+    fireEvent.click(openRow('BEBIDA ALMENDRAS'))
+    fireEvent.click(screen.getByRole('button', { name: /Añadir formato/ }))
+    fireEvent.change(
+      screen.getByRole('textbox', { name: 'Peso de cada unidad' }),
+      { target: { value: '1 L' } },
+    )
+    // Only item-4 is free to link.
+    fireEvent.click(screen.getByRole('radio', { name: /Maní dulce/ }))
+    // The block now shows the newly picked item's format, which is none.
+    expect(
+      screen.queryByRole('textbox', { name: 'Peso de cada unidad' }),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+    const [patches] = onConfirm.mock.calls[0]
+    const mani = patches.find((p) => p.item_id === 'item-4')
+    expect(mani).toBeDefined()
+    expect(mani).not.toHaveProperty('pack')
+  })
+})

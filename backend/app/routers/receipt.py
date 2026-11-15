@@ -476,9 +476,9 @@ def apply_receipt_prices(
             item.price_store = patch.store
         if patch.quantity is not None:
             item.purchased_quantity = patch.quantity  # actual receipt qty → new field
+            # item.quantity (planned qty) is intentionally left untouched
         if "pack" in patch.model_fields_set:
             item.change_pack(patch.pack.model_dump() if patch.pack else None)
-            # item.quantity (planned qty) is intentionally left untouched
         # In a targeted apply the line is already settled and takes its filled
         # or corrected price and nothing else: purchased_at, purchase_id, and
         # updated_at stay put — a stamped updated_at would reopen the

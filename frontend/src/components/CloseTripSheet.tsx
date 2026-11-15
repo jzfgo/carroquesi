@@ -394,8 +394,9 @@ export function CloseTripSheet({
           name: l.name,
           brand: l.brand,
           article: l.label?.article ?? null,
-          // The server keeps the EAN unless the format really changed.
-          pack: l.pack,
+          // Only a format changed here: resending the one the sheet opened
+          // with would undo a co-shopper's correction and clear its EAN.
+          ...(l.packEdited ? { pack: l.pack } : {}),
           ...reductionOf(l),
         })),
         new_items: included

@@ -6,6 +6,7 @@ import {
   type PackFormat,
   parseQuantityFactor,
 } from '../lib/itemCost'
+import { samePack } from '../lib/packFormat'
 import type { LineLabel } from '../lib/weighedLabel'
 import './AdjustProductSheet.css'
 import { PackFormatField } from './PackFormatField'
@@ -37,6 +38,8 @@ export interface DraftLine {
   label: LineLabel | null
   /** The pack format: «6 × 1,5 L», a pack of 12, or none. */
   pack: PackFormat | null
+  /** The format was changed in 10d, so the close sends it. */
+  packEdited?: boolean
 }
 
 interface Props {
@@ -97,6 +100,8 @@ export function AdjustProductSheet({
     price,
     price_per: price != null ? pricePer : null,
     pack: pack === undefined ? line.pack : pack,
+    packEdited:
+      line.packEdited || (pack !== undefined && !samePack(pack, line.pack)),
   })
 
   const commit = () => onDone(draft())
