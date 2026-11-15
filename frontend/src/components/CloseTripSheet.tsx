@@ -58,7 +58,8 @@ interface Props {
   showToast: (message: string) => void
   /** After a successful close — the parent refreshes the list + stack. */
   onDone: () => void
-  /** «Escanear el ticket en su lugar» — hand off to the receipt flow. */
+  /** «Escanear el ticket en su lugar» — hand off to the receipt flow. Absent
+   *  when receipt scanning is off for the user, and so is the action. */
   onScanReceipt?: () => void
 }
 
@@ -620,9 +621,11 @@ export function CloseTripSheet({
                 included.filter((l) => l.item_id).length === 0
               }
             />
-            <SecondaryButton onClick={() => onScanReceipt?.()}>
-              <Receipt size={16} aria-hidden /> Escanear el ticket en su lugar
-            </SecondaryButton>
+            {onScanReceipt && (
+              <SecondaryButton onClick={onScanReceipt}>
+                <Receipt size={16} aria-hidden /> Escanear el ticket en su lugar
+              </SecondaryButton>
+            )}
           </div>
         </div>
       )}
