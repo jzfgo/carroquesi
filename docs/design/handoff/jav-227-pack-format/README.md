@@ -82,6 +82,10 @@ how lines are grouped:
   line. Adding the 5 L bottle while «Agua mineral» 1,5 L is pending answers
   «already on the list», as today; the pending line's format is where to
   change it. The pending list says what to buy, not which formats.
+- Changing «Formato» by hand (on a pending line, after a re-buy, or in 22a)
+  clears the line's EAN, because that EAN names the old format. A scan sets
+  the new one instead. A missing EAN only costs a lookup; a wrong one would
+  teach the barcode the wrong format.
 
 Exact name matching stays the weak point, as today: two spellings split a
 history. A separate product/format entity is tracked in JAV-242.
