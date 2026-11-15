@@ -1487,10 +1487,14 @@ export function ListScreen({
             setCloseTrip(null)
             invalidateAfterTripChange()
           }}
-          onScanReceipt={() => {
-            setCloseTrip(null)
-            handleReceiptScan()
-          }}
+          onScanReceipt={
+            isEnabled(FLAGS.AI_RECEIPT_SCANNING)
+              ? () => {
+                  setCloseTrip(null)
+                  handleReceiptScan()
+                }
+              : undefined
+          }
         />
       )}
 
