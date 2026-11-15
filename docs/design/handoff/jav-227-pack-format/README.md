@@ -62,8 +62,8 @@ its own price in grey ink, out of the minimum and the curve. The footnote
 explains it and shows only when there is such an entry. No source marker in
 the history.
 
-**Editing (10d, 13b).** Two fields: «Unidades» × «Contenido». There is no
-unit select: the content is typed with its unit («1,5 L», «108 g», «33 cl»)
+**Editing (10d, 13b).** Two fields: «Unidades» × «Peso». There is no
+unit select: the weight is typed with its unit («1,5 L», «108 g», «33 cl»)
 and the app reads it, as «Cantidad y precio» does (the Already-Told Rule).
 The block sits under «Cantidad y precio»,
 because it is a correction, not a step. With no format, one dashed row
@@ -74,11 +74,15 @@ and the value becomes manual, which automatic filling never overwrites
 (JAV-220). 13b uses the same block, with the source «del ticket».
 
 - «Unidades»: whole number ≥ 1; empty means 1.
-- «Contenido»: optional. When typed, a figure > 0 with a unit (g, kg, ml, cl,
+- «Peso»: optional. When typed, a figure > 0 with a unit (g, kg, ml, cl,
   L, with the same spellings «Cantidad» accepts: «gr», «litros»…). A figure
   with no unit is refused: a warning on the field, and «Hecho» stays disabled,
-  like the old price in JAV-226. Without content, the price is per unit of
+  like the old price in JAV-226. Without a weight, the price is per unit of
   the pack.
+- The field is «Peso», not «Contenido»: for a pack of rolls, or of anything
+  sold by the piece, «Peso · opcional» reads as safe to leave empty. As in
+  «Cantidad y precio», «peso» also covers ml and L. In the model it is still
+  `unit_content`.
 - Emptying both fields removes the format.
 
 **Automatic values need no confirmation.** A format from the name, the
