@@ -421,6 +421,11 @@ def rebuy_item(
         ean=line.ean,
         stores=stores,
         quantity=line.purchased_quantity or line.quantity,
+        # The usual case is the same format again; buying another is
+        # corrected by a scan or in «Formato».
+        pack_count=line.pack_count,
+        pack_content=line.pack_content,
+        pack_content_unit=line.pack_content_unit,
     )
     session.add(pending)
     if stores:

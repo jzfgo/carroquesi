@@ -139,6 +139,37 @@ def test_line_money_and_unit_price(session: Session, user: User):
     assert tray.product == ("solomillo", "hacendado")
 
 
+def test_a_pack_line_is_priced_on_its_format(session: Session, user: User):
+    """Two 6 × 1,5 L packs at 3,48: the money is the packs, the comparable
+    price is per litre, and a line without a format stays on its own basis."""
+    lst = _list(session, user)
+    trip = _trip(session, lst, datetime(2026, 10, 10, 10, tzinfo=UTC))
+    _line(
+        session,
+        lst,
+        trip,
+        user,
+        name="Agua",
+        quantity="2",
+        price=3.48,
+        pack_count=6,
+        pack_content=1.5,
+        pack_content_unit="l",
+    )
+    _line(session, lst, trip, user, name="Rollos", price=3.60, pack_count=12)
+    _line(session, lst, trip, user, name="Pan", price=1.10)
+    start, end = month_bounds("2026-10", MADRID)
+
+    lines = {line.name: line for line in load_window(session, lst.id, start, end, MADRID).lines}
+
+    water = lines["Agua"]
+    assert water.amount == pytest.approx(6.96)
+    assert water.unit_price == pytest.approx(3.48 / 9)
+    assert water.basis == "l"
+    assert (lines["Rollos"].unit_price, lines["Rollos"].basis) == (pytest.approx(0.30), "ud")
+    assert (lines["Pan"].unit_price, lines["Pan"].basis) == (1.10, "unit")
+
+
 def test_trips_outside_the_window_are_not_loaded(session: Session, user: User):
     lst = _list(session, user)
     _trip(session, lst, datetime(2026, 9, 15, 10, tzinfo=UTC))

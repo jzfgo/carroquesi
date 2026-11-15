@@ -12,13 +12,23 @@
     { "quantity": "750 ml", "price_per": "KILOGRAM", "expected": 0.75 },
     { "quantity": "1 ud", "price_per": "KILOGRAM", "expected": null },
     { "quantity": null, "price_per": "KILOGRAM", "expected": null },
-    { "quantity": "1,5 kg.", "price_per": "KILOGRAM", "expected": 1.5 }
+    { "quantity": "1,5 kg.", "price_per": "KILOGRAM", "expected": 1.5 },
+    { "quantity": "500 gr", "price_per": "KILOGRAM", "expected": 0.5 },
+    { "quantity": "250 gramos", "price_per": "KILOGRAM", "expected": 0.25 },
+    { "quantity": "1 gramo", "price_per": "KILOGRAM", "expected": 0.001 },
+    { "quantity": "2 kilos", "price_per": "KILOGRAM", "expected": 2 },
+    { "quantity": "1 kilo", "price_per": "KILOGRAM", "expected": 1 },
+    { "quantity": "2 litros", "price_per": "KILOGRAM", "expected": 2 },
+    { "quantity": "1 litro", "price_per": "KILOGRAM", "expected": 1 },
+    { "quantity": "2 kilos", "price_per": null, "expected": 1 },
+    { "quantity": "1,5 litros", "price_per": null, "expected": 1 }
   ],
   "unit_price": [
     {
       "price": 12.5,
       "quantity": "0.636 kg",
       "price_per": "KILOGRAM",
+      "pack": null,
       "value": 12.5,
       "basis": "kg"
     },
@@ -26,6 +36,7 @@
       "price": 12.5,
       "quantity": null,
       "price_per": "KILOGRAM",
+      "pack": null,
       "value": 12.5,
       "basis": "kg"
     },
@@ -33,6 +44,7 @@
       "price": 1.2,
       "quantity": "500 g",
       "price_per": null,
+      "pack": null,
       "value": 2.4,
       "basis": "kg"
     },
@@ -40,13 +52,23 @@
       "price": 1.5,
       "quantity": "1,5 L.",
       "price_per": null,
+      "pack": null,
       "value": 1,
-      "basis": "kg"
+      "basis": "l"
+    },
+    {
+      "price": 0.99,
+      "quantity": "33 cl",
+      "price_per": null,
+      "pack": null,
+      "value": 3,
+      "basis": "l"
     },
     {
       "price": 0.89,
       "quantity": "12 ud",
       "price_per": null,
+      "pack": null,
       "value": 0.89,
       "basis": "unit"
     },
@@ -54,6 +76,7 @@
       "price": 0.89,
       "quantity": null,
       "price_per": null,
+      "pack": null,
       "value": 0.89,
       "basis": "unit"
     },
@@ -61,7 +84,56 @@
       "price": 2.1,
       "quantity": "granel",
       "price_per": null,
+      "pack": null,
       "value": 2.1,
+      "basis": "unit"
+    },
+    {
+      "price": 3.48,
+      "quantity": "2",
+      "price_per": null,
+      "pack": { "count": 6, "content": 1.5, "unit": "l" },
+      "value": 0.38666666666666666,
+      "basis": "l"
+    },
+    {
+      "price": 1.15,
+      "quantity": null,
+      "price_per": null,
+      "pack": { "count": 1, "content": 108, "unit": "g" },
+      "value": 10.648148148148149,
+      "basis": "kg"
+    },
+    {
+      "price": 3.6,
+      "quantity": null,
+      "price_per": null,
+      "pack": { "count": 12, "content": null, "unit": null },
+      "value": 0.3,
+      "basis": "ud"
+    },
+    {
+      "price": 2.4,
+      "quantity": "1,5 L",
+      "price_per": null,
+      "pack": { "count": 4, "content": 125, "unit": "g" },
+      "value": 4.8,
+      "basis": "kg"
+    },
+    {
+      "price": 12.5,
+      "quantity": "0.636 kg",
+      "price_per": "KILOGRAM",
+      "pack": { "count": 6, "content": 1.5, "unit": "l" },
+      "value": 12.5,
+      "basis": "kg"
+    },
+    {
+      "price": 0.89,
+      "quantity": "1 ud",
+      "price_per": null,
+      "pack": { "count": 1, "content": null, "unit": null },
+      "value": 0.89,
       "basis": "unit"
     }
   ]

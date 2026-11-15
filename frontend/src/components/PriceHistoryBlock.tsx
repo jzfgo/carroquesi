@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, Plus } from 'lucide-react'
 import { useState } from 'react'
-import { formatUnitPrice } from '../lib/formatPrice'
+import { formatBasisPrice, formatUnitPrice } from '../lib/formatPrice'
 import { formatChartDate, priceStats, Sparkline } from '../lib/priceChart'
 import { normalizeEntries, type ChartEntry } from '../lib/priceNormalization'
 import { compareServerInstants } from '../lib/serverInstant'
@@ -90,12 +90,12 @@ function groupByStore(
 
 function entryPrice(entry: ChartEntry): string {
   return entry.displayAmount !== null
-    ? formatUnitPrice(entry.displayAmount, entry.displayPricePer)
+    ? formatBasisPrice(entry.displayAmount, entry.displayBasis)
     : formatUnitPrice(entry.originalAmount, entry.originalPricePer)
 }
 
 function ExpandedStore({ group }: { group: StoreGroup }) {
-  const { min, max, latest, displayPricePer, hasReduced } = priceStats(
+  const { min, max, latest, displayBasis, hasReduced } = priceStats(
     group.priced,
   )
   const pricedForCurve = group.priced.filter((r) => r.displayAmount !== null)
@@ -116,13 +116,13 @@ function ExpandedStore({ group }: { group: StoreGroup }) {
         <div className="phb__figures">
           <span className="phb__figure">
             <span className="phb__figure-value">
-              {min !== null ? formatUnitPrice(min, displayPricePer) : '—'}
+              {min !== null ? formatBasisPrice(min, displayBasis) : '—'}
             </span>
             <span className="phb__figure-label">Mínimo</span>
           </span>
           <span className="phb__figure">
             <span className="phb__figure-value">
-              {max !== null ? formatUnitPrice(max, displayPricePer) : '—'}
+              {max !== null ? formatBasisPrice(max, displayBasis) : '—'}
             </span>
             <span className="phb__figure-label">Máximo</span>
           </span>
@@ -180,11 +180,14 @@ function ExpandedStore({ group }: { group: StoreGroup }) {
                   )}
                 </span>
                 {record.entry.displayAmount !== null &&
-                  record.entry.originalPricePer !==
-                    (record.entry.displayPricePer as string | null) && (
+                  record.entry.displayBasis !== 'unit' &&
+                  record.entry.originalPricePer !== 'KILOGRAM' && (
                     <span className="phb__record-approx">
                       ≈{' '}
-                      {formatUnitPrice(record.entry.displayAmount, 'KILOGRAM')}
+                      {formatBasisPrice(
+                        record.entry.displayAmount,
+                        record.entry.displayBasis,
+                      )}
                     </span>
                   )}
               </span>

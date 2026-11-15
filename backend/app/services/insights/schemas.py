@@ -10,6 +10,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
+from app.services.quantity import Basis
+
 
 class _Record(BaseModel):
     list_id: str
@@ -150,7 +152,7 @@ DEFAULT_THRESHOLDS = SavingsThresholds()
 class Suggestion(BaseModel):
     name: str
     brand: str | None
-    basis: Literal["kg", "unit"]
+    basis: Basis
     paid_store_key: str
     paid_store: str
     paid_price: float

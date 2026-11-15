@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.items import PackFormat
+
 
 class PriceCreate(BaseModel):
     amount: float = Field(gt=0)
@@ -21,6 +23,8 @@ class PriceEntry(BaseModel):
     # and the close sheet's suggestion, but still the last price paid.
     reduced: bool = False
     price_before: float | None = None
+    # The line's pack format, so the history can price it per L, kg or ud.
+    pack: PackFormat | None = None
 
 
 class PriceHistoryResponse(BaseModel):

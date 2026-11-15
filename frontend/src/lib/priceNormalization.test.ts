@@ -13,6 +13,7 @@ function entry(
     is_sin_precio: false,
     reduced: false,
     price_before: null,
+    pack: null,
     ...overrides,
   }
 }
@@ -24,7 +25,7 @@ describe('normalizeEntries', () => {
     expect(result.isNormalized).toBe(false)
     expect(result.hasGaps).toBe(false)
     expect(result.entries[0].displayAmount).toBe(0.89)
-    expect(result.entries[0].displayPricePer).toBeNull()
+    expect(result.entries[0].displayBasis).toBe('unit')
     expect(result.entries[0].originalAmount).toBe(0.89)
   })
 
@@ -37,7 +38,7 @@ describe('normalizeEntries', () => {
     expect(result.isNormalized).toBe(false)
     expect(result.hasGaps).toBe(false)
     expect(result.entries[0].displayAmount).toBe(1.2)
-    expect(result.entries[0].displayPricePer).toBe('KILOGRAM')
+    expect(result.entries[0].displayBasis).toBe('kg')
   })
 
   it('normalizes all-per-unit entries to €/kg when they have SI quantities', () => {
@@ -50,7 +51,7 @@ describe('normalizeEntries', () => {
     expect(result.hasGaps).toBe(false)
     expect(result.entries[0].displayAmount).toBeCloseTo(1.2) // 0.60 / 0.5
     expect(result.entries[1].displayAmount).toBeCloseTo(2.8) // 2.80 / 1.0
-    expect(result.entries[0].displayPricePer).toBe('KILOGRAM')
+    expect(result.entries[0].displayBasis).toBe('kg')
   })
 
   it('normalizes per-unit entry to €/kg when history mixes per-unit and per-kg', () => {
@@ -63,7 +64,7 @@ describe('normalizeEntries', () => {
     expect(result.hasGaps).toBe(false)
     expect(result.entries[0].displayAmount).toBeCloseTo(1.2)
     expect(result.entries[1].displayAmount).toBeCloseTo(1.2)
-    expect(result.entries[0].displayPricePer).toBe('KILOGRAM')
+    expect(result.entries[0].displayBasis).toBe('kg')
   })
 
   it('yields displayAmount=null for a per-unit entry with no parseable SI quantity when normalization mode is active', () => {
@@ -114,5 +115,77 @@ describe('normalizeEntries', () => {
     const result = normalizeEntries(entries)
     expect(result.entries[0].purchased_at).toBe('2026-01-01')
     expect(result.entries[1].purchased_at).toBe('2026-02-01')
+  })
+
+  describe('pack formats', () => {
+    const sixByOneAndAHalf = { count: 6, content: 1.5, unit: 'l' as const }
+
+    it('prices every format of one product per litre', () => {
+      const entries = [
+        entry({ amount: 3.48, pack: sixByOneAndAHalf }),
+        entry({ amount: 0.65, quantity: '1,5 L' }),
+        entry({ amount: 1.6, pack: { count: 1, content: 5, unit: 'l' } }),
+      ]
+      const result = normalizeEntries(entries)
+      expect(result.entries.map((e) => e.displayBasis)).toEqual(['l', 'l', 'l'])
+      expect(result.entries[0].displayAmount).toBeCloseTo(0.387)
+      expect(result.entries[1].displayAmount).toBeCloseTo(0.433)
+      expect(result.entries[2].displayAmount).toBeCloseTo(0.32)
+      expect(result.isNormalized).toBe(true)
+      expect(result.hasGaps).toBe(false)
+    })
+
+    it('never mixes litres and kilos: the minority keeps its own price', () => {
+      const entries = [
+        entry({ amount: 3.48, pack: sixByOneAndAHalf }),
+        entry({ amount: 0.65, quantity: '1,5 L' }),
+        entry({ amount: 1.2, quantity: '500 g' }),
+      ]
+      const result = normalizeEntries(entries)
+      expect(result.entries[2].displayAmount).toBeNull()
+      expect(result.entries[2].displayBasis).toBe('l')
+      expect(result.hasGaps).toBe(true)
+    })
+
+    it('leaves an entry with no format out of a per-ud history', () => {
+      const entries = [
+        entry({ amount: 3.6, pack: { count: 12, content: null, unit: null } }),
+        entry({ amount: 2.5, pack: { count: 8, content: null, unit: null } }),
+        entry({ amount: 0.4 }),
+      ]
+      const result = normalizeEntries(entries)
+      expect(result.entries[0].displayAmount).toBeCloseTo(0.3)
+      expect(result.entries[1].displayAmount).toBeCloseTo(0.3125)
+      expect(result.entries[2].displayAmount).toBeNull()
+      expect(result.entries[0].displayBasis).toBe('ud')
+    })
+
+    it('breaks a tie in favour of the newest dated entry', () => {
+      const entries = [
+        entry({
+          amount: 0.65,
+          quantity: '1,5 L',
+          purchased_at: '2026-08-01T10:00:00Z',
+        }),
+        entry({
+          amount: 1.2,
+          quantity: '500 g',
+          purchased_at: '2026-07-01T10:00:00Z',
+        }),
+      ]
+      expect(normalizeEntries(entries).entries[0].displayBasis).toBe('l')
+    })
+
+    it('never lets a dateless log break a tie', () => {
+      const entries = [
+        entry({
+          amount: 1.2,
+          quantity: '500 g',
+          purchased_at: '2026-07-01T10:00:00Z',
+        }),
+        entry({ amount: 0.65, quantity: '1,5 L', purchased_at: null }),
+      ]
+      expect(normalizeEntries(entries).entries[0].displayBasis).toBe('kg')
+    })
   })
 })

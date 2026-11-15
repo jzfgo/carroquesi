@@ -9,6 +9,7 @@ function entry(over: Partial<PriceEntry> = {}): PriceEntry {
     is_sin_precio: false,
     reduced: false,
     price_before: null,
+    pack: null,
     price_per: null,
     purchased_at: '2026-07-22T10:00:00Z',
     quantity: '1 ud',
@@ -61,6 +62,7 @@ test('a reduced price is marked, keeps its old price, and is explained', () => {
           quantity: '0,346 kg',
           reduced: true,
           price_before: 12.6,
+          pack: null,
         }),
         entry({
           purchased_at: '2026-07-15T10:00:00Z',
