@@ -11,6 +11,7 @@ overrides:
   js-yaml@>=4.0.0 <4.3.0: ^4.3.0
   '@grpc/grpc-js@<1.13.6': ^1.13.6
   serialize-javascript@<7.1.3: ^7.1.3
+  qs@<6.16.1: ^6.16.2
 
 importers:
 
@@ -5534,10 +5535,6 @@ packages:
   qified@0.10.1:
     resolution: {integrity: sha512-+Owyggi9IxT1ePKGafcI87ubSmxol6smwJ+RAHDQlx9+9cPwFWDiKFFCPuWhr9ignlGpZ9vDQLw67N4dcTVFEA==}
     engines: {node: '>=20'}
-
-  qs@6.15.1:
-    resolution: {integrity: sha512-6YHEFRL9mfgcAvql/XhwTvf5jKcOiiupt2FiJxHkiX1z4j7WL8J/jRHYLluORvc1XxB5rV20KoeK00gVJamspg==}
-    engines: {node: '>=0.6'}
 
   qs@6.16.2:
     resolution: {integrity: sha512-VYdnB5S7/0IeXzBacUtwNAaM6d7Y/PgYnNC7bJCI6meqA/OgnsQbZMtVW8Dt2D1PHgbHGtYmhSoEIgvt7xZ2ZA==}
@@ -12474,10 +12471,6 @@ snapshots:
     dependencies:
       hookified: 2.2.0
 
-  qs@6.15.1:
-    dependencies:
-      side-channel: 1.1.1
-
   qs@6.16.2:
     dependencies:
       es-define-property: 1.0.1
@@ -13457,7 +13450,7 @@ snapshots:
     dependencies:
       des.js: 1.1.0
       js-md4: 0.3.2
-      qs: 6.15.1
+      qs: 6.17.1
       tunnel: 0.0.6
       underscore: 1.13.8
 

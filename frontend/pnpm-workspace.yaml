@@ -26,3 +26,7 @@ overrides:
   # undone by the next terser bump, so pin it here. Drop once terser
   # requires 7.1.3+.
   'serialize-javascript@<7.1.3': ^7.1.3
+  # Stryker pins typed-rest-client 2.3.x, which pins qs 6.15.1 (stringify
+  # crashes on some comma-format arrays). Drop once Stryker allows
+  # typed-rest-client 3.1.3+.
+  'qs@<6.16.1': ^6.16.2
