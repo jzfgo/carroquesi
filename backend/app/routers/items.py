@@ -105,7 +105,8 @@ def _take_format_of_ean(session: Session, item: ListItem, ean: str) -> None:
         .where(
             ListItem.list_id == item.list_id,
             ListItem.ean == ean,
-            (col(ListItem.pack_count).is_not(None)) | (col(ListItem.pack_content).is_not(None)),
+            # The same test as `ListItem.pack`: one piece with no content is no format.
+            (col(ListItem.pack_content).is_not(None)) | (col(ListItem.pack_count) > 1),
         )
         .order_by(col(ListItem.updated_at).desc())
     ).first()
