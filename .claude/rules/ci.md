@@ -3,6 +3,7 @@ paths:
   - ".github/workflows/**"
   - "scripts/ci-changed-areas.sh"
   - "scripts/test-ci-changed-areas.py"
+  - "frontend/playwright.config.ts"
 ---
 
 # CI
