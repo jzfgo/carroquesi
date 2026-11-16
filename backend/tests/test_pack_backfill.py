@@ -115,10 +115,20 @@ def test_a_change_that_would_move_the_amount_is_skipped(
         price=1.0,
         purchased_at=NOW,
     )
+    # Unpriced today, priced at ×3 the day someone adds a price.
+    unpriced = _line(
+        session,
+        user,
+        list_id,
+        "Zumo 1L",
+        quantity="3",
+        purchased_quantity="1 L",
+        purchased_at=NOW,
+    )
     plan = _backfill(session)
     assert plan.items == []
-    assert {s.item.id for s in plan.skipped} == {by_name.id, by_quantity.id}
-    for line in (by_name, by_quantity):
+    assert {s.item.id for s in plan.skipped} == {by_name.id, by_quantity.id, unpriced.id}
+    for line in (by_name, by_quantity, unpriced):
         session.refresh(line)
         assert line.pack is None
 

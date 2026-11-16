@@ -28,7 +28,7 @@ from app.db.session import get_engine
 from app.services.fold import fold_name
 from app.services.pack_from_name import format_in_name, format_in_quantity, name_without_format
 from app.services.pending_duplicate import find_pending_duplicate
-from app.services.quantity import effective_quantity, line_amount, parse_quantity_factor
+from app.services.quantity import effective_quantity, parse_quantity_factor
 
 
 @dataclass
@@ -126,11 +126,14 @@ def plan(session: Session) -> Plan:
         if change is None:
             continue
         # Clearing a bought size lets the asked quantity count instead: a
-        # record's money must never move.
-        before = line_amount(item.price, item.quantity, item.purchased_quantity, item.price_per)
-        after = line_amount(item.price, change.quantity, change.purchased_quantity, item.price_per)
-        if before != after:
-            skipped.append(Skipped(item, "cambiaría el importe de la línea"))
+        # record's money must never move. The factor, not the amount, so an
+        # unpriced line is safe for when a price is added later.
+        before = effective_quantity(item.quantity, item.purchased_quantity)
+        after = effective_quantity(change.quantity, change.purchased_quantity)
+        if parse_quantity_factor(before, item.price_per) != parse_quantity_factor(
+            after, item.price_per
+        ):
+            skipped.append(Skipped(item, "cambiaría la cantidad que cuenta en el importe"))
             continue
         if item.purchased_at is None and change.name != item.name:
             key = (item.list_id, fold_name(change.name))
