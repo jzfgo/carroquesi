@@ -558,6 +558,16 @@
             "title": "Name",
             "type": "string"
           },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "price": {
             "anyOf": [
               {
@@ -728,6 +738,18 @@
             ],
             "title": "Brand"
           },
+          "ean": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{8}$|^[0-9]{13}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ean"
+          },
           "name": {
             "anyOf": [
               {
@@ -739,6 +761,16 @@
               }
             ],
             "title": "Name"
+          },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "purchased": {
             "anyOf": [
@@ -1037,6 +1069,16 @@
             "title": "Line Total",
             "type": "number"
           },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "price_type": {
             "enum": [
               "UNIT",
@@ -1198,6 +1240,16 @@
             "title": "Name",
             "type": "string"
           },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "price": {
             "title": "Price",
             "type": "number"
@@ -1236,6 +1288,16 @@
             ],
             "title": "Quantity"
           },
+          "read_pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "reduced": {
             "default": false,
             "title": "Reduced",
@@ -1271,6 +1333,52 @@
           "id"
         ],
         "title": "OpenInviteCreated",
+        "type": "object"
+      },
+      "PackFormat": {
+        "description": "A line's pack format: 6 × 1,5 L, 108 g, or a pack of 12.\n\nThe content is sent as a figure and a unit; the client reads what was\ntyped («1,5 L», «108 gramos»). A format with count 1 and no content says\nnothing, so it is refused: send null to remove a format.",
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "maximum": 100000.0,
+                "minimum": 0.001,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "count": {
+            "default": 1,
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "type": "integer"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "g",
+                  "kg",
+                  "ml",
+                  "cl",
+                  "dl",
+                  "l"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "title": "PackFormat",
         "type": "object"
       },
       "ParsedLine": {
@@ -1371,6 +1479,16 @@
             "default": false,
             "title": "Is Sin Precio",
             "type": "boolean"
+          },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "price_before": {
             "anyOf": [
@@ -1477,6 +1595,16 @@
             "title": "Item Id",
             "type": "string"
           },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "price": {
             "title": "Price",
             "type": "number"
@@ -1514,6 +1642,16 @@
               }
             ],
             "title": "Quantity"
+          },
+          "read_pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reduced": {
             "anyOf": [
@@ -1654,6 +1792,16 @@
               }
             ],
             "title": "Name"
+          },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "price": {
             "anyOf": [
@@ -1803,6 +1951,16 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "price": {
             "anyOf": [
@@ -2670,6 +2828,16 @@
           "line_total": {
             "title": "Line Total",
             "type": "number"
+          },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "price_type": {
             "enum": [

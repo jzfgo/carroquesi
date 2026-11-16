@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ListItem } from '../types'
 import {
   computeCostSummary,
+  type PackFormat,
   parseQuantityFactor,
   tripDateLabel,
   unitPrice,
@@ -129,9 +130,14 @@ describe('shared quantity vectors', () => {
   )
 
   it.each(vectors.unit_price)(
-    'unitPrice($price, $quantity, $price_per) → $value/$basis',
-    ({ price, quantity, price_per, value, basis }) => {
-      const result = unitPrice(price, quantity, price_per)
+    'unitPrice($price, $quantity, $price_per, $pack) → $value/$basis',
+    ({ price, quantity, price_per, pack, value, basis }) => {
+      const result = unitPrice(
+        price,
+        quantity,
+        price_per,
+        pack as PackFormat | null,
+      )
       expect(result.value).toBeCloseTo(value)
       expect(result.basis).toBe(basis)
     },

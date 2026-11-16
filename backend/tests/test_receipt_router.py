@@ -2254,3 +2254,155 @@ def test_an_ordinary_apply_clears_a_reduced_mark_left_from_an_undone_close(clien
     session.expire_all()
     row = session.get_one(ListItem, "item-almendras")
     assert (row.price, row.price_reduced, row.price_before) == (2.75, False, None)
+
+
+SIX_BY_ONE_AND_A_HALF = {"count": 6, "content": 1.5, "unit": "l"}
+
+
+def _patch_body(**patch):
+    return {
+        "scan_id": None,
+        "patches": [
+            {
+                "item_id": "item-almendras",
+                "price": 1.15,
+                "price_per": None,
+                "store": "Mercadona",
+                **patch,
+            }
+        ],
+        "mappings": [],
+    }
+
+
+def test_a_receipt_patch_sets_the_format_and_clears_the_old_ean(client, session):
+    """A format corrected in 13b lands on the item; the old EAN named the
+    old format."""
+    item = session.get_one(ListItem, "item-almendras")
+    item.ean = "8410188011111"
+    session.add(item)
+    session.commit()
+
+    response = client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_patch_body(pack={"count": 1, "content": 200, "unit": "g"}),
+    )
+
+    assert response.status_code == 200
+    session.expire_all()
+    item = session.get_one(ListItem, "item-almendras")
+    assert item.pack == {"count": 1, "content": 200, "unit": "g"}
+    assert item.ean is None
+
+
+def test_a_receipt_patch_without_pack_leaves_the_format(client, session):
+    item = session.get_one(ListItem, "item-almendras")
+    item.pack_count = 6
+    item.ean = "8410188011111"
+    session.add(item)
+    session.commit()
+
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=_patch_body())
+
+    session.expire_all()
+    item = session.get_one(ListItem, "item-almendras")
+    assert item.pack == {"count": 6, "content": None, "unit": None}
+    assert item.ean == "8410188011111"
+
+
+def test_a_created_receipt_item_carries_its_format(client, session):
+    body = _new_item_body(pack=SIX_BY_ONE_AND_A_HALF)
+
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.pack == SIX_BY_ONE_AND_A_HALF
+    assert created.ean == "8412345678901"
+
+
+def test_a_receipt_read_format_fills_a_line_without_one(client, session):
+    """Kept as the receipt's guess: the EAN stays, since nobody changed the
+    format by hand."""
+    item = session.get_one(ListItem, "item-almendras")
+    item.ean = "8410188011111"
+    session.add(item)
+    session.commit()
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_patch_body(read_pack=SIX_BY_ONE_AND_A_HALF),
+    )
+
+    session.expire_all()
+    item = session.get_one(ListItem, "item-almendras")
+    assert item.pack == SIX_BY_ONE_AND_A_HALF
+    assert item.pack_source == "receipt"
+    assert item.ean == "8410188011111"
+
+
+def test_a_receipt_read_format_never_replaces_one_the_line_has(client, session):
+    item = session.get_one(ListItem, "item-almendras")
+    item.pack_count = 6
+    item.pack_source = "name"
+    session.add(item)
+    session.commit()
+
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_patch_body(read_pack={"count": 1, "content": 1, "unit": "l"}),
+    )
+
+    session.expire_all()
+    item = session.get_one(ListItem, "item-almendras")
+    assert item.pack == {"count": 6, "content": None, "unit": None}
+    assert item.pack_source == "name"
+
+
+def test_a_format_typed_in_the_review_wins_over_the_read_one(client, session):
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_patch_body(pack=None, read_pack=SIX_BY_ONE_AND_A_HALF),
+    )
+
+    session.expire_all()
+    assert session.get_one(ListItem, "item-almendras").pack is None
+
+
+def test_a_created_receipt_item_takes_the_read_format(client, session):
+    client.post(
+        f"/lists/{LIST_ID}/receipt-prices",
+        json=_new_item_body(read_pack=SIX_BY_ONE_AND_A_HALF),
+    )
+
+    created = session.exec(select(ListItem).where(ListItem.name == "Chocolate negro 85%")).one()
+    assert created.pack == SIX_BY_ONE_AND_A_HALF
+    assert created.pack_source == "receipt"
+
+
+def test_a_format_in_the_created_name_wins_over_the_read_one(client, session):
+    body = _new_item_body(read_pack={"count": 1, "content": 1, "unit": "l"})
+    body["new_items"][0]["name"] = "Agua 6x1,5L"
+
+    client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
+
+    created = session.exec(select(ListItem).where(ListItem.name == "Agua")).one()
+    assert created.pack == SIX_BY_ONE_AND_A_HALF
+    assert created.pack_source == "name"
+
+
+def test_a_name_typed_later_replaces_a_receipt_read_format(client, session):
+    item = session.get_one(ListItem, "item-almendras")
+    item.pack_count = 6
+    item.pack_source = "receipt"
+    session.add(item)
+    session.commit()
+
+    response = client.patch(
+        f"/lists/{LIST_ID}/items/item-almendras", json={"name": "Almendras 200g"}
+    )
+
+    assert response.status_code == 200
+    session.expire_all()
+    item = session.get_one(ListItem, "item-almendras")
+    assert (item.name, item.pack_source) == ("Almendras", "name")
+    assert item.pack == {"count": 1, "content": 200, "unit": "g"}

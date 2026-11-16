@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp, Plus } from 'lucide-react'
 import { useState } from 'react'
-import { formatUnitPrice } from '../lib/formatPrice'
+import { formatBasisPrice, formatUnitPrice } from '../lib/formatPrice'
+import { formatPack } from '../lib/packFormat'
 import { formatChartDate, priceStats, Sparkline } from '../lib/priceChart'
 import { normalizeEntries, type ChartEntry } from '../lib/priceNormalization'
 import { compareServerInstants } from '../lib/serverInstant'
@@ -90,15 +91,22 @@ function groupByStore(
 
 function entryPrice(entry: ChartEntry): string {
   return entry.displayAmount !== null
-    ? formatUnitPrice(entry.displayAmount, entry.displayPricePer)
+    ? formatBasisPrice(entry.displayAmount, entry.displayBasis)
     : formatUnitPrice(entry.originalAmount, entry.originalPricePer)
 }
 
+const BASIS_NAME = { kg: 'kilo', l: 'litro', ud: 'unidad', unit: 'unidad' }
+
 function ExpandedStore({ group }: { group: StoreGroup }) {
-  const { min, max, latest, displayPricePer, hasReduced } = priceStats(
+  const { min, max, latest, displayBasis, hasReduced } = priceStats(
     group.priced,
   )
   const pricedForCurve = group.priced.filter((r) => r.displayAmount !== null)
+  // With a format in the history, each row leads with the shelf-label price
+  // and explains it: the format under the date, the price per unit bought
+  // under the figure (22b).
+  const packMode = group.priced.some((r) => r.pack !== null)
+  const left = group.priced.filter((r) => r.displayAmount === null)
 
   return (
     <div className="phb__expand">
@@ -116,13 +124,13 @@ function ExpandedStore({ group }: { group: StoreGroup }) {
         <div className="phb__figures">
           <span className="phb__figure">
             <span className="phb__figure-value">
-              {min !== null ? formatUnitPrice(min, displayPricePer) : '—'}
+              {min !== null ? formatBasisPrice(min, displayBasis) : '—'}
             </span>
             <span className="phb__figure-label">Mínimo</span>
           </span>
           <span className="phb__figure">
             <span className="phb__figure-value">
-              {max !== null ? formatUnitPrice(max, displayPricePer) : '—'}
+              {max !== null ? formatBasisPrice(max, displayBasis) : '—'}
             </span>
             <span className="phb__figure-label">Máximo</span>
           </span>
@@ -138,16 +146,20 @@ function ExpandedStore({ group }: { group: StoreGroup }) {
         const date = recordAt(record)
         return (
           <div key={i} className="phb__record">
-            <span
-              className={
-                record.kind === 'sin'
-                  ? 'phb__record-date phb__record-date--muted'
-                  : 'phb__record-date'
-              }
-            >
-              {date ? formatChartDate(date) : '—'}
-            </span>
-            {record.kind === 'sin' ? (
+            {record.kind === 'priced' && packMode ? null : (
+              <span
+                className={
+                  record.kind === 'sin'
+                    ? 'phb__record-date phb__record-date--muted'
+                    : 'phb__record-date'
+                }
+              >
+                {date ? formatChartDate(date) : '—'}
+              </span>
+            )}
+            {record.kind === 'priced' && packMode ? (
+              <PackRecord entry={record.entry} date={date} />
+            ) : record.kind === 'sin' ? (
               <span className="phb__record-sin">sin precio</span>
             ) : (
               <span className="phb__record-amount">
@@ -180,11 +192,14 @@ function ExpandedStore({ group }: { group: StoreGroup }) {
                   )}
                 </span>
                 {record.entry.displayAmount !== null &&
-                  record.entry.originalPricePer !==
-                    (record.entry.displayPricePer as string | null) && (
+                  record.entry.displayBasis !== 'unit' &&
+                  record.entry.originalPricePer !== 'KILOGRAM' && (
                     <span className="phb__record-approx">
                       ≈{' '}
-                      {formatUnitPrice(record.entry.displayAmount, 'KILOGRAM')}
+                      {formatBasisPrice(
+                        record.entry.displayAmount,
+                        record.entry.displayBasis,
+                      )}
                     </span>
                   )}
               </span>
@@ -192,6 +207,13 @@ function ExpandedStore({ group }: { group: StoreGroup }) {
           </div>
         )
       })}
+      {packMode && left.length > 0 && (
+        <p className="phb__note">
+          {left.every((r) => r.pack === null) ? 'Sin formato' : 'En gris'}: no
+          entra en el precio por {BASIS_NAME[displayBasis]}, ni en el mínimo ni
+          en la curva.
+        </p>
+      )}
       {/* The minimum can sit above the last price, so a hollow point is
           explained wherever one shows. */}
       {hasReduced && (
@@ -201,6 +223,61 @@ function ExpandedStore({ group }: { group: StoreGroup }) {
         </p>
       )}
     </div>
+  )
+}
+
+/**
+ * One record of a history with formats (22b). An entry on another basis, or
+ * with no format, keeps its own price in grey: it is out of the curve.
+ */
+function PackRecord({
+  entry,
+  date,
+}: {
+  entry: ChartEntry
+  date: string | null
+}) {
+  const counted = entry.displayAmount !== null
+  const label = entry.pack
+    ? formatPack(entry.pack)
+    : counted
+      ? null
+      : 'sin formato'
+  const perUnit = formatUnitPrice(entry.originalAmount, entry.originalPricePer)
+  return (
+    <>
+      <span className="phb__record-when">
+        <span className="phb__record-date">
+          {date ? formatChartDate(date) : '—'}
+        </span>
+        {label && <span className="phb__record-format">{label}</span>}
+      </span>
+      <span className="phb__record-amount phb__record-amount--stacked">
+        <span className="phb__record-line">
+          {entry.reduced && (
+            <span
+              className="phb__hollow"
+              role="img"
+              aria-label="Precio bajado"
+            />
+          )}
+          <span
+            className={
+              !counted
+                ? 'phb__record-figure phb__record-figure--left'
+                : entry.reduced
+                  ? 'phb__record-figure phb__record-figure--reduced'
+                  : 'phb__record-figure'
+            }
+          >
+            {counted
+              ? formatBasisPrice(entry.displayAmount!, entry.displayBasis)
+              : perUnit}
+          </span>
+        </span>
+        {counted && <span className="phb__record-approx">{perUnit}</span>}
+      </span>
+    </>
   )
 }
 

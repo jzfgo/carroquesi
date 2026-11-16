@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.27.0] — 2026-11-16
+
+### Added
+- Price packs per kg, L or ud, and group price history by product (#472)
+
+- **prices:** Show and edit pack formats on rows, sheets, history and editors (#473)
+
+- Read the pack format out of item names (#475)
+
+- Fill a line's pack format from its receipt line (#481)
+
+- Fill a new line's pack format from Open Food Facts (#482)
+
+
+### Fixed
+- **close-trip:** Hide the receipt scan hand-off when scanning is off (#474)
+
+
+---
 ## [0.26.1] — 2026-11-15
 
 ### Fixed

@@ -16,7 +16,9 @@ import { AVATAR_COLORS } from '../lib/avatarColors'
 import { isOnline } from '../lib/connectivity'
 import { foldText } from '../lib/foldText'
 import { isTripOpen } from '../lib/isTripOpen'
+import type { PackFormat } from '../lib/itemCost'
 import { withOwnBrandStore } from '../lib/ownBrands'
+import { samePack } from '../lib/packFormat'
 import { reconcileItems } from '../lib/reconcileItems'
 import { parseServerInstant } from '../lib/serverInstant'
 import { storeKey } from '../lib/storeKey'
@@ -480,6 +482,36 @@ export function useListItems(
     [getToken, listId, showToast, markWritten, suspectListGone],
   )
 
+  // A format typed by hand. The server clears the EAN when the format
+  // changes, since that code named the old one; the paint does the same.
+  const updatePack = useCallback(
+    async (itemId: string, pack: PackFormat | null) => {
+      if (!isOnline()) {
+        showToast(OFFLINE_TOAST)
+        return
+      }
+      const snapshot = itemsRef.current
+      setItems(
+        snapshot.map((i) =>
+          i.id === itemId && !samePack(i.pack ?? null, pack)
+            ? { ...i, pack, ean: null }
+            : i,
+        ),
+      )
+      markWritten(itemId)
+      try {
+        await updateItem(getToken, listId, itemId, { pack })
+      } catch (err) {
+        setItems(snapshot)
+        showToast('No se pudo guardar el formato')
+        suspectListGone(err)
+      } finally {
+        markWritten(itemId)
+      }
+    },
+    [getToken, listId, showToast, markWritten, suspectListGone],
+  )
+
   const removeItem = useCallback(
     async (itemId: string) => {
       if (!isOnline()) {
@@ -617,6 +649,7 @@ export function useListItems(
     updateTag,
     updateStores,
     renameItem,
+    updatePack,
     removeItem,
     savePrice,
     clearItemPrice,

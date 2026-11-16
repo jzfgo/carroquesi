@@ -1,3 +1,5 @@
+import type { PriceBasis } from './itemCost'
+
 /** Joins a figure to its «€» so the sign never wraps onto a line alone. */
 const NBSP = ' '
 
@@ -42,6 +44,26 @@ export function formatUnitPrice(
   caps = false,
 ): string {
   return `${formatFigure(amount)}${NBSP}${unitPriceSuffix(pricePer, caps)}`
+}
+
+const BASIS_UNIT: Record<PriceBasis, string> = {
+  kg: 'kg',
+  l: 'L',
+  ud: 'ud',
+  unit: 'ud',
+}
+
+/**
+ * A normalised price, «0,39 €/L», «10,65 €/kg», «0,30 €/ud». `caps` is the
+ * mono caps voice of bought rows: «10,65 €/KG». The litre is always «L».
+ */
+export function formatBasisPrice(
+  amount: number,
+  basis: PriceBasis,
+  caps = false,
+): string {
+  const unit = caps ? BASIS_UNIT[basis].toUpperCase() : BASIS_UNIT[basis]
+  return `${formatFigure(amount)}${NBSP}€/${unit}`
 }
 
 /** How much less was paid than the old price, as a whole percentage of it. */

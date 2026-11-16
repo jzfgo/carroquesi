@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { isOnline } from '../lib/connectivity'
 import { formatUnitPrice } from '../lib/formatPrice'
 import { formatQuantity } from '../lib/formatQuantity'
-import { parseQuantityFactor } from '../lib/itemCost'
+import { parseQuantityFactor, type PackFormat } from '../lib/itemCost'
 import { parseInput } from '../lib/parseInput'
 import {
   effectiveLineTotal,
@@ -371,6 +371,49 @@ export default function ReceiptScanSheet({
     )
   }
 
+  function setLinePack(
+    index: number,
+    pack: PackFormat | null,
+    packFor: string | null,
+  ) {
+    setLineStates((prev) =>
+      prev.map((ls, i) => (i === index ? { ...ls, pack, packFor } : ls)),
+    )
+  }
+
+  // The item 13b's format block is about: the one picked in the list, or
+  // null for the line «Asignar» would create. Opening the detail picks the
+  // linked item, and typing a name clears the pick, so the pick alone says.
+  function packTarget(): string | null {
+    return resolveRadioId
+  }
+
+  // A format typed for this item, else the item's own.
+  function typedPack(
+    ls: LineState,
+    target: string | null,
+  ): PackFormat | null | undefined {
+    return ls.pack !== undefined && (ls.packFor ?? null) === target
+      ? ls.pack
+      : undefined
+  }
+
+  // A typed format, else the item's own, else the one the paper prints: the
+  // save fills an item's empty format with it, so the block shows it too.
+  function linePack(
+    ls: LineState,
+    target: string | null,
+    line: ReceiptLine,
+  ): PackFormat | null {
+    const typed = typedPack(ls, target)
+    if (typed !== undefined) return typed
+    const own =
+      target == null
+        ? null
+        : candidateItems.find((it) => it.id === target)?.pack
+    return own ?? line.pack ?? null
+  }
+
   // The product behind a line, as far as the review knows it: a linked or
   // matched item, a line being created, or nothing yet. An unnamed line has
   // no known EAN, so the quantity rule alone decides its chip.
@@ -544,6 +587,8 @@ export default function ReceiptScanSheet({
       const reduction = ls.label
         ? reductionFields(ls.label, price, pricePer)
         : null
+      // A weighed line has no format block, so no read the user never saw.
+      const read = pricePer === 'KILOGRAM' ? null : (line.pack ?? null)
       if (r.kind === 'matched' || r.kind === 'linked') {
         patches.push({
           item_id: r.itemId,
@@ -552,6 +597,13 @@ export default function ReceiptScanSheet({
           store,
           quantity,
           article: ls.label?.article ?? null,
+          // Only a format typed here for this item: the server keeps the
+          // item's own, and its EAN, otherwise.
+          ...(typedPack(ls, r.itemId) !== undefined
+            ? { pack: typedPack(ls, r.itemId) }
+            : {}),
+          // The paper's format, for an item with none: never a replacement.
+          read_pack: read,
           // Without a label read here, no `reduced`: a line closed with a
           // reduced label keeps its flag.
           ...reduction,
@@ -566,6 +618,9 @@ export default function ReceiptScanSheet({
           store,
           quantity,
           article: ls.label?.article ?? null,
+          pack: typedPack(ls, null) ?? null,
+          // A format cleared here stays cleared: no read fills it back.
+          read_pack: typedPack(ls, null) === undefined ? read : null,
           ...(reduction ?? { reduced: false }),
         })
       }
@@ -710,6 +765,14 @@ export default function ReceiptScanSheet({
           onBack={() => setResolvingIndex(null)}
           state={lineStates[resolvingIndex]}
           onChangeQuantity={(value) => setLineQuantity(resolvingIndex, value)}
+          pack={linePack(
+            lineStates[resolvingIndex],
+            packTarget(),
+            allLines[resolvingIndex],
+          )}
+          onChangePack={(pack) =>
+            setLinePack(resolvingIndex, pack, packTarget())
+          }
           onChangePrice={(price, total) =>
             setLinePrice(resolvingIndex, price, total)
           }

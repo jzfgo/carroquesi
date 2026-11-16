@@ -4,6 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.chains import ArticleCode
+from app.schemas.items import PackFormat
 
 
 class ParsedLine(BaseModel):
@@ -36,6 +37,9 @@ class MatchedLine(BaseModel):
     unit_price: float
     quantity: float | None = None
     line_total: float
+    # The format the paper prints in the line's name («AGUA 6X1,5L»), when
+    # it prints exactly one. A guess: the review offers it, never forces it.
+    pack: PackFormat | None = None
 
 
 class UnmatchedLine(BaseModel):
@@ -44,6 +48,7 @@ class UnmatchedLine(BaseModel):
     unit_price: float
     quantity: float | None = None
     line_total: float
+    pack: PackFormat | None = None
 
 
 class ReceiptScanTargetPurchase(BaseModel):
@@ -81,6 +86,11 @@ class PricePatch(BaseModel):
     # cannot see their stored flag. Elsewhere, left out means not reduced.
     reduced: bool | None = None
     price_before: float | None = None
+    # A format corrected in 10d/13b. Absent leaves it; null removes it.
+    pack: PackFormat | None = None
+    # The format the receipt line printed, sent back as the scan read it.
+    # It fills only a line with no format, and never with `pack`.
+    read_pack: PackFormat | None = None
 
 
 class NameMappingCreate(BaseModel):
@@ -104,6 +114,8 @@ class NewPurchasedItem(BaseModel):
     # label, in the basis of `price`. Both clear on a line sent without them.
     reduced: bool = False
     price_before: float | None = None
+    pack: PackFormat | None = None
+    read_pack: PackFormat | None = None
 
 
 class ReceiptPriceBatch(BaseModel):

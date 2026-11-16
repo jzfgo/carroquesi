@@ -69,6 +69,16 @@ class ListMember(SQLModel, table=True):
     last_seen_at: datetime | None = Field(default=None)
 
 
+def pack_columns(pack: dict | None) -> dict:
+    """A format as `list_items` stores it, for a line built with one."""
+    return {
+        "pack_count": pack["count"] if pack else None,
+        "pack_content": pack["content"] if pack else None,
+        "pack_content_unit": pack["unit"] if pack else None,
+        "pack_source": "manual" if pack else None,
+    }
+
+
 class ListItem(SQLModel, table=True):
     __tablename__ = "list_items"
 
@@ -101,11 +111,47 @@ class ListItem(SQLModel, table=True):
     # Never inferred from an earlier purchase: list prices move. Always
     # higher than `price`; NULL means unknown.
     price_before: float | None = Field(default=None)
+    # The pack format of this line: 6 × 1,5 L is count 6, content 1,5, unit
+    # "l". Per line, not per product: formats change between purchases.
+    # NULL count means 1; NULL content means a pack of pieces (rolls). A
+    # line with neither has no format.
+    pack_count: int | None = Field(default=None)
+    pack_content: float | None = Field(default=None)
+    pack_content_unit: str | None = Field(default=None)
+    # Where the format came from: "manual" (typed, or a line created with
+    # one), "name" (read out of the item's name), "receipt" (printed on
+    # the receipt line it was bought on), "quantity" (a package size the
+    # backfill moved out of the quantity), "off" (the size Open Food Facts
+    # gives for the line's EAN). A name the user types replaces a guess
+    # from a name, a receipt or Open Food Facts; the other guesses fill
+    # only an empty format.
+    pack_source: str | None = Field(default=None)
     # The trip this was bought on — not another "purchased_*" attribute of the
     # item. NULL means unpurchased, which is most rows; the invariant
     # "purchased => purchase_id set" is enforced in-app, the way
     # list_members.is_default is.
     purchase_id: str | None = Field(default=None, foreign_key="purchases.id", index=True)
+
+    @property
+    def pack(self) -> dict | None:
+        """The format as the API sends it, or None when the line has none."""
+        if self.pack_content is None and (self.pack_count or 1) == 1:
+            return None
+        return {
+            "count": self.pack_count or 1,
+            "content": self.pack_content,
+            "unit": self.pack_content_unit,
+        }
+
+    def change_pack(self, pack: dict | None) -> None:
+        """Sets a format typed by hand. A new format clears the EAN: that
+        code named the old one, and would teach the barcode the wrong size."""
+        if pack == self.pack:
+            return
+        for column, value in pack_columns(pack).items():
+            setattr(self, column, value)
+        self.pack_source = "manual" if pack else None
+        self.ean = None
 
 
 class Purchase(SQLModel, table=True):
@@ -192,6 +238,8 @@ class BarcodeCache(SQLModel, table=True):
     name: str
     brand: str | None = None
     stores: str | None = None  # nullable comma-separated, e.g. "Mercadona,Alcampo"
+    # The package size as Open Food Facts writes it («1,5 l», «6 x 33 cl»).
+    quantity: str | None = None
     created_at: datetime = Field(default_factory=_now)
 
 

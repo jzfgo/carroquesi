@@ -1477,3 +1477,61 @@ describe('useListItems — list-gone suspicion', () => {
     vi.useRealTimers()
   })
 })
+
+describe('useListItems — updatePack', () => {
+  const SIX = { count: 6, content: 1.5, unit: 'l' as const }
+
+  it('paints the format and clears the EAN that named the old one', async () => {
+    const scanned: ListItem = { ...item1, ean: '8410188011111' }
+    vi.mocked(api.getListItems).mockResolvedValue([scanned] as never)
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.updatePack('item-1', SIX)
+    })
+
+    expect(result.current.items[0].pack).toEqual(SIX)
+    expect(result.current.items[0].ean).toBeNull()
+    expect(api.updateItem).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      'item-1',
+      { pack: SIX },
+    )
+  })
+
+  it('keeps the EAN when the same format is saved again', async () => {
+    const scanned: ListItem = { ...item1, ean: '8410188011111', pack: SIX }
+    vi.mocked(api.getListItems).mockResolvedValue([scanned] as never)
+    vi.mocked(api.updateItem).mockResolvedValue({} as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.updatePack('item-1', { ...SIX })
+    })
+
+    expect(result.current.items[0].ean).toBe('8410188011111')
+  })
+
+  it('reverts and shows a toast on API failure', async () => {
+    vi.mocked(api.updateItem).mockRejectedValue(new Error('boom'))
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+
+    await act(async () => {
+      await result.current.updatePack('item-1', SIX)
+    })
+
+    expect(result.current.items[0].pack ?? null).toBeNull()
+    expect(mockShowToast).toHaveBeenCalledWith('No se pudo guardar el formato')
+  })
+})

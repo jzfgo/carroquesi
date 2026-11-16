@@ -431,7 +431,7 @@ def _savings(savings: CheaperElsewhere) -> list[Saving]:
     out = []
     for s in savings.suggestions:
         # A unit price always names its unit: "1,89 €/ud", never a bare "1,89 €".
-        per = "/kg" if s.basis == "kg" else "/ud"
+        per = {"kg": "/kg", "l": "/L"}.get(s.basis, "/ud")
         out.append(
             Saving(
                 name=f"{s.name} · {s.brand}" if s.brand else s.name,

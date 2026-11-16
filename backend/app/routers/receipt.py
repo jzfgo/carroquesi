@@ -4,7 +4,15 @@ from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import and_
 from sqlmodel import col, select
 
-from app.db.models import List, ListItem, Purchase, ReceiptNameMapping, ReceiptScan, User
+from app.db.models import (
+    List,
+    ListItem,
+    Purchase,
+    ReceiptNameMapping,
+    ReceiptScan,
+    User,
+    pack_columns,
+)
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.receipt import (
     ReceiptFileUrlResult,
@@ -22,6 +30,7 @@ from app.services import feature_flags, receipt_storage, trips
 from app.services.article_mappings import remember_article
 from app.services.client_day import resolve_timezone
 from app.services.money import reject_bad_amount, reject_bad_price, reject_bad_reduction
+from app.services.pack_from_name import fill_from_name, fill_from_receipt
 from app.services.receipt_date import plausible_day
 from app.services.receipt_matcher import match_lines, normalise
 from app.services.store_key import store_key
@@ -469,6 +478,10 @@ def apply_receipt_prices(
         if patch.quantity is not None:
             item.purchased_quantity = patch.quantity  # actual receipt qty → new field
             # item.quantity (planned qty) is intentionally left untouched
+        if "pack" in patch.model_fields_set:
+            item.change_pack(patch.pack.model_dump() if patch.pack else None)
+        elif patch.read_pack:
+            fill_from_receipt(item, patch.read_pack.model_dump())
         # In a targeted apply the line is already settled and takes its filled
         # or corrected price and nothing else: purchased_at, purchase_id, and
         # updated_at stay put — a stamped updated_at would reopen the
@@ -526,7 +539,11 @@ def apply_receipt_prices(
             # can still be un-purchased like any other just-written record.
             purchased_at=target.opened_at if target is not None else purchase_ts,
             purchase_id=target.id if target is not None else settle_trip().id,
+            **pack_columns(new.pack.model_dump() if new.pack else None),
         )
+        fill_from_name(line)
+        if new.read_pack:
+            fill_from_receipt(line, new.read_pack.model_dump())
         session.add(line)
         # Flush so the row has an id for close()'s selection below.
         session.flush()
@@ -539,8 +556,8 @@ def apply_receipt_prices(
                 list_id=list_id,
                 store=new.store or body.store or (target.store if target else None),
                 article=new.article,
-                item_name=new.name,
-                item_brand=new.brand,
+                item_name=line.name,
+                item_brand=line.brand,
                 user_id=current_user.id,
                 now=now,
             )

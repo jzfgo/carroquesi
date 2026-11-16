@@ -1,14 +1,40 @@
 import type { ListItem } from '../types'
 import { parseServerInstant } from './serverInstant'
 
-// SI units → kg equivalent (volume treated as water: 1 L = 1 kg)
-const UNIT_TO_KG: Record<string, number> = {
-  g: 0.001,
-  kg: 1,
-  ml: 0.001,
-  cl: 0.01,
-  dl: 0.1,
-  l: 1,
+// What people type → the unit it means. Only these spellings price a line.
+const UNIT_ALIASES: Record<string, ContentUnit> = {
+  g: 'g',
+  gr: 'g',
+  gramo: 'g',
+  gramos: 'g',
+  kg: 'kg',
+  kilo: 'kg',
+  kilos: 'kg',
+  ml: 'ml',
+  cl: 'cl',
+  dl: 'dl',
+  l: 'l',
+  litro: 'l',
+  litros: 'l',
+}
+
+export type ContentUnit = 'g' | 'kg' | 'ml' | 'cl' | 'dl' | 'l'
+export type PriceBasis = 'kg' | 'l' | 'ud' | 'unit'
+
+// A unit → how many of its basis (kilos or litres) it holds.
+const UNIT_TO_BASE: Record<ContentUnit, [number, 'kg' | 'l']> = {
+  g: [0.001, 'kg'],
+  kg: [1, 'kg'],
+  ml: [0.001, 'l'],
+  cl: [0.01, 'l'],
+  dl: [0.1, 'l'],
+  l: [1, 'l'],
+}
+
+/** The unit a typed token means, or null when it is not one we price. */
+export function readUnit(raw: string | null | undefined): ContentUnit | null {
+  if (!raw) return null
+  return UNIT_ALIASES[raw.replace(/\.$/, '').toLowerCase()] ?? null
 }
 
 // Matches a leading decimal number (comma or dot separator) followed by an
@@ -37,8 +63,9 @@ export function parseQuantityFactor(
   if (!m) return isPerKg ? null : 1
 
   const value = parseFloat(m[1].replace(',', '.'))
-  const rawUnit = m[2] ? m[2].replace(/\.$/, '').toLowerCase() : null
-  const kgFactor = rawUnit != null ? UNIT_TO_KG[rawUnit] : undefined
+  const unit = readUnit(m[2])
+  // A weighed line sold by volume counts its litres as kilos, as before.
+  const kgFactor = unit != null ? UNIT_TO_BASE[unit][0] : undefined
 
   if (isPerKg) {
     return kgFactor != null ? value * kgFactor : null
@@ -52,20 +79,51 @@ export function parseKgFactor(quantity: string | null): number | null {
   return parseQuantityFactor(quantity, 'KILOGRAM')
 }
 
+/** A line's pack format: 6 × 1,5 L, 108 g, or a pack of 12. */
+export interface PackFormat {
+  count: number
+  content?: number | null
+  unit?: ContentUnit | null
+}
+
+function measure(
+  quantity: string | null,
+): { amount: number; basis: 'kg' | 'l' } | null {
+  if (!quantity) return null
+  const m = quantity.trim().match(QTY_RE)
+  if (!m) return null
+  const unit = readUnit(m[2])
+  if (unit == null) return null
+  const [factor, basis] = UNIT_TO_BASE[unit]
+  return { amount: parseFloat(m[1].replace(',', '.')) * factor, basis }
+}
+
 /**
- * A line's price on a scale that compares across purchases: €/kg when the
- * line is weighed or names its weight («500 g» at 1,20 → 2,40 €/kg),
- * otherwise €/unit. Compare two prices only when their bases match. The
+ * A line's price on a scale that compares across purchases, like a shelf
+ * label: €/kg, €/L, €/ud of a pack, or €/unit bought.
+ *
+ * A weighed line is already €/kg. A pack format wins (6 × 1,5 L at 3,48 →
+ * 0,39 €/L; a pack of 12 at 3,60 → 0,30 €/ud). With no format, a quantity
+ * that names a size is read as the package size («500 g» at 1,20 →
+ * 2,40 €/kg). Otherwise the price is per unit bought. `price` is per pack,
+ * never the line total. Compare two prices only when their bases match. The
  * backend's spend insights run the same rule, pinned to quantityVectors.json.
  */
 export function unitPrice(
   price: number,
   quantity: string | null,
   pricePer: string | null,
-): { value: number; basis: 'kg' | 'unit' } {
+  pack: PackFormat | null = null,
+): { value: number; basis: PriceBasis } {
   if (pricePer === 'KILOGRAM') return { value: price, basis: 'kg' }
-  const kgFactor = parseKgFactor(quantity)
-  if (kgFactor) return { value: price / kgFactor, basis: 'kg' }
+  const count = pack?.count || 1
+  if (pack?.content && pack.unit) {
+    const [factor, basis] = UNIT_TO_BASE[pack.unit]
+    return { value: price / (count * pack.content * factor), basis }
+  }
+  if (count > 1) return { value: price / count, basis: 'ud' }
+  const size = measure(quantity)
+  if (size?.amount) return { value: price / size.amount, basis: size.basis }
   return { value: price, basis: 'unit' }
 }
 

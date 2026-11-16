@@ -12,6 +12,7 @@ const line: ReceiptLine = {
   unit_price: 3.18,
   quantity: null,
   line_total: 3.18,
+  pack: null,
 }
 
 const inCart: ItemRef = {
@@ -27,6 +28,7 @@ const inCart: ItemRef = {
   purchased_quantity: null,
   ean: null,
   bought_by_weight: false,
+  pack: null,
 }
 
 const pendingWithStore: ItemRef = {
@@ -42,6 +44,7 @@ const pendingWithStore: ItemRef = {
   purchased_quantity: null,
   ean: null,
   bought_by_weight: false,
+  pack: null,
 }
 
 const pendingNoStore: ItemRef = {
@@ -57,6 +60,7 @@ const pendingNoStore: ItemRef = {
   purchased_quantity: null,
   ean: null,
   bought_by_weight: false,
+  pack: null,
 }
 
 function renderBody(overrides: {
@@ -84,6 +88,8 @@ function renderBody(overrides: {
       state={undefined}
       onChangeQuantity={vi.fn()}
       onChangePrice={vi.fn()}
+      pack={null}
+      onChangePack={vi.fn()}
     />,
   )
 }
@@ -140,6 +146,8 @@ test('a prefill never filters the link list; typed text does', () => {
       state={undefined}
       onChangeQuantity={vi.fn()}
       onChangePrice={vi.fn()}
+      pack={null}
+      onChangePack={vi.fn()}
     />,
   )
   expect(screen.getAllByRole('radio')).toHaveLength(1)
@@ -198,6 +206,7 @@ const chicken: ReceiptLine = {
   unit_price: 3.05,
   quantity: null,
   line_total: 3.05,
+  pack: null,
 }
 
 /** Holds the line's state the way the review does, so edits round-trip. */
@@ -229,6 +238,8 @@ function renderDetail(initial?: LineState) {
           onChangePrice(p, t)
           setState({ ...base(), unitPrice: p, lineTotal: t })
         }}
+        pack={null}
+        onChangePack={vi.fn()}
       />
     )
   }

@@ -386,6 +386,7 @@ export function ListScreen({
     updateTag,
     updateStores,
     renameItem,
+    updatePack,
     removeItem,
     savePrice,
     clearItemPrice,
@@ -1355,6 +1356,7 @@ export function ListScreen({
                 handleTagClick(activeItemId, field)
                 setActiveItemId(null)
               }}
+              onSetPack={(pack) => void updatePack(activeItemId, pack)}
               onLogPrice={
                 isRecord
                   ? () => {
@@ -1485,10 +1487,14 @@ export function ListScreen({
             setCloseTrip(null)
             invalidateAfterTripChange()
           }}
-          onScanReceipt={() => {
-            setCloseTrip(null)
-            handleReceiptScan()
-          }}
+          onScanReceipt={
+            isEnabled(FLAGS.AI_RECEIPT_SCANNING)
+              ? () => {
+                  setCloseTrip(null)
+                  handleReceiptScan()
+                }
+              : undefined
+          }
         />
       )}
 
@@ -1616,6 +1622,7 @@ export function ListScreen({
               purchased_quantity: i.purchased_quantity,
               ean: i.ean,
               bought_by_weight: i.bought_by_weight,
+              pack: i.pack ?? null,
             }))}
           getToken={getToken}
           showToast={setToast}

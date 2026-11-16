@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import func
 from sqlmodel import col, select
 
-from app.db.models import List, ListItem, Purchase, ReceiptScan, User
+from app.db.models import List, ListItem, Purchase, ReceiptScan, User, pack_columns
 from app.dependencies import CurrentSession, MemberDep
 from app.schemas.items import ItemRead
 from app.schemas.purchases import (
@@ -24,6 +24,7 @@ from app.services.article_mappings import remember_article
 from app.services.client_day import ClientTimezone
 from app.services.fold import fold_name
 from app.services.money import reject_bad_amount, reject_bad_price, reject_bad_reduction
+from app.services.pack_from_name import fill_from_name
 from app.services.pending_duplicate import find_pending_duplicate
 from app.services.push import notify_list_change
 from app.services.quantity import line_amount
@@ -421,6 +422,12 @@ def rebuy_item(
         ean=line.ean,
         stores=stores,
         quantity=line.purchased_quantity or line.quantity,
+        # The usual case is the same format again; buying another is
+        # corrected by a scan or in «Formato».
+        pack_count=line.pack_count,
+        pack_content=line.pack_content,
+        pack_content_unit=line.pack_content_unit,
+        pack_source=line.pack_source,
     )
     session.add(pending)
     if stores:
@@ -544,6 +551,8 @@ def close_purchase(
             item.name = line.name
         if line.brand is not None:
             item.brand = line.brand
+        if "pack" in line.model_fields_set:
+            item.change_pack(line.pack.model_dump() if line.pack else None)
         # updated_at deliberately untouched: pricing is not the fresh write
         # the un-purchase grace window exists for, and stamping it here
         # would reopen that window on the purchase being filed.
@@ -562,38 +571,39 @@ def close_purchase(
             )
 
     for new in body.new_items:
+        line = ListItem(
+            list_id=lst.id,
+            added_by=current_user.id,
+            name=new.name,
+            brand=new.brand,
+            ean=new.ean,
+            # No stores, unlike the receipt path: `stores` is a hint
+            # about where to buy something, and this is already bought.
+            stores=[],
+            quantity=None,  # planned qty — nobody planned an impulse buy
+            purchased_quantity=new.quantity,
+            price=new.price,
+            price_per=new.price_per,
+            price_store=body.store if new.price is not None else None,
+            price_reduced=new.reduced and new.price is not None,
+            price_before=new.price_before,
+            purchased_at=now,
+            purchase_id=purchase.id,
+            **pack_columns(new.pack.model_dump() if new.pack else None),
+        )
+        fill_from_name(line)
+        session.add(line)
         if new.article:
             remember_article(
                 session,
                 list_id=lst.id,
                 store=body.store,
                 article=new.article,
-                item_name=new.name,
-                item_brand=new.brand,
+                item_name=line.name,
+                item_brand=line.brand,
                 user_id=current_user.id,
                 now=now,
             )
-        session.add(
-            ListItem(
-                list_id=lst.id,
-                added_by=current_user.id,
-                name=new.name,
-                brand=new.brand,
-                ean=new.ean,
-                # No stores, unlike the receipt path: `stores` is a hint
-                # about where to buy something, and this is already bought.
-                stores=[],
-                quantity=None,  # planned qty — nobody planned an impulse buy
-                purchased_quantity=new.quantity,
-                price=new.price,
-                price_per=new.price_per,
-                price_store=body.store if new.price is not None else None,
-                price_reduced=new.reduced and new.price is not None,
-                price_before=new.price_before,
-                purchased_at=now,
-                purchase_id=purchase.id,
-            )
-        )
 
     ensure_stores(session, lst.id, [body.store])
     lst.updated_at = now

@@ -12,13 +12,14 @@ function point(
 ): ChartEntry {
   return {
     displayAmount: v,
-    displayPricePer: 'KILOGRAM',
+    displayBasis: 'kg',
     store,
     purchased_at: `2026-07-${day}T10:00:00Z`,
     originalAmount: v ?? 0,
     originalPricePer: 'KILOGRAM',
     reduced: false,
     originalBefore: null,
+    pack: null,
   }
 }
 

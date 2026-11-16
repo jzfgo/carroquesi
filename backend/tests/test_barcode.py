@@ -1,5 +1,8 @@
 from fastapi.testclient import TestClient
 from pytest_httpx import HTTPXMock
+from sqlmodel import Session, select
+
+from app.db.models import BarcodeCache
 
 OFF_MAHOU = {
     "status": "success",  # OFF v2/v3 API returns string status
@@ -8,6 +11,7 @@ OFF_MAHOU = {
         "product_name": "Mahou 5 Estrellas",
         "brands": "Mahou",
         "stores": "Mercadona,Alcampo",
+        "quantity": "6 x 33 cl",
     },
 }
 
@@ -119,3 +123,11 @@ def test_parse_stores_dedupes_spelling_variants():
     assert _parse_stores("Carrefour, carrefour ,CARREFOUR") == ["Carrefour"]
     assert _parse_stores("Mercadona, Alcampo") == ["Mercadona", "Alcampo"]
     assert _parse_stores(None) == []
+
+
+def test_caches_the_package_size(client: TestClient, httpx_mock: HTTPXMock, session: Session):
+    httpx_mock.add_response(url=_OFF_URL_EAN13, json=OFF_MAHOU)
+    client.get(f"/barcode/{_EAN13}")
+
+    cached = session.exec(select(BarcodeCache).where(BarcodeCache.ean == _EAN13)).one()
+    assert cached.quantity == "6 x 33 cl"

@@ -49,6 +49,24 @@ def test_normalise_collapses_whitespace():
     assert normalise("  pan   de  molde  ") == "pan de molde"
 
 
+def test_a_line_carries_the_format_its_name_prints(session):
+    items = [_item("i1", "Agua mineral")]
+    matched, unmatched = match_lines(
+        [_unit("AGUA MINERAL 6X1.5L", 3.0), _unit("CERVEZA 6X33CL", 4.0)], None, items, session
+    )
+    assert matched[0].pack is not None
+    assert matched[0].pack.model_dump() == {"count": 6, "content": 1.5, "unit": "l"}
+    assert unmatched[0].pack is not None
+    assert unmatched[0].pack.model_dump() == {"count": 6, "content": 33, "unit": "cl"}
+
+
+def test_a_line_without_one_plain_format_carries_none(session):
+    _, unmatched = match_lines(
+        [_unit("PAN DE MOLDE", 1.5), _unit("AGUA 1,5L Y 500ML", 1.0)], None, [], session
+    )
+    assert [line.pack for line in unmatched] == [None, None]
+
+
 def test_match_via_fuzzy(session):
     items = [_item("item-1", "Bebida de almendra 0% azúcares")]
     matched, unmatched = match_lines(
@@ -284,3 +302,19 @@ def test_mapping_skips_an_item_already_claimed(session):
     )
     assert [m.item_id for m in matched] == ["item-1"]
     assert len(unmatched) == 1
+
+
+def test_a_mapping_learned_before_formats_left_names_still_matches(session):
+    session.add(
+        ReceiptNameMapping(
+            store="mercadona",
+            receipt_name="agua min 6x1.5",
+            item_name="Agua mineral 6x1,5L",
+            confirmed_by="user-1",
+        )
+    )
+    session.commit()
+
+    items = [_item("item-1", "Agua mineral"), _item("item-2", "Leche")]
+    matched, _ = match_lines([_unit("AGUA MIN 6X1.5", 2.10)], "Mercadona", items, session)
+    assert [m.item_id for m in matched] == ["item-1"]

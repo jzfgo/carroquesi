@@ -6,12 +6,13 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import case, nulls_last
 from sqlmodel import Session, col, select
 
-from app.db.models import List, ListItem, Purchase, ReceiptScan, User
+from app.db.models import BarcodeCache, List, ListItem, Purchase, ReceiptScan, User
 from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 from app.services import trips
 from app.services.bought_by_weight import mark_bought_by_weight
 from app.services.client_day import ClientTimezone
+from app.services.pack_from_name import fill_from_name, fill_from_off
 from app.services.pending_duplicate import find_pending_duplicate
 from app.services.push import notify_list_change
 from app.services.store_registry import ensure_stores
@@ -93,6 +94,26 @@ def _attach_purchase_ends_at(session: Session, items: Sequence[ListItem]) -> Non
             object.__setattr__(item, "purchase_store", trip.store)
 
 
+def _take_format_of_ean(session: Session, item: ListItem, ean: str) -> None:
+    """An EAN names one format, so a scanned code brings the format the
+    list's last line with that code carried. Only this list's lines: another
+    household's are not ours to read."""
+    source = session.exec(
+        select(ListItem)
+        .where(
+            ListItem.list_id == item.list_id,
+            ListItem.ean == ean,
+            (col(ListItem.pack_count).is_not(None)) | (col(ListItem.pack_content).is_not(None)),
+        )
+        .order_by(col(ListItem.updated_at).desc())
+    ).first()
+    if source is not None:
+        item.pack_count = source.pack_count
+        item.pack_content = source.pack_content
+        item.pack_content_unit = source.pack_content_unit
+        item.pack_source = source.pack_source
+
+
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
 def add_item(
     body: ItemCreate,
@@ -100,9 +121,17 @@ def add_item(
     session: CurrentSession,
 ):
     lst, current_user = list_and_user
-    if find_pending_duplicate(session, lst.id, body.name, body.ean) is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Item already in list")
     item = ListItem(list_id=lst.id, added_by=current_user.id, **body.model_dump())
+    if body.ean:
+        _take_format_of_ean(session, item, body.ean)
+        # The list's own lines first. The cache is warm here: a scan looks
+        # the code up before it adds the line.
+        cached = session.exec(select(BarcodeCache).where(BarcodeCache.ean == body.ean)).first()
+        fill_from_off(item, cached.quantity if cached else None)
+    fill_from_name(item)
+    # After the format leaves the name: «Agua 6x1,5L» is the pending «Agua».
+    if find_pending_duplicate(session, lst.id, item.name, item.ean) is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Item already in list")
     session.add(item)
     ensure_stores(session, lst.id, body.stores)
     _bump(lst, session)
@@ -127,8 +156,18 @@ def update_item(
     was_purchased = item.purchased_at is not None
     data = body.model_dump(exclude_unset=True)
     purchased = data.pop("purchased", None)
+    # Only a format correction: allowed on a closed purchase, and not a write
+    # to the purchase, so it must not reopen the un-purchase grace window.
+    format_only = bool(data) and purchased is None and data.keys() <= {"pack", "ean"}
+    if "pack" in data:
+        data.pop("pack")
+        # Whole, not exclude_unset: a field left out of the format is a default,
+        # not "keep". A scan in this request sets the EAN after it is cleared.
+        item.change_pack(body.pack.model_dump() if body.pack else None)
     for field, value in data.items():
         setattr(item, field, value)
+    if "name" in data and "pack" not in body.model_fields_set:
+        fill_from_name(item)
     if data.get("stores"):
         ensure_stores(session, lst.id, data["stores"])
     if purchased is True and item.purchased_at is None:
@@ -153,7 +192,8 @@ def update_item(
         item.purchased_at = None
         emptied_trip_id, item.purchase_id = item.purchase_id, None
         trips.prune_if_empty(session, emptied_trip_id)
-    item.updated_at = datetime.now(UTC)
+    if not format_only:
+        item.updated_at = datetime.now(UTC)
     session.add(item)
     _bump(lst, session)
     session.commit()

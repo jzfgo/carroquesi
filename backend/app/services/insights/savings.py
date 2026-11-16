@@ -10,7 +10,6 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from statistics import mean
-from typing import Literal
 
 from app.services.insights.data import Line, Window
 from app.services.insights.schemas import (
@@ -19,6 +18,7 @@ from app.services.insights.schemas import (
     SavingsThresholds,
     Suggestion,
 )
+from app.services.quantity import Basis
 
 __all__ = ["SavingsThresholds", "cheaper_elsewhere"]
 
@@ -31,12 +31,12 @@ class _Seen:
 
     line: Line
     price: float
-    basis: Literal["kg", "unit"]
+    basis: Basis
     store_key: str
 
     @property
     def quantity(self) -> float:
-        # In the basis unit: kilos for €/kg, units for €/unit.
+        # In the basis unit: kilos, litres, pack units or units bought.
         return (self.line.amount or 0.0) / self.price
 
 
@@ -44,7 +44,10 @@ def cheaper_elsewhere(
     w: Window, month: str, month_end: datetime, th: SavingsThresholds = DEFAULT_THRESHOLDS
 ) -> CheaperElsewhere:
     start = month_end - timedelta(days=th.window_days)
-    # Prices are compared only on the same scale: €/kg with €/kg, €/unit with €/unit.
+    # Prices are compared only on the same scale: €/kg with €/kg, €/L with
+    # €/L. A line with no format meets a pack only when its quantity names a
+    # size on the same basis («1,5 L» against 6 × 1,5 L); otherwise it is per
+    # unit bought and stays apart.
     by_product: dict[tuple, list[_Seen]] = defaultdict(list)
     for line in w.lines:
         if line.reduced:

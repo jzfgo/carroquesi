@@ -1239,6 +1239,7 @@ export interface components {
             list_id: string;
             /** Name */
             name: string;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Price */
             price: number | null;
             /** Price Before */
@@ -1278,8 +1279,11 @@ export interface components {
         ItemUpdate: {
             /** Brand */
             brand?: string | null;
+            /** Ean */
+            ean?: string | null;
             /** Name */
             name?: string | null;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Purchased */
             purchased?: boolean | null;
             /** Purchased Quantity */
@@ -1397,6 +1401,7 @@ export interface components {
             item_name: string;
             /** Line Total */
             line_total: number;
+            pack?: components["schemas"]["PackFormat"] | null;
             /**
              * Price Type
              * @enum {string}
@@ -1448,6 +1453,7 @@ export interface components {
             ean?: string | null;
             /** Name */
             name: string;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Price */
             price: number;
             /** Price Before */
@@ -1456,6 +1462,7 @@ export interface components {
             price_per?: "KILOGRAM" | null;
             /** Quantity */
             quantity?: string | null;
+            read_pack?: components["schemas"]["PackFormat"] | null;
             /**
              * Reduced
              * @default false
@@ -1468,6 +1475,25 @@ export interface components {
         OpenInviteCreated: {
             /** Id */
             id: string;
+        };
+        /**
+         * PackFormat
+         * @description A line's pack format: 6 × 1,5 L, 108 g, or a pack of 12.
+         *
+         *     The content is sent as a figure and a unit; the client reads what was
+         *     typed («1,5 L», «108 gramos»). A format with count 1 and no content says
+         *     nothing, so it is refused: send null to remove a format.
+         */
+        PackFormat: {
+            /** Content */
+            content?: number | null;
+            /**
+             * Count
+             * @default 1
+             */
+            count: number;
+            /** Unit */
+            unit?: ("g" | "kg" | "ml" | "cl" | "dl" | "l") | null;
         };
         /** ParsedLine */
         ParsedLine: {
@@ -1503,6 +1529,7 @@ export interface components {
              * @default false
              */
             is_sin_precio: boolean;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Price Before */
             price_before?: number | null;
             /** Price Per */
@@ -1530,6 +1557,7 @@ export interface components {
             article?: string | null;
             /** Item Id */
             item_id: string;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Price */
             price: number;
             /** Price Before */
@@ -1538,6 +1566,7 @@ export interface components {
             price_per?: "KILOGRAM" | null;
             /** Quantity */
             quantity?: string | null;
+            read_pack?: components["schemas"]["PackFormat"] | null;
             /** Reduced */
             reduced?: boolean | null;
             /** Store */
@@ -1576,6 +1605,7 @@ export interface components {
             item_id: string;
             /** Name */
             name?: string | null;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Price */
             price?: number | null;
             /** Price Before */
@@ -1625,6 +1655,7 @@ export interface components {
             ean?: string | null;
             /** Name */
             name: string;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Price */
             price?: number | null;
             /** Price Before */
@@ -1918,6 +1949,7 @@ export interface components {
         UnmatchedLine: {
             /** Line Total */
             line_total: number;
+            pack?: components["schemas"]["PackFormat"] | null;
             /**
              * Price Type
              * @enum {string}

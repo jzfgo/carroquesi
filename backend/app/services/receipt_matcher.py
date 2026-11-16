@@ -5,7 +5,9 @@ from rapidfuzz import fuzz
 from sqlmodel import Session, select
 
 from app.db.models import ListItem, ReceiptNameMapping
+from app.schemas.items import PackFormat
 from app.schemas.receipt import MatchedLine, ParsedLine, UnmatchedLine
+from app.services.pack_from_name import format_in_name, name_without_format
 from app.services.store_key import store_key
 
 MATCH_THRESHOLD = 70
@@ -70,12 +72,20 @@ def match_lines(
             continue
 
         norm = normalise(line.name)
+        found = format_in_name(line.name)
+        pack = PackFormat(**found[1]) if found else None
 
         mapping = _lookup_mapping(store, norm, session)
         if mapping:
-            mapped_name = normalise(mapping.item_name)
+            # A mapping learned before formats left names still names «Agua
+            # 6x1,5L»; the item is «Agua» now. Compare without the format.
+            mapped_name = normalise(name_without_format(mapping.item_name))
             item = next(
-                (i for i in purchased_items if free(i) and normalise(i.name) == mapped_name),
+                (
+                    i
+                    for i in purchased_items
+                    if free(i) and normalise(name_without_format(i.name)) == mapped_name
+                ),
                 None,
             )
             if item:
@@ -89,6 +99,7 @@ def match_lines(
                         unit_price=line.unit_price,
                         quantity=line.quantity,
                         line_total=line.line_total,
+                        pack=pack,
                     )
                 )
                 continue
@@ -112,6 +123,7 @@ def match_lines(
                     unit_price=line.unit_price,
                     quantity=line.quantity,
                     line_total=line.line_total,
+                    pack=pack,
                 )
             )
         else:
@@ -122,6 +134,7 @@ def match_lines(
                     unit_price=line.unit_price,
                     quantity=line.quantity,
                     line_total=line.line_total,
+                    pack=pack,
                 )
             )
 

@@ -11,14 +11,33 @@ Both sides assert frontend/src/lib/quantityVectors.json, so neither can drift.
 import re
 from typing import Literal
 
-# SI units → kg equivalent (volume treated as water: 1 L = 1 kg).
-UNIT_TO_KG: dict[str, float] = {
-    "g": 0.001,
-    "kg": 1.0,
-    "ml": 0.001,
-    "cl": 0.01,
-    "dl": 0.1,
-    "l": 1.0,
+# What people type → the unit it means. Only these spellings price a line.
+UNIT_ALIASES: dict[str, str] = {
+    "g": "g",
+    "gr": "g",
+    "gramo": "g",
+    "gramos": "g",
+    "kg": "kg",
+    "kilo": "kg",
+    "kilos": "kg",
+    "ml": "ml",
+    "cl": "cl",
+    "dl": "dl",
+    "l": "l",
+    "litro": "l",
+    "litros": "l",
+}
+
+Basis = Literal["kg", "l", "ud", "unit"]
+
+# A unit → how many of its basis (kilos or litres) it holds.
+UNIT_TO_BASE: dict[str, tuple[float, Literal["kg", "l"]]] = {
+    "g": (0.001, "kg"),
+    "kg": (1.0, "kg"),
+    "ml": (0.001, "l"),
+    "cl": (0.01, "l"),
+    "dl": (0.1, "l"),
+    "l": (1.0, "l"),
 }
 
 # A leading decimal number (comma or dot separator) then an optional unit token
@@ -46,16 +65,36 @@ def parse_quantity_factor(quantity: str | None, price_per: str | None) -> float 
         return None if is_per_kg else 1.0
 
     value = float(m.group(1).replace(",", "."))
-    raw_unit = m.group(2)
-    if raw_unit is not None:
-        raw_unit = re.sub(r"\.$", "", raw_unit).lower()
-    kg_factor = UNIT_TO_KG.get(raw_unit) if raw_unit is not None else None
+    unit = _unit(m.group(2))
+    # A weighed line sold by volume counts its litres as kilos, as before.
+    kg_factor = UNIT_TO_BASE[unit][0] if unit is not None else None
 
     if is_per_kg:
         return value * kg_factor if kg_factor is not None else None
 
     # Non-per-unit: an SI unit is a pack descriptor (×1), otherwise the count.
     return 1.0 if kg_factor is not None else value
+
+
+def _unit(raw: str | None) -> str | None:
+    """The unit a typed token means, or None when it is not one we price."""
+    if raw is None:
+        return None
+    return UNIT_ALIASES.get(re.sub(r"\.$", "", raw).lower())
+
+
+def _measure(quantity: str | None) -> tuple[float, Literal["kg", "l"]] | None:
+    """A quantity that names a weight or volume, in kilos or litres."""
+    if not quantity:
+        return None
+    m = _QTY_RE.match(quantity.strip())
+    if not m:
+        return None
+    unit = _unit(m.group(2))
+    if unit is None:
+        return None
+    factor, basis = UNIT_TO_BASE[unit]
+    return float(m.group(1).replace(",", ".")) * factor, basis
 
 
 def effective_quantity(quantity: str | None, purchased_quantity: str | None) -> str | None:
@@ -80,18 +119,36 @@ def line_amount(
 
 
 def unit_price(
-    price: float, quantity: str | None, price_per: str | None
-) -> tuple[float, Literal["kg", "unit"]]:
-    """A line's price on a scale that compares across purchases: €/kg when
-    the line is weighed or names its weight, otherwise €/unit.
+    price: float,
+    quantity: str | None,
+    price_per: str | None,
+    pack_count: int | None = None,
+    pack_content: float | None = None,
+    pack_content_unit: str | None = None,
+) -> tuple[float, Basis]:
+    """A line's price on a scale that compares across purchases, like a
+    shelf label: €/kg, €/L, €/ud of a pack, or €/unit bought.
 
-    A pack that names its content («500 g» at 1,20) becomes 2,40 €/kg, the
-    same step the price history chart takes. Callers compare two prices only
-    when their bases match.
+    - A weighed line is already €/kg; its format does not matter.
+    - A pack format wins: 6 × 1,5 L at 3,48 is 0,39 €/L; a pack of 12 with
+      no content at 3,60 is 0,30 €/ud.
+    - With no format, a quantity that names a size is read as the package
+      size («500 g» at 1,20 → 2,40 €/kg). Lines from before formats existed
+      keep their place in the history this way.
+    - Otherwise the price is per unit bought.
+
+    `price` is per pack bought, never the line total. Callers compare two
+    prices only when their bases match.
     """
     if price_per == "KILOGRAM":
         return price, "kg"
-    kg_factor = parse_quantity_factor(quantity, "KILOGRAM")
-    if kg_factor:
-        return price / kg_factor, "kg"
+    count = pack_count or 1
+    if pack_content and pack_content_unit in UNIT_TO_BASE:
+        factor, basis = UNIT_TO_BASE[pack_content_unit]
+        return price / (count * pack_content * factor), basis
+    if count > 1:
+        return price / count, "ud"
+    measure = _measure(quantity)
+    if measure and measure[0]:
+        return price / measure[0], measure[1]
     return price, "unit"

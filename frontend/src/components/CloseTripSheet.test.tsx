@@ -89,7 +89,10 @@ beforeEach(() => {
   vi.mocked(updateItem).mockResolvedValue({} as never)
 })
 
-function renderSheet(cartItems: ListItem[]) {
+function renderSheet(
+  cartItems: ListItem[],
+  { onScanReceipt }: { onScanReceipt?: () => void } = {},
+) {
   const onDone = vi.fn()
   render(
     <CloseTripSheet
@@ -100,10 +103,27 @@ function renderSheet(cartItems: ListItem[]) {
       onClose={vi.fn()}
       onDone={onDone}
       showToast={showToast}
+      onScanReceipt={onScanReceipt}
     />,
   )
   return { onDone }
 }
+
+test('the scan hand-off shows only when onScanReceipt is wired, and calls it', () => {
+  const onScanReceipt = vi.fn()
+  renderSheet([item({ id: 'a' })], { onScanReceipt })
+  fireEvent.click(
+    screen.getByRole('button', { name: /Escanear el ticket en su lugar/ }),
+  )
+  expect(onScanReceipt).toHaveBeenCalled()
+})
+
+test('the scan hand-off is absent when the flag is off (no onScanReceipt)', () => {
+  renderSheet([item({ id: 'a' })])
+  expect(
+    screen.queryByRole('button', { name: /Escanear el ticket en su lugar/ }),
+  ).not.toBeInTheDocument()
+})
 
 test('renders each line and sums the confirmed total', () => {
   renderSheet([
@@ -209,6 +229,9 @@ test('«Guardar compra» closes with the store, date and per-line fields', async
     name: 'Leche',
     brand: 'Hacendado',
   })
+  // A format nobody touched is not sent: resending it could undo a
+  // co-shopper's correction.
+  expect(body.lines[0]).not.toHaveProperty('pack')
   await waitFor(() => expect(onDone).toHaveBeenCalled())
 })
 
@@ -250,6 +273,7 @@ test('«Confirmar los precios sugeridos» applies the inherited price', async ()
         is_sin_precio: false,
         reduced: false,
         price_before: null,
+        pack: null,
       },
     ],
   })
@@ -375,6 +399,7 @@ test('a reduced price is never suggested again', async () => {
         is_sin_precio: false,
         reduced: true,
         price_before: null,
+        pack: null,
       },
       {
         amount: 2.5,
@@ -385,6 +410,7 @@ test('a reduced price is never suggested again', async () => {
         is_sin_precio: false,
         reduced: false,
         price_before: null,
+        pack: null,
       },
     ],
   })
