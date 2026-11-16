@@ -45,13 +45,18 @@ _COUNT_AND_CONTENT = re.compile(
     re.IGNORECASE,
 )
 _CONTENT = re.compile(rf"{_START}({_NUM})\s*({_UNIT})\.?(?!\w)", re.IGNORECASE)
+# «x 18» after a figure is a size («18 x 18 cm»), not a count. The lookbehind
+# sees one space only, so the parse first turns any run of spaces into one.
 _COUNT = re.compile(
-    rf"(?:\bpack\s*(?:de\s*)?(\d+)|{_START}(\d+)\s*(?:uds?|unidades)\.?|(?<!\w)x\s*(\d+))(?!\w)",
+    rf"(?:\bpack\s*(?:de\s*)?(\d+)|{_START}(\d+)\s*(?:uds?|unidades)\.?|(?<!\w)(?<!\d\s)x\s*(\d+))(?!\w)",
     re.IGNORECASE,
 )
 
-# What a format leaves behind once taken out: «Agua de», «Agua -», «Agua ()».
+# What a format leaves behind once taken out: «Agua de», «Agua -», «Agua ()»,
+# «Tomate (bandeja )».
 _EMPTY_BRACKETS = re.compile(r"\(\s*\)|\[\s*\]")
+# Spaces just inside a bracket: «(bandeja )» becomes «(bandeja)».
+_INNER_SPACE = re.compile(r"(?<=[(\[])\s+|\s+(?=[)\]])")
 _DANGLING_WORDS = ("de", "en", "x")
 _DANGLING_MARKS = "-–·,:/"
 
@@ -80,6 +85,7 @@ def _pack(count: int, content: str | None, unit: str | None) -> dict | None:
 
 def _clean(name: str) -> str:
     name = _EMPTY_BRACKETS.sub(" ", name)
+    name = _INNER_SPACE.sub("", name)
     name = re.sub(r"\s+", " ", name).strip()
     # Word by word from the end, with no backtracking regex. Each step
     # slices, so the name cap is what bounds the cost.
@@ -109,7 +115,7 @@ def format_in_name(name: str) -> tuple[str, dict] | None:
     exactly one. None otherwise."""
     if len(name) > _MAX_NAME:
         return None
-    rest = name
+    rest = re.sub(r"\s+", " ", name)
     both = _spans(_COUNT_AND_CONTENT, rest)
     for m in both:
         rest = _blank(rest, m)
