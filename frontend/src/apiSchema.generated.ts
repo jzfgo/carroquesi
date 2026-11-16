@@ -1401,6 +1401,7 @@ export interface components {
             item_name: string;
             /** Line Total */
             line_total: number;
+            pack?: components["schemas"]["PackFormat"] | null;
             /**
              * Price Type
              * @enum {string}
@@ -1461,6 +1462,7 @@ export interface components {
             price_per?: "KILOGRAM" | null;
             /** Quantity */
             quantity?: string | null;
+            read_pack?: components["schemas"]["PackFormat"] | null;
             /**
              * Reduced
              * @default false
@@ -1564,6 +1566,7 @@ export interface components {
             price_per?: "KILOGRAM" | null;
             /** Quantity */
             quantity?: string | null;
+            read_pack?: components["schemas"]["PackFormat"] | null;
             /** Reduced */
             reduced?: boolean | null;
             /** Store */
@@ -1946,6 +1949,7 @@ export interface components {
         UnmatchedLine: {
             /** Line Total */
             line_total: number;
+            pack?: components["schemas"]["PackFormat"] | null;
             /**
              * Price Type
              * @enum {string}

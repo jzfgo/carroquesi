@@ -186,3 +186,45 @@ def test_an_ean_from_another_list_brings_no_format(client: TestClient):
     _patch(client, other["id"], line["id"], {"pack": SIX_BY_ONE_AND_A_HALF, "ean": "8410188011128"})
 
     assert _item(client, mine["id"], ean="8410188011128")["pack"] is None
+
+
+def test_a_format_in_the_name_moves_to_the_format(client: TestClient, session: Session):
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Agua mineral 6x1,5L")
+    assert item["name"] == "Agua mineral"
+    assert item["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert session.get_one(ListItem, item["id"]).pack_source == "name"
+
+
+def test_a_format_in_the_name_counts_for_the_duplicate_check(client: TestClient):
+    lst = _list(client)
+    _item(client, lst["id"], name="Agua mineral")
+    response = client.post(f"/lists/{lst['id']}/items", json={"name": "Agua mineral 6x1,5L"})
+    assert response.status_code == 409
+
+
+def test_renaming_reads_the_format_of_the_new_name(client: TestClient):
+    lst = _list(client)
+    item = _item(client, lst["id"], name="Agua mineral 1,5L")
+    renamed = _patch(client, lst["id"], item["id"], {"name": "Agua mineral 6x1,5L"}).json()
+    assert renamed["name"] == "Agua mineral"
+    assert renamed["pack"] == SIX_BY_ONE_AND_A_HALF
+
+
+def test_renaming_never_replaces_a_format_typed_by_hand(client: TestClient, session: Session):
+    lst = _list(client)
+    item = _item(client, lst["id"])
+    _patch(client, lst["id"], item["id"], {"pack": SIX_BY_ONE_AND_A_HALF})
+    renamed = _patch(client, lst["id"], item["id"], {"name": "Agua 500ml"}).json()
+    assert renamed["name"] == "Agua 500ml"
+    assert renamed["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert session.get_one(ListItem, item["id"]).pack_source == "manual"
+
+
+def test_a_name_and_a_format_in_one_request_keep_the_typed_format(client: TestClient):
+    lst = _list(client)
+    item = _item(client, lst["id"])
+    body = {"name": "Agua 500ml", "pack": SIX_BY_ONE_AND_A_HALF}
+    renamed = _patch(client, lst["id"], item["id"], body).json()
+    assert renamed["name"] == "Agua 500ml"
+    assert renamed["pack"] == SIX_BY_ONE_AND_A_HALF

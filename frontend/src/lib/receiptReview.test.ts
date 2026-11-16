@@ -18,6 +18,7 @@ const line = (over: Partial<UnmatchedLine> = {}): UnmatchedLine => ({
   unit_price: 4.58,
   quantity: null,
   line_total: 4.58,
+  pack: null,
   ...over,
 })
 
@@ -33,6 +34,7 @@ test('without a correction the effective figures are the read ones', () => {
     quantity: 2,
     unit_price: 2.29,
     line_total: 4.58,
+    pack: null,
   })
   expect(effectiveLineTotal(l, state())).toBe(4.58)
   // The as-read unit price is the parse's own, never re-derived.
@@ -51,6 +53,7 @@ test('a corrected MULTI total re-derives the unit price from the quantity', () =
     quantity: 2,
     unit_price: 2.29,
     line_total: 4.58,
+    pack: null,
   })
   const s = state({ lineTotal: 3.38 })
   expect(effectiveUnitPrice(l, s)).toBeCloseTo(1.69)
@@ -62,6 +65,7 @@ test('a corrected KILOGRAM total re-derives the per-kilo price from the weight',
     quantity: 0.5,
     unit_price: 9,
     line_total: 4.5,
+    pack: null,
   })
   const s = state({ lineTotal: 4 })
   expect(effectiveUnitPrice(l, s)).toBeCloseTo(8)
@@ -97,6 +101,7 @@ describe('quantity override', () => {
     quantity: 0.202,
     unit_price: 9.9,
     line_total: 2,
+    pack: null,
   })
   const unit = line({ unit_price: 3.05, line_total: 3.05 })
 

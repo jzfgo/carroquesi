@@ -75,6 +75,7 @@ def pack_columns(pack: dict | None) -> dict:
         "pack_count": pack["count"] if pack else None,
         "pack_content": pack["content"] if pack else None,
         "pack_content_unit": pack["unit"] if pack else None,
+        "pack_source": "manual" if pack else None,
     }
 
 
@@ -117,6 +118,12 @@ class ListItem(SQLModel, table=True):
     pack_count: int | None = Field(default=None)
     pack_content: float | None = Field(default=None)
     pack_content_unit: str | None = Field(default=None)
+    # Where the format came from: "manual" (typed, or a line created with
+    # one), "name" (read out of the item's name), "receipt" (printed on
+    # the receipt line it was bought on), "quantity" (a package size the
+    # backfill moved out of the quantity). A name the user types replaces
+    # a guess from a name or a receipt; a receipt fills only an empty one.
+    pack_source: str | None = Field(default=None)
     # The trip this was bought on — not another "purchased_*" attribute of the
     # item. NULL means unpurchased, which is most rows; the invariant
     # "purchased => purchase_id set" is enforced in-app, the way
@@ -141,6 +148,7 @@ class ListItem(SQLModel, table=True):
             return
         for column, value in pack_columns(pack).items():
             setattr(self, column, value)
+        self.pack_source = "manual" if pack else None
         self.ean = None
 
 
