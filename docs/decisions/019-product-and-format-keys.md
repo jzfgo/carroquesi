@@ -36,6 +36,11 @@ A format read off a receipt line fills only a line with no format, and the
 line keeps its EAN. That read can come from a fuzzy match, so a wrong match
 can give the EAN a wrong format. We accept this: the review shows the read
 format before the save, and the case is rare.
+A new line with an EAN takes its format from the list's last line with
+that EAN. With none, it takes the package size Open Food Facts gives for
+the code, when that size is plain («1,5 l», «6 x 33 cl»). The household's
+own lines come first: they record what it bought, and Open Food Facts is
+crowd-typed.
 
 **The pending-duplicate guard stays at name level.** One product, one
 pending line, whatever the format. The pending list says what to buy, not

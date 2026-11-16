@@ -121,8 +121,10 @@ class ListItem(SQLModel, table=True):
     # Where the format came from: "manual" (typed, or a line created with
     # one), "name" (read out of the item's name), "receipt" (printed on
     # the receipt line it was bought on), "quantity" (a package size the
-    # backfill moved out of the quantity). A name the user types replaces
-    # a guess from a name or a receipt; a receipt fills only an empty one.
+    # backfill moved out of the quantity), "off" (the size Open Food Facts
+    # gives for the line's EAN). A name the user types replaces a guess
+    # from a name, a receipt or Open Food Facts; the other guesses fill
+    # only an empty format.
     pack_source: str | None = Field(default=None)
     # The trip this was bought on — not another "purchased_*" attribute of the
     # item. NULL means unpurchased, which is most rows; the invariant
@@ -236,6 +238,8 @@ class BarcodeCache(SQLModel, table=True):
     name: str
     brand: str | None = None
     stores: str | None = None  # nullable comma-separated, e.g. "Mercadona,Alcampo"
+    # The package size as Open Food Facts writes it («1,5 l», «6 x 33 cl»).
+    quantity: str | None = None
     created_at: datetime = Field(default_factory=_now)
 
 

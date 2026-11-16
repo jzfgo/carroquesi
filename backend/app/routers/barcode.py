@@ -45,8 +45,9 @@ def _to_read(entry: BarcodeCache) -> BarcodeRead:
     )
 
 
-def _fetch_product(ean: str) -> tuple[str, str | None, str | None] | None:
-    """Try each sister site in order; return (name, brand, stores) or None if not found anywhere."""
+def _fetch_product(ean: str) -> tuple[str, str | None, str | None, str | None] | None:
+    """Try each sister site in order; return (name, brand, stores, quantity)
+    or None if not found anywhere."""
     for url_template in _SISTER_SITES:
         try:
             resp = httpx.get(url_template.format(ean=ean), headers=_OFF_HEADERS, timeout=5.0)
@@ -72,7 +73,8 @@ def _fetch_product(ean: str) -> tuple[str, str | None, str | None] | None:
         brands_raw = product.get("brands") or ""
         brand = brands_raw.split(",")[0].strip() or None
         stores = product.get("stores") or None
-        return name, brand, stores
+        quantity = product.get("quantity") or None
+        return name, brand, stores, quantity
 
     return None
 
@@ -92,8 +94,8 @@ def get_barcode(
     if result is None:
         raise HTTPException(status_code=404, detail="Product not found")
 
-    name, brand, stores = result
-    entry = BarcodeCache(ean=ean, name=name, brand=brand, stores=stores)
+    name, brand, stores, quantity = result
+    entry = BarcodeCache(ean=ean, name=name, brand=brand, stores=stores, quantity=quantity)
     session.add(entry)
     try:
         session.commit()
