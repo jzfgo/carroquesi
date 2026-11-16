@@ -57,15 +57,6 @@ _INNER_SPACE = re.compile(r"(?<=[(\[])\s+|\s+(?=[)\]])")
 _DANGLING_WORDS = ("de", "en", "x")
 _DANGLING_MARKS = "-–·,:/"
 
-# How a product is sold, which belongs to the format, not to the product:
-# «Leche entera Brik 1l» and «Leche entera Botella 1,5l» are one product.
-# Taken out only with a format, and never as the first word, where it is
-# the product itself («Botella de agua reutilizable»).
-_CONTAINER = re.compile(
-    r"(?<=[\s(\[])(?:botell(?:as?|[ií]n|ines)|latas?|bri(?:c)?ks?|bandejas?|mallas?|tarros?|botes?|frascos?|garrafas?)(?!\w)",
-    re.IGNORECASE,
-)
-
 # Longer than any product name. Names are free text, so the parse is not
 # run on a long one at all, whatever its patterns cost.
 _MAX_NAME = 200
@@ -143,7 +134,7 @@ def format_in_name(name: str) -> tuple[str, dict] | None:
         content, unit = (contents[0][1], contents[0][2]) if contents else (None, None)
 
     pack = _pack(count, content, unit)
-    stripped = _clean(_CONTAINER.sub(" ", rest.strip()))
+    stripped = _clean(rest)
     if pack is None or not re.search(r"[^\W\d_]", stripped):
         return None
     return stripped, pack
