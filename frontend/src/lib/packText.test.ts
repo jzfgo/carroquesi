@@ -12,6 +12,18 @@ describe('readPackText', () => {
     expect(readPackText('12')).toEqual({ count: 12, content: null, unit: null })
   })
 
+  it.each([
+    '12 uds',
+    '12ud',
+    '12 unidades',
+    'x12',
+    'X 12',
+    'pack de 12',
+    'pack12',
+  ])('reads «%s» as a count, as a name does', (text) => {
+    expect(readPackText(text)).toEqual({ count: 12, content: null, unit: null })
+  })
+
   it('refuses a count of one or past the bound', () => {
     expect(readPackText('1')).toBeNull()
     expect(readPackText('0')).toBeNull()

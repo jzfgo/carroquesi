@@ -4,9 +4,10 @@ import type { ContentUnit, PackFormat } from './itemCost'
  * Reads the value of the input bar's `*` sigil: «6x1,5L», «108g», «12».
  *
  * The size grammar is the backend's (`format_in_quantity`). Both sides are
- * pinned to packTextVectors.json — change one only through that file. A bare
- * whole number is a count, which only the sigil reads: in a name or a
- * quantity, «12» says nothing about the pack.
+ * pinned to packTextVectors.json — change one only through that file. A count
+ * alone («12», «12 uds», «x12», «pack de 12») is read with the name's count
+ * spellings, plus the bare number: in a name or a quantity, «12» says nothing
+ * about the pack, but after `*` it can only be a count.
  */
 
 const NUM = String.raw`(\d+(?:[.,]\d+)?)`
@@ -17,7 +18,9 @@ const COUNT_AND_CONTENT = new RegExp(
   'i',
 )
 const CONTENT = new RegExp(String.raw`^${NUM}\s*(${UNIT})\.?$`, 'i')
-const COUNT = /^\d+$/
+// «12», «12 uds», «x12», «pack de 12»: the count spellings a name reads.
+const COUNT =
+  /^(?:pack\s*(?:de\s*)?(\d+)|(\d+)\s*(?:uds?|unidades)\.?|x\s*(\d+)|(\d+))$/i
 
 const UNITS: Record<string, ContentUnit> = {
   kg: 'kg',
@@ -69,6 +72,7 @@ export function readPackText(text: string): PackFormat | null {
   if (m) return pack(Number(m[1]), m[2], m[3])
   m = trimmed.match(CONTENT)
   if (m) return pack(1, m[1], m[2])
-  if (COUNT.test(trimmed)) return pack(Number(trimmed), null, null)
+  m = trimmed.match(COUNT)
+  if (m) return pack(Number(m.slice(1).find(Boolean)), null, null)
   return null
 }
