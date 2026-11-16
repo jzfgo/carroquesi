@@ -54,6 +54,8 @@ def test_reads_and_strips_a_format(name, stripped, pack):
         "Lote 2000 x 1L",
         # A pack of one says nothing.
         "Huevos x1",
+        # Longer than any product name: not parsed at all.
+        "Agua" + " -" * 200 + " 1L",
     ],
 )
 def test_leaves_a_name_without_one_format_alone(name):

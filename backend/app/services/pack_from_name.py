@@ -52,7 +52,12 @@ _COUNT = re.compile(
 
 # What a format leaves behind once taken out: «Agua de», «Agua -», «Agua ()».
 _EMPTY_BRACKETS = re.compile(r"\(\s*\)|\[\s*\]")
-_DANGLING = re.compile(r"(?:\s+(?:de|en|x)|\s*[-–·,:/])+\s*$", re.IGNORECASE)
+_DANGLING_WORDS = ("de", "en", "x")
+_DANGLING_MARKS = "-–·,:/"
+
+# Longer than any product name. Names are free text, so the parse is not
+# run on a long one at all, whatever its patterns cost.
+_MAX_NAME = 200
 
 # «1.000» is a thousand in Spanish: refused rather than read as one.
 _THOUSANDS = re.compile(r"^[1-9]\d{0,2}\.\d{3}$")
@@ -76,7 +81,17 @@ def _pack(count: int, content: str | None, unit: str | None) -> dict | None:
 def _clean(name: str) -> str:
     name = _EMPTY_BRACKETS.sub(" ", name)
     name = re.sub(r"\s+", " ", name).strip()
-    return _DANGLING.sub("", name).strip()
+    # Word by word from the end, so it stays linear on any input.
+    while name:
+        if name[-1] in _DANGLING_MARKS:
+            name = name[:-1].rstrip()
+            continue
+        head, _, last = name.rpartition(" ")
+        if head and last.lower() in _DANGLING_WORDS:
+            name = head.rstrip()
+            continue
+        break
+    return name
 
 
 def _spans(pattern: re.Pattern[str], text: str) -> list[re.Match[str]]:
@@ -91,6 +106,8 @@ def _blank(text: str, match: re.Match[str]) -> str:
 def format_in_name(name: str) -> tuple[str, dict] | None:
     """The name without its format, and the format, when the name carries
     exactly one. None otherwise."""
+    if len(name) > _MAX_NAME:
+        return None
     rest = name
     both = _spans(_COUNT_AND_CONTENT, rest)
     for m in both:
