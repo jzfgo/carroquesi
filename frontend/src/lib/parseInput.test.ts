@@ -187,9 +187,39 @@ describe('parseInput', () => {
     })
 
     test('a value that names no format is null', () => {
-      const result = parseInput('agua *grande')
+      const result = parseInput('agua *6xx')
       expect(result.pack).toBeNull()
       expect(result.name).toBe('agua')
+    })
+
+    test('a format spelled over several words is read whole', () => {
+      const result = parseInput('agua *6 x 1,5 L +2')
+      expect(result.pack).toEqual({ count: 6, content: 1.5, unit: 'l' })
+      expect(result.name).toBe('agua')
+      expect(result.quantity).toBe('2')
+      expect(parseInput('huevos *12 uds').pack).toEqual({
+        count: 12,
+        content: null,
+        unit: null,
+      })
+      expect(parseInput('cerveza *pack de 6 x 33 cl').pack).toEqual({
+        count: 6,
+        content: 33,
+        unit: 'cl',
+      })
+    })
+
+    test('words after the format go back to the name', () => {
+      const result = parseInput('huevos *12 camperos')
+      expect(result.pack).toEqual({ count: 12, content: null, unit: null })
+      expect(result.name).toBe('huevos camperos')
+    })
+
+    test('before a word that cannot start a format, * is text', () => {
+      const result = parseInput('*PAN BARRA')
+      expect(result.pack).toBeUndefined()
+      expect(result.name).toBe('*PAN BARRA')
+      expect(parseInput('agua *grande').name).toBe('agua *grande')
     })
 
     test('the first one wins', () => {

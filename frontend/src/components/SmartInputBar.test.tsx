@@ -164,7 +164,7 @@ describe('the * pack format sigil', () => {
 
   test('a value that names no format is flagged and cannot be sent', async () => {
     const onSubmit = vi.fn()
-    bar('Agua *grande', { onSubmit })
+    bar('Agua *6xx', { onSubmit })
 
     expect(screen.getByTestId('parse-preview')).toHaveTextContent(
       'Formato no reconocido',

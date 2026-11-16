@@ -13,6 +13,13 @@ const QUOTED_RE = /([+#@|*]?)(?:"([^"]*)"|'([^']*)')/g
 // Null-byte sentinel — cannot appear in user-typed text input.
 const PH = String.fromCharCode(0)
 const RESTORE_RE = new RegExp(PH + 'q(\\d+)' + PH, 'g')
+const SIGILS = '+#@|*'
+// `*` opens a format only before something that can start one: a figure,
+// «x12», «pack» or a quoted value. Elsewhere it is text, like a receipt's
+// «*PAN BARRA».
+const PACK_START_RE = new RegExp(`^(?:\\d|[x×]\\s*\\d|pack|${PH})`, 'i')
+// «pack de 6 x 33 cl» is the longest spelling: the sigil word and five more.
+const MAX_PACK_WORDS = 5
 
 export function parseInput(raw: string): ParsedInput {
   // Replace complete quoted sequences with null-byte-delimited placeholders so
@@ -47,7 +54,8 @@ export function parseInput(raw: string): ParsedInput {
   const tokenWords: Record<string, string[]> = {}
   const storeEntries: string[][] = []
 
-  for (const word of words) {
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i]
     const sigil = word[0]
 
     if (sigil === '|') {
@@ -55,12 +63,28 @@ export function parseInput(raw: string): ParsedInput {
       if (/^\d{8}$|^\d{13}$/.test(digits) && result.ean === undefined) {
         result.ean = digits
       }
-    } else if (sigil === '*') {
-      // One token, like the EAN: a format with spaces is quoted. The first
-      // one wins, read or not, so the preview shows the one that is sent.
-      if (result.pack === undefined) {
-        result.pack = readPackText(restore(word.slice(1)))
+    } else if (sigil === '*' && PACK_START_RE.test(word.slice(1))) {
+      // A format may span words («*6 x 1,5 L»). The longest run that reads
+      // wins, so no piece of it falls into the name. A sigil ends the run.
+      let pack = readPackText(restore(word.slice(1)))
+      let taken = 0
+      for (
+        let k = 1;
+        k <= MAX_PACK_WORDS &&
+        i + k < words.length &&
+        !SIGILS.includes(words[i + k][0]);
+        k++
+      ) {
+        const run = [word.slice(1), ...words.slice(i + 1, i + k + 1)]
+        const read = readPackText(restore(run.join(' ')))
+        if (read) {
+          pack = read
+          taken = k
+        }
       }
+      // The first one wins, read or not, so the preview shows the one sent.
+      if (result.pack === undefined) result.pack = pack
+      i += taken
     } else if (sigil === '@') {
       storeEntries.push([word.slice(1)])
       currentField = '@'
