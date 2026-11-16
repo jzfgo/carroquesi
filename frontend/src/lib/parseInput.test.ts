@@ -220,6 +220,19 @@ describe('parseInput', () => {
       expect(result.pack).toBeUndefined()
       expect(result.name).toBe('*PAN BARRA')
       expect(parseInput('agua *grande').name).toBe('agua *grande')
+      expect(parseInput('agua *packaging').name).toBe('agua *packaging')
+      expect(parseInput('agua *x').name).toBe('agua *x')
+    })
+
+    test('a lone x opens a format when a figure follows', () => {
+      const result = parseInput('huevos *x 12')
+      expect(result.pack).toEqual({ count: 12, content: null, unit: null })
+      expect(result.name).toBe('huevos')
+      expect(parseInput('huevos *pack12').pack).toEqual({
+        count: 12,
+        content: null,
+        unit: null,
+      })
     })
 
     test('the first one wins', () => {

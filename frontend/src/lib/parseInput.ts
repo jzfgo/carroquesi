@@ -15,9 +15,15 @@ const PH = String.fromCharCode(0)
 const RESTORE_RE = new RegExp(PH + 'q(\\d+)' + PH, 'g')
 const SIGILS = '+#@|*'
 // `*` opens a format only before something that can start one: a figure,
-// «x12», «pack» or a quoted value. Elsewhere it is text, like a receipt's
-// «*PAN BARRA».
-const PACK_START_RE = new RegExp(`^(?:\\d|[x×]\\s*\\d|pack|${PH})`, 'i')
+// «x12», «pack», «pack12» or a quoted value. Elsewhere it is text, like a
+// receipt's «*PAN BARRA» or «*packaging».
+const PACK_START_RE = new RegExp(`^(?:\\d|[x×]\\d|pack(?:$|\\d)|${PH})`, 'i')
+
+// «x» alone opens a format too, when a figure follows: «*x 12».
+function opensPack(value: string, next: string | undefined): boolean {
+  if (PACK_START_RE.test(value)) return true
+  return /^[x×]$/i.test(value) && next !== undefined && /^\d/.test(next)
+}
 // «pack de 6 x 33 cl» is the longest spelling: the sigil word and five more.
 const MAX_PACK_WORDS = 5
 
@@ -63,7 +69,7 @@ export function parseInput(raw: string): ParsedInput {
       if (/^\d{8}$|^\d{13}$/.test(digits) && result.ean === undefined) {
         result.ean = digits
       }
-    } else if (sigil === '*' && PACK_START_RE.test(word.slice(1))) {
+    } else if (sigil === '*' && opensPack(word.slice(1), words[i + 1])) {
       // A format may span words («*6 x 1,5 L»). The longest run that reads
       // wins, so no piece of it falls into the name. A sigil ends the run.
       let pack = readPackText(restore(word.slice(1)))
