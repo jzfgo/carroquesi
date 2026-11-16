@@ -427,7 +427,7 @@ def rebuy_item(
         pack_count=line.pack_count,
         pack_content=line.pack_content,
         pack_content_unit=line.pack_content_unit,
-        pack_source=line.pack_source,
+        pack_source="copied" if line.pack else None,
     )
     session.add(pending)
     if stores:

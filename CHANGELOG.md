@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.27.2] — 2026-11-16
+
+### Fixed
+- A format copied from another line is a guess, not typed (#487)
+
+- A line with one piece and no content doesn't hide an older format (#489)
+
+
+---
 ## [0.27.1] — 2026-11-16
 
 ### Fixed

@@ -97,13 +97,16 @@ def _attach_purchase_ends_at(session: Session, items: Sequence[ListItem]) -> Non
 def _take_format_of_ean(session: Session, item: ListItem, ean: str) -> None:
     """An EAN names one format, so a scanned code brings the format the
     list's last line with that code carried. Only this list's lines: another
-    household's are not ours to read."""
+    household's are not ours to read. The format comes as a guess, even
+    when it was typed on that line: a typed format is protected on the line
+    it was typed on, not on the lines that copy it."""
     source = session.exec(
         select(ListItem)
         .where(
             ListItem.list_id == item.list_id,
             ListItem.ean == ean,
-            (col(ListItem.pack_count).is_not(None)) | (col(ListItem.pack_content).is_not(None)),
+            # The same test as `ListItem.pack`: one piece with no content is no format.
+            (col(ListItem.pack_content).is_not(None)) | (col(ListItem.pack_count) > 1),
         )
         .order_by(col(ListItem.updated_at).desc())
     ).first()
@@ -111,7 +114,7 @@ def _take_format_of_ean(session: Session, item: ListItem, ean: str) -> None:
         item.pack_count = source.pack_count
         item.pack_content = source.pack_content
         item.pack_content_unit = source.pack_content_unit
-        item.pack_source = source.pack_source
+        item.pack_source = "copied"
 
 
 @router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
