@@ -20,6 +20,8 @@ from app.services.pack_from_name import format_in_name, format_in_quantity
         ("Leche pack 6 x 1L", "Leche", {"count": 6, "content": 1, "unit": "l"}),
         ("Yogur natural pack de 4", "Yogur natural", {"count": 4, "content": None, "unit": None}),
         ("Huevos x12", "Huevos", {"count": 12, "content": None, "unit": None}),
+        # Spaces are collapsed before the parse; a count after a word still reads.
+        ("Huevos  x12", "Huevos", {"count": 12, "content": None, "unit": None}),
         ("Pilas 4 uds", "Pilas", {"count": 4, "content": None, "unit": None}),
         ("Agua (6x1,5L)", "Agua", {"count": 6, "content": 1.5, "unit": "l"}),
         ("Agua de 1,5L", "Agua", {"count": 1, "content": 1.5, "unit": "l"}),
@@ -55,6 +57,10 @@ def test_reads_and_strips_a_format(name, stripped, pack):
         "Servilletas 18 x 18 cm",
         "Servilletas 33 x 33",
         "Servilletas 18  x 18 cm",
+        # Pasted text: no-break spaces collapse like any other.
+        "Servilletas 18\u00a0\u00a0x 18 cm",
+        # A count after a figure is refused too: an empty format is the safe miss.
+        "Huevos camperos 2 x 6",
         # «1.000» groups thousands in Spanish: refused, not read as one.
         "Agua 1.000 ml",
         # Nothing left for a name.
