@@ -45,6 +45,8 @@ _COUNT_AND_CONTENT = re.compile(
     re.IGNORECASE,
 )
 _CONTENT = re.compile(rf"{_START}({_NUM})\s*({_UNIT})\.?(?!\w)", re.IGNORECASE)
+# «x 18» after a figure is a size («18 x 18 cm»), not a count. The lookbehind
+# sees one space only, so the parse first turns any run of spaces into one.
 _COUNT = re.compile(
     rf"(?:\bpack\s*(?:de\s*)?(\d+)|{_START}(\d+)\s*(?:uds?|unidades)\.?|(?<!\w)(?<!\d\s)x\s*(\d+))(?!\w)",
     re.IGNORECASE,
@@ -53,6 +55,7 @@ _COUNT = re.compile(
 # What a format leaves behind once taken out: «Agua de», «Agua -», «Agua ()»,
 # «Tomate (bandeja )».
 _EMPTY_BRACKETS = re.compile(r"\(\s*\)|\[\s*\]")
+# Spaces just inside a bracket: «(bandeja )» becomes «(bandeja)».
 _INNER_SPACE = re.compile(r"(?<=[(\[])\s+|\s+(?=[)\]])")
 _DANGLING_WORDS = ("de", "en", "x")
 _DANGLING_MARKS = "-–·,:/"
@@ -112,7 +115,7 @@ def format_in_name(name: str) -> tuple[str, dict] | None:
     exactly one. None otherwise."""
     if len(name) > _MAX_NAME:
         return None
-    rest = name
+    rest = re.sub(r"\s+", " ", name)
     both = _spans(_COUNT_AND_CONTENT, rest)
     for m in both:
         rest = _blank(rest, m)

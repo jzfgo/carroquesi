@@ -54,6 +54,7 @@ def test_reads_and_strips_a_format(name, stripped, pack):
         # A size, not a count: «x 18» follows a number.
         "Servilletas 18 x 18 cm",
         "Servilletas 33 x 33",
+        "Servilletas 18  x 18 cm",
         # «1.000» groups thousands in Spanish: refused, not read as one.
         "Agua 1.000 ml",
         # Nothing left for a name.
