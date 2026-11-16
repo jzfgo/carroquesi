@@ -122,9 +122,11 @@ class ListItem(SQLModel, table=True):
     # one), "name" (read out of the item's name), "receipt" (printed on
     # the receipt line it was bought on), "quantity" (a package size the
     # backfill moved out of the quantity), "off" (the size Open Food Facts
-    # gives for the line's EAN). A name the user types replaces a guess
-    # from a name, a receipt or Open Food Facts; the other guesses fill
-    # only an empty format.
+    # gives for the line's EAN), "copied" (taken from another line: the
+    # list's last line with the same EAN, or the line a re-buy clones).
+    # A name the user types replaces a guess from a name, a receipt, Open
+    # Food Facts or another line; the other guesses fill only an empty
+    # format.
     pack_source: str | None = Field(default=None)
     # The trip this was bought on — not another "purchased_*" attribute of the
     # item. NULL means unpurchased, which is most rows; the invariant

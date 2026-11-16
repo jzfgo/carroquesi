@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.db.models import BarcodeCache, ListItem, Purchase
+from app.db.models import List as ShoppingList
 
 SIX_BY_ONE_AND_A_HALF = {"count": 6, "content": 1.5, "unit": "l"}
 
@@ -165,6 +166,14 @@ def test_rebuy_keeps_the_format(client: TestClient, session: Session):
     assert response.status_code == 201
     assert response.json()["pack"] == SIX_BY_ONE_AND_A_HALF
     assert response.json()["ean"] == "8410188011128"
+    assert session.get_one(ListItem, response.json()["id"]).pack_source == "copied"
+
+    # The format was typed on the bought line, not on this one, so a name
+    # typed here still replaces it.
+    again = response.json()
+    renamed = _patch(client, lst["id"], again["id"], {"name": "Agua 6x1L"}).json()
+    assert renamed["name"] == "Agua"
+    assert renamed["pack"] == {"count": 6, "content": 1, "unit": "l"}
 
 
 def test_a_scanned_ean_brings_the_format_its_last_line_carried(client: TestClient):
@@ -177,6 +186,73 @@ def test_a_scanned_ean_brings_the_format_its_last_line_carried(client: TestClien
     again = _item(client, lst["id"], ean="8410188011128")
 
     assert again["pack"] == SIX_BY_ONE_AND_A_HALF
+
+
+def _bought_line(session: Session, list_id: str, ean: str, minutes_ago: int, **pack) -> None:
+    """A bought line written straight to the table, so the test sets its
+    age and can leave its format empty while it keeps its EAN."""
+    owner = session.get_one(ShoppingList, list_id).owner_id
+    stamp = datetime.now(UTC) - timedelta(minutes=minutes_ago)
+    session.add(
+        ListItem(
+            list_id=list_id,
+            added_by=owner,
+            name="Agua",
+            ean=ean,
+            purchased_at=stamp,
+            updated_at=stamp,
+            **pack,
+        )
+    )
+    session.commit()
+
+
+def test_the_ean_brings_the_format_of_the_newest_line(client: TestClient, session: Session):
+    lst = _list(client)
+    _bought_line(
+        session, lst["id"], "8410188011128", 60, pack_count=6, pack_content=1, pack_content_unit="l"
+    )
+    _bought_line(
+        session,
+        lst["id"],
+        "8410188011128",
+        5,
+        pack_count=6,
+        pack_content=1.5,
+        pack_content_unit="l",
+    )
+
+    again = _item(client, lst["id"], ean="8410188011128")
+
+    assert again["pack"]["content"] == 1.5
+
+
+def test_a_line_with_the_ean_and_no_format_does_not_hide_an_older_one(
+    client: TestClient, session: Session
+):
+    lst = _list(client)
+    _bought_line(session, lst["id"], "8410188011128", 60, pack_count=12)
+    _bought_line(session, lst["id"], "8410188011128", 5)
+
+    again = _item(client, lst["id"], ean="8410188011128")
+
+    # A pack of pieces has a count and no content; it still counts as a format.
+    assert again["pack"] == {"count": 12, "content": None, "unit": None}
+
+
+def test_a_line_with_another_ean_brings_no_format(client: TestClient, session: Session):
+    lst = _list(client)
+    _bought_line(
+        session,
+        lst["id"],
+        "8410188011111",
+        5,
+        pack_count=6,
+        pack_content=1.5,
+        pack_content_unit="l",
+    )
+
+    assert _item(client, lst["id"], ean="8410188011128")["pack"] is None
 
 
 def test_an_ean_from_another_list_brings_no_format(client: TestClient):
@@ -231,7 +307,38 @@ def test_the_lists_own_line_wins_over_open_food_facts(client: TestClient, sessio
     again = _item(client, lst["id"], ean="8410188011128")
 
     assert again["pack"] == SIX_BY_ONE_AND_A_HALF
-    assert session.get_one(ListItem, again["id"]).pack_source == "manual"
+    assert session.get_one(ListItem, again["id"]).pack_source == "copied"
+
+
+def _bought_with_format(client: TestClient, list_id: str, pack: dict) -> None:
+    """A bought line whose format was typed by hand, under the scanned EAN."""
+    first = _item(client, list_id, ean="8410188011128")
+    _patch(client, list_id, first["id"], {"pack": pack, "ean": "8410188011128"})
+    _patch(client, list_id, first["id"], {"purchased": True})
+
+
+def test_a_format_in_the_name_wins_over_the_one_the_ean_brings(
+    client: TestClient, session: Session
+):
+    lst = _list(client)
+    _bought_with_format(client, lst["id"], {"count": 6, "content": 1, "unit": "l"})
+
+    item = _item(client, lst["id"], name="Agua 6x1,5L", ean="8410188011128")
+
+    assert item["name"] == "Agua"
+    assert item["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert session.get_one(ListItem, item["id"]).pack_source == "name"
+
+
+def test_a_name_typed_later_replaces_the_format_the_ean_brought(client: TestClient):
+    lst = _list(client)
+    _bought_with_format(client, lst["id"], {"count": 6, "content": 1, "unit": "l"})
+    item = _item(client, lst["id"], ean="8410188011128")
+
+    renamed = _patch(client, lst["id"], item["id"], {"name": "Agua 6x1,5L"}).json()
+
+    assert renamed["name"] == "Agua"
+    assert renamed["pack"] == SIX_BY_ONE_AND_A_HALF
 
 
 def test_a_format_in_the_name_wins_over_open_food_facts(client: TestClient, session: Session):
