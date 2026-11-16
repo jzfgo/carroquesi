@@ -5,8 +5,9 @@ from rapidfuzz import fuzz
 from sqlmodel import Session, select
 
 from app.db.models import ListItem, ReceiptNameMapping
+from app.schemas.items import PackFormat
 from app.schemas.receipt import MatchedLine, ParsedLine, UnmatchedLine
-from app.services.pack_from_name import name_without_format
+from app.services.pack_from_name import format_in_name, name_without_format
 from app.services.store_key import store_key
 
 MATCH_THRESHOLD = 70
@@ -71,6 +72,8 @@ def match_lines(
             continue
 
         norm = normalise(line.name)
+        found = format_in_name(line.name)
+        pack = PackFormat(**found[1]) if found else None
 
         mapping = _lookup_mapping(store, norm, session)
         if mapping:
@@ -96,6 +99,7 @@ def match_lines(
                         unit_price=line.unit_price,
                         quantity=line.quantity,
                         line_total=line.line_total,
+                        pack=pack,
                     )
                 )
                 continue
@@ -119,6 +123,7 @@ def match_lines(
                     unit_price=line.unit_price,
                     quantity=line.quantity,
                     line_total=line.line_total,
+                    pack=pack,
                 )
             )
         else:
@@ -129,6 +134,7 @@ def match_lines(
                     unit_price=line.unit_price,
                     quantity=line.quantity,
                     line_total=line.line_total,
+                    pack=pack,
                 )
             )
 

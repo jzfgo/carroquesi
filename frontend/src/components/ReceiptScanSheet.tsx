@@ -398,11 +398,20 @@ export default function ReceiptScanSheet({
       : undefined
   }
 
-  function linePack(ls: LineState, target: string | null): PackFormat | null {
+  // A typed format, else the item's own, else the one the paper prints: the
+  // save fills an item's empty format with it, so the block shows it too.
+  function linePack(
+    ls: LineState,
+    target: string | null,
+    line: ReceiptLine,
+  ): PackFormat | null {
     const typed = typedPack(ls, target)
     if (typed !== undefined) return typed
-    if (target == null) return null
-    return candidateItems.find((it) => it.id === target)?.pack ?? null
+    const own =
+      target == null
+        ? null
+        : candidateItems.find((it) => it.id === target)?.pack
+    return own ?? line.pack ?? null
   }
 
   // The product behind a line, as far as the review knows it: a linked or
@@ -591,6 +600,8 @@ export default function ReceiptScanSheet({
           ...(typedPack(ls, r.itemId) !== undefined
             ? { pack: typedPack(ls, r.itemId) }
             : {}),
+          // The paper's format, for an item with none: never a replacement.
+          read_pack: line.pack ?? null,
           // Without a label read here, no `reduced`: a line closed with a
           // reduced label keeps its flag.
           ...reduction,
@@ -606,6 +617,9 @@ export default function ReceiptScanSheet({
           quantity,
           article: ls.label?.article ?? null,
           pack: typedPack(ls, null) ?? null,
+          // A format cleared here stays cleared: no read fills it back.
+          read_pack:
+            typedPack(ls, null) === undefined ? (line.pack ?? null) : null,
           ...(reduction ?? { reduced: false }),
         })
       }
@@ -750,7 +764,11 @@ export default function ReceiptScanSheet({
           onBack={() => setResolvingIndex(null)}
           state={lineStates[resolvingIndex]}
           onChangeQuantity={(value) => setLineQuantity(resolvingIndex, value)}
-          pack={linePack(lineStates[resolvingIndex], packTarget())}
+          pack={linePack(
+            lineStates[resolvingIndex],
+            packTarget(),
+            allLines[resolvingIndex],
+          )}
           onChangePack={(pack) =>
             setLinePack(resolvingIndex, pack, packTarget())
           }

@@ -159,11 +159,22 @@ def format_in_quantity(quantity: str | None) -> dict | None:
     return None
 
 
+def fill_from_receipt(item: ListItem, pack: dict | None) -> None:
+    """Gives a line with no format the one its receipt line printed. Any
+    format the line already has, typed or read from its name, stays: the
+    receipt's abbreviated text is the weaker read."""
+    if pack is None or item.pack is not None:
+        return
+    for column, value in pack_columns(pack).items():
+        setattr(item, column, value)
+    item.pack_source = "receipt"
+
+
 def fill_from_name(item: ListItem) -> None:
-    """Gives a line with no format, or one read from its name before, the
-    format its name carries, and takes it out of the name. A format someone
-    typed is never replaced."""
-    if item.pack is not None and item.pack_source != "name":
+    """Gives a line with no format, or one guessed before, the format its
+    name carries, and takes it out of the name. A format someone typed is
+    never replaced."""
+    if item.pack is not None and item.pack_source not in ("name", "receipt"):
         return
     found = format_in_name(item.name)
     if found is None:

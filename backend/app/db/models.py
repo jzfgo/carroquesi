@@ -119,9 +119,10 @@ class ListItem(SQLModel, table=True):
     pack_content: float | None = Field(default=None)
     pack_content_unit: str | None = Field(default=None)
     # Where the format came from: "manual" (typed, or a line created with
-    # one), "name" (read out of the item's name), "quantity" (a package
-    # size the backfill moved out of the quantity). Only a format read
-    # from the name is ever replaced by another guess.
+    # one), "name" (read out of the item's name), "receipt" (printed on
+    # the receipt line it was bought on), "quantity" (a package size the
+    # backfill moved out of the quantity). A name the user types replaces
+    # a guess from a name or a receipt; a receipt fills only an empty one.
     pack_source: str | None = Field(default=None)
     # The trip this was bought on — not another "purchased_*" attribute of the
     # item. NULL means unpurchased, which is most rows; the invariant
