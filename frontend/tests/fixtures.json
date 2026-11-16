@@ -227,7 +227,8 @@
         "price_type": "UNIT",
         "unit_price": 0.75,
         "quantity": null,
-        "line_total": 0.75
+        "line_total": 0.75,
+        "pack": null
       },
       {
         "receipt_name": "CAFE MOLIDO NESCAFE",
@@ -236,7 +237,8 @@
         "price_type": "UNIT",
         "unit_price": 2.6,
         "quantity": null,
-        "line_total": 2.6
+        "line_total": 2.6,
+        "pack": null
       }
     ],
     "unmatched": [
@@ -245,7 +247,8 @@
         "price_type": "UNIT",
         "unit_price": 1.0,
         "quantity": null,
-        "line_total": 1.0
+        "line_total": 1.0,
+        "pack": null
       }
     ],
     "target_purchase": null

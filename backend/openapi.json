@@ -1069,6 +1069,16 @@
             "title": "Line Total",
             "type": "number"
           },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "price_type": {
             "enum": [
               "UNIT",
@@ -1277,6 +1287,16 @@
               }
             ],
             "title": "Quantity"
+          },
+          "read_pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reduced": {
             "default": false,
@@ -1622,6 +1642,16 @@
               }
             ],
             "title": "Quantity"
+          },
+          "read_pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "reduced": {
             "anyOf": [
@@ -2798,6 +2828,16 @@
           "line_total": {
             "title": "Line Total",
             "type": "number"
+          },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "price_type": {
             "enum": [

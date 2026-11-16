@@ -12,6 +12,7 @@ const line: ReceiptLine = {
   unit_price: 3.18,
   quantity: null,
   line_total: 3.18,
+  pack: null,
 }
 
 const inCart: ItemRef = {
@@ -205,6 +206,7 @@ const chicken: ReceiptLine = {
   unit_price: 3.05,
   quantity: null,
   line_total: 3.05,
+  pack: null,
 }
 
 /** Holds the line's state the way the review does, so edits round-trip. */

@@ -65,6 +65,7 @@ function makeResult(
         unit_price: 1.15,
         quantity: null,
         line_total: 1.15,
+        pack: null,
       },
       {
         receipt_name: 'BACON LONCHAS',
@@ -74,6 +75,7 @@ function makeResult(
         unit_price: 11.4,
         quantity: 0.202,
         line_total: 2.3,
+        pack: null,
       },
       {
         receipt_name: 'YOGUR NATURAL',
@@ -83,6 +85,7 @@ function makeResult(
         unit_price: 0.95,
         quantity: 3,
         line_total: 2.85,
+        pack: null,
       },
     ],
     unmatched: [
@@ -92,6 +95,7 @@ function makeResult(
         unit_price: 3.15,
         quantity: null,
         line_total: 3.15,
+        pack: null,
       },
     ],
     ...overrides,
@@ -823,6 +827,7 @@ describe('ReceiptScanSheet — discount lines (JAV-184)', () => {
           unit_price: -1.2,
           quantity: null,
           line_total: -1.2,
+          pack: null,
         },
       ],
     })
@@ -1235,6 +1240,63 @@ describe('ReceiptScanSheet — pack format (13b)', () => {
   it('sends no format when none was typed, so the item keeps its own', async () => {
     const { onConfirm } = renderSheet()
     expect(await savedBebida(onConfirm)).not.toHaveProperty('pack')
+  })
+
+  describe('a format the receipt line prints', () => {
+    const ONE_LITRE = { count: 1, content: 1, unit: 'l' as const }
+    const printed = () => {
+      const result = makeResult()
+      result.matched[0] = { ...result.matched[0], pack: ONE_LITRE }
+      return result
+    }
+
+    it('goes back as the read format, never as a typed one', async () => {
+      const { onConfirm } = renderSheet({ result: printed() })
+      const bebida = await savedBebida(onConfirm)
+      expect(bebida).toMatchObject({ read_pack: ONE_LITRE })
+      expect(bebida).not.toHaveProperty('pack')
+    })
+
+    it('shows in the line detail when the item has none', () => {
+      renderSheet({ result: printed() })
+      fireEvent.click(openRow('BEBIDA ALMENDRAS'))
+      expect(
+        screen.getByRole('textbox', { name: 'Peso de cada unidad' }),
+      ).toHaveValue('1 L')
+    })
+
+    it('stays cleared when cleared on a line being created', async () => {
+      const { onConfirm } = renderSheet({ result: printed() })
+      fireEvent.click(openRow('BEBIDA ALMENDRAS'))
+      fireEvent.change(screen.getByPlaceholderText(/Nombre del producto/), {
+        target: { value: 'Bebida de avena' },
+      })
+      fireEvent.change(
+        screen.getByRole('textbox', { name: 'Peso de cada unidad' }),
+        { target: { value: '' } },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+      fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+      fireEvent.click(saveButton())
+      await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+      const [, , newItems] = onConfirm.mock.calls[0]
+      expect(newItems).toEqual([
+        expect.objectContaining({ pack: null, read_pack: null }),
+      ])
+    })
+
+    it('is not sent for a weighed line, which shows no format block', async () => {
+      const result = makeResult()
+      result.matched[1] = { ...result.matched[1], pack: ONE_LITRE }
+      const { onConfirm } = renderSheet({ result })
+      fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+      fireEvent.click(saveButton())
+      await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+      const [patches] = onConfirm.mock.calls[0]
+      expect(patches.find((p) => p.item_id === 'item-2')).toMatchObject({
+        read_pack: null,
+      })
+    })
   })
 })
 
