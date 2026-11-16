@@ -20,7 +20,7 @@ const COUNT_AND_CONTENT = new RegExp(
 const CONTENT = new RegExp(String.raw`^${NUM}\s*(${UNIT})\.?$`, 'i')
 // «12», «12 uds», «x12», «pack de 12»: the count spellings a name reads.
 const COUNT =
-  /^(?:pack\s*(?:de\s*)?(\d+)|(\d+)\s*(?:uds?|unidades)\.?|x\s*(\d+)|(\d+))$/i
+  /^(?:pack\s*(?:de\s*)?(\d+)|(\d+)\s*(?:uds?|unidades)\.?|[x×]\s*(\d+)|(\d+))$/i
 
 const UNITS: Record<string, ContentUnit> = {
   kg: 'kg',

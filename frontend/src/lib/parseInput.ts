@@ -15,14 +15,17 @@ const PH = String.fromCharCode(0)
 const RESTORE_RE = new RegExp(PH + 'q(\\d+)' + PH, 'g')
 const SIGILS = '+#@|*'
 // `*` opens a format only before something that can start one: a figure,
-// «x12», «pack», «pack12» or a quoted value. Elsewhere it is text, like a
-// receipt's «*PAN BARRA» or «*packaging».
-const PACK_START_RE = new RegExp(`^(?:\\d|[x×]\\d|pack(?:$|\\d)|${PH})`, 'i')
+// «x12», «pack12» or a quoted value. Elsewhere it is text, like a receipt's
+// «*PAN BARRA», «*PACK FAMILIAR» or «*packaging».
+const PACK_START_RE = new RegExp(`^(?:\\d|[x×]\\d|pack\\d|${PH})`, 'i')
 
-// «x» alone opens a format too, when a figure follows: «*x 12».
+// «x» or «pack» alone opens a format too, when the format goes on in the
+// next word: «*x 12», «*pack de 12», «*pack 6 x 33 cl».
 function opensPack(value: string, next: string | undefined): boolean {
   if (PACK_START_RE.test(value)) return true
-  return /^[x×]$/i.test(value) && next !== undefined && /^\d/.test(next)
+  if (next === undefined) return false
+  if (/^[x×]$/i.test(value)) return /^\d/.test(next)
+  return /^pack$/i.test(value) && /^(?:\d|de$)/i.test(next)
 }
 // «pack de 6 x 33 cl» is the longest spelling: the sigil word and five more.
 const MAX_PACK_WORDS = 5

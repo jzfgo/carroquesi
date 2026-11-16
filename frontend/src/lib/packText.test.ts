@@ -18,6 +18,8 @@ describe('readPackText', () => {
     '12 unidades',
     'x12',
     'X 12',
+    '×12',
+    '× 12',
     'pack de 12',
     'pack12',
   ])('reads «%s» as a count, as a name does', (text) => {
