@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.27.1] — 2026-11-16
+
+### Fixed
+- Don't read a size like «18 x 18 cm» as a pack count (#484)
+
+
+---
 ## [0.27.0] — 2026-11-16
 
 ### Added
