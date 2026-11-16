@@ -89,6 +89,8 @@ export interface ParsedInput {
   brand: string | null
   stores: string[]
   ean?: string | null
+  /** From the `*` sigil. Absent with no sigil; null when its value is no format. */
+  pack?: S['PackFormat'] | null
 }
 
 export interface Member {

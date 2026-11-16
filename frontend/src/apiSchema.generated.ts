@@ -1204,6 +1204,7 @@ export interface components {
             ean?: string | null;
             /** Name */
             name: string;
+            pack?: components["schemas"]["PackFormat"] | null;
             /** Price */
             price?: number | null;
             /** Price Per */

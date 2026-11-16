@@ -153,6 +153,118 @@ describe('parseInput', () => {
       const result = parseInput('|4011200296908 |12345678')
       expect(result.ean).toBe('4011200296908')
     })
+
+    test('closes an open field: the words after it go to the name', () => {
+      const result = parseInput('agua #bezoya |4011200296908 mineral')
+      expect(result.brand).toBe('bezoya')
+      expect(result.name).toBe('agua mineral')
+    })
+  })
+
+  describe('* pack format sigil', () => {
+    test('sets the format and keeps it out of the name', () => {
+      const result = parseInput('agua mineral *6x1,5L +2 #bezoya')
+      expect(result.name).toBe('agua mineral')
+      expect(result.pack).toEqual({ count: 6, content: 1.5, unit: 'l' })
+      expect(result.quantity).toBe('2')
+      expect(result.brand).toBe('bezoya')
+    })
+
+    test('a quantity before it stays apart', () => {
+      const result = parseInput('agua +2 *6x1,5L')
+      expect(result.quantity).toBe('2')
+      expect(result.pack).toEqual({ count: 6, content: 1.5, unit: 'l' })
+    })
+
+    test('closes an open field: the words after it go to the name', () => {
+      const result = parseInput('agua #bezoya *6x1,5L mineral')
+      expect(result.brand).toBe('bezoya')
+      expect(result.pack).toEqual({ count: 6, content: 1.5, unit: 'l' })
+      expect(result.name).toBe('agua mineral')
+    })
+
+    test('a bare number is a count', () => {
+      expect(parseInput('huevos *12').pack).toEqual({
+        count: 12,
+        content: null,
+        unit: null,
+      })
+    })
+
+    test('a quoted value keeps its spaces', () => {
+      expect(parseInput('agua *"6 x 1,5 L"').pack).toEqual({
+        count: 6,
+        content: 1.5,
+        unit: 'l',
+      })
+    })
+
+    test('a value that names no format is null', () => {
+      const result = parseInput('agua *6xx')
+      expect(result.pack).toBeNull()
+      expect(result.name).toBe('agua')
+    })
+
+    test('a format spelled over several words is read whole', () => {
+      const result = parseInput('agua *6 x 1,5 L +2')
+      expect(result.pack).toEqual({ count: 6, content: 1.5, unit: 'l' })
+      expect(result.name).toBe('agua')
+      expect(result.quantity).toBe('2')
+      expect(parseInput('huevos *12 uds').pack).toEqual({
+        count: 12,
+        content: null,
+        unit: null,
+      })
+      expect(parseInput('cerveza *pack de 6 x 33 cl').pack).toEqual({
+        count: 6,
+        content: 33,
+        unit: 'cl',
+      })
+    })
+
+    test('words after the format go back to the name', () => {
+      const result = parseInput('huevos *12 camperos')
+      expect(result.pack).toEqual({ count: 12, content: null, unit: null })
+      expect(result.name).toBe('huevos camperos')
+    })
+
+    test('before a word that cannot start a format, * is text', () => {
+      const result = parseInput('*PAN BARRA')
+      expect(result.pack).toBeUndefined()
+      expect(result.name).toBe('*PAN BARRA')
+      expect(parseInput('agua *grande').name).toBe('agua *grande')
+      expect(parseInput('agua *packaging').name).toBe('agua *packaging')
+      expect(parseInput('agua *x').name).toBe('agua *x')
+      expect(parseInput('*PACK FAMILIAR').name).toBe('*PACK FAMILIAR')
+    })
+
+    test('a lone x opens a format when a figure follows', () => {
+      const result = parseInput('huevos *x 12')
+      expect(result.pack).toEqual({ count: 12, content: null, unit: null })
+      expect(result.name).toBe('huevos')
+      expect(parseInput('huevos *× 12').pack).toEqual({
+        count: 12,
+        content: null,
+        unit: null,
+      })
+      expect(parseInput('huevos *pack12').pack).toEqual({
+        count: 12,
+        content: null,
+        unit: null,
+      })
+    })
+
+    test('the first one wins', () => {
+      expect(parseInput('agua *5L *6x1,5L').pack).toEqual({
+        count: 1,
+        content: 5,
+        unit: 'l',
+      })
+    })
+
+    test('absent without the sigil', () => {
+      expect(parseInput('agua 6x1,5L').pack).toBeUndefined()
+    })
   })
 
   describe('quoted sigil values', () => {
