@@ -1,14 +1,15 @@
 import type { ParsedInput } from '../types'
+import { readPackText } from './packText'
 
 const SINGLE_SIGIL_MAP: Record<
   string,
-  keyof Omit<ParsedInput, 'name' | 'stores'>
+  keyof Omit<ParsedInput, 'name' | 'stores' | 'pack'>
 > = {
   '+': 'quantity',
   '#': 'brand',
 }
 
-const QUOTED_RE = /([+#@|]?)(?:"([^"]*)"|'([^']*)')/g
+const QUOTED_RE = /([+#@|*]?)(?:"([^"]*)"|'([^']*)')/g
 // Null-byte sentinel — cannot appear in user-typed text input.
 const PH = String.fromCharCode(0)
 const RESTORE_RE = new RegExp(PH + 'q(\\d+)' + PH, 'g')
@@ -41,8 +42,8 @@ export function parseInput(raw: string): ParsedInput {
   }
   const nameWords: string[] = []
 
-  let currentField: keyof Omit<ParsedInput, 'name' | 'stores'> | '@' | null =
-    null
+  let currentField:
+    keyof Omit<ParsedInput, 'name' | 'stores' | 'pack'> | '@' | null = null
   const tokenWords: Record<string, string[]> = {}
   const storeEntries: string[][] = []
 
@@ -53,6 +54,12 @@ export function parseInput(raw: string): ParsedInput {
       const digits = word.slice(1)
       if (/^\d{8}$|^\d{13}$/.test(digits) && result.ean === undefined) {
         result.ean = digits
+      }
+    } else if (sigil === '*') {
+      // One token, like the EAN: a format with spaces is quoted. The first
+      // one wins, read or not, so the preview shows the one that is sent.
+      if (result.pack === undefined) {
+        result.pack = readPackText(restore(word.slice(1)))
       }
     } else if (sigil === '@') {
       storeEntries.push([word.slice(1)])

@@ -1,5 +1,6 @@
 import { ArrowUp, ScanBarcode, Store, Tag, X } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { formatPack } from '../lib/packFormat'
 import { parseInput } from '../lib/parseInput'
 import { clientSideSuggestions } from '../lib/suggestions'
 import type { ListItem, ParsedInput, Suggestion } from '../types'
@@ -18,7 +19,7 @@ function getActiveSigil(
   raw: string,
 ): { sigil: string; partial: string; start: number } | null {
   const masked = raw.replace(/"[^"]*"|'[^']*'/g, (m) => 'x'.repeat(m.length))
-  const match = /(?:^|\s)([#@+|])(?!.*\s[#@+|])/s.exec(masked)
+  const match = /(?:^|\s)([#@+|*])(?!.*\s[#@+|*])/s.exec(masked)
   if (!match) return null
   const start = match.index + match[0].length - 1
   if (masked.slice(start) !== raw.slice(start)) return null
@@ -40,8 +41,16 @@ function hasSigil(parsed: ParsedInput): boolean {
   return (
     parsed.quantity !== null ||
     parsed.brand !== null ||
-    parsed.stores.length > 0
+    parsed.stores.length > 0 ||
+    parsed.pack !== undefined
   )
+}
+
+// «pack de 6 × 1,5 L», so `+2 *6x1,5L` reads «2 × pack de 6 × 1,5 L» and a
+// count of packs never reads as the count inside one.
+function packLabel(pack: NonNullable<ParsedInput['pack']>): string {
+  const text = formatPack(pack)
+  return pack.count > 1 && pack.content != null ? `pack de ${text}` : text
 }
 
 interface Props {
@@ -118,6 +127,8 @@ export function SmartInputBar({
   const showPreview = !inEanMode && hasSigil(parsed)
   const hasName = parsed.name.trim().length > 0
   const nameError = showPreview && !hasName
+  // A `*` that names no format is refused, not sent as part of the name.
+  const canSubmit = hasName && parsed.pack !== null
 
   function suggestionLabel(suggestion: string | Suggestion): string {
     return typeof suggestion === 'string' ? suggestion : suggestion.name
@@ -208,8 +219,17 @@ export function SmartInputBar({
           {!nameError && (
             <span className="smart-input__preview-name">{parsed.name}</span>
           )}
-          {parsed.quantity && (
-            <span className="smart-input__preview-qty">{parsed.quantity}</span>
+          {(parsed.quantity || parsed.pack) && (
+            <span className="smart-input__preview-qty">
+              {[parsed.quantity, parsed.pack && packLabel(parsed.pack)]
+                .filter(Boolean)
+                .join(' × ')}
+            </span>
+          )}
+          {parsed.pack === null && (
+            <span className="smart-input__preview-error">
+              Formato no reconocido
+            </span>
           )}
           {parsed.brand && (
             <span className="smart-input__preview-tag">
@@ -234,7 +254,7 @@ export function SmartInputBar({
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && hasName) onSubmit()
+            if (e.key === 'Enter' && canSubmit) onSubmit()
           }}
           placeholder="Añadir producto…"
           aria-label="Añadir producto"
@@ -279,7 +299,7 @@ export function SmartInputBar({
             className="smart-input__add"
             onClick={onSubmit}
             onMouseDown={(e) => e.preventDefault()}
-            disabled={!hasName}
+            disabled={!canSubmit}
             aria-label="Añadir"
             type="button"
           >

@@ -6,7 +6,15 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import case, nulls_last
 from sqlmodel import Session, col, select
 
-from app.db.models import BarcodeCache, List, ListItem, Purchase, ReceiptScan, User
+from app.db.models import (
+    BarcodeCache,
+    List,
+    ListItem,
+    Purchase,
+    ReceiptScan,
+    User,
+    pack_columns,
+)
 from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 from app.services import trips
@@ -99,7 +107,10 @@ def _take_format_of_ean(session: Session, item: ListItem, ean: str) -> None:
     list's last line with that code carried. Only this list's lines: another
     household's are not ours to read. The format comes as a guess, even
     when it was typed on that line: a typed format is protected on the line
-    it was typed on, not on the lines that copy it."""
+    it was typed on, not on the lines that copy it. A line created with a
+    format of its own keeps it."""
+    if item.pack is not None:
+        return
     source = session.exec(
         select(ListItem)
         .where(
@@ -124,7 +135,12 @@ def add_item(
     session: CurrentSession,
 ):
     lst, current_user = list_and_user
-    item = ListItem(list_id=lst.id, added_by=current_user.id, **body.model_dump())
+    item = ListItem(
+        list_id=lst.id,
+        added_by=current_user.id,
+        **body.model_dump(exclude={"pack"}),
+        **pack_columns(body.pack.model_dump() if body.pack else None),
+    )
     if body.ean:
         _take_format_of_ean(session, item, body.ean)
         # The list's own lines first. The cache is warm here: a scan looks

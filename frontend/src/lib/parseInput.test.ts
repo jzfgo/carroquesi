@@ -155,6 +155,56 @@ describe('parseInput', () => {
     })
   })
 
+  describe('* pack format sigil', () => {
+    test('sets the format and keeps it out of the name', () => {
+      const result = parseInput('agua mineral *6x1,5L +2 #bezoya')
+      expect(result.name).toBe('agua mineral')
+      expect(result.pack).toEqual({ count: 6, content: 1.5, unit: 'l' })
+      expect(result.quantity).toBe('2')
+      expect(result.brand).toBe('bezoya')
+    })
+
+    test('a quantity before it stays apart', () => {
+      const result = parseInput('agua +2 *6x1,5L')
+      expect(result.quantity).toBe('2')
+      expect(result.pack).toEqual({ count: 6, content: 1.5, unit: 'l' })
+    })
+
+    test('a bare number is a count', () => {
+      expect(parseInput('huevos *12').pack).toEqual({
+        count: 12,
+        content: null,
+        unit: null,
+      })
+    })
+
+    test('a quoted value keeps its spaces', () => {
+      expect(parseInput('agua *"6 x 1,5 L"').pack).toEqual({
+        count: 6,
+        content: 1.5,
+        unit: 'l',
+      })
+    })
+
+    test('a value that names no format is null', () => {
+      const result = parseInput('agua *grande')
+      expect(result.pack).toBeNull()
+      expect(result.name).toBe('agua')
+    })
+
+    test('the first one wins', () => {
+      expect(parseInput('agua *5L *6x1,5L').pack).toEqual({
+        count: 1,
+        content: 5,
+        unit: 'l',
+      })
+    })
+
+    test('absent without the sigil', () => {
+      expect(parseInput('agua 6x1,5L').pack).toBeUndefined()
+    })
+  })
+
   describe('quoted sigil values', () => {
     test("single-quoted brand with + inside: #'Marca + Bio'", () => {
       const result = parseInput("#'Marca + Bio'")

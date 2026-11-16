@@ -140,6 +140,46 @@ test('parse preview shows parsed name and quantity', () => {
   expect(screen.getByTestId('parse-preview')).toHaveTextContent('2')
 })
 
+describe('the * pack format sigil', () => {
+  const bar = (text: string, props = {}) =>
+    renderBar({ value: text, parsed: parseInput(text), ...props })
+
+  test('reads a count of packs apart from the count inside one', () => {
+    bar('Agua +2 *6x1,5L')
+    expect(screen.getByTestId('parse-preview')).toHaveTextContent(
+      'Agua2 × pack de 6 × 1,5 L',
+    )
+  })
+
+  test('shows a single size and a count of pieces plainly', () => {
+    bar('Agua *5L')
+    expect(screen.getByTestId('parse-preview')).toHaveTextContent('5 L')
+    expect(screen.getByTestId('parse-preview')).not.toHaveTextContent('pack')
+  })
+
+  test('shows a count of pieces as a pack', () => {
+    bar('Huevos *12')
+    expect(screen.getByTestId('parse-preview')).toHaveTextContent('pack de 12')
+  })
+
+  test('a value that names no format is flagged and cannot be sent', async () => {
+    const onSubmit = vi.fn()
+    bar('Agua *grande', { onSubmit })
+
+    expect(screen.getByTestId('parse-preview')).toHaveTextContent(
+      'Formato no reconocido',
+    )
+    expect(screen.getByRole('button', { name: /^añadir$/i })).toBeDisabled()
+    await userEvent.type(field(), '{Enter}')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  test('a readable format can be sent', () => {
+    bar('Agua *6x1,5L')
+    expect(screen.getByRole('button', { name: /^añadir$/i })).toBeEnabled()
+  })
+})
+
 test('shows "No item name" warning when input has sigil but no name', () => {
   render(
     <SmartInputBar

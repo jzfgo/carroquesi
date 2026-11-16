@@ -1,0 +1,31 @@
+[
+  { "text": "6x1,5L", "pack": { "count": 6, "content": 1.5, "unit": "l" } },
+  { "text": "6 x 1,5 L", "pack": { "count": 6, "content": 1.5, "unit": "l" } },
+  { "text": "6X1.5l", "pack": { "count": 6, "content": 1.5, "unit": "l" } },
+  { "text": "12×33cl", "pack": { "count": 12, "content": 33, "unit": "cl" } },
+  {
+    "text": "pack de 6 x 33 cl",
+    "pack": { "count": 6, "content": 33, "unit": "cl" }
+  },
+  { "text": "108g", "pack": { "count": 1, "content": 108, "unit": "g" } },
+  { "text": "1,5 L", "pack": { "count": 1, "content": 1.5, "unit": "l" } },
+  { "text": "500 gramos", "pack": { "count": 1, "content": 500, "unit": "g" } },
+  { "text": "500 gr.", "pack": { "count": 1, "content": 500, "unit": "g" } },
+  { "text": "2 kilos", "pack": { "count": 1, "content": 2, "unit": "kg" } },
+  { "text": "3 kgs", "pack": { "count": 1, "content": 3, "unit": "kg" } },
+  { "text": "1 lt.", "pack": { "count": 1, "content": 1, "unit": "l" } },
+  { "text": "2 litros", "pack": { "count": 1, "content": 2, "unit": "l" } },
+  { "text": "750ML", "pack": { "count": 1, "content": 750, "unit": "ml" } },
+  { "text": "5 dl", "pack": { "count": 1, "content": 5, "unit": "dl" } },
+  { "text": "0.330 L", "pack": { "count": 1, "content": 0.33, "unit": "l" } },
+  { "text": "1.000 ml", "pack": null },
+  { "text": "6x1.000ml", "pack": null },
+  { "text": "2000x1L", "pack": null },
+  { "text": "0 g", "pack": null },
+  { "text": "1,5", "pack": null },
+  { "text": "1,5 L agua", "pack": null },
+  { "text": "6x1,5L 5L", "pack": null },
+  { "text": "12 cm", "pack": null },
+  { "text": "grande", "pack": null },
+  { "text": "", "pack": null }
+]
