@@ -41,6 +41,10 @@ that EAN. With none, it takes the package size Open Food Facts gives for
 the code, when that size is plain («1,5 l», «6 x 33 cl»). The household's
 own lines come first: they record what it bought, and Open Food Facts is
 crowd-typed.
+A format copied from another line, by EAN or by re-buy, is a guess on the
+new line, even when it was typed by hand on the line it came from. A typed
+format is protected only on the line it was typed on, so a format typed in
+the new line's name («Agua 6x1,5L») still replaces it.
 
 **The pending-duplicate guard stays at name level.** One product, one
 pending line, whatever the format. The pending list says what to buy, not

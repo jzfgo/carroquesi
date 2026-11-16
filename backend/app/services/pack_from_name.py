@@ -194,7 +194,7 @@ def fill_from_name(item: ListItem) -> None:
     """Gives a line with no format, or one guessed before, the format its
     name carries, and takes it out of the name. A format someone typed is
     never replaced."""
-    if item.pack is not None and item.pack_source not in ("name", "receipt", "off"):
+    if item.pack is not None and item.pack_source not in ("name", "receipt", "off", "copied"):
         return
     found = format_in_name(item.name)
     if found is None:

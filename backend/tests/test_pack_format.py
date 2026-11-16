@@ -165,6 +165,14 @@ def test_rebuy_keeps_the_format(client: TestClient, session: Session):
     assert response.status_code == 201
     assert response.json()["pack"] == SIX_BY_ONE_AND_A_HALF
     assert response.json()["ean"] == "8410188011128"
+    assert session.get_one(ListItem, response.json()["id"]).pack_source == "copied"
+
+    # The format was typed on the bought line, not on this one, so a name
+    # typed here still replaces it.
+    again = response.json()
+    renamed = _patch(client, lst["id"], again["id"], {"name": "Agua 6x1L"}).json()
+    assert renamed["name"] == "Agua"
+    assert renamed["pack"] == {"count": 6, "content": 1, "unit": "l"}
 
 
 def test_a_scanned_ean_brings_the_format_its_last_line_carried(client: TestClient):
@@ -231,7 +239,38 @@ def test_the_lists_own_line_wins_over_open_food_facts(client: TestClient, sessio
     again = _item(client, lst["id"], ean="8410188011128")
 
     assert again["pack"] == SIX_BY_ONE_AND_A_HALF
-    assert session.get_one(ListItem, again["id"]).pack_source == "manual"
+    assert session.get_one(ListItem, again["id"]).pack_source == "copied"
+
+
+def _bought_with_format(client: TestClient, list_id: str, pack: dict) -> None:
+    """A bought line whose format was typed by hand, under the scanned EAN."""
+    first = _item(client, list_id, ean="8410188011128")
+    _patch(client, list_id, first["id"], {"pack": pack, "ean": "8410188011128"})
+    _patch(client, list_id, first["id"], {"purchased": True})
+
+
+def test_a_format_in_the_name_wins_over_the_one_the_ean_brings(
+    client: TestClient, session: Session
+):
+    lst = _list(client)
+    _bought_with_format(client, lst["id"], {"count": 6, "content": 1, "unit": "l"})
+
+    item = _item(client, lst["id"], name="Agua 6x1,5L", ean="8410188011128")
+
+    assert item["name"] == "Agua"
+    assert item["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert session.get_one(ListItem, item["id"]).pack_source == "name"
+
+
+def test_a_name_typed_later_replaces_the_format_the_ean_brought(client: TestClient):
+    lst = _list(client)
+    _bought_with_format(client, lst["id"], {"count": 6, "content": 1, "unit": "l"})
+    item = _item(client, lst["id"], ean="8410188011128")
+
+    renamed = _patch(client, lst["id"], item["id"], {"name": "Agua 6x1,5L"}).json()
+
+    assert renamed["name"] == "Agua"
+    assert renamed["pack"] == SIX_BY_ONE_AND_A_HALF
 
 
 def test_a_format_in_the_name_wins_over_open_food_facts(client: TestClient, session: Session):
