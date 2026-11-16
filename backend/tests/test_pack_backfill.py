@@ -89,6 +89,40 @@ def test_a_weighed_or_pending_quantity_stays(client: TestClient, session: Sessio
         assert line.pack is None
 
 
+def test_a_change_that_would_move_the_amount_is_skipped(
+    client: TestClient, session: Session, user: User
+):
+    """Clearing the bought size lets the asked «3» count: 0,80 € would
+    become 2,40 €. A record's money never moves."""
+    list_id = _list_id(client)
+    by_name = _line(
+        session,
+        user,
+        list_id,
+        "Agua 1,5L",
+        quantity="3",
+        purchased_quantity="1,5 L",
+        price=0.8,
+        purchased_at=NOW,
+    )
+    by_quantity = _line(
+        session,
+        user,
+        list_id,
+        "Leche",
+        quantity="2",
+        purchased_quantity="500 g",
+        price=1.0,
+        purchased_at=NOW,
+    )
+    plan = _backfill(session)
+    assert plan.items == []
+    assert {s.item.id for s in plan.skipped} == {by_name.id, by_quantity.id}
+    for line in (by_name, by_quantity):
+        session.refresh(line)
+        assert line.pack is None
+
+
 def test_a_format_already_there_is_never_replaced(client: TestClient, session: Session, user: User):
     line = _line(
         session,

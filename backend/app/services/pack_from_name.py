@@ -81,7 +81,8 @@ def _pack(count: int, content: str | None, unit: str | None) -> dict | None:
 def _clean(name: str) -> str:
     name = _EMPTY_BRACKETS.sub(" ", name)
     name = re.sub(r"\s+", " ", name).strip()
-    # Word by word from the end, so it stays linear on any input.
+    # Word by word from the end, with no backtracking regex. Each step
+    # slices, so the name cap is what bounds the cost.
     while name:
         if name[-1] in _DANGLING_MARKS:
             name = name[:-1].rstrip()
