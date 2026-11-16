@@ -68,11 +68,15 @@ export function parseInput(raw: string): ParsedInput {
     const sigil = word[0]
 
     if (sigil === '|') {
+      // `|` and `*` read their own words only. They close an open field, so
+      // the words after them go back to the name.
+      currentField = null
       const digits = word.slice(1)
       if (/^\d{8}$|^\d{13}$/.test(digits) && result.ean === undefined) {
         result.ean = digits
       }
     } else if (sigil === '*' && opensPack(word.slice(1), words[i + 1])) {
+      currentField = null
       // A format may span words («*6 x 1,5 L»). The longest run that reads
       // wins, so no piece of it falls into the name. A sigil ends the run.
       let pack = readPackText(restore(word.slice(1)))

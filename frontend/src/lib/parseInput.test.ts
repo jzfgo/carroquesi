@@ -153,6 +153,12 @@ describe('parseInput', () => {
       const result = parseInput('|4011200296908 |12345678')
       expect(result.ean).toBe('4011200296908')
     })
+
+    test('closes an open field: the words after it go to the name', () => {
+      const result = parseInput('agua #bezoya |4011200296908 mineral')
+      expect(result.brand).toBe('bezoya')
+      expect(result.name).toBe('agua mineral')
+    })
   })
 
   describe('* pack format sigil', () => {
@@ -168,6 +174,13 @@ describe('parseInput', () => {
       const result = parseInput('agua +2 *6x1,5L')
       expect(result.quantity).toBe('2')
       expect(result.pack).toEqual({ count: 6, content: 1.5, unit: 'l' })
+    })
+
+    test('closes an open field: the words after it go to the name', () => {
+      const result = parseInput('agua #bezoya *6x1,5L mineral')
+      expect(result.brand).toBe('bezoya')
+      expect(result.pack).toEqual({ count: 6, content: 1.5, unit: 'l' })
+      expect(result.name).toBe('agua mineral')
     })
 
     test('a bare number is a count', () => {
