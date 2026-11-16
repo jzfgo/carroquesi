@@ -284,3 +284,19 @@ def test_mapping_skips_an_item_already_claimed(session):
     )
     assert [m.item_id for m in matched] == ["item-1"]
     assert len(unmatched) == 1
+
+
+def test_a_mapping_learned_before_formats_left_names_still_matches(session):
+    session.add(
+        ReceiptNameMapping(
+            store="mercadona",
+            receipt_name="agua min 6x1.5",
+            item_name="Agua mineral 6x1,5L",
+            confirmed_by="user-1",
+        )
+    )
+    session.commit()
+
+    items = [_item("item-1", "Agua mineral"), _item("item-2", "Leche")]
+    matched, _ = match_lines([_unit("AGUA MIN 6X1.5", 2.10)], "Mercadona", items, session)
+    assert [m.item_id for m in matched] == ["item-1"]
