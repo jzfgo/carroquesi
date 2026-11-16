@@ -240,6 +240,18 @@ def test_a_line_with_the_ean_and_no_format_does_not_hide_an_older_one(
     assert again["pack"] == {"count": 12, "content": None, "unit": None}
 
 
+def test_a_count_of_one_alone_does_not_hide_an_older_format(client: TestClient, session: Session):
+    """One piece with no content is no format, so it must not stand in
+    front of an older line that has one."""
+    lst = _list(client)
+    _bought_line(session, lst["id"], "8410188011128", 60, pack_count=12)
+    _bought_line(session, lst["id"], "8410188011128", 5, pack_count=1)
+
+    again = _item(client, lst["id"], ean="8410188011128")
+
+    assert again["pack"] == {"count": 12, "content": None, "unit": None}
+
+
 def test_a_line_with_another_ean_brings_no_format(client: TestClient, session: Session):
     lst = _list(client)
     _bought_line(
