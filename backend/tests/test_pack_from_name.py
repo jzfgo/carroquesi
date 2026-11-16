@@ -25,7 +25,24 @@ from app.services.pack_from_name import format_in_name, format_in_quantity
         ("Agua de 1,5L", "Agua", {"count": 1, "content": 1.5, "unit": "l"}),
         ("Agua - 1,5L", "Agua", {"count": 1, "content": 1.5, "unit": "l"}),
         ("Tomate 1kg rama", "Tomate rama", {"count": 1, "content": 1, "unit": "kg"}),
-        ("Tomate (bandeja 400g)", "Tomate (bandeja)", {"count": 1, "content": 400, "unit": "g"}),
+        # The container goes with the format: it says how the product is
+        # sold, not what it is.
+        ("Tomate (bandeja 400g)", "Tomate", {"count": 1, "content": 400, "unit": "g"}),
+        ("Leche entera Brik 1l", "Leche entera", {"count": 1, "content": 1, "unit": "l"}),
+        ("Leche entera Botella 1,5l", "Leche entera", {"count": 1, "content": 1.5, "unit": "l"}),
+        ("Coca-cola Zero lata 33cl", "Coca-cola Zero", {"count": 1, "content": 33, "unit": "cl"}),
+        (
+            "Patata para freir en malla 2Kg",
+            "Patata para freir",
+            {"count": 1, "content": 2, "unit": "kg"},
+        ),
+        ("Cerveza latas 6x33cl", "Cerveza", {"count": 6, "content": 33, "unit": "cl"}),
+        # First word: the container is the product.
+        (
+            "Botella de agua reutilizable 750ml",
+            "Botella de agua reutilizable",
+            {"count": 1, "content": 750, "unit": "ml"},
+        ),
         # A size in cm is no format, so the count is the only one.
         (
             "Papel de horno 19,5x19,5cm (50 unidades)",
@@ -70,6 +87,10 @@ def test_reads_and_strips_a_format(name, stripped, pack):
 )
 def test_leaves_a_name_without_one_format_alone(name):
     assert format_in_name(name) is None
+
+
+def test_keeps_a_container_when_there_is_no_format():
+    assert format_in_name("Leche entera Brik") is None
 
 
 @pytest.mark.parametrize(
