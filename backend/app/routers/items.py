@@ -6,13 +6,13 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import case, nulls_last
 from sqlmodel import Session, col, select
 
-from app.db.models import List, ListItem, Purchase, ReceiptScan, User
+from app.db.models import BarcodeCache, List, ListItem, Purchase, ReceiptScan, User
 from app.dependencies import CurrentSession, MemberDep, MemberOrDefaultDep
 from app.schemas.items import ItemCreate, ItemRead, ItemUpdate
 from app.services import trips
 from app.services.bought_by_weight import mark_bought_by_weight
 from app.services.client_day import ClientTimezone
-from app.services.pack_from_name import fill_from_name
+from app.services.pack_from_name import fill_from_name, fill_from_off
 from app.services.pending_duplicate import find_pending_duplicate
 from app.services.push import notify_list_change
 from app.services.store_registry import ensure_stores
@@ -124,6 +124,10 @@ def add_item(
     item = ListItem(list_id=lst.id, added_by=current_user.id, **body.model_dump())
     if body.ean:
         _take_format_of_ean(session, item, body.ean)
+        # The list's own lines first. The cache is warm here: a scan looks
+        # the code up before it adds the line.
+        cached = session.exec(select(BarcodeCache).where(BarcodeCache.ean == body.ean)).first()
+        fill_from_off(item, cached.quantity if cached else None)
     fill_from_name(item)
     # After the format leaves the name: «Agua 6x1,5L» is the pending «Agua».
     if find_pending_duplicate(session, lst.id, item.name, item.ean) is not None:

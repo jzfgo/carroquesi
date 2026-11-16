@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from app.db.models import ListItem, Purchase
+from app.db.models import BarcodeCache, ListItem, Purchase
 
 SIX_BY_ONE_AND_A_HALF = {"count": 6, "content": 1.5, "unit": "l"}
 
@@ -186,6 +186,73 @@ def test_an_ean_from_another_list_brings_no_format(client: TestClient):
     _patch(client, other["id"], line["id"], {"pack": SIX_BY_ONE_AND_A_HALF, "ean": "8410188011128"})
 
     assert _item(client, mine["id"], ean="8410188011128")["pack"] is None
+
+
+def _cache(session: Session, quantity: str | None, ean: str = "8410188011128") -> None:
+    session.add(BarcodeCache(ean=ean, name="Agua", quantity=quantity))
+    session.commit()
+
+
+@pytest.mark.parametrize(
+    ("quantity", "pack"),
+    [
+        ("6 x 1,5 l", SIX_BY_ONE_AND_A_HALF),
+        ("500 g ℮", {"count": 1, "content": 500, "unit": "g"}),
+    ],
+)
+def test_a_scanned_ean_brings_the_size_open_food_facts_gives(
+    client: TestClient, session: Session, quantity: str, pack: dict
+):
+    _cache(session, quantity)
+    lst = _list(client)
+
+    item = _item(client, lst["id"], ean="8410188011128")
+
+    assert item["pack"] == pack
+    assert session.get_one(ListItem, item["id"]).pack_source == "off"
+
+
+@pytest.mark.parametrize("quantity", [None, "1 pack", "500 g (2 x 250 g)"])
+def test_a_size_open_food_facts_does_not_give_plainly_brings_no_format(
+    client: TestClient, session: Session, quantity: str | None
+):
+    _cache(session, quantity)
+    lst = _list(client)
+    assert _item(client, lst["id"], ean="8410188011128")["pack"] is None
+
+
+def test_the_lists_own_line_wins_over_open_food_facts(client: TestClient, session: Session):
+    _cache(session, "1 l")
+    lst = _list(client)
+    first = _item(client, lst["id"], ean="8410188011128")
+    _patch(client, lst["id"], first["id"], {"pack": SIX_BY_ONE_AND_A_HALF, "ean": "8410188011128"})
+    _patch(client, lst["id"], first["id"], {"purchased": True})
+
+    again = _item(client, lst["id"], ean="8410188011128")
+
+    assert again["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert session.get_one(ListItem, again["id"]).pack_source == "manual"
+
+
+def test_a_format_in_the_name_wins_over_open_food_facts(client: TestClient, session: Session):
+    _cache(session, "1 l")
+    lst = _list(client)
+
+    item = _item(client, lst["id"], name="Agua 6x1,5L", ean="8410188011128")
+
+    assert item["name"] == "Agua"
+    assert item["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert session.get_one(ListItem, item["id"]).pack_source == "name"
+
+
+def test_a_name_typed_later_replaces_the_open_food_facts_size(client: TestClient, session: Session):
+    _cache(session, "1 l")
+    lst = _list(client)
+    item = _item(client, lst["id"], ean="8410188011128")
+
+    renamed = _patch(client, lst["id"], item["id"], {"name": "Agua 6x1,5L"}).json()
+
+    assert renamed["pack"] == SIX_BY_ONE_AND_A_HALF
 
 
 def test_a_format_in_the_name_moves_to_the_format(client: TestClient, session: Session):
