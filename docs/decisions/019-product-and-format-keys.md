@@ -32,6 +32,10 @@ format again. Changing the format by hand clears the line's EAN, because
 that EAN named the old format; a scan in the same request sets the new one.
 A missing EAN only costs a lookup; a wrong one would teach the barcode the
 wrong format.
+A format read off a receipt line fills only a line with no format, and the
+line keeps its EAN. That read can come from a fuzzy match, so a wrong match
+can give the EAN a wrong format. We accept this: the review shows the read
+format before the save, and the case is rare.
 
 **The pending-duplicate guard stays at name level.** One product, one
 pending line, whatever the format. The pending list says what to buy, not

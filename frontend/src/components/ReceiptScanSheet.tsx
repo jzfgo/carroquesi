@@ -587,6 +587,8 @@ export default function ReceiptScanSheet({
       const reduction = ls.label
         ? reductionFields(ls.label, price, pricePer)
         : null
+      // A weighed line has no format block, so no read the user never saw.
+      const read = pricePer === 'KILOGRAM' ? null : (line.pack ?? null)
       if (r.kind === 'matched' || r.kind === 'linked') {
         patches.push({
           item_id: r.itemId,
@@ -601,7 +603,7 @@ export default function ReceiptScanSheet({
             ? { pack: typedPack(ls, r.itemId) }
             : {}),
           // The paper's format, for an item with none: never a replacement.
-          read_pack: line.pack ?? null,
+          read_pack: read,
           // Without a label read here, no `reduced`: a line closed with a
           // reduced label keeps its flag.
           ...reduction,
@@ -618,8 +620,7 @@ export default function ReceiptScanSheet({
           article: ls.label?.article ?? null,
           pack: typedPack(ls, null) ?? null,
           // A format cleared here stays cleared: no read fills it back.
-          read_pack:
-            typedPack(ls, null) === undefined ? (line.pack ?? null) : null,
+          read_pack: typedPack(ls, null) === undefined ? read : null,
           ...(reduction ?? { reduced: false }),
         })
       }

@@ -1261,8 +1261,41 @@ describe('ReceiptScanSheet — pack format (13b)', () => {
       renderSheet({ result: printed() })
       fireEvent.click(openRow('BEBIDA ALMENDRAS'))
       expect(
-        screen.queryByRole('button', { name: /Añadir formato/ }),
-      ).not.toBeInTheDocument()
+        screen.getByRole('textbox', { name: 'Peso de cada unidad' }),
+      ).toHaveValue('1 L')
+    })
+
+    it('stays cleared when cleared on a line being created', async () => {
+      const { onConfirm } = renderSheet({ result: printed() })
+      fireEvent.click(openRow('BEBIDA ALMENDRAS'))
+      fireEvent.change(screen.getByPlaceholderText(/Nombre del producto/), {
+        target: { value: 'Bebida de avena' },
+      })
+      fireEvent.change(
+        screen.getByRole('textbox', { name: 'Peso de cada unidad' }),
+        { target: { value: '' } },
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Asignar' }))
+      fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+      fireEvent.click(saveButton())
+      await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+      const [, , newItems] = onConfirm.mock.calls[0]
+      expect(newItems).toEqual([
+        expect.objectContaining({ pack: null, read_pack: null }),
+      ])
+    })
+
+    it('is not sent for a weighed line, which shows no format block', async () => {
+      const result = makeResult()
+      result.matched[1] = { ...result.matched[1], pack: ONE_LITRE }
+      const { onConfirm } = renderSheet({ result })
+      fireEvent.click(screen.getByRole('checkbox', { name: /MANI DULCE/ }))
+      fireEvent.click(saveButton())
+      await waitFor(() => expect(onConfirm).toHaveBeenCalled())
+      const [patches] = onConfirm.mock.calls[0]
+      expect(patches.find((p) => p.item_id === 'item-2')).toMatchObject({
+        read_pack: null,
+      })
     })
   })
 })
