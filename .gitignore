@@ -71,3 +71,5 @@ backend/.env*
 
 # SQLite
 *.db
+
+.DS_Store
