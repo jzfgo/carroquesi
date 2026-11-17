@@ -16,10 +16,11 @@ editing anything; never "refresh" a doc from memory of what the app does.
 - `AGENTS.md` — the canonical file, loaded by Claude Code directly.
 - `frontend/AGENTS.md`, `backend/AGENTS.md` — nested guidance, loaded when
   working in that directory.
-- `.claude/rules/*.md`, when present — path-scoped deep detail (Claude Code
-  loads a rule file only when working with files matching its `paths`
-  frontmatter). For each one that exists, keep the root pointer and the rule
-  file consistent with each other.
+- Context skills (`.agents/skills/*/SKILL.md` with `paths` frontmatter and
+  `user-invocable: false`, such as `ci` and `receipt-scanning`) — path-scoped
+  deep detail. Each has a symlink in `.claude/rules/`, so Claude Code injects
+  it when working with files matching its `paths`. For each, keep the root
+  pointer, the skill's `description`, and its body consistent with each other.
 - `README.md` — human setup and overview.
 - **Not synced from code**: `DESIGN.md` is a summary derived from the approved
   handoff (`docs/design/handoff/`, canonical); `PRODUCT.md` is product intent;
@@ -61,7 +62,8 @@ AGENTS.md > README. If nothing drifted, say so and stop.
   don't add what `ls`, a manifest, or `--help` already shows (no router
   inventories, no directory trees) — document gotchas, invariants, and
   rationale.
-- Deep feature detail belongs in a `.claude/rules/` file with `paths`
-  frontmatter, with a one-paragraph pointer in the root file, when it is only
-  relevant to sessions touching those files.
+- Deep feature detail belongs in a context skill (`paths` frontmatter,
+  `user-invocable: false`, a `.claude/rules/` symlink to its `SKILL.md`), with
+  a one-paragraph pointer in the root file, when it is only relevant to
+  sessions touching those files.
 - Ship via the `ship` skill; commit as `docs: sync docs with <what shipped>`.
