@@ -150,7 +150,7 @@ Each guard's rationale is in its hook's docstring; the staged-file checks are in
 
 ### CI
 
-All PR checks live in `.github/workflows/ci.yml`. `CI gate` is the only required status check, and `ci.yml` must never get `paths:`. The full contract is in the `ci` skill (`.agents/skills/ci/SKILL.md`), which Claude Code loads automatically when working on CI files.
+All PR checks live in `.github/workflows/ci.yml`. `CI gate` is the only required status check, and `ci.yml` must never get `paths:`. The full contract is in the `ci` skill (`.agents/skills/ci/SKILL.md`), which Claude Code loads automatically when working on CI files (through its `.claude/rules/` symlink).
 
 ### Architecture Decision Records
 
