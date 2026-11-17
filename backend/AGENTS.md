@@ -17,7 +17,7 @@ mutmut does not mutate decorated functions. Only `@staticmethod` and `@classmeth
 
 ## Key conventions
 
-- **Endpoints are registered without a decorator.** Write the endpoint as a plain function, then register it on the line after the function, with the same arguments a decorator would take. Keep the registration next to its function, because registration order is route-matching order. Never write `@router.get(...)`: mutmut would make no mutants for the endpoint, and `tests/test_routes_undecorated.py` fails on any decorated function under `app/routers/`.
+- **Endpoints are registered without a decorator.** Write the endpoint as a plain function, then register it on the line after the function, with the same arguments a decorator would take. Keep the registration next to its function, because registration order is route-matching order. Never write `@router.get(...)`: mutmut would make no mutants for the endpoint, and `tests/test_routes_undecorated.py` fails on any route decorator under `app/routers/`.
 
   ```python
   def get_list(list_and_user: MemberDep, session: CurrentSession):
