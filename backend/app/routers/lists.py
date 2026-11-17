@@ -175,9 +175,9 @@ def create_list(
     try:
         session.flush()
     except IntegrityError:
-        # A concurrent request with the same key won the unique index.
-        # Answer with its list, as a sequential repeat would. The SQLite
-        # test harness serialises requests and never reaches this path.
+        # A concurrent request with the same key won the unique index
+        # between the lookup above and this insert. Answer with its list,
+        # as a sequential repeat would.
         session.rollback()
         if idempotency_key is None:
             raise

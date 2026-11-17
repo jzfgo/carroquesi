@@ -14,6 +14,7 @@ from app.db.models import (
     ReportRun,
     User,
 )
+from app.routers import lists as lists_router
 
 
 def _reshape_trip(session: Session, item_id: str, *, tear_off=None, closed_at=None) -> Purchase:
@@ -50,6 +51,30 @@ def test_create_list_repeat_key_returns_the_first_list(client: TestClient, sessi
     assert again.json()["is_default"] is True
     assert len(session.exec(select(List)).all()) == 1
     assert len(session.exec(select(ListMember)).all()) == 1
+
+
+def test_create_list_race_on_the_key_returns_the_winner(
+    client: TestClient, session: Session, monkeypatch
+):
+    """Two requests with one key both miss the lookup; the second insert hits
+    the unique index and must answer with the first list, not a 500."""
+    headers = {"Idempotency-Key": "k-race"}
+    first = client.post("/lists", json={"name": "Costco"}, headers=headers)
+
+    real_lookup = lists_router._list_by_create_key
+    calls = []
+
+    def miss_once(*args):
+        calls.append(args)
+        return None if len(calls) == 1 else real_lookup(*args)
+
+    monkeypatch.setattr(lists_router, "_list_by_create_key", miss_once)
+    again = client.post("/lists", json={"name": "Costco"}, headers=headers)
+
+    assert len(calls) == 2
+    assert again.status_code == 200
+    assert again.json()["id"] == first.json()["id"]
+    assert len(session.exec(select(List)).all()) == 1
 
 
 def test_create_list_different_keys_make_two_lists(client: TestClient, session: Session):
