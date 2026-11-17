@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **input:** * sigil sets the pack format (JAV-241) (#491)
+- **prices:** the ficha offers «Registrar un precio» on a record with no price history yet (JAV-204) (#494)
 
 
 ---
