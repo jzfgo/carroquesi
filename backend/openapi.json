@@ -448,6 +448,16 @@
             "title": "Name",
             "type": "string"
           },
+          "pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PackFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "price": {
             "anyOf": [
               {

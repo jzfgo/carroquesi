@@ -269,6 +269,7 @@ export function createItem(
     price?: number | null
     price_per?: 'KILOGRAM' | null
     price_store?: string | null
+    pack?: PackFormat | null
   },
 ) {
   return apiFetch(getToken, `/lists/${listId}/items`, {

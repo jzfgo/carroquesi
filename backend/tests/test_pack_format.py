@@ -30,6 +30,46 @@ def test_a_new_item_has_no_format(client: TestClient):
     assert _item(client, lst["id"])["pack"] is None
 
 
+def test_a_format_sent_with_a_new_item_is_typed(client: TestClient, session: Session):
+    lst = _list(client)
+
+    item = _item(client, lst["id"], name="Agua mineral", pack=SIX_BY_ONE_AND_A_HALF)
+
+    assert item["name"] == "Agua mineral"
+    assert item["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert session.get_one(ListItem, item["id"]).pack_source == "manual"
+
+
+def test_a_typed_format_beats_the_one_in_the_name(client: TestClient):
+    """The name keeps its text: the format it carries is not this line's."""
+    lst = _list(client)
+
+    item = _item(client, lst["id"], name="Agua 6x1L", pack=SIX_BY_ONE_AND_A_HALF)
+
+    assert item["name"] == "Agua 6x1L"
+    assert item["pack"] == SIX_BY_ONE_AND_A_HALF
+
+
+def test_a_typed_format_beats_the_one_its_ean_brings(client: TestClient, session: Session):
+    lst = _list(client)
+    _bought_line(session, lst["id"], "8410188011128", 5, pack_count=12)
+    session.add(BarcodeCache(ean="8410188011128", name="Agua", quantity="5 l"))
+    session.commit()
+
+    item = _item(client, lst["id"], ean="8410188011128", pack=SIX_BY_ONE_AND_A_HALF)
+
+    assert item["pack"] == SIX_BY_ONE_AND_A_HALF
+    assert session.get_one(ListItem, item["id"]).pack_source == "manual"
+
+
+def test_an_invalid_format_on_a_new_item_is_refused(client: TestClient):
+    lst = _list(client)
+
+    response = client.post(f"/lists/{lst['id']}/items", json={"name": "Agua", "pack": {"count": 1}})
+
+    assert response.status_code == 422
+
+
 def test_setting_a_format_reads_it_back(client: TestClient):
     lst = _list(client)
     item = _item(client, lst["id"])

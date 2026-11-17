@@ -234,6 +234,31 @@ describe('useListItems — addItem', () => {
     expect(created).toEqual(realItem)
   })
 
+  it('sends a typed format with the new item', async () => {
+    vi.mocked(api.createItem).mockResolvedValue(item1 as never)
+    const { result } = renderHook(() =>
+      useListItems('list-1', mockGetToken, mockShowToast),
+    )
+    await waitFor(() => expect(result.current.status).toBe('success'))
+    const pack = { count: 6, content: 1.5, unit: 'l' as const }
+
+    await act(async () => {
+      await result.current.addItem({
+        name: 'Agua',
+        quantity: null,
+        brand: null,
+        stores: [],
+        pack,
+      })
+    })
+
+    expect(api.createItem).toHaveBeenCalledWith(
+      mockGetToken,
+      'list-1',
+      expect.objectContaining({ name: 'Agua', pack }),
+    )
+  })
+
   it('removes temp item and shows toast on error', async () => {
     vi.mocked(api.createItem).mockRejectedValue(new Error('Network'))
     const { result } = renderHook(() =>

@@ -40,6 +40,8 @@ class ItemCreate(BaseModel):
     price: float | None = Field(default=None, ge=0)
     price_per: Literal["KILOGRAM"] | None = None
     price_store: str | None = None
+    # A format typed with the line. No guess replaces it.
+    pack: PackFormat | None = None
 
     @model_validator(mode="after")
     def price_per_requires_price(self) -> ItemCreate:

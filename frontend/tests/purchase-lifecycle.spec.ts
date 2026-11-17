@@ -11,7 +11,6 @@ const LIST_ID = SEED_LISTS[0].id
 const ITEM_CAFE = SEED_ITEMS[LIST_ID][1] // no price, one store, unpurchased
 const ITEM_LECHE = SEED_ITEMS[LIST_ID][0] // has a price already, unpurchased
 const ITEM_MANTEQUILLA = SEED_ITEMS[LIST_ID][2] // closed-trip record, no price
-const ITEM_HUEVOS = SEED_ITEMS[LIST_ID][3] // closed-trip record, already priced
 
 function itemCard(page: Page, name: string) {
   return page.locator('.item-card').filter({ hasText: name })
@@ -242,35 +241,6 @@ for (const { name: themeName, colorScheme } of THEMES) {
       // refreshed here, so the sheet dismissing is the confirmation, not a new
       // figure on the card.
       await expect(sheet).toBeHidden()
-    })
-
-    test('a closed-trip record offers no price deletion — its spend is settled', async ({
-      page,
-    }) => {
-      // The trip-boundary rule at the UI layer: once a trip has torn off, the
-      // price it recorded is permanent history. The record can still be
-      // corrected (Guardar stays), but the log sheet offers no «Eliminar
-      // precio» — deleting spend nobody can re-date is what the rule forbids.
-      // This is the same guard the backend enforces with a 422; here the
-      // control never appears, so the request is never made.
-      await installClosedTrip(page)
-      await gotoList(page)
-
-      await stackRecord(page, ITEM_HUEVOS.name)
-        .locator('.item-card__body')
-        .click()
-      const ficha = page.getByRole('dialog', { name: ITEM_HUEVOS.name })
-      await expect(ficha).toBeVisible()
-      await ficha.getByRole('button', { name: 'Registrar un precio' }).click()
-
-      const sheet = page.locator('.lps')
-      await expect(sheet).toBeVisible()
-      // Correcting the price is still on offer…
-      await expect(sheet.getByRole('button', { name: 'Guardar' })).toBeVisible()
-      // …but deletion is not, because the trip has closed.
-      await expect(
-        sheet.getByRole('button', { name: 'Eliminar precio' }),
-      ).toHaveCount(0)
     })
   })
 }

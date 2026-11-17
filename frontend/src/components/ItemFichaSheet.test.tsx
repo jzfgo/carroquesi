@@ -320,3 +320,23 @@ test('a weighed line has no Formato row', () => {
   renderSheet({ price_per: 'KILOGRAM' })
   expect(screen.queryByText('Formato')).not.toBeInTheDocument()
 })
+
+test('a record with no price yet still offers «Registrar un precio»', async () => {
+  const onLogPrice = vi.fn()
+  renderSheet({ purchased: true }, { onLogPrice })
+
+  // The history fetch resolves empty; the entry row must not wait on it.
+  fireEvent.click(
+    await screen.findByRole('button', { name: /registrar un precio/i }),
+  )
+  expect(onLogPrice).toHaveBeenCalledOnce()
+})
+
+test('without a price entry and no history, the ficha shows no entry row', async () => {
+  renderSheet()
+
+  await waitFor(() => expect(getPriceHistory).toHaveBeenCalled())
+  expect(
+    screen.queryByRole('button', { name: /registrar un precio/i }),
+  ).not.toBeInTheDocument()
+})
