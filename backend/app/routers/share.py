@@ -11,7 +11,6 @@ from app.dependencies import CurrentSession
 router = APIRouter(tags=["share"])
 
 
-@router.get("/i/{invite_id}", response_class=HTMLResponse, include_in_schema=False)
 def invite_share_page(invite_id: str, session: CurrentSession):
     """
     Returns an HTML page with Open Graph meta tags for social sharing previews
@@ -70,3 +69,8 @@ def invite_share_page(invite_id: str, session: CurrentSession):
 </html>"""
 
     return HTMLResponse(content=html)
+
+
+router.get("/i/{invite_id}", response_class=HTMLResponse, include_in_schema=False)(
+    invite_share_page
+)

@@ -14,7 +14,6 @@ router = APIRouter(tags=["shortcuts"])
 _SHORTCUT_PATH = Path(__file__).resolve().parent.parent / "static" / "cqs.shortcut"
 
 
-@router.get("/shortcuts/cqs.shortcut")
 def download_shortcut() -> Response:
     if not _SHORTCUT_PATH.exists():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Shortcut not available")
@@ -35,7 +34,9 @@ def download_shortcut() -> Response:
     )
 
 
-@router.post("/account/api-key")
+router.get("/shortcuts/cqs.shortcut")(download_shortcut)
+
+
 def issue_api_key(current_user: CurrentUser, session: CurrentSession) -> dict:
     """Issue an API key only if the user doesn't already have one — never rotates.
 
@@ -63,7 +64,9 @@ def issue_api_key(current_user: CurrentUser, session: CurrentSession) -> dict:
     return {"key": plaintext, "created": True}
 
 
-@router.post("/account/api-key/regenerate")
+router.post("/account/api-key")(issue_api_key)
+
+
 def regenerate_api_key(current_user: CurrentUser, session: CurrentSession) -> dict:
     plaintext = generate_key()
     api_key = session.exec(select(ApiKey).where(ApiKey.user_id == current_user.id)).first()
@@ -77,3 +80,6 @@ def regenerate_api_key(current_user: CurrentUser, session: CurrentSession) -> di
         "key": plaintext,
         "regenerated_at": datetime.now(UTC).isoformat(),
     }
+
+
+router.post("/account/api-key/regenerate")(regenerate_api_key)
