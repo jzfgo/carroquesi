@@ -28,7 +28,6 @@ def _parse_quantity_numeric(q: str | None) -> float | None:
     return float(m.group(1).replace(",", "."))
 
 
-@router.get("/suggestions", response_model=list[SuggestionRead])
 def get_suggestions(
     q: Annotated[str, Query(min_length=1)],
     current_user: CurrentUser,
@@ -70,7 +69,9 @@ def get_suggestions(
     return [latest[key] for key in sorted(latest)][:10]
 
 
-@router.get("/lists/{list_id}/items/elsewhere", response_model=ElsewhereMatchRead | None)
+router.get("/suggestions", response_model=list[SuggestionRead])(get_suggestions)
+
+
 def get_elsewhere_match(
     name: Annotated[str, Query(min_length=1)],
     list_and_user: MemberDep,
@@ -116,7 +117,11 @@ def get_elsewhere_match(
     )
 
 
-@router.get("/lists/{list_id}/due-suggestions", response_model=list[DueSuggestionRead])
+router.get("/lists/{list_id}/items/elsewhere", response_model=ElsewhereMatchRead | None)(
+    get_elsewhere_match
+)
+
+
 def get_due_suggestions(
     list_and_user: MemberOrDefaultDep,
     session: CurrentSession,
@@ -195,7 +200,14 @@ def get_due_suggestions(
     return results[:10]
 
 
-@router.get("/lists/{list_id}/updated-at", response_model=ListUpdatedAtRead)
+router.get("/lists/{list_id}/due-suggestions", response_model=list[DueSuggestionRead])(
+    get_due_suggestions
+)
+
+
 def get_updated_at(list_and_user: MemberDep):
     lst, _ = list_and_user
     return {"updated_at": lst.updated_at}
+
+
+router.get("/lists/{list_id}/updated-at", response_model=ListUpdatedAtRead)(get_updated_at)

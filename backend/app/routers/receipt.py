@@ -235,7 +235,6 @@ def _infer_past_target(
     return candidates[0] if len(candidates) == 1 else None
 
 
-@router.post("/lists/{list_id}/receipt", response_model=ReceiptScanResult)
 def scan_receipt(
     list_id: str,
     body: ReceiptScanRequest,
@@ -353,7 +352,9 @@ def scan_receipt(
     )
 
 
-@router.post("/lists/{list_id}/receipt-prices", response_model=ReceiptPriceApplyResult)
+router.post("/lists/{list_id}/receipt", response_model=ReceiptScanResult)(scan_receipt)
+
+
 def apply_receipt_prices(
     list_id: str,
     body: ReceiptPriceBatch,
@@ -655,10 +656,11 @@ def apply_receipt_prices(
     return {"items_updated": updated, "items_created": created, "items_skipped": skipped}
 
 
-@router.post(
-    "/lists/{list_id}/receipts/{scan_id}/upload-url",
-    response_model=ReceiptUploadUrlResult,
+router.post("/lists/{list_id}/receipt-prices", response_model=ReceiptPriceApplyResult)(
+    apply_receipt_prices
 )
+
+
 def create_receipt_upload_url(
     list_id: str,
     scan_id: str,
@@ -711,10 +713,12 @@ def create_receipt_upload_url(
     )
 
 
-@router.get(
-    "/lists/{list_id}/receipts/{scan_id}/file-url",
-    response_model=ReceiptFileUrlResult,
-)
+router.post(
+    "/lists/{list_id}/receipts/{scan_id}/upload-url",
+    response_model=ReceiptUploadUrlResult,
+)(create_receipt_upload_url)
+
+
 def get_receipt_file_url(
     list_id: str,
     scan_id: str,
@@ -750,10 +754,12 @@ def get_receipt_file_url(
     )
 
 
-@router.get(
-    "/lists/{list_id}/receipts/{scan_id}/thumb-url",
-    response_model=ReceiptThumbUrlResult,
-)
+router.get(
+    "/lists/{list_id}/receipts/{scan_id}/file-url",
+    response_model=ReceiptFileUrlResult,
+)(get_receipt_file_url)
+
+
 def get_receipt_thumb_url(
     list_id: str,
     scan_id: str,
@@ -790,10 +796,12 @@ def get_receipt_thumb_url(
     return ReceiptThumbUrlResult(url=url)
 
 
-@router.get(
-    "/lists/{list_id}/purchases/{purchase_id}/receipt-scans",
-    response_model=list[ReceiptScanSummary],
-)
+router.get(
+    "/lists/{list_id}/receipts/{scan_id}/thumb-url",
+    response_model=ReceiptThumbUrlResult,
+)(get_receipt_thumb_url)
+
+
 def list_purchase_receipt_scans(
     list_id: str,
     purchase_id: str,
@@ -823,3 +831,9 @@ def list_purchase_receipt_scans(
         )
         for scan in scans
     ]
+
+
+router.get(
+    "/lists/{list_id}/purchases/{purchase_id}/receipt-scans",
+    response_model=list[ReceiptScanSummary],
+)(list_purchase_receipt_scans)

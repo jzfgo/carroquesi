@@ -37,7 +37,6 @@ def _notify_safely(session: Session, lst: List, actor: User, new_owner_id: str) 
         logger.exception("push notification failed for list %s", lst.id)
 
 
-@router.get("", response_model=list[MemberRead])
 def get_members(
     list_and_user: MemberDep,
     session: CurrentSession,
@@ -61,7 +60,9 @@ def get_members(
     ]
 
 
-@router.post("", response_model=InviteCreated, status_code=status.HTTP_202_ACCEPTED)
+router.get("", response_model=list[MemberRead])(get_members)
+
+
 def add_member(
     body: AddMemberRequest,
     list_and_user: OwnerDep,
@@ -98,7 +99,9 @@ def add_member(
     return {"status": "invited", "email": body.email}
 
 
-@owner_router.put("/owner", status_code=status.HTTP_204_NO_CONTENT)
+router.post("", response_model=InviteCreated, status_code=status.HTTP_202_ACCEPTED)(add_member)
+
+
 def transfer_ownership(
     body: TransferOwnershipRequest,
     list_and_user: OwnerDep,
@@ -124,7 +127,9 @@ def transfer_ownership(
     _notify_safely(session, lst, current_user, new_owner_id=body.user_id)
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+owner_router.put("/owner", status_code=status.HTTP_204_NO_CONTENT)(transfer_ownership)
+
+
 def remove_member(
     user_id: str,
     list_id: str,
@@ -167,3 +172,6 @@ def remove_member(
         session.delete(pref)
     _bump(lst, session)
     session.commit()
+
+
+router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)(remove_member)

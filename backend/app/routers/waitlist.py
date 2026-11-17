@@ -9,7 +9,6 @@ from app.schemas.waitlist import WaitlistSignupCreate, WaitlistSignupRead
 router = APIRouter(prefix="/waitlist", tags=["waitlist"])
 
 
-@router.post("", response_model=WaitlistSignupRead)
 def signup(
     body: WaitlistSignupCreate,
     session: CurrentSession,
@@ -43,7 +42,9 @@ def signup(
     return new_signup
 
 
-@router.get("/signups", response_model=list[WaitlistSignupRead])
+router.post("", response_model=WaitlistSignupRead)(signup)
+
+
 def list_signups(
     current_admin: AdminUser,
     session: CurrentSession,
@@ -51,3 +52,6 @@ def list_signups(
     return session.exec(
         select(WaitlistSignup).order_by(col(WaitlistSignup.created_at).desc())
     ).all()
+
+
+router.get("/signups", response_model=list[WaitlistSignupRead])(list_signups)

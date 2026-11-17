@@ -124,7 +124,6 @@ def _notify_safely(session, lst: List, actor: User, event: str, name: str) -> No
         logger.exception("push notification failed for list %s", lst.id)
 
 
-@router.get("", response_model=PurchasePage)
 def list_purchases(
     session: CurrentSession,
     list_and_user: MemberDep,
@@ -238,7 +237,9 @@ def list_purchases(
     )
 
 
-@router.get("/search", response_model=PurchaseSearchResults)
+router.get("", response_model=PurchasePage)(list_purchases)
+
+
 def search_purchases(
     session: CurrentSession,
     list_and_user: MemberDep,
@@ -327,7 +328,9 @@ def search_purchases(
     return PurchaseSearchResults(results=results)
 
 
-@router.get("/{purchase_id}/items", response_model=list[ItemRead])
+router.get("/search", response_model=PurchaseSearchResults)(search_purchases)
+
+
 def get_purchase_items(
     purchase_id: str,
     session: CurrentSession,
@@ -358,7 +361,9 @@ def get_purchase_items(
     return items
 
 
-@router.post("/{purchase_id}/items/{item_id}/rebuy", response_model=ItemRead)
+router.get("/{purchase_id}/items", response_model=list[ItemRead])(get_purchase_items)
+
+
 def rebuy_item(
     purchase_id: str,
     item_id: str,
@@ -443,7 +448,9 @@ def rebuy_item(
     return pending
 
 
-@router.post("/close", response_model=PurchaseRead)
+router.post("/{purchase_id}/items/{item_id}/rebuy", response_model=ItemRead)(rebuy_item)
+
+
 def close_purchase(
     body: PurchaseCloseBody,
     session: CurrentSession,
@@ -613,7 +620,9 @@ def close_purchase(
     return purchase
 
 
-@router.post("/manual", response_model=PurchaseRead)
+router.post("/close", response_model=PurchaseRead)(close_purchase)
+
+
 def create_manual_purchase(
     body: PurchaseManualBody,
     session: CurrentSession,
@@ -697,3 +706,6 @@ def create_manual_purchase(
     session.commit()
     session.refresh(purchase)
     return purchase
+
+
+router.post("/manual", response_model=PurchaseRead)(create_manual_purchase)

@@ -13,10 +13,12 @@ router = APIRouter(prefix="/chains", tags=["chains"])
 _CHAINS_CACHE_CONTROL = "private, max-age=86400"
 
 
-@router.get("", response_model=list[ChainRead])
 def get_chains(current_user: CurrentUser, response: Response) -> list[ChainRead]:
     response.headers["Cache-Control"] = _CHAINS_CACHE_CONTROL
     return chain_table()
+
+
+router.get("", response_model=list[ChainRead])(get_chains)
 
 
 def _decoded(code: str, store: str | None) -> LabelRead:
@@ -26,11 +28,6 @@ def _decoded(code: str, store: str | None) -> LabelRead:
     return decoded
 
 
-@router.get(
-    "/labels",
-    response_model=LabelRead,
-    responses={404: {"description": "label_not_decoded"}},
-)
 def get_label(
     code: Annotated[str, Query(min_length=1, max_length=512)],
     current_user: CurrentUser,
@@ -42,11 +39,13 @@ def get_label(
     return _decoded(code, store)
 
 
-@router.get(
-    "/labels/{digits}",
+router.get(
+    "/labels",
     response_model=LabelRead,
     responses={404: {"description": "label_not_decoded"}},
-)
+)(get_label)
+
+
 def get_label_by_digits(
     digits: Annotated[str, Path(pattern=r"^\d+$", max_length=32)],
     current_user: CurrentUser,
@@ -54,3 +53,10 @@ def get_label_by_digits(
 ) -> LabelRead:
     """The digits-only form, for clients from before QR labels."""
     return _decoded(digits, store)
+
+
+router.get(
+    "/labels/{digits}",
+    response_model=LabelRead,
+    responses={404: {"description": "label_not_decoded"}},
+)(get_label_by_digits)
