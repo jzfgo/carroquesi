@@ -94,7 +94,7 @@ Everything specific to one supermarket chain lives in `backend/app/chains/`, one
 
 ### Receipt scanning
 
-Four-step flow: client parse (`receiptAi.ts` via Gemini) → backend fuzzy match (`receipt_matcher.py`) → user review (`ReceiptScanSheet`) → apply, which **closes a trip**. The full contract — match pool and targeted attach, the review/illegible/consent sheets, stored receipt files — lives in [.claude/rules/receipt-scanning.md](.claude/rules/receipt-scanning.md), which loads automatically when working on receipt files; read it before touching any part of the scan flow. `VITE_RECAPTCHA_SITE_KEY` required in production for Firebase App Check (reCAPTCHA v3).
+Four-step flow: client parse (`receiptAi.ts` via Gemini) → backend fuzzy match (`receipt_matcher.py`) → user review (`ReceiptScanSheet`) → apply, which **closes a trip**. The full contract — match pool and targeted attach, the review/illegible/consent sheets, stored receipt files — lives in the `receipt-scanning` skill ([.agents/skills/receipt-scanning/SKILL.md](.agents/skills/receipt-scanning/SKILL.md)), which Claude Code loads automatically when working on receipt files (through its `.claude/rules/` symlink); read it before touching any part of the scan flow. `VITE_RECAPTCHA_SITE_KEY` required in production for Firebase App Check (reCAPTCHA v3).
 
 ### Purchased item rules
 
@@ -150,7 +150,7 @@ Each guard's rationale is in its hook's docstring; the staged-file checks are in
 
 ### CI
 
-All PR checks live in `.github/workflows/ci.yml`. `CI gate` is the only required status check, and `ci.yml` must never get `paths:`. The full contract is in `.claude/rules/ci.md`, which loads when working on CI files.
+All PR checks live in `.github/workflows/ci.yml`. `CI gate` is the only required status check, and `ci.yml` must never get `paths:`. The full contract is in the `ci` skill (`.agents/skills/ci/SKILL.md`), which Claude Code loads automatically when working on CI files.
 
 ### Architecture Decision Records
 
@@ -176,7 +176,7 @@ When introducing a new significant tradeoff (a new infrastructure dependency, a 
 
 ### Local Dev Environment
 
-- Skills live in `.agents/skills/`, the shared location: Antigravity and Codex read it directly. `.claude/skills` is a symlink to it, so Claude Code sees the same skills; edit and commit the files under `.agents/skills/`. Rules (`.claude/rules/`) and hooks (`.claude/hooks/`) stay Claude-only; lefthook is the guard every agent hits. Third-party skills are tracked in `skills-lock.json`: add one with `npx skills add <repo> -s <skill> -a claude-code`, refresh them all with `npx skills update -p`. The symlink makes the CLI write a single copy into `.agents/skills/`. The project's own skills (`release`, `ship`, …) are not in the lock
+- Skills live in `.agents/skills/`, the shared location: Antigravity and Codex read it directly. `.claude/skills` is a symlink to it, so Claude Code sees the same skills; edit and commit the files under `.agents/skills/`. Path-scoped guidance (`ci`, `receipt-scanning`) is a skill with `paths:` frontmatter and `user-invocable: false`, plus a symlink to its `SKILL.md` in `.claude/rules/`. The rule symlink is what puts the text in Claude's context when a matching file is touched; a skill's `paths:` alone only lists the skill, and Claude may never open it. The other agents pick the skill by its description. Hooks (`.claude/hooks/`) stay Claude-only; lefthook is the guard every agent hits. Third-party skills are tracked in `skills-lock.json`: add one with `npx skills add <repo> -s <skill> -a claude-code`, refresh them all with `npx skills update -p`. The symlink makes the CLI write a single copy into `.agents/skills/`. The project's own skills (`release`, `ship`, …) are not in the lock
 - Backend uses FastAPI with Firebase; ensure `.env` and Firebase config are present before running
 - Frontend typecheck must use `tsconfig.app.json` (root tsconfig.json has files:[] and silently passes)
 - Never commit a **platform-narrowed** `pnpm-lock.yaml` — one where a native binding resolved for your platform only, so installs break everywhere else. Note this is about _completeness, not presence_: packages like `sharp` and `@rollup/rollup` legitimately ship a full per-platform matrix, and every version bump of them adds new per-platform entries. That is expected and fine. The `lockfile-guard` pre-commit hook enforces exactly this — for each native binding family added, the lockfile must name it for more than one OS
