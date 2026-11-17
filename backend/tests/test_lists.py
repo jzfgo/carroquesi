@@ -40,6 +40,48 @@ def test_create_list(client: TestClient, session: Session):
     assert len(members) == 1
 
 
+def test_create_list_repeat_key_returns_the_first_list(client: TestClient, session: Session):
+    headers = {"Idempotency-Key": "k-1"}
+    first = client.post("/lists", json={"name": "Costco"}, headers=headers)
+    again = client.post("/lists", json={"name": "Costco"}, headers=headers)
+    assert first.status_code == 201
+    assert again.status_code == 200
+    assert again.json()["id"] == first.json()["id"]
+    assert again.json()["is_default"] is True
+    assert len(session.exec(select(List)).all()) == 1
+    assert len(session.exec(select(ListMember)).all()) == 1
+
+
+def test_create_list_different_keys_make_two_lists(client: TestClient, session: Session):
+    a = client.post("/lists", json={"name": "Costco"}, headers={"Idempotency-Key": "k-1"})
+    b = client.post("/lists", json={"name": "Costco"}, headers={"Idempotency-Key": "k-2"})
+    assert (a.status_code, b.status_code) == (201, 201)
+    assert a.json()["id"] != b.json()["id"]
+
+
+def test_create_list_key_is_scoped_to_the_owner(
+    client: TestClient, other_client: TestClient, session: Session
+):
+    headers = {"Idempotency-Key": "shared"}
+    mine = client.post("/lists", json={"name": "Mine"}, headers=headers)
+    theirs = other_client.post("/lists", json={"name": "Theirs"}, headers=headers)
+    assert (mine.status_code, theirs.status_code) == (201, 201)
+    assert theirs.json()["name"] == "Theirs"
+
+
+def test_create_list_without_key_never_deduplicates(client: TestClient, session: Session):
+    client.post("/lists", json={"name": "Costco"})
+    second = client.post("/lists", json={"name": "Costco"})
+    assert second.status_code == 201
+    assert len(session.exec(select(List)).all()) == 2
+
+
+def test_create_list_rejects_an_overlong_key(client: TestClient, session: Session):
+    response = client.post("/lists", json={"name": "Costco"}, headers={"Idempotency-Key": "k" * 65})
+    assert response.status_code == 422
+    assert session.exec(select(List)).all() == []
+
+
 def test_get_lists_returns_owned_and_member_lists(client: TestClient, session: Session, user):
     response = client.post("/lists", json={"name": "My List"})
     assert response.status_code == 201

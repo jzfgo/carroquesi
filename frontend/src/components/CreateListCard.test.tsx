@@ -3,6 +3,25 @@ import { describe, expect, it, vi } from 'vitest'
 import { CURATED_EMOJIS } from '../lib/curatedEmojis'
 import { CreateListCard } from './CreateListCard'
 
+type OnCreate = (
+  name: string,
+  emoji: string,
+  createKey: string,
+) => Promise<boolean>
+
+function typeName(value: string) {
+  fireEvent.change(screen.getByPlaceholderText(/nombre/i), {
+    target: { value },
+  })
+}
+
+async function submitAndSettle() {
+  fireEvent.click(screen.getByRole('button', { name: 'Crear lista' }))
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Crear lista' })).toBeEnabled(),
+  )
+}
+
 describe('CreateListCard', () => {
   it('shows the "Crear la primera lista" button when isFirst', () => {
     render(<CreateListCard isFirst onCreate={vi.fn()} />)
@@ -51,7 +70,7 @@ describe('CreateListCard', () => {
   })
 
   it('calls onCreate with the typed name and the shown emoji, then closes', async () => {
-    const onCreate = vi.fn(async () => undefined)
+    const onCreate = vi.fn(async () => true)
     render(<CreateListCard onCreate={onCreate} />)
     fireEvent.click(screen.getByRole('button'))
     const emoji = screen
@@ -61,7 +80,13 @@ describe('CreateListCard', () => {
       target: { value: 'Costco' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Crear lista' }))
-    await waitFor(() => expect(onCreate).toHaveBeenCalledWith('Costco', emoji))
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith(
+        'Costco',
+        emoji,
+        expect.any(String),
+      ),
+    )
     await waitFor(() =>
       expect(
         screen.queryByRole('dialog', { name: 'Nueva lista' }),
@@ -85,7 +110,7 @@ describe('CreateListCard', () => {
   })
 
   it('ENTER key submits', async () => {
-    const onCreate = vi.fn(async () => undefined)
+    const onCreate = vi.fn(async () => true)
     render(<CreateListCard onCreate={onCreate} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.change(screen.getByPlaceholderText(/nombre/i), {
@@ -93,8 +118,65 @@ describe('CreateListCard', () => {
     })
     fireEvent.keyDown(screen.getByPlaceholderText(/nombre/i), { key: 'Enter' })
     await waitFor(() =>
-      expect(onCreate).toHaveBeenCalledWith('Mercado', expect.any(String)),
+      expect(onCreate).toHaveBeenCalledWith(
+        'Mercado',
+        expect.any(String),
+        expect.any(String),
+      ),
     )
+  })
+
+  it('a refused create keeps the sheet open with the typed name', async () => {
+    const onCreate = vi.fn(async () => false)
+    render(<CreateListCard onCreate={onCreate} />)
+    fireEvent.click(screen.getByRole('button'))
+    typeName('Costco')
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lista' }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Crear lista' })).toBeEnabled(),
+    )
+    expect(
+      screen.getByRole('dialog', { name: 'Nueva lista' }),
+    ).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/nombre/i)).toHaveValue('Costco')
+  })
+
+  it('a create that throws keeps the sheet open with the typed name', async () => {
+    const onCreate = vi.fn(async () => {
+      throw new Error('boom')
+    })
+    render(<CreateListCard onCreate={onCreate} />)
+    fireEvent.click(screen.getByRole('button'))
+    typeName('Costco')
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lista' }))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Crear lista' })).toBeEnabled(),
+    )
+    expect(screen.getByPlaceholderText(/nombre/i)).toHaveValue('Costco')
+  })
+
+  it('a retry of the same name reuses the create key', async () => {
+    const onCreate = vi.fn<OnCreate>(async () => false)
+    render(<CreateListCard onCreate={onCreate} />)
+    fireEvent.click(screen.getByRole('button'))
+    typeName('Costco')
+    await submitAndSettle()
+    await submitAndSettle()
+    const [first, second] = onCreate.mock.calls.map((c) => c[2])
+    expect(first).toMatch(/^[0-9a-f]{32}$/)
+    expect(second).toBe(first)
+  })
+
+  it('editing the name mints a new create key', async () => {
+    const onCreate = vi.fn<OnCreate>(async () => false)
+    render(<CreateListCard onCreate={onCreate} />)
+    fireEvent.click(screen.getByRole('button'))
+    typeName('Costco')
+    await submitAndSettle()
+    typeName('Costco 2')
+    await submitAndSettle()
+    const [first, second] = onCreate.mock.calls.map((c) => c[2])
+    expect(second).not.toBe(first)
   })
 
   it('shows mascot when isFirst', () => {

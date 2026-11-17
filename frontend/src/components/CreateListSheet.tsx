@@ -2,10 +2,22 @@ import { useRef, useState } from 'react'
 import './CreateListSheet.css'
 import { Sheet, type SheetHandle } from './Sheet'
 
+// Not crypto.randomUUID: it exists only in a secure context, and the app is
+// also reviewed over plain http on the LAN.
+function newCreateKey(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+}
+
 interface Props {
   /** The emoji the list arrives with — picked once when the sheet opens. */
   emoji: string
-  onCreate: (name: string, emoji: string) => Promise<void>
+  /**
+   * Resolves true when the list exists and the sheet can close, false to
+   * keep the sheet open with the typed name. `createKey` stays the same
+   * across retries of the same name.
+   */
+  onCreate: (name: string, emoji: string, createKey: string) => Promise<boolean>
   onClose: () => void
 }
 
@@ -17,18 +29,22 @@ export function CreateListSheet({ emoji, onCreate, onClose }: Props) {
   const [name, setName] = useState('')
   const [creating, setCreating] = useState(false)
   const sheetRef = useRef<SheetHandle>(null)
+  // One key per name: a retry after a failure may be a repeat of a create
+  // that did land, so it must reuse the key. A new name is a new list.
+  const createKey = useRef(newCreateKey())
 
   const handleSubmit = async () => {
     const trimmed = name.trim()
     if (!trimmed || creating) return
     setCreating(true)
+    let created = false
     try {
-      await onCreate(trimmed, emoji)
-      sheetRef.current?.close()
+      created = await onCreate(trimmed, emoji, createKey.current)
     } catch {
-      // Leave the sheet open so the typed name survives a failed create.
-      setCreating(false)
+      // Treated like a refusal: the typed name must survive.
     }
+    if (created) sheetRef.current?.close()
+    else setCreating(false)
   }
 
   return (
@@ -48,7 +64,10 @@ export function CreateListSheet({ emoji, onCreate, onClose }: Props) {
           className="create-list-sheet__name"
           type="text"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value)
+            createKey.current = newCreateKey()
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') void handleSubmit()
           }}
