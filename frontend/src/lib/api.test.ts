@@ -97,13 +97,22 @@ describe('getLists', () => {
 describe('createList', () => {
   it('POST /lists with name and emoji body', async () => {
     mockFetch.mockReturnValue(mockResponse({ id: 'l1', name: 'Compras' }))
-    await createList(mockGetToken, { name: 'Compras', emoji: '🛒' })
+    await createList(mockGetToken, { name: 'Compras', emoji: '🛒' }, 'key-1')
     expect(mockFetch).toHaveBeenCalledWith(
       expect.stringContaining('/lists'),
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ name: 'Compras', emoji: '🛒' }),
       }),
+    )
+  })
+
+  it('sends the create key as the Idempotency-Key header', async () => {
+    mockFetch.mockReturnValue(mockResponse({ id: 'l1', name: 'Compras' }))
+    await createList(mockGetToken, { name: 'Compras', emoji: '🛒' }, 'key-1')
+    const init = mockFetch.mock.calls[0][1] as RequestInit
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe(
+      'key-1',
     )
   })
 })

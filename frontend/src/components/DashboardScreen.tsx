@@ -171,13 +171,22 @@ export function DashboardScreen() {
   }, [fetchLists])
 
   const handleCreate = useCallback(
-    async (name: string, emoji: string) => {
+    async (name: string, emoji: string, createKey: string) => {
       if (isOffline) {
         setToast('No disponible sin conexión')
-        return
+        return false
       }
-      await createList(getToken, { name, emoji })
+      try {
+        await createList(getToken, { name, emoji }, createKey)
+      } catch {
+        // «confirmar», not «crear»: a failure can also be a response lost
+        // after the list was saved. The create key makes a retry safe
+        // either way, so the copy must not claim the list is missing.
+        setToast('No se pudo confirmar si se creó la lista')
+        return false
+      }
       await fetchLists()
+      return true
     },
     [getToken, fetchLists, isOffline],
   )

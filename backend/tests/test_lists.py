@@ -14,6 +14,7 @@ from app.db.models import (
     ReportRun,
     User,
 )
+from app.routers import lists as lists_router
 
 
 def _reshape_trip(session: Session, item_id: str, *, tear_off=None, closed_at=None) -> Purchase:
@@ -38,6 +39,72 @@ def test_create_list(client: TestClient, session: Session):
     # Owner is automatically a member
     members = session.exec(select(ListMember).where(ListMember.list_id == data["id"])).all()
     assert len(members) == 1
+
+
+def test_create_list_repeat_key_returns_the_first_list(client: TestClient, session: Session):
+    headers = {"Idempotency-Key": "k-1"}
+    first = client.post("/lists", json={"name": "Costco"}, headers=headers)
+    again = client.post("/lists", json={"name": "Costco"}, headers=headers)
+    assert first.status_code == 201
+    assert again.status_code == 200
+    assert again.json()["id"] == first.json()["id"]
+    assert again.json()["is_default"] is True
+    assert len(session.exec(select(List)).all()) == 1
+    assert len(session.exec(select(ListMember)).all()) == 1
+
+
+def test_create_list_race_on_the_key_returns_the_winner(
+    client: TestClient, session: Session, monkeypatch
+):
+    """Two requests with one key both miss the lookup; the second insert hits
+    the unique index and must answer with the first list, not a 500."""
+    headers = {"Idempotency-Key": "k-race"}
+    first = client.post("/lists", json={"name": "Costco"}, headers=headers)
+
+    real_lookup = lists_router._list_by_create_key
+    calls = []
+
+    def miss_once(*args):
+        calls.append(args)
+        return None if len(calls) == 1 else real_lookup(*args)
+
+    monkeypatch.setattr(lists_router, "_list_by_create_key", miss_once)
+    again = client.post("/lists", json={"name": "Costco"}, headers=headers)
+
+    assert len(calls) == 2
+    assert again.status_code == 200
+    assert again.json()["id"] == first.json()["id"]
+    assert len(session.exec(select(List)).all()) == 1
+
+
+def test_create_list_different_keys_make_two_lists(client: TestClient, session: Session):
+    a = client.post("/lists", json={"name": "Costco"}, headers={"Idempotency-Key": "k-1"})
+    b = client.post("/lists", json={"name": "Costco"}, headers={"Idempotency-Key": "k-2"})
+    assert (a.status_code, b.status_code) == (201, 201)
+    assert a.json()["id"] != b.json()["id"]
+
+
+def test_create_list_key_is_scoped_to_the_owner(
+    client: TestClient, other_client: TestClient, session: Session
+):
+    headers = {"Idempotency-Key": "shared"}
+    mine = client.post("/lists", json={"name": "Mine"}, headers=headers)
+    theirs = other_client.post("/lists", json={"name": "Theirs"}, headers=headers)
+    assert (mine.status_code, theirs.status_code) == (201, 201)
+    assert theirs.json()["name"] == "Theirs"
+
+
+def test_create_list_without_key_never_deduplicates(client: TestClient, session: Session):
+    client.post("/lists", json={"name": "Costco"})
+    second = client.post("/lists", json={"name": "Costco"})
+    assert second.status_code == 201
+    assert len(session.exec(select(List)).all()) == 2
+
+
+def test_create_list_rejects_an_overlong_key(client: TestClient, session: Session):
+    response = client.post("/lists", json={"name": "Costco"}, headers={"Idempotency-Key": "k" * 65})
+    assert response.status_code == 422
+    assert session.exec(select(List)).all() == []
 
 
 def test_get_lists_returns_owned_and_member_lists(client: TestClient, session: Session, user):

@@ -1,8 +1,10 @@
 import logging
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, Response, status
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
 from app.db.models import (
@@ -148,10 +150,42 @@ def create_list(
     body: ListCreate,
     current_user: CurrentUser,
     session: CurrentSession,
+    response: Response,
+    idempotency_key: Annotated[str | None, Header(max_length=64)] = None,
 ):
-    lst = List(name=body.name, emoji=body.emoji, owner_id=current_user.id)
+    """Create a list. A repeat of the same Idempotency-Key answers 200 with
+    the list the first request made.
+
+    The response can be lost after the commit. The client then sees a failure
+    for a list that exists, and a retry must not make a second one.
+    """
+    if idempotency_key is not None:
+        earlier = _list_by_create_key(session, current_user.id, idempotency_key)
+        if earlier is not None:
+            response.status_code = status.HTTP_200_OK
+            return _read_with_default(earlier, session, current_user.id)
+
+    lst = List(
+        name=body.name,
+        emoji=body.emoji,
+        owner_id=current_user.id,
+        create_key=idempotency_key,
+    )
     session.add(lst)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError:
+        # A concurrent request with the same key won the unique index
+        # between the lookup above and this insert. Answer with its list,
+        # as a sequential repeat would.
+        session.rollback()
+        if idempotency_key is None:
+            raise
+        winner = _list_by_create_key(session, current_user.id, idempotency_key)
+        if winner is None:
+            raise
+        response.status_code = status.HTTP_200_OK
+        return _read_with_default(winner, session, current_user.id)
     member = ListMember(list_id=lst.id, user_id=current_user.id)
     session.add(member)
     # First list a user ever creates or joins becomes their default (for Siri).
@@ -160,6 +194,12 @@ def create_list(
     session.refresh(lst)
     session.refresh(member)
     return ListRead(**lst.model_dump(), is_default=member.is_default)
+
+
+def _list_by_create_key(session: Session, owner_id: str, key: str) -> List | None:
+    return session.exec(
+        select(List).where(List.owner_id == owner_id, List.create_key == key)
+    ).first()
 
 
 @router.get("/{list_id}", response_model=ListRead)
