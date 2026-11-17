@@ -26,19 +26,22 @@ def _user_read(user, session) -> UserRead:
     )
 
 
-@router.post("/sync", response_model=UserRead)
 def sync_user(current_user: CurrentUser, session: CurrentSession):
     """Called by the frontend immediately after Firebase login."""
     return _user_read(current_user, session)
 
 
-@users_router.get("/users/me", response_model=UserRead)
+router.post("/sync", response_model=UserRead)(sync_user)
+
+
 def get_me(current_user: CurrentUser, session: CurrentSession):
     """Polled by the frontend every 60 s to pick up flag changes mid-session."""
     return _user_read(current_user, session)
 
 
-@users_router.put("/users/me/receipt-consent", response_model=UserRead)
+users_router.get("/users/me", response_model=UserRead)(get_me)
+
+
 def set_receipt_consent(
     body: ReceiptConsentUpdate, current_user: CurrentUser, session: CurrentSession
 ):
@@ -53,3 +56,6 @@ def set_receipt_consent(
     session.commit()
     session.refresh(current_user)
     return _user_read(current_user, session)
+
+
+users_router.put("/users/me/receipt-consent", response_model=UserRead)(set_receipt_consent)

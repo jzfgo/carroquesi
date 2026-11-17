@@ -25,7 +25,6 @@ def _check_not_expired(invite: ListInvite) -> None:
 list_invites_router = APIRouter(prefix="/lists/{list_id}/invites", tags=["invites"])
 
 
-@list_invites_router.post("", response_model=OpenInviteCreated, status_code=status.HTTP_201_CREATED)
 def create_open_invite(
     list_id: str,
     list_and_user: MemberDep,
@@ -60,7 +59,11 @@ def create_open_invite(
     return {"id": invite.id}
 
 
-@router.get("", response_model=list[InviteRead])
+list_invites_router.post("", response_model=OpenInviteCreated, status_code=status.HTTP_201_CREATED)(
+    create_open_invite
+)
+
+
 def get_my_invites(
     current_user: CurrentUser,
     session: CurrentSession,
@@ -71,7 +74,9 @@ def get_my_invites(
     return invites
 
 
-@router.get("/{invite_id}", response_model=InvitePreview)
+router.get("", response_model=list[InviteRead])(get_my_invites)
+
+
 def get_invite_preview(invite_id: str, session: CurrentSession):
     """Public endpoint — no auth required. Used to show invite details before login."""
     invite = session.get(ListInvite, invite_id)
@@ -88,7 +93,9 @@ def get_invite_preview(invite_id: str, session: CurrentSession):
     )
 
 
-@router.post("/{invite_id}/accept", response_model=AcceptInviteResult)
+router.get("/{invite_id}", response_model=InvitePreview)(get_invite_preview)
+
+
 def accept_invite(
     invite_id: str,
     current_user: CurrentUser,
@@ -136,7 +143,9 @@ def accept_invite(
     return {"list_id": list_id}
 
 
-@router.delete("/{invite_id}", status_code=status.HTTP_204_NO_CONTENT)
+router.post("/{invite_id}/accept", response_model=AcceptInviteResult)(accept_invite)
+
+
 def decline_invite(
     invite_id: str,
     current_user: CurrentUser,
@@ -155,3 +164,6 @@ def decline_invite(
 
     session.delete(invite)
     session.commit()
+
+
+router.delete("/{invite_id}", status_code=status.HTTP_204_NO_CONTENT)(decline_invite)

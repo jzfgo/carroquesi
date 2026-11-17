@@ -49,7 +49,6 @@ def _notify_safely(session: Session, lst: List, actor: User, event: str, name: s
         logger.exception("push notification failed for list %s", lst.id)
 
 
-@router.get("", response_model=list[ItemRead])
 def get_items(
     list_id: str,
     list_and_user: MemberOrDefaultDep,
@@ -70,6 +69,9 @@ def get_items(
     _attach_purchase_ends_at(session, items)
     mark_bought_by_weight(session, lst.id, items)
     return items
+
+
+router.get("", response_model=list[ItemRead])(get_items)
 
 
 def _attach_purchase_ends_at(session: Session, items: Sequence[ListItem]) -> None:
@@ -128,7 +130,6 @@ def _take_format_of_ean(session: Session, item: ListItem, ean: str) -> None:
         item.pack_source = "copied"
 
 
-@router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
 def add_item(
     body: ItemCreate,
     list_and_user: MemberOrDefaultDep,
@@ -160,7 +161,9 @@ def add_item(
     return item
 
 
-@router.patch("/{item_id}", response_model=ItemRead)
+router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)(add_item)
+
+
 def update_item(
     item_id: str,
     body: ItemUpdate,
@@ -225,7 +228,9 @@ def update_item(
     return item
 
 
-@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+router.patch("/{item_id}", response_model=ItemRead)(update_item)
+
+
 def delete_item(
     item_id: str,
     list_and_user: MemberDep,
@@ -240,3 +245,6 @@ def delete_item(
     trips.prune_if_empty(session, trip_id)
     _bump(lst, session)
     session.commit()
+
+
+router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)(delete_item)

@@ -13,7 +13,20 @@
 
 Run with `just backend mutation` (or scope to a module with `just backend mutation "app.routers.purchases.*"`). Configured under `[tool.mutmut]` in `backend/pyproject.toml`. The recipe ignores `test_store_key.py`, `test_e2e_contract.py`, and `test_quantity.py` because `mutmut` copies `backend/` into `mutants/` and cross-tree `../frontend/...` relative paths do not resolve there. Equivalent or deliberate best-effort survivors do not block; `/ship` runs it scoped to changed `app/services/**` and `app/routers/**` modules.
 
+mutmut does not mutate decorated functions. Only `@staticmethod` and `@classmethod` are exempt, and no setting changes this. This is why routes are registered without a decorator (see Key conventions). The same limit applies in `app/services/`: a function under `@lru_cache` or a `@property` gets no mutants.
+
 ## Key conventions
+
+- **Endpoints are registered without a decorator.** Write the endpoint as a plain function, then register it on the line after the function, with the same arguments a decorator would take. Keep the registration next to its function, because registration order is route-matching order. Never write `@router.get(...)`: mutmut would make no mutants for the endpoint, and `tests/test_routes_undecorated.py` fails on any decorated function under `app/routers/`.
+
+  ```python
+  def get_list(list_and_user: MemberDep, session: CurrentSession):
+      lst, current_user = list_and_user
+      return _read_with_default(lst, session, current_user.id)
+
+
+  router.get("/{list_id}", response_model=ListRead)(get_list)
+  ```
 
 - Type-checked with **ty** (`just backend typecheck`); warnings fail too. SQLModel types a model's class attributes as plain values, so a column used as an expression (`.in_()`, `.desc()`, `.is_(None)`, a join's `==`) goes through `col()`: `col(ListItem.name).in_(names)`. Tests read rows with `session.get_one()`, which raises on a missing row, and keep `session.get()` for checking that a row is gone
 - Layer and router-independence contracts live in `backend/pyproject.toml` (`[tool.importlinter]`) and run inside `just backend lint`: imports flow downward (`app.main → app.routers → app.dependencies → app.services → app.schemas → app.db → app.core`) and routers do not import each other
