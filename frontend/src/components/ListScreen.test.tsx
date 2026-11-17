@@ -1608,42 +1608,6 @@ describe('ListScreen — offline refusal keeps user input', () => {
     reportRequestOutcome(true)
   })
 
-  // Opens the LogPurchaseSheet the way a user does: row tap on a purchased
-  // item → "Registrar precio" → price history → "Actualizar precio".
-  async function openLogPurchaseSheet(
-    savePriceMock: ReturnType<
-      typeof useListItemsModule.useListItems
-    >['savePrice'],
-  ) {
-    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
-      ...emptyHookResult,
-      items: [
-        // A closed-trip record: the price entry exists only there — a
-        // pending or in-cart item offers no price affordance at all.
-        makeItem({
-          id: 'i1',
-          name: 'Manzanas',
-          purchased: true,
-          purchased_at: TODAY,
-          purchase_ends_at: YESTERDAY,
-          price: 3.15,
-        }),
-      ],
-      savePrice: savePriceMock,
-    })
-    vi.mocked(api.getPriceHistory).mockResolvedValue({
-      entries: [],
-    })
-
-    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
-    fireEvent.click(screen.getByRole('button', { name: /manzanas/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Registrar precio' }))
-    fireEvent.click(
-      await screen.findByRole('button', { name: /actualizar precio/i }),
-    )
-    expect(screen.getByText('Registrar compra')).toBeInTheDocument()
-  }
-
   it('an offline submit toasts, keeps the typed input, and sends nothing', async () => {
     render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
     const input = screen.getByRole('textbox', { name: /añadir producto/i })
@@ -1657,24 +1621,113 @@ describe('ListScreen — offline refusal keeps user input', () => {
     expect(emptyHookResult.addItem).not.toHaveBeenCalled()
     expect(api.createItem).not.toHaveBeenCalled()
   })
+})
 
-  // These two drive price-save from a settled record's row. The stack (18a,
-  // Lane 1) removed that row from the item list; the record's price entry
-  // returns through the product ficha (22a) wired in Lane 3 (JAV-162), where
-  // these offline / failure cases will be re-homed. Skipped until then.
-  it.skip('an offline price save keeps the sheet open and records nothing', async () => {
-    const savePriceMock = vi.fn<() => Promise<void>>()
+describe('price logging from the ficha', () => {
+  beforeEach(() => {
+    reportRequestOutcome(true)
+  })
+
+  afterEach(() => {
+    // The connectivity store is module-level state; leave it online so later
+    // suites don't inherit an offline world.
+    reportRequestOutcome(true)
+  })
+
+  // A closed-trip record, with no price history yet (the suite's default):
+  // the ficha offers a price entry only on a record, history or not. Its
+  // trip's store differs from its store tag, so a save of the untouched form
+  // shows which one the sheet started on.
+  const record = makeItem({
+    id: 'i1',
+    name: 'Manzanas',
+    stores: ['Mercadona'],
+    purchased: true,
+    purchased_at: YESTERDAY,
+    purchase_ends_at: YESTERDAY,
+    purchase_store: 'Alcampo',
+    price: 3.15,
+  })
+
+  // Its trip, closed, carrying the line so the card needs no fetch.
+  const trip = {
+    id: 'p1',
+    list_id: 'l1',
+    opened_at: YESTERDAY,
+    tears_off_at: YESTERDAY,
+    closed_at: YESTERDAY,
+    store: 'Alcampo',
+    total: 3.15,
+    line_count: 1,
+    has_receipt: false,
+    items_total: null,
+    items: [record],
+  }
+
+  // Opens the LogPurchaseSheet the way a user does: tap the line on its
+  // trip in the stack (the newest trip comes unfolded) → ficha → «Registrar
+  // un precio».
+  async function openLogPurchaseSheet(
+    savePriceMock: ReturnType<
+      typeof useListItemsModule.useListItems
+    >['savePrice'],
+  ) {
+    vi.mocked(useListItemsModule.useListItems).mockReturnValue({
+      ...emptyHookResult,
+      items: [record],
+      savePrice: savePriceMock,
+    })
+
+    vi.mocked(api.getPurchases).mockResolvedValue({
+      purchases: [trip],
+      total: 1,
+    })
+
+    render(<ListScreen listId="l1" listName="Test" listOwnerId="u1" />)
+    fireEvent.click(await screen.findByRole('button', { name: /manzanas/i }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: /registrar un precio/i }),
+    )
+    expect(
+      screen.getByRole('dialog', { name: 'Registrar compra' }),
+    ).toBeInTheDocument()
+  }
+
+  it('an untouched save sends the item’s price and its trip’s store, then closes', async () => {
+    const savePriceMock = vi.fn(async () => {})
+    await openLogPurchaseSheet(savePriceMock)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    expect(savePriceMock).toHaveBeenCalledWith(
+      'i1',
+      3.15,
+      null,
+      'Alcampo',
+      null,
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Registrar compra' }),
+      ).not.toBeInTheDocument(),
+    )
+  })
+
+  it('an offline save toasts, keeps the sheet open, and records nothing', async () => {
+    const savePriceMock = vi.fn(async () => {})
     await openLogPurchaseSheet(savePriceMock)
 
     act(() => reportRequestOutcome(false))
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Sin conexión')
-    expect(screen.getByText('Registrar compra')).toBeInTheDocument()
+    expect(
+      screen.getByRole('dialog', { name: 'Registrar compra' }),
+    ).toBeInTheDocument()
     expect(savePriceMock).not.toHaveBeenCalled()
   })
 
-  it.skip('a failed price save toasts and keeps the sheet open', async () => {
+  it('a failed save toasts and keeps the sheet open', async () => {
     const savePriceMock = vi.fn(() => Promise.reject(new Error('network')))
     await openLogPurchaseSheet(savePriceMock)
 
@@ -1683,7 +1736,9 @@ describe('ListScreen — offline refusal keeps user input', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'No se pudo guardar el precio',
     )
-    expect(screen.getByText('Registrar compra')).toBeInTheDocument()
+    expect(
+      screen.getByRole('dialog', { name: 'Registrar compra' }),
+    ).toBeInTheDocument()
   })
 })
 

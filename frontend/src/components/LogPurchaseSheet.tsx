@@ -1,7 +1,6 @@
 import { ShoppingCart } from 'lucide-react'
 import { useState } from 'react'
 import { formatAmount } from '../lib/formatPrice'
-import { isTripOpen } from '../lib/isTripOpen'
 import { deriveUnit, parseQuantityFactor } from '../lib/itemCost'
 import { storeKey } from '../lib/storeKey'
 import type { ListItem } from '../types'
@@ -20,7 +19,6 @@ interface Props {
     store: string | null,
     purchasedQuantity: string | null,
   ) => void
-  onDelete?: () => Promise<void>
   onClose: () => void
   /** Resolves a raw store string to the list's canonical display name. */
   displayStore?: (raw: string) => string
@@ -32,7 +30,6 @@ export default function LogPurchaseSheet({
   initialStore,
   initialPurchasedQuantity,
   onSave,
-  onDelete,
   onClose,
   displayStore = (raw) => raw,
 }: Props) {
@@ -62,7 +59,6 @@ export default function LogPurchaseSheet({
   )
   const [addingStore, setAddingStore] = useState(false)
   const [newStore, setNewStore] = useState('')
-  const [deleting, setDeleting] = useState(false)
 
   // The unit is derived from the quantity, never a toggle (rule 10a): a weight
   // typed there prices per kilo, anything else per unit.
@@ -70,8 +66,6 @@ export default function LogPurchaseSheet({
 
   const amount = parseFloat(amountStr)
   const canSave = !isNaN(amount) && amount > 0
-  const canDelete =
-    item.price != null && !!onDelete && isTripOpen(item.purchase_ends_at)
 
   const liveCost: number | null = (() => {
     const price = parseFloat(amountStr)
@@ -94,18 +88,6 @@ export default function LogPurchaseSheet({
         : selectedStore
     const finalPurchasedQty = purchasedQtyStr.trim() || null
     onSave(amount, pricePer, finalStore, finalPurchasedQty)
-  }
-
-  async function handleDelete() {
-    if (!onDelete) return
-    setDeleting(true)
-    try {
-      await onDelete()
-    } catch {
-      // parent shows error toast
-    } finally {
-      setDeleting(false)
-    }
   }
 
   return (
@@ -195,16 +177,6 @@ export default function LogPurchaseSheet({
       >
         Guardar
       </button>
-      {canDelete && (
-        <button
-          className="lps__delete"
-          onClick={handleDelete}
-          disabled={deleting}
-          type="button"
-        >
-          {deleting ? 'Eliminando...' : 'Eliminar precio'}
-        </button>
-      )}
     </Sheet>
   )
 }
