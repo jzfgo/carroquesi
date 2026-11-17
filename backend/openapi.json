@@ -4422,8 +4422,26 @@
         ]
       },
       "post": {
+        "description": "Create a list. A repeat of the same Idempotency-Key answers 200 with\nthe list the first request made.\n\nThe response can be lost after the commit. The client then sees a failure\nfor a list that exists, and a retry must not make a second one.",
         "operationId": "create_list_lists_post",
         "parameters": [
+          {
+            "in": "header",
+            "name": "idempotency-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
           {
             "in": "header",
             "name": "x-dev-user-id",

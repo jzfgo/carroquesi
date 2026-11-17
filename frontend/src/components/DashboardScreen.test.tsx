@@ -601,4 +601,77 @@ describe('DashboardScreen — offline', () => {
     // tests in this file start from the default.
     act(() => reportRequestOutcome(true))
   })
+  it('an offline create keeps the sheet open with the typed name', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    openCreateSheetWith('Costco')
+
+    act(() => reportRequestOutcome(false))
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lista' }))
+
+    expect(
+      await screen.findByText('No disponible sin conexión'),
+    ).toBeInTheDocument()
+    expect(vi.mocked(api.createList)).not.toHaveBeenCalled()
+    expect(
+      screen.getByRole('dialog', { name: 'Nueva lista' }),
+    ).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Nombre de la lista')).toHaveValue(
+      'Costco',
+    )
+
+    act(() => reportRequestOutcome(true))
+  })
 })
+
+describe('DashboardScreen — create list', () => {
+  it('creates with a key and closes the sheet', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    openCreateSheetWith('Costco')
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lista' }))
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Nueva lista' }),
+      ).not.toBeInTheDocument(),
+    )
+    expect(vi.mocked(api.createList)).toHaveBeenCalledWith(
+      mockGetToken,
+      { name: 'Costco', emoji: expect.any(String) },
+      expect.stringMatching(/^[0-9a-f]{32}$/),
+    )
+  })
+
+  it('a failed create says it could not confirm, and keeps the name', async () => {
+    vi.mocked(api.getLists).mockResolvedValue(twoLists as never)
+    vi.mocked(api.createList).mockRejectedValueOnce(
+      new TypeError('Failed to fetch'),
+    )
+    render(<DashboardScreen />)
+    await waitFor(() => screen.getByText('Mercado'))
+    openCreateSheetWith('Costco')
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lista' }))
+
+    // The list may exist: the response can be lost after the save. The
+    // copy must not say the create failed.
+    expect(
+      await screen.findByText('No se pudo confirmar si se creó la lista'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('dialog', { name: 'Nueva lista' }),
+    ).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Nombre de la lista')).toHaveValue(
+      'Costco',
+    )
+  })
+})
+
+function openCreateSheetWith(name: string) {
+  fireEvent.click(screen.getByRole('button', { name: /nueva lista/i }))
+  fireEvent.change(screen.getByPlaceholderText('Nombre de la lista'), {
+    target: { value: name },
+  })
+}

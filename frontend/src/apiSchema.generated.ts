@@ -266,7 +266,14 @@ export interface paths {
         /** Get Lists */
         get: operations["get_lists_lists_get"];
         put?: never;
-        /** Create List */
+        /**
+         * Create List
+         * @description Create a list. A repeat of the same Idempotency-Key answers 200 with
+         *     the list the first request made.
+         *
+         *     The response can be lost after the commit. The client then sees a failure
+         *     for a list that exists, and a retry must not make a second one.
+         */
         post: operations["create_list_lists_post"];
         delete?: never;
         options?: never;
@@ -2562,6 +2569,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                "idempotency-key"?: string | null;
                 "x-dev-user-id"?: string | null;
                 "x-dev-is-admin"?: string | null;
                 "x-api-key"?: string | null;
