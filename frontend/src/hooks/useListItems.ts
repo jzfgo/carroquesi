@@ -3,7 +3,6 @@ import {
   ApiError,
   createItem,
   deleteItem,
-  deletePrice,
   getListItems,
   getListMembers,
   getListStores,
@@ -581,32 +580,8 @@ export function useListItems(
             : i,
         ),
       )
-      // These two send to the server before they paint, so one stamp is
+      // This sends to the server before it paints, so one stamp is
       // enough: by the time a later read starts, the server already answered.
-      markWritten(itemId)
-    },
-    [getToken, listId, markWritten, showToast, suspectListGone],
-  )
-
-  const clearItemPrice = useCallback(
-    async (itemId: string) => {
-      if (!isOnline()) {
-        showToast(OFFLINE_TOAST)
-        return
-      }
-      try {
-        await deletePrice(getToken, listId, itemId)
-      } catch (err) {
-        suspectListGone(err)
-        throw err
-      }
-      setItems((prev) =>
-        prev.map((i) =>
-          i.id === itemId
-            ? { ...i, price: null, price_per: null, price_store: null }
-            : i,
-        ),
-      )
       markWritten(itemId)
     },
     [getToken, listId, markWritten, showToast, suspectListGone],
@@ -654,7 +629,6 @@ export function useListItems(
     updatePack,
     removeItem,
     savePrice,
-    clearItemPrice,
     retry: fetchAll,
   }
 }

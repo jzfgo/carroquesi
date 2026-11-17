@@ -195,7 +195,6 @@ const emptyHookResult = {
   updatePack: vi.fn(),
   removeItem: vi.fn(),
   savePrice: vi.fn(),
-  clearItemPrice: vi.fn(),
   retry: vi.fn(),
 }
 
