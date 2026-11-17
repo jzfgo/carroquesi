@@ -389,7 +389,6 @@ export function ListScreen({
     updatePack,
     removeItem,
     savePrice,
-    clearItemPrice,
     retry,
   } = useListItems(listId, getToken, setToast, confirmListGone)
 
@@ -986,31 +985,6 @@ export function ListScreen({
     [logPriceFor, savePrice, isOffline, setToast],
   )
 
-  const handleDeletePrice = useCallback(async () => {
-    if (!logPriceFor) return
-    if (isOffline) {
-      setToast('Sin conexión')
-      return
-    }
-    try {
-      await clearItemPrice(logPriceFor.itemId)
-      setLogPriceFor(null)
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
-        // price already gone — treat as success, close sheet
-        setLogPriceFor(null)
-      } else if (err instanceof ApiError && err.status === 422) {
-        setToast(
-          'No se puede eliminar el precio de un artículo comprado en otro día',
-        )
-        throw err
-      } else {
-        setToast('No se pudo eliminar el precio')
-        throw err
-      }
-    }
-  }, [logPriceFor, clearItemPrice, isOffline, setToast])
-
   const handleEanSearch = useCallback(
     async (ean: string) => {
       const requestId = ++eanRequestIdRef.current
@@ -1460,7 +1434,6 @@ export function ListScreen({
               initialStore={logPriceFor.initialStore}
               initialPurchasedQuantity={logItem.purchased_quantity ?? null}
               onSave={handleSavePrice}
-              onDelete={handleDeletePrice}
               onClose={() => setLogPriceFor(null)}
             />
           )

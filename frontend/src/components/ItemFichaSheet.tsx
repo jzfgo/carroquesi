@@ -291,7 +291,9 @@ export function ItemFichaSheet({
             displayStore={displayStore}
           />
 
-          {entries.length > 0 && (
+          {/* The entry row lives in the history block, so a record with no
+              price yet still gets the block, holding only that row. */}
+          {(entries.length > 0 || onLogPrice) && (
             <PriceHistoryBlock
               entries={entries}
               displayStore={displayStore}

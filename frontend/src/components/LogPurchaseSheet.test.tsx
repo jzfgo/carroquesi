@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { ListItem } from '../types'
 import LogPurchaseSheet from './LogPurchaseSheet'
 import { ADD_STORE } from './StoreSelect'
@@ -26,84 +26,6 @@ const BASE_ITEM: ListItem = {
   created_at: '',
   updated_at: '',
 }
-
-describe('LogPurchaseSheet delete button', () => {
-  const baseProps = {
-    initialAmount: null,
-    initialStore: null,
-    initialPurchasedQuantity: null,
-    onSave: vi.fn(),
-    onClose: vi.fn(),
-    onDelete: vi.fn(async () => undefined),
-  }
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  it('is hidden when item has no price', () => {
-    render(<LogPurchaseSheet {...baseProps} item={BASE_ITEM} />)
-    expect(
-      screen.queryByRole('button', { name: /eliminar precio/i }),
-    ).not.toBeInTheDocument()
-  })
-
-  it('is shown when item has a price and is unpurchased', () => {
-    const item = { ...BASE_ITEM, price: 1.99 }
-    render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
-    expect(
-      screen.getByRole('button', { name: /eliminar precio/i }),
-    ).toBeInTheDocument()
-  })
-
-  it('is shown when item has a price and its trip is still open', () => {
-    const item = {
-      ...BASE_ITEM,
-      price: 1.99,
-      purchased: true,
-      purchased_at: new Date().toISOString(),
-      purchase_ends_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-    }
-    render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
-    expect(
-      screen.getByRole('button', { name: /eliminar precio/i }),
-    ).toBeInTheDocument()
-  })
-
-  it('is hidden when item has a price but its trip has ended', () => {
-    const item = {
-      ...BASE_ITEM,
-      price: 1.99,
-      purchased: true,
-      purchased_at: '2020-01-01T00:00:00',
-      purchase_ends_at: '2020-01-02T00:00:00',
-    }
-    render(<LogPurchaseSheet {...baseProps} item={item} initialAmount={1.99} />)
-    expect(
-      screen.queryByRole('button', { name: /eliminar precio/i }),
-    ).not.toBeInTheDocument()
-  })
-
-  it('calls onDelete when the button is clicked', async () => {
-    const onDelete = vi.fn(async () => undefined)
-    const item = { ...BASE_ITEM, price: 1.99 }
-    render(
-      <LogPurchaseSheet
-        initialAmount={1.99}
-        initialStore={null}
-        initialPurchasedQuantity={null}
-        onSave={vi.fn()}
-        onClose={vi.fn()}
-        onDelete={onDelete}
-        item={item}
-      />,
-    )
-    await userEvent.click(
-      screen.getByRole('button', { name: /eliminar precio/i }),
-    )
-    expect(onDelete).toHaveBeenCalledOnce()
-  })
-})
 
 describe('LogPurchaseSheet quantity and price calculation', () => {
   it('calls onSave with updated price, store, and quantity when clicked', async () => {
