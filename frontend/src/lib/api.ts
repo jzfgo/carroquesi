@@ -565,16 +565,6 @@ export function updatePrice(
   }) as Promise<PriceEntry>
 }
 
-export function deletePrice(
-  getToken: () => Promise<string>,
-  listId: string,
-  itemId: string,
-) {
-  return apiFetch(getToken, `/lists/${listId}/items/${itemId}/prices`, {
-    method: 'DELETE',
-  })
-}
-
 export function submitParsedReceipt(
   getToken: () => Promise<string>,
   listId: string,
