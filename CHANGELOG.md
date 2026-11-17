@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.28.0] — 2026-11-17
+
+### Added
+- **input:** * sigil sets the pack format (JAV-241) (#491)
+
+
+---
 ## [0.27.2] — 2026-11-16
 
 ### Fixed
