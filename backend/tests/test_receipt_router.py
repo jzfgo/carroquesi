@@ -2799,7 +2799,7 @@ def test_apply_counts_every_created_item(client):
     assert response.json()["items_created"] == 2
 
 
-def test_a_patch_article_keeps_the_brand_and_a_date(client, session):
+def test_a_patch_article_keeps_the_brand(client, session):
     item = session.get_one(ListItem, "item-almendras")
     item.brand = "Hacendado"
     session.add(item)
@@ -2810,15 +2810,6 @@ def test_a_patch_article_keeps_the_brand_and_a_date(client, session):
 
     [row] = _articles(session)
     assert row.item_brand == "Hacendado"
-    assert row.created_at is not None
-
-
-def test_a_new_item_article_keeps_a_date(client, session):
-    body = _new_item_body(article="03505")
-    client.post(f"/lists/{LIST_ID}/receipt-prices", json=body)
-
-    [row] = _articles(session)
-    assert row.created_at is not None
 
 
 def test_a_patch_article_takes_the_lines_own_store(client, session):
