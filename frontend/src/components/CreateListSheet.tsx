@@ -29,17 +29,22 @@ export function CreateListSheet({ emoji, onCreate, onClose }: Props) {
   const [name, setName] = useState('')
   const [creating, setCreating] = useState(false)
   const sheetRef = useRef<SheetHandle>(null)
-  // One key per name: a retry after a failure may be a repeat of a create
-  // that did land, so it must reuse the key. A new name is a new list.
-  const createKey = useRef(newCreateKey())
+  // One key per trimmed name: a retry after a failure may be a repeat of a
+  // create that did land, so it must reuse the key. A new name is a new list.
+  // Keyed on the name sent, not on keystrokes, so an edit that ends on the
+  // same name still counts as a retry.
+  const lastCreate = useRef<{ name: string; key: string } | null>(null)
 
   const handleSubmit = async () => {
     const trimmed = name.trim()
     if (!trimmed || creating) return
     setCreating(true)
+    if (lastCreate.current?.name !== trimmed) {
+      lastCreate.current = { name: trimmed, key: newCreateKey() }
+    }
     let created = false
     try {
-      created = await onCreate(trimmed, emoji, createKey.current)
+      created = await onCreate(trimmed, emoji, lastCreate.current.key)
     } catch {
       // Treated like a refusal: the typed name must survive.
     }
@@ -64,10 +69,7 @@ export function CreateListSheet({ emoji, onCreate, onClose }: Props) {
           className="create-list-sheet__name"
           type="text"
           value={name}
-          onChange={(e) => {
-            setName(e.target.value)
-            createKey.current = newCreateKey()
-          }}
+          onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') void handleSubmit()
           }}

@@ -179,6 +179,19 @@ describe('CreateListCard', () => {
     expect(second).not.toBe(first)
   })
 
+  it('an edit that ends on the same trimmed name reuses the create key', async () => {
+    const onCreate = vi.fn<OnCreate>(async () => false)
+    render(<CreateListCard onCreate={onCreate} />)
+    fireEvent.click(screen.getByRole('button'))
+    typeName('Costco')
+    await submitAndSettle()
+    typeName('Costcoo')
+    typeName('Costco ')
+    await submitAndSettle()
+    const [first, second] = onCreate.mock.calls.map((c) => c[2])
+    expect(second).toBe(first)
+  })
+
   it('shows mascot when isFirst', () => {
     render(<CreateListCard isFirst onCreate={vi.fn()} />)
     expect(screen.getByRole('img', { name: /mascota/i })).toBeInTheDocument()
