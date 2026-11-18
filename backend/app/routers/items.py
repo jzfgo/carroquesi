@@ -45,7 +45,7 @@ def _notify_safely(session: Session, lst: List, actor: User, event: str, name: s
     """Push is best-effort. A notification failure must never fail a list write."""
     try:
         notify_list_change(session, lst, actor, event, name)
-    except Exception:  # pragma: no cover - notify_list_change already swallows
+    except Exception:
         logger.exception("push notification failed for list %s", lst.id)
 
 
