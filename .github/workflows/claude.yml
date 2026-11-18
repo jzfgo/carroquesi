@@ -3,8 +3,8 @@ name: Claude Code
 # Make each run identifiable by the PR/issue it belongs to.
 #
 # Runs triggered by `issue_comment` are always attributed to the DEFAULT branch —
-# an issue comment carries no ref, so GitHub reads the workflow from `main` and
-# reports `headBranch: main` even when the comment is on a PR whose head is a
+# an issue comment carries no ref, so GitHub reads the workflow from `develop` and
+# reports `headBranch: develop` even when the comment is on a PR whose head is a
 # feature branch. (That is a security property, not a quirk: it stops a PR author
 # from editing this file in their branch and running it with repository secrets.)
 #
@@ -237,7 +237,10 @@ jobs:
           #
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options.
-          # No Bash grants, on purpose. A prefix rule cannot vet arguments, and
+          # This file grants no Bash, on purpose. (On comment triggers the
+          # action still adds its own `git add`/`commit`/`rm` and push wrapper,
+          # so an `@claude` run can push to the PR branch.) A prefix rule
+          # cannot vet arguments, and
           # each of the grants this job used to carry let injected text in a PR
           # or issue write or run code:
           # - `Bash(gh api:*)`: `-X POST`/`-X DELETE` can follow any prefix.
@@ -250,6 +253,7 @@ jobs:
           #   PR wrote.
           # The job's `contents: read` does not contain any of that: the action
           # acts with its own app token. The reviewer reads code with Read and
-          # Grep, reads CI results through `actions: read`, and flags claims
-          # about repo settings (rulesets, required checks) as unverified.
+          # Grep and flags claims about repo settings (rulesets, required
+          # checks) as unverified. Only `@claude` runs get the CI tools that
+          # read results through `actions: read`.
           claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch,WebFetch"'
