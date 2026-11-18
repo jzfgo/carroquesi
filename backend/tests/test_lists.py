@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from app.db.models import (
     List,
+    ListInvite,
     ListItem,
     ListMember,
     ListStore,
@@ -74,6 +75,7 @@ def test_create_list_race_on_the_key_returns_the_winner(
     assert len(calls) == 2
     assert again.status_code == 200
     assert again.json()["id"] == first.json()["id"]
+    assert again.json()["is_default"] is True
     assert len(session.exec(select(List)).all()) == 1
 
 
@@ -428,3 +430,54 @@ def test_single_list_endpoints_keep_member_and_cart_defaults(client: TestClient)
     detail = client.get(f"/lists/{created['id']}").json()
     assert detail["members"] == []
     assert detail["cart_count"] == 0
+
+
+def test_get_lists_puts_the_last_updated_list_first(client: TestClient):
+    first = client.post("/lists", json={"name": "Primera"}).json()
+    second = client.post("/lists", json={"name": "Segunda"}).json()
+    client.patch(f"/lists/{first['id']}", json={"name": "Primera renombrada"})
+
+    ids = [lst["id"] for lst in client.get("/lists").json()]
+
+    assert ids == [first["id"], second["id"]]
+
+
+def test_single_list_endpoints_report_the_callers_default(client: TestClient):
+    default = client.post("/lists", json={"name": "Casa"}).json()
+    other = client.post("/lists", json={"name": "Oficina"}).json()
+
+    assert client.get(f"/lists/{default['id']}").json()["is_default"] is True
+    assert client.get(f"/lists/{other['id']}").json()["is_default"] is False
+    renamed = client.patch(f"/lists/{default['id']}", json={"name": "Hogar"})
+    assert renamed.json()["is_default"] is True
+
+
+def test_another_members_default_is_not_the_callers(
+    client: TestClient, session: Session, other_user: User
+):
+    client.post("/lists", json={"name": "Casa"})
+    shared = client.post("/lists", json={"name": "Compartida"}).json()
+    # The other member joins first, so a lookup that ignores the user finds
+    # their row before the caller's.
+    caller_row = session.exec(select(ListMember).where(ListMember.list_id == shared["id"])).one()
+    session.delete(caller_row)
+    session.add(ListMember(list_id=shared["id"], user_id=other_user.id, is_default=True))
+    session.commit()
+    session.add(ListMember(list_id=shared["id"], user_id=caller_row.user_id))
+    session.commit()
+
+    assert client.get(f"/lists/{shared['id']}").json()["is_default"] is False
+
+
+def test_delete_list_removes_only_its_own_invites(client: TestClient, session: Session, user: User):
+    doomed = client.post("/lists", json={"name": "Se borra"}).json()
+    kept = client.post("/lists", json={"name": "Se queda"}).json()
+    session.add(ListInvite(list_id=doomed["id"], invited_by=user.id))
+    session.add(ListInvite(list_id=kept["id"], invited_by=user.id))
+    session.commit()
+
+    assert client.delete(f"/lists/{doomed['id']}").status_code == 204
+
+    session.expire_all()
+    left = session.exec(select(ListInvite)).all()
+    assert [invite.list_id for invite in left] == [kept["id"]]
