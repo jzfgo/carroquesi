@@ -41,10 +41,11 @@ Then fetch all inline review comments (these are the per-line ones reviewers lea
 gh api repos/:owner/:repo/pulls/<number>/comments --paginate
 ```
 
-Check three things:
+Check each of these:
 - **Unresolved threads?** Look for comment threads that haven't been replied to and aren't marked resolved.
 - **Completed re-review of the current HEAD?** Has at least one `@claude` re-review
-  *finished* during this run, did the most recent finished one raise new actionable findings,
+  *finished* during this run (run conclusion `success` **and** its comment edited after it
+  was posted — see Step 5), did the most recent finished one raise new actionable findings,
   and did it run **against the current HEAD commit**? A PR with no review yet has **not** met
   this — go request one (Step 4) rather than treating it as clean. Neither has a PR whose
   last push landed after the review, even if that push only fixed CI.
@@ -52,6 +53,14 @@ Check three things:
   [Handling CI Failures](#handling-ci-failures) now**, then return here. Do not fall through
   to comment triage — Steps 2–3 only handle review comments, so a red-CI PR with no open
   threads would otherwise loop through re-reviews forever without anyone reading the CI logs.
+- **CI still running?** Pending, queued and in-progress entries are not green, and neither
+  is `neutral` or `action_required`. Wait for them; only `success` and `skipped` pass.
+- **CI missing?** `CI gate` is the one required check, so it must **appear** in
+  `statusCheckRollup` and pass. An empty rollup, or one without `CI gate`, is not green:
+  it is "all zero checks pass", which holds trivially. It usually means GitHub dropped the
+  `synchronize` event and the head commit has no checks at all. Wait a couple of minutes and
+  look again; if `CI gate` still has not appeared, a new push is what brings it back — ask
+  the user before pushing an empty commit for that.
 
 If all threads are addressed, **a completed re-review came back clean**, and CI is green →
 **you're done**. Report the final state and exit. Note `reviewDecision` will normally still
@@ -116,6 +125,15 @@ The mention is what matters, not an exact phrase: `.github/workflows/claude.yml`
 and the rest of the comment is the instruction Claude follows. Say what changed since
 the last pass so the re-review is targeted.
 
+Record the PR's head commit at this moment — it is the commit this review is about:
+
+```bash
+gh pr view <number> --json headRefOid --jq .headRefOid
+```
+
+Do not push again until the review finishes. A push while it runs leaves you unable to tell
+which commit it read, so that review cannot count.
+
 ### 5. Monitor for Re-Review Completion
 
 Poll every 60–90 seconds. The re-review lands as a **comment**, not a review.
@@ -173,13 +191,26 @@ gh api repos/:owner/:repo/issues/<number>/comments --paginate \
   --jq '.[] | select(.user.login=="claude[bot]") | .body' \
   | grep -oE '\[View job[^]]*\]\([^)]*/runs/[0-9]+' | grep -oE '[0-9]+$'
 
-# 2. primary gate: that run has finished
+# 2. primary gate: that run has finished AND succeeded — must print completed/success
 gh run view <run-id> --json status,conclusion --jq '"\(.status)/\(.conclusion)"'
 
-# 3. read THAT run's comment, matched by run id — not by text, not by recency
+# 3. read THAT run's comment, matched by run id — not by text, not by recency —
+#    and confirm it was edited after it was posted (updated_at > created_at)
 gh api repos/:owner/:repo/issues/<number>/comments --paginate \
-  --jq '.[] | select(.body | test("runs/<run-id>")) | .body'
+  --jq '.[] | select(.body | test("runs/<run-id>")) | {created_at, updated_at, body}'
 ```
+
+**`completed` alone is not the gate — require `completed/success`.** `completed` also covers
+`failure`, `cancelled` and `timed_out`. A run that dies usually leaves its placeholder
+comment unedited, and a placeholder has no findings, so it reads as a clean pass that never
+happened. A failed run is no review: read its log (`gh run view <run-id> --log-failed`),
+then request again in Step 4. Likewise, a comment whose `updated_at` equals its
+`created_at` is still the placeholder, whatever the run says.
+
+**A `claude[bot]` comment with no `[View job]` link is not your review.** Step 1 prints
+nothing for it. It is either a placeholder whose link has not been written yet, or a
+comment from another workflow. It never counts toward exit condition #2; its findings still
+get triaged in Step 2 like any other comment.
 
 **The grep in step 1 must stay anchored to the `[View job]` link — it looks narrow on
 purpose.** A finished review body cites more than one run: its own, in the `[View job]`
@@ -226,7 +257,7 @@ Two more traps seen in practice:
 Give it up to 10 minutes **after the run completes**. Read the finished body and decide
 whether it raises **new actionable findings** — do not wait for `reviewDecision` to change
 (see *Exit Condition*). If there are new findings, go back to **Step 1**. If there are none,
-record that a clean re-review has completed.
+record that a clean re-review of the `headRefOid` you recorded in Step 4 has completed.
 
 ---
 
@@ -273,21 +304,24 @@ Never skip or suppress CI checks — fix the underlying problem.
 
 Stop looping when **all three** are true:
 1. No open, unresolved comment threads
-2. **At least one** `@claude` re-review has *completed* during this run, came back with no
-   new actionable findings, and ran **against the current HEAD commit**
-3. All `statusCheckRollup` entries are passing
+2. **At least one** `@claude` re-review has *completed* during this run (`completed/success`,
+   comment edited after it was posted), came back with no new actionable findings, and the
+   `headRefOid` recorded when you requested it is **the current one**
+3. Every `statusCheckRollup` entry has finished and passes, and `CI gate` is among them —
+   an empty rollup is missing CI, not green (see Step 1)
 
 A clean review is tied to the commit it reviewed. **Any push invalidates it** — including a
-push that only fixes CI. Before exiting, confirm no commit landed after the review you are
-relying on:
+push that only fixes CI. Before exiting, confirm the head has not moved since you requested
+the review you are relying on:
 
 ```bash
-git rev-parse --short HEAD                                  # current HEAD
-git log -1 --format=%cI HEAD                                # its commit time
-# compare against the .createdAt of the clean claude comment
+gh pr view <number> --json headRefOid --jq .headRefOid   # must equal the one recorded in Step 4
 ```
 
-If HEAD is newer than the clean review, that review is stale → go back to **Step 4**.
+Compare commits, not timestamps: the clean comment's `createdAt` dates the placeholder, and a
+commit's date says nothing about when it was pushed.
+
+If the head moved, that review is stale → go back to **Step 4**.
 
 **Exception — the PR edits `.github/workflows/claude.yml`:** its `Claude Code` check is
 red **by design** (see *Handling CI Failures*) and can never pass, so exclude that one
