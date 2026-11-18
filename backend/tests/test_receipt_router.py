@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, time, timedelta, timezone
 
 import pytest
 from sqlmodel import select
@@ -18,6 +18,7 @@ from app.routers import receipt as receipt_router
 from app.routers.receipt import _parse_receipt_at
 from app.routers.receipt import _today as real_today
 from app.schemas.receipt import ReceiptPriceBatch
+from app.services.receipt_date import PLAUSIBLE_PAST_DAYS
 
 LIST_ID = "list-receipt-test"
 
@@ -2538,16 +2539,19 @@ def test_targeted_scan_matches_the_most_recently_updated_line(client, session, u
 
 
 def test_scan_judges_the_date_in_the_clients_zone(client):
-    """23:30 UTC on 14 Jan is 15 Jan in Madrid: the last day inside the
-    90-day window, so the date stands. Read in UTC it would be dropped."""
-    body = {**_unit_body(), "receipt_date": "2026-01-14T23:30:00Z"}
+    """23:30 UTC the day before the window opens is already its first day in
+    Madrid, so the date stands. Read in UTC it would be dropped."""
+    earliest = PINNED_TODAY - timedelta(days=PLAUSIBLE_PAST_DAYS)
+    instant = datetime.combine(earliest - timedelta(days=1), time(23, 30), tzinfo=UTC)
+    receipt_date = instant.isoformat().replace("+00:00", "Z")
+    body = {**_unit_body(), "receipt_date": receipt_date}
     result = client.post(
         f"/lists/{LIST_ID}/receipt",
         json=body,
         headers={"X-Client-Timezone": "Europe/Madrid"},
     ).json()
 
-    assert result["receipt_date"] == "2026-01-14T23:30:00Z"
+    assert result["receipt_date"] == receipt_date
 
 
 def test_past_dated_scan_returns_the_purchases_total(client, session, user):
@@ -2625,9 +2629,17 @@ def test_past_dated_scan_starts_the_day_at_the_clients_midnight(client, session,
 def test_a_scan_dated_today_aims_at_nothing(client, session, user, monkeypatch):
     """Today's shop is still the ordinary flow, even if a purchase from today
     is already closed."""
-    today = datetime.now(UTC).date()
-    monkeypatch.setattr(receipt_router, "_today", lambda tz: today)
-    opened = datetime.combine(today, datetime.min.time(), tzinfo=UTC)
+    today = PINNED_TODAY
+    noon = datetime.combine(today, time(12, 0), tzinfo=UTC)
+
+    class _FrozenDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return noon.astimezone(tz)
+
+    # The router reads the clock itself, so freeze it on the pinned day.
+    monkeypatch.setattr(receipt_router, "datetime", _FrozenDatetime)
+    opened = datetime.combine(today, time.min, tzinfo=UTC)
     session.add(
         Purchase(
             id="trip-today",
@@ -2699,8 +2711,10 @@ def test_undated_apply_closes_a_cart_stamped_in_the_clients_zone(client, session
     item = session.get_one(ListItem, "item-almendras")
     trip = session.get_one(Purchase, item.purchase_id)
     assert trip.closed_at is not None
-    # Local midnight at UTC-12 is 12:00 UTC.
-    assert trip.tears_off_at.astimezone(UTC).hour == 12
+    # Local midnight at UTC-12 is 12:00 UTC. Check the offset first, so a
+    # naive value fails here instead of being read in the machine's zone.
+    assert trip.tears_off_at.utcoffset() == timedelta(0)
+    assert trip.tears_off_at.hour == 12
 
 
 def test_apply_counts_every_patch_for_an_unknown_item(client):
