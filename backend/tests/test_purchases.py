@@ -1600,11 +1600,13 @@ def test_items_total_skips_a_line_whose_price_cannot_apply(
     client: TestClient, session: Session, user
 ):
     """A per-kilo price on a line counted in units has no amount. It adds
-    nothing, and the lines after it still count."""
+    nothing, and the other lines still count. The query has no order, so a
+    skipped line sits on each side of the counted one."""
     lst = _create_list(client)
     trip = _settled_trip(session, lst["id"], "trip-weighed", datetime.now(UTC) - timedelta(days=1))
     _filed_line(session, trip, user, "Pollo", quantity="2 ud", price=7.5, price_per="KILOGRAM")
     _filed_line(session, trip, user, "Leche", quantity="1 ud", price=1.234)
+    _filed_line(session, trip, user, "Pavo", quantity="3 ud", price=9.9, price_per="KILOGRAM")
 
     [summary] = _page(client, lst["id"]).json()["purchases"]
 
@@ -1632,11 +1634,15 @@ def test_search_skips_a_newer_trip_with_no_match(client: TestClient, session: Se
     older = _settled_trip(session, lst["id"], "trip-older", now - timedelta(days=2))
     _filed_line(session, newer, user, "Pan")
     _filed_line(session, older, user, "Leche")
+    from app.db.models import ReceiptScan
+
+    session.add(ReceiptScan(list_id=lst["id"], scanned_by=user.id, purchase_id=older.id))
+    session.commit()
 
     results = _search(client, lst["id"], "leche").json()["results"]
 
     assert [r["trip"]["id"] for r in results] == [older.id]
-    # The search view prints no receipt mark.
+    # The search view prints no receipt mark, even for a scanned trip.
     assert results[0]["trip"]["has_receipt"] is False
 
 
