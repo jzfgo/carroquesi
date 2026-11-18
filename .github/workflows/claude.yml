@@ -3,8 +3,8 @@ name: Claude Code
 # Make each run identifiable by the PR/issue it belongs to.
 #
 # Runs triggered by `issue_comment` are always attributed to the DEFAULT branch —
-# an issue comment carries no ref, so GitHub reads the workflow from `main` and
-# reports `headBranch: main` even when the comment is on a PR whose head is a
+# an issue comment carries no ref, so GitHub reads the workflow from `develop` and
+# reports `headBranch: develop` even when the comment is on a PR whose head is a
 # feature branch. (That is a security property, not a quirk: it stops a PR author
 # from editing this file in their branch and running it with repository secrets.)
 #
@@ -62,11 +62,14 @@ jobs:
     # The other four triggers execute in the BASE repo context with full secrets no
     # matter who authored the comment, and for them `prompt` is empty, so the agent
     # follows whatever the comment says. Gating on `@claude` alone therefore lets any
-    # stranger drive this agent with the tools in `claude_args` — including
-    # `Bash(gh api:*)`, which permits `-X POST`/`-X DELETE`.
+    # stranger drive this agent, which can still comment and edit through the
+    # action's own tools.
     #
-    # So every trigger also requires a trusted author. Do not remove these checks
-    # while `claude_args` grants write-capable tools.
+    # So every trigger also requires a trusted author. Do not remove these checks.
+    #
+    # That gate checks who triggered the run, not who wrote what it reads. A
+    # trusted `@claude` on a fork's PR would feed a stranger's code to the agent,
+    # so the first step below refuses PRs from forks.
     if: |
       (github.event_name == 'pull_request' &&
         github.event.pull_request.draft == false &&
@@ -91,6 +94,20 @@ jobs:
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
     steps:
+      # Fails closed: if the lookup fails or the fork is gone, `head` is empty
+      # and the run stops. Issues that are not PRs leave `PR` empty and pass.
+      - name: Refuse to run on pull requests from forks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.issue.pull_request && github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          [ -z "$PR" ] && exit 0
+          head=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR" --jq '.head.repo.full_name // ""') || head=
+          if [ "$head" != "$GITHUB_REPOSITORY" ]; then
+            echo "::error::PR #$PR comes from ${head:-an unknown repository}, not $GITHUB_REPOSITORY. Claude does not run on fork PRs: review it by hand."
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
@@ -105,7 +122,7 @@ jobs:
       # the MERGE commit, so a PR that does not touch this file compares identical
       # to the base branch even when the base has moved. Only `pull_request` runs
       # attach a check to the PR, so only they need the guard — comment-triggered
-      # runs read this file from `main` and are attributed there.
+      # runs read this file from `develop` and are attributed there.
       - name: Refuse to no-op when this PR edits the review workflow
         if: github.event_name == 'pull_request'
         run: |
@@ -220,31 +237,22 @@ jobs:
           #
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options.
-          # `Bash(gh api:*)` lets the reviewer check repository configuration that is not
-          # in the tree — rulesets, required checks, run status. Two independent reviews of
-          # #122 had to report the ruleset claims in babysit-pr/SKILL.md as unverifiable
-          # without it, and both correctly declined to assert them on the author's word.
-          #
-          # Broader than read-only: `gh api` accepts `-X POST`/`-X DELETE`, and prefix
-          # matching cannot exclude those. What keeps that safe is the author gate in the
-          # job's `if:` above, NOT fork-secret withholding — this repo is public, and four
-          # of the five triggers run in the base repo context with full secrets whoever
-          # wrote the comment. Removing the author gate re-opens arbitrary API writes to
-          # any commenter.
-          #
-          # `Bash(git:*)` and the two `scripts/` prefixes let the reviewer RUN things
-          # instead of only reading them. The reviewer on #133 had every such call
-          # denied ("everything below is static analysis"), and the reviews of #175
-          # showed why that matters: every claim made by reading alone needed
-          # correcting, every claim that arrived with a run held. The repo's tooling
-          # scripts are dependency-free by design — they must work on a bare checkout —
-          # so granting them costs no setup. Git writes cannot land: the checkout's
-          # persisted token has `contents: read`, so a push is refused server-side.
-          #
-          # Deliberately NOT granted: the real test suites (just / pnpm / uv). They
-          # need toolchains this job does not install, so approving them would only
-          # convert a permission denial into a command-not-found. CI runs the suites
-          # on every PR; the reviewer reads those results through `actions: read`
-          # instead of re-running them. Revisit only together with setup steps, and
-          # weigh the minutes they add to every review pass.
-          claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch,WebFetch,Bash(gh api:*),Bash(git:*),Bash(bash scripts/:*),Bash(python3 scripts/:*)"'
+          # This file grants no Bash, on purpose. (On comment triggers the
+          # action still adds its own `git add`/`commit`/`rm` and push wrapper,
+          # so an `@claude` run can push to the PR branch.) A prefix rule
+          # cannot vet arguments, and each of the grants this job used to carry
+          # let injected text in a PR or issue write or run code:
+          # - `Bash(gh api:*)`: `-X POST`/`-X DELETE` can follow any prefix.
+          # - `Bash(git:*)`: `git -c <key>=<cmd>` and `git config` run commands.
+          #   Even "read-only" subcommands escape: `--output=<file>` on
+          #   log/diff/show writes any file, and a bare repo committed in a PR
+          #   brings its own config (fsmonitor, pager) that git obeys inside it.
+          # - `Bash(bash scripts/:*)`, `Bash(python3 scripts/:*)`: on a PR, the
+          #   checkout holds the PR's own `scripts/`, so these run whatever the
+          #   PR wrote.
+          # The job's `contents: read` does not contain any of that: the action
+          # acts with its own app token. The reviewer reads code with Read and
+          # Grep and flags claims about repo settings (rulesets, required
+          # checks) as unverified. Only `@claude` runs get the CI tools that
+          # read results through `actions: read`.
+          claude_args: '--model claude-opus-5-5 --plugin-dir ${{ github.workspace }}/.review-plugins/plugins/code-review --allowedTools "mcp__github_inline_comment__create_inline_comment,WebSearch,WebFetch"'
