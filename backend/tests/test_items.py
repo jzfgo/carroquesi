@@ -225,6 +225,36 @@ def test_unpurchase_blocked_when_the_trip_closed_before_a_future_tear_off(
     assert response.status_code == 409
 
 
+def test_repeat_purchase_does_not_reopen_the_write_grace(client: TestClient, session: Session):
+    """A retried or Siri-sent purchase on a bought item is no change: it must
+    not stamp updated_at, or it would reopen the un-purchase grace window."""
+    from app.db.models import ListItem
+    from app.routers.items import UNPURCHASE_GRACE
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    now = datetime.now(UTC)
+    _purchase_and_age(
+        client,
+        session,
+        lst,
+        item,
+        closed_at=now - timedelta(hours=1),
+        updated_ago=UNPURCHASE_GRACE + timedelta(minutes=1),
+    )
+    db_item = session.get_one(ListItem, item["id"])
+    session.refresh(db_item)
+    aged_updated_at = db_item.updated_at
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    assert response.status_code == 200
+    session.refresh(db_item)
+    assert db_item.updated_at == aged_updated_at
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+    assert response.status_code == 409
+
+
 def test_unpurchase_backdated_item_within_write_grace(client: TestClient, session: Session):
     """A receipt scanned days after shopping backdates purchased_at onto a trip
     that has already torn off, but the record itself was just written — undoing
