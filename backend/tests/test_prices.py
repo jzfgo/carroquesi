@@ -587,3 +587,113 @@ def test_price_history_entry_includes_quantity(client: TestClient):
     entries = resp.json()["entries"]
     assert len(entries) == 1
     assert entries[0]["quantity"] == "500g"
+
+
+# --- Gaps found by mutation testing ---
+
+
+def test_price_endpoints_404_for_an_item_of_another_list(client: TestClient):
+    lst = _make_list(client)
+    other = client.post("/lists", json={"name": "Otra"}).json()
+    item = _make_item(client, other["id"])
+    _set_price(client, other["id"], item["id"], 1.00)
+
+    base = f"/lists/{lst['id']}/items/{item['id']}/prices"
+    assert client.get(base).status_code == 404
+    assert client.patch(base, json={"amount": 2.00}).status_code == 404
+    assert client.delete(base).status_code == 404
+    assert client.post(base, json={"amount": 2.00}).status_code == 404
+
+
+def test_price_per_is_written_and_returned(client: TestClient):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+
+    created = _set_price(client, lst["id"], item["id"], 2.40, price_per="KILOGRAM").json()
+    assert created["price_per"] == "KILOGRAM"
+    updated = client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}/prices",
+        json={"amount": 2.60, "price_per": "KILOGRAM"},
+    ).json()
+    assert updated["price_per"] == "KILOGRAM"
+
+    entries = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices").json()["entries"]
+    assert entries[0]["price_per"] == "KILOGRAM"
+
+
+def test_delete_price_clears_the_reduced_flag(client: TestClient, session):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+    _set_price(client, lst["id"], item["id"], 1.99)
+    row = session.get_one(DBListItem, item["id"])
+    row.price_reduced = True
+    row.price_before = 2.50
+    session.add(row)
+    session.commit()
+
+    assert client.delete(f"/lists/{lst['id']}/items/{item['id']}/prices").status_code == 204
+
+    session.refresh(row)
+    assert row.price_reduced is False
+    assert row.price_before is None
+
+
+def test_a_priced_purchase_is_not_sin_precio(client: TestClient):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"])
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    _set_price(client, lst["id"], item["id"], 1.10)
+
+    entries = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices").json()["entries"]
+    assert len(entries) == 1
+    assert entries[0]["is_sin_precio"] is False
+
+
+def test_this_list_scope_is_the_default_and_leaves_out_my_other_lists(client: TestClient):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"], name="Aceite")
+    _set_price(client, lst["id"], item["id"], 4.50, store="Mercadona")
+    other = client.post("/lists", json={"name": "Otra"}).json()
+    elsewhere = _make_item(client, other["id"], name="Aceite")
+    _set_price(client, other["id"], elsewhere["id"], 5.00, store="Carrefour")
+
+    base = f"/lists/{lst['id']}/items/{item['id']}/prices"
+    for url in (base, f"{base}?scope=this_list"):
+        stores = {e["store"] for e in client.get(url).json()["entries"]}
+        assert stores == {"Mercadona"}
+
+
+def test_my_lists_scope_keeps_only_the_same_product(client: TestClient):
+    lst = _make_list(client)
+    item = _make_item(client, lst["id"], name="Aceite")
+    _set_price(client, lst["id"], item["id"], 4.50, store="Mercadona")
+    other = client.post("/lists", json={"name": "Otra"}).json()
+    unrelated = _make_item(client, other["id"], name="Arroz")
+    _set_price(client, other["id"], unrelated["id"], 1.20, store="Lidl")
+
+    entries = client.get(f"/lists/{lst['id']}/items/{item['id']}/prices?scope=my_lists").json()[
+        "entries"
+    ]
+    assert {e["store"] for e in entries} == {"Mercadona"}
+
+
+def test_price_history_orders_dated_rows_oldest_first(client: TestClient, session, user):
+    # Insertion order and id order both differ from date order, so only the
+    # sort can produce the expected one.
+    lst = _make_list(client)
+    base = datetime(2026, 3, 10, 12, tzinfo=UTC)
+    for suffix, days, amount in (("a", 0, 1.20), ("b", 5, 1.30), ("c", -5, 1.10)):
+        _insert_row(
+            session,
+            lst["id"],
+            user.id,
+            id=f"00000000-0000-0000-0000-00000000000{suffix}",
+            name="Pan",
+            price=amount,
+            purchased_at=base + timedelta(days=days),
+        )
+
+    entries = client.get(
+        f"/lists/{lst['id']}/items/00000000-0000-0000-0000-00000000000a/prices"
+    ).json()["entries"]
+    assert [e["amount"] for e in entries] == [1.10, 1.20, 1.30]
