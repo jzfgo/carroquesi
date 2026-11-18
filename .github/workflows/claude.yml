@@ -122,7 +122,7 @@ jobs:
       # the MERGE commit, so a PR that does not touch this file compares identical
       # to the base branch even when the base has moved. Only `pull_request` runs
       # attach a check to the PR, so only they need the guard — comment-triggered
-      # runs read this file from `main` and are attributed there.
+      # runs read this file from `develop` and are attributed there.
       - name: Refuse to no-op when this PR edits the review workflow
         if: github.event_name == 'pull_request'
         run: |
@@ -240,9 +240,8 @@ jobs:
           # This file grants no Bash, on purpose. (On comment triggers the
           # action still adds its own `git add`/`commit`/`rm` and push wrapper,
           # so an `@claude` run can push to the PR branch.) A prefix rule
-          # cannot vet arguments, and
-          # each of the grants this job used to carry let injected text in a PR
-          # or issue write or run code:
+          # cannot vet arguments, and each of the grants this job used to carry
+          # let injected text in a PR or issue write or run code:
           # - `Bash(gh api:*)`: `-X POST`/`-X DELETE` can follow any prefix.
           # - `Bash(git:*)`: `git -c <key>=<cmd>` and `git config` run commands.
           #   Even "read-only" subcommands escape: `--output=<file>` on
