@@ -116,7 +116,7 @@ jobs:
       # No `python-version` here: from `working-directory`, setup-uv reads
       # backend/.python-version, so that file is the one place the version is
       # written. (`defaults.run` does not reach a `uses:` step, hence the input.)
-      - uses: astral-sh/setup-uv@v10.3.2
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           working-directory: backend
           enable-cache: true
