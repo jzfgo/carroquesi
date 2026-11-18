@@ -1600,8 +1600,9 @@ def test_items_total_skips_a_line_whose_price_cannot_apply(
     client: TestClient, session: Session, user
 ):
     """A per-kilo price on a line counted in units has no amount. It adds
-    nothing, and the other lines still count. The query has no order, so a
-    skipped line sits on each side of the counted one."""
+    nothing, and the other lines still count. The query sets no order, but
+    SQLite gives insertion order or its reverse. A skipped line sits on each
+    side of the counted one, so either way one comes before it."""
     lst = _create_list(client)
     trip = _settled_trip(session, lst["id"], "trip-weighed", datetime.now(UTC) - timedelta(days=1))
     _filed_line(session, trip, user, "Pollo", quantity="2 ud", price=7.5, price_per="KILOGRAM")
