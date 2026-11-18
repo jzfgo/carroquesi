@@ -181,6 +181,9 @@ def update_item(
     # Only a format correction: allowed on a closed purchase, and not a write
     # to the purchase, so it must not reopen the un-purchase grace window.
     format_only = bool(data) and purchased is None and data.keys() <= {"pack", "ean"}
+    # A repeat purchase (Siri, a retried request) changes nothing. Stamping it
+    # would reopen the un-purchase grace window on a closed trip.
+    repeat_purchase = purchased is True and was_purchased and not data
     if "pack" in data:
         data.pop("pack")
         # Whole, not exclude_unset: a field left out of the format is a default,
@@ -214,7 +217,7 @@ def update_item(
         item.purchased_at = None
         emptied_trip_id, item.purchase_id = item.purchase_id, None
         trips.prune_if_empty(session, emptied_trip_id)
-    if not format_only:
+    if not format_only and not repeat_purchase:
         item.updated_at = datetime.now(UTC)
     session.add(item)
     _bump(lst, session)
