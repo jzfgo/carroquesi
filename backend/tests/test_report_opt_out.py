@@ -186,3 +186,9 @@ def test_mailer_ready_needs_an_https_frontend_url(monkeypatch):
     monkeypatch.setattr(settings, "email_from", "informes@example.com")
     monkeypatch.setattr(settings, "frontend_url", "http://localhost:5173")
     assert monthly_report.mailer_ready() is False
+
+
+def test_the_page_links_the_app_with_one_trailing_slash(client, monkeypatch):
+    monkeypatch.setattr(get_settings(), "frontend_url", "https://app.example.com/")
+    resp = client.get("/u/not-a-token")
+    assert 'href="https://app.example.com/"' in resp.text

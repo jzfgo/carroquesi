@@ -165,3 +165,35 @@ def test_no_match_returns_null(client: TestClient, session: Session, user):
     resp = _lookup(client, current["id"], "Nutella")
     assert resp.status_code == 200
     assert resp.json() is None
+
+
+def test_a_purchase_wins_even_when_a_pending_line_was_touched_later(
+    client: TestClient, session: Session, user
+):
+    current = client.post("/lists", json={"name": "Current"}).json()
+    bought = client.post("/lists", json={"name": "Bought"}).json()
+    pending = client.post("/lists", json={"name": "Pending"}).json()
+    _add_item(
+        session,
+        bought["id"],
+        user.id,
+        "Eggs",
+        purchased_at=_now() - timedelta(days=30),
+        updated_at=_now() - timedelta(days=30),
+    )
+    _add_item(session, pending["id"], user.id, "Eggs", updated_at=_now())
+
+    assert _lookup(client, current["id"], "Eggs").json()["list_id"] == bought["id"]
+
+
+def test_with_no_purchase_the_line_touched_last_wins_not_the_list(
+    client: TestClient, session: Session, user
+):
+    current = client.post("/lists", json={"name": "Current"}).json()
+    fresh = client.post("/lists", json={"name": "Fresh"}).json()
+    # Created last, so this list's own updated_at is the newest.
+    stale = client.post("/lists", json={"name": "Stale"}).json()
+    _add_item(session, fresh["id"], user.id, "Bread", updated_at=_now())
+    _add_item(session, stale["id"], user.id, "Bread", updated_at=_now() - timedelta(days=5))
+
+    assert _lookup(client, current["id"], "Bread").json()["list_id"] == fresh["id"]

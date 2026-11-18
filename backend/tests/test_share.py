@@ -90,3 +90,15 @@ def test_share_page_escapes_token_in_script(client: TestClient):
     assert "a<b>c" not in body
     assert 'window.location.replace("/invite/a\\u003cb\\u003ec")' in body
     assert 'content="0;url=/invite/a&lt;b&gt;c"' in body
+
+
+def test_share_page_survives_a_missing_list_and_inviter(client: TestClient, session: Session):
+    invite = ListInvite(list_id="gone-list", invited_by="gone-user")
+    session.add(invite)
+    session.commit()
+
+    response = client.get(f"/i/{invite.id}")
+
+    assert response.status_code == 200
+    assert f"<title>{html.escape('una lista — CarroQueSí')}</title>" in response.text
+    assert html.escape("Te invitaron a unirse a 'una lista' en CarroQueSí") in response.text

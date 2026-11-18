@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
@@ -172,3 +173,152 @@ def test_due_suggestions_unit_suffixed_quantities_excluded_from_avg(
     # avg_quantity must be None — unit-suffixed quantities are not item counts
     assert platano is not None
     assert platano["avg_quantity"] is None
+
+
+# --- Gaps found by mutation testing ---
+
+NOW = datetime(2026, 11, 18, 12, tzinfo=UTC)
+
+
+def _freeze(monkeypatch):
+    class Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return NOW
+
+    monkeypatch.setattr("app.routers.suggestions.datetime", Frozen)
+
+
+def _buy(session: Session, list_id: str, user_id: str, name: str, days_ago: float, **fields):
+    session.add(
+        ListItem(
+            list_id=list_id,
+            name=name,
+            added_by=user_id,
+            purchased_at=NOW - timedelta(days=days_ago),
+            **fields,
+        )
+    )
+    session.commit()
+
+
+def _due(client: TestClient, list_id: str) -> dict:
+    return {s["name"]: s for s in client.get(f"/lists/{list_id}/due-suggestions").json()}
+
+
+def test_due_suggestion_figures_are_exact(client: TestClient, session: Session, user, monkeypatch):
+    # Gaps of 6 and 8 days: the median is 7, so the window is 6.3 to 10.5 days.
+    _freeze(monkeypatch)
+    lst = _create_list(client)
+    _buy(session, lst["id"], user.id, "Leche", 22, quantity="1,5", stores=["Lidl"])
+    _buy(session, lst["id"], user.id, "Leche", 16, quantity="2")
+    _buy(session, lst["id"], user.id, "Leche", 8, quantity="4", brand="Pascual", stores=["Dia"])
+
+    leche = _due(client, lst["id"])["Leche"]
+    assert leche["median_interval_days"] == 7.0
+    assert leche["days_since_last"] == 8.0
+    assert leche["days_overdue"] == pytest.approx(8.0 - 6.3, rel=1e-9)
+    assert leche["dismissal_ttl_days"] == pytest.approx(10.5 - 8.0, rel=1e-9)
+    # The newest purchase names the brand and stores; quantities are averaged.
+    assert leche["brand"] == "Pascual"
+    assert leche["stores"] == ["Dia"]
+    assert leche["avg_quantity"] == 2
+
+
+def test_due_suggestion_without_stores_has_an_empty_list(
+    client: TestClient, session: Session, user, monkeypatch
+):
+    _freeze(monkeypatch)
+    lst = _create_list(client)
+    for days in (21, 14, 7):
+        _buy(session, lst["id"], user.id, "Pan", days, stores=None)
+
+    assert _due(client, lst["id"])["Pan"]["stores"] == []
+
+
+def test_both_ends_of_the_window_are_due(client: TestClient, session: Session, user, monkeypatch):
+    # A median of 10 days: the window is 9 to 15 days.
+    _freeze(monkeypatch)
+    lst = _create_list(client)
+    for days in (29, 19, 9):
+        _buy(session, lst["id"], user.id, "Huevos", days)
+    for days in (35, 25, 15):
+        _buy(session, lst["id"], user.id, "Arroz", days)
+
+    assert set(_due(client, lst["id"])) == {"Huevos", "Arroz"}
+
+
+def test_a_daily_item_can_be_due(client: TestClient, session: Session, user, monkeypatch):
+    _freeze(monkeypatch)
+    lst = _create_list(client)
+    for days in (3, 2, 1):
+        _buy(session, lst["id"], user.id, "Pan", days)
+
+    assert "Pan" in _due(client, lst["id"])
+
+
+def test_items_bought_all_at_once_are_never_due(
+    client: TestClient, session: Session, user, monkeypatch
+):
+    _freeze(monkeypatch)
+    lst = _create_list(client)
+    for _ in range(3):
+        _buy(session, lst["id"], user.id, "Agua", 0)
+
+    assert _due(client, lst["id"]) == {}
+
+
+def test_a_skipped_item_does_not_stop_the_others(
+    client: TestClient, session: Session, user, monkeypatch
+):
+    # Each skipped group comes first by id, so a loop that stopped at the
+    # first skip would never reach the due item.
+    _freeze(monkeypatch)
+    lst = _create_list(client)
+    rows = [
+        ("a1", "Pocas", 14),  # fewer than three purchases
+        ("b1", "Pendiente", 21),  # also pending on the list
+        ("b2", "Pendiente", 14),
+        ("b3", "Pendiente", 7),
+        ("c1", "Juntas", 0),  # median of zero
+        ("c2", "Juntas", 0),
+        ("c3", "Juntas", 0),
+        ("d1", "Pronto", 3),  # not due yet
+        ("d2", "Pronto", 2),
+        ("d3", "Pronto", 1.5),
+        ("e1", "Toca", 21),
+        ("e2", "Toca", 14),
+        ("e3", "Toca", 7),
+    ]
+    for id_, name, days in rows:
+        _buy(session, lst["id"], user.id, name, days, id=f"00000000-0000-0000-0000-0000000000{id_}")
+    session.add(ListItem(list_id=lst["id"], name="Pendiente", added_by=user.id))
+    session.commit()
+
+    assert set(_due(client, lst["id"])) == {"Toca"}
+
+
+def test_other_lists_do_not_count(client: TestClient, session: Session, user, monkeypatch):
+    _freeze(monkeypatch)
+    lst = _create_list(client)
+    other = _create_list(client)
+    for days in (21, 14, 7):
+        _buy(session, lst["id"], user.id, "Pan", days)
+    # Purchases elsewhere would make "Café" due here; a pending "Pan" elsewhere
+    # would hide "Pan".
+    for days in (21, 14, 7):
+        _buy(session, other["id"], user.id, "Café", days)
+    session.add(ListItem(list_id=other["id"], name="Pan", added_by=user.id))
+    session.commit()
+
+    assert set(_due(client, lst["id"])) == {"Pan"}
+
+
+def test_at_most_ten_due_suggestions(client: TestClient, session: Session, user, monkeypatch):
+    _freeze(monkeypatch)
+    lst = _create_list(client)
+    for n in range(11):
+        for days in (21, 14, 7):
+            _buy(session, lst["id"], user.id, f"Cosa {n}", days)
+
+    assert len(_due(client, lst["id"])) == 10
