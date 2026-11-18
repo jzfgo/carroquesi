@@ -120,7 +120,7 @@ def _notify_safely(session, lst: List, actor: User, event: str, name: str) -> No
     """
     try:
         notify_list_change(session, lst, actor, event, name)
-    except Exception:  # pragma: no cover - notify_list_change already swallows
+    except Exception:
         logger.exception("push notification failed for list %s", lst.id)
 
 
