@@ -5,7 +5,7 @@ ARG PYTHON_VERSION=3.14
 
 # Pinned so a fresh release cannot enter the image unreviewed. A FROM line,
 # not an inline COPY --from, so Dependabot sees the pin and proposes bumps.
-FROM ghcr.io/astral-sh/uv:0.13.6 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.9 AS uv
 
 FROM python:${PYTHON_VERSION}-slim
 
