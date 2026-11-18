@@ -268,6 +268,16 @@ def test_file_url_returns_404_for_an_unknown_scan(client):
     assert client.get(f"/lists/{LIST_ID}/receipts/no-such-scan/file-url").status_code == 404
 
 
+def test_file_url_returns_404_for_another_lists_scan(client, session, other_list_and_scan):
+    scan = session.get_one(ReceiptScan, "scan-other")
+    scan.file_path = "receipts/list-files-other/scan-other.jpg"
+    scan.file_content_type = "image/jpeg"
+    session.add(scan)
+    session.commit()
+
+    assert client.get(f"/lists/{LIST_ID}/receipts/scan-other/file-url").status_code == 404
+
+
 def test_file_url_returns_503_when_storage_unconfigured(client, session, monkeypatch):
     _stored_scan(session)
     monkeypatch.setattr(get_settings(), "receipt_storage_bucket", "")
@@ -334,12 +344,22 @@ def test_thumb_url_returns_404_when_no_file_was_ever_minted(client):
     assert client.get(f"/lists/{LIST_ID}/receipts/{SCAN_ID}/thumb-url").status_code == 404
 
 
-def test_thumb_url_returns_404_for_another_lists_scan(client, session, other_list_and_scan):
+def test_thumb_url_returns_404_for_an_unknown_scan(client):
+    assert client.get(f"/lists/{LIST_ID}/receipts/no-such-scan/thumb-url").status_code == 404
+
+
+def test_thumb_url_returns_404_for_another_lists_scan(
+    client, session, other_list_and_scan, monkeypatch
+):
     scan = session.get_one(ReceiptScan, "scan-other")
     scan.file_path = "receipts/list-files-other/scan-other.jpg"
     scan.file_content_type = "image/jpeg"
     session.add(scan)
     session.commit()
+    # A miniature exists, so only the list check can answer 404.
+    monkeypatch.setattr(
+        receipt_storage, "thumbnail_download_url", lambda *_: "https://signed.example/thumb"
+    )
 
     assert client.get(f"/lists/{LIST_ID}/receipts/scan-other/thumb-url").status_code == 404
 
@@ -392,7 +412,8 @@ def trip_with_scans_fixture(session: Session, user):
         purchase_id=PURCHASE_ID,
         created_at=datetime(2026, 4, 11, 18, 5, tzinfo=UTC),
     )
-    session.add_all([trip, with_file, without_file])
+    # Added newest first, so only the ordering returns them oldest first.
+    session.add_all([trip, without_file, with_file])
     session.commit()
 
 
