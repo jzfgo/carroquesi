@@ -126,6 +126,10 @@ check("frontend source", ["frontend/src/App.tsx"], (True, False, False))
 check("frontend lockfile", ["frontend/pnpm-lock.yaml"], (True, False, False))
 check("backend source", ["backend/app/main.py"], (False, True, False))
 check("backend migration", ["backend/alembic/versions/abc.py"], (False, True, False))
+# The backend job compares the Dockerfile's Python with .python-version, so a
+# change to either file alone must still run it.
+check("backend Dockerfile", ["backend/Dockerfile"], (False, True, False))
+check("backend python version", ["backend/.python-version"], (False, True, False))
 check("both apps", ["frontend/src/App.tsx", "backend/app/main.py"], (True, True, False))
 check("guardrail hooks", [".claude/hooks/block_main_edits.py"], (False, False, True))
 
