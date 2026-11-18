@@ -399,7 +399,9 @@ def test_adding_an_item_notifies(client, session, user, other_user):
         client.post(f"/lists/{lst['id']}/items", json={"name": "leche"})
 
     notify.assert_called_once()
-    assert notify.call_args.args[3] == "added"
+    sent_session, sent_list, actor, event, name = notify.call_args.args
+    assert sent_session is session
+    assert (sent_list.id, actor.id, event, name) == (lst["id"], user.id, "added", "leche")
 
 
 def test_purchasing_notifies_and_records_purchaser(client, session, user):
@@ -409,7 +411,9 @@ def test_purchasing_notifies_and_records_purchaser(client, session, user):
     with patch("app.routers.items.notify_list_change") as notify:
         client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
 
-    assert notify.call_args.args[3] == "purchased"
+    sent_session, sent_list, actor, event, name = notify.call_args.args
+    assert sent_session is session
+    assert (sent_list.id, actor.id, event, name) == (lst["id"], user.id, "purchased", "leche")
     session.expire_all()
     assert session.get_one(ListItem, item["id"]).purchased_by == user.id
 
@@ -421,6 +425,18 @@ def test_unpurchasing_does_not_notify(client, session, user):
 
     with patch("app.routers.items.notify_list_change") as notify:
         client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+
+    notify.assert_not_called()
+
+
+def test_purchasing_again_does_not_notify(client, session, user):
+    """Only the first purchase notifies. A repeat changes nothing."""
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "leche"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+
+    with patch("app.routers.items.notify_list_change") as notify:
+        client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
 
     notify.assert_not_called()
 
@@ -438,7 +454,11 @@ def test_renaming_does_not_notify(client, session, user):
 def test_item_write_succeeds_when_push_raises(client, session, user):
     lst = client.post("/lists", json={"name": "Casa"}).json()
 
-    with patch("app.routers.items.notify_list_change", side_effect=RuntimeError("boom")):
+    with (
+        patch("app.routers.items.notify_list_change", side_effect=RuntimeError("boom")),
+        patch("app.routers.items.logger") as logger,
+    ):
         resp = client.post(f"/lists/{lst['id']}/items", json={"name": "leche"})
 
     assert resp.status_code == 201
+    logger.exception.assert_called_once_with("push notification failed for list %s", lst["id"])
