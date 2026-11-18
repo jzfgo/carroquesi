@@ -134,6 +134,15 @@ jobs:
           path: .review-plugins
           persist-credentials: false
 
+      # The plugin looks for the repo's rules only in CLAUDE.md files, and this
+      # repo keeps them in AGENTS.md. Link them here, in CI only: committing a
+      # CLAUDE.md would make local Claude Code sessions load the rules twice.
+      - name: Expose AGENTS.md as CLAUDE.md for the review plugin
+        run: |
+          for dir in . frontend backend; do
+            ln -s AGENTS.md "$dir/CLAUDE.md"
+          done
+
       - name: Run Claude Code
         id: claude
         uses: anthropics/claude-code-action@v1.0.262
