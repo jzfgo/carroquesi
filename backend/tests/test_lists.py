@@ -432,14 +432,27 @@ def test_single_list_endpoints_keep_member_and_cart_defaults(client: TestClient)
     assert detail["cart_count"] == 0
 
 
-def test_get_lists_puts_the_last_updated_list_first(client: TestClient):
-    first = client.post("/lists", json={"name": "Primera"}).json()
-    second = client.post("/lists", json={"name": "Segunda"}).json()
-    client.patch(f"/lists/{first['id']}", json={"name": "Primera renombrada"})
+def test_get_lists_puts_the_last_updated_list_first(
+    client: TestClient, session: Session, user: User
+):
+    # The expected order differs from insertion, id and ascending order, so
+    # only a newest-first sort can produce it.
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    for list_id, age_days in (("a", 1), ("b", 0), ("c", 2)):
+        session.add(
+            List(
+                id=list_id,
+                name=list_id,
+                owner_id=user.id,
+                updated_at=base - timedelta(days=age_days),
+            )
+        )
+        session.add(ListMember(list_id=list_id, user_id=user.id))
+    session.commit()
 
     ids = [lst["id"] for lst in client.get("/lists").json()]
 
-    assert ids == [first["id"], second["id"]]
+    assert ids == ["b", "a", "c"]
 
 
 def test_single_list_endpoints_report_the_callers_default(client: TestClient):
