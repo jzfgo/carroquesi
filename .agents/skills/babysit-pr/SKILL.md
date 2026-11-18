@@ -201,11 +201,14 @@ gh api repos/:owner/:repo/issues/<number>/comments --paginate \
 ```
 
 **`completed` alone is not the gate — require `completed/success`.** `completed` also covers
-`failure`, `cancelled` and `timed_out`. A run that dies usually leaves its placeholder
-comment unedited, and a placeholder has no findings, so it reads as a clean pass that never
-happened. A failed run is no review: read its log (`gh run view <run-id> --log-failed`),
-then request again in Step 4. Likewise, a comment whose `updated_at` equals its
-`created_at` is still the placeholder, whatever the run says.
+`failure`, `cancelled` and `timed_out`. A failed run still edits its comment: the action
+always rewrites it at the end, with `**Claude encountered an error` as the header and the
+same `[View job]` link a review carries. That comment has no findings, so it reads as a
+clean pass that never happened. Only the run's conclusion tells the two apart. A failed run
+is no review: read its log (`gh run view <run-id> --log-failed`), then request again in
+Step 4. The edit check is a second guard for a run killed before that rewrite, by a
+cancel or a timeout: a comment whose `updated_at` equals its `created_at` is still the
+placeholder, whatever the run says.
 
 **A `claude[bot]` comment with no `[View job]` link is not your review.** Step 1 prints
 nothing for it. It is either a placeholder whose link has not been written yet, or a
