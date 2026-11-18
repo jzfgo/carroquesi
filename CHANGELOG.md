@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.28.1] — 2026-11-18
+
+### Changed
+- **prices:** Drop the unused frontend price delete (JAV-247) (#496)
+
+- **routers:** Register routes without decorators so mutmut mutates endpoints (JAV-248) (#498)
+
+
+### Fixed
+- **lists:** Make list creation idempotent and keep the name on failure (JAV-69) (#497)
+
+- **items:** A repeat purchase no longer reopens the un-purchase grace (#502)
+
+- **skills:** Stop babysit-pr counting failed reviews and missing CI as clean (#506)
+
+
+---
 ## [0.28.0] — 2026-11-17
 
 ### Added

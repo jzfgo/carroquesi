@@ -36,7 +36,6 @@ def _require_trigger_token(token: str | None) -> None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
 
-@router.post("/reports/monthly")
 def trigger_monthly_reports(
     session: CurrentSession,
     x_trigger_token: Annotated[str | None, Header()] = None,
@@ -49,3 +48,6 @@ def trigger_monthly_reports(
         already_done=summary.already_done,
         stuck=summary.stuck,
     )
+
+
+router.post("/reports/monthly")(trigger_monthly_reports)

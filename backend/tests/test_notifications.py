@@ -103,3 +103,60 @@ def test_seen_requires_membership(other_client, client):
     lst = client.post("/lists", json={"name": "Privada"}).json()
     resp = other_client.post(f"/lists/{lst['id']}/seen")
     assert resp.status_code == 403
+
+
+# --- Gaps found by mutation testing ---
+
+
+def _add_token(session: Session, id_: str, user_id: str, token: str) -> None:
+    session.add(PushToken(id=id_, user_id=user_id, token=token))
+    session.commit()
+
+
+def test_register_claims_only_the_token_it_names(
+    client, session: Session, user: User, other_user: User
+):
+    # The token that is not named comes first, where a looser lookup finds it.
+    _add_token(session, "tok-1", other_user.id, "tok-other")
+    _add_token(session, "tok-2", other_user.id, "tok-shared")
+
+    client.post("/notifications/tokens", json={"token": "tok-shared"})
+
+    owners = {t.token: t.user_id for t in session.exec(select(PushToken))}
+    assert owners == {"tok-other": other_user.id, "tok-shared": user.id}
+
+
+def test_register_adopts_the_row_a_concurrent_registration_wrote(
+    client, session: Session, lose_commit_race, user: User, other_user: User
+):
+    _add_token(session, "tok-1", other_user.id, "tok-other")
+    # Another request registers the same token between our lookup and our commit.
+    lose_commit_race(PushToken(id="tok-2", user_id=other_user.id, token="tok-race"))
+
+    assert client.post("/notifications/tokens", json={"token": "tok-race"}).status_code == 204
+
+    owners = {t.token: t.user_id for t in session.exec(select(PushToken))}
+    assert owners == {"tok-other": other_user.id, "tok-race": user.id}
+
+
+def test_delete_removes_only_the_named_token(client, session: Session, user: User):
+    _add_token(session, "tok-1", user.id, "tok-keep")
+    _add_token(session, "tok-2", user.id, "tok-drop")
+
+    client.request("DELETE", "/notifications/tokens", json={"token": "tok-drop"})
+
+    assert [t.token for t in session.exec(select(PushToken))] == ["tok-keep"]
+
+
+def test_seen_marks_only_that_list(client, session: Session, user: User):
+    lst = client.post("/lists", json={"name": "Casa"}).json()
+    other = client.post("/lists", json={"name": "Otra"}).json()
+
+    assert client.post(f"/lists/{lst['id']}/seen").status_code == 204
+
+    seen = {
+        m.list_id: m.last_seen_at
+        for m in session.exec(select(ListMember).where(ListMember.user_id == user.id))
+    }
+    assert seen[lst["id"]] is not None
+    assert seen[other["id"]] is None

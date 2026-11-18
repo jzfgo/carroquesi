@@ -10,7 +10,6 @@ from app.schemas.stores import StoreRead, StoreRename
 router = APIRouter(prefix="/lists/{list_id}/stores", tags=["stores"])
 
 
-@router.get("", response_model=list[StoreRead])
 def get_stores(
     list_and_user: MemberDep,
     session: CurrentSession,
@@ -22,7 +21,9 @@ def get_stores(
     return rows
 
 
-@router.patch("/{store_key}", response_model=StoreRead)
+router.get("", response_model=list[StoreRead])(get_stores)
+
+
 def rename_store(
     store_key: str,
     body: StoreRename,
@@ -46,3 +47,6 @@ def rename_store(
     session.commit()
     session.refresh(row)
     return row
+
+
+router.patch("/{store_key}", response_model=StoreRead)(rename_store)

@@ -10,6 +10,7 @@ Every case here is a bug that actually shipped, or the fix that caught it.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -218,9 +219,104 @@ def test_block_main_edits() -> None:
         run("git", "worktree", "remove", "--force", str(tree), cwd=repo)
 
 
+FAKE_TOOL = """#!{python}
+# Stands in for a real tool: logs the call, and fails when FAIL names it.
+import os, sys
+argv = [os.path.basename(sys.argv[0]), *sys.argv[1:]]
+call = os.path.basename(os.getcwd()) + " " + " ".join(argv)
+with open(os.environ["LOG"], "a") as f:
+    f.write(call + "\\n")
+if any(word and word in call for word in os.environ.get("FAIL", "").split(",")):
+    print(call + " broke")
+    sys.exit(1)
+"""
+
+
+def test_stop_checks() -> None:
+    print("\nstop_checks.py")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp)
+        bin_dir = root / "bin"
+        bin_dir.mkdir()
+        repo = root / "repo"
+        (repo / "backend").mkdir(parents=True)
+        (repo / "frontend" / "node_modules" / ".bin").mkdir(parents=True)
+        tool = FAKE_TOOL.format(python=sys.executable)
+        for path in [bin_dir / "uv", bin_dir / "npm", repo / "frontend/node_modules/.bin/eslint"]:
+            path.write_text(tool)
+            path.chmod(0o755)
+
+        def git(*args: str) -> None:
+            subprocess.run(["git", *args], cwd=repo, capture_output=True, check=True)
+
+        git("init", "-q", "-b", "feat/x", ".")
+        (repo / "seed.txt").write_text("x")
+        git("add", "seed.txt")
+        git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init")
+
+        log = root / "calls.log"
+
+        def stop(
+            changed: list[str], fail: str = "", looping: bool = False
+        ) -> tuple[int, list[str]]:
+            """Run the hook with `changed` as this turn's edits; return (exit, calls)."""
+            for rel in changed:
+                (repo / rel).write_text("x = 1\n")
+            log.write_text("")
+            env = {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
+            env.update(LOG=str(log), FAIL=fail)
+            proc = subprocess.run(
+                [sys.executable, str(HOOKS / "stop_checks.py")],
+                input=json.dumps({"stop_hook_active": looping}),
+                capture_output=True,
+                text=True,
+                cwd=repo,
+                env=env,
+            )
+            for rel in changed:
+                (repo / rel).unlink()
+            return proc.returncode, log.read_text().splitlines()
+
+        def same(got: object, want: object) -> str:
+            return "ok" if got == want else f"{got!r} != {want!r}"
+
+        backend = ["backend uv run ruff check main.py", "backend uv run ty check"]
+        frontend = ["frontend eslint App.tsx", "frontend npm run --silent typecheck"]
+
+        check("nothing changed: no checks", same(stop([]), (0, [])), "ok")
+        check(
+            "backend .py changed: ruff + ty only",
+            same(stop(["backend/main.py"]), (0, backend)),
+            "ok",
+        )
+        check(
+            "frontend .tsx changed: eslint + typecheck only",
+            same(stop(["frontend/App.tsx"]), (0, frontend)),
+            "ok",
+        )
+        check(
+            "non-code file changed: no checks",
+            same(stop(["backend/notes.md", "frontend/notes.md"]), (0, [])),
+            "ok",
+        )
+        check("ty failure continues the turn", str(stop(["backend/main.py"], "ty check")[0]), "2")
+        check(
+            "frontend typecheck failure continues the turn",
+            str(stop(["frontend/App.tsx"], "typecheck")[0]),
+            "2",
+        )
+        check(
+            "failure on a second pass lets the turn end",
+            str(stop(["backend/main.py"], "ty check", looping=True)[0]),
+            "0",
+        )
+
+
 if __name__ == "__main__":
     test_enforce_worktrunk()
     test_block_main_edits()
+    test_stop_checks()
     print()
     if failures:
         print(f"{len(failures)} FAILURE(S):")

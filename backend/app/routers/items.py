@@ -45,11 +45,10 @@ def _notify_safely(session: Session, lst: List, actor: User, event: str, name: s
     """Push is best-effort. A notification failure must never fail a list write."""
     try:
         notify_list_change(session, lst, actor, event, name)
-    except Exception:  # pragma: no cover - notify_list_change already swallows
+    except Exception:
         logger.exception("push notification failed for list %s", lst.id)
 
 
-@router.get("", response_model=list[ItemRead])
 def get_items(
     list_id: str,
     list_and_user: MemberOrDefaultDep,
@@ -70,6 +69,9 @@ def get_items(
     _attach_purchase_ends_at(session, items)
     mark_bought_by_weight(session, lst.id, items)
     return items
+
+
+router.get("", response_model=list[ItemRead])(get_items)
 
 
 def _attach_purchase_ends_at(session: Session, items: Sequence[ListItem]) -> None:
@@ -128,7 +130,6 @@ def _take_format_of_ean(session: Session, item: ListItem, ean: str) -> None:
         item.pack_source = "copied"
 
 
-@router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)
 def add_item(
     body: ItemCreate,
     list_and_user: MemberOrDefaultDep,
@@ -160,7 +161,9 @@ def add_item(
     return item
 
 
-@router.patch("/{item_id}", response_model=ItemRead)
+router.post("", response_model=ItemRead, status_code=status.HTTP_201_CREATED)(add_item)
+
+
 def update_item(
     item_id: str,
     body: ItemUpdate,
@@ -178,6 +181,9 @@ def update_item(
     # Only a format correction: allowed on a closed purchase, and not a write
     # to the purchase, so it must not reopen the un-purchase grace window.
     format_only = bool(data) and purchased is None and data.keys() <= {"pack", "ean"}
+    # A repeat purchase (Siri, a retried request) changes nothing. Stamping it
+    # would reopen the un-purchase grace window on a closed trip.
+    repeat_purchase = purchased is True and was_purchased and not data
     if "pack" in data:
         data.pop("pack")
         # Whole, not exclude_unset: a field left out of the format is a default,
@@ -211,7 +217,7 @@ def update_item(
         item.purchased_at = None
         emptied_trip_id, item.purchase_id = item.purchase_id, None
         trips.prune_if_empty(session, emptied_trip_id)
-    if not format_only:
+    if not format_only and not repeat_purchase:
         item.updated_at = datetime.now(UTC)
     session.add(item)
     _bump(lst, session)
@@ -225,7 +231,9 @@ def update_item(
     return item
 
 
-@router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+router.patch("/{item_id}", response_model=ItemRead)(update_item)
+
+
 def delete_item(
     item_id: str,
     list_and_user: MemberDep,
@@ -240,3 +248,6 @@ def delete_item(
     trips.prune_if_empty(session, trip_id)
     _bump(lst, session)
     session.commit()
+
+
+router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)(delete_item)

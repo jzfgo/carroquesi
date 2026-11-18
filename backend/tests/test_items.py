@@ -225,6 +225,36 @@ def test_unpurchase_blocked_when_the_trip_closed_before_a_future_tear_off(
     assert response.status_code == 409
 
 
+def test_repeat_purchase_does_not_reopen_the_write_grace(client: TestClient, session: Session):
+    """A retried or Siri-sent purchase on a bought item is no change: it must
+    not stamp updated_at, or it would reopen the un-purchase grace window."""
+    from app.db.models import ListItem
+    from app.routers.items import UNPURCHASE_GRACE
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Bread"}).json()
+    now = datetime.now(UTC)
+    _purchase_and_age(
+        client,
+        session,
+        lst,
+        item,
+        closed_at=now - timedelta(hours=1),
+        updated_ago=UNPURCHASE_GRACE + timedelta(minutes=1),
+    )
+    db_item = session.get_one(ListItem, item["id"])
+    session.refresh(db_item)
+    aged_updated_at = db_item.updated_at
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    assert response.status_code == 200
+    session.refresh(db_item)
+    assert db_item.updated_at == aged_updated_at
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+    assert response.status_code == 409
+
+
 def test_unpurchase_backdated_item_within_write_grace(client: TestClient, session: Session):
     """A receipt scanned days after shopping backdates purchased_at onto a trip
     that has already torn off, but the record itself was just written — undoing
@@ -777,3 +807,185 @@ def test_bought_by_weight_stays_in_its_list(client: TestClient, second_list):
     _bought(client, second_list["id"], "Sandía", price_per="KILOGRAM")
     new = client.post(f"/lists/{lst['id']}/items", json={"name": "Sandía"}).json()
     assert _feed_by_id(client, lst["id"])[new["id"]]["bought_by_weight"] is False
+
+
+def test_get_items_puts_pending_first_then_the_latest_purchase(
+    client: TestClient, session: Session
+):
+    """Pending lines come first, oldest first. Bought lines follow, newest
+    purchase first. Each pair is stored against its own order, so the query
+    must sort them."""
+    from app.db.models import ListItem
+
+    lst = _create_list(client)
+    ids = {
+        name: client.post(f"/lists/{lst['id']}/items", json={"name": name}).json()["id"]
+        for name in ("Huevos", "Leche", "Pan", "Sal")
+    }
+    now = datetime.now(UTC)
+    stamps = {
+        "Huevos": (now - timedelta(hours=1), None),
+        "Leche": (now - timedelta(hours=2), None),
+        "Pan": (now - timedelta(hours=4), now - timedelta(hours=3)),
+        "Sal": (now - timedelta(hours=3), now - timedelta(minutes=30)),
+    }
+    for name, (created_at, purchased_at) in stamps.items():
+        item = session.get_one(ListItem, ids[name])
+        item.created_at = created_at
+        item.purchased_at = purchased_at
+        session.add(item)
+    session.commit()
+
+    names = [i["name"] for i in client.get(f"/lists/{lst['id']}/items").json()]
+    assert names == ["Leche", "Huevos", "Sal", "Pan"]
+
+
+def test_a_scanned_code_copies_a_bare_count_format(client: TestClient):
+    """A pack of 2 with no content is still a format, so a new line with the
+    same code takes it."""
+    lst = _create_list(client)
+    first = client.post(
+        f"/lists/{lst['id']}/items",
+        json={"name": "Yogur", "ean": "8400000000001", "pack": {"count": 2}},
+    ).json()
+    client.patch(f"/lists/{lst['id']}/items/{first['id']}", json={"purchased": True})
+
+    second = client.post(
+        f"/lists/{lst['id']}/items", json={"name": "Yogur", "ean": "8400000000001"}
+    ).json()
+    assert second["pack"] == {"count": 2, "content": None, "unit": None}
+
+
+def test_patching_an_item_of_another_list_is_not_found(client: TestClient, second_list):
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"}).json()
+
+    elsewhere = client.patch(
+        f"/lists/{second_list['id']}/items/{item['id']}", json={"name": "Hack"}
+    )
+    missing = client.patch(f"/lists/{lst['id']}/items/no-such-item", json={"name": "Hack"})
+    assert (elsewhere.status_code, missing.status_code) == (404, 404)
+
+
+def test_deleting_an_item_of_another_list_is_not_found(
+    client: TestClient, session: Session, second_list
+):
+    from app.db.models import ListItem
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"}).json()
+
+    elsewhere = client.delete(f"/lists/{second_list['id']}/items/{item['id']}")
+    missing = client.delete(f"/lists/{lst['id']}/items/no-such-item")
+    assert (elsewhere.status_code, missing.status_code) == (404, 404)
+    assert session.get(ListItem, item["id"]) is not None
+
+
+def _aged(session: Session, item_id: str, ago: timedelta):
+    from app.db.models import ListItem
+
+    db_item = session.get_one(ListItem, item_id)
+    db_item.updated_at = datetime.now(UTC) - ago
+    session.add(db_item)
+    session.commit()
+    return db_item.updated_at
+
+
+def _updated_at(session: Session, item_id: str):
+    from app.db.models import ListItem
+
+    session.expire_all()
+    return session.get_one(ListItem, item_id).updated_at
+
+
+def test_purchasing_stamps_the_write(client: TestClient, session: Session):
+    """The un-purchase grace window starts at this stamp."""
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"}).json()
+    aged = _aged(session, item["id"], timedelta(days=1))
+
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    assert _updated_at(session, item["id"]) > aged
+
+
+def test_renaming_stamps_the_write(client: TestClient, session: Session):
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"}).json()
+    aged = _aged(session, item["id"], timedelta(days=1))
+
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"name": "Pan integral"})
+    assert _updated_at(session, item["id"]) > aged
+
+
+def test_a_format_and_code_correction_does_not_stamp_the_write(
+    client: TestClient, session: Session
+):
+    """A format with the code scanned for it is still only a format
+    correction, so it must not reopen the un-purchase grace window."""
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Agua"}).json()
+    client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": True})
+    aged = _aged(session, item["id"], timedelta(days=1))
+
+    response = client.patch(
+        f"/lists/{lst['id']}/items/{item['id']}",
+        json={"pack": {"count": 6, "content": 1.5, "unit": "l"}, "ean": "8400000000002"},
+    )
+    assert response.status_code == 200
+    assert response.json()["ean"] == "8400000000002"
+    assert _updated_at(session, item["id"]) == aged
+
+
+def test_a_cleared_format_is_not_read_back_from_the_name(client: TestClient):
+    """Someone who renames to «Agua 6x1,5L» and clears the format in the same
+    save wants that name. A later edit of another field leaves it alone too."""
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Agua"}).json()
+    url = f"/lists/{lst['id']}/items/{item['id']}"
+
+    renamed = client.patch(url, json={"name": "Agua 6x1,5L", "pack": None}).json()
+    assert (renamed["name"], renamed["pack"]) == ("Agua 6x1,5L", None)
+
+    edited = client.patch(url, json={"quantity": "2"}).json()
+    assert (edited["name"], edited["pack"]) == ("Agua 6x1,5L", None)
+
+
+def test_unpurchase_allowed_on_an_open_trip_after_the_grace(client: TestClient, session: Session):
+    """The grace window only rescues a closed trip. An open one takes the
+    undo whenever it was written."""
+    from app.routers.items import UNPURCHASE_GRACE
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"}).json()
+    _purchase_and_age(
+        client, session, lst, item, updated_ago=UNPURCHASE_GRACE + timedelta(minutes=1)
+    )
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+    assert response.status_code == 200
+
+
+def test_unpurchase_grace_includes_its_last_instant(
+    client: TestClient, session: Session, monkeypatch
+):
+    from app.db.models import ListItem
+    from app.routers.items import UNPURCHASE_GRACE
+
+    instant = datetime(2026, 3, 10, 12, 0, tzinfo=UTC)
+
+    class _FrozenDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return instant.astimezone(tz)
+
+    lst = _create_list(client)
+    item = client.post(f"/lists/{lst['id']}/items", json={"name": "Pan"}).json()
+    _purchase_and_age(client, session, lst, item, closed_at=instant - timedelta(hours=1))
+    db_item = session.get_one(ListItem, item["id"])
+    db_item.updated_at = instant - UNPURCHASE_GRACE
+    session.add(db_item)
+    session.commit()
+    monkeypatch.setattr("app.routers.items.datetime", _FrozenDatetime)
+
+    response = client.patch(f"/lists/{lst['id']}/items/{item['id']}", json={"purchased": False})
+    assert response.status_code == 200

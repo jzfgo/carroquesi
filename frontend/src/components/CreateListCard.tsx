@@ -7,7 +7,7 @@ import { Mascot } from './Mascot'
 
 interface Props {
   isFirst?: boolean
-  onCreate: (name: string, emoji: string) => Promise<void>
+  onCreate: (name: string, emoji: string, createKey: string) => Promise<boolean>
 }
 
 export function CreateListCard({ isFirst, onCreate }: Props) {

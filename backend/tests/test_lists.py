@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 
 from app.db.models import (
     List,
+    ListInvite,
     ListItem,
     ListMember,
     ListStore,
@@ -14,6 +15,7 @@ from app.db.models import (
     ReportRun,
     User,
 )
+from app.routers import lists as lists_router
 
 
 def _reshape_trip(session: Session, item_id: str, *, tear_off=None, closed_at=None) -> Purchase:
@@ -38,6 +40,73 @@ def test_create_list(client: TestClient, session: Session):
     # Owner is automatically a member
     members = session.exec(select(ListMember).where(ListMember.list_id == data["id"])).all()
     assert len(members) == 1
+
+
+def test_create_list_repeat_key_returns_the_first_list(client: TestClient, session: Session):
+    headers = {"Idempotency-Key": "k-1"}
+    first = client.post("/lists", json={"name": "Costco"}, headers=headers)
+    again = client.post("/lists", json={"name": "Costco"}, headers=headers)
+    assert first.status_code == 201
+    assert again.status_code == 200
+    assert again.json()["id"] == first.json()["id"]
+    assert again.json()["is_default"] is True
+    assert len(session.exec(select(List)).all()) == 1
+    assert len(session.exec(select(ListMember)).all()) == 1
+
+
+def test_create_list_race_on_the_key_returns_the_winner(
+    client: TestClient, session: Session, monkeypatch
+):
+    """Two requests with one key both miss the lookup; the second insert hits
+    the unique index and must answer with the first list, not a 500."""
+    headers = {"Idempotency-Key": "k-race"}
+    first = client.post("/lists", json={"name": "Costco"}, headers=headers)
+
+    real_lookup = lists_router._list_by_create_key
+    calls = []
+
+    def miss_once(*args):
+        calls.append(args)
+        return None if len(calls) == 1 else real_lookup(*args)
+
+    monkeypatch.setattr(lists_router, "_list_by_create_key", miss_once)
+    again = client.post("/lists", json={"name": "Costco"}, headers=headers)
+
+    assert len(calls) == 2
+    assert again.status_code == 200
+    assert again.json()["id"] == first.json()["id"]
+    assert again.json()["is_default"] is True
+    assert len(session.exec(select(List)).all()) == 1
+
+
+def test_create_list_different_keys_make_two_lists(client: TestClient, session: Session):
+    a = client.post("/lists", json={"name": "Costco"}, headers={"Idempotency-Key": "k-1"})
+    b = client.post("/lists", json={"name": "Costco"}, headers={"Idempotency-Key": "k-2"})
+    assert (a.status_code, b.status_code) == (201, 201)
+    assert a.json()["id"] != b.json()["id"]
+
+
+def test_create_list_key_is_scoped_to_the_owner(
+    client: TestClient, other_client: TestClient, session: Session
+):
+    headers = {"Idempotency-Key": "shared"}
+    mine = client.post("/lists", json={"name": "Mine"}, headers=headers)
+    theirs = other_client.post("/lists", json={"name": "Theirs"}, headers=headers)
+    assert (mine.status_code, theirs.status_code) == (201, 201)
+    assert theirs.json()["name"] == "Theirs"
+
+
+def test_create_list_without_key_never_deduplicates(client: TestClient, session: Session):
+    client.post("/lists", json={"name": "Costco"})
+    second = client.post("/lists", json={"name": "Costco"})
+    assert second.status_code == 201
+    assert len(session.exec(select(List)).all()) == 2
+
+
+def test_create_list_rejects_an_overlong_key(client: TestClient, session: Session):
+    response = client.post("/lists", json={"name": "Costco"}, headers={"Idempotency-Key": "k" * 65})
+    assert response.status_code == 422
+    assert session.exec(select(List)).all() == []
 
 
 def test_get_lists_returns_owned_and_member_lists(client: TestClient, session: Session, user):
@@ -361,3 +430,67 @@ def test_single_list_endpoints_keep_member_and_cart_defaults(client: TestClient)
     detail = client.get(f"/lists/{created['id']}").json()
     assert detail["members"] == []
     assert detail["cart_count"] == 0
+
+
+def test_get_lists_puts_the_last_updated_list_first(
+    client: TestClient, session: Session, user: User
+):
+    # The expected order differs from insertion, id and ascending order, so
+    # only a newest-first sort can produce it.
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    for list_id, age_days in (("a", 1), ("b", 0), ("c", 2)):
+        session.add(
+            List(
+                id=list_id,
+                name=list_id,
+                owner_id=user.id,
+                updated_at=base - timedelta(days=age_days),
+            )
+        )
+        session.add(ListMember(list_id=list_id, user_id=user.id))
+    session.commit()
+
+    ids = [lst["id"] for lst in client.get("/lists").json()]
+
+    assert ids == ["b", "a", "c"]
+
+
+def test_single_list_endpoints_report_the_callers_default(client: TestClient):
+    default = client.post("/lists", json={"name": "Casa"}).json()
+    other = client.post("/lists", json={"name": "Oficina"}).json()
+
+    assert client.get(f"/lists/{default['id']}").json()["is_default"] is True
+    assert client.get(f"/lists/{other['id']}").json()["is_default"] is False
+    renamed = client.patch(f"/lists/{default['id']}", json={"name": "Hogar"})
+    assert renamed.json()["is_default"] is True
+
+
+def test_another_members_default_is_not_the_callers(
+    client: TestClient, session: Session, other_user: User
+):
+    client.post("/lists", json={"name": "Casa"})
+    shared = client.post("/lists", json={"name": "Compartida"}).json()
+    # The other member joins first, so a lookup that ignores the user finds
+    # their row before the caller's.
+    caller_row = session.exec(select(ListMember).where(ListMember.list_id == shared["id"])).one()
+    session.delete(caller_row)
+    session.add(ListMember(list_id=shared["id"], user_id=other_user.id, is_default=True))
+    session.commit()
+    session.add(ListMember(list_id=shared["id"], user_id=caller_row.user_id))
+    session.commit()
+
+    assert client.get(f"/lists/{shared['id']}").json()["is_default"] is False
+
+
+def test_delete_list_removes_only_its_own_invites(client: TestClient, session: Session, user: User):
+    doomed = client.post("/lists", json={"name": "Se borra"}).json()
+    kept = client.post("/lists", json={"name": "Se queda"}).json()
+    session.add(ListInvite(list_id=doomed["id"], invited_by=user.id))
+    session.add(ListInvite(list_id=kept["id"], invited_by=user.id))
+    session.commit()
+
+    assert client.delete(f"/lists/{doomed['id']}").status_code == 204
+
+    session.expire_all()
+    left = session.exec(select(ListInvite)).all()
+    assert [invite.list_id for invite in left] == [kept["id"]]

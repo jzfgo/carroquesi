@@ -23,7 +23,6 @@ def _claim(token_row: PushToken, user_id: str) -> None:
     token_row.last_registered_at = _now()
 
 
-@router.post("/tokens", status_code=status.HTTP_204_NO_CONTENT)
 def register_token(body: PushTokenBody, session: CurrentSession, current_user: CurrentUser):
     existing = session.exec(select(PushToken).where(PushToken.token == body.token)).first()
     if existing is not None:
@@ -37,8 +36,8 @@ def register_token(body: PushTokenBody, session: CurrentSession, current_user: C
     except IntegrityError:
         # A concurrent registration of the same token won the unique index.
         # Registration must stay idempotent, so adopt the winner's row rather
-        # than 500. The SQLite test harness serialises on StaticPool and can
-        # never reach this path; the pattern mirrors barcode.py and waitlist.py.
+        # than 500. The same pattern handles this race for barcodes and the
+        # waitlist.
         session.rollback()
         winner = session.exec(select(PushToken).where(PushToken.token == body.token)).first()
         if winner is None:
@@ -48,7 +47,9 @@ def register_token(body: PushTokenBody, session: CurrentSession, current_user: C
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.delete("/tokens", status_code=status.HTTP_204_NO_CONTENT)
+router.post("/tokens", status_code=status.HTTP_204_NO_CONTENT)(register_token)
+
+
 def unregister_token(body: PushTokenBody, session: CurrentSession, current_user: CurrentUser):
     existing = session.exec(
         select(PushToken).where(PushToken.token == body.token, PushToken.user_id == current_user.id)
@@ -59,7 +60,9 @@ def unregister_token(body: PushTokenBody, session: CurrentSession, current_user:
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@list_seen_router.post("/{list_id}/seen", status_code=status.HTTP_204_NO_CONTENT)
+router.delete("/tokens", status_code=status.HTTP_204_NO_CONTENT)(unregister_token)
+
+
 def mark_list_seen(list_and_user: MemberDep, session: CurrentSession):
     """Reset the caller's unseen watermark for this list.
 
@@ -82,3 +85,6 @@ def mark_list_seen(list_and_user: MemberDep, session: CurrentSession):
     membership.last_seen_at = _now()
     session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+list_seen_router.post("/{list_id}/seen", status_code=status.HTTP_204_NO_CONTENT)(mark_list_seen)

@@ -1476,3 +1476,373 @@ def test_a_new_close_item_carries_its_format_and_ean(client: TestClient, session
     water = _items_by_name(client, lst["id"])["Agua"]
     assert water["pack"] == SIX_BY_ONE_AND_A_HALF
     assert water["ean"] == "8410188011128"
+
+
+# --- Gaps found by mutation testing (JAV-249) ---
+
+
+def _frozen_clock(monkeypatch, instant: datetime) -> None:
+    """Freeze the clock the purchases router reads, at one instant."""
+
+    class _FrozenDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return instant.astimezone(tz)
+
+    monkeypatch.setattr("app.routers.purchases.datetime", _FrozenDatetime)
+
+
+def _settled_trip(
+    session: Session, list_id: str, trip_id: str, closed_at: datetime, store: str = "Lidl"
+) -> Purchase:
+    trip = Purchase(
+        id=trip_id,
+        list_id=list_id,
+        opened_at=closed_at - timedelta(hours=1),
+        tears_off_at=closed_at + timedelta(hours=12),
+        closed_at=closed_at,
+        store=store,
+    )
+    session.add(trip)
+    session.commit()
+    return trip
+
+
+def _filed_line(session: Session, trip: Purchase, user, name: str, **fields) -> ListItem:
+    line = ListItem(
+        list_id=trip.list_id,
+        added_by=user.id,
+        name=name,
+        purchased_at=fields.pop("purchased_at", trip.opened_at),
+        purchase_id=trip.id,
+        **fields,
+    )
+    session.add(line)
+    session.commit()
+    return line
+
+
+def _scrambled_trip(session: Session, list_id: str, user) -> Purchase:
+    """A trip whose lines were stored out of cart order.
+
+    The cart order is by tap, then by creation: Aceite, Berenjena, Calabaza.
+    The rows go in as Calabaza, Aceite, Berenjena. Ordering by creation alone
+    puts Berenjena first, and ordering by tap alone leaves the tie between
+    Berenjena and Calabaza in storage order."""
+    closed = datetime.now(UTC) - timedelta(days=1)
+    trip = _settled_trip(session, list_id, "trip-scrambled", closed)
+    early, late = closed - timedelta(minutes=50), closed - timedelta(minutes=10)
+    base = closed - timedelta(days=2)
+    _filed_line(session, trip, user, "Calabaza", purchased_at=late, created_at=base + timedelta(1))
+    _filed_line(session, trip, user, "Aceite", purchased_at=early, created_at=base + timedelta(3))
+    _filed_line(session, trip, user, "Berenjena", purchased_at=late, created_at=base)
+    return trip
+
+
+CART_ORDER = ["Aceite", "Berenjena", "Calabaza"]
+
+
+def test_the_page_batches_lines_in_cart_order(client: TestClient, session: Session, user):
+    lst = _create_list(client)
+    trip = _scrambled_trip(session, lst["id"], user)
+
+    body = _page(client, lst["id"], include_items=True).json()
+
+    [summary] = [p for p in body["purchases"] if p["id"] == trip.id]
+    assert [line["name"] for line in summary["items"]] == CART_ORDER
+
+
+def test_a_tickets_lines_tie_break_on_creation(client: TestClient, session: Session, user):
+    lst = _create_list(client)
+    trip = _scrambled_trip(session, lst["id"], user)
+
+    lines = client.get(f"/lists/{lst['id']}/purchases/{trip.id}/items").json()
+
+    assert [line["name"] for line in lines] == CART_ORDER
+
+
+def test_search_lines_come_in_cart_order(client: TestClient, session: Session, user):
+    lst = _create_list(client)
+    _scrambled_trip(session, lst["id"], user)
+
+    [result] = _search(client, lst["id"], "@Lidl").json()["results"]
+
+    assert [line["name"] for line in result["lines"]] == CART_ORDER
+
+
+def test_batched_and_per_trip_lines_say_whether_the_trip_has_paper(
+    client: TestClient, session: Session, user
+):
+    from app.db.models import ReceiptScan
+
+    lst = _create_list(client)
+    closed = datetime.now(UTC) - timedelta(days=1)
+    scanned = _settled_trip(session, lst["id"], "trip-scanned", closed)
+    bare = _settled_trip(session, lst["id"], "trip-bare", closed - timedelta(days=1))
+    _filed_line(session, scanned, user, "Leche")
+    _filed_line(session, bare, user, "Pan")
+    session.add(ReceiptScan(list_id=lst["id"], scanned_by=user.id, purchase_id=scanned.id))
+    session.commit()
+
+    def per_trip(trip_id: str) -> list[bool]:
+        lines = client.get(f"/lists/{lst['id']}/purchases/{trip_id}/items").json()
+        return [line["purchase_has_receipt"] for line in lines]
+
+    # Another trip's scan must not mark this one.
+    assert per_trip(scanned.id) == [True]
+    assert per_trip(bare.id) == [False]
+    body = _page(client, lst["id"], include_items=True).json()
+    batched = {p["id"]: [i["purchase_has_receipt"] for i in p["items"]] for p in body["purchases"]}
+    assert batched == {scanned.id: [True], bare.id: [False]}
+
+
+def test_items_total_skips_a_line_whose_price_cannot_apply(
+    client: TestClient, session: Session, user
+):
+    """A per-kilo price on a line counted in units has no amount. It adds
+    nothing, and the other lines still count. The query sets no order, but
+    SQLite gives insertion order or its reverse. A skipped line sits on each
+    side of the counted one, so either way one comes before it."""
+    lst = _create_list(client)
+    trip = _settled_trip(session, lst["id"], "trip-weighed", datetime.now(UTC) - timedelta(days=1))
+    _filed_line(session, trip, user, "Pollo", quantity="2 ud", price=7.5, price_per="KILOGRAM")
+    _filed_line(session, trip, user, "Leche", quantity="1 ud", price=1.234)
+    _filed_line(session, trip, user, "Pavo", quantity="3 ud", price=9.9, price_per="KILOGRAM")
+
+    [summary] = _page(client, lst["id"]).json()["purchases"]
+
+    # Rounded to cents.
+    assert summary["items_total"] == 1.23
+
+
+def test_search_by_brand_keeps_only_that_brands_lines(client: TestClient, session: Session, user):
+    lst = _create_list(client)
+    trip = _settled_trip(session, lst["id"], "trip-brands", datetime.now(UTC) - timedelta(days=1))
+    # The misses go first, so a search that stops at the first miss is caught.
+    _filed_line(session, trip, user, "Leche", brand="Pascual")
+    _filed_line(session, trip, user, "Pan")
+    _filed_line(session, trip, user, "Yogur", brand="Hacendado")
+
+    [result] = _search(client, lst["id"], "#Hacendado").json()["results"]
+
+    assert [line["name"] for line in result["lines"]] == ["Yogur"]
+
+
+def test_search_skips_a_newer_trip_with_no_match(client: TestClient, session: Session, user):
+    lst = _create_list(client)
+    now = datetime.now(UTC)
+    newer = _settled_trip(session, lst["id"], "trip-newer", now - timedelta(days=1))
+    older = _settled_trip(session, lst["id"], "trip-older", now - timedelta(days=2))
+    _filed_line(session, newer, user, "Pan")
+    _filed_line(session, older, user, "Leche")
+    from app.db.models import ReceiptScan
+
+    session.add(ReceiptScan(list_id=lst["id"], scanned_by=user.id, purchase_id=older.id))
+    session.commit()
+
+    results = _search(client, lst["id"], "leche").json()["results"]
+
+    assert [r["trip"]["id"] for r in results] == [older.id]
+    # The search view prints no receipt mark, even for a scanned trip.
+    assert results[0]["trip"]["has_receipt"] is False
+
+
+def test_search_orders_trips_by_boundary_then_id(client: TestClient, session: Session, user):
+    """Ids run against the boundaries, and two trips share one, so only the
+    real ordering gives this answer."""
+    lst = _create_list(client)
+    now = datetime.now(UTC)
+    trips = [
+        _settled_trip(session, lst["id"], "trip-a", now - timedelta(days=1)),
+        _settled_trip(session, lst["id"], "trip-b", now - timedelta(days=2)),
+        _settled_trip(session, lst["id"], "trip-c", now - timedelta(days=2)),
+    ]
+    for trip in trips:
+        _filed_line(session, trip, user, "Leche")
+
+    results = _search(client, lst["id"], "leche").json()["results"]
+
+    assert [r["trip"]["id"] for r in results] == ["trip-a", "trip-c", "trip-b"]
+
+
+def test_search_never_shows_another_lists_trip(
+    client: TestClient, session: Session, user, second_list
+):
+    lst = _create_list(client)
+    elsewhere = _settled_trip(
+        session, second_list["id"], "trip-elsewhere", datetime.now(UTC) - timedelta(days=1)
+    )
+    _filed_line(session, elsewhere, user, "Leche")
+
+    assert _search(client, lst["id"], "leche").json()["results"] == []
+
+
+def test_search_counts_a_trip_that_closed_this_instant(
+    client: TestClient, session: Session, user, monkeypatch
+):
+    lst = _create_list(client)
+    now = datetime.now(UTC)
+    _frozen_clock(monkeypatch, now)
+    trip = _settled_trip(session, lst["id"], "trip-just-closed", now)
+    _filed_line(session, trip, user, "Leche")
+
+    results = _search(client, lst["id"], "leche").json()["results"]
+
+    assert [r["trip"]["id"] for r in results] == [trip.id]
+
+
+def test_rebuy_carries_the_brand_and_no_format_it_never_had(
+    client: TestClient, session: Session, user
+):
+    lst = _create_list(client)
+    trip = _settled_trip(session, lst["id"], "trip-rebuy", datetime.now(UTC) - timedelta(days=1))
+    line = _filed_line(session, trip, user, "Leche", brand="Pascual")
+
+    response = _rebuy(client, lst["id"], trip.id, line.id)
+
+    assert response.status_code == 201
+    assert response.json()["brand"] == "Pascual"
+    fresh = session.get_one(ListItem, response.json()["id"])
+    assert fresh.pack_source is None
+
+
+def test_rebuy_finds_a_pending_line_by_its_ean(client: TestClient, session: Session, user):
+    lst = _create_list(client)
+    pending = _add(client, lst["id"], "Leche semi", ean="8410188011111")
+    trip = _settled_trip(session, lst["id"], "trip-ean", datetime.now(UTC) - timedelta(days=1))
+    line = _filed_line(session, trip, user, "Leche Pascual", ean="8410188011111")
+
+    response = _rebuy(client, lst["id"], trip.id, line.id)
+
+    assert response.status_code == 200
+    assert response.json()["id"] == pending["id"]
+
+
+def test_rebuy_notifies_who_added_what(client: TestClient, session: Session, user):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    ticket = _close(client, lst["id"], store="Lidl", lines=_lines(milk)).json()
+
+    with patch("app.routers.purchases.notify_list_change") as notify:
+        assert _rebuy(client, lst["id"], ticket["id"], milk["id"]).status_code == 201
+
+    [(got_session, got_list, actor, event, name)] = [c.args for c in notify.call_args_list]
+    assert isinstance(got_session, Session)
+    assert got_list.id == lst["id"]
+    assert actor.id == user.id
+    assert (event, name) == ("added", "Leche")
+
+
+def test_a_failed_push_still_rebuys_and_is_logged(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    ticket = _close(client, lst["id"], store="Lidl", lines=_lines(milk)).json()
+
+    with (
+        patch("app.routers.purchases.notify_list_change", side_effect=RuntimeError("down")),
+        patch("app.routers.purchases.logger") as logger,
+    ):
+        response = _rebuy(client, lst["id"], ticket["id"], milk["id"])
+
+    assert response.status_code == 201
+    logger.exception.assert_called_once_with("push notification failed for list %s", lst["id"])
+
+
+def _noon_today() -> datetime:
+    return datetime.now(UTC).replace(hour=12, minute=0, second=0, microsecond=0)
+
+
+def test_a_close_reads_the_future_in_the_clients_zone(client: TestClient, monkeypatch):
+    """At noon UTC it is already tomorrow at UTC+14, so tomorrow's date is
+    that client's today."""
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    noon = _noon_today()
+    _frozen_clock(monkeypatch, noon)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/close",
+        json={"date": (noon.date() + timedelta(days=1)).isoformat(), "store": "Lidl"}
+        | {"lines": _lines(milk)},
+        headers={"X-Client-Timezone": "Etc/GMT-14"},
+    )
+
+    assert response.status_code == 200
+
+
+def test_a_manual_purchase_reads_the_future_in_the_clients_zone(client: TestClient, monkeypatch):
+    lst = _create_list(client)
+    noon = _noon_today()
+    _frozen_clock(monkeypatch, noon)
+
+    response = client.post(
+        f"/lists/{lst['id']}/purchases/manual",
+        json={"date": (noon.date() + timedelta(days=1)).isoformat()},
+        headers={"X-Client-Timezone": "Etc/GMT-14"},
+    )
+
+    assert response.status_code == 200
+
+
+def test_a_back_dated_close_opens_at_the_clients_midnight(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    day = _client_today() - timedelta(days=3)
+
+    ticket = _close_dated(client, lst["id"], day, store="Lidl", lines=_lines(milk)).json()
+
+    midnight = datetime.combine(day, datetime.min.time(), tzinfo=_MADRID)
+    assert datetime.fromisoformat(ticket["opened_at"]) == midnight
+
+
+def test_a_close_line_with_a_null_format_clears_it(client: TestClient, session: Session):
+    lst = _create_list(client)
+    water = _tap(client, lst["id"], "Agua")
+    row = session.get_one(ListItem, water["id"])
+    row.change_pack(SIX_BY_ONE_AND_A_HALF)
+    session.add(row)
+    session.commit()
+
+    response = _close(
+        client, lst["id"], store="Lidl", lines=[{"item_id": water["id"], "pack": None}]
+    )
+
+    assert response.status_code == 200
+    session.refresh(row)
+    assert row.pack is None
+
+
+def test_a_close_line_article_keeps_the_corrected_brand(client: TestClient, session: Session):
+    lst = _create_list(client)
+    yogurt = _tap(client, lst["id"], "Yogur")
+    line = {"item_id": yogurt["id"], "brand": "Hacendado", "article": "05123"}
+
+    assert _close(client, lst["id"], store="Mercadona", lines=[line]).status_code == 200
+
+    [row] = _articles(session)
+    assert (row.item_name, row.item_brand) == ("Yogur", "Hacendado")
+
+
+def test_a_new_close_item_keeps_its_per_kilo_price_and_no_reduction(
+    client: TestClient, session: Session
+):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    new = {"name": "Pollo", "quantity": "1,2 kg", "price": 6.5, "price_per": "KILOGRAM"}
+
+    response = _close(client, lst["id"], store="Lidl", lines=_lines(milk), new_items=[new])
+
+    assert response.status_code == 200
+    [row] = session.exec(select(ListItem).where(ListItem.name == "Pollo")).all()
+    assert row.price_per == "KILOGRAM"
+    assert row.price_reduced is False
+
+
+def test_a_new_close_item_refuses_an_old_price_no_higher_than_the_price(client: TestClient):
+    lst = _create_list(client)
+    milk = _tap(client, lst["id"], "Leche")
+    new = {"name": "Pollo", "price": 6.5, "reduced": True, "price_before": 6.5}
+
+    response = _close(client, lst["id"], store="Lidl", lines=_lines(milk), new_items=[new])
+
+    assert response.status_code == 422

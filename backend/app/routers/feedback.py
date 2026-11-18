@@ -9,7 +9,6 @@ from app.schemas.feedback import FeedbackCreate, FeedbackRead
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 
-@router.post("", response_model=FeedbackRead)
 def create_feedback(
     body: FeedbackCreate,
     session: CurrentSession,
@@ -27,3 +26,6 @@ def create_feedback(
     session.commit()
     session.refresh(feedback)
     return feedback
+
+
+router.post("", response_model=FeedbackRead)(create_feedback)

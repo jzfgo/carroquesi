@@ -39,7 +39,6 @@ def _write_price(item: ListItem, price_in: PriceCreate, session: Session) -> Pri
     return PriceEntry(amount=item.price, price_per=item.price_per, store=item.price_store)
 
 
-@router.post("", response_model=PriceEntry, status_code=status.HTTP_201_CREATED)
 def create_price(
     list_id: str,
     item_id: str,
@@ -56,7 +55,9 @@ def create_price(
     return _write_price(item, price_in, session)
 
 
-@router.patch("", response_model=PriceEntry)
+router.post("", response_model=PriceEntry, status_code=status.HTTP_201_CREATED)(create_price)
+
+
 def update_price(
     list_id: str,
     item_id: str,
@@ -71,7 +72,9 @@ def update_price(
     return _write_price(item, price_in, session)
 
 
-@router.delete("", status_code=status.HTTP_204_NO_CONTENT)
+router.patch("", response_model=PriceEntry)(update_price)
+
+
 def delete_price(
     list_id: str,
     item_id: str,
@@ -101,7 +104,9 @@ def delete_price(
     session.commit()
 
 
-@router.get("", response_model=PriceHistoryResponse)
+router.delete("", status_code=status.HTTP_204_NO_CONTENT)(delete_price)
+
+
 def get_price_history(
     list_id: str,
     item_id: str,
@@ -131,6 +136,9 @@ def get_price_history(
     # purchased_at is ISO 8601, so string order is chronological order.
     entries.sort(key=lambda e: (e.purchased_at is None, e.purchased_at or ""))
     return PriceHistoryResponse(entries=entries)
+
+
+router.get("", response_model=PriceHistoryResponse)(get_price_history)
 
 
 def _query_by_scope(session, item: ListItem, scope: str, user_id: str) -> list:

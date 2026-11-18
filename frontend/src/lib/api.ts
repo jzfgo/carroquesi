@@ -137,12 +137,19 @@ export function getList(getToken: () => Promise<string>, listId: string) {
   return apiFetch(getToken, `/lists/${listId}`)
 }
 
+/**
+ * `createKey` names one attempt to create one list. Sending the same key
+ * again returns the list the first request made, so a retry after a lost
+ * response cannot make a duplicate.
+ */
 export function createList(
   getToken: () => Promise<string>,
   payload: { name: string; emoji: string },
+  createKey: string,
 ) {
   return apiFetch(getToken, '/lists', {
     method: 'POST',
+    headers: { 'Idempotency-Key': createKey },
     body: JSON.stringify(payload),
   })
 }
@@ -563,16 +570,6 @@ export function updatePrice(
     method: 'PATCH',
     body: JSON.stringify(payload),
   }) as Promise<PriceEntry>
-}
-
-export function deletePrice(
-  getToken: () => Promise<string>,
-  listId: string,
-  itemId: string,
-) {
-  return apiFetch(getToken, `/lists/${listId}/items/${itemId}/prices`, {
-    method: 'DELETE',
-  })
 }
 
 export function submitParsedReceipt(

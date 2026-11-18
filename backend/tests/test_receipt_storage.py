@@ -11,6 +11,7 @@ from google.api_core.exceptions import NotFound, PreconditionFailed
 from PIL import Image
 
 from app.core.config import get_settings
+from app.routers import lists as lists_router
 from app.services import receipt_storage
 
 
@@ -326,9 +327,14 @@ def test_delete_list_survives_a_storage_error(client: TestClient, monkeypatch):
         raise RuntimeError("gcs down")
 
     monkeypatch.setattr(receipt_storage, "delete_list_receipts", boom)
+    logger = MagicMock()
+    monkeypatch.setattr(lists_router, "logger", logger)
     created = client.post("/lists", json={"name": "To Delete"}).json()
 
     response = client.delete(f"/lists/{created['id']}")
 
     assert response.status_code == 204
     assert client.get(f"/lists/{created['id']}").status_code == 404
+    logger.exception.assert_called_once_with(
+        "Failed to delete receipt objects for list %s", created["id"]
+    )

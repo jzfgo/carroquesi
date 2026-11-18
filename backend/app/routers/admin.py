@@ -25,7 +25,6 @@ class FeatureToggleResponse(BaseModel):
     features: list[str]
 
 
-@router.patch("/users/{user_id}/features", response_model=FeatureToggleResponse)
 def toggle_user_feature(
     user_id: str,
     body: FeatureToggleRequest,
@@ -68,3 +67,6 @@ def toggle_user_feature(
         user_id=user_id,
         features=feature_flags.get_enabled_flags(user_id, session),
     )
+
+
+router.patch("/users/{user_id}/features", response_model=FeatureToggleResponse)(toggle_user_feature)

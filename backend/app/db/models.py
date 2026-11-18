@@ -40,6 +40,9 @@ class User(SQLModel, table=True):
 
 class List(SQLModel, table=True):
     __tablename__ = "lists"
+    # NULLs never collide in a unique index, so lists created without a key
+    # (Siri, older clients) are unaffected.
+    __table_args__ = (Index("ix_lists_owner_id_create_key", "owner_id", "create_key", unique=True),)
 
     id: str = Field(default_factory=_uuid, primary_key=True)
     name: str
@@ -47,6 +50,9 @@ class List(SQLModel, table=True):
     owner_id: str = Field(foreign_key="users.id")
     created_at: datetime = Field(default_factory=_now)
     updated_at: datetime = Field(default_factory=_now)
+    # The Idempotency-Key the create request carried. A retry with the same
+    # key gets this list back instead of a second one.
+    create_key: str | None = None
 
 
 class ListMember(SQLModel, table=True):

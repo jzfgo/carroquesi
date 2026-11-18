@@ -1,8 +1,10 @@
 import logging
 from datetime import UTC, datetime
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, Response, status
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
 from app.db.models import (
@@ -64,7 +66,6 @@ def _read_with_default(
     )
 
 
-@router.get("", response_model=list[ListRead])
 def get_lists(current_user: CurrentUser, session: CurrentSession):
     memberships = session.exec(
         select(ListMember).where(ListMember.user_id == current_user.id)
@@ -143,15 +144,49 @@ def get_lists(current_user: CurrentUser, session: CurrentSession):
     ]
 
 
-@router.post("", response_model=ListRead, status_code=status.HTTP_201_CREATED)
+router.get("", response_model=list[ListRead])(get_lists)
+
+
 def create_list(
     body: ListCreate,
     current_user: CurrentUser,
     session: CurrentSession,
+    response: Response,
+    idempotency_key: Annotated[str | None, Header(max_length=64)] = None,
 ):
-    lst = List(name=body.name, emoji=body.emoji, owner_id=current_user.id)
+    """Create a list. A repeat of the same Idempotency-Key answers 200 with
+    the list the first request made.
+
+    The response can be lost after the commit. The client then sees a failure
+    for a list that exists, and a retry must not make a second one.
+    """
+    if idempotency_key is not None:
+        earlier = _list_by_create_key(session, current_user.id, idempotency_key)
+        if earlier is not None:
+            response.status_code = status.HTTP_200_OK
+            return _read_with_default(earlier, session, current_user.id)
+
+    lst = List(
+        name=body.name,
+        emoji=body.emoji,
+        owner_id=current_user.id,
+        create_key=idempotency_key,
+    )
     session.add(lst)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError:
+        # A concurrent request with the same key won the unique index
+        # between the lookup above and this insert. Answer with its list,
+        # as a sequential repeat would.
+        session.rollback()
+        if idempotency_key is None:
+            raise
+        winner = _list_by_create_key(session, current_user.id, idempotency_key)
+        if winner is None:
+            raise
+        response.status_code = status.HTTP_200_OK
+        return _read_with_default(winner, session, current_user.id)
     member = ListMember(list_id=lst.id, user_id=current_user.id)
     session.add(member)
     # First list a user ever creates or joins becomes their default (for Siri).
@@ -162,7 +197,15 @@ def create_list(
     return ListRead(**lst.model_dump(), is_default=member.is_default)
 
 
-@router.get("/{list_id}", response_model=ListRead)
+router.post("", response_model=ListRead, status_code=status.HTTP_201_CREATED)(create_list)
+
+
+def _list_by_create_key(session: Session, owner_id: str, key: str) -> List | None:
+    return session.exec(
+        select(List).where(List.owner_id == owner_id, List.create_key == key)
+    ).first()
+
+
 def get_list(list_and_user: MemberDep, session: CurrentSession):
     lst, current_user = list_and_user
     # Lazy assignment happens here and only here: opening the list is the
@@ -174,7 +217,9 @@ def get_list(list_and_user: MemberDep, session: CurrentSession):
     return _read_with_default(lst, session, current_user.id, board=board)
 
 
-@router.patch("/{list_id}", response_model=ListRead)
+router.get("/{list_id}", response_model=ListRead)(get_list)
+
+
 def update_list(
     body: ListUpdate,
     list_and_user: OwnerDep,
@@ -196,7 +241,9 @@ def update_list(
     )
 
 
-@router.put("/{list_id}/default", status_code=status.HTTP_204_NO_CONTENT)
+router.patch("/{list_id}", response_model=ListRead)(update_list)
+
+
 def set_default_list(
     list_and_user: MemberDep,
     session: CurrentSession,
@@ -211,7 +258,9 @@ def set_default_list(
     session.commit()
 
 
-@router.put("/{list_id}/prefs/board", status_code=status.HTTP_204_NO_CONTENT)
+router.put("/{list_id}/default", status_code=status.HTTP_204_NO_CONTENT)(set_default_list)
+
+
 def set_board_pref(
     body: BoardPrefUpdate,
     list_and_user: MemberDep,
@@ -228,7 +277,9 @@ def set_board_pref(
     session.commit()
 
 
-@router.get("/{list_id}/prefs/report", response_model=ReportPref)
+router.put("/{list_id}/prefs/board", status_code=status.HTTP_204_NO_CONTENT)(set_board_pref)
+
+
 def get_report_pref(list_and_user: OwnerDep, session: CurrentSession):
     """Whether the monthly report for this list is on. Owner only: the
     report goes to the owner, so nobody else has a setting to see."""
@@ -237,7 +288,9 @@ def get_report_pref(list_and_user: OwnerDep, session: CurrentSession):
     return ReportPref(enabled=not is_opted_out(session, current_user.id, lst.id))
 
 
-@router.put("/{list_id}/prefs/report", status_code=status.HTTP_204_NO_CONTENT)
+router.get("/{list_id}/prefs/report", response_model=ReportPref)(get_report_pref)
+
+
 def set_report_pref(body: ReportPref, list_and_user: OwnerDep, session: CurrentSession):
     """Turn the monthly report on or off: the same opt-out row the email's
     unsubscribe link writes. Personal, so it does not bump lists.updated_at."""
@@ -249,6 +302,9 @@ def set_report_pref(body: ReportPref, list_and_user: OwnerDep, session: CurrentS
         opt_out(session, current_user.id, lst.id)
 
 
+router.put("/{list_id}/prefs/report", status_code=status.HTTP_204_NO_CONTENT)(set_report_pref)
+
+
 def _require_report_flag(user_id: str, session: Session) -> None:
     """Without the flag no report is sent, so there is no setting to show."""
     if not feature_flags.is_enabled(user_id, "monthly_report", session):
@@ -258,7 +314,6 @@ def _require_report_flag(user_id: str, session: Session) -> None:
         )
 
 
-@router.delete("/{list_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_list(
     list_and_user: OwnerDep,
     session: CurrentSession,
@@ -299,3 +354,6 @@ def delete_list(
         receipt_storage.delete_list_receipts(list_id)
     except Exception:
         logger.exception("Failed to delete receipt objects for list %s", list_id)
+
+
+router.delete("/{list_id}", status_code=status.HTTP_204_NO_CONTENT)(delete_list)

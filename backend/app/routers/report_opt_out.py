@@ -42,7 +42,6 @@ def _page(
     return HTMLResponse(html, status_code=status_code)
 
 
-@router.get("/{token}")
 def confirm_page(token: str, session: CurrentSession) -> HTMLResponse:
     ids = read_token(token)
     if ids is None:
@@ -50,7 +49,9 @@ def confirm_page(token: str, session: CurrentSession) -> HTMLResponse:
     return _page("confirm", session.get(List, ids[1]))
 
 
-@router.post("/{token}")
+router.get("/{token}")(confirm_page)
+
+
 def unsubscribe(token: str, session: CurrentSession) -> HTMLResponse:
     ids = read_token(token)
     if ids is None:
@@ -61,3 +62,6 @@ def unsubscribe(token: str, session: CurrentSession) -> HTMLResponse:
     if lst is not None:
         opt_out(session, user_id, list_id)
     return _page("done", lst)
+
+
+router.post("/{token}")(unsubscribe)

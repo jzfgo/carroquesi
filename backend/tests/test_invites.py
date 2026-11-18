@@ -357,3 +357,135 @@ def test_invite_preview_list_emoji_null_when_not_set(client: TestClient, session
     response = client.get(f"/invites/{invite.id}")
     assert response.status_code == 200
     assert response.json()["list_emoji"] is None
+
+
+# --- Gaps found by mutation testing ---
+
+NOW = datetime(2026, 11, 18, 12, tzinfo=UTC)
+
+
+def _freeze(monkeypatch):
+    class Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return NOW
+
+    monkeypatch.setattr("app.routers.invites.datetime", Frozen)
+
+
+def _invite(session: Session, list_id: str, invited_by: str, **fields) -> ListInvite:
+    invite = ListInvite(list_id=list_id, invited_by=invited_by, **fields)
+    session.add(invite)
+    session.commit()
+    session.refresh(invite)
+    return invite
+
+
+def test_an_invite_exactly_24_hours_old_is_still_valid(
+    client: TestClient, session: Session, user, monkeypatch
+):
+    from datetime import timedelta
+
+    _freeze(monkeypatch)
+    lst = _create_list(client)
+    invite = _invite(session, lst["id"], user.id, created_at=NOW - timedelta(hours=24))
+
+    assert client.get(f"/invites/{invite.id}").status_code == 200
+    client.post(f"/lists/{lst['id']}/invites")
+    # The cleanup uses the same cutoff, so it keeps the invite too.
+    assert session.get(ListInvite, invite.id) is not None
+
+
+def test_creating_an_invite_cleans_up_only_this_lists_expired_ones(
+    client: TestClient, session: Session, user
+):
+    from datetime import timedelta
+
+    lst = _create_list(client)
+    other = _create_list(client)
+    old = _invite(session, other["id"], user.id, created_at=datetime.now(UTC) - timedelta(hours=25))
+
+    assert client.post(f"/lists/{lst['id']}/invites").status_code == 201
+    assert session.get(ListInvite, old.id) is not None
+
+
+def test_invite_preview_names_the_inviter(client: TestClient, session: Session, user):
+    lst = _create_list(client)
+    invite = _invite(session, lst["id"], user.id)
+
+    assert client.get(f"/invites/{invite.id}").json()["invited_by_name"] == "Alice"
+
+
+def test_invite_preview_survives_a_missing_list_and_inviter(client: TestClient, session: Session):
+    invite = _invite(session, "gone-list", "gone-user")
+
+    response = client.get(f"/invites/{invite.id}")
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": invite.id,
+        "list_name": "Unknown list",
+        "list_emoji": None,
+        "invited_by_name": None,
+    }
+
+
+def test_accepting_as_a_member_adds_no_second_membership(
+    client: TestClient, session: Session, user
+):
+    lst = _create_list(client)
+    invite = _invite(session, lst["id"], user.id)
+
+    assert client.post(f"/invites/{invite.id}/accept").status_code == 200
+    rows = session.exec(select(ListMember).where(ListMember.list_id == lst["id"])).all()
+    assert len(rows) == 1
+
+
+def test_accepting_joins_even_when_others_are_members_here_or_i_am_elsewhere(
+    client: TestClient, other_client: TestClient, session: Session, user, other_user
+):
+    lst = _create_list(client)
+    # other_user is a member of another list, and the list has another member.
+    other_client.post("/lists", json={"name": "Suya"})
+    invite = _invite(session, lst["id"], user.id)
+    before = client.get(f"/lists/{lst['id']}/updated-at").json()["updated_at"]
+
+    assert other_client.post(f"/invites/{invite.id}/accept").status_code == 200
+
+    member = session.exec(
+        select(ListMember).where(
+            ListMember.list_id == lst["id"], ListMember.user_id == other_user.id
+        )
+    ).first()
+    assert member is not None
+    after = client.get(f"/lists/{lst['id']}/updated-at").json()["updated_at"]
+    assert after > before
+
+
+def test_the_list_owner_can_withdraw_an_email_invite(client: TestClient, session: Session, user):
+    lst = _create_list(client)
+    invite = _invite(session, lst["id"], user.id, invited_email="carol@example.com")
+
+    assert client.delete(f"/invites/{invite.id}").status_code == 204
+
+
+def test_the_invitee_can_decline_a_list_they_do_not_own(
+    other_client: TestClient, session: Session, user, other_user
+):
+    from app.db.models import List
+
+    lst = List(name="Ajena", owner_id=user.id)
+    session.add(lst)
+    session.commit()
+    invite = _invite(session, lst.id, user.id, invited_email=other_user.email)
+
+    assert other_client.delete(f"/invites/{invite.id}").status_code == 204
+
+
+def test_someone_else_cannot_decline_an_email_invite(
+    client: TestClient, other_client: TestClient, session: Session, user
+):
+    lst = _create_list(client)
+    invite = _invite(session, lst["id"], user.id, invited_email="carol@example.com")
+
+    assert other_client.delete(f"/invites/{invite.id}").status_code == 403
+    assert session.get(ListInvite, invite.id) is not None

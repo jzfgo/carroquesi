@@ -134,3 +134,27 @@ def test_users_me_carries_consent_decision(client: TestClient, session: Session,
     response = client.get("/users/me")
     assert response.status_code == 200
     assert response.json()["receipt_consent"] == "declined"
+
+
+def test_sync_returns_the_photo_and_the_users_own_flags(
+    session: Session, client: TestClient, user: User, other_user: User
+):
+    from app.db.models import UserFeature
+
+    user.photo_url = "https://example.com/me.png"
+    session.add(user)
+    session.add(
+        UserFeature(user_id=user.id, feature="monthly_report", enabled=True, granted_by="admin")
+    )
+    # Another user's grant must not leak into this user's flags.
+    session.add(
+        UserFeature(
+            user_id=other_user.id, feature="ai_receipt_scanning", enabled=True, granted_by="admin"
+        )
+    )
+    session.commit()
+
+    data = client.post("/auth/sync").json()
+    assert data["photo_url"] == "https://example.com/me.png"
+    assert "monthly_report" in data["features"]
+    assert "ai_receipt_scanning" not in data["features"]
