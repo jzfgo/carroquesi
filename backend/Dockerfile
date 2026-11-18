@@ -1,8 +1,13 @@
+# Must match backend/.python-version, which dev and CI test. CI never builds
+# this image, so it checks this value instead and fails on a mismatch.
+# Declared before the first FROM: only a global ARG can be used in a FROM line.
+ARG PYTHON_VERSION=3.14
+
 # Pinned so a fresh release cannot enter the image unreviewed. A FROM line,
 # not an inline COPY --from, so Dependabot sees the pin and proposes bumps.
 FROM ghcr.io/astral-sh/uv:0.13.6 AS uv
 
-FROM python:3.14-slim
+FROM python:${PYTHON_VERSION}-slim
 
 WORKDIR /app
 

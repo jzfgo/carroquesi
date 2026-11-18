@@ -50,6 +50,20 @@ def changed_files(prefix: str, exts: tuple[str, ...]) -> list[str]:
     return sorted(f for f in files if f.endswith(exts) and os.path.exists(f))
 
 
+def run(label: str, cmd: list[str], cwd: str, failures: list[str]) -> None:
+    """Run one check and record its output if it fails.
+
+    A missing tool (OSError) is skipped, not reported: the hook must not
+    block a turn on a machine that has not installed that side yet.
+    """
+    try:
+        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    except OSError:
+        return
+    if result.returncode != 0:
+        failures.append(f"{label} failed:\n" + result.stdout + result.stderr)
+
+
 def main() -> None:
     try:
         data = json.loads(sys.stdin.read())
@@ -62,35 +76,23 @@ def main() -> None:
     already_looping = bool(data.get("stop_hook_active"))
     failures: list[str] = []
 
+    # Each side runs only when it changed, to keep the turn short. Lint gets
+    # the changed files; the typecheck covers the whole side, because a type
+    # error often shows up in a file that did not change. Format is left to
+    # lefthook, which fixes it at commit time.
     py_files = changed_files("backend/", (".py",))
     if py_files:
         rel = [f[len("backend/") :] for f in py_files]
-        try:
-            result = subprocess.run(
-                ["uv", "run", "ruff", "check", *rel],
-                cwd="backend",
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode != 0:
-                failures.append("ruff check failed:\n" + result.stdout + result.stderr)
-        except OSError:
-            pass
+        run("ruff check", ["uv", "run", "ruff", "check", *rel], "backend", failures)
+        run("ty check", ["uv", "run", "ty", "check"], "backend", failures)
 
     ts_files = changed_files("frontend/", (".ts", ".tsx"))
     if ts_files and os.path.exists("frontend/node_modules"):
         rel = [f[len("frontend/") :] for f in ts_files]
-        try:
-            result = subprocess.run(
-                ["node_modules/.bin/eslint", *rel],
-                cwd="frontend",
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode != 0:
-                failures.append("eslint failed:\n" + result.stdout + result.stderr)
-        except OSError:
-            pass
+        run("eslint", ["node_modules/.bin/eslint", *rel], "frontend", failures)
+        # npm, not pnpm: like eslint above, this needs only Node and the
+        # installed node_modules/.bin. A machine may have no pnpm on PATH.
+        run("typecheck", ["npm", "run", "--silent", "typecheck"], "frontend", failures)
 
     if not failures:
         sys.exit(0)
